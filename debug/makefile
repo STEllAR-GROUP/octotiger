@@ -44,7 +44,7 @@ all: octotiger
 octotiger: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Intel C++ Linker'
-	icpc $(OBJS) $(USER_OBJS) $(LIBS)  `pkg-config --cflags --libs hpx_application`    -o    "octotiger"
+	icpc $(OBJS) $(USER_OBJS) $(LIBS)  `pkg-config --cflags --libs hpx_application_debug`    -o    "octotiger"
 	@echo 'Finished building target: $@'
 	@echo ' '
 
