@@ -19,7 +19,9 @@
 
 template<class T>
 inline T __get(hpx::future<T> fut, const char fname[], int line) {
-//	return fut.get();
+#ifdef NDEBUG
+	return fut.get();
+#else
 	auto time_start = boost::chrono::steady_clock::now();
 	auto flag = std::make_shared<bool>(false);
 	hpx::thread([=](){
@@ -33,11 +35,15 @@ inline T __get(hpx::future<T> fut, const char fname[], int line) {
 	auto data = std::make_shared<T>(fut.get());
 	*flag = true;
 	return std::move(*data);
+#endif
 }
 
 
+
 inline void __get(hpx::future<void> fut, const char fname[], int line) {
-//	fut.get();
+#ifdef NDEBUG
+	fut.get();
+#else
 	auto time_start = boost::chrono::steady_clock::now();
 	auto flag = std::make_shared<bool>(false);
 	hpx::thread([=](){
@@ -50,7 +56,9 @@ inline void __get(hpx::future<void> fut, const char fname[], int line) {
 	}).detach();
 	fut.get();
 	*flag = true;
+#endif
 }
+
 
 
 #define GET(a) __get(std::move(a), __FILE__, __LINE__)
