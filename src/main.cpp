@@ -77,7 +77,7 @@ void node_server::start_run() {
 			}
 			++output_cnt;
 			printf("--- begin output ---\n");
-			output(std::string(fname));
+			//output(std::string(fname));
 			printf("--- end output ---\n");
 			free(fname);
 
