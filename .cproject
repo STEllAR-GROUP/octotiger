@@ -19,9 +19,9 @@
 							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF" id="intel.platform.composerxe.base.1994023362" isAbstract="false" name="intel.platform.base" superClass="intel.platform.composerxe.base"/>
 							<builder buildPath="${workspace_loc:/octotiger/Debug}" id="intel.builder.composerxe.makebuilder.27553373" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="intel.builder.composerxe.makebuilder"/>
 							<tool id="intel.tool.archiver.composerxe.base.1909391285" name="Intel Archiver" superClass="intel.tool.archiver.composerxe.base"/>
-							<tool id="intel.tool.cpp.compiler.composerxe.base.2011993924" name="Intel C++ Compiler" superClass="intel.tool.cpp.compiler.composerxe.base">
+							<tool command="icpc" id="intel.tool.cpp.compiler.composerxe.base.2011993924" name="Intel C++ Compiler" superClass="intel.tool.cpp.compiler.composerxe.base">
 								<option defaultValue="true" id="intel.compilestep.general.debug.1591524196" name="Include Debug Information (-g)" superClass="intel.compilestep.general.debug" valueType="boolean"/>
-								<option defaultValue="general.opt.none" id="intel.compilestep.general.optimization2.424104749" name="Optimization Level" superClass="intel.compilestep.general.optimization2" valueType="enumerated"/>
+								<option defaultValue="general.opt.none" id="intel.compilestep.general.optimization2.424104749" name="Optimization Level" superClass="intel.compilestep.general.optimization2" value="general.opt.default" valueType="enumerated"/>
 								<option id="intel.compilestep.coptions.143690561" name="Additional Options" superClass="intel.compilestep.coptions" value="`pkgconfig --cflags hpx_application`" valueType="string"/>
 								<inputType id="intel.cpp.c.compilestep.input.449180078" name="C++ Sources" superClass="intel.cpp.c.compilestep.input"/>
 								<inputType id="intel.cpp.compilestep.input.1056698237" name="C Sources" superClass="intel.cpp.compilestep.input"/>
@@ -30,13 +30,20 @@
 								<option defaultValue="true" id="intel.compilestep.general.debug.673977828" name="Include Debug Information (-g)" superClass="intel.compilestep.general.debug" valueType="boolean"/>
 								<option defaultValue="general.opt.none" id="intel.compilestep.general.optimization2.1171467642" name="Optimization Level" superClass="intel.compilestep.general.optimization2" valueType="enumerated"/>
 							</tool>
-							<tool id="intel.tool.cpp.linker.composerxe.base.1899567813" name="Intel C++ Linker" superClass="intel.tool.cpp.linker.composerxe.base">
+							<tool commandLinePattern="${COMMAND} ${INPUTS} `pkg-config --cflags --libs hpx_application` ${FLAGS} ${OUTPUT_FLAG} ${OUTPUT_PREFIX}${OUTPUT} " id="intel.tool.cpp.linker.composerxe.base.1899567813" name="Intel C++ Linker" superClass="intel.tool.cpp.linker.composerxe.base">
+								<option id="intel.linkstep.libname.802660303" name="Additional Libraries (-l)" superClass="intel.linkstep.libname" valueType="libs">
+									<listOptionValue builtIn="false" value="boost_serialization"/>
+								</option>
 								<inputType id="intel.linkstep.input.1750631497" superClass="intel.linkstep.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
 								</inputType>
 							</tool>
-							<tool id="intel.tool.c.linker.composerxe.base.160781376" name="Intel C Linker" superClass="intel.tool.c.linker.composerxe.base"/>
+							<tool id="intel.tool.c.linker.composerxe.base.160781376" name="Intel C Linker" superClass="intel.tool.c.linker.composerxe.base">
+								<option id="intel.linkstep.libname.1182220113" name="Additional Libraries (-l)" superClass="intel.linkstep.libname" valueType="libs">
+									<listOptionValue builtIn="false" value="boost_serialization"/>
+								</option>
+							</tool>
 						</toolChain>
 					</folderInfo>
 				</configuration>
@@ -74,12 +81,19 @@
 								<option defaultValue="general.opt.speed" id="intel.compilestep.general.optimization2.1165405592" name="Optimization Level" superClass="intel.compilestep.general.optimization2" valueType="enumerated"/>
 							</tool>
 							<tool command="icpc" commandLinePattern="${COMMAND} ${INPUTS}  `pkg-config --cflags --libs hpx_application`   ${FLAGS} ${OUTPUT_FLAG}    ${OUTPUT_PREFIX}${OUTPUT}" id="intel.tool.cpp.linker.composerxe.base.909629812" name="Intel C++ Linker" superClass="intel.tool.cpp.linker.composerxe.base">
+								<option id="intel.linkstep.libname.1624581686" name="Additional Libraries (-l)" superClass="intel.linkstep.libname" valueType="libs">
+									<listOptionValue builtIn="false" value="boost_serialization"/>
+								</option>
 								<inputType id="intel.linkstep.input.1990277728" superClass="intel.linkstep.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
 								</inputType>
 							</tool>
-							<tool id="intel.tool.c.linker.composerxe.base.467937856" name="Intel C Linker" superClass="intel.tool.c.linker.composerxe.base"/>
+							<tool id="intel.tool.c.linker.composerxe.base.467937856" name="Intel C Linker" superClass="intel.tool.c.linker.composerxe.base">
+								<option id="intel.linkstep.libname.1466701923" name="Additional Libraries (-l)" superClass="intel.linkstep.libname" valueType="libs">
+									<listOptionValue builtIn="false" value="boost_serialization"/>
+								</option>
+							</tool>
 						</toolChain>
 					</folderInfo>
 				</configuration>

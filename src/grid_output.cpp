@@ -4,6 +4,10 @@
 #include <cmath>
 #include <thread>
 #include <unordered_map>
+#include <boost/archive/binary_oarchive.hpp>
+
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/set.hpp>
 
 inline bool float_eq(xpoint_type a, xpoint_type b) {
 	const xpoint_type small = std::pow(xpoint_type(2), -23);
@@ -128,9 +132,13 @@ grid::output_list_type grid::get_output_list() const {
 
 void grid::output(const output_list_type& olists, const char* filename) {
 
-	/*boost::thread(
-			[&]() {
-				const std::set<node_point>& node_list = olists.nodes;
+	std::ofstream fp(filename, std::ios_base::binary);
+	boost::archive::binary_oarchive arc(fp);
+	arc << olists;
+	fp.close();
+
+
+		/*		const std::set<node_point>& node_list = olists.nodes;
 				const std::vector<zone_int_type>& zone_list = olists.zones;
 
 				const int nzones = zone_list.size() / NVERTEX;
@@ -167,8 +175,8 @@ void grid::output(const output_list_type& olists, const char* filename) {
 					DBPutUcdvar1(db, field_names[field], "mesh", olists.data[field].data(), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 							nullptr);
 				}
-				DBClose(db);
-			}).join();*/
+				DBClose(db);*/
+	fp.close();
 }
 
 
