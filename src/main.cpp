@@ -63,7 +63,7 @@ void node_server::start_run() {
 		fprintf( fp, "\n");
 		fclose(fp);
 
-		if (t / output_dt >= output_cnt && false) {
+		if (t / output_dt >= output_cnt ) {
 			char* fname;
 
 			printf("--- begin checkpoint ---\n");
