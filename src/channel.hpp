@@ -31,12 +31,11 @@ public:
 		promise.set_value(value);
 	}
 
-	T get() {
+	hpx::future<T> get_future() {
 		std::shared_ptr<T> data_ptr;
 		auto fut = promise.get_future();
-		data_ptr = std::make_shared<T>(fut.get());
 		promise = hpx::promise<T>();
-		return std::move(*data_ptr);
+		return std::move(fut);
 	}
 
 };

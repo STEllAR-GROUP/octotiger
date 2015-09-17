@@ -10,19 +10,21 @@
 
 #include "defs.hpp"
 
-#include <mpi.h>
-#include <thread>
-#include <chrono>
+
+#include <boost/chrono.hpp>
+
+
 
 #define TIMEOUT 30.0
 
 template<class T>
-inline T get(hpx::future<T>& fut, const char* fname, integer line) {
+inline T __get(hpx::future<T> fut, const char fname[], int line) {
 //	return fut.get();
-	double time_start = MPI_Wtime();
+	auto time_start = boost::chrono::steady_clock::now();
 	auto flag = std::make_shared<bool>(false);
 	hpx::thread([=](){
-		double sleep_time = TIMEOUT - (MPI_Wtime() - time_start);
+		double time_elapsed = boost::chrono::duration_cast<boost::chrono::duration<double>>(boost::chrono::steady_clock::now() - time_start).count();
+		double sleep_time = TIMEOUT - time_elapsed;
 		hpx::this_thread::sleep_for(boost::chrono::milliseconds(int(sleep_time*1000)));
 		if( !(*flag) ) {
 			printf( "TIMEOUT WAITING ON FUTURE: FILE: %s, LINE: %i\n", fname, int(line));
@@ -34,12 +36,13 @@ inline T get(hpx::future<T>& fut, const char* fname, integer line) {
 }
 
 
-inline void get(hpx::future<void>& fut, const char* fname, integer line) {
+inline void __get(hpx::future<void> fut, const char fname[], int line) {
 //	fut.get();
-	double time_start = MPI_Wtime();
+	auto time_start = boost::chrono::steady_clock::now();
 	auto flag = std::make_shared<bool>(false);
 	hpx::thread([=](){
-		double sleep_time = TIMEOUT - (MPI_Wtime() - time_start);
+		double time_elapsed = boost::chrono::duration_cast<boost::chrono::duration<double>>(boost::chrono::steady_clock::now() - time_start).count();
+		double sleep_time = TIMEOUT - time_elapsed;
 		hpx::this_thread::sleep_for(boost::chrono::milliseconds(int(sleep_time*1000)));
 		if( !(*flag) ) {
 			printf( "TIMEOUT WAITING ON FUTURE: FILE: %s, LINE: %i\n", fname, int(line));
@@ -50,6 +53,6 @@ inline void get(hpx::future<void>& fut, const char* fname, integer line) {
 }
 
 
-#define GET(a) get(a, __FILE__, __LINE__)
+#define GET(a) __get(std::move(a), __FILE__, __LINE__)
 
 #endif /* FUTURE_HPP_ */

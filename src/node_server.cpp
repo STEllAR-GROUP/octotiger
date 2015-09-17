@@ -8,6 +8,7 @@
 #include "future.hpp"
 
 #include "node_server.hpp"
+#include "future.hpp"
 #include "problem.hpp"
 #include <streambuf>
 #include <fstream>
@@ -82,7 +83,7 @@ real node_server::timestep_driver_descend() {
 			dt = std::min(dt, GET(*i));
 		}
 	} else {
-		dt = local_timestep_channel->get();
+		dt = GET(local_timestep_channel->get_future());
 	}
 	return dt;
 }
@@ -121,7 +122,7 @@ diagnostics_t node_server::diagnostics() const {
 			futs.push_back( children[ci].diagnostics());
 		}
 		for( auto ci = futs.begin(); ci != futs.end(); ++ci) {
-			auto this_sum = ci->get();
+			auto this_sum = GET(*ci);
 			sums += this_sum;
 		}
 	} else {
@@ -234,7 +235,7 @@ void node_server::step() {
 
 		if (!is_refined) {
 			if (rk == 0) {
-				dt = global_timestep_channel->get();
+				dt = GET(global_timestep_channel->get_future());
 			}
 			grid_ptr->next_u(rk, dt);
 		}
@@ -539,7 +540,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 			const integer x0 = ((ci >> 0) & 1) * INX / 2;
 			const integer y0 = ((ci >> 1) & 1) * INX / 2;
 			const integer z0 = ((ci >> 2) & 1) * INX / 2;
-			m_in = child_gravity_channels[gchannel][ci]->get();
+			m_in = GET(child_gravity_channels[gchannel][ci]->get_future());
 			for (integer i = 0; i != INX / 2; ++i) {
 				for (integer j = 0; j != INX / 2; ++j) {
 					for (integer k = 0; k != INX / 2; ++k) {
@@ -575,7 +576,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 		}
 		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
 			if (!my_location.is_physical_boundary(si)) {
-				const std::vector<real> tmp = this->sibling_gravity_channels[gchannel][si]->get();
+				const std::vector<real> tmp = GET(this->sibling_gravity_channels[gchannel][si]->get_future());
 				this->set_gravity_boundary(std::move(tmp), si);
 			}
 		}
@@ -593,7 +594,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
-		l_in = parent_gravity_channel[gchannel]->get();
+		l_in = GET(parent_gravity_channel[gchannel]->get_future());
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
 	if (is_refined) {

@@ -9,7 +9,7 @@
  *
  * TODO: Sx, Sy, Sz boundaries!!!
  */
-
+#include "future.hpp"
 #include "node_server.hpp"
 
 void node_server::collect_hydro_boundaries(integer rk) {
@@ -27,13 +27,13 @@ void node_server::collect_hydro_boundaries(integer rk) {
 			if (is_physical[face]) {
 				grid_ptr->set_physical_boundaries(face);
 			} else {
-				const std::vector<real> bdata = sibling_hydro_channels[rk][face]->get();
+				const std::vector<real> bdata = GET(sibling_hydro_channels[rk][face]->get_future());
 				set_hydro_boundary(bdata, face);
 			}
 		}
 	}
 	for( auto i = sibling_futs.begin(); i != sibling_futs.end(); ++i) {
-		i->get();
+		GET(*i);
 	}
 }
 
