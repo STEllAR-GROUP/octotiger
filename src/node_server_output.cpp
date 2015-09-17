@@ -7,6 +7,7 @@
 
 #include "node_server.hpp"
 #include <sys/stat.h>
+#include "future.hpp"
 
 
 inline bool file_exists (const std::string& name) {
@@ -22,9 +23,9 @@ grid::output_list_type node_server::output(std::string fname) const {
 			futs.push_back(i->output());
 		}
 		auto i = futs.begin();
-		grid::output_list_type my_list = i->get();
+		grid::output_list_type my_list = GET(*i);
 		for(++i; i != futs.end(); ++i) {
-			grid::output_list_type child_list = i->get();
+			grid::output_list_type child_list = GET(*i);
 			grid::merge_output_lists(my_list, child_list);
 		}
 
