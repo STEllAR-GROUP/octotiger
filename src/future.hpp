@@ -18,8 +18,8 @@
 
 template<class T>
 inline T get(hpx::future<T>& fut, const char* fname, integer line) {
-	return fut.get();
-/*	double time_start = MPI_Wtime();
+//	return fut.get();
+	double time_start = MPI_Wtime();
 	auto flag = std::make_shared<bool>(false);
 	hpx::thread([=](){
 		double sleep_time = TIMEOUT - (MPI_Wtime() - time_start);
@@ -30,13 +30,13 @@ inline T get(hpx::future<T>& fut, const char* fname, integer line) {
 	}).detach();
 	auto data = std::make_shared<T>(fut.get());
 	*flag = true;
-	return std::move(*data);*/
+	return std::move(*data);
 }
 
 
 inline void get(hpx::future<void>& fut, const char* fname, integer line) {
-	fut.get();
-/*	double time_start = MPI_Wtime();
+//	fut.get();
+	double time_start = MPI_Wtime();
 	auto flag = std::make_shared<bool>(false);
 	hpx::thread([=](){
 		double sleep_time = TIMEOUT - (MPI_Wtime() - time_start);
@@ -46,7 +46,7 @@ inline void get(hpx::future<void>& fut, const char* fname, integer line) {
 		}
 	}).detach();
 	fut.get();
-	*flag = true;*/
+	*flag = true;
 }
 
 

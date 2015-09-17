@@ -475,7 +475,9 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 						} else {
 							for (integer j = 0; j != 20; ++j) {
 								l.ptr()[j] = L[lev + 1][iiip].ptr()[j];
-								lc.ptr()[j] = L_c[lev + 1][iiip].ptr()[j];
+                                                                if( type == RHO ) {
+								    lc.ptr()[j] = L_c[lev + 1][iiip].ptr()[j];
+                                                                }
 							}
 						}
 						for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -489,7 +491,9 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 							dX[d] = X[d] - Y[d];
 						}
 						l <<= dX;
-						lc <<= dX;
+                                                if( type == RHO ) {
+						    lc <<= dX;
+                                                }
 						for (integer ci = 0; ci != NCHILD; ++ci) {
 							const integer iiic = child_index(ip, jp, kp, ci);
 							for (integer j = 0; j != 20; ++j) {
