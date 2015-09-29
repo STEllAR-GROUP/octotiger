@@ -13,7 +13,8 @@
 #include "node_server.hpp"
 
 void node_server::collect_hydro_boundaries(integer rk) {
-	std::list<hpx::future<void>> sibling_futs;
+	std::vector<hpx::future<void>> sibling_futs;
+    sibling_futs.reserve(NDIM*NDIM);
 	std::array<bool, NFACE> is_physical;
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
@@ -32,9 +33,7 @@ void node_server::collect_hydro_boundaries(integer rk) {
 			}
 		}
 	}
-	for( auto i = sibling_futs.begin(); i != sibling_futs.end(); ++i) {
-		GET(*i);
-	}
+    hpx::wait_all(sibling_futs);
 }
 
 integer node_server::get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub, integer face,

@@ -9,13 +9,16 @@
 #define CHANNEL_HPP_
 
 #include "defs.hpp"
+#include <hpx/lcos/local/receive_buffer.hpp>
 
 template<class T>
 class channel {
 private:
-	hpx::promise<T> promise;
+	hpx::lcos::local::receive_buffer<T> buffer;
+    boost::atomic<std::size_t> store_step;
+    boost::atomic<std::size_t> recv_step;
 public:
-	channel() {
+	channel() : store_step(0), recv_step(0) {
 	}
 	~channel() = default;
 	channel(const channel&) = delete;
@@ -23,22 +26,12 @@ public:
 	channel& operator=(channel&& other ) = delete;
 	channel& operator=(const channel& other ) = delete;
 
-    void set_value( T&& value ) {
-		promise.set_value(std::move(value));
-	}
-
-	void set_value( const T& value ) {
-		promise.set_value(value);
+    void set_value( T value ) {
+        buffer.store_received(store_step++, std::move(value));
 	}
 
 	hpx::future<T> get_future() {
-		return hpx::async([=]() {
-			std::shared_ptr<T> data_ptr;
-			auto fut = promise.get_future();
-			data_ptr = std::make_shared<T>(fut.get());
-			promise = hpx::promise<T>();
-			return std::move(*data_ptr);
-		});
+		return buffer.receive(recv_step++);
 	}
 
 };

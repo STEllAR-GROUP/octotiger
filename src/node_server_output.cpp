@@ -59,7 +59,6 @@ std::pair<std::size_t,std::size_t> node_server::save(integer loc_id, std::string
 
 	std::size_t total_cnt = 0;
 	std::size_t bytes_written = 0;
-	std::list<hpx::future<std::pair<std::size_t,std::size_t>>> futs;
 	integer nloc = hpx::find_all_localities().size();
 	if( my_location.level() == 0 && loc_id == 0 ) {
 		if( file_exists( fname )) {
@@ -77,9 +76,10 @@ std::pair<std::size_t,std::size_t> node_server::save(integer loc_id, std::string
 		}
 	}
 
-	std::list<hpx::future<std::pair<std::size_t,std::size_t> >> sfuts;
+	std::vector<hpx::future<std::pair<std::size_t,std::size_t> >> sfuts;
 
 	if( is_refined ) {
+        sfuts.reserve(children.size());
 		for( auto i = children.begin(); i != children.end(); ++i) {
 			sfuts.push_back( i->save(loc_id, fname));
 		}
@@ -103,7 +103,7 @@ std::pair<std::size_t,std::size_t> node_server::save(integer loc_id, std::string
 	}
 
 	if( loc_id == 0  && my_location.level() == 0) {
-		hpx::apply([=](std::size_t bytes_written) {
+// 		hpx::apply([=](std::size_t bytes_written) {
 		FILE* fp = fopen("size.tmp2", "wb");
 		bytes_written += 2 * fwrite( &total_cnt, sizeof(integer), 1, fp) * sizeof(integer);
 		std::size_t tmp = bytes_written + 2 * sizeof(std::size_t) + sizeof(real);
@@ -126,7 +126,7 @@ std::pair<std::size_t,std::size_t> node_server::save(integer loc_id, std::string
 		my_system( command);
 		my_system( "rm -r -f size.tmp?\n");
 		printf( "Saved %i sub-grids with %lli bytes written\n", int(total_cnt), (long long)(bytes_written));
-		}, bytes_written);
+// 		}, bytes_written);
 	}
 	return std::make_pair(total_cnt, bytes_written);
 
