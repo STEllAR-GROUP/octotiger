@@ -39,53 +39,45 @@ void node_server::start_run() {
 
 	output_cnt = root_ptr->get_time() / output_dt;
 	while (true) {
-
+        FILE* fp = 0;
 		auto time_start = boost::chrono::steady_clock::now();
-		auto diags = diagnostics();
-		FILE* fp = fopen( "diag.dat", "at");
-		fprintf( fp, "%19.12e ", t);
-		for( integer f = 0; f != NF; ++f) {
-			fprintf( fp, "%19.12e ", diags.grid_sum[f] + diags.outflow_sum[f]);
-			fprintf( fp, "%19.12e ", diags.outflow_sum[f]);
-		}
-		for( integer f = 0; f != NDIM; ++f) {
-			fprintf( fp, "%19.12e ", diags.l_sum[f]);
-		}
-		fprintf( fp, "\n");
-		fclose(fp);
-
-		fp = fopen( "minmax.dat", "at");
-		fprintf( fp, "%19.12e ", t);
-		for( integer f = 0; f != NF; ++f) {
-			fprintf( fp, "%19.12e ", diags.field_min[f]);
-			fprintf( fp, "%19.12e ", diags.field_max[f]);
-		}
-		fprintf( fp, "\n");
-		fclose(fp);
-
+// 		auto diags = diagnostics();
+// 		fp = fopen( "diag.dat", "at");
+// 		fprintf( fp, "%19.12e ", t);
+// 		for( integer f = 0; f != NF; ++f) {
+// 			fprintf( fp, "%19.12e ", diags.grid_sum[f] + diags.outflow_sum[f]);
+// 			fprintf( fp, "%19.12e ", diags.outflow_sum[f]);
+// 		}
+// 		for( integer f = 0; f != NDIM; ++f) {
+// 			fprintf( fp, "%19.12e ", diags.l_sum[f]);
+// 		}
+// 		fprintf( fp, "\n");
+// 		fclose(fp);
+//
+// 		fp = fopen( "minmax.dat", "at");
+// 		fprintf( fp, "%19.12e ", t);
+// 		for( integer f = 0; f != NF; ++f) {
+// 			fprintf( fp, "%19.12e ", diags.field_min[f]);
+// 			fprintf( fp, "%19.12e ", diags.field_max[f]);
+// 		}
+// 		fprintf( fp, "\n");
+// 		fclose(fp);
+//
 		if (t / output_dt >= output_cnt ) {
-			char* fname;
+            std::string fname;
 
 			printf("--- begin checkpoint ---\n");
-			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
-			}
-			save(0, std::string(fname));
+            fname = "X." + hpx::util::safe_lexical_cast<std::string>(output_cnt) + ".chk";
+ 			save(0, fname);
 			printf("--- end checkpoint ---\n");
-			free(fname);
 
-			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
-			}
+            fname = "X." + hpx::util::safe_lexical_cast<std::string>(output_cnt) + ".silo";
 			++output_cnt;
 			printf("--- begin output ---\n");
 			//output(std::string(fname));
 			printf("--- end output ---\n");
-			free(fname);
-
-			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
-			}
-			free(fname);
 		}
-		auto ts_fut = hpx::async([=](){return timestep_driver();});
+		auto ts_fut = hpx::async(&node_server::timestep_driver, this);
 		step();
 		real dt = ts_fut.get();
 		fp = fopen( "step.dat", "at");
@@ -98,18 +90,18 @@ void node_server::start_run() {
 		t += dt;
 		++step_num;
 
+        if(step_num == 1401) break;
 	}
 }
 
 int hpx_main(int argc, char* argv[]) {
 	auto all_locs = hpx::find_all_localities();
-	std::list<hpx::future<void>> futs;
+	std::vector<hpx::future<void>> futs;
+    futs.reserve(all_locs.size());
 	for( auto i = all_locs.begin(); i != all_locs.end(); ++i) {
 		futs.push_back(hpx::async<initialize_action>(*i));
 	}
-	for( auto i = futs.begin(); i != futs.end(); ++i ) {
-		i->get();
-	}
+    hpx::wait_all(futs);
 	//#ifndef NDEBUG
 //#endif
 	node_client root_id = hpx::new_<node_server>(hpx::find_here());
