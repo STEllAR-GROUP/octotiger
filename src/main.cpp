@@ -4,6 +4,13 @@
 #include "node_server.hpp"
 #include "node_client.hpp"
 
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+
 #include <boost/chrono.hpp>
 
 
@@ -132,5 +139,27 @@ int hpx_main(int argc, char* argv[]) {
 	//root_client.unregister(node_location()).get();
 	printf("Exiting...\n");
 	return hpx::finalize();
+}
+
+
+
+void handler(int sig) {
+	char hostname[256];
+	printf( "SIGNAL %i\n", sig);
+	gethostname(hostname, sizeof(hostname));
+	static char command[1024];
+	printf( "Process %i\n", getpid());
+	sprintf( command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i'\n", hostname, getpid() );
+	system( command );
+	sleep(60);
+	exit(sig);
+}
+
+__attribute__((constructor))
+void install_stack_trace() {
+	signal(SIGSEGV, handler);   // install our handler
+	signal(SIGABRT, handler);   // install our handler
+	signal(SIGFPE, handler);   // install our handler
+	signal(SIGILL, handler);   // install our handler
 }
 
