@@ -537,7 +537,7 @@ void grid::set_physical_boundaries(integer face) {
 						break;
 					}
 					const real value = U[field][i * dni + j * dnj + k0 * dnk];
-					const real iii = i * dni + j * dnj + k * dnk;
+					const integer iii = i * dni + j * dnj + k * dnk;
 					real& ref = U[field][iii];
 					if (field == sx_i + face / 2) {
 						real s0;
