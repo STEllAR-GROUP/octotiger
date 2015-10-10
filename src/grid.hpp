@@ -14,9 +14,7 @@
 #include "space_vector.hpp"
 #include <functional>
 #include <list>
-
-//#include <boost/archive/binary_oarchive.hpp>
-//#include <boost/archive/binary_iarchive.hpp>
+#include <set>
 #include <list>
 
 struct npair {
@@ -24,12 +22,10 @@ struct npair {
 	std::pair<integer, integer> loc;
 };
 
-typedef std::pair<integer, integer> dpair;
+typedef npair dpair;
 
-const integer GRID_IS_ROOT = 0x1;
-const integer GRID_IS_LEAF = 0x2;
 
-typedef float xpoint_type;
+typedef real xpoint_type;
 typedef int zone_int_type;
 
 class grid {
@@ -73,13 +69,26 @@ private:
 	std::vector<npair> ilist_n;
 	std::vector<dpair> ilist_d;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
+	void compute_boundary_interactions_multipole(gsolve_type type,const  std::vector<npair>&);
+	void compute_boundary_interactions_monopole(gsolve_type type, const  std::vector<npair>&);
+
 public:
+	void set_root(bool flag= true);
+	void set_leaf(bool flag= true);
 
 	std::pair<std::vector<real>,std::vector<real> > field_range() const;
 	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, output_list_type& l2);
-
-
+	std::vector<real> get_outflows() {
+		return U_out;
+	}
+	void set_outflows(std::vector<real>&&);
+	std::vector<real> get_restrict() const;
+	std::vector<real> get_flux_restrict(const std::array<integer,NDIM>& lb, const std::array<integer,NDIM>& ub, integer) const;
+	std::vector<real> get_prolong( const std::array<integer,NDIM>& lb, const std::array<integer,NDIM>& ub) const;
+	void set(const std::vector<real>&, std::vector<real>&&);
+	void set_restrict(const std::vector<real>&, integer octant);
+	void set_flux_restrict(const std::vector<real>&, const std::array<integer,NDIM>& lb, const std::array<integer,NDIM>& ub, integer);
 	real& hydro_value(integer, integer, integer, integer);
 	real hydro_value(integer, integer, integer, integer) const;
 	multipole& multipole_value(integer, integer, integer, integer);
@@ -95,7 +104,7 @@ public:
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
 	void compute_interactions(gsolve_type);
-	void compute_boundary_interactions(gsolve_type, integer face);
+	void compute_boundary_interactions(gsolve_type, integer face, bool is_monopole);
 
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
 	real get_time() const;
@@ -105,9 +114,8 @@ public:
 	std::vector<real> conserved_sums() const;
 	std::vector<real> l_sums() const;
 	std::vector<real> conserved_outflows() const;
-	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin,
-			integer flags);
-	grid(real dx, std::array<real, NDIM>, integer flags);
+	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin);
+	grid(real dx, std::array<real, NDIM>);
 	grid();
 	~grid();
 	void allocate();
@@ -119,7 +127,7 @@ public:
 	void boundaries();
 	void set_physical_boundaries(integer);
 	void next_u(integer rk, real dt);
-	static void output(const output_list_type&, const char*);
+	static void output(const output_list_type&, std::string);
 	output_list_type get_output_list() const;
 	template<class Archive>
 	void load(Archive& arc, const unsigned) {

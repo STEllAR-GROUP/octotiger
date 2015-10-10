@@ -18,21 +18,49 @@
 #include "node_location.hpp"
 #include "node_client.hpp"
 
-
-	std::size_t node_location::load(FILE* fp) {
-		std::size_t cnt = 0;
-		cnt += fread(&lev, sizeof(integer), 1, fp)*sizeof(integer);
-		cnt += fread(xloc.data(), sizeof(integer), NDIM, fp)*sizeof(integer);
-		return cnt;
+std::vector<node_location> node_location::get_neighbors() const {
+	std::vector<node_location> locs;
+	locs.reserve(NDIM * NDIM * NDIM - 1);
+	const integer lb = 0;
+	const integer ub = (1 << lev) - 1;
+	for (integer i = -1; i <= +1; ++i) {
+		for (integer j = -1; j <= +1; ++j) {
+			for (integer k = -1; k <= +1; ++k) {
+				if (i != 0 || j != 0 || k != 0) {
+					node_location this_loc(*this);
+					this_loc.xloc[XDIM] += i;
+					this_loc.xloc[YDIM] += j;
+					this_loc.xloc[ZDIM] += k;
+					bool in = true;
+					for (integer d = 0; d != NDIM; ++d) {
+						if (this_loc.xloc[d] < lb || this_loc.xloc[d] > ub) {
+							in = false;
+							break;
+						}
+					}
+					if (in) {
+						locs.push_back(std::move(this_loc));
+					}
+				}
+			}
+		}
 	}
+	return locs;
+}
 
-	std::size_t node_location::save(FILE* fp) const {
-		std::size_t cnt = 0;
-		cnt += fwrite(&lev, sizeof(integer), 1, fp)*sizeof(integer);
-		cnt += fwrite(xloc.data(), sizeof(integer), NDIM, fp)*sizeof(integer);
-		return cnt;
-	}
+std::size_t node_location::load(FILE* fp) {
+	std::size_t cnt = 0;
+	cnt += fread(&lev, sizeof(integer), 1, fp) * sizeof(integer);
+	cnt += fread(xloc.data(), sizeof(integer), NDIM, fp) * sizeof(integer);
+	return cnt;
+}
 
+std::size_t node_location::save(FILE* fp) const {
+	std::size_t cnt = 0;
+	cnt += fwrite(&lev, sizeof(integer), 1, fp) * sizeof(integer);
+	cnt += fwrite(xloc.data(), sizeof(integer), NDIM, fp) * sizeof(integer);
+	return cnt;
+}
 
 integer node_location::get_child_index() const {
 	return ((xloc[XDIM] & 1) + (2 * (xloc[YDIM] & 1)) + (4 * (xloc[ZDIM] & 1)));
@@ -40,10 +68,10 @@ integer node_location::get_child_index() const {
 
 bool node_location::is_child_of(const node_location& other) const {
 	bool rc;
-	if( other.lev < lev ){
+	if (other.lev < lev) {
 		rc = true;
-		for( integer d = 0; d != NDIM; ++d) {
-			if( (xloc[d] >> (lev - other.lev)) != other.xloc[d])  {
+		for (integer d = 0; d != NDIM; ++d) {
+			if ((xloc[d] >> (lev - other.lev)) != other.xloc[d]) {
 				rc = false;
 				break;
 			}
@@ -62,7 +90,7 @@ real node_location::x_location(integer d) const {
 
 node_location::node_location() {
 	lev = 0;
-	xloc = {{0,0,0}};
+	xloc = { {0,0,0}};
 }
 
 integer node_location::level() const {
@@ -191,17 +219,17 @@ std::size_t node_location::unique_id() const {
 	return id;
 }
 /*
-hpx::future<node_client> node_location::get_client() const {
-	return hpx::async([](node_location loc) -> node_client {
-		auto f = hpx::find_id_from_basename("node_location", loc.unique_id());
-		return node_client(std::move(f));
-	}, *this);
-}*/
+ hpx::future<node_client> node_location::get_client() const {
+ return hpx::async([](node_location loc) -> node_client {
+ auto f = hpx::find_id_from_basename("node_location", loc.unique_id());
+ return node_client(std::move(f));
+ }, *this);
+ }*/
 /*
-hpx::future<hpx::id_type> node_location::get_id() const {
-	return hpx::find_id_from_basename("node_location", unique_id());
-}
-*/
+ hpx::future<hpx::id_type> node_location::get_id() const {
+ return hpx::find_id_from_basename("node_location", unique_id());
+ }
+ */
 bool node_location::is_physical_boundary(integer face) const {
 	bool rc = false;
 	const integer dim = face / 2;

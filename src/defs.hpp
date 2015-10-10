@@ -7,8 +7,6 @@
 
 
 #ifndef TYPES444_HPP_
-#define TYPES444_HPP_
-
 #ifdef MINI_HPX
 #include "../hpx/hpx.hpp"
 #else
@@ -17,6 +15,8 @@
 
 typedef double real;
 typedef long long int integer;
+#define TYPES444_HPP_
+
 typedef char byte;
 
 enum gsolve_type {
@@ -32,14 +32,14 @@ enum gsolve_type {
 
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 5;
+const integer MAX_LEVEL = 6;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
 
 const integer HBW = 2;
 const integer GBW = 2;
-const integer INX = 8;
+const integer INX = 16;
 const integer HNX = 2 * HBW + INX;
 const integer GNX = 2 * GBW + INX;
 const integer HN3 = HNX * HNX * HNX;
@@ -94,7 +94,7 @@ const real TWELFTH = real(1) / real(12);
 const real cfl = real(2) / real(15);
 const real ei_floor = 1.0e-15;
 const integer NRK = 2;
-const real rk_beta[NRK] = { ONE, HALF };
+const real rk_beta[2] = { ONE, HALF };
 
 const integer NGF = 4;
 const integer phi_i = 0;

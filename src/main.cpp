@@ -3,17 +3,8 @@
 
 #include "node_server.hpp"
 #include "node_client.hpp"
-
-#include <stdio.h>
-#include <execinfo.h>
-#include <signal.h>
-#include <stdlib.h>
+#include <chrono>
 #include <unistd.h>
-
-
-#include <boost/chrono.hpp>
-
-
 
 void initialize() {
 #ifndef NDEBUG
@@ -25,90 +16,104 @@ void initialize() {
 
 HPX_PLAIN_ACTION( initialize, initialize_action);
 
-//HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action_type);
-//HPX_PLAIN_ACTION(node_server::output_form, output_form_action_type);
-
-//HPX_PLAIN_ACTION(node_server::save, save_action2);
-
-
 void node_server::start_run() {
 
 	printf("Starting...\n");
-	solve_gravity(false, 3);
+	solve_gravity(false);
 
-	double output_dt = (real(2)*real(M_PI)/DEFAULT_OMEGA)/100.0;
+	double output_dt = (real(2) * real(M_PI) / DEFAULT_OMEGA) / 100.0;
+//	double output_dt = 0.1;
 	integer output_cnt;
 
 	real& t = current_time;
 	integer step_num = 0;
 
-	node_server* root_ptr = me.get_ptr().get();
+	auto fut_ptr = me.get_ptr();
+	node_server* root_ptr = fut_ptr.get();
 
 	output_cnt = root_ptr->get_time() / output_dt;
+	hpx::future<void> diag_fut = hpx::make_ready_future();
+	hpx::future<void> step_fut = hpx::make_ready_future();
 	while (true) {
-        FILE* fp = 0;
-		auto time_start = boost::chrono::steady_clock::now();
-// 		auto diags = diagnostics();
-// 		fp = fopen( "diag.dat", "at");
-// 		fprintf( fp, "%19.12e ", t);
-// 		for( integer f = 0; f != NF; ++f) {
-// 			fprintf( fp, "%19.12e ", diags.grid_sum[f] + diags.outflow_sum[f]);
-// 			fprintf( fp, "%19.12e ", diags.outflow_sum[f]);
-// 		}
-// 		for( integer f = 0; f != NDIM; ++f) {
-// 			fprintf( fp, "%19.12e ", diags.l_sum[f]);
-// 		}
-// 		fprintf( fp, "\n");
-// 		fclose(fp);
-//
-// 		fp = fopen( "minmax.dat", "at");
-// 		fprintf( fp, "%19.12e ", t);
-// 		for( integer f = 0; f != NF; ++f) {
-// 			fprintf( fp, "%19.12e ", diags.field_min[f]);
-// 			fprintf( fp, "%19.12e ", diags.field_max[f]);
-// 		}
-// 		fprintf( fp, "\n");
-// 		fclose(fp);
-//
-		if (t / output_dt >= output_cnt ) {
-            std::string fname;
-
-			printf("--- begin checkpoint ---\n");
-            fname = "X." + hpx::util::safe_lexical_cast<std::string>(output_cnt) + ".chk";
- 			save(0, fname);
-			printf("--- end checkpoint ---\n");
-
-            fname = "X." + hpx::util::safe_lexical_cast<std::string>(output_cnt) + ".silo";
-			++output_cnt;
-			printf("--- begin output ---\n");
-			//output(std::string(fname));
-			printf("--- end output ---\n");
+		if( step_num % 15 == 0 ) {
+			regrid(me.get_gid());
 		}
-		auto ts_fut = hpx::async(&node_server::timestep_driver, this);
+		auto time_start = std::chrono::high_resolution_clock::now();
+		auto diags = diagnostics();
+		diag_fut.get();
+		diag_fut = hpx::async([=]() {
+			FILE* fp = fopen( "diag.dat", "at");
+			fprintf( fp, "%19.12e ", double(t));
+			for( integer f = 0; f != NF; ++f) {
+				fprintf( fp, "%19.12e ", double( diags.grid_sum[f] + diags.outflow_sum[f]));
+				fprintf( fp, "%19.12e ", double(diags.outflow_sum[f]));
+			}
+			for( integer f = 0; f != NDIM; ++f) {
+				fprintf( fp, "%19.12e ",double( diags.l_sum[f]));
+			}
+			fprintf( fp, "\n");
+			fclose(fp);
+
+			fp = fopen( "minmax.dat", "at");
+			fprintf( fp, "%19.12e ", double(t));
+			for( integer f = 0; f != NF; ++f) {
+				fprintf( fp, "%19.12e ", double(diags.field_min[f]));
+				fprintf( fp, "%19.12e ", double(diags.field_max[f]));
+			}
+			fprintf( fp, "\n");
+			fclose(fp);
+		});
+
+//		if( step_num % 10 == 0 ) {
+		if (t / output_dt >= output_cnt) {
+			char* fname;
+	//		if (output_cnt % 4 == 0) {
+				printf("--- begin checkpoint ---\n");
+				if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
+				}
+				save(0, std::string(fname));
+				printf("--- end checkpoint ---\n");
+				free(fname);
+
+				if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
+				}
+				printf("--- begin output ---\n");
+				output(std::string(fname));
+				printf("--- end output ---\n");
+				free(fname);
+		//	}
+			++output_cnt;
+
+		}
+		//	break;
+		auto ts_fut = hpx::async([=]() {return timestep_driver();});
 		step();
 		real dt = ts_fut.get();
-		fp = fopen( "step.dat", "at");
 
-		double time_elapsed = boost::chrono::duration_cast<boost::chrono::duration<double>>(boost::chrono::steady_clock::now() - time_start).count();
-
+		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+				std::chrono::high_resolution_clock::now() - time_start).count();
+		step_fut.get();
+		step_fut = hpx::async([=]() {
+			FILE* fp = fopen( "step.dat", "at");
+			fprintf(fp, "%i %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed);
+			fclose(fp);
+		});
 		printf("%i %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed);
-		fprintf(fp, "%i %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed);
-		fclose(fp);
 		t += dt;
 		++step_num;
 
-        if(step_num == 1401) break;
 	}
 }
 
 int hpx_main(int argc, char* argv[]) {
 	auto all_locs = hpx::find_all_localities();
-	std::vector<hpx::future<void>> futs;
-    futs.reserve(all_locs.size());
-	for( auto i = all_locs.begin(); i != all_locs.end(); ++i) {
+	std::list<hpx::future<void>> futs;
+	for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
 		futs.push_back(hpx::async<initialize_action>(*i));
 	}
-    hpx::wait_all(futs);
+	for (auto i = futs.begin(); i != futs.end(); ++i) {
+		i->get();
+	}
 	//#ifndef NDEBUG
 //#endif
 	node_client root_id = hpx::new_<node_server>(hpx::find_here());
@@ -116,50 +121,28 @@ int hpx_main(int argc, char* argv[]) {
 
 	if (argc == 1) {
 		for (integer l = 0; l < MAX_LEVEL; ++l) {
-			root_client.regrid().get();
-			printf("---------------Created Level %i---------------\n", int(l+1) );
+			root_client.regrid(root_client.get_gid()).get();
+			printf("---------------Created Level %i---------------\n", int(l + 1));
 		}
 	} else {
 		std::string fname(argv[1]);
-		printf( "Loading from %s...\n", fname.c_str());
+		printf("Loading from %s...\n", fname.c_str());
 		root_client.get_ptr().get()->load(fname, root_client);
-		root_client.regrid().get();
-		printf( "Done. \n");
+		root_client.regrid(root_client.get_gid()).get();
+		printf("Done. \n");
 	}
 
-	std::vector < hpx::id_type > null_sibs(NFACE);
+	std::vector<hpx::id_type> null_sibs(NFACE);
 	printf("Forming tree connections------------\n");
 	root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs).get();
-	printf("...done\nWaiting 3 seconds...\n");
+	printf("...done\n");
 
-	sleep(3);
+//	sleep(3);
 
 	root_client.start_run().get();
 
 	//root_client.unregister(node_location()).get();
 	printf("Exiting...\n");
 	return hpx::finalize();
-}
-
-
-
-void handler(int sig) {
-	char hostname[256];
-	printf( "SIGNAL %i\n", sig);
-	gethostname(hostname, sizeof(hostname));
-	static char command[1024];
-	printf( "Process %i\n", getpid());
-	sprintf( command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i'\n", hostname, getpid() );
-	system( command );
-	sleep(60);
-	exit(sig);
-}
-
-__attribute__((constructor))
-void install_stack_trace() {
-	signal(SIGSEGV, handler);   // install our handler
-	signal(SIGABRT, handler);   // install our handler
-	signal(SIGFPE, handler);   // install our handler
-	signal(SIGILL, handler);   // install our handler
 }
 

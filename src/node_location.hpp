@@ -50,7 +50,7 @@ public:
 
 	std::size_t load(FILE* fp);
 	std::size_t save(FILE* fp) const;
-
+	std::vector<node_location> get_neighbors() const;
 	bool is_child_of(const node_location& other) const;
 };
 
