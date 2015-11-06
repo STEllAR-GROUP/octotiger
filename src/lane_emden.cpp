@@ -22,7 +22,7 @@ static real fz(real y, real z, real r) {
 	}
 }
 
-static real fm(real theta,real dummy,  real r) {
+static real fm(real theta, real dummy, real r) {
 	return real(4) * M_PI * std::pow(theta, real(1.5)) * r * r;
 }
 
@@ -89,7 +89,7 @@ real lane_emden(real r0, real dr, real* m_enc) {
 		}
 		r += dr;
 	} while (done == 0);
-	if( m_enc != nullptr) {
+	if (m_enc != nullptr) {
 		*m_enc = m;
 	}
 	if (y < 0.0) {
@@ -97,4 +97,95 @@ real lane_emden(real r0, real dr, real* m_enc) {
 	} else {
 		return y;
 	}
+}
+
+real wd_radius(real mass, real* rho0) {
+	real rho_min, rho_max, rho_mid;
+	real test_mass;
+	rho_min = 1.0e-3;
+	rho_max = 1.0e+3;
+	real r;
+	do {
+		rho_mid = sqrt(rho_min * rho_max);
+		r = lane_emden(rho_mid, 0.001, &test_mass);
+		if (test_mass > mass) {
+			rho_max = rho_mid;
+		} else {
+			rho_min = rho_mid;
+		}
+//		printf("%e %e %e %e %e\n", rho_min, rho_mid, rho_max, test_mass, mass);
+	} while (log(rho_max / rho_min) > 1.0e-9);
+	*rho0 = rho_mid;
+	return r;
+}
+
+double find_l1(double q) {
+
+	double y, f, df, f1, f2, fr, df1, df2, dfr;
+	const double qp1 = 1.0 + q;
+	const double qp1inv = 1.0 / qp1;
+
+	y = 0.0;
+	do {
+		f1 = -pow(y + q * qp1inv, -2);
+		f2 = +q * pow(y - qp1inv, -2);
+		fr = qp1 * y;
+		f = f1 + f2 + fr;
+		df1 = +2.0 * pow(y + q * qp1inv, -3);
+		df2 = -2.0 * q * pow(y - qp1inv, -3);
+		dfr = qp1;
+		df = df1 + df2 + dfr;
+		y -= f / df;
+		//	printf( "%e %e %e\n", y, df, f );
+	} while (fabs(f) > 1.0e-10);
+	return y;
+
+}
+
+real find_V(real q) {
+
+	const real qp1 = 1.0 + q;
+	const real qp1inv = 1.0 / qp1;
+	real x, y, z;
+	real fx, fy, fz, r1inv, r2inv, phi, phi_l1;
+	real h = 5.0e-2;
+	int in;
+	real r1inv3, r2inv3;
+	const real l1_x = find_l1(q);
+	r1inv = 1.0 / sqrt(pow(l1_x + q * qp1inv, 2));
+	r2inv = 1.0 / sqrt(pow(l1_x - qp1inv, 2));
+	phi_l1 = -1.0 * r1inv - q * r2inv - 0.5 * qp1 * (l1_x * l1_x);
+	in = 0;
+	real dx;
+
+	for (x = l1_x; x < 1.0 + l1_x; x += h) {
+		for (y = h / 2.0; y < 0.5; y += h) {
+			for (z = h / 2.0; z < 0.5; z += h) {
+				r1inv = 1.0 / sqrt(pow(x + q * qp1inv, 2) + y * y + z * z);
+				r2inv = 1.0 / sqrt(pow(x - qp1inv, 2) + y * y + z * z);
+				phi = -r1inv - q * r2inv - 0.5 * qp1 * (x * x + y * y);
+				if (phi < phi_l1) {
+					r1inv3 = r1inv * r1inv * r1inv;
+					r2inv3 = r2inv * r2inv * r2inv;
+					dx = x - qp1inv;
+					fx = -(x + q * qp1inv) * r1inv3 - q * dx * r2inv3 + qp1 * x;
+					fy = -y * r1inv3 - y * q * r2inv3 + qp1 * y;
+					fz = -z * r1inv3 - z * q * r2inv3;
+					if (fx * dx + fy * y + fz * z <= 0.0) {
+						in++;
+					}
+				}
+			}
+		}
+	}
+//	printf( "!\n");
+	return 4.0 * in * h * h * h;
+}
+
+real binary_separation(real accretor_mass, real donor_mass, real donor_radius, real fill_factor) {
+	real q = donor_mass / accretor_mass;
+	real normalized_roche_volume = find_V(q) * fill_factor;
+	real roche_radius = std::pow(normalized_roche_volume / (4.0 / 3.0 * M_PI), 1.0 / 3.0);
+	real separation = donor_radius / roche_radius;
+	return separation;
 }

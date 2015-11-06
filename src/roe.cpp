@@ -17,7 +17,7 @@ const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL,
-		std::array<std::vector<real>, NF>& UR,  const std::vector<space_vector>& X, real omega, integer dimension) {
+		std::array<std::vector<real>, NF>& UR, const std::vector<space_vector>& X, real omega, integer dimension) {
 	const std::size_t sz = UL[0].size();
 	const integer u_i = vx_i + dimension;
 	const integer v_i = vx_i + (dimension == XDIM ? YDIM : XDIM);
@@ -72,16 +72,12 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 
 		std::array<simd_vector, NF> f;
 		for (integer field = 0; field != NF; ++field) {
-		//	if( field != rho0_i ) {
-				f[field] = HALF * (ur[field] * v_r + ul[field] * v_l - a * (ur[field] - ul[field]));
-	//		} else {
-//				f[field] = HALF * (ur[field] * v_r0 + ul[field] * v_l0 - a * (ur[field] - ul[field]));
-//			}
+			f[field] = HALF * (ur[field] * v_r + ul[field] * v_l - a * (ur[field] - ul[field]));
 		}
-		for( integer d = 0; d != NDIM; ++d ) {
+		for (integer d = 0; d != NDIM; ++d) {
 			const integer field = zx_i + d;
-			//		f[field] = -HALF * (a * (ur[field] - ul[field]));
-				f[field] = -HALF * (a * (ur[field] - ul[field]));
+			f[field] = -HALF * (a * (ur[field] - ul[field]));
+//			f[field] = ZERO;
 		}
 		f[u_i] += HALF * (p_r + p_l);
 		f[egas_i] += HALF * (p_r * v_r0 + p_l * v_l0);

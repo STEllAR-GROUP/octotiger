@@ -22,6 +22,12 @@ public:
 		}
 		return *this;
 	}
+	space_vector() = default;
+	space_vector(real a) {
+		for (integer i = 0; i != NDIM; ++i) {
+			(*this)[i] = a;
+		}
+	}
 	space_vector& operator=(const space_vector& other) {
 		for (integer i = 0; i != NDIM; ++i) {
 			(*this)[i] = other[i];

@@ -62,8 +62,12 @@ std::size_t node_location::save(FILE* fp) const {
 	return cnt;
 }
 
-integer node_location::get_child_index() const {
-	return ((xloc[XDIM] & 1) + (2 * (xloc[YDIM] & 1)) + (4 * (xloc[ZDIM] & 1)));
+geo::side node_location::get_child_side(const geo::dimension& d) const {
+	return (xloc[d] & 1) ? geo::PLUS : geo::MINUS;
+}
+
+geo::octant node_location::get_child_index() const {
+	return geo::octant( std::array<geo::side, NDIM>({ {get_child_side(XDIM), get_child_side(YDIM), get_child_side(ZDIM) }}));
 }
 
 bool node_location::is_child_of(const node_location& other) const {

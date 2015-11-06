@@ -12,7 +12,8 @@
 #include <iostream>
 
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
-typedef node_server::load_node_action load_node_action_type;
+
+typedef node_server::load_action load_action_type;
 typedef node_server::save_action save_action_type;
 typedef node_server::timestep_driver_action timestep_driver_action_type;
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
@@ -34,23 +35,25 @@ typedef node_server::get_ptr_action get_ptr_action_type;
 typedef node_server::diagnostics_action diagnostics_action_type;
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
 typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
-typedef node_server::output_action output_action_type;
+//typedef node_server::output_action output_action_type;
 typedef node_server::get_nieces_action get_nieces_action_type;
 typedef node_server::set_aunt_action set_aunt_action_type;
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;
 typedef node_server::set_grid_action set_grid_action_type;
 
-HPX_REGISTER_ACTION( set_grid_action_type);
-HPX_REGISTER_ACTION( force_nodes_to_exist_action_type);
-HPX_REGISTER_ACTION( check_for_refinement_action_type);
-HPX_REGISTER_ACTION( set_aunt_action_type);
-HPX_REGISTER_ACTION( get_nieces_action_type);
-HPX_REGISTER_ACTION( load_node_action_type);
-HPX_REGISTER_ACTION( save_action_type);
-HPX_REGISTER_ACTION( output_action_type);
-HPX_REGISTER_ACTION( send_hydro_children_action_type);
-HPX_REGISTER_ACTION( send_hydro_flux_correct_action_type);
+typedef node_server::find_omega_part_action find_omega_part_action_type;
+
+HPX_REGISTER_ACTION(find_omega_part_action_type);
+HPX_REGISTER_ACTION(set_grid_action_type);
+HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
+HPX_REGISTER_ACTION(check_for_refinement_action_type);
+HPX_REGISTER_ACTION(set_aunt_action_type);
+HPX_REGISTER_ACTION(get_nieces_action_type);
+HPX_REGISTER_ACTION(load_action_type);
+HPX_REGISTER_ACTION(save_action_type);
+HPX_REGISTER_ACTION(send_hydro_children_action_type);
+HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 HPX_REGISTER_ACTION(regrid_gather_action_type);
 HPX_REGISTER_ACTION(regrid_scatter_action_type);
 HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
@@ -72,6 +75,34 @@ HPX_REGISTER_ACTION(timestep_driver_descend_action_type);
 
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
+
+real node_server::find_omega() const {
+	const auto this_com = grid_ptr->center_of_mass();
+//	printf( "%e %e %e\n", this_com[0], this_com[1], this_com[2]);
+	auto d = find_omega_part(this_com);
+//	printf( "%e %e\n", d.first, d.second);
+	return d.first / d.second;
+}
+
+std::pair<real, real> node_server::find_omega_part(const space_vector& pivot) const {
+	std::pair<real, real> d;
+	if (is_refined) {
+		std::vector<hpx::future<std::pair<real, real>>>futs;
+		futs.reserve(NCHILD);
+		for( auto& child : children) {
+			futs.push_back(child.find_omega_part(pivot));
+		}
+		d.first = d.second = ZERO;
+		for( auto&& fut : futs) {
+			auto tmp = fut.get();
+			d.first += tmp.first;
+			d.second += tmp.second;
+		}
+	} else {
+		d = grid_ptr->omega_part(pivot);
+	}
+	return d;
+}
 
 integer child_index_to_quadrant_index(integer ci, integer dim) {
 	integer index;
@@ -125,11 +156,11 @@ void node_server::timestep_driver_ascend(real dt) {
 std::uintptr_t node_server::get_ptr() {
 	return reinterpret_cast<std::uintptr_t>(this);
 }
+/*
+ node_server::node_server(node_server&& other) {
+ *this = std::move(other);
 
-node_server::node_server(node_server&& other) {
-	*this = std::move(other);
-
-}
+ }*/
 
 diagnostics_t node_server::diagnostics() const {
 	diagnostics_t sums;
@@ -153,24 +184,25 @@ diagnostics_t node_server::diagnostics() const {
 	return sums;
 }
 
-node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
+node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
 		const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c) {
 	my_location = _my_location;
-	initialize(_current_time);
+	initialize(_current_time,_rotational_time);
 	is_refined = _is_refined;
 	step_num = _step_num;
 	current_time = _current_time;
+	rotational_time = _rotational_time;
+	grid test;
 	grid_ptr = std::make_shared < grid > (std::move(_grid));
 	if (is_refined) {
 		children.resize(NCHILD);
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			children[ci] = _c[ci];
-		}
+		std::copy(_c.begin(), _c.end(), children.begin());
 	}
 	child_descendant_count = _child_d;
 }
 
 void node_server::step() {
+	grid_ptr->set_coordinates();
 	real dt = ZERO;
 
 	std::list<hpx::future<void>> child_futs;
@@ -207,15 +239,14 @@ void node_server::step() {
 		grid_ptr->next_u(rk, dt);
 
 		compute_fmm(RHO, true);
-//		if (rk != NRK - 1) {
-			exchange_interlevel_hydro_data();
-			collect_hydro_boundaries();
-//		}
+		exchange_interlevel_hydro_data();
+		collect_hydro_boundaries();
 	}
 	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
 		i->get();
 	}
 	current_time += dt;
+	rotational_time += grid::get_omega() * dt;
 	++step_num;
 }
 
@@ -223,17 +254,15 @@ bool node_server::child_is_on_face(integer ci, integer face) {
 	return (((ci >> (face / 2)) & 1) == (face & 1));
 }
 
-std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt, integer face) const {
+std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt, const geo::face& face) const {
 	std::vector<hpx::id_type> nieces;
 	if (is_refined) {
 		std::vector<hpx::future<void>> futs;
-		nieces.reserve(NCHILD / 4);
-		futs.reserve(NCHILD / 4);
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			if (child_is_on_face(ci, face)) {
-				nieces.push_back(children[ci].get_gid());
-				futs.push_back(children[ci].set_aunt(aunt, face));
-			}
+		nieces.reserve(geo::quadrant::count());
+		futs.reserve(geo::quadrant::count());
+		for (auto& ci : geo::octant::face_subset(face)) {
+			nieces.push_back(children[ci].get_gid());
+			futs.push_back(children[ci].set_aunt(aunt, face));
 		}
 		for (auto&& this_fut : futs) {
 			this_fut.get();
@@ -242,7 +271,7 @@ std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt, inte
 	return nieces;
 }
 
-void node_server::set_aunt(const hpx::id_type& aunt, integer face) {
+void node_server::set_aunt(const hpx::id_type& aunt, const geo::face& face) {
 	aunts[face] = aunt;
 }
 void node_server::static_initialize() {
@@ -257,7 +286,7 @@ void node_server::static_initialize() {
 	}
 }
 
-void node_server::initialize(real t) {
+void node_server::initialize(real t, real rt) {
 	step_num = 0;
 	refinement_flag = 0;
 	static_initialize();
@@ -265,27 +294,27 @@ void node_server::initialize(real t) {
 	local_timestep_channel = std::make_shared<channel<real>>();
 	is_refined = false;
 	siblings.resize(NFACE);
+	neighbors.resize(geo::direction::count());
 	nieces.resize(NFACE);
 	aunts.resize(NFACE);
-	for (integer face = 0; face != NFACE; ++face) {
-		sibling_hydro_channels[face] = std::make_shared<channel<std::vector<real>> >();
-		sibling_gravity_channels[face] = std::make_shared<channel<std::pair<std::vector<real>, bool>> >();
+	for (auto& dir : geo::direction::full_set()) {
+		neighbor_gravity_channels[dir] = std::make_shared<channel<std::pair<std::vector<real>, bool>> >();
+		sibling_hydro_channels[dir] = std::make_shared<channel<std::vector<real>> >();
+	}
+	for (auto& face : geo::face::full_set()) {
 		for (integer i = 0; i != 4; ++i) {
 			niece_hydro_channels[face][i] = std::make_shared<channel<std::vector<real>> >();
 		}
 	}
-	for (integer ci = 0; ci != NCHILD; ++ci) {
+	for (auto& ci : geo::octant::full_set()) {
 		child_hydro_channels[ci] = std::make_shared<channel<std::vector<real>>>();
-	}
-	for (integer face = 0; face != NFACE; ++face) {
-	}
-	for (integer ci = 0; ci != NCHILD; ++ci) {
 		child_gravity_channels[ci] = std::make_shared<channel<multipole_pass_type>>();
 	}
 	parent_gravity_channel = std::make_shared<channel<expansion_pass_type>>();
 	current_time = t;
+	rotational_time = rt;
 	dx = TWO / real(INX << my_location.level());
-	for (integer d = 0; d != NDIM; ++d) {
+	for (auto& d : geo::dimension::full_set()) {
 		xmin[d] = my_location.x_location(d);
 	}
 	if (current_time == ZERO) {
@@ -298,117 +327,39 @@ void node_server::initialize(real t) {
 	}
 }
 
-std::vector<real> node_server::restricted_grid() const {
-	std::vector<real> data(INX * INX * INX / NCHILD * NF + NF);
-	integer index = 0;
-	for (integer i = HBW; i != HNX - HBW; i += 2) {
-		for (integer j = HBW; j != HNX - HBW; j += 2) {
-			for (integer k = HBW; k != HNX - HBW; k += 2) {
-				for (integer field = 0; field != NF; ++field) {
-					real& v = data[index];
-					v = ZERO;
-					for (integer di = 0; di != 2; ++di) {
-						for (integer dj = 0; dj != 2; ++dj) {
-							for (integer dk = 0; dk != 2; ++dk) {
-								v += grid_ptr->hydro_value(field, i + di, j + dj, k + dk) / real(NCHILD);
-							}
-						}
-					}
-					++index;
-				}
-			}
-		}
-	}
-	const auto U_out = grid_ptr->get_outflows();
-	for (integer field = 0; field != NF; ++field) {
-		data[index] = U_out[field];
-	}
-	return data;
-}
-
-void node_server::recv_hydro_children(std::vector<real>&& data, integer ci) {
+void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci) {
 	child_hydro_channels[ci]->set_value(std::move(data));
 }
 
-void node_server::recv_hydro_flux_correct(std::vector<real>&& data, integer face, integer ci) {
-	const integer dim = face / 2;
-	const integer index = child_index_to_quadrant_index(ci,dim);
+void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::face& face, const geo::octant& ci) {
+	const geo::quadrant index(ci, face.get_dimension());
 	niece_hydro_channels[face][index]->set_value(std::move(data));
 }
-
-void node_server::load_from_restricted_child(const std::vector<real>& data, integer ci) {
-	integer index = 0;
-	const integer di = ((ci >> 0) & 1) * INX / 2;
-	const integer dj = ((ci >> 1) & 1) * INX / 2;
-	const integer dk = ((ci >> 2) & 1) * INX / 2;
-	for (integer i = HBW; i != HNX / 2; ++i) {
-		for (integer j = HBW; j != HNX / 2; ++j) {
-			for (integer k = HBW; k != HNX / 2; ++k) {
-				for (integer field = 0; field != NF; ++field) {
-					grid_ptr->hydro_value(field, i + di, j + dj, k + dk) = data[index];
-					++index;
-				}
-			}
-		}
-	}
-}
-
 node_server::~node_server() {
 }
 
 node_server::node_server() {
-	initialize(ZERO);
+	initialize(ZERO,ZERO);
 }
 
-node_server::node_server(const node_location& loc, const node_client& parent_id, real t) :
+node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt) :
 		my_location(loc), parent(parent_id) {
-	initialize(t);
+	initialize(t, rt);
 }
-
-node_server& node_server::operator=(node_server&& other ) {
-
-	my_location = std::move(other.my_location);
-	step_num = std::move(other.step_num);
-	current_time = std::move(other.current_time);
-	grid_ptr = std::move(other.grid_ptr);
-	is_refined = std::move(other.is_refined);
-	child_descendant_count = std::move(other.child_descendant_count);
-	xmin = std::move(other.xmin);
-	dx = std::move(other.dx);
-	me = std::move(other.me);
-	parent = std::move(other.parent);
-	siblings = std::move(other.siblings);
-	children = std::move(other.children);
-	child_hydro_channels = std::move(other.child_hydro_channels);
-	sibling_hydro_channels = std::move(other.sibling_hydro_channels);
-	parent_gravity_channel = std::move(other.parent_gravity_channel);
-	sibling_gravity_channels = std::move(other.sibling_gravity_channels);
-	child_gravity_channels = std::move(other.child_gravity_channels);
-	global_timestep_channel = std::move(other.global_timestep_channel);
-
-	return *this;
-}
-
 void node_server::solve_gravity(bool ene) {
-//	printf("%s\n", my_location.to_str().c_str());
-
 	std::list<hpx::future<void>> child_futs;
-	if (is_refined) {
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			child_futs.push_back(children[ci].solve_gravity(ene));
-		}
+	for (auto& child : children) {
+		child_futs.push_back(child.solve_gravity(ene));
 	}
 	compute_fmm(RHO, ene);
-	if (is_refined) {
-		for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
-			i->get();
-		}
+	for (auto&& fut : child_futs) {
+		fut.get();
 	}
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	std::list<hpx::future<void>> child_futs;
-	std::list<hpx::future<void>> sibling_futs;
+	std::list<hpx::future<void>> neighbor_futs;
 	hpx::future<void> parent_fut;
 
 	if (energy_account) {
@@ -418,10 +369,10 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	m_out.first.resize(INX * INX * INX);
 	m_out.second.resize(INX * INX * INX);
 	if (is_refined) {
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			const integer x0 = ((ci >> 0) & 1) * INX / 2;
-			const integer y0 = ((ci >> 1) & 1) * INX / 2;
-			const integer z0 = ((ci >> 2) & 1) * INX / 2;
+		for (auto& ci : geo::octant::full_set()) {
+			const integer x0 = ci.get_side(XDIM) * INX / 2;
+			const integer y0 = ci.get_side(YDIM) * INX / 2;
+			const integer z0 = ci.get_side(ZDIM) * INX / 2;
 			m_in = child_gravity_channels[ci]->get();
 			for (integer i = 0; i != INX / 2; ++i) {
 				for (integer j = 0; j != INX / 2; ++j) {
@@ -447,30 +398,27 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
 	grid_ptr->compute_interactions(type);
 
-	std::array<bool, NFACE> is_monopole;
-	for (integer dim = 0; dim != NDIM; ++dim) {
-		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
-			if (!siblings[si].empty()) {
-				const bool monopole = !is_refined;
-				sibling_futs.push_back(siblings[si].send_gravity_boundary(get_gravity_boundary(si), si ^ 1, monopole));
-			}
-		}
-		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
-			if (!siblings[si].empty()) {
-				auto tmp = this->sibling_gravity_channels[si]->get();
-				is_monopole[si] = tmp.second;
-				this->set_gravity_boundary(std::move(tmp.first), si, tmp.second);
-			}
+	std::array<bool, geo::direction::count()> is_monopole;
+	for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			auto ndir = dir.flip();
+			const bool monopole = !is_refined;
+			assert(neighbors[dir].get_gid()!=me.get_gid());
+			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(get_gravity_boundary(dir), ndir, monopole));
 		}
 	}
-	for (integer dim = 0; dim != NDIM; ++dim) {
-		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
-			if (!siblings[si].empty()) {
-				this->grid_ptr->compute_boundary_interactions(type, si, is_monopole[si]);
-			}
+	for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			auto tmp = this->neighbor_gravity_channels[dir]->get();
+			is_monopole[dir] = tmp.second;
+			this->set_gravity_boundary(std::move(tmp.first), dir, tmp.second);
 		}
 	}
-
+	for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			this->grid_ptr->compute_boundary_interactions(type, dir, is_monopole[dir]);
+		}
+	}
 	parent_fut.get();
 
 	expansion_pass_type l_in;
@@ -479,15 +427,15 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
 	if (is_refined) {
-		for (integer ci = 0; ci != NCHILD; ++ci) {
+		for (auto& ci : geo::octant::full_set()) {
 			expansion_pass_type l_out;
 			l_out.first.resize(INX * INX * INX / NCHILD);
 			if (type == RHO) {
 				l_out.second.resize(INX * INX * INX / NCHILD);
 			}
-			const integer x0 = ((ci >> 0) & 1) * INX / 2;
-			const integer y0 = ((ci >> 1) & 1) * INX / 2;
-			const integer z0 = ((ci >> 2) & 1) * INX / 2;
+			const integer x0 = ci.get_side(XDIM) * INX / 2;
+			const integer y0 = ci.get_side(YDIM) * INX / 2;
+			const integer z0 = ci.get_side(ZDIM) * INX / 2;
 			for (integer i = 0; i != INX / 2; ++i) {
 				for (integer j = 0; j != INX / 2; ++j) {
 					for (integer k = 0; k != INX / 2; ++k) {
@@ -509,11 +457,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 		grid_ptr->etot_to_egas();
 	}
 
-	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
-		i->get();
+	for (auto&& fut : child_futs) {
+		fut.get();
 	}
-	for (auto i = sibling_futs.begin(); i != sibling_futs.end(); ++i) {
-		i->get();
+	for (auto&& fut : neighbor_futs) {
+		fut.get();
 	}
 }
 

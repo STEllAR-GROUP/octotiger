@@ -35,7 +35,15 @@ void handler(int sig) {
 	exit(sig);
 }
 
-//__attribute__((constructor))
+
+
+
+
+
+
+
+
+__attribute__((constructor))
 void install_stack_trace() {
 	signal(SIGSEGV, handler);   // install our handler
 	signal(SIGABRT, handler);   // install our handler

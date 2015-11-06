@@ -1,4 +1,5 @@
 # Copyright (c) 2015 Thomas Heller
+# Copyright (c) 2015 Dominic Marcello
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -16,9 +17,12 @@ endif()
 
 ################################################################################
 find_package(HPX REQUIRED)
+find_package(MPI REQUIRED)
 
 ################################################################################
 include_directories(${CMAKE_SOURCE_DIR}/src)
+
+set( CMAKE_CXX_FLAGS "-march=native -std=c++14" )
 
 add_hpx_executable(
   octotiger
@@ -26,6 +30,9 @@ add_hpx_executable(
           src/grid_fmm.cpp
           src/grid_output.cpp
           src/lane_emden.cpp
+          src/geometry.cpp
+          src/node_octstruct.cpp
+          src/grid_scf.cpp
           src/main.cpp
           src/node_client.cpp
           src/node_location.cpp
@@ -45,9 +52,73 @@ add_hpx_executable(
           src/node_server.hpp
           src/problem.hpp
           src/roe.hpp
+          src/geometry.hpp
           src/simd.hpp
           src/space_vector.hpp
           src/taylor.hpp
-  DEPENDENCIES boost_serialization
   FOLDER  "Octotiger"
 )
+
+
+add_executable(
+  octotiger_lite
+          src/hpx_lite/hpx_lite.cpp
+          src/grid.cpp
+          src/grid_fmm.cpp
+          src/grid_output.cpp
+          src/lane_emden.cpp
+          src/geometry.cpp
+          src/node_octstruct.cpp
+          src/grid_scf.cpp
+          src/main.cpp
+          src/node_client.cpp
+          src/node_location.cpp
+          src/node_server.cpp
+          src/node_server_decomp.cpp
+          src/node_server_output.cpp
+          src/problem.cpp
+          src/roe.cpp
+          src/taylor.cpp
+ )
+
+target_compile_definitions(octotiger_lite
+                           PUBLIC MINI_HPX
+)
+
+target_link_libraries(octotiger_lite
+                      qthread
+)
+
+add_executable(
+    chk2silo
+          src/hpx_lite/hpx_lite.cpp
+          src/grid.cpp
+          src/grid_fmm.cpp
+          src/grid_output.cpp
+          src/lane_emden.cpp
+          src/geometry.cpp
+          src/node_octstruct.cpp
+          src/grid_scf.cpp
+          src/main.cpp
+          src/node_client.cpp
+          src/node_location.cpp
+          src/node_server.cpp
+          src/node_server_decomp.cpp
+          src/node_server_output.cpp
+          src/problem.cpp
+          src/roe.cpp
+          src/taylor.cpp
+ )
+
+target_compile_definitions(chk2silo
+                           PUBLIC MINI_HPX
+                           PUBLIC SILO
+)
+
+target_link_libraries(chk2silo
+                      qthread
+                      silo
+)
+
+
+

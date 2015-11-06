@@ -28,7 +28,7 @@ std::vector<real> solid_sphere(real x, real y, real z) {
 //	x -= 0.5;
 //	y -= 0.5;
 //	z -= 0.5;
-	if (x*x + y*y + z*z < r0*r0) {
+	if (x * x + y * y + z * z < r0 * r0) {
 		u[rho_i] = 1.0;
 	} else {
 		u[rho_i] = 1.0e-10;
@@ -71,13 +71,13 @@ std::vector<real> star(real x, real y, real z) {
 	return u;
 }
 
-std::vector<real> equal_mass_binary( real x, real y, real z) {
+std::vector<real> equal_mass_binary(real x, real y, real z) {
 	real theta;
 	real alpha = 1.0 / 15.0;
 	const real n = real(1) / (fgamma - real(1));
 	const real rho_min = 1.0e-12;
 	std::vector<real> u(NF, real(0));
-	const real d = 1.0/2.0;
+	const real d = 1.0 / 2.0;
 	real x1 = x - d;
 	real x2 = x + d;
 	real y1 = y;
@@ -92,7 +92,7 @@ std::vector<real> equal_mass_binary( real x, real y, real z) {
 	const auto c0 = real(4) * real(M_PI) * alpha * alpha / (n + real(1));
 
 	if (r1 <= rmax || r2 <= rmax) {
-		real r = std::min(r1,r2);
+		real r = std::min(r1, r2);
 		theta = lane_emden(r, dr);
 		theta = std::max(theta, theta_min);
 	} else {
@@ -104,6 +104,13 @@ std::vector<real> equal_mass_binary( real x, real y, real z) {
 	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
 	u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
 	u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
-	u[egas_i] += HALF*DEFAULT_OMEGA*DEFAULT_OMEGA*(x*x+y*y)*u[rho_i];
+	u[egas_i] += HALF * DEFAULT_OMEGA * DEFAULT_OMEGA * (x * x + y * y) * u[rho_i];
+	if (x < ZERO) {
+		u[acc_i] = u[rho_i];
+		u[don_i] = ZERO;
+	} else {
+		u[don_i] = u[rho_i];
+		u[acc_i] = ZERO;
+	}
 	return u;
 }

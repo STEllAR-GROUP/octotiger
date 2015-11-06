@@ -14,10 +14,11 @@
 std::vector<real> sod_shock_tube(real,real,real);
 std::vector<real> star(real,real,real);
 std::vector<real> equal_mass_binary(real,real,real);
+std::vector<real> scf_binary(real,real,real);
 std::vector<real> solid_sphere(real,real,real);
 
 
 
-const auto problem = equal_mass_binary;
+const auto problem = scf_binary;
 
 #endif /* PROBLEM_HPP_ */

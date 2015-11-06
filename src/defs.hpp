@@ -7,8 +7,12 @@
 
 
 #ifndef TYPES444_HPP_
+
+//#define SCF
+//#define SILO
+
 #ifdef MINI_HPX
-#include "../hpx/hpx.hpp"
+#include "./hpx_lite/hpx_lite.hpp"
 #else
 #include <hpx/hpx.hpp>
 #endif
@@ -28,22 +32,31 @@ enum gsolve_type {
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+
+namespace hpx {
+using mutex = hpx::lcos::local::spinlock;
+}
+
 #endif
+
+#define USE_ROTATING_FRAME
 
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 6;
+const integer MAX_LEVEL = 4;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
 
+const integer NSPECIES = 2;
+
 const integer HBW = 2;
 const integer GBW = 2;
-const integer INX = 16;
+const integer INX = 8;
 const integer HNX = 2 * HBW + INX;
 const integer GNX = 2 * GBW + INX;
 const integer HN3 = HNX * HNX * HNX;
-const integer NF = 10;
+const integer NF = 12;
 const integer NDIR = 27;
 const integer DNX = HNX * HNX;
 const integer DNY = HNX;
@@ -62,6 +75,8 @@ const integer pot_i = 6;
 const integer zx_i = 7;
 const integer zy_i = 8;
 const integer zz_i = 9;
+const integer acc_i = 10;
+const integer don_i = 11;
 
 const integer vx_i = sx_i;
 const integer vy_i = sy_i;
@@ -105,5 +120,10 @@ const integer gz_i = 3;
 
 const std::array<boundary_type, NFACE> boundary_types = {OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW};
 
+#define SYSTEM(command) \
+	if( system( (command).c_str()) != 0) { \
+		printf( "System command \"%s\" failed in %s on line %i\n", (command).c_str(), __FILE__, __LINE__); \
+		abort(); \
+	}
 
 #endif /* TYPES_HPP_ */

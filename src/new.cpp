@@ -8,7 +8,12 @@
 #include <cstdlib>
 #include <cstdio>
 
+#ifdef __MIC__
+constexpr std::size_t alignment = 64;
+#else
 constexpr std::size_t alignment = 16;
+#endif
+
 
 
 static void* allocate(std::size_t);

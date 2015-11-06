@@ -9,6 +9,8 @@
 #define NODE_LOCATION_HPP_
 
 #include "defs.hpp"
+#include "geometry.hpp"
+
 
 class node_client;
 
@@ -25,7 +27,8 @@ public:
 	node_location get_child(integer c) const;
 	node_location get_parent() const;
 	node_location get_sibling(integer face) const;
-	integer get_child_index() const;
+	geo::side get_child_side(const geo::dimension&) const;
+	geo::octant get_child_index() const;
 	integer operator[](integer i) const {
 		return xloc[i];
 	}
