@@ -7,6 +7,7 @@
 
 #include "node_server.hpp"
 #include "problem.hpp"
+#include "future.hpp"
 #include <streambuf>
 #include <fstream>
 #include <iostream>
@@ -45,6 +46,7 @@ typedef node_server::set_grid_action set_grid_action_type;
 typedef node_server::find_omega_part_action find_omega_part_action_type;
 
 HPX_REGISTER_ACTION(find_omega_part_action_type);
+
 HPX_REGISTER_ACTION(set_grid_action_type);
 HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
@@ -52,6 +54,7 @@ HPX_REGISTER_ACTION(set_aunt_action_type);
 HPX_REGISTER_ACTION(get_nieces_action_type);
 HPX_REGISTER_ACTION(load_action_type);
 HPX_REGISTER_ACTION(save_action_type);
+//HPX_REGISTER_ACTION( output_action_type);
 HPX_REGISTER_ACTION(send_hydro_children_action_type);
 HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 HPX_REGISTER_ACTION(regrid_gather_action_type);
@@ -94,7 +97,7 @@ std::pair<real, real> node_server::find_omega_part(const space_vector& pivot) co
 		}
 		d.first = d.second = ZERO;
 		for( auto&& fut : futs) {
-			auto tmp = fut.get();
+			auto tmp = GET(fut);
 			d.first += tmp.first;
 			d.second += tmp.second;
 		}
@@ -131,11 +134,11 @@ real node_server::timestep_driver_descend() {
 			futs.push_back(i->timestep_driver_descend());
 		}
 		for (auto i = futs.begin(); i != futs.end(); ++i) {
-			dt = std::min(dt, i->get());
+			dt = std::min(dt, GET(*i));
 		}
-		dt = std::min(local_timestep_channel->get(), dt);
+		dt = std::min(GET(local_timestep_channel->get_future()), dt);
 	} else {
-		dt = local_timestep_channel->get();
+		dt = GET(local_timestep_channel->get_future());
 	}
 	return dt;
 }
@@ -148,7 +151,7 @@ void node_server::timestep_driver_ascend(real dt) {
 			futs.push_back(i->timestep_driver_ascend(dt));
 		}
 		for (auto i = futs.begin(); i != futs.end(); ++i) {
-			i->get();
+			GET(*i);
 		}
 	}
 }
@@ -170,7 +173,7 @@ diagnostics_t node_server::diagnostics() const {
 			futs.push_back(children[ci].diagnostics());
 		}
 		for (auto ci = futs.begin(); ci != futs.end(); ++ci) {
-			auto this_sum = ci->get();
+			auto this_sum = GET(*ci);
 			sums += this_sum;
 		}
 	} else {
@@ -228,13 +231,13 @@ void node_server::step() {
 			dt = cfl0 * dx / a;
 			local_timestep_channel->set_value(dt);
 		}
-		flux_fut.get();
+		GET(flux_fut);
 		grid_ptr->compute_sources();
 		grid_ptr->compute_dudt();
 		compute_fmm(DRHODT, false);
 
 		if (rk == 0) {
-			dt = global_timestep_channel->get();
+			dt = GET(global_timestep_channel->get_future());
 		}
 		grid_ptr->next_u(rk, dt);
 
@@ -242,8 +245,9 @@ void node_server::step() {
 		exchange_interlevel_hydro_data();
 		collect_hydro_boundaries();
 	}
+	grid_ptr->dual_energy_update();
 	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
-		i->get();
+		GET(*i);
 	}
 	current_time += dt;
 	rotational_time += grid::get_omega() * dt;
@@ -265,7 +269,7 @@ std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt, cons
 			futs.push_back(children[ci].set_aunt(aunt, face));
 		}
 		for (auto&& this_fut : futs) {
-			this_fut.get();
+			GET(this_fut);
 		}
 	}
 	return nieces;
@@ -353,7 +357,7 @@ void node_server::solve_gravity(bool ene) {
 	}
 	compute_fmm(RHO, ene);
 	for (auto&& fut : child_futs) {
-		fut.get();
+		GET(fut);
 	}
 }
 
@@ -373,7 +377,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 			const integer x0 = ci.get_side(XDIM) * INX / 2;
 			const integer y0 = ci.get_side(YDIM) * INX / 2;
 			const integer z0 = ci.get_side(ZDIM) * INX / 2;
-			m_in = child_gravity_channels[ci]->get();
+			m_in = GET(child_gravity_channels[ci]->get_future());
 			for (integer i = 0; i != INX / 2; ++i) {
 				for (integer j = 0; j != INX / 2; ++j) {
 					for (integer k = 0; k != INX / 2; ++k) {
@@ -409,7 +413,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	}
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
-			auto tmp = this->neighbor_gravity_channels[dir]->get();
+			auto tmp = GET(this->neighbor_gravity_channels[dir]->get_future());
 			is_monopole[dir] = tmp.second;
 			this->set_gravity_boundary(std::move(tmp.first), dir, tmp.second);
 		}
@@ -419,11 +423,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 			this->grid_ptr->compute_boundary_interactions(type, dir, is_monopole[dir]);
 		}
 	}
-	parent_fut.get();
+	GET(parent_fut);
 
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
-		l_in = parent_gravity_channel->get();
+		l_in = GET(parent_gravity_channel->get_future());
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
 	if (is_refined) {
@@ -458,10 +462,10 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	}
 
 	for (auto&& fut : child_futs) {
-		fut.get();
+		GET(fut);
 	}
 	for (auto&& fut : neighbor_futs) {
-		fut.get();
+		GET(fut);
 	}
 }
 

@@ -7,9 +7,7 @@
 
 #include "node_server.hpp"
 #include <sys/stat.h>
-
-HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
-HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
+#include "future.hpp"
 
 hpx::mutex rec_size_mutex;
 integer rec_size = -1;
@@ -59,7 +57,7 @@ integer node_server::save(integer cnt) const {
 }
 
 hpx::id_type make_new_node(const node_location& loc, const hpx::id_type& _parent) {
-	return hpx::new_<node_server>(hpx::find_here(), loc, _parent, ZERO, ZERO).get();
+	return GET(hpx::new_<node_server>(hpx::find_here(), loc, _parent, ZERO, ZERO));
 }
 
 HPX_PLAIN_ACTION(make_new_node, make_new_node_action);
@@ -84,13 +82,13 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 		std::vector<hpx::future<void>> futs;
 		futs.reserve(localities.size());
 		for (auto& locality : localities) {
-			futs.push_back(hpx::async<set_omega_action2>(locality, omega));
+			futs.push_back(hpx::async<set_omega_action>(locality, omega));
 			if (current_time == ZERO) {
-				futs.push_back(hpx::async<set_pivot_action2>(locality, pivot));
+				futs.push_back(hpx::async<set_pivot_action>(locality, pivot));
 			}
 		}
 		for (auto&& fut : futs) {
-			fut.get();
+			GET(fut);
 		}
 	}
 	static auto localities = hpx::find_all_localities();
@@ -128,9 +126,9 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	grid::output_list_type my_list;
 	for (auto&& fut : futs) {
 		if (do_output) {
-			grid::merge_output_lists(my_list, fut.get());
+			grid::merge_output_lists(my_list, GET(fut));
 		} else {
-			fut.get();
+			GET(fut);
 		}
 	}
 	if (!is_refined && do_output) {

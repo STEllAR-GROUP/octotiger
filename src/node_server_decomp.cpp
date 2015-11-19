@@ -10,6 +10,8 @@
  * TODO: Sx, Sy, Sz boundaries!!!
  */
 #include "node_server.hpp"
+#include "future.hpp"
+
 
 hpx::future<void> node_server::exchange_flux_corrections() {
 	const geo::octant ci = my_location.get_child_index();
@@ -19,12 +21,12 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 		auto& this_aunt = aunts[f];
 		if (!this_aunt.empty()) {
 			std::array<integer, NDIM> lb, ub;
-			lb[XDIM] = lb[YDIM] = lb[ZDIM] = HBW;
-			ub[XDIM] = ub[YDIM] = ub[ZDIM] = HNX - HBW;
+			lb[XDIM] = lb[YDIM] = lb[ZDIM] = H_BW;
+			ub[XDIM] = ub[YDIM] = ub[ZDIM] = H_NX - H_BW;
 			if (f.get_side() == geo::MINUS) {
-				lb[face_dim] = HBW;
+				lb[face_dim] = H_BW;
 			} else {
-				lb[face_dim] = HNX - HBW;
+				lb[face_dim] = H_NX - H_BW;
 			}
 			ub[face_dim] = lb[face_dim] + 1;
 			auto data = grid_ptr->get_flux_restrict(lb, ub, face_dim);
@@ -39,37 +41,37 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
 						case XDIM:
-						lb[XDIM] = f.get_side() == geo::MINUS ? HBW : HNX - HBW;
-						lb[YDIM] = HBW + quadrant.get_side(0) * (INX / 2);
-						lb[ZDIM] = HBW + quadrant.get_side(1) * (INX / 2);
+						lb[XDIM] = f.get_side() == geo::MINUS ? H_BW : H_NX - H_BW;
+						lb[YDIM] = H_BW + quadrant.get_side(0) * (INX / 2);
+						lb[ZDIM] = H_BW + quadrant.get_side(1) * (INX / 2);
 						ub[XDIM] = lb[XDIM] + 1;
 						ub[YDIM] = lb[YDIM] + (INX / 2);
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
 						case YDIM:
-						lb[XDIM] = HBW + quadrant.get_side(0) * (INX / 2);
-						lb[YDIM] = f.get_side() == geo::MINUS ? HBW : HNX - HBW;
-						lb[ZDIM] = HBW + quadrant.get_side(1) * (INX / 2);
+						lb[XDIM] = H_BW + quadrant.get_side(0) * (INX / 2);
+						lb[YDIM] = f.get_side() == geo::MINUS ? H_BW : H_NX - H_BW;
+						lb[ZDIM] = H_BW + quadrant.get_side(1) * (INX / 2);
 						ub[XDIM] = lb[XDIM] + (INX / 2);
 						ub[YDIM] = lb[YDIM] + 1;
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
 						case ZDIM:
-						lb[XDIM] = HBW + quadrant.get_side(0) * (INX / 2);
-						lb[YDIM] = HBW + quadrant.get_side(1) * (INX / 2);
-						lb[ZDIM] = f.get_side() == geo::MINUS ? HBW : HNX - HBW;
+						lb[XDIM] = H_BW + quadrant.get_side(0) * (INX / 2);
+						lb[YDIM] = H_BW + quadrant.get_side(1) * (INX / 2);
+						lb[ZDIM] = f.get_side() == geo::MINUS ? H_BW : H_NX - H_BW;
 						ub[XDIM] = lb[XDIM] + (INX / 2);
 						ub[YDIM] = lb[YDIM] + (INX / 2);
 						ub[ZDIM] = lb[ZDIM] + 1;
 						break;
 					}
-					std::vector<real> data = niece_hydro_channels[f][quadrant]->get();
+					std::vector<real> data = GET(niece_hydro_channels[f][quadrant]->get_future());
 					grid_ptr->set_flux_restrict(data, lb, ub, face_dim);
 				}
 			}
 		}
 		for (auto&& f : *ptr_futs) {
-			f.get();
+			GET(f);
 		}
 	});
 }
@@ -80,7 +82,7 @@ void node_server::exchange_interlevel_hydro_data() {
 	std::vector<real> outflow(NF, ZERO);
 	if (is_refined) {
 		for (auto& ci : geo::octant::full_set()) {
-			std::vector<real> data = child_hydro_channels[ci]->get();
+			std::vector<real> data = GET(child_hydro_channels[ci]->get_future());
 			grid_ptr->set_restrict(data, ci);
 			integer fi = 0;
 			for (auto i = data.end() - NF; i != data.end(); ++i) {
@@ -88,6 +90,7 @@ void node_server::exchange_interlevel_hydro_data() {
 				++fi;
 			}
 		}
+		grid_ptr->set_outflows(std::move(outflow));
 	}
 	if (my_location.level() > 0) {
 		std::vector<real> data = grid_ptr->get_restrict();
@@ -96,30 +99,7 @@ void node_server::exchange_interlevel_hydro_data() {
 	} else {
 		fut = hpx::make_ready_future();
 	}
-	fut.get();
-}
-
-std::list<hpx::future<void>> node_server::set_nieces_amr(const geo::face& f) const {
-	std::list<hpx::future<void>> futs;
-	if (nieces[f].size()) {
-		integer nindex = 0;
-		for (auto& ci : geo::octant::full_set()) {
-			if (child_is_on_face(ci, f)) {
-				std::array<integer, NDIM> lb, ub;
-				std::vector<real> data;
-				get_boundary_size(lb, ub, f.to_direction(), INNER, FULL);
-				for (integer dim = 0; dim != NDIM; ++dim) {
-					lb[dim] = ((lb[dim] - HBW) / 2) + HBW + ci.get_side(dim) * (INX / 2);
-					ub[dim] = ((ub[dim] - HBW) / 2) + HBW + ci.get_side(dim) * (INX / 2);
-				}
-				data = grid_ptr->get_prolong(lb, ub);
-				assert(!nieces[f][nindex].empty());
-				futs.push_back(nieces[f][nindex].send_hydro_boundary(std::move(data), f.to_direction().flip()));
-				++nindex;
-			}
-		}
-	}
-	return futs;
+	GET(fut);
 }
 
 void node_server::collect_hydro_boundaries() {
@@ -134,7 +114,7 @@ void node_server::collect_hydro_boundaries() {
 	for (auto& dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			std::vector<real> bdata;
-			bdata = sibling_hydro_channels[dir]->get();
+			bdata = GET(sibling_hydro_channels[dir]->get_future());
 			set_hydro_boundary(bdata, dir);
 		}
 	}
@@ -152,10 +132,10 @@ void node_server::collect_hydro_boundaries() {
 				if (flags[dir]) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
-					get_boundary_size(lb, ub, dir, OUTER);
+					get_boundary_size(lb, ub, dir, OUTER, H_BW);
 					for (integer dim = 0; dim != NDIM; ++dim) {
-						lb[dim] = ((lb[dim] - HBW) / 2) + HBW + ci.get_side(dim) * (INX / 2);
-						ub[dim] = ((ub[dim] - HBW) / 2) + HBW + ci.get_side(dim) * (INX / 2);
+						lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
+						ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
 					}
 					data = grid_ptr->get_prolong(lb, ub);
 					futs.push_back(children[ci].send_hydro_boundary(std::move(data), dir));
@@ -165,47 +145,28 @@ void node_server::collect_hydro_boundaries() {
 	}
 
 	for (auto&& fut : futs) {
-		fut.get();
+		GET(fut);
 	}
 }
 
 integer node_server::get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub,
-		const geo::direction& dir, const geo::side& side, exchange_type etype) const {
+		const geo::direction& dir, const geo::side& side, integer bw) const {
 	integer hsize, size;
 	size = 0;
-	const integer off = (side == OUTER) ? HBW : 0;
+	const integer nx = 2 * bw + INX;
+	const integer off = (side == OUTER) ? bw : 0;
 	hsize = 1;
 	for (auto& d : geo::dimension::full_set()) {
 		auto this_dir = dir[d];
 		if (this_dir == 0) {
-			switch (etype) {
-			case NARROW:
-				lb[d] = HBW;
-				ub[d] = HNX - HBW;
-				break;
-			case FULL:
-				lb[d] = 0;
-				ub[d] = HNX;
-				break;
-			case VARIABLE:
-				assert(dir.is_face());
-				if (d > dir.to_face().get_dimension()) {
-					lb[d] = HBW;
-					ub[d] = HNX - HBW;
-					break;
-				} else {
-					lb[d] = 0;
-					ub[d] = HNX;
-					break;
-				}
-				break;
-			}
+			lb[d] = bw;
+			ub[d] = nx - bw;
 		} else if (this_dir < 0) {
-			lb[d] = HBW - off;
-			ub[d] = 2 * HBW - off;
+			lb[d] = bw - off;
+			ub[d] = 2 * bw - off;
 		} else /*if (this_dir > 0) */{
-			lb[d] = HNX - 2 * HBW + off;
-			ub[d] = HNX - HBW + off;
+			lb[d] = nx - 2 * bw + off;
+			ub[d] = nx - bw + off;
 		}
 		const integer width = ub[d] - lb[d];
 		hsize *= width;
@@ -214,11 +175,11 @@ integer node_server::get_boundary_size(std::array<integer, NDIM>& lb, std::array
 	return size;
 }
 
-std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir, exchange_type etype) {
+std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir) {
 
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	const integer size = NF * get_boundary_size(lb, ub, dir, INNER, etype);
+	const integer size = NF * get_boundary_size(lb, ub, dir, INNER, H_BW);
 	data.resize(size);
 	integer iter = 0;
 
@@ -240,7 +201,7 @@ std::vector<real> node_server::get_gravity_boundary(const geo::direction& dir) {
 
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	integer size = get_boundary_size(lb, ub, dir, INNER);
+	integer size = get_boundary_size(lb, ub, dir, INNER, G_BW);
 	if (is_refined) {
 		size *= 20 + 3;
 	} else {
@@ -272,7 +233,7 @@ std::vector<real> node_server::get_gravity_boundary(const geo::direction& dir) {
 
 void node_server::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir, bool monopole) {
 	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, dir, OUTER);
+	get_boundary_size(lb, ub, dir, OUTER, G_BW);
 	integer iter = 0;
 
 	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
@@ -297,9 +258,9 @@ void node_server::set_gravity_boundary(const std::vector<real>& data, const geo:
 	}
 }
 
-void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, exchange_type etype) {
+void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir) {
 	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, dir, OUTER, etype);
+	get_boundary_size(lb, ub, dir, OUTER, H_BW);
 	integer iter = 0;
 
 	for (integer field = 0; field != NF; ++field) {

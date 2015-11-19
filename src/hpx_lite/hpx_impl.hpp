@@ -355,6 +355,11 @@ bool future<T>::valid() const {
 }
 
 template<class T>
+bool future<T>::is_ready() const {
+	return state->is_ready();
+}
+
+template<class T>
 void future<T>::wait() {
 	state->wait();
 }
@@ -744,6 +749,11 @@ template<class V>
 void shared_state<T>::set_value(const V& value) {
 	V tmp = value;
 	set_value(std::move(tmp));
+}
+
+template<class T>
+bool shared_state<T>::is_ready() const {
+	return ready;
 }
 
 template<class T>

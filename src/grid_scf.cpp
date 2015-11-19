@@ -48,11 +48,9 @@ global_vars_t global;
 real alpha_acc;
 real alpha_don, R_acc, rho_acc, rho_don;
 
-HPX_PLAIN_ACTION(scf_binary_init, scf_binary_init_action);
+HPX_REGISTER_PLAIN_ACTION(scf_binary_init_action);
 
-#ifdef SCF
 __attribute__((constructor))
-#endif
 void scf_binary_init() {
 	real q = M_don / M_acc;
 	alpha_don = R_don / c_r;
@@ -169,19 +167,20 @@ scf_data_t grid::scf_params() {
 	real R, x, y, phi;
 	scf_data_t scf_data;
 	scf_data.x_com = ZERO;
-	for (integer i = HBW; i != HNX - HBW; ++i) {
-		for (integer j = HBW; j != HNX - HBW; ++j) {
-			for (integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = i * DNX + j * DNY + k * DNZ;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii = hindex(i, j, k);
+				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
 				x = X[XDIM][iii];
 				y = X[YDIM][iii];
 				real& rho = U[rho_i][iii];
 				R = std::sqrt(std::pow(x - global.x_com, 2) + y * y);
-				phi = G[phi_i][iii];
+				phi = G[phi_i][iiig];
 				bool is_don = U[acc_i][iii] < U[don_i][iii];
 				real ekin = HALF * std::pow(global.omega * R, 2) * rho + global.K * n * std::pow(rho, ONE + ONE / n);
 				real epot = U[pot_i][iii];
-				real phi_eff = G[phi_i][iii] - HALF * global.omega * global.omega * R * R;
+				real phi_eff = G[phi_i][iiig] - HALF * global.omega * global.omega * R * R;
 				scf_data.virial_num += (TWO * ekin + HALF * epot) * dx * dx * dx;
 				scf_data.virial_den += std::abs(HALF * U[pot_i][iii]) * dx * dx * dx;
 				scf_data.x_com += rho * dx * dx * dx * x;
@@ -210,7 +209,7 @@ scf_data_t grid::scf_params() {
 					if (global.x_acc < X[XDIM][iii] && global.x_don > X[XDIM][iii]) {
 						if (phi_eff > scf_data.l1) {
 							scf_data.l1 = phi_eff;
-							scf_data.phi_l1 = G[phi_i][iii];
+							scf_data.phi_l1 = G[phi_i][iiig];
 							scf_data.lx = X[XDIM][iii];
 						}
 					}
@@ -230,23 +229,24 @@ real grid::scf_update(bool mom_only) {
 	real res = ZERO;
 	real R, x, y, phi, z;
 	scf_data_t scf_data;
-	for (integer i = HBW; i != HNX - HBW; ++i) {
-		for (integer j = HBW; j != HNX - HBW; ++j) {
-			for (integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = i * DNX + j * DNY + k * DNZ;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii = hindex(i, j, k);
+				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
 				real& rho = U[rho_i][iii];
 				if (!mom_only) {
 					x = X[XDIM][iii];
 					y = X[YDIM][iii];
 					z = X[ZDIM][iii];
 					R = std::sqrt(std::pow(x - global.x_com, 2) + y * y);
-					phi = G[phi_i][iii];
+					phi = G[phi_i][iiig];
 					const real phi_eff = phi - HALF * omega * omega * R * R;
 					real new_rho;
 					real* rho_frac;
-					real gx = G[gx_i][iii] + (x - global.x_com) * omega * omega;
-					real gy = G[gy_i][iii] + y * omega * omega;
-					real gz = G[gz_i][iii];
+					real gx = G[gx_i][iiig] + (x - global.x_com) * omega * omega;
+					real gy = G[gy_i][iiig] + y * omega * omega;
+					real gz = G[gz_i][iiig];
 					bool is_don = std::abs(x - global.x_don) < std::abs(x - global.x_acc);
 					if (!is_don) {
 						x -= global.x_acc;
@@ -284,7 +284,7 @@ real grid::scf_update(bool mom_only) {
 				U[sz_i][iii] = ZERO;
 				U[zx_i][iii] = ZERO;
 				U[zy_i][iii] = ZERO;
-				U[zz_i][iii] = std::pow(dx * global.omega, 2) * rho / 6.0;
+				U[zz_i][iii] = dx * dx * global.omega * rho / 6.0;
 			}
 		}
 	}
@@ -335,14 +335,14 @@ void node_server::run_scf() {
 		if (i % 50 == 0 || done) {
 			if (done) {
 				save_to_file(std::string("X.chk"));
-		//		SYSTEM(std::string("./hpx X.chk X.") + std::to_string(i) + std::string(".silo"));
+				//		SYSTEM(std::string("./hpx X.chk X.") + std::to_string(i) + std::string(".silo"));
 			}
 			regrid(me.get_gid(), false);
 			printf("\n   s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho_max_acc",
 					"rho_max_don", "omega", "X_com", "C_acc", "C_don", "virial", "xdrif", "ydrift", "zdrift", "q", "w0",
 					"res");
-			FILE* fp = fopen( "scf.dat", "at");
-			fprintf(fp,"\n   s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho_max_acc",
+			FILE* fp = fopen("scf.dat", "at");
+			fprintf(fp, "\n   s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho_max_acc",
 					"rho_max_don", "omega", "X_com", "C_acc", "C_don", "virial", "xdrif", "ydrift", "zdrift", "q", "w0",
 					"res");
 			fclose(fp);
@@ -363,8 +363,8 @@ void node_server::run_scf() {
 		printf("%3i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", int(i), data.rho_max_acc,
 				data.rho_max_don, global.omega, global.x_com, global.C_acc, global.C_don, virial_error, global.x_drift,
 				global.y_drift, global.z_drift, data.m_don / data.m_acc, w0, res);
-		FILE* fp = fopen( "scf.dat", "at");
-		fprintf(fp,"%3i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", int(i), data.rho_max_acc,
+		FILE* fp = fopen("scf.dat", "at");
+		fprintf(fp, "%3i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", int(i), data.rho_max_acc,
 				data.rho_max_don, global.omega, global.x_com, global.C_acc, global.C_don, virial_error, global.x_drift,
 				global.y_drift, global.z_drift, data.m_don / data.m_acc, w0, res);
 		fclose(fp);

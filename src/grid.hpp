@@ -115,7 +115,9 @@ class grid {
 public:
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
+	static void set_max_level(integer l);
 private:
+	static integer max_level;
 	static real omega;
 	static space_vector pivot;
 
@@ -180,7 +182,7 @@ public:
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&) const;
-	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) const;
+	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb,
@@ -198,6 +200,7 @@ public:
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();
+	void dual_energy_update();
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
 	void compute_interactions(gsolve_type);
@@ -292,5 +295,8 @@ struct grid::output_list_type {
 
 void scf_binary_init();
 
+HPX_DEFINE_PLAIN_ACTION(scf_binary_init, scf_binary_init_action);
+HPX_DEFINE_PLAIN_ACTION(grid::set_omega, set_omega_action);
+HPX_DEFINE_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
 
 #endif /* GRID_HPP_ */

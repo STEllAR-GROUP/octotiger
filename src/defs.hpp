@@ -5,14 +5,9 @@
  *      Author: dmarce1
  */
 
-
 #ifndef TYPES444_HPP_
-
-//#define SCF
-//#define SILO
-
 #ifdef MINI_HPX
-#include "./hpx_lite/hpx_lite.hpp"
+#include "../hpx/hpx.hpp"
 #else
 #include <hpx/hpx.hpp>
 #endif
@@ -32,38 +27,46 @@ enum gsolve_type {
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
-
-namespace hpx {
-using mutex = hpx::lcos::local::spinlock;
-}
-
 #endif
 
 #define USE_ROTATING_FRAME
 
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 4;
-enum boundary_type {OUTFLOW, REFLECT};
+const integer MAX_LEVEL = 7;
+enum boundary_type {
+	OUTFLOW, REFLECT
+};
 
 const integer NDIM = 3;
 
 const integer NSPECIES = 2;
 
-const integer HBW = 2;
-const integer GBW = 2;
 const integer INX = 8;
-const integer HNX = 2 * HBW + INX;
-const integer GNX = 2 * GBW + INX;
-const integer HN3 = HNX * HNX * HNX;
+
+const integer H_BW = 3;
+const integer G_BW = 2;
+const integer R_BW = 2;
+
+const integer H_NX = 2 * H_BW + INX;
+const integer G_NX = 2 * G_BW + INX;
+const integer H_N3 = H_NX * H_NX * H_NX;
+const integer G_N3 = G_NX * G_NX * G_NX;
+
+#define hindex(i,j,k) ((i)*H_DNX + (j)*H_DNY + (k)*H_DNZ)
+#define gindex(i,j,k) ((i)*G_DNX + (j)*G_DNY + (k)*G_DNZ)
+
+
 const integer NF = 12;
 const integer NDIR = 27;
-const integer DNX = HNX * HNX;
-const integer DNY = HNX;
-const integer DNZ = 1;
-const integer DN[NDIM] = { HNX * HNX, HNX, 1 };
-
-
+const integer H_DNX = H_NX * H_NX;
+const integer H_DNY = H_NX;
+const integer H_DNZ = 1;
+const integer H_DN[NDIM] = { H_NX * H_NX, H_NX, 1 };
+const integer G_DNX = G_NX * G_NX;
+const integer G_DNY = G_NX;
+const integer G_DNZ = 1;
+const integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
 
 const integer rho_i = 0;
 const integer egas_i = 1;
@@ -117,8 +120,7 @@ const integer gx_i = 1;
 const integer gy_i = 2;
 const integer gz_i = 3;
 
-
-const std::array<boundary_type, NFACE> boundary_types = {OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW};
+const std::array<boundary_type, NFACE> boundary_types = { OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW };
 
 #define SYSTEM(command) \
 	if( system( (command).c_str()) != 0) { \

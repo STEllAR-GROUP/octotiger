@@ -87,12 +87,13 @@ grid::output_list_type grid::get_output_list() const {
 	for (integer field = 0; field != NF + NGF; ++field) {
 		data[field].reserve(INX * INX * INX);
 	}
-	const integer this_bw = HBW;
-	zone_list.reserve(std::pow(HNX - 2 * this_bw, NDIM) * NCHILD);
-	for (integer i = this_bw; i != HNX - this_bw; ++i) {
-		for (integer j = this_bw; j != HNX - this_bw; ++j) {
-			for (integer k = this_bw; k != HNX - this_bw; ++k) {
-				const integer iii = i * DNX + j * DNY + k * DNZ;
+	const integer this_bw = H_BW;
+	zone_list.reserve(std::pow(H_NX - 2 * this_bw, NDIM) * NCHILD);
+	for (integer i = this_bw; i != H_NX - this_bw; ++i) {
+		for (integer j = this_bw; j != H_NX - this_bw; ++j) {
+			for (integer k = this_bw; k != H_NX - this_bw; ++k) {
+				const integer iii = hindex(i, j, k);
+				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
 #ifdef EQ_ONLY
 				if (!(std::abs(X[ZDIM][iii]) < dx) && !(std::abs(X[YDIM][iii]) < dx)) {
 					continue;
@@ -123,7 +124,7 @@ grid::output_list_type grid::get_output_list() const {
 					data[field].push_back(U[field][iii]);
 				}
 				for (integer field = 0; field != NGF; ++field) {
-					data[field + NF].push_back(G[field][iii]);
+					data[field + NF].push_back(G[field][iiig]);
 				}
 			}
 		}
@@ -133,7 +134,7 @@ grid::output_list_type grid::get_output_list() const {
 }
 
 void grid::output(const output_list_type& olists, std::string _filename, real _t) {
-#ifdef SILO
+
 	std::thread(
 			[&](const std::string& filename, real t) {
 				printf( "t = %e\n", t);
@@ -184,7 +185,6 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 		DBClose(db);
 #endif
 		}, _filename, _t).join();
-#endif
 }
 
 std::size_t grid::load(FILE* fp) {
@@ -196,17 +196,17 @@ std::size_t grid::load(FILE* fp) {
 	allocate();
 
 	for (integer f = 0; f != NF; ++f) {
-		for (integer i = HBW; i < HNX - HBW; ++i) {
-			for (integer j = HBW; j < HNX - HBW; ++j) {
-				const integer iii = HNX * HNX * i + HNX * j + HBW;
+		for (integer i = H_BW; i < H_NX - H_BW; ++i) {
+			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
+				const integer iii = hindex(i, j, H_BW);
 				cnt += foo(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
 			}
 		}
 	}
 	for (integer f = 0; f != 4; ++f) {
-		for (integer i = HBW; i < HNX - HBW; ++i) {
-			for (integer j = HBW; j < HNX - HBW; ++j) {
-				const integer iii = HNX * HNX * i + HNX * j + HBW;
+		for (integer i = G_BW; i < G_NX - G_BW; ++i) {
+			for (integer j = G_BW; j < G_NX - G_BW; ++j) {
+				const integer iii = gindex(i, j, G_BW);
 				cnt += foo(&(G[f][iii]), sizeof(real), INX, fp) * sizeof(real);
 			}
 		}
@@ -221,17 +221,17 @@ std::size_t grid::save(FILE* fp) const {
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 	for (integer f = 0; f != NF; ++f) {
-		for (integer i = HBW; i < HNX - HBW; ++i) {
-			for (integer j = HBW; j < HNX - HBW; ++j) {
-				const integer iii = HNX * HNX * i + HNX * j + HBW;
+		for (integer i = H_BW; i < H_NX - H_BW; ++i) {
+			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
+				const integer iii = hindex(i, j, H_BW);
 				cnt += foo(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
 			}
 		}
 	}
 	for (integer f = 0; f != 4; ++f) {
-		for (integer i = HBW; i < HNX - HBW; ++i) {
-			for (integer j = HBW; j < HNX - HBW; ++j) {
-				const integer iii = HNX * HNX * i + HNX * j + HBW;
+		for (integer i = G_BW; i < G_NX - G_BW; ++i) {
+			for (integer j = G_BW; j < G_NX - G_BW; ++j) {
+				const integer iii = gindex(i, j, G_BW);
 				cnt += foo(&(G[f][iii]), sizeof(real), INX, fp) * sizeof(real);
 			}
 		}

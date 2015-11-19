@@ -60,10 +60,6 @@ struct diagnostics_t {
 	}
 };
 
-enum exchange_type {
-	NARROW, FULL, VARIABLE
-};
-
 class node_server: public hpx::components::managed_component_base<node_server> {
 private:
 	void set_omega_and_pivot();
@@ -154,9 +150,9 @@ public:
 	~node_server();
 	node_server( const node_server& other);
 	node_server(const node_location&, const node_client& parent_id, real, real);
-	integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, exchange_type = NARROW) const;
-	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, exchange_type=NARROW);
-	std::vector<real> get_hydro_boundary(const geo::direction& face, exchange_type=NARROW);
+	integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer bw) const;
+	void set_hydro_boundary(const std::vector<real>&, const geo::direction&);
+	std::vector<real> get_hydro_boundary(const geo::direction& face);
 
 	void save_to_file( const std::string&) const;
 	void load_from_file( const std::string&);
@@ -261,62 +257,55 @@ public:
 	void run_scf();
 
 };
-HPX_REGISTER_ACTION_DECLARATION( node_server::find_omega_part_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::set_grid_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::force_nodes_to_exist_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::check_for_refinement_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::set_aunt_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::get_nieces_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::load_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::save_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::send_hydro_children_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::send_hydro_flux_correct_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_gather_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_scatter_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::send_hydro_boundary_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_boundary_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_multipoles_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_expansions_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::step_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::solve_gravity_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::start_run_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::copy_to_locality_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::get_child_client_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::form_tree_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::get_ptr_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::diagnostics_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::timestep_driver_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::timestep_driver_ascend_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::timestep_driver_descend_action);
 
-HPX_ACTION_USES_MEDIUM_STACK( node_server::find_omega_part_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::set_grid_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::force_nodes_to_exist_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::check_for_refinement_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::set_aunt_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::get_nieces_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::load_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::save_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::send_hydro_children_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::send_hydro_flux_correct_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::regrid_gather_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::regrid_scatter_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::send_hydro_boundary_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::send_gravity_boundary_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::send_gravity_multipoles_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::send_gravity_expansions_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::step_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::regrid_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::solve_gravity_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::start_run_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::copy_to_locality_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::get_child_client_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::form_tree_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::get_ptr_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::diagnostics_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::timestep_driver_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::timestep_driver_ascend_action);
-HPX_ACTION_USES_MEDIUM_STACK( node_server::timestep_driver_descend_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::set_grid_action)
+;
+HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::check_for_refinement_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::set_aunt_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::get_nieces_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::save_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_gather_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::output_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_descend_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_scatter_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_flux_correct_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::step_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::solve_gravity_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::start_run_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::copy_to_locality_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::get_child_client_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
+
+HPX_ACTION_USES_HUGE_STACK(node_server::save_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::regrid_gather_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::output_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::timestep_driver_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::timestep_driver_ascend_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::timestep_driver_descend_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::regrid_scatter_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::send_hydro_boundary_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::send_gravity_boundary_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::send_gravity_multipoles_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::send_gravity_expansions_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::step_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::regrid_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::solve_gravity_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::start_run_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::copy_to_locality_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::get_child_client_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::form_tree_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::get_ptr_action);
+HPX_ACTION_USES_HUGE_STACK(node_server::diagnostics_action);
 
 #endif /* NODE_SERVER_HPP_ */

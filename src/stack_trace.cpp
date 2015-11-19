@@ -26,8 +26,8 @@ void handler(int sig) {
 	gethostname(hostname, sizeof(hostname));
 	static char command[1024];
 	printf( "Process %i\n", getpid());
-	sprintf( command, "gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i\n",  getpid() );
-//	sprintf( command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i'\n", hostname, getpid() );
+//	sprintf( command, "gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i\n",  getpid() );
+	sprintf( command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i'\n", hostname, getpid() );
 	if( system( command ) != 0 ) {
 		printf( "UNABLE TO PRINT STACK FROM GDB!\n");
 	}

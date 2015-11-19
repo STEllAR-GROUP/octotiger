@@ -6,6 +6,8 @@
  */
 
 #include "node_server.hpp"
+#include "future.hpp"
+
 
 bool node_server::check_for_refinement() {
 	bool rc = false;
@@ -17,9 +19,9 @@ bool node_server::check_for_refinement() {
 		}
 		for (auto& fut : futs) {
 			if (rc) {
-				fut.get();
+				GET(fut);
 			} else {
-				rc = fut.get();
+				rc = GET(fut);
 			}
 		}
 	}
@@ -82,13 +84,13 @@ integer node_server::regrid_gather(bool rebalance_only) {
 			for (auto& ci : geo::octant::full_set()) {
 				child_descendant_count[ci] = 1;
 				children[ci] = hpx::new_<node_server>(hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
-				std::array<integer, NDIM> lb = { HBW, HBW, HBW };
+				std::array<integer, NDIM> lb = { 2*H_BW, 2*H_BW, 2*H_BW };
 				std::array<integer, NDIM> ub;
-				lb[XDIM] += (1 & (ci >> 0)) * (INX / 2);
-				lb[YDIM] += (1 & (ci >> 1)) * (INX / 2);
-				lb[ZDIM] += (1 & (ci >> 2)) * (INX / 2);
+				lb[XDIM] += (1 & (ci >> 0)) * (INX);
+				lb[YDIM] += (1 & (ci >> 1)) * (INX);
+				lb[ZDIM] += (1 & (ci >> 2)) * (INX);
 				for (integer d = 0; d != NDIM; ++d) {
-					ub[d] = lb[d] + (INX / 2);
+					ub[d] = lb[d] + (INX);
 				}
 				std::vector<real> outflows(NF, ZERO);
 				if (ci == 0) {
@@ -156,7 +158,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
 	}
 	clear_family();
 	for (auto&& fut : futs) {
-		fut.get();
+		GET(fut);
 	}
 }
 
@@ -227,7 +229,7 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 		}
 
 		for (auto&& fut : cfuts) {
-			fut.get();
+			GET(fut);
 		}
 
 	} else {
@@ -306,7 +308,7 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
 		futs.push_back(parent.force_nodes_to_exist(std::move(parent_list)));
 	}
 	for (auto&& fut : futs) {
-		fut.get();
+		GET(fut);
 	}
 }
 

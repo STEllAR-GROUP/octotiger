@@ -285,6 +285,7 @@ public:
 	future& operator=( future&&) = default;
 	void wait();
 	bool valid() const;
+	bool is_ready() const;
 	T get();
 	future(hpx::future<hpx::future<T>>&& other );
 	future& operator=(hpx::future<hpx::future<T>>&& other );
@@ -314,6 +315,7 @@ public:
 	void wait();
 	void get();
 	bool valid() const;
+	bool is_ready() const;
 	future(hpx::future<hpx::future<void>>&& other );
 	future& operator=(hpx::future<hpx::future<void>>&& other );
 	template<class Function>
@@ -572,6 +574,7 @@ public:
 	template<class V>
 	void set_value(const V& value);
 	void wait() const;
+	bool is_ready() const;
 	T get();
 };
 
@@ -590,6 +593,7 @@ public:
 	shared_state& operator=(shared_state&&) = delete;
 	void set_value();
 	void wait() const;
+	bool is_ready() const;
 	void get();
 };}
 

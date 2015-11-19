@@ -3,11 +3,10 @@
 
 #include "node_server.hpp"
 #include "node_client.hpp"
+#include "future.hpp"
 #include <chrono>
+//#include "options.hpp"
 #include <unistd.h>
-
-HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
 
 void initialize() {
 //#ifndef NDEBUG
@@ -30,7 +29,7 @@ void node_server::set_omega_and_pivot() {
 		}
 	}
 	for (auto&& fut : futs) {
-		fut.get();
+		GET(fut);
 	}
 	real this_omega = find_omega();
 	futs.clear();
@@ -39,16 +38,16 @@ void node_server::set_omega_and_pivot() {
 		futs.push_back(hpx::async<set_omega_action>(locality, this_omega));
 	}
 	for (auto&& fut : futs) {
-		fut.get();
+		GET(fut);
 	}
 }
 
 void node_server::start_run() {
-#ifdef SCF
 	if (current_time == 0) {
-		run_scf();
+		//	run_scf();
+		//	if (system("mkdir dat_back\n")) {
+		//	}
 	}
-#endif
 
 	printf("Starting...\n");
 	solve_gravity(false);
@@ -70,7 +69,7 @@ void node_server::start_run() {
 		auto time_start = std::chrono::high_resolution_clock::now();
 
 		auto diags = diagnostics();
-		diag_fut.get();
+		GET(diag_fut);
 		diag_fut = hpx::async([=]() {
 			FILE* fp = fopen( "diag.dat", "at");
 			fprintf( fp, "%23.16e ", double(t));
@@ -95,19 +94,24 @@ void node_server::start_run() {
 		});
 
 		if (t / output_dt >= output_cnt) {
-			std::string fname = std::string("X.") + std::to_string(output_cnt) + std::string(".chk");
+			char* fname;
+
+			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
+			}
 			save_to_file(fname);
+			free(fname);
+			//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
 			++output_cnt;
 
 		}
 		//	break;
 		auto ts_fut = hpx::async([=]() {return timestep_driver();});
 		step();
-		real dt = ts_fut.get();
+		real dt = GET(ts_fut);
 
 		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
 				std::chrono::high_resolution_clock::now() - time_start).count();
-		step_fut.get();
+		GET(step_fut);
 		step_fut =
 				hpx::async(
 						[=]() {
@@ -120,7 +124,7 @@ void node_server::start_run() {
 		t += dt;
 		++step_num;
 
-		const integer refinement_freq = integer(HBW / cfl + 0.5);
+		const integer refinement_freq = integer(R_BW / cfl + 0.5);
 		if (step_num % refinement_freq == 0) {
 			regrid(me.get_gid(), false);
 		}
@@ -129,48 +133,52 @@ void node_server::start_run() {
 }
 
 int hpx_main(int argc, char* argv[]) {
-	auto all_locs = hpx::find_all_localities();
-	std::list<hpx::future<void>> futs;
-	for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
-		futs.push_back(hpx::async<initialize_action>(*i));
-	}
-	for (auto i = futs.begin(); i != futs.end(); ++i) {
-		i->get();
-	}
-	//#ifndef NDEBUG
+//	options opts;
+
+//	if (opts.process_options(argc, argv)) {
+
+		auto all_locs = hpx::find_all_localities();
+		std::list<hpx::future<void>> futs;
+		for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
+			futs.push_back(hpx::async<initialize_action>(*i));
+		}
+		for (auto i = futs.begin(); i != futs.end(); ++i) {
+			GET(*i);
+		}
+		//#ifndef NDEBUG
 //#endif
-	node_client root_id = hpx::new_<node_server>(hpx::find_here());
-	node_client root_client(root_id);
+		node_client root_id = hpx::new_<node_server>(hpx::find_here());
+		node_client root_client(root_id);
 
-	if (argc == 1) {
-		for (integer l = 0; l < MAX_LEVEL; ++l) {
-			root_client.regrid(root_client.get_gid(), false).get();
-			printf("---------------Created Level %i---------------\n", int(l + 1));
-		}
-	} else {
-		std::string fname(argv[1]);
-		printf("Loading from %s...\n", fname.c_str());
-		if (argc == 2) {
-			root_client.get_ptr().get()->load_from_file(fname);
+		if (argc == 1) {
+			for (integer l = 0; l < MAX_LEVEL; ++l) {
+				GET(root_client.regrid(root_client.get_gid(), false));
+				printf("---------------Created Level %i---------------\n", int(l + 1));
+			}
 		} else {
-			std::string oname(argv[2]);
-			root_client.get_ptr().get()->load_from_file_and_output(fname, oname);
-			printf("Converted %s to %s\n", fname.c_str(), oname.c_str());
-			return hpx::finalize();
+			std::string fname(argv[1]);
+			printf("Loading from %s...\n", fname.c_str());
+			if (argc == 2) {
+				GET(root_client.get_ptr())->load_from_file(fname);
+			} else {
+				std::string oname(argv[2]);
+				GET(root_client.get_ptr())->load_from_file_and_output(fname, oname);
+				printf("Converted %s to %s\n", fname.c_str(), oname.c_str());
+				return hpx::finalize();
+			}
+			GET(root_client.regrid(root_client.get_gid(), true));
+			printf("Done. \n");
 		}
-		root_client.regrid(root_client.get_gid(), true).get();
-		printf("Done. \n");
-	}
 
-	std::vector<hpx::id_type> null_sibs(geo::direction::count());
-	printf("Forming tree connections------------\n");
-	root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs).get();
-	printf("...done\n");
+		std::vector<hpx::id_type> null_sibs(geo::direction::count());
+		printf("Forming tree connections------------\n");
+		GET(root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs));
+		printf("...done\n");
 
 //	sleep(3);
 
-	root_client.start_run().get();
-
+		root_client.start_run().get();
+	//}
 	//root_client.unregister(node_location()).get();
 	printf("Exiting...\n");
 	return hpx::finalize();

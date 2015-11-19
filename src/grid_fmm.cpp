@@ -366,38 +366,38 @@ void grid::compute_boundary_interactions_monopole(gsolve_type type, const std::v
 void grid::compute_ilist() {
 
 	std::vector<std::vector<geo::direction> > neighbor_num(nlevel,
-			std::vector<geo::direction>(HN3, geo::direction(-1)));
+			std::vector<geo::direction>(G_N3, geo::direction(-1)));
 	integer lev = nlevel - 2;
 	for (integer inx = 4; inx <= INX; inx <<= 1) {
-		const integer nx = inx + 2 * HBW;
+		const integer nx = inx + 2 * G_BW;
 		for (integer i0 = 0; i0 != nx; ++i0) {
 			for (integer j0 = 0; j0 != nx; ++j0) {
 				for (integer k0 = 0; k0 != nx; ++k0) {
 					bool on_bnd = false;
 					const integer iii0 = i0 * nx * nx + j0 * nx + k0;
 					integer x, y, z;
-					if (k0 < HBW) {
+					if (k0 < G_BW) {
 						z = -1;
 						on_bnd = true;
-					} else if (k0 >= nx - HBW) {
+					} else if (k0 >= nx - G_BW) {
 						z = +1;
 						on_bnd = true;
 					} else {
 						z = 0;
 					}
-					if (j0 < HBW) {
+					if (j0 < G_BW) {
 						y = -1;
 						on_bnd = true;
-					} else if (j0 >= nx - HBW) {
+					} else if (j0 >= nx - G_BW) {
 						y = +1;
 						on_bnd = true;
 					} else {
 						y = 0;
 					}
-					if (i0 < HBW) {
+					if (i0 < G_BW) {
 						x = -1;
 						on_bnd = true;
-					} else if (i0 >= nx - HBW) {
+					} else if (i0 >= nx - G_BW) {
 						x = +1;
 						on_bnd = true;
 					} else {
@@ -420,7 +420,7 @@ void grid::compute_ilist() {
 	std::array<std::vector<dpair>, geo::direction::count()> ilist_d0_bnd;
 	for (integer inx = 4; inx <= INX; inx <<= 1) {
 		if (is_root || lev == 0) {
-			const integer nx = inx + 2 * HBW;
+			const integer nx = inx + 2 * G_BW;
 			for (integer i0 = 0; i0 != nx; ++i0) {
 				for (integer j0 = 0; j0 != nx; ++j0) {
 					for (integer k0 = 0; k0 != nx; ++k0) {
@@ -491,24 +491,24 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 	}
 	for (integer inx = is_root ? 4 : INX; inx <= INX; inx <<= 1) {
 		--lev;
-		const integer nxp = (inx / 2) + 2 * HBW;
-		auto child_index = [=](integer ip, integer jp, integer kp, integer ci, integer bw=HBW) -> integer {
-			const integer ic = (2 * (ip - HBW)+bw) + ((ci >> 0) & 1);
-			const integer jc = (2 * (jp - HBW)+bw) + ((ci >> 1) & 1);
-			const integer kc = (2 * (kp - HBW)+bw) + ((ci >> 2) & 1);
+		const integer nxp = (inx / 2) + 2 * G_BW;
+		auto child_index = [=](integer ip, integer jp, integer kp, integer ci, integer bw=G_BW) -> integer {
+			const integer ic = (2 * (ip - G_BW)+bw) + ((ci >> 0) & 1);
+			const integer jc = (2 * (jp - G_BW)+bw) + ((ci >> 1) & 1);
+			const integer kc = (2 * (kp - G_BW)+bw) + ((ci >> 2) & 1);
 			return (inx+2*bw) * (inx+2*bw) * ic + (inx+2*bw) * jc + kc;
 		};
 
-		for (integer ip = HBW; ip != nxp - HBW; ++ip) {
-			for (integer jp = HBW; jp != nxp - HBW; ++jp) {
-				for (integer kp = HBW; kp != nxp - HBW; ++kp) {
+		for (integer ip = G_BW; ip != nxp - G_BW; ++ip) {
+			for (integer jp = G_BW; jp != nxp - G_BW; ++jp) {
+				for (integer kp = G_BW; kp != nxp - G_BW; ++kp) {
 					const integer iiip = nxp * nxp * ip + nxp * jp + kp;
 					if (!((lev == 1) && !is_root)) {
 						std::array < simd_vector, NDIM > X;
 						std::array<simd_vector, NDIM> dX;
 						taylor<4, simd_vector> l, lc;
 						if (!is_root && lev == 0) {
-							const integer index = (INX * INX / 4) * (ip - HBW) + (INX / 2) * (jp - HBW) + (kp - HBW);
+							const integer index = (INX * INX / 4) * (ip - G_BW) + (INX / 2) * (jp - G_BW) + (kp - G_BW);
 							for (integer j = 0; j != 20; ++j) {
 								l.ptr()[j] = parent_expansions->first[index].ptr()[j];
 								if (type == RHO) {
@@ -561,18 +561,19 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 	}
 
 	if (is_leaf) {
-		for (integer i = HBW; i != HNX - HBW; ++i) {
-			for (integer j = HBW; j != HNX - HBW; ++j) {
-				for (integer k = HBW; k != HNX - HBW; ++k) {
-					const integer iii = i * DNX + j * DNY + k * DNZ;
+		for (integer i = G_BW; i != G_NX - G_BW; ++i) {
+			for (integer j = G_BW; j != G_NX - G_BW; ++j) {
+				for (integer k = G_BW; k != G_NX - G_BW; ++k) {
+					const integer iii = gindex(i, j, k);
+					const integer iiih = hindex(i + H_BW - G_BW, j + H_BW - G_BW, k + H_BW - G_BW);
 					if (type == RHO) {
 						G[phi_i][iii] = L[0][iii]();
 						for (auto& d : geo::dimension::full_set()) {
 							G[gx_i + d][iii] = -L[0][iii](d) - L_c[0][iii](d);
 						}
-						U[pot_i][iii] = G[phi_i][iii] * U[rho_i][iii];
+						U[pot_i][iiih] = G[phi_i][iii] * U[rho_i][iiih];
 					} else {
-						dphi_dt[iii] = L[0][iii]();
+						dphi_dt[iiih] = L[0][iii]();
 					}
 				}
 			}
@@ -586,9 +587,15 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	const real dx3 = dx * dx * dx;
 
 	if (is_leaf && type == RHO) {
-		for (integer iii = 0; iii != HN3; ++iii) {
-			for (integer dim = 0; dim != NDIM; ++dim) {
-				com[0][iii][dim] = X[dim][iii];
+		for (integer i = G_BW; i != G_NX - G_BW; ++i) {
+			for (integer j = G_BW; j != G_NX - G_BW; ++j) {
+				for (integer k = G_BW; k != G_NX - G_BW; ++k) {
+					const integer iii = gindex(i, j, k);
+					const integer iiih = hindex(i + H_BW - G_BW, j + H_BW - G_BW, k + H_BW - G_BW);
+					for (integer dim = 0; dim != NDIM; ++dim) {
+						com[0][iii][dim] = X[dim][iiih];
+					}
+				}
 			}
 		}
 	}
@@ -601,19 +608,19 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	integer index = 0;
 	for (integer inx = INX; (inx >= std::max(INX / 2, integer(1))) || (inx > 1 && is_root); inx >>= 1) {
 
-		const integer nxp = inx + 2 * HBW;
-		const integer nxc = (2 * inx) + 2 * HBW;
+		const integer nxp = inx + 2 * G_BW;
+		const integer nxc = (2 * inx) + 2 * G_BW;
 
 		auto child_index = [=](integer ip, integer jp, integer kp, integer ci) -> integer {
-			const integer ic = (2 * ip - HBW) + ((ci >> 0) & 1);
-			const integer jc = (2 * jp - HBW) + ((ci >> 1) & 1);
-			const integer kc = (2 * kp - HBW) + ((ci >> 2) & 1);
+			const integer ic = (2 * ip - G_BW) + ((ci >> 0) & 1);
+			const integer jc = (2 * jp - G_BW) + ((ci >> 1) & 1);
+			const integer kc = (2 * kp - G_BW) + ((ci >> 2) & 1);
 			return nxc * nxc * ic + nxc * jc + kc;
 		};
 
-		for (integer ip = HBW; ip != nxp - HBW; ++ip) {
-			for (integer jp = HBW; jp != nxp - HBW; ++jp) {
-				for (integer kp = HBW; kp != nxp - HBW; ++kp) {
+		for (integer ip = G_BW; ip != nxp - G_BW; ++ip) {
+			for (integer jp = G_BW; jp != nxp - G_BW; ++jp) {
+				for (integer kp = G_BW; kp != nxp - G_BW; ++kp) {
 					const integer iiip = nxp * nxp * ip + nxp * jp + kp;
 					M[lev][iiip] = ZERO;
 					if (lev != 0) {
@@ -655,10 +662,11 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 						}
 					} else {
 						if (child_poles == nullptr) {
+							const integer iiih = hindex(ip + H_BW - G_BW, jp + H_BW - G_BW, kp + H_BW - G_BW);
 							if (type == RHO) {
-								M[lev][iiip]() = U[rho_i][iiip] * dx3;
+								M[lev][iiip]() = U[rho_i][iiih] * dx3;
 							} else {
-								M[lev][iiip]() = dUdt[rho_i][iiip] * dx3;
+								M[lev][iiip]() = dUdt[rho_i][iiih] * dx3;
 							}
 						} else {
 							M[lev][iiip] = child_poles->first[index];
