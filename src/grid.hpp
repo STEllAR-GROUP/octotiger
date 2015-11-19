@@ -295,8 +295,4 @@ struct grid::output_list_type {
 
 void scf_binary_init();
 
-HPX_DEFINE_PLAIN_ACTION(scf_binary_init, scf_binary_init_action);
-HPX_DEFINE_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_DEFINE_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
-
 #endif /* GRID_HPP_ */

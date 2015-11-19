@@ -60,6 +60,10 @@ hpx::id_type make_new_node(const node_location& loc, const hpx::id_type& _parent
 	return GET(hpx::new_<node_server>(hpx::find_here(), loc, _parent, ZERO, ZERO));
 }
 
+
+HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
+HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
+
 HPX_PLAIN_ACTION(make_new_node, make_new_node_action);
 
 grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, bool do_output) {
@@ -82,9 +86,9 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 		std::vector<hpx::future<void>> futs;
 		futs.reserve(localities.size());
 		for (auto& locality : localities) {
-			futs.push_back(hpx::async<set_omega_action>(locality, omega));
+			futs.push_back(hpx::async<set_omega_action2>(locality, omega));
 			if (current_time == ZERO) {
-				futs.push_back(hpx::async<set_pivot_action>(locality, pivot));
+				futs.push_back(hpx::async<set_pivot_action2>(locality, pivot));
 			}
 		}
 		for (auto&& fut : futs) {

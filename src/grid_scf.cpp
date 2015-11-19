@@ -13,6 +13,8 @@
 real R_a, R_b, R_c;
 real w0 = 0.1;
 
+HPX_PLAIN_ACTION(scf_binary_init, scf_binary_init_action);
+
 const real c_r = 3.65375;
 const real c_den = 5.99071;
 const real M_acc = 1.0 / 1000.0;
@@ -48,7 +50,7 @@ global_vars_t global;
 real alpha_acc;
 real alpha_don, R_acc, rho_acc, rho_don;
 
-HPX_REGISTER_PLAIN_ACTION(scf_binary_init_action);
+//HPX_REGISTER_PLAIN_ACTION(scf_binary_init_action);
 
 __attribute__((constructor))
 void scf_binary_init() {
