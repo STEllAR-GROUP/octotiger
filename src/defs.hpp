@@ -7,9 +7,14 @@
 
 #ifndef TYPES444_HPP_
 #ifdef MINI_HPX
-#include "../hpx/hpx.hpp"
+#include "../hpx/hpx_lite.hpp"
 #else
 #include <hpx/hpx.hpp>
+
+namespace hpx {
+using mutex = hpx::lcos::local::spinlock;
+}
+
 #endif
 
 typedef double real;

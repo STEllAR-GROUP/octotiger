@@ -8,6 +8,10 @@
 //#include "options.hpp"
 #include <unistd.h>
 
+
+HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
+HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
+
 void initialize() {
 //#ifndef NDEBUG
 	feenableexcept(FE_DIVBYZERO);

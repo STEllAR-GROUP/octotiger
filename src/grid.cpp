@@ -14,10 +14,6 @@ space_vector grid::pivot(ZERO);
 
 integer grid::max_level = MAX_LEVEL;
 
-HPX_REGISTER_PLAIN_ACTION(set_omega_action);
-
-HPX_REGISTER_PLAIN_ACTION(set_pivot_action);
-
 void grid::set_omega(real o) {
 	omega = o;
 }
