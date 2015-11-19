@@ -5,8 +5,8 @@
  *      Author: dmarce1
  */
 
-#ifndef HPX_LITE_HPP_
-#define HPX_LITE_HPP_
+#ifndef HPX_HPP_
+#define HPX_HPP_
 
 
 #include <mpi.h>

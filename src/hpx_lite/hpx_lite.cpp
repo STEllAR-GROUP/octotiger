@@ -5,7 +5,7 @@
  *      Author: dmarce1
  */
 
-#include "hpx_lite.hpp"
+#include "hpx.hpp"
 #include <list>
 #include <unistd.h>
 #include <unordered_map>
@@ -115,11 +115,13 @@ int main(int argc, char* argv[]) {
 	sprintf(string, "%i", int(std::thread::hardware_concurrency()));
 #ifdef __MIC__
 	setenv("QTHREAD_HWPAR", "61", 1);
-//	setenv("QTHREAD_NUM_WORKERS_PER_SHEPHERD", "244", 1);
-//	setenv("QTHREAD_NUM_SHEPHERDS", "1", 1);
+	setenv("QTHREAD_NUM_WORKERS_PER_SHEPHERD", "244", 1);
+	setenv("QTHREAD_NUM_SHEPHERDS", "1", 1);
 #else
-	setenv("QTHREAD_SHEPHERD_BOUNDARY", "socket", 1);
-	setenv("QTHREAD_HWPAR", string, 1);
+//	setenv("QTHREAD_SHEPHERD_BOUNDARY", "socket", 1);
+//	setenv("QTHREAD_HWPAR", string, 1);
+	setenv("QTHREAD_NUM_WORKERS_PER_SHEPHERD", "1", 1);
+	setenv("QTHREAD_NUM_SHEPHERDS", string, 1);
 #endif
 	QCHECK(qthread_initialize());
 	int rank, provided, rc = MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
@@ -623,6 +625,10 @@ bool future<void>::valid() const {
 	return state != nullptr;
 }
 
+bool future<void>::is_ready() const {
+	return state->is_ready();
+}
+
 hpx::future<void> make_ready_future() {
 	hpx::promise<void> promise;
 	promise.set_value();
@@ -656,6 +662,10 @@ void mutex::unlock() {
 namespace detail {
 void shared_state<void>::set_value() {
 	ready = true;
+}
+
+bool shared_state<void>::is_ready() const {
+	return ready;
 }
 
 void shared_state<void>::wait() const {
