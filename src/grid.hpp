@@ -235,11 +235,11 @@ public:
 	output_list_type get_output_list() const;
 	template<class Archive>
 	void load(Archive& arc, const unsigned) {
-		bool leaf, root;
-		arc >> leaf;
-		set_leaf(leaf);
-		arc >> root;
-		set_root(root);
+	//	bool leaf, root;
+		arc >> is_leaf;
+		arc >> is_root;
+	//	set_root(root);
+	//	set_leaf(leaf);
 		arc >> dx;
 		arc >> xmin;
 		allocate();

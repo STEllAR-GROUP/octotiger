@@ -39,6 +39,7 @@ enum gsolve_type {
 const real DEFAULT_OMEGA = 0.142194022;
 
 const integer MAX_LEVEL = 7;
+
 enum boundary_type {
 	OUTFLOW, REFLECT
 };
