@@ -137,6 +137,7 @@ void node_server::start_run() {
 }
 
 int hpx_main(int argc, char* argv[]) {
+	printf( "Running\n");
 //	options opts;
 
 //	if (opts.process_options(argc, argv)) {

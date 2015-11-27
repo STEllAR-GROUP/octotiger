@@ -222,7 +222,7 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 					const integer iii = hindex(i / 2, j / 2, k / 2);
 					const real u0 = U[field][iii];
-				real slpx = minmod_theta(U[field][iii + H_DNX] - u0, u0 - U[field][iii - H_DNX], 1.3);
+					real slpx = minmod_theta(U[field][iii + H_DNX] - u0, u0 - U[field][iii - H_DNX], 1.3);
 					real slpy = minmod_theta(U[field][iii + H_DNY] - u0, u0 - U[field][iii - H_DNY], 1.3);
 					real slpz = minmod_theta(U[field][iii + H_DNZ] - u0, u0 - U[field][iii - H_DNZ], 1.3);
 					real xsgn = (i % 2) ? +1.0 : -1.0;
@@ -392,7 +392,7 @@ std::vector<real> grid::l_sums() const {
 }
 
 bool grid::refine_me(integer lev) const {
-	if (lev == 0) {
+	if (lev < 2) {
 		return true;
 	}
 	bool rc;
@@ -402,9 +402,9 @@ bool grid::refine_me(integer lev) const {
 				const integer iii = hindex(i, j, k);
 				real rho_ref;
 				if (U[acc_i][iii] > U[don_i][iii]) {
-					rho_ref = 7.5 * 1.0e-5;
+					rho_ref = 7.5 * 8.0e-5;
 				} else {
-					rho_ref = 0.28 * 1.0e-5;
+					rho_ref = 0.28 * 8.0e-5;
 				}
 				if (U[rho_i][iii] > rho_ref) {
 					rc = (lev < max_level);
@@ -585,14 +585,15 @@ void grid::allocate() {
 
 grid::grid() :
 		U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(
-				geo::direction::count()), ilist_n_bnd(geo::direction::count()) {
-	;
+						geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
+						ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+//	allocate();
 }
 
 grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin) :
 		U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(
-				geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
-				ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+						geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
+						ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();

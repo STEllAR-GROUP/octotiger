@@ -1,5 +1,7 @@
 #include "grid.hpp"
+#ifdef DO_OUTPUT
 #include <silo.h>
+#endif
 #include <fstream>
 #include <thread>
 #include <cmath>
@@ -134,6 +136,7 @@ grid::output_list_type grid::get_output_list() const {
 }
 
 void grid::output(const output_list_type& olists, std::string _filename, real _t) {
+#ifdef DO_OUTPUT
 
 	std::thread(
 			[&](const std::string& filename, real t) {
@@ -185,6 +188,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 		DBClose(db);
 #endif
 		}, _filename, _t).join();
+#endif
 }
 
 std::size_t grid::load(FILE* fp) {
