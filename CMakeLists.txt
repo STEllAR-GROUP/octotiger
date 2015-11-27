@@ -60,27 +60,3 @@ add_hpx_executable(
 )
 
 
-add_executable(
-  octotiger_lite
-          src/hpx_lite/hpx_lite.cpp
-          src/grid.cpp
-          src/grid_fmm.cpp
-          src/grid_output.cpp
-          src/lane_emden.cpp
-          src/geometry.cpp
-          src/node_octstruct.cpp
-          src/grid_scf.cpp
-          src/main.cpp
-          src/node_client.cpp
-          src/node_location.cpp
-          src/node_server.cpp
-          src/node_server_decomp.cpp
-          src/node_server_output.cpp
-          src/problem.cpp
-          src/roe.cpp
-          src/taylor.cpp
- )
-
-target_compile_definitions(octotiger_lite
-                           PUBLIC MINI_HPX
-)
