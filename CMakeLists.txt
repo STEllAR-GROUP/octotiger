@@ -16,7 +16,7 @@ if(MSVC)
 endif()
 
 ################################################################################
-find_package(HPX REQUIRED)
+find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(MPI REQUIRED)
 
 ################################################################################
