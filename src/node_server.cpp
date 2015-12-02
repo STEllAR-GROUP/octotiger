@@ -9,6 +9,7 @@
 #include "problem.hpp"
 #include "future.hpp"
 #include <streambuf>
+#include <mutex>
 #include <fstream>
 #include <iostream>
 

@@ -8,6 +8,8 @@
 #include "node_server.hpp"
 #include <sys/stat.h>
 #include "future.hpp"
+#include <mutex>
+
 
 hpx::mutex rec_size_mutex;
 integer rec_size = -1;
@@ -70,10 +72,11 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	FILE* fp;
 	std::size_t read_cnt = 0;
 	if (rec_size == -1) {
-		std::lock_guard<hpx::mutex> lock(rec_size_mutex);
+		std::unique_lock<hpx::mutex> lock(rec_size_mutex);
 		fp = fopen("data.bin", "rb");
 		fseek(fp, -sizeof(integer), SEEK_END);
 		read_cnt += fread(&rec_size, sizeof(integer), 1, fp);
+		lock.unlock();
 		fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
 		real omega;
 		space_vector pivot;

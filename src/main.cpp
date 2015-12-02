@@ -48,7 +48,8 @@ void node_server::set_omega_and_pivot() {
 
 void node_server::start_run() {
 	if (current_time == 0) {
-		//	run_scf();
+			run_scf();
+//
 		//	if (system("mkdir dat_back\n")) {
 		//	}
 	}
