@@ -63,7 +63,7 @@ real interp_scf_pre(real x, real y, real z) {
 	return interp_scf(pre, x, y, z);
 }
 
-__attribute__((constructor))
+//__attribute__((constructor))
 static void read_file() {
 	FILE* fp = fopen("density.bin", "rb");
 	if (fp != NULL) {

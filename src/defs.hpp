@@ -7,7 +7,7 @@
 
 #ifndef TYPES444_HPP_
 
-#define DO_OUTPUT
+//#define DO_OUTPUT
 
 #ifdef MINI_HPX
 #include "../hpx/hpx_lite.hpp"
@@ -43,7 +43,7 @@ enum gsolve_type {
 
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 6;
+const integer MAX_LEVEL = 5;
 
 enum boundary_type {
 	OUTFLOW, REFLECT

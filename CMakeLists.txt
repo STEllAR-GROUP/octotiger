@@ -22,7 +22,7 @@ find_package(MPI REQUIRED)
 ################################################################################
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-set( CMAKE_CXX_FLAGS "-mt_mpi -xHOST -std=c++14" )
+#set( CMAKE_CXX_FLAGS "-mt_mpi -xHOST -std=c++14" )
 
 add_hpx_executable(
   octotiger
@@ -42,6 +42,7 @@ add_hpx_executable(
           src/problem.cpp
           src/roe.cpp
           src/taylor.cpp
+          src/old_scf_read.cpp
   HEADERS src/channel.hpp
           src/defs.hpp
           src/future.hpp
@@ -59,5 +60,5 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
-target_link_libraries( octotiger_exe silo )
+#target_link_libraries( octotiger_exe silo )
 

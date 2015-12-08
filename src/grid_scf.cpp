@@ -21,7 +21,7 @@ const real c_r = 3.65375;
 const real c_den = 5.99071;
 const real M_acc = 1.0 / 1000.0;
 const real M_don = 0.2 / 1000.0;
-const real R_don = 0.06;
+const real R_don = 0.10;
 const real rho_floor = 1.0e-10;
 
 const real G = 1.0;
