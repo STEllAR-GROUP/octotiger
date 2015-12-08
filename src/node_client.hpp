@@ -65,7 +65,6 @@ public:
 	hpx::future<grid::output_list_type> output() const;
 	integer save(integer=0) const;
 	hpx::future<bool> check_for_refinement() const;
-	hpx::future<bool> refinement_descend() const;
 	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
 	hpx::future<std::pair<real,real>> find_omega_part(const space_vector& pivot) const;
 

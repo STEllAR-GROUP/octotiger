@@ -7,9 +7,7 @@
 
 #ifndef TYPES444_HPP_
 
-
 #define DO_OUTPUT
-
 
 #ifdef MINI_HPX
 #include "../hpx/hpx_lite.hpp"
@@ -38,6 +36,7 @@ enum gsolve_type {
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+#include <mutex>
 #endif
 
 #define USE_ROTATING_FRAME

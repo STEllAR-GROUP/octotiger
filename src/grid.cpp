@@ -345,24 +345,25 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
-std::vector<real> grid::conserved_sums() const {
+std::vector<real> grid::conserved_sums(std::function<bool(real,real,real)> use) const {
 	std::vector<real> sum(NF, ZERO);
 	const real dV = dx * dx * dx;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				for (integer field = 0; field != NF; ++field) {
-					sum[field] += U[field][iii] * dV;
-				}
-				sum[egas_i] += U[pot_i][iii] * HALF * dV;
-				sum[zx_i] += X[YDIM][iii] * U[sz_i][iii] * dV;
-				sum[zx_i] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
-				sum[zy_i] -= X[XDIM][iii] * U[sz_i][iii] * dV;
-				sum[zy_i] += X[ZDIM][iii] * U[sx_i][iii] * dV;
-				sum[zz_i] += X[XDIM][iii] * U[sy_i][iii] * dV;
-				sum[zz_i] -= X[YDIM][iii] * U[sx_i][iii] * dV;
-			}
+				if( use(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii])) {
+					for (integer field = 0; field != NF; ++field) {
+						sum[field] += U[field][iii] * dV;
+					}
+					sum[egas_i] += U[pot_i][iii] * HALF * dV;
+					sum[zx_i] += X[YDIM][iii] * U[sz_i][iii] * dV;
+					sum[zx_i] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
+					sum[zy_i] -= X[XDIM][iii] * U[sz_i][iii] * dV;
+					sum[zy_i] += X[ZDIM][iii] * U[sx_i][iii] * dV;
+					sum[zz_i] += X[XDIM][iii] * U[sy_i][iii] * dV;
+					sum[zz_i] -= X[YDIM][iii] * U[sx_i][iii] * dV;
+				}}
 		}
 	}
 	return sum;
@@ -585,15 +586,15 @@ void grid::allocate() {
 
 grid::grid() :
 		U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(
-						geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
-						ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+				geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
+				ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 //	allocate();
 }
 
 grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin) :
 		U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(
-						geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
-						ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+				geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
+				ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();

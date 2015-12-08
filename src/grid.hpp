@@ -210,7 +210,7 @@ public:
 	integer get_step() const;
 
 	void diagnostics();
-	std::vector<real> conserved_sums() const;
+	std::vector<real> conserved_sums(std::function<bool(real,real,real)> use = [](real,real,real) {return true;}) const;
 	std::vector<real> l_sums() const;
 	std::vector<real> conserved_outflows() const;
 	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin);
@@ -235,35 +235,35 @@ public:
 	output_list_type get_output_list() const;
 	template<class Archive>
 	void load(Archive& arc, const unsigned) {
-	//	bool leaf, root;
-		arc >> is_leaf;
-		arc >> is_root;
-	//	set_root(root);
-	//	set_leaf(leaf);
-		arc >> dx;
-		arc >> xmin;
-		allocate();
-		arc >> U;
-		arc >> G;
-		arc >> U_out;
-	}
-	template<class Archive>
-	void save(Archive& arc, const unsigned) const {
-		arc << is_leaf;
-		arc << is_root;
-		arc << dx;
-		arc << xmin;
-		arc << U;
-		arc << G;
-		arc << U_out;
-	}
-	HPX_SERIALIZATION_SPLIT_MEMBER()
-	;
+		//	bool leaf, root;
+			arc >> is_leaf;
+			arc >> is_root;
+			//	set_root(root);
+			//	set_leaf(leaf);
+			arc >> dx;
+			arc >> xmin;
+			allocate();
+			arc >> U;
+			arc >> G;
+			arc >> U_out;
+		}
+		template<class Archive>
+		void save(Archive& arc, const unsigned) const {
+			arc << is_leaf;
+			arc << is_root;
+			arc << dx;
+			arc << xmin;
+			arc << U;
+			arc << G;
+			arc << U_out;
+		}
+		HPX_SERIALIZATION_SPLIT_MEMBER()
+		;
 
-	std::size_t load(FILE* fp);
-	std::size_t save(FILE* fp) const;
+		std::size_t load(FILE* fp);
+		std::size_t save(FILE* fp) const;
 
-};
+	};
 
 struct grid::node_point {
 	xpoint pt;

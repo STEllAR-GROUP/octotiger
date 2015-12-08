@@ -8,8 +8,6 @@
 #include "node_server.hpp"
 #include <sys/stat.h>
 #include "future.hpp"
-#include <mutex>
-
 
 hpx::mutex rec_size_mutex;
 integer rec_size = -1;
@@ -72,11 +70,10 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	FILE* fp;
 	std::size_t read_cnt = 0;
 	if (rec_size == -1) {
-		std::unique_lock<hpx::mutex> lock(rec_size_mutex);
+		std::lock_guard<hpx::mutex> lock(rec_size_mutex);
 		fp = fopen("data.bin", "rb");
 		fseek(fp, -sizeof(integer), SEEK_END);
 		read_cnt += fread(&rec_size, sizeof(integer), 1, fp);
-		lock.unlock();
 		fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
 		real omega;
 		space_vector pivot;
@@ -140,11 +137,12 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	}
 	if (!is_refined && do_output) {
 		my_list = grid_ptr->get_output_list();
-		grid_ptr = nullptr;
+	//	grid_ptr = nullptr;
 	}
 //	hpx::async<inc_grids_loaded_action>(localities[0]).get();
 	if (my_location.level() == 0) {
 		if (do_output) {
+			diagnostics();
 			grid::output(my_list, "data.silo", current_time);
 		}
 		printf("Loaded checkpoint file\n");

@@ -10,6 +10,8 @@
 #include "lane_emden.hpp"
 #include "node_client.hpp"
 
+//#define MULTICORE
+
 real R_a, R_b, R_c;
 real w0 = 0.1;
 
@@ -19,7 +21,7 @@ const real c_r = 3.65375;
 const real c_den = 5.99071;
 const real M_acc = 1.0 / 1000.0;
 const real M_don = 0.2 / 1000.0;
-const real R_don = 0.1;
+const real R_don = 0.06;
 const real rho_floor = 1.0e-10;
 
 const real G = 1.0;
@@ -71,13 +73,13 @@ void scf_binary_init() {
 	R_a = global.x_don + R_don;
 	R_b = global.x_don - R_don;
 
-	printf("rho    %e  |  %e\n", rho_acc, rho_don);
-	printf("M      %e  |  %e\n", M_acc, M_don);
-	printf("R      %e  |  %e\n", R_acc, R_don);
-	printf("x_com  %e  |  %e\n", global.x_acc, global.x_don);
-	printf("alpha  %e  |  %e\n", alpha_acc, alpha_don);
-	printf(" a     %e\n", a);
-	printf(" omega %e\n", omega);
+//	printf("rho    %e  |  %e\n", rho_acc, rho_don);
+//	printf("M      %e  |  %e\n", M_acc, M_don);
+//	printf("R      %e  |  %e\n", R_acc, R_don);
+//	printf("x_com  %e  |  %e\n", global.x_acc, global.x_don);
+//	printf("alpha  %e  |  %e\n", alpha_acc, alpha_don);
+//	printf(" a     %e\n", a);
+//	printf(" omega %e\n", omega);
 //	exit(0);
 
 }
@@ -136,7 +138,7 @@ real node_server::scf_update(bool mom_only) {
 		res = grid_ptr->scf_update(mom_only);
 	}
 	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries();
+//	collect_hydro_boundaries();
 	for (auto&& fut : futs) {
 		res += fut.get();
 	}
@@ -237,6 +239,46 @@ real grid::scf_update(bool mom_only) {
 				const integer iii = hindex(i, j, k);
 				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
 				real& rho = U[rho_i][iii];
+
+#ifndef MULTICORE
+				auto eos_h2rho = [=](real h) {
+					return std::pow(std::max(ZERO, h) / ((n + ONE) * global.K), n);
+				};
+				auto eos_rho2ene = [=](real rho) {
+					return global.K * std::pow( rho, 1.0 + 1.0/n ) / (fgamma-1.0);
+				};
+#else
+				const real rho_E = 0.5;
+				const real rho_C = 1.0;
+				real n_E = 1.5;
+				real n_C = 3.0;
+				auto eos_h2rho = [=](real h) {
+					h = std::max(ZERO,h);
+					real P0 = global.K * std::pow(rho_E, 1.0 + 1.0 / n_E);
+					real H_E = (P0 / rho_E)*(1.0+n_E);
+					real H_C = (P0 / rho_C)*(1.0+n_C);
+					real r;
+					if( h < H_E) {
+						r = rho_E * std::pow(h / H_E, n_E);
+					} else {
+						r = rho_C * std::pow((h-H_E + H_C) / H_C, n_C);
+					}
+					return r;
+				};
+				auto eos_rho2ene = [=](real rho) {
+					real p;
+					real P0 = global.K * std::pow(rho_E, 1.0 + 1.0 / n_E);
+					if( rho <= rho_E ) {
+						p = P0 * std::pow( rho/rho_E, 1.0 + 1.0 / n_E);
+					} else if( rho >= rho_C) {
+						p = P0 * std::pow( rho/rho_C, 1.0 + 1.0 / n_C);
+					} else {
+						p = P0;
+					}
+					return p / (fgamma-1.0);
+				};
+#endif
+
 				if (!mom_only) {
 					x = X[XDIM][iii];
 					y = X[YDIM][iii];
@@ -253,7 +295,7 @@ real grid::scf_update(bool mom_only) {
 					if (!is_don) {
 						x -= global.x_acc;
 						if (x * gx + y * gy + z * gz < ZERO) {
-							new_rho = std::pow(std::max(ZERO, C_acc - phi_eff) / ((n + ONE) * global.K), n);
+							new_rho = eos_h2rho(C_acc - phi_eff);
 						} else {
 							new_rho = ZERO;
 						}
@@ -261,7 +303,7 @@ real grid::scf_update(bool mom_only) {
 					} else {
 						x -= global.x_don;
 						if (x * gx + y * gy + z * gz < ZERO) {
-							new_rho = std::pow(std::max(ZERO, C_don - phi_eff) / ((n + ONE) * global.K), n);
+							new_rho = eos_h2rho(C_don - phi_eff);
 						} else {
 							new_rho = ZERO;
 						}
@@ -273,7 +315,7 @@ real grid::scf_update(bool mom_only) {
 					U[don_i][iii] = U[acc_i][iii] = ZERO;
 					*rho_frac = rho;
 
-					real e_int = global.K * n * std::pow(rho, ONE + ONE / n);
+					real e_int = eos_rho2ene(rho);
 					real e_kin = HALF * rho * std::pow(global.omega * R, 2);
 					U[egas_i][iii] = e_int + e_kin;
 					U[tau_i][iii] = std::pow(e_int, ONE / (ONE + ONE / n));
@@ -313,7 +355,7 @@ void set_global_vars(const global_vars_t& gv) {
 
 void node_server::run_scf() {
 	real MAX = 0.25;
-	real MIN = 1.0 / 10.0;
+	real MIN = 1.0 / 1000.0;
 	w0 = MIN;
 	real res = ONE, old_res = ONE;
 	set_global_vars(global);
@@ -334,11 +376,11 @@ void node_server::run_scf() {
 		global.x_com = data.x_com;
 		set_global_vars(global);
 		real virial_error = data.virial_num / data.virial_den;
-		if (i % 10 == 0 || done) {
-		//	if (done) {
+		if (i % 50 == 0 || done) {
+			if (done) {
 				save_to_file(std::string("X.chk"));
-//				SYSTEM(std::string("./hpx X.chk X.") + std::to_string(i) + std::string(".silo"));
-		//	}
+				//		SYSTEM(std::string("./hpx X.chk X.") + std::to_string(i) + std::string(".silo"));
+			}
 			regrid(me.get_gid(), false);
 			printf("\n   s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho_max_acc",
 					"rho_max_don", "omega", "X_com", "C_acc", "C_don", "virial", "xdrif", "ydrift", "zdrift", "q", "w0",
@@ -374,7 +416,7 @@ void node_server::run_scf() {
 			if (done) {
 				break;
 			}
-			if (i > 10) {
+			if (i > 50) {
 				done = true;
 			}
 		} else {

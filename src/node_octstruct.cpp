@@ -8,27 +8,6 @@
 #include "node_server.hpp"
 #include "future.hpp"
 
-bool node_server::refinement_descend() {
-	bool rc = false;
-	if (is_refined) {
-		std::vector<hpx::future<bool>> futs;
-		futs.reserve(NCHILD);
-		for (auto& child : children) {
-			futs.push_back(child.refinement_descend());
-		}
-		for (auto&& fut : futs) {
-			if (rc) {
-				GET(fut);
-			} else {
-				rc = GET(fut);
-			}
-		}
-	}
-	if (rc) {
-		refinement_flag++;
-	}
-	return refinement_flag != 0;
-}
 
 bool node_server::check_for_refinement() {
 	bool rc = false;
@@ -53,9 +32,7 @@ bool node_server::check_for_refinement() {
 		if (refinement_flag++ == 0) {
 			if (!parent.empty()) {
 				const auto neighbors = my_location.get_neighbors();
-				parent.force_nodes_to_exist(
-						std::list<node_location>(neighbors.begin(),
-								neighbors.end())).get();
+				parent.force_nodes_to_exist(std::list<node_location>(neighbors.begin(), neighbors.end())).get();
 			}
 		}
 	}
@@ -106,10 +83,8 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
 			for (auto& ci : geo::octant::full_set()) {
 				child_descendant_count[ci] = 1;
-				children[ci] =
-						hpx::new_ < node_server
-								> (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
-				std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
+				children[ci] = hpx::new_<node_server>(hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
+				std::array<integer, NDIM> lb = { 2*H_BW, 2*H_BW, 2*H_BW };
 				std::array<integer, NDIM> ub;
 				lb[XDIM] += (1 & (ci >> 0)) * (INX);
 				lb[YDIM] += (1 & (ci >> 1)) * (INX);
@@ -122,8 +97,7 @@ integer node_server::regrid_gather(bool rebalance_only) {
 					outflows = grid_ptr->get_outflows();
 				}
 				if (current_time > ZERO) {
-					children[ci].set_grid(grid_ptr->get_prolong(lb, ub),
-							std::move(outflows)).get();
+					children[ci].set_grid(grid_ptr->get_prolong(lb, ub), std::move(outflows)).get();
 				}
 			}
 		}
@@ -132,26 +106,23 @@ integer node_server::regrid_gather(bool rebalance_only) {
 	return count;
 }
 
-void node_server::set_grid(const std::vector<real>& data,
-		std::vector<real>&& outflows) {
-			grid_ptr->set_prolong(data, std::move(outflows));
-		}
+void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& outflows) {
+	grid_ptr->set_prolong(data, std::move(outflows));
+}
 
 void node_server::regrid(const hpx::id_type& root_gid, bool rb) {
 	assert(grid_ptr != nullptr);
 	printf("-----------------------------------------------\n");
 	if (!rb) {
-		printf("checking for refinement - phase 1\n");
+		printf("checking for refinement\n");
 		check_for_refinement();
-		//printf("checking for refinement - phase 2\n");
-	//	refinement_descend();
 	}
 	printf("regridding\n");
 	integer a = regrid_gather(rb);
 	printf("rebalancing %i nodes\n", int(a));
 	regrid_scatter(0, a);
 	assert(grid_ptr != nullptr);
-	std::vector < hpx::id_type > null_neighbors(geo::direction::count());
+	std::vector<hpx::id_type> null_neighbors(geo::direction::count());
 	printf("forming tree connections\n");
 	form_tree(root_gid, hpx::invalid_id, null_neighbors);
 	//if (current_time > ZERO) {
@@ -173,12 +144,11 @@ void node_server::regrid_scatter(integer a_, integer total) {
 			const auto child_loc = localities[loc_index];
 			a += child_descendant_count[ci];
 			const hpx::id_type id = children[ci].get_gid();
-			integer current_child_id = hpx::naming::get_locality_id_from_gid(
-					id.get_gid());
+			integer current_child_id = hpx::naming::get_locality_id_from_gid(id.get_gid());
 			auto current_child_loc = localities[current_child_id];
-			//	if (child_loc != current_child_loc) {
-			children[ci] = children[ci].copy_to_locality(child_loc);
-			//	}
+			if (child_loc != current_child_loc) {
+				children[ci] = children[ci].copy_to_locality(child_loc);
+			}
 		}
 		a = a_ + 1;
 		for (auto& ci : geo::octant::full_set()) {
@@ -201,8 +171,7 @@ void node_server::clear_family() {
 	std::fill(nieces.begin(), nieces.end(), std::vector<node_client>());
 }
 
-void node_server::form_tree(const hpx::id_type& self_gid,
-		const hpx::id_type& parent_gid,
+void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
 		const std::vector<hpx::id_type>& neighbor_gids) {
 	for (auto& dir : geo::direction::full_set()) {
 		neighbors[dir] = neighbor_gids[dir];
@@ -219,12 +188,8 @@ void node_server::form_tree(const hpx::id_type& self_gid,
 		for (integer cx = 0; cx != 2; ++cx) {
 			for (integer cy = 0; cy != 2; ++cy) {
 				for (integer cz = 0; cz != 2; ++cz) {
-					std::vector < hpx::future
-							< hpx::id_type
-									>> child_neighbors_f(
-											geo::direction::count());
-					std::vector < hpx::id_type
-							> child_neighbors(geo::direction::count());
+					std::vector<hpx::future<hpx::id_type>> child_neighbors_f(geo::direction::count());
+					std::vector<hpx::id_type> child_neighbors(geo::direction::count());
 					const integer ci = cx + 2 * cy + 4 * cz;
 					for (integer dx = -1; dx != 2; ++dx) {
 						for (integer dy = -1; dy != 2; ++dy) {
@@ -236,26 +201,13 @@ void node_server::form_tree(const hpx::id_type& self_gid,
 									geo::direction i;
 									i.set(dx, dy, dz);
 									auto& ref = child_neighbors_f[i];
-									auto other_child = (x % 2) + 2 * (y % 2)
-											+ 4 * (z % 2);
-									if (x / 2 == 1 && y / 2 == 1
-											&& z / 2 == 1) {
-										ref =
-												hpx::make_ready_future
-														< hpx::id_type
-														> (children[other_child].get_gid());
+									auto other_child = (x % 2) + 2 * (y % 2) + 4 * (z % 2);
+									if (x / 2 == 1 && y / 2 == 1 && z / 2 == 1) {
+										ref = hpx::make_ready_future<hpx::id_type>(children[other_child].get_gid());
 									} else {
-										geo::direction dir =
-												geo::direction(
-														(x / 2)
-																+ NDIM
-																		* ((y
-																				/ 2)
-																				+ NDIM
-																						* (z
-																								/ 2)));
-										ref = neighbors[dir].get_child_client(
-												other_child);
+										geo::direction dir = geo::direction(
+												(x / 2) + NDIM * ((y / 2) + NDIM * (z / 2)));
+										ref = neighbors[dir].get_child_client(other_child);
 									}
 								}
 							}
@@ -264,15 +216,14 @@ void node_server::form_tree(const hpx::id_type& self_gid,
 
 					for (auto& dir : geo::direction::full_set()) {
 						child_neighbors[dir] = child_neighbors_f[dir].get();
-						if (child_neighbors[dir] == hpx::invalid_id) {
+						if( child_neighbors[dir] == hpx::invalid_id) {
 							amr_flags[ci][dir] = true;
 						} else {
 							amr_flags[ci][dir] = false;
 						}
 					}
 					cfuts.push_back(
-							children[ci].form_tree(children[ci].get_gid(),
-									me.get_gid(), std::move(child_neighbors)));
+							children[ci].form_tree(children[ci].get_gid(), me.get_gid(), std::move(child_neighbors)));
 				}
 			}
 		}
@@ -309,19 +260,17 @@ hpx::id_type node_server::get_child_client(const geo::octant& ci) {
 	}
 }
 
-hpx::future<hpx::id_type> node_server::copy_to_locality(
-		const hpx::id_type& id) {
+hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 
-	std::vector < hpx::id_type > cids;
+	std::vector<hpx::id_type> cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
 		for (auto& ci : geo::octant::full_set()) {
 			cids[ci] = children[ci].get_gid();
 		}
 	}
-	auto rc =
-			hpx::new_ < node_server
-					> (id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count, *grid_ptr, cids, amr_flags);
+	auto rc = hpx::new_<node_server>(id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count,
+			*grid_ptr, cids);
 	clear_family();
 	return rc;
 }
@@ -335,9 +284,7 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
 		if (loc.is_child_of(my_location)) {
 			if (refinement_flag++ == 0 && !parent.empty()) {
 				const auto neighbors = my_location.get_neighbors();
-				parent.force_nodes_to_exist(
-						std::list<node_location>(neighbors.begin(),
-								neighbors.end())).get();
+				parent.force_nodes_to_exist(std::list<node_location>(neighbors.begin(), neighbors.end())).get();
 			}
 			if (is_refined) {
 				for (auto& ci : geo::octant::full_set()) {
@@ -354,9 +301,7 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
 	}
 	for (auto& ci : geo::octant::full_set()) {
 		if (is_refined && child_lists[ci].size()) {
-			futs.push_back(
-					children[ci].force_nodes_to_exist(
-							std::move(child_lists[ci])));
+			futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));
 		}
 	}
 	if (parent_list.size()) {

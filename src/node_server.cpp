@@ -9,9 +9,10 @@
 #include "problem.hpp"
 #include "future.hpp"
 #include <streambuf>
-#include <mutex>
 #include <fstream>
 #include <iostream>
+
+
 
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
 
@@ -40,7 +41,6 @@ typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_acti
 typedef node_server::get_nieces_action get_nieces_action_type;
 typedef node_server::set_aunt_action set_aunt_action_type;
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
-typedef node_server::refinement_descend_action refinement_descend_action_type;
 typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;
 typedef node_server::set_grid_action set_grid_action_type;
 typedef node_server::find_omega_part_action find_omega_part_action_type;
@@ -52,7 +52,6 @@ HPX_REGISTER_ACTION(scf_params_action_type);
 HPX_REGISTER_ACTION(find_omega_part_action_type);
 HPX_REGISTER_ACTION(set_grid_action_type);
 HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
-HPX_REGISTER_ACTION(refinement_descend_action_type);
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 HPX_REGISTER_ACTION(set_aunt_action_type);
 HPX_REGISTER_ACTION(get_nieces_action_type);
@@ -78,6 +77,8 @@ HPX_REGISTER_ACTION(diagnostics_action_type);
 HPX_REGISTER_ACTION(timestep_driver_action_type);
 HPX_REGISTER_ACTION(timestep_driver_ascend_action_type);
 HPX_REGISTER_ACTION(timestep_driver_descend_action_type);
+
+
 
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
@@ -182,19 +183,52 @@ diagnostics_t node_server::diagnostics() const {
 	} else {
 		sums.grid_sum = grid_ptr->conserved_sums();
 		sums.outflow_sum = grid_ptr->conserved_outflows();
+		sums.donor_mass = grid_ptr->conserved_sums([](real x, real, real) {return x > 0.09;})[rho_i];
 		sums.l_sum = grid_ptr->l_sums();
 		auto tmp = grid_ptr->field_range();
 		sums.field_min = std::move(tmp.first);
 		sums.field_max = std::move(tmp.second);
 	}
+
+	if (my_location.level() == 0) {
+		auto diags = sums;
+		FILE* fp = fopen("diag.dat", "at");
+		fprintf(fp, "%23.16e ", double(current_time));
+		for (integer f = 0; f != NF; ++f) {
+			fprintf(fp, "%23.16e ", double(diags.grid_sum[f] + diags.outflow_sum[f]));
+			fprintf(fp, "%23.16e ", double(diags.outflow_sum[f]));
+		}
+		for (integer f = 0; f != NDIM; ++f) {
+			fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
+		}
+		fprintf(fp, "\n");
+		fclose(fp);
+
+		fp = fopen("minmax.dat", "at");
+		fprintf(fp, "%23.16e ", double(current_time));
+		for (integer f = 0; f != NF; ++f) {
+			fprintf(fp, "%23.16e ", double(diags.field_min[f]));
+			fprintf(fp, "%23.16e ", double(diags.field_max[f]));
+		}
+		fprintf(fp, "\n");
+		fclose(fp);
+
+		fp = fopen("m_don.dat", "at");
+		fprintf(fp, "%23.16e ", double(current_time));
+		fprintf(fp, "%23.16e ", double(diags.grid_sum[rho_i] - diags.donor_mass));
+		fprintf(fp, "%23.16e ", double(diags.donor_mass));
+		fprintf(fp, "\n");
+		fclose(fp);
+}
+
 	return sums;
 }
 
-node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
-		const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c, std::vector<std::array<bool, geo::direction::count()>> _amr_flags) : refinement_flag(0) {
+node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
+		real _rotational_time, const std::array<integer, NCHILD>& _child_d, grid _grid,
+		const std::vector<hpx::id_type>& _c) {
 	my_location = _my_location;
-	initialize(_current_time,_rotational_time);
-	amr_flags = _amr_flags;
+	initialize(_current_time, _rotational_time);
 	is_refined = _is_refined;
 	step_num = _step_num;
 	current_time = _current_time;
@@ -346,12 +380,12 @@ void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::f
 node_server::~node_server() {
 }
 
-node_server::node_server() : refinement_flag(0) {
-	initialize(ZERO,ZERO);
+node_server::node_server() {
+	initialize(ZERO, ZERO);
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt) :
-		my_location(loc), parent(parent_id), refinement_flag(0){
+		my_location(loc), parent(parent_id) {
 	initialize(t, rt);
 }
 void node_server::solve_gravity(bool ene) {
@@ -411,7 +445,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 		if (!neighbors[dir].empty()) {
 			auto ndir = dir.flip();
 			const bool monopole = !is_refined;
-			assert(neighbors[dir].get_gid()!=me.get_gid());
+			assert(neighbors[dir].get_gid() != me.get_gid());
 			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(get_gravity_boundary(dir), ndir, monopole));
 		}
 	}

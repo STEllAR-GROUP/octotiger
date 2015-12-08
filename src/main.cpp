@@ -49,7 +49,6 @@ void node_server::set_omega_and_pivot() {
 void node_server::start_run() {
 	if (current_time == 0) {
 			run_scf();
-//
 		//	if (system("mkdir dat_back\n")) {
 		//	}
 	}
@@ -73,30 +72,7 @@ void node_server::start_run() {
 		set_omega_and_pivot();
 		auto time_start = std::chrono::high_resolution_clock::now();
 
-		auto diags = diagnostics();
-		GET(diag_fut);
-		diag_fut = hpx::async([=]() {
-			FILE* fp = fopen( "diag.dat", "at");
-			fprintf( fp, "%23.16e ", double(t));
-			for( integer f = 0; f != NF; ++f) {
-				fprintf( fp, "%23.16e ", double( diags.grid_sum[f] + diags.outflow_sum[f]));
-				fprintf( fp, "%23.16e ", double(diags.outflow_sum[f]));
-			}
-			for( integer f = 0; f != NDIM; ++f) {
-				fprintf( fp, "%23.16e ",double( diags.l_sum[f]));
-			}
-			fprintf( fp, "\n");
-			fclose(fp);
-
-			fp = fopen( "minmax.dat", "at");
-			fprintf( fp, "%23.16e ", double(t));
-			for( integer f = 0; f != NF; ++f) {
-				fprintf( fp, "%23.16e ", double(diags.field_min[f]));
-				fprintf( fp, "%23.16e ", double(diags.field_max[f]));
-			}
-			fprintf( fp, "\n");
-			fclose(fp);
-		});
+		diagnostics();
 
 		if (t / output_dt >= output_cnt) {
 			char* fname;

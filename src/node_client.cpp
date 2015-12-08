@@ -28,9 +28,6 @@ hpx::future<bool> node_client::check_for_refinement() const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_gid());
 }
 
-hpx::future<bool> node_client::refinement_descend() const {
-	return hpx::async<typename node_server::refinement_descend_action>(get_gid());
-}
 
 hpx::future<void> node_client::force_nodes_to_exist(std::list<node_location>&& locs) const {
 	return hpx::async<typename node_server::force_nodes_to_exist_action>(get_gid(), std::move(locs));
