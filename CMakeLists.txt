@@ -26,19 +26,19 @@ set( CMAKE_CXX_FLAGS "-mt_mpi -xHOST -std=c++14" )
 
 add_hpx_executable(
   octotiger
-  SOURCES src/grid.cpp
+  SOURCES src/node_client.cpp
+          src/main.cpp
+          src/node_server.cpp
+          src/grid.cpp
           src/grid_fmm.cpp
+          src/node_server_decomp.cpp
+          src/node_server_output.cpp
+          src/node_octstruct.cpp
+          src/grid_scf.cpp
           src/grid_output.cpp
           src/lane_emden.cpp
           src/geometry.cpp
-          src/node_octstruct.cpp
-          src/grid_scf.cpp
-          src/main.cpp
-          src/node_client.cpp
           src/node_location.cpp
-          src/node_server.cpp
-          src/node_server_decomp.cpp
-          src/node_server_output.cpp
           src/problem.cpp
           src/roe.cpp
           src/taylor.cpp
@@ -59,4 +59,5 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
+target_link_libraries( octotiger_exe silo )
 

@@ -37,25 +37,27 @@ typedef node_server::get_ptr_action get_ptr_action_type;
 typedef node_server::diagnostics_action diagnostics_action_type;
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
 typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
-//typedef node_server::output_action output_action_type;
 typedef node_server::get_nieces_action get_nieces_action_type;
 typedef node_server::set_aunt_action set_aunt_action_type;
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
+typedef node_server::refinement_descend_action refinement_descend_action_type;
 typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;
 typedef node_server::set_grid_action set_grid_action_type;
-
 typedef node_server::find_omega_part_action find_omega_part_action_type;
+typedef node_server::scf_params_action scf_params_action_type;
+typedef node_server::scf_update_action scf_update_action_type;
 
+HPX_REGISTER_ACTION(scf_update_action_type);
+HPX_REGISTER_ACTION(scf_params_action_type);
 HPX_REGISTER_ACTION(find_omega_part_action_type);
-
 HPX_REGISTER_ACTION(set_grid_action_type);
 HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
+HPX_REGISTER_ACTION(refinement_descend_action_type);
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 HPX_REGISTER_ACTION(set_aunt_action_type);
 HPX_REGISTER_ACTION(get_nieces_action_type);
 HPX_REGISTER_ACTION(load_action_type);
 HPX_REGISTER_ACTION(save_action_type);
-//HPX_REGISTER_ACTION( output_action_type);
 HPX_REGISTER_ACTION(send_hydro_children_action_type);
 HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 HPX_REGISTER_ACTION(regrid_gather_action_type);
@@ -189,9 +191,10 @@ diagnostics_t node_server::diagnostics() const {
 }
 
 node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
-		const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c) {
+		const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c, std::vector<std::array<bool, geo::direction::count()>> _amr_flags) : refinement_flag(0) {
 	my_location = _my_location;
 	initialize(_current_time,_rotational_time);
+	amr_flags = _amr_flags;
 	is_refined = _is_refined;
 	step_num = _step_num;
 	current_time = _current_time;
@@ -343,12 +346,12 @@ void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::f
 node_server::~node_server() {
 }
 
-node_server::node_server() {
+node_server::node_server() : refinement_flag(0) {
 	initialize(ZERO,ZERO);
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt) :
-		my_location(loc), parent(parent_id) {
+		my_location(loc), parent(parent_id), refinement_flag(0){
 	initialize(t, rt);
 }
 void node_server::solve_gravity(bool ene) {

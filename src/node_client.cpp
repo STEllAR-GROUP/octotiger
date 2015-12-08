@@ -6,7 +6,6 @@
  */
 
 #include "node_server.hpp"
-//#include <boost/serialization/list.hpp>
 
 hpx::id_type node_client::get_gid() const {
 	return id;
@@ -27,6 +26,10 @@ hpx::future<std::vector<hpx::id_type>> node_client::get_nieces(const hpx::id_typ
 
 hpx::future<bool> node_client::check_for_refinement() const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_gid());
+}
+
+hpx::future<bool> node_client::refinement_descend() const {
+	return hpx::async<typename node_server::refinement_descend_action>(get_gid());
 }
 
 hpx::future<void> node_client::force_nodes_to_exist(std::list<node_location>&& locs) const {

@@ -334,11 +334,11 @@ void node_server::run_scf() {
 		global.x_com = data.x_com;
 		set_global_vars(global);
 		real virial_error = data.virial_num / data.virial_den;
-		if (i % 50 == 0 || done) {
-			if (done) {
+		if (i % 10 == 0 || done) {
+		//	if (done) {
 				save_to_file(std::string("X.chk"));
-				//		SYSTEM(std::string("./hpx X.chk X.") + std::to_string(i) + std::string(".silo"));
-			}
+//				SYSTEM(std::string("./hpx X.chk X.") + std::to_string(i) + std::string(".silo"));
+		//	}
 			regrid(me.get_gid(), false);
 			printf("\n   s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho_max_acc",
 					"rho_max_don", "omega", "X_com", "C_acc", "C_don", "virial", "xdrif", "ydrift", "zdrift", "q", "w0",
