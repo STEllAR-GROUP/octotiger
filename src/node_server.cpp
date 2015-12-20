@@ -465,6 +465,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
+
+/*****PROBLEM FUTURE******/
 		l_in = GET(parent_gravity_channel->get_future());
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);

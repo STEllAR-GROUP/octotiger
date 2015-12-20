@@ -227,7 +227,7 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 				}
 			}
 		}
-
+/**** PROBLEM FUTURE ****/
 		for (auto&& fut : cfuts) {
 			GET(fut);
 		}
