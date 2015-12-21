@@ -489,7 +489,9 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 		U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(
 				geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true) {
 	dx = _dx;
-	xmin = _xmin;
+	xmin[XDIM] = _xmin[XDIM];
+	xmin[YDIM] = _xmin[YDIM];
+	xmin[ZDIM] = _xmin[ZDIM];
 	allocate();
 }
 
@@ -596,7 +598,9 @@ grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, 
 				geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(false), is_leaf(true), U_out(NF,
 				ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	dx = _dx;
-	xmin = _xmin;
+	xmin[XDIM] = _xmin[XDIM];
+	xmin[YDIM] = _xmin[YDIM];
+	xmin[ZDIM] = _xmin[ZDIM];
 	allocate();
 	for (integer i = 0; i != H_NX; ++i) {
 		for (integer j = 0; j != H_NX; ++j) {

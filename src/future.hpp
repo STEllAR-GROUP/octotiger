@@ -11,9 +11,9 @@
 #include "defs.hpp"
 
 //#include <boost/chrono.hpp>
-//#define NFUTDEBUG
+#define NFUTDEBUG
 
-#define TIMEOUT 60.0
+//#define TIMEOUT 60.0
 
 template<class T>
 inline T __get(hpx::future<T> fut, const char fname[], int line) {

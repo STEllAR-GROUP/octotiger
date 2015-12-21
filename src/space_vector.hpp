@@ -10,11 +10,11 @@
 
 #include <cmath>
 
-class space_vector: public std::array<real, NDIM> {
+class space_vector: public std::vector<real> {
 public:
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {
-		arc & *(static_cast<std::array<real, NDIM>*>(this));
+		arc & *(static_cast<std::vector<real>*>(this));
 	}
 	space_vector& operator=(real a) {
 		for (integer i = 0; i != NDIM; ++i) {
@@ -22,8 +22,9 @@ public:
 		}
 		return *this;
 	}
-	space_vector() = default;
-	space_vector(real a) {
+	space_vector() : std::vector<real>(NDIM) {
+	}
+	space_vector(real a) : std::vector<real>(NDIM) {
 		for (integer i = 0; i != NDIM; ++i) {
 			(*this)[i] = a;
 		}

@@ -93,8 +93,9 @@ real node_location::x_location(integer d) const {
 }
 
 node_location::node_location() {
+	xloc.resize(NDIM);
 	lev = 0;
-	xloc = { {0,0,0}};
+	xloc[XDIM] = xloc[YDIM] = xloc[ZDIM] = ZERO;
 }
 
 integer node_location::level() const {
