@@ -11,7 +11,6 @@
 #include "defs.hpp"
 #include "simd.hpp"
 #include <array>
-#include <vector>
 #include <cmath>
 
 #define MAX_ORDER 5
@@ -29,10 +28,9 @@ private:
 	static constexpr integer sizes[MAX_ORDER] = {1, 4, 10, 20, 35}; //
 	static constexpr integer size = sizes[N-1];
 	static taylor_consts tc;
-	std::vector<T> data;
+	std::array<T, size> data;
 public:
-	taylor() : data(size) {
-	}
+	taylor() = default;
 	~taylor() = default;
 	taylor(const taylor<N,T>&) = default;
 	taylor(taylor<N,T>&& other) {

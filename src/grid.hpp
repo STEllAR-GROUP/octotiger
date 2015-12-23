@@ -139,7 +139,7 @@ private:
 	std::vector<std::vector<expansion> > L;
 	std::vector<std::vector<expansion> > L_c;
 	real dx;
-	space_vector xmin;
+	std::array<real, NDIM> xmin;
 	integer nlevel;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;

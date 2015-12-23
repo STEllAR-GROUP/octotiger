@@ -225,7 +225,7 @@ diagnostics_t node_server::diagnostics() const {
 }
 
 node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
-		real _rotational_time, const std::vector<integer>& _child_d, grid _grid,
+		real _rotational_time, const std::array<integer, NCHILD>& _child_d, grid _grid,
 		const std::vector<hpx::id_type>& _c) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
@@ -239,7 +239,7 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 		children.resize(NCHILD);
 		std::copy(_c.begin(), _c.end(), children.begin());
 	}
-	std::copy(_child_d.begin(), _child_d.end(), child_descendant_count.begin());
+	child_descendant_count = _child_d;
 }
 
 void node_server::step() {

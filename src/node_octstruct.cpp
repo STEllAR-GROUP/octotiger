@@ -269,8 +269,7 @@ hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) 
 			cids[ci] = children[ci].get_gid();
 		}
 	}
-	auto rc = hpx::new_<node_server>(id, my_location, step_num, is_refined, current_time, rotational_time, 
-                        std::vector<integer>(child_descendant_count.begin(),child_descendant_count.end()),
+	auto rc = hpx::new_<node_server>(id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count,
 			*grid_ptr, cids);
 	clear_family();
 	return rc;
