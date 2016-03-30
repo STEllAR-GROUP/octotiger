@@ -11,32 +11,46 @@
 #include "defs.hpp"
 
 //#include <boost/chrono.hpp>
-//#define NFUTDEBUG
+#define NFUTDEBUG
 
 #define TIMEOUT 60.0
 
 template<class T>
 inline T __get(hpx::future<T> fut, const char fname[], int line) {
-#ifndef NFUTDEBUG
-	const auto timeout_time = boost::posix_time::time_duration(boost::posix_time::seconds(TIMEOUT));
-	if( fut.wait_for(timeout_time) == hpx::lcos::future_status::timeout ) {
-		printf("TIMEOUT WAITING ON FUTURE: FILE: %s, LINE: %i\n", fname, int(line));
-		abort();
-	}
-#endif
+#ifdef NFUTDEBUG
 	return fut.get();
+#else
+	auto time_start = std::chrono::steady_clock::now();
+	while (!fut.is_ready()) {
+		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+				std::chrono::steady_clock::now() - time_start).count();
+		if (time_elapsed > TIMEOUT) {
+			printf("TIMEOUT WAITING ON FUTURE: FILE: %s, LINE: %i\n", fname, int(line));
+			abort();
+		}
+		hpx::this_thread::yield();
+	}
+	return fut.get();
+#endif
 
 }
 
 inline void __get(hpx::future<void> fut, const char fname[], int line) {
-#ifndef NFUTDEBUG
-	const auto timeout_time = boost::posix_time::time_duration(boost::posix_time::seconds(TIMEOUT));
-	if( fut.wait_for(timeout_time) == hpx::lcos::future_status::timeout ) {
-		printf("TIMEOUT WAITING ON FUTURE: FILE: %s, LINE: %i\n", fname, int(line));
-		abort();
-	}
-#endif
+#ifdef NFUTDEBUG
 	fut.get();
+#else
+	auto time_start = std::chrono::steady_clock::now();
+	while (!fut.is_ready()) {
+		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+				std::chrono::steady_clock::now() - time_start).count();
+		if (time_elapsed > TIMEOUT) {
+			printf("TIMEOUT WAITING ON FUTURE: FILE: %s, LINE: %i\n", fname, int(line));
+			abort();
+		}
+		hpx::this_thread::yield();
+	}
+	fut.get();
+#endif
 }
 
 #define GET(a) __get(std::move(a), __FILE__, __LINE__)

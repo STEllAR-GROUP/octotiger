@@ -11,11 +11,13 @@
 #include <streambuf>
 #include <fstream>
 #include <iostream>
+#include "options.hpp"
 
-
+extern options opts;
 
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
 
+typedef node_server::velocity_inc_action velocity_inc_action_type;
 typedef node_server::load_action load_action_type;
 typedef node_server::save_action save_action_type;
 typedef node_server::timestep_driver_action timestep_driver_action_type;
@@ -47,41 +49,66 @@ typedef node_server::find_omega_part_action find_omega_part_action_type;
 typedef node_server::scf_params_action scf_params_action_type;
 typedef node_server::scf_update_action scf_update_action_type;
 
-HPX_REGISTER_ACTION(scf_update_action_type);
-HPX_REGISTER_ACTION(scf_params_action_type);
-HPX_REGISTER_ACTION(find_omega_part_action_type);
-HPX_REGISTER_ACTION(set_grid_action_type);
-HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
-HPX_REGISTER_ACTION(check_for_refinement_action_type);
-HPX_REGISTER_ACTION(set_aunt_action_type);
-HPX_REGISTER_ACTION(get_nieces_action_type);
-HPX_REGISTER_ACTION(load_action_type);
-HPX_REGISTER_ACTION(save_action_type);
-HPX_REGISTER_ACTION(send_hydro_children_action_type);
-HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
-HPX_REGISTER_ACTION(regrid_gather_action_type);
-HPX_REGISTER_ACTION(regrid_scatter_action_type);
-HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
-HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
-HPX_REGISTER_ACTION(send_gravity_multipoles_action_type);
-HPX_REGISTER_ACTION(send_gravity_expansions_action_type);
-HPX_REGISTER_ACTION(step_action_type);
-HPX_REGISTER_ACTION(regrid_action_type);
-HPX_REGISTER_ACTION(solve_gravity_action_type);
-HPX_REGISTER_ACTION(start_run_action_type);
-HPX_REGISTER_ACTION(copy_to_locality_action_type);
-HPX_REGISTER_ACTION(get_child_client_action_type);
-HPX_REGISTER_ACTION(form_tree_action_type);
-HPX_REGISTER_ACTION(get_ptr_action_type);
-HPX_REGISTER_ACTION(diagnostics_action_type);
-HPX_REGISTER_ACTION(timestep_driver_action_type);
-HPX_REGISTER_ACTION(timestep_driver_ascend_action_type);
-HPX_REGISTER_ACTION(timestep_driver_descend_action_type);
-
-
+HPX_REGISTER_ACTION (velocity_inc_action_type);
+HPX_REGISTER_ACTION (scf_update_action_type);
+HPX_REGISTER_ACTION (scf_params_action_type);
+HPX_REGISTER_ACTION (find_omega_part_action_type);
+HPX_REGISTER_ACTION (set_grid_action_type);
+HPX_REGISTER_ACTION (force_nodes_to_exist_action_type);
+HPX_REGISTER_ACTION (check_for_refinement_action_type);
+HPX_REGISTER_ACTION (set_aunt_action_type);
+HPX_REGISTER_ACTION (get_nieces_action_type);
+HPX_REGISTER_ACTION (load_action_type);
+HPX_REGISTER_ACTION (save_action_type);
+HPX_REGISTER_ACTION (send_hydro_children_action_type);
+HPX_REGISTER_ACTION (send_hydro_flux_correct_action_type);
+HPX_REGISTER_ACTION (regrid_gather_action_type);
+HPX_REGISTER_ACTION (regrid_scatter_action_type);
+HPX_REGISTER_ACTION (send_hydro_boundary_action_type);
+HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
+HPX_REGISTER_ACTION (send_gravity_multipoles_action_type);
+HPX_REGISTER_ACTION (send_gravity_expansions_action_type);
+HPX_REGISTER_ACTION (step_action_type);
+HPX_REGISTER_ACTION (regrid_action_type);
+HPX_REGISTER_ACTION (solve_gravity_action_type);
+HPX_REGISTER_ACTION (start_run_action_type);
+HPX_REGISTER_ACTION (copy_to_locality_action_type);
+HPX_REGISTER_ACTION (get_child_client_action_type);
+HPX_REGISTER_ACTION (form_tree_action_type);
+HPX_REGISTER_ACTION (get_ptr_action_type);
+HPX_REGISTER_ACTION (diagnostics_action_type);
+HPX_REGISTER_ACTION (timestep_driver_action_type);
+HPX_REGISTER_ACTION (timestep_driver_ascend_action_type);
+HPX_REGISTER_ACTION (timestep_driver_descend_action_type);
 
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
+
+bool node_server::hydro_on = true;
+bool node_server::gravity_on = true;
+
+void node_server::set_gravity(bool b) {
+	gravity_on = b;
+}
+
+void node_server::set_hydro(bool b) {
+	hydro_on = b;
+}
+
+void node_server::velocity_inc(const space_vector& dv) {
+	if (is_refined) {
+		std::vector<hpx::future<void>> futs;
+		futs.reserve(NCHILD);
+		for (auto& child : children) {
+			futs.push_back(child.velocity_inc(dv));
+		}
+		for (auto&& fut : futs) {
+			fut.get();
+		}
+	} else {
+		grid_ptr->velocity_inc(dv);
+	}
+}
 
 real node_server::find_omega() const {
 	const auto this_com = grid_ptr->center_of_mass();
@@ -94,13 +121,13 @@ real node_server::find_omega() const {
 std::pair<real, real> node_server::find_omega_part(const space_vector& pivot) const {
 	std::pair<real, real> d;
 	if (is_refined) {
-		std::vector<hpx::future<std::pair<real, real>>>futs;
+		std::vector < hpx::future<std::pair<real, real>>>futs;
 		futs.reserve(NCHILD);
-		for( auto& child : children) {
+		for (auto& child : children) {
 			futs.push_back(child.find_omega_part(pivot));
 		}
 		d.first = d.second = ZERO;
-		for( auto&& fut : futs) {
+		for (auto&& fut : futs) {
 			auto tmp = GET(fut);
 			d.first += tmp.first;
 			d.second += tmp.second;
@@ -132,7 +159,7 @@ real node_server::timestep_driver() {
 real node_server::timestep_driver_descend() {
 	real dt;
 	if (is_refined) {
-		dt = std::numeric_limits<real>::max();
+		dt = std::numeric_limits < real > ::max();
 		std::list<hpx::future<real>> futs;
 		for (auto i = children.begin(); i != children.end(); ++i) {
 			futs.push_back(i->timestep_driver_descend());
@@ -163,11 +190,6 @@ void node_server::timestep_driver_ascend(real dt) {
 std::uintptr_t node_server::get_ptr() {
 	return reinterpret_cast<std::uintptr_t>(this);
 }
-/*
- node_server::node_server(node_server&& other) {
- *this = std::move(other);
-
- }*/
 
 diagnostics_t node_server::diagnostics() const {
 	diagnostics_t sums;
@@ -188,38 +210,69 @@ diagnostics_t node_server::diagnostics() const {
 		auto tmp = grid_ptr->field_range();
 		sums.field_min = std::move(tmp.first);
 		sums.field_max = std::move(tmp.second);
+		sums.gforce_sum = grid_ptr->gforce_sum(false);
+		sums.gtorque_sum = grid_ptr->gforce_sum(true);
+		auto tmp2 = grid_ptr->diagnostic_error();
+		sums.l1_error = tmp2.first;
+		sums.l2_error = tmp2.second;
 	}
 
 	if (my_location.level() == 0) {
-		auto diags = sums;
-		FILE* fp = fopen("diag.dat", "at");
-		fprintf(fp, "%23.16e ", double(current_time));
-		for (integer f = 0; f != NF; ++f) {
-			fprintf(fp, "%23.16e ", double(diags.grid_sum[f] + diags.outflow_sum[f]));
-			fprintf(fp, "%23.16e ", double(diags.outflow_sum[f]));
-		}
-		for (integer f = 0; f != NDIM; ++f) {
-			fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
-		}
-		fprintf(fp, "\n");
-		fclose(fp);
+		if (opts.problem != SOLID_SPHERE) {
+			auto diags = sums;
+			FILE* fp = fopen("diag.dat", "at");
+			fprintf(fp, "%23.16e ", double(current_time));
+			for (integer f = 0; f != NF; ++f) {
+				fprintf(fp, "%23.16e ", double(diags.grid_sum[f] + diags.outflow_sum[f]));
+				fprintf(fp, "%23.16e ", double(diags.outflow_sum[f]));
+			}
+			for (integer f = 0; f != NDIM; ++f) {
+				fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
+			}
+			fprintf(fp, "\n");
+			fclose(fp);
 
-		fp = fopen("minmax.dat", "at");
-		fprintf(fp, "%23.16e ", double(current_time));
-		for (integer f = 0; f != NF; ++f) {
-			fprintf(fp, "%23.16e ", double(diags.field_min[f]));
-			fprintf(fp, "%23.16e ", double(diags.field_max[f]));
-		}
-		fprintf(fp, "\n");
-		fclose(fp);
+			fp = fopen("minmax.dat", "at");
+			fprintf(fp, "%23.16e ", double(current_time));
+			for (integer f = 0; f != NF; ++f) {
+				fprintf(fp, "%23.16e ", double(diags.field_min[f]));
+				fprintf(fp, "%23.16e ", double(diags.field_max[f]));
+			}
+			fprintf(fp, "\n");
+			fclose(fp);
 
-		fp = fopen("m_don.dat", "at");
-		fprintf(fp, "%23.16e ", double(current_time));
-		fprintf(fp, "%23.16e ", double(diags.grid_sum[rho_i] - diags.donor_mass));
-		fprintf(fp, "%23.16e ", double(diags.donor_mass));
-		fprintf(fp, "\n");
-		fclose(fp);
-}
+			auto com = grid_ptr->center_of_mass();
+			fp = fopen("com.dat", "at");
+			fprintf(fp, "%23.16e ", double(current_time));
+			for (integer d = 0; d != NDIM; ++d) {
+				fprintf(fp, "%23.16e ", double(com[d]));
+			}
+			fprintf(fp, "\n");
+			fclose(fp);
+
+			fp = fopen("m_don.dat", "at");
+			fprintf(fp, "%23.16e ", double(current_time));
+			fprintf(fp, "%23.16e ", double(diags.grid_sum[rho_i] - diags.donor_mass));
+			fprintf(fp, "%23.16e ", double(diags.donor_mass));
+			fprintf(fp, "\n");
+			fclose(fp);
+		} else {
+			printf("L1\n");
+			printf("Gravity Phi Error - %e\n", (sums.l1_error[0] / sums.l1_error[4]));
+			printf("Gravity gx Error - %e\n", (sums.l1_error[1] / sums.l1_error[5]));
+			printf("Gravity gy Error - %e\n", (sums.l1_error[2] / sums.l1_error[6]));
+			printf("Gravity gz Error - %e\n", (sums.l1_error[3] / sums.l1_error[7]));
+			printf("L2\n");
+			printf("Gravity Phi Error - %e\n", std::sqrt(sums.l2_error[0] / sums.l2_error[4]));
+			printf("Gravity gx Error - %e\n", std::sqrt(sums.l2_error[1] / sums.l2_error[5]));
+			printf("Gravity gy Error - %e\n", std::sqrt(sums.l2_error[2] / sums.l2_error[6]));
+			printf("Gravity gz Error - %e\n", std::sqrt(sums.l2_error[3] / sums.l2_error[7]));
+			printf("Total Mass = %e\n", sums.grid_sum[rho_i]);
+			for (integer d = 0; d != NDIM; ++d) {
+				printf("%e %e\n", sums.gforce_sum[d], sums.gtorque_sum[d]);
+			}
+		}
+	}
 
 	return sums;
 }
@@ -252,13 +305,12 @@ void node_server::step() {
 			child_futs.push_back(children[ci].step());
 		}
 	}
-
 	real a;
-	const real dx = TWO / real(INX << my_location.level());
+	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 	real cfl0 = cfl;
 
 	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries();
+	collect_hydro_boundaries().get();
 	grid_ptr->store();
 
 	for (integer rk = 0; rk < NRK; ++rk) {
@@ -270,18 +322,18 @@ void node_server::step() {
 			local_timestep_channel->set_value(dt);
 		}
 		GET(flux_fut);
-		grid_ptr->compute_sources();
+		grid_ptr->compute_sources(current_time);
 		grid_ptr->compute_dudt();
 		compute_fmm(DRHODT, false);
 
 		if (rk == 0) {
 			dt = GET(global_timestep_channel->get_future());
 		}
-		grid_ptr->next_u(rk, dt);
+		grid_ptr->next_u(rk, current_time, dt);
 
 		compute_fmm(RHO, true);
 		exchange_interlevel_hydro_data();
-		collect_hydro_boundaries();
+		collect_hydro_boundaries().get();
 	}
 	grid_ptr->dual_energy_update();
 	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
@@ -339,8 +391,27 @@ void node_server::initialize(real t, real rt) {
 	neighbors.resize(geo::direction::count());
 	nieces.resize(NFACE);
 	aunts.resize(NFACE);
+#ifdef USE_SPHERICAL
+	for (auto& dir : geo::direction::full_set()) {
+		neighbor_gravity_channels[dir] = std::make_shared<channel<std::vector<multipole_type>>>();
+	}
+	for (auto& ci : geo::octant::full_set()) {
+		child_gravity_channels[ci] = std::make_shared<channel<std::vector<multipole_type>>>();
+	}
+	parent_gravity_channel = std::make_shared<channel<std::vector<expansion_type>>>();
+#else
 	for (auto& dir : geo::direction::full_set()) {
 		neighbor_gravity_channels[dir] = std::make_shared<channel<std::pair<std::vector<real>, bool>> >();
+	}
+	for (auto& ci : geo::octant::full_set()) {
+		child_gravity_channels[ci] = std::make_shared<channel<multipole_pass_type>>();
+	}
+	parent_gravity_channel = std::make_shared<channel<expansion_pass_type>>();
+#endif
+	for (auto& ci : geo::octant::full_set()) {
+		child_hydro_channels[ci] = std::make_shared<channel<std::vector<real>>>();
+	}
+	for (auto& dir : geo::direction::full_set()) {
 		sibling_hydro_channels[dir] = std::make_shared<channel<std::vector<real>> >();
 	}
 	for (auto& face : geo::face::full_set()) {
@@ -348,19 +419,15 @@ void node_server::initialize(real t, real rt) {
 			niece_hydro_channels[face][i] = std::make_shared<channel<std::vector<real>> >();
 		}
 	}
-	for (auto& ci : geo::octant::full_set()) {
-		child_hydro_channels[ci] = std::make_shared<channel<std::vector<real>>>();
-		child_gravity_channels[ci] = std::make_shared<channel<multipole_pass_type>>();
-	}
-	parent_gravity_channel = std::make_shared<channel<expansion_pass_type>>();
 	current_time = t;
 	rotational_time = rt;
-	dx = TWO / real(INX << my_location.level());
+	dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 	for (auto& d : geo::dimension::full_set()) {
-		xmin[d] = my_location.x_location(d);
+		xmin[d] = grid::get_scaling_factor() * my_location.x_location(d);
 	}
 	if (current_time == ZERO) {
-		grid_ptr = std::make_shared < grid > (problem, dx, xmin);
+		const auto p = get_problem();
+		grid_ptr = std::make_shared < grid > (p, dx, xmin);
 	} else {
 		grid_ptr = std::make_shared < grid > (dx, xmin);
 	}
@@ -400,6 +467,86 @@ void node_server::solve_gravity(bool ene) {
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
+
+#ifdef USE_SPHERICAL
+	fmm::set_dx(dx);
+	std::list<hpx::future<void>> child_futs;
+	std::list<hpx::future<void>> neighbor_futs;
+	hpx::future<void> parent_fut;
+	if (energy_account) {
+		grid_ptr->egas_to_etot();
+	}
+	if (!is_refined) {
+		for (integer i = 0; i != INX; ++i) {
+			for (integer j = 0; j != INX; ++j) {
+				for (integer k = 0; k != INX; ++k) {
+					fmm::set_source(grid_ptr->get_source(i, j, k), i, j, k);
+				}
+			}
+		}
+	} else {
+		for (auto& octant : geo::octant::full_set()) {
+			fmm::set_multipoles(child_gravity_channels[octant]->get_future().get(), octant);
+		}
+	}
+	const auto myci = my_location.get_child_index();
+	const bool is_root = my_location.level() == 0;
+	parent_fut = !is_root ? parent.send_gravity_multipoles(fmm::M2M(), myci) : hpx::make_ready_future();
+
+	std::array<integer, NDIM> lb, ub;
+	for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			get_boundary_size(lb, ub, dir, INNER, G_BW);
+			for (integer d = 0; d != NDIM; ++d) {
+				lb[d] -= G_BW;
+				ub[d] -= G_BW;
+			}
+			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(fmm::get_multipoles(lb, ub), dir.flip()));
+		}
+	}
+
+	fmm::self_M2L(is_root, !is_refined);
+
+	for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			auto tmp = neighbor_gravity_channels[dir]->get_future().get();
+			get_boundary_size(lb, ub, dir, OUTER, G_BW);
+			for (integer d = 0; d != NDIM; ++d) {
+				lb[d] -= G_BW;
+				ub[d] -= G_BW;
+			}
+			fmm::other_M2L(std::move(tmp), lb, ub, !is_refined);
+		}
+	}
+	parent_fut.get();
+	if (!is_root) {
+		fmm::L2L(parent_gravity_channel->get_future().get());
+	}
+	if (is_refined) {
+		for (auto& ci : geo::octant::full_set()) {
+			child_futs.push_back(children[ci].send_gravity_expansions(fmm::get_expansions(ci)));
+		}
+	}
+
+	if (energy_account) {
+		grid_ptr->etot_to_egas();
+	}
+	for (auto&& fut : child_futs) {
+		GET(fut);
+	}
+	for (auto&& fut : neighbor_futs) {
+		GET(fut);
+	}
+
+	for (integer i = 0; i != INX; ++i) {
+		for (integer j = 0; j != INX; ++j) {
+			for (integer k = 0; k != INX; ++k) {
+				const auto ff = fmm::four_force(i, j, k);
+				grid_ptr->set_4force(i, j, k, ff);
+			}
+		}
+	}
+#else
 	std::list<hpx::future<void>> child_futs;
 	std::list<hpx::future<void>> neighbor_futs;
 	hpx::future<void> parent_fut;
@@ -466,7 +613,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
 
-/*****PROBLEM FUTURE******/
+		/*****PROBLEM FUTURE******/
 		l_in = GET(parent_gravity_channel->get_future());
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
@@ -507,5 +654,5 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	for (auto&& fut : neighbor_futs) {
 		GET(fut);
 	}
+#endif
 }
-

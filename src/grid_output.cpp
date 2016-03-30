@@ -8,6 +8,7 @@
 
 #define EQ_ONLY
 //#define RHO_ONLY
+#define LINE_PLOT
 
 #include <unordered_map>
 
@@ -132,6 +133,32 @@ grid::output_list_type grid::get_output_list() const {
 		}
 	}
 
+#ifdef LINE_PLOT
+	static hpx::mutex mtx;
+	std::lock_guard<hpx::mutex> lock(mtx);
+	FILE* fp = fopen("line.dat", "at");
+	for (integer i = this_bw; i != H_NX - this_bw; ++i) {
+		for (integer j = this_bw; j != H_NX - this_bw; ++j) {
+			for (integer k = this_bw; k != H_NX - this_bw; ++k) {
+				const integer iii = hindex(i, j, k);
+				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
+				if (X[YDIM][iii] < dx && X[ZDIM][iii] < dx && X[YDIM][iii] > ZERO && X[ZDIM][iii] > ZERO) {
+					fprintf(fp, "%e ", X[XDIM][iii]);
+					for (integer i = 0; i != NF; ++i) {
+						fprintf(fp, "%e ", U[i][iii]);
+					}
+					for (integer i = 0; i != NGF; ++i) {
+						fprintf(fp, "%e ", G[i][iiig]);
+					}
+					fprintf(fp, "\n");
+
+				}
+			}
+		}
+	}
+	fclose(fp);
+#endif
+
 	return rc;
 }
 
@@ -177,7 +204,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 					shapecnt, nshapes, olist);
 			DBPutUcdmesh(db, "mesh", int(NDIM), coord_names, node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
 					olist);
-			const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "acc", "don", "phi", "gx", "gy", "gz"};
+			const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "frac0", "frac1", "phi", "gx", "gy", "gz"};
 			for (int field = 0; field != NF + NGF; ++field) {
 				DBPutUcdvar1(db, field_names[field], "mesh", olists.data[field].data(), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 						olist);
@@ -194,6 +221,12 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
 	auto foo = std::fread;
+	{
+		static hpx::mutex mtx;
+		std::lock_guard<hpx::mutex> lock(mtx);
+		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
+		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
+	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 
@@ -216,12 +249,20 @@ std::size_t grid::load(FILE* fp) {
 		}
 	}
 	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+	set_coordinates();
+	compute_ilist();
 	return cnt;
 }
 
 std::size_t grid::save(FILE* fp) const {
 	std::size_t cnt = 0;
 	auto foo = std::fwrite;
+	{
+		static hpx::mutex mtx;
+		std::lock_guard<hpx::mutex> lock(mtx);
+		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
+		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
+	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 	for (integer f = 0; f != NF; ++f) {

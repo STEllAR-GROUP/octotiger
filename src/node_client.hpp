@@ -9,6 +9,7 @@
 #define NODE_CLIENT_HPP_
 
 #include "defs.hpp"
+#include "fmm.hpp"
 #include "node_location.hpp"
 #include "taylor.hpp"
 #include "grid.hpp"
@@ -38,7 +39,7 @@ public:
 	hpx::future<real> scf_update(bool) const;
 	hpx::future<void> send_hydro_children( std::vector<real>&&,  const geo::octant& ci) const;
 	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
-	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output=false) const;
+	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics() const;
 	node_client();
 	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
@@ -50,11 +51,17 @@ public:
 	hpx::future<integer> regrid_gather(bool) const;
 	hpx::future<void> send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
 //r	hpx::future<void> send_hydro_amr_to_parent(std::vector<real>&&, integer ci, integer rk, integer face) const;
+#ifdef USE_SPHERICAL
+	hpx::future<void> send_gravity_boundary(std::vector<multipole_type>&&, const geo::direction&) const;
+	hpx::future<void> send_gravity_multipoles(std::vector<multipole_type>&&, const geo::octant& ci) const;
+	hpx::future<void> send_gravity_expansions(std::vector<expansion_type>&&) const;
+#else
 	hpx::future<void> send_gravity_boundary(std::vector<real>&&, const geo::direction&, bool monopole) const;
 	hpx::future<void> send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	hpx::future<void> send_gravity_expansions(expansion_pass_type&&) const;
+#endif
 	hpx::future<void> step() const;
-	hpx::future<void> start_run() const;
+	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, bool rb) const;
 	hpx::future<void> solve_gravity(bool ene) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
@@ -63,7 +70,8 @@ public:
 	hpx::future<void> timestep_driver_ascend(real) const;
 	hpx::future<real> timestep_driver_descend() const;
 	hpx::future<grid::output_list_type> output() const;
-	integer save(integer=0) const;
+	hpx::future<void> velocity_inc(const space_vector&) const;
+	integer save(integer,std::string) const;
 	hpx::future<bool> check_for_refinement() const;
 	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
 	hpx::future<std::pair<real,real>> find_omega_part(const space_vector& pivot) const;

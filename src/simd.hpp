@@ -7,13 +7,14 @@
 
 #ifndef SIMD_VECTOR_HPP_
 #define SIMD_VECTOR_HPP_
-
+#include "defs.hpp"
 #include <cstdlib>
 #include "immintrin.h"
 
 
 const std::size_t simd_len = 8;
 
+#ifdef USE_SIMD
 #ifndef __MIC__
 #define SIMD_SIZE 2
 #define __mxd __m256d
@@ -35,6 +36,17 @@ const std::size_t simd_len = 8;
 #define _mmx_div_pd(a,b)  _mm512_div_pd((a),(b))
 #define _mmx_sqrt_pd(a)   _mm512_sqrt_pd(a)
 #define _mmx_max_pd(a, b) _mm512_max_pd((a),(b))
+#endif
+#else
+#define SIMD_SIZE 8
+#define __mxd real
+#define _mmx_set_pd(d)    (d)
+#define _mmx_add_pd(a,b)  ((a)+(b))
+#define _mmx_sub_pd(a,b)  ((a)-(b))
+#define _mmx_mul_pd(a,b)  ((a)*(b))
+#define _mmx_div_pd(a,b)  ((a)/(b))
+#define _mmx_sqrt_pd(a)   sqrt(a)
+#define _mmx_max_pd(a, b) std::max((a),(b))
 #endif
 
 class simd_vector {

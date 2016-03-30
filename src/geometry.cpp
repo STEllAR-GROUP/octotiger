@@ -129,4 +129,31 @@ octant quadrant::get_octant_on_face(const face& f) const {
 }
 
 }
+
+integer get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub, const geo::direction& dir,
+		const geo::side& side, integer bw) {
+	integer hsize, size;
+	size = 0;
+	const integer nx = 2 * bw + INX;
+	const integer off = (side == OUTER) ? bw : 0;
+	hsize = 1;
+	for (auto& d : geo::dimension::full_set()) {
+		auto this_dir = dir[d];
+		if (this_dir == 0) {
+			lb[d] = bw;
+			ub[d] = nx - bw;
+		} else if (this_dir < 0) {
+			lb[d] = bw - off;
+			ub[d] = 2 * bw - off;
+		} else /*if (this_dir > 0) */{
+			lb[d] = nx - 2 * bw + off;
+			ub[d] = nx - bw + off;
+		}
+		const integer width = ub[d] - lb[d];
+		hsize *= width;
+	}
+	size += hsize;
+	return size;
+}
+
 #endif /* GEOMETRY_CPP_ */

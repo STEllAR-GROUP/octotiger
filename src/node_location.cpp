@@ -67,7 +67,8 @@ geo::side node_location::get_child_side(const geo::dimension& d) const {
 }
 
 geo::octant node_location::get_child_index() const {
-	return geo::octant( std::array<geo::side, NDIM>({ {get_child_side(XDIM), get_child_side(YDIM), get_child_side(ZDIM) }}));
+	return geo::octant(std::array<geo::side, NDIM>( {
+			{ get_child_side(XDIM), get_child_side(YDIM), get_child_side(ZDIM) } }));
 }
 
 bool node_location::is_child_of(const node_location& other) const {
@@ -89,7 +90,7 @@ bool node_location::is_child_of(const node_location& other) const {
 
 real node_location::x_location(integer d) const {
 	const real dx = TWO / real(1 << lev);
-	return real(xloc[d]) * dx - ONE;
+	return real(xloc[d]) * dx - 1.0;
 }
 
 node_location::node_location() {
@@ -209,7 +210,7 @@ bool node_location::operator <=(const node_location& other) const {
 
 std::size_t node_location::unique_id() const {
 	std::size_t id = 1;
-	std::array<std::size_t, NDIM> x;
+	std::array < std::size_t, NDIM > x;
 	for (integer d = 0; d != NDIM; ++d) {
 		x[d] = std::size_t(xloc[d]);
 	}
