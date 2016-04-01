@@ -20,45 +20,61 @@ find_package(HPX REQUIRED)
 find_package(MPI REQUIRED)
 
 ################################################################################
-include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 
 #set( CMAKE_CXX_FLAGS "-mt_mpi -xHOST -std=c++14" )
 
 add_hpx_executable(
   octotiger
-  SOURCES src/node_client.cpp
-          src/main.cpp
-          src/node_server.cpp
-          src/grid.cpp
-          src/grid_fmm.cpp
-          src/node_server_decomp.cpp
-          src/node_server_output.cpp
-          src/node_octstruct.cpp
-          src/grid_scf.cpp
-          src/grid_output.cpp
-          src/lane_emden.cpp
-          src/geometry.cpp
-          src/node_location.cpp
-          src/problem.cpp
-          src/roe.cpp
-          src/taylor.cpp
-          src/old_scf_read.cpp
-  HEADERS src/channel.hpp
-          src/defs.hpp
-          src/future.hpp
-          src/grid.hpp
-          src/lane_emden.hpp
-          src/node_client.hpp
-          src/node_location.hpp
-          src/node_server.hpp
-          src/problem.hpp
-          src/roe.hpp
-          src/geometry.hpp
-          src/simd.hpp
-          src/space_vector.hpp
-          src/taylor.hpp
+  SOURCES 	src/bibi.cpp
+		src/eos.cpp
+		src/fmm.cpp
+		src/geometry.cpp
+		src/grid.cpp
+		src/grid_fmm.cpp
+		src/grid_output.cpp
+		src/grid_scf.cpp
+		src/grid_scf_old.cpp
+		src/lane_emden.cpp
+		src/main.cpp
+		src/new.cpp
+		src/node_client.cpp
+		src/node_location.cpp
+		src/node_octstruct.cpp
+		src/node_server.cpp
+		src/node_server_decomp.cpp
+		src/node_server_output.cpp
+		src/old_scf_read.cpp
+		src/options.cpp
+		src/problem.cpp
+		src/real.cpp
+		src/roe.cpp
+		src/stack_trace.cpp
+		src/taylor.cpp
+
+  HEADERS 	src/bibi.hpp
+		src/channel.hpp
+		src/defs.hpp
+		src/eos.hpp
+		src/fmm.hpp
+		src/future.hpp
+		src/geometry.hpp
+		src/grid.hpp
+		src/harmonics.hpp
+		src/lane_emden.hpp
+		src/node_client.hpp
+		src/node_location.hpp
+		src/node_server.hpp
+		src/options.hpp
+		src/polytrope.hpp
+		src/problem.hpp
+		src/real.hpp
+		src/roe.hpp
+		src/simd.hpp
+		src/space_vector.hpp
+		src/taylor.hpp
+		src/valarray.hpp
   FOLDER  "Octotiger"
 )
 
-#target_link_libraries( octotiger_exe silo )
 
