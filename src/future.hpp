@@ -18,6 +18,10 @@
 template<class T>
 inline T __get(hpx::future<T> fut, const char fname[], int line) {
 #ifdef NFUTDEBUG
+	if( !fut.valid() ) {
+		printf( "ERROR - ATTEMPT TO WAIT ON INVALID FUTURE - 1\n" ); 
+		abort();
+	}
 	return fut.get();
 #else
 	auto time_start = std::chrono::steady_clock::now();
@@ -37,6 +41,10 @@ inline T __get(hpx::future<T> fut, const char fname[], int line) {
 
 inline void __get(hpx::future<void> fut, const char fname[], int line) {
 #ifdef NFUTDEBUG
+	if( !fut.valid() ) {
+		printf( "ERROR - ATTEMPT TO WAIT ON INVALID FUTURE - 2\n" ); 
+		abort();
+	}
 	fut.get();
 #else
 	auto time_start = std::chrono::steady_clock::now();

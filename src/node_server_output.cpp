@@ -70,8 +70,9 @@ HPX_PLAIN_ACTION(make_new_node, make_new_node_action);
 grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, bool do_output, std::string filename) {
 	FILE* fp;
 	std::size_t read_cnt = 0;
+	//printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" );
 	if (rec_size == -1) {
-		std::lock_guard<hpx::mutex> lock(rec_size_mutex);
+		std::unique_lock<hpx::mutex> lock(rec_size_mutex);
 		fp = fopen(filename.c_str(), "rb");
 		if( fp == NULL) {
 			printf( "Failed to open file\n");
@@ -79,6 +80,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 		}
 		fseek(fp, -sizeof(integer), SEEK_END);
 		read_cnt += fread(&rec_size, sizeof(integer), 1, fp);
+		lock.unlock();
 		fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
 		real omega;
 		space_vector pivot;
@@ -96,10 +98,14 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 				futs.push_back(hpx::async<set_pivot_action2>(locality, pivot));
 			}
 		}
+
+
+
 		for (auto&& fut : futs) {
 			GET(fut);
 		}
 	}
+	//printf( "???????????????????????????????????\n" );
 	static auto localities = hpx::find_all_localities();
 	me = _me;
 	fp = fopen(filename.c_str(), "rb");
@@ -115,6 +121,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	integer total_nodes = ftell(fp) / rec_size;
 	fclose(fp);
 	std::list<hpx::future<grid::output_list_type>> futs;
+	//printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
 	if (flag == '1') {
 		is_refined = true;
 		children.resize(NCHILD);
@@ -140,6 +147,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 			GET(fut);
 		}
 	}
+	printf( "***************************************\n" );
 	if (!is_refined && do_output) {
 		my_list = grid_ptr->get_output_list();
 	//	grid_ptr = nullptr;
