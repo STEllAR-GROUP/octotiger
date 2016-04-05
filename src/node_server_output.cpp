@@ -147,7 +147,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 			GET(fut);
 		}
 	}
-	printf( "***************************************\n" );
+	//printf( "***************************************\n" );
 	if (!is_refined && do_output) {
 		my_list = grid_ptr->get_output_list();
 	//	grid_ptr = nullptr;
