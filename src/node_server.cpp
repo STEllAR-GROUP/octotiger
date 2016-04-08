@@ -50,8 +50,6 @@ typedef node_server::scf_params_action scf_params_action_type;
 typedef node_server::scf_update_action scf_update_action_type;
 
 HPX_REGISTER_ACTION (velocity_inc_action_type);
-HPX_REGISTER_ACTION (scf_update_action_type);
-HPX_REGISTER_ACTION (scf_params_action_type);
 HPX_REGISTER_ACTION (find_omega_part_action_type);
 HPX_REGISTER_ACTION (set_grid_action_type);
 HPX_REGISTER_ACTION (force_nodes_to_exist_action_type);
