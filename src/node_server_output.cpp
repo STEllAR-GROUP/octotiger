@@ -7,6 +7,7 @@
 
 #include "node_server.hpp"
 #include <sys/stat.h>
+#include <unistd.h>
 #include "future.hpp"
 
 hpx::mutex rec_size_mutex;
@@ -17,9 +18,9 @@ inline bool file_exists(const std::string& name) {
 	return (stat(name.c_str(), &buffer) == 0);
 }
 
-integer node_server::save(integer cnt) const {
+integer node_server::save(integer cnt, std::string filename) const {
 	char flag = is_refined ? '1' : '0';
-	FILE* fp = fopen("data.bin", (cnt == 0) ? "wb" : "ab");
+	FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
 	fwrite(&flag, sizeof(flag), 1, fp);
 	++cnt;
 //	printf("                                   \rSaved %li sub-grids\r", (long int) cnt);
@@ -36,12 +37,12 @@ integer node_server::save(integer cnt) const {
 	fclose(fp);
 	if (is_refined) {
 		for (auto& ci : geo::octant::full_set()) {
-			cnt = children[ci].save(cnt);
+			cnt = children[ci].save(cnt,filename);
 		}
 	}
 
 	if (my_location.level() == 0) {
-		FILE* fp = fopen("data.bin", "ab");
+		FILE* fp = fopen(filename.c_str(), "ab");
 		real omega = grid::get_omega();
 		space_vector pivot = grid::get_pivot();
 		fwrite(&omega, sizeof(real), 1, fp);
@@ -61,17 +62,28 @@ hpx::id_type make_new_node(const node_location& loc, const hpx::id_type& _parent
 }
 
 
-HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
-HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
+void set_locality_data( real omega, space_vector pivot, integer record_size ) {
+	grid::set_omega(omega);
+	grid::set_pivot(pivot);
+	rec_size = record_size;
+}
+
+HPX_PLAIN_ACTION(set_locality_data, set_locality_data_action);
+//HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
+//HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
 
 HPX_PLAIN_ACTION(make_new_node, make_new_node_action);
 
-grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, bool do_output) {
+grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, bool do_output, std::string filename) {
 	FILE* fp;
 	std::size_t read_cnt = 0;
-	if (rec_size == -1) {
-		std::lock_guard<hpx::mutex> lock(rec_size_mutex);
-		fp = fopen("data.bin", "rb");
+
+	if (rec_size == -1 && my_location.level() == 0) {
+		fp = fopen(filename.c_str(), "rb");
+		if( fp == NULL) {
+			printf( "Failed to open file\n");
+			abort();
+		}
 		fseek(fp, -sizeof(integer), SEEK_END);
 		read_cnt += fread(&rec_size, sizeof(integer), 1, fp);
 		fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
@@ -86,18 +98,17 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 		std::vector<hpx::future<void>> futs;
 		futs.reserve(localities.size());
 		for (auto& locality : localities) {
-			futs.push_back(hpx::async<set_omega_action2>(locality, omega));
-			if (current_time == ZERO) {
-				futs.push_back(hpx::async<set_pivot_action2>(locality, pivot));
-			}
+			futs.push_back(hpx::async<set_locality_data_action>(locality, omega, pivot, rec_size));
 		}
 		for (auto&& fut : futs) {
 			GET(fut);
 		}
 	}
+
+
 	static auto localities = hpx::find_all_localities();
 	me = _me;
-	fp = fopen("data.bin", "rb");
+	fp = fopen(filename.c_str(), "rb");
 	char flag;
 	fseek(fp, cnt * rec_size, SEEK_SET);
 	read_cnt += fread(&flag, sizeof(char), 1, fp);
@@ -110,6 +121,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	integer total_nodes = ftell(fp) / rec_size;
 	fclose(fp);
 	std::list<hpx::future<grid::output_list_type>> futs;
+	//printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
 	if (flag == '1') {
 		is_refined = true;
 		children.resize(NCHILD);
@@ -117,7 +129,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 			integer loc_id = ((cnt * localities.size()) / (total_nodes + 1));
 			children[ci] = hpx::async<make_new_node_action>(localities[loc_id], my_location.get_child(ci),
 					me.get_gid());
-			futs.push_back(children[ci].load(counts[ci], children[ci].get_gid(), do_output));
+			futs.push_back(children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename));
 		}
 	} else if (flag == '0') {
 		is_refined = false;
@@ -135,6 +147,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 			GET(fut);
 		}
 	}
+	//printf( "***************************************\n" );
 	if (!is_refined && do_output) {
 		my_list = grid_ptr->get_output_list();
 	//	grid_ptr = nullptr;
@@ -176,26 +189,18 @@ std::size_t node_server::save_me(FILE* fp) const {
 }
 
 void node_server::save_to_file(const std::string& fname) const {
-	save();
-	std::string command = std::string("cp data.bin ") + fname + ("\n");
-	SYSTEM(command);
-	command = std::string("mv data.bin restart.chk\n");
+	save(0,fname);
+	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
 	SYSTEM(command);
 }
 
 void node_server::load_from_file(const std::string& fname) {
-	std::string command = std::string("ln -s ") + fname + (" data.bin\n");
-	SYSTEM(command);
-	load(0, hpx::id_type(), false);
-	SYSTEM(std::string("rm -f data.bin\n"));
+	load(0, hpx::id_type(), false, fname);
 }
 
 void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname) {
-	std::string command = std::string("ln -s ") + fname + (" data.bin\n");
-	SYSTEM(command);
-	load(0, hpx::id_type(), true);
-	SYSTEM(std::string("rm -f data.bin\n"));
-	command = std::string("mv data.silo ") + outname + std::string("\n");
+	load(0, hpx::id_type(), true, fname);
+	std::string command = std::string("mv data.silo ") + outname + std::string("\n");
 	SYSTEM(command);
 }
 

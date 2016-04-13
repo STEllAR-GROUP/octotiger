@@ -8,7 +8,6 @@
 #include "node_server.hpp"
 #include "future.hpp"
 
-
 bool node_server::check_for_refinement() {
 	bool rc = false;
 	if (is_refined) {
@@ -83,8 +82,9 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
 			for (auto& ci : geo::octant::full_set()) {
 				child_descendant_count[ci] = 1;
-				children[ci] = hpx::new_<node_server>(hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
-				std::array<integer, NDIM> lb = { 2*H_BW, 2*H_BW, 2*H_BW };
+				children[ci] = hpx::new_<node_server>(hpx::find_here(), my_location.get_child(ci), me, current_time,
+						rotational_time);
+				std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
 				std::array<integer, NDIM> ub;
 				lb[XDIM] += (1 & (ci >> 0)) * (INX);
 				lb[YDIM] += (1 & (ci >> 1)) * (INX);
@@ -125,10 +125,10 @@ void node_server::regrid(const hpx::id_type& root_gid, bool rb) {
 	std::vector<hpx::id_type> null_neighbors(geo::direction::count());
 	printf("forming tree connections\n");
 	form_tree(root_gid, hpx::invalid_id, null_neighbors);
-	//if (current_time > ZERO) {
-	printf("solving gravity\n");
-	solve_gravity(true);
-	//}
+	if (current_time > ZERO) {
+		printf("solving gravity\n");
+		solve_gravity(true);
+	}
 	printf("regrid done\n-----------------------------------------------\n");
 }
 
@@ -216,7 +216,7 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 
 					for (auto& dir : geo::direction::full_set()) {
 						child_neighbors[dir] = child_neighbors_f[dir].get();
-						if( child_neighbors[dir] == hpx::invalid_id) {
+						if (child_neighbors[dir] == hpx::invalid_id) {
 							amr_flags[ci][dir] = true;
 						} else {
 							amr_flags[ci][dir] = false;
@@ -269,8 +269,8 @@ hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) 
 			cids[ci] = children[ci].get_gid();
 		}
 	}
-	auto rc = hpx::new_<node_server>(id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count,
-			*grid_ptr, cids);
+	auto rc = hpx::new_<node_server>(id, my_location, step_num, is_refined, current_time, rotational_time,
+			child_descendant_count, std::move(*grid_ptr), cids);
 	clear_family();
 	return rc;
 }

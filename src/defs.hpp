@@ -5,12 +5,29 @@
  *      Author: dmarce1
  */
 
+
+
 #ifndef TYPES444_HPP_
 
+
+//#define OLD_SCF
+
+#define EXPERIMENT
+
 //#define DO_OUTPUT
+#define USE_SIMD
+
+#define USE_DRIVING
+#define DRIVING_RATE 0.02
+#define DRIVING_TIME 4.00
+
+#define ZCORRECT
+
+#define USE_PPM
+//#define USE_MINMOD
 
 #ifdef MINI_HPX
-#include "../hpx/hpx_lite.hpp"
+#include "hpx/hpx_lite.hpp"
 #else
 #include <hpx/hpx.hpp>
 
@@ -19,8 +36,8 @@ using mutex = hpx::lcos::local::spinlock;
 }
 
 #endif
-
-typedef double real;
+#include "real.hpp"
+//using real = double;
 typedef long long int integer;
 #define TYPES444_HPP_
 
@@ -41,9 +58,16 @@ enum gsolve_type {
 
 #define USE_ROTATING_FRAME
 
+//#define USE_SPHERICAL
+constexpr integer M_POLES = 3;
+constexpr integer L_POLES = M_POLES;
+constexpr integer G_BW = 4;
+
+//#define GRID_SIZE real(2.0)
+
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 5;
+//const integer MAX_LEVEL = 5;
 
 enum boundary_type {
 	OUTFLOW, REFLECT
@@ -55,8 +79,13 @@ const integer NSPECIES = 2;
 
 const integer INX = 8;
 
+#ifdef USE_PPM
 const integer H_BW = 3;
-const integer G_BW = 2;
+#endif
+#ifdef USE_MINMOD
+const integer H_BW = 2;
+#endif
+
 const integer R_BW = 2;
 
 const integer H_NX = 2 * H_BW + INX;
@@ -89,8 +118,8 @@ const integer pot_i = 6;
 const integer zx_i = 7;
 const integer zy_i = 8;
 const integer zz_i = 9;
-const integer acc_i = 10;
-const integer don_i = 11;
+const integer frac0_i = 10;
+const integer frac1_i = 11;
 
 const integer vx_i = sx_i;
 const integer vy_i = sy_i;
@@ -116,11 +145,13 @@ const real fgamma = real(5) / real(3);
 const real ZERO = real(0);
 const real ONE = real(1);
 const real TWO = real(2);
+const real THREE = real(3);
+const real FOUR = real(4);
 
-const real HALF = real(1) / real(2);
-const real TWELFTH = real(1) / real(12);
+const real HALF = real(real(1) / real(2));
+const real TWELFTH = real(real(1) / real(12));
 
-const real cfl = real(2) / real(15);
+const real cfl = real(real(2) / real(15));
 const real ei_floor = 1.0e-15;
 const integer NRK = 2;
 const real rk_beta[2] = { ONE, HALF };

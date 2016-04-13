@@ -12,7 +12,6 @@
 #include "node_server.hpp"
 #include "future.hpp"
 
-
 hpx::future<void> node_server::exchange_flux_corrections() {
 	const geo::octant ci = my_location.get_child_index();
 	auto ptr_futs = std::make_shared<std::list<hpx::future<void>>>();
@@ -102,7 +101,7 @@ void node_server::exchange_interlevel_hydro_data() {
 	GET(fut);
 }
 
-void node_server::collect_hydro_boundaries() {
+hpx::future<void> node_server::collect_hydro_boundaries() {
 	std::list<hpx::future<void>> futs;
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
@@ -143,36 +142,14 @@ void node_server::collect_hydro_boundaries() {
 			}
 		}
 	}
-
 	for (auto&& fut : futs) {
-		GET(fut);
+		fut.get();
 	}
-}
-
-integer node_server::get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub,
-		const geo::direction& dir, const geo::side& side, integer bw) const {
-	integer hsize, size;
-	size = 0;
-	const integer nx = 2 * bw + INX;
-	const integer off = (side == OUTER) ? bw : 0;
-	hsize = 1;
-	for (auto& d : geo::dimension::full_set()) {
-		auto this_dir = dir[d];
-		if (this_dir == 0) {
-			lb[d] = bw;
-			ub[d] = nx - bw;
-		} else if (this_dir < 0) {
-			lb[d] = bw - off;
-			ub[d] = 2 * bw - off;
-		} else /*if (this_dir > 0) */{
-			lb[d] = nx - 2 * bw + off;
-			ub[d] = nx - bw + off;
-		}
-		const integer width = ub[d] - lb[d];
-		hsize *= width;
-	}
-	size += hsize;
-	return size;
+	return hpx::make_ready_future();
+	/*	auto allfuts = hpx::when_all(futs.begin(), futs.end());
+	 return allfuts.then([](hpx::future<std::vector<hpx::future<void>>>&& futs){
+	 return;
+	 });*/
 }
 
 std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir) {
@@ -198,64 +175,11 @@ std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir) {
 }
 
 std::vector<real> node_server::get_gravity_boundary(const geo::direction& dir) {
-
-	std::array<integer, NDIM> lb, ub;
-	std::vector<real> data;
-	integer size = get_boundary_size(lb, ub, dir, INNER, G_BW);
-	if (is_refined) {
-		size *= 20 + 3;
-	} else {
-		size *= 1 + 3;
-	}
-	data.resize(size);
-	integer iter = 0;
-
-	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-				const auto& m = grid_ptr->multipole_value(0, i, j, k);
-				const auto& com = grid_ptr->center_of_mass_value(i, j, k);
-				const integer top = is_refined ? 20 : 1;
-				for (integer l = 0; l < top; ++l) {
-					data[iter] = m.ptr()[l];
-					++iter;
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					data[iter] = com[d];
-					++iter;
-				}
-			}
-		}
-	}
-
-	return data;
+	return grid_ptr->get_gravity_boundary(dir);
 }
 
 void node_server::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir, bool monopole) {
-	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, dir, OUTER, G_BW);
-	integer iter = 0;
-
-	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-				auto& m = grid_ptr->multipole_value(0, i, j, k);
-				auto& com = grid_ptr->center_of_mass_value(i, j, k);
-				const integer top = monopole ? 1 : 20;
-				for (integer l = 0; l < top; ++l) {
-					m.ptr()[l] = data[iter];
-					++iter;
-				}
-				for (integer l = top; l < 20; ++l) {
-					m.ptr()[l] = ZERO;
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					com[d] = data[iter];
-					++iter;
-				}
-			}
-		}
-	}
+	grid_ptr->set_gravity_boundary(data, dir, monopole);
 }
 
 void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir) {
@@ -275,6 +199,24 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::d
 	}
 }
 
+void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::direction& dir) {
+	sibling_hydro_channels[dir]->set_value(std::move(bdata));
+}
+
+
+#ifdef USE_SPHERICAL
+void node_server::recv_gravity_multipoles(std::vector<multipole_type>&& v, const geo::octant& ci) {
+	child_gravity_channels[ci]->set_value(std::move(v));
+}
+
+void node_server::recv_gravity_expansions(std::vector<expansion_type>&& v) {
+	parent_gravity_channel->set_value(std::move(v));
+}
+
+void node_server::recv_gravity_boundary(std::vector<multipole_type>&& bdata, const geo::direction& dir) {
+	neighbor_gravity_channels[dir]->set_value(std::move(bdata));
+}
+#else
 void node_server::recv_gravity_multipoles(multipole_pass_type&& v, const geo::octant& ci) {
 	child_gravity_channels[ci]->set_value(std::move(v));
 }
@@ -283,11 +225,7 @@ void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
 	parent_gravity_channel->set_value(std::move(v));
 }
 
-void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::direction& dir) {
-	sibling_hydro_channels[dir]->set_value(std::move(bdata));
-}
-
 void node_server::recv_gravity_boundary(std::vector<real>&& bdata, const geo::direction& dir, bool monopole) {
 	neighbor_gravity_channels[dir]->set_value(std::make_pair(std::move(bdata), monopole));
 }
-
+#endif

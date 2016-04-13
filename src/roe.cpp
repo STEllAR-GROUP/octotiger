@@ -74,11 +74,6 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 		for (integer field = 0; field != NF; ++field) {
 			f[field] = HALF * (ur[field] * v_r + ul[field] * v_l - a * (ur[field] - ul[field]));
 		}
-		for (integer d = 0; d != NDIM; ++d) {
-			const integer field = zx_i + d;
-//			f[field] = -HALF * (a * (ur[field] - ul[field]));
-			f[field] = ZERO;
-		}
 		f[u_i] += HALF * (p_r + p_l);
 		f[egas_i] += HALF * (p_r * v_r0 + p_l * v_l0);
 

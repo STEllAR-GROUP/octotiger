@@ -11,13 +11,17 @@ hpx::id_type node_client::get_gid() const {
 	return id;
 }
 
-hpx::future<std::pair<real,real>> node_client::find_omega_part(const space_vector& pivot) const {
+hpx::future<std::pair<real, real>> node_client::find_omega_part(const space_vector& pivot) const {
 	return hpx::async<typename node_server::find_omega_part_action>(get_gid(), pivot);
 }
 
-node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut ) {
+node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 	return *this;
+}
+
+hpx::future<void> node_client::velocity_inc(const space_vector& dv) const {
+	return hpx::async<typename node_server::velocity_inc_action>(get_gid(), dv);
 }
 
 hpx::future<std::vector<hpx::id_type>> node_client::get_nieces(const hpx::id_type& aunt, const geo::face& f) const {
@@ -27,7 +31,6 @@ hpx::future<std::vector<hpx::id_type>> node_client::get_nieces(const hpx::id_typ
 hpx::future<bool> node_client::check_for_refinement() const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_gid());
 }
-
 
 hpx::future<void> node_client::force_nodes_to_exist(std::list<node_location>&& locs) const {
 	return hpx::async<typename node_server::force_nodes_to_exist_action>(get_gid(), std::move(locs));
@@ -42,7 +45,7 @@ node_client& node_client::operator=(const hpx::id_type& _id) {
 	return *this;
 }
 
-node_client::node_client(hpx::future<hpx::id_type>&& fut ) {
+node_client::node_client(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 }
 
@@ -76,13 +79,13 @@ node_client::node_client() {
 //	return hpx::async<typename node_server::output_action>(get_gid(), std::string(""));
 //}
 
-
-hpx::future<grid::output_list_type> node_client::load(integer i, const hpx::id_type& _me, bool do_o) const {
-	return hpx::async<typename node_server::load_action>(get_gid(), i, _me, do_o);
+hpx::future<grid::output_list_type> node_client::load(integer i, const hpx::id_type& _me, bool do_o,
+		std::string s) const {
+	return hpx::async<typename node_server::load_action>(get_gid(), i, _me, do_o, s);
 }
 
-integer node_client::save(integer i) const {
-	return hpx::async<typename node_server::save_action>(get_gid(), i).get();
+integer node_client::save(integer i, std::string s) const {
+	return hpx::async<typename node_server::save_action>(get_gid(), i, s).get();
 }
 
 hpx::future<void> node_client::solve_gravity(bool ene) const {
@@ -114,6 +117,20 @@ bool node_client::empty() const {
 	return get_gid() == hpx::invalid_id;
 }
 
+#ifdef USE_SPHERICAL
+hpx::future<void> node_client::send_gravity_boundary(std::vector<multipole_type>&& data, const geo::direction& dir) const {
+	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), std::move(data), dir);
+}
+
+hpx::future<void> node_client::send_gravity_multipoles(std::vector<multipole_type>&& data,
+		const geo::octant& ci) const {
+	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), std::move(data), ci);
+}
+
+hpx::future<void> node_client::send_gravity_expansions(std::vector<expansion_type>&& data) const {
+	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), std::move(data));
+}
+#else
 hpx::future<void> node_client::send_gravity_boundary(std::vector<real>&& data, const geo::direction& dir, bool monopole) const {
 	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), std::move(data), dir, monopole);
 }
@@ -122,24 +139,27 @@ hpx::future<void> node_client::send_gravity_multipoles(multipole_pass_type&& dat
 	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), std::move(data), ci);
 }
 
+hpx::future<void> node_client::send_gravity_expansions(expansion_pass_type&& data) const {
+	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), std::move(data));
+}
+
+#endif
+
 hpx::future<void> node_client::send_hydro_children(std::vector<real>&& data, const geo::octant& ci) const {
 	return hpx::async<typename node_server::send_hydro_children_action>(get_gid(), std::move(data), ci);
 }
 
-hpx::future<void> node_client::send_hydro_flux_correct(std::vector<real>&& data, const geo::face& face, const geo::octant& ci) const {
+hpx::future<void> node_client::send_hydro_flux_correct(std::vector<real>&& data, const geo::face& face,
+		const geo::octant& ci) const {
 	return hpx::async<typename node_server::send_hydro_flux_correct_action>(get_gid(), std::move(data), face, ci);
-}
-
-hpx::future<void> node_client::send_gravity_expansions(expansion_pass_type&& data) const {
-	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), std::move(data));
 }
 
 hpx::future<void> node_client::step() const {
 	return hpx::async<typename node_server::step_action>(get_gid());
 }
 
-hpx::future<void> node_client::start_run() const {
-	return hpx::async<typename node_server::start_run_action>(get_gid());
+hpx::future<void> node_client::start_run(bool b) const {
+	return hpx::async<typename node_server::start_run_action>(get_gid(), b);
 }
 
 hpx::future<void> node_client::set_grid(std::vector<real>&& g, std::vector<real>&& o) const {
