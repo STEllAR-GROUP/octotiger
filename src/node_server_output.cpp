@@ -190,8 +190,8 @@ std::size_t node_server::save_me(FILE* fp) const {
 
 void node_server::save_to_file(const std::string& fname) const {
 	save(0,fname);
-	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
-	SYSTEM(command);
+//	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
+//	SYSTEM(command);
 }
 
 void node_server::load_from_file(const std::string& fname) {
