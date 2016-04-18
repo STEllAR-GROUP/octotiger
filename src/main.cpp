@@ -138,6 +138,8 @@ void node_server::start_run(bool scf) {
 	while (true) {
 		auto time_start = std::chrono::high_resolution_clock::now();
 
+		auto axis = grid_ptr->find_axis();
+		printf( "%e %e %e\n", axis[0], axis[1], axis[2]);
 		diagnostics();
 
 		if (t / output_dt >= output_cnt) {
