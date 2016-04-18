@@ -24,14 +24,14 @@ const real bibi_acc_core_frac = 2.0 * 0.2377;
 const real rho_acc_max = 1.0;
 const real rho_don_max = 0.836;
 
-real MA, MD, RA, RD;
+real RA, RD;
 
 real xpt_A, xpt_B, xpt_C;
-xpt_A = 0.950980392156863
-xpt_B = 0.182352941176471;
-xpt_C = -0.166666666666667;
-MA = 1.689579196657952E-002;
-MD = 1.689579196657952E-002;
+real xpt_A = 0.950980392156863
+real xpt_B = 0.182352941176471;
+real xpt_C = -0.166666666666667;
+real MA = 1.689579196657952E-002;
+real MD = 1.689579196657952E-002;
 
 
 
