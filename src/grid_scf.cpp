@@ -26,7 +26,7 @@ const real rho_don_max = 0.836;
 
 real RA, RD;
 
-real xpt_A, xpt_B, xpt_C;
+
 real xpt_A = 0.950980392156863
 real xpt_B = 0.182352941176471;
 real xpt_C = -0.166666666666667;
