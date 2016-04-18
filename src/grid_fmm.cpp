@@ -7,6 +7,88 @@
 #include "grid.hpp"
 #include "simd.hpp"
 
+void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
+	real b0[3], b1[3], A, bdif;
+	int iter = 0;
+	for (int l = 0; l < 3; l++) {
+		b0[0] = b0[1] = b0[2] = 0.0;
+		b0[l] = 1.0;
+		do {
+			iter++;
+			for (int i = 0; i < 3; i++) {
+				b1[i] = 0.0;
+			}
+			for (int i = 0; i < 3; i++) {
+				for (int m = 0; m < 3; m++) {
+					b1[i] += q[i][m] * b0[m];
+				}
+			}
+			A = 0.0;
+			for (int i = 0; i < 3; i++) {
+				A += b1[i] * b1[i];
+			}
+			A = sqrt(A);
+			bdif = 0.0;
+			for (int i = 0; i < 3; i++) {
+				b1[i] = b1[i] / A;
+				bdif += pow(b0[i] - b1[i], 2);
+			}
+			for (int i = 0; i < 3; i++) {
+				b0[i] = b1[i];
+			}
+
+		} while (fabs(bdif) > 1.0e-14);
+		for (int m = 0; m < 3; m++) {
+			e[l][m] = b0[m];
+		}
+		for (int i = 0; i < 3; i++) {
+			A += b0[i] * q[l][i];
+		}
+		lambda[l] = sqrt(A) / sqrt(e[l][0] * e[l][0] + e[l][1] * e[l][1] + e[l][2] * e[l][2]);
+	}
+}
+
+space_vector grid::find_axis() const {
+	real quad_moment[NDIM][NDIM];
+	real eigen[NDIM][NDIM];
+	real lambda[NDIM];
+	for (integer i = 0; i != NDIM; ++i) {
+		for (integer j = 0; j != NDIM; ++j) {
+			quad_moment[i][j] = 0.0;
+		}
+	}
+
+	for (integer i = G_BW; i != G_NX - G_BW; ++i) {
+		for (integer j = G_BW; j != G_NX - G_BW; ++j) {
+			for (integer k = G_BW; k != G_NX - G_BW; ++k) {
+				const integer iii1 = gindex(i, j, k);
+				const integer iii0 = gindex(i + H_BW - G_BW, j + H_BW - G_BW, k + H_BW - G_BW);
+				for (integer n = 0; n != NDIM; ++n) {
+					for (integer m = 0; m != NDIM; ++m) {
+						quad_moment[n][m] += M[0][iii1](n, m);
+						quad_moment[n][m] += M[0][iii1]() * com[0][iii1][n] * com[0][iii1][m];
+					}
+				}
+			}
+		}
+	}
+
+	find_eigenvectors(quad_moment, eigen, lambda);
+	integer index;
+	if (lambda[0] > lambda[1] && lambda[0] > lambda[2]) {
+		index = 0;
+	} else if (lambda[1] > lambda[2]) {
+		index = 1;
+	} else {
+		index = 2;
+	}
+	space_vector rc;
+	for( integer j = 0; j != NDIM; ++j) {
+		rc[j] = eigen[index][j];
+	}
+	return rc;
+}
+
 void grid::solve_gravity(gsolve_type type) {
 
 	compute_multipoles(type);
@@ -364,8 +446,8 @@ void grid::compute_boundary_interactions_monopole(gsolve_type type, const std::v
 
 void grid::compute_ilist() {
 
-	std::vector < std::vector<geo::direction>
-			> neighbor_num(nlevel, std::vector < geo::direction > (G_N3, geo::direction(-1)));
+	std::vector<std::vector<geo::direction> > neighbor_num(nlevel,
+			std::vector<geo::direction>(G_N3, geo::direction(-1)));
 	integer lev = nlevel - 2;
 	for (integer inx = 4; inx <= INX; inx <<= 1) {
 		const integer nx = inx + 2 * G_BW;
@@ -472,11 +554,11 @@ void grid::compute_ilist() {
 		}
 		--lev;
 	}
-	ilist_n = std::vector < npair > (ilist_n0.begin(), ilist_n0.end());
-	ilist_d = std::vector < dpair > (ilist_d0.begin(), ilist_d0.end());
+	ilist_n = std::vector<npair>(ilist_n0.begin(), ilist_n0.end());
+	ilist_d = std::vector<dpair>(ilist_d0.begin(), ilist_d0.end());
 	for (auto& dir : geo::direction::full_set()) {
-		ilist_n_bnd[dir] = std::vector < npair > (ilist_n0_bnd[dir].begin(), ilist_n0_bnd[dir].end());
-		ilist_d_bnd[dir] = std::vector < dpair > (ilist_d0_bnd[dir].begin(), ilist_d0_bnd[dir].end());
+		ilist_n_bnd[dir] = std::vector<npair>(ilist_n0_bnd[dir].begin(), ilist_n0_bnd[dir].end());
+		ilist_d_bnd[dir] = std::vector<dpair>(ilist_d0_bnd[dir].begin(), ilist_d0_bnd[dir].end());
 	}
 }
 
@@ -638,7 +720,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 							assert(mtot != ZERO);
 							for (auto& d : geo::dimension::full_set()) {
 								com[lev][iiip][d] = (X[d] * mc).sum() / mtot;
-		//						com[lev][iiip][d] = X[d].sum() / real(8);
+								//						com[lev][iiip][d] = X[d].sum() / real(8);
 							}
 						}
 						taylor<4, simd_vector> mc, mp;
