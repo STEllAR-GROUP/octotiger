@@ -9,7 +9,7 @@
 #define CHANNEL_HPP_
 
 #include "defs.hpp"
-//#ifndef MINI_HPX
+/*
 
 #include <hpx/lcos/local/receive_buffer.hpp>
 
@@ -37,8 +37,7 @@ public:
 	}
 
 };
-/*
-#else
+*/
 
 template<class T>
 class channel {
@@ -80,5 +79,5 @@ public:
 
 };
 
-#endif */
+//#endif */
 #endif /* CHANNEL_HPP_ */
