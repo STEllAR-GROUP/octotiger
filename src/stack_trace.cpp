@@ -31,7 +31,7 @@ void handler(int sig) {
 	if( system( command ) != 0 ) {
 		printf( "UNABLE TO PRINT STACK FROM GDB!\n");
 	}
-	sleep(60);
+//	sleep(60);
 	exit(sig);
 }
 

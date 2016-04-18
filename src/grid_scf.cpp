@@ -21,6 +21,9 @@ const real rho_floor = 1.0e-10;
 const real bibi_mu = 0.5;
 const real bibi_don_core_frac = 2.0 * 0.2374;
 const real bibi_acc_core_frac = 2.0 * 0.2377;
+const real rho_acc_max = 1.0;
+const real rho_don_max = 0.836;
+
 
 //HPX_PLAIN_ACTION(scf_binary_init, scf_binary_init_action);
 
@@ -382,14 +385,14 @@ void set_global_vars(const global_vars_t& gv) {
 
 std::vector<real> scf_binary(real x, real y, real z, real) {
 	std::vector<real> u(NF, real(0));
-	donor_eos().set_d0(0.836);
-	accretor_eos().set_d0(1.0);
+	donor_eos().set_d0(rho_don_max);
+	accretor_eos().set_d0(rho_acc_max);
 	const real ra = std::sqrt(std::pow(x - global.accretor_center, 2) + y * y + z * z);
 	const real rd = std::sqrt(std::pow(x - global.donor_center, 2) + y * y + z * z);
 	//	const real da = accretor_eos().density_at(ra);
 	//	const real dd = donor_eos().density_at(rd);
-	const real da = 1.0 * exp(-std::pow(ra / RA, 2) * 13.815510558);
-	const real dd = 0.836 * exp(-std::pow(rd / RD, 2) * 13.815510558);
+	const real da = rho_acc_max * exp(-std::pow(ra / RA, 2) * 13.815510558);
+	const real dd = rho_don_max * exp(-std::pow(rd / RD, 2) * 13.815510558);
 //1	const real dd = donor_eos().density_at(rd);
 	u[rho_i] = std::max(da + dd, rho_floor);
 #ifndef BIBI

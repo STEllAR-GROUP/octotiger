@@ -308,14 +308,14 @@ void node_server::step() {
 	real cfl0 = cfl;
 
 	exchange_interlevel_hydro_data();
-//	int in = 0;
-//	while(true) {
-	//	if( my_location.level() == 0 ) {
-	//		printf( "%i\n", in );
-	//	}
+	int in = 0;
+	while(true) {
+		if( my_location.level() == 0 ) {
+			printf( "%i\n", in );
+		}
 		collect_hydro_boundaries().get();
-	//	++in;
-//	}
+		++in;
+	}
 	grid_ptr->store();
 
 	for (integer rk = 0; rk < NRK; ++rk) {

@@ -107,6 +107,7 @@ void node_server::start_run(bool scf) {
 	}
 
 	printf("Starting...\n");
+	regrid(me.get_gid(), false);
 	solve_gravity(false);
 	if (current_time == 0) {
 //		run_scf();
