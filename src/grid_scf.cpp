@@ -24,6 +24,16 @@ const real bibi_acc_core_frac = 2.0 * 0.2377;
 const real rho_acc_max = 1.0;
 const real rho_don_max = 0.836;
 
+real MA, MD, RA, RD;
+
+real xpt_A, xpt_B, xpt_C;
+xpt_A = 0.950980392156863 - dx/2.0;
+xpt_B = 0.182352941176471+dx/2.0;
+xpt_C = -0.166666666666667-dx/2.0;
+MA = 1.689579196657952E-002;
+MD = 1.689579196657952E-002;
+
+
 
 //HPX_PLAIN_ACTION(scf_binary_init, scf_binary_init_action);
 
@@ -58,10 +68,6 @@ struct global_vars_t {
 };
 
 static std::once_flag init_flag;
-
-real MA, MD, RA, RD;
-
-real xpt_A, xpt_B, xpt_C;
 
 global_vars_t global;
 
@@ -250,11 +256,6 @@ void static_initialize() {
 			//	MA = 7.868152748811249E-003;
 			//	MD = 5.485139898262405E-003;
 
-			xpt_A = 0.950980392156863 - dx/2.0;
-			xpt_B = 0.182352941176471+dx/2.0;
-			xpt_C = -0.166666666666667-dx/2.0;
-			MA = 1.689579196657952E-002;
-			MD = 1.689579196657952E-002;
 
 			global.donor_center = (xpt_A - xpt_B)/2.0+xpt_B;
 			global.accretor_center = -((xpt_A + xpt_C)/2.0-xpt_C);
