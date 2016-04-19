@@ -9,8 +9,8 @@
  *
  * TODO: Sx, Sy, Sz boundaries!!!
  */
+
 #include "node_server.hpp"
-#include "future.hpp"
 
 hpx::future<void> node_server::exchange_flux_corrections() {
 	const geo::octant ci = my_location.get_child_index();
@@ -199,33 +199,3 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::d
 	}
 }
 
-void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::direction& dir) {
-	sibling_hydro_channels[dir]->set_value(std::move(bdata));
-}
-
-
-#ifdef USE_SPHERICAL
-void node_server::recv_gravity_multipoles(std::vector<multipole_type>&& v, const geo::octant& ci) {
-	child_gravity_channels[ci]->set_value(std::move(v));
-}
-
-void node_server::recv_gravity_expansions(std::vector<expansion_type>&& v) {
-	parent_gravity_channel->set_value(std::move(v));
-}
-
-void node_server::recv_gravity_boundary(std::vector<multipole_type>&& bdata, const geo::direction& dir) {
-	neighbor_gravity_channels[dir]->set_value(std::move(bdata));
-}
-#else
-void node_server::recv_gravity_multipoles(multipole_pass_type&& v, const geo::octant& ci) {
-	child_gravity_channels[ci]->set_value(std::move(v));
-}
-
-void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
-	parent_gravity_channel->set_value(std::move(v));
-}
-
-void node_server::recv_gravity_boundary(std::vector<real>&& bdata, const geo::direction& dir, bool monopole) {
-	neighbor_gravity_channels[dir]->set_value(std::make_pair(std::move(bdata), monopole));
-}
-#endif

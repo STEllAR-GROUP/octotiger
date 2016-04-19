@@ -14,6 +14,7 @@
 #include "grid.hpp"
 #include "geometry.hpp"
 #include "channel.hpp"
+#include "future.hpp"
 #include <atomic>
 #include "fmm.hpp"
 
@@ -218,6 +219,7 @@ public:
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
+
 	void step();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
