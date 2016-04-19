@@ -9,7 +9,7 @@
 #define CHANNEL_HPP_
 
 #include "defs.hpp"
-/*
+
 
 #include <hpx/lcos/local/receive_buffer.hpp>
 
@@ -37,7 +37,7 @@ public:
 	}
 
 };
-*/
+/*
 
 template<class T>
 class channel {
@@ -79,5 +79,5 @@ public:
 
 };
 
-//#endif */
+#endif */
 #endif /* CHANNEL_HPP_ */
