@@ -9,7 +9,6 @@
 #define NODE_CLIENT_HPP_
 
 #include "defs.hpp"
-#include "fmm.hpp"
 #include "node_location.hpp"
 #include "taylor.hpp"
 #include "grid.hpp"

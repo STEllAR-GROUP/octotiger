@@ -367,7 +367,6 @@ public:
 template<int N, class T>
 taylor_consts taylor<N, T>::tc;
 
-#include "valarray.hpp"
 
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;

@@ -16,7 +16,6 @@
 #include "channel.hpp"
 #include "future.hpp"
 #include <atomic>
-#include "fmm.hpp"
 
 struct diagnostics_t {
 	std::vector<real> grid_sum;

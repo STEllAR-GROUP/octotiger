@@ -10,7 +10,6 @@
 #include "lane_emden.hpp"
 #include "node_client.hpp"
 #include "options.hpp"
-#include "bibi.hpp"
 #include "eos.hpp"
 
 #define BIBI

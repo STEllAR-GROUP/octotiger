@@ -63,31 +63,6 @@ init_func_type get_problem() {
 	return problem;
 }
 
-real interp_scf_pre(real x, real y, real z);
-real interp_scf_rho(real x, real y, real z);
-
-std::vector<real> old_scf(real x, real y, real z, real omega, real core1, real core2, real) {
-	std::vector<real> u(NF, real(0));
-	const real rho_floor = 1.0e-11;
-	const real rho = std::max(interp_scf_rho(x, y, z), rho_floor);
-	const real pre = std::max(interp_scf_pre(x, y, z), 1.0e-13);
-	u[rho_i] = rho;
-	if (((x > 0.0) && (rho >= core2)) || ((x < 0.0) && (rho >= core1))) {
-		u[frac0_i] = rho - rho_floor / TWO;
-		u[frac1_i] = rho_floor / TWO;
-	} else {
-		u[frac1_i] = rho - rho_floor / TWO;
-		u[frac0_i] = rho_floor / TWO;
-	}
-	u[sx_i] = -y * omega * rho;
-	u[sy_i] = +x * omega * rho;
-	u[sz_i] = 0.0;
-	u[egas_i] = pre / (fgamma - 1.0);
-	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
-	u[egas_i] += 0.5 * omega * omega * (x * x + y * y) * rho;
-	return u;
-}
-
 std::vector<real> null_problem(real x, real y, real z, real dx) {
 	std::vector<real> u(NF, real(0));
 	return u;
@@ -212,28 +187,15 @@ const real rmax = 3.7;
 const real dr = rmax / 128.0;
 const real alpha = real(1) / real(5);
 
-#include "bibi.hpp"
-
 std::vector<real> star(real x, real y, real z, real) {
 
-	static bibi_polytrope bibi(5.0e-3/0.9251, 0.25, 3.0, 1.5, 0.75, 0.5);
 	x -= 0.125;
 	y -= 0.0;
 	z -= 0.0;
 	real menc;
 	const real r = std::sqrt(x * x + y * y + z * z);
 	std::vector<real> u(NF, real(0));
-	real rho, pre;
-	const bool in_core = bibi.solve_at(r, rho, pre, menc);
-	u[rho_i] = std::max(rho, 1.0e-10);
-	u[frac0_i] = u[rho_i] * (in_core ? 1.0 : 0.0);
-	u[frac1_i] = u[rho_i] * (in_core ? 0.0 : 1.0);
-	u[egas_i] = std::max(pre, 1.0e-10) / (fgamma - 1.0);
-	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
-	if (r < 0.25) {
-//		printf("%e %e\n", rho, r);
-	}
-	/*	real theta;
+		real theta;
 	 const real n = real(1) / (fgamma - real(1));
 	 const real rho_min = 1.0e-3;
 	 const real theta_min = std::pow(rho_min, real(1) / n);
@@ -251,7 +213,7 @@ std::vector<real> star(real x, real y, real z, real) {
 	 }
 	 u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
 	 u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
-	 u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];*/
+	 u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
 	return u;
 }
 
