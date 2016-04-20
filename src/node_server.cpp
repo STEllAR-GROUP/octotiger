@@ -236,8 +236,11 @@ std::size_t node_server::save_me(FILE* fp) const {
 	return cnt;
 }
 
+#include "util.hpp"
+
 void node_server::save_to_file(const std::string& fname) const {
 	save(0,fname);
+	file_copy(fname.c_str(), "restart.chk");
 //	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
 //	SYSTEM(command);
 }

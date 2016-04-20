@@ -74,7 +74,8 @@ add_hpx_executable(
 		src/roe.cpp
 		src/stack_trace.cpp
 		src/taylor.cpp
-  HEADERS 
+     	src/util.cpp
+   HEADERS 
 		src/channel.hpp
 		src/defs.hpp
 		src/eos.hpp
@@ -88,6 +89,7 @@ add_hpx_executable(
 		src/options.hpp
 		src/problem.hpp
 		src/real.hpp
+		src/util.hpp
 		src/roe.hpp
 		src/simd.hpp
 		src/space_vector.hpp
