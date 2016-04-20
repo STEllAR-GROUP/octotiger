@@ -22,26 +22,24 @@
 
 void handler(int sig) {
 	char hostname[256];
-	printf( "SIGNAL %i\n", sig);
-	gethostname(hostname, sizeof(hostname));
-	static char command[1024];
-	printf( "Process %i\n", getpid());
-//	sprintf( command, "gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i\n",  getpid() );
-	sprintf( command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i'\n", hostname, getpid() );
-	if( system( command ) != 0 ) {
-		printf( "UNABLE TO PRINT STACK FROM GDB!\n");
+	printf("SIGNAL %i\n", sig);
+	if (sig != SIGINT && sig != SIGABRT) {
+		gethostname(hostname, sizeof(hostname));
+		static char command[1024];
+		auto pid = getpid();
+		sprintf(command,
+				"ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i' > gdb.%s.%i.txt\n",
+				hostname, pid, hostname, pid);
+		printf(command);
+		if (system(command) != 0) {
+			goto UNABLE;
+		}
+		goto ABLE;
+		UNABLE: printf("UNABLE TO PRINT STACK FROM GDB!\n");
 	}
-//	sleep(60);
-	exit(sig);
+	ABLE: exit(sig);
+
 }
-
-
-
-
-
-
-
-
 
 __attribute__((constructor))
 void install_stack_trace() {
