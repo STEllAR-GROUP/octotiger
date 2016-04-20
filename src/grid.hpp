@@ -20,6 +20,11 @@
 #include <list>
 //#include "valarray.hpp"
 
+using line_of_centers_t = std::vector<std::pair<real,std::array<real,NF>>>;
+
+
+void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
+
 struct npair {
 	integer lev;
 	std::pair<integer, integer> loc;
@@ -184,11 +189,9 @@ struct scf_data_t {
 		arc & omega_int_part_2;
 	}
 	scf_data_t() {
-		donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits < real
-				> ::max();
-		accretor_mass = donor_mass = donor_central_enthalpy =
-				accretor_central_enthalpy = omega_int_part_1 =
-						omega_int_part_2 = ZERO;
+		donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits < real > ::max();
+		accretor_mass = donor_mass = donor_central_enthalpy = accretor_central_enthalpy = omega_int_part_1 =
+				omega_int_part_2 = ZERO;
 		phiA = phiB = phiC = 0.0;
 		virial_sum = virial_norm = 0.0;
 		donor_central_density = accretor_central_density = 0.0;
@@ -278,10 +281,8 @@ private:
 	std::vector<npair> ilist_n;
 	std::vector<dpair> ilist_d;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
-	void compute_boundary_interactions_multipole(gsolve_type type,
-			const std::vector<npair>&);
-	void compute_boundary_interactions_monopole(gsolve_type type,
-			const std::vector<npair>&);
+	void compute_boundary_interactions_multipole(gsolve_type type, const std::vector<npair>&);
+	void compute_boundary_interactions_monopole(gsolve_type type, const std::vector<npair>&);
 
 public:
 	static void set_scaling_factor(real f) {
@@ -304,11 +305,11 @@ public:
 	static space_vector get_pivot() {
 		return pivot;
 	}
+	line_of_centers_t line_of_centers(const space_vector& line);
 	real get_source(integer i, integer j, integer k) const {
 		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
-	void set_4force(integer i, integer j, integer k,
-			const std::array<real, NDIM + 1>& four_force) {
+	void set_4force(integer i, integer j, integer k, const std::array<real, NDIM + 1>& four_force) {
 		const auto iii = gindex(i + G_BW, j + G_BW, k + G_BW);
 		for (integer f = 0; f != NDIM + 1; ++f) {
 			G[f][iii] = four_force[f];
@@ -490,8 +491,7 @@ struct grid::node_point {
 		arc & pt[ZDIM];
 		arc & index;
 	}
-	bool operator==(const grid::node_point& other) const;bool operator<(
-			const grid::node_point& other) const;
+	bool operator==(const grid::node_point& other) const;bool operator<(const grid::node_point& other) const;
 };
 
 struct grid::output_list_type {

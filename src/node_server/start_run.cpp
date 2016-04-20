@@ -65,6 +65,9 @@ void node_server::start_run(bool scf) {
 		auto time_start = std::chrono::high_resolution_clock::now();
 
 		auto axis = grid_ptr->find_axis();
+		auto loc = line_of_centers(axis);
+		output_line_of_centers(stdout, loc);
+		return;
 		printf( "%e %e %e\n", axis[0], axis[1], axis[2]);
 		diagnostics();
 

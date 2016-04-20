@@ -5,23 +5,19 @@
  *      Author: dmarce1
  */
 
-
-
+#include "../diagnostics.hpp"
 #include "../node_server.hpp"
 #include "../node_client.hpp"
 #include "../options.hpp"
 
 extern options opts;
 
-
 typedef node_server::diagnostics_action diagnostics_action_type;
 HPX_REGISTER_ACTION (diagnostics_action_type);
-
 
 hpx::future<diagnostics_t> node_client::diagnostics() const {
 	return hpx::async<typename node_server::diagnostics_action>(get_gid());
 }
-
 
 diagnostics_t node_server::diagnostics() const {
 	diagnostics_t sums;
@@ -107,5 +103,37 @@ diagnostics_t node_server::diagnostics() const {
 	}
 
 	return sums;
+}
+
+diagnostics_t::diagnostics_t() :
+		grid_sum(NF, ZERO), outflow_sum(NF, ZERO), l_sum(NDIM, ZERO), field_max(NF,
+				-std::numeric_limits < real > ::max()), field_min(NF, +std::numeric_limits < real > ::max()), donor_mass(
+				ZERO), gforce_sum(NDIM, ZERO), gtorque_sum(NDIM, ZERO) {
+}
+
+diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
+	for (integer f = 0; f != NF; ++f) {
+		grid_sum[f] += other.grid_sum[f];
+		outflow_sum[f] += other.outflow_sum[f];
+		field_max[f] = std::max(field_max[f], other.field_max[f]);
+		field_min[f] = std::min(field_min[f], other.field_min[f]);
+	}
+	for (integer d = 0; d != NDIM; ++d) {
+		l_sum[d] += other.l_sum[d];
+		gforce_sum[d] += other.gforce_sum[d];
+		gtorque_sum[d] += other.gtorque_sum[d];
+	}
+	if (l1_error.size() < other.l1_error.size()) {
+		l1_error.resize(other.l1_error.size(), ZERO);
+		l2_error.resize(other.l2_error.size(), ZERO);
+	}
+	for (std::size_t i = 0; i != l1_error.size(); ++i) {
+		l1_error[i] += other.l1_error[i];
+	}
+	for (std::size_t i = 0; i != l1_error.size(); ++i) {
+		l2_error[i] += other.l2_error[i];
+	}
+	donor_mass += other.donor_mass;
+	return *this;
 }
 

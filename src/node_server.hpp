@@ -17,67 +17,10 @@
 #include "future.hpp"
 #include <atomic>
 
-struct diagnostics_t {
-	std::vector<real> grid_sum;
-	std::vector<real> outflow_sum;
-	std::vector<real> l_sum;
-	std::vector<real> field_max;
-	std::vector<real> field_min;
-	std::vector<real> l1_error;
-	std::vector<real> l2_error;
-	real donor_mass;
-	std::vector<real> gforce_sum;
-	std::vector<real> gtorque_sum;
-	diagnostics_t() :
-			grid_sum(NF, ZERO), outflow_sum(NF, ZERO), l_sum(NDIM, ZERO), field_max(NF,
-					-std::numeric_limits < real > ::max()), field_min(NF, +std::numeric_limits < real > ::max()), donor_mass(
-					ZERO), gforce_sum(NDIM, ZERO), gtorque_sum(NDIM, ZERO) {
-	}
-	diagnostics_t& operator+=(const diagnostics_t& other) {
-		for (integer f = 0; f != NF; ++f) {
-			grid_sum[f] += other.grid_sum[f];
-			outflow_sum[f] += other.outflow_sum[f];
-			field_max[f] = std::max(field_max[f], other.field_max[f]);
-			field_min[f] = std::min(field_min[f], other.field_min[f]);
-		}
-		for (integer d = 0; d != NDIM; ++d) {
-			l_sum[d] += other.l_sum[d];
-			gforce_sum[d] += other.gforce_sum[d];
-			gtorque_sum[d] += other.gtorque_sum[d];
-		}
-		if (l1_error.size() < other.l1_error.size()) {
-			l1_error.resize(other.l1_error.size(), ZERO);
-			l2_error.resize(other.l2_error.size(), ZERO);
-		}
-		for (std::size_t i = 0; i != l1_error.size(); ++i) {
-			l1_error[i] += other.l1_error[i];
-		}
-		for (std::size_t i = 0; i != l1_error.size(); ++i) {
-			l2_error[i] += other.l2_error[i];
-		}
-		donor_mass += other.donor_mass;
-		return *this;
-	}
-	diagnostics_t& operator=(const diagnostics_t& other) = default;
-
-	template<class Arc>
-	void serialize(Arc& arc, const unsigned) {
-		arc & gforce_sum;
-		arc & gtorque_sum;
-		arc & grid_sum;
-		arc & outflow_sum;
-		arc & l_sum;
-		arc & field_max;
-		arc & field_min;
-		arc & donor_mass;
-		arc & l1_error;
-		arc & l2_error;
-	}
-};
 
 class node_server: public hpx::components::managed_component_base<node_server>
 #ifdef USE_SPHERICAL
-		, public fmm
+, public fmm
 #endif
 {
 public:
@@ -292,10 +235,14 @@ public:
 	void velocity_inc(const space_vector& dv);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, velocity_inc, velocity_inc_action);
 
+	line_of_centers_t line_of_centers(const space_vector& line);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
+
 	void run_scf();
 
 };
 
+HPX_REGISTER_ACTION_DECLARATION (node_server::line_of_centers_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::velocity_inc_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_update_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::find_omega_part_action);
@@ -328,6 +275,7 @@ HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_params_action);
 
+HPX_ACTION_USES_LARGE_STACK (node_server::line_of_centers_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::scf_update_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::find_omega_part_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::set_grid_action);

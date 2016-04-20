@@ -13,8 +13,8 @@
 #include "taylor.hpp"
 #include "grid.hpp"
 #include "geometry.hpp"
+#include "diagnostics.hpp"
 
-struct diagnostics_t;
 //#include <boost/mpi/packed_iarchive.hpp>
 
 class node_server;
@@ -48,6 +48,7 @@ public:
 	hpx::future<hpx::id_type> get_child_client(const geo::octant&);
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;
+	hpx::future<line_of_centers_t> line_of_centers(const space_vector& line);
 	hpx::future<void> send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
 //r	hpx::future<void> send_hydro_amr_to_parent(std::vector<real>&&, integer ci, integer rk, integer face) const;
 #ifdef USE_SPHERICAL

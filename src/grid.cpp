@@ -19,6 +19,41 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
+line_of_centers_t grid::line_of_centers(const space_vector& line) {
+	line_of_centers_t loc;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii = hindex(i, j, k);
+				const space_vector& a = line;
+				space_vector b;
+				real aa = 0.0;
+				real bb = 0.0;
+				real ab = 0.0;
+				for (integer d = 0; d != NDIM; ++d) {
+					b[d] = X[d][iii];
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					aa += a[d] * a[d];
+					bb += b[d] * b[d];
+					ab += a[d] * b[d];
+				}
+				const real d = std::sqrt((aa * bb - ab * ab) / aa);
+				real p = ab / std::sqrt(aa);
+				std::array<real,NF> data;
+				if (d < dx) {
+					for (integer ui = 0; ui != NF; ++ui) {
+						data[ui] = U[ui][iii];
+					}
+					loc.resize(loc.size()+1);
+					loc[loc.size()-1].first = p;
+					loc[loc.size()-1].second = data;
+				}
+			}
+		}
+	}
+}
+
 std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 	std::pair<std::vector<real>, std::vector<real>> e;
 	const real dV = dx * dx * dx;

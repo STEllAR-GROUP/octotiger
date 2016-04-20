@@ -6,7 +6,7 @@
  */
 
 
-
+#include "../diagnostics.hpp"
 #include "../node_server.hpp"
 #include "../node_client.hpp"
 

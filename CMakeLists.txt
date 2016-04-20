@@ -27,6 +27,18 @@ include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 add_hpx_executable(
   octotiger
   SOURCES 	
+      	src/eos.cpp
+		src/geometry.cpp
+		src/grid.cpp
+		src/grid_fmm.cpp
+		src/grid_output.cpp
+		src/grid_scf.cpp
+		src/lane_emden.cpp
+		src/main.cpp
+		src/new.cpp
+		src/node_client.cpp
+		src/node_location.cpp
+		src/node_server.cpp
         src/node_server/check_for_refinement.cpp
         src/node_server/copy_to_locality.cpp
         src/node_server/diagnostics.cpp
@@ -42,6 +54,7 @@ add_hpx_executable(
         src/node_server/hydro_boundary.cpp
         src/node_server/hydro_children.cpp
         src/node_server/hydro_flux_correct.cpp
+        src/node_server/line_of_centers.cpp
         src/node_server/load.cpp
         src/node_server/regrid.cpp
         src/node_server/regrid_gather.cpp
@@ -56,19 +69,7 @@ add_hpx_executable(
         src/node_server/timestep_driver_ascend.cpp
         src/node_server/timestep_driver_descend.cpp
         src/node_server/velocity_inc.cpp
-      	src/eos.cpp
-		src/geometry.cpp
-		src/grid.cpp
-		src/grid_fmm.cpp
-		src/grid_output.cpp
-		src/grid_scf.cpp
-		src/lane_emden.cpp
-		src/main.cpp
-		src/new.cpp
-		src/node_client.cpp
-		src/node_location.cpp
-		src/node_server.cpp
-		src/options.cpp
+ 		src/options.cpp
 		src/problem.cpp
 		src/real.cpp
 		src/roe.cpp
@@ -76,6 +77,7 @@ add_hpx_executable(
 		src/taylor.cpp
      	src/util.cpp
    HEADERS 
+        src/diagnostics.hpp
 		src/channel.hpp
 		src/defs.hpp
 		src/eos.hpp
