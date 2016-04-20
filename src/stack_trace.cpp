@@ -12,7 +12,7 @@
  *      Author: dmarce1
  */
 
-/* SOURCE : http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes */
+/* MODIFIED FROM THIS ORIGINAL SOURCE : http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes */
 
 #include <stdio.h>
 #include <execinfo.h>
@@ -22,29 +22,28 @@
 
 void handler(int sig) {
 	char hostname[256];
-	printf("SIGNAL %i\n", sig);
-	if (sig != SIGINT && sig != SIGABRT) {
-		gethostname(hostname, sizeof(hostname));
-		static char command[1024];
-		auto pid = getpid();
-		sprintf(command,
-				"ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i' > gdb.%s.%i.txt\n",
-				hostname, pid, hostname, pid);
-		printf(command);
-		if (system(command) != 0) {
-			goto UNABLE;
-		}
-		goto ABLE;
-		UNABLE: printf("UNABLE TO PRINT STACK FROM GDB!\n");
+	gethostname(hostname, sizeof(hostname));
+	static char command[1024];
+	auto pid = getpid();
+	sprintf(command, "echo \"SIGNAL %i\n\" > gdb.%s.%i.txt", sig, hostname, pid);
+	sprintf(command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i' >> gdb.%s.%i.txt\n",
+			hostname, pid, hostname, pid);
+	if (system(command) != 0) {
+		goto UNABLE;
 	}
-	ABLE: exit(sig);
-
+	goto ABLE;
+	UNABLE: printf("UNABLE TO PRINT STACK FROM GDB!\n");
+	ABLE: return;
+	exit(0);
 }
 
 __attribute__((constructor))
 void install_stack_trace() {
-	signal(SIGSEGV, handler);   // install our handler
-	signal(SIGABRT, handler);   // install our handler
-	signal(SIGFPE, handler);   // install our handler
-	signal(SIGILL, handler);   // install our handler
+	//signal(SIGABRT, handler);
+	//signal(SIGINT, handler);
+	signal(SIGSEGV, handler);
+	signal(SIGFPE, handler);
+	signal(SIGILL, handler);
+	signal(SIGTERM, handler);
+	signal(SIGHUP, handler);
 }
