@@ -1,6 +1,7 @@
 /*
  * stack_trace.cpp
  *
+
  *  Created on: Sep 23, 2015
  *      Author: dmarce1
  */
@@ -33,7 +34,7 @@ void handler(int sig) {
 	}
 	goto ABLE;
 	UNABLE: printf("UNABLE TO PRINT STACK FROM GDB!\n");
-	ABLE: return;
+	ABLE: 
 	exit(0);
 }
 
