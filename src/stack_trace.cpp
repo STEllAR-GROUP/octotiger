@@ -46,5 +46,5 @@ void install_stack_trace() {
 	signal(SIGFPE, handler);
 	signal(SIGILL, handler);
 	signal(SIGTERM, handler);
-	signal(SIGHUP, handler);
+//	signal(SIGHUP, handler);
 }
