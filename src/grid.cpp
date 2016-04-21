@@ -19,7 +19,7 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
-line_of_centers_t grid::line_of_centers(const std::pair<space_vector,space_vector>& line) {
+line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vector>& line) {
 	line_of_centers_t loc;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -43,7 +43,7 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector,space_vecto
 				const real d = std::sqrt((aa * bb - ab * ab) / aa);
 				real p = ab / std::sqrt(aa);
 				std::vector<real> data(NF);
-				if (d < dx) {
+				if (d < std::sqrt(3.0) * dx / 3.0) {
 					for (integer ui = 0; ui != NF; ++ui) {
 						data[ui] = U[ui][iii];
 					}
