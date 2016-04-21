@@ -235,7 +235,7 @@ public:
 	void velocity_inc(const space_vector& dv);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, velocity_inc, velocity_inc_action);
 
-	line_of_centers_t line_of_centers(const space_vector& line);
+	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
 	void run_scf();

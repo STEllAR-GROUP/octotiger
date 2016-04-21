@@ -19,19 +19,21 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
-line_of_centers_t grid::line_of_centers(const space_vector& line) {
+line_of_centers_t grid::line_of_centers(const std::pair<space_vector,space_vector>& line) {
 	line_of_centers_t loc;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				const space_vector& a = line;
+				space_vector a = line.first;
+				const space_vector& o = line.second;
 				space_vector b;
 				real aa = 0.0;
 				real bb = 0.0;
 				real ab = 0.0;
 				for (integer d = 0; d != NDIM; ++d) {
-					b[d] = X[d][iii];
+					a[d] -= o[d];
+					b[d] = X[d][iii] - o[d];
 				}
 				for (integer d = 0; d != NDIM; ++d) {
 					aa += a[d] * a[d];
@@ -40,18 +42,19 @@ line_of_centers_t grid::line_of_centers(const space_vector& line) {
 				}
 				const real d = std::sqrt((aa * bb - ab * ab) / aa);
 				real p = ab / std::sqrt(aa);
-				std::array<real,NF> data;
+				std::vector<real> data(NF);
 				if (d < dx) {
 					for (integer ui = 0; ui != NF; ++ui) {
 						data[ui] = U[ui][iii];
 					}
-					loc.resize(loc.size()+1);
-					loc[loc.size()-1].first = p;
-					loc[loc.size()-1].second = data;
+					loc.resize(loc.size() + 1);
+					loc[loc.size() - 1].first = p;
+					loc[loc.size() - 1].second = std::move(data);
 				}
 			}
 		}
 	}
+	return loc;
 }
 
 std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
@@ -805,9 +808,9 @@ void grid::set_coordinates() {
 }
 
 void grid::allocate() {
-	U_out0 = std::vector < real > (NF, ZERO);
-	U_out = std::vector < real > (NF, ZERO);
-	dphi_dt = std::vector < real > (H_N3);
+	U_out0 = std::vector<real>(NF, ZERO);
+	U_out = std::vector<real>(NF, ZERO);
+	dphi_dt = std::vector<real>(H_N3);
 	for (integer field = 0; field != NGF; ++field) {
 		G[field].resize(G_N3);
 		G0[field].resize(G_N3);
@@ -1426,7 +1429,7 @@ void grid::compute_sources(real t) {
 				src[egas_i][iii] += omega * X[XDIM][iii] * rho * G[gy_i][iiig];
 #ifdef USE_DRIVING
 				const real period = (2.0 * M_PI / grid::omega);
-				if (t < DRIVING_TIME * period ) {
+				if (t < DRIVING_TIME * period) {
 					const real ff = -DRIVING_RATE / period;
 					const real rho = U[rho_i][iii];
 					const real sx = U[sx_i][iii];
@@ -1442,7 +1445,7 @@ void grid::compute_sources(real t) {
 					src[sy_i][iii] += dsy;
 					src[egas_i][iii] += (sx * dsx + sy * dsy) / rho;
 					src[zz_i][iii] += ff * zz;
-				
+
 				}
 #endif
 

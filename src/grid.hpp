@@ -20,7 +20,7 @@
 #include <list>
 //#include "valarray.hpp"
 
-using line_of_centers_t = std::vector<std::pair<real,std::array<real,NF>>>;
+using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
@@ -305,7 +305,7 @@ public:
 	static space_vector get_pivot() {
 		return pivot;
 	}
-	line_of_centers_t line_of_centers(const space_vector& line);
+	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line);
 	real get_source(integer i, integer j, integer k) const {
 		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
@@ -374,7 +374,7 @@ public:
 	grid& operator=(const grid&) = default;
 	grid& operator=(grid&&) = default;
 
-	space_vector find_axis() const;
+	std::pair<space_vector,space_vector> find_axis() const;
 
 	std::vector<real> get_gravity_boundary(const geo::direction& dir) {
 

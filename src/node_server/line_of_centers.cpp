@@ -11,7 +11,7 @@
 typedef node_server::line_of_centers_action line_of_centers_action_type;
 HPX_REGISTER_ACTION (line_of_centers_action_type);
 
-hpx::future<line_of_centers_t> node_client::line_of_centers(const space_vector& line) {
+hpx::future<line_of_centers_t> node_client::line_of_centers(const std::pair<space_vector,space_vector>& line) {
 	return hpx::async<typename node_server::line_of_centers_action>(get_gid(), line);
 }
 
@@ -25,18 +25,18 @@ void output_line_of_centers(FILE* fp, const line_of_centers_t& loc) {
 	}
 }
 
-line_of_centers_t node_server::line_of_centers(const space_vector& line) {
+line_of_centers_t node_server::line_of_centers(const std::pair<space_vector,space_vector>& line) {
 	std::list<hpx::future<line_of_centers_t>> futs;
 	line_of_centers_t return_line;
 	if (is_refined) {
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			futs.push_back(children[ci].line_of_centers(line));
 		}
-		std::map<real, std::array<real, NF>> map;
+		std::multimap<real, std::vector<real>> map;
 		for (auto&& fut : futs) {
 			auto tmp = fut.get();
-			for (auto&& ln : tmp) {
-				map.insert(ln);
+			for (integer ii = 0; ii != tmp.size(); ++ii) {
+				map.emplace(std::move(tmp[ii]));
 			}
 		}
 		return_line.resize(map.size());
@@ -44,5 +44,5 @@ line_of_centers_t node_server::line_of_centers(const space_vector& line) {
 	} else {
 		return_line = grid_ptr->line_of_centers(line);
 	}
-	return_line;
+	return return_line;
 }

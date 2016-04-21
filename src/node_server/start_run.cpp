@@ -68,7 +68,7 @@ void node_server::start_run(bool scf) {
 		auto loc = line_of_centers(axis);
 		output_line_of_centers(stdout, loc);
 		return;
-		printf( "%e %e %e\n", axis[0], axis[1], axis[2]);
+//		printf( "%e %e %e\n", axis.first[0], axis.first[1], axis.first[2]);
 		diagnostics();
 
 		if (t / output_dt >= output_cnt) {

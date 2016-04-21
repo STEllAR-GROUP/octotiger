@@ -48,11 +48,14 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
 	}
 }
 
-space_vector grid::find_axis() const {
+std::pair<space_vector,space_vector> grid::find_axis() const {
 	real quad_moment[NDIM][NDIM];
 	real eigen[NDIM][NDIM];
 	real lambda[NDIM];
+	space_vector this_com;
+	real mtot = 0.0;
 	for (integer i = 0; i != NDIM; ++i) {
+		this_com[i] = 0.0;
 		for (integer j = 0; j != NDIM; ++j) {
 			quad_moment[i][j] = 0.0;
 		}
@@ -64,6 +67,8 @@ space_vector grid::find_axis() const {
 				const integer iii1 = gindex(i, j, k);
 				const integer iii0 = gindex(i + H_BW - G_BW, j + H_BW - G_BW, k + H_BW - G_BW);
 				for (integer n = 0; n != NDIM; ++n) {
+					this_com[n] += M[0][iii1]() * com[0][iii1][n];
+					mtot += M[0][iii1]();
 					for (integer m = 0; m != NDIM; ++m) {
 						quad_moment[n][m] += M[0][iii1](n, m);
 						quad_moment[n][m] += M[0][iii1]() * com[0][iii1][n] * com[0][iii1][m];
@@ -71,6 +76,9 @@ space_vector grid::find_axis() const {
 				}
 			}
 		}
+	}
+	for (integer j = 0; j != NDIM; ++j) {
+		this_com[j] /= mtot;
 	}
 
 	find_eigenvectors(quad_moment, eigen, lambda);
@@ -86,7 +94,10 @@ space_vector grid::find_axis() const {
 	for( integer j = 0; j != NDIM; ++j) {
 		rc[j] = eigen[index][j];
 	}
-	return rc;
+	std::pair<space_vector,space_vector> pair;
+	pair.first = rc;
+	pair.second = this_com;
+	return pair;
 }
 
 void grid::solve_gravity(gsolve_type type) {
