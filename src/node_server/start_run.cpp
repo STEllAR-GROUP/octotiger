@@ -67,7 +67,7 @@ void node_server::start_run(bool scf) {
 		auto axis = grid_ptr->find_axis();
 		auto loc = line_of_centers(axis);
 //		output_line_of_centers(stdout, loc);
-		return;
+//		return;
 //		printf( "%e %e %e\n", axis.first[0], axis.first[1], axis.first[2]);
 		diagnostics();
 
