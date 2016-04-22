@@ -153,6 +153,6 @@ int hpx_main(int argc, char* argv[]) {
 
 	}
 	printf("Exiting...\n");
-//	return hpx::finalize();
+	return hpx::finalize();
 }
 
