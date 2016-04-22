@@ -39,7 +39,7 @@ public:
 	hpx::future<void> send_hydro_children( std::vector<real>&&,  const geo::octant& ci) const;
 	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
-	hpx::future<diagnostics_t> diagnostics() const;
+	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1) const;
 	hpx::future<grid::output_list_type> output(std::string fname) const;
 	node_client();
 	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
@@ -49,7 +49,7 @@ public:
 	hpx::future<hpx::id_type> get_child_client(const geo::octant&);
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;
-	hpx::future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line);
+	hpx::future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line) const;
 	hpx::future<void> send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
 //r	hpx::future<void> send_hydro_amr_to_parent(std::vector<real>&&, integer ci, integer rk, integer face) const;
 #ifdef USE_SPHERICAL

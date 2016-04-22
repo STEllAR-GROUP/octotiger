@@ -43,7 +43,7 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 				const real d = std::sqrt((aa * bb - ab * ab) / aa);
 				real p = ab / std::sqrt(aa);
 				std::vector<real> data(NF);
-				if (d < std::sqrt(3.0) * dx / 3.0) {
+				if (d < std::sqrt(3.0) * dx / 2.0) {
 					for (integer ui = 0; ui != NF; ++ui) {
 						data[ui] = U[ui][iii];
 					}
@@ -451,14 +451,47 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
-std::vector<real> grid::conserved_sums(std::function<bool(real, real, real)> use) const {
+std::vector<real> grid::conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector, space_vector>& axis,
+		const std::pair<real, real>& l1, integer frac) const {
 	std::vector<real> sum(NF, ZERO);
+	com[0] = com[1] = com[2] = 0.0;
+	com_dot[0] = com_dot[1] = com_dot[2] = 0.0;
 	const real dV = dx * dx * dx;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				if (use(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii])) {
+				bool use = false;
+				if (frac == 0) {
+					use = true;
+				} else {
+					space_vector a = axis.first;
+					const space_vector& o = axis.second;
+					space_vector b;
+					real aa = 0.0;
+					real ab = 0.0;
+					for (integer d = 0; d != NDIM; ++d) {
+						a[d] -= o[d];
+						b[d] = X[d][iii] - o[d];
+					}
+					for (integer d = 0; d != NDIM; ++d) {
+						aa += a[d] * a[d];
+						ab += a[d] * b[d];
+					}
+					real p = ab / std::sqrt(aa);
+					if (p < l1.first && frac == +1) {
+						use = true;
+					} else if (p >= l1.first && frac == -1) {
+						use = true;
+					}
+				}
+				if (use) {
+					com[0] += X[XDIM][iii] * U[rho_i][iii] * dV;
+					com[1] += X[YDIM][iii] * U[rho_i][iii] * dV;
+					com[2] += X[ZDIM][iii] * U[rho_i][iii] * dV;
+					com_dot[0] += U[sx_i][iii] * dV;
+					com_dot[1] += U[sy_i][iii] * dV;
+					com_dot[2] += U[sz_i][iii] * dV;
 					for (integer field = 0; field != NF; ++field) {
 						sum[field] += U[field][iii] * dV;
 					}
@@ -471,6 +504,12 @@ std::vector<real> grid::conserved_sums(std::function<bool(real, real, real)> use
 					sum[zz_i] -= X[YDIM][iii] * U[sx_i][iii] * dV;
 				}
 			}
+		}
+	}
+	if (sum[rho_i] > 0.0) {
+		for (integer d = 0; d != NDIM; ++d) {
+			com[d] /= sum[rho_i];
+			com_dot[d] /= sum[rho_i];
 		}
 	}
 	return sum;

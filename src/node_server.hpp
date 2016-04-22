@@ -204,8 +204,10 @@ public:
 	std::uintptr_t get_ptr();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_ptr, get_ptr_action);
 
-	diagnostics_t diagnostics() const;
+	diagnostics_t diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
+
+	diagnostics_t diagnostics() const;
 
 	grid::output_list_type load(integer, const hpx::id_type& _me, bool do_output, std::string);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
@@ -239,7 +241,7 @@ public:
 	void velocity_inc(const space_vector& dv);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, velocity_inc, velocity_inc_action);
 
-	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line);
+	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
 	void run_scf();

@@ -22,8 +22,10 @@
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
-
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
+
+void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
+		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi);
 
 struct npair {
 	integer lev;
@@ -305,7 +307,7 @@ public:
 	static space_vector get_pivot() {
 		return pivot;
 	}
-	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line);
+	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
 	real get_source(integer i, integer j, integer k) const {
 		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
@@ -360,8 +362,7 @@ public:
 
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
-	std::vector<real> conserved_sums(std::function<bool(real, real, real)> use =
-			[](real,real,real) {return true;}) const;
+	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	std::vector<real> l_sums() const;
 	std::vector<real> gforce_sum(bool torque) const;
 	std::vector<real> conserved_outflows() const;

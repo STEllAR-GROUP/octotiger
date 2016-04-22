@@ -9,16 +9,24 @@
 #define DIAGNOSTICS_HPP_
 
 #include "defs.hpp"
+#include "space_vector.hpp"
 
 struct diagnostics_t {
+	std::vector<real> primary_sum;
+	std::vector<real> secondary_sum;
 	std::vector<real> grid_sum;
+	space_vector primary_com;
+	space_vector secondary_com;
+	space_vector grid_com;
+	space_vector primary_com_dot;
+	space_vector secondary_com_dot;
+	space_vector grid_com_dot;
 	std::vector<real> outflow_sum;
 	std::vector<real> l_sum;
 	std::vector<real> field_max;
 	std::vector<real> field_min;
 	std::vector<real> l1_error;
 	std::vector<real> l2_error;
-	real donor_mass;
 	std::vector<real> gforce_sum;
 	std::vector<real> gtorque_sum;
 	diagnostics_t();
@@ -27,14 +35,21 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
+		arc & primary_com_dot;
+		arc & secondary_com_dot;
+		arc & grid_com_dot;
+		arc & primary_com;
+		arc & secondary_com;
+		arc & grid_com;
 		arc & gforce_sum;
 		arc & gtorque_sum;
+		arc & primary_sum;
+		arc & secondary_sum;
 		arc & grid_sum;
 		arc & outflow_sum;
 		arc & l_sum;
 		arc & field_max;
 		arc & field_min;
-		arc & donor_mass;
 		arc & l1_error;
 		arc & l2_error;
 	}

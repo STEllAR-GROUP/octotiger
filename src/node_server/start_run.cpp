@@ -64,11 +64,6 @@ void node_server::start_run(bool scf) {
 	while (true) {
 		auto time_start = std::chrono::high_resolution_clock::now();
 
-		auto axis = grid_ptr->find_axis();
-		auto loc = line_of_centers(axis);
-//		output_line_of_centers(stdout, loc);
-//		return;
-//		printf( "%e %e %e\n", axis.first[0], axis.first[1], axis.first[2]);
 		diagnostics();
 
 		if (t / output_dt >= output_cnt) {
