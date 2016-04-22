@@ -433,6 +433,7 @@ void node_server::run_scf() {
 	for (integer i = 0; i != 401; ++i) {
 		if (i % 100 == 0 && i != 0) {
 			save_to_file(std::string("X.chk"));
+			output("X.scf.silo");
 			//	SYSTEM(
 			//			std::string("./octotiger -problem=dwd -restart=X.chk -output=X.") + std::to_string(i)
 			//					+ std::string(".silo"));
