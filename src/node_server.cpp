@@ -251,8 +251,9 @@ void node_server::load_from_file(const std::string& fname) {
 
 void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname) {
 	load(0, hpx::id_type(), true, fname);
-	std::string command = std::string("mv data.silo ") + outname + std::string("\n");
-	SYSTEM(command);
+	file_copy("data.silo", outname.c_str());
+//	std::string command = std::string("mv data.silo ") + outname + std::string("\n");
+//	SYSTEM(command);
 }
 std::vector<real> node_server::get_gravity_boundary(const geo::direction& dir) {
 	return grid_ptr->get_gravity_boundary(dir);

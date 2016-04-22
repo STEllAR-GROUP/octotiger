@@ -133,6 +133,10 @@ public:
 	void set_gravity_boundary(const std::vector<real>&, const geo::direction&, bool monopole);
 	std::vector<real> get_gravity_boundary(const geo::direction& dir);
 
+	grid::output_list_type output(std::string fname) const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
+
+
 	integer regrid_gather(bool rebalance_only);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
 
@@ -242,6 +246,7 @@ public:
 
 };
 
+HPX_REGISTER_ACTION_DECLARATION (node_server::output_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::line_of_centers_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::velocity_inc_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_update_action);
@@ -275,6 +280,7 @@ HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_params_action);
 
+HPX_ACTION_USES_LARGE_STACK (node_server::output_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::line_of_centers_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::scf_update_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::find_omega_part_action);

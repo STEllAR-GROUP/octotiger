@@ -40,6 +40,7 @@ public:
 	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics() const;
+	hpx::future<grid::output_list_type> output(std::string fname) const;
 	node_client();
 	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;

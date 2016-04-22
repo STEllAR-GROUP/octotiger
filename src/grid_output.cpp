@@ -8,7 +8,6 @@
 
 #define EQ_ONLY
 //#define RHO_ONLY
-#define LINE_PLOT
 
 #include <unordered_map>
 
@@ -132,32 +131,6 @@ grid::output_list_type grid::get_output_list() const {
 			}
 		}
 	}
-
-#ifdef LINE_PLOT
-	static hpx::mutex mtx;
-	std::lock_guard<hpx::mutex> lock(mtx);
-	FILE* fp = fopen("line.dat", "at");
-	for (integer i = this_bw; i != H_NX - this_bw; ++i) {
-		for (integer j = this_bw; j != H_NX - this_bw; ++j) {
-			for (integer k = this_bw; k != H_NX - this_bw; ++k) {
-				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
-				if (X[YDIM][iii] < dx && X[ZDIM][iii] < dx && X[YDIM][iii] > ZERO && X[ZDIM][iii] > ZERO) {
-					fprintf(fp, "%e ", X[XDIM][iii]);
-					for (integer i = 0; i != NF; ++i) {
-						fprintf(fp, "%e ", U[i][iii]);
-					}
-					for (integer i = 0; i != NGF; ++i) {
-						fprintf(fp, "%e ", G[i][iiig]);
-					}
-					fprintf(fp, "\n");
-
-				}
-			}
-		}
-	}
-	fclose(fp);
-#endif
 
 	return rc;
 }

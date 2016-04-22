@@ -26,6 +26,8 @@ include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 
 add_hpx_executable(
   octotiger
+  DEPENDENCIES
+        silo
   SOURCES 	
       	src/eos.cpp
 		src/geometry.cpp
@@ -56,6 +58,7 @@ add_hpx_executable(
         src/node_server/hydro_flux_correct.cpp
         src/node_server/line_of_centers.cpp
         src/node_server/load.cpp
+        src/node_server/output.cpp
         src/node_server/regrid.cpp
         src/node_server/regrid_gather.cpp
         src/node_server/regrid_scatter.cpp
@@ -98,5 +101,3 @@ add_hpx_executable(
 		src/taylor.hpp
   FOLDER  "Octotiger"
 )
-
-

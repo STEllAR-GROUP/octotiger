@@ -14,7 +14,7 @@
 
 #define EXPERIMENT
 
-//#define DO_OUTPUT
+#define DO_OUTPUT
 #define USE_SIMD
 
 #define USE_DRIVING
@@ -163,11 +163,11 @@ const integer gy_i = 2;
 const integer gz_i = 3;
 
 const std::array<boundary_type, NFACE> boundary_types = { OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW };
-
+/*
 #define SYSTEM(command) \
 	if( system( (command).c_str()) != 0) { \
 		printf( "System command \"%s\" failed in %s on line %i\n", (command).c_str(), __FILE__, __LINE__); \
 		abort(); \
 	}
-
+*/
 #endif /* TYPES_HPP_ */
