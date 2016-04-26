@@ -22,7 +22,7 @@ find_package(MPI REQUIRED)
 ################################################################################
 include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 
-#set( CMAKE_CXX_FLAGS "-mt_mpi -xHOST -std=c++14" )
+set( CMAKE_CXX_FLAGS "-march=native" )
 
 add_hpx_executable(
   octotiger
