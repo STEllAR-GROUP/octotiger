@@ -22,7 +22,7 @@ find_package(MPI REQUIRED)
 ################################################################################
 include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 
-set( CMAKE_CXX_FLAGS "-march=native -Wno-attributes -Wno-deprecated-declarations" )
+#set( CMAKE_CXX_FLAGS "-march=native -Wno-attributes -Wno-deprecated-declarations" )
 
 add_hpx_executable(
   octotiger
