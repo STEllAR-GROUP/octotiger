@@ -230,7 +230,7 @@ public:
 	scf_data_t scf_params();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, scf_params, scf_params_action);
 
-	real scf_update(bool);
+	real scf_update(real,real,real,real, real, real);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, scf_update, scf_update_action);
 
 	real find_omega() const;
@@ -244,10 +244,14 @@ public:
 	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
+	void rho_mult(real factor, real);
+	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_mult, rho_mult_action);
+
 	void run_scf();
 
 };
 
+HPX_REGISTER_ACTION_DECLARATION (node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::output_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::line_of_centers_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::velocity_inc_action);
@@ -282,6 +286,7 @@ HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_params_action);
 
+HPX_ACTION_USES_LARGE_STACK (node_server::rho_mult_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::output_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::line_of_centers_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::scf_update_action);

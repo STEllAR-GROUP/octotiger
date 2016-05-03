@@ -12,6 +12,416 @@
 #include "options.hpp"
 #include "eos.hpp"
 
+const real bibi_mu = 0.5;
+const real bibi_don_core_frac = 2.0 * 0.2374;
+const real bibi_acc_core_frac = 2.0 * 0.2377;
+real rho_acc_max = 1.0;
+real rho_don_max = 0.836;
+real xpt_A = 0.950980392156863;
+real xpt_B = 0.182352941176471;
+real xpt_C = -0.166666666666667;
+
+
+typedef typename node_server::scf_update_action scf_update_action_type;
+HPX_REGISTER_ACTION (scf_update_action_type);
+
+
+typedef typename node_server::rho_mult_action rho_mult_action_type;
+HPX_REGISTER_ACTION (rho_mult_action_type);
+
+
+hpx::future<void> node_client::rho_mult(real f0, real f1) const {
+	return hpx::async<typename node_server::rho_mult_action>(get_gid(), f0, f1);
+}
+
+hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x) const {
+	return hpx::async<typename node_server::scf_update_action>(get_gid(), com, omega, c1, c2, c1_x, c2_x);
+}
+
+void node_server::rho_mult(real f0, real f1) {
+	std::vector<hpx::future<void>> futs;
+	if (is_refined) {
+		futs.reserve(NCHILD);
+		for (auto& child : children) {
+			futs.push_back(child.rho_mult(f0, f1));
+		}
+	}
+	for( integer i = 0; i != H_NX; ++i) {
+		for( integer j = 0; j != H_NX; ++j) {
+			for( integer k = 0; k != H_NX; ++k) {
+				grid_ptr->hydro_value(frac0_i, i, j, k) *= f0;
+				grid_ptr->hydro_value(frac1_i, i, j, k) *= f1;
+				grid_ptr->hydro_value(rho_i,i,j,k) =
+						grid_ptr->hydro_value(frac0_i, i, j, k) +grid_ptr->hydro_value(frac1_i, i, j, k) ;
+			}
+		}
+	}
+	for( auto&& fut : futs ) {
+		fut.get();
+	}
+}
+
+real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x) {
+	grid::set_omega(omega);
+	std::vector<hpx::future<real>> futs;
+	real res;
+	if (is_refined) {
+		futs.reserve(NCHILD);
+		for (auto& child : children) {
+			futs.push_back(child.scf_update(com, omega,c1,c2,c1_x,c2_x));
+		}
+		res = ZERO;
+	} else {
+		res = grid_ptr->scf_update(com, omega,c1,c2,c1_x,c2_x);
+	}
+	exchange_interlevel_hydro_data();
+	collect_hydro_boundaries();
+	for (auto&& fut : futs) {
+		res += fut.get();
+	}
+	return res;
+}
+
+
+
+struct scf_parameters {
+	real M1;
+	real M2;
+	real R1;
+	real R2;
+	real a;
+	real fill1;
+	real fill2;
+	real omega;
+	real G;
+	real q;
+	std::shared_ptr<eos> eos1;
+	std::shared_ptr<eos> eos2;
+	real l1_x;
+	real c1_x;
+	real c2_x;
+	scf_parameters(real M1, real M2, real a, real fill1, real fill2) {
+		this->M1 = M1;
+		G = 1.0;
+		this->M2 = M2;
+		this->a = a;
+		this->fill1 = 1.0;
+		this->fill2 = 1.0;
+		const real V1 = find_V(M1 / M2) * std::pow(a, 3.0) * fill1;
+		const real V2 = find_V(M2 / M1) * std::pow(a, 3.0) * fill2;
+		const real c = 4.0 * M_PI / 3.0;
+		R1 = std::pow(V1 / c, 1.0 / 3.0);
+		R2 = std::pow(V2 / c, 1.0 / 3.0);
+		q = M2 / M1;
+		c1_x = -a * M2 / (M1 + M2);
+		c2_x = +a * M1 / (M1 + M2);
+		l1_x = a * (0.5 - 0.227 * log10(q)) + c1_x;
+		omega = std::sqrt((G * (M1 + M2)) / (a * a * a));
+		eos2 = std::make_shared < bipolytropic_eos
+				> (M2, R2, 3.0, 1.5, bibi_don_core_frac, bibi_don_core_frac
+						* bibi_mu);
+		eos1 = std::make_shared < bipolytropic_eos
+				> (M1, R1, 3.0, 1.5, bibi_acc_core_frac, bibi_acc_core_frac
+						* bibi_mu);
+		printf("%e %e %e %e\n", c1_x, c2_x, R1, R2);
+	}
+};
+
+static scf_parameters& initial_params() {
+	static scf_parameters a(1.0, 0.1, 0.8, 0.5, 0.5);
+	return a;
+}
+
+real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x) {
+	const real w0 = 1.0/5.0;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer D = G_BW - H_BW;
+				const integer iiih = hindex(i, j, k);
+				const integer iiig = gindex(i + D, j + D, k + D);
+				const real x = X[XDIM][iiih];
+				const real y = X[YDIM][iiih];
+				const real z = X[ZDIM][iiih];
+				const real R = std::sqrt(std::pow(x - com, 2) + y * y);
+				real rho = U[rho_i][iiih];
+				const real phi_eff = G[phi_i][iiig] - 0.5 * std::pow(omega * R, 2);
+				const real fx = G[gx_i][iiig] + (x - com) * std::pow(omega, 2);
+				const real fy = G[gy_i][iiig] + y * std::pow(omega, 2);
+				const real fz = G[gz_i][iiig];
+
+				bool is_donor_side = x > initial_params().l1_x + com;
+				real C  = is_donor_side ? c2 : c1;
+				real x0  = is_donor_side ? c2_x : c1_x;
+				real g = (x - x0 - com)*fx + y*fy + z*fz;
+				auto this_eos = is_donor_side ? initial_params().eos2 : initial_params().eos1;
+
+				real new_rho, eint;
+				if( g < 0.0 ) {
+					new_rho = std::max(this_eos->enthalpy_to_density(std::max(C - phi_eff,0.0)),1.0e-10);
+				} else {
+					new_rho = 1.0e-10;
+				}
+				rho = (1.0-w0)*rho + w0*new_rho;
+				eint = this_eos->pressure(rho) / (fgamma-1.0);
+
+				U[rho_i][iiih] = rho;
+				U[frac0_i][iiih] = is_donor_side ? 0.0 : rho;
+				U[frac1_i][iiih] = is_donor_side ? rho : 0.0;
+				U[sx_i][iiih] = -omega * y * rho;
+				U[sy_i][iiih] = +omega * (x - com) * rho;
+				U[sz_i][iiih] = 0.0;
+				U[egas_i][iiih] = eint + std::pow(R * omega, 2) * rho / 2.0;
+				U[tau_i][iiih] = std::pow(eint, 1.0 / fgamma);
+				U[zx_i][iiih] = 0.0;
+				U[zy_i][iiih] = 0.0;
+				U[zz_i][iiih] = dx * dx * omega * rho / 6.0;
+			}
+		}
+	}
+
+	return 0.0;
+}
+
+real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3,
+		real y4, real x) {
+//	printf( "%e %e %e %e %e\n", x1, x2, x3, x4, x);
+	x1 -= x2;
+	x3 -= x2;
+	x4 -= x2;
+	x -= x2;
+
+	real a, b, c, d;
+
+	a = y2;
+
+	b = (x3 * x4) / (x1 * (x1 - x3) * (x1 - x4)) * y1;
+	b += -(1.0 / x1 + (x3 + x4) / (x3 * x4)) * y2;
+	b += (x1 * x4) / ((x1 - x3) * x3 * (x4 - x3)) * y3;
+	b += (x1 * x3) / ((x1 - x4) * x4 * (x3 - x4)) * y4;
+
+	c = -(x3 + x4) / (x1 * (x1 - x3) * (x1 - x4)) * y1;
+	c += (x1 + x3 + x4) / (x1 * x3 * x4) * y2;
+	c += (x1 + x4) / (x3 * (x1 - x3) * (x3 - x4)) * y3;
+	c += (x3 + x1) / (x4 * (x1 - x4) * (x4 - x3)) * y4;
+
+	d = y1 / (x1 * (x1 - x3) * (x1 - x4));
+	d -= y2 / (x1 * x3 * x4);
+	d += y3 / (x3 * (x3 - x1) * (x3 - x4));
+	d += y4 / ((x1 - x4) * (x3 - x4) * x4);
+
+	return a + b * x + c * x * x + d * x * x * x;
+
+}
+
+bool find_root(std::function<real(real)>& func, real xmin, real xmax,
+		real& root) {
+	real xmid;
+	while ((xmax - xmin) > 1.0e-10) {
+		xmid = (xmax + xmin) / 2.0;
+		if (func(xmid) * func(xmax) < 0.0) {
+			xmin = xmid;
+		} else {
+			xmax = xmid;
+		}
+	}
+	root = xmid;
+}
+
+void node_server::run_scf() {
+
+	const auto interp_force =
+			[](const line_of_centers_t& loc, real omega, real x) {
+				real a, b, cr, cl, x0;
+				real g_ll, g_l, g_r, g_rr;
+				real xl, xll, xr, xrr;
+				for( std::size_t i = 8; i != loc.size() - 4; i += 4) {
+					const integer il = i - 4;
+					const integer ir = i;
+					xl = loc[il].first;
+					xr = loc[ir].first;
+					if( (x - xl)*(x-xr) <= 0.0 ) {
+						const integer ill = il - 4;
+						const integer irr = ir + 4;
+						xll = loc[ill].first;
+						xrr = loc[irr].first;
+						g_ll = loc[ill].second[gx_i+NF];
+						g_rr = loc[irr].second[gx_i+NF];
+						g_l = loc[il].second[gx_i+NF];
+						g_r = loc[ir].second[gx_i+NF];
+						break;
+					}
+				}
+				return interpolate(xll, xl, xr, xrr, g_ll, g_l, g_r, g_rr, x) + omega*omega*x;
+			};
+
+	const auto interp_phi =
+			[](const line_of_centers_t& loc, real omega, real x) {
+				real a, b, cr, cl, x0;
+				real phi_ll, phi_l, phi_r, phi_rr;
+				real xl, xll, xr, xrr;
+				for( std::size_t i = 8; i != loc.size() - 4; i += 4) {
+					const integer il = i - 4;
+					const integer ir = i;
+					xl = loc[il].first;
+					xr = loc[ir].first;
+					if( (x - xl)*(x-xr) <= 0.0 ) {
+						const integer ill = il - 4;
+						const integer irr = ir + 4;
+						xll = loc[ill].first;
+						xrr = loc[irr].first;
+						phi_ll = loc[ill].second[pot_i]/ loc[ill].second[rho_i];
+						phi_rr = loc[irr].second[pot_i]/ loc[irr].second[rho_i];
+						phi_l = loc[il].second[pot_i]/ loc[il].second[rho_i];
+						phi_r = loc[ir].second[pot_i]/ loc[ir].second[rho_i];
+						break;
+					}
+				}
+				return interpolate(xll, xl, xr, xrr, phi_ll, phi_l, phi_r, phi_rr, x) - 0.5* omega*omega*x*x;
+			};
+
+	solve_gravity(false);
+	char* ptr;
+	real omega = initial_params().omega;
+	for (integer i = 0; i != 1000; ++i) {
+		asprintf(&ptr, "X.scf.%i.silo", int(i));
+		auto& params = initial_params();
+		if( i % 5 == 0)
+		output(ptr);
+		free(ptr);
+		auto diags = diagnostics();
+		real this_m = diags.grid_sum[rho_i];
+		real f0 = params.M1 / diags.grid_sum[frac0_i];
+		real f1 = params.M2 / diags.grid_sum[frac1_i];
+		real f = (params.M1+params.M2) / diags.grid_sum[rho_i];
+//		f = (f + 1.0)/2.0;
+	//	printf( "%e %e \n", f0, f1);
+		rho_mult(f0,f1);
+		params.eos1->set_d0(f0*params.eos1->d0());
+		params.eos2->set_d0(f1*params.eos2->d0());
+		solve_gravity(false);
+
+		auto axis = grid_ptr->find_axis();
+		auto loc = line_of_centers(axis);
+
+		real l1_x, c1_x, c2_x;
+		real l1_phi;
+		auto find_zeros = [&](real & l1_x, real& c1_x, real& c2_x, real omega) {
+			const real dx = params.a / 100.0;
+			bool l1_found = false;
+			real x0;
+			std::function<real(real)> f([&](real x) {
+						return interp_force(loc,omega,x);
+					});
+			for( real x = 0.0; x < params.a; x += dx ) {
+				const real xl = x - dx / 2.0;
+				const real xr = x + dx / 2.0;
+				real vl = interp_force(loc,omega,xl);
+				real vr = interp_force(loc,omega,xr);
+				if( vl * vr <= 0.0 ) {
+					bool rc = find_root(f, xl-dx/2.0, xr+dx/2.0, x0);
+					if( l1_found ) {
+						c2_x = x0;
+						break;
+					} else {
+						l1_x = x0;
+						l1_phi = interp_phi(loc,omega,x0);
+					}
+					l1_found = true;
+				}
+			}
+			for( real x = 0.0; x > -params.a; x -= dx ) {
+				const real xl = x - dx / 2.0;
+				const real xr = x + dx / 2.0;
+				real vl = interp_force(loc,omega,xl);
+				real vr = interp_force(loc,omega,xr);
+				if( vl * vr <= 0.0 ) {
+					bool rc = find_root(f, xl-dx/2.0, xr+dx/2.0, x0);
+					c1_x = x0;
+					break;
+				}
+			}
+		};
+
+		real com = axis.second[0];
+		std::function<real(real)> ff([&](real omega){
+			real c1_x, c2_x, l1_x;
+			find_zeros(l1_x, c1_x,c2_x,omega);
+			return std::abs(c2_x - c1_x) -  params.a;
+		});
+
+		real new_omega;
+		find_root(ff, omega/2.0, 2.0* omega, new_omega);
+		omega = new_omega;
+		//	omega = 0.5*(new_omega+omega);
+		find_zeros(l1_x,c1_x,c2_x, omega);
+
+		real phi_1 = interp_phi(loc, omega, c1_x);
+		real phi_2 = interp_phi(loc, omega, c2_x);
+
+		real h_1 = params.eos1->h0();
+		real h_2 = params.eos2->h0();
+
+		real fill = 1.0;
+		real c_1 = l1_phi*fill + phi_1*(1.0-fill);
+		real c_2 = l1_phi*fill + phi_2*(1.0-fill);
+		params.eos1->set_h0(c_1 - phi_1);
+		params.eos2->set_h0(c_2 - phi_2);
+		auto e1 = std::dynamic_pointer_cast<bipolytropic_eos>(params.eos1);
+		auto e2 = std::dynamic_pointer_cast<bipolytropic_eos>(params.eos2);
+
+		real M1 = diags.grid_sum[frac0_i];
+		real M2 = diags.grid_sum[frac1_i];
+		printf( "%e %e %e %e %e %e %e %e %e %e %e %e\n", c1_x, c2_x, l1_x, l1_phi, M1, M2, omega, e1->s0(), e2->s0(), e2->get_frac(), f0, f1 );
+		if( i % 10 == 0) {
+			regrid(me.get_gid(), false);
+		}
+
+
+	//	real old_frac = e1->get_frac();
+	//	printf( "s1 : %e s2 : %e\n", e1->s0(), e2->s0() );
+		std::function<double(double)> fff = [&](real frac) {
+			e2->set_frac(frac);
+			return e1->s0() - e2->s0();
+		};
+		real new_frac;
+		find_root( fff, 0.0, 1.0, new_frac );
+//		e1->set_frac(old_frac);
+	//	printf( "NF: %e\n", new_frac);
+		scf_update(com, omega, c_1, c_2, c1_x, c2_x);
+		solve_gravity(false);
+
+
+	}
+}
+
+std::vector<real> scf_binary(real x, real y, real z, real) {
+	std::vector<real> u(NF, real(0));
+	static auto& params = initial_params();
+	std::shared_ptr<const eos> this_eos;
+	real rho, r, ei;
+	if (x < params.l1_x) {
+		r = std::sqrt(std::pow(x - params.c1_x, 2) + y * y + z * z);
+		this_eos = params.eos1;
+	} else {
+		r = std::sqrt(std::pow(x - params.c2_x, 2) + y * y + z * z);
+		this_eos = params.eos2;
+	}
+	rho = std::max(this_eos->density_at(r), 1.0e-10);
+	ei = this_eos->pressure(rho) / (fgamma - 1.0);
+	u[rho_i] = rho;
+	u[frac0_i] = x > params.l1_x ? 0.0 : rho;
+	u[frac1_i] = x > params.l1_x ? rho : 0.0;
+	u[egas_i] = ei + 0.5 * (x * x + y * y) * params.omega * params.omega;
+	u[sx_i] = -y * params.omega * rho;
+	u[sy_i] = +x * params.omega * rho;
+	u[sz_i] = 0.0;
+	u[tau_i] = std::pow(ei, 1.0 / fgamma);
+	return u;
+}
+
+#ifdef BLABLABLA
+
 #define BIBI
 
 real mass_ratio = 0.7;
@@ -20,19 +430,16 @@ const real rho_floor = 1.0e-10;
 const real bibi_mu = 0.5;
 const real bibi_don_core_frac = 2.0 * 0.2374;
 const real bibi_acc_core_frac = 2.0 * 0.2377;
-const real rho_acc_max = 1.0;
-const real rho_don_max = 0.836;
-
-real RA, RD;
-
-
+real rho_acc_max = 1.0;
+real rho_don_max = 0.836;
 real xpt_A = 0.950980392156863;
 real xpt_B = 0.182352941176471;
 real xpt_C = -0.166666666666667;
+
+real RA, RD;
+
 real MA = 1.689579196657952E-002;
 real MD = 1.689579196657952E-002;
-
-
 
 //HPX_PLAIN_ACTION(scf_binary_init, scf_binary_init_action);
 
@@ -168,9 +575,9 @@ scf_data_t grid::scf_params() {
 				const real dm = rho * dx * dx * dx;
 				const real dV = dx * dx * dx;
 				real p;
-			//	bool instar = don_frac || acc_frac;
+				//	bool instar = don_frac || acc_frac;
 				p = 0.0;
-			//	real h = 0.0;
+				//	real h = 0.0;
 				data.m += dm;
 				data.m_x += dm * x;
 				if (don_frac) {
@@ -184,7 +591,7 @@ scf_data_t grid::scf_params() {
 							data.donor_central_density = rho;
 						}
 					}
-			//		h = donor_eos().density_to_enthalpy(rho);
+					//		h = donor_eos().density_to_enthalpy(rho);
 					p = donor_eos().pressure(rho);
 //					p = ZERO;
 					data.donor_phi_max = std::max(data.donor_phi_max, phi_eff);
@@ -199,11 +606,11 @@ scf_data_t grid::scf_params() {
 							data.accretor_central_density = rho;
 						}
 					}
-		//			h = accretor_eos().density_to_enthalpy(rho);
+					//			h = accretor_eos().density_to_enthalpy(rho);
 					p = accretor_eos().pressure(rho);
 					data.accretor_phi_max = std::max(data.accretor_phi_max, phi_eff);
 				} else {
-			//		h = 0.0;
+					//		h = 0.0;
 				}
 				const real ekin = 3.0 * p + std::pow(R * global.omega, 2) * rho;
 				const real epot = 0.5 * phi * rho;
@@ -248,31 +655,30 @@ scf_data_t grid::scf_params() {
 
 void static_initialize() {
 	std::call_once(init_flag, []() {
-		const real dx = 1.0/255.0;
+				const real dx = 1.0/255.0;
 //		xpt_A =  0.775590551181102;
 //		xpt_B = 0.145669291338583;
 //		xpt_C = -0.145669291338583;
-			//	MA = 7.868152748811249E-003;
-			//	MD = 5.485139898262405E-003;
+				//	MA = 7.868152748811249E-003;
+				//	MD = 5.485139898262405E-003;
 
-
-			global.donor_center = (xpt_A - xpt_B)/2.0+xpt_B;
-			global.accretor_center = -((xpt_A + xpt_C)/2.0-xpt_C);
-			RD = std::abs(global.donor_center - xpt_B);
-			RA = std::abs(global.accretor_center - xpt_C);
-			mass_ratio = MD / MA;
+				global.donor_center = (xpt_A - xpt_B)/2.0+xpt_B;
+				global.accretor_center = -((xpt_A + xpt_C)/2.0-xpt_C);
+				RD = std::abs(global.donor_center - xpt_B);
+				RA = std::abs(global.accretor_center - xpt_C);
+				mass_ratio = MD / MA;
 //			global.donor_center = (xpt_A + xpt_B) / 2.0;
-			real a = (global.donor_center)*(mass_ratio + 1.0);
+				real a = (global.donor_center)*(mass_ratio + 1.0);
 //			global.accretor_center = -mass_ratio / (mass_ratio + 1.0) * a;
 //			RD = (xpt_A - xpt_B)/2.0;
 //			RA = xpt_C -global.accretor_center;
-			//	printf( "%e %e %e\n", RA, RD, a);
-			global.omega = std::sqrt(G * (MA + MD) / pow(a, 3));
-			global.accretor_mass = MA;
-			global.donor_mass = MD;
+				//	printf( "%e %e %e\n", RA, RD, a);
+				global.omega = std::sqrt(G * (MA + MD) / pow(a, 3));
+				global.accretor_mass = MA;
+				global.donor_mass = MD;
 
-			//		printf( "%e %e %e\n", xpt_A, xpt_B, xpt_C);
-		});
+				//		printf( "%e %e %e\n", xpt_A, xpt_B, xpt_C);
+			});
 }
 
 const real w0 = 1.0 / 2.0;
@@ -431,15 +837,22 @@ void node_server::run_scf() {
 	set_global_vars(global);
 //	printf("%e\n", global.omega);
 	for (integer i = 0; i != 401; ++i) {
-		if (i % 100 == 0 && i != 0) {
+		solve_gravity(false);
+		auto d = scf_params();
+
+		if (i % 10 == 1 && i != 0) {
+
 			save_to_file(std::string("X.chk"));
-			output("X.scf.silo");
+			char* ptr;
+			asprintf( &ptr, "X.scf.%i.silo", int(i));
+			output(ptr);
+			free(ptr);
 			//	SYSTEM(
 			//			std::string("./octotiger -problem=dwd -restart=X.chk -output=X.") + std::to_string(i)
 			//					+ std::string(".silo"));
+//			xpt_B = (d.l1_x + xpt_B)/2.0;
+//			printf( "%e %e\n", xpt_B, d.l1_x);
 		}
-		solve_gravity(false);
-		auto d = scf_params();
 		global.donor_center = d.donor_x;
 		global.accretor_center = d.accretor_x;
 		global.l1_x = d.l1_x;
@@ -461,7 +874,7 @@ void node_server::run_scf() {
 		//	printf( "%e %e\n", accretor_eos().d0(), donor_eos().d0());
 		printf("%5i %12e %12e %12e %12e %12e %12e %12e %12e %12e %12e %12e %12e %12e %12e %12e %12e  \n", int(i),
 				global.xcom, d.donor_mass / d.accretor_mass, global.omega, global.accretor_con, global.donor_con,
-				d.accretor_mass, d.donor_mass, d.xA, d.xB, d.xC, d.l1_x, d.virial_sum / d.virial_norm,
+				d.accretor_mass, d.donor_mass, xpt_A, xpt_B, xpt_C, d.l1_x, d.virial_sum / d.virial_norm,
 				d.accretor_central_density, d.donor_central_density,
 				accretor_eos().density_to_enthalpy(d.accretor_central_density),
 				accretor_eos().density_to_enthalpy(d.accretor_central_density));
@@ -470,8 +883,40 @@ void node_server::run_scf() {
 		d.donor_phi_min -= 0.5 * std::pow(global.omega * (d.donor_x - global.xcom), 2);
 		global.accretor_central_enthalpy = global.accretor_con - d.accretor_phi_min;
 		global.donor_central_enthalpy = global.donor_con - d.donor_phi_min;
-
 		set_global_vars(global);
+
+		auto axis = grid_ptr->find_axis();
+//		printf( "%e %e %e\n", axis.first[0],axis.first[1],axis.first[2]);
+		auto loc = line_of_centers(axis);
+		std::pair<real, real> rho1_max;
+		std::pair<real, real> rho2_max;
+		std::pair<real, real> l1_phi;
+		real l1_outer1, l1_outer2;
+		line_of_centers_analyze(loc, global.omega, rho1_max,
+				rho2_max, l1_phi, l1_outer1, l1_outer2);
+		FILE* fp = fopen( "test.txt", "wt");
+		output_line_of_centers(fp,loc);
+		fclose(fp);
+		//	printf( "%e %e %e\n0", l1_outer1, l1_phi.first, l1_outer2);
+		if( i != 0 ) {
+			const real w0 = 0.1;
+			l1_phi.first += axis.second[0];
+			real dr1 = xpt_A - xpt_B;
+			//	xpt_C = (w0*(l1_phi.first) + (1.0-w0)*xpt_C);
+			xpt_B = (w0*(l1_phi.first) + (1.0-w0)*xpt_B);
+			//	xpt_A = (w0*l1_outer2 + (1.0-w0)*xpt_A);
+			real dr2 = xpt_A - xpt_B;
+			const real f = std::pow(dr1/dr2,1.25);
+			rho_don_max *= f;
+			rho_acc_max *= f;
+			donor_eos().set_d0(rho_don_max);
+			//	accretor_eos().set_d0(rho_acc_max);
+			//	printf( "%e %e\n", l1_phi.first, d.l1_x);
+			//		printf( "%e %e %e %e\n", xpt_C, xpt_B, xpt_A, rho_don_max);
+		}
+
 		scf_update(false);
 	}
 }
+
+#endif

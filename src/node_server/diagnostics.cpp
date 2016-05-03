@@ -25,13 +25,14 @@ diagnostics_t node_server::diagnostics() const {
 	auto loc = line_of_centers(axis);
 	real this_omega = find_omega();
 	std::pair<real, real> rho1, rho2, l1;
-	line_of_centers_analyze(loc, this_omega, rho1, rho2, l1);
+	real dummy;
+	line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, dummy, dummy);
 	if( rho1 > rho2 ) {
 		for( integer d = 0; d != NDIM; ++d ) {
 			//printf( "Flipping axis\n" );
 			axis.first[d] = -axis.first[d];
 			loc = line_of_centers(axis);
-			line_of_centers_analyze(loc, this_omega, rho1, rho2, l1);
+			line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, dummy, dummy);
 		}
 	}
 	auto diags = diagnostics(axis, l1);

@@ -25,7 +25,7 @@ using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
 void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
-		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi);
+		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, real&, real&);
 
 struct npair {
 	integer lev;
@@ -320,7 +320,7 @@ public:
 	std::vector<std::vector<std::vector<real>>>compute_conserved_slopes(const std::vector<std::vector<real>>& V, const std::vector<std::vector<std::vector<real>>>& dV, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});std::vector < std::vector<std::vector<real>>> compute_primitive_slopes(const std::vector<std::vector<real>>& V, real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});std::vector<std::vector<real>> compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
 	void set_coordinates();
 	scf_data_t scf_params();
-	real scf_update(bool mom_only);
+	real scf_update(real,real,real,real, real, real);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, output_list_type&& l2);

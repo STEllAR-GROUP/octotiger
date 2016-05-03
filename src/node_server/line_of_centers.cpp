@@ -18,7 +18,7 @@ hpx::future<line_of_centers_t> node_client::line_of_centers(const std::pair<spac
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc) {
 	for (integer i = 0; i != loc.size(); ++i) {
 		fprintf(fp, "%e ", loc[i].first);
-		for (integer j = 0; j != NF; ++j) {
+		for (integer j = 0; j != NF+NGF; ++j) {
 			fprintf(fp, "%e ", loc[i].second[j]);
 		}
 		fprintf(fp, "\n");
@@ -44,13 +44,15 @@ line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, spa
 	} else {
 		return_line = grid_ptr->line_of_centers(line);
 	}
+
 	return return_line;
 }
 
 void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
-		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi) {
+		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, real& l1_outer1, real& l1_outer2) {
 	rho1_max.second = rho2_max.second = 0.0;
-///	printf( "LOCSIZE %i\n", loc.size());
+	integer rho1_maxi, rho2_maxi;
+	///	printf( "LOCSIZE %i\n", loc.size());
 	for (integer i = 0; i != loc.size(); ++i) {
 		const real x = loc[i].first;
 		const real rho = loc[i].second[rho_i];
@@ -59,6 +61,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 		//	printf( "!\n");
 			rho1_max.second = rho;
 			rho1_max.first = x;
+			rho1_maxi = i;
 		}
 	}
 	for (integer i = 0; i != loc.size(); ++i) {
@@ -68,6 +71,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 			if (rho2_max.second < rho) {
 				rho2_max.second = rho;
 				rho2_max.first = x;
+				rho2_maxi = i;
 			}
 		}
 	}
@@ -82,6 +86,34 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 				l1_phi.second = phi_eff;
 				l1_phi.first = x;
 			}
+		}
+	}
+	for( integer i = rho2_maxi; i < loc.size() - 1; ++i) {
+		const real rho1 = loc[i].second[rho_i];
+		const real pot1 = loc[i].second[pot_i];
+		const real rho2 = loc[i+1].second[rho_i];
+		const real pot2 = loc[i+1].second[pot_i];
+		const real x1 = loc[i].first;
+		const real x2 = loc[i+1].first;
+		real phi_eff1 = pot1 / rho1 - 0.5 * x1 * x1 * omega * omega;
+		real phi_eff2 = pot2 / rho2 - 0.5 * x2 * x2 * omega * omega;
+		if( (phi_eff1 - l1_phi.second)*(l1_phi.second - phi_eff2) >= 0.0) {
+			l1_outer2 = (x1+x2)/2.0;
+			break;
+		}
+	}
+	for( integer i = rho1_maxi; i >= 1; --i) {
+		const real rho1 = loc[i].second[rho_i];
+		const real pot1 = loc[i].second[pot_i];
+		const real rho2 = loc[i-1].second[rho_i];
+		const real pot2 = loc[i-1].second[pot_i];
+		const real x1 = loc[i].first;
+		const real x2 = loc[i-1].first;
+		real phi_eff1 = pot1 / rho1 - 0.5 * x1 * x1 * omega * omega;
+		real phi_eff2 = pot2 / rho2 - 0.5 * x2 * x2 * omega * omega;
+		if( (phi_eff1 - l1_phi.second)*(l1_phi.second - phi_eff2) >= 0.0) {
+			l1_outer1 = (x1+x2)/2.0;
+			break;
 		}
 	}
 }

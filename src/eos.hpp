@@ -16,6 +16,9 @@ public:
 private:
 	static constexpr real G = 1.0;
 protected:
+	real dhdot_dr(real h, real hdot, real r) const;
+	real dh_dr(real h, real hdot, real r) const;
+public:
 	real m0() const {
 		return M0;
 	}
@@ -28,9 +31,6 @@ protected:
 	real& r0() {
 		return R0;
 	}
-	real dhdot_dr(real h, real hdot, real r) const;
-	real dh_dr(real h, real hdot, real r) const;
-public:
 	real d0() const {
 		return M0 / (R0 * R0 * R0);
 	}
@@ -136,21 +136,40 @@ private:
 	real dC() const {
 		return f_C * d0();
 	}
+
+public:
 	real dE() const {
 		return f_E * d0();
+	}
+	real s0() const {
+		return std::pow(P0()/(fgamma-1.0),1.0/fgamma) / dE();
 	}
 	real P0() const {
 		real den = ((1.0 + n_C) / dC()) * std::pow(d0() / dC(), 1.0 / n_C) - (1.0 + n_C) / dC() + (1.0 + n_E) / dE();
 		return h0() / den;
 	}
-
-public:
 	bipolytropic_eos(real M, real R, real _n_C, real _n_E, real _f_C, real _f_E) :
 			n_C(_n_C), n_E(_n_E), f_C(_f_C), f_E(_f_E) {
 		real m, r;
 		initialize(m, r);
 		m0() *= M / m;
 		r0() *= R / r;
+	}
+/*	real get_bden() const {
+		return f_C * d0();
+	}
+	void set_bden( real bden ) {
+		const real mu = f_E / f_C;
+		f_C = bden / d0();
+		f_E = f_C * mu;
+	}*/
+	void set_frac( real f ) {
+		real mu = f_E / f_C;
+		f_C = f;
+		f_E = mu * f_C;
+	}
+	real get_frac() const {
+		return f_C;
 	}
 	real HC() const {
 		return P0() / dC() * (1.0 + n_C);

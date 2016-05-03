@@ -61,6 +61,8 @@ enum gsolve_type {
 //#define USE_SPHERICAL
 constexpr integer M_POLES = 3;
 constexpr integer L_POLES = M_POLES;
+
+
 constexpr integer G_BW = 4;
 
 //#define GRID_SIZE real(2.0)

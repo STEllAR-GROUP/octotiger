@@ -40,7 +40,8 @@ void eos::initialize(real& mass, real& radius) {
 	real d;
 	do {
 		if (hdot != 0.0) {
-			dr = std::max(std::min(dr0, std::abs(h / hdot) / 2.0), dr0 * 1.0e-6);
+			dr = std::max(std::min(dr0, std::abs(h / hdot) / 2.0),
+					dr0 * 1.0e-6);
 		}
 		d = this->enthalpy_to_density(h);
 		//	printf("%e %e %e %e %e\n", r, m, h, d, dr);
@@ -80,12 +81,12 @@ real eos::density_at(real R) const {
 	h = h0();
 	hdot = 0.0;
 	for (integer i = 0; i < N; ++i) {
-	//	printf("%e %e %e\n", r, h, dr);
+		//	printf("%e %e %e\n", r, h, dr);
 		r = i * dr;
 		const real dh1 = dh_dr(h, hdot, r) * dr;
 		const real dhdot1 = dhdot_dr(h, hdot, r) * dr;
 		if (h + dh1 <= ZERO) {
-		//	printf( "\n");
+			//	printf( "\n");
 			return 0.0;
 		}
 		const real dh2 = dh_dr(h + dh1, hdot + dhdot1, r + dr) * dr;
@@ -93,7 +94,7 @@ real eos::density_at(real R) const {
 		h += (dh1 + dh2) / 2.0;
 		hdot += (dhdot1 + dhdot2) / 2.0;
 		if (h <= ZERO) {
-	//		printf( "\n");
+			//		printf( "\n");
 			return 0.0;
 		}
 	}

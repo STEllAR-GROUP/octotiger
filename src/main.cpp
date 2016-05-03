@@ -29,7 +29,7 @@ void initialize(options _opts) {
 
 	if (opts.problem == DWD) {
 		set_problem(scf_binary);
-		set_refine_test(refine_test_bibi);
+//		set_refine_test(refine_test_bibi);
 	} else if (opts.problem == STAR) {
 		set_problem(star);
 		set_refine_test(refine_test_bibi);

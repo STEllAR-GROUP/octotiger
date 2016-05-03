@@ -25,6 +25,7 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
+				const integer iiig = gindex(i+G_BW-H_BW, j+G_BW-H_BW, k+G_BW-H_BW);
 				space_vector a = line.first;
 				const space_vector& o = line.second;
 				space_vector b;
@@ -42,10 +43,13 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 				}
 				const real d = std::sqrt((aa * bb - ab * ab) / aa);
 				real p = ab / std::sqrt(aa);
-				std::vector<real> data(NF);
+				std::vector<real> data(NF+NGF);
 				if (d < std::sqrt(3.0) * dx / 2.0) {
 					for (integer ui = 0; ui != NF; ++ui) {
 						data[ui] = U[ui][iii];
+					}
+					for (integer gi = 0; gi != NGF; ++gi) {
+						data[NF+gi] = G[gi][iiig];
 					}
 					loc.resize(loc.size() + 1);
 					loc[loc.size() - 1].first = p;
@@ -479,6 +483,7 @@ std::vector<real> grid::conserved_sums(space_vector& com,space_vector& com_dot, 
 						ab += a[d] * b[d];
 					}
 					real p = ab / std::sqrt(aa);
+			//		printf( "%e\n", l1.first);
 					if (p < l1.first && frac == +1) {
 						use = true;
 					} else if (p >= l1.first && frac == -1) {

@@ -35,7 +35,8 @@ public:
 	node_client(hpx::future<hpx::id_type>&& fut );
 	node_client(const hpx::id_type& _id );
 	hpx::future<scf_data_t> scf_params() const;
-	hpx::future<real> scf_update(bool) const;
+	hpx::future<void> rho_mult(real, real) const;
+	hpx::future<real> scf_update(real,real,real,real, real, real) const;
 	hpx::future<void> send_hydro_children( std::vector<real>&&,  const geo::octant& ci) const;
 	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
