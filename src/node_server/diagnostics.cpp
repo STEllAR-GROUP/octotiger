@@ -26,6 +26,14 @@ diagnostics_t node_server::diagnostics() const {
 	real this_omega = find_omega();
 	std::pair<real, real> rho1, rho2, l1;
 	line_of_centers_analyze(loc, this_omega, rho1, rho2, l1);
+	if( rho1 > rho2 ) {
+		for( integer d = 0; d != NDIM; ++d ) {
+			//printf( "Flipping axis\n" );
+			axis.first[d] = -axis.first[d];
+			loc = line_of_centers(axis);
+			line_of_centers_analyze(loc, this_omega, rho1, rho2, l1);
+		}
+	}
 	auto diags = diagnostics(axis, l1);
 	if (opts.problem != SOLID_SPHERE) {
 		FILE* fp = fopen("diag.dat", "at");
