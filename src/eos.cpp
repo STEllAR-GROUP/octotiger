@@ -73,7 +73,7 @@ real polytropic_eos::density_to_enthalpy(real d) const {
 }
 
 real eos::density_at(real R) const {
-	const integer N = 32;
+	const integer N = 256;
 //	const real dx = std::sqrt(h0()) / (G * d0()) / 100.0;
 	const real dr = R / N;
 

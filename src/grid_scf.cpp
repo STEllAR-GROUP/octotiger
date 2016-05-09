@@ -17,6 +17,7 @@ extern options opts;
 
 //0.5=.313
 //0.6 .305
+const real w0 = 1.0/10.0;
 
 const real targ_frac = 0.06666666666666666;
 const real bibi_mu = 1.0/2.16;
@@ -160,7 +161,10 @@ static scf_parameters& initial_params() {
 }
 
 real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos eos_1, donor_eos eos_2) {
-	const real w0 = 1.0/10.0;
+	if( omega <= 0.0 ) {
+		printf( "OMEGA <= 0.0\n");
+		abort();
+	}
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
@@ -185,12 +189,12 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 
 				real new_rho, eint;
 				if( g < 0.0 ) {
-					new_rho = std::max(this_eos.enthalpy_to_density(std::max(C - phi_eff,0.0)),rho_floor);
+					new_rho = std::max(this_eos.enthalpy_to_density(std::max(C - phi_eff,ei_floor/rho_floor)),rho_floor);
 				} else {
 					new_rho = rho_floor;
 				}
 				rho = (1.0-w0)*rho + w0*new_rho;
-				eint = this_eos.pressure(rho) / (fgamma-1.0);
+				eint = std::max(ei_floor,this_eos.pressure(rho) / (fgamma-1.0));
 
 				U[rho_i][iiih] = rho;
 #ifdef BIBI
@@ -358,7 +362,7 @@ void node_server::run_scf() {
 	for (integer i = 0; i != 100; ++i) {
 		if(asprintf(&ptr, "X.scf.%i.silo", int(i)));
 		auto& params = initial_params();
-		set_omega_and_pivot();
+	//	set_omega_and_pivot();
 		if( i % 5 == 0)
 		output(ptr);
 		free(ptr);
@@ -496,10 +500,8 @@ void node_server::run_scf() {
 		real h_1 = params.eos1->h0();
 		real h_2 = params.eos2->h0();
 
-		real fill = 1.0;
-		real phi = std::min(l3_phi,l2_phi);
-		real c_1 = phi*fill + phi*(1.0-fill);
-		real c_2 = phi*fill + phi*(1.0-fill);
+		real c_1 =0.5*l1_phi + 0.5*std::min(l3_phi,l2_phi);
+		real c_2 =0.5*l1_phi + 0.5*std::min(l3_phi,l2_phi);
 		params.eos1->set_h0(c_1 - phi_1);
 		params.eos2->set_h0(c_2 - phi_2);
 		auto e1 = params.eos1;
@@ -520,8 +522,8 @@ void node_server::run_scf() {
 		const real g1 = std::sqrt(is1 / (r1*r1) / m1);
 		const real g2 = std::sqrt(is2 / (r2*r2) / m2);
 		if( i % 5 == 0 )
-			printf( "%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2",  "M1", "M2", "omega", "virial", "core_frac_1", "core_frac_2",  "iorb", "is1", "is2","spin_ratio", "r1", "r2", "g1", "g2"  );
-		lprintf( "log.txt", "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", rho1, rho2, M1, M2, omega,   virial, core_frac_1, core_frac_2, iorb, is1, is2, spin_ratio, r1, r2, g1, g2 );
+			printf( "%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "c1_x", "c2_x", "l1_phi", "l2_phi", "l3_phi", "l1_x", "l2_x", "l3_x", "rho1", "rho2",  "M1", "M2", "omega", "virial", "core_frac_1", "core_frac_2",  "iorb", "is1", "is2","spin_ratio", "r1", "r2", "g1", "g2"  );
+		lprintf( "log.txt", "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", c1_x, c2_x, l1_phi, l2_phi, l3_phi, l1_x, l2_x, l3_x,  rho1, rho2, M1, M2, omega,   virial, core_frac_1, core_frac_2, iorb, is1, is2, spin_ratio, r1, r2, g1, g2 );
 		if( i % 10 == 0) {
 			regrid(me.get_gid(), false);
 		}
@@ -531,7 +533,7 @@ void node_server::run_scf() {
 	//	real old_frac = e1->get_frac();
 	//	printf( "s1 : %e s2 : %e\n", e1->s0(), e2->s0() );
 		real e1f = e1->get_frac();
-		e1f = 0.9 * e1f + 0.1 * std::pow( e1f, targ_frac / core_frac_1);
+		e1f = (1.0 - w0) * e1f + w0 * std::pow( e1f, targ_frac / core_frac_1);
 		e1->set_frac(e1f);
 
 #ifdef BIBI
