@@ -14,8 +14,9 @@
 #define OUTPUT_OPT "-Output"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
-#define CORE_THRESH_1_OPT "-Core_thresh_1"
-#define CORE_THRESH_2_OPT "-Core_thresh_2"
+#define PRIMARY_MASS "-M1"
+#define SECONDARY_MASS "-M2"
+
 
 #define MAX_LEVEL_OPT "-Max_level"
 
@@ -35,13 +36,13 @@ bool options::cmp(const std::string str1, const char* str2) {
 
 void options::show_help() {
 	printf("Command line options for Octo-tiger\n");
-	printf("-problem=<problem name> - sets up the initial model\n");
-	printf("\t\t\t\tDWD - double white dwarf using the internal SCF solver.\n");
+	printf("-Problem=<problem name> - sets up the initial model\n");
+	printf("\t\t\t\tDWD - use SCF solver.\n");
 	printf("\t\t\t\tSod - Sod shock tube.\n");
-	printf("-restart=<file name> - restart from a checkpoint file\n");
-	printf("-output=<file name> - output restart to silo file and exit\n");
-	printf("-max_level=<number of refined levels> - set maximum number of refinement levels\n");
-	printf("-help - displays this help page\n");
+	printf("-Restart=<file name> - restart from a checkpoint file\n");
+	printf("-Output=<file name> - output restart to silo file and exit\n");
+	printf("-Max_level=<number of refined levels> - set maximum number of refinement levels\n");
+	printf("-Help - displays this help page\n");
 }
 
 bool options::process_options(int argc, char* argv[]) {
@@ -54,8 +55,8 @@ bool options::process_options(int argc, char* argv[]) {
 	xscale = 1.0;
 	omega = -1.0;
 	exe_name = std::string(argv[0]);
-	core_thresh_1 = -1.0;
-	core_thresh_2 = -1.0;
+	m1 = 1.5;
+	m2 = 0.35;
 	output_dt = 1.0;
 
 //	for (integer i = 1; i < argc; ++i) {
@@ -97,10 +98,10 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], OMEGA_OPT)) {
 			omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
 			output_dt = (2.0 * M_PI / omega) / 100.0;
-		} else if (cmp(argv[i], CORE_THRESH_1_OPT)) {
-			core_thresh_1 = atof(argv[i] + strlen(CORE_THRESH_1_OPT) + 1);
-		} else if (cmp(argv[i], CORE_THRESH_2_OPT)) {
-			core_thresh_2 = atof(argv[i] + strlen(CORE_THRESH_2_OPT) + 1);
+		} else if (cmp(argv[i], PRIMARY_MASS)) {
+			m1 = atof(argv[i] + strlen(PRIMARY_MASS) + 1);
+		} else if (cmp(argv[i], SECONDARY_MASS)) {
+			m2 = atof(argv[i] + strlen(PRIMARY_MASS) + 1);
 		}
 	}
 	if (!rc) {

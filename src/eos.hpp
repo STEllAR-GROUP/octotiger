@@ -152,8 +152,9 @@ public:
 		bipolytropic_eos(){}
 	  template <typename Archive>
 	  void serialize(Archive &ar, const unsigned int version) {
-	    ar & hpx::serialization::base_object<eos>(*this);
-	    ar & n_C;
+		ar & m0();
+		ar & r0();
+		ar & n_C;
 	    ar & n_E;
 	    ar & f_C;
 	    ar & f_E;

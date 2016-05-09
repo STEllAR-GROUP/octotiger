@@ -11,6 +11,9 @@
 #include "node_client.hpp"
 #include "options.hpp"
 #include "eos.hpp"
+#include "util.hpp"
+extern options opts;
+
 
 //0.5=.313
 //0.6 .305
@@ -144,7 +147,7 @@ struct scf_parameters {
 		eos2->initialize(M2,R2);
 #endif
 
-		printf("%e %e %e %e\n", c1_x, c2_x, R1, R2);
+	//	printf("%e %e %e %e\n", c1_x, c2_x, R1, R2);
 	}
 };
 
@@ -152,7 +155,7 @@ struct scf_parameters {
 //0.30=0.41
 //0.33=0.35
 static scf_parameters& initial_params() {
-	static scf_parameters a(1.5, 0.35, 1.0, 0.5, 0.5);
+	static scf_parameters a(opts.m1, opts.m2, 1.0, 0.5, 0.5);
 	return a;
 }
 
@@ -353,7 +356,7 @@ void node_server::run_scf() {
 	char* ptr;
 	real omega = initial_params().omega;
 	for (integer i = 0; i != 100; ++i) {
-		asprintf(&ptr, "X.scf.%i.silo", int(i));
+		if(asprintf(&ptr, "X.scf.%i.silo", int(i)));
 		auto& params = initial_params();
 		set_omega_and_pivot();
 		if( i % 5 == 0)
@@ -517,8 +520,8 @@ void node_server::run_scf() {
 		const real g1 = std::sqrt(is1 / (r1*r1) / m1);
 		const real g2 = std::sqrt(is2 / (r2*r2) / m2);
 		if( i % 5 == 0 )
-			printf( "%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "c1_x", "c2_x", "l1_phi", "l2_phi", "l3_phi", "M1", "M2", "omega", "virial", "core_frac_1", "core_frac_2", "e1frac", "iorb", "is1", "is2","spin_ratio", "r1", "r2", "g1", "g2"  );
-		printf( "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", rho1, rho2, c1_x, c2_x,  l1_phi, l2_phi,  l3_phi, M1, M2, omega,   virial, core_frac_1, core_frac_2, e1->get_frac(), iorb, is1, is2, spin_ratio, r1, r2, g1, g2 );
+			printf( "%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2",  "M1", "M2", "omega", "virial", "core_frac_1", "core_frac_2",  "iorb", "is1", "is2","spin_ratio", "r1", "r2", "g1", "g2"  );
+		lprintf( "log.txt", "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", rho1, rho2, M1, M2, omega,   virial, core_frac_1, core_frac_2, iorb, is1, is2, spin_ratio, r1, r2, g1, g2 );
 		if( i % 10 == 0) {
 			regrid(me.get_gid(), false);
 		}

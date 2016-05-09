@@ -26,22 +26,21 @@ public:
 	integer max_level;
 	real xscale;
 	real omega;
-	real core_thresh_1;
-	real core_thresh_2;
 	problem_type problem;
 	std::string restart_filename;
 	bool found_restart_file;
 	std::string output_filename;
 	bool output_only;
 	real output_dt;
+	real m1, m2;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & max_level;
 		arc & xscale;
 		arc & omega;
-		arc & core_thresh_1;
-		arc & core_thresh_2;
+		arc & m1;
+		arc & m2;
 		arc & restart_filename;
 		arc & found_restart_file;
 		arc & output_filename;
