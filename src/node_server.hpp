@@ -15,6 +15,7 @@
 #include "geometry.hpp"
 #include "channel.hpp"
 #include "future.hpp"
+#include "eos.hpp"
 #include <atomic>
 
 
@@ -230,7 +231,7 @@ public:
 	scf_data_t scf_params();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, scf_params, scf_params_action);
 
-	real scf_update(real,real,real,real, real, real);
+	real scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, scf_update, scf_update_action);
 
 	real find_omega() const;
@@ -244,6 +245,9 @@ public:
 	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
+	std::vector<real> frac_moments(const  std::vector<space_vector>& com) const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server,frac_moments, frac_moments_action);
+
 	void rho_mult(real factor, real);
 	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_mult, rho_mult_action);
 
@@ -251,6 +255,7 @@ public:
 
 };
 
+HPX_REGISTER_ACTION_DECLARATION (node_server::frac_moments_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::output_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::line_of_centers_action);
@@ -286,6 +291,7 @@ HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_params_action);
 
+HPX_ACTION_USES_LARGE_STACK (node_server::frac_moments_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::rho_mult_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::output_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::line_of_centers_action);

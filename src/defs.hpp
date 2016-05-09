@@ -9,7 +9,8 @@
 
 #ifndef TYPES444_HPP_
 
-
+//#define CWD
+#define BIBI
 //#define OLD_SCF
 
 #define EXPERIMENT
@@ -63,7 +64,7 @@ constexpr integer M_POLES = 3;
 constexpr integer L_POLES = M_POLES;
 
 
-constexpr integer G_BW = 4;
+constexpr integer G_BW = 2;
 
 //#define GRID_SIZE real(2.0)
 
@@ -77,7 +78,7 @@ enum boundary_type {
 
 const integer NDIM = 3;
 
-const integer NSPECIES = 2;
+const integer NSPECIES = 5;
 
 const integer INX = 8;
 
@@ -99,7 +100,7 @@ const integer G_N3 = G_NX * G_NX * G_NX;
 #define gindex(i,j,k) ((i)*G_DNX + (j)*G_DNY + (k)*G_DNZ)
 
 
-const integer NF = 12;
+const integer NF = 15;
 const integer NDIR = 27;
 const integer H_DNX = H_NX * H_NX;
 const integer H_DNY = H_NX;
@@ -120,8 +121,12 @@ const integer pot_i = 6;
 const integer zx_i = 7;
 const integer zy_i = 8;
 const integer zz_i = 9;
-const integer frac0_i = 10;
-const integer frac1_i = 11;
+const integer spc_i = 10;
+const integer spc_ac_i = 10;
+const integer spc_ae_i = 11;
+const integer spc_dc_i = 12;
+const integer spc_de_i = 13;
+const integer spc_vac_i = 14;
 
 const integer vx_i = sx_i;
 const integer vy_i = sy_i;

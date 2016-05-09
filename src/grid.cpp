@@ -455,6 +455,44 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
+std::vector<real> grid::frac_moments(const std::vector<space_vector>& com) const {
+	std::vector<real> I(NSPECIES, 0.0);
+	const real dV = dx * dx * dx;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii = hindex(i, j, k);
+				for( integer si = 0; si != NSPECIES; ++si) {
+					const real x = X[XDIM][iii] - com[si][XDIM];
+					const real y = X[YDIM][iii] - com[si][YDIM];
+					const real R2 = x*x+y*y;
+					I[si] += U[spc_i + si][iii] * R2 * dV;
+				}
+			}
+		}
+	}
+	return I;
+}
+
+
+std::vector<real> grid::frac_volumes() const {
+	std::vector<real> V(NSPECIES, 0.0);
+	const real dV = dx * dx * dx;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii = hindex(i, j, k);
+				for( integer si = 0; si != NSPECIES; ++si) {
+					V[si] += (U[spc_i + si][iii]/U[rho_i][iii]) * dV;
+				}
+			}
+		}
+	}
+//	printf( "%e", V[0]);
+	return V;
+}
+
+
 std::vector<real> grid::conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector, space_vector>& axis,
 		const std::pair<real, real>& l1, integer frac) const {
 	std::vector<real> sum(NF, ZERO);
@@ -685,8 +723,9 @@ std::vector<std::vector<real>> grid::compute_primitives(const std::array<integer
 				const real rho = V[rho_i][iii];
 				V[tau_i][iii] = std::pow(V[tau_i][iii], fgamma);
 				V[egas_i][iii] /= rho;
-				V[frac0_i][iii] /= rho;
-				V[frac1_i][iii] /= rho;
+				for( integer si = 0; si != NSPECIES; ++si) {
+					V[spc_i+si][iii] /= rho;
+				}
 				V[pot_i][iii] /= rho;
 				V[tau_i][iii] /= rho;
 				for (integer d = 0; d != NDIM; ++d) {
@@ -785,8 +824,9 @@ std::vector<std::vector<std::vector<real>>>grid::compute_conserved_slopes(const 
 					const integer iii = hindex(i,j,k);
 					dU[rho_i][iii] = dV[rho_i][iii];
 
-					dU[frac0_i][iii] = V[frac0_i][iii] * dV[rho_i][iii] + dV[frac0_i][iii] * V[rho_i][iii];
-					dU[frac1_i][iii] = V[frac1_i][iii] * dV[rho_i][iii] + dV[frac1_i][iii] * V[rho_i][iii];
+					for( integer si = 0; si != NSPECIES; ++si) {
+						dU[spc_i+si][iii] = V[spc_i+si][iii] * dV[rho_i][iii] + dV[spc_i+si][iii] * V[rho_i][iii];
+					}
 
 					dU[pot_i][iii] = V[pot_i][iii] * dV[rho_i][iii] + dV[pot_i][iii] * V[rho_i][iii];
 
@@ -1212,10 +1252,14 @@ void grid::reconstruct() {
 
 	for (integer iii = 0; iii != H_N3; ++iii) {
 		for (integer face = 0; face != NFACE; ++face) {
-			const real w = Uf[face][frac0_i][iii] + Uf[face][frac1_i][iii];
+			real w = 0.0;
+			for( integer si = 0; si != NSPECIES; ++si) {
+				w += Uf[face][spc_i+si][iii];
+			}
 			if (w > ZERO) {
-				Uf[face][frac0_i][iii] /= w;
-				Uf[face][frac1_i][iii] /= w;
+				for( integer si = 0; si != NSPECIES; ++si) {
+					Uf[face][spc_i+si][iii] /= w;
+				}
 			}
 		}
 	}
@@ -1691,7 +1735,10 @@ void grid::next_u(integer rk, real t, real dt) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				U[rho_i][iii] = U[frac0_i][iii] + U[frac1_i][iii];
+				U[rho_i][iii] = ZERO;
+				for( integer si = 0; si != NSPECIES; ++si) {
+					U[rho_i][iii] += U[spc_i+si][iii];
+				}
 				if (U[tau_i][iii] < ZERO) {
 					printf("Tau is negative- %e\n", double(U[tau_i][iii]));
 					abort();

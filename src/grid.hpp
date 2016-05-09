@@ -15,6 +15,7 @@
 #include "geometry.hpp"
 #include <functional>
 #include <list>
+#include "eos.hpp"
 #include <set>
 #include "problem.hpp"
 #include <list>
@@ -320,7 +321,7 @@ public:
 	std::vector<std::vector<std::vector<real>>>compute_conserved_slopes(const std::vector<std::vector<real>>& V, const std::vector<std::vector<std::vector<real>>>& dV, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});std::vector < std::vector<std::vector<real>>> compute_primitive_slopes(const std::vector<std::vector<real>>& V, real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});std::vector<std::vector<real>> compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
 	void set_coordinates();
 	scf_data_t scf_params();
-	real scf_update(real,real,real,real, real, real);
+	real scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, output_list_type&& l2);
@@ -363,6 +364,8 @@ public:
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
 	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
+	std::vector<real> frac_moments(const std::vector<space_vector>& com) const;
+	std::vector<real> frac_volumes() const;
 	std::vector<real> l_sums() const;
 	std::vector<real> gforce_sum(bool torque) const;
 	std::vector<real> conserved_outflows() const;

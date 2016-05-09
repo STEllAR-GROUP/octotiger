@@ -20,6 +20,13 @@ hpx::future<diagnostics_t> node_client::diagnostics(const std::pair<space_vector
 	return hpx::async<typename node_server::diagnostics_action>(get_gid(), axis, l1);
 }
 
+typedef node_server::frac_moments_action frac_moments_action_type;
+HPX_REGISTER_ACTION (frac_moments_action_type);
+
+hpx::future<std::vector<real>> node_client::frac_moments(const  std::vector<space_vector>& c) const {
+	return hpx::async<typename node_server::frac_moments_action>(get_gid(), c);
+}
+
 diagnostics_t node_server::diagnostics() const {
 	auto axis = grid_ptr->find_axis();
 	auto loc = line_of_centers(axis);
@@ -36,6 +43,14 @@ diagnostics_t node_server::diagnostics() const {
 		}
 	}
 	auto diags = diagnostics(axis, l1);
+
+
+	if( diags.primary_sum[rho_i] < diags.secondary_sum[rho_i]) {
+		std::swap(diags.primary_sum, diags.secondary_sum);
+		std::swap(diags.primary_com, diags.secondary_com);
+		std::swap(diags.primary_com_dot, diags.secondary_com_dot);
+	}
+
 	if (opts.problem != SOLID_SPHERE) {
 		FILE* fp = fopen("diag.dat", "at");
 		fprintf(fp, "%23.16e ", double(current_time));
@@ -148,6 +163,9 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
 		auto tmp2 = grid_ptr->diagnostic_error();
 		sums.l1_error = tmp2.first;
 		sums.l2_error = tmp2.second;
+		auto vols = grid_ptr->frac_volumes();
+		sums.primary_volume = vols[spc_ac_i - spc_i] + vols[spc_ae_i - spc_i];
+		sums.secondary_volume = vols[spc_dc_i - spc_i] + vols[spc_de_i - spc_i];
 	}
 
 	return sums;
@@ -158,6 +176,7 @@ diagnostics_t::diagnostics_t() :
 				NF, -std::numeric_limits < real > ::max()), field_min(NF, +std::numeric_limits < real > ::max()), gforce_sum(
 				NDIM, ZERO), gtorque_sum(NDIM, ZERO) {
 	for (integer d = 0; d != NDIM; ++d) {
+		primary_volume = secondary_volume = 0.0;
 		primary_com[d] = secondary_com[d] = grid_com[d] = 0.0;
 		primary_com_dot[d] = secondary_com_dot[d] = grid_com_dot[d] = 0.0;
 	}
@@ -215,6 +234,29 @@ diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
 		grid_com[d] /= grid_sum[rho_i];
 		grid_com_dot[d] /= grid_sum[rho_i];
 	}
+	primary_volume += other.primary_volume;
+	secondary_volume += other.secondary_volume;
 	return *this;
+}
+
+
+std::vector<real> node_server::frac_moments(const  std::vector<space_vector>& com) const {
+	std::vector<real> I(NSPECIES, 0.0);
+	if( is_refined ) {
+		std::list<hpx::future<std::vector<real>>> futs;
+		for (integer ci = 0; ci != NCHILD; ++ci) {
+			futs.push_back(children[ci].frac_moments(com));
+		}
+		for (auto ci = futs.begin(); ci != futs.end(); ++ci) {
+			auto this_sum = GET(*ci);
+			for( integer i = 0; i != NSPECIES; ++i) {
+				I[i] += this_sum[i];
+			}
+		}
+	} else {
+		return grid_ptr->frac_moments(com);
+	}
+	return I;
+
 }
 

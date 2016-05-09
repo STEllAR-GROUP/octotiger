@@ -15,6 +15,7 @@ struct diagnostics_t {
 	std::vector<real> primary_sum;
 	std::vector<real> secondary_sum;
 	std::vector<real> grid_sum;
+	real primary_volume, secondary_volume;
 	space_vector primary_com;
 	space_vector secondary_com;
 	space_vector grid_com;
@@ -35,6 +36,8 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
+		arc & primary_volume;
+		arc & secondary_volume;
 		arc & primary_com_dot;
 		arc & secondary_com_dot;
 		arc & grid_com_dot;

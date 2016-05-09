@@ -13,6 +13,7 @@
 #include "taylor.hpp"
 #include "grid.hpp"
 #include "geometry.hpp"
+#include "eos.hpp"
 #include "diagnostics.hpp"
 
 //#include <boost/mpi/packed_iarchive.hpp>
@@ -36,13 +37,14 @@ public:
 	node_client(const hpx::id_type& _id );
 	hpx::future<scf_data_t> scf_params() const;
 	hpx::future<void> rho_mult(real, real) const;
-	hpx::future<real> scf_update(real,real,real,real, real, real) const;
+	hpx::future<real> scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos) const;
 	hpx::future<void> send_hydro_children( std::vector<real>&&,  const geo::octant& ci) const;
 	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1) const;
 	hpx::future<grid::output_list_type> output(std::string fname) const;
 	node_client();
+	hpx::future<std::vector<real>> frac_moments(const  std::vector<space_vector>& c) const;
 	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;

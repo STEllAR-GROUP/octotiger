@@ -33,7 +33,8 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
 	bool rc = false;
 	real den_floor = 1.0e-4;
-	integer test_level = (U[frac0_i] > U[frac1_i] ? max_level : max_level - 1);
+	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
+	//integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);
@@ -218,8 +219,8 @@ std::vector<real> star(real x, real y, real z, real) {
 }
 
 std::vector<real> equal_mass_binary(real x, real y, real z, real) {
-	const integer don_i = frac1_i;
-	const integer acc_i = frac0_i;
+	const integer don_i = spc_ac_i;
+	const integer acc_i = spc_dc_i;
 
 	real theta;
 	real alpha = 1.0 / 15.0;

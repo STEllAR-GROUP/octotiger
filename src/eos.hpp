@@ -19,6 +19,11 @@ protected:
 	real dhdot_dr(real h, real hdot, real r) const;
 	real dh_dr(real h, real hdot, real r) const;
 public:
+	template<class Archive>
+	void serialize(Archive &ar, const unsigned int version) {
+		ar & M0;
+		ar & R0;
+	}
 	real m0() const {
 		return M0;
 	}
@@ -83,6 +88,12 @@ private:
 		return std::log(z + std::sqrt(z * z + 1.0));
 	}
 public:
+	template<class Archive>
+	  void serialize(Archive &ar, const unsigned int version) {
+	    ar & hpx::serialization::base_object<eos>(*this);
+	    ar & _x0;
+	  }
+
 	real& x0() {
 		return _x0;
 	}
@@ -138,6 +149,16 @@ private:
 	}
 
 public:
+		bipolytropic_eos(){}
+	  template <typename Archive>
+	  void serialize(Archive &ar, const unsigned int version) {
+	    ar & hpx::serialization::base_object<eos>(*this);
+	    ar & n_C;
+	    ar & n_E;
+	    ar & f_C;
+	    ar & f_E;
+	  }
+
 	real dE() const {
 		return f_E * d0();
 	}
@@ -204,5 +225,19 @@ public:
 		}
 	}
 };
+
+
+#ifdef CWD
+
+using accretor_eos = cwd_eos;
+using donor_eos = cwd_eos;
+#endif
+
+#ifdef BIBI
+
+
+using accretor_eos = bipolytropic_eos;
+using donor_eos = bipolytropic_eos;
+#endif
 
 #endif /* POLYTROPE_HPP_ */
