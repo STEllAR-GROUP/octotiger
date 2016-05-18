@@ -255,6 +255,7 @@ public:
 private:
 	static integer max_level;
 	static real omega;
+	static real omega_dot;
 	static space_vector pivot;
 	static real scaling_factor;
 
@@ -301,10 +302,10 @@ public:
 	}
 
 	static void set_omega(real);
+	static real get_omega();
+	static void set_omega_dot(real);
+	static real get_omega_dot();
 	static void set_pivot(const space_vector& p);
-	static real get_omega() {
-		return omega;
-	}
 	static space_vector get_pivot() {
 		return pivot;
 	}
@@ -364,6 +365,7 @@ public:
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
 	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
+	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	std::vector<real> frac_moments(const std::vector<space_vector>& com) const;
 	std::vector<real> frac_volumes() const;
 	std::vector<real> l_sums() const;

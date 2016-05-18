@@ -9,6 +9,26 @@
 #include "../node_server.hpp"
 #include "../node_client.hpp"
 
+void set_omegas( real omega, real omega_dot );
+
+
+HPX_PLAIN_ACTION(set_omegas, set_omegas_action);
+
+void set_omegas( real omega, real omega_dot ) {
+	if( hpx::get_locality_id() == 0 ) {
+		std::list<hpx::future<void>> futs;
+		auto remotes = hpx::find_remote_localities();
+		for( auto& l : remotes) {
+			futs.push_back(hpx::async<set_omegas_action>(l,omega,omega_dot));
+		}
+		for( auto& f : futs ) {
+			f.get();
+		}
+	}
+	grid::set_omega(omega);
+	grid::set_omega_dot(omega_dot);
+}
+
 typedef node_server::start_run_action start_run_action_type;
 HPX_REGISTER_ACTION (start_run_action_type);
 
@@ -63,9 +83,6 @@ void node_server::start_run(bool scf) {
 	hpx::future<void> step_fut = hpx::make_ready_future();
 	while (true) {
 		auto time_start = std::chrono::high_resolution_clock::now();
-
-		diagnostics();
-
 		if (t / output_dt >= output_cnt) {
 			char* fname;
 
@@ -85,6 +102,22 @@ void node_server::start_run(bool scf) {
 		auto ts_fut = hpx::async([=]() {return timestep_driver();});
 		step();
 		real dt = GET(ts_fut);
+		auto diags = diagnostics();
+
+		const real dx = diags.secondary_com[XDIM]-diags.primary_com[XDIM];
+		const real dy = diags.secondary_com[YDIM]-diags.primary_com[YDIM];
+		const real dx_dot = diags.secondary_com_dot[XDIM]-diags.primary_com_dot[XDIM];
+		const real dy_dot = diags.secondary_com_dot[YDIM]-diags.primary_com_dot[YDIM];
+		const real theta = atan2(dy,dx);
+		real omega = grid::get_omega();
+		const real theta_dot = (dy_dot * dx - dx_dot * dy) / (dx*dx+dy*dy) - omega;
+		const real w0 = grid::get_omega() * 100.0;
+		const real theta_dot_dot = (2.0*w0*theta_dot+w0*w0*theta);
+		real omega_dot = grid::get_omega_dot();
+		omega_dot = theta_dot_dot;
+		omega += omega_dot*dt;
+//		omega_dot += theta_dot_dot*dt;
+		set_omegas(omega, omega_dot);
 
 		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
 				std::chrono::high_resolution_clock::now() - time_start).count();
@@ -93,11 +126,11 @@ void node_server::start_run(bool scf) {
 				hpx::async(
 						[=]() {
 							FILE* fp = fopen( "step.dat", "at");
-							fprintf(fp, "%i %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, grid::get_omega(),rotational_time);
+							fprintf(fp, "%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
 							fclose(fp);
 						});
-		printf("%i %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, grid::get_omega(),
-				rotational_time);
+		printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+
 //		t += dt;
 		++step_num;
 
@@ -106,5 +139,8 @@ void node_server::start_run(bool scf) {
 			regrid(me.get_gid(), false);
 		}
 //		set_omega_and_pivot();
+		if(scf) {
+			break;
+		}
 	}
 }

@@ -14,6 +14,7 @@
 extern options opts;
 
 real grid::omega = ZERO;
+real grid::omega_dot = ZERO;
 space_vector grid::pivot(ZERO);
 real grid::scaling_factor = 1.0;
 
@@ -101,6 +102,19 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 
 void grid::set_omega(real o) {
 	omega = o;
+}
+
+
+void grid::set_omega_dot(real o) {
+	omega_dot = o;
+}
+
+real grid::get_omega()  {
+	return omega;
+}
+
+real grid::get_omega_dot() {
+	return omega_dot;
 }
 
 void grid::velocity_inc(const space_vector& dv) {
@@ -456,7 +470,10 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 }
 
 std::vector<real> grid::frac_moments(const std::vector<space_vector>& com) const {
-	std::vector<real> I(NSPECIES, 0.0);
+	std::vector<real> I(NSPECIES);
+	for( integer si = 0; si != NSPECIES; ++si) {
+		I[0] = 0.0;
+	}
 	const real dV = dx * dx * dx;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -466,7 +483,7 @@ std::vector<real> grid::frac_moments(const std::vector<space_vector>& com) const
 					const real x = X[XDIM][iii] - com[si][XDIM];
 					const real y = X[YDIM][iii] - com[si][YDIM];
 					const real R2 = x*x+y*y;
-					I[si] += U[spc_i + si][iii] * R2 * dV;
+					I[si] += U[spc_i + si][iii] * (R2+dx*dx/6.0) * dV;
 				}
 			}
 		}
@@ -483,13 +500,58 @@ std::vector<real> grid::frac_volumes() const {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				for( integer si = 0; si != NSPECIES; ++si) {
-					V[si] += (U[spc_i + si][iii]/U[rho_i][iii]) * dV;
+					if (U[spc_i + si][iii] > 1.0e-5 ){
+						V[si] += (U[spc_i + si][iii]/U[rho_i][iii]) * dV;
+					}
 				}
 			}
 		}
 	}
 //	printf( "%e", V[0]);
 	return V;
+}
+
+real grid::z_moments(const std::pair<space_vector, space_vector>& axis,
+		const std::pair<real, real>& l1, integer frac) const {
+	real mom = 0.0;
+	const real dV = dx * dx * dx;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii = hindex(i, j, k);
+				bool use = false;
+				if (frac == 0) {
+					use = true;
+				} else {
+					space_vector a = axis.first;
+					const space_vector& o = axis.second;
+					space_vector b;
+					real aa = 0.0;
+					real ab = 0.0;
+					for (integer d = 0; d != NDIM; ++d) {
+						a[d] -= o[d];
+						b[d] = X[d][iii] - o[d];
+					}
+					for (integer d = 0; d != NDIM; ++d) {
+						aa += a[d] * a[d];
+						ab += a[d] * b[d];
+					}
+					real p = ab / std::sqrt(aa);
+			//		printf( "%e\n", l1.first);
+					if (p < l1.first && frac == +1) {
+						use = true;
+					} else if (p >= l1.first && frac == -1) {
+						use = true;
+					}
+				}
+				if (use) {
+					mom += (std::pow(X[XDIM][iii],2)+dx*dx/6.0) * U[rho_i][iii] * dV;
+					mom += (std::pow(X[YDIM][iii],2)+dx*dx/6.0) * U[rho_i][iii] * dV;
+				}
+			}
+		}
+	}
+	return mom;
 }
 
 

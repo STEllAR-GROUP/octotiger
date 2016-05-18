@@ -32,15 +32,13 @@ public:
 	std::string output_filename;
 	bool output_only;
 	real output_dt;
-	real m1, m2;
+	real contact_fill;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & max_level;
 		arc & xscale;
 		arc & omega;
-		arc & m1;
-		arc & m2;
 		arc & restart_filename;
 		arc & found_restart_file;
 		arc & output_filename;

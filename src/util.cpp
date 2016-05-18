@@ -5,7 +5,9 @@
  *      Author: dmarce1
  */
 
+#include <cmath>
 #include <stdio.h>
+#include <functional>
 
 
 int file_copy(const char* fin, const char* fout) {
@@ -26,3 +28,26 @@ int file_copy(const char* fin, const char* fout) {
 	fclose(fp_in);
 	fclose(fp_out);
 }
+
+bool find_root(std::function<double(double)>& func, double xmin, double xmax,
+		double& root, double toler) {
+	double xmid;
+	const auto error = [](const double _xmax, const double _xmin) {
+		return (_xmax - _xmin) / (std::abs(_xmax) + std::abs(_xmin))*2.0;
+	};
+	while (error(xmax,xmin) > toler) {
+		xmid = (xmax + xmin) / 2.0;
+		if (func(xmid) * func(xmax) < 0.0) {
+			xmin = xmid;
+		} else {
+			xmax = xmid;
+		}
+	}
+	root = xmid;
+	if( error(root,xmin) < 10.0*toler || error(xmax,root) < 10.0*toler ) {
+		return false;
+	} else {
+		return true;
+	}
+}
+

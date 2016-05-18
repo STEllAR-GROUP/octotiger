@@ -7,6 +7,7 @@
 #include <chrono>
 #include "options.hpp"
 #include <unistd.h>
+#include <hpx/hpx_init.hpp>
 #include "problem.hpp"
 
 options opts;
@@ -29,7 +30,7 @@ void initialize(options _opts) {
 
 	if (opts.problem == DWD) {
 		set_problem(scf_binary);
-//		set_refine_test(refine_test_bibi);
+		set_refine_test(refine_test_bibi);
 	} else if (opts.problem == STAR) {
 		set_problem(star);
 		set_refine_test(refine_test_bibi);
@@ -153,6 +154,6 @@ int hpx_main(int argc, char* argv[]) {
 
 	}
 	printf("Exiting...\n");
-//	return hpx::finalize();
+	return hpx::finalize();
 }
 

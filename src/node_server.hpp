@@ -251,6 +251,9 @@ public:
 	void rho_mult(real factor, real);
 	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_mult, rho_mult_action);
 
+	void rho_move(real);
+	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_move, rho_move_action);
+
 	void run_scf();
 
 };

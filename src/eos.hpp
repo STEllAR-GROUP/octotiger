@@ -144,11 +144,11 @@ private:
 	real n_C, n_E;
 	real f_C, f_E;
 
+public:
+	void initialize(real&,real&,real&);
 	real dC() const {
 		return f_C * d0();
 	}
-
-public:
 		bipolytropic_eos(){}
 	  template <typename Archive>
 	  void serialize(Archive &ar, const unsigned int version) {
@@ -170,14 +170,8 @@ public:
 		real den = ((1.0 + n_C) / dC()) * std::pow(d0() / dC(), 1.0 / n_C) - (1.0 + n_C) / dC() + (1.0 + n_E) / dE();
 		return h0() / den;
 	}
-	bipolytropic_eos(real M, real R, real _n_C, real _n_E, real _f_C, real _f_E) :
-			n_C(_n_C), n_E(_n_E), f_C(_f_C), f_E(_f_E) {
-		real m, r;
-		initialize(m, r);
-		m0() *= M / m;
-		r0() *= R / r;
-	}
-/*	real get_bden() const {
+	bipolytropic_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu);
+	/*	real get_bden() const {
 		return f_C * d0();
 	}
 	void set_bden( real bden ) {
@@ -200,13 +194,7 @@ public:
 		return P0() / dE() * (1.0 + n_E);
 	}
 	virtual ~bipolytropic_eos() = default;
-	virtual real enthalpy_to_density(real h) const {
-		if (h < HE()) {
-			return dE() * std::pow(h / HE(), n_E);
-		} else {
-			return dC() * std::pow((h - HE() + HC()) / HC(), n_C);
-		}
-	}
+	virtual real enthalpy_to_density(real h) const;
 	virtual real density_to_enthalpy(real d) const {
 		if (d >= dC()) {
 			return P0() * (1.0 / dC() * (1.0 + n_C) * (std::pow(d / dC(), 1.0 / n_C) - 1.0) + 1.0 / dE() * (1.0 + n_E));

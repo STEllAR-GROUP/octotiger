@@ -14,8 +14,6 @@
 #define OUTPUT_OPT "-Output"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
-#define PRIMARY_MASS "-M1"
-#define SECONDARY_MASS "-M2"
 
 
 #define MAX_LEVEL_OPT "-Max_level"
@@ -52,11 +50,10 @@ bool options::process_options(int argc, char* argv[]) {
 	problem = NONE;
 	found_restart_file = false;
 	output_only = false;
-	xscale = 1.0;
+	xscale = 2.0;
 	omega = -1.0;
 	exe_name = std::string(argv[0]);
-	m1 = 1.5;
-	m2 = 0.35;
+	contact_fill = 0.0;
 	output_dt = 1.0;
 
 //	for (integer i = 1; i < argc; ++i) {
@@ -66,7 +63,7 @@ bool options::process_options(int argc, char* argv[]) {
 //		}
 //	}
 
-	for (integer i = 0; i < argc; ++i) {
+	for (integer i = 1; i < argc; ++i) {
 		if (cmp(argv[i], HELP_OPT)) {
 			rc = false;
 		} else if (cmp(argv[i], PROBLEM_OPT)) {
@@ -98,10 +95,9 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], OMEGA_OPT)) {
 			omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
 			output_dt = (2.0 * M_PI / omega) / 100.0;
-		} else if (cmp(argv[i], PRIMARY_MASS)) {
-			m1 = atof(argv[i] + strlen(PRIMARY_MASS) + 1);
-		} else if (cmp(argv[i], SECONDARY_MASS)) {
-			m2 = atof(argv[i] + strlen(PRIMARY_MASS) + 1);
+		} else {
+			printf( "Unknown option - %s\n", argv[i]);
+			abort();
 		}
 	}
 	if (!rc) {

@@ -18,7 +18,7 @@
 #define DO_OUTPUT
 #define USE_SIMD
 
-#define USE_DRIVING
+//#define USE_DRIVING
 #define DRIVING_RATE 0.02
 #define DRIVING_TIME 4.00
 
@@ -64,7 +64,7 @@ constexpr integer M_POLES = 3;
 constexpr integer L_POLES = M_POLES;
 
 
-constexpr integer G_BW = 4;
+constexpr integer G_BW = 2;
 
 //#define GRID_SIZE real(2.0)
 
