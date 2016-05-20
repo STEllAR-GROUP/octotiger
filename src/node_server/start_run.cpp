@@ -9,26 +9,6 @@
 #include "../node_server.hpp"
 #include "../node_client.hpp"
 
-void set_omegas( real omega, real omega_dot );
-
-
-HPX_PLAIN_ACTION(set_omegas, set_omegas_action);
-
-void set_omegas( real omega, real omega_dot ) {
-	if( hpx::get_locality_id() == 0 ) {
-		std::list<hpx::future<void>> futs;
-		auto remotes = hpx::find_remote_localities();
-		for( auto& l : remotes) {
-			futs.push_back(hpx::async<set_omegas_action>(l,omega,omega_dot));
-		}
-		for( auto& f : futs ) {
-			f.get();
-		}
-	}
-	grid::set_omega(omega);
-	grid::set_omega_dot(omega_dot);
-}
-
 typedef node_server::start_run_action start_run_action_type;
 HPX_REGISTER_ACTION (start_run_action_type);
 
@@ -48,7 +28,7 @@ void node_server::start_run(bool scf) {
 	}
 	if (scf) {
 		run_scf();
-		set_omega_and_pivot();
+		set_pivot();
 		save_to_file("scf.chk");
 	}
 
@@ -113,11 +93,11 @@ void node_server::start_run(bool scf) {
 		const real theta_dot = (dy_dot * dx - dx_dot * dy) / (dx*dx+dy*dy) - omega;
 		const real w0 = grid::get_omega() * 100.0;
 		const real theta_dot_dot = (2.0*w0*theta_dot+w0*w0*theta);
-		real omega_dot = grid::get_omega_dot();
+		real omega_dot;
 		omega_dot = theta_dot_dot;
 		omega += omega_dot*dt;
 //		omega_dot += theta_dot_dot*dt;
-		set_omegas(omega, omega_dot);
+		grid::set_omega(omega);
 
 		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
 				std::chrono::high_resolution_clock::now() - time_start).count();

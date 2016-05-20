@@ -35,6 +35,8 @@ bool find_root(std::function<double(double)>& func, double xmin, double xmax,
 	const auto error = [](const double _xmax, const double _xmin) {
 		return (_xmax - _xmin) / (std::abs(_xmax) + std::abs(_xmin))*2.0;
 	};
+	double xmin0 = xmin;
+	double xmax0 = xmax;
 	while (error(xmax,xmin) > toler) {
 		xmid = (xmax + xmin) / 2.0;
 		if (func(xmid) * func(xmax) < 0.0) {
@@ -44,7 +46,7 @@ bool find_root(std::function<double(double)>& func, double xmin, double xmax,
 		}
 	}
 	root = xmid;
-	if( error(root,xmin) < 10.0*toler || error(xmax,root) < 10.0*toler ) {
+	if( error(root,xmin0) < 10.0*toler || error(xmax0,root) < 10.0*toler ) {
 		return false;
 	} else {
 		return true;

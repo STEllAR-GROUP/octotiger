@@ -53,7 +53,7 @@ line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, spa
 }
 
 void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
-		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, real& rho1_phi, real& rho2_phi) {
+		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi,std::pair<real, real>& l2_phi,std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi) {
 
 	for( auto& l : loc) {
 		ASSERT_NONAN(l.first);
@@ -61,12 +61,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 			ASSERT_NONAN(l.second[f]);
 		}
 	}
-	ASSERT_NONAN(rho1_max.first);
-	ASSERT_NONAN(rho1_max.second);
-	ASSERT_NONAN(rho2_max.first);
-	ASSERT_NONAN(rho2_max.second);
-	ASSERT_NONAN(l1_phi.first);
-	ASSERT_NONAN(l1_phi.second);
+
 
 	rho1_max.second = rho2_max.second = 0.0;
 	integer rho1_maxi, rho2_maxi;
@@ -100,15 +95,29 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 		}
 	}
 	l1_phi.second = -std::numeric_limits < real > ::max();
+	l2_phi.second = -std::numeric_limits < real > ::max();
+	l3_phi.second = -std::numeric_limits < real > ::max();
 	for (integer i = 0; i != loc.size(); ++i) {
 		const real x = loc[i].first;
+		const real rho = loc[i].second[rho_i];
+		const real pot = loc[i].second[pot_i];
+		real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
 		if (x > std::min(rho1_max.first, rho2_max.first) && x < std::max(rho1_max.first, rho2_max.first)) {
-			const real rho = loc[i].second[rho_i];
-			const real pot = loc[i].second[pot_i];
-			real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
 			if (phi_eff > l1_phi.second) {
 				l1_phi.second = phi_eff;
 				l1_phi.first = x;
+			}
+		}
+		else if (std::abs(x) > std::abs(rho2_max.first) && x*rho2_max.first > 0.0 ) {
+			if (phi_eff > l2_phi.second) {
+				l2_phi.second = phi_eff;
+				l2_phi.first = x;
+			}
+		}
+		else if (std::abs(x) > std::abs(rho1_max.first)) {
+			if (phi_eff > l3_phi.second) {
+				l3_phi.second = phi_eff;
+				l3_phi.first = x;
 			}
 		}
 	}

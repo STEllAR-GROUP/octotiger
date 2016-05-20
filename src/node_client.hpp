@@ -45,7 +45,6 @@ public:
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1) const;
 	hpx::future<grid::output_list_type> output(std::string fname) const;
 	node_client();
-	hpx::future<std::vector<real>> frac_moments(const  std::vector<space_vector>& c) const;
 	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
@@ -79,7 +78,6 @@ public:
 	integer save(integer,std::string) const;
 	hpx::future<bool> check_for_refinement() const;
 	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
-	hpx::future<std::pair<real,real>> find_omega_part(const space_vector& pivot) const;
 
 //	hpx::future<void> find_family() const;
 

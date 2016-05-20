@@ -22,21 +22,13 @@ hpx::future<diagnostics_t> node_client::diagnostics(
 			l1);
 }
 
-typedef node_server::frac_moments_action frac_moments_action_type;
-HPX_REGISTER_ACTION(frac_moments_action_type);
-
-hpx::future<std::vector<real>> node_client::frac_moments(
-		const std::vector<space_vector>& c) const {
-	return hpx::async<typename node_server::frac_moments_action>(get_gid(), c);
-}
-
 diagnostics_t node_server::diagnostics() const {
 	auto axis = grid_ptr->find_axis();
 	auto loc = line_of_centers(axis);
-	real this_omega = find_omega();
-	std::pair<real, real> rho1, rho2, l1;
+	real this_omega = grid::get_omega();
+	std::pair<real, real> rho1, rho2, l1, l2, l3;
 	real phi_1, phi_2;
-	line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, phi_1, phi_2);
+	line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, l2, l3, phi_1, phi_2);
 	//if( rho1.first > rho2.first ) {
 	//	for( integer d = 0; d != NDIM; ++d ) {
 	//		//printf( "Flipping axis\n" );
@@ -286,28 +278,3 @@ diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
 	secondary_volume += other.secondary_volume;
 	return *this;
 }
-
-std::vector<real> node_server::frac_moments(
-		const std::vector<space_vector>& com) const {
-	std::vector<real> I(NSPECIES);
-	for (integer si = 0; si != NSPECIES; ++si) {
-		I[si] = 0.0;
-	}
-	if (is_refined) {
-		std::list < hpx::future < std::vector<real> >> futs;
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			futs.push_back(children[ci].frac_moments(com));
-		}
-		for (auto ci = futs.begin(); ci != futs.end(); ++ci) {
-			auto this_sum = GET(*ci);
-			for (integer i = 0; i != NSPECIES; ++i) {
-				I[i] += this_sum[i];
-			}
-		}
-	} else {
-		return grid_ptr->frac_moments(com);
-	}
-	return I;
-
-}
-

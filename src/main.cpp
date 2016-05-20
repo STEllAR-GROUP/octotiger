@@ -14,8 +14,6 @@ options opts;
 
 bool gravity_on = true;
 bool hydro_on = true;
-
-HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
 HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
 
 void initialize(options _opts) {
@@ -69,7 +67,7 @@ void initialize(options _opts) {
 HPX_PLAIN_ACTION(initialize, initialize_action);
 
 real OMEGA;
-void node_server::set_omega_and_pivot() {
+void node_server::set_pivot() {
 	auto localities = hpx::find_all_localities();
 	space_vector pivot = grid_ptr->center_of_mass();
 	std::vector<hpx::future<void>> futs;
@@ -78,16 +76,6 @@ void node_server::set_omega_and_pivot() {
 		if (current_time == ZERO) {
 			futs.push_back(hpx::async<set_pivot_action>(locality, pivot));
 		}
-	}
-	for (auto&& fut : futs) {
-		GET(fut);
-	}
-	real this_omega = find_omega();
-	OMEGA = this_omega;
-	futs.clear();
-	futs.reserve(localities.size());
-	for (auto& locality : localities) {
-		futs.push_back(hpx::async<set_omega_action>(locality, this_omega));
 	}
 	for (auto&& fut : futs) {
 		GET(fut);
@@ -131,8 +119,10 @@ int hpx_main(int argc, char* argv[]) {
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {
 					GET(root_client.regrid(root_client.get_gid(), false));
-					printf("---------------Created Level %i---------------\n", int(l + 1));
+					printf("---------------Created Level %i---------------\n\n", int(l + 1));
 				}
+				GET(root_client.regrid(root_client.get_gid(), false));
+				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
 
 			std::vector<hpx::id_type> null_sibs(geo::direction::count());

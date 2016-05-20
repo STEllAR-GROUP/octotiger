@@ -14,7 +14,6 @@
 extern options opts;
 
 real grid::omega = ZERO;
-real grid::omega_dot = ZERO;
 space_vector grid::pivot(ZERO);
 real grid::scaling_factor = 1.0;
 
@@ -100,21 +99,9 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 	return e;
 }
 
-void grid::set_omega(real o) {
-	omega = o;
-}
-
-
-void grid::set_omega_dot(real o) {
-	omega_dot = o;
-}
 
 real grid::get_omega()  {
 	return omega;
-}
-
-real grid::get_omega_dot() {
-	return omega_dot;
 }
 
 void grid::velocity_inc(const space_vector& dv) {
@@ -153,28 +140,6 @@ inline real minmod_theta(real a, real b, real theta = 1.0) {
 	return minmod(theta * minmod(a, b), HALF * (a + b));
 }
 
-std::pair<real, real> grid::omega_part(const space_vector& pivot) const {
-	real I = ZERO;
-	real L = ZERO;
-	const real dV = dx * dx * dx;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				const real x = X[XDIM][iii] - pivot[XDIM];
-				const real y = X[YDIM][iii] - pivot[YDIM];
-				const real sx = U[sx_i][iii];
-				const real sy = U[sy_i][iii];
-				const real zz = U[zz_i][iii];
-				const real rho = U[rho_i][iii];
-				L += (x * sy - y * sx + zz) * dV;
-				I += (x * x + y * y) * rho * dV;
-			}
-		}
-	}
-//	printf( "%e\n", L);
-	return std::make_pair(L, I);
-}
 
 std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 		const geo::dimension& dim) const {
@@ -469,28 +434,22 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
-std::vector<real> grid::frac_moments(const std::vector<space_vector>& com) const {
-	std::vector<real> I(NSPECIES);
-	for( integer si = 0; si != NSPECIES; ++si) {
-		I[0] = 0.0;
-	}
-	const real dV = dx * dx * dx;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				for( integer si = 0; si != NSPECIES; ++si) {
-					const real x = X[XDIM][iii] - com[si][XDIM];
-					const real y = X[YDIM][iii] - com[si][YDIM];
-					const real R2 = x*x+y*y;
-					I[si] += U[spc_i + si][iii] * (R2+dx*dx/6.0) * dV;
-				}
-			}
+
+HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
+
+void grid::set_omega( real omega ) {
+	if( hpx::get_locality_id() == 0 ) {
+		std::list<hpx::future<void>> futs;
+		auto remotes = hpx::find_remote_localities();
+		for( auto& l : remotes) {
+			futs.push_back(hpx::async<set_omega_action>(l,omega));
+		}
+		for( auto& f : futs ) {
+			f.get();
 		}
 	}
-	return I;
+	grid::omega = omega;
 }
-
 
 std::vector<real> grid::frac_volumes() const {
 	std::vector<real> V(NSPECIES, 0.0);
@@ -511,6 +470,35 @@ std::vector<real> grid::frac_volumes() const {
 	return V;
 }
 
+bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer iii) const {
+	bool use = false;
+	if (frac == 0) {
+		use = true;
+	} else {
+		space_vector a = axis.first;
+		const space_vector& o = axis.second;
+		space_vector b;
+		real aa = 0.0;
+		real ab = 0.0;
+		for (integer d = 0; d != NDIM; ++d) {
+			a[d] -= o[d];
+			b[d] = X[d][iii] - o[d];
+		}
+		for (integer d = 0; d != NDIM; ++d) {
+			aa += a[d] * a[d];
+			ab += a[d] * b[d];
+		}
+		real p = ab / std::sqrt(aa);
+//		printf( "%e\n", l1.first);
+		if (p < l1.first && frac == +1) {
+			use = true;
+		} else if (p >= l1.first && frac == -1) {
+			use = true;
+		}
+	}
+	return use;
+}
+
 real grid::z_moments(const std::pair<space_vector, space_vector>& axis,
 		const std::pair<real, real>& l1, integer frac) const {
 	real mom = 0.0;
@@ -519,32 +507,7 @@ real grid::z_moments(const std::pair<space_vector, space_vector>& axis,
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				bool use = false;
-				if (frac == 0) {
-					use = true;
-				} else {
-					space_vector a = axis.first;
-					const space_vector& o = axis.second;
-					space_vector b;
-					real aa = 0.0;
-					real ab = 0.0;
-					for (integer d = 0; d != NDIM; ++d) {
-						a[d] -= o[d];
-						b[d] = X[d][iii] - o[d];
-					}
-					for (integer d = 0; d != NDIM; ++d) {
-						aa += a[d] * a[d];
-						ab += a[d] * b[d];
-					}
-					real p = ab / std::sqrt(aa);
-			//		printf( "%e\n", l1.first);
-					if (p < l1.first && frac == +1) {
-						use = true;
-					} else if (p >= l1.first && frac == -1) {
-						use = true;
-					}
-				}
-				if (use) {
+				if (is_in_star(axis,l1,frac,iii)) {
 					mom += (std::pow(X[XDIM][iii],2)+dx*dx/6.0) * U[rho_i][iii] * dV;
 					mom += (std::pow(X[YDIM][iii],2)+dx*dx/6.0) * U[rho_i][iii] * dV;
 				}
@@ -565,32 +528,7 @@ std::vector<real> grid::conserved_sums(space_vector& com,space_vector& com_dot, 
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				bool use = false;
-				if (frac == 0) {
-					use = true;
-				} else {
-					space_vector a = axis.first;
-					const space_vector& o = axis.second;
-					space_vector b;
-					real aa = 0.0;
-					real ab = 0.0;
-					for (integer d = 0; d != NDIM; ++d) {
-						a[d] -= o[d];
-						b[d] = X[d][iii] - o[d];
-					}
-					for (integer d = 0; d != NDIM; ++d) {
-						aa += a[d] * a[d];
-						ab += a[d] * b[d];
-					}
-					real p = ab / std::sqrt(aa);
-			//		printf( "%e\n", l1.first);
-					if (p < l1.first && frac == +1) {
-						use = true;
-					} else if (p >= l1.first && frac == -1) {
-						use = true;
-					}
-				}
-				if (use) {
+				if (is_in_star(axis,l1,frac,iii)) {
 					com[0] += X[XDIM][iii] * U[rho_i][iii] * dV;
 					com[1] += X[YDIM][iii] * U[rho_i][iii] * dV;
 					com[2] += X[ZDIM][iii] * U[rho_i][iii] * dV;

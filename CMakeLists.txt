@@ -22,7 +22,7 @@ find_package(MPI REQUIRED)
 ################################################################################
 include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 
-#set( CMAKE_CXX_FLAGS "-g -march=native -Wno-attributes -Wno-deprecated-declarations" )
+#set( CMAKE_CXX_FLAGS "-g3 -O0 -march=native -Wno-attributes -Wno-deprecated-declarations" )
 
 add_hpx_executable(
   octotiger
@@ -44,7 +44,6 @@ add_hpx_executable(
         src/node_server/check_for_refinement.cpp
         src/node_server/copy_to_locality.cpp
         src/node_server/diagnostics.cpp
-        src/node_server/find_omega_part.cpp
         src/node_server/force_nodes_to_exist.cpp
         src/node_server/form_tree.cpp
         src/node_server/get_child_client.cpp
@@ -74,6 +73,7 @@ add_hpx_executable(
         src/node_server/velocity_inc.cpp
  		src/options.cpp
 		src/problem.cpp
+		src/rad_grid.cpp
 		src/real.cpp
 		src/roe.cpp
 		src/stack_trace.cpp
@@ -95,6 +95,7 @@ add_hpx_executable(
 		src/problem.hpp
 		src/real.hpp
 		src/util.hpp
+		src/rad_grid.hpp
 		src/roe.hpp
 		src/simd.hpp
 		src/space_vector.hpp

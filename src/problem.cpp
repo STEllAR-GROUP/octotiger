@@ -34,6 +34,7 @@ bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, 
 	bool rc = false;
 	real den_floor = 1.0e-4;
 	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
+//	integer test_level = ((U[spc_dc_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
 	//integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {

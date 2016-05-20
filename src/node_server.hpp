@@ -28,7 +28,7 @@ public:
 	static void set_gravity(bool);
 	static void set_hydro(bool);
 private:
-	void set_omega_and_pivot();
+	void set_pivot();
 	std::atomic<integer> refinement_flag;
 	static bool hydro_on;
 	static bool gravity_on;
@@ -234,19 +234,11 @@ public:
 	real scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, scf_update, scf_update_action);
 
-	real find_omega() const;
-
-	std::pair<real, real> find_omega_part(const space_vector& pivot) const;
-	HPX_DEFINE_COMPONENT_ACTION(node_server, find_omega_part, find_omega_part_action);
-
 	void velocity_inc(const space_vector& dv);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, velocity_inc, velocity_inc_action);
 
 	line_of_centers_t line_of_centers(const std::pair<space_vector,space_vector>& line) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
-
-	std::vector<real> frac_moments(const  std::vector<space_vector>& com) const;
-	HPX_DEFINE_COMPONENT_ACTION(node_server,frac_moments, frac_moments_action);
 
 	void rho_mult(real factor, real);
 	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_mult, rho_mult_action);
@@ -258,13 +250,11 @@ public:
 
 };
 
-HPX_REGISTER_ACTION_DECLARATION (node_server::frac_moments_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::output_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::line_of_centers_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::velocity_inc_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_update_action);
-HPX_REGISTER_ACTION_DECLARATION (node_server::find_omega_part_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::set_grid_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::force_nodes_to_exist_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::check_for_refinement_action);
@@ -294,12 +284,10 @@ HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION (node_server::scf_params_action);
 
-HPX_ACTION_USES_LARGE_STACK (node_server::frac_moments_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::rho_mult_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::output_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::line_of_centers_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::scf_update_action);
-HPX_ACTION_USES_LARGE_STACK (node_server::find_omega_part_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::set_grid_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::force_nodes_to_exist_action);
 HPX_ACTION_USES_LARGE_STACK (node_server::check_for_refinement_action);

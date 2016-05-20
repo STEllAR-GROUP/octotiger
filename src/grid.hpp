@@ -26,7 +26,7 @@ using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
 void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
-		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, real&, real&);
+		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real&, real&);
 
 struct npair {
 	integer lev;
@@ -37,104 +37,6 @@ typedef npair dpair;
 
 typedef real xpoint_type;
 typedef int zone_int_type;
-
-#ifdef OLD_SCF
-
-struct scf_data_t {
-	real phi_eff_acc;
-	real phi_eff_don;
-	real x_acc;
-	real x_don;
-	real l1;
-	real rho_max_acc;
-	real rho_max_don;
-	real phi_a;
-	real x_com;
-	real m_don;
-	real m_acc;
-	real virial_num;
-	real virial_den;
-	real lx;
-	real phi_l1;
-	real sx_sum, sy_sum, sz_sum;
-	real vol_a_star;
-	real vol_d_star;
-	real vol_a_lobe;
-	real vol_d_lobe;
-	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
-		arc & vol_a_star;
-		arc & vol_a_lobe;
-		arc & vol_d_star;
-		arc & vol_d_lobe;
-		arc & virial_num;
-		arc & virial_den;
-		arc & phi_eff_acc;
-		arc & phi_eff_don;
-		arc & rho_max_acc;
-		arc & rho_max_don;
-		arc & phi_a;
-		arc & x_com;
-		arc & m_don;
-		arc & m_acc;
-		arc & x_don;
-		arc & x_acc;
-		arc & l1;
-		arc & lx;
-		arc & phi_l1;
-		arc & sx_sum;
-		arc & sy_sum;
-		arc & sz_sum;
-	}
-	scf_data_t() {
-		sz_sum = sy_sum = sx_sum = ZERO;
-		rho_max_acc = rho_max_don = -std::numeric_limits < real > ::max();
-		phi_a = 1.0;
-		x_com = ZERO;
-		m_don = ZERO;
-		m_acc = ZERO;
-		vol_a_star = vol_d_star = vol_a_lobe = vol_d_lobe = ZERO;
-		virial_num = virial_den = ZERO;
-		l1 = -std::numeric_limits < real > ::max();
-	}
-	void accumulate(const scf_data_t& other) {
-		if (other.rho_max_acc > rho_max_acc) {
-			rho_max_acc = other.rho_max_acc;
-			phi_eff_acc = other.phi_eff_acc;
-			x_acc = other.x_acc;
-		}
-		if (other.rho_max_don > rho_max_don) {
-			rho_max_don = other.rho_max_don;
-			phi_eff_don = other.phi_eff_don;
-			x_don = other.x_don;
-		}
-		vol_a_star += other.vol_a_star;
-		vol_d_star += other.vol_d_star;
-		vol_a_lobe += other.vol_a_lobe;
-		vol_d_lobe += other.vol_d_lobe;
-		sx_sum += other.sx_sum;
-		sy_sum += other.sy_sum;
-		sz_sum += other.sz_sum;
-		phi_a = (other.phi_a < ZERO) ? other.phi_a : phi_a;
-		x_com = ((m_don + m_acc) * x_com + (other.m_don + other.m_acc) * other.x_com);
-		m_don += other.m_don;
-		m_acc += other.m_acc;
-		if (m_don + m_acc > ZERO) {
-			x_com /= (m_don + m_acc);
-		} else {
-			printf("No mass!\n");
-			exit(0);
-		}
-		virial_num += other.virial_num;
-		virial_den += other.virial_den;
-		if (l1 < other.l1) {
-			l1 = other.l1;
-			lx = other.lx;
-			phi_l1 = other.phi_l1;
-		}
-	}
-};
-#else
 struct scf_data_t {
 	real m_x;
 	real m;
@@ -158,8 +60,6 @@ struct scf_data_t {
 	real accretor_central_enthalpy;
 	real donor_central_density;
 	real accretor_central_density;
-	real omega_int_part_1;
-	real omega_int_part_2;
 	real xA, xB, xC;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -188,13 +88,10 @@ struct scf_data_t {
 		arc & accretor_central_enthalpy;
 		arc & donor_central_density;
 		arc & accretor_central_density;
-		arc & omega_int_part_1;
-		arc & omega_int_part_2;
 	}
 	scf_data_t() {
 		donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits < real > ::max();
-		accretor_mass = donor_mass = donor_central_enthalpy = accretor_central_enthalpy = omega_int_part_1 =
-				omega_int_part_2 = ZERO;
+		accretor_mass = donor_mass = donor_central_enthalpy = accretor_central_enthalpy = ZERO;
 		phiA = phiB = phiC = 0.0;
 		virial_sum = virial_norm = 0.0;
 		donor_central_density = accretor_central_density = 0.0;
@@ -225,8 +122,6 @@ struct scf_data_t {
 		accretor_phi_max = std::max(accretor_phi_max, other.accretor_phi_max);
 		accretor_mass += other.accretor_mass;
 		donor_mass += other.donor_mass;
-		omega_int_part_1 += other.omega_int_part_1;
-		omega_int_part_2 += other.omega_int_part_2;
 		if (other.donor_central_enthalpy > donor_central_enthalpy) {
 			donor_phi_min = other.donor_phi_min;
 			donor_x = other.donor_x;
@@ -245,7 +140,6 @@ struct scf_data_t {
 		}
 	}
 };
-#endif
 
 class grid {
 public:
@@ -255,7 +149,6 @@ public:
 private:
 	static integer max_level;
 	static real omega;
-	static real omega_dot;
 	static space_vector pivot;
 	static real scaling_factor;
 
@@ -289,22 +182,20 @@ private:
 	void compute_boundary_interactions_monopole(gsolve_type type, const std::vector<npair>&);
 
 public:
+
 	static void set_scaling_factor(real f) {
 		scaling_factor = f;
 	}
 	static real get_scaling_factor() {
 		return scaling_factor;
 	}
-	std::pair<real, real> omega_part(const space_vector& pivot) const;
 	void set_root(bool flag = true);
 	void set_leaf(bool flag = true);bool get_leaf() const {
 		return is_leaf;
 	}
-
+	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
 	static void set_omega(real);
 	static real get_omega();
-	static void set_omega_dot(real);
-	static real get_omega_dot();
 	static void set_pivot(const space_vector& p);
 	static space_vector get_pivot() {
 		return pivot;
@@ -366,7 +257,6 @@ public:
 	void diagnostics();
 	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
-	std::vector<real> frac_moments(const std::vector<space_vector>& com) const;
 	std::vector<real> frac_volumes() const;
 	std::vector<real> l_sums() const;
 	std::vector<real> gforce_sum(bool torque) const;

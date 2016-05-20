@@ -33,14 +33,6 @@ void node_server::set_hydro(bool b) {
 	hydro_on = b;
 }
 
-real node_server::find_omega() const {
-	const auto this_com = grid_ptr->center_of_mass();
-//	printf( "%e %e %e\n", this_com[0], this_com[1], this_com[2]);
-	auto d = find_omega_part(this_com);
-//	printf( "%e %e\n", d.first, d.second);
-	return d.first / d.second;
-}
-
 
 
 hpx::future<void> node_server::exchange_flux_corrections() {
