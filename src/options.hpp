@@ -12,7 +12,7 @@
 #include "defs.hpp"
 
 enum problem_type {
-	DWD, SOD, NONE, SOLID_SPHERE, STAR
+	DWD, SOD, NONE, SOLID_SPHERE, STAR, RADIATION_TEST
 };
 
 class options {

@@ -5,21 +5,20 @@
  *      Author: dmarce1
  */
 
-
 #include "../node_server.hpp"
 #include "../node_client.hpp"
+#include "options.hpp"
 
+extern options opts;
 typedef node_server::step_action step_action_type;
-HPX_REGISTER_ACTION (step_action_type);
-
-
+HPX_REGISTER_ACTION(step_action_type);
 
 hpx::future<void> node_client::step() const {
 	return hpx::async<typename node_server::step_action>(get_gid());
 }
 
-
 void node_server::step() {
+
 	grid_ptr->set_coordinates();
 	real dt = ZERO;
 
@@ -29,6 +28,18 @@ void node_server::step() {
 			child_futs.push_back(children[ci].step());
 		}
 	}
+
+#ifdef RADIATION
+	if( opts.problem == RADIATION_TEST ) {
+		printf( "Doing radiation test\n");
+		compute_radiation();
+		printf( "Success\n");
+		hpx::wait_all(child_futs.begin(), child_futs.end());
+		return;
+	}
+#endif
+
+
 	real a;
 	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 	real cfl0 = cfl;

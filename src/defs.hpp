@@ -9,6 +9,8 @@
 
 #ifndef TYPES444_HPP_
 
+#define RADIATION
+
 //#define CWD
 #define BIBI
 //#define OLD_SCF
@@ -100,7 +102,12 @@ const integer G_N3 = G_NX * G_NX * G_NX;
 #define gindex(i,j,k) ((i)*G_DNX + (j)*G_DNY + (k)*G_DNZ)
 
 
+#ifdef RADIATION
+const integer NF = 15 + 6 + 3 + 1;
+#else
 const integer NF = 15;
+#endif
+
 const integer NDIR = 27;
 const integer H_DNX = H_NX * H_NX;
 const integer H_DNY = H_NX;
@@ -127,6 +134,19 @@ const integer spc_ae_i = 11;
 const integer spc_dc_i = 12;
 const integer spc_de_i = 13;
 const integer spc_vac_i = 14;
+#ifdef RADIATION
+const integer pxx_i = 15;
+const integer pxy_i = 16;
+const integer pxz_i = 17;
+const integer pyy_i = 18;
+const integer pyz_i = 19;
+const integer pzz_i = 20;
+const integer fx_i = 21;
+const integer fy_i = 22;
+const integer fz_i = 23;
+const integer er_i = 24;
+#endif
+
 
 const integer vx_i = sx_i;
 const integer vy_i = sy_i;

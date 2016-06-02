@@ -30,6 +30,12 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 
 }
 
+
+bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
+	return level < max_level;
+
+}
+
 bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
 	bool rc = false;
 	real den_floor = 1.0e-4;
@@ -67,6 +73,16 @@ init_func_type get_problem() {
 
 std::vector<real> null_problem(real x, real y, real z, real dx) {
 	std::vector<real> u(NF, real(0));
+	return u;
+}
+
+std::vector<real> radiation_test_problem(real x, real y, real z, real) {
+	std::vector<real> u(NF, real(0));
+	if (std::sqrt(x*x + y*y + z*z) < real(0.5)) {
+		u[rho_i] = 1.0;
+	} else {
+		u[rho_i] = 1.0e-20;
+	}
 	return u;
 }
 

@@ -16,35 +16,39 @@
 #include "eos.hpp"
 #include "diagnostics.hpp"
 
+#ifdef RADIATION
+#include "rad_grid.hpp"
+#endif
+
 //#include <boost/mpi/packed_iarchive.hpp>
 
 class node_server;
 
-class node_client {
-private:
-//	hpx::shared_future<hpx::id_type> id_fut;
-	hpx::id_type id;
+class node_client: public hpx::components::client_base<node_client, node_server> {
+	using base_type = hpx::components::client_base<node_client, node_server>;
 public:
-	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
-		arc & id;
+
+	template<class ...Args>
+	node_client(Args&&...args) : base_type(std::forward<Args>(args)...) {
 	}
+
+	template<class...Args>
+	node_client& operator=( Args&&...args) {
+		base_type::operator=(std::forward<Args>(args)...);
+		return *this;
+	}
+
 	bool empty() const;
 	hpx::id_type get_gid() const;
-	node_client& operator=(hpx::future<hpx::id_type>&& fut );
-	node_client& operator=(const hpx::id_type& _id );
-	node_client(hpx::future<hpx::id_type>&& fut );
-	node_client(const hpx::id_type& _id );
 	hpx::future<scf_data_t> scf_params() const;
 	hpx::future<void> rho_mult(real, real) const;
 	hpx::future<void> rho_move(real) const;
 	hpx::future<real> scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos) const;
-	hpx::future<void> send_hydro_children( std::vector<real>&&,  const geo::octant& ci) const;
+	hpx::future<void> send_hydro_children( std::vector<real>&&, const geo::octant& ci) const;
 	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1) const;
 	hpx::future<grid::output_list_type> output(std::string fname) const;
-	node_client();
 	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
@@ -53,17 +57,11 @@ public:
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;
 	hpx::future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line) const;
+
 	hpx::future<void> send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
-//r	hpx::future<void> send_hydro_amr_to_parent(std::vector<real>&&, integer ci, integer rk, integer face) const;
-#ifdef USE_SPHERICAL
-	hpx::future<void> send_gravity_boundary(std::vector<multipole_type>&&, const geo::direction&) const;
-	hpx::future<void> send_gravity_multipoles(std::vector<multipole_type>&&, const geo::octant& ci) const;
-	hpx::future<void> send_gravity_expansions(std::vector<expansion_type>&&) const;
-#else
 	hpx::future<void> send_gravity_boundary(std::vector<real>&&, const geo::direction&, bool monopole) const;
 	hpx::future<void> send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	hpx::future<void> send_gravity_expansions(expansion_pass_type&&) const;
-#endif
 	hpx::future<void> step() const;
 	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, bool rb) const;
@@ -79,7 +77,10 @@ public:
 	hpx::future<bool> check_for_refinement() const;
 	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
 
-//	hpx::future<void> find_family() const;
+#ifdef RADIATION
 
-		};
+	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&) const;
+#endif
+
+	};
 #endif /* NODE_CLIENT_HPP_ */

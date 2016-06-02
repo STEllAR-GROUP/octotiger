@@ -23,6 +23,7 @@
 #define PROBLEM_OPT_OLD_SCF "old_scf"
 #define PROBLEM_OPT_SOLID_SPHERE "solid_sphere"
 #define PROBLEM_OPT_STAR "star"
+#define PROBLEM_OPT_RADIATION "rad"
 
 bool options::cmp(const char* str1, const char* str2) {
 	return strncmp(str1, str2, strlen(str2)) == 0;
@@ -70,8 +71,9 @@ bool options::process_options(int argc, char* argv[]) {
 			std::string prob(argv[i] + strlen(PROBLEM_OPT) + 1);
 			if (cmp(prob, PROBLEM_OPT_DWD)) {
 				problem = DWD;
-		//	} else if (cmp(prob, PROBLEM_OPT_OLD_SCF)) {
-		//		problem = OLD_SCF;
+			} else if (cmp(prob, PROBLEM_OPT_RADIATION)) {
+				printf( "radiation test\n");
+				problem = RADIATION_TEST;
 			} else if (cmp(prob, PROBLEM_OPT_SOLID_SPHERE)) {
 				problem = SOLID_SPHERE;
 			} else if (cmp(prob, PROBLEM_OPT_STAR)) {

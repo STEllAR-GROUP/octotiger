@@ -23,3 +23,22 @@ hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data, con
 void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::direction& dir) {
 	sibling_hydro_channels[dir]->set_value(std::move(bdata));
 }
+
+
+#ifdef RADIATION
+
+typedef node_server::send_rad_boundary_action send_rad_boundary_action_type;
+HPX_REGISTER_ACTION (send_rad_boundary_action_type);
+
+
+hpx::future<void> node_client::send_rad_boundary(std::vector<rad_type>&& data, const geo::octant& oct, const geo::dimension& dim) const {
+	return hpx::async<typename node_server::send_rad_boundary_action>(get_gid(), std::move(data), oct, dim);
+}
+
+
+void node_server::recv_rad_boundary(std::vector<rad_type>&& bdata, const geo::octant& oct, const geo::dimension& dim) {
+	sibling_rad_channels[oct][dim]->set_value(std::move(bdata));
+}
+
+
+#endif

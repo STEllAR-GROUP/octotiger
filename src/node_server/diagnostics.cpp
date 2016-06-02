@@ -23,6 +23,9 @@ hpx::future<diagnostics_t> node_client::diagnostics(
 }
 
 diagnostics_t node_server::diagnostics() const {
+	if( opts.problem == RADIATION_TEST) {
+		return diagnostics_t();
+	}
 	auto axis = grid_ptr->find_axis();
 	auto loc = line_of_centers(axis);
 	real this_omega = grid::get_omega();
