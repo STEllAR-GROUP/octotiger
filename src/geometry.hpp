@@ -79,7 +79,7 @@ public:
 	dimension get_dimension() const;
 	side get_side() const;
 	face flip() const;
-	direction to_direction() const;
+	direction get_direction() const;
 	static constexpr integer count();
 	static constexpr std::array<face, _count> full_set();
 	static std::array<face, _count / NDIM> dimension_subset(const dimension&);

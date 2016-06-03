@@ -12,7 +12,7 @@
 
 namespace geo {
 
-direction face::to_direction() const {
+direction face::get_direction() const {
 	direction dir;
 	switch (i) {
 	case FXM:

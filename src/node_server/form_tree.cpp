@@ -24,7 +24,7 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 		neighbors[dir] = neighbor_gids[dir];
 	}
 	for (auto& face : geo::face::full_set()) {
-		siblings[face] = neighbors[face.to_direction()];
+		siblings[face] = neighbors[face.get_direction()];
 	}
 
 	std::list<hpx::future<void>> cfuts;

@@ -351,6 +351,9 @@ void node_server::initialize(real t, real rt) {
 		for (auto& dim : geo::dimension::full_set()) {
 			sibling_rad_channels[oct][dim] = std::make_shared<channel<std::vector<rad_type>> >();
 		}
+		for (auto& oct2 : geo::octant::full_set()) {
+			child_rad_channels[oct][oct2] = std::make_shared<channel<std::vector<rad_type>> >();
+		}
 	}
 #endif
 	for (auto& face : geo::face::full_set()) {

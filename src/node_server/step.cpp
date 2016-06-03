@@ -31,7 +31,7 @@ void node_server::step() {
 
 #ifdef RADIATION
 	if( opts.problem == RADIATION_TEST ) {
-		printf( "Doing radiation test\n");
+//		printf( "Doing radiation test\n");
 		compute_radiation();
 		printf( "Success\n");
 		hpx::wait_all(child_futs.begin(), child_futs.end());

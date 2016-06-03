@@ -32,7 +32,19 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
-	return level < max_level;
+	bool rc = false;
+	real den_floor = 1.0e-1;
+	integer test_level = max_level;
+	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
+		if (U[rho_i] > den_floor) {
+			rc = rc || (level < this_test_level);
+		}
+		if (rc) {
+			break;
+		}
+		den_floor /= 8.0;
+	}
+	return rc;
 
 }
 
@@ -76,9 +88,13 @@ std::vector<real> null_problem(real x, real y, real z, real dx) {
 	return u;
 }
 
-std::vector<real> radiation_test_problem(real x, real y, real z, real) {
+std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	std::vector<real> u(NF, real(0));
-	if (std::sqrt(x*x + y*y + z*z) < real(0.5)) {
+	x -= 1.0;
+	y -= 1.0;
+	z -= 1.0;
+	real r = std::max(dx,0.25);
+	if (std::sqrt(x*x + y*y + z*z) < r) {
 		u[rho_i] = 1.0;
 	} else {
 		u[rho_i] = 1.0e-20;

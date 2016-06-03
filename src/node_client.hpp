@@ -78,7 +78,7 @@ public:
 	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
 
 #ifdef RADIATION
-
+	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci, const geo::octant& ioct) const;
 	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&) const;
 #endif
 

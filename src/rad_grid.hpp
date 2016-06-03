@@ -67,6 +67,11 @@ public:
 		arc & dx;
 	}
 
+	std::vector<real> get_restrict(const geo::octant&) const;
+	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb,
+			const std::array<integer, NDIM>& ub, const geo::octant&);
+	void set_prolong(const std::vector<real>&, const geo::octant&);
+	void set_restrict(const std::vector<real>&, const geo::octant&, const geo::octant&);
 	void compute_intensity(const geo::octant& oct);
 	void free_octant(const geo::octant& oct);
 	void set_intensity(const std::vector<rad_type>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
