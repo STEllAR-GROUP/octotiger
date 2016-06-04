@@ -123,53 +123,13 @@ void node_server::compute_radiation() {
 	}
 }
 
-std::vector<rad_grid::sphere_point> rad_grid::sphere_points;
-
-geo::octant rad_grid::sphere_point::get_octant() const {
-	geo::octant octant;
-	const integer ix = nx > 0.0 ? 1 : 0;
-	const integer iy = ny > 0.0 ? 1 : 0;
-	const integer iz = nz > 0.0 ? 1 : 0;
-	return geo::octant(4 * iz + 2 * iy + ix);
-
-}
-
-std::vector<rad_grid::sphere_point> rad_grid::generate_sphere_points(int n_theta) {
-	std::vector<sphere_point> points;
-	const int n_points = n_theta;
-	std::vector<rad_grid::sphere_point> pts;
-	const real c0 = std::sqrt(5.0) / 2.0 + 2.5;
-	const unsigned N = n_points;
-	real phi = 0.0;
-	for (unsigned i = 0; i != N; ++i) {
-		const unsigned k = i + 1;
-		const real h = -1.0 + 2.0 * (k - 1.0) / (N - 1.0);
-		const real theta = std::acos(h);
-		const real h2 = h * h;
-		if (h2 != 1.0) {
-			const real dphi = c0 / std::sqrt(real(N)) / std::sqrt(1.0 - h2);
-			phi += dphi;
-		}
-		sphere_point pt;
-		pt.nx = std::cos(phi) * std::sin(theta);
-		pt.ny = std::sin(phi) * std::sin(theta);
-		pt.nz = std::cos(theta);
-		pt.dA = 4.0 * M_PI / n_theta;
-		pt.dl = std::abs(pt.nx) + std::abs(pt.ny) + std::abs(pt.nz);
-		pt.wx = std::abs(pt.nx) / pt.dl;
-		pt.wy = std::abs(pt.ny) / pt.dl;
-		pt.wz = std::abs(pt.nz) / pt.dl;
-		points.push_back(pt);
-	}
-
-	return points;
-}
+std::vector<sphere_point> rad_grid::sphere_points;
 
 void rad_grid::initialize() {
 
 	static std::once_flag flag;
 	std::call_once(flag, [&]() {
-		sphere_points = generate_sphere_points(NPHI);
+		sphere_points = generate_sphere_points(4);
 	});
 
 }

@@ -15,6 +15,7 @@
 #define R_N3 (R_NX*R_NX*R_NX)
 
 #include "geometry.hpp"
+#include "sphere_points.hpp"
 #include <cmath>
 #include <vector>
 
@@ -29,21 +30,7 @@ class rad_grid: public rad_grid_init {
 private:
 
 	friend class rad_grid_init;
-
-	struct sphere_point {
-		double nx;
-		double ny;
-		double nz;
-		double wx;
-		double wy;
-		double wz;
-		double dA;
-		double dl;
-		geo::octant get_octant() const;
-	};
-
 	static std::vector<sphere_point> sphere_points;
-	static std::vector<sphere_point> generate_sphere_points(int n_theta);
 	static void initialize();
 	static integer rindex(integer, integer, integer);
 	real dx;
