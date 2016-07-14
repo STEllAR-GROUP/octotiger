@@ -5,17 +5,18 @@
  *      Author: dmarce1
  */
 
+
 #include "../node_server.hpp"
 #include "../node_client.hpp"
-#include "../options.hpp"
-extern options opts;
 
 typedef node_server::start_run_action start_run_action_type;
-HPX_REGISTER_ACTION(start_run_action_type);
+HPX_REGISTER_ACTION (start_run_action_type);
+
 
 hpx::future<void> node_client::start_run(bool b) const {
 	return hpx::async<typename node_server::start_run_action>(get_gid(), b);
 }
+
 
 void node_server::start_run(bool scf) {
 	integer output_cnt;
@@ -33,30 +34,22 @@ void node_server::start_run(bool scf) {
 
 	printf("Starting...\n");
 //	regrid(me.get_gid(), false);
-#ifdef RADIATION
-	if (opts.problem != RADIATION_TEST) {
-#endif
-		solve_gravity(false);
-		if (current_time == 0) {
+	solve_gravity(false);
+	if (current_time == 0) {
 //		run_scf();
-			//	if (system("mkdir dat_back\n")) {
-			//	}
-			printf("Adjusting velocities:\n");
-			auto diag = diagnostics();
-			space_vector dv;
-			dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
-			dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
-			dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
-			printf("%e %e %e\n", dv[XDIM], dv[YDIM], dv[ZDIM]);
-			this->velocity_inc(dv);
-		}
-#ifdef RADIATION
+		//	if (system("mkdir dat_back\n")) {
+		//	}
+		printf("Adjusting velocities:\n");
+		auto diag = diagnostics();
+		space_vector dv;
+		dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
+		dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
+		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
+		printf("%e %e %e\n", dv[XDIM], dv[YDIM], dv[ZDIM]);
+		this->velocity_inc(dv);
 	}
-#endif
-	real output_dt = 1.0;
-	if (opts.problem == DWD) {
-		output_dt = 2.0 * M_PI / grid::get_omega() / 100.0;
-	}
+
+	real output_dt = 2.0 * M_PI / grid::get_omega() / 100.0;
 
 	printf("OMEGA = %e\n", grid::get_omega());
 	real& t = current_time;
@@ -86,13 +79,8 @@ void node_server::start_run(bool scf) {
 
 		}
 		//	break;
-#ifdef RADIATION
-		step();
-		output("P.silo");
-		break;
-
-#else
 		auto ts_fut = hpx::async([=]() {return timestep_driver();});
+		step();
 		real dt = GET(ts_fut);
 		auto diags = diagnostics();
 
@@ -112,15 +100,15 @@ void node_server::start_run(bool scf) {
 		grid::set_omega(omega);
 
 		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
-			std::chrono::high_resolution_clock::now() - time_start).count();
+				std::chrono::high_resolution_clock::now() - time_start).count();
 		GET(step_fut);
 		step_fut =
-		hpx::async(
-			[=]() {
-				FILE* fp = fopen( "step.dat", "at");
-				fprintf(fp, "%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
-				fclose(fp);
-			});
+				hpx::async(
+						[=]() {
+							FILE* fp = fopen( "step.dat", "at");
+							fprintf(fp, "%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+							fclose(fp);
+						});
 		printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
 
 //		t += dt;
@@ -134,6 +122,5 @@ void node_server::start_run(bool scf) {
 		if(scf) {
 			break;
 		}
-#endif
 	}
 }

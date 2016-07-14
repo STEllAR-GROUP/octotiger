@@ -23,5 +23,3 @@ hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data, con
 void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::direction& dir) {
 	sibling_hydro_channels[dir]->set_value(std::move(bdata));
 }
-
-

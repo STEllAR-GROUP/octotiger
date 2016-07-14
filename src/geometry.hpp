@@ -79,7 +79,7 @@ public:
 	dimension get_dimension() const;
 	side get_side() const;
 	face flip() const;
-	direction get_direction() const;
+	direction to_direction() const;
 	static constexpr integer count();
 	static constexpr std::array<face, _count> full_set();
 	static std::array<face, _count / NDIM> dimension_subset(const dimension&);
@@ -170,7 +170,6 @@ public:
 	constexpr octant(integer);
 	octant(const std::array<side, NDIM>&);
 	side get_side(const dimension&) const;
-	face get_face(const dimension&) const;
 	bool is_on_face(const face&) const;
 	quadrant get_quadrant(const dimension&) const;
 	integer operator[](const dimension& dim) const {
@@ -200,8 +199,6 @@ public:
 		}
 		return octant(ci);
 	}
-	void set(integer x, integer y, integer z);
-	void set(double x, double y, double z);
 	static constexpr integer count();
 	static constexpr std::array<octant, _count> full_set();
 	static std::array<octant, _count / 2> face_subset(const face&);

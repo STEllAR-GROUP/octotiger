@@ -20,20 +20,20 @@ const real rho_floor = 1.0e-15;
 
 namespace scf_options {
 
-static constexpr bool equal_eos = false; // If true, EOS of accretor will be set to that of donor
+static constexpr bool equal_eos = true; // If true, EOS of accretor will be set to that of donor
 static constexpr real M1 = 1.0;// Mass of primary
-static constexpr real M2 = 0.5;// Mass of secondary
-static constexpr real nc1 = 3.0;// Primary core polytropic index
-static constexpr real nc2 = 3.0;// Secondary core polytropic index
+static constexpr real M2 = 0.1;// Mass of secondary
+static constexpr real nc1 = 1.5;// Primary core polytropic index
+static constexpr real nc2 = 1.5;// Secondary core polytropic index
 static constexpr real ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_eos=true
 static constexpr real ne2 = 1.5;// Secondary envelope polytropic index
 static constexpr real mu1 = 1.0;// Primary ratio of molecular weights // Ignored if equal_eos=true
 static constexpr real mu2 = 1.0;// Primary ratio of molecular weights
-static constexpr real a = 1.00;// approx. orbital sep
-static constexpr real core_frac1 = 0.98;// Desired core fraction of primary // Ignored if equal_eos=true
-static constexpr real core_frac2 = 0.72;// Desired core fraction of secondary - IGNORED FOR CONTACT binaries
-static constexpr real fill1 = 0.99;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_eos=true
-static constexpr real fill2 = 0.99;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+static constexpr real a = 1.25;// approx. orbital sep
+static constexpr real core_frac1 = 0.25;// Desired core fraction of primary // Ignored if equal_eos=true
+static constexpr real core_frac2 = 0.50;// Desired core fraction of secondary - IGNORED FOR CONTACT binaries
+static constexpr real fill1 = 1.00;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_eos=true
+static constexpr real fill2 = 1.00;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
 static real contact_fill = 0.0;//  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_eos=true
 // Contact fill factor
 };

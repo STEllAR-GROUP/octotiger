@@ -15,7 +15,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
+
 
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
@@ -30,6 +32,8 @@ void node_server::set_gravity(bool b) {
 void node_server::set_hydro(bool b) {
 	hydro_on = b;
 }
+
+
 
 hpx::future<void> node_server::exchange_flux_corrections() {
 	const geo::octant ci = my_location.get_child_index();
@@ -227,7 +231,7 @@ std::size_t node_server::save_me(FILE* fp) const {
 #include "util.hpp"
 
 void node_server::save_to_file(const std::string& fname) const {
-	save(0, fname);
+	save(0,fname);
 	file_copy(fname.c_str(), "restart.chk");
 //	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
 //	SYSTEM(command);
@@ -268,6 +272,8 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::d
 	}
 }
 
+
+
 void node_server::clear_family() {
 	parent = hpx::invalid_id;
 	me = hpx::invalid_id;
@@ -276,6 +282,7 @@ void node_server::clear_family() {
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
 	std::fill(nieces.begin(), nieces.end(), std::vector<node_client>());
 }
+
 
 integer child_index_to_quadrant_index(integer ci, integer dim) {
 	integer index;
@@ -289,8 +296,9 @@ integer child_index_to_quadrant_index(integer ci, integer dim) {
 	return index;
 }
 
-node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
-	const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c) {
+node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
+		real _rotational_time, const std::array<integer, NCHILD>& _child_d, grid _grid,
+		const std::vector<hpx::id_type>& _c) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
 	is_refined = _is_refined;
@@ -309,6 +317,7 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 bool node_server::child_is_on_face(integer ci, integer face) {
 	return (((ci >> (face / 2)) & 1) == (face & 1));
 }
+
 
 void node_server::static_initialize() {
 	if (!static_initialized) {
@@ -333,6 +342,15 @@ void node_server::initialize(real t, real rt) {
 	neighbors.resize(geo::direction::count());
 	nieces.resize(NFACE);
 	aunts.resize(NFACE);
+#ifdef USE_SPHERICAL
+	for (auto& dir : geo::direction::full_set()) {
+		neighbor_gravity_channels[dir] = std::make_shared<channel<std::vector<multipole_type>>>();
+	}
+	for (auto& ci : geo::octant::full_set()) {
+		child_gravity_channels[ci] = std::make_shared<channel<std::vector<multipole_type>>>();
+	}
+	parent_gravity_channel = std::make_shared<channel<std::vector<expansion_type>>>();
+#else
 	for (auto& dir : geo::direction::full_set()) {
 		neighbor_gravity_channels[dir] = std::make_shared<channel<std::pair<std::vector<real>, bool>> >();
 	}
@@ -340,22 +358,13 @@ void node_server::initialize(real t, real rt) {
 		child_gravity_channels[ci] = std::make_shared<channel<multipole_pass_type>>();
 	}
 	parent_gravity_channel = std::make_shared<channel<expansion_pass_type>>();
+#endif
 	for (auto& ci : geo::octant::full_set()) {
 		child_hydro_channels[ci] = std::make_shared<channel<std::vector<real>>>();
 	}
 	for (auto& dir : geo::direction::full_set()) {
 		sibling_hydro_channels[dir] = std::make_shared<channel<std::vector<real>> >();
 	}
-#ifdef RADIATION
-	for (auto& oct : geo::octant::full_set()) {
-		for (auto& dim : geo::dimension::full_set()) {
-			sibling_rad_channels[oct][dim] = std::make_shared<channel<std::vector<rad_type>> >();
-		}
-		for (auto& oct2 : geo::octant::full_set()) {
-			child_rad_channels[oct][oct2] = std::make_shared<channel<std::vector<rad_type>> >();
-		}
-	}
-#endif
 	for (auto& face : geo::face::full_set()) {
 		for (integer i = 0; i != 4; ++i) {
 			niece_hydro_channels[face][i] = std::make_shared<channel<std::vector<real>> >();
@@ -385,11 +394,92 @@ node_server::node_server() {
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt) :
-	my_location(loc), parent(parent_id) {
+		my_location(loc), parent(parent_id) {
 	initialize(t, rt);
 }
 
+
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
+
+#ifdef USE_SPHERICAL
+	fmm::set_dx(dx);
+	std::list<hpx::future<void>> child_futs;
+	std::list<hpx::future<void>> neighbor_futs;
+	hpx::future<void> parent_fut;
+	if (energy_account) {
+		grid_ptr->egas_to_etot();
+	}
+	if (!is_refined) {
+		for (integer i = 0; i != INX; ++i) {
+			for (integer j = 0; j != INX; ++j) {
+				for (integer k = 0; k != INX; ++k) {
+					fmm::set_source(grid_ptr->get_source(i, j, k), i, j, k);
+				}
+			}
+		}
+	} else {
+		for (auto& octant : geo::octant::full_set()) {
+			fmm::set_multipoles(child_gravity_channels[octant]->get_future().get(), octant);
+		}
+	}
+	const auto myci = my_location.get_child_index();
+	const bool is_root = my_location.level() == 0;
+	parent_fut = !is_root ? parent.send_gravity_multipoles(fmm::M2M(), myci) : hpx::make_ready_future();
+
+	std::array<integer, NDIM> lb, ub;
+	for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			get_boundary_size(lb, ub, dir, INNER, G_BW);
+			for (integer d = 0; d != NDIM; ++d) {
+				lb[d] -= G_BW;
+				ub[d] -= G_BW;
+			}
+			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(fmm::get_multipoles(lb, ub), dir.flip()));
+		}
+	}
+
+	fmm::self_M2L(is_root, !is_refined);
+
+	for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			auto tmp = neighbor_gravity_channels[dir]->get_future().get();
+			get_boundary_size(lb, ub, dir, OUTER, G_BW);
+			for (integer d = 0; d != NDIM; ++d) {
+				lb[d] -= G_BW;
+				ub[d] -= G_BW;
+			}
+			fmm::other_M2L(std::move(tmp), lb, ub, !is_refined);
+		}
+	}
+	parent_fut.get();
+	if (!is_root) {
+		fmm::L2L(parent_gravity_channel->get_future().get());
+	}
+	if (is_refined) {
+		for (auto& ci : geo::octant::full_set()) {
+			child_futs.push_back(children[ci].send_gravity_expansions(fmm::get_expansions(ci)));
+		}
+	}
+
+	if (energy_account) {
+		grid_ptr->etot_to_egas();
+	}
+	for (auto&& fut : child_futs) {
+		GET(fut);
+	}
+	for (auto&& fut : neighbor_futs) {
+		GET(fut);
+	}
+
+	for (integer i = 0; i != INX; ++i) {
+		for (integer j = 0; j != INX; ++j) {
+			for (integer k = 0; k != INX; ++k) {
+				const auto ff = fmm::four_force(i, j, k);
+				grid_ptr->set_4force(i, j, k, ff);
+			}
+		}
+	}
+#else
 	std::list<hpx::future<void>> child_futs;
 	std::list<hpx::future<void>> neighbor_futs;
 	hpx::future<void> parent_fut;
@@ -497,4 +587,5 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	for (auto&& fut : neighbor_futs) {
 		GET(fut);
 	}
+#endif
 }

@@ -12,10 +12,6 @@ typedef node_server::get_nieces_action get_nieces_action_type;
 HPX_REGISTER_ACTION (get_nieces_action_type);
 
 hpx::future<std::vector<hpx::id_type>> node_client::get_nieces(const hpx::id_type& aunt, const geo::face& f) const {
-	if( get_gid() == hpx::invalid_id) {
-		printf( "ERRRRO\n");
-		abort();
-	}
 	return hpx::async<typename node_server::get_nieces_action>(get_gid(), aunt, f);
 }
 

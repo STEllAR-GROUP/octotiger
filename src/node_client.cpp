@@ -8,26 +8,35 @@
 #include "node_server.hpp"
 
 hpx::id_type node_client::get_gid() const {
-	hpx::id_type i;
-	if( valid() ) {
-		i = base_type::get_gid();
-	} else {
-		i = hpx::invalid_id;
-	}
-	return i;
+	return id;
 }
 
+node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
+	id = fut.get();
+	return *this;
+}
+
+node_client& node_client::operator=(const hpx::id_type& _id) {
+	id = _id;
+	return *this;
+}
+
+node_client::node_client(hpx::future<hpx::id_type>&& fut) {
+	id = fut.get();
+}
+
+node_client::node_client(const hpx::id_type& _id) {
+	id = _id;
+}
+
+node_client::node_client() {
+}
+
+//hpx::future<grid::output_list_type> node_client::output() const {
+//	return hpx::async<typename node_server::output_action>(get_gid(), std::string(""));
+//}
+
 bool node_client::empty() const {
-	bool rc;
-	if( valid() ) {
-		if( get_gid() == hpx::invalid_id) {
-			rc = true;
-		} else {
-			rc = false;
-		}
-	} else {
-		rc = true;
-	}
-	return rc;
+	return get_gid() == hpx::invalid_id;
 }
 

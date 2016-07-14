@@ -255,9 +255,6 @@ public:
 
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
-	const std::vector<real>& get_field( integer f ) const;
-	void set_field( std::vector<real>&& data, integer f );
-	void set_field( const std::vector<real>& data, integer f );
 	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	std::vector<real> frac_volumes() const;
@@ -272,10 +269,6 @@ public:
 	grid(grid&&) = default;
 	grid& operator=(const grid&) = default;
 	grid& operator=(grid&&) = default;
-
-	real get_dx() const {
-		return dx;
-	}
 
 	std::pair<space_vector,space_vector> find_axis() const;
 

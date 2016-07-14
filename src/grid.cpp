@@ -383,19 +383,6 @@ std::vector<real> grid::get_restrict() const {
 	return data;
 }
 
-
-const std::vector<real>& grid::get_field( integer f ) const {
-	return U[f];
-}
-
-void grid::set_field( std::vector<real>&& data, integer f ) {
-	U[f] = std::move(data);
-}
-
-void grid::set_field( const std::vector<real>& data, integer f ) {
-	U[f] = data;
-}
-
 void grid::set_restrict(const std::vector<real>& data, const geo::octant& octant) {
 	integer index = 0;
 	const integer i0 = octant.get_side(XDIM) * (INX / 2);
@@ -627,9 +614,9 @@ std::vector<real> grid::l_sums() const {
 
 bool grid::refine_me(integer lev) const {
 	auto test = get_refine_test();
-//	if (lev < 1) {
-//		return true;
-//	}
+	if (lev < 2) {
+		return true;
+	}
 	bool rc = false;
 	for (integer i = H_BW - R_BW; i != H_NX - H_BW + R_BW; ++i) {
 		for (integer j = H_BW - R_BW; j != H_NX - H_BW + R_BW; ++j) {
