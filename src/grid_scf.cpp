@@ -32,9 +32,9 @@ static constexpr real mu2 = 1.0;// Primary ratio of molecular weights
 static constexpr real a = 1.00;// approx. orbital sep
 static constexpr real core_frac1 = 0.98;// Desired core fraction of primary // Ignored if equal_eos=true
 static constexpr real core_frac2 = 0.72;// Desired core fraction of secondary - IGNORED FOR CONTACT binaries
-static constexpr real fill1 = 0.99;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_eos=true
-static constexpr real fill2 = 0.99;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
-static real contact_fill = 0.0;//  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_eos=true
+static constexpr real fill1 = 0.999;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_eos=true
+static constexpr real fill2 = 0.999;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+static real contact_fill = 0.5;//  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_eos=true
 // Contact fill factor
 };
 
@@ -58,11 +58,8 @@ hpx::future<void> node_client::rho_move(real x) const {
 	return hpx::async<typename node_server::rho_move_action>(get_gid(), x);
 }
 
-hpx::future<real> node_client::scf_update(real com, real omega, real c1,
-		real c2, real c1_x, real c2_x, real l1_x, accretor_eos e1,
-		donor_eos e2) const {
-	return hpx::async<typename node_server::scf_update_action>(get_gid(), com,
-			omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
+hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos e1, donor_eos e2) const {
+	return hpx::async<typename node_server::scf_update_action>(get_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 }
 
 void node_server::rho_move(real x) {
@@ -73,28 +70,22 @@ void node_server::rho_move(real x) {
 			futs.push_back(child.rho_move(x));
 		}
 	}
-	const real dx = 2.0 * opts.xscale / real(INX)
-			/ real(1 << my_location.level());
+	const real dx = 2.0 * opts.xscale / real(INX) / real(1 << my_location.level());
 	real w = x / dx;
 	w = std::max(-0.5, std::min(0.5, w));
 	for (integer i = 1; i != H_NX - 1; ++i) {
 		for (integer j = 1; j != H_NX - 1; ++j) {
 			for (integer k = 1; k != H_NX - 1; ++k) {
 				for (integer si = spc_i; si != NSPECIES + spc_i; ++si) {
-					grid_ptr->hydro_value(si, i, j, k) += w
-							* grid_ptr->hydro_value(si, i + 1, j, k);
-					grid_ptr->hydro_value(si, i, j, k) -= w
-							* grid_ptr->hydro_value(si, i - 1, j, k);
-					grid_ptr->hydro_value(si, i, j, k) = std::max(
-							grid_ptr->hydro_value(si, i, j, k), 0.0);
+					grid_ptr->hydro_value(si, i, j, k) += w * grid_ptr->hydro_value(si, i + 1, j, k);
+					grid_ptr->hydro_value(si, i, j, k) -= w * grid_ptr->hydro_value(si, i - 1, j, k);
+					grid_ptr->hydro_value(si, i, j, k) = std::max(grid_ptr->hydro_value(si, i, j, k), 0.0);
 				}
 				grid_ptr->hydro_value(rho_i, i, j, k) = 0.0;
 				for (integer si = 0; si != NSPECIES; ++si) {
-					grid_ptr->hydro_value(rho_i, i, j, k) +=
-							grid_ptr->hydro_value(spc_i + si, i, j, k);
+					grid_ptr->hydro_value(rho_i, i, j, k) += grid_ptr->hydro_value(spc_i + si, i, j, k);
 				}
-				grid_ptr->hydro_value(rho_i, i, j, k) = std::max(
-						grid_ptr->hydro_value(rho_i, i, j, k), rho_floor);
+				grid_ptr->hydro_value(rho_i, i, j, k) = std::max(grid_ptr->hydro_value(rho_i, i, j, k), rho_floor);
 			}
 		}
 	}
@@ -122,8 +113,7 @@ void node_server::rho_mult(real f0, real f1) {
 				grid_ptr->hydro_value(spc_de_i, i, j, k) *= f1;
 				grid_ptr->hydro_value(rho_i, i, j, k) = 0.0;
 				for (integer si = 0; si != NSPECIES; ++si) {
-					grid_ptr->hydro_value(rho_i, i, j, k) +=
-							grid_ptr->hydro_value(spc_i + si, i, j, k);
+					grid_ptr->hydro_value(rho_i, i, j, k) += grid_ptr->hydro_value(spc_i + si, i, j, k);
 				}
 			}
 		}
@@ -135,22 +125,18 @@ void node_server::rho_mult(real f0, real f1) {
 	}
 }
 
-real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x,
-		real c2_x, real l1_x, accretor_eos e1, donor_eos e2) {
+real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos e1, donor_eos e2) {
 	grid::set_omega(omega);
 	std::vector < hpx::future < real >> futs;
 	real res;
 	if (is_refined) {
 		futs.reserve(NCHILD);
 		for (auto& child : children) {
-			futs.push_back(
-					child.scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1,
-							e2));
+			futs.push_back(child.scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2));
 		}
 		res = ZERO;
 	} else {
-		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1,
-				e2);
+		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries();
@@ -173,7 +159,7 @@ struct scf_parameters {
 	real c1_x;
 	real c2_x;
 	scf_parameters() {
-		if( scf_options::equal_eos) {
+		if (scf_options::equal_eos) {
 			scf_options::contact_fill = 0.0;
 		}
 		const real M1 = scf_options::M1;
@@ -189,29 +175,19 @@ struct scf_parameters {
 		l1_x = a * (0.5 - 0.227 * log10(q)) + c1_x;
 		omega = std::sqrt((G * (M1 + M2)) / (a * a * a));
 		const real fill2 = scf_options::fill2;
-		const real V1 = find_V(M1 / M2) * std::pow(a, 3.0)
-				* std::pow(fill1, 3.0);
-		const real V2 = find_V(M2 / M1) * std::pow(a, 3.0)
-				* std::pow(fill2, 3.0);
+		const real V1 = find_V(M1 / M2) * std::pow(a, 3.0) * std::pow(fill1, 3.0);
+		const real V2 = find_V(M2 / M1) * std::pow(a, 3.0) * std::pow(fill2, 3.0);
 		R1 = std::pow(V1 / c, 1.0 / 3.0);
 		R2 = std::pow(V2 / c, 1.0 / 3.0);
 		if (scf_options::equal_eos) {
-			eos2 =
-					std::make_shared < donor_eos
-							> (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
+			eos2 = std::make_shared < donor_eos > (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
 			eos1 = std::make_shared < accretor_eos > (scf_options::M1, scf_options::nc2, *eos2);
 		} else {
-			eos1 =
-					std::make_shared < accretor_eos
-							> (scf_options::M1, R1, scf_options::nc1, scf_options::ne1, scf_options::core_frac1, scf_options::mu1);
+			eos1 = std::make_shared < accretor_eos > (scf_options::M1, R1, scf_options::nc1, scf_options::ne1, scf_options::core_frac1, scf_options::mu1);
 			if (contact > 0.0) {
-				eos2 =
-						std::make_shared < donor_eos
-								> (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::mu2, *eos1);
+				eos2 = std::make_shared < donor_eos > (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::mu2, *eos1);
 			} else {
-				eos2 =
-						std::make_shared < donor_eos
-								> (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
+				eos2 = std::make_shared < donor_eos > (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
 			}
 		}
 	}
@@ -225,8 +201,7 @@ static scf_parameters& initial_params() {
 	return a;
 }
 
-real grid::scf_update(real com, real omega, real c1, real c2, real c1_x,
-		real c2_x, real l1_x, accretor_eos eos_1, donor_eos eos_2) {
+real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos eos_1, donor_eos eos_2) {
 	if (omega <= 0.0) {
 		printf("OMEGA <= 0.0\n");
 		abort();
@@ -242,11 +217,16 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x,
 				const real z = X[ZDIM][iiih];
 				const real R = std::sqrt(std::pow(x - com, 2) + y * y);
 				real rho = U[rho_i][iiih];
-				const real phi_eff = G[phi_i][iiig]
-						- 0.5 * std::pow(omega * R, 2);
-				const real fx = G[gx_i][iiig] + (x - com) * std::pow(omega, 2);
-				const real fy = G[gy_i][iiig] + y * std::pow(omega, 2);
-				const real fz = G[gz_i][iiig];
+				const real phi_eff = G[phi_i][iiig] - 0.5 * std::pow(omega * R, 2);
+	//			const real fx = G[gx_i][iiig] + (x - com) * std::pow(omega, 2);
+	//			const real fy = G[gy_i][iiig] + y * std::pow(omega, 2);
+	//			const real fz = G[gz_i][iiig];
+
+				real fx = -(G[phi_i][iiig + G_DNX] - G[phi_i][iiig - G_DNX]) / (2.0 * dx);
+				real fy = -(G[phi_i][iiig + G_DNY] - G[phi_i][iiig - G_DNY]) / (2.0 * dx);
+				real fz = -(G[phi_i][iiig + G_DNZ] - G[phi_i][iiig - G_DNZ]) / (2.0 * dx);
+				fx -= (std::pow(x - com + dx, 2.0) - std::pow(x - com - dx, 2.0)) * std::pow(omega, 2) / (2.0 * dx);
+				fy -= ((y + dx) * (y + dx) - (y - dx) * (y - dx)) * std::pow(omega, 2) / (2.0 * dx);
 
 				bool is_donor_side = x > l1_x + com;
 				real C = is_donor_side ? c2 : c1;
@@ -259,32 +239,20 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x,
 				if (g < 0.0) {
 					ASSERT_NONAN(phi_eff);
 					ASSERT_NONAN(C);
-					new_rho = std::max(
-							this_eos.enthalpy_to_density(
-									std::max(C - phi_eff, smallest)),
-							rho_floor);
+					new_rho = std::max(this_eos.enthalpy_to_density(std::max(C - phi_eff, smallest)), rho_floor);
 				} else {
 					new_rho = rho_floor;
 				}
 				ASSERT_NONAN(new_rho);
 				rho = std::max((1.0 - w0) * rho + w0 * new_rho, rho_floor);
-				eint = std::max(ei_floor,
-						this_eos.pressure(rho) / (fgamma - 1.0));
+				eint = std::max(ei_floor, this_eos.pressure(rho) / (fgamma - 1.0));
 
 				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
-				U[spc_ac_i][iiih] =
-						rho > this_eos.dE() ?
-								(is_donor_side ? 0.0 : rho0) : 0.0;
-				U[spc_dc_i][iiih] =
-						rho > this_eos.dE() ?
-								(is_donor_side ? rho0 : 0.0) : 0.0;
-				U[spc_ae_i][iiih] =
-						rho <= this_eos.dE() ?
-								(is_donor_side ? 0.0 : rho0) : 0.0;
-				U[spc_de_i][iiih] =
-						rho <= this_eos.dE() ?
-								(is_donor_side ? rho0 : 0.0) : 0.0;
+				U[spc_ac_i][iiih] = rho > this_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+				U[spc_dc_i][iiih] = rho > this_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+				U[spc_ae_i][iiih] = rho <= this_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+				U[spc_de_i][iiih] = rho <= this_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
 				U[spc_vac_i][iiih] = rho_floor;
 
 				U[sx_i][iiih] = -omega * y * rho;
@@ -302,8 +270,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x,
 	return 0.0;
 }
 
-real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3,
-		real y4, real x) {
+real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3, real y4, real x) {
 	x1 -= x2;
 	x3 -= x2;
 	x4 -= x2;
@@ -389,8 +356,7 @@ void node_server::run_scf() {
 		std::pair<real, real> l2_phi_pair;
 		std::pair<real, real> l3_phi_pair;
 		real phi_1, phi_2;
-		line_of_centers_analyze(loc, omega, rho1_max, rho2_max, l1_phi_pair,
-				l2_phi_pair, l3_phi_pair, phi_1, phi_2);
+		line_of_centers_analyze(loc, omega, rho1_max, rho2_max, l1_phi_pair, l2_phi_pair, l3_phi_pair, phi_1, phi_2);
 		real rho1, rho2;
 		if (rho1_max.first > rho2_max.first) {
 			std::swap(phi_1, phi_2);
@@ -407,7 +373,7 @@ void node_server::run_scf() {
 
 		//	printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
 		params.eos2->set_d0(rho2 * f1);
-		if( scf_options::equal_eos) {
+		if (scf_options::equal_eos) {
 			params.eos1->set_d0_using_eos(rho1 * f0, *(params.eos2));
 		} else {
 			params.eos1->set_d0(rho1 * f0);
@@ -417,7 +383,7 @@ void node_server::run_scf() {
 		real h_2 = params.eos2->h0();
 
 		real c_1, c_2;
-		if( scf_options::equal_eos) {
+		if (scf_options::equal_eos) {
 			const real alo2 = 1.0 - scf_options::fill2;
 			const real ahi2 = scf_options::fill2;
 			c_2 = phi_2 * alo2 + ahi2 * l1_phi;
@@ -434,12 +400,12 @@ void node_server::run_scf() {
 				const real ahi2 = scf_options::fill2;
 				c_1 = phi_1 * alo1 + ahi1 * l1_phi;
 				c_2 = phi_2 * alo2 + ahi2 * l1_phi;
-			//		c_1 = l1_phi;
-			//		c_2 = l1_phi;
+				//		c_1 = l1_phi;
+				//		c_2 = l1_phi;
 			}
 		}
 		//	printf( "%e %e %e\n", l1_phi, l2_phi, l3_phi);
-		if( !scf_options::equal_eos) {
+		if (!scf_options::equal_eos) {
 			params.eos1->set_h0(c_1 - phi_1);
 		}
 		params.eos2->set_h0(c_2 - phi_2);
@@ -450,8 +416,7 @@ void node_server::run_scf() {
 		real core_frac_2 = diags.grid_sum[spc_dc_i] / M2;
 		const real eptot = diags.grid_sum[pot_i];
 		const real ektot = diags.grid_sum[egas_i] - 0.5 * eptot;
-		const real virial = (2.0 * ektot + 0.5 * eptot)
-				/ (2.0 * ektot - 0.5 * eptot);
+		const real virial = (2.0 * ektot + 0.5 * eptot) / (2.0 * ektot - 0.5 * eptot);
 		const real v1 = diags.primary_volume;
 		const real v2 = diags.secondary_volume;
 		const real vfactor = 4.0 / 3.0 * M_PI;
@@ -461,13 +426,12 @@ void node_server::run_scf() {
 		const real g2 = std::sqrt(is2 / (r2 * r2) / M2);
 		const real etot = diags.grid_sum[egas_i] + 0.5 * diags.grid_sum[pot_i];
 		real e1f;
-		if( !scf_options::equal_eos) {
+		if (!scf_options::equal_eos) {
 			e1f = e1->get_frac();
 			if (core_frac_1 == 0.0) {
 				e1f = 0.5 + 0.5 * e1f;
 			} else {
-				e1f = (1.0 - w0) * e1f
-						+ w0 * std::pow(e1f, scf_options::core_frac1 / core_frac_1);
+				e1f = (1.0 - w0) * e1f + w0 * std::pow(e1f, scf_options::core_frac1 / core_frac_1);
 			}
 			e1->set_frac(e1f);
 		}
@@ -476,10 +440,7 @@ void node_server::run_scf() {
 			if (core_frac_2 == 0.0) {
 				e2f = 0.5 + 0.5 * e2f;
 			} else {
-				e2f = (1.0 - w0) * e2f
-						+ w0
-								* std::pow(e2f,
-										scf_options::core_frac2 / core_frac_2);
+				e2f = (1.0 - w0) * e2f + w0 * std::pow(e2f, scf_options::core_frac2 / core_frac_2);
 			}
 			e2->set_frac(e2f);
 		} else {
@@ -488,24 +449,17 @@ void node_server::run_scf() {
 		e1f = e1->get_frac();
 		e2f = e2->get_frac();
 		if (i % 5 == 0)
-			printf(
-					"%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n",
-					"rho1", "rho2", "M1", "M2", "omega", "virial",
-					"core_frac_1", "core_frac_2", "jorb", "c1_x", "c2_x",
-					"jtot", "etot", "spin_ratio", "g1", "g2", "e1f", "e2f",
-					"iorb", "is1", "is2");
-		lprintf("log.txt",
-				"%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n",
-				rho1, rho2, M1, M2, omega, virial, core_frac_1, core_frac_2,
-				jorb, c1_x, c2_x, j1 + j2 + jorb, etot, spin_ratio, g1, g2, e1f,
-				e2f, iorb, is1, is2);
+			printf("%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
+				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "c1_x", "c2_x", "jtot", "etot", "spin_ratio", "g1", "g2", "e1f", "e2f", "iorb", "is1",
+				"is2");
+		lprintf("log.txt", "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", rho1, rho2, M1, M2,
+			omega, virial, core_frac_1, core_frac_2, jorb, c1_x, c2_x, j1 + j2 + jorb, etot, spin_ratio, g1, g2, e1f, e2f, iorb, is1, is2);
 		if (i % 10 == 0) {
 			regrid(me.get_gid(), false);
 		}
 		grid::set_omega(omega);
 
-		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x,
-				*e1, *e2);
+		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
 		solve_gravity(false);
 
 	}
