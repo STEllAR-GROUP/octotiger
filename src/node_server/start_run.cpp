@@ -45,7 +45,7 @@ void node_server::start_run(bool scf) {
 		dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
 		dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
-		printf("%e %e %e\n", dv[XDIM], dv[YDIM], dv[ZDIM]);
+//		printf("%e %e %e\n", dv[XDIM], dv[YDIM], dv[ZDIM]);
 		this->velocity_inc(dv);
 	}
 

@@ -176,7 +176,7 @@ std::vector<sphere_point> generate_sphere_points(int nlev) {
 		pt.wx = std::abs(pt.nx) / pt.dl;
 		pt.wy = std::abs(pt.ny) / pt.dl;
 		pt.wz = std::abs(pt.nz) / pt.dl;
-		printf( "%e %e %e\n", pt.nx, pt.ny, pt.nz);
+	//	printf( "%e %e %e\n", pt.nx, pt.ny, pt.nz);
 	}
 	printf( "Generated %i sphere points\n", int(sphere_points.size()));
 	return sphere_points;

@@ -34,9 +34,10 @@ static constexpr real core_frac1 = 0.98;// Desired core fraction of primary // I
 static constexpr real core_frac2 = 0.72;// Desired core fraction of secondary - IGNORED FOR CONTACT binaries
 static constexpr real fill1 = 0.999;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_eos=true
 static constexpr real fill2 = 0.999;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
-static real contact_fill = 0.5;//  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_eos=true
+static real contact_fill = 0.5; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_eos=true
 // Contact fill factor
-};
+}
+;
 
 //0.5=.313
 //0.6 .305
@@ -218,25 +219,36 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				const real R = std::sqrt(std::pow(x - com, 2) + y * y);
 				real rho = U[rho_i][iiih];
 				const real phi_eff = G[phi_i][iiig] - 0.5 * std::pow(omega * R, 2);
-	//			const real fx = G[gx_i][iiig] + (x - com) * std::pow(omega, 2);
-	//			const real fy = G[gy_i][iiig] + y * std::pow(omega, 2);
-	//			const real fz = G[gz_i][iiig];
+				const real fx = G[gx_i][iiig] + (x - com) * std::pow(omega, 2);
+				const real fy = G[gy_i][iiig] + y * std::pow(omega, 2);
+				const real fz = G[gz_i][iiig];
 
-				real fx = -(G[phi_i][iiig + G_DNX] - G[phi_i][iiig - G_DNX]) / (2.0 * dx);
-				real fy = -(G[phi_i][iiig + G_DNY] - G[phi_i][iiig - G_DNY]) / (2.0 * dx);
-				real fz = -(G[phi_i][iiig + G_DNZ] - G[phi_i][iiig - G_DNZ]) / (2.0 * dx);
-				fx -= (std::pow(x - com + dx, 2.0) - std::pow(x - com - dx, 2.0)) * std::pow(omega, 2) / (2.0 * dx);
-				fy -= ((y + dx) * (y + dx) - (y - dx) * (y - dx)) * std::pow(omega, 2) / (2.0 * dx);
-
-				bool is_donor_side = x > l1_x + com;
+				bool is_donor_side;
+				real g;
+				real g1 = (x - c1_x) * fx + y * fy + z * fz;
+				real g2 = (x - c2_x) * fx + y * fy + z * fz;
+				if (x > l1_x + 10.0*dx) {
+					is_donor_side = true;
+					g = g2;
+				} else if (x < l1_x - 10.0*dx ) {
+					g = g1;
+					is_donor_side = false;
+				} else {
+					if( g1 < g2 ) {
+						is_donor_side = false;
+						g = g1;
+					} else {
+						is_donor_side = true;
+						g = g2;
+					}
+				}
 				real C = is_donor_side ? c2 : c1;
-				real x0 = is_donor_side ? c2_x : c1_x;
-				real g = (x - x0 - com) * fx + y * fy + z * fz;
+	//			real x0 = is_donor_side ? c2_x : c1_x;
 				auto this_eos = is_donor_side ? eos_2 : eos_1;
 
 				real new_rho, eint;
 				const auto smallest = 1.0e-20;
-				if (g < 0.0) {
+				if (g <= 0.0) {
 					ASSERT_NONAN(phi_eff);
 					ASSERT_NONAN(C);
 					new_rho = std::max(this_eos.enthalpy_to_density(std::max(C - phi_eff, smallest)), rho_floor);
