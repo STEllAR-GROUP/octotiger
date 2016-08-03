@@ -29,25 +29,18 @@ void node_server::start_run(bool scf) {
 	if (scf) {
 		run_scf();
 		set_pivot();
-		save_to_file("scf.chk");
-	}
-
-	printf("Starting...\n");
-//	regrid(me.get_gid(), false);
-	solve_gravity(false);
-	if (current_time == 0) {
-//		run_scf();
-		//	if (system("mkdir dat_back\n")) {
-		//	}
 		printf("Adjusting velocities:\n");
 		auto diag = diagnostics();
 		space_vector dv;
 		dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
 		dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
-//		printf("%e %e %e\n", dv[XDIM], dv[YDIM], dv[ZDIM]);
 		this->velocity_inc(dv);
+		save_to_file("scf.chk");
 	}
+
+	printf("Starting...\n");
+	solve_gravity(false);
 
 	real output_dt = 2.0 * M_PI / grid::get_omega() / 100.0;
 
