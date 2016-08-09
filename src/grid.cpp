@@ -294,11 +294,11 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 		lb0[d] /= 2;
 		ub0[d] /= 2;
 	}
-	const auto V = compute_primitives(lb0, ub0);
-	const auto dVdx = compute_primitive_slopes(V, 1.0, lb0, ub0);
+	auto V = compute_primitives(lb0, ub0);
+	auto dVdx = compute_primitive_slopes(V, 1.0, lb0, ub0);
 	auto dUdx = compute_conserved_slopes(V, dVdx, lb0, ub0);
 
-	for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
+	/*for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
 		for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) {
 			for (integer k = lb[ZDIM]; k < ub[ZDIM]; k += 2) {
 				const integer iii = hindex(i / 2, j / 2, k / 2);
@@ -309,7 +309,7 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 				}
 			}
 		}
-	}
+	}*/
 	for (integer field = 0; field != NF; ++field) {
 		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
 			const real xsgn = (i % 2) ? +1 : -1;
@@ -795,10 +795,24 @@ std::vector<std::vector<std::vector<real>>>grid::compute_primitive_slopes(const 
 	return dVdx;
 }
 
-std::vector<std::vector<std::vector<real>>>grid::compute_conserved_slopes(const std::vector<std::vector<real>>& V, const std::vector<std::vector<std::vector<real>>>& dVdx, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
+std::vector<std::vector<std::vector<real>>>grid::compute_conserved_slopes(std::vector<std::vector<real>>& V0, std::vector<std::vector<std::vector<real>>>& dVdx, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
 	std::vector < std::vector<std::vector<real>>> dUdx(NDIM,
 			std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 	const real theta = 1.0;
+	auto V = V0;
+	for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+		for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+#pragma GCC ivdep
+			for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+				const integer iii = hindex(i,j,k);
+				V[sx_i][iii] -= X[YDIM][iii] * omega;
+				V[sy_i][iii] += X[XDIM][iii] * omega;
+				V[zz_i][iii] += dx * dx * omega / 6.0;
+				dVdx[YDIM][sx_i][iii] -= dx * omega;
+				dVdx[XDIM][sy_i][iii] += dx * omega;
+			}
+		}
+	}
 	for (integer d0 = 0; d0 != NDIM; ++d0) {
 		auto& dV = dVdx[d0];
 		auto& dU = dUdx[d0];
@@ -825,25 +839,10 @@ std::vector<std::vector<std::vector<real>>>grid::compute_conserved_slopes(const 
 						dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
 						dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * std::pow(V[sx_i + d1][iii], 2);
 #ifdef ZCORRECT
-						dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii] + dV[zx_i + d1][iii] * V[rho_i][iii];
+						dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];// + dV[zx_i + d1][iii] * V[rho_i][iii];
 #endif
 					}
 				}
-			}
-		}
-	}
-	for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-		for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-#pragma GCC ivdep
-			for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-				const integer iii = hindex(i,j,k);
-				for (integer d = 0; d != NDIM; ++d) {
-					dUdx[d][sx_i][iii] -= X[YDIM][iii] * omega * dVdx[d][rho_i][iii];
-					dUdx[d][sy_i][iii] += X[XDIM][iii] * omega * dVdx[d][rho_i][iii];
-					dUdx[d][zz_i][iii] += dx * dx * omega * dVdx[d][rho_i][iii] / 6.0;
-				}
-				dUdx[YDIM][sx_i][iii] -= dx * omega * V[rho_i][iii];
-				dUdx[XDIM][sy_i][iii] += dx * omega * V[rho_i][iii];
 			}
 		}
 	}
