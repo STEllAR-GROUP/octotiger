@@ -792,21 +792,6 @@ std::vector<std::vector<std::vector<real>>>grid::compute_primitive_slopes(const 
 		}
 	}
 #endif
-	for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-		for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-#pragma GCC ivdep
-			for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-				const integer iii = hindex(i,j,k);
-				for (integer d = 0; d != NDIM; ++d) {
-					dVdx[d][sx_i][iii] -= X[YDIM][iii] * omega * dVdx[d][rho_i][iii];
-					dVdx[d][sy_i][iii] += X[XDIM][iii] * omega * dVdx[d][rho_i][iii];
-					dVdx[d][zz_i][iii] += dx * dx * omega * dVdx[d][rho_i][iii] / 6.0;
-				}
-				dVdx[YDIM][sx_i][iii] -= dx * omega * V[rho_i][iii];
-				dVdx[XDIM][sy_i][iii] += dx * omega * V[rho_i][iii];
-			}
-		}
-	}
 	return dVdx;
 }
 
@@ -844,6 +829,21 @@ std::vector<std::vector<std::vector<real>>>grid::compute_conserved_slopes(const 
 #endif
 					}
 				}
+			}
+		}
+	}
+	for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+		for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+#pragma GCC ivdep
+			for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+				const integer iii = hindex(i,j,k);
+				for (integer d = 0; d != NDIM; ++d) {
+					dUdx[d][sx_i][iii] -= X[YDIM][iii] * omega * dVdx[d][rho_i][iii];
+					dUdx[d][sy_i][iii] += X[XDIM][iii] * omega * dVdx[d][rho_i][iii];
+					dUdx[d][zz_i][iii] += dx * dx * omega * dVdx[d][rho_i][iii] / 6.0;
+				}
+				dUdx[YDIM][sx_i][iii] -= dx * omega * V[rho_i][iii];
+				dUdx[XDIM][sy_i][iii] += dx * omega * V[rho_i][iii];
 			}
 		}
 	}
