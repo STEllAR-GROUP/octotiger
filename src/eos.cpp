@@ -129,7 +129,7 @@ bipolytropic_eos::bipolytropic_eos(real M, real R, real _n_C, real _n_E,  real m
 		initialize(m, r);
 		M0 *= M / m;
 		R0 *= R / r;
-		printf( "%e %e %e\n", s0(), s0() - other.s0(), frac);
+	//	printf( "%e %e %e\n", s0(), s0() - other.s0(), frac);
 		return s0() - other.s0();
 	};
 	real new_frac;
@@ -174,7 +174,7 @@ bipolytropic_eos::bipolytropic_eos(real M, real R, real _n_C, real _n_E, real co
 		f_C = icd;
 		f_E = icd / mu;
 		initialize(m, r, cm);
-		printf( "%e %e %e\n", icd, cm/m, core_frac);
+//		printf( "%e %e %e\n", icd, cm/m, core_frac);
 		return cm - core_frac*m;
 	};
 	auto _func = std::function<real(real)>(func);
