@@ -15,6 +15,6 @@ constexpr real de_switch2 = real(1.0e-3);
 constexpr real de_switch1 = real(1.0e-1);
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL,
-		std::array<std::vector<real>, NF>& UR,  const std::vector<space_vector>& X, real omega, integer dimension);
+		std::array<std::vector<real>, NF>& UR,  const std::vector<space_vector>& X, real omega, integer dimension, real dx);
 
 #endif /* ROE_HPP_ */
