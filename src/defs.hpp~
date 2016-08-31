@@ -58,7 +58,7 @@ enum gsolve_type {
 #endif
 
 #define USE_ROTATING_FRAME
-#define OUTPUT_FREQ (100.0)
+#define OUTPUT_FREQ (100.0);
 
 //#define USE_SPHERICAL
 constexpr integer M_POLES = 3;

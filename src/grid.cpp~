@@ -234,6 +234,7 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM>& lb, c
 			}
 		}
 	}
+
 	return data;
 }
 

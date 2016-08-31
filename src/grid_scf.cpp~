@@ -339,7 +339,7 @@ void node_server::run_scf() {
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
 		if (i % 5 == 0)
-			output(ptr, i);
+			output(ptr);
 		free(ptr);
 		auto diags = diagnostics();
 		real f0 = scf_options::M1 / (diags.primary_sum[rho_i]);

@@ -19,7 +19,7 @@ grid::output_list_type node_server::output(std::string fname, int cycle) const {
 	if (is_refined) {
 		std::list<hpx::future<grid::output_list_type>> futs;
 		for (auto i = children.begin(); i != children.end(); ++i) {
-			futs.push_back(i->output(fname,cycle));
+			futs.push_back(i->output(fname));
 		}
 		auto i = futs.begin();
 		grid::output_list_type my_list = GET(*i);

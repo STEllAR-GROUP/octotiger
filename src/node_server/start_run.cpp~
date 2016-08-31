@@ -42,7 +42,7 @@ void node_server::start_run(bool scf) {
 	printf("Starting...\n");
 	solve_gravity(false);
 
-	real output_dt = 1.0 / OUTPUT_FREQ;
+	real output_dt = 1.0 / 100.0;
 
 	printf("OMEGA = %e\n", grid::get_omega());
 	real& t = current_time;

@@ -137,7 +137,7 @@ public:
 	void set_gravity_boundary(const std::vector<real>&, const geo::direction&, bool monopole);
 	std::vector<real> get_gravity_boundary(const geo::direction& dir);
 
-	grid::output_list_type output(std::string fname, int cycle) const;
+	grid::output_list_type output(std::string fname) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
 
 

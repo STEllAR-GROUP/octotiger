@@ -124,7 +124,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	if (my_location.level() == 0) {
 		if (do_output) {
 			diagnostics();
-			grid::output(my_list, "data.silo", current_time, get_rotation_count()*OUTPUT_FREQ);
+			grid::output(my_list, "data.silo", current_time, get_rotation_count()*100);
 		}
 		printf("Loaded checkpoint file\n");
 		my_list = decltype(my_list)();
