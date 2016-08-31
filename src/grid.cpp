@@ -1078,9 +1078,9 @@ void grid::reconstruct() {
 			real zx_lim = +(slpy[sz_i][iii] - slpz[sy_i][iii]) / 12.0;
 			real zy_lim = -(slpx[sz_i][iii] - slpz[sx_i][iii]) /  12.0;
 			real zz_lim = +(slpx[sy_i][iii] - slpy[sx_i][iii]) /  12.0;
-			Uf[face][zx_i][iii] = U[zx_i][iii] - zx_lim;
-			Uf[face][zy_i][iii] = U[zy_i][iii] - zy_lim;
-			Uf[face][zz_i][iii] = U[zz_i][iii] - zz_lim;
+			Uf[face][zx_i][iii] = U[zx_i][iii] - zx_lim * dx;
+			Uf[face][zy_i][iii] = U[zy_i][iii] - zy_lim * dx;
+			Uf[face][zz_i][iii] = U[zz_i][iii] - zz_lim * dx;
 		}
 	}
 	for (integer field = 0; field != NF; ++field) {
