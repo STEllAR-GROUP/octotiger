@@ -19,6 +19,7 @@ struct diagnostics_t {
 	real secondary_z_moment;
 	std::vector<real> grid_sum;
 	real primary_volume, secondary_volume;
+	real roche_vol1, roche_vol2;
 	space_vector primary_com;
 	space_vector secondary_com;
 	space_vector grid_com;
@@ -43,6 +44,8 @@ struct diagnostics_t {
 		arc & primary_z_moment;
 		arc & secondary_z_moment;
 		arc & primary_volume;
+		arc & roche_vol1;
+		arc & roche_vol2;
 		arc & secondary_volume;
 		arc & primary_com_dot;
 		arc & secondary_com_dot;
