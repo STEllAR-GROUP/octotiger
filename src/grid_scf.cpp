@@ -12,6 +12,7 @@
 #include "options.hpp"
 #include "eos.hpp"
 #include "util.hpp"
+#include "profiler.hpp"
 extern options opts;
 
 // w0 = speed of convergence. Adjust lower if nan
@@ -20,11 +21,11 @@ const real rho_floor = 1.0e-15;
 
 namespace scf_options {
 
-static constexpr real async1 = -5.0e-2;
-static constexpr real async2 = -5.0e-2;
+static constexpr real async1 = -0.0e-2;
+static constexpr real async2 = -0.0e-2;
 static constexpr bool equal_eos = false; // If true, EOS of accretor will be set to that of donor
 static constexpr real M1 = 1.0;// Mass of primary
-static constexpr real M2 = 0.115;// Mass of secondarys
+static constexpr real M2 = 0.5;// Mass of secondarys
 static constexpr real nc1 = 2.9;// Primary core polytropic index
 static constexpr real nc2 = 2.9;// Secondary core polytropic index
 static constexpr real ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_eos=true
@@ -32,11 +33,11 @@ static constexpr real ne2 = 1.5;// Secondary envelope polytropic index
 static constexpr real mu1 = 1.0;// Primary ratio of molecular weights // Ignored if equal_eos=true
 static constexpr real mu2 = 1.0;// Primary ratio of molecular weights
 static constexpr real a = 1.00;// approx. orbital sep
-static constexpr real core_frac1 = 0.99;// Desired core fraction of primary // Ignored if equal_eos=true
-static constexpr real core_frac2 = 0.99;// Desired core fraction of secondary - IGNORED FOR CONTACT binaries
-static constexpr real fill1 = 0.80;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_eos=true
-static constexpr real fill2 = 0.99999999999;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
-static real contact_fill = 0.01; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_eos=true
+static constexpr real core_frac1 = 0.9;// Desired core fraction of primary // Ignored if equal_eos=true
+static constexpr real core_frac2 = 0.9;// Desired core fraction of secondary - IGNORED FOR CONTACT binaries
+static constexpr real fill1 = 1.0;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_eos=true
+static constexpr real fill2 = 1.0;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_eos=true
 // Contact fill factor
 }
 ;
@@ -205,6 +206,7 @@ static scf_parameters& initial_params() {
 }
 
 real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos eos_1, donor_eos eos_2) {
+	PROF_BEGIN;
 	if (omega <= 0.0) {
 		printf("OMEGA <= 0.0\n");
 		abort();
@@ -213,7 +215,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer D = G_BW - H_BW;
-				const integer iiih = hindex(i, j, k);
+					const integer iiih = hindex(i, j, k);
 				const integer iiig = gindex(i + D, j + D, k + D);
 				const real x = X[XDIM][iiih];
 				const real y = X[YDIM][iiih];
@@ -229,13 +231,13 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				real g;
 				real g1 = (x - c1_x) * fx + y * fy + z * fz;
 				real g2 = (x - c2_x) * fx + y * fy + z * fz;
-				if (x > l1_x + 10.0*dx) {
+				if (x >= l1_x /*+ 10.0*dx*/) {
 					is_donor_side = true;
 					g = g2;
-				} else if (x < l1_x - 10.0*dx ) {
+				} else if (x <= l1_x /*- 10.0*dx*/ ) {
 					g = g1;
 					is_donor_side = false;
-				} else {
+				} /*else {
 					if( g1 < g2 ) {
 						is_donor_side = false;
 						g = g1;
@@ -243,7 +245,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 						is_donor_side = true;
 						g = g2;
 					}
-				}
+				}*/
 				real C = is_donor_side ? c2 : c1;
 	//			real x0 = is_donor_side ? c2_x : c1_x;
 				auto this_eos = is_donor_side ? eos_2 : eos_1;
@@ -293,7 +295,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 			}
 		}
 	}
-
+	PROF_END;
 	return 0.0;
 }
 
@@ -334,6 +336,7 @@ void node_server::run_scf() {
 	real jorb0;
 	grid::set_omega(omega);
 	for (integer i = 0; i != 100; ++i) {
+//		profiler_output(stdout);
 		if (asprintf(&ptr, "X.scf.%i.silo", int(i)))
 			;
 		auto& params = initial_params();
@@ -481,10 +484,9 @@ void node_server::run_scf() {
 		jmin = std::sqrt((M1 + M2)) * (mu * std::pow( amin, 0.5 ) + (is1 + is2) * std::pow( amin, -1.5 ));
 		if (i % 5 == 0)
 			printf("%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
-				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "etot", "spin_ratio", "r1", "r2", "e1f", "e2f", "iorb", "is1",
-				"is2");
+				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "r1", "r2", "iorb", "pvol", "proche", "svol", "sroche");
 		lprintf("log.txt", "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", rho1, rho2, M1, M2,
-			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, etot, spin_ratio, r1, r2, e1f, e2f, iorb, is1, is2);
+			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1, diags.secondary_volume, diags.roche_vol2);
 		if (i % 10 == 0) {
 			regrid(me.get_gid(), false);
 		}

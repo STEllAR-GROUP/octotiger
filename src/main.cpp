@@ -16,6 +16,8 @@ bool gravity_on = true;
 bool hydro_on = true;
 HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
 
+
+
 void initialize(options _opts) {
 	opts = _opts;
 //#ifndef NDEBUG

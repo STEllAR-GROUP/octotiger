@@ -8,6 +8,14 @@
 #include <cmath>
 #include <stdio.h>
 #include <functional>
+#include <unordered_map>
+#include <memory>
+#include <stack>
+#include <atomic>
+#include <mpi/mpi.h>
+#include "defs.hpp"
+
+using real = double;
 
 
 int file_copy(const char* fin, const char* fout) {

@@ -8,6 +8,7 @@
 
 #include "../node_server.hpp"
 #include "../node_client.hpp"
+#include "../profiler.hpp"
 
 typedef node_server::step_action step_action_type;
 HPX_REGISTER_ACTION (step_action_type);
@@ -33,6 +34,7 @@ void node_server::step() {
 	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
 	real cfl0 = cfl;
 
+	/***** optimization possible here *****/
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries().get();
 	grid_ptr->store();

@@ -6,8 +6,10 @@
  */
 #include "grid.hpp"
 #include "simd.hpp"
+#include "profiler.hpp"
 
 void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
+	PROF_BEGIN;
 	real b0[3], b1[3], A, bdif;
 	int iter = 0;
 	for (int l = 0; l < 3; l++) {
@@ -46,9 +48,11 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
 		}
 		lambda[l] = sqrt(A) / sqrt(e[l][0] * e[l][0] + e[l][1] * e[l][1] + e[l][2] * e[l][2]);
 	}
+	PROF_END;
 }
 
 std::pair<space_vector,space_vector> grid::find_axis() const {
+	PROF_BEGIN;
 	real quad_moment[NDIM][NDIM];
 	real eigen[NDIM][NDIM];
 	real lambda[NDIM];
@@ -97,6 +101,7 @@ std::pair<space_vector,space_vector> grid::find_axis() const {
 	std::pair<space_vector,space_vector> pair;
 	pair.first = rc;
 	pair.second = this_com;
+	PROF_END;
 	return pair;
 }
 
@@ -107,7 +112,7 @@ void grid::solve_gravity(gsolve_type type) {
 	compute_expansions(type);
 }
 void grid::compute_interactions(gsolve_type type) {
-
+	PROF_BEGIN;
 	npair np;
 	dpair dp;
 	std::array < simd_vector, NDIM > X;
@@ -286,6 +291,7 @@ void grid::compute_interactions(gsolve_type type) {
 			}
 		}
 	}
+	PROF_END;
 }
 
 void grid::compute_boundary_interactions(gsolve_type type, const geo::direction& dir, bool is_monopole) {
@@ -306,7 +312,7 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
 }
 
 void grid::compute_boundary_interactions_multipole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
-
+	PROF_BEGIN;
 	const integer list_size = ilist_n_bnd.size();
 	npair np;
 	std::array < simd_vector, NDIM > X;
@@ -403,10 +409,11 @@ void grid::compute_boundary_interactions_multipole(gsolve_type type, const std::
 			}
 		}
 	}
-
+	PROF_END;
 }
 
 void grid::compute_boundary_interactions_monopole(gsolve_type type, const std::vector<npair>& ilist_d_bnd) {
+	PROF_BEGIN;
 	const integer dsize = ilist_d_bnd.size();
 	dpair dp;
 	std::array < simd_vector, NDIM > X;
@@ -452,11 +459,11 @@ void grid::compute_boundary_interactions_monopole(gsolve_type type, const std::v
 			}
 		}
 	}
-
+	PROF_END;
 }
 
 void grid::compute_ilist() {
-
+	PROF_BEGIN;
 	std::vector<std::vector<geo::direction> > neighbor_num(nlevel,
 			std::vector<geo::direction>(G_N3, geo::direction(-1)));
 	integer lev = nlevel - 2;
@@ -571,9 +578,11 @@ void grid::compute_ilist() {
 		ilist_n_bnd[dir] = std::vector<npair>(ilist_n0_bnd[dir].begin(), ilist_n0_bnd[dir].end());
 		ilist_d_bnd[dir] = std::vector<dpair>(ilist_d0_bnd[dir].begin(), ilist_d0_bnd[dir].end());
 	}
+	PROF_END;
 }
 
 expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_pass_type* parent_expansions) {
+	PROF_BEGIN;
 	integer lev = is_root ? nlevel - 1 : 1;
 	expansion_pass_type exp_ret;
 	if (!is_leaf) {
@@ -672,10 +681,12 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 			}
 		}
 	}
+	PROF_END;
 	return exp_ret;
 }
 
 multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_pass_type* child_poles) {
+	PROF_BEGIN;
 	integer lev = 0;
 	const real dx3 = dx * dx * dx;
 
@@ -782,5 +793,6 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 		++lev;
 		index = 0;
 	}
+	PROF_END;
 	return mret;
 }

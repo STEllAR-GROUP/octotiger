@@ -208,7 +208,7 @@ public:
 	std::uintptr_t get_ptr();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_ptr, get_ptr_action);
 
-	diagnostics_t diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1) const;
+	diagnostics_t diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
 	diagnostics_t diagnostics() const;

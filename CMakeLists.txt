@@ -22,13 +22,14 @@ find_package(MPI REQUIRED)
 ################################################################################
 include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 
-#set( CMAKE_CXX_FLAGS "-g3 -O0 -march=native -Wno-attributes -Wno-deprecated-declarations" )
+#set( CMAKE_CXX_FLAGS "-g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )
 
 add_hpx_executable(
   octotiger
   DEPENDENCIES
         silo
-  SOURCES 	
+  SOURCES 
+        src/profiler.cpp	
       	src/eos.cpp
 		src/geometry.cpp
 		src/grid.cpp

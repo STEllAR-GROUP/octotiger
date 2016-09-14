@@ -152,6 +152,7 @@ private:
 	static space_vector pivot;
 	static real scaling_factor;
 
+
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
@@ -259,7 +260,7 @@ public:
 	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	std::vector<real> frac_volumes() const;
-	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, bool donor) const;
+	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real, bool donor) const;
 	std::vector<real> l_sums() const;
 	std::vector<real> gforce_sum(bool torque) const;
 	std::vector<real> conserved_outflows() const;

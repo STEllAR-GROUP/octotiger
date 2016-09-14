@@ -42,7 +42,7 @@ public:
 	hpx::future<void> send_hydro_children( std::vector<real>&&,  const geo::octant& ci) const;
 	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
-	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1) const;
+	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	hpx::future<grid::output_list_type> output(std::string fname, int) const;
 	node_client();
 	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;

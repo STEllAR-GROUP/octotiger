@@ -8,6 +8,7 @@
 
 #include "../node_server.hpp"
 #include "../node_client.hpp"
+#include "../profiler.hpp"
 
 typedef node_server::start_run_action start_run_action_type;
 HPX_REGISTER_ACTION (start_run_action_type);
@@ -55,6 +56,7 @@ void node_server::start_run(bool scf) {
 	hpx::future<void> diag_fut = hpx::make_ready_future();
 	hpx::future<void> step_fut = hpx::make_ready_future();
 	while (true) {
+		profiler_output(stdout);
 		auto time_start = std::chrono::high_resolution_clock::now();
 		if (root_ptr->get_rotation_count()  / output_dt >= output_cnt) {
 			char* fname;

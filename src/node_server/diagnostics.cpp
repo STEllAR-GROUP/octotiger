@@ -15,8 +15,8 @@ extern options opts;
 typedef node_server::diagnostics_action diagnostics_action_type;
 HPX_REGISTER_ACTION(diagnostics_action_type);
 
-hpx::future<diagnostics_t> node_client::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1) const {
-	return hpx::async<typename node_server::diagnostics_action>(get_gid(), axis, l1);
+hpx::future<diagnostics_t> node_client::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const {
+	return hpx::async<typename node_server::diagnostics_action>(get_gid(), axis, l1, c1, c2);
 }
 
 diagnostics_t node_server::diagnostics() const {
@@ -34,7 +34,7 @@ diagnostics_t node_server::diagnostics() const {
 	//		line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, phi_1, phi_2);
 	//	}
 //	}
-	auto diags = diagnostics(axis, l1);
+	auto diags = diagnostics(axis, l1, rho1.first, rho2.first);
 
 	diags.z_moment -= diags.grid_sum[rho_i] * (std::pow(diags.grid_com[XDIM], 2) + std::pow(diags.grid_com[YDIM], 2));
 	diags.primary_z_moment -= diags.primary_sum[rho_i] * (std::pow(diags.primary_com[XDIM], 2) + std::pow(diags.primary_com[YDIM], 2));
@@ -136,13 +136,13 @@ diagnostics_t node_server::diagnostics() const {
 	return diags;
 }
 
-diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1) const {
+diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1,real c1, real c2) const {
 
 	diagnostics_t sums;
 	if (is_refined) {
 		std::list<hpx::future<diagnostics_t>> futs;
 		for (integer ci = 0; ci != NCHILD; ++ci) {
-			futs.push_back(children[ci].diagnostics(axis, l1));
+			futs.push_back(children[ci].diagnostics(axis, l1, c1, c2));
 		}
 		for (auto ci = futs.begin(); ci != futs.end(); ++ci) {
 			auto this_sum = GET(*ci);
@@ -166,8 +166,8 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
 		sums.l1_error = tmp2.first;
 		sums.l2_error = tmp2.second;
 		auto vols = grid_ptr->frac_volumes();
-		sums.roche_vol1 = grid_ptr->roche_volume(axis, l1, false);
-		sums.roche_vol2 = grid_ptr->roche_volume(axis, l1, true);
+		sums.roche_vol1 = grid_ptr->roche_volume(axis, l1, std::min(c1,c2), false);
+		sums.roche_vol2 = grid_ptr->roche_volume(axis, l1, std::max(c1,c2), true);
 		sums.primary_volume = vols[spc_ac_i - spc_i] + vols[spc_ae_i - spc_i];
 		sums.secondary_volume = vols[spc_dc_i - spc_i] + vols[spc_de_i - spc_i];
 		sums.z_moment = grid_ptr->z_moments(axis, l1, 0);
