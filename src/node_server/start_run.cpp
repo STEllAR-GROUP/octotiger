@@ -5,19 +5,16 @@
  *      Author: dmarce1
  */
 
-
 #include "../node_server.hpp"
 #include "../node_client.hpp"
 #include "../profiler.hpp"
 
 typedef node_server::start_run_action start_run_action_type;
-HPX_REGISTER_ACTION (start_run_action_type);
-
+HPX_REGISTER_ACTION(start_run_action_type);
 
 hpx::future<void> node_client::start_run(bool b) const {
 	return hpx::async<typename node_server::start_run_action>(get_gid(), b);
 }
-
 
 void node_server::start_run(bool scf) {
 	integer output_cnt;
@@ -55,21 +52,24 @@ void node_server::start_run(bool scf) {
 	output_cnt = root_ptr->get_rotation_count() / output_dt;
 	hpx::future<void> diag_fut = hpx::make_ready_future();
 	hpx::future<void> step_fut = hpx::make_ready_future();
+	profiler_output(stdout);
 	while (true) {
-		profiler_output(stdout);
 		auto time_start = std::chrono::high_resolution_clock::now();
-		if (root_ptr->get_rotation_count()  / output_dt >= output_cnt) {
-			char* fname;
+		if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
+			if (step_num != 0) {
 
-			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
+				char* fname;
+
+				if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
+				}
+				save_to_file(fname);
+				free(fname);
+				if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
+				}
+				output(fname, output_cnt);
+				free(fname);
+				//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
 			}
-			save_to_file(fname);
-			free(fname);
-			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
-			}
-			output(fname, output_cnt);
-			free(fname);
-			//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
 			++output_cnt;
 
 		}
@@ -79,31 +79,28 @@ void node_server::start_run(bool scf) {
 		real dt = GET(ts_fut);
 		auto diags = diagnostics();
 
-		const real dx = diags.secondary_com[XDIM]-diags.primary_com[XDIM];
-		const real dy = diags.secondary_com[YDIM]-diags.primary_com[YDIM];
-		const real dx_dot = diags.secondary_com_dot[XDIM]-diags.primary_com_dot[XDIM];
-		const real dy_dot = diags.secondary_com_dot[YDIM]-diags.primary_com_dot[YDIM];
-		const real theta = atan2(dy,dx);
+		const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
+		const real dy = diags.secondary_com[YDIM] - diags.primary_com[YDIM];
+		const real dx_dot = diags.secondary_com_dot[XDIM] - diags.primary_com_dot[XDIM];
+		const real dy_dot = diags.secondary_com_dot[YDIM] - diags.primary_com_dot[YDIM];
+		const real theta = atan2(dy, dx);
 		real omega = grid::get_omega();
-		const real theta_dot = (dy_dot * dx - dx_dot * dy) / (dx*dx+dy*dy) - omega;
+		const real theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
 		const real w0 = grid::get_omega() * 100.0;
-		const real theta_dot_dot = (2.0*w0*theta_dot+w0*w0*theta);
+		const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
 		real omega_dot;
 		omega_dot = theta_dot_dot;
-		omega += omega_dot*dt;
+		omega += omega_dot * dt;
 //		omega_dot += theta_dot_dot*dt;
 		grid::set_omega(omega);
 
-		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
-				std::chrono::high_resolution_clock::now() - time_start).count();
+		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - time_start).count();
 		GET(step_fut);
-		step_fut =
-				hpx::async(
-						[=]() {
-							FILE* fp = fopen( "step.dat", "at");
-							fprintf(fp, "%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
-							fclose(fp);
-						});
+		step_fut = hpx::async([=]() {
+			FILE* fp = fopen( "step.dat", "at");
+			fprintf(fp, "%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+			fclose(fp);
+		});
 		printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
 
 //		t += dt;
@@ -112,9 +109,13 @@ void node_server::start_run(bool scf) {
 		const integer refinement_freq = integer(R_BW / cfl + 0.5);
 		if (step_num % refinement_freq == 0) {
 			regrid(me.get_gid(), false);
+			FILE* fp = fopen("profile.txt", "wt");
+			profiler_output(fp);
+			fclose(fp);
+			break;
 		}
 //		set_omega_and_pivot();
-		if(scf) {
+		if (scf) {
 			break;
 		}
 	}

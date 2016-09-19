@@ -8,6 +8,8 @@
 
 #include "../node_server.hpp"
 #include "../node_client.hpp"
+#include "taylor.hpp"
+
 
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
 HPX_REGISTER_ACTION (send_gravity_boundary_action_type);

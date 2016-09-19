@@ -16,22 +16,56 @@
 static thread_local std::stack<std::string> callstack;
 static thread_local real t = 0.0;
 std::unordered_map<std::string, std::shared_ptr<real> > map;
-std::atomic<int> lock(0);
 
-static void accumulate() {
+std::string make_name(const char* f, const char* l) {
+	std::string str = f;
+	str += "+";
+	str += l;
+	return str;
+}
+
+std::atomic<int>& lock() {
+	static std::atomic<int> a(0);
+	return a;
+}
+
+profiler_register::profiler_register(const char* func) {
+	std::string str(func);
+	while (lock()++ != 0) {
+		lock()--;}
+auto 	cntptr = std::make_shared < real > (0.0);
+	std::pair<std::string, std::shared_ptr<real> > entry;
+	entry.first = str;
+	entry.second = cntptr;
+	map.insert(entry);
+	lock()--;}
+
+profiler_register ::profiler_register(const char* func, const char* label) {
+	std::string str(make_name(func, label));
+	while (lock()++ != 0) {
+		lock()--;}
+auto 	cntptr = std::make_shared < real > (0.0);
+	std::pair<std::string, std::shared_ptr<real> > entry;
+	entry.first = str;
+	entry.second = cntptr;
+	map.insert(entry);
+	lock()--;}
+
+static/**/void accumulate() {
 	const real told = t;
 	t = MPI_Wtime();
 	if (!callstack.empty()) {
 		const std::string& str(callstack.top());
-		while (lock++ != 0) {
-			lock--;
-		}
-		auto ptr = map[str];
-		lock--;
-		real dt = t - told;
+		while (lock()++ != 0) {
+			lock()--;}
+auto 		ptr = map[str];
+		lock()--;real
+		dt = t - told;
 		(*ptr) += dt;
 	}
 }
+
+static profiler_register prof_reg("OTHER");
 
 void profiler_enter(const char* func) {
 	accumulate();
@@ -41,17 +75,12 @@ void profiler_enter(const char* func) {
 			profiler_enter("OTHER");
 		}
 	}
-	if (map.find(str) == map.end()) {
-		while (lock++ != 0) {
-			lock--;
-		}
-		auto cntptr = std::make_shared < real > (0.0);
-		std::pair<std::string, std::shared_ptr<real> > entry;
-		entry.first = str;
-		entry.second = cntptr;
-		map.insert(entry);
-		lock--;
-	}
+	callstack.push(str);
+}
+
+void profiler_sub_enter(const char* func, const char* label) {
+	std::string str(make_name(func, label));
+	accumulate();
 	callstack.push(str);
 }
 
@@ -60,24 +89,29 @@ void profiler_exit() {
 	callstack.pop();
 }
 
-void profiler_output(FILE* fp) {
-	while (lock++ != 0) {
-		lock--;
-	}
+void profiler_output(FILE* _fp) {
+#ifndef PROFILE_OFF
 	std::map<real, std::string> ranks;
 	real ttot = 0.0;
 	for (auto i = map.begin(); i != map.end(); ++i) {
-		real tm = *(i->second);
+		real& tm = *(i->second);
 		ranks[tm] = i->first;
 		ttot += tm;
+		tm = 0.0;
 	}
-	int r = 1;
-	fprintf(fp, "\n");
-	for (auto i = ranks.end(); i != ranks.begin(); r <= 10) {
-		i--;
-		fprintf(fp, "%4i %52s %.2f %%\n", r++, i->second.c_str(), i->first * 100.0 / ttot);
+	FILE* fps[2];
+	fps[0] = _fp;
+	fps[1] = stdout;
+	for (int f = 0; f != 2; f++) {
+		int r = 1;
+		FILE* fp = fps[f];
+		fprintf(fp, "%f total seconds\n", ttot);
+		for (auto i = ranks.end(); i != ranks.begin(); r <= 10) {
+			i--;
+			fprintf(fp, "%4i %52s %8.2f %% %8.2f\n", r++, i->second.c_str(), i->first * 100.0 / ttot, i->first);
+		}
+		fprintf(fp, "\n");
 	}
-	fprintf(fp, "\n");
-	lock--;
+#endif
 }
 

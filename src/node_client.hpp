@@ -10,7 +10,6 @@
 
 #include "defs.hpp"
 #include "node_location.hpp"
-#include "taylor.hpp"
 #include "grid.hpp"
 #include "geometry.hpp"
 #include "eos.hpp"

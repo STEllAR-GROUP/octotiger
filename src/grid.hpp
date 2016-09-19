@@ -10,7 +10,6 @@
 
 #include "defs.hpp"
 #include "roe.hpp"
-#include "taylor.hpp"
 #include "space_vector.hpp"
 #include "geometry.hpp"
 #include <functional>
@@ -21,12 +20,21 @@
 #include <list>
 //#include "valarray.hpp"
 
+template<int N, class T>
+class taylor;
+
+typedef taylor<4, real> multipole;
+typedef taylor<4, real> expansion;
+typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
+typedef std::pair<std::vector<expansion>, std::vector<expansion>> expansion_pass_type;
+
+
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
-void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
-		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real&, real&);
+void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
+	std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real&, real&);
 
 struct npair {
 	integer lev;
@@ -90,7 +98,7 @@ struct scf_data_t {
 		arc & accretor_central_density;
 	}
 	scf_data_t() {
-		donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits < real > ::max();
+		donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits<real>::max();
 		accretor_mass = donor_mass = donor_central_enthalpy = accretor_central_enthalpy = ZERO;
 		phiA = phiB = phiC = 0.0;
 		virial_sum = virial_norm = 0.0;
@@ -152,10 +160,12 @@ private:
 	static space_vector pivot;
 	static real scaling_factor;
 
-
+	std::vector<std::vector<real>> V;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
+	std::vector < std::vector<std::vector<real>>> dVdx;
+	std::vector < std::vector<std::vector<real>>> dUdx;
 	std::vector<std::array<std::vector<real>, NF>> Uf;
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
@@ -165,7 +175,9 @@ private:
 	std::vector<std::vector<real>> src;
 
 	std::vector<std::vector<dpair>> ilist_d_bnd;
-	std::vector<std::vector<npair>> ilist_n_bnd;bool is_root;bool is_leaf;
+	std::vector<std::vector<npair>> ilist_n_bnd;
+	bool is_root;
+	bool is_leaf;
 	std::vector<std::vector<multipole> > M;
 	std::vector<std::vector<expansion> > L;
 	std::vector<std::vector<expansion> > L_c;
@@ -191,7 +203,8 @@ public:
 		return scaling_factor;
 	}
 	void set_root(bool flag = true);
-	void set_leaf(bool flag = true);bool get_leaf() const {
+	void set_leaf(bool flag = true);
+	bool get_leaf() const {
 		return is_leaf;
 	}
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
@@ -211,8 +224,9 @@ public:
 			G[f][iii] = four_force[f];
 		}
 	}
-	std::vector<std::vector<std::vector<real>>>compute_conserved_slopes(std::vector<std::vector<real>>& V, std::vector<std::vector<std::vector<real>>>& dV, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});std::vector < std::vector<std::vector<real>>> compute_primitive_slopes(const std::vector<std::vector<real>>& V, real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
-	std::vector<std::vector<real>> compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
+	void compute_conserved_slopes( const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
+	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
+	void compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
 	void set_coordinates();
 	scf_data_t scf_params();
 	real scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos);
@@ -226,13 +240,13 @@ public:
 	void set_outflows(std::vector<real>&&);
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb,
-			const std::array<integer, NDIM>& ub, const geo::dimension&) const;
+		const std::array<integer, NDIM>& ub, const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb,
-			const std::array<integer, NDIM>& ub);
+		const std::array<integer, NDIM>& ub);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb,
-			const std::array<integer, NDIM>& ub, const geo::dimension&);
+		const std::array<integer, NDIM>& ub, const geo::dimension&);
 	real& hydro_value(integer, integer, integer, integer);
 	real hydro_value(integer, integer, integer, integer) const;
 	multipole& multipole_value(integer, integer, integer, integer);
@@ -275,68 +289,9 @@ public:
 
 	std::pair<space_vector,space_vector> find_axis() const;
 
-	std::vector<real> get_gravity_boundary(const geo::direction& dir) {
-
-		std::array<integer, NDIM> lb, ub;
-		std::vector<real> data;
-		integer size = get_boundary_size(lb, ub, dir, INNER, G_BW);
-		const bool is_refined = !is_leaf;
-		if (is_refined) {
-			size *= 20 + 3;
-		} else {
-			size *= 1 + 3;
-		}
-		data.resize(size);
-		integer iter = 0;
-
-		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					const auto& m = multipole_value(0, i, j, k);
-					const auto& com = center_of_mass_value(i, j, k);
-					const integer top = is_refined ? m.size() : 1;
-					for (integer l = 0; l < top; ++l) {
-						data[iter] = m.ptr()[l];
-						++iter;
-					}
-					for (integer d = 0; d != NDIM; ++d) {
-						data[iter] = com[d];
-						++iter;
-					}
-				}
-			}
-		}
-
-		return data;
-	}
-
+	std::vector<real> get_gravity_boundary(const geo::direction& dir);
 	void set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir,
-			bool monopole) {
-		std::array<integer, NDIM> lb, ub;
-		get_boundary_size(lb, ub, dir, OUTER, G_BW);
-		integer iter = 0;
-		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					auto& m = multipole_value(0, i, j, k);
-					auto& com = center_of_mass_value(i, j, k);
-					const integer top = monopole ? 1 : m.size();
-					for (integer l = 0; l < top; ++l) {
-						m.ptr()[l] = data[iter];
-						++iter;
-					}
-					for (integer l = top; l < m.size(); ++l) {
-						m.ptr()[l] = ZERO;
-					}
-					for (integer d = 0; d != NDIM; ++d) {
-						com[d] = data[iter];
-						++iter;
-					}
-				}
-			}
-		}
-	}
-
+		bool monopole);
 	void allocate();
 	void reconstruct();
 	void store();
@@ -374,7 +329,6 @@ public:
 	}
 	HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
-
 	std::size_t load(FILE* fp);
 	std::size_t save(FILE* fp) const;
 
@@ -390,7 +344,8 @@ struct grid::node_point {
 		arc & pt[ZDIM];
 		arc & index;
 	}
-	bool operator==(const grid::node_point& other) const;bool operator<(const grid::node_point& other) const;
+	bool operator==(const grid::node_point& other) const;
+	bool operator<(const grid::node_point& other) const;
 };
 
 struct grid::output_list_type {

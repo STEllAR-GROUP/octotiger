@@ -11,7 +11,7 @@
 #ifdef __MIC__
 constexpr std::size_t alignment = 64;
 #else
-constexpr std::size_t alignment = 16;
+constexpr std::size_t alignment = 32;
 #endif
 
 

@@ -1,9 +1,3 @@
-/*
- * grid.cpp
- *
- *  Created on: May 26, 2015
- *      Author: dmarce1
- */
 
 #include "grid.hpp"
 #include "problem.hpp"
@@ -11,6 +5,7 @@
 #include <cmath>
 #include <cassert>
 #include "profiler.hpp"
+#include "taylor.hpp"
 
 extern options opts;
 
@@ -82,7 +77,7 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 				const real y = X[YDIM][iiih];
 				const real z = X[ZDIM][iiih];
 				if (opts.problem == SOLID_SPHERE) {
-					const auto a = solid_sphere_analytic_phi(x, y, z, 0.0);
+					const auto a = solid_sphere_analytic_phi(x, y, z, 0.25);
 					std::vector<real> n(4);
 					n[phi_i] = G[phi_i][iii];
 					n[gx_i] = G[gx_i][iii];
@@ -300,9 +295,9 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 		lb0[d] /= 2;
 		ub0[d] /= 2;
 	}
-	auto V = compute_primitives(lb0, ub0);
-	auto dVdx = compute_primitive_slopes(V, 1.0, lb0, ub0);
-	auto dUdx = compute_conserved_slopes(V, dVdx, lb0, ub0);
+	compute_primitives(lb0, ub0);
+	compute_primitive_slopes(1.0, lb0, ub0);
+	compute_conserved_slopes(lb0, ub0);
 
 	for (integer field = 0; field != NF; ++field) {
 		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
@@ -759,9 +754,9 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 	allocate();
 }
 
-std::vector<std::vector<real>> grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub) {
+void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub) {
 	PROF_BEGIN;
-	auto V = U;
+	V = U;
 	for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
 		for (integer j = lb[YDIM] - 1; j != ub[YDIM] + 1; ++j) {
 #pragma GCC ivdep
@@ -789,13 +784,10 @@ std::vector<std::vector<real>> grid::compute_primitives(const std::array<integer
 		}
 	}
 	PROF_END;
-	return V;
 }
 
-std::vector<std::vector<std::vector<real>>>grid::compute_primitive_slopes(const std::vector<std::vector<real>>& V, real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
+void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
 	PROF_BEGIN;
-	std::vector < std::vector<std::vector<real>>> dVdx(NDIM,
-		std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 	for (integer f = 0; f != NF; ++f) {
 		const auto& v = V[f];
 		for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
@@ -842,15 +834,11 @@ std::vector<std::vector<std::vector<real>>>grid::compute_primitive_slopes(const 
 	}
 #endif
 	PROF_END;
-	return dVdx;
 }
 
-std::vector<std::vector<std::vector<real>>>grid::compute_conserved_slopes(std::vector<std::vector<real>>& V0, std::vector<std::vector<std::vector<real>>>& dVdx, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
+void grid::compute_conserved_slopes( const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
 	PROF_BEGIN;
-	std::vector < std::vector<std::vector<real>>> dUdx(NDIM,
-		std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 	const real theta = 1.0;
-	auto V = V0;
 	for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
 		for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
 #pragma GCC ivdep
@@ -898,7 +886,6 @@ std::vector<std::vector<std::vector<real>>>grid::compute_conserved_slopes(std::v
 		}
 	}
 	PROF_END;
-	return dUdx;
 }
 
 void grid::set_root(bool flag) {
@@ -990,6 +977,11 @@ void grid::allocate() {
 		}
 		++nlevel;
 	}
+	dVdx = std::vector < std::vector<std::vector<real>>>(NDIM,
+		std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+	dUdx = std::vector < std::vector<std::vector<real>>>(NDIM,
+		std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+
 	set_coordinates();
 	compute_ilist();
 	PROF_END;
@@ -998,7 +990,7 @@ void grid::allocate() {
 grid::grid() :
 	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(
 		false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
-//	allocate();
+	allocate();
 }
 
 grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xmin) :
@@ -1295,6 +1287,69 @@ void grid::reconstruct() {
 		}
 	}
 	PROF_END;
+}
+
+
+std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
+
+	std::array<integer, NDIM> lb, ub;
+	std::vector<real> data;
+	integer size = get_boundary_size(lb, ub, dir, INNER, G_BW);
+	const bool is_refined = !is_leaf;
+	if (is_refined) {
+		size *= 20 + 3;
+	} else {
+		size *= 1 + 3;
+	}
+	data.resize(size);
+	integer iter = 0;
+
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				const auto& m = multipole_value(0, i, j, k);
+				const auto& com = center_of_mass_value(i, j, k);
+				const integer top = is_refined ? m.size() : 1;
+				for (integer l = 0; l < top; ++l) {
+					data[iter] = m.ptr()[l];
+					++iter;
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					data[iter] = com[d];
+					++iter;
+				}
+			}
+		}
+	}
+
+	return data;
+}
+
+void grid::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir,
+	bool monopole) {
+	std::array<integer, NDIM> lb, ub;
+	get_boundary_size(lb, ub, dir, OUTER, G_BW);
+	integer iter = 0;
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				auto& m = multipole_value(0, i, j, k);
+				auto& com = center_of_mass_value(i, j, k);
+				const integer top = monopole ? 1 : m.size();
+				for (integer l = 0; l < top; ++l) {
+					m.ptr()[l] = data[iter];
+					++iter;
+				}
+				for (integer l = top; l < m.size(); ++l) {
+					m.ptr()[l] = ZERO;
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					com[d] = data[iter];
+					++iter;
+				}
+			}
+		}
+	}
 }
 
 real grid::compute_fluxes() {

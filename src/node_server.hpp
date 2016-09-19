@@ -110,7 +110,8 @@ private:
 	static std::atomic<integer> static_initializing;
 
 	void initialize(real, real);
-	hpx::future<void> collect_hydro_boundaries();
+	void send_hydro_amr_boundaries();
+	void collect_hydro_boundaries();
 	void exchange_interlevel_hydro_data();
 	static void static_initialize();
 	void clear_family();

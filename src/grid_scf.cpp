@@ -95,6 +95,7 @@ void node_server::rho_move(real x) {
 	}
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries();
+	send_hydro_amr_boundaries();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -124,6 +125,7 @@ void node_server::rho_mult(real f0, real f1) {
 	}
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries();
+	send_hydro_amr_boundaries();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -144,6 +146,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	}
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries();
+	send_hydro_amr_boundaries();
 	for (auto&& fut : futs) {
 		res += fut.get();
 	}
@@ -215,7 +218,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer D = G_BW - H_BW;
-					const integer iiih = hindex(i, j, k);
+				const integer iiih = hindex(i, j, k);
 				const integer iiig = gindex(i + D, j + D, k + D);
 				const real x = X[XDIM][iiih];
 				const real y = X[YDIM][iiih];
@@ -234,30 +237,30 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				if (x >= l1_x /*+ 10.0*dx*/) {
 					is_donor_side = true;
 					g = g2;
-				} else if (x <= l1_x /*- 10.0*dx*/ ) {
+				} else if (x <= l1_x /*- 10.0*dx*/) {
 					g = g1;
 					is_donor_side = false;
 				} /*else {
-					if( g1 < g2 ) {
-						is_donor_side = false;
-						g = g1;
-					} else {
-						is_donor_side = true;
-						g = g2;
-					}
-				}*/
+				 if( g1 < g2 ) {
+				 is_donor_side = false;
+				 g = g1;
+				 } else {
+				 is_donor_side = true;
+				 g = g2;
+				 }
+				 }*/
 				real C = is_donor_side ? c2 : c1;
-	//			real x0 = is_donor_side ? c2_x : c1_x;
+				//			real x0 = is_donor_side ? c2_x : c1_x;
 				auto this_eos = is_donor_side ? eos_2 : eos_1;
 				real cx, ti_omega, Rc;
-				if( !is_donor_side ) {
+				if (!is_donor_side) {
 					cx = c1_x;
 					ti_omega = scf_options::async1 * omega;
 				} else {
 					cx = c2_x;
 					ti_omega = scf_options::async2 * omega;
 				}
-			//	Rc = std::sqrt( x*x + cx*cx - 2.0*x*cx + y*y );
+				//	Rc = std::sqrt( x*x + cx*cx - 2.0*x*cx + y*y );
 				phi_eff -= 0.5 * ti_omega * ti_omega * R * R;
 				phi_eff -= omega * ti_omega * R * R;
 				phi_eff += (omega + ti_omega) * ti_omega * cx * x;
@@ -341,8 +344,11 @@ void node_server::run_scf() {
 			;
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
-		if (i % 5 == 0)
+		if (i % 5 == 0) {
 			output(ptr, i);
+			save_to_file("scf.chk");
+
+		}
 		free(ptr);
 		auto diags = diagnostics();
 		real f0 = scf_options::M1 / (diags.primary_sum[rho_i]);
@@ -480,13 +486,15 @@ void node_server::run_scf() {
 		e2f = e2->get_frac();
 		real amin, jmin, mu;
 		mu = M1 * M2 / (M1 + M2);
-		amin = std::sqrt( 3.0 * (is1 + is2) / mu );
-		jmin = std::sqrt((M1 + M2)) * (mu * std::pow( amin, 0.5 ) + (is1 + is2) * std::pow( amin, -1.5 ));
+		amin = std::sqrt(3.0 * (is1 + is2) / mu);
+		jmin = std::sqrt((M1 + M2)) * (mu * std::pow(amin, 0.5) + (is1 + is2) * std::pow(amin, -1.5));
 		if (i % 5 == 0)
 			printf("%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
-				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "r1", "r2", "iorb", "pvol", "proche", "svol", "sroche");
+				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "r1", "r2", "iorb", "pvol", "proche", "svol",
+				"sroche");
 		lprintf("log.txt", "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", rho1, rho2, M1, M2,
-			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1, diags.secondary_volume, diags.roche_vol2);
+			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
+			diags.secondary_volume, diags.roche_vol2);
 		if (i % 10 == 0) {
 			regrid(me.get_gid(), false);
 		}

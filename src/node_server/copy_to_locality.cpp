@@ -10,6 +10,7 @@
 
 #include "../node_server.hpp"
 #include "../node_client.hpp"
+#include "taylor.hpp"
 
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;

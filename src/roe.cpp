@@ -42,7 +42,6 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 			vf[YDIM][jjj] = +omega * X[index][XDIM];
 			vf[ZDIM][jjj] = ZERO;
 		}
-//		this_simd_len = std::min(integer(simd_len), integer(sz - iii));
 		this_simd_len = simd_len;
 		const simd_vector v_r0 = ur[u_i] / ur[rho_i];
 		const simd_vector v_r = v_r0 - vf[u_i - vx_i];
@@ -70,14 +69,7 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 		const simd_vector p_l = (fgamma - ONE) * ei_l;
 		const simd_vector c_l = sqrt(fgamma * p_l / ul[rho_i]);
 
-//		const simd_vector zv_l = abs(ul[zv_i] / (ul[rho_i] * dx)) * (3.0/4.0);
-//		const simd_vector zv_r = abs(ur[zv_i] / (ur[rho_i] * dx)) * (3.0/4.0);
-//		const simd_vector zw_l = abs(ul[zw_i] / (ul[rho_i] * dx)) * (3.0/4.0);
-	//	const simd_vector zw_r = abs(ur[zw_i] / (ur[rho_i] * dx)) * (3.0/4.0);
-
-		simd_vector a;
-		a = max(abs(v_r) + c_r, abs(v_l) + c_l);
-//		a = max(abs(v_r) + c_r + zv_r + zw_r, abs(v_l) + c_l + zv_l + zw_l);
+		const simd_vector a = max(abs(v_r) + c_r, abs(v_l) + c_l);
 
 		std::array<simd_vector, NF> f;
 		for (integer field = 0; field != NF; ++field) {

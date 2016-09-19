@@ -12,12 +12,11 @@
 #include <fstream>
 #include <iostream>
 #include "options.hpp"
+#include "taylor.hpp"
 #include <sys/stat.h>
 #include <unistd.h>
 
-
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
-
 
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
@@ -32,8 +31,6 @@ void node_server::set_gravity(bool b) {
 void node_server::set_hydro(bool b) {
 	hydro_on = b;
 }
-
-
 
 hpx::future<void> node_server::exchange_flux_corrections() {
 	const geo::octant ci = my_location.get_child_index();
@@ -124,8 +121,9 @@ void node_server::exchange_interlevel_hydro_data() {
 	GET(fut);
 }
 
-hpx::future<void> node_server::collect_hydro_boundaries() {
+void node_server::collect_hydro_boundaries() {
 	std::list<hpx::future<void>> futs;
+
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			auto bdata = get_hydro_boundary(dir);
@@ -147,7 +145,15 @@ hpx::future<void> node_server::collect_hydro_boundaries() {
 		}
 	}
 
+	for (auto&& fut : futs) {
+		fut.get();
+	}
+}
+
+void node_server::send_hydro_amr_boundaries() {
+
 	if (is_refined) {
+		std::list<hpx::future<void>> futs;
 		for (auto& ci : geo::octant::full_set()) {
 			const auto& flags = amr_flags[ci];
 			for (auto& dir : geo::direction::full_set()) {
@@ -164,15 +170,11 @@ hpx::future<void> node_server::collect_hydro_boundaries() {
 				}
 			}
 		}
+		for (auto&& fut : futs) {
+			fut.get();
+		}
 	}
-	for (auto&& fut : futs) {
-		fut.get();
-	}
-	return hpx::make_ready_future();
-	/*	auto allfuts = hpx::when_all(futs.begin(), futs.end());
-	 return allfuts.then([](hpx::future<std::vector<hpx::future<void>>>&& futs){
-	 return;
-	 });*/
+
 }
 
 std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir) {
@@ -231,7 +233,7 @@ std::size_t node_server::save_me(FILE* fp) const {
 #include "util.hpp"
 
 void node_server::save_to_file(const std::string& fname) const {
-	save(0,fname);
+	save(0, fname);
 	file_copy(fname.c_str(), "restart.chk");
 //	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
 //	SYSTEM(command);
@@ -272,8 +274,6 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::d
 	}
 }
 
-
-
 void node_server::clear_family() {
 	parent = hpx::invalid_id;
 	me = hpx::invalid_id;
@@ -282,7 +282,6 @@ void node_server::clear_family() {
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
 	std::fill(nieces.begin(), nieces.end(), std::vector<node_client>());
 }
-
 
 integer child_index_to_quadrant_index(integer ci, integer dim) {
 	integer index;
@@ -296,9 +295,8 @@ integer child_index_to_quadrant_index(integer ci, integer dim) {
 	return index;
 }
 
-node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
-		real _rotational_time, const std::array<integer, NCHILD>& _child_d, grid _grid,
-		const std::vector<hpx::id_type>& _c) {
+node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
+	const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
 	is_refined = _is_refined;
@@ -317,7 +315,6 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 bool node_server::child_is_on_face(integer ci, integer face) {
 	return (((ci >> (face / 2)) & 1) == (face & 1));
 }
-
 
 void node_server::static_initialize() {
 	if (!static_initialized) {
@@ -394,10 +391,9 @@ node_server::node_server() {
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt) :
-		my_location(loc), parent(parent_id) {
+	my_location(loc), parent(parent_id) {
 	initialize(t, rt);
 }
-
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
@@ -483,7 +479,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	std::list<hpx::future<void>> child_futs;
 	std::list<hpx::future<void>> neighbor_futs;
 	hpx::future<void> parent_fut;
-
 	if (energy_account) {
 		grid_ptr->egas_to_etot();
 	}

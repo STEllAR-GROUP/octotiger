@@ -10,6 +10,8 @@
 
 #include "../node_server.hpp"
 #include "../node_client.hpp"
+#include "taylor.hpp"
+
 
 
 typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;

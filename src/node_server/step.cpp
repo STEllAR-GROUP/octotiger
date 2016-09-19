@@ -36,7 +36,8 @@ void node_server::step() {
 
 	/***** optimization possible here *****/
 	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries().get();
+	collect_hydro_boundaries();
+	send_hydro_amr_boundaries();
 	grid_ptr->store();
 
 	for (integer rk = 0; rk < NRK; ++rk) {
@@ -59,7 +60,8 @@ void node_server::step() {
 
 		compute_fmm(RHO, true);
 		exchange_interlevel_hydro_data();
-		collect_hydro_boundaries().get();
+		collect_hydro_boundaries();
+		send_hydro_amr_boundaries();
 	}
 	grid_ptr->dual_energy_update();
 	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {

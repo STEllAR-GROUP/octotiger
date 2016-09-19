@@ -103,8 +103,9 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 	const real M = 1.0;
 	std::vector<real> g(4);
 	x -= xshift;
-//	y0 -= 0.5;
-//	z -= 0.2565;
+//	x0 -= -0.0444;
+//	y0 -= +0.345;
+//	z0 -= -.2565;
 	const real r = std::sqrt(x * x + y * y + z * z);
 	const real r3 = r * r * r;
 	const real Menc = M * std::pow(std::min(r / r0, 1.0), 3);
@@ -136,9 +137,10 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
 	const real drho = 1.0 / real(N * N * N) / V;
 	std::vector<real> u(NF, real(0));
-	x0 -= -0.0444;
-	y0 -= +0.345;
-	z0 -= -.2565;
+	x0 -= xshift;
+//	x0 -= -0.0444;
+//	y0 -= +0.345;
+//	z0 -= -.2565;
 	const auto mm = [](real a, real b) {
 		if( a * b < ZERO ) {
 			return ZERO;

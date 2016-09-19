@@ -56,7 +56,7 @@ void initialize(options _opts) {
 	} else if (opts.problem == SOLID_SPHERE) {
 		hydro_on = false;
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
-			return solid_sphere(x,y,z,dx,0.5);
+			return solid_sphere(x,y,z,dx,0.25);
 		}));
 	} else {
 		printf("No problem specified\n");

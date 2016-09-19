@@ -6,14 +6,14 @@
  */
 
 #include "taylor.hpp"
+#include "simd.hpp"
 
 integer taylor_consts::map4[3][3][3][3];
 integer taylor_consts::map2[3][3] = { { 0, 1, 2 }, { 1, 3, 4 }, { 2, 4, 5 } };
-integer taylor_consts::map3[3][3][3] = { { { 0, 1, 2 }, { 1, 3, 4 }, { 2, 4, 5 } }, { { 1, 3, 4 }, { 3, 6, 7 }, { 4, 7,
-		8 } }, { { 2, 4, 5 }, { 4, 7, 8 }, { 5, 8, 9 } } };
+integer taylor_consts::map3[3][3][3] = { { { 0, 1, 2 }, { 1, 3, 4 }, { 2, 4, 5 } }, { { 1, 3, 4 }, { 3, 6, 7 }, { 4, 7, 8 } }, { { 2, 4, 5 }, { 4, 7, 8 }, { 5,
+	8, 9 } } };
 
-const real taylor_consts::delta[3][3] = { {ONE, ZERO, ZERO}, {ZERO, ONE, ZERO}, {ZERO, ZERO, ONE}};
-
+const real taylor_consts::delta[3][3] = { { ONE, ZERO, ZERO }, { ZERO, ONE, ZERO }, { ZERO, ZERO, ONE } };
 
 static __attribute__((constructor)) void init() {
 	integer m = 20;
@@ -60,3 +60,67 @@ static __attribute__((constructor)) void init() {
 	}
 }
 
+template<>
+void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
+	constexpr
+	integer N = 5;
+	using T = simd_vector;
+	//PROF_BEGIN;
+	taylor<N, T>& A = *this;
+	taylor<N - 1, T> XX;
+	T r2 = X[0] * X[0] + X[1] * X[1] + X[2] * X[2];
+	auto this_one = X[0];
+	this_one = ONE;
+	const T r2inv = this_one / r2;
+
+	for (integer a = 0; a != NDIM; a++) {
+		XX(a) = X[a];
+		for (integer b = a; b != NDIM; b++) {
+			XX(a, b) = X[a] * X[b];
+			for (integer c = b; c != NDIM; c++) {
+				XX(a, b, c) = X[a] * X[b] * X[c];
+			}
+		}
+	}
+
+	const T d0 = -sqrt(r2inv);
+	const T d1 = -d0 * r2inv;
+	const T d2 = -T(3) * d1 * r2inv;
+	const T d3 = -T(5) * d2 * r2inv;
+	const T d4 = -T(7) * d3 * r2inv;
+
+	A() = d0;
+	for (integer a = 0; a != NDIM; a++) {
+		A(a) = XX(a) * d1;
+		for (integer b = a; b != NDIM; b++) {
+			A(a, b) = XX(a, b) * d2;
+			for (integer c = b; c != NDIM; c++) {
+				A(a, b, c) = XX(a, b, c) * d3;
+				for (integer d = c; d != NDIM && c != NDIM; ++d) {
+					A(a, b, c, d) = 0.0;
+				}
+			}
+		}
+	}
+
+	for (integer a = 0; a != NDIM; a++) {
+		A(a, a) += d1;
+		A(a, a, a) += XX(a) * d2;
+		A(a, a, a, a) += XX(a,a)* d3;
+		A(a, a, a, a) += 2.0 * d2;
+		for (integer b = a; b != NDIM; b++) {
+			A(a, a, b) += XX(b) * d2;
+			A(a, b, b) += XX(a) * d2;
+			A(a, a, a, b) += XX(a, b) * d3;
+			A(a, b, b, b) += XX(a, b) * d3;
+			A(a, a, b, b) += d2;
+			for (integer c = b; c != NDIM; c++) {
+				A(a, a, b, c) += XX(b, c) * d3;
+				A(a, b, b, c) += XX(a, c) * d3;
+				A(a, b, c, c) += XX(a, b) * d3;
+			}
+		}
+	}
+
+	//PROF_END;
+}
