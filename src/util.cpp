@@ -13,7 +13,7 @@
 #include <memory>
 #include <stack>
 #include <atomic>
-#include <mpi/mpi.h>
+#include <mpi.h>
 #include "defs.hpp"
 
 using real = double;
