@@ -12,11 +12,9 @@
 
 
 struct profiler_register {
-	profiler_register(const char*);
-	profiler_register(const char*, const char*);
+	profiler_register(const char*, int);
 };
-void profiler_enter(const char* func);
-void profiler_sub_enter(const char* func, const char* label);
+void profiler_enter(const char* func, int line);
 void profiler_exit();
 void profiler_output(FILE* fp);
 
@@ -27,10 +25,8 @@ void profiler_output(FILE* fp);
 #define PROF_BEGIN
 #define PROF_END
 #else
-#define PROF_BEGIN static profiler_register prof_reg(__FUNCTION__); \
-	                       profiler_enter(__FUNCTION__)
-#define PROF_SUB_BEGIN(label) static profiler_register prof_reg(__FUNCTION__, label); \
-	                           profiler_sub_enter(__FUNCTION__, label)
+#define PROF_BEGIN static profiler_register prof_reg(__FUNCTION__, __LINE__); \
+	                       profiler_enter(__FUNCTION__, __LINE__)
 #define PROF_END profiler_exit()
 #endif
 

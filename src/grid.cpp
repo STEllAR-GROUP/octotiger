@@ -1,4 +1,3 @@
-
 #include "grid.hpp"
 #include "problem.hpp"
 #include "options.hpp"
@@ -461,7 +460,7 @@ real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const
 				real z = X[ZDIM][iii];
 				const real R = std::sqrt(x0 * x0 + y * y);
 				real phi_eff = G[phi_i][iiig] - 0.5 * std::pow(omega * R, 2);
-			//	real factor = axis.first[0] == l1.first ? 0.5 : 1.0;
+				//	real factor = axis.first[0] == l1.first ? 0.5 : 1.0;
 				if ((x0 <= l1.first && !donor) || (x0 >= l1.first && donor)) {
 					if (phi_eff <= l1.second) {
 						const real fx = G[gx_i][iiig] + x0 * std::pow(omega, 2);
@@ -469,7 +468,7 @@ real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const
 						const real fz = G[gz_i][iiig];
 						real g = x * fx + y * fy + z * fz;
 						if (g <= 0.0) {
-							V +=  dV;
+							V += dV;
 						}
 					}
 				}
@@ -786,14 +785,14 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 	PROF_END;
 }
 
-void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
+void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub) {
 	PROF_BEGIN;
 	for (integer f = 0; f != NF; ++f) {
 		const auto& v = V[f];
-		for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-			for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
 #pragma GCC ivdep
-				for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 					const integer iii = hindex(i,j,k);
 					const auto v0 = v[iii];
 					dVdx[XDIM][f][iii] = minmod_theta(v[iii + H_DNX] - v0, v0 - v[iii - H_DNX], theta);
@@ -804,10 +803,10 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 		}
 	}
 #ifdef ZCORRECT
-	for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-		for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+	for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
 #pragma GCC ivdep
-			for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+			for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 				const integer iii = hindex(i,j,k);
 				real dV_sym[3][3];
 				real dV_ant[3][3];
@@ -826,7 +825,7 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 				for (integer d0 = 0; d0 != NDIM; ++d0) {
 					for (integer d1 = 0; d1 != NDIM; ++d1) {
 						const real tmp = dV_sym[d0][d1] + dV_ant[d0][d1];
-						dVdx[d0][sx_i + d1][iii] = minmod(tmp, 2.0/theta * dVdx[d0][sx_i + d1][iii]);
+						dVdx[d0][sx_i + d1][iii] = minmod(tmp, 2.0 / theta * dVdx[d0][sx_i + d1][iii]);
 					}
 				}
 			}
@@ -836,13 +835,13 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 	PROF_END;
 }
 
-void grid::compute_conserved_slopes( const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub ) {
+void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub) {
 	PROF_BEGIN;
 	const real theta = 1.0;
-	for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-		for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+	for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
 #pragma GCC ivdep
-			for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+			for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 				const integer iii = hindex(i,j,k);
 				V[sx_i][iii] -= X[YDIM][iii] * omega;
 				V[sy_i][iii] += X[XDIM][iii] * omega;
@@ -855,15 +854,15 @@ void grid::compute_conserved_slopes( const std::array<integer, NDIM> lb, const s
 	for (integer d0 = 0; d0 != NDIM; ++d0) {
 		auto& dV = dVdx[d0];
 		auto& dU = dUdx[d0];
-		for( integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-			for( integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
 #pragma GCC ivdep
-				for( integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 					const integer iii = hindex(i,j,k);
 					dU[rho_i][iii] = dV[rho_i][iii];
 
-					for( integer si = 0; si != NSPECIES; ++si) {
-						dU[spc_i+si][iii] = V[spc_i+si][iii] * dV[rho_i][iii] + dV[spc_i+si][iii] * V[rho_i][iii];
+					for (integer si = 0; si != NSPECIES; ++si) {
+						dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
 					}
 
 					dU[pot_i][iii] = V[pot_i][iii] * dV[rho_i][iii] + dV[pot_i][iii] * V[rho_i][iii];
@@ -977,15 +976,86 @@ void grid::allocate() {
 		}
 		++nlevel;
 	}
-	dVdx = std::vector < std::vector<std::vector<real>>>(NDIM,
+	dVdx = std::vector<std::vector<std::vector<real>>>(NDIM,
 		std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
-	dUdx = std::vector < std::vector<std::vector<real>>>(NDIM,
-		std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+	dUdx = std::vector<std::vector<std::vector<real>>>(NDIM,
+	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 
 	set_coordinates();
 	compute_ilist();
 	PROF_END;
 }
+
+
+std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
+	PROF_BEGIN;
+	std::array<integer, NDIM> lb, ub;
+	std::vector<real> data;
+	integer size = get_boundary_size(lb, ub, dir, INNER, G_BW);
+	const bool is_refined = !is_leaf;
+	if (is_refined) {
+		size *= 20 + 3;
+	} else {
+		size *= 1 + 3;
+	}
+	data.resize(size);
+	integer iter = 0;
+
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				const auto& m = multipole_value(0, i, j, k);
+				const auto& com = center_of_mass_value(i, j, k);
+				const integer top = is_refined ? m.size() : 1;
+				for (integer l = 0; l < top; ++l) {
+					data[iter] = m.ptr()[l];
+					++iter;
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					data[iter] = com[d];
+					++iter;
+				}
+			}
+		}
+	}
+	PROF_END;
+	return data;
+}
+
+void grid::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir,
+		bool monopole) {
+	PROF_BEGIN;
+	std::array<integer, NDIM> lb, ub;
+	get_boundary_size(lb, ub, dir, OUTER, G_BW);
+	integer iter = 0;
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				auto& m = multipole_value(0, i, j, k);
+				auto& com = center_of_mass_value(i, j, k);
+				const integer top = monopole ? 1 : m.size();
+				for (integer l = 0; l < top; ++l) {
+					m.ptr()[l] = data[iter];
+					++iter;
+				}
+				for (integer l = top; l < m.size(); ++l) {
+					m.ptr()[l] = ZERO;
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					com[d] = data[iter];
+					++iter;
+				}
+			}
+		}
+	}
+	PROF_END;
+}
+
+//thread_local std::vector<std::vector<real>> grid::_V(NF,std::vector<real>(H_N3));
+//thread_local std::vector < std::vector<std::vector<real>>> grid::_dVdx(NDIM,
+//	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+//thread_local std::vector < std::vector<std::vector<real>>> grid::_dUdx(NDIM,
+//	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 
 grid::grid() :
 	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(
@@ -1017,46 +1087,36 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	PROF_END;
 }
 
+inline real limit_range(real a, real b, real& c) {
+	const real max = std::max(a, b);
+	const real min = std::min(a, b);
+	c = std::min(max, std::max(min, c));
+}
+;
+
+inline real limit_range_all(real am, real ap, real& bl, real& br) {
+	real avg = (br + bl) / 2.0;
+	limit_range(am, ap, avg);
+	limit_range(am, avg, bl);
+	limit_range(ap, avg, br);
+}
+;
+
+inline real limit_slope(real& ql, real q0, real& qr) {
+	const real tmp1 = qr - ql;
+	const real tmp2 = qr + ql;
+	if ((qr - q0) * (q0 - ql) <= 0.0) {
+		qr = ql = q0;
+	} else if (tmp1 * (q0 - 0.5 * tmp2) > (1.0 / 6.0) * tmp1 * tmp1) {
+		ql = 3.0 * q0 - 2.0 * qr;
+	} else if (-(1.0 / 6.0) * tmp1 * tmp1 > tmp1 * (q0 - 0.5 * tmp2)) {
+		qr = 3.0 * q0 - 2.0 * ql;
+	}
+}
+;
+
 void grid::reconstruct() {
 	PROF_BEGIN;
-	const auto super_bee = []( real a, real b ) {
-		real c;
-		if( a*b <= 0.0 ) {
-			c = 0.0;
-		} else {
-			if( a > 0.0 ) {
-				c = std::max( std::min(2.0*a,b), std::min(a,2.0*b));
-			} else {
-				c = std::min( std::max(2.0*a,b), std::max(a,2.0*b));
-			}
-		}
-		return c;
-	};
-
-	const auto limit_range = [](real a, real b, real& c) {
-		const real max = std::max(a,b);
-		const real min = std::min(a,b);
-		c = std::min(max,std::max(min,c));
-	};
-
-	const auto limit_range_all = [=]( real am, real ap, real& bl, real& br ) {
-		real avg = (br + bl)/2.0;
-		limit_range(am, ap, avg );
-		limit_range(am, avg, bl );
-		limit_range(ap, avg, br );
-	};
-
-	const auto limit_slope = [](real& ql, real q0, real& qr) {
-		const real tmp1 = qr - ql;
-		const real tmp2 = qr + ql;
-		if ((qr - q0) * (q0 - ql) <= 0.0) {
-			qr = ql = q0;
-		} else if (tmp1 * (q0 - 0.5 * tmp2) > (1.0 / 6.0) * tmp1 * tmp1) {
-			ql = 3.0 * q0 - 2.0 * qr;
-		} else if (-(1.0 / 6.0) * tmp1 * tmp1 > tmp1 * (q0 - 0.5 * tmp2)) {
-			qr = 3.0 * q0 - 2.0 * ql;
-		}
-	};
 
 #pragma GCC ivdep
 	for (integer iii = 0; iii != H_N3; ++iii) {
@@ -1069,6 +1129,11 @@ void grid::reconstruct() {
 		U[sx_i][iii] += omega * y * rho;
 		U[sy_i][iii] -= omega * x * rho;
 		U[zz_i][iii] -= dx * dx * omega * rho / 6.0;
+	}
+
+	/******* Probably will not vectorize ******/
+#pragma GCC ivdep
+	for (integer iii = 0; iii != H_N3; ++iii) {
 		U[tau_i][iii] = std::pow(U[tau_i][iii], fgamma);
 	}
 
@@ -1089,17 +1154,17 @@ void grid::reconstruct() {
 	}
 
 	for (integer field = 0; field != NF; ++field) {
-		if (field < zx_i || field > zz_i && field != pot_i) {
-			const real theta_x = (field == sy_i || field == sz_i) ? 1.0 : 2.0;
-			const real theta_y = (field == sx_i || field == sz_i) ? 1.0 : 2.0;
-			const real theta_z = (field == sx_i || field == sy_i) ? 1.0 : 2.0;
+		if (field >= zx_i || field <= zz_i || field == pot_i ) {
+			continue;
+		}
+		const real theta_x = (field == sy_i || field == sz_i) ? 1.0 : 2.0;
+		const real theta_y = (field == sx_i || field == sz_i) ? 1.0 : 2.0;
+		const real theta_z = (field == sx_i || field == sy_i) ? 1.0 : 2.0;
 #pragma GCC ivdep
-			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-				const real u0 = U[field][iii];
-				slpx[field][iii] = minmod_theta(U[field][iii + H_DNX] - u0, u0 - U[field][iii - H_DNX], theta_x);
-				slpy[field][iii] = minmod_theta(U[field][iii + H_DNY] - u0, u0 - U[field][iii - H_DNY], theta_y);
-				slpz[field][iii] = minmod_theta(U[field][iii + H_DNZ] - u0, u0 - U[field][iii - H_DNZ], theta_z);
-			}
+		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
+			slpx[field][iii] = minmod_theta(U[field][iii + H_DNX] - U[field][iii], U[field][iii] - U[field][iii - H_DNX], theta_x);
+			slpy[field][iii] = minmod_theta(U[field][iii + H_DNY] - U[field][iii], U[field][iii] - U[field][iii - H_DNY], theta_y);
+			slpz[field][iii] = minmod_theta(U[field][iii + H_DNZ] - U[field][iii], U[field][iii] - U[field][iii - H_DNZ], theta_z);
 		}
 	}
 
@@ -1249,6 +1314,7 @@ void grid::reconstruct() {
 			}
 		}
 	}
+#pragma GCC ivdep
 	for (integer iii = 0; iii != H_N3; ++iii) {
 		const real& rho = U[rho_i][iii];
 		U[sx_i][iii] -= omega * X[YDIM][iii] * rho;
@@ -1259,8 +1325,10 @@ void grid::reconstruct() {
 		U[egas_i][iii] += HALF * U[sz_i][iii] * U[sz_i][iii] / rho;
 		U[tau_i][iii] = std::pow(U[tau_i][iii], 1.0 / fgamma);
 	}
+
 	for (integer i = H_BW - 1; i != H_NX - H_BW + 1; ++i) {
 		for (integer j = H_BW - 1; j != H_NX - H_BW + 1; ++j) {
+#pragma GCC ivdep
 			for (integer k = H_BW - 1; k != H_NX - H_BW + 1; ++k) {
 				const integer iii = hindex(i, j, k);
 				for (integer face = 0; face != NFACE; ++face) {
@@ -1287,69 +1355,6 @@ void grid::reconstruct() {
 		}
 	}
 	PROF_END;
-}
-
-
-std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
-
-	std::array<integer, NDIM> lb, ub;
-	std::vector<real> data;
-	integer size = get_boundary_size(lb, ub, dir, INNER, G_BW);
-	const bool is_refined = !is_leaf;
-	if (is_refined) {
-		size *= 20 + 3;
-	} else {
-		size *= 1 + 3;
-	}
-	data.resize(size);
-	integer iter = 0;
-
-	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-				const auto& m = multipole_value(0, i, j, k);
-				const auto& com = center_of_mass_value(i, j, k);
-				const integer top = is_refined ? m.size() : 1;
-				for (integer l = 0; l < top; ++l) {
-					data[iter] = m.ptr()[l];
-					++iter;
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					data[iter] = com[d];
-					++iter;
-				}
-			}
-		}
-	}
-
-	return data;
-}
-
-void grid::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir,
-	bool monopole) {
-	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, dir, OUTER, G_BW);
-	integer iter = 0;
-	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-				auto& m = multipole_value(0, i, j, k);
-				auto& com = center_of_mass_value(i, j, k);
-				const integer top = monopole ? 1 : m.size();
-				for (integer l = 0; l < top; ++l) {
-					m.ptr()[l] = data[iter];
-					++iter;
-				}
-				for (integer l = top; l < m.size(); ++l) {
-					m.ptr()[l] = ZERO;
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					com[d] = data[iter];
-					++iter;
-				}
-			}
-		}
-	}
 }
 
 real grid::compute_fluxes() {

@@ -156,10 +156,10 @@ void grid::compute_interactions(gsolve_type type) {
 			dX[d] = X[d] - Y[d];
 		}
 		taylor<5, simd_vector> D;
-		taylor<4, simd_vector> A0, B0, A1, B1;
+		taylor<4, simd_vector> A0, A1;
+		std::array<simd_vector, NDIM> B0 = { ZERO, ZERO, ZERO };
+		std::array<simd_vector, NDIM> B1 = { ZERO, ZERO, ZERO };
 		D.set_basis(dX);
-		B0 = ZERO;
-		B1 = ZERO;
 		A0() = m0() * D();
 		A1() = m1() * D();
 		for (auto& a : geo::dimension::full_set()) {
@@ -199,8 +199,8 @@ void grid::compute_interactions(gsolve_type type) {
 					if (type == RHO) {
 						for (integer d = 0; d != NDIM; ++d) {
 							const auto tmp = D(a, b, c, d) * (real(1) / real(6));
-							B0(a) -= n0(b, c, d) * tmp;
-							B1(a) -= n1(b, c, d) * tmp;
+							B0[a] -= n0(b, c, d) * tmp;
+							B1[a] -= n1(b, c, d) * tmp;
 						}
 					}
 				}
@@ -215,9 +215,11 @@ void grid::compute_interactions(gsolve_type type) {
 			for (integer j = 0; j != 20; ++j) {
 				L[lev][iii0].ptr()[j] += A0.ptr()[j][i];
 				L[lev][iii1].ptr()[j] += A1.ptr()[j][i];
-				if (type == RHO) {
-					L_c[lev][iii0].ptr()[j] += B0.ptr()[j][i];
-					L_c[lev][iii1].ptr()[j] += B1.ptr()[j][i];
+			}
+			if (type == RHO) {
+				for (integer j = 0; j != NDIM; ++j) {
+					L_c[lev][iii0][j] += B0[j][i];
+					L_c[lev][iii1][j] += B1[j][i];
 				}
 			}
 		}
@@ -329,11 +331,11 @@ void grid::compute_boundary_interactions_multipole(gsolve_type type, const std::
 		}
 
 		taylor<5, simd_vector> D;
-		taylor<4, simd_vector> A0, B0;
+		taylor<4, simd_vector> A0;
+		std::array<simd_vector, NDIM> B0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
 		D.set_basis(dX);
 
-		B0 = ZERO;
 		A0() = m0() * D();
 		for (auto& a : geo::dimension::full_set()) {
 			if (type != RHO) {
@@ -354,7 +356,7 @@ void grid::compute_boundary_interactions_multipole(gsolve_type type, const std::
 					if (type == RHO) {
 						for (auto& d : geo::dimension::full_set()) {
 							const auto tmp = D(a, b, c, d) * (real(1) / real(6));
-							B0(a) -= n0(b, c, d) * tmp;
+							B0[a] -= n0(b, c, d) * tmp;
 						}
 					}
 					A0(a, b) -= m0(c) * D(a, b, c);
@@ -363,14 +365,15 @@ void grid::compute_boundary_interactions_multipole(gsolve_type type, const std::
 			}
 		}
 
-
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
 			const integer iii0 = ilist_n_bnd[li + i].loc.first;
 			const integer lev = ilist_n_bnd[li + i].lev;
 			for (integer j = 0; j != 20; ++j) {
 				L[lev][iii0].ptr()[j] += A0.ptr()[j][i];
-				if (type == RHO) {
-					L_c[lev][iii0].ptr()[j] += B0.ptr()[j][i];
+			}
+			if (type == RHO) {
+				for (integer j = 0; j != NDIM; ++j) {
+					L_c[lev][iii0][j] += B0[j][i];
 				}
 			}
 		}
@@ -572,21 +575,24 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 					if (!((lev == 1) && !is_root)) {
 						std::array < simd_vector, NDIM > X;
 						std::array<simd_vector, NDIM> dX;
-						taylor<4, simd_vector> l, lc;
+						taylor<4, simd_vector> l;
+						std::array<simd_vector, NDIM> lc;
 						if (!is_root && lev == 0) {
 							const integer index = (INX * INX / 4) * (ip - G_BW) + (INX / 2) * (jp - G_BW) + (kp - G_BW);
 							for (integer j = 0; j != 20; ++j) {
 								l.ptr()[j] = parent_expansions->first[index].ptr()[j];
-								if (type == RHO) {
-									lc.ptr()[j] = parent_expansions->second[index].ptr()[j];
+							}
+							if (type == RHO) {
+								for (integer j = 0; j != NDIM; ++j) {
+									lc[j] = parent_expansions->second[index][j];
 								}
 							}
 						} else {
 							for (integer j = 0; j != 20; ++j) {
 								l.ptr()[j] = L[lev + 1][iiip].ptr()[j];
-								if (type == RHO) {
-									lc.ptr()[j] = L_c[lev + 1][iiip].ptr()[j];
-								}
+							}
+							for (integer j = 0; j != NDIM; ++j) {
+								lc[j] = L_c[lev + 1][iiip][j];
 							}
 						}
 						for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -600,16 +606,18 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 							dX[d] = X[d] - Y[d];
 						}
 						l <<= dX;
-						if (type == RHO) {
-							lc <<= dX;
-						}
+						//		if (type == RHO) {
+						//			lc <<= dX;
+						//		}
 						for (integer ci = 0; ci != NCHILD; ++ci) {
 							const integer iiic = child_index(ip, jp, kp, ci);
 							for (integer j = 0; j != 20; ++j) {
-								if (type == RHO) {
-									L_c[lev][iiic].ptr()[j] += lc.ptr()[j][ci];
-								}
 								L[lev][iiic].ptr()[j] += l.ptr()[j][ci];
+							}
+							if (type == RHO) {
+								for (integer j = 0; j != NDIM; ++j) {
+									L_c[lev][iiic][j] += lc[j][ci];
+								}
 							}
 
 							if (!is_leaf && lev == 0) {
@@ -635,7 +643,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 					if (type == RHO) {
 						G[phi_i][iii] = L[0][iii]();
 						for (auto& d : geo::dimension::full_set()) {
-							G[gx_i + d][iii] = -L[0][iii](d) - L_c[0][iii](d);
+							G[gx_i + d][iii] = -L[0][iii](d) - L_c[0][iii][d];
 						}
 						U[pot_i][iiih] = G[phi_i][iii] * U[rho_i][iiih];
 					} else {

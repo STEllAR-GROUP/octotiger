@@ -17,10 +17,10 @@ static thread_local std::stack<std::string> callstack;
 static thread_local real t = 0.0;
 std::unordered_map<std::string, std::shared_ptr<real> > map;
 
-std::string make_name(const char* f, const char* l) {
+std::string make_name(const char* f, int l) {
 	std::string str = f;
 	str += "+";
-	str += l;
+	str += std::string(std::to_string(l));
 	return str;
 }
 
@@ -29,19 +29,8 @@ std::atomic<int>& lock() {
 	return a;
 }
 
-profiler_register::profiler_register(const char* func) {
-	std::string str(func);
-	while (lock()++ != 0) {
-		lock()--;}
-auto 	cntptr = std::make_shared < real > (0.0);
-	std::pair<std::string, std::shared_ptr<real> > entry;
-	entry.first = str;
-	entry.second = cntptr;
-	map.insert(entry);
-	lock()--;}
-
-profiler_register ::profiler_register(const char* func, const char* label) {
-	std::string str(make_name(func, label));
+profiler_register::profiler_register(const char* func, int line) {
+	std::string str = make_name(func, line);
 	while (lock()++ != 0) {
 		lock()--;}
 auto 	cntptr = std::make_shared < real > (0.0);
@@ -65,25 +54,18 @@ auto 		ptr = map[str];
 	}
 }
 
-static profiler_register prof_reg("OTHER");
+static profiler_register prof_reg("OTHER", 0);
 
-void profiler_enter(const char* func) {
+void profiler_enter(const char* func, int line) {
 	accumulate();
-	std::string str(func);
+	std::string str(make_name(func, line));
 	if (callstack.empty()) {
-		if (strcmp("OTHER", func) != 0) {
-			profiler_enter("OTHER");
+		if (strncmp("OTHER", func, 5) != 0) {
+			profiler_enter("OTHER", 0);
 		}
 	}
 	callstack.push(str);
 }
-
-void profiler_sub_enter(const char* func, const char* label) {
-	std::string str(make_name(func, label));
-	accumulate();
-	callstack.push(str);
-}
-
 void profiler_exit() {
 	accumulate();
 	callstack.pop();

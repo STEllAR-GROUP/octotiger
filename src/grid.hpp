@@ -26,7 +26,7 @@ class taylor;
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
-typedef std::pair<std::vector<expansion>, std::vector<expansion>> expansion_pass_type;
+typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
@@ -161,11 +161,11 @@ private:
 	static real scaling_factor;
 
 	std::vector<std::vector<real>> V;
+	std::vector < std::vector<std::vector<real>>> dVdx;
+	std::vector < std::vector<std::vector<real>>> dUdx;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
-	std::vector < std::vector<std::vector<real>>> dVdx;
-	std::vector < std::vector<std::vector<real>>> dUdx;
 	std::vector<std::array<std::vector<real>, NF>> Uf;
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
@@ -180,7 +180,7 @@ private:
 	bool is_leaf;
 	std::vector<std::vector<multipole> > M;
 	std::vector<std::vector<expansion> > L;
-	std::vector<std::vector<expansion> > L_c;
+	std::vector<std::vector<space_vector> > L_c;
 	real dx;
 	std::array<real, NDIM> xmin;
 	integer nlevel;

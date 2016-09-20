@@ -178,7 +178,7 @@ void node_server::send_hydro_amr_boundaries() {
 }
 
 std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir) {
-
+	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	const integer size = NF * get_boundary_size(lb, ub, dir, INNER, H_BW);
@@ -195,7 +195,7 @@ std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir) {
 			}
 		}
 	}
-
+	PROF_END;
 	return data;
 }
 
@@ -258,6 +258,7 @@ void node_server::set_gravity_boundary(const std::vector<real>& data, const geo:
 }
 
 void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir) {
+	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	get_boundary_size(lb, ub, dir, OUTER, H_BW);
 	integer iter = 0;
@@ -272,6 +273,7 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::d
 			}
 		}
 	}
+	PROF_END;
 }
 
 void node_server::clear_family() {
@@ -397,85 +399,7 @@ node_server::node_server(const node_location& loc, const node_client& parent_id,
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
-#ifdef USE_SPHERICAL
-	fmm::set_dx(dx);
-	std::list<hpx::future<void>> child_futs;
-	std::list<hpx::future<void>> neighbor_futs;
-	hpx::future<void> parent_fut;
-	if (energy_account) {
-		grid_ptr->egas_to_etot();
-	}
-	if (!is_refined) {
-		for (integer i = 0; i != INX; ++i) {
-			for (integer j = 0; j != INX; ++j) {
-				for (integer k = 0; k != INX; ++k) {
-					fmm::set_source(grid_ptr->get_source(i, j, k), i, j, k);
-				}
-			}
-		}
-	} else {
-		for (auto& octant : geo::octant::full_set()) {
-			fmm::set_multipoles(child_gravity_channels[octant]->get_future().get(), octant);
-		}
-	}
-	const auto myci = my_location.get_child_index();
-	const bool is_root = my_location.level() == 0;
-	parent_fut = !is_root ? parent.send_gravity_multipoles(fmm::M2M(), myci) : hpx::make_ready_future();
 
-	std::array<integer, NDIM> lb, ub;
-	for (auto& dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
-			get_boundary_size(lb, ub, dir, INNER, G_BW);
-			for (integer d = 0; d != NDIM; ++d) {
-				lb[d] -= G_BW;
-				ub[d] -= G_BW;
-			}
-			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(fmm::get_multipoles(lb, ub), dir.flip()));
-		}
-	}
-
-	fmm::self_M2L(is_root, !is_refined);
-
-	for (auto& dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
-			auto tmp = neighbor_gravity_channels[dir]->get_future().get();
-			get_boundary_size(lb, ub, dir, OUTER, G_BW);
-			for (integer d = 0; d != NDIM; ++d) {
-				lb[d] -= G_BW;
-				ub[d] -= G_BW;
-			}
-			fmm::other_M2L(std::move(tmp), lb, ub, !is_refined);
-		}
-	}
-	parent_fut.get();
-	if (!is_root) {
-		fmm::L2L(parent_gravity_channel->get_future().get());
-	}
-	if (is_refined) {
-		for (auto& ci : geo::octant::full_set()) {
-			child_futs.push_back(children[ci].send_gravity_expansions(fmm::get_expansions(ci)));
-		}
-	}
-
-	if (energy_account) {
-		grid_ptr->etot_to_egas();
-	}
-	for (auto&& fut : child_futs) {
-		GET(fut);
-	}
-	for (auto&& fut : neighbor_futs) {
-		GET(fut);
-	}
-
-	for (integer i = 0; i != INX; ++i) {
-		for (integer j = 0; j != INX; ++j) {
-			for (integer k = 0; k != INX; ++k) {
-				const auto ff = fmm::four_force(i, j, k);
-				grid_ptr->set_4force(i, j, k, ff);
-			}
-		}
-	}
-#else
 	std::list<hpx::future<void>> child_futs;
 	std::list<hpx::future<void>> neighbor_futs;
 	hpx::future<void> parent_fut;
@@ -540,8 +464,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
-
-		/*****PROBLEM FUTURE******/
 		l_in = GET(parent_gravity_channel->get_future());
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
@@ -582,5 +504,4 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	for (auto&& fut : neighbor_futs) {
 		GET(fut);
 	}
-#endif
 }

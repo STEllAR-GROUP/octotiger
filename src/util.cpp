@@ -5,6 +5,7 @@
  *      Author: dmarce1
  */
 
+#include <sse_mathfun.h>
 #include <cmath>
 #include <stdio.h>
 #include <functional>
