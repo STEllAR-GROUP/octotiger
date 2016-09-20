@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
-#include <mpi/mpi.h>
+#include <mpi.h>
 #include <stack>
 #include <map>
 
