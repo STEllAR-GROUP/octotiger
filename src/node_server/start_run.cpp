@@ -112,7 +112,7 @@ void node_server::start_run(bool scf) {
 			FILE* fp = fopen("profile.txt", "wt");
 			profiler_output(fp);
 			fclose(fp);
-			break;
+//			break;
 		}
 //		set_omega_and_pivot();
 		if (scf) {
