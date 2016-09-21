@@ -97,14 +97,13 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 
 hpx::future<void> node_server::all_hydro_bounds(bool tau_only) {
 	std::vector<hpx::future<void>> fut;
-	if(!tau_only) {
-		fut.push_back( exchange_interlevel_hydro_data());
+	if (!tau_only) {
+		fut.push_back(exchange_interlevel_hydro_data());
 	}
 	fut.push_back(collect_hydro_boundaries(tau_only));
 	fut.push_back(send_hydro_amr_boundaries(tau_only));
 	return hpx::when_all(std::begin(fut), std::end(fut));
 }
-
 
 hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 
@@ -170,7 +169,11 @@ hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
 				if (flags[dir]) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
-					get_boundary_size(lb, ub, dir, OUTER, INX, H_BW);
+					if (!tau_only) {
+						get_boundary_size(lb, ub, dir, OUTER, INX, H_BW);
+					} else {
+						get_boundary_size(lb, ub, dir, OUTER, H_NX - 1, 1);
+					}
 					for (integer dim = 0; dim != NDIM; ++dim) {
 						lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
 						ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
@@ -370,7 +373,6 @@ node_server::node_server(const node_location& loc, const node_client& parent_id,
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
-
 	std::list<hpx::future<void>> child_futs;
 	std::list<hpx::future<void>> neighbor_futs;
 	hpx::future<void> parent_fut;
@@ -408,29 +410,47 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 		parent_fut = hpx::make_ready_future();
 	}
 
-	grid_ptr->compute_interactions(type);
-
-	std::array<bool, geo::direction::count()> is_monopole;
+//	std::array<bool, geo::direction::count()> is_monopole;
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			auto ndir = dir.flip();
-			const bool monopole = !is_refined;
+			const bool is_monopole = !is_refined;
 			assert(neighbors[dir].get_gid() != me.get_gid());
-			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(get_gravity_boundary(dir), ndir, monopole));
+			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(get_gravity_boundary(dir), ndir, is_monopole));
 		}
 	}
+
+	grid_ptr->compute_interactions(type);
+
+	std::vector<geo::direction> dirs;
+	std::vector<hpx::future<std::pair<std::vector<real>, bool>>>futs;
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
-			auto tmp = GET(this->neighbor_gravity_channels[dir]->get_future());
-			is_monopole[dir] = tmp.second;
-			this->set_gravity_boundary(std::move(tmp.first), dir, tmp.second);
+			futs.push_back(this->neighbor_gravity_channels[dir]->get_future());
+			dirs.push_back(dir);
 		}
 	}
-	for (auto& dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
-			this->grid_ptr->compute_boundary_interactions(type, dir, is_monopole[dir]);
+
+	while (futs.size()) {
+		auto war = hpx::when_any(futs.begin(), futs.end()).get();
+		const integer index = war.index;
+		futs = std::move(war.futures);
+		auto tmp = futs[index].get();
+		const auto dir = dirs[index];
+		const auto li = futs.size() - 1;
+		if (li != index) {
+			std::swap(futs[index], futs[li]);
+			std::swap(dirs[index], dirs[li]);
 		}
+		futs.resize(li);
+		set_gravity_boundary(std::move(tmp.first), dir, tmp.second);
+		grid_ptr->compute_boundary_interactions(type, dir, tmp.second);
 	}
+//	for (auto& dir : geo::direction::full_set()) {
+//		if (!neighbors[dir].empty()) {
+//			this->grid_ptr->compute_boundary_interactions(type, dir, is_monopole[dir]);
+//		}
+//	}
 	GET(parent_fut);
 
 	expansion_pass_type l_in;

@@ -18,11 +18,7 @@
 #include "eos.hpp"
 #include <atomic>
 
-class node_server: public hpx::components::managed_component_base<node_server>
-#ifdef USE_SPHERICAL
-, public fmm
-#endif
-{
+class node_server: public hpx::components::managed_component_base<node_server> {
 public:
 	static void set_gravity(bool);
 	static void set_hydro(bool);
@@ -51,73 +47,65 @@ private:
 	hpx::lcos::local::spinlock mtx;
 	std::array<std::shared_ptr<channel<std::vector<real>>> ,geo::direction::count()> sibling_hydro_channels;
 	std::array<std::shared_ptr<channel<std::vector<real>>>, NCHILD> child_hydro_channels;
+	std::shared_ptr<channel<expansion_pass_type>> parent_gravity_channel;
+	std::array<std::shared_ptr<channel<std::pair<std::vector<real>, bool>>> ,geo::direction::count()>neighbor_gravity_channels;
+	std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD> child_gravity_channels;
+	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> , 4>, NFACE> niece_hydro_channels;
+	std::shared_ptr<channel<real>> global_timestep_channel;
+	std::shared_ptr<channel<real>> local_timestep_channel;
+	hpx::mutex load_mutex;
+public:
+	real get_time() const {
+		return current_time;
+	}
+	real get_rotation_count() const {
+		return rotational_time / (2.0*M_PI);
+	}
+	node_server& operator=(node_server&&) = default;
 
-#ifdef USE_SPHERICAL
-		std::shared_ptr<channel<std::vector<expansion_type>>> parent_gravity_channel;
-		std::array<std::shared_ptr<channel<std::vector<multipole_type>>>, geo::direction::count()> neighbor_gravity_channels;
-		std::array<std::shared_ptr<channel<std::vector<multipole_type>>>, geo::direction::count()> child_gravity_channels;
-#else
-		std::shared_ptr<channel<expansion_pass_type>> parent_gravity_channel;
-		std::array<std::shared_ptr<channel<std::pair<std::vector<real>, bool>>> ,geo::direction::count()>neighbor_gravity_channels;
-		std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD> child_gravity_channels;
-#endif
+	template<class Archive>
+	void serialize(Archive& arc, unsigned) {
+		integer rf;
+		arc & my_location;
+		arc & step_num;
+		arc & is_refined;
+		arc & children;
+		arc & parent;
+		arc & neighbors;
+		arc & siblings;
+		arc & nieces;
+		arc & aunts;
+		arc & child_descendant_count;
+		arc & current_time;
+		arc & rotational_time;
+		arc & xmin;
+		arc & dx;
+		arc & amr_flags;
+		arc & *grid_ptr;
+		rf = refinement_flag;
+		arc & rf;
+		refinement_flag = rf;
+	}
 
-		std::array<std::array<std::shared_ptr<channel<std::vector<real>>> , 4>, NFACE> niece_hydro_channels;
-		std::shared_ptr<channel<real>> global_timestep_channel;
-		std::shared_ptr<channel<real>> local_timestep_channel;
-		hpx::mutex load_mutex;
-	public:
-		real get_time() const {
-			return current_time;
-		}
-		real get_rotation_count() const {
-			return rotational_time / (2.0*M_PI);
-		}
-		node_server& operator=(node_server&&) = default;
+	node_server(const node_location&, integer, bool, real, real, const std::array<integer,NCHILD>&, grid, const std::vector<hpx::id_type>&);
+	node_server(node_server&& other) = default;
+	std::size_t load_me(FILE* fp);
+	std::size_t save_me(FILE* fp) const;
+private:
 
-		template<class Archive>
-		void serialize(Archive& arc, unsigned) {
-			integer rf;
-			arc & my_location;
-			arc & step_num;
-			arc & is_refined;
-			arc & children;
-			arc & parent;
-			arc & neighbors;
-			arc & siblings;
-			arc & nieces;
-			arc & aunts;
-			arc & child_descendant_count;
-			arc & current_time;
-			arc & rotational_time;
-			arc & xmin;
-			arc & dx;
-			arc & amr_flags;
-			arc & *grid_ptr;
-			rf = refinement_flag;
-			arc & rf;
-			refinement_flag = rf;
-		}
+	static bool static_initialized;
+	static std::atomic<integer> static_initializing;
 
-		node_server(const node_location&, integer, bool, real, real, const std::array<integer,NCHILD>&, grid, const std::vector<hpx::id_type>&);
-		node_server(node_server&& other) = default;
-		std::size_t load_me(FILE* fp);
-		std::size_t save_me(FILE* fp) const;
-	private:
+	void initialize(real, real);
+	hpx::future<void> send_hydro_amr_boundaries(bool tau_only=false);
+	hpx::future<void> collect_hydro_boundaries(bool tau_only=false);
+	hpx::future<void> exchange_interlevel_hydro_data();
+	static void static_initialize();
+	hpx::future<void> all_hydro_bounds(bool tau_only=false);
+	void clear_family();
+	hpx::future<void> exchange_flux_corrections();
 
-		static bool static_initialized;
-		static std::atomic<integer> static_initializing;
-
-		void initialize(real, real);
-		hpx::future<void> send_hydro_amr_boundaries(bool tau_only=false);
-		hpx::future<void> collect_hydro_boundaries(bool tau_only=false);
-		hpx::future<void> exchange_interlevel_hydro_data();
-		static void static_initialize();
-		hpx::future<void> all_hydro_bounds(bool tau_only=false);
-		void clear_family();
-		hpx::future<void> exchange_flux_corrections();
-
-	public:
+public:
 
 //	static void output_form();
 //	static grid::output_list_type output_collect(const std::string&);
@@ -153,16 +141,9 @@ private:
 
 		void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
 		HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
-
-#ifdef USE_SPHERICAL
-		void recv_gravity_multipoles(std::vector<multipole_type>&& v, const geo::octant& ci);
-		void recv_gravity_expansions(std::vector<expansion_type>&& v);
-		void recv_gravity_boundary(std::vector<multipole_type>&& bdata, const geo::direction& dir);
-#else
 		void recv_gravity_boundary(std::vector<real>&&, const geo::direction&, bool monopole);
 		void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
 		void recv_gravity_expansions(expansion_pass_type&&);
-#endif
 
 		HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
 		HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);

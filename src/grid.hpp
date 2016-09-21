@@ -191,9 +191,10 @@ private:
 	std::vector<npair> ilist_n;
 	std::vector<dpair> ilist_d;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
-	void compute_boundary_interactions_multipole(gsolve_type type, const std::vector<npair>&);
-	void compute_boundary_interactions_monopole(gsolve_type type, const std::vector<npair>&);
-
+	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<npair>&);
+	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<npair>&);
+	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<npair>&);
+	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<npair>&);
 public:
 
 	static void set_scaling_factor(real f) {
@@ -224,9 +225,9 @@ public:
 			G[f][iii] = four_force[f];
 		}
 	}
-	void compute_conserved_slopes( const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
-	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
-	void compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
+	void compute_conserved_slopes( const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
+	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
+	void compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
 	void set_coordinates();
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool tau_only = false);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, bool tau_only = false);
@@ -307,11 +308,8 @@ public:
 	output_list_type get_output_list() const;
 	template<class Archive>
 	void load(Archive& arc, const unsigned) {
-		//	bool leaf, root;
 		arc >> is_leaf;
 		arc >> is_root;
-		//	set_root(root);
-		//	set_leaf(leaf);
 		arc >> dx;
 		arc >> xmin;
 		allocate();

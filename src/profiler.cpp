@@ -90,7 +90,7 @@ void profiler_output(FILE* _fp) {
 		fprintf(fp, "%f total seconds\n", ttot);
 		for (auto i = ranks.end(); i != ranks.begin(); r <= 10) {
 			i--;
-			fprintf(fp, "%4i %52s %8.2f %% %8.2f\n", r++, i->second.c_str(), i->first * 100.0 / ttot, i->first);
+			fprintf(fp, "%4i %60s %8.2f %% %8.2f\n", r++, i->second.c_str(), i->first * 100.0 / ttot, i->first);
 		}
 		fprintf(fp, "\n");
 	}

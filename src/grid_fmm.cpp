@@ -283,21 +283,21 @@ void grid::compute_interactions(gsolve_type type) {
 void grid::compute_boundary_interactions(gsolve_type type, const geo::direction& dir, bool is_monopole) {
 	if (!is_leaf) {
 		if (!is_monopole) {
-			compute_boundary_interactions_multipole(type, ilist_n_bnd[dir]);
+			compute_boundary_interactions_multipole_multipole(type, ilist_n_bnd[dir]);
 		} else {
-			compute_boundary_interactions_multipole(type, ilist_d_bnd[dir]);
+			compute_boundary_interactions_monopole_multipole(type, ilist_d_bnd[dir]);
 		}
 	} else {
 		if (!is_monopole) {
-			compute_boundary_interactions_multipole(type, ilist_d_bnd[dir]);
+			compute_boundary_interactions_multipole_monopole(type, ilist_d_bnd[dir]);
 		} else {
-			compute_boundary_interactions_monopole(type, ilist_d_bnd[dir]);
+			compute_boundary_interactions_monopole_monopole(type, ilist_d_bnd[dir]);
 		}
 	}
 
 }
 
-void grid::compute_boundary_interactions_multipole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
+void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
 	PROF_BEGIN;
 	npair np;
 	const integer list_size = ilist_n_bnd.size();
@@ -381,7 +381,158 @@ void grid::compute_boundary_interactions_multipole(gsolve_type type, const std::
 	PROF_END;
 }
 
-void grid::compute_boundary_interactions_monopole(gsolve_type type, const std::vector<npair>& ilist_d_bnd) {
+void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
+	PROF_BEGIN;
+	npair np;
+	const integer list_size = ilist_n_bnd.size();
+	taylor<4, simd_vector> m0;
+	taylor<4, simd_vector> n0;
+	std::array<simd_vector, NDIM> dX;
+	std::array < simd_vector, NDIM > X;
+	std::array<simd_vector, NDIM> Y;
+	for (integer li = 0; li < list_size; li += simd_len) {
+		for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+			const integer iii0 = ilist_n_bnd[li + i].loc.first;
+			const integer iii1 = ilist_n_bnd[li + i].loc.second;
+			const integer lev = ilist_n_bnd[li + i].lev;
+			for (auto& d : geo::dimension::full_set()) {
+				X[d][i] = com[lev][iii0][d];
+				Y[d][i] = com[lev][iii1][d];
+			}
+			for (integer j = 0; j != 20; ++j) {
+				m0.ptr()[j][i] = M[lev][iii1].ptr()[j];
+			}
+			for (integer j = 10; j != 20; ++j) {
+				if (type == RHO) {
+					n0.ptr()[j][i] = M[lev][iii1].ptr()[j] - M[lev][iii0].ptr()[j] * (M[lev][iii1]() / M[lev][iii0]());
+				} else {
+					n0.ptr()[j][i] = ZERO;
+				}
+			}
+		}
+		for (auto& d : geo::dimension::full_set()) {
+			dX[d] = X[d] - Y[d];
+		}
+
+		taylor<5, simd_vector> D;
+		taylor<2, simd_vector> A0;
+		std::array<simd_vector, NDIM> B0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+
+		D.set_basis(dX);
+
+		A0() = m0() * D();
+		for (auto& a : geo::dimension::full_set()) {
+			if (type != RHO) {
+				A0() -= m0(a) * D(a);
+			}
+			A0(a) = +m0() * D(a);
+			for (auto& b : geo::dimension::full_set()) {
+				A0() += m0(a, b) * D(a, b) * (real(1) / real(2));
+				if (type != RHO) {
+					A0(a) -= m0(a) * D(a, b);
+				}
+				for (auto& c : geo::dimension::full_set()) {
+					A0() -= m0(a, b, c) * D(a, b, c) * (real(1) / real(6));
+
+					A0(a) += m0(c, b) * D(a, b, c) * (real(1) / real(2));
+
+					if (type == RHO) {
+						for (auto& d : geo::dimension::full_set()) {
+							const auto tmp = D(a, b, c, d) * (real(1) / real(6));
+							B0[a] -= n0(b, c, d) * tmp;
+						}
+					}
+				}
+			}
+		}
+
+		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+			const integer iii0 = ilist_n_bnd[li + i].loc.first;
+			const integer lev = ilist_n_bnd[li + i].lev;
+			for (integer j = 0; j != 4; ++j) {
+				L[lev][iii0].ptr()[j] += A0.ptr()[j][i];
+			}
+			if (type == RHO) {
+				for (integer j = 0; j != NDIM; ++j) {
+					L_c[lev][iii0][j] += B0[j][i];
+				}
+			}
+		}
+	}
+	PROF_END;
+}
+
+void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
+	PROF_BEGIN;
+	npair np;
+	const integer list_size = ilist_n_bnd.size();
+	simd_vector m0;
+	taylor<4, simd_vector> n0;
+	std::array<simd_vector, NDIM> dX;
+	std::array < simd_vector, NDIM > X;
+	std::array<simd_vector, NDIM> Y;
+	for (integer li = 0; li < list_size; li += simd_len) {
+		for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+			const integer iii0 = ilist_n_bnd[li + i].loc.first;
+			const integer iii1 = ilist_n_bnd[li + i].loc.second;
+			const integer lev = ilist_n_bnd[li + i].lev;
+			for (auto& d : geo::dimension::full_set()) {
+				X[d][i] = com[lev][iii0][d];
+				Y[d][i] = com[lev][iii1][d];
+			}
+			m0[i] = M[lev][iii1]();
+			for (integer j = 10; j != 20; ++j) {
+				if (type == RHO) {
+					n0.ptr()[j][i] = -M[lev][iii0].ptr()[j] * (M[lev][iii1]() / M[lev][iii0]());
+				} else {
+					n0.ptr()[j][i] = ZERO;
+				}
+			}
+		}
+		for (auto& d : geo::dimension::full_set()) {
+			dX[d] = X[d] - Y[d];
+		}
+
+		taylor<5, simd_vector> D;
+		taylor<4, simd_vector> A0;
+		std::array<simd_vector, NDIM> B0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+
+		D.set_basis(dX);
+
+		A0() = m0 * D();
+		for (auto& a : geo::dimension::full_set()) {
+			A0(a) = +m0 * D(a);
+			for (auto& b : geo::dimension::full_set()) {
+				A0(a, b) = m0 * D(a, b);
+				for (auto& c : geo::dimension::full_set()) {
+					if (type == RHO) {
+						for (auto& d : geo::dimension::full_set()) {
+							const auto tmp = D(a, b, c, d) * (real(1) / real(6));
+							B0[a] -= n0(b, c, d) * tmp;
+						}
+					}
+					A0(a, b, c) = +m0 * D(a, b, c);
+				}
+			}
+		}
+
+		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+			const integer iii0 = ilist_n_bnd[li + i].loc.first;
+			const integer lev = ilist_n_bnd[li + i].lev;
+			for (integer j = 0; j != 20; ++j) {
+				L[lev][iii0].ptr()[j] += A0.ptr()[j][i];
+			}
+			if (type == RHO) {
+				for (integer j = 0; j != NDIM; ++j) {
+					L_c[lev][iii0][j] += B0[j][i];
+				}
+			}
+		}
+	}
+	PROF_END;
+}
+
+void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<npair>& ilist_d_bnd) {
 	PROF_BEGIN;
 	const integer dsize = ilist_d_bnd.size();
 	dpair dp;
@@ -662,14 +813,16 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	integer lev = 0;
 	const real dx3 = dx * dx * dx;
 
-	if (is_leaf && type == RHO) {
-		for (integer i = G_BW; i != G_NX - G_BW; ++i) {
-			for (integer j = G_BW; j != G_NX - G_BW; ++j) {
-				for (integer k = G_BW; k != G_NX - G_BW; ++k) {
-					const integer iii = gindex(i, j, k);
-					const integer iiih = hindex(i + H_BW - G_BW, j + H_BW - G_BW, k + H_BW - G_BW);
+	if (/*is_leaf && */type == RHO) {
+		const integer iii0 = hindex(H_BW, H_BW, H_BW);
+		const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
+		std::array<integer, 3> i;
+		for (i[0] = 0; i[0] != G_NX; ++i[0]) {
+			for (i[1] = 0; i[1] != G_NX; ++i[1]) {
+				for (i[2] = 0; i[2] != G_NX; ++i[2]) {
+					const integer iii = gindex(i[0], i[1], i[2]);
 					for (integer dim = 0; dim != NDIM; ++dim) {
-						com[0][iii][dim] = X[dim][iiih];
+						com[0][iii][dim] = x0[dim] + (i[dim] - G_BW) * dx;
 					}
 				}
 			}
@@ -767,4 +920,66 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 	}
 	PROF_END;
 	return mret;
+}
+
+std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
+	PROF_BEGIN;
+	std::array<integer, NDIM> lb, ub;
+	std::vector<real> data;
+	integer size = get_boundary_size(lb, ub, dir, INNER, INX, G_BW);
+	const bool is_refined = !is_leaf;
+	if (is_refined) {
+		size *= 20 + 3;
+	}
+	data.resize(size);
+	integer iter = 0;
+
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				const auto& m = multipole_value(0, i, j, k);
+				const auto& com = center_of_mass_value(i, j, k);
+				const integer top = is_refined ? m.size() : 1;
+				for (integer l = 0; l < top; ++l) {
+					data[iter] = m.ptr()[l];
+					++iter;
+				}
+				if (is_refined) {
+					for (integer d = 0; d != NDIM; ++d) {
+						data[iter] = com[d];
+						++iter;
+					}
+				}
+			}
+		}
+	}
+	PROF_END;
+	return data;
+}
+
+void grid::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir, bool monopole) {
+	PROF_BEGIN;
+	std::array<integer, NDIM> lb, ub;
+	get_boundary_size(lb, ub, dir, OUTER, INX, G_BW);
+	integer iter = 0;
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				auto& m = multipole_value(0, i, j, k);
+				auto& com = center_of_mass_value(i, j, k);
+				const integer top = monopole ? 1 : m.size();
+				for (integer l = 0; l < top; ++l) {
+					m.ptr()[l] = data[iter];
+					++iter;
+				}
+				if (!monopole) {
+					for (integer d = 0; d != NDIM; ++d) {
+						com[d] = data[iter];
+						++iter;
+					}
+				}
+			}
+		}
+	}
+	PROF_END;
 }
