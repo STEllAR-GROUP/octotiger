@@ -8,6 +8,7 @@
 #include "../node_server.hpp"
 #include "../node_client.hpp"
 #include "../profiler.hpp"
+#include "../util.hpp"
 
 typedef node_server::start_run_action start_run_action_type;
 HPX_REGISTER_ACTION(start_run_action_type);
@@ -106,8 +107,7 @@ void node_server::start_run(bool scf) {
 //		t += dt;
 		++step_num;
 
-		const integer refinement_freq = integer(R_BW / cfl + 0.5);
-		if (step_num % refinement_freq == 0) {
+		if (step_num % refinement_freq() == 0) {
 			regrid(me.get_gid(), false);
 			FILE* fp = fopen("profile.txt", "wt");
 			profiler_output(fp);

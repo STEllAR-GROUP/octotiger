@@ -14,6 +14,52 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
+void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, bool tau_only) {
+	PROF_BEGIN;
+	std::array<integer, NDIM> lb, ub;
+	get_boundary_size(lb, ub, dir, OUTER, INX, H_BW);
+	integer iter = 0;
+
+	for (integer field = 0; field != NF; ++field) {
+		if (!tau_only || (tau_only && field == tau_i)) {
+			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+						U[field][hindex( i, j, k)] = data[iter];
+						++iter;
+					}
+				}
+			}
+		}
+	}
+	PROF_END;
+}
+
+std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, bool tau_only) {
+	PROF_BEGIN;
+	std::array<integer, NDIM> lb, ub;
+	std::vector<real> data;
+	const integer size = NF * get_boundary_size(lb, ub, dir, INNER, INX, H_BW);
+	data.resize(size);
+	integer iter = 0;
+
+	for (integer field = 0; field != NF; ++field) {
+		if (!tau_only || (tau_only && field == tau_i)) {
+			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+						data[iter] = U[field][hindex( i, j, k)];
+						++iter;
+					}
+				}
+			}
+		}
+	}
+	PROF_END;
+	return data;
+
+}
+
 line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vector>& line) {
 	PROF_BEGIN;
 	line_of_centers_t loc;
@@ -279,7 +325,7 @@ void grid::set_prolong(const std::vector<real>& data, std::vector<real>&& outflo
 	PROF_END;
 }
 
-std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
+std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only) {
 	PROF_BEGIN;
 	std::vector<real> data;
 	const auto U0 = U;
@@ -299,28 +345,30 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 	compute_conserved_slopes(lb0, ub0);
 
 	for (integer field = 0; field != NF; ++field) {
-		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-			const real xsgn = (i % 2) ? +1 : -1;
-			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-				const real ysgn = (j % 2) ? +1 : -1;
-				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-					const integer iii = hindex(i / 2, j / 2, k / 2);
-					const real zsgn = (k % 2) ? +1 : -1;
-					real value = U[field][iii];
-					value += xsgn * dUdx[XDIM][field][iii] * 0.25;
-					value += ysgn * dUdx[YDIM][field][iii] * 0.25;
-					value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
-					if (field == sx_i) {
-						U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
-						U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
-					} else if (field == sy_i) {
-						U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
-						U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
-					} else if (field == sz_i) {
-						U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
-						U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
+		if (!tau_only || (tau_only && field == tau_i)) {
+			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+				const real xsgn = (i % 2) ? +1 : -1;
+				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+					const real ysgn = (j % 2) ? +1 : -1;
+					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+						const integer iii = hindex(i / 2, j / 2, k / 2);
+						const real zsgn = (k % 2) ? +1 : -1;
+						real value = U[field][iii];
+						value += xsgn * dUdx[XDIM][field][iii] * 0.25;
+						value += ysgn * dUdx[YDIM][field][iii] * 0.25;
+						value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
+						if (field == sx_i) {
+							U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
+							U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
+						} else if (field == sy_i) {
+							U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
+							U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
+						} else if (field == sz_i) {
+							U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
+							U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
+						}
+						data.push_back(value);
 					}
-					data.push_back(value);
 				}
 			}
 		}
@@ -977,7 +1025,7 @@ void grid::allocate() {
 		++nlevel;
 	}
 	dVdx = std::vector<std::vector<std::vector<real>>>(NDIM,
-		std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 	dUdx = std::vector<std::vector<std::vector<real>>>(NDIM,
 	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 
@@ -986,12 +1034,11 @@ void grid::allocate() {
 	PROF_END;
 }
 
-
 std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	integer size = get_boundary_size(lb, ub, dir, INNER, G_BW);
+	integer size = get_boundary_size(lb, ub, dir, INNER, INX, G_BW);
 	const bool is_refined = !is_leaf;
 	if (is_refined) {
 		size *= 20 + 3;
@@ -1022,11 +1069,10 @@ std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
 	return data;
 }
 
-void grid::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir,
-		bool monopole) {
+void grid::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir, bool monopole) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, dir, OUTER, G_BW);
+	get_boundary_size(lb, ub, dir, OUTER, INX, G_BW);
 	integer iter = 0;
 	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
@@ -1154,7 +1200,7 @@ void grid::reconstruct() {
 	}
 
 	for (integer field = 0; field != NF; ++field) {
-		if (field >= zx_i || field <= zz_i || field == pot_i ) {
+		if (field >= zx_i || field <= zz_i || field == pot_i) {
 			continue;
 		}
 		const real theta_x = (field == sy_i || field == sz_i) ? 1.0 : 2.0;
@@ -1807,9 +1853,6 @@ void grid::dual_energy_update() {
 				ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
 				ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
 				ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
-				//	ek += HALF * pow(U[zx_i][iii], 2) / U[rho_i][iii] / (dx*dx);
-				//	ek += HALF * pow(U[zy_i][iii], 2) / U[rho_i][iii] / (dx*dx);
-				//	ek += HALF * pow(U[zz_i][iii], 2) / U[rho_i][iii] / (dx*dx);
 				real ei = U[egas_i][iii] - ek;
 				real et = U[egas_i][iii];
 				et = std::max(et, U[egas_i][iii + H_DNX]);

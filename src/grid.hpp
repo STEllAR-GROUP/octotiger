@@ -228,6 +228,8 @@ public:
 	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
 	void compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1});
 	void set_coordinates();
+	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool tau_only = false);
+	std::vector<real> get_hydro_boundary(const geo::direction& face, bool tau_only = false);
 	scf_data_t scf_params();
 	real scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
@@ -242,7 +244,7 @@ public:
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb,
 		const std::array<integer, NDIM>& ub, const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb,
-		const std::array<integer, NDIM>& ub);
+		const std::array<integer, NDIM>& ub, bool tau_only=false);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb,

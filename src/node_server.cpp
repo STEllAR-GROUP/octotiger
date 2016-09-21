@@ -95,7 +95,18 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 	});
 }
 
-void node_server::exchange_interlevel_hydro_data() {
+hpx::future<void> node_server::all_hydro_bounds(bool tau_only) {
+	std::vector<hpx::future<void>> fut;
+	if(!tau_only) {
+		fut.push_back( exchange_interlevel_hydro_data());
+	}
+	fut.push_back(collect_hydro_boundaries(tau_only));
+	fut.push_back(send_hydro_amr_boundaries(tau_only));
+	return hpx::when_all(std::begin(fut), std::end(fut));
+}
+
+
+hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 
 	hpx::future<void> fut;
 	std::vector<real> outflow(NF, ZERO);
@@ -118,15 +129,15 @@ void node_server::exchange_interlevel_hydro_data() {
 	} else {
 		fut = hpx::make_ready_future();
 	}
-	GET(fut);
+	return fut;
 }
 
-void node_server::collect_hydro_boundaries() {
+hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
 	std::list<hpx::future<void>> futs;
 
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
-			auto bdata = get_hydro_boundary(dir);
+			auto bdata = grid_ptr->get_hydro_boundary(dir, tau_only);
 			futs.push_back(neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip()));
 		}
 	}
@@ -135,7 +146,7 @@ void node_server::collect_hydro_boundaries() {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			std::vector<real> bdata;
 			bdata = GET(sibling_hydro_channels[dir]->get_future());
-			set_hydro_boundary(bdata, dir);
+			grid_ptr->set_hydro_boundary(bdata, dir, tau_only);
 		}
 	}
 
@@ -145,13 +156,12 @@ void node_server::collect_hydro_boundaries() {
 		}
 	}
 
-	for (auto&& fut : futs) {
-		fut.get();
-	}
+	return hpx::when_all(std::begin(futs), std::end(futs));
+
 }
 
-void node_server::send_hydro_amr_boundaries() {
-
+hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
+	hpx::future<void> fut;
 	if (is_refined) {
 		std::list<hpx::future<void>> futs;
 		for (auto& ci : geo::octant::full_set()) {
@@ -160,43 +170,23 @@ void node_server::send_hydro_amr_boundaries() {
 				if (flags[dir]) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
-					get_boundary_size(lb, ub, dir, OUTER, H_BW);
+					get_boundary_size(lb, ub, dir, OUTER, INX, H_BW);
 					for (integer dim = 0; dim != NDIM; ++dim) {
 						lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
 						ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
 					}
-					data = grid_ptr->get_prolong(lb, ub);
+					data = grid_ptr->get_prolong(lb, ub, tau_only);
 					futs.push_back(children[ci].send_hydro_boundary(std::move(data), dir));
 				}
 			}
 		}
-		for (auto&& fut : futs) {
-			fut.get();
-		}
+		fut = hpx::when_all(std::begin(futs), std::end(futs));
+	} else {
+		fut = hpx::make_ready_future();
+
 	}
+	return fut;
 
-}
-
-std::vector<real> node_server::get_hydro_boundary(const geo::direction& dir) {
-	PROF_BEGIN;
-	std::array<integer, NDIM> lb, ub;
-	std::vector<real> data;
-	const integer size = NF * get_boundary_size(lb, ub, dir, INNER, H_BW);
-	data.resize(size);
-	integer iter = 0;
-
-	for (integer field = 0; field != NF; ++field) {
-		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					data[iter] = grid_ptr->hydro_value(field, i, j, k);
-					++iter;
-				}
-			}
-		}
-	}
-	PROF_END;
-	return data;
 }
 
 inline bool file_exists(const std::string& name) {
@@ -255,25 +245,6 @@ std::vector<real> node_server::get_gravity_boundary(const geo::direction& dir) {
 
 void node_server::set_gravity_boundary(const std::vector<real>& data, const geo::direction& dir, bool monopole) {
 	grid_ptr->set_gravity_boundary(data, dir, monopole);
-}
-
-void node_server::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir) {
-	PROF_BEGIN;
-	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, dir, OUTER, H_BW);
-	integer iter = 0;
-
-	for (integer field = 0; field != NF; ++field) {
-		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					grid_ptr->hydro_value(field, i, j, k) = data[iter];
-					++iter;
-				}
-			}
-		}
-	}
-	PROF_END;
 }
 
 void node_server::clear_family() {

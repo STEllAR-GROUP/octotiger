@@ -10,6 +10,9 @@
 
 #include <stdio.h>
 
+inline const integer refinement_freq() {
+	return  integer(R_BW / cfl + 0.5);
+}
 int file_copy(const char* fin, const char* fout);
 
 template<class... Args>
