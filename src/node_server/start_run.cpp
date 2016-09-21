@@ -9,6 +9,9 @@
 #include "../node_client.hpp"
 #include "../profiler.hpp"
 #include "../util.hpp"
+#include <mpi.h>
+#include "options.hpp"
+extern options opts;
 
 typedef node_server::start_run_action start_run_action_type;
 HPX_REGISTER_ACTION(start_run_action_type);
@@ -54,6 +57,7 @@ void node_server::start_run(bool scf) {
 	hpx::future<void> diag_fut = hpx::make_ready_future();
 	hpx::future<void> step_fut = hpx::make_ready_future();
 	profiler_output(stdout);
+	real bench_start, bench_stop;
 	while (true) {
 		auto time_start = std::chrono::high_resolution_clock::now();
 		if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
@@ -74,6 +78,10 @@ void node_server::start_run(bool scf) {
 			++output_cnt;
 
 		}
+		if (step_num == 0) {
+			bench_start = MPI_Wtime();
+		}
+
 		//	break;
 		auto ts_fut = hpx::async([=]() {return timestep_driver();});
 		step();
@@ -112,10 +120,17 @@ void node_server::start_run(bool scf) {
 			FILE* fp = fopen("profile.txt", "wt");
 			profiler_output(fp);
 			fclose(fp);
-//			break;
+			//		set_omega_and_pivot();
+			bench_stop = MPI_Wtime();
+			if (scf || opts.bench) {
+				printf("Total time = %e s\n", double(bench_stop - bench_start));
+				break;
+			}
 		}
-//		set_omega_and_pivot();
+		//		set_omega_and_pivot();
 		if (scf) {
+			bench_stop = MPI_Wtime();
+			printf("Total time = %e s\n", double(bench_stop - bench_start));
 			break;
 		}
 	}

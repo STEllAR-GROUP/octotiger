@@ -33,6 +33,7 @@ public:
 	bool output_only;
 	real output_dt;
 	real contact_fill;
+	bool bench;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {

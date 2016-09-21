@@ -14,7 +14,7 @@
 #define OUTPUT_OPT "-Output"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
-
+#define BENCH_OPT "-Bench"
 
 #define MAX_LEVEL_OPT "-Max_level"
 
@@ -55,6 +55,7 @@ bool options::process_options(int argc, char* argv[]) {
 	exe_name = std::string(argv[0]);
 	contact_fill = 0.0;
 	output_dt = 1.0;
+	bench = false;
 
 //	for (integer i = 1; i < argc; ++i) {
 //		integer cnt = strlen(argv[i]);
@@ -70,8 +71,8 @@ bool options::process_options(int argc, char* argv[]) {
 			std::string prob(argv[i] + strlen(PROBLEM_OPT) + 1);
 			if (cmp(prob, PROBLEM_OPT_DWD)) {
 				problem = DWD;
-		//	} else if (cmp(prob, PROBLEM_OPT_OLD_SCF)) {
-		//		problem = OLD_SCF;
+				//	} else if (cmp(prob, PROBLEM_OPT_OLD_SCF)) {
+				//		problem = OLD_SCF;
 			} else if (cmp(prob, PROBLEM_OPT_SOLID_SPHERE)) {
 				problem = SOLID_SPHERE;
 			} else if (cmp(prob, PROBLEM_OPT_STAR)) {
@@ -82,6 +83,8 @@ bool options::process_options(int argc, char* argv[]) {
 				printf("The user specified an invalid problem type, \"%s\"\n", prob.c_str());
 				rc = false;
 			}
+		} else if (cmp(argv[i], BENCH_OPT)) {
+			bench = true;
 		} else if (cmp(argv[i], RESTART_OPT)) {
 			restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
 			found_restart_file = true;
@@ -96,7 +99,7 @@ bool options::process_options(int argc, char* argv[]) {
 			omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
 			output_dt = (2.0 * M_PI / omega) / 100.0;
 		} else {
-			printf( "Unknown option - %s\n", argv[i]);
+			printf("Unknown option - %s\n", argv[i]);
 			abort();
 		}
 	}

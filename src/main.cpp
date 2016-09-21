@@ -5,11 +5,11 @@
 #include "node_client.hpp"
 #include "future.hpp"
 #include <chrono>
-#include "options.hpp"
 #include <unistd.h>
 #include <hpx/hpx_init.hpp>
 #include "problem.hpp"
 
+#include "options.hpp"
 options opts;
 
 bool gravity_on = true;
