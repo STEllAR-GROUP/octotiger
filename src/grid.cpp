@@ -767,7 +767,7 @@ space_vector grid::center_of_mass() const {
 		for (integer j = G_BW; j != INX + G_BW; ++j) {
 			for (integer k = G_BW; k != INX + G_BW; ++k) {
 				const integer iii = gindex(i, j, k);
-				const real& this_m = M[0][iii]();
+				const real& this_m = M[iii]();
 				for (auto& dim : geo::dimension::full_set()) {
 					this_com[dim] += this_m * com[0][iii][dim];
 				}
@@ -784,18 +784,18 @@ space_vector grid::center_of_mass() const {
 	return this_com;
 }
 
-multipole& grid::multipole_value(integer lev, integer i, integer j, integer k) {
+multipole& grid::multipole_value( integer i, integer j, integer k) {
 	const integer bw = G_BW;
-	const integer inx = INX >> lev;
+	const integer inx = INX;
 	const integer nx = 2 * bw + inx;
-	return M[lev][i * nx * nx + j * nx + k];
+	return M[i * nx * nx + j * nx + k];
 }
 
-const multipole& grid::multipole_value(integer lev, integer i, integer j, integer k) const {
+const multipole& grid::multipole_value(integer i, integer j, integer k) const {
 	const integer bw = G_BW;
-	const integer inx = INX >> lev;
+	const integer inx = INX;
 	const integer nx = 2 * bw + inx;
-	return M[lev][i * nx * nx + j * nx + k];
+	return M[i * nx * nx + j * nx + k];
 }
 
 real grid::hydro_value(integer f, integer i, integer j, integer k) const {
@@ -968,6 +968,9 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 }
 
 void grid::set_root(bool flag) {
+	M.resize(G_N3);
+	L.resize(G_N3);
+	L_c.resize(G_N3);
 	if (is_root != flag) {
 		is_root = flag;
 		integer this_nlevel = 0;
@@ -975,13 +978,6 @@ void grid::set_root(bool flag) {
 			const integer this_nx = inx + 2 * G_BW;
 			const integer sz = this_nx * this_nx * this_nx;
 			com[this_nlevel].resize(sz);
-			if (is_root || (inx >= INX / 2)) {
-				M[this_nlevel].resize(sz);
-			}
-			if (is_root || (inx >= INX)) {
-				L[this_nlevel].resize(sz);
-				L_c[this_nlevel].resize(sz);
-			}
 			++this_nlevel;
 		}
 		compute_ilist();
@@ -1043,17 +1039,13 @@ void grid::allocate() {
 	L.resize(nlevel);
 	L_c.resize(nlevel);
 	nlevel = 0;
+	M.resize(G_N3);
+	L.resize(G_N3);
+	L_c.resize(G_N3);
 	for (integer inx = INX; inx > 1; inx /= 2) {
 		const integer this_nx = inx + 2 * G_BW;
 		const integer sz = this_nx * this_nx * this_nx;
 		com[nlevel].resize(sz);
-		if (is_root || (inx >= INX / 2)) {
-			M[nlevel].resize(sz);
-		}
-		if (is_root || (inx >= INX)) {
-			L[nlevel].resize(sz);
-			L_c[nlevel].resize(sz);
-		}
 		++nlevel;
 	}
 	dVdx = std::vector<std::vector<std::vector<real>>>(NDIM,

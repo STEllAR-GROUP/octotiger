@@ -177,9 +177,9 @@ private:
 	std::vector<std::vector<npair>> ilist_n_bnd;
 	bool is_root;
 	bool is_leaf;
-	std::vector<std::vector<multipole> > M;
-	std::vector<std::vector<expansion> > L;
-	std::vector<std::vector<space_vector> > L_c;
+	std::vector<multipole> M;
+	std::vector<expansion> L;
+	std::vector<space_vector> L_c;
 	real dx;
 	std::array<real, NDIM> xmin;
 	integer nlevel;
@@ -251,8 +251,8 @@ public:
 		const std::array<integer, NDIM>& ub, const geo::dimension&);
 	real& hydro_value(integer, integer, integer, integer);
 	real hydro_value(integer, integer, integer, integer) const;
-	multipole& multipole_value(integer, integer, integer, integer);
-	const multipole& multipole_value(integer, integer, integer, integer) const;
+	multipole& multipole_value( integer, integer, integer);
+	const multipole& multipole_value(integer, integer, integer) const;
 	space_vector center_of_mass() const;
 	space_vector& center_of_mass_value(integer i, integer j, integer k);
 	const space_vector& center_of_mass_value(integer i, integer j, integer k) const;
