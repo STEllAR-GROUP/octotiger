@@ -14,6 +14,13 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
+static thread_local std::vector<std::vector<real>> _V;
+static thread_local std::vector<std::vector<std::vector<real>>> _dVdx
+=std::vector<std::vector<std::vector<real>>>(NDIM,
+	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+static thread_local std::vector < std::vector<std::vector<real>>> _dUdx = std::vector<std::vector<std::vector<real>>>(NDIM,
+	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+
 void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, integer width, bool tau_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
@@ -336,6 +343,7 @@ void grid::set_prolong(const std::vector<real>& data, std::vector<real>&& outflo
 
 std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only) {
 	PROF_BEGIN;
+	auto& dUdx = _dUdx;
 	std::vector<real> data;
 	const auto U0 = U;
 	integer size = NF;
@@ -716,6 +724,19 @@ bool grid::refine_me(integer lev) const {
 	for (integer i = H_BW - R_BW; i != H_NX - H_BW + R_BW; ++i) {
 		for (integer j = H_BW - R_BW; j != H_NX - H_BW + R_BW; ++j) {
 			for (integer k = H_BW - R_BW; k != H_NX - H_BW + R_BW; ++k) {
+				int cnt = 0;
+				if (i < H_BW || i >= H_NX - H_BW) {
+					++cnt;
+				}
+				if (j < H_BW || j >= H_NX - H_BW) {
+					++cnt;
+				}
+				if (k < H_BW || k >= H_NX - H_BW) {
+					++cnt;
+				}
+				if (cnt > 1) {
+					continue;
+				}
 				const integer iii = hindex(i, j, k);
 				std::vector<real> state(NF);
 				for (integer i = 0; i != NF; ++i) {
@@ -784,7 +805,7 @@ space_vector grid::center_of_mass() const {
 	return this_com;
 }
 
-multipole& grid::multipole_value( integer i, integer j, integer k) {
+multipole& grid::multipole_value(integer i, integer j, integer k) {
 	const integer bw = G_BW;
 	const integer inx = INX;
 	const integer nx = 2 * bw + inx;
@@ -803,8 +824,7 @@ real grid::hydro_value(integer f, integer i, integer j, integer k) const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(
-		false), is_leaf(true) {
+	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -812,7 +832,8 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 
 void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
 	PROF_BEGIN;
-	if (!tau_only) {
+	auto& V = _V;
+if (!tau_only) {
 		V = U;
 		for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
 			for (integer j = lb[YDIM] - 1; j != ub[YDIM] + 1; ++j) {
@@ -855,6 +876,8 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 
 void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
 	PROF_BEGIN;
+	auto& dVdx = _dVdx;
+	auto& V = _V;
 	const integer lb0 = tau_only ? tau_i : 0;
 	const integer ub0 = tau_only ? tau_i + 1 : NF;
 	for (integer f = lb0; f != ub0; ++f) {
@@ -909,6 +932,9 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 
 void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
 	PROF_BEGIN;
+	auto& dVdx = _dVdx;
+	auto& dUdx = _dUdx;
+	auto& V = _V;
 	const real theta = 1.0;
 	if (!tau_only) {
 		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
@@ -1009,7 +1035,7 @@ void compute_ilist();
 void grid::allocate() {
 	PROF_BEGIN;
 	static std::once_flag flag;
-	std::call_once(flag, compute_ilist );
+	std::call_once(flag, compute_ilist);
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
 	dphi_dt = std::vector<real>(H_N3);
@@ -1050,24 +1076,20 @@ void grid::allocate() {
 		com[nlevel].resize(sz);
 		++nlevel;
 	}
-	dVdx = std::vector<std::vector<std::vector<real>>>(NDIM,
-	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
-	dUdx = std::vector<std::vector<std::vector<real>>>(NDIM,
-	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 
 	set_coordinates();
 	PROF_END;
 }
 
 grid::grid() :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(
-		false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(
+		H_N3) {
 	allocate();
 }
 
 grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xmin) :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(
-		false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(
+		H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
 	xmin = _xmin;
@@ -1118,7 +1140,12 @@ inline real limit_slope(real& ql, real q0, real& qr) {
 ;
 
 void grid::reconstruct() {
+
 	PROF_BEGIN;
+
+	auto& dUdx = _dUdx;
+	auto& dVdx = _dVdx;
+	auto& V = _V;
 	compute_primitives();
 
 	std::array<std::vector<real>, NF> slpx, slpy, slpz;

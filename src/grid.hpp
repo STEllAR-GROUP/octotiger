@@ -158,9 +158,6 @@ private:
 	static space_vector pivot;
 	static real scaling_factor;
 
-	std::vector<std::vector<real>> V;
-	std::vector<std::vector<std::vector<real>>>dVdx;
-	std::vector < std::vector<std::vector<real>>> dUdx;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
