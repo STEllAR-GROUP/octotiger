@@ -246,7 +246,6 @@ std::size_t grid::load(FILE* fp) {
 	}
 	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
 	set_coordinates();
-	compute_ilist();
 	return cnt;
 }
 

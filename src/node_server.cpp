@@ -394,37 +394,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
 	grid_ptr->compute_interactions(type);
 
-	/*for (auto& dir : geo::direction::full_set()) {
-	 if (!neighbors[dir].empty()) {
-	 auto tmp = neighbor_gravity_channels[dir].get_future().get();
-	 grid_ptr->set_gravity_boundary(std::move(tmp.data), tmp.direction, tmp.is_monopole);
-	 grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole);
-	 }
-	 }*/
-	std::list < hpx::future < neighbor_gravity_type >> futs;
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
-			auto tmp = neighbor_gravity_channels[dir].get_future();
-			futs.push_back(std::move(tmp));
+			auto tmp = neighbor_gravity_channels[dir].get_future().get();
+			grid_ptr->set_gravity_boundary(std::move(tmp.data), tmp.direction, tmp.is_monopole);
+			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole);
 		}
 	}
-	while (!futs.empty()) {
-		auto i = futs.begin();
-		do {
-			if (i->is_ready()) {
-				auto tmp = i->get();
-				i = futs.erase(i);
-				grid_ptr->set_gravity_boundary(std::move(tmp.data), tmp.direction, tmp.is_monopole);
-				grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole);
-			} else {
-				++i;
-			}
-		} while (i != futs.end());
-		if (!futs.empty()) {
-			hpx::wait_any(futs.begin(), futs.end());
-		}
-	}
-
 	parent_fut.get();
 
 	expansion_pass_type l_in;

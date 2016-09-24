@@ -23,6 +23,11 @@
 template<int N, class T>
 class taylor;
 
+struct interaction_type {
+	integer first;
+	integer second;
+};
+
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
@@ -35,12 +40,6 @@ void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
 	std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real&, real&);
 
-struct npair {
-	integer lev;
-	std::pair<integer, integer> loc;
-};
-
-typedef npair dpair;
 
 typedef real xpoint_type;
 typedef int zone_int_type;
@@ -173,8 +172,6 @@ private:
 	std::vector<std::vector<real>> G0;
 	std::vector<std::vector<real>> src;
 
-	std::vector<std::vector<dpair>> ilist_d_bnd;
-	std::vector<std::vector<npair>> ilist_n_bnd;
 	bool is_root;
 	bool is_leaf;
 	std::vector<multipole> M;
@@ -187,13 +184,11 @@ private:
 	std::vector<real> U_out0;
 	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
-	std::vector<npair> ilist_n;
-	std::vector<dpair> ilist_d;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
-	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<npair>&);
-	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<npair>&);
-	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<npair>&);
-	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<npair>&);
+	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<interaction_type>&);
+	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<interaction_type>&);
+	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<interaction_type>&);
+	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<interaction_type>&);
 public:
 
 	static void set_scaling_factor(real f) {
@@ -258,7 +253,6 @@ public:
 	const space_vector& center_of_mass_value(integer i, integer j, integer k) const;
 	bool refine_me(integer lev) const;
 	integer level_count() const;
-	void compute_ilist();
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();

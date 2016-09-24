@@ -803,7 +803,7 @@ real grid::hydro_value(integer f, integer i, integer j, integer k) const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(
+	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(
 		false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
@@ -980,14 +980,12 @@ void grid::set_root(bool flag) {
 			com[this_nlevel].resize(sz);
 			++this_nlevel;
 		}
-		compute_ilist();
 	}
 }
 
 void grid::set_leaf(bool flag) {
 	if (is_leaf != flag) {
 		is_leaf = flag;
-		compute_ilist();
 	}
 }
 
@@ -1006,8 +1004,12 @@ void grid::set_coordinates() {
 	PROF_END;
 }
 
+void compute_ilist();
+
 void grid::allocate() {
 	PROF_BEGIN;
+	static std::once_flag flag;
+	std::call_once(flag, compute_ilist );
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
 	dphi_dt = std::vector<real>(H_N3);
@@ -1054,18 +1056,17 @@ void grid::allocate() {
 	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 
 	set_coordinates();
-	compute_ilist();
 	PROF_END;
 }
 
 grid::grid() :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(
+	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(
 		false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	allocate();
 }
 
 grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xmin) :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(
+	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(
 		false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;

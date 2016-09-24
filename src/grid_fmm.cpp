@@ -9,6 +9,12 @@
 #include "profiler.hpp"
 #include "taylor.hpp"
 
+static std::vector<interaction_type> ilist_n;
+static std::vector<interaction_type> ilist_d;
+static std::vector<interaction_type> ilist_r;
+static std::vector<std::vector<interaction_type>> ilist_d_bnd(geo::direction::count());
+static std::vector<std::vector<interaction_type>> ilist_n_bnd(geo::direction::count());
+
 void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
 	PROF_BEGIN;
 	real b0[3], b1[3], A, bdif;
@@ -115,163 +121,164 @@ void grid::solve_gravity(gsolve_type type) {
 
 void grid::compute_interactions(gsolve_type type) {
 	PROF_BEGIN;
-	npair np;
-	dpair dp;
-	std::fill(std::begin(L), std::end(L), ZERO);
-	std::fill(std::begin(L_c), std::end(L_c), ZERO);
-	const integer list_size = ilist_n.size();
-	taylor<4, simd_vector> m0;
-	taylor<4, simd_vector> m1;
-	taylor<4, simd_vector> n0;
-	taylor<4, simd_vector> n1;
 	std::array<simd_vector, NDIM> dX;
 	std::array < simd_vector, NDIM > X;
 	std::array<simd_vector, NDIM> Y;
-	for (integer li = 0; li < list_size; li += simd_len) {
-		for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-			const integer iii0 = ilist_n[li + i].loc.first;
-			const integer iii1 = ilist_n[li + i].loc.second;
-			const integer lev = ilist_n[li + i].lev;
-			for (auto& d : geo::dimension::full_set()) {
-				X[d][i] = com[lev][iii0][d];
-				Y[d][i] = com[lev][iii1][d];
-			}
-			for (integer j = 0; j != 20; ++j) {
-				m0.ptr()[j][i] = M[iii1].ptr()[j];
-				m1.ptr()[j][i] = M[iii0].ptr()[j];
-			}
-			for (integer j = 10; j != 20; ++j) {
-				if (type == RHO) {
-					n0.ptr()[j][i] = M[iii1].ptr()[j] - M[iii0].ptr()[j] * (M[iii1]() / M[iii0]());
-					n1.ptr()[j][i] = M[iii0].ptr()[j] - M[iii1].ptr()[j] * (M[iii0]() / M[iii1]());
-				} else {
-					n0.ptr()[j][i] = ZERO;
-					n1.ptr()[j][i] = ZERO;
+	if (!is_leaf) {
+		const auto& this_ilist = is_root ? ilist_r : ilist_n;
+		interaction_type np;
+		interaction_type dp;
+		std::fill(std::begin(L), std::end(L), ZERO);
+		std::fill(std::begin(L_c), std::end(L_c), ZERO);
+		const integer list_size = this_ilist.size();
+		taylor<4, simd_vector> m0;
+		taylor<4, simd_vector> m1;
+		taylor<4, simd_vector> n0;
+		taylor<4, simd_vector> n1;
+		for (integer li = 0; li < list_size; li += simd_len) {
+			for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+				const integer iii0 = this_ilist[li + i].first;
+				const integer iii1 = this_ilist[li + i].second;
+				for (auto& d : geo::dimension::full_set()) {
+					X[d][i] = com[0][iii0][d];
+					Y[d][i] = com[0][iii1][d];
 				}
-			}
-		}
-		for (auto& d : geo::dimension::full_set()) {
-			dX[d] = X[d] - Y[d];
-		}
-		taylor<5, simd_vector> D;
-		taylor<4, simd_vector> A0, A1;
-		std::array<simd_vector, NDIM> B0 = { ZERO, ZERO, ZERO };
-		std::array<simd_vector, NDIM> B1 = { ZERO, ZERO, ZERO };
-		D.set_basis(dX);
-		A0() = m0() * D();
-		A1() = m1() * D();
-		for (auto& a : geo::dimension::full_set()) {
-			if (type != RHO) {
-				A0() -= m0(a) * D(a);
-				A1() += m1(a) * D(a);
-			}
-			A0(a) = +m0() * D(a);
-			A1(a) = -m1() * D(a);
-			for (auto& b : geo::dimension::full_set()) {
-				const auto tmp = D(a, b) * (real(1) / real(2));
-				A0() += m0(a, b) * tmp;
-				A1() += m1(a, b) * tmp;
-				if (type != RHO) {
-					A0(a) -= m0(a) * D(a, b);
-					A1(a) -= m1(a) * D(a, b);
+				for (integer j = 0; j != 20; ++j) {
+					m0.ptr()[j][i] = M[iii1].ptr()[j];
+					m1.ptr()[j][i] = M[iii0].ptr()[j];
 				}
-				A0(a, b) = m0() * D(a, b);
-				A1(a, b) = m1() * D(a, b);
-
-				for (auto& c : geo::dimension::full_set()) {
-					const auto tmp0 = D(a, b, c) * (real(1) / real(6));
-					A0() -= m0(a, b, c) * tmp0;
-					A1() += m1(a, b, c) * tmp0;
-
-					const auto tmp1 = D(a, b, c) * (real(1) / real(2));
-					A0(a) += m0(c, b) * tmp1;
-					A1(a) -= m1(c, b) * tmp1;
-
-					const auto tmp2 = D(a, b, c);
-					A0(a, b) -= m0(c) * tmp2;
-					A1(a, b) += m1(c) * tmp2;
-
-					A1(a, b, c) = -m1() * tmp2;
-					A0(a, b, c) = +m0() * tmp2;
-
+				for (integer j = 10; j != 20; ++j) {
 					if (type == RHO) {
-						for (integer d = 0; d != NDIM; ++d) {
-							const auto tmp = D(a, b, c, d) * (real(1) / real(6));
-							B0[a] -= n0(b, c, d) * tmp;
-							B1[a] -= n1(b, c, d) * tmp;
-						}
+						n0.ptr()[j][i] = M[iii1].ptr()[j] - M[iii0].ptr()[j] * (M[iii1]() / M[iii0]());
+						n1.ptr()[j][i] = M[iii0].ptr()[j] - M[iii1].ptr()[j] * (M[iii0]() / M[iii1]());
+					} else {
+						n0.ptr()[j][i] = ZERO;
+						n1.ptr()[j][i] = ZERO;
 					}
 				}
-
 			}
-		}
-
-		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-			const integer iii0 = ilist_n[li + i].loc.first;
-			const integer iii1 = ilist_n[li + i].loc.second;
-			const integer lev = ilist_n[li + i].lev;
-			for (integer j = 0; j != 20; ++j) {
-				L[iii0].ptr()[j] += A0.ptr()[j][i];
-				L[iii1].ptr()[j] += A1.ptr()[j][i];
+			for (auto& d : geo::dimension::full_set()) {
+				dX[d] = X[d] - Y[d];
 			}
-			if (type == RHO) {
-				for (integer j = 0; j != NDIM; ++j) {
-					L_c[iii0][j] += B0[j][i];
-					L_c[iii1][j] += B1[j][i];
+			taylor<5, simd_vector> D;
+			taylor<4, simd_vector> A0, A1;
+			std::array<simd_vector, NDIM> B0 = { ZERO, ZERO, ZERO };
+			std::array<simd_vector, NDIM> B1 = { ZERO, ZERO, ZERO };
+			D.set_basis(dX);
+			A0() = m0() * D();
+			A1() = m1() * D();
+			for (auto& a : geo::dimension::full_set()) {
+				if (type != RHO) {
+					A0() -= m0(a) * D(a);
+					A1() += m1(a) * D(a);
+				}
+				A0(a) = +m0() * D(a);
+				A1(a) = -m1() * D(a);
+				for (auto& b : geo::dimension::full_set()) {
+					const auto tmp = D(a, b) * (real(1) / real(2));
+					A0() += m0(a, b) * tmp;
+					A1() += m1(a, b) * tmp;
+					if (type != RHO) {
+						A0(a) -= m0(a) * D(a, b);
+						A1(a) -= m1(a) * D(a, b);
+					}
+					A0(a, b) = m0() * D(a, b);
+					A1(a, b) = m1() * D(a, b);
+
+					for (auto& c : geo::dimension::full_set()) {
+						const auto tmp0 = D(a, b, c) * (real(1) / real(6));
+						A0() -= m0(a, b, c) * tmp0;
+						A1() += m1(a, b, c) * tmp0;
+
+						const auto tmp1 = D(a, b, c) * (real(1) / real(2));
+						A0(a) += m0(c, b) * tmp1;
+						A1(a) -= m1(c, b) * tmp1;
+
+						const auto tmp2 = D(a, b, c);
+						A0(a, b) -= m0(c) * tmp2;
+						A1(a, b) += m1(c) * tmp2;
+
+						A1(a, b, c) = -m1() * tmp2;
+						A0(a, b, c) = +m0() * tmp2;
+
+						if (type == RHO) {
+							for (integer d = 0; d != NDIM; ++d) {
+								const auto tmp = D(a, b, c, d) * (real(1) / real(6));
+								B0[a] -= n0(b, c, d) * tmp;
+								B1[a] -= n1(b, c, d) * tmp;
+							}
+						}
+					}
+
+				}
+			}
+
+			for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+				const integer iii0 = this_ilist[li + i].first;
+				const integer iii1 = this_ilist[li + i].second;
+				for (integer j = 0; j != 20; ++j) {
+					L[iii0].ptr()[j] += A0.ptr()[j][i];
+					L[iii1].ptr()[j] += A1.ptr()[j][i];
+				}
+				if (type == RHO) {
+					for (integer j = 0; j != NDIM; ++j) {
+						L_c[iii0][j] += B0[j][i];
+						L_c[iii1][j] += B1[j][i];
+					}
 				}
 			}
 		}
-	}
-
-	const integer dsize = ilist_d.size();
-	const integer lev = 0;
-	for (integer li = 0; li < dsize; li += simd_len) {
-		simd_vector m0, m1;
-		for (integer i = 0; i != simd_len && li + i < dsize; ++i) {
-			const integer iii0 = ilist_d[li + i].loc.first;
-			const integer iii1 = ilist_d[li + i].loc.second;
-			for (integer d = 0; d != NDIM; ++d) {
-				X[d][i] = com[lev][iii0][d];
-				Y[d][i] = com[lev][iii1][d];
+	} else {
+		const integer dsize = ilist_d.size();
+		const integer lev = 0;
+		for (integer li = 0; li < dsize; li += simd_len) {
+			simd_vector m0, m1;
+			for (integer i = 0; i != simd_len && li + i < dsize; ++i) {
+				const integer iii0 = ilist_d[li + i].first;
+				const integer iii1 = ilist_d[li + i].second;
+				for (integer d = 0; d != NDIM; ++d) {
+					X[d][i] = com[0][iii0][d];
+					Y[d][i] = com[0][iii1][d];
+				}
+				m0[i] = M[iii1]();
+				m1[i] = M[iii0]();
 			}
-			m0[i] = M[iii1]();
-			m1[i] = M[iii0]();
-		}
-		simd_vector phi0, phi1, gx0, gx1, gy0, gy1, gz0, gz1;
-		std::array < simd_vector, NDIM > dX;
-		simd_vector r = ZERO;
-		for (auto& d : geo::dimension::full_set()) {
-			dX[d] = X[d] - Y[d];
-			r += dX[d] * dX[d];
-		}
-		r = sqrt(r);
-		const simd_vector rinv = ONE / r;
-		const simd_vector r3inv = ONE / (r * r * r);
-		phi0 = -m0 * rinv;
-		phi1 = -m1 * rinv;
-		for (auto& d : geo::dimension::full_set()) {
-			dX[d] *= r3inv;
-		}
-		if (type == RHO) {
-			gx0 = +m0 * dX[XDIM];
-			gy0 = +m0 * dX[YDIM];
-			gz0 = +m0 * dX[ZDIM];
-			gx1 = -m1 * dX[XDIM];
-			gy1 = -m1 * dX[YDIM];
-			gz1 = -m1 * dX[ZDIM];
-		}
-		for (integer i = 0; i != simd_len && i + li < dsize; ++i) {
-			const integer iii0 = ilist_d[li + i].loc.first;
-			const integer iii1 = ilist_d[li + i].loc.second;
-			L[iii0]() += phi0[i];
-			L[iii1]() += phi1[i];
+			simd_vector phi0, phi1, gx0, gx1, gy0, gy1, gz0, gz1;
+			std::array < simd_vector, NDIM > dX;
+			simd_vector r = ZERO;
+			for (auto& d : geo::dimension::full_set()) {
+				dX[d] = X[d] - Y[d];
+				r += dX[d] * dX[d];
+			}
+			r = sqrt(r);
+			const simd_vector rinv = ONE / r;
+			const simd_vector r3inv = ONE / (r * r * r);
+			phi0 = -m0 * rinv;
+			phi1 = -m1 * rinv;
+			for (auto& d : geo::dimension::full_set()) {
+				dX[d] *= r3inv;
+			}
 			if (type == RHO) {
-				L[iii1](XDIM) += gx1[i];
-				L[iii1](YDIM) += gy1[i];
-				L[iii1](ZDIM) += gz1[i];
-				L[iii0](XDIM) += gx0[i];
-				L[iii0](YDIM) += gy0[i];
-				L[iii0](ZDIM) += gz0[i];
+				gx0 = +m0 * dX[XDIM];
+				gy0 = +m0 * dX[YDIM];
+				gz0 = +m0 * dX[ZDIM];
+				gx1 = -m1 * dX[XDIM];
+				gy1 = -m1 * dX[YDIM];
+				gz1 = -m1 * dX[ZDIM];
+			}
+			for (integer i = 0; i != simd_len && i + li < dsize; ++i) {
+				const integer iii0 = ilist_d[li + i].first;
+				const integer iii1 = ilist_d[li + i].second;
+				L[iii0]() += phi0[i];
+				L[iii1]() += phi1[i];
+				if (type == RHO) {
+					L[iii1](XDIM) += gx1[i];
+					L[iii1](YDIM) += gy1[i];
+					L[iii1](ZDIM) += gz1[i];
+					L[iii0](XDIM) += gx0[i];
+					L[iii0](YDIM) += gy0[i];
+					L[iii0](ZDIM) += gz0[i];
+				}
 			}
 		}
 	}
@@ -295,9 +302,9 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
 
 }
 
-void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
+void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<interaction_type>& ilist_n_bnd) {
 	PROF_BEGIN;
-	npair np;
+	interaction_type np;
 	const integer list_size = ilist_n_bnd.size();
 	taylor<4, simd_vector> m0;
 	taylor<4, simd_vector> n0;
@@ -306,12 +313,11 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 	std::array<simd_vector, NDIM> Y;
 	for (integer li = 0; li < list_size; li += simd_len) {
 		for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].loc.first;
-			const integer iii1 = ilist_n_bnd[li + i].loc.second;
-			const integer lev = ilist_n_bnd[li + i].lev;
+			const integer iii0 = ilist_n_bnd[li + i].first;
+			const integer iii1 = ilist_n_bnd[li + i].second;
 			for (auto& d : geo::dimension::full_set()) {
-				X[d][i] = com[lev][iii0][d];
-				Y[d][i] = com[lev][iii1][d];
+				X[d][i] = com[0][iii0][d];
+				Y[d][i] = com[0][iii1][d];
 			}
 			for (integer j = 0; j != 20; ++j) {
 				m0.ptr()[j][i] = M[iii1].ptr()[j];
@@ -364,8 +370,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 		}
 
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].loc.first;
-			const integer lev = ilist_n_bnd[li + i].lev;
+			const integer iii0 = ilist_n_bnd[li + i].first;
 			for (integer j = 0; j != 20; ++j) {
 				L[iii0].ptr()[j] += A0.ptr()[j][i];
 			}
@@ -379,9 +384,9 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 	PROF_END;
 }
 
-void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
+void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<interaction_type>& ilist_n_bnd) {
 	PROF_BEGIN;
-	npair np;
+	interaction_type np;
 	const integer list_size = ilist_n_bnd.size();
 	taylor<4, simd_vector> m0;
 	taylor<4, simd_vector> n0;
@@ -390,12 +395,11 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 	std::array<simd_vector, NDIM> Y;
 	for (integer li = 0; li < list_size; li += simd_len) {
 		for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].loc.first;
-			const integer iii1 = ilist_n_bnd[li + i].loc.second;
-			const integer lev = ilist_n_bnd[li + i].lev;
+			const integer iii0 = ilist_n_bnd[li + i].first;
+			const integer iii1 = ilist_n_bnd[li + i].second;
 			for (auto& d : geo::dimension::full_set()) {
-				X[d][i] = com[lev][iii0][d];
-				Y[d][i] = com[lev][iii1][d];
+				X[d][i] = com[0][iii0][d];
+				Y[d][i] = com[0][iii1][d];
 			}
 			for (integer j = 0; j != 20; ++j) {
 				m0.ptr()[j][i] = M[iii1].ptr()[j];
@@ -445,8 +449,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 		}
 
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].loc.first;
-			const integer lev = ilist_n_bnd[li + i].lev;
+			const integer iii0 = ilist_n_bnd[li + i].first;
 			for (integer j = 0; j != 4; ++j) {
 				L[iii0].ptr()[j] += A0.ptr()[j][i];
 			}
@@ -460,9 +463,9 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 	PROF_END;
 }
 
-void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<npair>& ilist_n_bnd) {
+void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<interaction_type>& ilist_n_bnd) {
 	PROF_BEGIN;
-	npair np;
+	interaction_type np;
 	const integer list_size = ilist_n_bnd.size();
 	simd_vector m0;
 	taylor<4, simd_vector> n0;
@@ -471,12 +474,11 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 	std::array<simd_vector, NDIM> Y;
 	for (integer li = 0; li < list_size; li += simd_len) {
 		for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].loc.first;
-			const integer iii1 = ilist_n_bnd[li + i].loc.second;
-			const integer lev = ilist_n_bnd[li + i].lev;
+			const integer iii0 = ilist_n_bnd[li + i].first;
+			const integer iii1 = ilist_n_bnd[li + i].second;
 			for (auto& d : geo::dimension::full_set()) {
-				X[d][i] = com[lev][iii0][d];
-				Y[d][i] = com[lev][iii1][d];
+				X[d][i] = com[0][iii0][d];
+				Y[d][i] = com[0][iii1][d];
 			}
 			m0[i] = M[iii1]();
 			for (integer j = 10; j != 20; ++j) {
@@ -515,8 +517,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 		}
 
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].loc.first;
-			const integer lev = ilist_n_bnd[li + i].lev;
+			const integer iii0 = ilist_n_bnd[li + i].first;
 			for (integer j = 0; j != 20; ++j) {
 				L[iii0].ptr()[j] += A0.ptr()[j][i];
 			}
@@ -530,21 +531,21 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 	PROF_END;
 }
 
-void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<npair>& ilist_d_bnd) {
+void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<interaction_type>& ilist_d_bnd) {
 	PROF_BEGIN;
 	const integer dsize = ilist_d_bnd.size();
-	dpair dp;
+	interaction_type dp;
 	std::array < simd_vector, NDIM > X;
 	std::array<simd_vector, NDIM> Y;
 	const integer lev = 0;
 	for (integer li = 0; li < dsize; li += simd_len) {
 		simd_vector m0;
 		for (integer i = 0; i != simd_len && li + i < dsize; ++i) {
-			const integer iii0 = ilist_d_bnd[li + i].loc.first;
-			const integer iii1 = ilist_d_bnd[li + i].loc.second;
+			const integer iii0 = ilist_d_bnd[li + i].first;
+			const integer iii1 = ilist_d_bnd[li + i].second;
 			for (auto& d : geo::dimension::full_set()) {
-				X[d][i] = com[lev][iii0][d];
-				Y[d][i] = com[lev][iii1][d];
+				X[d][i] = com[0][iii0][d];
+				Y[d][i] = com[0][iii1][d];
 			}
 			m0[i] = M[iii1]();
 		}
@@ -568,7 +569,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 			gz0 = +m0 * dX[ZDIM];
 		}
 		for (integer i = 0; i != simd_len && i + li < dsize; ++i) {
-			const integer iii0 = ilist_d_bnd[li + i].loc.first;
+			const integer iii0 = ilist_d_bnd[li + i].first;
 			L[iii0]() += phi0[i];
 			if (type == RHO) {
 				L[iii0](XDIM) += gx0[i];
@@ -580,104 +581,110 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 	PROF_END;
 }
 
-void grid::compute_ilist() {
-	PROF_BEGIN;
-	std::vector<std::vector<geo::direction> > neighbor_num(nlevel, std::vector<geo::direction>(G_N3, geo::direction(-1)));
-	integer lev = nlevel - 2;
-	for (integer inx = 4; inx <= INX; inx <<= 1) {
-		const integer nx = inx + 2 * G_BW;
-		for (integer i0 = 0; i0 != nx; ++i0) {
-			for (integer j0 = 0; j0 != nx; ++j0) {
-				for (integer k0 = 0; k0 != nx; ++k0) {
-					bool on_bnd = false;
-					const integer iii0 = i0 * nx * nx + j0 * nx + k0;
-					integer x, y, z;
-					if (k0 < G_BW) {
-						z = -1;
-						on_bnd = true;
-					} else if (k0 >= nx - G_BW) {
-						z = +1;
-						on_bnd = true;
-					} else {
-						z = 0;
-					}
-					if (j0 < G_BW) {
-						y = -1;
-						on_bnd = true;
-					} else if (j0 >= nx - G_BW) {
-						y = +1;
-						on_bnd = true;
-					} else {
-						y = 0;
-					}
-					if (i0 < G_BW) {
-						x = -1;
-						on_bnd = true;
-					} else if (i0 >= nx - G_BW) {
-						x = +1;
-						on_bnd = true;
-					} else {
-						x = 0;
-					}
-					if (on_bnd) {
-						neighbor_num[lev][iii0].set(x, y, z);
-					}
+void compute_ilist() {
+	std::vector<geo::direction> neighbor_num(G_N3, geo::direction(-1));
+	const integer inx = INX;
+	const integer nx = inx + 2 * G_BW;
+	for (integer i0 = 0; i0 != nx; ++i0) {
+		for (integer j0 = 0; j0 != nx; ++j0) {
+			for (integer k0 = 0; k0 != nx; ++k0) {
+				bool on_bnd = false;
+				const integer iii0 = i0 * nx * nx + j0 * nx + k0;
+				integer x, y, z;
+				if (k0 < G_BW) {
+					z = -1;
+					on_bnd = true;
+				} else if (k0 >= nx - G_BW) {
+					z = +1;
+					on_bnd = true;
+				} else {
+					z = 0;
+				}
+				if (j0 < G_BW) {
+					y = -1;
+					on_bnd = true;
+				} else if (j0 >= nx - G_BW) {
+					y = +1;
+					on_bnd = true;
+				} else {
+					y = 0;
+				}
+				if (i0 < G_BW) {
+					x = -1;
+					on_bnd = true;
+				} else if (i0 >= nx - G_BW) {
+					x = +1;
+					on_bnd = true;
+				} else {
+					x = 0;
+				}
+				if (on_bnd) {
+					neighbor_num[iii0].set(x, y, z);
 				}
 			}
 		}
-		--lev;
 	}
-	lev = nlevel - 2;
-	npair np;
-	dpair dp;
-	std::vector<npair> ilist_n0;
-	std::vector<dpair> ilist_d0;
-	std::array<std::vector<npair>, geo::direction::count()> ilist_n0_bnd;
-	std::array<std::vector<dpair>, geo::direction::count()> ilist_d0_bnd;
+	interaction_type np;
+	interaction_type dp;
+	std::vector<interaction_type> ilist_r0;
+	std::vector<interaction_type> ilist_n0;
+	std::vector<interaction_type> ilist_d0;
+	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_n0_bnd;
+	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd;
 	const auto W = G_BW / 2;
-	for (integer inx = 4; inx <= INX; inx <<= 1) {
-		if (lev == 0) {
-			const integer nx = inx + 2 * G_BW;
-			for (integer i0 = 0; i0 != nx; ++i0) {
-				for (integer j0 = 0; j0 != nx; ++j0) {
-					for (integer k0 = 0; k0 != nx; ++k0) {
-						const integer iii0 = i0 * nx * nx + j0 * nx + k0;
-						const integer imin = is_root ? 0 : std::max(integer(0), 2 * ((i0 / 2) - W));
-						const integer jmin = is_root ? 0 : std::max(integer(0), 2 * ((j0 / 2) - W));
-						const integer kmin = is_root ? 0 : std::max(integer(0), 2 * ((k0 / 2) - W));
-						const integer imax = is_root ? nx - 1 : std::min(integer(nx - 1), 2 * ((i0 / 2) + W) + 1);
-						const integer jmax = is_root ? nx - 1 : std::min(integer(nx - 1), 2 * ((j0 / 2) + W) + 1);
-						const integer kmax = is_root ? nx - 1 : std::min(integer(nx - 1), 2 * ((k0 / 2) + W) + 1);
-						for (integer i1 = imin; i1 <= imax; ++i1) {
-							for (integer j1 = jmin; j1 <= jmax; ++j1) {
-								for (integer k1 = kmin; k1 <= kmax; ++k1) {
-									const integer iii1 = i1 * nx * nx + j1 * nx + k1;
-									integer max_dist = std::max(std::abs(k0 - k1), std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
-									dp.lev = lev;
-									dp.loc.first = iii0;
-									dp.loc.second = iii1;
-									if (neighbor_num[lev][iii1] != -1 && neighbor_num[lev][iii0] == -1) {
-										ilist_d0_bnd[neighbor_num[lev][iii1]].push_back(dp);
+	for (integer i0 = 0; i0 != nx; ++i0) {
+		for (integer j0 = 0; j0 != nx; ++j0) {
+			for (integer k0 = 0; k0 != nx; ++k0) {
+				const integer iii0 = i0 * nx * nx + j0 * nx + k0;
+				const integer imin = std::max(integer(0), 2 * ((i0 / 2) - W));
+				const integer jmin = std::max(integer(0), 2 * ((j0 / 2) - W));
+				const integer kmin = std::max(integer(0), 2 * ((k0 / 2) - W));
+				const integer imax = std::min(integer(nx - 1), 2 * ((i0 / 2) + W) + 1);
+				const integer jmax = std::min(integer(nx - 1), 2 * ((j0 / 2) + W) + 1);
+				const integer kmax = std::min(integer(nx - 1), 2 * ((k0 / 2) + W) + 1);
+				for (integer i1 = imin; i1 <= imax; ++i1) {
+					for (integer j1 = jmin; j1 <= jmax; ++j1) {
+						for (integer k1 = kmin; k1 <= kmax; ++k1) {
+							const integer iii1 = i1 * nx * nx + j1 * nx + k1;
+							integer max_dist = std::max(std::abs(k0 - k1), std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
+							dp.first = iii0;
+							dp.second = iii1;
+							if (neighbor_num[iii1] != -1 && neighbor_num[iii0] == -1) {
+								ilist_d0_bnd[neighbor_num[iii1]].push_back(dp);
+							}
+							if (max_dist > W) {
+								np.first = iii0;
+								np.second = iii1;
+								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
+									if (iii1 > iii0) {
+										ilist_n0.push_back(np);
 									}
-									if ((max_dist > W) && ((lev != 0) || !is_leaf)) {
-										np.lev = lev;
-										np.loc.first = iii0;
-										np.loc.second = iii1;
-										if (neighbor_num[lev][iii1] == -1 && neighbor_num[lev][iii0] == -1) {
-											if (iii1 > iii0) {
-												ilist_n0.push_back(np);
-											}
-										} else if (neighbor_num[lev][iii0] == -1) {
-											ilist_n0_bnd[neighbor_num[lev][iii1]].push_back(np);
-										}
-									} else {
-										if ((lev == 0) && (max_dist > 0) && is_leaf) {
-											if (neighbor_num[lev][iii1] == -1 && neighbor_num[lev][iii0] == -1) {
-												if (iii1 > iii0) {
-													ilist_d0.push_back(dp);
-												}
-											}
-										}
+								} else if (neighbor_num[iii0] == -1) {
+									ilist_n0_bnd[neighbor_num[iii1]].push_back(np);
+								}
+							}
+							if (max_dist > 0) {
+								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
+									if (iii1 > iii0) {
+										ilist_d0.push_back(dp);
+									}
+								}
+
+							}
+						}
+					}
+				}
+				for (integer i1 = 0; i1 < H_NX; ++i1) {
+					for (integer j1 = 0; j1 < H_NX; ++j1) {
+						for (integer k1 = 0; k1 < H_NX; ++k1) {
+							const integer iii1 = i1 * nx * nx + j1 * nx + k1;
+							integer max_dist = std::max(std::abs(k0 - k1), std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
+							if (max_dist > W) {
+								np.first = iii0;
+								np.second = iii1;
+								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
+									if (iii1 > iii0) {
+										ilist_r0.push_back(np);
 									}
 								}
 							}
@@ -686,15 +693,14 @@ void grid::compute_ilist() {
 				}
 			}
 		}
-		--lev;
 	}
-	ilist_n = std::vector<npair>(ilist_n0.begin(), ilist_n0.end());
-	ilist_d = std::vector<dpair>(ilist_d0.begin(), ilist_d0.end());
+	ilist_n = std::vector<interaction_type>(ilist_n0.begin(), ilist_n0.end());
+	ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
+	ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
 	for (auto& dir : geo::direction::full_set()) {
-		ilist_n_bnd[dir] = std::vector<npair>(ilist_n0_bnd[dir].begin(), ilist_n0_bnd[dir].end());
-		ilist_d_bnd[dir] = std::vector<dpair>(ilist_d0_bnd[dir].begin(), ilist_d0_bnd[dir].end());
+		ilist_d_bnd[dir] = std::vector<interaction_type>(ilist_d0_bnd[dir].begin(), ilist_d0_bnd[dir].end());
+		ilist_n_bnd[dir] = std::vector<interaction_type>(ilist_n0_bnd[dir].begin(), ilist_n0_bnd[dir].end());
 	}
-	PROF_END;
 }
 
 expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_pass_type* parent_expansions) {
@@ -850,12 +856,12 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 								const integer iiic = child_index(ip, jp, kp, ci);
 								mc[ci] = M[iiic]();
 								for (auto& d : geo::dimension::full_set()) {
-									X[d][ci] = com[lev - 1][iiic][d];
+									X[d][ci] = com[0][iiic][d];
 								}
 							}
 							real mtot = mc.sum();
 							for (auto& d : geo::dimension::full_set()) {
-								com[lev][iiip][d] = (X[d] * mc).sum() / mtot;
+								com[1][iiip][d] = (X[d] * mc).sum() / mtot;
 							}
 						}
 						taylor<4, simd_vector> mc, mp;
