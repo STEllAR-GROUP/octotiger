@@ -29,6 +29,8 @@ add_hpx_executable(
   DEPENDENCIES
         silo
   SOURCES 
+        src/node_server_actions_1.cpp
+        src/node_server_actions_2.cpp
         src/profiler.cpp	
       	src/eos.cpp
 		src/geometry.cpp
@@ -42,39 +44,8 @@ add_hpx_executable(
 		src/node_client.cpp
 		src/node_location.cpp
 		src/node_server.cpp
-        src/node_server/check_for_refinement.cpp
-        src/node_server/copy_to_locality.cpp
-        src/node_server/diagnostics.cpp
-        src/node_server/force_nodes_to_exist.cpp
-        src/node_server/form_tree.cpp
-        src/node_server/get_child_client.cpp
-        src/node_server/get_nieces.cpp
-        src/node_server/get_ptr.cpp
-        src/node_server/gravity_boundary.cpp
-        src/node_server/gravity_expansions.cpp
-        src/node_server/gravity_multipoles.cpp
-        src/node_server/hydro_boundary.cpp
-        src/node_server/hydro_children.cpp
-        src/node_server/hydro_flux_correct.cpp
-        src/node_server/line_of_centers.cpp
-        src/node_server/load.cpp
-        src/node_server/output.cpp
-        src/node_server/regrid.cpp
-        src/node_server/regrid_gather.cpp
-        src/node_server/regrid_scatter.cpp
-        src/node_server/save.cpp
-        src/node_server/set_aunt.cpp
-        src/node_server/set_grid.cpp
-        src/node_server/solve_gravity.cpp
-        src/node_server/start_run.cpp
-        src/node_server/step.cpp
-        src/node_server/timestep_driver.cpp
-        src/node_server/timestep_driver_ascend.cpp
-        src/node_server/timestep_driver_descend.cpp
-        src/node_server/velocity_inc.cpp
- 		src/options.cpp
+                src/options.cpp
 		src/problem.cpp
-		src/rad_grid.cpp
 		src/real.cpp
 		src/roe.cpp
 		src/stack_trace.cpp

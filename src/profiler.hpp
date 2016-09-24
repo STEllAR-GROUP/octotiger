@@ -19,7 +19,7 @@ void profiler_exit();
 void profiler_output(FILE* fp);
 
 
-#define PROFILE_OFF
+//#define PROFILE_OFF
 
 #ifdef PROFILE_OFF
 #define PROF_BEGIN

@@ -80,7 +80,7 @@ void node_server::set_pivot() {
 		}
 	}
 	for (auto&& fut : futs) {
-		GET(fut);
+		fut.get();
 	}
 }
 
@@ -100,7 +100,7 @@ int hpx_main(int argc, char* argv[]) {
 				futs.push_back(hpx::async<initialize_action>(*i, opts));
 			}
 			for (auto i = futs.begin(); i != futs.end(); ++i) {
-				GET(*i);
+				i->get();
 			}
 
 			node_client root_id = hpx::new_<node_server>(hpx::find_here());
@@ -112,27 +112,27 @@ int hpx_main(int argc, char* argv[]) {
 				printf("Loading from %s...\n", fname.c_str());
 				if (opts.output_only) {
 					const std::string oname = opts.output_filename;
-					GET(root_client.get_ptr())->load_from_file_and_output(fname, oname);
+					root_client.get_ptr().get()->load_from_file_and_output(fname, oname);
 				} else {
-					GET(root_client.get_ptr())->load_from_file(fname);
-					GET(root_client.regrid(root_client.get_gid(), true));
+					root_client.get_ptr().get()->load_from_file(fname);
+					root_client.regrid(root_client.get_gid(), true).get();
 				}
 				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {
-					GET(root_client.regrid(root_client.get_gid(), false));
+					root_client.regrid(root_client.get_gid(), false).get();
 					printf("---------------Created Level %i---------------\n\n", int(l + 1));
 				}
-				GET(root_client.regrid(root_client.get_gid(), false));
+				root_client.regrid(root_client.get_gid(), false).get();
 				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
 
 			std::vector<hpx::id_type> null_sibs(geo::direction::count());
 			printf("Forming tree connections------------\n");
-			GET(root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs));
+			root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs).get();
 			if (gravity_on) {
 				//real tstart = MPI_Wtime();
-				GET(root_client.solve_gravity(false));
+				root_client.solve_gravity(false).get();
 			//	printf("Gravity Solve Time = %e\n", MPI_Wtime() - tstart);
 			}
 			printf("...done\n");

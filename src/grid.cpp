@@ -14,13 +14,13 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
-void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, bool tau_only) {
+void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, integer width, bool tau_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	if (!tau_only) {
-		get_boundary_size(lb, ub, dir, OUTER, INX, H_BW);
+		get_boundary_size(lb, ub, dir, OUTER, INX, width);
 	} else {
-		get_boundary_size(lb, ub, dir, OUTER, H_NX - 2, 1);
+		get_boundary_size(lb, ub, dir, OUTER, INX, width);
 	}
 	integer iter = 0;
 
@@ -39,15 +39,15 @@ void grid::set_hydro_boundary(const std::vector<real>& data, const geo::directio
 	PROF_END;
 }
 
-std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, bool tau_only) {
+std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, integer width, bool tau_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	integer size;
 	if (!tau_only) {
-		size = NF * get_boundary_size(lb, ub, dir, INNER, INX, H_BW);
+		size = NF * get_boundary_size(lb, ub, dir, INNER, INX, width);
 	} else {
-		size = get_boundary_size(lb, ub, dir, INNER, H_NX - 2, 1);
+		size = get_boundary_size(lb, ub, dir, INNER, INX, width);
 	}
 	data.resize(size);
 	integer iter = 0;
@@ -1025,7 +1025,7 @@ void grid::allocate() {
 	for (integer field = 0; field != NF; ++field) {
 		src[field].resize(H_N3);
 		U0[field].resize(H_N3);
-		U[field].resize(H_N3);
+		U[field].resize(H_N3, 1.0);
 		dUdt[field].resize(H_N3);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(H_N3);
@@ -1066,8 +1066,6 @@ void grid::allocate() {
 	PROF_END;
 }
 
-
-
 grid::grid() :
 	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(geo::direction::count()), ilist_n_bnd(geo::direction::count()), is_root(
 		false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
@@ -1081,9 +1079,9 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
-	for (integer i = 0; i != H_NX; ++i) {
-		for (integer j = 0; j != H_NX; ++j) {
-			for (integer k = 0; k != H_NX; ++k) {
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				std::vector<real> this_u = init_func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], dx);
 				for (integer field = 0; field != NF; ++field) {
@@ -1771,16 +1769,10 @@ void grid::next_u(integer rk, real t, real dt) {
 void grid::dual_energy_update() {
 	PROF_BEGIN;
 	bool in_bnd;
-	for (integer i = 1; i != H_NX - 1; ++i) {
-		in_bnd = (i < H_BW || i >= H_BW - H_BW);
-		for (integer j = in_bnd ? H_BW : 1; j != H_NX - (in_bnd ? H_BW : 1); ++j) {
-			if (!in_bnd) {
-				in_bnd = (j < H_BW || j >= H_BW - H_BW);
-			}
-			const integer lb = in_bnd ? H_BW : 1;
-			const integer ub = H_NX - (in_bnd ? H_BW : 1);
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
-			for (integer k = lb; k != ub; ++k) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				real ek = ZERO;
 				ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];

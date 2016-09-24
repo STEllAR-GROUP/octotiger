@@ -28,7 +28,6 @@ typedef taylor<4, real> expansion;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
-
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
@@ -161,7 +160,7 @@ private:
 	static real scaling_factor;
 
 	std::vector<std::vector<real>> V;
-	std::vector < std::vector<std::vector<real>>> dVdx;
+	std::vector<std::vector<std::vector<real>>>dVdx;
 	std::vector < std::vector<std::vector<real>>> dUdx;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
@@ -229,8 +228,8 @@ public:
 	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
 	void compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
 	void set_coordinates();
-	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool tau_only = false);
-	std::vector<real> get_hydro_boundary(const geo::direction& face, bool tau_only = false);
+	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
+	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
 	scf_data_t scf_params();
 	real scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;

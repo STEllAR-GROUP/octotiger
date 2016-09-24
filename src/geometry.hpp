@@ -106,6 +106,9 @@ public:
 		assert(false);
 		return 0;
 	}
+	bool is_vertex() const {
+		return std::abs((*this)[0]) + std::abs((*this)[1]) + std::abs((*this)[2]) == 3;
+	}
 	bool is_face() const {
 		return std::abs((*this)[0]) + std::abs((*this)[1]) + std::abs((*this)[2]) == 1;
 	}
