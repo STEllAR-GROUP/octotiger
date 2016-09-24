@@ -124,12 +124,12 @@ void grid::compute_interactions(gsolve_type type) {
 	std::array<simd_vector, NDIM> dX;
 	std::array < simd_vector, NDIM > X;
 	std::array<simd_vector, NDIM> Y;
+	std::fill(std::begin(L), std::end(L), ZERO);
+	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 	if (!is_leaf) {
 		const auto& this_ilist = is_root ? ilist_r : ilist_n;
 		interaction_type np;
 		interaction_type dp;
-		std::fill(std::begin(L), std::end(L), ZERO);
-		std::fill(std::begin(L_c), std::end(L_c), ZERO);
 		const integer list_size = this_ilist.size();
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> m1;

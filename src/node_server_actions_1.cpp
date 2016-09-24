@@ -557,13 +557,11 @@ void node_server::step() {
 		grid_ptr->next_u(rk, current_time, dt);
 
 		compute_fmm(RHO, true);
-//		if (rk != NRK - 1) {
-			fut = all_hydro_bounds();
-//		}
+		fut = all_hydro_bounds(rk == NRK - 1);
 	}
-//	fut.get();
+	fut.get();
 	grid_ptr->dual_energy_update();
-	fut = all_hydro_bounds(true);
+	fut = all_hydro_bounds();
 	fut.get();
 	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
 		i->get();
