@@ -93,9 +93,7 @@ void node_server::rho_move(real x) {
 			}
 		}
 	}
-	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries();
-	send_hydro_amr_boundaries();
+	all_hydro_boundarys().get();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -123,9 +121,7 @@ void node_server::rho_mult(real f0, real f1) {
 			}
 		}
 	}
-	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries();
-	send_hydro_amr_boundaries();
+	all_hydro_boundarys().get();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -144,9 +140,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	} else {
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
-	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries();
-	send_hydro_amr_boundaries();
+	all_hydro_boundarys().get();
 	for (auto&& fut : futs) {
 		res += fut.get();
 	}
