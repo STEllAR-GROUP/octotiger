@@ -1049,7 +1049,7 @@ void grid::allocate() {
 	for (integer field = 0; field != NF; ++field) {
 		src[field].resize(H_N3);
 		U0[field].resize(H_N3);
-		U[field].resize(H_N3, 1.0);
+		U[field].resize(H_N3);
 		dUdt[field].resize(H_N3);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(H_N3);
