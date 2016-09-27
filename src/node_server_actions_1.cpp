@@ -538,6 +538,7 @@ void node_server::step() {
 	grid_ptr->store();
 
 	for (integer rk = 0; rk < NRK; ++rk) {
+		fut.get();
 		grid_ptr->reconstruct();
 		a = grid_ptr->compute_fluxes();
 		fut_flux = exchange_flux_corrections();
@@ -553,11 +554,10 @@ void node_server::step() {
 		if (rk == 0) {
 			dt = global_timestep_channel.get_future().get();
 		}
-		fut.get();
 		grid_ptr->next_u(rk, current_time, dt);
 
 		compute_fmm(RHO, true);
-		fut = all_hydro_bounds(rk != NRK - 1);
+		fut = all_hydro_bounds(rk == NRK - 1);
 	}
 	fut.get();
 	grid_ptr->dual_energy_update();
