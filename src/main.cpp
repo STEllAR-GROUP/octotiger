@@ -21,9 +21,9 @@ HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
 void initialize(options _opts) {
 	opts = _opts;
 //#ifndef NDEBUG
-	feenableexcept (FE_DIVBYZERO);
-	feenableexcept (FE_INVALID);
-	feenableexcept (FE_OVERFLOW);
+	//feenableexcept (FE_DIVBYZERO);
+//	feenableexcept (FE_INVALID);
+//	feenableexcept (FE_OVERFLOW);
 //#endif
 	grid::set_scaling_factor(opts.xscale);
 	grid::set_max_level(opts.max_level);

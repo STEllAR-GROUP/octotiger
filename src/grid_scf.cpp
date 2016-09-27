@@ -25,7 +25,7 @@ static constexpr real async1 = -0.0e-2;
 static constexpr real async2 = -0.0e-2;
 static constexpr bool equal_eos = false; // If true, EOS of accretor will be set to that of donor
 static constexpr real M1 = 1.0;// Mass of primary
-static constexpr real M2 = 0.5;// Mass of secondarys
+static constexpr real M2 = 0.5;// Mass of secondaries
 static constexpr real nc1 = 2.9;// Primary core polytropic index
 static constexpr real nc2 = 2.9;// Secondary core polytropic index
 static constexpr real ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_eos=true
@@ -93,7 +93,7 @@ void node_server::rho_move(real x) {
 			}
 		}
 	}
-	all_hydro_boundarys().get();
+	all_hydro_bounds().get();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -121,7 +121,7 @@ void node_server::rho_mult(real f0, real f1) {
 			}
 		}
 	}
-	all_hydro_boundarys().get();
+	all_hydro_bounds().get();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -140,7 +140,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	} else {
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
-	all_hydro_boundarys().get();
+	all_hydro_bounds().get();
 	for (auto&& fut : futs) {
 		res += fut.get();
 	}

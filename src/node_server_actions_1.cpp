@@ -499,6 +499,10 @@ void node_server::start_run(bool scf) {
 			bench_stop = MPI_Wtime();
 			if (scf || opts.bench) {
 				printf("Total time = %e s\n", double(bench_stop - bench_start));
+			                        FILE* fp = fopen( "bench.dat", "at" );
+                        fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
+                        fclose(fp);
+
 				break;
 			}
 		}
@@ -506,6 +510,9 @@ void node_server::start_run(bool scf) {
 		if (scf) {
 			bench_stop = MPI_Wtime();
 			printf("Total time = %e s\n", double(bench_stop - bench_start));
+		//	FILE* fp = fopen( "bench.dat", "at" );
+		//	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
+		//	fclose(fp);
 			break;
 		}
 	}
@@ -562,7 +569,7 @@ void node_server::step() {
 	fut.get();
 	grid_ptr->dual_energy_update();
 
-	if (step_num % refinement_freq() == 0) {
+	if ((step_num+1) % refinement_freq() == 0) {
 		fut = all_hydro_bounds();
 		fut.get();
 	}

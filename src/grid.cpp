@@ -14,7 +14,7 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
-static thread_local std::vector<std::vector<real>> _V;
+static thread_local std::vector<std::vector<real>> _V(NF,std::vector<real>(H_N3));
 static thread_local std::vector<std::vector<std::vector<real>>> _dVdx
 =std::vector<std::vector<std::vector<real>>>(NDIM,
 	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
