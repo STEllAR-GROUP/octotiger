@@ -98,7 +98,7 @@ std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
 	return u;
 }
 
-const real ssr0 = 1.0 / 3.0;
+const real ssr0 = 0.6;
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
 	const real r0 = ssr0;
 	const real M = 1.0;

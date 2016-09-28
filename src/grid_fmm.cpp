@@ -12,8 +12,7 @@
 static std::vector<interaction_type> ilist_n;
 static std::vector<interaction_type> ilist_d;
 static std::vector<interaction_type> ilist_r;
-static std::vector<std::vector<interaction_type>> ilist_d_bnd1(geo::direction::count());
-static std::vector<std::vector<interaction_type>> ilist_d_bnd2(geo::direction::count());
+static std::vector<std::vector<interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<interaction_type>> ilist_n_bnd(geo::direction::count());
 
 void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
@@ -298,13 +297,13 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
 		if (!is_monopole) {
 			compute_boundary_interactions_multipole_multipole(type, ilist_n_bnd[dir]);
 		} else {
-			//	compute_boundary_interactions_monopole_multipole(type, ilist_d_bnd2[dir]);
+			compute_boundary_interactions_monopole_multipole(type, ilist_d_bnd[dir]);
 		}
 	} else {
 		if (!is_monopole) {
-			//		compute_boundary_interactions_multipole_monopole(type, ilist_d_bnd2[dir]);
+			compute_boundary_interactions_multipole_monopole(type, ilist_d_bnd[dir]);
 		} else {
-			compute_boundary_interactions_monopole_monopole(type, ilist_d_bnd1[dir]);
+			compute_boundary_interactions_monopole_monopole(type, ilist_d_bnd[dir]);
 		}
 	}
 
@@ -648,8 +647,7 @@ void compute_ilist() {
 	std::vector<interaction_type> ilist_n0;
 	std::vector<interaction_type> ilist_d0;
 	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_n0_bnd;
-	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd1;
-	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd2;
+	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd;
 	const auto W = G_BW / 4;
 	for (integer i0 = 0; i0 != nx; ++i0) {
 		for (integer j0 = 0; j0 != nx; ++j0) {
@@ -670,7 +668,7 @@ void compute_ilist() {
 							dp.first = iii0;
 							dp.second = iii1;
 							if (neighbor_num[iii1] != -1 && neighbor_num[iii0] == -1) {
-								ilist_d0_bnd1[neighbor_num[iii1]].push_back(dp);
+								ilist_d0_bnd[neighbor_num[iii1]].push_back(dp);
 							}
 							if (max_dist > 0) {
 								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
@@ -678,7 +676,6 @@ void compute_ilist() {
 										ilist_d0.push_back(dp);
 									}
 								}
-
 							}
 						}
 					}
@@ -704,13 +701,6 @@ void compute_ilist() {
 									}
 								} else if (neighbor_num[iii0] == -1) {
 									ilist_n0_bnd[neighbor_num[iii1]].push_back(np);
-								}
-							}
-							if (max_dist > 0) {
-								dp.first = iii0;
-								dp.second = iii1;
-								if (neighbor_num[iii1] != -1 && neighbor_num[iii0] == -1) {
-									ilist_d0_bnd2[neighbor_num[iii1]].push_back(dp);
 								}
 							}
 						}
@@ -741,8 +731,7 @@ void compute_ilist() {
 	ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
 	ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
 	for (auto& dir : geo::direction::full_set()) {
-		ilist_d_bnd2[dir] = std::vector<interaction_type>(ilist_d0_bnd2[dir].begin(), ilist_d0_bnd2[dir].end());
-		ilist_d_bnd1[dir] = std::vector<interaction_type>(ilist_d0_bnd1[dir].begin(), ilist_d0_bnd1[dir].end());
+		ilist_d_bnd[dir] = std::vector<interaction_type>(ilist_d0_bnd[dir].begin(), ilist_d0_bnd[dir].end());
 		ilist_n_bnd[dir] = std::vector<interaction_type>(ilist_n0_bnd[dir].begin(), ilist_n0_bnd[dir].end());
 	}
 }
