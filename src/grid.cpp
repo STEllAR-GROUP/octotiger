@@ -1034,6 +1034,7 @@ void compute_ilist();
 
 void grid::allocate() {
 	PROF_BEGIN;
+	levels.resize(G_N3);
 	static std::once_flag flag;
 	std::call_once(flag, compute_ilist);
 	U_out0 = std::vector<real>(NF, ZERO);

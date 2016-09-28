@@ -12,7 +12,8 @@
 static std::vector<interaction_type> ilist_n;
 static std::vector<interaction_type> ilist_d;
 static std::vector<interaction_type> ilist_r;
-static std::vector<std::vector<interaction_type>> ilist_d_bnd(geo::direction::count());
+static std::vector<std::vector<interaction_type>> ilist_d_bnd1(geo::direction::count());
+static std::vector<std::vector<interaction_type>> ilist_d_bnd2(geo::direction::count());
 static std::vector<std::vector<interaction_type>> ilist_n_bnd(geo::direction::count());
 
 void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
@@ -76,7 +77,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 		for (integer j = G_BW; j != G_NX - G_BW; ++j) {
 			for (integer k = G_BW; k != G_NX - G_BW; ++k) {
 				const integer iii1 = gindex(i, j, k);
-				const integer iii0 = gindex(i + H_BW - G_BW, j + H_BW - G_BW, k + H_BW - G_BW);
+				//		const integer iii0 = gindex(i + H_BW - G_BW, j + H_BW - G_BW, k + H_BW - G_BW);
 				for (integer n = 0; n != NDIM; ++n) {
 					this_com[n] += M[iii1]() * com[0][iii1][n];
 					mtot += M[iii1]();
@@ -127,7 +128,14 @@ void grid::compute_interactions(gsolve_type type) {
 	std::fill(std::begin(L), std::end(L), ZERO);
 	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 	if (!is_leaf) {
-		const auto& this_ilist = is_root ? ilist_r : ilist_n;
+		const auto& ilist = is_root ? ilist_r : ilist_n;
+		std::vector<interaction_type> this_ilist;
+		this_ilist.reserve(ilist.size());
+		for (auto i : ilist) {
+			if (!(levels[i.first] == 1 || levels[i.second] == 1)) {
+				this_ilist.push_back(i);
+			}
+		}
 		interaction_type np;
 		interaction_type dp;
 		const integer list_size = this_ilist.size();
@@ -290,13 +298,13 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
 		if (!is_monopole) {
 			compute_boundary_interactions_multipole_multipole(type, ilist_n_bnd[dir]);
 		} else {
-			compute_boundary_interactions_monopole_multipole(type, ilist_d_bnd[dir]);
+			//	compute_boundary_interactions_monopole_multipole(type, ilist_d_bnd2[dir]);
 		}
 	} else {
 		if (!is_monopole) {
-			compute_boundary_interactions_multipole_monopole(type, ilist_d_bnd[dir]);
+			//		compute_boundary_interactions_multipole_monopole(type, ilist_d_bnd2[dir]);
 		} else {
-			compute_boundary_interactions_monopole_monopole(type, ilist_d_bnd[dir]);
+			compute_boundary_interactions_monopole_monopole(type, ilist_d_bnd1[dir]);
 		}
 	}
 
@@ -305,16 +313,26 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
 void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<interaction_type>& ilist_n_bnd) {
 	PROF_BEGIN;
 	interaction_type np;
-	const integer list_size = ilist_n_bnd.size();
+	integer list_size = ilist_n_bnd.size();
 	taylor<4, simd_vector> m0;
 	taylor<4, simd_vector> n0;
 	std::array<simd_vector, NDIM> dX;
 	std::array < simd_vector, NDIM > X;
 	std::array<simd_vector, NDIM> Y;
+
+	std::vector<interaction_type> this_ilist;
+	this_ilist.reserve(ilist_n_bnd.size());
+	for (auto i : ilist_n_bnd) {
+		if (!(levels[i.first] == 1 || levels[i.second] == 1)) {
+			this_ilist.push_back(i);
+		}
+	}
+	list_size = this_ilist.size();
+
 	for (integer li = 0; li < list_size; li += simd_len) {
 		for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].first;
-			const integer iii1 = ilist_n_bnd[li + i].second;
+			const integer iii0 = this_ilist[li + i].first;
+			const integer iii1 = this_ilist[li + i].second;
 			for (auto& d : geo::dimension::full_set()) {
 				X[d][i] = com[0][iii0][d];
 				Y[d][i] = com[0][iii1][d];
@@ -370,7 +388,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 		}
 
 		for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-			const integer iii0 = ilist_n_bnd[li + i].first;
+			const integer iii0 = this_ilist[li + i].first;
 			for (integer j = 0; j != 20; ++j) {
 				L[iii0].ptr()[j] += A0.ptr()[j][i];
 			}
@@ -630,18 +648,20 @@ void compute_ilist() {
 	std::vector<interaction_type> ilist_n0;
 	std::vector<interaction_type> ilist_d0;
 	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_n0_bnd;
-	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd;
-	const auto W = G_BW / 2;
+	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd1;
+	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd2;
+	const auto W = G_BW / 4;
 	for (integer i0 = 0; i0 != nx; ++i0) {
 		for (integer j0 = 0; j0 != nx; ++j0) {
 			for (integer k0 = 0; k0 != nx; ++k0) {
 				const integer iii0 = i0 * nx * nx + j0 * nx + k0;
-				const integer imin = std::max(integer(0), 2 * ((i0 / 2) - W));
-				const integer jmin = std::max(integer(0), 2 * ((j0 / 2) - W));
-				const integer kmin = std::max(integer(0), 2 * ((k0 / 2) - W));
-				const integer imax = std::min(integer(nx - 1), 2 * ((i0 / 2) + W) + 1);
-				const integer jmax = std::min(integer(nx - 1), 2 * ((j0 / 2) + W) + 1);
-				const integer kmax = std::min(integer(nx - 1), 2 * ((k0 / 2) + W) + 1);
+
+				integer imin = std::max(integer(0), 4 * ((i0 / 4) - W));
+				integer jmin = std::max(integer(0), 4 * ((j0 / 4) - W));
+				integer kmin = std::max(integer(0), 4 * ((k0 / 4) - W));
+				integer imax = std::min(integer(nx - 1), 4 * ((i0 / 4) + W) + 3);
+				integer jmax = std::min(integer(nx - 1), 4 * ((j0 / 4) + W) + 3);
+				integer kmax = std::min(integer(nx - 1), 4 * ((k0 / 4) + W) + 3);
 				for (integer i1 = imin; i1 <= imax; ++i1) {
 					for (integer j1 = jmin; j1 <= jmax; ++j1) {
 						for (integer k1 = kmin; k1 <= kmax; ++k1) {
@@ -650,18 +670,7 @@ void compute_ilist() {
 							dp.first = iii0;
 							dp.second = iii1;
 							if (neighbor_num[iii1] != -1 && neighbor_num[iii0] == -1) {
-								ilist_d0_bnd[neighbor_num[iii1]].push_back(dp);
-							}
-							if (max_dist > W) {
-								np.first = iii0;
-								np.second = iii1;
-								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
-									if (iii1 > iii0) {
-										ilist_n0.push_back(np);
-									}
-								} else if (neighbor_num[iii0] == -1) {
-									ilist_n0_bnd[neighbor_num[iii1]].push_back(np);
-								}
+								ilist_d0_bnd1[neighbor_num[iii1]].push_back(dp);
 							}
 							if (max_dist > 0) {
 								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
@@ -674,9 +683,43 @@ void compute_ilist() {
 						}
 					}
 				}
-				for (integer i1 = 0; i1 < H_NX; ++i1) {
-					for (integer j1 = 0; j1 < H_NX; ++j1) {
-						for (integer k1 = 0; k1 < H_NX; ++k1) {
+
+				imin = std::max(integer(0), 2 * ((i0 / 2) - W));
+				jmin = std::max(integer(0), 2 * ((j0 / 2) - W));
+				kmin = std::max(integer(0), 2 * ((k0 / 2) - W));
+				imax = std::min(integer(nx - 1), 2 * ((i0 / 2) + W) + 1);
+				jmax = std::min(integer(nx - 1), 2 * ((j0 / 2) + W) + 1);
+				kmax = std::min(integer(nx - 1), 2 * ((k0 / 2) + W) + 1);
+				for (integer i1 = imin; i1 <= imax; ++i1) {
+					for (integer j1 = jmin; j1 <= jmax; ++j1) {
+						for (integer k1 = kmin; k1 <= kmax; ++k1) {
+							const integer iii1 = i1 * nx * nx + j1 * nx + k1;
+							integer max_dist = std::max(std::abs(k0 - k1), std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
+							if (max_dist > W) {
+								np.first = iii0;
+								np.second = iii1;
+								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
+									if (iii1 > iii0) {
+										ilist_n0.push_back(np);
+									}
+								} else if (neighbor_num[iii0] == -1) {
+									ilist_n0_bnd[neighbor_num[iii1]].push_back(np);
+								}
+							}
+							if (max_dist > 0) {
+								dp.first = iii0;
+								dp.second = iii1;
+								if (neighbor_num[iii1] != -1 && neighbor_num[iii0] == -1) {
+									ilist_d0_bnd2[neighbor_num[iii1]].push_back(dp);
+								}
+							}
+						}
+					}
+				}
+
+				for (integer i1 = 0; i1 < G_NX; ++i1) {
+					for (integer j1 = 0; j1 < G_NX; ++j1) {
+						for (integer k1 = 0; k1 < G_NX; ++k1) {
 							const integer iii1 = i1 * nx * nx + j1 * nx + k1;
 							integer max_dist = std::max(std::abs(k0 - k1), std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
 							if (max_dist > W) {
@@ -698,7 +741,8 @@ void compute_ilist() {
 	ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
 	ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
 	for (auto& dir : geo::direction::full_set()) {
-		ilist_d_bnd[dir] = std::vector<interaction_type>(ilist_d0_bnd[dir].begin(), ilist_d0_bnd[dir].end());
+		ilist_d_bnd2[dir] = std::vector<interaction_type>(ilist_d0_bnd2[dir].begin(), ilist_d0_bnd2[dir].end());
+		ilist_d_bnd1[dir] = std::vector<interaction_type>(ilist_d0_bnd1[dir].begin(), ilist_d0_bnd1[dir].end());
 		ilist_n_bnd[dir] = std::vector<interaction_type>(ilist_n0_bnd[dir].begin(), ilist_n0_bnd[dir].end());
 	}
 }
@@ -827,8 +871,9 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 
 	multipole_pass_type mret;
 	if (!is_root) {
-		mret.first.resize(INX * INX * INX / NCHILD);
-		mret.second.resize(INX * INX * INX / NCHILD);
+		mret.m.resize(INX * INX * INX / NCHILD);
+		mret.c.resize(INX * INX * INX / NCHILD);
+		mret.l.resize(INX * INX * INX / NCHILD);
 	}
 	taylor<4, real> MM;
 	integer index = 0;
@@ -843,7 +888,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 			const integer kc = (2 * kp - G_BW) + ((ci >> 2) & 1);
 			return nxc * nxc * ic + nxc * jc + kc;
 		};
-
+		integer maxl;
 		for (integer ip = G_BW; ip != nxp - G_BW; ++ip) {
 			for (integer jp = G_BW; jp != nxp - G_BW; ++jp) {
 				for (integer kp = G_BW; kp != nxp - G_BW; ++kp) {
@@ -885,26 +930,34 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 						for (integer j = 0; j != 20; ++j) {
 							MM.ptr()[j] = mp.ptr()[j].sum();
 						}
+						maxl = 0;
+						for (integer ci = 0; ci != NCHILD; ++ci) {
+							const integer iiic = child_index(ip, jp, kp, ci);
+							maxl = std::max(levels[iiic], maxl);
+						}
 					} else {
 						M[iiip] = ZERO;
 						if (child_poles == nullptr) {
 							const integer iiih = hindex(ip + H_BW - G_BW, jp + H_BW - G_BW, kp + H_BW - G_BW);
+							levels[iiip] = 0;
 							if (type == RHO) {
 								M[iiip]() = U[rho_i][iiih] * dx3;
 							} else {
 								M[iiip]() = dUdt[rho_i][iiih] * dx3;
 							}
 						} else {
-							M[iiip] = child_poles->first[index];
+							M[iiip] = child_poles->m[index];
+							levels[iiip] = child_poles->l[index];
 							if (type == RHO) {
-								com[lev][iiip] = child_poles->second[index];
+								com[lev][iiip] = child_poles->c[index];
 							}
 							++index;
 						}
 					}
 					if (!is_root && (lev == 1)) {
-						mret.first[index] = MM;
-						mret.second[index] = com[lev][iiip];
+						mret.m[index] = MM;
+						mret.l[index] = maxl + 1;
+						mret.c[index] = com[lev][iiip];
 						++index;
 					}
 				}
@@ -924,7 +977,9 @@ std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
 	integer size = get_boundary_size(lb, ub, dir, INNER, INX, G_BW);
 	const bool is_refined = !is_leaf;
 	if (is_refined) {
-		size *= 20 + 3;
+		size *= 20 + 3 + 1;
+	} else {
+		size *= 2;
 	}
 	data.resize(size);
 	integer iter = 0;
@@ -945,6 +1000,7 @@ std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
 						++iter;
 					}
 				}
+				data[iter++] = real(levels[gindex(i,j,k)]) + 0.01;
 			}
 		}
 	}
@@ -973,6 +1029,7 @@ void grid::set_gravity_boundary(const std::vector<real>& data, const geo::direct
 						++iter;
 					}
 				}
+				levels[gindex(i,j,k)] = data[iter++];
 			}
 		}
 	}
