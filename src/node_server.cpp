@@ -397,8 +397,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	for (auto& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			auto tmp = neighbor_gravity_channels[dir].get_future().get();
-			grid_ptr->set_gravity_boundary(std::move(tmp.data), tmp.direction, tmp.is_monopole);
-			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole);
+			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
 		}
 	}
 	parent_fut.get();
