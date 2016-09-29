@@ -28,6 +28,11 @@ struct interaction_type {
 	integer second;
 };
 
+struct boundary_interaction_type {
+	integer second;
+	std::vector<integer> first;
+};
+
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
@@ -182,10 +187,10 @@ private:
 	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
-	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<interaction_type>&);
-	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<interaction_type>&);
-	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<interaction_type>&);
-	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<interaction_type>&);
+	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&);
+	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&);
+	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&);
+	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&);
 public:
 
 	static void set_scaling_factor(real f) {

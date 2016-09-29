@@ -59,13 +59,6 @@ bool options::process_options(int argc, char* argv[]) {
 	output_dt = 1.0;
 	bench = false;
 
-//	for (integer i = 1; i < argc; ++i) {
-//		integer cnt = strlen(argv[i]);
-//		for (integer j = 0; j != cnt; ++j) {
-//			argv[i][j] = tolower(argv[i][j]);
-//		}
-//	}
-
 	for (integer i = 1; i < argc; ++i) {
 		if (cmp(argv[i], HELP_OPT)) {
 			rc = false;
