@@ -353,9 +353,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 		grid_ptr->egas_to_etot();
 	}
 	multipole_pass_type m_in, m_out;
-	m_out.m.resize(INX * INX * INX);
-	m_out.c.resize(INX * INX * INX);
-	m_out.l.resize(INX * INX * INX);
+	m_out.first.resize(INX * INX * INX);
+	m_out.second.resize(INX * INX * INX);
 	if (is_refined) {
 		for (auto& ci : geo::octant::full_set()) {
 			const integer x0 = ci.get_side(XDIM) * INX / 2;
@@ -367,9 +366,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 					for (integer k = 0; k != INX / 2; ++k) {
 						const integer ii = i * INX * INX / 4 + j * INX / 2 + k;
 						const integer io = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
-						m_out.m[io] = m_in.m[ii];
-						m_out.c[io] = m_in.c[ii];
-						m_out.l[io] = m_in.l[ii];
+						m_out.first[io] = m_in.first[ii];
+						m_out.second[io] = m_in.second[ii];
 					}
 				}
 			}

@@ -85,7 +85,12 @@ const integer NSPECIES = 5;
 
 const integer INX = 8;
 
+#ifdef USE_PPM
 const integer H_BW = 3;
+#endif
+#ifdef USE_MINMOD
+const integer H_BW = 2;
+#endif
 
 const integer R_BW = 2;
 

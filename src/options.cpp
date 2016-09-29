@@ -15,6 +15,7 @@
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
 #define BENCH_OPT "-Bench"
+#define THETA_OPT "-Theta"
 
 #define MAX_LEVEL_OPT "-Max_level"
 
@@ -46,6 +47,7 @@ void options::show_help() {
 bool options::process_options(int argc, char* argv[]) {
 	bool rc;
 	rc = true;
+	theta = 0.35;
 	max_level = 5;
 	problem = NONE;
 	found_restart_file = false;
@@ -85,6 +87,8 @@ bool options::process_options(int argc, char* argv[]) {
 			}
 		} else if (cmp(argv[i], BENCH_OPT)) {
 			bench = true;
+		} else if (cmp(argv[i], THETA_OPT)) {
+			theta = atof(argv[i] + strlen(THETA_OPT) + 1);
 		} else if (cmp(argv[i], RESTART_OPT)) {
 			restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
 			found_restart_file = true;
@@ -106,5 +110,7 @@ bool options::process_options(int argc, char* argv[]) {
 	if (!rc) {
 		show_help();
 	}
+	theta = std::max(1.0 / 3.0, theta);
+	theta = std::min(1.0 / 2.0, theta);
 	return rc;
 }

@@ -146,10 +146,10 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 					n[gz_i] = G[gz_i][iii];
 					const real rho = U[rho_i][iiih];
 					for (integer l = 0; l != 4; ++l) {
-						e.first[l] += std::abs(a[l] - n[l]) * dV;
-						e.first[4 + l] += std::abs(a[l]) * dV;
-						e.second[l] += std::pow((a[l] - n[l]), 2) * dV;
-						e.second[4 + l] += std::pow(a[l], 2) * dV;
+						e.first[l] += std::abs(a[l] - n[l]) * dV * rho;
+						e.first[4 + l] += std::abs(a[l]) * dV * rho;
+						e.second[l] += std::pow((a[l] - n[l]) * rho, 2) * dV;
+						e.second[4 + l] += std::pow(a[l] * rho, 2) * dV;
 					}
 				}
 			}
@@ -1034,7 +1034,6 @@ void compute_ilist();
 
 void grid::allocate() {
 	PROF_BEGIN;
-	levels.resize(G_N3);
 	static std::once_flag flag;
 	std::call_once(flag, compute_ilist);
 	U_out0 = std::vector<real>(NF, ZERO);

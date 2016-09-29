@@ -30,17 +30,7 @@ struct interaction_type {
 
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
-struct multipole_pass_type {
-	std::vector<multipole> m;
-	std::vector<space_vector> c;
-	std::vector<integer> l;
-	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
-		arc & m;
-		arc & c;
-		arc & l;
-	}
-};
+typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
@@ -49,6 +39,7 @@ void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
 void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
 	std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real&, real&);
+
 
 typedef real xpoint_type;
 typedef int zone_int_type;
@@ -177,7 +168,6 @@ private:
 	std::vector<std::vector<real>> G_analytic;
 	std::vector<std::vector<real>> G0;
 	std::vector<std::vector<real>> src;
-	std::vector<integer> levels;
 
 	bool is_root;
 	bool is_leaf;
@@ -226,17 +216,14 @@ public:
 			G[f][iii] = four_force[f];
 		}
 	}
-	void compute_conserved_slopes(const std::array<integer, NDIM> lb = { 1, 1, 1 }, const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 },
-		bool tau_only = false);
-	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = { 1, 1, 1 },
-		const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
-	void compute_primitives(const std::array<integer, NDIM> lb = { 1, 1, 1 }, const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 },
-		bool tau_only = false);
+	void compute_conserved_slopes( const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
+	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
+	void compute_primitives(const std::array<integer, NDIM> lb = {1,1,1}, const std::array<integer, NDIM> ub = {H_NX -1, H_NX-1, H_NX-1}, bool tau_only = false);
 	void set_coordinates();
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
 	scf_data_t scf_params();
-	real scf_update(real, real, real, real, real, real, real, accretor_eos, donor_eos);
+	real scf_update(real,real,real,real, real, real, real, accretor_eos, donor_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, output_list_type&& l2);
@@ -277,7 +264,7 @@ public:
 
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
-	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1,integer frac) const;
+	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
 	std::vector<real> frac_volumes() const;
 	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real, bool donor) const;
@@ -349,8 +336,7 @@ struct grid::node_point {
 	}
 	bool operator==(const grid::node_point& other) const;
 	bool operator<(const grid::node_point& other) const;
-}
-;
+};
 
 struct grid::output_list_type {
 	std::set<node_point> nodes;
@@ -364,8 +350,7 @@ struct grid::output_list_type {
 			arc & data[i];
 		}
 	}
-}
-;
+};
 
 void scf_binary_init();
 

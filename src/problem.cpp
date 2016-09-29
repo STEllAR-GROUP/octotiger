@@ -17,7 +17,6 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	bool rc = false;
 	real den_floor = 1.0e-4;
 	integer test_level = max_level;
-//	return level < max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);
@@ -98,7 +97,7 @@ std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
 	return u;
 }
 
-const real ssr0 = 0.6;
+const real ssr0 = 0.7;
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
 	const real r0 = ssr0;
 	const real M = 1.0;
