@@ -48,6 +48,7 @@ public:
 		arc & output_dt;
 		int tmp = problem;
 		arc & tmp;
+		arc & theta;
 		problem = (problem_type)tmp;
 
 	}

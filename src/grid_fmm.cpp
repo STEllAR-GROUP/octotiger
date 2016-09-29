@@ -637,7 +637,6 @@ void compute_ilist() {
 	std::vector<interaction_type> ilist_d0;
 	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_n0_bnd;
 	std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd;
-//	const auto W = G_BW / 2;
 	extern options opts;
 	const real theta0 = opts.theta;
 	const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {

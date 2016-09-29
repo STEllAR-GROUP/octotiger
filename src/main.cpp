@@ -17,6 +17,7 @@ bool hydro_on = true;
 HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
 
 
+void compute_ilist();
 
 void initialize(options _opts) {
 	opts = _opts;
@@ -64,6 +65,7 @@ void initialize(options _opts) {
 	}
 	node_server::set_gravity(gravity_on);
 	node_server::set_hydro(hydro_on);
+	compute_ilist();
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

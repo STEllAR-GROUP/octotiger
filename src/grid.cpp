@@ -1030,12 +1030,10 @@ void grid::set_coordinates() {
 	PROF_END;
 }
 
-void compute_ilist();
-
 void grid::allocate() {
 	PROF_BEGIN;
-	static std::once_flag flag;
-	std::call_once(flag, compute_ilist);
+//	static std::once_flag flag;
+//	std::call_once(flag, compute_ilist);
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
 	dphi_dt = std::vector<real>(H_N3);
