@@ -220,7 +220,7 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM>& lb, c
 	size /= (NCHILD / 2);
 	size *= NF;
 	data.reserve(size);
-	const integer stride1 = (dim == XDIM) ? (INX + 1) :  (INX + 1) * (INX + 1);
+	const integer stride1 = (dim == XDIM) ? (INX + 1) : (INX + 1) * (INX + 1);
 	const integer stride2 = (dim == ZDIM) ? (INX + 1) : 1;
 	for (integer field = 0; field != NF; ++field) {
 		for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
@@ -1049,7 +1049,7 @@ void grid::allocate() {
 //	std::call_once(flag, compute_ilist);
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
-	dphi_dt = std::vector<real>(H_N3);
+	dphi_dt = std::vector<real>(INX*INX*INX);
 	for (integer field = 0; field != NGF; ++field) {
 		G[field].resize(G_N3);
 	}
@@ -1057,9 +1057,9 @@ void grid::allocate() {
 		X[dim].resize(H_N3);
 	}
 	for (integer field = 0; field != NF; ++field) {
-		U0[field].resize(H_N3);
+		U0[field].resize(INX * INX * INX);
 		U[field].resize(H_N3);
-		dUdt[field].resize(H_N3);
+		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(F_N3);
 		}
@@ -1379,8 +1379,8 @@ real grid::compute_fluxes() {
 				max_lambda = std::max(max_lambda, this_max_lambda);
 				for (integer field = 0; field != NF; ++field) {
 					for (integer i = H_BW; i != H_NX - H_BW + 1; ++i) {
-						const integer i0 = F_DN[dx_i] * (i-H_BW) + F_DN[dy_i] * (j-H_BW) + F_DN[dz_i] * (k-H_BW);
-						F[dim][field][i0] = f[field][i-H_BW];
+						const integer i0 = F_DN[dx_i] * (i - H_BW) + F_DN[dy_i] * (j - H_BW) + F_DN[dz_i] * (k - H_BW);
+						F[dim][field][i0] = f[field][i - H_BW];
 					}
 				}
 			}
@@ -1398,23 +1398,15 @@ void grid::set_max_level(integer l) {
 void grid::store() {
 	for (integer field = 0; field != NF; ++field) {
 #pragma GCC ivdep
-		for (integer iii = 0; iii != H_N3; ++iii) {
-			U0[field][iii] = U[field][iii];
+		for (integer i = 0; i != INX; ++i) {
+			for (integer j = 0; j != INX; ++j) {
+				for (integer k = 0; k != INX; ++k) {
+					U0[field][h0index(i,j,k)] = U[field][hindex(i+H_BW,j+H_BW,k+H_BW)];
+				}
+			}
 		}
 	}
 	U_out0 = U_out;
-}
-
-void grid::restore() {
-	PROF_BEGIN;
-	for (integer field = 0; field != NF; ++field) {
-#pragma GCC ivdep
-		for (integer iii = 0; iii != H_N3; ++iii) {
-			U[field][iii] = U0[field][iii];
-		}
-	}
-	U_out = U_out0;
-	PROF_END;
 }
 
 void grid::boundaries() {
@@ -1504,23 +1496,24 @@ void grid::compute_sources(real t) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
 				const integer iii = hindex(i, j, k);
 				const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 				for (integer field = 0; field != NF; ++field) {
-					src[field][iii] = ZERO;
+					src[field][iii0] = ZERO;
 				}
 				const real rho = U[rho_i][iii];
-				src[zx_i][iii] = (-(F[YDIM][sz_i][iiif + F_DNY] + F[YDIM][sz_i][iiif]) + (F[ZDIM][sy_i][iiif + F_DNZ] + F[ZDIM][sy_i][iiif])) * HALF;
-				src[zy_i][iii] = (+(F[XDIM][sz_i][iiif + F_DNX] + F[XDIM][sz_i][iiif]) - (F[ZDIM][sx_i][iiif + F_DNZ] + F[ZDIM][sx_i][iiif])) * HALF;
-				src[zz_i][iii] = (-(F[XDIM][sy_i][iiif + F_DNX] + F[XDIM][sy_i][iiif]) + (F[YDIM][sx_i][iiif + F_DNY] + F[YDIM][sx_i][iiif])) * HALF;
-				src[sx_i][iii] += rho * G[gx_i][iiig];
-				src[sy_i][iii] += rho * G[gy_i][iiig];
-				src[sz_i][iii] += rho * G[gz_i][iiig];
-				src[sx_i][iii] += omega * U[sy_i][iii];
-				src[sy_i][iii] -= omega * U[sx_i][iii];
-				src[egas_i][iii] -= omega * X[YDIM][iii] * rho * G[gx_i][iiig];
-				src[egas_i][iii] += omega * X[XDIM][iii] * rho * G[gy_i][iiig];
+				src[zx_i][iii0] = (-(F[YDIM][sz_i][iiif + F_DNY] + F[YDIM][sz_i][iiif]) + (F[ZDIM][sy_i][iiif + F_DNZ] + F[ZDIM][sy_i][iiif])) * HALF;
+				src[zy_i][iii0] = (+(F[XDIM][sz_i][iiif + F_DNX] + F[XDIM][sz_i][iiif]) - (F[ZDIM][sx_i][iiif + F_DNZ] + F[ZDIM][sx_i][iiif])) * HALF;
+				src[zz_i][iii0] = (-(F[XDIM][sy_i][iiif + F_DNX] + F[XDIM][sy_i][iiif]) + (F[YDIM][sx_i][iiif + F_DNY] + F[YDIM][sx_i][iiif])) * HALF;
+				src[sx_i][iii0] += rho * G[gx_i][iiig];
+				src[sy_i][iii0] += rho * G[gy_i][iiig];
+				src[sz_i][iii0] += rho * G[gz_i][iiig];
+				src[sx_i][iii0] += omega * U[sy_i][iii];
+				src[sy_i][iii0] -= omega * U[sx_i][iii];
+				src[egas_i][iii0] -= omega * X[YDIM][iii] * rho * G[gx_i][iiig];
+				src[egas_i][iii0] += omega * X[XDIM][iii] * rho * G[gy_i][iiig];
 #ifdef USE_DRIVING
 				const real period = (2.0 * M_PI / grid::omega);
 				if (t < DRIVING_TIME * period) {
@@ -1535,10 +1528,10 @@ void grid::compute_sources(real t) {
 					const real lz = (x * sy - y * sx);
 					const real dsx = -y / R / R * lz * ff;
 					const real dsy = +x / R / R * lz * ff;
-					src[sx_i][iii] += dsx;
-					src[sy_i][iii] += dsy;
-					src[egas_i][iii] += (sx * dsx + sy * dsy) / rho;
-					src[zz_i][iii] += ff * zz;
+					src[sx_i][iii0] += dsx;
+					src[sy_i][iii0] += dsy;
+					src[egas_i][iii0] += (sx * dsx + sy * dsy) / rho;
+					src[zz_i][iii0] += ff * zz;
 
 				}
 #endif
@@ -1556,24 +1549,24 @@ void grid::compute_dudt() {
 			for (integer field = 0; field != NF; ++field) {
 #pragma GCC ivdep
 				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-					const integer iii = hindex(i, j, k);
+					const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
 					const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW);
-					dUdt[field][iii] -= (F[XDIM][field][iiif + F_DNX] - F[XDIM][field][iiif]) / dx;
-					dUdt[field][iii] -= (F[YDIM][field][iiif + F_DNY] - F[YDIM][field][iiif]) / dx;
-					dUdt[field][iii] -= (F[ZDIM][field][iiif + F_DNZ] - F[ZDIM][field][iiif]) / dx;
+					dUdt[field][iii0] -= (F[XDIM][field][iiif + F_DNX] - F[XDIM][field][iiif]) / dx;
+					dUdt[field][iii0] -= (F[YDIM][field][iiif + F_DNY] - F[YDIM][field][iiif]) / dx;
+					dUdt[field][iii0] -= (F[ZDIM][field][iiif + F_DNZ] - F[ZDIM][field][iiif]) / dx;
 				}
 			}
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				dUdt[egas_i][iii] += dUdt[pot_i][iii];
-				dUdt[pot_i][iii] = ZERO;
+				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
+				dUdt[egas_i][iii0] += dUdt[pot_i][iii0];
+				dUdt[pot_i][iii0] = ZERO;
 			}
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
+				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
-				dUdt[egas_i][iii] -= (dUdt[rho_i][iii] * G[phi_i][iiig]) * HALF;
+				dUdt[egas_i][iii0] -= (dUdt[rho_i][iii0] * G[phi_i][iiig]) * HALF;
 			}
 		}
 	}
@@ -1615,11 +1608,12 @@ void grid::next_u(integer rk, real t, real dt) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
 				const integer iii = hindex(i, j, k);
-				dUdt[egas_i][iii] += (dphi_dt[iii] * U[rho_i][iii]) * HALF;
-				dUdt[zx_i][iii] -= omega * X[ZDIM][iii] * U[sx_i][iii];
-				dUdt[zy_i][iii] -= omega * X[ZDIM][iii] * U[sy_i][iii];
-				dUdt[zz_i][iii] += omega * (X[XDIM][iii] * U[sx_i][iii] + X[YDIM][iii] * U[sy_i][iii]);
+				dUdt[egas_i][iii0] += (dphi_dt[iii0] * U[rho_i][iii]) * HALF;
+				dUdt[zx_i][iii0] -= omega * X[ZDIM][iii] * U[sx_i][iii];
+				dUdt[zy_i][iii0] -= omega * X[ZDIM][iii] * U[sy_i][iii];
+				dUdt[zz_i][iii0] += omega * (X[XDIM][iii] * U[sx_i][iii] + X[YDIM][iii] * U[sy_i][iii]);
 			}
 		}
 	}
@@ -1629,12 +1623,13 @@ void grid::next_u(integer rk, real t, real dt) {
 	std::vector<real> ds(NDIM, ZERO);
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+#pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-#pragma GCC ivdep
+				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
 				for (integer field = 0; field != NF; ++field) {
-					const real u1 = U[field][iii] + dUdt[field][iii] * dt;
-					const real u0 = U0[field][iii];
+					const real u1 = U[field][iii] + dUdt[field][iii0] * dt;
+					const real u0 = U0[field][h0index(i-H_BW,j-H_BW,k-H_BW)];
 					U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
 				}
 			}

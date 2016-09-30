@@ -878,6 +878,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 			for (integer j = 0; j != G_NX; ++j) {
 				for (integer k = 0; k != G_NX; ++k) {
 					const integer iii = gindex(i, j, k);
+					const integer iii0 = h0index(i, j, k);
 					const integer iiih = hindex(i + H_BW , j + H_BW , k + H_BW );
 					if (type == RHO) {
 						G[phi_i][iii] = L[iii]();
@@ -886,7 +887,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 						}
 						U[pot_i][iiih] = G[phi_i][iii] * U[rho_i][iiih];
 					} else {
-						dphi_dt[iiih] = L[iii]();
+						dphi_dt[iii0] = L[iii]();
 					}
 				}
 			}
@@ -997,10 +998,11 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 					} else {
 						if (child_poles == nullptr) {
 							const integer iiih = hindex(ip + H_BW , jp + H_BW , kp + H_BW );
+							const integer iii0 = h0index(ip , jp , kp);
 							if (type == RHO) {
 								mon[iiip] = U[rho_i][iiih] * dx3;
 							} else {
-								mon[iiip] = dUdt[rho_i][iiih] * dx3;
+								mon[iiip] = dUdt[rho_i][iii0] * dx3;
 							}
 						} else {
 							M[iiip] = child_poles->first[index];

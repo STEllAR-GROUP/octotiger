@@ -170,18 +170,18 @@ private:
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<std::vector<real>> G;
-
-	bool is_root;
-	bool is_leaf;
 	std::vector<multipole> M;
 	std::vector<real> mon;
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
+	std::vector<real> dphi_dt;
+
+	bool is_root;
+	bool is_leaf;
 	real dx;
 	std::array<real, NDIM> xmin;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
-	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const std::vector<real>&);
@@ -290,7 +290,6 @@ public:
 	void allocate();
 	void reconstruct();
 	void store();
-	void restore();
 	real compute_fluxes();
 	void compute_sources(real t);
 	void boundaries();
