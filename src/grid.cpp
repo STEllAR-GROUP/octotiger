@@ -220,13 +220,13 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM>& lb, c
 	size /= (NCHILD / 2);
 	size *= NF;
 	data.reserve(size);
-	const integer stride1 = (dim == XDIM) ? H_DNY : H_DNX;
-	const integer stride2 = (dim == ZDIM) ? H_DNY : H_DNZ;
+	const integer stride1 = (dim == XDIM) ? (INX + 1) :  (INX + 1) * (INX + 1);
+	const integer stride2 = (dim == ZDIM) ? (INX + 1) : 1;
 	for (integer field = 0; field != NF; ++field) {
 		for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; k += 2) {
-					const integer i00 = hindex(i, j, k);
+					const integer i00 = findex(i, j, k);
 					const integer i10 = i00 + stride1;
 					const integer i01 = i00 + stride2;
 					const integer i11 = i00 + stride1 + stride2;
@@ -318,7 +318,7 @@ void grid::set_flux_restrict(const std::vector<real>& data, const std::array<int
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-					const integer iii = hindex(i, j, k);
+					const integer iii = findex(i, j, k);
 					F[dim][field][iii] = data[index];
 					++index;
 				}
@@ -849,7 +849,7 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-	U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF),  is_root(false), is_leaf(true) {
+	U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -1061,7 +1061,7 @@ void grid::allocate() {
 		U[field].resize(H_N3);
 		dUdt[field].resize(H_N3);
 		for (integer dim = 0; dim != NDIM; ++dim) {
-			F[dim][field].resize(H_N3);
+			F[dim][field].resize(F_N3);
 		}
 	}
 	com.resize(2);
@@ -1076,7 +1076,7 @@ void grid::allocate() {
 }
 
 grid::grid() :
-	U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF),  is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+	U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	allocate();
 }
 
@@ -1379,8 +1379,8 @@ real grid::compute_fluxes() {
 				max_lambda = std::max(max_lambda, this_max_lambda);
 				for (integer field = 0; field != NF; ++field) {
 					for (integer i = H_BW; i != H_NX - H_BW + 1; ++i) {
-						const integer i0 = H_DN[dx_i] * i + H_DN[dy_i] * j + H_DN[dz_i] * k;
-						F[dim][field][i0] = f[field][i - H_BW];
+						const integer i0 = F_DN[dx_i] * (i-H_BW) + F_DN[dy_i] * (j-H_BW) + F_DN[dz_i] * (k-H_BW);
+						F[dim][field][i0] = f[field][i-H_BW];
 					}
 				}
 			}
@@ -1505,14 +1505,15 @@ void grid::compute_sources(real t) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
+				const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 				for (integer field = 0; field != NF; ++field) {
 					src[field][iii] = ZERO;
 				}
 				const real rho = U[rho_i][iii];
-				src[zx_i][iii] = (-(F[YDIM][sz_i][iii + H_DNY] + F[YDIM][sz_i][iii]) + (F[ZDIM][sy_i][iii + H_DNZ] + F[ZDIM][sy_i][iii])) * HALF;
-				src[zy_i][iii] = (+(F[XDIM][sz_i][iii + H_DNX] + F[XDIM][sz_i][iii]) - (F[ZDIM][sx_i][iii + H_DNZ] + F[ZDIM][sx_i][iii])) * HALF;
-				src[zz_i][iii] = (-(F[XDIM][sy_i][iii + H_DNX] + F[XDIM][sy_i][iii]) + (F[YDIM][sx_i][iii + H_DNY] + F[YDIM][sx_i][iii])) * HALF;
+				src[zx_i][iii] = (-(F[YDIM][sz_i][iiif + F_DNY] + F[YDIM][sz_i][iiif]) + (F[ZDIM][sy_i][iiif + F_DNZ] + F[ZDIM][sy_i][iiif])) * HALF;
+				src[zy_i][iii] = (+(F[XDIM][sz_i][iiif + F_DNX] + F[XDIM][sz_i][iiif]) - (F[ZDIM][sx_i][iiif + F_DNZ] + F[ZDIM][sx_i][iiif])) * HALF;
+				src[zz_i][iii] = (-(F[XDIM][sy_i][iiif + F_DNX] + F[XDIM][sy_i][iiif]) + (F[YDIM][sx_i][iiif + F_DNY] + F[YDIM][sx_i][iiif])) * HALF;
 				src[sx_i][iii] += rho * G[gx_i][iiig];
 				src[sy_i][iii] += rho * G[gy_i][iiig];
 				src[sz_i][iii] += rho * G[gz_i][iiig];
@@ -1556,9 +1557,10 @@ void grid::compute_dudt() {
 #pragma GCC ivdep
 				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 					const integer iii = hindex(i, j, k);
-					dUdt[field][iii] -= (F[XDIM][field][iii + H_DNX] - F[XDIM][field][iii]) / dx;
-					dUdt[field][iii] -= (F[YDIM][field][iii + H_DNY] - F[YDIM][field][iii]) / dx;
-					dUdt[field][iii] -= (F[ZDIM][field][iii + H_DNZ] - F[ZDIM][field][iii]) / dx;
+					const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW);
+					dUdt[field][iii] -= (F[XDIM][field][iiif + F_DNX] - F[XDIM][field][iiif]) / dx;
+					dUdt[field][iii] -= (F[YDIM][field][iiif + F_DNY] - F[YDIM][field][iiif]) / dx;
+					dUdt[field][iii] -= (F[ZDIM][field][iiif + F_DNZ] - F[ZDIM][field][iiif]) / dx;
 				}
 			}
 #pragma GCC ivdep
@@ -1646,12 +1648,12 @@ void grid::next_u(integer rk, real t, real dt) {
 #pragma GCC ivdep
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			const real dx2 = dx * dx;
-			const integer iii_p = H_DNX * (H_NX - H_BW) + H_DNY * i + H_DNZ * j;
-			const integer jjj_p = H_DNY * (H_NX - H_BW) + H_DNZ * i + H_DNX * j;
-			const integer kkk_p = H_DNZ * (H_NX - H_BW) + H_DNX * i + H_DNY * j;
-			const integer iii_m = H_DNX * (H_BW) + H_DNY * i + H_DNZ * j;
-			const integer jjj_m = H_DNY * (H_BW) + H_DNZ * i + H_DNX * j;
-			const integer kkk_m = H_DNZ * (H_BW) + H_DNX * i + H_DNY * j;
+			const integer iii_p = findex(INX, i - H_BW, j - H_BW);
+			const integer jjj_p = findex(i - H_BW, INX, j - H_BW);
+			const integer kkk_p = findex(i - H_BW, j - H_BW, INX);
+			const integer iii_m = findex(0, i - H_BW, j - H_BW);
+			const integer jjj_m = findex(i - H_BW, 0, j - H_BW);
+			const integer kkk_m = findex(i - H_BW, j - H_BW, 0);
 			std::vector<real> du(NF);
 			for (integer field = 0; field != NF; ++field) {
 				//	if (field < zx_i || field > zz_i) {
