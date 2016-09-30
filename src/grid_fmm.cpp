@@ -15,7 +15,6 @@ static std::vector<interaction_type> ilist_d;
 static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
-static std::vector<integer> local_index(G_N3);
 
 template<class T>
 integer load_multipole(taylor<4, T>& m, space_vector& c, const std::vector<real>& data, integer iter, bool monopole) {
@@ -496,8 +495,8 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 	for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
 		const integer list_size = ilist_n_bnd[si].first.size();
 		const integer iii1 = ilist_n_bnd[si].second;
-		for (auto& d : geo::dimension::full_set()) {
-			Y[d] = com[0][iii1][d];
+		for (integer d = 0; d != NDIM; ++d) {
+			Y[d] = ilist_n_bnd[si].x[d] * dx + this->X[d][hindex(H_BW,H_BW,H_BW)];
 		}
 		m0 = mpoles[index++];
 		for (integer li = 0; li < list_size; li += simd_len) {
@@ -568,8 +567,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 	for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
 		const integer list_size = ilist_n_bnd[si].first.size();
 		const integer iii1 = ilist_n_bnd[si].second;
-		for (auto& d : geo::dimension::full_set()) {
-			Y[d] = com[0][iii1][d];
+		for (integer d = 0; d != NDIM; ++d) {
+			Y[d] = ilist_n_bnd[si].x[d] * dx + this->X[d][hindex(H_BW,H_BW,H_BW)];
 		}
 		m0 = mpoles[index++];
 		for (integer li = 0; li < list_size; li += simd_len) {
@@ -613,59 +612,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 }
 
 void compute_ilist() {
-	std::vector<geo::direction> neighbor_num(G_N3, geo::direction(-1));
 	const integer inx = INX;
 	const integer nx = inx + 2 * G_BW;
-	for (integer i0 = 0; i0 != nx; ++i0) {
-		for (integer j0 = 0; j0 != nx; ++j0) {
-			for (integer k0 = 0; k0 != nx; ++k0) {
-				integer i, j, k;
-				i = (i0 - G_BW + INX) % INX + G_BW;
-				j = (j0 - G_BW + INX) % INX + G_BW;
-				k = (k0 - G_BW + INX) % INX + G_BW;
-				local_index[gindex(i0,j0,k0)] = gindex(i,j,k);
-			}
-		}
-	}
-	for (integer i0 = 0; i0 != nx; ++i0) {
-		for (integer j0 = 0; j0 != nx; ++j0) {
-			for (integer k0 = 0; k0 != nx; ++k0) {
-				bool on_bnd = false;
-				const integer iii0 = i0 * nx * nx + j0 * nx + k0;
-				integer x, y, z;
-				if (k0 < G_BW) {
-					z = -1;
-					on_bnd = true;
-				} else if (k0 >= nx - G_BW) {
-					z = +1;
-					on_bnd = true;
-				} else {
-					z = 0;
-				}
-				if (j0 < G_BW) {
-					y = -1;
-					on_bnd = true;
-				} else if (j0 >= nx - G_BW) {
-					y = +1;
-					on_bnd = true;
-				} else {
-					y = 0;
-				}
-				if (i0 < G_BW) {
-					x = -1;
-					on_bnd = true;
-				} else if (i0 >= nx - G_BW) {
-					x = +1;
-					on_bnd = true;
-				} else {
-					x = 0;
-				}
-				if (on_bnd) {
-					neighbor_num[iii0].set(x, y, z);
-				}
-			}
-		}
-	}
 	interaction_type np;
 	interaction_type dp;
 	std::vector<interaction_type> ilist_r0;
@@ -676,56 +624,109 @@ void compute_ilist() {
 	extern options opts;
 	const real theta0 = opts.theta;
 	const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
-		return 1.0 / std::sqrt((i0-i1)*(i0-i1)+(j0-j1)*(j0-j1)+(k0-k1)*(k0-k1));
+		real tmp = std::sqrt((i0-i1)*(i0-i1)+(j0-j1)*(j0-j1)+(k0-k1)*(k0-k1));
+		if( tmp > 0.0 ) {
+			return 1.0 / tmp;
+		} else {
+			return 1.0e+10;
+		}
+	};
+	const auto interior = [](integer i, integer j, integer k) {
+		bool rc = true;
+		if( i < G_BW || i >= G_NX - G_BW ) {
+			rc = false;
+		}
+		else if( j < G_BW || j >= G_NX - G_BW ) {
+			rc = false;
+		}
+		else if( k < G_BW || k >= G_NX - G_BW ) {
+			rc = false;
+		}
+		return rc;
+	};
+	const auto neighbor_dir = [](integer i, integer j, integer k) {
+		integer i0 = 0, j0 = 0, k0 = 0;
+		if( i < G_BW) {
+			i0 = -1;
+		} else if( i >= G_NX - G_BW) {
+			i0 = +1;
+		}
+		if( j < G_BW) {
+			j0 = -1;
+		} else if( j >= G_NX - G_BW) {
+			j0 = +1;
+		}
+		if( k < G_BW) {
+			k0 = -1;
+		} else if( k >= G_NX - G_BW) {
+			k0 = +1;
+		}
+		geo::direction d;
+		d.set(i0,j0,k0);
+		return d;
 	};
 	integer max_d = 0;
+	integer width = INX / 2 + 1;
 	for (integer i0 = 0; i0 != nx; ++i0) {
 		for (integer j0 = 0; j0 != nx; ++j0) {
 			for (integer k0 = 0; k0 != nx; ++k0) {
 				integer this_d = 0;
-				for (integer i1 = 0; i1 < G_NX; ++i1) {
-					for (integer j1 = 0; j1 < G_NX; ++j1) {
-						for (integer k1 = 0; k1 < G_NX; ++k1) {
+				integer ilb = std::min(i0 - width, integer(0));
+				integer jlb = std::min(j0 - width, integer(0));
+				integer klb = std::min(k0 - width, integer(0));
+				integer iub = std::max(i0 + width + 1, G_NX);
+				integer jub = std::max(j0 + width + 1, G_NX);
+				integer kub = std::max(k0 + width + 1, G_NX);
+				for (integer i1 = ilb; i1 < iub; ++i1) {
+					for (integer j1 = jlb; j1 < jub; ++j1) {
+						for (integer k1 = klb; k1 < kub; ++k1) {
 							if (i0 == i1 && j0 == j1 && k0 == k1) {
 								continue;
 							}
-							const integer i0_c = i0 / 2;
-							const integer j0_c = j0 / 2;
-							const integer k0_c = k0 / 2;
-							const integer i1_c = i1 / 2;
-							const integer j1_c = j1 / 2;
-							const integer k1_c = k1 / 2;
+							const integer i0_c = (i0 + INX) / 2 - INX / 2;
+							const integer j0_c = (j0 + INX) / 2 - INX / 2;
+							const integer k0_c = (k0 + INX) / 2 - INX / 2;
+							const integer i1_c = (i1 + INX) / 2 - INX / 2;
+							const integer j1_c = (j1 + INX) / 2 - INX / 2;
+							const integer k1_c = (k1 + INX) / 2 - INX / 2;
 							const real theta_f = theta(i0, j0, k0, i1, j1, k1);
 							const real theta_c = theta(i0_c, j0_c, k0_c, i1_c, j1_c, k1_c);
 							const integer iii0 = gindex(i0,j0,k0);
+							const integer iii1n = gindex((i1-G_BW+INX)%INX+G_BW,(j1-G_BW+INX)%INX+G_BW,(k1-G_BW+INX)%INX+G_BW);
 							const integer iii1 = gindex(i1,j1,k1);
 							if (theta_c > theta0 && theta_f <= theta0) {
 								np.first = iii0;
-								np.second = iii1;
-								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
+								np.second = iii1n;
+								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_n0.push_back(np);
 									}
-								} else if (neighbor_num[iii0] == -1) {
-									ilist_n0_bnd[neighbor_num[iii1]].push_back(np);
+								} else if (interior(i0, j0, k0)) {
+									ilist_n0_bnd[neighbor_dir(i1, j1, k1)].push_back(np);
 								}
 							}
 							if (theta_c > theta0) {
 								++this_d;
 								dp.first = iii0;
-								dp.second = iii1;
-								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
+								dp.second = iii1n;
+								dp.x[XDIM] = i1 - G_BW;
+								dp.x[YDIM] = j1 - G_BW;
+								dp.x[ZDIM] = k1 - G_BW;
+								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_d0.push_back(dp);
 									}
-								} else if (neighbor_num[iii0] == -1) {
-									ilist_d0_bnd[neighbor_num[iii1]].push_back(dp);
+								} else if (interior(i0, j0, k0)) {
+									ilist_d0_bnd[neighbor_dir(i1, j1, k1)].push_back(dp);
 								}
 							}
 							if (theta_f <= theta0) {
 								np.first = iii0;
-								np.second = iii1;
-								if (neighbor_num[iii1] == -1 && neighbor_num[iii0] == -1) {
+								np.second = iii1n;
+								np.x[XDIM] = i1 - G_BW;
+								np.x[YDIM] = j1 - G_BW;
+								np.x[ZDIM] = k1 - G_BW;
+								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_r0.push_back(np);
 									}
@@ -759,6 +760,7 @@ void compute_ilist() {
 			if (!found) {
 				boundary_interaction_type i;
 				i.second = i0.second;
+				i.x = i0.x;
 				n.push_back(i);
 				i.first.push_back(i0.first);
 				d.push_back(i);
@@ -776,6 +778,7 @@ void compute_ilist() {
 			if (!found) {
 				boundary_interaction_type i;
 				i.second = i0.second;
+				i.x = i0.x;
 				d.push_back(i);
 				i.first.push_back(i0.first);
 				n.push_back(i);
@@ -1017,25 +1020,18 @@ std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	integer size = get_boundary_size(lb, ub, dir, INNER, INX, G_BW);
 	const bool is_refined = !is_leaf;
-	if (is_refined) {
-		size *= 20 + 3;
-	}
-	data.resize(size);
 	integer iter = 0;
 	const std::vector<boundary_interaction_type>& list = ilist_n_bnd[dir.flip()];
 	for (auto i : list) {
-		const integer iii = local_index[i.second];
+		const integer iii = i.second;
 		const integer top = is_refined ? M[iii].size() : 1;
 		for (integer l = 0; l < top; ++l) {
-			data[iter] = M[iii].ptr()[l];
-			++iter;
+			data.push_back(M[iii].ptr()[l]);
 		}
 		if (is_refined) {
 			for (integer d = 0; d != NDIM; ++d) {
-				data[iter] = com[0][iii][d];
-				++iter;
+				data.push_back(com[0][iii][d]);
 			}
 		}
 	}

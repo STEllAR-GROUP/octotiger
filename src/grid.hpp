@@ -26,11 +26,13 @@ class taylor;
 struct interaction_type {
 	integer first;
 	integer second;
+	space_vector x;
 };
 
 struct boundary_interaction_type {
 	integer second;
 	std::vector<integer> first;
+	space_vector x;
 };
 
 typedef taylor<4, real> multipole;
@@ -288,7 +290,7 @@ public:
 
 	std::pair<space_vector,space_vector> find_axis() const;
 
-
+	space_vector get_cell_center(integer i, integer j, integer k);
 
 	std::vector<real> get_gravity_boundary(const geo::direction& dir);
 	void allocate();

@@ -67,7 +67,7 @@ constexpr integer L_POLES = M_POLES;
 
 
 
-constexpr integer G_BW = 4;
+constexpr integer G_BW = 0;
 
 //#define GRID_SIZE real(2.0)
 

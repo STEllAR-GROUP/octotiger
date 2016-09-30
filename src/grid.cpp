@@ -21,6 +21,15 @@ static thread_local std::vector<std::vector<std::vector<real>>> _dVdx
 static thread_local std::vector < std::vector<std::vector<real>>> _dUdx = std::vector<std::vector<std::vector<real>>>(NDIM,
 	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 
+space_vector grid::get_cell_center(integer i, integer j, integer k) {
+	const integer iii0 = hindex(H_BW,H_BW,H_BW);
+	space_vector c;
+	c[XDIM] = X[XDIM][iii0] + (i - G_BW) * dx;
+	c[YDIM] = X[XDIM][iii0] + (j - G_BW) * dx;
+	c[ZDIM] = X[XDIM][iii0] + (k - G_BW) * dx;
+	return c;
+}
+
 void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, integer width, bool tau_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
@@ -833,7 +842,7 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
 	PROF_BEGIN;
 	auto& V = _V;
-if (!tau_only) {
+	if (!tau_only) {
 		V = U;
 		for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
 			for (integer j = lb[YDIM] - 1; j != ub[YDIM] + 1; ++j) {
