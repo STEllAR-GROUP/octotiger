@@ -569,10 +569,10 @@ void node_server::step() {
 	fut.get();
 	grid_ptr->dual_energy_update();
 
-	if ((step_num+1) % refinement_freq() == 0) {
-		fut = all_hydro_bounds();
-		fut.get();
-	}
+//	if ((step_num+1) % refinement_freq() == 0) {
+//		fut = all_hydro_bounds();
+//		fut.get();
+//	}
 
 	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
 		i->get();

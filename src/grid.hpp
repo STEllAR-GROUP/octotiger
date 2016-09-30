@@ -178,11 +178,11 @@ private:
 	bool is_root;
 	bool is_leaf;
 	std::vector<multipole> M;
+	std::vector<real> mon;
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	real dx;
 	std::array<real, NDIM> xmin;
-	integer nlevel;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
 	std::vector<real> dphi_dt;
@@ -217,7 +217,7 @@ public:
 		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
 	void set_4force(integer i, integer j, integer k, const std::array<real, NDIM + 1>& four_force) {
-		const auto iii = gindex(i + G_BW, j + G_BW, k + G_BW);
+		const auto iii = gindex(i, j, k );
 		for (integer f = 0; f != NDIM + 1; ++f) {
 			G[f][iii] = four_force[f];
 		}
@@ -250,15 +250,10 @@ public:
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb,
 		const std::array<integer, NDIM>& ub, const geo::dimension&);
-	real& hydro_value(integer, integer, integer, integer);
-	real hydro_value(integer, integer, integer, integer) const;
-	multipole& multipole_value( integer, integer, integer);
-	const multipole& multipole_value(integer, integer, integer) const;
 	space_vector center_of_mass() const;
-	space_vector& center_of_mass_value(integer i, integer j, integer k);
-	const space_vector& center_of_mass_value(integer i, integer j, integer k) const;
+//	space_vector& center_of_mass_value(integer i, integer j, integer k);
+//	const space_vector& center_of_mass_value(integer i, integer j, integer k) const;
 	bool refine_me(integer lev) const;
-	integer level_count() const;
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();
@@ -266,6 +261,9 @@ public:
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
 	void compute_interactions(gsolve_type);
+	void rho_mult(real f0, real f1 );
+	void rho_move(real x);
+
 
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
 	integer get_step() const;

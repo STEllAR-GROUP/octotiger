@@ -24,9 +24,9 @@ static thread_local std::vector < std::vector<std::vector<real>>> _dUdx = std::v
 space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	const integer iii0 = hindex(H_BW,H_BW,H_BW);
 	space_vector c;
-	c[XDIM] = X[XDIM][iii0] + (i - G_BW) * dx;
-	c[YDIM] = X[XDIM][iii0] + (j - G_BW) * dx;
-	c[ZDIM] = X[XDIM][iii0] + (k - G_BW) * dx;
+	c[XDIM] = X[XDIM][iii0] + (i) * dx;
+	c[YDIM] = X[XDIM][iii0] + (j) * dx;
+	c[ZDIM] = X[XDIM][iii0] + (k) * dx;
 	return c;
 }
 
@@ -92,7 +92,7 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i+G_BW-H_BW, j+G_BW-H_BW, k+G_BW-H_BW);
+				const integer iiig = gindex(i-H_BW, j-H_BW, k-H_BW);
 				space_vector a = line.first;
 				const space_vector& o = line.second;
 				space_vector b;
@@ -137,11 +137,11 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 		e.first.resize(8, ZERO);
 		e.second.resize(8, ZERO);
 	}
-	for (integer i = G_BW; i != G_NX - G_BW; ++i) {
-		for (integer j = G_BW; j != G_NX - G_BW; ++j) {
-			for (integer k = G_BW; k != G_NX - G_BW; ++k) {
+	for (integer i = 0; i != G_NX; ++i) {
+		for (integer j = 0; j != G_NX; ++j) {
+			for (integer k = 0; k != G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				const integer bdif = H_BW - G_BW;
+				const integer bdif = H_BW;
 				const integer iiih = hindex(i + bdif, j + bdif, k + bdif);
 				const real x = X[XDIM][iiih];
 				const real y = X[YDIM][iiih];
@@ -525,7 +525,7 @@ real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer D = G_BW - H_BW;
+				const integer D = 0 - H_BW;
 				const integer iii = hindex(i, j, k);
 				const integer iiig = gindex(i + D, j + D, k + D);
 				real x0 = X[XDIM][iii];
@@ -671,7 +671,7 @@ std::vector<real> grid::gforce_sum(bool torque) const {
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const auto D = G_BW - H_BW;
+				const auto D = 0 - H_BW;
 				const integer iii = hindex(i, j, k);
 				const integer iiig = gindex(i + D, j + D, k + D);
 				const real& rho = U[rho_i][iii];
@@ -768,36 +768,69 @@ bool grid::refine_me(integer lev) const {
 	return rc;
 }
 
-integer grid::level_count() const {
-	return nlevel;
-}
-
 grid::~grid() {
 
 }
 
-real& grid::hydro_value(integer f, integer i, integer j, integer k) {
-	return U[f][hindex(i, j, k)];
+void grid::rho_mult(real f0, real f1) {
+	for (integer i = 0; i != H_NX; ++i) {
+		for (integer j = 0; j != H_NX; ++j) {
+			for (integer k = 0; k != H_NX; ++k) {
+				U[spc_ac_i][hindex(i,j,k)] *= f0;
+				U[spc_dc_i][hindex(i,j,k)] *= f1;
+				U[spc_ae_i][hindex(i,j,k)] *= f0;
+				U[spc_de_i][hindex(i,j,k)] *= f1;
+				U[rho_i][hindex(i,j,k)] = 0.0;
+				for (integer si = 0; si != NSPECIES; ++si) {
+					U[rho_i][hindex(i,j,k)] += U[spc_i + si][hindex(i, j, k)];
+				}
+			}
+		}
+	}
+
 }
 
-space_vector& grid::center_of_mass_value(integer i, integer j, integer k) {
-	return com[0][gindex(i, j, k)];
-}
+void grid::rho_move(real x) {
+	real w = x / dx;
+	const real rho_floor = 1.0e-15;
 
-const space_vector& grid::center_of_mass_value(integer i, integer j, integer k) const {
-	return com[0][gindex(i, j, k)];
+	w = std::max(-0.5, std::min(0.5, w));
+	for (integer i = 1; i != H_NX - 1; ++i) {
+		for (integer j = 1; j != H_NX - 1; ++j) {
+			for (integer k = 1; k != H_NX - 1; ++k) {
+				for (integer si = spc_i; si != NSPECIES + spc_i; ++si) {
+					U[si][hindex(i,j,k)] += w * U[si][hindex(i+1,j,k)];
+					U[si][hindex(i,j,k)] -= w * U[si][hindex(i-01,j,k)];
+					U[si][hindex(i,j,k)] = std::max(U[si][hindex(i+1,j,k)], 0.0);
+				}
+				U[rho_i][hindex(i,j,k)] = 0.0;
+				for (integer si = 0; si != NSPECIES; ++si) {
+					U[rho_i][hindex(i,j,k)] += U[spc_i + si][hindex(i, j, k)];
+				}
+				U[rho_i][hindex(i,j,k)] = std::max(U[rho_i][hindex(i,j,k)], rho_floor);
+			}
+		}
+	}
 }
+/*
+ space_vector& grid::center_of_mass_value(integer i, integer j, integer k) {
+ return com[0][gindex(i, j, k)];
+ }
+
+ const space_vector& grid::center_of_mass_value(integer i, integer j, integer k) const {
+ return com[0][gindex(i, j, k)];
+ }*/
 
 space_vector grid::center_of_mass() const {
 	PROF_BEGIN;
 	space_vector this_com;
 	this_com[0] = this_com[1] = this_com[2] = ZERO;
 	real m = ZERO;
-	for (integer i = G_BW; i != INX + G_BW; ++i) {
-		for (integer j = G_BW; j != INX + G_BW; ++j) {
-			for (integer k = G_BW; k != INX + G_BW; ++k) {
+	for (integer i = 0; i != INX + 0; ++i) {
+		for (integer j = 0; j != INX + 0; ++j) {
+			for (integer k = 0; k != INX + 0; ++k) {
 				const integer iii = gindex(i, j, k);
-				const real& this_m = M[iii]();
+				const real this_m = is_leaf ? mon[iii] : M[iii]();
 				for (auto& dim : geo::dimension::full_set()) {
 					this_com[dim] += this_m * com[0][iii][dim];
 				}
@@ -812,24 +845,6 @@ space_vector grid::center_of_mass() const {
 	}
 	PROF_END;
 	return this_com;
-}
-
-multipole& grid::multipole_value(integer i, integer j, integer k) {
-	const integer bw = G_BW;
-	const integer inx = INX;
-	const integer nx = 2 * bw + inx;
-	return M[i * nx * nx + j * nx + k];
-}
-
-const multipole& grid::multipole_value(integer i, integer j, integer k) const {
-	const integer bw = G_BW;
-	const integer inx = INX;
-	const integer nx = 2 * bw + inx;
-	return M[i * nx * nx + j * nx + k];
-}
-
-real grid::hydro_value(integer f, integer i, integer j, integer k) const {
-	return U[f][hindex(i, j, k)];
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
@@ -1003,19 +1018,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 }
 
 void grid::set_root(bool flag) {
-	M.resize(G_N3);
-	L.resize(G_N3);
-	L_c.resize(G_N3);
-	if (is_root != flag) {
-		is_root = flag;
-		integer this_nlevel = 0;
-		for (integer inx = INX; inx > 1; inx /= 2) {
-			const integer this_nx = inx + 2 * G_BW;
-			const integer sz = this_nx * this_nx * this_nx;
-			com[this_nlevel].resize(sz);
-			++this_nlevel;
-		}
-	}
+	is_root = flag;
 }
 
 void grid::set_leaf(bool flag) {
@@ -1065,24 +1068,12 @@ void grid::allocate() {
 			Uf[face][field].resize(H_N3);
 		}
 	}
-	nlevel = 0;
-	for (integer inx = INX; inx > 1; inx /= 2) {
-		++nlevel;
-	}
-	com.resize(nlevel);
-	M.resize(nlevel);
-	L.resize(nlevel);
-	L_c.resize(nlevel);
-	nlevel = 0;
-	M.resize(G_N3);
+	com.resize(2);
 	L.resize(G_N3);
 	L_c.resize(G_N3);
-	for (integer inx = INX; inx > 1; inx /= 2) {
-		const integer this_nx = inx + 2 * G_BW;
-		const integer sz = this_nx * this_nx * this_nx;
-		com[nlevel].resize(sz);
-		++nlevel;
-	}
+	integer nlevel = 0;
+	com[0].resize(G_N3);
+	com[1].resize(G_N3 / 8);
 
 	set_coordinates();
 	PROF_END;
@@ -1530,7 +1521,7 @@ void grid::compute_sources(real t) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
+				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 				for (integer field = 0; field != NF; ++field) {
 					src[field][iii] = ZERO;
 				}
@@ -1597,7 +1588,7 @@ void grid::compute_dudt() {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
+				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 				dUdt[egas_i][iii] -= (dUdt[rho_i][iii] * G[phi_i][iiig]) * HALF;
 			}
 		}

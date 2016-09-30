@@ -45,25 +45,9 @@ static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT
 //0.5=.313
 //0.6 .305
 
-typedef typename node_server::scf_update_action scf_update_action_type;
-HPX_REGISTER_ACTION(scf_update_action_type);
-
-typedef typename node_server::rho_mult_action rho_mult_action_type;
-HPX_REGISTER_ACTION(rho_mult_action_type);
-
-typedef typename node_server::rho_move_action rho_move_action_type;
-HPX_REGISTER_ACTION(rho_move_action_type);
-
-hpx::future<void> node_client::rho_mult(real f0, real f1) const {
-	return hpx::async<typename node_server::rho_mult_action>(get_gid(), f0, f1);
-}
 
 hpx::future<void> node_client::rho_move(real x) const {
 	return hpx::async<typename node_server::rho_move_action>(get_gid(), x);
-}
-
-hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos e1, donor_eos e2) const {
-	return hpx::async<typename node_server::scf_update_action>(get_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 }
 
 void node_server::rho_move(real x) {
@@ -74,30 +58,27 @@ void node_server::rho_move(real x) {
 			futs.push_back(child.rho_move(x));
 		}
 	}
-	const real dx = 2.0 * opts.xscale / real(INX) / real(1 << my_location.level());
-	real w = x / dx;
-	w = std::max(-0.5, std::min(0.5, w));
-	for (integer i = 1; i != H_NX - 1; ++i) {
-		for (integer j = 1; j != H_NX - 1; ++j) {
-			for (integer k = 1; k != H_NX - 1; ++k) {
-				for (integer si = spc_i; si != NSPECIES + spc_i; ++si) {
-					grid_ptr->hydro_value(si, i, j, k) += w * grid_ptr->hydro_value(si, i + 1, j, k);
-					grid_ptr->hydro_value(si, i, j, k) -= w * grid_ptr->hydro_value(si, i - 1, j, k);
-					grid_ptr->hydro_value(si, i, j, k) = std::max(grid_ptr->hydro_value(si, i, j, k), 0.0);
-				}
-				grid_ptr->hydro_value(rho_i, i, j, k) = 0.0;
-				for (integer si = 0; si != NSPECIES; ++si) {
-					grid_ptr->hydro_value(rho_i, i, j, k) += grid_ptr->hydro_value(spc_i + si, i, j, k);
-				}
-				grid_ptr->hydro_value(rho_i, i, j, k) = std::max(grid_ptr->hydro_value(rho_i, i, j, k), rho_floor);
-			}
-		}
-	}
+	grid_ptr->rho_move(x);
 	all_hydro_bounds().get();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
 }
+
+typedef typename node_server::scf_update_action scf_update_action_type;
+HPX_REGISTER_ACTION(scf_update_action_type);
+
+typedef typename node_server::rho_mult_action rho_mult_action_type;
+HPX_REGISTER_ACTION(rho_mult_action_type);
+
+hpx::future<void> node_client::rho_mult(real f0, real f1) const {
+	return hpx::async<typename node_server::rho_mult_action>(get_gid(), f0, f1);
+}
+
+hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos e1, donor_eos e2) const {
+	return hpx::async<typename node_server::scf_update_action>(get_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
+}
+
 
 void node_server::rho_mult(real f0, real f1) {
 	std::vector<hpx::future<void>> futs;
@@ -107,20 +88,7 @@ void node_server::rho_mult(real f0, real f1) {
 			futs.push_back(child.rho_mult(f0, f1));
 		}
 	}
-	for (integer i = 0; i != H_NX; ++i) {
-		for (integer j = 0; j != H_NX; ++j) {
-			for (integer k = 0; k != H_NX; ++k) {
-				grid_ptr->hydro_value(spc_ac_i, i, j, k) *= f0;
-				grid_ptr->hydro_value(spc_dc_i, i, j, k) *= f1;
-				grid_ptr->hydro_value(spc_ae_i, i, j, k) *= f0;
-				grid_ptr->hydro_value(spc_de_i, i, j, k) *= f1;
-				grid_ptr->hydro_value(rho_i, i, j, k) = 0.0;
-				for (integer si = 0; si != NSPECIES; ++si) {
-					grid_ptr->hydro_value(rho_i, i, j, k) += grid_ptr->hydro_value(spc_i + si, i, j, k);
-				}
-			}
-		}
-	}
+	grid_ptr->rho_mult(f0,f1);
 	all_hydro_bounds().get();
 	for (auto&& fut : futs ) {
 		fut.get();
@@ -211,7 +179,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer D = G_BW - H_BW;
+				const integer D =  - H_BW;
 				const integer iiih = hindex(i, j, k);
 				const integer iiig = gindex(i + D, j + D, k + D);
 				const real x = X[XDIM][iiih];

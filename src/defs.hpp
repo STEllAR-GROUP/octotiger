@@ -66,9 +66,6 @@ constexpr integer L_POLES = M_POLES;
 
 
 
-
-constexpr integer G_BW = 0;
-
 //#define GRID_SIZE real(2.0)
 
 const real DEFAULT_OMEGA = 0.142194022;
@@ -95,7 +92,7 @@ const integer H_BW = 2;
 const integer R_BW = 2;
 
 const integer H_NX = 2 * H_BW + INX;
-const integer G_NX = 2 * G_BW + INX;
+const integer G_NX = INX;
 const integer H_N3 = H_NX * H_NX * H_NX;
 const integer G_N3 = G_NX * G_NX * G_NX;
 
