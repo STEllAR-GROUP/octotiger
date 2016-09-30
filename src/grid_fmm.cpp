@@ -95,19 +95,19 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 				const integer iii1 = gindex(i, j, k);
 				const integer iii0 = gindex(i + H_BW , j + H_BW , k + H_BW );
 				for (integer n = 0; n != NDIM; ++n) {
-					real m;
+					real mass;
 					if (is_leaf) {
-						m = mon[iii1];
+						mass = mon[iii1];
 					} else {
-						m = M[iii1]();
+						mass = M[iii1]();
 					}
-					this_com[n] += m * com[0][iii1][n];
-					mtot += m;
+					this_com[n] += mass * com[0][iii1][n];
+					mtot += mass;
 					for (integer m = 0; m != NDIM; ++m) {
 						if (!is_leaf) {
 							quad_moment[n][m] += M[iii1](n, m);
 						}
-						quad_moment[n][m] += m * com[0][iii1][n] * com[0][iii1][m];
+						quad_moment[n][m] += mass * com[0][iii1][n] * com[0][iii1][m];
 					}
 				}
 			}
