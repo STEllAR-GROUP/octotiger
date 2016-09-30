@@ -167,13 +167,9 @@ private:
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
-	std::vector<std::array<std::vector<real>, NF>> Uf;
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<std::vector<real>> G;
-	std::vector<std::vector<real>> G_analytic;
-	std::vector<std::vector<real>> G0;
-	std::vector<std::vector<real>> src;
 
 	bool is_root;
 	bool is_leaf;

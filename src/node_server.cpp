@@ -97,9 +97,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 
 hpx::future<void> node_server::all_hydro_bounds(bool tau_only) {
 	std::vector<hpx::future<void>> fut;
-	if (!tau_only) {
-		fut.push_back(exchange_interlevel_hydro_data());
-	}
+	fut.push_back(exchange_interlevel_hydro_data());
 	fut.push_back(collect_hydro_boundaries(tau_only));
 	fut.push_back(send_hydro_amr_boundaries(tau_only));
 	return hpx::when_all(std::begin(fut), std::end(fut));

@@ -20,6 +20,7 @@ static thread_local std::vector<std::vector<std::vector<real>>> _dVdx
 	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
 static thread_local std::vector < std::vector<std::vector<real>>> _dUdx = std::vector<std::vector<std::vector<real>>>(NDIM,
 	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+static thread_local std::vector<std::vector<std::vector<real>>> _Uf(NFACE, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
 
 space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	const integer iii0 = hindex(H_BW,H_BW,H_BW);
@@ -848,7 +849,7 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(false), is_leaf(true) {
+	U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF),  is_root(false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -1051,21 +1052,16 @@ void grid::allocate() {
 	dphi_dt = std::vector<real>(H_N3);
 	for (integer field = 0; field != NGF; ++field) {
 		G[field].resize(G_N3);
-		G0[field].resize(G_N3);
 	}
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		X[dim].resize(H_N3);
 	}
 	for (integer field = 0; field != NF; ++field) {
-		src[field].resize(H_N3);
 		U0[field].resize(H_N3);
 		U[field].resize(H_N3);
 		dUdt[field].resize(H_N3);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(H_N3);
-		}
-		for (integer face = 0; face != NFACE; ++face) {
-			Uf[face][field].resize(H_N3);
 		}
 	}
 	com.resize(2);
@@ -1080,14 +1076,12 @@ void grid::allocate() {
 }
 
 grid::grid() :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(
-		H_N3) {
+	U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF),  is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	allocate();
 }
 
 grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xmin) :
-	U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(
-		H_N3) {
+	U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
 	xmin = _xmin;
@@ -1140,7 +1134,7 @@ inline real limit_slope(real& ql, real q0, real& qr) {
 void grid::reconstruct() {
 
 	PROF_BEGIN;
-
+	auto& Uf = _Uf;
 	auto& dUdx = _dUdx;
 	auto& dVdx = _dVdx;
 	auto& V = _V;
@@ -1347,6 +1341,7 @@ void grid::reconstruct() {
 
 real grid::compute_fluxes() {
 	PROF_BEGIN;
+	const auto& Uf = _Uf;
 	real max_lambda = ZERO;
 	std::array<std::vector<real>, NF> ur, ul, f;
 	std::vector<space_vector> x;
@@ -1407,12 +1402,6 @@ void grid::store() {
 			U0[field][iii] = U[field][iii];
 		}
 	}
-	for (integer field = 0; field != NGF; ++field) {
-#pragma GCC ivdep
-		for (integer iii = 0; iii != G_N3; ++iii) {
-			G0[field][iii] = G[field][iii];
-		}
-	}
 	U_out0 = U_out;
 }
 
@@ -1422,12 +1411,6 @@ void grid::restore() {
 #pragma GCC ivdep
 		for (integer iii = 0; iii != H_N3; ++iii) {
 			U[field][iii] = U0[field][iii];
-		}
-	}
-	for (integer field = 0; field != NGF; ++field) {
-#pragma GCC ivdep
-		for (integer iii = 0; iii != G_N3; ++iii) {
-			G[field][iii] = G0[field][iii];
 		}
 	}
 	U_out = U_out0;
@@ -1516,6 +1499,7 @@ void grid::set_physical_boundaries(const geo::face& face) {
 
 void grid::compute_sources(real t) {
 	PROF_BEGIN;
+	auto& src = dUdt;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
@@ -1572,11 +1556,9 @@ void grid::compute_dudt() {
 #pragma GCC ivdep
 				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 					const integer iii = hindex(i, j, k);
-					dUdt[field][iii] = ZERO;
 					dUdt[field][iii] -= (F[XDIM][field][iii + H_DNX] - F[XDIM][field][iii]) / dx;
 					dUdt[field][iii] -= (F[YDIM][field][iii + H_DNY] - F[YDIM][field][iii]) / dx;
 					dUdt[field][iii] -= (F[ZDIM][field][iii + H_DNZ] - F[ZDIM][field][iii]) / dx;
-					dUdt[field][iii] += src[field][iii];
 				}
 			}
 #pragma GCC ivdep

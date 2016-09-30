@@ -97,6 +97,7 @@ const integer H_N3 = H_NX * H_NX * H_NX;
 const integer G_N3 = G_NX * G_NX * G_NX;
 
 #define hindex(i,j,k) ((i)*H_DNX + (j)*H_DNY + (k)*H_DNZ)
+#define findex(i,j,k) ((i)*(INX+1)*(INX+1) + (j)*(INX+1) + (k))
 #define gindex(i,j,k) ((i)*G_DNX + (j)*G_DNY + (k)*G_DNZ)
 
 

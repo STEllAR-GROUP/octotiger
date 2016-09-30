@@ -545,7 +545,6 @@ void node_server::step() {
 	grid_ptr->store();
 
 	for (integer rk = 0; rk < NRK; ++rk) {
-		fut.get();
 		grid_ptr->reconstruct();
 		a = grid_ptr->compute_fluxes();
 		fut_flux = exchange_flux_corrections();
@@ -556,6 +555,7 @@ void node_server::step() {
 		fut_flux.get();
 		grid_ptr->compute_sources(current_time);
 		grid_ptr->compute_dudt();
+		fut.get();
 		compute_fmm(DRHODT, false);
 
 		if (rk == 0) {
@@ -568,11 +568,6 @@ void node_server::step() {
 	}
 	fut.get();
 	grid_ptr->dual_energy_update();
-
-//	if ((step_num+1) % refinement_freq() == 0) {
-//		fut = all_hydro_bounds();
-//		fut.get();
-//	}
 
 	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
 		i->get();
