@@ -34,9 +34,9 @@ bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, 
 	bool rc = false;
 	real den_floor = 1.0e-4;
 //	integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
-	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
+//	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
 //	integer test_level = ((U[spc_dc_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
-//	integer test_level = max_level;
+	integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);
@@ -97,7 +97,7 @@ std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
 	return u;
 }
 
-const real ssr0 = 0.7;
+const real ssr0 = 1.0 / 3.0;
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
 	const real r0 = ssr0;
 	const real M = 1.0;

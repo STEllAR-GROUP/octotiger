@@ -131,24 +131,27 @@ hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 
 hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
 	std::list<hpx::future<void>> futs;
+
 	for (auto& dir : geo::direction::full_set()) {
-		if (!dir.is_vertex()) {
+//		if (!dir.is_vertex()) {
 			if (!neighbors[dir].empty()) {
-				const integer width = dir.is_face() ? H_BW : 2;
+//				const integer width = dir.is_face() ? H_BW : 1;
+				const integer width = H_BW;
 				auto bdata = grid_ptr->get_hydro_boundary(dir, width, tau_only);
 				futs.push_back(neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip()));
 			}
-		}
+//		}
 	}
 
 	for (auto& dir : geo::direction::full_set()) {
-		if (!dir.is_vertex()) {
+//		if (!dir.is_vertex()) {
 			if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-				const integer width = dir.is_face() ? H_BW : 2;
 				auto tmp = sibling_hydro_channels[dir].get_future().get();
+				//				const integer width = dir.is_face() ? H_BW : 1;
+				const integer width = H_BW;
 				grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, width, tau_only);
 			}
-		}
+//		}
 	}
 
 	for (auto& face : geo::face::full_set()) {
@@ -168,12 +171,17 @@ hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
 		for (auto& ci : geo::octant::full_set()) {
 			const auto& flags = amr_flags[ci];
 			for (auto& dir : geo::direction::full_set()) {
-				if (!dir.is_vertex()) {
+	//			if (!dir.is_vertex()) {
 					if (flags[dir]) {
 						std::array<integer, NDIM> lb, ub;
 						std::vector<real> data;
-						const integer width = dir.is_face() ? H_BW : 2;
-						get_boundary_size(lb, ub, dir, OUTER, H_NX, INX, width);
+//						const integer width = dir.is_face() ? H_BW : 1;
+						const integer width = H_BW;
+						if (!tau_only) {
+							get_boundary_size(lb, ub, dir, OUTER, INX, width);
+						} else {
+							get_boundary_size(lb, ub, dir, OUTER, INX, width);
+						}
 						for (integer dim = 0; dim != NDIM; ++dim) {
 							lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
 							ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
@@ -182,7 +190,7 @@ hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
 						futs.push_back(children[ci].send_hydro_boundary(std::move(data), dir));
 					}
 				}
-			}
+//			}
 		}
 		fut = hpx::when_all(std::begin(futs), std::end(futs));
 	} else {

@@ -90,17 +90,17 @@ class direction: public geo_type {
 public:
 	direction() = default;
 	constexpr direction(integer j) :
-	geo_type(j) {
+			geo_type(j) {
 	}
 	integer operator[](const dimension& dim) const {
 		switch (dim) {
-			case XDIM:
+		case XDIM:
 			return (i % NDIM) - 1;
-			case YDIM:
+		case YDIM:
 			return ((i / NDIM) % NDIM) - 1;
-			case ZDIM:
+		case ZDIM:
 			return ((i / (NDIM * NDIM)) % NDIM) - 1;
-			default:
+		default:
 			break;
 		}
 		assert(false);
@@ -224,27 +224,27 @@ inline side quadrant::get_side(integer d) const {
 }
 
 constexpr geo_type::geo_type(integer j) :
-	i(j) {
+		i(j) {
 }
 
 constexpr side::side(integer i) :
-	geo_type(i) {
+		geo_type(i) {
 }
 
 constexpr dimension::dimension(integer i) :
-	geo_type(i) {
+		geo_type(i) {
 }
 
 constexpr face::face(integer i) :
-	geo_type(i) {
+		geo_type(i) {
 }
 
 constexpr octant::octant(integer i) :
-	geo_type(i) {
+		geo_type(i) {
 }
 
 constexpr quadrant::quadrant(integer i) :
-	geo_type(i) {
+		geo_type(i) {
 }
 
 constexpr integer side::count() {
@@ -317,11 +317,11 @@ void geo_type::serialize(Arc& arc, const unsigned) {
 }
 
 inline quadrant::quadrant(const octant& o, const dimension& d) :
-	geo_type(o.get_quadrant(d)) {
+		geo_type(o.get_quadrant(d)) {
 }
 
 inline octant::octant(const std::array<side, NDIM>& sides) :
-	geo_type(sides[XDIM] | (sides[YDIM] << 1) | (sides[ZDIM] << 2)) {
+		geo_type(sides[XDIM] | (sides[YDIM] << 1) | (sides[ZDIM] << 2)) {
 }
 
 inline side side::flip() const {
@@ -334,9 +334,10 @@ inline face face::flip() const {
 
 }
 
+
 constexpr integer INNER = 0;
 constexpr integer OUTER = 1;
 
-integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer nx, integer inx, integer bw);
+integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer inx, integer bw);
 
 #endif /* GEOMETRY_HPP_ */
