@@ -17,13 +17,14 @@ bool hydro_on = true;
 HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
 
 
+void compute_ilist();
 
 void initialize(options _opts) {
 	opts = _opts;
 //#ifndef NDEBUG
-	//feenableexcept (FE_DIVBYZERO);
-//	feenableexcept (FE_INVALID);
-//	feenableexcept (FE_OVERFLOW);
+	feenableexcept (FE_DIVBYZERO);
+	feenableexcept (FE_INVALID);
+	feenableexcept (FE_OVERFLOW);
 //#endif
 	grid::set_scaling_factor(opts.xscale);
 	grid::set_max_level(opts.max_level);
@@ -64,6 +65,7 @@ void initialize(options _opts) {
 	}
 	node_server::set_gravity(gravity_on);
 	node_server::set_hydro(hydro_on);
+	compute_ilist();
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

@@ -66,9 +66,6 @@ constexpr integer L_POLES = M_POLES;
 
 
 
-
-constexpr integer G_BW = 4;
-
 //#define GRID_SIZE real(2.0)
 
 const real DEFAULT_OMEGA = 0.142194022;
@@ -95,12 +92,21 @@ const integer H_BW = 2;
 const integer R_BW = 2;
 
 const integer H_NX = 2 * H_BW + INX;
-const integer G_NX = 2 * G_BW + INX;
+const integer G_NX = INX;
 const integer H_N3 = H_NX * H_NX * H_NX;
+const integer F_N3 = ((INX+1)*(INX+1)*(INX+1));
 const integer G_N3 = G_NX * G_NX * G_NX;
 
+
+#define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
 #define hindex(i,j,k) ((i)*H_DNX + (j)*H_DNY + (k)*H_DNZ)
+#define findex(i,j,k) ((i)*(INX+1)*(INX+1) + (j)*(INX+1) + (k))
 #define gindex(i,j,k) ((i)*G_DNX + (j)*G_DNY + (k)*G_DNZ)
+
+
+const integer F_DNX = (INX+1)*(INX+1);
+const integer F_DNZ = 1;
+const integer F_DNY = (INX+1);
 
 
 const integer NF = 15;
@@ -109,6 +115,7 @@ const integer H_DNX = H_NX * H_NX;
 const integer H_DNY = H_NX;
 const integer H_DNZ = 1;
 const integer H_DN[NDIM] = { H_NX * H_NX, H_NX, 1 };
+const integer F_DN[NDIM] = {(INX+1)*(INX+1),INX+1,1 };
 const integer G_DNX = G_NX * G_NX;
 const integer G_DNY = G_NX;
 const integer G_DNZ = 1;

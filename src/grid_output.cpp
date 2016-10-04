@@ -95,7 +95,7 @@ grid::output_list_type grid::get_output_list() const {
 		for (integer j = this_bw; j != H_NX - this_bw; ++j) {
 			for (integer k = this_bw; k != H_NX - this_bw; ++k) {
 				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i + G_BW - H_BW, j + G_BW - H_BW, k + G_BW - H_BW);
+				const integer iiig = gindex(i  - H_BW, j  - H_BW, k  - H_BW);
 #ifdef EQ_ONLY
 				if (!(std::abs(X[ZDIM][iii]) < dx) && !(std::abs(X[YDIM][iii]) < dx)) {
 					continue;
@@ -237,9 +237,9 @@ std::size_t grid::load(FILE* fp) {
 		}
 	}
 	for (integer f = 0; f != 4; ++f) {
-		for (integer i = G_BW; i < G_NX - G_BW; ++i) {
-			for (integer j = G_BW; j < G_NX - G_BW; ++j) {
-				const integer iii = gindex(i, j, G_BW);
+		for (integer i = 0; i < G_NX ; ++i) {
+			for (integer j = 0; j < G_NX ; ++j) {
+				const integer iii = gindex(i, j, 0);
 				cnt += foo(&(G[f][iii]), sizeof(real), INX, fp) * sizeof(real);
 			}
 		}
@@ -269,9 +269,9 @@ std::size_t grid::save(FILE* fp) const {
 		}
 	}
 	for (integer f = 0; f != 4; ++f) {
-		for (integer i = G_BW; i < G_NX - G_BW; ++i) {
-			for (integer j = G_BW; j < G_NX - G_BW; ++j) {
-				const integer iii = gindex(i, j, G_BW);
+		for (integer i = 0; i < G_NX ; ++i) {
+			for (integer j = 0; j < G_NX ; ++j) {
+				const integer iii = gindex(i, j, 0);
 				cnt += foo(&(G[f][iii]), sizeof(real), INX, fp) * sizeof(real);
 			}
 		}

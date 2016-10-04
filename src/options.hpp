@@ -34,6 +34,7 @@ public:
 	real output_dt;
 	real contact_fill;
 	bool bench;
+	real theta;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -47,6 +48,7 @@ public:
 		arc & output_dt;
 		int tmp = problem;
 		arc & tmp;
+		arc & theta;
 		problem = (problem_type)tmp;
 
 	}
