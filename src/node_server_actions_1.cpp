@@ -436,7 +436,7 @@ void node_server::start_run(bool scf) {
 	while (true) {
 		auto time_start = std::chrono::high_resolution_clock::now();
 		if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
-		//	if (step_num != 0) {
+			if (step_num != 0) {
 
 				char* fname;
 
@@ -449,7 +449,7 @@ void node_server::start_run(bool scf) {
 				output(fname, output_cnt);
 				free(fname);
 				//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
-	//		}
+			}
 			++output_cnt;
 
 		}
