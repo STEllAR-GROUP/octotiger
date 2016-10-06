@@ -15,60 +15,55 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
-static std::vector<std::vector<real>>& TLS_V() {
-	using type = std::vector<std::vector<real>>;
-	static boost::thread_specific_ptr<type> a([](type* ptr) {
-		if( ptr ) {
-			delete ptr;
-		}
-	});
-	if (a.get() == nullptr) {
-		a.reset(new type(NF, std::vector<real>(H_N3)));
+struct tls_data_t {
+	std::vector<std::vector<real>> v;
+	std::vector<std::vector<std::vector<real>>>dvdx;
+	std::vector<std::vector<std::vector<real>>> dudx;
+	std::vector<std::vector<std::vector<real>>> uf;
+};
+
+class tls_t {
+private:
+	pthread_key_t key;
+public:
+	static void cleanup(void* ptr) {
+		tls_data_t* _ptr = (tls_data_t*) ptr;
+		delete _ptr;
 	}
-	return *(a.get());
+	tls_t() {
+		pthread_key_create(&key, cleanup);
+	}
+	tls_data_t* get_ptr() {
+		tls_data_t* ptr = (tls_data_t*) pthread_getspecific(key);
+		if (ptr == nullptr) {
+			ptr = new tls_data_t;
+			ptr->v.resize(NF, std::vector<real>(H_N3));
+			ptr->dvdx.resize(NDIM, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
+			ptr->dudx.resize(NDIM, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
+			ptr->uf.resize(NFACE, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
+			pthread_setspecific(key, ptr);
+		}
+		return ptr;
+	}
+};
+
+static tls_t tls;
+
+static std::vector<std::vector<real>>& TLS_V() {
+	return tls.get_ptr()->v;
 }
 
 static std::vector<std::vector<std::vector<real>>>& TLS_dVdx() {
-	using type = std::vector<std::vector<std::vector<real>>>;
-	static boost::thread_specific_ptr<type> a([](type* ptr) {
-			if( ptr ) {
-				delete ptr;
-			}
-		});
-	if (a.get() == nullptr) {
-		a.reset(new type(NDIM,
-				std::vector < std::vector < real >> (NF, std::vector < real > (H_N3))));
-	}
-	return *(a.get());
+	return tls.get_ptr()->dvdx;
 }
 
 static std::vector<std::vector<std::vector<real>>>& TLS_dUdx() {
-	using type = std::vector<std::vector<std::vector<real>>>;
-	static boost::thread_specific_ptr<type> a([](type* ptr) {
-			if( ptr ) {
-				delete ptr;
-			}
-		});
-	if (a.get() == nullptr) {
-		a.reset(new type(NDIM,
-				std::vector < std::vector < real >> (NF, std::vector < real > (H_N3))));
-	}
-	return *(a.get());
+	return tls.get_ptr()->dudx;
 }
 
 static std::vector<std::vector<std::vector<real>>>& TLS_Uf() {
-	using type = std::vector<std::vector<std::vector<real>>>;
-	static boost::thread_specific_ptr<type> a([](type* ptr) {
-			if( ptr ) {
-				delete ptr;
-			}
-		});
-	if (a.get() == nullptr) {
-		a.reset(new type(NFACE,
-				std::vector < std::vector < real >> (NF, std::vector<real>(H_N3))));
-		}
-		return *(a.get());
-	}
+	return tls.get_ptr()->uf;
+}
 
 space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	const integer iii0 = hindex(H_BW,H_BW,H_BW);
