@@ -5,6 +5,7 @@
 #include <cassert>
 #include "profiler.hpp"
 #include "taylor.hpp"
+#include <boost/thread/tss.hpp>
 
 extern options opts;
 
@@ -14,13 +15,60 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
-static thread_local std::vector<std::vector<real>> _V(NF,std::vector<real>(H_N3));
-static thread_local std::vector<std::vector<std::vector<real>>> _dVdx
-=std::vector<std::vector<std::vector<real>>>(NDIM,
-	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
-static thread_local std::vector < std::vector<std::vector<real>>> _dUdx = std::vector<std::vector<std::vector<real>>>(NDIM,
-	std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
-static thread_local std::vector<std::vector<std::vector<real>>> _Uf(NFACE, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
+static std::vector<std::vector<real>>& TLS_V() {
+	using type = std::vector<std::vector<real>>;
+	static boost::thread_specific_ptr<type> a([](type* ptr) {
+		if( ptr ) {
+			delete ptr;
+		}
+	});
+	if (a.get() == nullptr) {
+		a.reset(new type(NF, std::vector<real>(H_N3)));
+	}
+	return *(a.get());
+}
+
+static std::vector<std::vector<std::vector<real>>>& TLS_dVdx() {
+	using type = std::vector<std::vector<std::vector<real>>>;
+	static boost::thread_specific_ptr<type> a([](type* ptr) {
+			if( ptr ) {
+				delete ptr;
+			}
+		});
+	if (a.get() == nullptr) {
+		a.reset(new type(NDIM,
+				std::vector < std::vector < real >> (NF, std::vector < real > (H_N3))));
+	}
+	return *(a.get());
+}
+
+static std::vector<std::vector<std::vector<real>>>& TLS_dUdx() {
+	using type = std::vector<std::vector<std::vector<real>>>;
+	static boost::thread_specific_ptr<type> a([](type* ptr) {
+			if( ptr ) {
+				delete ptr;
+			}
+		});
+	if (a.get() == nullptr) {
+		a.reset(new type(NDIM,
+				std::vector < std::vector < real >> (NF, std::vector < real > (H_N3))));
+	}
+	return *(a.get());
+}
+
+static std::vector<std::vector<std::vector<real>>>& TLS_Uf() {
+	using type = std::vector<std::vector<std::vector<real>>>;
+	static boost::thread_specific_ptr<type> a([](type* ptr) {
+			if( ptr ) {
+				delete ptr;
+			}
+		});
+	if (a.get() == nullptr) {
+		a.reset(new type(NFACE,
+				std::vector < std::vector < real >> (NF, std::vector<real>(H_N3))));
+		}
+		return *(a.get());
+	}
 
 space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	const integer iii0 = hindex(H_BW,H_BW,H_BW);
@@ -353,7 +401,7 @@ void grid::set_prolong(const std::vector<real>& data, std::vector<real>&& outflo
 
 std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only) {
 	PROF_BEGIN;
-	auto& dUdx = _dUdx;
+	auto& dUdx = TLS_dUdx();
 	std::vector<real> data;
 	const auto U0 = U;
 	integer size = NF;
@@ -857,7 +905,7 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 
 void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
 	PROF_BEGIN;
-	auto& V = _V;
+	auto& V = TLS_V();
 	if (!tau_only) {
 		V = U;
 		for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
@@ -899,8 +947,8 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 
 void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
 	PROF_BEGIN;
-	auto& dVdx = _dVdx;
-	auto& V = _V;
+	auto& dVdx = TLS_dVdx();
+	auto& V = TLS_V();
 	const integer lb0 = tau_only ? tau_i : 0;
 	const integer ub0 = tau_only ? tau_i + 1 : NF;
 	for (integer f = lb0; f != ub0; ++f) {
@@ -955,9 +1003,9 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 
 void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
 	PROF_BEGIN;
-	auto& dVdx = _dVdx;
-	auto& dUdx = _dUdx;
-	auto& V = _V;
+	auto& dVdx = TLS_dVdx();
+	auto& dUdx = TLS_dUdx();
+	auto& V = TLS_V();
 	const real theta = 1.0;
 	if (!tau_only) {
 		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
@@ -1045,7 +1093,7 @@ void grid::allocate() {
 //	std::call_once(flag, compute_ilist);
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
-	dphi_dt = std::vector<real>(INX*INX*INX);
+	dphi_dt = std::vector<real>(INX * INX * INX);
 	for (integer field = 0; field != NGF; ++field) {
 		G[field].resize(G_N3);
 	}
@@ -1130,10 +1178,10 @@ inline real limit_slope(real& ql, real q0, real& qr) {
 void grid::reconstruct() {
 
 	PROF_BEGIN;
-	auto& Uf = _Uf;
-	auto& dUdx = _dUdx;
-	auto& dVdx = _dVdx;
-	auto& V = _V;
+	auto& Uf = TLS_Uf();
+	auto& dUdx = TLS_dUdx();
+	auto& dVdx = TLS_dVdx();
+	auto& V = TLS_V();
 	compute_primitives();
 
 	std::array<std::vector<real>, NF> slpx, slpy, slpz;
@@ -1336,7 +1384,7 @@ void grid::reconstruct() {
 
 real grid::compute_fluxes() {
 	PROF_BEGIN;
-	const auto& Uf = _Uf;
+	const auto& Uf = TLS_Uf();
 	real max_lambda = ZERO;
 	std::array<std::vector<real>, NF> ur, ul, f;
 	std::vector<space_vector> x;
@@ -1396,7 +1444,7 @@ void grid::store() {
 		for (integer i = 0; i != INX; ++i) {
 			for (integer j = 0; j != INX; ++j) {
 				for (integer k = 0; k != INX; ++k) {
-					U0[field][h0index(i,j,k)] = U[field][hindex(i+H_BW,j+H_BW,k+H_BW)];
+					U0[field][h0index(i, j, k)] = U[field][hindex(i+H_BW,j+H_BW,k+H_BW)];
 				}
 			}
 		}
@@ -1491,7 +1539,7 @@ void grid::compute_sources(real t) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
+				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				const integer iii = hindex(i, j, k);
 				const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
@@ -1544,7 +1592,7 @@ void grid::compute_dudt() {
 			for (integer field = 0; field != NF; ++field) {
 #pragma GCC ivdep
 				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-					const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
+					const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 					const integer iiif = findex(i - H_BW, j - H_BW, k - H_BW);
 					dUdt[field][iii0] -= (F[XDIM][field][iiif + F_DNX] - F[XDIM][field][iiif]) / dx;
 					dUdt[field][iii0] -= (F[YDIM][field][iiif + F_DNY] - F[YDIM][field][iiif]) / dx;
@@ -1553,13 +1601,13 @@ void grid::compute_dudt() {
 			}
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
+				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				dUdt[egas_i][iii0] += dUdt[pot_i][iii0];
 				dUdt[pot_i][iii0] = ZERO;
 			}
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
+				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 				dUdt[egas_i][iii0] -= (dUdt[rho_i][iii0] * G[phi_i][iiig]) * HALF;
 			}
@@ -1603,7 +1651,7 @@ void grid::next_u(integer rk, real t, real dt) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
+				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				const integer iii = hindex(i, j, k);
 				dUdt[egas_i][iii0] += (dphi_dt[iii0] * U[rho_i][iii]) * HALF;
 				dUdt[zx_i][iii0] -= omega * X[ZDIM][iii] * U[sx_i][iii];
@@ -1621,10 +1669,10 @@ void grid::next_u(integer rk, real t, real dt) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				const integer iii0 = h0index(i-H_BW, j-H_BW, k-H_BW);
+				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				for (integer field = 0; field != NF; ++field) {
 					const real u1 = U[field][iii] + dUdt[field][iii0] * dt;
-					const real u0 = U0[field][h0index(i-H_BW,j-H_BW,k-H_BW)];
+					const real u0 = U0[field][h0index(i - H_BW, j - H_BW, k - H_BW)];
 					U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
 				}
 			}
