@@ -116,7 +116,9 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 //	hpx::async<inc_grids_loaded_action>(localities[0]).get();
 	if (my_location.level() == 0) {
 		if (do_output) {
-			diagnostics();
+			if (hydro_on) {
+				diagnostics();
+			}
 			grid::output(my_list, "data.silo", current_time, get_rotation_count() * OUTPUT_FREQ);
 		}
 		printf("Loaded checkpoint file\n");
@@ -499,9 +501,9 @@ void node_server::start_run(bool scf) {
 			bench_stop = MPI_Wtime();
 			if (scf || opts.bench) {
 				printf("Total time = %e s\n", double(bench_stop - bench_start));
-			                        FILE* fp = fopen( "bench.dat", "at" );
-                        fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
-                        fclose(fp);
+				FILE* fp = fopen("bench.dat", "at");
+				fprintf(fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
+				fclose(fp);
 
 				break;
 			}
@@ -510,9 +512,9 @@ void node_server::start_run(bool scf) {
 		if (scf) {
 			bench_stop = MPI_Wtime();
 			printf("Total time = %e s\n", double(bench_stop - bench_start));
-		//	FILE* fp = fopen( "bench.dat", "at" );
-		//	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
-		//	fclose(fp);
+			//	FILE* fp = fopen( "bench.dat", "at" );
+			//	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
+			//	fclose(fp);
 			break;
 		}
 	}
