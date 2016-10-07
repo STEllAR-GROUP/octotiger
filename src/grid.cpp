@@ -20,6 +20,7 @@ struct tls_data_t {
 	std::vector<std::vector<std::vector<real>>>dvdx;
 	std::vector<std::vector<std::vector<real>>> dudx;
 	std::vector<std::vector<std::vector<real>>> uf;
+	std::vector<std::vector<real>> zz;
 };
 
 class tls_t {
@@ -38,6 +39,7 @@ public:
 		if (ptr == nullptr) {
 			ptr = new tls_data_t;
 			ptr->v.resize(NF, std::vector<real>(H_N3));
+			ptr->zz.resize(NDIM, std::vector<real>(H_N3));
 			ptr->dvdx.resize(NDIM, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
 			ptr->dudx.resize(NDIM, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
 			ptr->uf.resize(NFACE, std::vector<std::vector<real>>(NF, std::vector<real>(H_N3)));
@@ -59,6 +61,10 @@ static std::vector<std::vector<std::vector<real>>>& TLS_dVdx() {
 
 static std::vector<std::vector<std::vector<real>>>& TLS_dUdx() {
 	return tls.get_ptr()->dudx;
+}
+
+static std::vector<std::vector<real>>& TLS_zz() {
+	return tls.get_ptr()->zz;
 }
 
 static std::vector<std::vector<std::vector<real>>>& TLS_Uf() {
@@ -397,8 +403,11 @@ void grid::set_prolong(const std::vector<real>& data, std::vector<real>&& outflo
 std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only) {
 	PROF_BEGIN;
 	auto& dUdx = TLS_dUdx();
+	auto& tmpz = TLS_zz();
 	std::vector<real> data;
+
 	const auto U0 = U;
+
 	integer size = NF;
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		size *= (ub[dim] - lb[dim]);
@@ -414,12 +423,27 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 	compute_primitive_slopes(1.0, lb0, ub0, tau_only);
 	compute_conserved_slopes(lb0, ub0, tau_only);
 
+	if (!tau_only) {
+		for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
+			for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
+#pragma GCC ivdep
+				for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
+					const integer iii = hindex(i,j,k);
+					tmpz[XDIM][iii] = U[zx_i][iii];
+					tmpz[YDIM][iii] = U[zy_i][iii];
+					tmpz[ZDIM][iii] = U[zz_i][iii];
+				}
+			}
+		}
+	}
+
 	for (integer field = 0; field != NF; ++field) {
 		if (!tau_only || (tau_only && field == tau_i)) {
 			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
 				const real xsgn = (i % 2) ? +1 : -1;
 				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
 					const real ysgn = (j % 2) ? +1 : -1;
+#pragma GCC ivdep
 					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 						const integer iii = hindex(i / 2, j / 2, k / 2);
 						const real zsgn = (k % 2) ? +1 : -1;
@@ -443,7 +467,21 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 			}
 		}
 	}
-	U = U0;
+
+	if (!tau_only) {
+		for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
+			for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
+#pragma GCC ivdep
+				for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
+					const integer iii = hindex(i,j,k);
+					U[zx_i][iii] = tmpz[XDIM][iii];
+					U[zy_i][iii] = tmpz[YDIM][iii];
+					U[zz_i][iii] = tmpz[ZDIM][iii];
+				}
+			}
+		}
+	}
+
 	PROF_END;
 	return data;
 }
@@ -902,22 +940,24 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 	PROF_BEGIN;
 	auto& V = TLS_V();
 	if (!tau_only) {
-		V = U;
 		for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
 			for (integer j = lb[YDIM] - 1; j != ub[YDIM] + 1; ++j) {
 #pragma GCC ivdep
 				for (integer k = lb[ZDIM] - 1; k != ub[ZDIM] + 1; ++k) {
 					const integer iii = hindex(i, j, k);
-					const real rho = V[rho_i][iii];
-					V[egas_i][iii] /= rho;
+					V[rho_i][iii] = U[rho_i][iii];
+					V[tau_i][iii] = U[tau_i][iii];
+					const real rhoinv = 1.0 / V[rho_i][iii];
+					V[egas_i][iii] = U[egas_i][iii] * rhoinv;
 					for (integer si = 0; si != NSPECIES; ++si) {
-						V[spc_i + si][iii] /= rho;
+						V[spc_i + si][iii] = U[spc_i + si][iii] * rhoinv;
 					}
-					V[pot_i][iii] /= rho;
+					V[pot_i][iii] = U[pot_i][iii] * rhoinv;
 					for (integer d = 0; d != NDIM; ++d) {
-						V[sx_i + d][iii] /= rho;
-						V[egas_i][iii] -= 0.5 * std::pow(V[sx_i + d][iii], 2);
-						V[zx_i + d][iii] /= rho;
+						auto& v = V[sx_i + d][iii];
+						v = U[sx_i + d][iii] * rhoinv;
+						V[egas_i][iii] -= 0.5 * v * v;
+						V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
 					}
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
