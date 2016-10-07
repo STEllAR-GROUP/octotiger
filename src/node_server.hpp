@@ -156,7 +156,7 @@ public:
 	void step();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
-	void regrid(const hpx::id_type& root_gid, bool rb);
+	int regrid(const hpx::id_type& root_gid, bool rb);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, regrid, regrid_action);
 
 	void compute_fmm(gsolve_type gs, bool energy_account);
