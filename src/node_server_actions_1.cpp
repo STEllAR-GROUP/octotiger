@@ -280,7 +280,7 @@ hpx::future<void> node_client::regrid(const hpx::id_type& g, bool rb) const {
 	return hpx::async<typename node_server::regrid_action>(get_gid(), g, rb);
 }
 
-void node_server::regrid(const hpx::id_type& root_gid, bool rb) {
+int node_server::regrid(const hpx::id_type& root_gid, bool rb) {
 	assert(grid_ptr != nullptr);
 	printf("-----------------------------------------------\n");
 	if (!rb) {
@@ -300,6 +300,7 @@ void node_server::regrid(const hpx::id_type& root_gid, bool rb) {
 		solve_gravity(true);
 	}
 	printf("regrid done\n-----------------------------------------------\n");
+	return a;
 }
 
 typedef node_server::save_action save_action_type;
@@ -420,6 +421,7 @@ void node_server::start_run(bool scf) {
 
 	printf("Starting...\n");
 	solve_gravity(false);
+	int ngrids = regrid(me.get_gid(), false);
 
 	real output_dt = 1.0 / OUTPUT_FREQ;
 
@@ -484,7 +486,7 @@ void node_server::start_run(bool scf) {
 		step_fut.get();
 		step_fut = hpx::async([=]() {
 			FILE* fp = fopen( "step.dat", "at");
-			fprintf(fp, "%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+			fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot, int(ngrids));
 			fclose(fp);
 		});
 		printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
@@ -493,7 +495,7 @@ void node_server::start_run(bool scf) {
 		++step_num;
 
 		if (step_num % refinement_freq() == 0) {
-			regrid(me.get_gid(), false);
+			ngrids = regrid(me.get_gid(), false);
 			FILE* fp = fopen("profile.txt", "wt");
 			profiler_output(fp);
 			fclose(fp);
