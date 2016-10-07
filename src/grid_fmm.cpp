@@ -1165,12 +1165,14 @@ std::vector<real> grid::get_gravity_boundary(const geo::direction& dir) {
 	integer iter = 0;
 	const std::vector<boundary_interaction_type>& list = ilist_n_bnd[dir.flip()];
 	if (is_leaf) {
+		data.reserve(list.size());
 		for (auto i : list) {
 			const integer iii = i.second;
 			data.push_back(mon[iii]);
 		}
 	} else {
 		for (auto i : list) {
+			data.reserve(list.size() * (20 + 3));
 			const integer iii = i.second;
 			const integer top = M[iii].size();
 			for (integer l = 0; l < top; ++l) {
