@@ -80,10 +80,10 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	return c;
 }
 
-void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, integer width, bool tau_only) {
+void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, integer width, bool etot_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
-	if (!tau_only) {
+	if (!etot_only) {
 		get_boundary_size(lb, ub, dir, OUTER, INX, width);
 	} else {
 		get_boundary_size(lb, ub, dir, OUTER, INX, width);
@@ -91,7 +91,7 @@ void grid::set_hydro_boundary(const std::vector<real>& data, const geo::directio
 	integer iter = 0;
 
 	for (integer field = 0; field != NF; ++field) {
-		if (!tau_only || (tau_only && field == egas_i)) {
+		if (!etot_only || (etot_only && field == egas_i)) {
 			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
@@ -105,12 +105,12 @@ void grid::set_hydro_boundary(const std::vector<real>& data, const geo::directio
 	PROF_END;
 }
 
-std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, integer width, bool tau_only) {
+std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, integer width, bool etot_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	integer size;
-	if (!tau_only) {
+	if (!etot_only) {
 		size = NF * get_boundary_size(lb, ub, dir, INNER, INX, width);
 	} else {
 		size = get_boundary_size(lb, ub, dir, INNER, INX, width);
@@ -119,7 +119,7 @@ std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, integer wi
 	integer iter = 0;
 
 	for (integer field = 0; field != NF; ++field) {
-		if (!tau_only || (tau_only && field == egas_i)) {
+		if (!etot_only || (etot_only && field == egas_i)) {
 			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
@@ -400,7 +400,7 @@ void grid::set_prolong(const std::vector<real>& data, std::vector<real>&& outflo
 	PROF_END;
 }
 
-std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only) {
+std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool etot_only) {
 	PROF_BEGIN;
 	auto& dUdx = TLS_dUdx();
 	auto& tmpz = TLS_zz();
@@ -415,13 +415,13 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 	auto ub0 = ub;
 	for (integer d = 0; d != NDIM; ++d) {
 		lb0[d] /= 2;
-		ub0[d] /= 2;
+		ub0[d] = (ub[d] - 1) / 2 + 1;
 	}
-	compute_primitives(lb0, ub0, tau_only);
-	compute_primitive_slopes(1.0, lb0, ub0, tau_only);
-	compute_conserved_slopes(lb0, ub0, tau_only);
+	compute_primitives(lb0, ub0, etot_only);
+	compute_primitive_slopes(1.0, lb0, ub0, etot_only);
+	compute_conserved_slopes(lb0, ub0, etot_only);
 
-	if (!tau_only) {
+	if (!etot_only) {
 		for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
 			for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
 #pragma GCC ivdep
@@ -436,7 +436,7 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 	}
 
 	for (integer field = 0; field != NF; ++field) {
-		if (!tau_only || (tau_only && field == egas_i)) {
+		if (!etot_only || (etot_only && field == egas_i)) {
 			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
 				const real xsgn = (i % 2) ? +1 : -1;
 				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
@@ -449,17 +449,15 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 						value += xsgn * dUdx[XDIM][field][iii] * 0.25;
 						value += ysgn * dUdx[YDIM][field][iii] * 0.25;
 						value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
-						if (!tau_only) {
-							if (field == sx_i) {
-								U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
-								U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
-							} else if (field == sy_i) {
-								U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
-								U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
-							} else if (field == sz_i) {
-								U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
-								U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
-							}
+						if (field == sx_i) {
+							U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
+							U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
+						} else if (field == sy_i) {
+							U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
+							U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
+						} else if (field == sz_i) {
+							U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
+							U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
 						}
 						data.push_back(value);
 					}
@@ -468,7 +466,7 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 		}
 	}
 
-	if (!tau_only) {
+	if (!etot_only) {
 		for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
 			for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
 #pragma GCC ivdep
@@ -936,10 +934,10 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 	allocate();
 }
 
-void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
+void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) {
 	PROF_BEGIN;
 	auto& V = TLS_V();
-	if (!tau_only) {
+	if (!etot_only) {
 		for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
 			for (integer j = lb[YDIM] - 1; j != ub[YDIM] + 1; ++j) {
 #pragma GCC ivdep
@@ -990,12 +988,12 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 	PROF_END;
 }
 
-void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
+void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) {
 	PROF_BEGIN;
 	auto& dVdx = TLS_dVdx();
 	auto& V = TLS_V();
 	for (integer f = 0; f != NF; ++f) {
-		if (tau_only && (f == tau_i || f == pot_i || (f >= spc_i && f < spc_i + NSPECIES))) {
+		if (etot_only && (f == tau_i || f == pot_i || (f >= spc_i && f < spc_i + NSPECIES))) {
 			continue;
 		}
 		const auto& v = V[f];
@@ -1043,13 +1041,13 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 	PROF_END;
 }
 
-void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool tau_only) {
+void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) {
 	PROF_BEGIN;
 	auto& dVdx = TLS_dVdx();
 	auto& dUdx = TLS_dUdx();
 	auto& V = TLS_V();
 	const real theta = 1.0;
-	if (!tau_only) {
+	if (!etot_only) {
 		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
 #pragma GCC ivdep
