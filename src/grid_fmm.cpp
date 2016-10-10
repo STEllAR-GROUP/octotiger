@@ -203,11 +203,11 @@ void grid::compute_interactions(gsolve_type type) {
 					const auto tmp = D(a, b) * (real(1) / real(2)) * factor(a, b);
 					A0() += m0(a, b) * tmp;
 					A1() += m1(a, b) * tmp;
-					for (integer c = b; c < NDIM; ++c) {
+			/*		for (integer c = b; c < NDIM; ++c) {
 						const auto tmp0 = D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
 						A0() -= m0(a, b, c) * tmp0;
 						A1() += m1(a, b, c) * tmp0;
-					}
+					}*/
 
 				}
 			}
@@ -402,9 +402,9 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 				}
 				for (integer b = a; b < NDIM; ++b) {
 					A0() += m0(a, b) * D(a, b) * (real(1) / real(2)) * factor(a, b);
-					for (integer c = b; c < NDIM; ++c) {
+				/*	for (integer c = b; c < NDIM; ++c) {
 						A0() -= m0(a, b, c) * D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
-					}
+					}*/
 				}
 			}
 
@@ -511,9 +511,9 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 				}
 				for (integer b = a; b < NDIM; ++b) {
 					A0() += m0(a, b) * D(a, b) * (real(1) / real(2)) * factor(a, b);
-					for (integer c = b; c < NDIM; ++c) {
+			/*		for (integer c = b; c < NDIM; ++c) {
 						A0() -= m0(a, b, c) * D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
-					}
+					}*/
 				}
 			}
 
