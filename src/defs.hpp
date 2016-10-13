@@ -54,6 +54,7 @@ enum gsolve_type {
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+#include <hpx/runtime/serialization/shared_ptr.hpp>
 #include <mutex>
 #endif
 

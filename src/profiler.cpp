@@ -34,7 +34,7 @@ profiler_register::profiler_register(const char* func, int line) {
 	while (lock()++ != 0) {
 		lock()--;}
 auto 	cntptr = std::make_shared < real > (0.0);
-	std::pair<std::string, std::shared_ptr<real> > entry;
+	std::pair < std::string, std::shared_ptr<real> > entry;
 	entry.first = str;
 	entry.second = cntptr;
 	map.insert(entry);
@@ -46,10 +46,12 @@ static/**/void accumulate() {
 	if (!callstack.empty()) {
 		const std::string& str(callstack.top());
 		while (lock()++ != 0) {
-			lock()--;}
-auto 		ptr = map[str];
-		lock()--;real
-		dt = t - told;
+			lock()--;
+			/* */
+		}
+		auto ptr = map[str];
+		lock()--;
+		real dt = t - told;
 		(*ptr) += dt;
 	}
 }
@@ -65,15 +67,17 @@ void profiler_enter(const char* func, int line) {
 		}
 	}
 	callstack.push(str);
+	t = MPI_Wtime();
 }
 void profiler_exit() {
 	accumulate();
 	callstack.pop();
+	t = MPI_Wtime();
 }
 
 void profiler_output(FILE* _fp) {
 #ifndef PROFILE_OFF
-	std::map<real, std::string> ranks;
+	std::map < real, std::string > ranks;
 	real ttot = 0.0;
 	for (auto i = map.begin(); i != map.end(); ++i) {
 		real& tm = *(i->second);

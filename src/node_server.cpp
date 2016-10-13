@@ -106,10 +106,10 @@ hpx::future<void> node_server::all_hydro_bounds(bool tau_only) {
 hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 
 	hpx::future<void> fut;
-	std::vector<real> outflow(NF, ZERO);
+	std::vector < real > outflow(NF, ZERO);
 	if (is_refined) {
 		for (auto& ci : geo::octant::full_set()) {
-			std::vector<real> data = child_hydro_channels[ci].get_future().get();
+			std::vector < real > data = child_hydro_channels[ci].get_future().get();
 			grid_ptr->set_restrict(data, ci);
 			integer fi = 0;
 			for (auto i = data.end() - NF; i != data.end(); ++i) {
@@ -120,7 +120,7 @@ hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 		grid_ptr->set_outflows(std::move(outflow));
 	}
 	if (my_location.level() > 0) {
-		std::vector<real> data = grid_ptr->get_restrict();
+		std::vector < real > data = grid_ptr->get_restrict();
 		integer ci = my_location.get_child_index();
 		fut = parent.send_hydro_children(std::move(data), ci);
 	} else {
@@ -131,26 +131,25 @@ hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 
 hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
 	std::list<hpx::future<void>> futs;
-
 	for (auto& dir : geo::direction::full_set()) {
 //		if (!dir.is_vertex()) {
-			if (!neighbors[dir].empty()) {
+		if (!neighbors[dir].empty()) {
 //				const integer width = dir.is_face() ? H_BW : 1;
-				const integer width = H_BW;
-				auto bdata = grid_ptr->get_hydro_boundary(dir, width, tau_only);
-				futs.push_back(neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip()));
-			}
+			const integer width = H_BW;
+			auto bdata = grid_ptr->get_hydro_boundary(dir, width, tau_only);
+			futs.push_back(neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip()));
+		}
 //		}
 	}
 
 	for (auto& dir : geo::direction::full_set()) {
 //		if (!dir.is_vertex()) {
-			if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-				auto tmp = sibling_hydro_channels[dir].get_future().get();
-				//				const integer width = dir.is_face() ? H_BW : 1;
-				const integer width = H_BW;
-				grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, width, tau_only);
-			}
+		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
+			auto tmp = sibling_hydro_channels[dir].get_future().get();
+			//				const integer width = dir.is_face() ? H_BW : 1;
+			const integer width = H_BW;
+			grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, width, tau_only);
+		}
 //		}
 	}
 
@@ -171,25 +170,25 @@ hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
 		for (auto& ci : geo::octant::full_set()) {
 			const auto& flags = amr_flags[ci];
 			for (auto& dir : geo::direction::full_set()) {
-	//			if (!dir.is_vertex()) {
-					if (flags[dir]) {
-						std::array<integer, NDIM> lb, ub;
-						std::vector<real> data;
+				//			if (!dir.is_vertex()) {
+				if (flags[dir]) {
+					std::array<integer, NDIM> lb, ub;
+					std::vector < real > data;
 //						const integer width = dir.is_face() ? H_BW : 1;
-						const integer width = H_BW;
-						if (!tau_only) {
-							get_boundary_size(lb, ub, dir, OUTER, INX, width);
-						} else {
-							get_boundary_size(lb, ub, dir, OUTER, INX, width);
-						}
-						for (integer dim = 0; dim != NDIM; ++dim) {
-							lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
-							ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
-						}
-						data = grid_ptr->get_prolong(lb, ub, tau_only);
-						futs.push_back(children[ci].send_hydro_boundary(std::move(data), dir));
+					const integer width = H_BW;
+					if (!tau_only) {
+						get_boundary_size(lb, ub, dir, OUTER, INX, width);
+					} else {
+						get_boundary_size(lb, ub, dir, OUTER, INX, width);
 					}
+					for (integer dim = 0; dim != NDIM; ++dim) {
+						lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
+						ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
+					}
+					data = grid_ptr->get_prolong(lb, ub, tau_only);
+					futs.push_back(children[ci].send_hydro_boundary(std::move(data), dir));
 				}
+			}
 //			}
 		}
 		fut = hpx::when_all(std::begin(futs), std::end(futs));
@@ -385,8 +384,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 		if (!neighbors[dir].empty()) {
 			auto ndir = dir.flip();
 			const bool is_monopole = !is_refined;
-			assert(neighbors[dir].get_gid() != me.get_gid());
-			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(grid_ptr->get_gravity_boundary(dir), ndir, is_monopole));
+			const auto gid = neighbors[dir].get_gid();
+			const bool is_local = neighbors[dir].is_local();
+			neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(grid_ptr->get_gravity_boundary(dir, is_local), ndir, is_monopole));
 		}
 	}
 

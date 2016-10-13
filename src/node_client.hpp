@@ -23,7 +23,9 @@ class node_client {
 private:
 //	hpx::shared_future<hpx::id_type> id_fut;
 	hpx::id_type id;
+	bool local;
 public:
+	bool is_local();
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & id;
@@ -53,16 +55,9 @@ public:
 	hpx::future<integer> regrid_gather(bool) const;
 	hpx::future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line) const;
 	hpx::future<void> send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
-//r	hpx::future<void> send_hydro_amr_to_parent(std::vector<real>&&, integer ci, integer rk, integer face) const;
-#ifdef USE_SPHERICAL
-	hpx::future<void> send_gravity_boundary(std::vector<multipole_type>&&, const geo::direction&) const;
-	hpx::future<void> send_gravity_multipoles(std::vector<multipole_type>&&, const geo::octant& ci) const;
-	hpx::future<void> send_gravity_expansions(std::vector<expansion_type>&&) const;
-#else
-	hpx::future<void> send_gravity_boundary(std::vector<real>&&, const geo::direction&, bool monopole) const;
+	hpx::future<void> send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole) const;
 	hpx::future<void> send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	hpx::future<void> send_gravity_expansions(expansion_pass_type&&) const;
-#endif
 	hpx::future<void> step() const;
 	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, bool rb) const;

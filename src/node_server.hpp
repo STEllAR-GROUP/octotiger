@@ -24,7 +24,7 @@ public:
 	static void set_hydro(bool);
 private:
 	struct neighbor_gravity_type {
-		std::vector<real> data;
+		gravity_boundary_type data;
 		bool is_monopole;
 		geo::direction direction;
 	};
@@ -145,7 +145,7 @@ public:
 
 	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
-	void recv_gravity_boundary(std::vector<real>&&, const geo::direction&, bool monopole);
+	void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole);
 	void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
 	void recv_gravity_expansions(expansion_pass_type&&);
 

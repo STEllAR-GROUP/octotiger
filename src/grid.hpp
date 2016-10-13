@@ -17,11 +17,7 @@
 #include "eos.hpp"
 #include <set>
 #include "problem.hpp"
-#include <list>
-//#include "valarray.hpp"
-
-template<int N, class T>
-class taylor;
+#include "taylor.hpp"
 
 struct interaction_type {
 	integer first;
@@ -39,6 +35,31 @@ typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
+
+struct gravity_boundary_type {
+	std::shared_ptr<std::vector<multipole>> M;
+	std::shared_ptr<std::vector<real>> m;
+	std::shared_ptr<std::vector<space_vector>> x;
+	bool is_local;
+	gravity_boundary_type() :
+		M(nullptr), m(nullptr), x(nullptr) {
+	}
+	void allocate() {
+		if (M == nullptr) {
+			M = std::shared_ptr < std::vector<multipole> > (new std::vector<multipole>);
+			m = std::shared_ptr < std::vector<real> > (new std::vector<real>);
+			x = std::shared_ptr < std::vector<space_vector> > (new std::vector<space_vector>);
+		}
+	}
+	template<class Archive>
+	void serialize(Archive& arc, unsigned) {
+		allocate();
+		arc & *M;
+		arc & *m;
+		arc & *x;
+		arc & is_local;
+	}
+};
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
@@ -102,7 +123,7 @@ struct scf_data_t {
 		arc & accretor_central_density;
 	}
 	scf_data_t() {
-		donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits<real>::max();
+		donor_phi_max = accretor_phi_max = l1_phi = -std::numeric_limits < real > ::max();
 		accretor_mass = donor_mass = donor_central_enthalpy = accretor_central_enthalpy = ZERO;
 		phiA = phiB = phiC = 0.0;
 		virial_sum = virial_norm = 0.0;
@@ -184,12 +205,12 @@ private:
 	std::vector<real> U_out0;
 	std::vector<std::vector<space_vector> > com;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
-	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const std::vector<real>&);
-	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const std::vector<real>&);
-	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const std::vector<real>&);
-	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const std::vector<real>&);
+	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
+	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
+	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
+	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 public:
-	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const std::vector<real>&);
+	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const gravity_boundary_type&);
 	static void set_scaling_factor(real f) {
 		scaling_factor = f;
 	}
@@ -249,81 +270,80 @@ public:
 	space_vector center_of_mass() const;
 //	space_vector& center_of_mass_value(integer i, integer j, integer k);
 //	const space_vector& center_of_mass_value(integer i, integer j, integer k) const;
-	bool refine_me(integer lev) const;
-	void compute_dudt();
-	void egas_to_etot();
-	void etot_to_egas();
-	void dual_energy_update();
-	void solve_gravity(gsolve_type = RHO);
-	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
-	void compute_interactions(gsolve_type);
-	void rho_mult(real f0, real f1 );
-	void rho_move(real x);
+		bool refine_me(integer lev) const;
+		void compute_dudt();
+		void egas_to_etot();
+		void etot_to_egas();
+		void dual_energy_update();
+		void solve_gravity(gsolve_type = RHO);
+		multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
+		void compute_interactions(gsolve_type);
+		void rho_mult(real f0, real f1 );
+		void rho_move(real x);
 
+		expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
+		integer get_step() const;
 
-	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
-	integer get_step() const;
+		std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
+		void diagnostics();
+		std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1,integer frac) const;
+		real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
+		std::vector<real> frac_volumes() const;
+		real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real, bool donor) const;
+		std::vector<real> l_sums() const;
+		std::vector<real> gforce_sum(bool torque) const;
+		std::vector<real> conserved_outflows() const;
+		grid(const init_func_type&, real dx, std::array<real, NDIM> xmin);
+		grid(real dx, std::array<real, NDIM>);
+		grid();
+		~grid();
+		grid(const grid&) = default;
+		grid(grid&&) = default;
+		grid& operator=(const grid&) = default;
+		grid& operator=(grid&&) = default;
 
-	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
-	void diagnostics();
-	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1,integer frac) const;
-	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
-	std::vector<real> frac_volumes() const;
-	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real, bool donor) const;
-	std::vector<real> l_sums() const;
-	std::vector<real> gforce_sum(bool torque) const;
-	std::vector<real> conserved_outflows() const;
-	grid(const init_func_type&, real dx, std::array<real, NDIM> xmin);
-	grid(real dx, std::array<real, NDIM>);
-	grid();
-	~grid();
-	grid(const grid&) = default;
-	grid(grid&&) = default;
-	grid& operator=(const grid&) = default;
-	grid& operator=(grid&&) = default;
+		std::pair<space_vector,space_vector> find_axis() const;
 
-	std::pair<space_vector,space_vector> find_axis() const;
+		space_vector get_cell_center(integer i, integer j, integer k);
 
-	space_vector get_cell_center(integer i, integer j, integer k);
+		gravity_boundary_type get_gravity_boundary(const geo::direction& dir, bool is_local);
+		void allocate();
+		void reconstruct();
+		void store();
+		real compute_fluxes();
+		void compute_sources(real t);
+		void boundaries();
+		void set_physical_boundaries(const geo::face&);
+		void next_u(integer rk, real t, real dt);
+		static void output(const output_list_type&, std::string, real t, int cycle);
+		output_list_type get_output_list() const;
+		template<class Archive>
+		void load(Archive& arc, const unsigned) {
+			arc >> is_leaf;
+			arc >> is_root;
+			arc >> dx;
+			arc >> xmin;
+			allocate();
+			arc >> U;
+			arc >> G;
+			arc >> U_out;
+		}
+		template<class Archive>
+		void save(Archive& arc, const unsigned) const {
+			arc << is_leaf;
+			arc << is_root;
+			arc << dx;
+			arc << xmin;
+			arc << U;
+			arc << G;
+			arc << U_out;
+		}
+		HPX_SERIALIZATION_SPLIT_MEMBER()
+		;
+		std::size_t load(FILE* fp);
+		std::size_t save(FILE* fp) const;
 
-	std::vector<real> get_gravity_boundary(const geo::direction& dir);
-	void allocate();
-	void reconstruct();
-	void store();
-	real compute_fluxes();
-	void compute_sources(real t);
-	void boundaries();
-	void set_physical_boundaries(const geo::face&);
-	void next_u(integer rk, real t, real dt);
-	static void output(const output_list_type&, std::string, real t, int cycle);
-	output_list_type get_output_list() const;
-	template<class Archive>
-	void load(Archive& arc, const unsigned) {
-		arc >> is_leaf;
-		arc >> is_root;
-		arc >> dx;
-		arc >> xmin;
-		allocate();
-		arc >> U;
-		arc >> G;
-		arc >> U_out;
-	}
-	template<class Archive>
-	void save(Archive& arc, const unsigned) const {
-		arc << is_leaf;
-		arc << is_root;
-		arc << dx;
-		arc << xmin;
-		arc << U;
-		arc << G;
-		arc << U_out;
-	}
-	HPX_SERIALIZATION_SPLIT_MEMBER()
-	;
-	std::size_t load(FILE* fp);
-	std::size_t save(FILE* fp) const;
-
-};
+	};
 
 struct grid::node_point {
 	xpoint pt;
