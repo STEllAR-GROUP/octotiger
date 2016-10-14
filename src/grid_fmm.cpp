@@ -1001,7 +1001,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 						for (integer d = 0; d < NDIM; ++d) {
 							G[gx_i + d][iii] = -L[iii](d) - L_c[iii][d];
 						}
-						U[pot_i][iiih] = G[phi_i][iii] * U[rho_i][iiih];
+						U[iiih](pot_i) = G[phi_i][iii] * U[iiih](rho_i);
 					} else {
 						dphi_dt[iii0] = L[iii]();
 					}
@@ -1116,9 +1116,9 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 							const integer iiih = hindex(ip + H_BW , jp + H_BW , kp + H_BW );
 							const integer iii0 = h0index(ip, jp, kp);
 							if (type == RHO) {
-								mon[iiip] = U[rho_i][iiih] * dx3;
+								mon[iiip] = U[iiih](rho_i) * dx3;
 							} else {
-								mon[iiip] = dUdt[rho_i][iii0] * dx3;
+								mon[iiip] = dUdt[iii0](rho_i) * dx3;
 							}
 						} else {
 							M[iiip] = child_poles->first[index];
