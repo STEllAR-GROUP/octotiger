@@ -45,6 +45,7 @@ static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT
 //0.5=.313
 //0.6 .305
 
+
 hpx::future<void> node_client::rho_move(real x) const {
 	return hpx::async<typename node_server::rho_move_action>(get_gid(), x);
 }
@@ -65,10 +66,10 @@ void node_server::rho_move(real x) {
 }
 
 typedef typename node_server::scf_update_action scf_update_action_type;
-HPX_REGISTER_ACTION (scf_update_action_type);
+HPX_REGISTER_ACTION(scf_update_action_type);
 
 typedef typename node_server::rho_mult_action rho_mult_action_type;
-HPX_REGISTER_ACTION (rho_mult_action_type);
+HPX_REGISTER_ACTION(rho_mult_action_type);
 
 hpx::future<void> node_client::rho_mult(real f0, real f1) const {
 	return hpx::async<typename node_server::rho_mult_action>(get_gid(), f0, f1);
@@ -78,6 +79,7 @@ hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2
 	return hpx::async<typename node_server::scf_update_action>(get_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 }
 
+
 void node_server::rho_mult(real f0, real f1) {
 	std::vector<hpx::future<void>> futs;
 	if (is_refined) {
@@ -86,7 +88,7 @@ void node_server::rho_mult(real f0, real f1) {
 			futs.push_back(child.rho_mult(f0, f1));
 		}
 	}
-	grid_ptr->rho_mult(f0, f1);
+	grid_ptr->rho_mult(f0,f1);
 	all_hydro_bounds().get();
 	for (auto&& fut : futs ) {
 		fut.get();
@@ -177,14 +179,14 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer D = -H_BW;
+				const integer D =  - H_BW;
 				const integer iiih = hindex(i, j, k);
 				const integer iiig = gindex(i + D, j + D, k + D);
 				const real x = X[XDIM][iiih];
 				const real y = X[YDIM][iiih];
 				const real z = X[ZDIM][iiih];
 				const real R = std::sqrt(std::pow(x - com, 2) + y * y);
-				real rho = U[iiih](rho_i);
+				real rho = U[rho_i][iiih];
 				real phi_eff = G[phi_i][iiig] - 0.5 * std::pow(omega * R, 2);
 				const real fx = G[gx_i][iiig] + (x - com) * std::pow(omega, 2);
 				const real fy = G[gy_i][iiig] + y * std::pow(omega, 2);
@@ -237,24 +239,24 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				rho = std::max((1.0 - w0) * rho + w0 * new_rho, rho_floor);
 				eint = std::max(ei_floor, this_eos.pressure(rho) / (fgamma - 1.0));
 
-				U[iiih](rho_i) = rho;
+				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
-				U[iiih](spc_ac_i) = rho > this_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-				U[iiih](spc_dc_i) = rho > this_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
-				U[iiih](spc_ae_i) = rho <= this_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-				U[iiih](spc_de_i) = rho <= this_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
-				U[iiih](spc_vac_i) = rho_floor;
+				U[spc_ac_i][iiih] = rho > this_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+				U[spc_dc_i][iiih] = rho > this_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+				U[spc_ae_i][iiih] = rho <= this_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+				U[spc_de_i][iiih] = rho <= this_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+				U[spc_vac_i][iiih] = rho_floor;
 
-				U[iiih](sx_i) = -omega * y * rho;
-				U[iiih](sy_i) = +omega * (x - com) * rho;
-				U[iiih](sx_i) += -ti_omega * y * rho;
-				U[iiih](sy_i) += +ti_omega * (x - cx) * rho;
-				U[iiih](sz_i) = 0.0;
-				U[iiih](egas_i) = eint + std::pow(R * omega, 2) * rho / 2.0;
-				U[iiih](tau_i) = std::pow(eint, 1.0 / fgamma);
-				U[iiih](zx_i) = 0.0;
-				U[iiih](zy_i) = 0.0;
-				U[iiih](zz_i) = dx * dx * omega * rho / 6.0;
+				U[sx_i][iiih] = -omega * y * rho;
+				U[sy_i][iiih] = +omega * (x - com) * rho;
+				U[sx_i][iiih] += -ti_omega * y * rho;
+				U[sy_i][iiih] += +ti_omega * (x - cx) * rho;
+				U[sz_i][iiih] = 0.0;
+				U[egas_i][iiih] = eint + std::pow(R * omega, 2) * rho / 2.0;
+				U[tau_i][iiih] = std::pow(eint, 1.0 / fgamma);
+				U[zx_i][iiih] = 0.0;
+				U[zy_i][iiih] = 0.0;
+				U[zz_i][iiih] = dx * dx * omega * rho / 6.0;
 			}
 		}
 	}
@@ -346,11 +348,11 @@ void node_server::run_scf() {
 		real new_omega;
 		new_omega = jorb0 / iorb;
 		omega = new_omega;
-		std::pair < real, real > rho1_max;
-		std::pair < real, real > rho2_max;
-		std::pair < real, real > l1_phi_pair;
-		std::pair < real, real > l2_phi_pair;
-		std::pair < real, real > l3_phi_pair;
+		std::pair<real, real> rho1_max;
+		std::pair<real, real> rho2_max;
+		std::pair<real, real> l1_phi_pair;
+		std::pair<real, real> l2_phi_pair;
+		std::pair<real, real> l3_phi_pair;
 		real phi_1, phi_2;
 		line_of_centers_analyze(loc, omega, rho1_max, rho2_max, l1_phi_pair, l2_phi_pair, l3_phi_pair, phi_1, phi_2);
 		real rho1, rho2;
@@ -467,7 +469,7 @@ void node_server::run_scf() {
 }
 
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
-	std::vector < real > u(NF, real(0));
+	std::vector<real> u(NF, real(0));
 	static auto& params = initial_params();
 	std::shared_ptr<bipolytropic_eos> this_eos;
 	real rho, r, ei;

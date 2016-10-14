@@ -18,7 +18,6 @@
 #include <set>
 #include "problem.hpp"
 #include "taylor.hpp"
-#include "state.hpp"
 
 struct interaction_type {
 	integer first;
@@ -186,10 +185,10 @@ private:
 	static space_vector pivot;
 	static real scaling_factor;
 
-	std::vector<state> U;
-	std::vector<state> U0;
-	std::vector<state> dUdt;
-	std::vector<std::vector<state>> F;
+	std::vector<std::vector<real>> U;
+	std::vector<std::vector<real>> U0;
+	std::vector<std::vector<real>> dUdt;
+	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<std::vector<real>> G;
 	std::vector<multipole> M;
@@ -232,7 +231,7 @@ public:
 	}
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
 	real get_source(integer i, integer j, integer k) const {
-		return U[hindex(i + H_BW, j + H_BW, k + H_BW)](rho_i) * dx * dx * dx;
+		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
 	void set_4force(integer i, integer j, integer k, const std::array<real, NDIM + 1>& four_force) {
 		const auto iii = gindex(i, j, k );
