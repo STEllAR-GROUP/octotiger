@@ -69,7 +69,7 @@ constexpr integer L_POLES = M_POLES;
 
 //#define GRID_SIZE real(2.0)
 
-const real DEFAULT_OMEGA = 0.142194022;
+const real DEFAULT_OMEGA = 0.0;
 
 //const integer MAX_LEVEL = 5;
 
@@ -158,7 +158,6 @@ const integer FZP = 5;
 const integer NFACE = 2 * NDIM;
 const integer NVERTEX = 8;
 const integer NCHILD = 8;
-const real fgamma = real(5) / real(3);
 
 const real ZERO = real(0);
 const real ONE = real(1);

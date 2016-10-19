@@ -64,12 +64,8 @@ private:
 	channel<real> local_timestep_channel;
 	hpx::mutex load_mutex;
 public:
-	real get_time() const {
-		return current_time;
-	}
-	real get_rotation_count() const {
-		return rotational_time / (2.0*M_PI);
-	}
+	real get_time() const;
+	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
 
 	template<class Archive>

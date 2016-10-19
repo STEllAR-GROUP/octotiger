@@ -7,6 +7,7 @@
 
 #include "options.hpp"
 #include <math.h>
+#include "grid.hpp"
 
 #define HELP_OPT "-Help"
 #define PROBLEM_OPT "-Problem"
@@ -14,6 +15,8 @@
 #define OUTPUT_OPT "-Output"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
+#define ODT_OPT "-Odt"
+#define STOPTIME_OPT "-Stoptime"
 #define BENCH_OPT "-Bench"
 #define THETA_OPT "-Theta"
 
@@ -21,6 +24,7 @@
 
 #define PROBLEM_OPT_DWD "dwd"
 #define PROBLEM_OPT_SOD "sod"
+#define PROBLEM_OPT_BLAST "blast"
 #define PROBLEM_OPT_OLD_SCF "old_scf"
 #define PROBLEM_OPT_SOLID_SPHERE "solid_sphere"
 #define PROBLEM_OPT_STAR "star"
@@ -58,6 +62,7 @@ bool options::process_options(int argc, char* argv[]) {
 	contact_fill = 0.0;
 	output_dt = 1.0;
 	bench = false;
+	stop_time = std::numeric_limits<real>::max();
 
 	for (integer i = 1; i < argc; ++i) {
 		if (cmp(argv[i], HELP_OPT)) {
@@ -74,6 +79,8 @@ bool options::process_options(int argc, char* argv[]) {
 				problem = STAR;
 			} else if (cmp(prob, PROBLEM_OPT_SOD)) {
 				problem = SOD;
+			} else if (cmp(prob, PROBLEM_OPT_BLAST)) {
+				problem = BLAST;
 			} else {
 				printf("The user specified an invalid problem type, \"%s\"\n", prob.c_str());
 				rc = false;
@@ -95,6 +102,10 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], OMEGA_OPT)) {
 			omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
 			output_dt = (2.0 * M_PI / omega) / 100.0;
+		} else if (cmp(argv[i], ODT_OPT)) {
+			output_dt = atof(argv[i] + strlen(ODT_OPT) + 1);
+		} else if (cmp(argv[i], STOPTIME_OPT)) {
+			stop_time = atof(argv[i] + strlen(STOPTIME_OPT) + 1);
 		} else {
 			printf("Unknown option - %s\n", argv[i]);
 			abort();

@@ -6,14 +6,37 @@
  */
 
 #include "problem.hpp"
+#include "grid.hpp"
 #include "lane_emden.hpp"
 #include <cmath>
+#include "exact_sod.hpp"
 #include "defs.hpp"
 
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
 
-bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
+bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
+	for (integer i = 0; i != NDIM; ++i) {
+		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
+			return level < max_level;
+		}
+	}
+	return false;
+}
+
+bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
+	for (integer i = 0; i != NDIM; ++i) {
+		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
+			return level < max_level;
+		}
+		if (std::abs(dudx[i][tau_i]) > 0.01) {
+			return level < max_level;
+		}
+	}
+	return false;
+}
+
+bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
 	bool rc = false;
 	real den_floor = 1.0e-4;
 	integer test_level = max_level;
@@ -30,7 +53,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 
 }
 
-bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
+bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
 	bool rc = false;
 	real den_floor = 1.0e-4;
 //	integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
@@ -67,19 +90,35 @@ init_func_type get_problem() {
 }
 
 std::vector<real> null_problem(real x, real y, real z, real dx) {
-	std::vector<real> u(NF, real(0));
+	std::vector < real > u(NF, real(0));
+	return u;
+}
+
+std::vector<real> blast_wave(real x, real y, real z, real dx) {
+	const real fgamma = grid::get_fgamma();
+	x -= 0.453;
+	y -= 0.043;
+	std::vector < real > u(NF, real(0));
+	u[spc_dc_i] = u[rho_i] = 1.0;
+	const real a = std::sqrt(2.0) * dx;
+	real r = std::sqrt(x * x + y * y + z * z);
+	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a));
+	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
 	return u;
 }
 
 std::vector<real> sod_shock_tube(real x, real y, real z, real) {
-	std::vector<real> u(NF, real(0));
-	if (x + y + z > real(0)) {
-		u[rho_i] = 1.0;
-		u[egas_i] = 2.5;
+
+	const real fgamma = grid::get_fgamma();
+	std::vector < real > u(NF, real(0));
+	if (x + 2.0 * y + z < real(0)) {
+		u[spc_dc_i] = u[rho_i] = sod_init.rhol;
+		u[egas_i] = sod_init.pl / (sod_init.gamma - 1.0);
 	} else {
-		u[rho_i] = 0.125;
-		u[egas_i] = 0.1;
+		u[spc_ac_i] = u[rho_i] = sod_init.rhor;
+		u[egas_i] = sod_init.pr / (sod_init.gamma - 1.0);
 	}
+
 	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
 	return u;
 }
@@ -88,7 +127,7 @@ const real dxs = 0.0;
 const real dys = -0.0;
 
 std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
-	std::vector<real> u(4, real(0));
+	std::vector < real > u(4, real(0));
 	auto u1 = solid_sphere_analytic_phi(x0, y0, z0, dxs);
 	auto u2 = solid_sphere_analytic_phi(x0, y0, z0, dys);
 	for (integer f = 0; f != 4; ++f) {
@@ -101,7 +140,7 @@ const real ssr0 = 1.0 / 3.0;
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
 	const real r0 = ssr0;
 	const real M = 1.0;
-	std::vector<real> g(4);
+	std::vector < real > g(4);
 	x -= xshift;
 //	x0 -= -0.0444;
 //	y0 -= +0.345;
@@ -121,7 +160,7 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 }
 
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
-	std::vector<real> u(NF, real(0));
+	std::vector < real > u(NF, real(0));
 	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);
 	auto u2 = solid_sphere(x0, y0, z0, dx, dys);
 	for (integer f = 0; f != NF; ++f) {
@@ -136,7 +175,7 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	const real rho_floor = 1.0e-50;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
 	const real drho = 1.0 / real(N * N * N) / V;
-	std::vector<real> u(NF, real(0));
+	std::vector < real > u(NF, real(0));
 	x0 -= xshift;
 //	x0 -= -0.0444;
 //	y0 -= +0.345;
@@ -193,44 +232,46 @@ const real dr = rmax / 128.0;
 const real alpha = real(1) / real(5);
 
 std::vector<real> star(real x, real y, real z, real) {
+	const real fgamma = grid::get_fgamma();
 
 	x -= 0.125;
 	y -= 0.0;
 	z -= 0.0;
 	real menc;
 	const real r = std::sqrt(x * x + y * y + z * z);
-	std::vector<real> u(NF, real(0));
-		real theta;
-	 const real n = real(1) / (fgamma - real(1));
-	 const real rho_min = 1.0e-3;
-	 const real theta_min = std::pow(rho_min, real(1) / n);
-	 const auto c0 = real(4) * real(M_PI) * alpha * alpha / (n + real(1));
-	 if (r <= rmax) {
-	 theta = lane_emden(r, dr);
-	 theta = std::max(theta, theta_min);
-	 } else {
-	 theta = theta_min;
-	 }
-	 u[rho_i] = std::pow(theta, n);
-	 u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
-	 if (theta <= theta_min) {
-	 u[egas_i] *= real(100);
-	 }
-	 u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
-	 u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
-	 u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
+	std::vector < real > u(NF, real(0));
+	real theta;
+	const real n = real(1) / (fgamma - real(1));
+	const real rho_min = 1.0e-3;
+	const real theta_min = std::pow(rho_min, real(1) / n);
+	const auto c0 = real(4) * real(M_PI) * alpha * alpha / (n + real(1));
+	if (r <= rmax) {
+		theta = lane_emden(r, dr);
+		theta = std::max(theta, theta_min);
+	} else {
+		theta = theta_min;
+	}
+	u[rho_i] = std::pow(theta, n);
+	u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
+	if (theta <= theta_min) {
+		u[egas_i] *= real(100);
+	}
+	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+	u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
+	u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
 	return u;
 }
 
 std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 	const integer don_i = spc_ac_i;
 	const integer acc_i = spc_dc_i;
+	const real fgamma = grid::get_fgamma();
 
 	real theta;
 	real alpha = 1.0 / 15.0;
 	const real n = real(1) / (fgamma - real(1));
 	const real rho_min = 1.0e-12;
-	std::vector<real> u(NF, real(0));
+	std::vector < real > u(NF, real(0));
 	const real d = 1.0 / 2.0;
 	real x1 = x - d;
 	real x2 = x + d;

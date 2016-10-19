@@ -15,6 +15,7 @@
 #include "taylor.hpp"
 #include <sys/stat.h>
 #include <unistd.h>
+extern options opts;
 
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
 
@@ -30,6 +31,18 @@ void node_server::set_gravity(bool b) {
 
 void node_server::set_hydro(bool b) {
 	hydro_on = b;
+}
+
+real node_server::get_time() const {
+	return current_time;
+}
+
+real node_server::get_rotation_count() const {
+	if (opts.problem == DWD) {
+		return rotational_time / (2.0 * M_PI);
+	} else {
+		return current_time;
+	}
 }
 
 hpx::future<void> node_server::exchange_flux_corrections() {
@@ -155,7 +168,7 @@ hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
 
 	for (auto& face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
-			grid_ptr->set_physical_boundaries(face);
+			grid_ptr->set_physical_boundaries(face, current_time);
 		}
 	}
 
@@ -342,6 +355,9 @@ node_server::node_server(const node_location& loc, const node_client& parent_id,
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
+	if (!gravity_on) {
+		return;
+	}
 
 	std::list<hpx::future<void>> child_futs;
 	std::list<hpx::future<void>> neighbor_futs;

@@ -7,6 +7,7 @@
 
 #include "eos.hpp"
 #include  "util.hpp"
+#include "grid.hpp"
 #include "options.hpp"
 
 extern options opts;
@@ -31,6 +32,7 @@ real bipolytropic_eos::dE() const {
 	return f_E * d0();
 }
 real bipolytropic_eos::s0() const {
+	const real fgamma = grid::get_fgamma();
 	return std::pow(P0()/(fgamma-1.0),1.0/fgamma) / dE();
 }
 real bipolytropic_eos::P0() const {

@@ -6,6 +6,7 @@
  */
 
 #include "roe.hpp"
+#include "grid.hpp"
 #include "simd.hpp"
 #include <cmath>
 #include <cassert>
@@ -16,8 +17,10 @@ const integer acr_i = sy_i;
 const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
-real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL,
-		std::array<std::vector<real>, NF>& UR, const std::vector<space_vector>& X, real omega, integer dimension, real dx) {
+real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL, std::array<std::vector<real>, NF>& UR,
+	const std::vector<space_vector>& X, real omega, integer dimension, real dx) {
+
+	const real fgamma = grid::get_fgamma();
 	const std::size_t sz = UL[0].size();
 	const integer u_i = vx_i + dimension;
 	const integer v_i = vx_i + (dimension == XDIM ? YDIM : XDIM);

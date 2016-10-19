@@ -283,57 +283,25 @@ void grid::compute_interactions(gsolve_type type) {
 			}
 		}
 	} else {
+		const v4sd d0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
+		const v4sd d1 = { 1.0 / dx, -1.0 / (dx * dx), -1.0 / (dx * dx), -1.0 / (dx * dx) };
 		const integer dsize = ilist_d.size();
 		const integer lev = 0;
-		for (integer li = 0; li < dsize; li += simd_len) {
-			simd_vector m0, m1;
-			for (integer i = 0; i != simd_len && li + i < dsize; ++i) {
-				const integer iii0 = ilist_d[li + i].first;
-				const integer iii1 = ilist_d[li + i].second;
-				for (integer d = 0; d != NDIM; ++d) {
-					X[d][i] = com[0][iii0][d];
-					Y[d][i] = com[0][iii1][d];
-				}
+		for (integer li = 0; li < dsize; ++li) {
+			const integer iii0 = ilist_d[li].first;
+			const integer iii1 = ilist_d[li].second;
+			const auto& ele = ilist_d[li];
+			v4sd m0, m1;
+			for (integer i = 0; i != 4; ++i) {
 				m0[i] = mon[iii1];
+			}
+			for (integer i = 0; i != 4; ++i) {
 				m1[i] = mon[iii0];
 			}
-			simd_vector phi0, phi1, gx0, gx1, gy0, gy1, gz0, gz1;
-			std::array < simd_vector, NDIM > dX;
-			simd_vector r = ZERO;
-			for (integer d = 0; d < NDIM; ++d) {
-				dX[d] = X[d] - Y[d];
-				r += dX[d] * dX[d];
-			}
-			r = sqrt(r);
-			const simd_vector rinv = ONE / r;
-			const simd_vector r3inv = ONE / (r * r * r);
-			phi0 = -m0 * rinv;
-			phi1 = -m1 * rinv;
-			for (integer d = 0; d < NDIM; ++d) {
-				dX[d] *= r3inv;
-			}
-			if (type == RHO) {
-				gx0 = +m0 * dX[XDIM];
-				gy0 = +m0 * dX[YDIM];
-				gz0 = +m0 * dX[ZDIM];
-				gx1 = -m1 * dX[XDIM];
-				gy1 = -m1 * dX[YDIM];
-				gz1 = -m1 * dX[ZDIM];
-			}
-			for (integer i = 0; i != simd_len && i + li < dsize; ++i) {
-				const integer iii0 = ilist_d[li + i].first;
-				const integer iii1 = ilist_d[li + i].second;
-				L[iii0]() += phi0[i];
-				L[iii1]() += phi1[i];
-				if (type == RHO) {
-					L[iii1](XDIM) += gx1[i];
-					L[iii1](YDIM) += gy1[i];
-					L[iii1](ZDIM) += gz1[i];
-					L[iii0](XDIM) += gx0[i];
-					L[iii0](YDIM) += gy0[i];
-					L[iii0](ZDIM) += gz0[i];
-				}
-			}
+			v4sd* l0ptr = (v4sd*) L[iii0].ptr();
+			v4sd* l1ptr = (v4sd*) L[iii1].ptr();
+			*l0ptr += m0 * ele.four * d0;
+			*l1ptr += m1 * ele.four * d1;
 		}
 	}
 	PROF_END;
@@ -674,49 +642,23 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 	std::array < simd_vector, NDIM > X;
 	std::array<simd_vector, NDIM> Y;
 	integer index = 0;
+
+	const v4sd d0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
 	for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
+		const integer dsize = ilist_n_bnd[si].first.size();
+		const integer lev = 0;
 		integer index = mpoles.is_local ? ilist_n_bnd[si].second : si;
-		const integer list_size = ilist_n_bnd[si].first.size();
 		const integer iii1 = ilist_n_bnd[si].second;
-		for (integer d = 0; d != NDIM; ++d) {
-			Y[d] = ilist_n_bnd[si].x[d] * dx + this->X[d][hindex(H_BW,H_BW,H_BW)];
-		}
-		m0 = (*(mpoles).m)[index];
-		for (integer li = 0; li < list_size; li += simd_len) {
-			for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-				const integer iii0 = ilist_n_bnd[si].first[li + i];
-				for (integer d = 0; d < NDIM; ++d) {
-					X[d][i] = com[0][iii0][d];
-				}
+		for (integer li = 0; li < dsize; ++li) {
+			const integer iii0 = ilist_n_bnd[si].first[li];
+			const auto& four = ilist_n_bnd[si].four[li];
+			v4sd m0;
+			const auto tmp = (*(mpoles).m)[index];
+			for (integer i = 0; i != 4; ++i) {
+				m0[i] = tmp;
 			}
-			simd_vector phi0, gx0, gy0, gz0;
-			std::array < simd_vector, NDIM > dX;
-			simd_vector r = ZERO;
-			for (integer d = 0; d < NDIM; ++d) {
-				dX[d] = X[d] - Y[d];
-				r += dX[d] * dX[d];
-			}
-			r = sqrt(r);
-			const simd_vector rinv = ONE / r;
-			const simd_vector r3inv = ONE / (r * r * r);
-			phi0 = -m0 * rinv;
-			for (integer d = 0; d < NDIM; ++d) {
-				dX[d] *= r3inv;
-			}
-			if (type == RHO) {
-				gx0 = +m0 * dX[XDIM];
-				gy0 = +m0 * dX[YDIM];
-				gz0 = +m0 * dX[ZDIM];
-			}
-			for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-				const integer iii0 = ilist_n_bnd[si].first[li + i];
-				L[iii0]() += phi0[i];
-				if (type == RHO) {
-					L[iii0](XDIM) += gx0[i];
-					L[iii0](YDIM) += gy0[i];
-					L[iii0](ZDIM) += gz0[i];
-				}
-			}
+			v4sd* l0ptr = (v4sd*) L[iii0].ptr();
+			*l0ptr += m0 * four * d0;
 		}
 	}
 	PROF_END;
@@ -804,6 +746,22 @@ void compute_ilist() {
 				for (integer i1 = ilb; i1 < iub; ++i1) {
 					for (integer j1 = jlb; j1 < jub; ++j1) {
 						for (integer k1 = klb; k1 < kub; ++k1) {
+							const real x = i0 - i1;
+							const real y = j0 - j1;
+							const real z = k0 - k1;
+							const real r = std::sqrt(x * x + y * y + z * z);
+							const real r3 = r * r * r;
+							v4sd four;
+							if (r > 0.0) {
+								four[0] = -1.0 / r;
+								four[1] = x / r3;
+								four[2] = y / r3;
+								four[3] = z / r3;
+							} else {
+								for (integer i = 0; i != 4; ++i) {
+									four[i] = 0.0;
+								}
+							}
 							if (i0 == i1 && j0 == j1 && k0 == k1) {
 								continue;
 							}
@@ -821,6 +779,10 @@ void compute_ilist() {
 							if (theta_c > theta0 && theta_f <= theta0) {
 								np.first = iii0;
 								np.second = iii1n;
+								np.four = four;
+								np.x[XDIM] = i1;
+								np.x[YDIM] = j1;
+								np.x[ZDIM] = k1;
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_n0.push_back(np);
@@ -836,6 +798,7 @@ void compute_ilist() {
 								dp.x[XDIM] = i1;
 								dp.x[YDIM] = j1;
 								dp.x[ZDIM] = k1;
+								dp.four = four;
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_d0.push_back(dp);
@@ -850,6 +813,7 @@ void compute_ilist() {
 								np.x[XDIM] = i1;
 								np.x[YDIM] = j1;
 								np.x[ZDIM] = k1;
+								np.four = four;
 								if (interior(i1, j1, k1) && interior(i0, j0, k0)) {
 									if (iii1 > iii0) {
 										ilist_r0.push_back(np);
@@ -877,6 +841,7 @@ void compute_ilist() {
 			for (auto& i : d) {
 				if (i.second == i0.second) {
 					i.first.push_back(i0.first);
+					i.four.push_back(i0.four);
 					found = true;
 					break;
 				}
@@ -885,8 +850,9 @@ void compute_ilist() {
 				boundary_interaction_type i;
 				i.second = i0.second;
 				i.x = i0.x;
-				n.push_back(i);
 				i.first.push_back(i0.first);
+				i.four.push_back(i0.four);
+				n.push_back(i);
 				d.push_back(i);
 			}
 		}
@@ -895,6 +861,7 @@ void compute_ilist() {
 			for (auto& i : n) {
 				if (i.second == i0.second) {
 					i.first.push_back(i0.first);
+					i.four.push_back(i0.four);
 					found = true;
 					break;
 				}
@@ -903,8 +870,9 @@ void compute_ilist() {
 				boundary_interaction_type i;
 				i.second = i0.second;
 				i.x = i0.x;
-				d.push_back(i);
 				i.first.push_back(i0.first);
+				i.four.push_back(i0.four);
+				d.push_back(i);
 				n.push_back(i);
 			}
 		}
@@ -997,11 +965,11 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 					const integer iii0 = h0index(i, j, k);
 					const integer iiih = hindex(i + H_BW , j + H_BW , k + H_BW );
 					if (type == RHO) {
-						G[phi_i][iii] = L[iii]();
+						G[iii][phi_i] = L[iii]();
 						for (integer d = 0; d < NDIM; ++d) {
-							G[gx_i + d][iii] = -L[iii](d) - L_c[iii][d];
+							G[iii][gx_i + d] = -L[iii](d) - L_c[iii][d];
 						}
-						U[pot_i][iiih] = G[phi_i][iii] * U[rho_i][iiih];
+						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
 					} else {
 						dphi_dt[iii0] = L[iii]();
 					}

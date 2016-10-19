@@ -42,9 +42,9 @@ __attribute__((constructor))
 void install_stack_trace() {
 	//signal(SIGABRT, handler);
 	//signal(SIGINT, handler);
-	signal(SIGSEGV, handler);
-	signal(SIGFPE, handler);
-	signal(SIGILL, handler);
-	signal(SIGTERM, handler);
+//	signal(SIGSEGV, handler);
+//	signal(SIGFPE, handler);
+//	signal(SIGILL, handler);
+//	signal(SIGTERM, handler);
 //	signal(SIGHUP, handler);
 }

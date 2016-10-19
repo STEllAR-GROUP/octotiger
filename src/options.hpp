@@ -12,7 +12,7 @@
 #include "defs.hpp"
 
 enum problem_type {
-	DWD, SOD, NONE, SOLID_SPHERE, STAR
+	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR
 };
 
 class options {
@@ -32,12 +32,14 @@ public:
 	std::string output_filename;
 	bool output_only;
 	real output_dt;
+	real stop_time;
 	real contact_fill;
 	bool bench;
 	real theta;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & stop_time;
 		arc & max_level;
 		arc & xscale;
 		arc & omega;

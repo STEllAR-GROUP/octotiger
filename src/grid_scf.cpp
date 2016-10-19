@@ -469,6 +469,7 @@ void node_server::run_scf() {
 }
 
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
+	const real fgamma = grid::get_fgamma();
 	std::vector<real> u(NF, real(0));
 	static auto& params = initial_params();
 	std::shared_ptr<bipolytropic_eos> this_eos;
