@@ -1295,24 +1295,25 @@ void grid::reconstruct() {
 #pragma GCC ivdep
 	for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 
-		slpx[sy_i][iii] = slpy[sx_i][iii] = 0.5 * (slpx[sy_i][iii] + slpy[sx_i][iii]);
-		slpx[sz_i][iii] = slpz[sx_i][iii] = 0.5 * (slpx[sz_i][iii] + slpz[sx_i][iii]);
-		slpy[sz_i][iii] = slpz[sy_i][iii] = 0.5 * (slpy[sz_i][iii] + slpz[sy_i][iii]);
+		if (opts.ang_con) {
+			slpx[sy_i][iii] = slpy[sx_i][iii] = 0.5 * (slpx[sy_i][iii] + slpy[sx_i][iii]);
+			slpx[sz_i][iii] = slpz[sx_i][iii] = 0.5 * (slpx[sz_i][iii] + slpz[sx_i][iii]);
+			slpy[sz_i][iii] = slpz[sy_i][iii] = 0.5 * (slpy[sz_i][iii] + slpz[sy_i][iii]);
 
-		slpy[sz_i][iii] += 6.0 * V[zx_i][iii] / dx;
-		slpz[sy_i][iii] -= 6.0 * V[zx_i][iii] / dx;
-		slpx[sz_i][iii] -= 6.0 * V[zy_i][iii] / dx;
-		slpz[sx_i][iii] += 6.0 * V[zy_i][iii] / dx;
-		slpx[sy_i][iii] += 6.0 * V[zz_i][iii] / dx;
-		slpy[sx_i][iii] -= 6.0 * V[zz_i][iii] / dx;
+			slpy[sz_i][iii] += 6.0 * V[zx_i][iii] / dx;
+			slpz[sy_i][iii] -= 6.0 * V[zx_i][iii] / dx;
+			slpx[sz_i][iii] -= 6.0 * V[zy_i][iii] / dx;
+			slpz[sx_i][iii] += 6.0 * V[zy_i][iii] / dx;
+			slpx[sy_i][iii] += 6.0 * V[zz_i][iii] / dx;
+			slpy[sx_i][iii] -= 6.0 * V[zz_i][iii] / dx;
 
-		slpx[sy_i][iii] = minmod(slpx[sy_i][iii], 2.0 * minmod(V[sy_i][iii + H_DNX] - V[sy_i][iii], V[sy_i][iii] - V[sy_i][iii - H_DNX]));
-		slpx[sz_i][iii] = minmod(slpx[sz_i][iii], 2.0 * minmod(V[sz_i][iii + H_DNX] - V[sz_i][iii], V[sz_i][iii] - V[sz_i][iii - H_DNX]));
-		slpy[sx_i][iii] = minmod(slpy[sx_i][iii], 2.0 * minmod(V[sx_i][iii + H_DNY] - V[sx_i][iii], V[sx_i][iii] - V[sx_i][iii - H_DNY]));
-		slpy[sz_i][iii] = minmod(slpy[sz_i][iii], 2.0 * minmod(V[sz_i][iii + H_DNY] - V[sz_i][iii], V[sz_i][iii] - V[sz_i][iii - H_DNY]));
-		slpz[sx_i][iii] = minmod(slpz[sx_i][iii], 2.0 * minmod(V[sx_i][iii + H_DNZ] - V[sx_i][iii], V[sx_i][iii] - V[sx_i][iii - H_DNZ]));
-		slpz[sy_i][iii] = minmod(slpz[sy_i][iii], 2.0 * minmod(V[sy_i][iii + H_DNZ] - V[sy_i][iii], V[sy_i][iii] - V[sy_i][iii - H_DNZ]));
-
+			slpx[sy_i][iii] = minmod(slpx[sy_i][iii], 2.0 * minmod(V[sy_i][iii + H_DNX] - V[sy_i][iii], V[sy_i][iii] - V[sy_i][iii - H_DNX]));
+			slpx[sz_i][iii] = minmod(slpx[sz_i][iii], 2.0 * minmod(V[sz_i][iii + H_DNX] - V[sz_i][iii], V[sz_i][iii] - V[sz_i][iii - H_DNX]));
+			slpy[sx_i][iii] = minmod(slpy[sx_i][iii], 2.0 * minmod(V[sx_i][iii + H_DNY] - V[sx_i][iii], V[sx_i][iii] - V[sx_i][iii - H_DNY]));
+			slpy[sz_i][iii] = minmod(slpy[sz_i][iii], 2.0 * minmod(V[sz_i][iii + H_DNY] - V[sz_i][iii], V[sz_i][iii] - V[sz_i][iii - H_DNY]));
+			slpz[sx_i][iii] = minmod(slpz[sx_i][iii], 2.0 * minmod(V[sx_i][iii + H_DNZ] - V[sx_i][iii], V[sx_i][iii] - V[sx_i][iii - H_DNZ]));
+			slpz[sy_i][iii] = minmod(slpz[sy_i][iii], 2.0 * minmod(V[sy_i][iii + H_DNZ] - V[sy_i][iii], V[sy_i][iii] - V[sy_i][iii - H_DNZ]));
+		}
 		const real zx_lim = +(slpy[sz_i][iii] - slpz[sy_i][iii]) / 12.0;
 		const real zy_lim = -(slpx[sz_i][iii] - slpz[sx_i][iii]) / 12.0;
 		const real zz_lim = +(slpx[sy_i][iii] - slpy[sx_i][iii]) / 12.0;
@@ -1322,7 +1323,6 @@ void grid::reconstruct() {
 			Uf[face][zz_i][iii] = V[zz_i][iii] - zz_lim * dx;
 		}
 	}
-
 	for (integer field = 0; field != NF; ++field) {
 		if (field >= zx_i && field <= zz_i) {
 			continue;
@@ -1559,14 +1559,14 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 					}
 					sod_state_t s;
 					//real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
-						real x = X[XDIM][iii];
+					real x = X[XDIM][iii];
 					exact_sod(&s, &sod_init, x, t);
 					U[rho_i][iii] = s.rho;
 					U[egas_i][iii] = s.p / (fgamma - 1.0);
-							U[sx_i][iii] = s.rho * s.v;
-				//	U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
-				//	U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
-				//	U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
+					U[sx_i][iii] = s.rho * s.v;
+					//	U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
+					//	U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
+					//	U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
 					U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
 					U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
 					U[spc_ac_i][iii] = s.rho;
@@ -1902,7 +1902,7 @@ void grid::next_u(integer rk, real t, real dt) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				if( opts.problem == SOD) {
+				if (opts.problem == SOD) {
 					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
 				}
 				U[rho_i][iii] = ZERO;
@@ -1916,7 +1916,6 @@ void grid::next_u(integer rk, real t, real dt) {
 					printf("Rho is non-positive - %e %i %i %i\n", double(U[rho_i][iii]), int(i), int(j), int(k));
 					abort();
 				}
-
 			}
 		}
 	}

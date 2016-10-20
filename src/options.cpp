@@ -13,6 +13,7 @@
 #define PROBLEM_OPT "-Problem"
 #define RESTART_OPT "-Restart"
 #define OUTPUT_OPT "-Output"
+#define ANGCON_OPT "-Angcon"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
 #define ODT_OPT "-Odt"
@@ -44,7 +45,8 @@ void options::show_help() {
 	printf("\t\t\t\tSod - Sod shock tube.\n");
 	printf("-Restart=<file name> - restart from a checkpoint file\n");
 	printf("-Output=<file name> - output restart to silo file and exit\n");
-	printf("-Max_level=<number of refined levels> - set maximum number of refinement levels\n");
+	printf(
+			"-Max_level=<number of refined levels> - set maximum number of refinement levels\n");
 	printf("-Help - displays this help page\n");
 }
 
@@ -62,7 +64,8 @@ bool options::process_options(int argc, char* argv[]) {
 	contact_fill = 0.0;
 	output_dt = 1.0;
 	bench = false;
-	stop_time = std::numeric_limits<real>::max();
+	ang_con = true;
+	stop_time = std::numeric_limits < real > ::max();
 
 	for (integer i = 1; i < argc; ++i) {
 		if (cmp(argv[i], HELP_OPT)) {
@@ -82,7 +85,8 @@ bool options::process_options(int argc, char* argv[]) {
 			} else if (cmp(prob, PROBLEM_OPT_BLAST)) {
 				problem = BLAST;
 			} else {
-				printf("The user specified an invalid problem type, \"%s\"\n", prob.c_str());
+				printf("The user specified an invalid problem type, \"%s\"\n",
+						prob.c_str());
 				rc = false;
 			}
 		} else if (cmp(argv[i], BENCH_OPT)) {
@@ -95,6 +99,8 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], OUTPUT_OPT)) {
 			output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
 			output_only = true;
+		} else if (cmp(argv[i], ANGCON_OPT)) {
+			ang_con = atof(argv[i] + strlen(ANGCON_OPT) + 1);
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
 		} else if (cmp(argv[i], XSCALE_OPT)) {
