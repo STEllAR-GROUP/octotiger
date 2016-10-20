@@ -1292,10 +1292,10 @@ void grid::reconstruct() {
 		}
 	}
 
+	if (opts.ang_con) {
 #pragma GCC ivdep
-	for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
+		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 
-		if (opts.ang_con) {
 			slpx[sy_i][iii] = slpy[sx_i][iii] = 0.5 * (slpx[sy_i][iii] + slpy[sx_i][iii]);
 			slpx[sz_i][iii] = slpz[sx_i][iii] = 0.5 * (slpx[sz_i][iii] + slpz[sx_i][iii]);
 			slpy[sz_i][iii] = slpz[sy_i][iii] = 0.5 * (slpy[sz_i][iii] + slpz[sy_i][iii]);
@@ -1313,14 +1313,14 @@ void grid::reconstruct() {
 			slpy[sz_i][iii] = minmod(slpy[sz_i][iii], 2.0 * minmod(V[sz_i][iii + H_DNY] - V[sz_i][iii], V[sz_i][iii] - V[sz_i][iii - H_DNY]));
 			slpz[sx_i][iii] = minmod(slpz[sx_i][iii], 2.0 * minmod(V[sx_i][iii + H_DNZ] - V[sx_i][iii], V[sx_i][iii] - V[sx_i][iii - H_DNZ]));
 			slpz[sy_i][iii] = minmod(slpz[sy_i][iii], 2.0 * minmod(V[sy_i][iii + H_DNZ] - V[sy_i][iii], V[sy_i][iii] - V[sy_i][iii - H_DNZ]));
-		}
-		const real zx_lim = +(slpy[sz_i][iii] - slpz[sy_i][iii]) / 12.0;
-		const real zy_lim = -(slpx[sz_i][iii] - slpz[sx_i][iii]) / 12.0;
-		const real zz_lim = +(slpx[sy_i][iii] - slpy[sx_i][iii]) / 12.0;
-		for (int face = 0; face != NFACE; ++face) {
-			Uf[face][zx_i][iii] = V[zx_i][iii] - zx_lim * dx;
-			Uf[face][zy_i][iii] = V[zy_i][iii] - zy_lim * dx;
-			Uf[face][zz_i][iii] = V[zz_i][iii] - zz_lim * dx;
+			const real zx_lim = +(slpy[sz_i][iii] - slpz[sy_i][iii]) / 12.0;
+			const real zy_lim = -(slpx[sz_i][iii] - slpz[sx_i][iii]) / 12.0;
+			const real zz_lim = +(slpx[sy_i][iii] - slpy[sx_i][iii]) / 12.0;
+			for (int face = 0; face != NFACE; ++face) {
+				Uf[face][zx_i][iii] = V[zx_i][iii] - zx_lim * dx;
+				Uf[face][zy_i][iii] = V[zy_i][iii] - zy_lim * dx;
+				Uf[face][zz_i][iii] = V[zz_i][iii] - zz_lim * dx;
+			}
 		}
 	}
 	for (integer field = 0; field != NF; ++field) {
@@ -1915,6 +1915,9 @@ void grid::next_u(integer rk, real t, real dt) {
 				} else if (U[rho_i][iii] <= ZERO) {
 					printf("Rho is non-positive - %e %i %i %i\n", double(U[rho_i][iii]), int(i), int(j), int(k));
 					abort();
+				}
+				if (!opts.ang_con) {
+					U[zx_i][iii] = U[zy_i][iii] = U[zx_i][iii] = 0.0;
 				}
 			}
 		}
