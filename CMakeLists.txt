@@ -22,15 +22,24 @@ find_package(MPI REQUIRED)
 ################################################################################
 include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
 
-#set( CMAKE_CXX_FLAGS "-g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )
+set( CMAKE_CXX_FLAGS "-I/usr/include/mpi -std=c++14 -g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )
+set( CMAKE_C_FLAGS "-I/usr/include/mpi -g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )
+set( CMAKE_F_FLAGS "-g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )
+
+
+enable_language(Fortran)
 
 add_hpx_executable(
   octotiger
   DEPENDENCIES
         silo
   SOURCES 
+        src/sedov3.f
         src/node_server_actions_1.cpp
         src/node_server_actions_2.cpp
+        src/scf_data.cpp
+        src/exact_sod.cpp
+        src/sedov.c
         src/profiler.cpp	
       	src/eos.cpp
 		src/geometry.cpp
@@ -44,7 +53,7 @@ add_hpx_executable(
 		src/node_client.cpp
 		src/node_location.cpp
 		src/node_server.cpp
-                src/options.cpp
+        src/options.cpp
 		src/problem.cpp
 		src/real.cpp
 		src/roe.cpp
