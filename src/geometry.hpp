@@ -9,6 +9,7 @@
 #define GEOMETRY_HPP_
 
 #include "defs.hpp"
+#include <cassert>
 
 namespace geo {
 

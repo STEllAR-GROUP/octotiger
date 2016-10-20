@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include "options.hpp"
+#include <hpx/lcos/when_all.hpp>
 #include "taylor.hpp"
 #include <sys/stat.h>
 #include <unistd.h>

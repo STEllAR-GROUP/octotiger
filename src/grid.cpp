@@ -7,7 +7,7 @@
 #include "taylor.hpp"
 #include <boost/thread/tss.hpp>
 #include "exact_sod.hpp"
-
+#include <hpx/include/runtime.hpp>
 extern options opts;
 
 real grid::omega = ZERO;
@@ -1558,18 +1558,25 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 						U[f][iii] = 0.0;
 					}
 					sod_state_t s;
-					real x = (X[XDIM][iii] + 2.0 * X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(6.0);
-					//	real x = X[XDIM][iii];
+					//real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
+						real x = X[XDIM][iii];
 					exact_sod(&s, &sod_init, x, t);
 					U[rho_i][iii] = s.rho;
 					U[egas_i][iii] = s.p / (fgamma - 1.0);
-					//		U[sx_i][iii] = s.rho * s.v;
-					U[sx_i][iii] = s.rho * s.v / std::sqrt(6.0);
-					U[sy_i][iii] = 2.0 * s.rho * s.v / std::sqrt(6.0);
-					U[sz_i][iii] = s.rho * s.v / std::sqrt(6.0);
+							U[sx_i][iii] = s.rho * s.v;
+				//	U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
+				//	U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
+				//	U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
 					U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
 					U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
 					U[spc_ac_i][iii] = s.rho;
+					integer k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
+					const real zx = U[zx_i][i * dni + j * dnj + k0 * dnk];
+					const real zy = U[zy_i][i * dni + j * dnj + k0 * dnk];
+					const real zz = U[zz_i][i * dni + j * dnj + k0 * dnk];
+					U[zx_i][iii] = zx;
+					U[zy_i][iii] = zy;
+					U[zz_i][iii] = zz;
 				}
 			}
 		}
@@ -1895,6 +1902,9 @@ void grid::next_u(integer rk, real t, real dt) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
+				if( opts.problem == SOD) {
+					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
+				}
 				U[rho_i][iii] = ZERO;
 				for (integer si = 0; si != NSPECIES; ++si) {
 					U[rho_i][iii] += U[spc_i + si][iii];

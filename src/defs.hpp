@@ -27,18 +27,13 @@
 #define USE_PPM
 //#define USE_MINMOD
 
-#ifdef MINI_HPX
-#include "hpx/hpx_lite.hpp"
-#else
-#include <hpx/hpx.hpp>
+//#include <hpx/hpx.hpp>
 
-namespace hpx {
-using mutex = hpx::lcos::local::spinlock;
-}
+//namespace hpx {
+//using mutex = hpx::lcos::local::spinlock;
+//}
 
-#endif
 #include "real.hpp"
-//using real = double;
 typedef long long int integer;
 #define TYPES444_HPP_
 
@@ -48,15 +43,15 @@ enum gsolve_type {
 	RHO, DRHODT
 };
 
-#ifndef MINI_HPX
-#include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/list.hpp>
-#include <hpx/runtime/serialization/set.hpp>
-#include <hpx/runtime/serialization/array.hpp>
-#include <hpx/runtime/serialization/vector.hpp>
-#include <hpx/runtime/serialization/shared_ptr.hpp>
-#include <mutex>
-#endif
+#include <array>
+
+//#include <hpx/runtime/serialization/serialize.hpp>
+//#include <hpx/runtime/serialization/list.hpp>
+//#include <hpx/runtime/serialization/set.hpp>
+//#include <hpx/runtime/serialization/array.hpp>
+//#include <hpx/runtime/serialization/vector.hpp>
+//#include <hpx/runtime/serialization/shared_ptr.hpp>
+//#include <mutex>
 
 #define USE_ROTATING_FRAME
 #define OUTPUT_FREQ (100.0)
@@ -82,14 +77,7 @@ const integer NDIM = 3;
 const integer NSPECIES = 5;
 
 const integer INX = 8;
-
-#ifdef USE_PPM
 const integer H_BW = 3;
-#endif
-#ifdef USE_MINMOD
-const integer H_BW = 2;
-#endif
-
 const integer R_BW = 2;
 
 const integer H_NX = 2 * H_BW + INX;

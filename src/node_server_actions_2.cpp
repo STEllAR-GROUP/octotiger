@@ -5,6 +5,10 @@
 #include "taylor.hpp"
 #include "util.hpp"
 #include "profiler.hpp"
+#include <hpx/lcos/wait_all.hpp>
+#include <hpx/runtime/serialization/list.hpp>
+
+
 #include <mpi.h>
 
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;

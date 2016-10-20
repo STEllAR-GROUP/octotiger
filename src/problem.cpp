@@ -111,7 +111,7 @@ std::vector<real> sod_shock_tube(real x, real y, real z, real) {
 
 	const real fgamma = grid::get_fgamma();
 	std::vector < real > u(NF, real(0));
-	if (x + 2.0 * y + z < real(0)) {
+	if (x < real(0)) {
 		u[spc_dc_i] = u[rho_i] = sod_init.rhol;
 		u[egas_i] = sod_init.pl / (sod_init.gamma - 1.0);
 	} else {

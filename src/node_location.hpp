@@ -10,6 +10,7 @@
 
 #include "defs.hpp"
 #include "geometry.hpp"
+#include <hpx/include/components.hpp>
 
 
 class node_client;

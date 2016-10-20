@@ -9,6 +9,8 @@
 #define UTILAA_HPP_
 
 #include <stdio.h>
+#include <functional>
+#include <algorithm>
 
 inline integer refinement_freq() {
 	return  integer(R_BW / cfl + 0.5);
