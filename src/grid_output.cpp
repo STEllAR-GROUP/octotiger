@@ -10,7 +10,6 @@
 #define EQ_ONLY
 //#define RHO_ONLY
 
-
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
 }
@@ -48,41 +47,42 @@ bool grid::node_point::operator<(const node_point& other) const {
 	return rc;
 }
 
-void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type&& l2) {
+void grid::merge_output_lists(grid::output_list_type& l1,
+		grid::output_list_type&& l2) {
 
-	std::unordered_map<zone_int_type, zone_int_type> index_map;
+			std::unordered_map<zone_int_type, zone_int_type> index_map;
 
-	if (l2.zones.size() > l1.zones.size()) {
-		auto tmp = std::move(l2);
-		l2 = std::move(l1);
-		l1 = std::move(tmp);
-	}
-	for (auto i = l2.nodes.begin(); i != l2.nodes.end(); ++i) {
-		zone_int_type index, oindex;
-		auto this_x = *i;
-		oindex = this_x.index;
-		auto j = l1.nodes.find(this_x);
-		if (j != l1.nodes.end()) {
-			index = j->index;
-		} else {
-			index = l1.nodes.size();
-			this_x.index = index;
-			l1.nodes.insert(this_x);
+			if (l2.zones.size() > l1.zones.size()) {
+				auto tmp = std::move(l2);
+				l2 = std::move(l1);
+				l1 = std::move(tmp);
+			}
+			for (auto i = l2.nodes.begin(); i != l2.nodes.end(); ++i) {
+				zone_int_type index, oindex;
+				auto this_x = *i;
+				oindex = this_x.index;
+				auto j = l1.nodes.find(this_x);
+				if (j != l1.nodes.end()) {
+					index = j->index;
+				} else {
+					index = l1.nodes.size();
+					this_x.index = index;
+					l1.nodes.insert(this_x);
+				}
+				index_map[oindex] = index;
+			}
+			integer zzz = l1.zones.size();
+			l1.zones.resize(zzz + l2.zones.size());
+			for (auto i = l2.zones.begin(); i != l2.zones.end(); ++i) {
+				l1.zones[zzz] = index_map[*i];
+				++zzz;
+			}
+			for (integer field = 0; field < NF + NGF; ++field) {
+				const auto l1sz = l1.data[field].size();
+				l1.data[field].resize(l1sz + l2.data[field].size());
+				std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
+			}
 		}
-		index_map[oindex] = index;
-	}
-	integer zzz = l1.zones.size();
-	l1.zones.resize(zzz + l2.zones.size());
-	for (auto i = l2.zones.begin(); i != l2.zones.end(); ++i) {
-		l1.zones[zzz] = index_map[*i];
-		++zzz;
-	}
-	for (integer field = 0; field < NF + NGF; ++field) {
-		const auto l1sz = l1.data[field].size();
-		l1.data[field].resize(l1sz + l2.data[field].size());
-		std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
-	}
-}
 
 grid::output_list_type grid::get_output_list() const {
 	output_list_type rc;
@@ -90,7 +90,7 @@ grid::output_list_type grid::get_output_list() const {
 
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
-	std::array<std::vector<real>, NF + NGF>& data = rc.data;
+	std::array < std::vector<real>, NF + NGF > &data = rc.data;
 
 	for (integer field = 0; field != NF + NGF; ++field) {
 		data[field].reserve(INX * INX * INX);
@@ -101,9 +101,10 @@ grid::output_list_type grid::get_output_list() const {
 		for (integer j = this_bw; j != H_NX - this_bw; ++j) {
 			for (integer k = this_bw; k != H_NX - this_bw; ++k) {
 				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i  - H_BW, j  - H_BW, k  - H_BW);
+				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 #ifdef EQ_ONLY
-				if (!(std::abs(X[ZDIM][iii]) < dx) && !(std::abs(X[YDIM][iii]) < dx)) {
+				if (!(std::abs(X[ZDIM][iii]) < dx)
+						&& !(std::abs(X[YDIM][iii]) < dx)) {
 					continue;
 				}
 #endif
@@ -132,7 +133,7 @@ grid::output_list_type grid::get_output_list() const {
 					data[field].push_back(U[field][iii]);
 				}
 				for (integer field = 0; field != NGF; ++field) {
-					data[field + NF].push_back(G[field][iiig]);
+					data[field + NF].push_back(G[iiig][field]);
 				}
 			}
 		}
@@ -141,7 +142,8 @@ grid::output_list_type grid::get_output_list() const {
 	return rc;
 }
 
-void grid::output(const output_list_type& olists, std::string _filename, real _t, int cycle) {
+void grid::output(const output_list_type& olists, std::string _filename,
+		real _t, int cycle) {
 #ifdef DO_OUTPUT
 
 	std::thread(
@@ -225,7 +227,7 @@ std::size_t grid::load(FILE* fp) {
 	auto foo = std::fread;
 	{
 		static hpx::mutex mtx;
-		std::lock_guard<hpx::mutex> lock(mtx);
+		std::lock_guard < hpx::mutex > lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
 	}
@@ -242,11 +244,11 @@ std::size_t grid::load(FILE* fp) {
 			}
 		}
 	}
-	for (integer f = 0; f != 4; ++f) {
-		for (integer i = 0; i < G_NX ; ++i) {
-			for (integer j = 0; j < G_NX ; ++j) {
-				const integer iii = gindex(i, j, 0);
-				cnt += foo(&(G[f][iii]), sizeof(real), INX, fp) * sizeof(real);
+	for (integer i = 0; i < G_NX; ++i) {
+		for (integer j = 0; j < G_NX; ++j) {
+			for (integer k = 0; k < G_NX; ++k) {
+				const integer iii = gindex(i, j, k);
+				cnt += foo(&(G[iii][0]), sizeof(real), NGF, fp) * sizeof(real);
 			}
 		}
 	}
@@ -260,7 +262,7 @@ std::size_t grid::save(FILE* fp) const {
 	auto foo = std::fwrite;
 	{
 		static hpx::mutex mtx;
-		std::lock_guard<hpx::mutex> lock(mtx);
+		std::lock_guard < hpx::mutex > lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
 	}
@@ -274,11 +276,11 @@ std::size_t grid::save(FILE* fp) const {
 			}
 		}
 	}
-	for (integer f = 0; f != 4; ++f) {
-		for (integer i = 0; i < G_NX ; ++i) {
-			for (integer j = 0; j < G_NX ; ++j) {
-				const integer iii = gindex(i, j, 0);
-				cnt += foo(&(G[f][iii]), sizeof(real), INX, fp) * sizeof(real);
+	for (integer i = 0; i < G_NX; ++i) {
+		for (integer j = 0; j < G_NX; ++j) {
+			for (integer k = 0; k < G_NX; ++k) {
+				const integer iii = gindex(i, j, k);
+				cnt += foo(&(G[iii][0]), sizeof(real), NGF, fp) * sizeof(real);
 			}
 		}
 	}

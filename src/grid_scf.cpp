@@ -23,11 +23,11 @@ namespace scf_options {
 
 static constexpr real async1 = -0.0e-2;
 static constexpr real async2 = -0.0e-2;
-static constexpr bool equal_eos = false; // If true, EOS of accretor will be set to that of donor
+static constexpr bool equal_eos = true; // If true, EOS of accretor will be set to that of donor
 static constexpr real M1 = 1.0;// Mass of primary
-static constexpr real M2 = 0.5;// Mass of secondaries
-static constexpr real nc1 = 2.9;// Primary core polytropic index
-static constexpr real nc2 = 2.9;// Secondary core polytropic index
+static constexpr real M2 = 0.15;// Mass of secondaries
+static constexpr real nc1 = 2.5;// Primary core polytropic index
+static constexpr real nc2 = 1.5;// Secondary core polytropic index
 static constexpr real ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_eos=true
 static constexpr real ne2 = 1.5;// Secondary envelope polytropic index
 static constexpr real mu1 = 1.0;// Primary ratio of molecular weights // Ignored if equal_eos=true
@@ -187,10 +187,10 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				const real z = X[ZDIM][iiih];
 				const real R = std::sqrt(std::pow(x - com, 2) + y * y);
 				real rho = U[rho_i][iiih];
-				real phi_eff = G[phi_i][iiig] - 0.5 * std::pow(omega * R, 2);
-				const real fx = G[gx_i][iiig] + (x - com) * std::pow(omega, 2);
-				const real fy = G[gy_i][iiig] + y * std::pow(omega, 2);
-				const real fz = G[gz_i][iiig];
+				real phi_eff = G[iiig][phi_i] - 0.5 * std::pow(omega * R, 2);
+				const real fx = G[iiig][gx_i] + (x - com) * std::pow(omega, 2);
+				const real fy = G[iiig][gy_i] + y * std::pow(omega, 2);
+				const real fz = G[iiig][gz_i];
 
 				bool is_donor_side;
 				real g;
@@ -475,25 +475,33 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	std::shared_ptr<bipolytropic_eos> this_eos;
 	real rho, r, ei;
 	if (x < params.l1_x) {
-		r = std::sqrt(std::pow(x - params.c1_x, 2) + y * y + z * z);
 		this_eos = std::dynamic_pointer_cast < bipolytropic_eos > (params.eos1);
 	} else {
-		r = std::sqrt(std::pow(x - params.c2_x, 2) + y * y + z * z);
 		this_eos = std::dynamic_pointer_cast < bipolytropic_eos > (params.eos2);
 	}
-	rho = std::max(this_eos->density_at(r, dx), rho_floor);
+	rho = 0;
+	int M = int(dx / this_eos->R0) + 1;
+	int nsamp = 0;
+	for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx; x0 += dx / M) {
+		for (double y0 = y - dx / 2.0 + dx / 2.0 / M; y0 < y + dx; y0 += dx / M) {
+			for (double z0 = z - dx / 2.0 + dx / 2.0 / M; z0 < z + dx; z0 += dx / M) {
+				++nsamp;
+				if (x < params.l1_x) {
+					r = std::sqrt(std::pow(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
+				} else {
+					r = std::sqrt(std::pow(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
+				}
+				rho += this_eos->density_at(r, dx);
+			}
+		}
+	}
+	rho = std::max( rho/nsamp, rho_floor);
 	ei = this_eos->pressure(rho) / (fgamma - 1.0);
 	u[rho_i] = rho;
 	u[spc_ac_i] = rho > this_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
 	u[spc_dc_i] = rho > this_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
 	u[spc_ae_i] = rho <= this_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
 	u[spc_de_i] = rho <= this_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
-//	if( rho > rho_floor)
-//	printf( "%e %e %e %e\n", rho, this_eos->dE(), this_eos->dC(), this_eos->d0() );
-//	printf( "%e %e\n", this_eos->m0(), this_eos->r0());
-
-	//if( rho < this_eos->dE() && rho > rho_floor) {
-//	}
 	u[egas_i] = ei + 0.5 * (x * x + y * y) * params.omega * params.omega;
 	u[sx_i] = -y * params.omega * rho;
 	u[sy_i] = +x * params.omega * rho;

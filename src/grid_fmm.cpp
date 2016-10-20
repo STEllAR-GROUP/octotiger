@@ -850,9 +850,9 @@ void compute_ilist() {
 				boundary_interaction_type i;
 				i.second = i0.second;
 				i.x = i0.x;
+				n.push_back(i);
 				i.first.push_back(i0.first);
 				i.four.push_back(i0.four);
-				n.push_back(i);
 				d.push_back(i);
 			}
 		}
@@ -866,15 +866,7 @@ void compute_ilist() {
 					break;
 				}
 			}
-			if (!found) {
-				boundary_interaction_type i;
-				i.second = i0.second;
-				i.x = i0.x;
-				i.first.push_back(i0.first);
-				i.four.push_back(i0.four);
-				d.push_back(i);
-				n.push_back(i);
-			}
+			assert(found);
 		}
 	}
 }
