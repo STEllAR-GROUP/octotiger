@@ -27,6 +27,7 @@ public:
 	virtual real h0() const = 0;
 };
 
+
 class wd_eos: public eos {
 public:
 	real B() const;
