@@ -34,6 +34,9 @@ add_hpx_executable(
   DEPENDENCIES
         silo
   SOURCES 
+        src/units.cpp
+      	src/helmholtz.cpp
+      	src/eos.cpp
         src/sedov3.f
         src/node_server_actions_1.cpp
         src/node_server_actions_2.cpp
@@ -41,24 +44,23 @@ add_hpx_executable(
         src/exact_sod.cpp
         src/sedov.c
         src/profiler.cpp	
-      	src/eos.cpp
-		src/geometry.cpp
-		src/grid.cpp
-		src/grid_fmm.cpp
-		src/grid_output.cpp
-		src/grid_scf.cpp
-		src/lane_emden.cpp
-		src/main.cpp
-		src/new.cpp
-		src/node_client.cpp
-		src/node_location.cpp
-		src/node_server.cpp
+	src/geometry.cpp
+	src/grid.cpp
+	src/grid_fmm.cpp
+	src/grid_output.cpp
+	src/grid_scf.cpp
+	src/lane_emden.cpp
+	src/main.cpp
+	src/new.cpp
+	src/node_client.cpp
+	src/node_location.cpp
+	src/node_server.cpp
         src/options.cpp
-		src/problem.cpp
-		src/real.cpp
-		src/roe.cpp
-		src/stack_trace.cpp
-		src/taylor.cpp
+	src/problem.cpp
+	src/real.cpp
+	src/roe.cpp
+	src/stack_trace.cpp
+	src/taylor.cpp
      	src/util.cpp
    HEADERS 
         src/diagnostics.hpp

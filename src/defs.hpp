@@ -13,6 +13,9 @@
 #define BIBI
 //#define OLD_SCF
 
+#define WD_EOS
+
+
 #define EXPERIMENT
 
 #define DO_OUTPUT

@@ -230,6 +230,8 @@ std::size_t grid::load(FILE* fp) {
 		std::lock_guard < hpx::mutex > lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
+		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
 	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
@@ -265,6 +267,8 @@ std::size_t grid::save(FILE* fp) const {
 		std::lock_guard < hpx::mutex > lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
+		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
 	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);

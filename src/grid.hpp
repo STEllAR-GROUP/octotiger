@@ -8,6 +8,7 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
+#include "simd.hpp"
 #include "defs.hpp"
 #include "roe.hpp"
 #include "space_vector.hpp"
@@ -24,8 +25,6 @@
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
 
-
-typedef double v4sd __attribute__ ((vector_size (32)));
 
 struct interaction_type {
 	std::uint16_t first;
@@ -88,6 +87,7 @@ public:
 	static void set_max_level(integer l);
 	static void set_fgamma(real);
 	static real get_fgamma();
+	static real Acons, Bcons;
 private:
 	static real fgamma;
 	static integer max_level;

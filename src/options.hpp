@@ -36,9 +36,11 @@ public:
 	real contact_fill;
 	bool bench;
 	real theta;
+	bool ang_con;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & ang_con;
 		arc & stop_time;
 		arc & max_level;
 		arc & xscale;

@@ -11,7 +11,6 @@
 #include <cstdlib>
 #include "immintrin.h"
 
-
 const std::size_t simd_len = 8;
 
 #ifdef USE_SIMD
@@ -39,7 +38,7 @@ const std::size_t simd_len = 8;
 #endif
 #else
 #define SIMD_SIZE 8
-#define __mxd real
+#define __mxd double
 #define _mmx_set_pd(d)    (d)
 #define _mmx_add_pd(a,b)  ((a)+(b))
 #define _mmx_sub_pd(a,b)  ((a)-(b))
@@ -159,22 +158,22 @@ public:
 		return a[i];
 	}
 
-	real max() const {
-		const real a = std::max((*this)[0],(*this)[1]);
-		const real b = std::max((*this)[2],(*this)[3]);
-		const real c = std::max((*this)[4],(*this)[5]);
-		const real d = std::max((*this)[6],(*this)[7]);
-		const real e = std::max(a,b);
-		const real f = std::max(c,d);
+	double max() const {
+		const double a = std::max((*this)[0],(*this)[1]);
+		const double b = std::max((*this)[2],(*this)[3]);
+		const double c = std::max((*this)[4],(*this)[5]);
+		const double d = std::max((*this)[6],(*this)[7]);
+		const double e = std::max(a,b);
+		const double f = std::max(c,d);
 		return std::max(e,f);
 	}
-	real min() const {
-		const real a = std::min((*this)[0],(*this)[1]);
-		const real b = std::min((*this)[2],(*this)[3]);
-		const real c = std::min((*this)[4],(*this)[5]);
-		const real d = std::min((*this)[6],(*this)[7]);
-		const real e = std::min(a,b);
-		const real f = std::min(c,d);
+	double min() const {
+		const double a = std::min((*this)[0],(*this)[1]);
+		const double b = std::min((*this)[2],(*this)[3]);
+		const double c = std::min((*this)[4],(*this)[5]);
+		const double d = std::min((*this)[6],(*this)[7]);
+		const double e = std::min(a,b);
+		const double f = std::min(c,d);
 		return std::min(e,f);
 	}
 	friend simd_vector sqrt(const simd_vector&);
@@ -203,13 +202,13 @@ inline simd_vector operator/(double d, const simd_vector& other) {
 	return a / other;
 }
 
-inline void simd_pack(simd_vector* dest, real* src, integer src_len, integer pos) {
+inline void simd_pack(simd_vector* dest, double* src, integer src_len, integer pos) {
 	for (integer i = 0; i != src_len; ++i) {
 		dest[i][pos] = src[i];
 	}
 }
 
-inline void simd_unpack(real* dest, simd_vector* src, integer src_len, integer pos) {
+inline void simd_unpack(double* dest, simd_vector* src, integer src_len, integer pos) {
 	for (integer i = 0; i != src_len; ++i) {
 		dest[i] = src[i][pos];
 	}
@@ -227,5 +226,78 @@ inline simd_vector max(const simd_vector& a, const simd_vector& b) {
 inline simd_vector abs(const simd_vector& a) {
 	return max(a, -a);
 }
+
+//typedef double v4sd __attribute__ ((vector_size (32)));
+
+class v4sd {
+private:
+	__m256d x;
+public:
+	inline v4sd& operator=(const v4sd& other) {
+		x = other.x;
+		return *this;
+	}
+	inline v4sd(const v4sd& other) {
+		x = other.x;
+	}
+	inline v4sd() {
+	}
+	inline v4sd(const std::initializer_list<double>& other) {
+		std::array<double, 4> n;
+		auto j = other.begin();
+		for (int i = 0; i != 4; ++i) {
+			(*this)[i] = *j;
+			++j;
+		}
+	}
+	inline v4sd& operator=(double other) {
+		x = _mm256_set1_pd(other);
+		return *this;
+	}
+	inline v4sd operator+(const v4sd& other) const {
+		v4sd r;
+		r.x = _mm256_add_pd(x, other.x);
+		return r;
+	}
+	inline v4sd operator-(const v4sd& other) const {
+		v4sd r;
+		r.x = _mm256_sub_pd(x, other.x);
+		return r;
+	}
+	inline v4sd operator*(const v4sd& other) const {
+		v4sd r;
+		r.x = _mm256_mul_pd(x, other.x);
+		return r;
+	}
+	inline v4sd operator/(const v4sd& other) const {
+		v4sd r;
+		r.x = _mm256_div_pd(x, other.x);
+		return r;
+	}
+	inline v4sd& operator+=(const v4sd& other) {
+		*this = *this + other;
+		return *this;
+	}
+	inline v4sd& operator-=(const v4sd& other) {
+		*this = *this - other;
+		return *this;
+	}
+	inline v4sd& operator*=(const v4sd& other) {
+		*this = *this * other;
+		return *this;
+	}
+	inline v4sd& operator/=(const v4sd& other) {
+		*this = *this / other;
+		return *this;
+	}
+	inline const double& operator[](int i) const {
+		const double* a = reinterpret_cast<const double*>(&x);
+		return a[i];
+	}
+	inline double& operator[](int i) {
+		double* a = reinterpret_cast<double*>(&x);
+		return a[i];
+	}
+};
 
 #endif /* SIMD_VECTOR_HPP_ */

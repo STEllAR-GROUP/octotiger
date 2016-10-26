@@ -16,6 +16,44 @@ const integer acl_i = sx_i;
 const integer acr_i = sy_i;
 const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
+const real& A = grid::Acons;
+const real& B = grid::Bcons;
+
+real ztwd_pressure(real d) {
+	const real x = pow(d / B, 1.0 / 3.0);
+	real p;
+	if (x < 0.01) {
+		p = 1.6 * A * pow(x, 5);
+	} else {
+		p = A * (x * (2.0 * x * x - 3.0) * sqrt(x * x + 1.0) + 3.0 * asinh(x));
+	}
+	return p;
+}
+
+real ztwd_enthalpy(real d) {
+	const real x = pow(d / B, 1.0 / 3.0);
+	real h;
+	if (x < 0.01) {
+		h = 4.0 * A / B * x * x;
+	} else {
+		h = 8.0 * A / B * (sqrt(x * x + 1.0) - 1.0);
+	}
+	return h;
+}
+
+real ztwd_energy(real d) {
+	return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), real(0));
+}
+
+real ztwd_sound_speed(real d, real ei) {
+	real x, dp_depsilon, dp_drho, cs2;
+	const real fgamma = grid::get_fgamma();
+	x = pow(d / B, 1.0 / 3.0);
+	dp_drho = ((8.0 * A) / (3.0 * B)) * x * x / sqrt(x * x + 1.0) + (fgamma - 1.0) * ei / d;
+	dp_depsilon = (fgamma - 1.0) * d;
+	cs2 = std::max(((fgamma - 1.0) * ei / (d * d)) * dp_depsilon + dp_drho, real(0));
+	return sqrt(cs2);
+}
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL, std::array<std::vector<real>, NF>& UR,
 	const std::vector<space_vector>& X, real omega, integer dimension, real dx) {
@@ -51,26 +89,58 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 		simd_vector ei_r = ur[egas_i] - HALF * (ur[u_i] * ur[u_i] + ur[v_i] * ur[v_i] + ur[w_i] * ur[w_i]) / ur[rho_i];
 
 		for (integer j = 0; j != this_simd_len; ++j) {
+#ifdef WD_EOS
+			ei_r[j] -= ztwd_energy(ur[rho_i][j]);
+#endif
 			if (ei_r[j] < de_switch2 * ur[egas_i][j]) {
 				ei_r[j] = std::pow(ur[tau_i][j], fgamma);
 			}
 		}
 
-		const simd_vector p_r = (fgamma - ONE) * ei_r;
+#ifndef WD_EOS
+		const
+#endif
+		simd_vector p_r = (fgamma - ONE) * ei_r;
+#ifdef WD_EOS
+		for (integer j = 0; j != this_simd_len; ++j) {
+			p_r[j] += ztwd_pressure(ur[rho_i][j]);
+		}
+		simd_vector c_r;
+		for (integer j = 0; j != this_simd_len; ++j) {
+			c_r[j] = ztwd_sound_speed(ur[rho_i][j], ei_r[j]);
+		}
+#else
 		const simd_vector c_r = sqrt(fgamma * p_r / ur[rho_i]);
+#endif
 
 		const simd_vector v_l0 = ul[u_i] / ul[rho_i];
 		const simd_vector v_l = v_l0 - vf[u_i - vx_i];
 		simd_vector ei_l = ul[egas_i] - HALF * (ul[u_i] * ul[u_i] + ul[v_i] * ul[v_i] + ul[w_i] * ul[w_i]) / ul[rho_i];
 
 		for (integer j = 0; j != this_simd_len; ++j) {
+#ifdef WD_EOS
+			ei_l[j] -= ztwd_energy(ul[rho_i][j]);
+#endif
 			if (ei_l[j] < de_switch2 * ul[egas_i][j]) {
 				ei_l[j] = std::pow(ul[tau_i][j], fgamma);
 			}
 		}
 
-		const simd_vector p_l = (fgamma - ONE) * ei_l;
+#ifndef WD_EOS
+		const
+#endif
+		simd_vector p_l = (fgamma - ONE) * ei_l;
+#ifdef WD_EOS
+		for (integer j = 0; j != this_simd_len; ++j) {
+			p_l[j] += ztwd_pressure(ul[rho_i][j]);
+		}
+		simd_vector c_l;
+		for (integer j = 0; j != this_simd_len; ++j) {
+			c_l[j] = ztwd_sound_speed(ul[rho_i][j], ei_l[j]);
+		}
+#else
 		const simd_vector c_l = sqrt(fgamma * p_l / ul[rho_i]);
+#endif
 
 		const simd_vector a = max(abs(v_r) + c_r, abs(v_l) + c_l);
 

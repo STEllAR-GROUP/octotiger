@@ -5,6 +5,7 @@
 #include <cassert>
 #include "profiler.hpp"
 #include "taylor.hpp"
+#include "helmholtz.hpp"
 #include <boost/thread/tss.hpp>
 #include "exact_sod.hpp"
 #include <hpx/include/runtime.hpp>
@@ -23,6 +24,9 @@ struct tls_data_t {
 	std::vector<std::vector<std::vector<real>>> uf;
 	std::vector<std::vector<real>> zz;
 };
+
+real grid::Acons = 0.0;
+real grid::Bcons = 0.0;
 
 class tls_t {
 private:
@@ -967,6 +971,14 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
 					V[zz_i][iii] -= dx * dx * omega / 6.0;
+#ifdef HELM_EOS
+					eos_t eos;
+					eos.e = V[egas_i][iii];
+					eos.rho = V[rho_i][iii];
+					eos.abar = 4.0;
+					eos.zbar = 2.0;
+					helmholtz_compute_T(&eos);
+#endif
 				}
 			}
 		}
