@@ -43,7 +43,7 @@ public:
 	real energy(real d) const;
 	void set_d0_using_eos(real newd, const wd_eos& other);
 	template<typename Archive>
-	void serialize(Archive &ar, const unsigned int version) {
+	void serialize(Archive &arc, const unsigned int version) {
 		arc & A;
 		arc & d0;
 	}
