@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <mpi.h>
+#include <cstring>
 #include <stack>
 #include <map>
 
