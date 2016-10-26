@@ -55,7 +55,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 
 bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
 	bool rc = false;
-	real den_floor = 1.0e-4;
+	real den_floor = 1.0e-2;
     //integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
 //	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
 	integer test_level = ((U[spc_dc_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
