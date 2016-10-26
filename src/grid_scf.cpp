@@ -94,6 +94,7 @@ void node_server::rho_mult(real f0, real f1) {
 	}
 }
 
+
 real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos e1, donor_eos e2) {
 	grid::set_omega(omega);
 	std::vector < hpx::future < real >> futs;
