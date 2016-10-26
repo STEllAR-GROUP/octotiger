@@ -320,7 +320,7 @@ void node_server::run_scf() {
 	real omega = initial_params().omega;
 	real jorb0;
 	grid::set_omega(omega);
-	for (integer i = 0; i != 50; ++i) {
+	for (integer i = 0; i != 100; ++i) {
 //		profiler_output(stdout);
 		if (asprintf(&ptr, "X.scf.%i.silo", int(i)))
 			;
