@@ -114,12 +114,12 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	}
 	current_time += 1.0e-100;
 	real a1, a2, a3;
-	e1->conversion_factors(a1, a2, a3);
+	e1.conversion_factors(a1, a2, a3);
 	set_mass_factor(a1);
 	set_length_factor(a2);
 	set_time_factor(a3);
-	grid::Acons = e1->A;
-	grid::Bcons = e1->B();
+	grid::Acons = e1.A;
+	grid::Bcons = e1.B();
 	return res;
 }
 
