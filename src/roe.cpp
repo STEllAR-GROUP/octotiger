@@ -16,8 +16,8 @@ const integer acl_i = sx_i;
 const integer acr_i = sy_i;
 const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
-const real& A = grid::Acons;
-const real& B = grid::Bcons;
+real A = grid::get_A();
+real B = grid::get_B();
 
 real ztwd_pressure(real d) {
 	const real x = pow(d / B, 1.0 / 3.0);
@@ -57,6 +57,8 @@ real ztwd_sound_speed(real d, real ei) {
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL, std::array<std::vector<real>, NF>& UR,
 	const std::vector<space_vector>& X, real omega, integer dimension, real dx) {
+	A = grid::get_A();
+	B = grid::get_B();
 
 	const real fgamma = grid::get_fgamma();
 	const std::size_t sz = UL[0].size();

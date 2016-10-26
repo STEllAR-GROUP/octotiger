@@ -15,7 +15,6 @@
 #include "geometry.hpp"
 #include <functional>
 #include <list>
-#include "eos.hpp"
 #include <set>
 #include "problem.hpp"
 #include "taylor.hpp"
@@ -25,6 +24,15 @@
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
 
+#ifdef WD_EOS
+class wd_eos;
+using accretor_eos = wd_eos;
+using donor_eos = wd_eos;
+#else
+class bipolytropic_eos;
+using accretor_eos = bipolytropic_eos;
+using donor_eos = bipolytropic_eos;
+#endif
 
 struct interaction_type {
 	std::uint16_t first;
@@ -87,8 +95,14 @@ public:
 	static void set_max_level(integer l);
 	static void set_fgamma(real);
 	static real get_fgamma();
-	static real Acons, Bcons;
+	static real get_A() {
+		return Acons;
+	}
+	static real get_B() {
+		return Bcons;
+	}
 private:
+	static real Acons, Bcons;
 	static real fgamma;
 	static integer max_level;
 	static real omega;
@@ -131,6 +145,7 @@ public:
 	void set_leaf(bool flag = true);
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
 	static void set_omega(real);
+	static void set_AB(real, real);
 	static real get_omega();
 	static void set_pivot(const space_vector& p);
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);

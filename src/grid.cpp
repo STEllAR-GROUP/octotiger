@@ -587,6 +587,23 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
+//HPX_PLAIN_ACTION(grid::set_AB, set_AB_action);
+
+void grid::set_AB(real a, real b) {
+/*	if (hpx::get_locality_id() == 0) {
+		std::list<hpx::future<void>> futs;
+		auto remotes = hpx::find_remote_localities();
+		for (auto& l : remotes) {
+			futs.push_back(hpx::async < set_AB_action > (l, a, b));
+		}
+		for (auto& f : futs) {
+			f.get();
+		}
+	}*/
+	grid::Acons = a;
+	grid::Bcons = b;
+}
+
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
 
 void grid::set_omega(real omega) {

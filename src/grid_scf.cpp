@@ -94,7 +94,6 @@ void node_server::rho_mult(real f0, real f1) {
 	}
 }
 
-
 real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, accretor_eos e1, donor_eos e2) {
 	grid::set_omega(omega);
 	std::vector < hpx::future < real >> futs;
@@ -113,13 +112,6 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 		res += fut.get();
 	}
 	current_time += 1.0e-100;
-	real a1, a2, a3;
-	e1.conversion_factors(a1, a2, a3);
-	set_mass_factor(a1);
-	set_length_factor(a2);
-	set_time_factor(a3);
-	grid::Acons = e1.A;
-	grid::Bcons = e1.B();
 	return res;
 }
 
@@ -480,6 +472,7 @@ void node_server::run_scf() {
 		real amin, jmin, mu;
 		mu = M1 * M2 / (M1 + M2);
 		amin = std::sqrt(3.0 * (is1 + is2) / mu);
+
 		jmin = std::sqrt((M1 + M2)) * (mu * std::pow(amin, 0.5) + (is1 + is2) * std::pow(amin, -1.5));
 		if (i % 5 == 0)
 			printf("%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",

@@ -9,6 +9,7 @@
 #define POLYTROPE_HPP_
 
 #include "defs.hpp"
+#include "grid.hpp"
 
 class eos {
 protected:
@@ -26,7 +27,6 @@ public:
 	virtual real pressure(real d) const=0;
 	virtual real h0() const = 0;
 };
-
 
 class wd_eos: public eos {
 public:
@@ -46,6 +46,7 @@ public:
 	void serialize(Archive &arc, const unsigned int version) {
 		arc & A;
 		arc & d0;
+		grid::set_AB(A, B());
 	}
 	virtual real h0() const;
 	void set_d0(real d);
