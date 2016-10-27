@@ -15,7 +15,7 @@ const real wdcons = (2.216281751e32 / 1.989e+33);
 extern options opts;
 
 real wd_eos::energy(real d) const {
-	return d * density_to_enthalpy(d) - pressure(d);
+	return std::max(d * density_to_enthalpy(d) - pressure(d),0.0);
 }
 
 void wd_eos::conversion_factors(real& m, real& l, real& t) const {
@@ -169,12 +169,12 @@ wd_eos::wd_eos(real M, real R) {
 	A = M / R;
 	while (true) {
 		initialize(m, r);
-		printf("%e %e  %e  %e %e  %e \n", d0, A, m, M, r, R);
+	//	printf("%e %e  %e  %e %e  %e \n", d0, A, m, M, r, R);
 		const real m0 = M / m;
 		const real r0 = R / r;
 		d0 *= m0 / (r0 * r0 * r0);
 		A /= m0 / r0;
-		if (abs(1.0 - M / m) < 1.0e-10) {
+		if (std::abs(1.0 - M / m) < 1.0e-10) {
 			break;
 		}
 	}

@@ -13,7 +13,6 @@
 #include "eos.hpp"
 #include "util.hpp"
 #include "profiler.hpp"
-#include "units.hpp"
 extern options opts;
 
 // w0 = speed of convergence. Adjust lower if nan
@@ -268,8 +267,8 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[sy_i][iiih] += +ti_omega * (x - cx) * rho;
 				U[sz_i][iiih] = 0.0;
 #ifdef WD_EOS
-				U[tau_i][iiih] = 1.0e-15;
-				U[egas_i][iiih] += std::pow(U[tau_i][iiih],1.0/fgamma);
+				U[tau_i][iiih] = 1.0e-40;
+				eint += std::pow(U[tau_i][iiih],1.0/fgamma);
 #else
 				U[tau_i][iiih] = std::pow(eint, 1.0 / fgamma);
 #endif
@@ -326,7 +325,7 @@ void node_server::run_scf() {
 			;
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
-		if (i % 5 == 0) {
+		if (i % 100 == 0 && i != 0) {
 			output(ptr, i);
 			save_to_file("scf.chk");
 
@@ -475,17 +474,18 @@ void node_server::run_scf() {
 
 		jmin = std::sqrt((M1 + M2)) * (mu * std::pow(amin, 0.5) + (is1 + is2) * std::pow(amin, -1.5));
 		if (i % 5 == 0)
-			printf("%13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
+			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
 				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "r1", "r2", "iorb", "pvol", "proche", "svol",
 				"sroche");
-		lprintf("log.txt", "%13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", rho1, rho2, M1, M2,
+		lprintf("log.txt", "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
 			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
 			diags.secondary_volume, diags.roche_vol2);
 		if (i % 10 == 0) {
 			regrid(me.get_gid(), false);
 		}
 		grid::set_omega(omega);
-
+		grid::set_AB(e2->A, e2->B());
+//		printf( "%e %e\n", grid::get_A(), grid::get_B());
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
 		solve_gravity(false);
 
@@ -526,8 +526,13 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 			}
 		}
 	}
+//	grid::set_AB(this_eos->A, this_eos->B());
 	rho = std::max(rho / nsamp, rho_floor);
+#ifdef WD_EOS
+	ei = this_eos->energy(rho);
+#else
 	ei = this_eos->pressure(rho) / (fgamma - 1.0);
+#endif
 	u[rho_i] = rho;
 #ifdef WD_EOS
 	u[spc_ac_i] = x > params.l1_x ? 0.0 : rho;
@@ -540,11 +545,14 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[spc_ae_i] = rho <= this_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
 	u[spc_de_i] = rho <= this_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
 #endif
-//	printf( "%e\n", ei);
 	u[egas_i] = ei + 0.5 * (x * x + y * y) * params.omega * params.omega;
 	u[sx_i] = -y * params.omega * rho;
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
+#ifdef WD_EOS
 	u[tau_i] = std::pow(ei, 1.0 / fgamma);
+#else
+	u[tau_i] = std::pow(1.0e-15, 1.0 / fgamma);
+#endif
 	return u;
 }

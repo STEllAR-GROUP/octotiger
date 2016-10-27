@@ -46,7 +46,7 @@ public:
 	void serialize(Archive &arc, const unsigned int version) {
 		arc & A;
 		arc & d0;
-		grid::set_AB(A, B());
+//		grid::set_AB(A, B());
 	}
 	virtual real h0() const;
 	void set_d0(real d);

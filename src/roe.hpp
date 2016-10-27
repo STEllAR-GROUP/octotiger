@@ -12,6 +12,10 @@
 #include "space_vector.hpp"
 #include <vector>
 
+real ztwd_energy(real d);
+real ztwd_enthalpy(real d);
+
+
 constexpr real de_switch2 = real(1.0e-3);
 constexpr real de_switch1 = real(1.0e-1);
 

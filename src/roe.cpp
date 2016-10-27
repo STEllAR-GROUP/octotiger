@@ -16,10 +16,10 @@ const integer acl_i = sx_i;
 const integer acr_i = sy_i;
 const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
-real A = grid::get_A();
-real B = grid::get_B();
 
 real ztwd_pressure(real d) {
+	const real A = grid::get_A();
+	const real B = grid::get_B();
 	const real x = pow(d / B, 1.0 / 3.0);
 	real p;
 	if (x < 0.01) {
@@ -31,6 +31,8 @@ real ztwd_pressure(real d) {
 }
 
 real ztwd_enthalpy(real d) {
+	const real A = grid::get_A();
+	const real B = grid::get_B();
 	const real x = pow(d / B, 1.0 / 3.0);
 	real h;
 	if (x < 0.01) {
@@ -46,6 +48,8 @@ real ztwd_energy(real d) {
 }
 
 real ztwd_sound_speed(real d, real ei) {
+	const real A = grid::get_A();
+	const real B = grid::get_B();
 	real x, dp_depsilon, dp_drho, cs2;
 	const real fgamma = grid::get_fgamma();
 	x = pow(d / B, 1.0 / 3.0);
@@ -57,8 +61,6 @@ real ztwd_sound_speed(real d, real ei) {
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL, std::array<std::vector<real>, NF>& UR,
 	const std::vector<space_vector>& X, real omega, integer dimension, real dx) {
-	A = grid::get_A();
-	B = grid::get_B();
 
 	const real fgamma = grid::get_fgamma();
 	const std::size_t sz = UL[0].size();

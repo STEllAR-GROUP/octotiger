@@ -8,6 +8,9 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
+#define NPF 5
+
+
 #include "simd.hpp"
 #include "defs.hpp"
 #include "roe.hpp"
@@ -154,7 +157,7 @@ public:
 	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = { 1, 1, 1 },
 		const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
 	void compute_primitives(const std::array<integer, NDIM> lb = { 1, 1, 1 }, const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 },
-		bool tau_only = false);
+		bool tau_only = false) const;
 	void set_coordinates();
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
@@ -268,12 +271,12 @@ struct grid::node_point {
 struct grid::output_list_type {
 	std::set<node_point> nodes;
 	std::vector<zone_int_type> zones;
-	std::array<std::vector<real>, NF + NGF> data;
+	std::array<std::vector<real>, NF + NGF + NPF> data;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;
 		arc & zones;
-		for (integer i = 0; i != NF + NGF; ++i) {
+		for (integer i = 0; i != NF + NGF + NPF; ++i) {
 			arc & data[i];
 		}
 	}

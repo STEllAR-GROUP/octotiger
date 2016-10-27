@@ -121,7 +121,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 			if (hydro_on && opts.problem == DWD) {
 				diagnostics();
 			}
-			grid::output(my_list, "data.silo", current_time, get_rotation_count() * OUTPUT_FREQ);
+			grid::output(my_list, "data.silo", current_time, get_rotation_count() / opts.output_dt);
 		}
 		printf("Loaded checkpoint file\n");
 		my_list = decltype(my_list)();
@@ -409,6 +409,7 @@ void node_server::start_run(bool scf) {
 		diagnostics();
 		return;
 	}
+	printf( "%e %e\n", grid::get_A(), grid::get_B());
 	if (scf) {
 		run_scf();
 		set_pivot();

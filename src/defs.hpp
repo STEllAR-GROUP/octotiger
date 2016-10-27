@@ -57,7 +57,7 @@ enum gsolve_type {
 //#include <mutex>
 
 #define USE_ROTATING_FRAME
-#define OUTPUT_FREQ (100.0)
+//#define OUTPUT_FREQ (100.0)
 
 //#define USE_SPHERICAL
 constexpr integer M_POLES = 3;

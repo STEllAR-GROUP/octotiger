@@ -4,6 +4,8 @@
 #include "helmholtz.hpp"
 #include "const.h"
 
+#ifdef HELMHOLTZ
+
 #define IMAX 1081
 #define JMAX 401
 
@@ -488,4 +490,5 @@ void helmholtz_compute_T(eos_t* eos) {
 	}
   }
 }
+#endif
 

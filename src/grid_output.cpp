@@ -14,6 +14,8 @@ namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
 }
 
+std::vector<std::vector<real>>& TLS_V();
+
 #include <unordered_map>
 
 inline bool float_eq(xpoint_type a, xpoint_type b) {
@@ -47,52 +49,53 @@ bool grid::node_point::operator<(const node_point& other) const {
 	return rc;
 }
 
-void grid::merge_output_lists(grid::output_list_type& l1,
-		grid::output_list_type&& l2) {
+void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type&& l2) {
 
-			std::unordered_map<zone_int_type, zone_int_type> index_map;
+	std::unordered_map<zone_int_type, zone_int_type> index_map;
 
-			if (l2.zones.size() > l1.zones.size()) {
-				auto tmp = std::move(l2);
-				l2 = std::move(l1);
-				l1 = std::move(tmp);
-			}
-			for (auto i = l2.nodes.begin(); i != l2.nodes.end(); ++i) {
-				zone_int_type index, oindex;
-				auto this_x = *i;
-				oindex = this_x.index;
-				auto j = l1.nodes.find(this_x);
-				if (j != l1.nodes.end()) {
-					index = j->index;
-				} else {
-					index = l1.nodes.size();
-					this_x.index = index;
-					l1.nodes.insert(this_x);
-				}
-				index_map[oindex] = index;
-			}
-			integer zzz = l1.zones.size();
-			l1.zones.resize(zzz + l2.zones.size());
-			for (auto i = l2.zones.begin(); i != l2.zones.end(); ++i) {
-				l1.zones[zzz] = index_map[*i];
-				++zzz;
-			}
-			for (integer field = 0; field < NF + NGF; ++field) {
-				const auto l1sz = l1.data[field].size();
-				l1.data[field].resize(l1sz + l2.data[field].size());
-				std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
-			}
+	if (l2.zones.size() > l1.zones.size()) {
+		auto tmp = std::move(l2);
+		l2 = std::move(l1);
+		l1 = std::move(tmp);
+	}
+	for (auto i = l2.nodes.begin(); i != l2.nodes.end(); ++i) {
+		zone_int_type index, oindex;
+		auto this_x = *i;
+		oindex = this_x.index;
+		auto j = l1.nodes.find(this_x);
+		if (j != l1.nodes.end()) {
+			index = j->index;
+		} else {
+			index = l1.nodes.size();
+			this_x.index = index;
+			l1.nodes.insert(this_x);
 		}
+		index_map[oindex] = index;
+	}
+	integer zzz = l1.zones.size();
+	l1.zones.resize(zzz + l2.zones.size());
+	for (auto i = l2.zones.begin(); i != l2.zones.end(); ++i) {
+		l1.zones[zzz] = index_map[*i];
+		++zzz;
+	}
+	for (integer field = 0; field < NF + NGF + NPF; ++field) {
+		const auto l1sz = l1.data[field].size();
+		l1.data[field].resize(l1sz + l2.data[field].size());
+		std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
+	}
+}
 
 grid::output_list_type grid::get_output_list() const {
+	auto& V = TLS_V();
+	compute_primitives();
 	output_list_type rc;
 	const integer vertex_order[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
 
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
-	std::array < std::vector<real>, NF + NGF > &data = rc.data;
+	std::array < std::vector<real>, NF + NGF + NPF > &data = rc.data;
 
-	for (integer field = 0; field != NF + NGF; ++field) {
+	for (integer field = 0; field != NF + NGF + NPF; ++field) {
 		data[field].reserve(INX * INX * INX);
 	}
 	const integer this_bw = H_BW;
@@ -103,8 +106,7 @@ grid::output_list_type grid::get_output_list() const {
 				const integer iii = hindex(i, j, k);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
 #ifdef EQ_ONLY
-				if (!(std::abs(X[ZDIM][iii]) < dx)
-						&& !(std::abs(X[YDIM][iii]) < dx)) {
+				if (!(std::abs(X[ZDIM][iii]) < dx) && !(std::abs(X[YDIM][iii]) < dx)) {
 					continue;
 				}
 #endif
@@ -135,6 +137,11 @@ grid::output_list_type grid::get_output_list() const {
 				for (integer field = 0; field != NGF; ++field) {
 					data[field + NF].push_back(G[iiig][field]);
 				}
+				data[NGF + NF + 0].push_back(V[vx_i][iii]);
+				data[NGF + NF + 1].push_back(V[vy_i][iii]);
+				data[NGF + NF + 2].push_back(V[vz_i][iii]);
+				data[NGF + NF + 3].push_back(V[egas_i][iii]);
+				data[NGF + NF + 4].push_back(V[zz_i][iii]);
 			}
 		}
 	}
@@ -142,83 +149,82 @@ grid::output_list_type grid::get_output_list() const {
 	return rc;
 }
 
-void grid::output(const output_list_type& olists, std::string _filename,
-		real _t, int cycle) {
+void grid::output(const output_list_type& olists, std::string _filename, real _t, int cycle) {
 #ifdef DO_OUTPUT
 
 	std::thread(
-			[&](const std::string& filename, real t) {
-				printf( "t = %e\n", t);
-				const std::set<node_point>& node_list = olists.nodes;
-				const std::vector<zone_int_type>& zone_list = olists.zones;
+		[&](const std::string& filename, real t) {
+			printf( "t = %e\n", t);
+			const std::set<node_point>& node_list = olists.nodes;
+			const std::vector<zone_int_type>& zone_list = olists.zones;
 
-				const int nzones = zone_list.size() / NVERTEX;
-				std::vector<int> zone_nodes;
-				zone_nodes = std::move(zone_list);
+			const int nzones = zone_list.size() / NVERTEX;
+			std::vector<int> zone_nodes;
+			zone_nodes = std::move(zone_list);
 
-				const int nnodes = node_list.size();
-				std::vector<double> x_coord(nnodes);
-				std::vector<double> y_coord(nnodes);
-				std::vector<double> z_coord(nnodes);
-				std::array<double*, NDIM> node_coords = {x_coord.data(), y_coord.data(), z_coord.data()};
-				for (auto iter = node_list.begin(); iter != node_list.end(); ++iter) {
-					const integer i = iter->index;
-					x_coord[i] = iter->pt[0];
-					y_coord[i] = iter->pt[1];
-					z_coord[i] = iter->pt[2];
-				}
+			const int nnodes = node_list.size();
+			std::vector<double> x_coord(nnodes);
+			std::vector<double> y_coord(nnodes);
+			std::vector<double> z_coord(nnodes);
+			std::array<double*, NDIM> node_coords = {x_coord.data(), y_coord.data(), z_coord.data()};
+			for (auto iter = node_list.begin(); iter != node_list.end(); ++iter) {
+				const integer i = iter->index;
+				x_coord[i] = iter->pt[0];
+				y_coord[i] = iter->pt[1];
+				z_coord[i] = iter->pt[2];
+			}
 
-				constexpr
-				int nshapes = 1;
-				int shapesize[1] = {NVERTEX};
-				int shapetype[1] = {DB_ZONETYPE_HEX};
-				int shapecnt[1] = {nzones};
-				const char* coord_names[NDIM] = {"x", "y", "z"};
+			constexpr
+			int nshapes = 1;
+			int shapesize[1] = {NVERTEX};
+			int shapetype[1] = {DB_ZONETYPE_HEX};
+			int shapecnt[1] = {nzones};
+			const char* coord_names[NDIM] = {"x", "y", "z"};
 
 #ifndef	__MIC__
+		auto olist = DBMakeOptlist(1);
+		double time = double(t);
+		int ndim = 3;
+		DBAddOption(olist, DBOPT_CYCLE, &cycle);
+		DBAddOption(olist, DBOPT_DTIME, &time);
+		DBAddOption(olist, DBOPT_NSPACE, &ndim );
+		DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
+		assert(db);
+		DBPutZonelist2(db, "zones", nzones, int(NDIM), zone_nodes.data(), nzones * NVERTEX, 0, 0, 0, shapetype, shapesize,
+			shapecnt, nshapes, olist);
+		DBPutUcdmesh(db, "mesh", int(NDIM), const_cast<char**>(coord_names), node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
+			olist);
+		const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint", "zzs"};
+		DBFreeOptlist(olist);
+		for (int field = 0; field != NF + NGF + NPF; ++field) {
 			auto olist = DBMakeOptlist(1);
 			double time = double(t);
-			int ndim = 3;
+			int istrue = 1;
+			int isfalse = 0;
 			DBAddOption(olist, DBOPT_CYCLE, &cycle);
 			DBAddOption(olist, DBOPT_DTIME, &time);
 			DBAddOption(olist, DBOPT_NSPACE, &ndim );
-			DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
-			assert(db);
-			DBPutZonelist2(db, "zones", nzones, int(NDIM), zone_nodes.data(), nzones * NVERTEX, 0, 0, 0, shapetype, shapesize,
-					shapecnt, nshapes, olist);
-			DBPutUcdmesh(db, "mesh", int(NDIM), const_cast<char**>(coord_names), node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
-					olist);
-			const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz"};
-			DBFreeOptlist(olist);
-			for (int field = 0; field != NF + NGF; ++field) {
-				auto olist = DBMakeOptlist(1);
-				double time = double(t);
-				int istrue = 1;
-				int isfalse = 0;
-				DBAddOption(olist, DBOPT_CYCLE, &cycle);
-				DBAddOption(olist, DBOPT_DTIME, &time);
-				DBAddOption(olist, DBOPT_NSPACE, &ndim );
-				if( field == rho_i || field == sx_i || field == sy_i || field == sz_i || field == spc_ac_i || field == spc_ae_i || field == spc_dc_i || field == spc_de_i || field == spc_vac_i ) {
-					DBAddOption(olist, DBOPT_CONSERVED, &istrue);
-				} else {
-					DBAddOption(olist, DBOPT_CONSERVED, &isfalse );
-				}
-				if( field < NF ) {
-					DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
-				} else {
-					DBAddOption(olist, DBOPT_EXTENSIVE, &isfalse);
-				}
+			if( field == rho_i || field == sx_i || field == sy_i || field == sz_i || field == spc_ac_i || field == spc_ae_i || field == spc_dc_i || field == spc_de_i || field == spc_vac_i ) {
+				DBAddOption(olist, DBOPT_CONSERVED, &istrue);
+			} else {
+				DBAddOption(olist, DBOPT_CONSERVED, &isfalse );
+			}
+			if( field < NF ) {
 				DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
-				DBPutUcdvar1(db, field_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.data[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
-						olist);
-				DBFreeOptlist(olist);
+			} else {
+				DBAddOption(olist, DBOPT_EXTENSIVE, &isfalse);
+			}
+			DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
+			DBPutUcdvar1(db, field_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.data[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
+				olist);
+			DBFreeOptlist(olist);
 #ifdef RHO_ONLY
-			break;
+		break;
 #endif
-		}
-		DBClose(db);
+	}
+	DBClose(db);
 #endif
-		}, _filename, _t).join();
+	}, _filename, _t).join();
 #endif
 }
 

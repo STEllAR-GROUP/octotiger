@@ -299,5 +299,90 @@ public:
 		return a[i];
 	}
 };
+/*
+
+class v4sd {
+private:
+	double x[4];
+public:
+	inline v4sd& operator=(const v4sd& other) {
+		for( int i = 0; i != 4; i++) {
+			x[i] = other.x[i];
+		}
+		return *this;
+	}
+	inline v4sd(const v4sd& other) {
+		for( int i = 0; i != 4; i++) {
+			x[i] = other.x[i];
+		}
+	}
+	inline v4sd() {
+	}
+	inline v4sd(const std::initializer_list<double>& other) {
+		std::array<double, 4> n;
+		auto j = other.begin();
+		for (int i = 0; i != 4; ++i) {
+			(*this)[i] = *j;
+			++j;
+		}
+	}
+	inline v4sd& operator=(double other) {
+		for( int i = 0; i != 4; i++) {
+			x[i] = other;
+		}
+		return *this;
+		return *this;
+	}
+	inline v4sd operator+(const v4sd& other) const {
+		v4sd r;
+		for( int i = 0; i != 4; i++) {
+			r.x[i] = x[i] + other.x[i];
+		}
+		return r;
+	}
+	inline v4sd operator-(const v4sd& other) const {
+		v4sd r;
+		for( int i = 0; i != 4; i++) {
+			r.x[i] = x[i] - other.x[i];
+		}
+		return r;
+	}
+	inline v4sd operator*(const v4sd& other) const {
+		v4sd r;
+		for( int i = 0; i != 4; i++) {
+			r.x[i] = x[i] * other.x[i];
+		}
+		return r;
+	}
+	inline v4sd operator/(const v4sd& other) const {
+		v4sd r;
+		for( int i = 0; i != 4; i++) {
+			r.x[i] = x[i] / other.x[i];
+		}
+		return r;
+	}
+	inline v4sd& operator+=(const v4sd& other) {
+		*this = *this + other;
+		return *this;
+	}
+	inline v4sd& operator-=(const v4sd& other) {
+		*this = *this - other;
+		return *this;
+	}
+	inline v4sd& operator*=(const v4sd& other) {
+		*this = *this * other;
+		return *this;
+	}
+	inline v4sd& operator/=(const v4sd& other) {
+		*this = *this / other;
+		return *this;
+	}
+	inline const double& operator[](int i) const {
+		return x[i];
+	}
+	inline double& operator[](int i) {
+		return x[i];
+	}
+};*/
 
 #endif /* SIMD_VECTOR_HPP_ */

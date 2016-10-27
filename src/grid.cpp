@@ -25,8 +25,8 @@ struct tls_data_t {
 	std::vector<std::vector<real>> zz;
 };
 
-real grid::Acons = 0.0;
-real grid::Bcons = 0.0;
+real grid::Acons = 1.0;
+real grid::Bcons = 1.0;
 
 class tls_t {
 private:
@@ -56,7 +56,7 @@ public:
 
 static tls_t tls;
 
-static std::vector<std::vector<real>>& TLS_V() {
+std::vector<std::vector<real>>& TLS_V() {
 	return tls.get_ptr()->v;
 }
 
@@ -587,10 +587,10 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
-//HPX_PLAIN_ACTION(grid::set_AB, set_AB_action);
+HPX_PLAIN_ACTION(grid::set_AB, set_AB_action);
 
 void grid::set_AB(real a, real b) {
-/*	if (hpx::get_locality_id() == 0) {
+	if (hpx::get_locality_id() == 0) {
 		std::list<hpx::future<void>> futs;
 		auto remotes = hpx::find_remote_localities();
 		for (auto& l : remotes) {
@@ -599,7 +599,7 @@ void grid::set_AB(real a, real b) {
 		for (auto& f : futs) {
 			f.get();
 		}
-	}*/
+	}
 	grid::Acons = a;
 	grid::Bcons = b;
 }
@@ -962,7 +962,7 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 	allocate();
 }
 
-void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) {
+void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) const {
 	PROF_BEGIN;
 	auto& V = TLS_V();
 	if (!etot_only) {
@@ -974,7 +974,8 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[rho_i][iii] = U[rho_i][iii];
 					V[tau_i][iii] = U[tau_i][iii];
 					const real rhoinv = 1.0 / V[rho_i][iii];
-					V[egas_i][iii] = U[egas_i][iii] * rhoinv;
+
+					V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii])) * rhoinv;
 					for (integer si = 0; si != NSPECIES; ++si) {
 						V[spc_i + si][iii] = U[spc_i + si][iii] * rhoinv;
 					}
@@ -985,17 +986,10 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 						V[egas_i][iii] -= 0.5 * v * v;
 						V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
 					}
+
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
 					V[zz_i][iii] -= dx * dx * omega / 6.0;
-#ifdef HELM_EOS
-					eos_t eos;
-					eos.e = V[egas_i][iii];
-					eos.rho = V[rho_i][iii];
-					eos.abar = 4.0;
-					eos.zbar = 2.0;
-					helmholtz_compute_T(&eos);
-#endif
 				}
 			}
 		}
@@ -1007,7 +1001,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					const integer iii = hindex(i, j, k);
 					V[rho_i][iii] = U[rho_i][iii];
 					const real rhoinv = 1.0 / V[rho_i][iii];
-					V[egas_i][iii] = U[egas_i][iii] * rhoinv;
+					V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii])) * rhoinv;
 					for (integer d = 0; d != NDIM; ++d) {
 						auto& v = V[sx_i + d][iii];
 						v = U[sx_i + d][iii] * rhoinv;
@@ -1117,6 +1111,8 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * std::pow(V[sx_i + d1][iii], 2);
 							dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii]; // + dV[zx_i + d1][iii] * V[rho_i][iii];
 						}
+
+						V[egas_i][iii] += ztwd_enthalpy(V[rho_i][iii]) * dV[rho_i][iii];
 						dU[tau_i][iii] = dV[tau_i][iii];
 					}
 				}
@@ -1351,6 +1347,15 @@ void grid::reconstruct() {
 				Uf[face][zz_i][iii] = V[zz_i][iii] - zz_lim * dx;
 			}
 		}
+	} else {
+#pragma GCC ivdep
+		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
+			for (int face = 0; face != NFACE; ++face) {
+				Uf[face][zx_i][iii] = V[zx_i][iii];
+				Uf[face][zy_i][iii] = V[zy_i][iii];
+				Uf[face][zz_i][iii] = V[zz_i][iii];
+			}
+		}
 	}
 	for (integer field = 0; field != NF; ++field) {
 		if (field >= zx_i && field <= zz_i) {
@@ -1488,6 +1493,8 @@ void grid::reconstruct() {
 					Uf[face][egas_i][iii] += HALF * Uf[face][sx_i][iii] * Uf[face][sx_i][iii] / Uf[face][rho_i][iii];
 					Uf[face][egas_i][iii] += HALF * Uf[face][sy_i][iii] * Uf[face][sy_i][iii] / Uf[face][rho_i][iii];
 					Uf[face][egas_i][iii] += HALF * Uf[face][sz_i][iii] * Uf[face][sz_i][iii] / Uf[face][rho_i][iii];
+
+					Uf[face][egas_i][iii] += ztwd_energy(Uf[face][rho_i][iii]);
 				}
 			}
 		}
@@ -1966,7 +1973,7 @@ void grid::dual_energy_update() {
 				ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
 				ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
 				ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
-				real ei = U[egas_i][iii] - ek;
+				real ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
 				real et = U[egas_i][iii];
 				et = std::max(et, U[egas_i][iii + H_DNX]);
 				et = std::max(et, U[egas_i][iii - H_DNX]);
