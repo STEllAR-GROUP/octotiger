@@ -33,8 +33,7 @@ add_hpx_executable(
   octotiger
   DEPENDENCIES
         silo
-  SOURCES 
-        src/units.cpp
+  SOURCES
       	src/helmholtz.cpp
       	src/eos.cpp
         src/sedov3.f
@@ -43,7 +42,7 @@ add_hpx_executable(
         src/scf_data.cpp
         src/exact_sod.cpp
         src/sedov.c
-        src/profiler.cpp	
+        src/profiler.cpp
 	src/geometry.cpp
 	src/grid.cpp
 	src/grid_fmm.cpp
@@ -62,7 +61,7 @@ add_hpx_executable(
 	src/stack_trace.cpp
 	src/taylor.cpp
      	src/util.cpp
-   HEADERS 
+   HEADERS
         src/diagnostics.hpp
 		src/channel.hpp
 		src/defs.hpp
