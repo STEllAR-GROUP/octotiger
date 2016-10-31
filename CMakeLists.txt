@@ -8,6 +8,7 @@ project(octotiger CXX)
 
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 ################################################################################
 # enable solution folders for MSVC
@@ -18,9 +19,10 @@ endif()
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(MPI REQUIRED)
+find_package(Silo REQUIRED)
 
 ################################################################################
-include_directories(${CMAKE_SOURCE_DIR}/src ~/include)
+include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
 
 set( CMAKE_CXX_FLAGS "-I/usr/include/mpi -std=c++14 -g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )
 set( CMAKE_C_FLAGS "-I/usr/include/mpi -g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )
@@ -32,9 +34,8 @@ enable_language(Fortran)
 add_hpx_executable(
   octotiger
   DEPENDENCIES
-        silo
-  SOURCES 
-        src/units.cpp
+        ${Silo_LIBRARY}
+  SOURCES
       	src/helmholtz.cpp
       	src/eos.cpp
         src/sedov3.f
@@ -43,7 +44,7 @@ add_hpx_executable(
         src/scf_data.cpp
         src/exact_sod.cpp
         src/sedov.c
-        src/profiler.cpp	
+        src/profiler.cpp
 	src/geometry.cpp
 	src/grid.cpp
 	src/grid_fmm.cpp
@@ -62,7 +63,7 @@ add_hpx_executable(
 	src/stack_trace.cpp
 	src/taylor.cpp
      	src/util.cpp
-   HEADERS 
+   HEADERS
         src/diagnostics.hpp
 		src/channel.hpp
 		src/defs.hpp
