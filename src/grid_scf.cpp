@@ -326,7 +326,7 @@ void node_server::run_scf() {
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
 		if (i % 100 == 0 && i != 0) {
-			output(ptr, i);
+			output(ptr, i, false);
 			save_to_file("scf.chk");
 
 		}
@@ -484,7 +484,9 @@ void node_server::run_scf() {
 			regrid(me.get_gid(), false);
 		}
 		grid::set_omega(omega);
+#ifdef WD_EOS
 		grid::set_AB(e2->A, e2->B());
+#endif
 //		printf( "%e %e\n", grid::get_A(), grid::get_B());
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
 		solve_gravity(false);

@@ -13,6 +13,7 @@
 #include <functional>
 
 using init_func_type = std::function<std::vector<real>(real,real,real,real)>;
+using analytic_func_type = init_func_type;
 using refine_test_type = std::function<bool(integer,integer, real,real,real,std::vector<real>,std::array<std::vector<real>,NDIM>)>;
 
 std::vector<real> old_scf(real, real, real, real, real, real, real);

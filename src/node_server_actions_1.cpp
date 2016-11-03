@@ -112,7 +112,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 	}
 	//printf( "***************************************\n" );
 	if (!is_refined && do_output) {
-		my_list = grid_ptr->get_output_list();
+		my_list = grid_ptr->get_output_list(false);
 		//	grid_ptr = nullptr;
 	}
 //	hpx::async<inc_grids_loaded_action>(localities[0]).get();
@@ -121,7 +121,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 			if (hydro_on && opts.problem == DWD) {
 				diagnostics();
 			}
-			grid::output(my_list, "data.silo", current_time, get_rotation_count() / opts.output_dt);
+			grid::output(my_list, "data.silo", current_time, get_rotation_count() / opts.output_dt, false);
 		}
 		printf("Loaded checkpoint file\n");
 		my_list = decltype(my_list)();
@@ -133,15 +133,15 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 typedef node_server::output_action output_action_type;
 HPX_REGISTER_ACTION (output_action_type);
 
-hpx::future<grid::output_list_type> node_client::output(std::string fname, int cycle) const {
-	return hpx::async<typename node_server::output_action>(get_gid(), fname, cycle);
+hpx::future<grid::output_list_type> node_client::output(std::string fname, int cycle, bool flag) const {
+	return hpx::async<typename node_server::output_action>(get_gid(), fname, cycle, flag);
 }
 
-grid::output_list_type node_server::output(std::string fname, int cycle) const {
+grid::output_list_type node_server::output(std::string fname, int cycle, bool analytic) const {
 	if (is_refined) {
 		std::list<hpx::future<grid::output_list_type>> futs;
 		for (auto i = children.begin(); i != children.end(); ++i) {
-			futs.push_back(i->output(fname, cycle));
+			futs.push_back(i->output(fname, cycle, analytic));
 		}
 		auto i = futs.begin();
 		grid::output_list_type my_list = i->get();
@@ -152,14 +152,14 @@ grid::output_list_type node_server::output(std::string fname, int cycle) const {
 		if (my_location.level() == 0) {
 //			hpx::apply([](const grid::output_list_type& olists, const char* filename) {
 			printf("Outputing...\n");
-			grid::output(my_list, fname, get_time(), cycle);
+			grid::output(my_list, fname, get_time(), cycle, analytic);
 			printf("Done...\n");
 			//		}, std::move(my_list), fname.c_str());
 		}
 		return my_list;
 
 	} else {
-		return grid_ptr->get_output_list();
+		return grid_ptr->get_output_list(analytic);
 	}
 
 }
@@ -409,7 +409,7 @@ void node_server::start_run(bool scf) {
 		diagnostics();
 		return;
 	}
-	printf( "%e %e\n", grid::get_A(), grid::get_B());
+	printf("%e %e\n", grid::get_A(), grid::get_B());
 	if (scf) {
 		run_scf();
 		set_pivot();
@@ -454,7 +454,7 @@ void node_server::start_run(bool scf) {
 			free(fname);
 			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
 			}
-			output(fname, output_cnt);
+			output(fname, output_cnt, false);
 			free(fname);
 			//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
 			//	}
@@ -527,6 +527,8 @@ void node_server::start_run(bool scf) {
 			break;
 		}
 	}
+	compare_analytic();
+	output("final.silo", output_cnt, true);
 }
 
 typedef node_server::step_action step_action_type;
@@ -559,6 +561,7 @@ void node_server::step() {
 	}
 	for (integer rk = 0; rk < NRK; ++rk) {
 		if (!is_refined) {
+			printf( "%i\n", int(rk));
 			grid_ptr->reconstruct();
 			a = grid_ptr->compute_fluxes();
 			fut_flux = exchange_flux_corrections();
@@ -584,7 +587,7 @@ void node_server::step() {
 			grid_ptr->next_u(rk, current_time, dt);
 		}
 		compute_fmm(RHO, true);
-		fut = all_hydro_bounds(rk == NRK - 1);
+		fut = all_hydro_bounds();
 	}
 	fut.get();
 	grid_ptr->dual_energy_update();

@@ -8,11 +8,10 @@
 #include <hpx/lcos/wait_all.hpp>
 #include <hpx/runtime/serialization/list.hpp>
 
-
 #include <mpi.h>
 
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
-HPX_REGISTER_ACTION(check_for_refinement_action_type);
+HPX_REGISTER_ACTION (check_for_refinement_action_type);
 
 hpx::future<bool> node_client::check_for_refinement() const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_gid());
@@ -38,7 +37,7 @@ bool node_server::check_for_refinement() {
 		if (refinement_flag++ == 0) {
 			if (!parent.empty()) {
 				const auto neighbors = my_location.get_neighbors();
-				parent.force_nodes_to_exist(std::list<node_location>(neighbors.begin(), neighbors.end())).get();
+				parent.force_nodes_to_exist(std::list < node_location > (neighbors.begin(), neighbors.end())).get();
 			}
 		}
 	}
@@ -46,7 +45,7 @@ bool node_server::check_for_refinement() {
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
-HPX_REGISTER_ACTION(copy_to_locality_action_type);
+HPX_REGISTER_ACTION (copy_to_locality_action_type);
 
 hpx::future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const {
 	return hpx::async<typename node_server::copy_to_locality_action>(get_gid(), id);
@@ -54,14 +53,15 @@ hpx::future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) 
 
 hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 
-	std::vector<hpx::id_type> cids;
+	std::vector < hpx::id_type > cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
 		for (auto& ci : geo::octant::full_set()) {
 			cids[ci] = children[ci].get_gid();
 		}
 	}
-	auto rc = hpx::new_<node_server>(id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids);
+	auto rc = hpx::new_ < node_server
+		> (id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids);
 	clear_family();
 	return rc;
 }
@@ -69,11 +69,44 @@ hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) 
 extern options opts;
 
 typedef node_server::diagnostics_action diagnostics_action_type;
-HPX_REGISTER_ACTION(diagnostics_action_type);
+HPX_REGISTER_ACTION (diagnostics_action_type);
 
 hpx::future<diagnostics_t> node_client::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1,
 	real c2) const {
 	return hpx::async<typename node_server::diagnostics_action>(get_gid(), axis, l1, c1, c2);
+}
+
+typedef node_server::compare_analytic_action compare_analytic_action_type;
+HPX_REGISTER_ACTION (compare_analytic_action_type);
+
+hpx::future<analytic_t> node_client::compare_analytic() const {
+	return hpx::async<typename node_server::compare_analytic_action>(get_gid());
+}
+
+analytic_t node_server::compare_analytic() {
+	analytic_t a;
+	if (!is_refined) {
+		a = grid_ptr->compute_analytic(current_time);
+	} else {
+		std::vector < hpx::future < analytic_t >> futs;
+		futs.reserve(NCHILD);
+		for (integer i = 0; i != NCHILD; ++i) {
+			futs.push_back(children[i].compare_analytic());
+		}
+		for (integer i = 0; i != NCHILD; ++i) {
+			a += futs[i].get();
+		}
+	}
+	if (my_location.level() == 0) {
+		for (integer field = 0; field != NF; ++field) {
+			if (a.l1a[field] > 0.0) {
+				printf("%i %e %e %e\n", int(field), a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]), a.linf[field] / a.linfa[field]);
+			} else {
+				printf("%i\n", int(field));
+			}
+		}
+	}
+	return a;
 }
 
 diagnostics_t node_server::diagnostics() const {
@@ -197,7 +230,7 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
 
 	diagnostics_t sums;
 	if (is_refined) {
-		std::list<hpx::future<diagnostics_t>> futs;
+		std::list < hpx::future < diagnostics_t >> futs;
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			futs.push_back(children[ci].diagnostics(axis, l1, c1, c2));
 		}
@@ -235,7 +268,7 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
 
 diagnostics_t::diagnostics_t() :
 	primary_sum(NF, ZERO), secondary_sum(NF, ZERO), grid_sum(NF, ZERO), outflow_sum(NF, ZERO), l_sum(NDIM, ZERO), field_max(NF,
-		-std::numeric_limits<real>::max()), field_min(NF, +std::numeric_limits<real>::max()), gforce_sum(NDIM, ZERO), gtorque_sum(NDIM, ZERO) {
+		-std::numeric_limits < real > ::max()), field_min(NF, +std::numeric_limits < real > ::max()), gforce_sum(NDIM, ZERO), gtorque_sum(NDIM, ZERO) {
 	for (integer d = 0; d != NDIM; ++d) {
 		primary_z_moment = secondary_z_moment = z_moment = 0.0;
 		roche_vol1 = roche_vol2 = primary_volume = secondary_volume = 0.0;
@@ -307,7 +340,7 @@ diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
 }
 
 typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;
-HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
+HPX_REGISTER_ACTION (force_nodes_to_exist_action_type);
 
 hpx::future<void> node_client::force_nodes_to_exist(std::list<node_location>&& locs) const {
 	return hpx::async<typename node_server::force_nodes_to_exist_action>(get_gid(), std::move(locs));
@@ -316,13 +349,13 @@ hpx::future<void> node_client::force_nodes_to_exist(std::list<node_location>&& l
 void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
 	std::list<hpx::future<void>> futs;
 	std::list<node_location> parent_list;
-	std::vector<std::list<node_location>> child_lists(NCHILD);
+	std::vector < std::list < node_location >> child_lists(NCHILD);
 	for (auto& loc : locs) {
 		assert(loc != my_location);
 		if (loc.is_child_of(my_location)) {
 			if (refinement_flag++ == 0 && !parent.empty()) {
 				const auto neighbors = my_location.get_neighbors();
-				parent.force_nodes_to_exist(std::list<node_location>(neighbors.begin(), neighbors.end())).get();
+				parent.force_nodes_to_exist(std::list < node_location > (neighbors.begin(), neighbors.end())).get();
 			}
 			if (is_refined) {
 				for (auto& ci : geo::octant::full_set()) {
@@ -351,7 +384,7 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
 }
 
 typedef node_server::form_tree_action form_tree_action_type;
-HPX_REGISTER_ACTION(form_tree_action_type);
+HPX_REGISTER_ACTION (form_tree_action_type);
 
 hpx::future<void> node_client::form_tree(const hpx::id_type& id1, const hpx::id_type& id2, const std::vector<hpx::id_type>& ids) {
 	return hpx::async<typename node_server::form_tree_action>(get_gid(), id1, id2, std::move(ids));
@@ -373,8 +406,8 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 		for (integer cx = 0; cx != 2; ++cx) {
 			for (integer cy = 0; cy != 2; ++cy) {
 				for (integer cz = 0; cz != 2; ++cz) {
-					std::vector<hpx::future<hpx::id_type>> child_neighbors_f(geo::direction::count());
-					std::vector<hpx::id_type> child_neighbors(geo::direction::count());
+					std::vector < hpx::future < hpx::id_type >> child_neighbors_f(geo::direction::count());
+					std::vector < hpx::id_type > child_neighbors(geo::direction::count());
 					const integer ci = cx + 2 * cy + 4 * cz;
 					for (integer dx = -1; dx != 2; ++dx) {
 						for (integer dy = -1; dy != 2; ++dy) {
@@ -388,7 +421,7 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 									auto& ref = child_neighbors_f[i];
 									auto other_child = (x % 2) + 2 * (y % 2) + 4 * (z % 2);
 									if (x / 2 == 1 && y / 2 == 1 && z / 2 == 1) {
-										ref = hpx::make_ready_future<hpx::id_type>(children[other_child].get_gid());
+										ref = hpx::make_ready_future < hpx::id_type > (children[other_child].get_gid());
 									} else {
 										geo::direction dir = geo::direction((x / 2) + NDIM * ((y / 2) + NDIM * (z / 2)));
 										ref = neighbors[dir].get_child_client(other_child);
@@ -436,14 +469,14 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 }
 
 typedef node_server::get_child_client_action get_child_client_action_type;
-HPX_REGISTER_ACTION(get_child_client_action_type);
+HPX_REGISTER_ACTION (get_child_client_action_type);
 
 hpx::future<hpx::id_type> node_client::get_child_client(const geo::octant& ci) {
 	if (get_gid() != hpx::invalid_id) {
 		return hpx::async<typename node_server::get_child_client_action>(get_gid(), ci);
 	} else {
 		auto tmp = hpx::invalid_id;
-		return hpx::make_ready_future<hpx::id_type>(std::move(tmp));
+		return hpx::make_ready_future < hpx::id_type > (std::move(tmp));
 	}
 }
 
@@ -456,14 +489,14 @@ hpx::id_type node_server::get_child_client(const geo::octant& ci) {
 }
 
 typedef node_server::get_nieces_action get_nieces_action_type;
-HPX_REGISTER_ACTION(get_nieces_action_type);
+HPX_REGISTER_ACTION (get_nieces_action_type);
 
 hpx::future<std::vector<hpx::id_type>> node_client::get_nieces(const hpx::id_type& aunt, const geo::face& f) const {
 	return hpx::async<typename node_server::get_nieces_action>(get_gid(), aunt, f);
 }
 
 std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt, const geo::face& face) const {
-	std::vector<hpx::id_type> nieces;
+	std::vector < hpx::id_type > nieces;
 	if (is_refined) {
 		std::vector<hpx::future<void>> futs;
 		nieces.reserve(geo::quadrant::count());
@@ -480,7 +513,7 @@ std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt, cons
 }
 
 typedef node_server::get_ptr_action get_ptr_action_type;
-HPX_REGISTER_ACTION(get_ptr_action_type);
+HPX_REGISTER_ACTION (get_ptr_action_type);
 
 std::uintptr_t node_server::get_ptr() {
 	return reinterpret_cast<std::uintptr_t>(this);
@@ -493,7 +526,7 @@ hpx::future<node_server*> node_client::get_ptr() const {
 }
 
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
-HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
+HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
 
 hpx::future<void> node_client::send_gravity_boundary(gravity_boundary_type&& data, const geo::direction& dir, bool monopole) const {
 	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), std::move(data), dir, monopole);
@@ -508,7 +541,7 @@ void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata, const geo
 }
 
 typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;
-HPX_REGISTER_ACTION(send_gravity_expansions_action_type);
+HPX_REGISTER_ACTION (send_gravity_expansions_action_type);
 
 void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
 	parent_gravity_channel.set_value(std::move(v));
@@ -519,7 +552,7 @@ hpx::future<void> node_client::send_gravity_expansions(expansion_pass_type&& dat
 }
 
 typedef node_server::send_gravity_multipoles_action send_gravity_multipoles_action_type;
-HPX_REGISTER_ACTION(send_gravity_multipoles_action_type);
+HPX_REGISTER_ACTION (send_gravity_multipoles_action_type);
 
 hpx::future<void> node_client::send_gravity_multipoles(multipole_pass_type&& data, const geo::octant& ci) const {
 	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), std::move(data), ci);
@@ -530,7 +563,7 @@ void node_server::recv_gravity_multipoles(multipole_pass_type&& v, const geo::oc
 }
 
 typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
-HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
+HPX_REGISTER_ACTION (send_hydro_boundary_action_type);
 
 hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data, const geo::direction& dir) const {
 	return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(), std::move(data), dir);
@@ -544,7 +577,7 @@ void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::dire
 }
 
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
-HPX_REGISTER_ACTION(send_hydro_children_action_type);
+HPX_REGISTER_ACTION (send_hydro_children_action_type);
 
 void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci) {
 	child_hydro_channels[ci].set_value(std::move(data));
@@ -555,7 +588,7 @@ hpx::future<void> node_client::send_hydro_children(std::vector<real>&& data, con
 }
 
 typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
-HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
+HPX_REGISTER_ACTION (send_hydro_flux_correct_action_type);
 
 hpx::future<void> node_client::send_hydro_flux_correct(std::vector<real>&& data, const geo::face& face,
 const geo::octant& ci) const {
@@ -568,7 +601,7 @@ void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::f
 }
 
 typedef node_server::line_of_centers_action line_of_centers_action_type;
-HPX_REGISTER_ACTION(line_of_centers_action_type);
+HPX_REGISTER_ACTION (line_of_centers_action_type);
 
 hpx::future<line_of_centers_t> node_client::line_of_centers(const std::pair<space_vector, space_vector>& line) const {
 	return hpx::async<typename node_server::line_of_centers_action>(get_gid(), line);
@@ -650,9 +683,9 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 			}
 		}
 	}
-	l1_phi.second = -std::numeric_limits<real>::max();
-	l2_phi.second = -std::numeric_limits<real>::max();
-	l3_phi.second = -std::numeric_limits<real>::max();
+	l1_phi.second = -std::numeric_limits < real > ::max();
+	l2_phi.second = -std::numeric_limits < real > ::max();
+	l3_phi.second = -std::numeric_limits < real > ::max();
 	for (integer i = 0; i != loc.size(); ++i) {
 		const real x = loc[i].first;
 		const real rho = loc[i].second[rho_i];

@@ -19,8 +19,6 @@
 #include <atomic>
 #include <hpx/include/components.hpp>
 
-
-
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
 }
@@ -71,6 +69,9 @@ private:
 	channel<real> local_timestep_channel;
 	hpx::mutex load_mutex;
 public:
+	static bool is_gravity_on() {
+		return gravity_on;
+	}
 	real get_time() const;
 	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
@@ -131,7 +132,7 @@ public:
 	void load_from_file(const std::string&);
 	void load_from_file_and_output(const std::string&, const std::string&);
 
-	grid::output_list_type output(std::string fname, int cycle) const;
+	grid::output_list_type output(std::string fname, int cycle, bool analytic) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
 
 	integer regrid_gather(bool rebalance_only);
@@ -193,6 +194,9 @@ public:
 
 	std::uintptr_t get_ptr();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_ptr, get_ptr_action);
+
+	analytic_t compare_analytic();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
 
 	diagnostics_t diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);

@@ -35,12 +35,13 @@ void initialize(options _opts) {
 		grid::set_fgamma(7.0 / 5.0);
 		gravity_on = false;
 		set_problem(sod_shock_tube);
-		set_refine_test(refine_sod);
+		set_refine_test (refine_sod);
+		grid::set_analytic_func(sod_shock_tube);
 	} else if (opts.problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
 		gravity_on = false;
-		set_problem(blast_wave);
-		set_refine_test(refine_blast);
+		set_problem (blast_wave);
+		set_refine_test (refine_blast);
 	} else if (opts.problem == STAR) {
 		set_problem(star);
 		set_refine_test(refine_test_bibi);
@@ -149,7 +150,7 @@ int hpx_main(int argc, char* argv[]) {
 			printf("...done\n");
 
 			if (!opts.output_only) {
-			//	set_problem(null_problem);
+				//	set_problem(null_problem);
 				root_client.start_run(opts.problem == DWD && !opts.found_restart_file).get();
 			}
 		}

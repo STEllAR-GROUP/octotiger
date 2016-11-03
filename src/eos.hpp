@@ -66,6 +66,7 @@ public:
 	void initialize(real&, real&, real&);
 
 public:
+	real get_R0() const;
 	real dC() const;
 	bipolytropic_eos() {
 	}

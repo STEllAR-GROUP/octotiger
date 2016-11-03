@@ -10,7 +10,6 @@
 
 #define NPF 5
 
-
 #include "simd.hpp"
 #include "defs.hpp"
 #include "roe.hpp"
@@ -26,6 +25,41 @@
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+
+struct analytic_t {
+	std::array<real,NF> l1, l2, linf;
+	std::array<real,NF> l1a, l2a, linfa;
+	template<class Arc>
+	void serialize(Arc& a, unsigned) {
+		a & l1;
+		a & l2;
+		a & linf;
+		a & l1a;
+		a & l2a;
+		a & linfa;
+	}
+	analytic_t() {
+		for( integer field = 0; field != NF; ++field) {
+			l1[field] = 0.0;
+			l2[field] = 0.0;
+			l1a[field] = 0.0;
+			l2a[field] = 0.0;
+			linf[field] = 0.0;
+			linfa[field] = 0.0;
+		}
+	}
+	analytic_t& operator+=(const analytic_t& other) {
+		for( integer field = 0; field != NF; ++field) {
+			l1[field] += other.l1[field];
+			l2[field] += other.l2[field];
+			l1a[field] += other.l1a[field];
+			l2a[field] += other.l2a[field];
+			linf[field] = std::max(linf[field], other.linf[field]);
+			linfa[field] = std::max(linfa[field], other.linfa[field]);
+		}
+		return *this;
+	}
+};
 
 #ifdef WD_EOS
 class wd_eos;
@@ -98,13 +132,11 @@ public:
 	static void set_max_level(integer l);
 	static void set_fgamma(real);
 	static real get_fgamma();
-	static real get_A() {
-		return Acons;
-	}
-	static real get_B() {
-		return Bcons;
-	}
+	static real get_A();
+	static real get_B();
+	static void set_analytic_func(const analytic_func_type& func);
 private:
+	static analytic_func_type analytic;
 	static real Acons, Bcons;
 	static real fgamma;
 	static integer max_level;
@@ -113,6 +145,7 @@ private:
 	static real scaling_factor;
 
 	std::vector<std::vector<real>> U;
+	std::vector<std::vector<real>> Ua;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
 	std::vector<std::array<std::vector<real>, NF>> F;
@@ -137,6 +170,7 @@ private:
 	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 public:
+	analytic_t compute_analytic(real);
 	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const gravity_boundary_type&);
 	static void set_scaling_factor(real f);
 	static real get_scaling_factor();
@@ -214,8 +248,8 @@ public:
    void compute_sources(real t);
    void set_physical_boundaries(const geo::face&, real t);
    void next_u(integer rk, real t, real dt);
-   static void output(const output_list_type&, std::string, real t, int cycle);
-   output_list_type get_output_list() const;
+   static void output(const output_list_type&, std::string, real t, int cycle, bool a);
+   output_list_type get_output_list(bool analytic) const;
    template<class Archive>
    void load(Archive& arc, const unsigned) {
    	arc >> is_leaf;
@@ -272,6 +306,7 @@ struct grid::output_list_type {
 	std::set<node_point> nodes;
 	std::vector<zone_int_type> zones;
 	std::array<std::vector<real>, NF + NGF + NPF> data;
+	std::array<std::vector<real>, NF> analytic;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;

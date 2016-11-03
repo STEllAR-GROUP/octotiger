@@ -56,9 +56,9 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
 	bool rc = false;
 	real den_floor = 1.0e-2;
-    //integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
+	//integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
 //	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
-	integer test_level = ((U[spc_dc_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
+	integer test_level = ((U[spc_dc_i] + U[spc_de_i]) > 0.5 * U[rho_i] ? max_level - 1 : max_level);
 //	integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
@@ -107,20 +107,21 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	return u;
 }
 
-std::vector<real> sod_shock_tube(real x, real y, real z, real) {
-
+std::vector<real> sod_shock_tube(real x0, real y, real z, real t) {
+	std::vector < real > U(NF, 0.0);
 	const real fgamma = grid::get_fgamma();
-	std::vector < real > u(NF, real(0));
-	if (x < real(0)) {
-		u[spc_dc_i] = u[rho_i] = sod_init.rhol;
-		u[egas_i] = sod_init.pl / (sod_init.gamma - 1.0);
-	} else {
-		u[spc_ac_i] = u[rho_i] = sod_init.rhor;
-		u[egas_i] = sod_init.pr / (sod_init.gamma - 1.0);
-	}
-
-	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
-	return u;
+	sod_state_t s;
+	real x = (x0 + y + z) / std::sqrt(3.0);
+	exact_sod(&s, &sod_init, x, t);
+	U[rho_i] = s.rho;
+	U[egas_i] = s.p / (fgamma - 1.0);
+	U[sx_i] = s.rho * s.v / std::sqrt(3.0);
+	U[sy_i] = s.rho * s.v / std::sqrt(3.0);
+	U[sz_i] = s.rho * s.v / std::sqrt(3.0);
+	U[tau_i] = std::pow(U[egas_i], 1.0 / fgamma);
+	U[egas_i] += s.rho * s.v * s.v / 2.0;
+	U[spc_ac_i] = s.rho;
+	return U;
 }
 
 const real dxs = 0.0;

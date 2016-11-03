@@ -364,6 +364,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	std::list<hpx::future<void>> neighbor_futs;
 	hpx::future<void> parent_fut;
 	if (energy_account) {
+		printf( "!\n");
 		grid_ptr->egas_to_etot();
 	}
 	multipole_pass_type m_in, m_out;

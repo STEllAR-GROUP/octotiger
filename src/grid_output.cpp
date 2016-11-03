@@ -83,9 +83,15 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 		l1.data[field].resize(l1sz + l2.data[field].size());
 		std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
 	}
+	if( l1.analytic.size()) {
+		for (integer field = 0; field < NF; ++field) {
+			const auto l1sz = l1.analytic[field].size();
+			l1.analytic[field].resize(l1sz + l2.analytic[field].size());
+			std::move(l2.analytic[field].begin(), l2.analytic[field].end(), l1.analytic[field].begin() + l1sz);
+		}}
 }
 
-grid::output_list_type grid::get_output_list() const {
+grid::output_list_type grid::get_output_list(bool analytic) const {
 	auto& V = TLS_V();
 	compute_primitives();
 	output_list_type rc;
@@ -94,9 +100,13 @@ grid::output_list_type grid::get_output_list() const {
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
 	std::array < std::vector<real>, NF + NGF + NPF > &data = rc.data;
+	std::array < std::vector<real>, NF > &A = rc.analytic;
 
 	for (integer field = 0; field != NF + NGF + NPF; ++field) {
 		data[field].reserve(INX * INX * INX);
+		if (analytic) {
+			A[field].reserve(INX * INX * INX);
+		}
 	}
 	const integer this_bw = H_BW;
 	zone_list.reserve(std::pow(H_NX - 2 * this_bw, NDIM) * NCHILD);
@@ -131,6 +141,11 @@ grid::output_list_type grid::get_output_list() const {
 					}
 					zone_list.push_back(index);
 				}
+				if (analytic) {
+					for (integer field = 0; field != NF; ++field) {
+						A[field].push_back(Ua[field][iii]);
+					}
+				}
 				for (integer field = 0; field != NF; ++field) {
 					data[field].push_back(U[field][iii]);
 				}
@@ -140,7 +155,11 @@ grid::output_list_type grid::get_output_list() const {
 				data[NGF + NF + 0].push_back(V[vx_i][iii]);
 				data[NGF + NF + 1].push_back(V[vy_i][iii]);
 				data[NGF + NF + 2].push_back(V[vz_i][iii]);
-				data[NGF + NF + 3].push_back(V[egas_i][iii]);
+				if (V[egas_i][iii] * V[rho_i][iii] < de_switch2 * U[egas_i][iii]) {
+					data[NGF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma) / V[rho_i][iii]);
+				} else {
+					data[NGF + NF + 3].push_back(V[egas_i][iii]);
+				}
 				data[NGF + NF + 4].push_back(V[zz_i][iii]);
 			}
 		}
@@ -149,7 +168,7 @@ grid::output_list_type grid::get_output_list() const {
 	return rc;
 }
 
-void grid::output(const output_list_type& olists, std::string _filename, real _t, int cycle) {
+void grid::output(const output_list_type& olists, std::string _filename, real _t, int cycle, bool analytic) {
 #ifdef DO_OUTPUT
 
 	std::thread(
@@ -195,6 +214,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 		DBPutUcdmesh(db, "mesh", int(NDIM), const_cast<char**>(coord_names), node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
 			olist);
 		const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint", "zzs"};
+		const char* analytic_names[] = {"rho_a", "egas_a", "sx_a", "sy_a", "sz_a", "tau_a"};
 		DBFreeOptlist(olist);
 		for (int field = 0; field != NF + NGF + NPF; ++field) {
 			auto olist = DBMakeOptlist(1);
@@ -217,6 +237,10 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 			DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
 			DBPutUcdvar1(db, field_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.data[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 				olist);
+			if( analytic && field < 6) {
+				DBPutUcdvar1(db, analytic_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.analytic[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
+					olist);
+			}
 			DBFreeOptlist(olist);
 #ifdef RHO_ONLY
 		break;

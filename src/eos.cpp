@@ -435,6 +435,13 @@ real wd_eos::get_R0() const {
 	return r;
 }
 
+real bipolytropic_eos::get_R0() const {
+	real m, r;
+	bipolytropic_eos tmp = *this;
+	tmp.initialize(m, r);
+	return r;
+}
+
 void wd_eos::set_h0(real h) {
 	std::function<double(double)> fff = [&](real a) {
 		A = a;

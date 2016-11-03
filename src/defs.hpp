@@ -13,7 +13,7 @@
 #define BIBI
 //#define OLD_SCF
 
-#define WD_EOS
+//#define WD_EOS
 
 
 #define EXPERIMENT
