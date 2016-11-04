@@ -561,7 +561,7 @@ void node_server::step() {
 	}
 	for (integer rk = 0; rk < NRK; ++rk) {
 		if (!is_refined) {
-			printf( "%i\n", int(rk));
+		//	printf( "%i\n", int(rk));
 			grid_ptr->reconstruct();
 			a = grid_ptr->compute_fluxes();
 			fut_flux = exchange_flux_corrections();

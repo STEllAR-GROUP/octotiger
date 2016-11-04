@@ -26,6 +26,10 @@
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
 
+
+//typedef double v4sd __attribute__ ((vector_size (32)));
+
+
 struct analytic_t {
 	std::array<real,NF> l1, l2, linf;
 	std::array<real,NF> l1a, l2a, linfa;

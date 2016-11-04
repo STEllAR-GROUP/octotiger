@@ -227,8 +227,10 @@ inline simd_vector abs(const simd_vector& a) {
 	return max(a, -a);
 }
 
-//typedef double v4sd __attribute__ ((vector_size (32)));
 
+/*
+typedef double v4sd __attribute__ ((vector_size (32)));
+*/
 class v4sd {
 private:
 	__m256d x;
@@ -243,6 +245,10 @@ public:
 	inline v4sd() {
 	}
 	inline v4sd(const std::initializer_list<double>& other) {
+		if( other.size() != 4 ) {
+			printf( "Error file %s line %i\n", __FILE__, __LINE__);
+			abort();
+		}
 		std::array<double, 4> n;
 		auto j = other.begin();
 		for (int i = 0; i != 4; ++i) {
@@ -299,8 +305,8 @@ public:
 		return a[i];
 	}
 };
-/*
 
+/*
 class v4sd {
 private:
 	double x[4];
@@ -383,6 +389,6 @@ public:
 	inline double& operator[](int i) {
 		return x[i];
 	}
-};*/
-
+};
+*/
 #endif /* SIMD_VECTOR_HPP_ */
