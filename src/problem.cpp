@@ -245,7 +245,7 @@ std::vector<real> star(real x, real y, real z, real) {
 	const real n = real(1) / (fgamma - real(1));
 	const real rho_min = 1.0e-10;
 	const real theta_min = std::pow(rho_min, real(1) / n);
-	const auto c0 = real(4) * real(M_PI) * alpha * alpha / (n + real(1));
+	const auto c0 = real(4) * real(M_PI) / (n + real(1));
 	if (r <= rmax) {
 		theta = lane_emden(r, dr);
 		theta = std::max(theta, theta_min);
