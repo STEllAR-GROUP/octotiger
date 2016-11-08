@@ -5,7 +5,7 @@
 #include <cassert>
 #include "profiler.hpp"
 #include "taylor.hpp"
-#include "helmholtz.hpp"
+//#include "helmholtz.hpp"
 #include <boost/thread/tss.hpp>
 #include "node_server.hpp"
 #include "exact_sod.hpp"
