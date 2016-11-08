@@ -12,7 +12,7 @@
 #include "defs.hpp"
 
 enum problem_type {
-	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR
+	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR
 };
 
 class options {

@@ -43,7 +43,13 @@ void initialize(options _opts) {
 		set_problem (blast_wave);
 		set_refine_test (refine_blast);
 	} else if (opts.problem == STAR) {
+		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
+		set_refine_test(refine_test_bibi);
+	} else if (opts.problem == MOVING_STAR) {
+		grid::set_fgamma(5.0 / 3.0);
+		grid::set_analytic_func(moving_star_analytic);
+		set_problem(moving_star);
 		set_refine_test(refine_test_bibi);
 		/*} else if (opts.problem == OLD_SCF) {
 		 set_refine_test(refine_test_bibi);

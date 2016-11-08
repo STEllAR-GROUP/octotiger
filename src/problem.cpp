@@ -230,12 +230,12 @@ const real y0_ = 0.0;
 const real z0 = 0.0;
 const real rmax = 3.7;
 const real dr = rmax / 128.0;
-const real alpha = real(1) / real(5);
+const real alpha = 1.0;
 
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
 
-	x -= 0.125;
+	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
 	real menc;
@@ -243,7 +243,7 @@ std::vector<real> star(real x, real y, real z, real) {
 	std::vector < real > u(NF, real(0));
 	real theta;
 	const real n = real(1) / (fgamma - real(1));
-	const real rho_min = 1.0e-3;
+	const real rho_min = 1.0e-10;
 	const real theta_min = std::pow(rho_min, real(1) / n);
 	const auto c0 = real(4) * real(M_PI) * alpha * alpha / (n + real(1));
 	if (r <= rmax) {
@@ -252,14 +252,43 @@ std::vector<real> star(real x, real y, real z, real) {
 	} else {
 		theta = theta_min;
 	}
-	u[rho_i] = std::pow(theta, n);
+	u[rho_i] = std::max(std::pow(theta, n), 1.0e-10);
+	u[spc_i] = u[rho_i];
 	u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
 	if (theta <= theta_min) {
 		u[egas_i] *= real(100);
 	}
 	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
-	u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
-	u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
+	return u;
+}
+
+std::vector<real> moving_star(real x, real y, real z, real dx) {
+	real vx = 1.0;
+	real vy = 1.0;
+	real vz = 0.0;
+//	x += x0 + vx * t;
+//	y += y0 + vy * t;
+//	z += z0 + vz * t;
+	auto u = star(x, y, z, dx);
+	u[sx_i] = u[rho_i] * vx;
+	u[sy_i] = u[rho_i] * vy;
+	u[sz_i] = u[rho_i] * vz;
+	u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) * u[rho_i] / 2.0;
+	return u;
+}
+
+std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
+	real vx = 1.0;
+	real vy = 1.0;
+	real vz = 0.0;
+	x -= vx * t;
+	y -= vy * t;
+	z -= vz * t;
+	auto u = star(x, y, z, 0.0);
+	u[sx_i] = u[rho_i] * vx;
+	u[sy_i] = u[rho_i] * vy;
+	u[sz_i] = u[rho_i] * vz;
+	u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) * u[rho_i] / 2.0;
 	return u;
 }
 

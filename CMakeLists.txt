@@ -36,15 +36,15 @@ add_hpx_executable(
   DEPENDENCIES
         ${Silo_LIBRARY}
   SOURCES
-      	src/helmholtz.cpp
-      	src/eos.cpp
-        src/sedov3.f
-        src/node_server_actions_1.cpp
-        src/node_server_actions_2.cpp
-        src/scf_data.cpp
-        src/exact_sod.cpp
-        src/sedov.c
-        src/profiler.cpp
+    src/eos.cpp
+    src/sedov3.f
+    src/node_server_actions_1.cpp
+    src/node_server_actions_2.cpp
+    src/node_server_actions_3.cpp
+    src/scf_data.cpp
+    src/exact_sod.cpp
+    src/sedov.c
+    src/profiler.cpp
 	src/geometry.cpp
 	src/grid.cpp
 	src/grid_fmm.cpp
@@ -56,33 +56,33 @@ add_hpx_executable(
 	src/node_client.cpp
 	src/node_location.cpp
 	src/node_server.cpp
-        src/options.cpp
+    src/options.cpp
 	src/problem.cpp
 	src/real.cpp
 	src/roe.cpp
 	src/stack_trace.cpp
 	src/taylor.cpp
-     	src/util.cpp
+    src/util.cpp
    HEADERS
-        src/diagnostics.hpp
-		src/channel.hpp
-		src/defs.hpp
-		src/eos.hpp
-		src/future.hpp
-		src/geometry.hpp
-		src/grid.hpp
-		src/lane_emden.hpp
-		src/node_client.hpp
-		src/node_location.hpp
-		src/node_server.hpp
-		src/options.hpp
-		src/problem.hpp
-		src/real.hpp
-		src/util.hpp
-		src/rad_grid.hpp
-		src/roe.hpp
-		src/simd.hpp
-		src/space_vector.hpp
-		src/taylor.hpp
+    src/diagnostics.hpp
+	src/channel.hpp
+	src/defs.hpp
+	src/eos.hpp
+	src/future.hpp
+	src/geometry.hpp
+	src/grid.hpp
+	src/lane_emden.hpp
+	src/node_client.hpp
+	src/node_location.hpp
+	src/node_server.hpp
+	src/options.hpp
+	src/problem.hpp
+	src/real.hpp
+	src/util.hpp
+	src/rad_grid.hpp
+	src/roe.hpp
+	src/simd.hpp
+	src/space_vector.hpp
+	src/taylor.hpp
   FOLDER  "Octotiger"
 )

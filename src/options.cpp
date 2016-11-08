@@ -29,6 +29,7 @@
 #define PROBLEM_OPT_OLD_SCF "old_scf"
 #define PROBLEM_OPT_SOLID_SPHERE "solid_sphere"
 #define PROBLEM_OPT_STAR "star"
+#define PROBLEM_OPT_MOVING_STAR "moving_star"
 
 bool options::cmp(const char* str1, const char* str2) {
 	return strncmp(str1, str2, strlen(str2)) == 0;
@@ -80,6 +81,8 @@ bool options::process_options(int argc, char* argv[]) {
 				problem = SOLID_SPHERE;
 			} else if (cmp(prob, PROBLEM_OPT_STAR)) {
 				problem = STAR;
+			} else if (cmp(prob, PROBLEM_OPT_MOVING_STAR)) {
+				problem = MOVING_STAR;
 			} else if (cmp(prob, PROBLEM_OPT_SOD)) {
 				problem = SOD;
 			} else if (cmp(prob, PROBLEM_OPT_BLAST)) {

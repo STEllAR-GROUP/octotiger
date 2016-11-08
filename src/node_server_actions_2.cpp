@@ -98,11 +98,10 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
+		printf("L1, L2\n");
 		for (integer field = 0; field != NF; ++field) {
 			if (a.l1a[field] > 0.0) {
-				printf("%i %e %e %e\n", int(field), a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]), a.linf[field] / a.linfa[field]);
-			} else {
-				printf("%i\n", int(field));
+				printf("%16s %e %e\n", grid::field_names[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
 			}
 		}
 	}

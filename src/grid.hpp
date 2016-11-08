@@ -131,6 +131,7 @@ typedef int zone_int_type;
 
 class grid {
 public:
+	static char const* field_names[];
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
 	static void set_max_level(integer l);

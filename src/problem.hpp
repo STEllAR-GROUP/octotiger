@@ -20,6 +20,8 @@ std::vector<real> old_scf(real, real, real, real, real, real, real);
 std::vector<real> blast_wave(real, real, real, real);
 std::vector<real> sod_shock_tube(real, real, real, real);
 std::vector<real> star(real, real, real, real);
+std::vector<real> moving_star_analytic(real, real, real, real);
+std::vector<real> moving_star(real, real, real, real);
 std::vector<real> equal_mass_binary(real, real, real, real);
 std::vector<real> scf_binary(real, real, real, real);
 std::vector<real> null_problem(real x, real y, real z, real);

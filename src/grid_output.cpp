@@ -7,7 +7,7 @@
 #include <cmath>
 
 #include <hpx/include/lcos.hpp>
-#define EQ_ONLY
+//#define EQ_ONLY
 //#define RHO_ONLY
 
 namespace hpx {
@@ -213,7 +213,6 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 			shapecnt, nshapes, olist);
 		DBPutUcdmesh(db, "mesh", int(NDIM), const_cast<char**>(coord_names), node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
 			olist);
-		const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint", "zzs"};
 		const char* analytic_names[] = {"rho_a", "egas_a", "sx_a", "sy_a", "sz_a", "tau_a"};
 		DBFreeOptlist(olist);
 		for (int field = 0; field != NF + NGF + NPF; ++field) {
