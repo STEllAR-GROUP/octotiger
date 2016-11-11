@@ -11,14 +11,37 @@ cmake_policy(SET CMP0015 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 ################################################################################
-find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
+# enable solution folders for MSVC
+################################################################################
+if(MSVC)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif()
 
-include_directories(${HPX_INCLUDE_DIRS})
-link_directories(${HPX_LIBRARY_DIR})
+################################################################################
+# options
+################################################################################
+option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
+
+################################################################################
+# Find required packages
+################################################################################
+find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
+find_package(MPI REQUIRED)
+if (OCTOTIGER_WITH_SILO)
+  find_package(Silo REQUIRED)
+endif()
+
+################################################################################
+# Silo support
+################################################################################
+if (OCTOTIGER_WITH_SILO)
+  add_definitions(-DOCTOTIGER_HAVE_SILO)
+else()
+  set(Silo_LIBRARY "" CACHE STRING "" FORCE)
+  set(Silo_INCLUDE_DIR "" CACHE STRING "" FORCE)
+endif()
 
 if(NOT MSVC)
-    find_package(Silo REQUIRED)
-
     include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
 
     set( CMAKE_CXX_FLAGS "-std=c++14 -g3 -O3 -march=native -Wno-attributes -Wno-deprecated-declarations" )

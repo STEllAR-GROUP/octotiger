@@ -18,7 +18,10 @@
 
 #define EXPERIMENT
 
-//#define DO_OUTPUT
+#ifdef OCTOTIGER_HAVE_SILO
+# define DO_OUTPUT
+#endif
+
 #define USE_SIMD
 
 //#define USE_DRIVING
