@@ -19,8 +19,8 @@ std::vector<std::vector<real>>& TLS_V();
 #include <unordered_map>
 
 inline bool float_eq(xpoint_type a, xpoint_type b) {
-	const xpoint_type small = std::pow(xpoint_type(2), -23);
-	return std::abs(a - b) < small;
+	const xpoint_type eps = std::pow(xpoint_type(2), -23);
+	return std::abs(a - b) < eps;
 }
 
 bool grid::xpoint_eq(const xpoint& a, const xpoint& b) {
@@ -313,7 +313,8 @@ std::size_t grid::save(FILE* fp) const {
 		for (integer j = 0; j < G_NX; ++j) {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				cnt += foo(&(G[iii][0]), sizeof(real), NGF, fp) * sizeof(real);
+                const auto d = G[iii][0];
+				cnt += foo(&d, sizeof(real), NGF, fp) * sizeof(real);
 			}
 		}
 	}

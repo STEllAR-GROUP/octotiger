@@ -15,6 +15,7 @@
 
 /* MODIFIED FROM THIS ORIGINAL SOURCE : http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes */
 
+#if !defined(_MSC_VER)
 #include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>
@@ -48,3 +49,4 @@ void install_stack_trace() {
 //	signal(SIGTERM, handler);
 //	signal(SIGHUP, handler);
 }
+#endif

@@ -9,10 +9,11 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
-#include <mpi.h>
 #include <cstring>
 #include <stack>
 #include <map>
+
+#include <hpx/util/high_resolution_clock.hpp>
 
 static thread_local std::stack<std::string> callstack;
 static thread_local real t = 0.0;
@@ -43,7 +44,7 @@ auto 	cntptr = std::make_shared < real > (0.0);
 
 static/**/void accumulate() {
 	const real told = t;
-	t = MPI_Wtime();
+	t = hpx::util::high_resolution_clock::now() / 1e9;
 	if (!callstack.empty()) {
 		const std::string& str(callstack.top());
 		while (lock()++ != 0) {
@@ -68,12 +69,12 @@ void profiler_enter(const char* func, int line) {
 		}
 	}
 	callstack.push(str);
-	t = MPI_Wtime();
+	t = hpx::util::high_resolution_clock::now() / 1e9;
 }
 void profiler_exit() {
 	accumulate();
 	callstack.pop();
-	t = MPI_Wtime();
+	t = hpx::util::high_resolution_clock::now() / 1e9;
 }
 
 void profiler_output(FILE* _fp) {

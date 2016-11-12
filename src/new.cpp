@@ -35,13 +35,26 @@ void operator delete[](void* p) {
 	deallocate(p);
 }
 
+#if defined(_MSC_VER)
+#include <malloc.h>     // _aligned_alloc
+#endif
+
 static void* allocate(std::size_t n) {
+#if defined(_MSC_VER)
+    void* ptr = _aligned_malloc(n, alignment);
+    if (ptr == 0) {
+        printf("std::_aligned_alloc failed!\n");
+        abort();
+    }
+    return ptr;
+#else
 	void* ptr;
 	if (posix_memalign(&ptr, alignment, n) != 0) {
 		printf("posix_memalign failed!\n");
 		abort();
 	}
 	return ptr;
+#endif
 }
 
 static void deallocate(void* ptr) {

@@ -5,12 +5,12 @@
  *      Author: dmarce1
  */
 
+#include "defs.hpp"
 #include "problem.hpp"
 #include "grid.hpp"
 #include "lane_emden.hpp"
 #include <cmath>
 #include "exact_sod.hpp"
-#include "defs.hpp"
 
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
@@ -238,7 +238,7 @@ std::vector<real> star(real x, real y, real z, real) {
 	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
-	real menc;
+//	real menc;
 	const real r = std::sqrt(x * x + y * y + z * z);
 	std::vector < real > u(NF, real(0));
 	real theta;

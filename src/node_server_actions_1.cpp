@@ -12,6 +12,9 @@
 #include "profiler.hpp"
 #include "options.hpp"
 
+#include <chrono>
+#include <hpx/include/threads.hpp>
+
 extern options opts;
 
 typedef node_server::load_action load_action_type;
@@ -97,7 +100,8 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me, b
 		children.clear();
 	} else {
 		printf("Corrupt checkpoint file\n");
-		sleep(10);
+//		sleep(10);
+        hpx::this_thread::sleep_for(std::chrono::seconds(10));
 		abort();
 	}
 	grid::output_list_type my_list;

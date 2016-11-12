@@ -3,7 +3,8 @@
 
 #include "options.hpp"
 #include "util.hpp"
-#include <mpi.h>
+
+#include <hpx/util/high_resolution_clock.hpp>
 
 extern options opts;
 
@@ -246,23 +247,20 @@ void node_server::start_run(bool scf) {
 		if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			//	if (step_num != 0) {
 
-			char* fname;
+            char fname[33];    // 21 bytes for int (max) + some leeway
+            sprintf(fname, "X.%i.chk", int(output_cnt));
+            save_to_file(fname);
 
-			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
-			}
-			save_to_file(fname);
-			free(fname);
-			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
-			}
-			output(fname, output_cnt, false);
-			free(fname);
+            sprintf(fname, "X.%i.silo", int(output_cnt));
+            output(fname, output_cnt, false);
+
 			//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
 			//	}
 			++output_cnt;
 
 		}
 		if (step_num == 0) {
-			bench_start = MPI_Wtime();
+			bench_start = hpx::util::high_resolution_clock::now() / 1e9;
 		}
 
 		//	break;
@@ -307,7 +305,7 @@ void node_server::start_run(bool scf) {
 			profiler_output(fp);
 			fclose(fp);
 			//		set_omega_and_pivot();
-			bench_stop = MPI_Wtime();
+			bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
 			if (scf || opts.bench) {
 				printf("Total time = %e s\n", double(bench_stop - bench_start));
 				FILE* fp = fopen("bench.dat", "at");
@@ -319,7 +317,7 @@ void node_server::start_run(bool scf) {
 		}
 		//		set_omega_and_pivot();
 		if (scf) {
-			bench_stop = MPI_Wtime();
+			bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
 			printf("Total time = %e s\n", double(bench_stop - bench_start));
 			//	FILE* fp = fopen( "bench.dat", "at" );
 			//	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));

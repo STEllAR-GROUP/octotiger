@@ -6,6 +6,7 @@
  */
 
 //#include <sse_mathfun.h>
+#include "defs.hpp"
 #include <cmath>
 #include <stdio.h>
 #include <functional>
@@ -13,8 +14,6 @@
 #include <memory>
 #include <stack>
 #include <atomic>
-#include <mpi.h>
-#include "defs.hpp"
 
 using real = double;
 
@@ -37,6 +36,7 @@ int file_copy(const char* fin, const char* fout) {
 	}
 	fclose(fp_in);
 	fclose(fp_out);
+    return 0;
 }
 
 bool find_root(std::function<double(double)>& func, double xmin, double xmax,

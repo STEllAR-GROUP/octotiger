@@ -5,7 +5,7 @@
  *      Author: dmarce1
  */
 
-
+#include <hpx/config.hpp>
 
 #ifndef TYPES444_HPP_
 
@@ -18,7 +18,7 @@
 
 #define EXPERIMENT
 
-#define DO_OUTPUT
+//#define DO_OUTPUT
 #define USE_SIMD
 
 //#define USE_DRIVING
@@ -40,7 +40,7 @@
 typedef long long int integer;
 #define TYPES444_HPP_
 
-typedef char byte;
+typedef unsigned char byte;
 
 enum gsolve_type {
 	RHO, DRHODT

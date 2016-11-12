@@ -217,7 +217,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				real C = is_donor_side ? c2 : c1;
 				//			real x0 = is_donor_side ? c2_x : c1_x;
 				auto this_eos = is_donor_side ? eos_2 : eos_1;
-				real cx, ti_omega, Rc;
+				real cx, ti_omega; //, Rc;
 				if (!is_donor_side) {
 					cx = c1_x;
 					ti_omega = scf_options::async1 * omega;
@@ -315,22 +315,19 @@ real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3, 
 void node_server::run_scf() {
 
 	solve_gravity(false);
-	char* ptr;
 	real omega = initial_params().omega;
 	real jorb0;
 	grid::set_omega(omega);
 	for (integer i = 0; i != 100; ++i) {
 //		profiler_output(stdout);
-		if (asprintf(&ptr, "X.scf.%i.silo", int(i)))
-			;
+        char buffer[33];    // 21 bytes for int (max) + some leeway
+        sprintf(buffer, "X.scf.%i.silo", int(i));
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
 		if (i % 100 == 0 && i != 0) {
-			output(ptr, i, false);
+			output(buffer, i, false);
 			save_to_file("scf.chk");
-
 		}
-		free(ptr);
 		auto diags = diagnostics();
 		real f0 = scf_options::M1 / (diags.primary_sum[rho_i]);
 		real f1 = scf_options::M2 / (diags.secondary_sum[rho_i]);
@@ -360,7 +357,7 @@ void node_server::run_scf() {
 		auto axis = grid_ptr->find_axis();
 		auto loc = line_of_centers(axis);
 
-		real l1_x, c1_x, c2_x, l2_x, l3_x;
+		real l1_x, c1_x, c2_x; //, l2_x, l3_x;
 		real l1_phi, l2_phi, l3_phi;
 
 		real com = axis.second[0];

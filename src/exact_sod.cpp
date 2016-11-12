@@ -19,7 +19,7 @@ void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t) {
 	const int numcells = 500;
 	double pm, pressure, rhoml, vs, vt;
 	double vm, density, velocity, rhomr;
-	int i;
+//	int i;
 	pl = in->pl;
 	pr = in->pr;
 	rhol = in->rhol;

@@ -15,7 +15,7 @@ integer taylor_consts::map3[3][3][3] = { { { 0, 1, 2 }, { 1, 3, 4 }, { 2, 4, 5 }
 
 const real taylor_consts::delta[3][3] = { { ONE, ZERO, ZERO }, { ZERO, ONE, ZERO }, { ZERO, ZERO, ONE } };
 
-static __attribute__((constructor)) void init() {
+static /*__attribute__((constructor))*/ void init() {
 	integer m = 20;
 	for (integer i = 0; i != NDIM; ++i) {
 		for (integer j = 0; j != NDIM; ++j) {
@@ -59,6 +59,15 @@ static __attribute__((constructor)) void init() {
 		}
 	}
 }
+
+struct init_taylor_data
+{
+    init_taylor_data()
+    {
+        init();
+    }
+};
+init_taylor_data init_taylor;
 
 template<>
 void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {

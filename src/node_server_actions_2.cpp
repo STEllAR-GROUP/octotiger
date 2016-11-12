@@ -27,6 +27,7 @@ bool node_server::check_for_refinement() {
 		all_hydro_bounds().get();
 	}
 	hpx::wait_all(futs.begin(), futs.end());
+    // FIXME: handle exceptions!
 	futs.clear();
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level());
@@ -39,7 +40,7 @@ bool node_server::check_for_refinement() {
 			}
 		}
 	}
-	return refinement_flag;
+	return refinement_flag != 0;
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;

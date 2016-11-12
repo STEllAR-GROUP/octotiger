@@ -284,8 +284,17 @@ void grid::compute_interactions(gsolve_type type) {
 			}
 		}
 	} else {
+#if !defined(HPX_HAVE_DATAPAR)
 		const v4sd d0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
 		const v4sd d1 = { 1.0 / dx, -1.0 / (dx * dx), -1.0 / (dx * dx), -1.0 / (dx * dx) };
+#else
+        const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
+        const v4sd d0(di0.data());
+
+        const std::array<double, 4> di1 = { 1.0 / dx, -1.0 / (dx * dx), -1.0 / (dx * dx), -1.0 / (dx * dx) };
+        const v4sd d1(di1.data());
+#endif
+
 		const integer dsize = ilist_d.size();
 		const integer lev = 0;
 		for (integer li = 0; li < dsize; ++li) {
@@ -333,7 +342,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 	std::array<simd_vector, NDIM> dX;
 	std::array < simd_vector, NDIM > X;
 	space_vector Y;
-	space_vector c;
+//	space_vector c;
 	for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
 		integer index = mpoles.is_local ? ilist_n_bnd[si].second : si;
 		load_multipole(m0, Y, mpoles, index, false);
@@ -442,7 +451,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 	std::array<simd_vector, NDIM> dX;
 	std::array < simd_vector, NDIM > X;
 	space_vector Y;
-	space_vector c;
+//	space_vector c;
 	for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
 		const integer list_size = ilist_n_bnd[si].first.size();
 		const integer iii1 = ilist_n_bnd[si].second;
@@ -644,7 +653,12 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 	std::array<simd_vector, NDIM> Y;
 	integer index = 0;
 
+#if !defined(HPX_HAVE_DATAPAR)
 	const v4sd d0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
+#else
+    const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
+    const v4sd d0(di0.data());
+#endif
 	for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
 		const integer dsize = ilist_n_bnd[si].first.size();
 		const integer lev = 0;
@@ -1108,7 +1122,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 
 gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool is_local) {
 	PROF_BEGIN;
-	std::array<integer, NDIM> lb, ub;
+//	std::array<integer, NDIM> lb, ub;
 	gravity_boundary_type data;
 	data.is_local = is_local;
 	if (!is_local) {
@@ -1128,7 +1142,7 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
 				const integer iii = i.second;
 				const integer top = M[iii].size();
 				data.M->push_back(M[iii]);
-				space_vector tmp;
+//				space_vector tmp;
 				data.x->push_back(com[0][iii]);
 			}
 		}
