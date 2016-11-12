@@ -29,6 +29,7 @@ else()
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
     add_definitions(-D_USE_MATH_DEFINES)
+    add_definitions(-DNOMINMAX)
     include_directories(${CMAKE_SOURCE_DIR}/src)
 
     hpx_add_compile_flag(-wd4244)

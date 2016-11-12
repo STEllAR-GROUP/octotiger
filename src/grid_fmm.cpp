@@ -21,8 +21,8 @@ extern options opts;
 template<class T>
 void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_type& data, integer iter, bool monopole) {
 	if (monopole) {
-		m = 0.0;
-		m = (*(data.m))[iter];
+		m = T(0.0);
+		m = T((*(data.m))[iter]);
 	} else {
 		for (int i = 0; i != 20; ++i) {
 			m.ptr()[i] = (*(data.M))[iter].ptr()[i];
@@ -188,8 +188,8 @@ void grid::compute_interactions(gsolve_type type) {
 			}
 			taylor<5, simd_vector> D;
 			taylor<4, simd_vector> A0, A1;
-			std::array<simd_vector, NDIM> B0 = { ZERO, ZERO, ZERO };
-			std::array<simd_vector, NDIM> B1 = { ZERO, ZERO, ZERO };
+			std::array<simd_vector, NDIM> B0 = { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
+			std::array<simd_vector, NDIM> B1 = { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
 			D.set_basis(dX);
 
 			A0() = m0() * D();
@@ -1081,7 +1081,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 						}
 						const space_vector& Y = com[lev][iiip];
 						for (integer d = 0; d < NDIM; ++d) {
-							simd_vector y = Y[d];
+							simd_vector y(Y[d]);
 							dx[d] = x[d] - y;
 						}
 						mp = mc >> dx;
