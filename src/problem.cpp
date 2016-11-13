@@ -15,7 +15,7 @@
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
 
-bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
+bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
 			return level < max_level;
@@ -24,7 +24,7 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 	return false;
 }
 
-bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
+bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
 			return level < max_level;
@@ -36,7 +36,7 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 	return false;
 }
 
-bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
+bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
 	real den_floor = 1.0e-4;
 	integer test_level = max_level;
@@ -53,7 +53,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 
 }
 
-bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> dudx) {
+bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
 	real den_floor = 1.0e-2;
 	//integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);

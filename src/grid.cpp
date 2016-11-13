@@ -892,6 +892,14 @@ bool grid::refine_me(integer lev) const {
 		return true;
 	}
 	bool rc = false;
+	std::vector < real > state(NF);
+    std::array<std::vector<real>, NDIM> dud;
+    std::vector<real>& dudx = dud[0];
+    std::vector<real>& dudy = dud[0];
+    std::vector<real>& dudz = dud[0];
+	dudx.resize(NF);
+	dudy.resize(NF);
+	dudz.resize(NF);
 	for (integer i = H_BW - R_BW; i != H_NX - H_BW + R_BW; ++i) {
 		for (integer j = H_BW - R_BW; j != H_NX - H_BW + R_BW; ++j) {
 			for (integer k = H_BW - R_BW; k != H_NX - H_BW + R_BW; ++k) {
@@ -909,17 +917,13 @@ bool grid::refine_me(integer lev) const {
 					continue;
 				}
 				const integer iii = hindex(i, j, k);
-				std::vector < real > state(NF);
-				std::vector < real > dudx(NF);
-				std::vector < real > dudy(NF);
-				std::vector < real > dudz(NF);
 				for (integer i = 0; i != NF; ++i) {
 					state[i] = U[i][iii];
 					dudx[i] = (U[i][iii + H_DNX] - U[i][iii - H_DNX]) / 2.0;
 					dudy[i] = (U[i][iii + H_DNY] - U[i][iii - H_DNY]) / 2.0;
 					dudz[i] = (U[i][iii + H_DNZ] - U[i][iii - H_DNZ]) / 2.0;
 				}
-				if (test(lev, max_level, X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], state, { { dudx, dudy, dudz } })) {
+				if (test(lev, max_level, X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], state, dud)) {
 					rc = true;
 					break;
 				}
