@@ -32,6 +32,7 @@ struct tls_data_t {
 real grid::Acons = 1.0;
 real grid::Bcons = 1.0;
 
+#if !defined(_MSC_VER)
 class tls_t {
 private:
 	pthread_key_t key;
@@ -57,6 +58,42 @@ public:
 		return ptr;
 	}
 };
+
+#else
+#include <hpx/util/thread_specific_ptr.hpp>
+
+class tls_t
+{
+private:
+    struct tls_data_tag {};
+    static hpx::util::thread_specific_ptr<tls_data_t, tls_data_tag> data;
+
+public:
+//     static void cleanup(void* ptr)
+//     {
+//         tls_data_t* _ptr = (tls_data_t*) ptr;
+//         delete _ptr;
+//     }
+
+    tls_data_t* get_ptr()
+    {
+        tls_data_t* ptr = data.get();
+        if (ptr == nullptr) {
+            ptr = new tls_data_t;
+            ptr->v.resize(NF, std::vector < real > (H_N3));
+            ptr->zz.resize(NDIM, std::vector < real > (H_N3));
+            ptr->dvdx.resize(NDIM, std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+            ptr->dudx.resize(NDIM, std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+            ptr->uf.resize(NFACE, std::vector < std::vector < real >> (NF, std::vector < real > (H_N3)));
+            data.reset(ptr);
+        }
+        return ptr;
+    }
+};
+
+hpx::util::thread_specific_ptr<tls_data_t, tls_t::tls_data_tag> tls_t::data;
+
+#endif
 
 static tls_t tls;
 
@@ -445,6 +482,7 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 	compute_conserved_slopes(lb0, ub0, etot_only);
 
 	if (!etot_only) {
+// #if !defined(HPX_HAVE_DATAPAR)
 		for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
 			for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
 #pragma GCC ivdep
@@ -456,6 +494,8 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM>& lb, const s
 				}
 			}
 		}
+// #else
+// #endif
 	}
 
 	for (integer field = 0; field != NF; ++field) {
@@ -852,6 +892,14 @@ bool grid::refine_me(integer lev) const {
 		return true;
 	}
 	bool rc = false;
+	std::vector < real > state(NF);
+    std::array<std::vector<real>, NDIM> dud;
+    std::vector<real>& dudx = dud[0];
+    std::vector<real>& dudy = dud[0];
+    std::vector<real>& dudz = dud[0];
+	dudx.resize(NF);
+	dudy.resize(NF);
+	dudz.resize(NF);
 	for (integer i = H_BW - R_BW; i != H_NX - H_BW + R_BW; ++i) {
 		for (integer j = H_BW - R_BW; j != H_NX - H_BW + R_BW; ++j) {
 			for (integer k = H_BW - R_BW; k != H_NX - H_BW + R_BW; ++k) {
@@ -869,17 +917,13 @@ bool grid::refine_me(integer lev) const {
 					continue;
 				}
 				const integer iii = hindex(i, j, k);
-				std::vector < real > state(NF);
-				std::vector < real > dudx(NF);
-				std::vector < real > dudy(NF);
-				std::vector < real > dudz(NF);
 				for (integer i = 0; i != NF; ++i) {
 					state[i] = U[i][iii];
 					dudx[i] = (U[i][iii + H_DNX] - U[i][iii - H_DNX]) / 2.0;
 					dudy[i] = (U[i][iii + H_DNY] - U[i][iii - H_DNY]) / 2.0;
 					dudz[i] = (U[i][iii + H_DNZ] - U[i][iii - H_DNZ]) / 2.0;
 				}
-				if (test(lev, max_level, X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], state, { { dudx, dudy, dudz } })) {
+				if (test(lev, max_level, X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], state, dud)) {
 					rc = true;
 					break;
 				}
@@ -1333,7 +1377,7 @@ inline real limit_range_all(real am, real ap, real& bl, real& br) {
 }
 ;
 
-inline real limit_slope(real& ql, real q0, real& qr) {
+inline void limit_slope(real& ql, real q0, real& qr) {
 	const real tmp1 = qr - ql;
 	const real tmp2 = qr + ql;
 	if ((qr - q0) * (q0 - ql) <= 0.0) {
@@ -2044,7 +2088,7 @@ void grid::next_u(integer rk, real t, real dt) {
 
 void grid::dual_energy_update() {
 	PROF_BEGIN;
-	bool in_bnd;
+//	bool in_bnd;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep

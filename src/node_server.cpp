@@ -15,7 +15,9 @@
 #include <hpx/lcos/when_all.hpp>
 #include "taylor.hpp"
 #include <sys/stat.h>
+#if !defined(_MSC_VER)
 #include <unistd.h>
+#endif
 extern options opts;
 
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
@@ -308,7 +310,7 @@ bool node_server::child_is_on_face(integer ci, integer face) {
 
 void node_server::static_initialize() {
 	if (!static_initialized) {
-		bool test = static_initializing++;
+		bool test = (static_initializing++ != 0) ? true : false;
 		if (!test) {
 			static_initialized = true;
 		}

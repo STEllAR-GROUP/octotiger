@@ -5,6 +5,7 @@
  *      Author: dmarce1
  */
 
+#include "defs.hpp"
 #include "options.hpp"
 #include <math.h>
 #include "grid.hpp"
@@ -103,7 +104,7 @@ bool options::process_options(int argc, char* argv[]) {
 			output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
 			output_only = true;
 		} else if (cmp(argv[i], ANGCON_OPT)) {
-			ang_con = atof(argv[i] + strlen(ANGCON_OPT) + 1);
+			ang_con = atof(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
 		} else if (cmp(argv[i], XSCALE_OPT)) {

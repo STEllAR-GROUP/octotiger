@@ -11,7 +11,9 @@
 #include <cstdlib>
 #include "immintrin.h"
 
-const std::size_t simd_len = 8;
+constexpr std::size_t simd_len = 8;
+
+#if !defined(HPX_HAVE_DATAPAR)
 
 #ifdef USE_SIMD
 #ifndef __MIC__
@@ -249,7 +251,7 @@ public:
 			printf( "Error file %s line %i\n", __FILE__, __LINE__);
 			abort();
 		}
-		std::array<double, 4> n;
+//		std::array<double, 4> n;
 		auto j = other.begin();
 		for (int i = 0; i != 4; ++i) {
 			(*this)[i] = *j;
@@ -391,4 +393,15 @@ public:
 	}
 };
 */
+
+#else
+
+#include <hpx/parallel/traits/vector_pack_type.hpp>
+#include <hpx/runtime/serialization/datapar.hpp>
+
+using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
+using v4sd = typename hpx::parallel::traits::vector_pack_type<double, 4>::type;
+
+#endif
+
 #endif /* SIMD_VECTOR_HPP_ */

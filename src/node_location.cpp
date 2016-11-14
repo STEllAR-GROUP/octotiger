@@ -126,14 +126,9 @@ node_location node_location::get_child(integer c) const {
 }
 
 std::string node_location::to_str() const {
-	char* ptr;
-	if (asprintf(&ptr, "lev = %i x = %i y = %i z = %i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]))
-			== 0) {
-		abort();
-	}
-	auto str = std::string(ptr);
-	free(ptr);
-	return str;
+    char buffer[100];    // 21 bytes for int (max) + some leeway
+    sprintf(buffer, "lev = %i x = %i y = %i z = %i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]));
+    return std::string(buffer);
 }
 
 node_location node_location::get_parent() const {

@@ -14,7 +14,12 @@
 #include <cmath>
 #include "profiler.hpp"
 
-class simd_vector;
+#if defined(HPX_HAVE_DATAPAR)
+#include <hpx/include/parallel_fill.hpp>
+#include <hpx/include/parallel_transform.hpp>
+#endif
+
+//class simd_vector;
 
 #define MAX_ORDER 5
 
@@ -55,42 +60,90 @@ public:
 	}
 
 	taylor<N, T>& operator=(T d) {
+#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			data[i] = d;
 		}
+#else
+        hpx::parallel::fill(
+            hpx::parallel::dataseq_execution,
+            data.begin(), data.end(), d);
+#endif
 		return *this;
 	}
 
 	taylor<N, T>& operator*=(T d) {
+#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			data[i] *= d;
 		}
+#else
+        hpx::parallel::transform(
+            hpx::parallel::dataseq_execution,
+            data.begin(), data.end(),
+            [d](T const& val)
+            {
+                return val * d;
+            });
+#endif
 		return *this;
 	}
 
 	taylor<N, T>& operator/=(T d) {
+#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			data[i] /= d;
 		}
+#else
+        hpx::parallel::transform(
+            hpx::parallel::dataseq_execution,
+            data.begin(), data.end(),
+            [d](T const& val)
+            {
+                return val / d;
+            });
+#endif
 		return *this;
 	}
 
 	taylor<N, T>& operator+=(const taylor<N, T>& other) {
+#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			data[i] += other.data[i];
 		}
+#else
+        hpx::parallel::transform(
+            hpx::parallel::dataseq_execution,
+            data.begin(), data.end(),
+            other.data.begin(), other.data.end(),
+            [](T const& t1, T const& t2)
+            {
+                return t1 + t2;
+            });
+#endif
 		return *this;
 	}
 
 	taylor<N, T>& operator-=(const taylor<N, T>& other) {
+#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			data[i] -= other.data[i];
 		}
+#else
+        hpx::parallel::transform(
+            hpx::parallel::dataseq_execution,
+            data.begin(), data.end(),
+            other.data.begin(), other.data.end(),
+            [](T const& t1, T const& t2)
+            {
+                return t1 - t2;
+            });
+#endif
 		return *this;
 	}
 
@@ -124,10 +177,20 @@ public:
 
 	taylor<N, T> operator-() const {
 		taylor<N, T> r = *this;
+#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			r.data[i] = -r.data[i];
 		}
+#else
+        hpx::parallel::transform(
+            hpx::parallel::dataseq_execution,
+            other.data.begin(), other.data.end(),
+            [](T const& val)
+            {
+                return -val;
+            });
+#endif
 		return r;
 	}
 
@@ -135,19 +198,19 @@ public:
 		return data[0];
 	}
 
-	T operator()(integer i) const {
+	T const& operator()(integer i) const {
 		return data[1 + i];
 	}
 
-	T operator()(integer i, integer j) const {
+	T const& operator()(integer i, integer j) const {
 		return data[tc.map2[i][j]];
 	}
 
-	T operator()(integer i, integer j, integer k) const {
+	T const& operator()(integer i, integer j, integer k) const {
 		return data[tc.map3[i][j][k]];
 	}
 
-	T operator()(integer i, integer j, integer k, integer l) const {
+	T const& operator()(integer i, integer j, integer k, integer l) const {
 		return data[tc.map4[i][j][k][l]];
 	}
 

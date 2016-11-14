@@ -19,8 +19,8 @@ std::vector<std::vector<real>>& TLS_V();
 #include <unordered_map>
 
 inline bool float_eq(xpoint_type a, xpoint_type b) {
-	const xpoint_type small = std::pow(xpoint_type(2), -23);
-	return std::abs(a - b) < small;
+	const xpoint_type eps = std::pow(xpoint_type(2), -23);
+	return std::abs(a - b) < eps;
 }
 
 bool grid::xpoint_eq(const xpoint& a, const xpoint& b) {
@@ -100,7 +100,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
 	std::array < std::vector<real>, NF + NGF + NPF > &data = rc.data;
-	std::array < std::vector<real>, NF > &A = rc.analytic;
+	std::array < std::vector<real>, NF + NGF + NPF > &A = rc.analytic;
 
 	for (integer field = 0; field != NF + NGF + NPF; ++field) {
 		data[field].reserve(INX * INX * INX);
@@ -313,7 +313,8 @@ std::size_t grid::save(FILE* fp) const {
 		for (integer j = 0; j < G_NX; ++j) {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				cnt += foo(&(G[iii][0]), sizeof(real), NGF, fp) * sizeof(real);
+                const auto d = G[iii][0];
+				cnt += foo(&d, sizeof(real), NGF, fp) * sizeof(real);
 			}
 		}
 	}

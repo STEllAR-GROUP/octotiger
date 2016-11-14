@@ -3,485 +3,518 @@
 
 #include "options.hpp"
 #include "util.hpp"
-#include <mpi.h>
+
+#include <hpx/include/threads.hpp>
+#include <hpx/util/high_resolution_clock.hpp>
 
 extern options opts;
 
-
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
-HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
+HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 
-hpx::future<void> node_client::send_gravity_boundary(gravity_boundary_type&& data, const geo::direction& dir, bool monopole) const {
-	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), std::move(data), dir, monopole);
+hpx::future<void> node_client::send_gravity_boundary(gravity_boundary_type&& data,
+    const geo::direction& dir, bool monopole) const {
+    return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(),
+        std::move(data), dir, monopole);
 }
 
-void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata, const geo::direction& dir, bool monopole) {
-	neighbor_gravity_type tmp;
-	tmp.data = std::move(bdata);
-	tmp.is_monopole = monopole;
-	tmp.direction = dir;
-	neighbor_gravity_channels[dir].set_value(std::move(tmp));
+void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata,
+    const geo::direction& dir, bool monopole) {
+    neighbor_gravity_type tmp;
+    tmp.data = std::move(bdata);
+    tmp.is_monopole = monopole;
+    tmp.direction = dir;
+    neighbor_gravity_channels[dir].set_value(std::move(tmp));
 }
 
 typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;
-HPX_REGISTER_ACTION (send_gravity_expansions_action_type);
+HPX_REGISTER_ACTION(send_gravity_expansions_action_type);
 
 void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
-	parent_gravity_channel.set_value(std::move(v));
+    parent_gravity_channel.set_value(std::move(v));
 }
 
 hpx::future<void> node_client::send_gravity_expansions(expansion_pass_type&& data) const {
-	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), std::move(data));
+    return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(),
+        std::move(data));
 }
 
 typedef node_server::send_gravity_multipoles_action send_gravity_multipoles_action_type;
-HPX_REGISTER_ACTION (send_gravity_multipoles_action_type);
+HPX_REGISTER_ACTION(send_gravity_multipoles_action_type);
 
-hpx::future<void> node_client::send_gravity_multipoles(multipole_pass_type&& data, const geo::octant& ci) const {
-	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), std::move(data), ci);
+hpx::future<void> node_client::send_gravity_multipoles(multipole_pass_type&& data,
+    const geo::octant& ci) const {
+    return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(),
+        std::move(data), ci);
 }
 
-void node_server::recv_gravity_multipoles(multipole_pass_type&& v, const geo::octant& ci) {
-	child_gravity_channels[ci].set_value(std::move(v));
+void node_server::recv_gravity_multipoles(multipole_pass_type&& v,
+    const geo::octant& ci) {
+    child_gravity_channels[ci].set_value(std::move(v));
 }
 
 typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
-HPX_REGISTER_ACTION (send_hydro_boundary_action_type);
+HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
-hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data, const geo::direction& dir) const {
-	return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(), std::move(data), dir);
+hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data,
+    const geo::direction& dir) const {
+    return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(),
+        std::move(data), dir);
 }
 
-void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::direction& dir) {
-	sibling_hydro_type tmp;
-	tmp.data = std::move(bdata);
-	tmp.direction = dir;
-	sibling_hydro_channels[dir].set_value(std::move(tmp));
+void node_server::recv_hydro_boundary(std::vector<real>&& bdata,
+    const geo::direction& dir) {
+    sibling_hydro_type tmp;
+    tmp.data = std::move(bdata);
+    tmp.direction = dir;
+    sibling_hydro_channels[dir].set_value(std::move(tmp));
 }
 
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
-HPX_REGISTER_ACTION (send_hydro_children_action_type);
+HPX_REGISTER_ACTION(send_hydro_children_action_type);
 
 void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci) {
-	child_hydro_channels[ci].set_value(std::move(data));
+    child_hydro_channels[ci].set_value(std::move(data));
 }
 
-hpx::future<void> node_client::send_hydro_children(std::vector<real>&& data, const geo::octant& ci) const {
-	return hpx::async<typename node_server::send_hydro_children_action>(get_gid(), std::move(data), ci);
+hpx::future<void> node_client::send_hydro_children(std::vector<real>&& data,
+    const geo::octant& ci) const {
+    return hpx::async<typename node_server::send_hydro_children_action>(get_gid(),
+        std::move(data), ci);
 }
 
 typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
-HPX_REGISTER_ACTION (send_hydro_flux_correct_action_type);
+HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 
-hpx::future<void> node_client::send_hydro_flux_correct(std::vector<real>&& data, const geo::face& face,
-const geo::octant& ci) const {
-	return hpx::async<typename node_server::send_hydro_flux_correct_action>(get_gid(), std::move(data), face, ci);
+hpx::future<void> node_client::send_hydro_flux_correct(std::vector<real>&& data,
+    const geo::face& face,
+    const geo::octant& ci) const {
+    return hpx::async<typename node_server::send_hydro_flux_correct_action>(get_gid(),
+        std::move(data), face, ci);
 }
 
-void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::face& face, const geo::octant& ci) {
-	const geo::quadrant index(ci, face.get_dimension());
-	niece_hydro_channels[face][index].set_value(std::move(data));
+void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::face& face,
+    const geo::octant& ci) {
+    const geo::quadrant index(ci, face.get_dimension());
+    niece_hydro_channels[face][index].set_value(std::move(data));
 }
 
 typedef node_server::line_of_centers_action line_of_centers_action_type;
-HPX_REGISTER_ACTION (line_of_centers_action_type);
+HPX_REGISTER_ACTION(line_of_centers_action_type);
 
-hpx::future<line_of_centers_t> node_client::line_of_centers(const std::pair<space_vector, space_vector>& line) const {
-	return hpx::async<typename node_server::line_of_centers_action>(get_gid(), line);
+hpx::future<line_of_centers_t> node_client::line_of_centers(
+    const std::pair<space_vector, space_vector>& line) const {
+    return hpx::async<typename node_server::line_of_centers_action>(get_gid(), line);
 }
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc) {
-	for (integer i = 0; i != loc.size(); ++i) {
-		fprintf(fp, "%e ", loc[i].first);
-		for (integer j = 0; j != NF + NGF; ++j) {
-			fprintf(fp, "%e ", loc[i].second[j]);
-		}
-		fprintf(fp, "\n");
-	}
+    for (integer i = 0; i != loc.size(); ++i) {
+        fprintf(fp, "%e ", loc[i].first);
+        for (integer j = 0; j != NF + NGF; ++j) {
+            fprintf(fp, "%e ", loc[i].second[j]);
+        }
+        fprintf(fp, "\n");
+    }
 }
 
-line_of_centers_t node_server::line_of_centers(const std::pair<space_vector, space_vector>& line) const {
-	std::list < hpx::future < line_of_centers_t >> futs;
-	line_of_centers_t return_line;
-	if (is_refined) {
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			futs.push_back(children[ci].line_of_centers(line));
-		}
-		std::map < real, std::vector < real >> map;
-		for (auto&& fut : futs) {
-			auto tmp = fut.get();
-			for (integer ii = 0; ii != tmp.size(); ++ii) {
-				if( map.find(tmp[ii].first) == map.end()) {
-					map.emplace(std::move(tmp[ii]));
-				}
-			}
-		}
-		return_line.resize(map.size());
-		std::move(map.begin(), map.end(), return_line.begin());
-	} else {
-		return_line = grid_ptr->line_of_centers(line);
-	}
+line_of_centers_t node_server::line_of_centers(
+    const std::pair<space_vector, space_vector>& line) const {
+    std::list < hpx::future < line_of_centers_t >> futs;
+    line_of_centers_t return_line;
+    if (is_refined) {
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            futs.push_back(children[ci].line_of_centers(line));
+        }
+        std::map<real, std::vector<real>> map;
+        for (auto&& fut : futs) {
+            auto tmp = fut.get();
+            for (integer ii = 0; ii != tmp.size(); ++ii) {
+                if (map.find(tmp[ii].first) == map.end()) {
+                    map.emplace(std::move(tmp[ii]));
+                }
+            }
+        }
+        return_line.resize(map.size());
+        std::move(map.begin(), map.end(), return_line.begin());
+    } else {
+        return_line = grid_ptr->line_of_centers(line);
+    }
 
-	return return_line;
+    return return_line;
 }
 
-void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
-	std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi) {
+void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
+    std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
+    std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
+    std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi) {
 
-	for (auto& l : loc) {
-		ASSERT_NONAN(l.first);
-		for (integer f = 0; f != NF + NGF; ++f) {
-			ASSERT_NONAN(l.second[f]);
-		}
-	}
+    for (auto& l : loc) {
+        ASSERT_NONAN(l.first);
+        for (integer f = 0; f != NF + NGF; ++f) {
+            ASSERT_NONAN(l.second[f]);
+        }
+    }
 
-	rho1_max.second = rho2_max.second = 0.0;
-	integer rho1_maxi, rho2_maxi;
-	///	printf( "LOCSIZE %i\n", loc.size());
-	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		const real rho = loc[i].second[rho_i];
-		const real pot = loc[i].second[pot_i];
-		//	printf( "%e %e\n", x, rho);
-		if (rho1_max.second < rho) {
-			//	printf( "!\n");
-			rho1_max.second = rho;
-			rho1_max.first = x;
-			rho1_maxi = i;
-			real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
-			rho1_phi = phi_eff;
-		}
-	}
-	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		if (x * rho1_max.first < 0.0) {
-			const real rho = loc[i].second[rho_i];
-			const real pot = loc[i].second[pot_i];
-			if (rho2_max.second < rho) {
-				rho2_max.second = rho;
-				rho2_max.first = x;
-				rho2_maxi = i;
-				real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
-				rho2_phi = phi_eff;
-			}
-		}
-	}
-	l1_phi.second = -std::numeric_limits < real > ::max();
-	l2_phi.second = -std::numeric_limits < real > ::max();
-	l3_phi.second = -std::numeric_limits < real > ::max();
-	for (integer i = 0; i != loc.size(); ++i) {
-		const real x = loc[i].first;
-		const real rho = loc[i].second[rho_i];
-		const real pot = loc[i].second[pot_i];
-		real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
-		if (x > std::min(rho1_max.first, rho2_max.first) && x < std::max(rho1_max.first, rho2_max.first)) {
-			if (phi_eff > l1_phi.second) {
-				l1_phi.second = phi_eff;
-				l1_phi.first = x;
-			}
-		} else if (std::abs(x) > std::abs(rho2_max.first) && x * rho2_max.first > 0.0) {
-			if (phi_eff > l2_phi.second) {
-				l2_phi.second = phi_eff;
-				l2_phi.first = x;
-			}
-		} else if (std::abs(x) > std::abs(rho1_max.first)) {
-			if (phi_eff > l3_phi.second) {
-				l3_phi.second = phi_eff;
-				l3_phi.first = x;
-			}
-		}
-	}
+    rho1_max.second = rho2_max.second = 0.0;
+    integer rho1_maxi, rho2_maxi;
+    ///	printf( "LOCSIZE %i\n", loc.size());
+    for (integer i = 0; i != loc.size(); ++i) {
+        const real x = loc[i].first;
+        const real rho = loc[i].second[rho_i];
+        const real pot = loc[i].second[pot_i];
+        //	printf( "%e %e\n", x, rho);
+        if (rho1_max.second < rho) {
+            //	printf( "!\n");
+            rho1_max.second = rho;
+            rho1_max.first = x;
+            rho1_maxi = i;
+            real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+            rho1_phi = phi_eff;
+        }
+    }
+    for (integer i = 0; i != loc.size(); ++i) {
+        const real x = loc[i].first;
+        if (x * rho1_max.first < 0.0) {
+            const real rho = loc[i].second[rho_i];
+            const real pot = loc[i].second[pot_i];
+            if (rho2_max.second < rho) {
+                rho2_max.second = rho;
+                rho2_max.first = x;
+                rho2_maxi = i;
+                real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+                rho2_phi = phi_eff;
+            }
+        }
+    }
+    l1_phi.second = -std::numeric_limits < real > ::max();
+    l2_phi.second = -std::numeric_limits < real > ::max();
+    l3_phi.second = -std::numeric_limits < real > ::max();
+    for (integer i = 0; i != loc.size(); ++i) {
+        const real x = loc[i].first;
+        const real rho = loc[i].second[rho_i];
+        const real pot = loc[i].second[pot_i];
+        real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+        if (x > std::min(rho1_max.first, rho2_max.first)
+            && x < std::max(rho1_max.first, rho2_max.first)) {
+            if (phi_eff > l1_phi.second) {
+                l1_phi.second = phi_eff;
+                l1_phi.first = x;
+            }
+        } else if (std::abs(x) > std::abs(rho2_max.first) && x * rho2_max.first > 0.0) {
+            if (phi_eff > l2_phi.second) {
+                l2_phi.second = phi_eff;
+                l2_phi.first = x;
+            }
+        } else if (std::abs(x) > std::abs(rho1_max.first)) {
+            if (phi_eff > l3_phi.second) {
+                l3_phi.second = phi_eff;
+                l3_phi.first = x;
+            }
+        }
+    }
 }
-
 
 typedef node_server::start_run_action start_run_action_type;
-HPX_REGISTER_ACTION (start_run_action_type);
+HPX_REGISTER_ACTION(start_run_action_type);
 
 hpx::future<void> node_client::start_run(bool b) const {
-	return hpx::async<typename node_server::start_run_action>(get_gid(), b);
+    return hpx::async<typename node_server::start_run_action>(get_gid(), b);
 }
 
 void node_server::start_run(bool scf) {
-	integer output_cnt;
+    integer output_cnt;
 
-	if (!hydro_on) {
-		save_to_file("X.chk");
-		diagnostics();
-		return;
-	}
-	printf("%e %e\n", grid::get_A(), grid::get_B());
-	if (scf) {
-		run_scf();
-		set_pivot();
-		printf("Adjusting velocities:\n");
-		auto diag = diagnostics();
-		space_vector dv;
-		dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
-		dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
-		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
-		this->velocity_inc(dv);
-		save_to_file("scf.chk");
-	}
+    if (!hydro_on) {
+        save_to_file("X.chk");
+        diagnostics();
+        return;
+    }
+    printf("%e %e\n", grid::get_A(), grid::get_B());
+    if (scf) {
+        run_scf();
+        set_pivot();
+        printf("Adjusting velocities:\n");
+        auto diag = diagnostics();
+        space_vector dv;
+        dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
+        dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
+        dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
+        this->velocity_inc(dv);
+        save_to_file("scf.chk");
+    }
 
-	printf("Starting...\n");
-	solve_gravity(false);
-	int ngrids = regrid(me.get_gid(), false);
+    printf("Starting...\n");
+    solve_gravity(false);
+    int ngrids = regrid(me.get_gid(), false);
 
-	real output_dt = opts.output_dt;
+    real output_dt = opts.output_dt;
 
-	printf("OMEGA = %e, output_dt = %e\n", grid::get_omega(), output_dt);
-	real& t = current_time;
-	integer step_num = 0;
+    printf("OMEGA = %e, output_dt = %e\n", grid::get_omega(), output_dt);
+    real& t = current_time;
+    integer step_num = 0;
 
-	auto fut_ptr = me.get_ptr();
-	node_server* root_ptr = fut_ptr.get();
+    auto fut_ptr = me.get_ptr();
+    node_server* root_ptr = fut_ptr.get();
 
-	output_cnt = root_ptr->get_rotation_count() / output_dt;
-	hpx::future<void> diag_fut = hpx::make_ready_future();
-	hpx::future<void> step_fut = hpx::make_ready_future();
-	profiler_output (stdout);
-	real bench_start, bench_stop;
-	while (current_time < opts.stop_time) {
-		auto time_start = std::chrono::high_resolution_clock::now();
-		if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
-			//	if (step_num != 0) {
+    output_cnt = root_ptr->get_rotation_count() / output_dt;
+    hpx::future<void> diag_fut = hpx::make_ready_future();
+    hpx::future<void> step_fut = hpx::make_ready_future();
+    profiler_output (stdout);
+    real bench_start, bench_stop;
+    while (current_time < opts.stop_time) {
+        auto time_start = std::chrono::high_resolution_clock::now();
+        if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
+            //	if (step_num != 0) {
 
-			char* fname;
+            char fname[33];    // 21 bytes for int (max) + some leeway
+            sprintf(fname, "X.%i.chk", int(output_cnt));
+            save_to_file(fname);
 
-			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
-			}
-			save_to_file(fname);
-			free(fname);
-			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
-			}
-			output(fname, output_cnt, false);
-			free(fname);
-			//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
-			//	}
-			++output_cnt;
+            sprintf(fname, "X.%i.silo", int(output_cnt));
+            output(fname, output_cnt, false);
 
-		}
-		if (step_num == 0) {
-			bench_start = MPI_Wtime();
-		}
+            //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
+            //	}
+            ++output_cnt;
 
-		//	break;
-		auto ts_fut = hpx::async([=]() {return timestep_driver();});
-		step();
-		real dt = ts_fut.get();
-		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
-		if (opts.problem == DWD) {
-			auto diags = diagnostics();
+        }
+        if (step_num == 0) {
+            bench_start = hpx::util::high_resolution_clock::now() / 1e9;
+        }
 
-			const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
-			const real dy = diags.secondary_com[YDIM] - diags.primary_com[YDIM];
-			const real dx_dot = diags.secondary_com_dot[XDIM] - diags.primary_com_dot[XDIM];
-			const real dy_dot = diags.secondary_com_dot[YDIM] - diags.primary_com_dot[YDIM];
-			theta = atan2(dy, dx);
-			omega = grid::get_omega();
-			theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
-			const real w0 = grid::get_omega() * 100.0;
-			const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
-			omega_dot = theta_dot_dot;
-			omega += omega_dot * dt;
+        //	break;
+        auto ts_fut = hpx::async([=]() {return timestep_driver();});
+        step();
+        real dt = ts_fut.get();
+        real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
+        if (opts.problem == DWD) {
+            auto diags = diagnostics();
+
+            const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
+            const real dy = diags.secondary_com[YDIM] - diags.primary_com[YDIM];
+            const real dx_dot = diags.secondary_com_dot[XDIM]
+                - diags.primary_com_dot[XDIM];
+            const real dy_dot = diags.secondary_com_dot[YDIM]
+                - diags.primary_com_dot[YDIM];
+            theta = atan2(dy, dx);
+            omega = grid::get_omega();
+            theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
+            const real w0 = grid::get_omega() * 100.0;
+            const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
+            omega_dot = theta_dot_dot;
+            omega += omega_dot * dt;
 //		omega_dot += theta_dot_dot*dt;
-			grid::set_omega(omega);
-		}
-		double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - time_start).count();
-		step_fut.get();
-		step_fut =
-			hpx::async(
-				[=]() {
-					FILE* fp = fopen( "step.dat", "at");
-					fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot, int(ngrids));
-					fclose(fp);
-				});
-		printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+            grid::set_omega(omega);
+        }
+        double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+            std::chrono::high_resolution_clock::now() - time_start).count();
+        step_fut.get();
+
+        // run output on separate thread
+        hpx::threads::run_as_os_thread([=]()
+        {
+            FILE* fp = fopen( "step.dat", "at");
+            fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
+                int(step_num), double(t), double(dt), time_elapsed, rotational_time,
+                theta, theta_dot, omega, omega_dot, int(ngrids));
+            fclose(fp);
+        });     // do not wait for it fo finish
+
+        printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
+            time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
 
 //		t += dt;
-		++step_num;
+        ++step_num;
 
-		if (step_num % refinement_freq() == 0) {
-			ngrids = regrid(me.get_gid(), false);
-			FILE* fp = fopen("profile.txt", "wt");
-			profiler_output(fp);
-			fclose(fp);
-			//		set_omega_and_pivot();
-			bench_stop = MPI_Wtime();
-			if (scf || opts.bench) {
-				printf("Total time = %e s\n", double(bench_stop - bench_start));
-				FILE* fp = fopen("bench.dat", "at");
-				fprintf(fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
-				fclose(fp);
+        if (step_num % refinement_freq() == 0) {
+            ngrids = regrid(me.get_gid(), false);
 
-				break;
-			}
-		}
-		//		set_omega_and_pivot();
-		if (scf) {
-			bench_stop = MPI_Wtime();
-			printf("Total time = %e s\n", double(bench_stop - bench_start));
-			//	FILE* fp = fopen( "bench.dat", "at" );
-			//	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
-			//	fclose(fp);
-			break;
-		}
-	}
-	compare_analytic();
-	output("final.silo", output_cnt, true);
+            // run output on separate thread
+            auto need_break = hpx::threads::run_as_os_thread([&]()
+            {
+                FILE* fp = fopen("profile.txt", "wt");
+                profiler_output(fp);
+                fclose(fp);
+
+                //		set_omega_and_pivot();
+                bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+                if (scf || opts.bench) {
+                    printf("Total time = %e s\n", double(bench_stop - bench_start));
+                    FILE* fp = fopen("bench.dat", "at");
+                    fprintf(fp, "%i %e\n", int(hpx::find_all_localities().size()),
+                        double(bench_stop - bench_start));
+                    fclose(fp);
+                    return true;
+                }
+                return false;
+            });
+            if (need_break.get())
+                break;
+        }
+        //		set_omega_and_pivot();
+        if (scf) {
+            bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+            printf("Total time = %e s\n", double(bench_stop - bench_start));
+            //	FILE* fp = fopen( "bench.dat", "at" );
+            //	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
+            //	fclose(fp);
+            break;
+        }
+    }
+    compare_analytic();
+    output("final.silo", output_cnt, true);
 }
 
 typedef node_server::step_action step_action_type;
-HPX_REGISTER_ACTION (step_action_type);
+HPX_REGISTER_ACTION(step_action_type);
 
 hpx::future<void> node_client::step() const {
-	return hpx::async<typename node_server::step_action>(get_gid());
+    return hpx::async<typename node_server::step_action>(get_gid());
 }
 
 void node_server::step() {
-	grid_ptr->set_coordinates();
-	real dt = ZERO;
+    grid_ptr->set_coordinates();
+    real dt = ZERO;
 
-	std::list<hpx::future<void>> child_futs;
-	if (is_refined) {
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			child_futs.push_back(children[ci].step());
-		}
-	}
-	real a;
-	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
-	real cfl0 = cfl;
-	hpx::future<void> fut;
-	hpx::future<void> fut_flux;
+    std::list<hpx::future<void>> child_futs;
+    if (is_refined) {
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            child_futs.push_back(children[ci].step());
+        }
+    }
+    real a;
+    const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+    real cfl0 = cfl;
+    hpx::future<void> fut;
+    hpx::future<void> fut_flux;
 
-	fut = all_hydro_bounds();
+    fut = all_hydro_bounds();
 //	grid_ptr->set_leaf(!is_refined);
-	if (!is_refined) {
-		grid_ptr->store();
-	}
-	for (integer rk = 0; rk < NRK; ++rk) {
-		if (!is_refined) {
-		//	printf( "%i\n", int(rk));
-			grid_ptr->reconstruct();
-			a = grid_ptr->compute_fluxes();
-			fut_flux = exchange_flux_corrections();
-		} else {
-			a = std::numeric_limits < real > ::min();
-		}
-		if (rk == 0) {
-			dt = cfl0 * dx / a;
-			local_timestep_channel.set_value(dt);
-		}
-		if (!is_refined) {
-			fut_flux.get();
-			grid_ptr->compute_sources(current_time);
-			grid_ptr->compute_dudt();
-			fut.get();
-		}
-		compute_fmm(DRHODT, false);
+    if (!is_refined) {
+        grid_ptr->store();
+    }
+    for (integer rk = 0; rk < NRK; ++rk) {
+        if (!is_refined) {
+            //	printf( "%i\n", int(rk));
+            grid_ptr->reconstruct();
+            a = grid_ptr->compute_fluxes();
+            fut_flux = exchange_flux_corrections();
+        } else {
+            a = std::numeric_limits < real > ::min();
+        }
+        if (rk == 0) {
+            dt = cfl0 * dx / a;
+            local_timestep_channel.set_value(dt);
+        }
+        if (!is_refined) {
+            fut_flux.get();
+            grid_ptr->compute_sources(current_time);
+            grid_ptr->compute_dudt();
+            fut.get();
+        }
+        compute_fmm(DRHODT, false);
 
-		if (rk == 0) {
-			dt = global_timestep_channel.get_future().get();
-		}
-		if (!is_refined) {
-			grid_ptr->next_u(rk, current_time, dt);
-		}
-		compute_fmm(RHO, true);
-		fut = all_hydro_bounds();
-	}
-	fut.get();
-	grid_ptr->dual_energy_update();
+        if (rk == 0) {
+            dt = global_timestep_channel.get_future().get();
+        }
+        if (!is_refined) {
+            grid_ptr->next_u(rk, current_time, dt);
+        }
+        compute_fmm(RHO, true);
+        fut = all_hydro_bounds();
+    }
+    fut.get();
+    grid_ptr->dual_energy_update();
 
-	for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
-		i->get();
-	}
-	current_time += dt;
-	if (grid::get_omega() != 0.0) {
-		rotational_time += grid::get_omega() * dt;
-	} else {
-		rotational_time = current_time;
-	}
-	++step_num;
+    for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
+        i->get();
+    }
+    current_time += dt;
+    if (grid::get_omega() != 0.0) {
+        rotational_time += grid::get_omega() * dt;
+    } else {
+        rotational_time = current_time;
+    }
+    ++step_num;
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
-HPX_REGISTER_ACTION (timestep_driver_ascend_action_type);
+HPX_REGISTER_ACTION(timestep_driver_ascend_action_type);
 
 hpx::future<void> node_client::timestep_driver_ascend(real dt) const {
-	return hpx::async<typename node_server::timestep_driver_ascend_action>(get_gid(), dt);
+    return hpx::async<typename node_server::timestep_driver_ascend_action>(get_gid(), dt);
 }
 
 void node_server::timestep_driver_ascend(real dt) {
-	global_timestep_channel.set_value(dt);
-	if (is_refined) {
-		std::list<hpx::future<void>> futs;
-		for (auto i = children.begin(); i != children.end(); ++i) {
-			futs.push_back(i->timestep_driver_ascend(dt));
-		}
-		for (auto i = futs.begin(); i != futs.end(); ++i) {
-			i->get();
-		}
-	}
+    global_timestep_channel.set_value(dt);
+    if (is_refined) {
+        std::list<hpx::future<void>> futs;
+        for (auto i = children.begin(); i != children.end(); ++i) {
+            futs.push_back(i->timestep_driver_ascend(dt));
+        }
+        for (auto i = futs.begin(); i != futs.end(); ++i) {
+            i->get();
+        }
+    }
 }
 
 typedef node_server::timestep_driver_descend_action timestep_driver_descend_action_type;
-HPX_REGISTER_ACTION (timestep_driver_descend_action_type);
+HPX_REGISTER_ACTION(timestep_driver_descend_action_type);
 
 hpx::future<real> node_client::timestep_driver_descend() const {
-	return hpx::async<typename node_server::timestep_driver_descend_action>(get_gid());
+    return hpx::async<typename node_server::timestep_driver_descend_action>(get_gid());
 }
 
 real node_server::timestep_driver_descend() {
-	real dt;
-	if (is_refined) {
-		dt = std::numeric_limits < real > ::max();
-		std::list < hpx::future < real >> futs;
-		for (auto i = children.begin(); i != children.end(); ++i) {
-			futs.push_back(i->timestep_driver_descend());
-		}
-		for (auto i = futs.begin(); i != futs.end(); ++i) {
-			dt = std::min(dt, i->get());
-		}
-		dt = std::min(local_timestep_channel.get_future().get(), dt);
-	} else {
-		dt = local_timestep_channel.get_future().get();
-	}
-	return dt;
+    real dt;
+    if (is_refined) {
+        dt = std::numeric_limits < real > ::max();
+        std::list<hpx::future<real>> futs;
+        for (auto i = children.begin(); i != children.end(); ++i) {
+            futs.push_back(i->timestep_driver_descend());
+        }
+        for (auto i = futs.begin(); i != futs.end(); ++i) {
+            dt = std::min(dt, i->get());
+        }
+        dt = std::min(local_timestep_channel.get_future().get(), dt);
+    } else {
+        dt = local_timestep_channel.get_future().get();
+    }
+    return dt;
 }
 
 typedef node_server::timestep_driver_action timestep_driver_action_type;
-HPX_REGISTER_ACTION (timestep_driver_action_type);
+HPX_REGISTER_ACTION(timestep_driver_action_type);
 
 hpx::future<real> node_client::timestep_driver() const {
-	return hpx::async<typename node_server::timestep_driver_action>(get_gid());
+    return hpx::async<typename node_server::timestep_driver_action>(get_gid());
 }
 
 real node_server::timestep_driver() {
-	const real dt = timestep_driver_descend();
-	timestep_driver_ascend(dt);
-	return dt;
+    const real dt = timestep_driver_descend();
+    timestep_driver_ascend(dt);
+    return dt;
 }
 
 typedef node_server::velocity_inc_action velocity_inc_action_type;
-HPX_REGISTER_ACTION (velocity_inc_action_type);
+HPX_REGISTER_ACTION(velocity_inc_action_type);
 
 hpx::future<void> node_client::velocity_inc(const space_vector& dv) const {
-	return hpx::async<typename node_server::velocity_inc_action>(get_gid(), dv);
+    return hpx::async<typename node_server::velocity_inc_action>(get_gid(), dv);
 }
 
 void node_server::velocity_inc(const space_vector& dv) {
-	if (is_refined) {
-		std::vector<hpx::future<void>> futs;
-		futs.reserve(NCHILD);
-		for (auto& child : children) {
-			futs.push_back(child.velocity_inc(dv));
-		}
-		for (auto&& fut : futs) {
-			fut.get();
-		}
-	} else {
-		grid_ptr->velocity_inc(dv);
-	}
+    if (is_refined) {
+        std::vector<hpx::future<void>> futs;
+        futs.reserve(NCHILD);
+        for (auto& child : children) {
+            futs.push_back(child.velocity_inc(dv));
+        }
+        for (auto&& fut : futs) {
+            fut.get();
+        }
+    } else {
+        grid_ptr->velocity_inc(dv);
+    }
 }
-
 

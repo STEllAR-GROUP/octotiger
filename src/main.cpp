@@ -1,11 +1,13 @@
-#include <fenv.h>
 #include "defs.hpp"
+#include <fenv.h>
 
 #include "node_server.hpp"
 #include "node_client.hpp"
 #include "future.hpp"
 #include <chrono>
+#if !defined(_MSC_VER)
 #include <unistd.h>
+#endif
 #include <hpx/hpx_init.hpp>
 #include "problem.hpp"
 
@@ -20,11 +22,11 @@ void compute_ilist();
 
 void initialize(options _opts) {
 	opts = _opts;
-//#ifndef NDEBUG
+#if !defined(_MSC_VER)
 	feenableexcept (FE_DIVBYZERO);
 	feenableexcept (FE_INVALID);
 	feenableexcept (FE_OVERFLOW);
-//#endif
+#endif
 	grid::set_scaling_factor(opts.xscale);
 	grid::set_max_level(opts.max_level);
 
@@ -104,10 +106,10 @@ void node_server::set_pivot() {
 
 int hpx_main(int argc, char* argv[]) {
 	printf("Running\n");
-	auto test_fut = hpx::async([]() {
+// 	auto test_fut = hpx::async([]() {
 //		while(1){hpx::this_thread::yield();}
-	});
-	test_fut.get();
+// 	});
+// 	test_fut.get();
 
 	try {
 		if (opts.process_options(argc, argv)) {

@@ -15,6 +15,7 @@ constexpr std::size_t alignment = 32;
 #endif
 
 
+#if !defined(_MSC_VER)
 
 static void* allocate(std::size_t);
 static void deallocate(void*);
@@ -47,3 +48,5 @@ static void* allocate(std::size_t n) {
 static void deallocate(void* ptr) {
 	free(ptr);
 }
+
+#endif

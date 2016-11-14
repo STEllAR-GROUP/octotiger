@@ -30,7 +30,8 @@
 //typedef double v4sd __attribute__ ((vector_size (32)));
 
 
-struct analytic_t {
+class analytic_t {
+public:
 	std::array<real,NF> l1, l2, linf;
 	std::array<real,NF> l1a, l2a, linfa;
 	template<class Arc>
@@ -264,10 +265,14 @@ public:
    	allocate();
    	arc >> U;
    	for( integer i = 0; i != INX*INX*INX; ++i ) {
+#if defined(HPX_HAVE_DATAPAR)
+        arc >> G[i];
+#else
    		arc >> G[i][0];
    		arc >> G[i][1];
    		arc >> G[i][2];
    		arc >> G[i][3];
+#endif
    	}
    	arc >> U_out;
    }
@@ -279,10 +284,14 @@ public:
    	arc << xmin;
    	arc << U;
    	for( integer i = 0; i != INX*INX*INX; ++i ) {
+#if defined(HPX_HAVE_DATAPAR)
+        arc << G[i];
+#else
    		arc << G[i][0];
    		arc << G[i][1];
    		arc << G[i][2];
    		arc << G[i][3];
+#endif
    	}
    	arc << U_out;
    }
@@ -311,7 +320,7 @@ struct grid::output_list_type {
 	std::set<node_point> nodes;
 	std::vector<zone_int_type> zones;
 	std::array<std::vector<real>, NF + NGF + NPF> data;
-	std::array<std::vector<real>, NF> analytic;
+	std::array<std::vector<real>, NF + NGF + NPF> analytic;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;

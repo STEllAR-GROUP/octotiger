@@ -15,7 +15,7 @@ integer taylor_consts::map3[3][3][3] = { { { 0, 1, 2 }, { 1, 3, 4 }, { 2, 4, 5 }
 
 const real taylor_consts::delta[3][3] = { { ONE, ZERO, ZERO }, { ZERO, ONE, ZERO }, { ZERO, ZERO, ONE } };
 
-static __attribute__((constructor)) void init() {
+static /*__attribute__((constructor))*/ void init() {
 	integer m = 20;
 	for (integer i = 0; i != NDIM; ++i) {
 		for (integer j = 0; j != NDIM; ++j) {
@@ -60,25 +60,31 @@ static __attribute__((constructor)) void init() {
 	}
 }
 
+struct init_taylor_data
+{
+    init_taylor_data()
+    {
+        init();
+    }
+};
+init_taylor_data init_taylor;
+
 template<>
 void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
-	constexpr
-	integer N = 5;
+	constexpr integer N = 5;
 	using T = simd_vector;
 	//PROF_BEGIN;
 	taylor<N, T>& A = *this;
 	taylor<N - 1, T> XX;
-	T r2 = X[0] * X[0] + X[1] * X[1] + X[2] * X[2];
-	auto this_one = X[0];
-	this_one = ONE;
-	const T r2inv = this_one / r2;
+	const T r2inv = ONE / (X[0] * X[0] + X[1] * X[1] + X[2] * X[2]);
 
 	for (integer a = 0; a != NDIM; a++) {
 		XX(a) = X[a];
 		for (integer b = a; b != NDIM; b++) {
-			XX(a, b) = X[a] * X[b];
+            auto const tmp = X[a] * X[b];
+			XX(a, b) = tmp;
 			for (integer c = b; c != NDIM; c++) {
-				XX(a, b, c) = X[a] * X[b] * X[c];
+				XX(a, b, c) = tmp * X[c];
 			}
 		}
 	}
@@ -105,19 +111,21 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
 
 	for (integer a = 0; a != NDIM; a++) {
 		A(a, a) += d1;
-		A(a, a, a) += XX(a) * d2;
-		A(a, a, a, a) += XX(a,a)* d3;
+        auto const XXa = XX(a) * d2;
+		A(a, a, a) += XXa;
+		A(a, a, a, a) += XX(a, a) * d3;
 		A(a, a, a, a) += 2.0 * d2;
 		for (integer b = a; b != NDIM; b++) {
 			A(a, a, b) += XX(b) * d2;
-			A(a, b, b) += XX(a) * d2;
-			A(a, a, a, b) += XX(a, b) * d3;
-			A(a, b, b, b) += XX(a, b) * d3;
+			A(a, b, b) += XXa;
+            auto const XXab = XX(a, b) * d3;
+			A(a, a, a, b) += XXab;
+			A(a, b, b, b) += XXab;
 			A(a, a, b, b) += d2;
 			for (integer c = b; c != NDIM; c++) {
 				A(a, a, b, c) += XX(b, c) * d3;
 				A(a, b, b, c) += XX(a, c) * d3;
-				A(a, b, c, c) += XX(a, b) * d3;
+				A(a, b, c, c) += XXab;
 			}
 		}
 	}
