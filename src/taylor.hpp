@@ -67,7 +67,7 @@ public:
 		}
 #else
         hpx::parallel::fill(
-            hpx::parallel::datapar_execution,
+            hpx::parallel::dataseq_execution,
             data.begin(), data.end(), d);
 #endif
 		return *this;
@@ -81,7 +81,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::datapar_execution,
+            hpx::parallel::dataseq_execution,
             data.begin(), data.end(),
             [d](T const& val)
             {
@@ -99,7 +99,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::datapar_execution,
+            hpx::parallel::dataseq_execution,
             data.begin(), data.end(),
             [d](T const& val)
             {
@@ -117,7 +117,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::datapar_execution,
+            hpx::parallel::dataseq_execution,
             data.begin(), data.end(),
             other.data.begin(), other.data.end(),
             [](T const& t1, T const& t2)
@@ -136,7 +136,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::datapar_execution,
+            hpx::parallel::dataseq_execution,
             data.begin(), data.end(),
             other.data.begin(), other.data.end(),
             [](T const& t1, T const& t2)
@@ -184,7 +184,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::datapar_execution,
+            hpx::parallel::dataseq_execution,
             other.data.begin(), other.data.end(),
             [](T const& val)
             {
@@ -198,19 +198,19 @@ public:
 		return data[0];
 	}
 
-	T operator()(integer i) const {
+	T const& operator()(integer i) const {
 		return data[1 + i];
 	}
 
-	T operator()(integer i, integer j) const {
+	T const& operator()(integer i, integer j) const {
 		return data[tc.map2[i][j]];
 	}
 
-	T operator()(integer i, integer j, integer k) const {
+	T const& operator()(integer i, integer j, integer k) const {
 		return data[tc.map3[i][j][k]];
 	}
 
-	T operator()(integer i, integer j, integer k, integer l) const {
+	T const& operator()(integer i, integer j, integer k, integer l) const {
 		return data[tc.map4[i][j][k][l]];
 	}
 
