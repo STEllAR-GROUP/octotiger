@@ -320,7 +320,7 @@ struct grid::output_list_type {
 	std::set<node_point> nodes;
 	std::vector<zone_int_type> zones;
 	std::array<std::vector<real>, NF + NGF + NPF> data;
-	std::array<std::vector<real>, NF> analytic;
+	std::array<std::vector<real>, NF + NGF + NPF> analytic;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;

@@ -100,7 +100,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
 	std::array < std::vector<real>, NF + NGF + NPF > &data = rc.data;
-	std::array < std::vector<real>, NF > &A = rc.analytic;
+	std::array < std::vector<real>, NF + NGF + NPF > &A = rc.analytic;
 
 	for (integer field = 0; field != NF + NGF + NPF; ++field) {
 		data[field].reserve(INX * INX * INX);
