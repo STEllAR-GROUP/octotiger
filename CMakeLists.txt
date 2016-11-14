@@ -11,13 +11,6 @@ cmake_policy(SET CMP0015 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 ################################################################################
-# enable solution folders for MSVC
-################################################################################
-if(MSVC)
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-endif()
-
-################################################################################
 # options
 ################################################################################
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
@@ -26,10 +19,12 @@ option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 # Find required packages
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
-find_package(MPI REQUIRED)
 if (OCTOTIGER_WITH_SILO)
   find_package(Silo REQUIRED)
 endif()
+
+include_directories(${HPX_INCLUDE_DIRS})
+link_directories(${HPX_LIBRARY_DIR})
 
 ################################################################################
 # Silo support
