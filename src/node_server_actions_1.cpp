@@ -43,25 +43,30 @@ hpx::future<grid::output_list_type> node_client::load(integer i, const hpx::id_t
 
 grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me,
     bool do_output, std::string filename) {
-    FILE* fp;
-    std::size_t read_cnt = 0;
 
     if (rec_size == -1 && my_location.level() == 0) {
-        fp = fopen(filename.c_str(), "rb");
-        if (fp == NULL) {
-            printf("Failed to open file\n");
-            abort();
-        }
-        fseek(fp, -sizeof(integer), SEEK_END);
-        read_cnt += fread(&rec_size, sizeof(integer), 1, fp);
-        fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
-        real omega;
+
+        real omega = 0;
         space_vector pivot;
-        read_cnt += fread(&omega, sizeof(real), 1, fp);
-        for (auto& d : geo::dimension::full_set()) {
-            read_cnt += fread(&(pivot[d]), sizeof(real), 1, fp);
-        }
-        fclose(fp);
+
+        // run output on separate thread
+        hpx::threads::run_as_os_thread([&]()
+        {
+            FILE* fp = fopen(filename.c_str(), "rb");
+            if (fp == NULL) {
+                printf("Failed to open file\n");
+                abort();
+            }
+            fseek(fp, -sizeof(integer), SEEK_END);
+            std::size_t read_cnt = fread(&rec_size, sizeof(integer), 1, fp);
+            fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
+            read_cnt += fread(&omega, sizeof(real), 1, fp);
+            for (auto& d : geo::dimension::full_set()) {
+                read_cnt += fread(&(pivot[d]), sizeof(real), 1, fp);
+            }
+            fclose(fp);
+        }).get();
+
         auto localities = hpx::find_all_localities();
         std::vector<hpx::future<void>> futs;
         futs.reserve(localities.size());
@@ -76,18 +81,26 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me,
 
     static auto localities = hpx::find_all_localities();
     me = _me;
-    fp = fopen(filename.c_str(), "rb");
-    char flag;
-    fseek(fp, cnt * rec_size, SEEK_SET);
-    read_cnt += fread(&flag, sizeof(char), 1, fp);
+
+    char flag = '0';
+    integer total_nodes = 0;
     std::vector<integer> counts(NCHILD);
-    for (auto& this_cnt : counts) {
-        read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
-    }
-    load_me(fp);
-    fseek(fp, 0L, SEEK_END);
-    integer total_nodes = ftell(fp) / rec_size;
-    fclose(fp);
+
+    // run output on separate thread
+    hpx::threads::run_as_os_thread([&]()
+    {
+        FILE* fp = fopen(filename.c_str(), "rb");
+        fseek(fp, cnt * rec_size, SEEK_SET);
+        std::size_t read_cnt = read_cnt += fread(&flag, sizeof(char), 1, fp);
+        for (auto& this_cnt : counts) {
+            read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
+        }
+        load_me(fp);
+        fseek(fp, 0L, SEEK_END);
+        total_nodes = ftell(fp) / rec_size;
+        fclose(fp);
+    }).get();
+
     std::list<hpx::future<grid::output_list_type>> futs;
     //printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
     if (flag == '1') {
@@ -328,21 +341,28 @@ integer node_client::save(integer i, std::string s) const {
 
 integer node_server::save(integer cnt, std::string filename) const {
     char flag = is_refined ? '1' : '0';
-    FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
-    fwrite(&flag, sizeof(flag), 1, fp);
-    ++cnt;
-//	printf("                                   \rSaved %li sub-grids\r", (long int) cnt);
-    integer value = cnt;
-    std::array<integer, NCHILD> values;
-    for (auto& ci : geo::octant::full_set()) {
-        if (ci != 0 && is_refined) {
-            value += child_descendant_count[ci - 1];
+    integer record_size = 0;
+
+    // run output on separate thread
+    hpx::threads::run_as_os_thread([&]()
+    {
+        FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
+        fwrite(&flag, sizeof(flag), 1, fp);
+        ++cnt;
+    //	printf("                                   \rSaved %li sub-grids\r", (long int) cnt);
+        integer value = cnt;
+        std::array<integer, NCHILD> values;
+        for (auto& ci : geo::octant::full_set()) {
+            if (ci != 0 && is_refined) {
+                value += child_descendant_count[ci - 1];
+            }
+            values[ci] = value;
+            fwrite(&value, sizeof(value), 1, fp);
         }
-        values[ci] = value;
-        fwrite(&value, sizeof(value), 1, fp);
-    }
-    const integer record_size = save_me(fp) + sizeof(flag) + NCHILD * sizeof(integer);
-    fclose(fp);
+        record_size = save_me(fp) + sizeof(flag) + NCHILD * sizeof(integer);
+        fclose(fp);
+    }).get();
+
     if (is_refined) {
         for (auto& ci : geo::octant::full_set()) {
             cnt = children[ci].save(cnt, filename);
@@ -350,15 +370,20 @@ integer node_server::save(integer cnt, std::string filename) const {
     }
 
     if (my_location.level() == 0) {
-        FILE* fp = fopen(filename.c_str(), "ab");
-        real omega = grid::get_omega();
-        space_vector pivot = grid::get_pivot();
-        fwrite(&omega, sizeof(real), 1, fp);
-        for (auto& d : geo::dimension::full_set()) {
-            fwrite(&(pivot[d]), sizeof(real), 1, fp);
-        }
-        fwrite(&record_size, sizeof(integer), 1, fp);
-        fclose(fp);
+        // run output on separate thread
+        hpx::threads::run_as_os_thread([&]()
+        {
+            FILE* fp = fopen(filename.c_str(), "ab");
+            real omega = grid::get_omega();
+            space_vector pivot = grid::get_pivot();
+            fwrite(&omega, sizeof(real), 1, fp);
+            for (auto& d : geo::dimension::full_set()) {
+                fwrite(&(pivot[d]), sizeof(real), 1, fp);
+            }
+            fwrite(&record_size, sizeof(integer), 1, fp);
+            fclose(fp);
+        }).get();
+
         printf("Saved %li grids to checkpoint file\n", (long int) cnt);
     }
 

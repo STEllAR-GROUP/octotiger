@@ -4,6 +4,7 @@
 #include "options.hpp"
 #include "util.hpp"
 
+#include <hpx/include/threads.hpp>
 #include <hpx/util/high_resolution_clock.hpp>
 
 extern options opts;
@@ -308,13 +309,17 @@ void node_server::start_run(bool scf) {
         double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
             std::chrono::high_resolution_clock::now() - time_start).count();
         step_fut.get();
-        step_fut =
-            hpx::async(
-                [=]() {
-                    FILE* fp = fopen( "step.dat", "at");
-                    fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n", int(step_num), double(t), double(dt), time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot, int(ngrids));
-                    fclose(fp);
-                });
+
+        // run output on separate thread
+        hpx::threads::run_as_os_thread([=]()
+        {
+            FILE* fp = fopen( "step.dat", "at");
+            fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
+                int(step_num), double(t), double(dt), time_elapsed, rotational_time,
+                theta, theta_dot, omega, omega_dot, int(ngrids));
+            fclose(fp);
+        });     // do not wait for it fo finish
+
         printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
             time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
 
@@ -323,20 +328,28 @@ void node_server::start_run(bool scf) {
 
         if (step_num % refinement_freq() == 0) {
             ngrids = regrid(me.get_gid(), false);
-            FILE* fp = fopen("profile.txt", "wt");
-            profiler_output(fp);
-            fclose(fp);
-            //		set_omega_and_pivot();
-            bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
-            if (scf || opts.bench) {
-                printf("Total time = %e s\n", double(bench_stop - bench_start));
-                FILE* fp = fopen("bench.dat", "at");
-                fprintf(fp, "%i %e\n", int(hpx::find_all_localities().size()),
-                    double(bench_stop - bench_start));
+
+            // run output on separate thread
+            auto need_break = hpx::threads::run_as_os_thread([&]()
+            {
+                FILE* fp = fopen("profile.txt", "wt");
+                profiler_output(fp);
                 fclose(fp);
 
+                //		set_omega_and_pivot();
+                bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
+                if (scf || opts.bench) {
+                    printf("Total time = %e s\n", double(bench_stop - bench_start));
+                    FILE* fp = fopen("bench.dat", "at");
+                    fprintf(fp, "%i %e\n", int(hpx::find_all_localities().size()),
+                        double(bench_stop - bench_start));
+                    fclose(fp);
+                    return true;
+                }
+                return false;
+            });
+            if (need_break.get())
                 break;
-            }
         }
         //		set_omega_and_pivot();
         if (scf) {

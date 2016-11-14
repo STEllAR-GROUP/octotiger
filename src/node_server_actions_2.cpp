@@ -5,6 +5,7 @@
 #include "profiler.hpp"
 #include <hpx/lcos/wait_all.hpp>
 #include <hpx/runtime/serialization/list.hpp>
+#include <hpx/include/threads.hpp>
 
 #include "options.hpp"
 
@@ -148,17 +149,22 @@ diagnostics_t node_server::diagnostics() const {
     }
 
     if (opts.problem != SOLID_SPHERE) {
-        FILE* fp = fopen("diag.dat", "at");
-        fprintf(fp, "%23.16e ", double(current_time));
-        for (integer f = 0; f != NF; ++f) {
-            fprintf(fp, "%23.16e ", double(diags.grid_sum[f] + diags.outflow_sum[f]));
-            fprintf(fp, "%23.16e ", double(diags.outflow_sum[f]));
-        }
-        for (integer f = 0; f != NDIM; ++f) {
-            fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
-        }
-        fprintf(fp, "\n");
-        fclose(fp);
+        // run output on separate thread
+        hpx::threads::run_as_os_thread([&]()
+        {
+            FILE* fp = fopen("diag.dat", "at");
+            fprintf(fp, "%23.16e ", double(current_time));
+            for (integer f = 0; f != NF; ++f) {
+                fprintf(fp, "%23.16e ", double(diags.grid_sum[f] + diags.outflow_sum[f]));
+                fprintf(fp, "%23.16e ", double(diags.outflow_sum[f]));
+            }
+            for (integer f = 0; f != NDIM; ++f) {
+                fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
+            }
+            fprintf(fp, "\n");
+            fclose(fp);
+        }).get();
+
         real a = 0.0;
         for (integer d = 0; d != NDIM; ++d) {
             a += std::pow(diags.primary_com[d] - diags.secondary_com[d], 2);
@@ -179,46 +185,50 @@ diagnostics_t node_server::diagnostics() const {
         const real jorb = j1 + j2;
         j1 = diags.primary_sum[zz_i] - j1;
         j2 = diags.secondary_sum[zz_i] - j2;
-        fp = fopen("binary.dat", "at");
-        fprintf(fp, "%15.8e ", double(current_time));
-        fprintf(fp, "%15.8e ", double(m1));
-        fprintf(fp, "%15.8e ", double(m2));
-        fprintf(fp, "%15.8e ", double(this_omega));
-        fprintf(fp, "%15.8e ", double(a));
-        fprintf(fp, "%15.8e ", double(rho1.second));
-        fprintf(fp, "%15.8e ", double(rho2.second));
-        fprintf(fp, "%15.8e ", double(jorb));
-        fprintf(fp, "%15.8e ", double(j1));
-        fprintf(fp, "%15.8e ", double(j2));
-        fprintf(fp, "%15.8e ", double(diags.z_moment));
-        fprintf(fp, "%15.8e ", double(diags.primary_z_moment));
-        fprintf(fp, "%15.8e ", double(diags.secondary_z_moment));
-        fprintf(fp, "\n");
-        fclose(fp);
 
-        fp = fopen("minmax.dat", "at");
-        fprintf(fp, "%23.16e ", double(current_time));
-        for (integer f = 0; f != NF; ++f) {
-            fprintf(fp, "%23.16e ", double(diags.field_min[f]));
-            fprintf(fp, "%23.16e ", double(diags.field_max[f]));
-        }
-        fprintf(fp, "\n");
-        fclose(fp);
+        // run output on separate thread
+        hpx::threads::run_as_os_thread([&]()
+        {
+            FILE* fp = fopen("binary.dat", "at");
+            fprintf(fp, "%15.8e ", double(current_time));
+            fprintf(fp, "%15.8e ", double(m1));
+            fprintf(fp, "%15.8e ", double(m2));
+            fprintf(fp, "%15.8e ", double(this_omega));
+            fprintf(fp, "%15.8e ", double(a));
+            fprintf(fp, "%15.8e ", double(rho1.second));
+            fprintf(fp, "%15.8e ", double(rho2.second));
+            fprintf(fp, "%15.8e ", double(jorb));
+            fprintf(fp, "%15.8e ", double(j1));
+            fprintf(fp, "%15.8e ", double(j2));
+            fprintf(fp, "%15.8e ", double(diags.z_moment));
+            fprintf(fp, "%15.8e ", double(diags.primary_z_moment));
+            fprintf(fp, "%15.8e ", double(diags.secondary_z_moment));
+            fprintf(fp, "\n");
+            fclose(fp);
 
-        fp = fopen("com.dat", "at");
-        fprintf(fp, "%23.16e ", double(current_time));
-        for (integer d = 0; d != NDIM; ++d) {
-            fprintf(fp, "%23.16e ", double(diags.primary_com[d]));
-        }
-        for (integer d = 0; d != NDIM; ++d) {
-            fprintf(fp, "%23.16e ", double(diags.secondary_com[d]));
-        }
-        for (integer d = 0; d != NDIM; ++d) {
-            fprintf(fp, "%23.16e ", double(diags.grid_com[d]));
-        }
-        fprintf(fp, "\n");
-        fclose(fp);
+            fp = fopen("minmax.dat", "at");
+            fprintf(fp, "%23.16e ", double(current_time));
+            for (integer f = 0; f != NF; ++f) {
+                fprintf(fp, "%23.16e ", double(diags.field_min[f]));
+                fprintf(fp, "%23.16e ", double(diags.field_max[f]));
+            }
+            fprintf(fp, "\n");
+            fclose(fp);
 
+            fp = fopen("com.dat", "at");
+            fprintf(fp, "%23.16e ", double(current_time));
+            for (integer d = 0; d != NDIM; ++d) {
+                fprintf(fp, "%23.16e ", double(diags.primary_com[d]));
+            }
+            for (integer d = 0; d != NDIM; ++d) {
+                fprintf(fp, "%23.16e ", double(diags.secondary_com[d]));
+            }
+            for (integer d = 0; d != NDIM; ++d) {
+                fprintf(fp, "%23.16e ", double(diags.grid_com[d]));
+            }
+            fprintf(fp, "\n");
+            fclose(fp);
+        }).get();
     } else {
         printf("L1\n");
         printf("Gravity Phi Error - %e\n", (diags.l1_error[0] / diags.l1_error[4]));
