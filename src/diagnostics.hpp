@@ -36,6 +36,11 @@ struct diagnostics_t {
 	std::vector<real> gtorque_sum;
 	diagnostics_t();
 	diagnostics_t& operator+=(const diagnostics_t& other);
+	friend diagnostics_t operator+(const diagnostics_t& lhs, const diagnostics_t& rhs)
+    {
+        diagnostics_t res(lhs);
+        return res += rhs;
+    }
 	diagnostics_t& operator=(const diagnostics_t& other) = default;
 
 	template<class Arc>

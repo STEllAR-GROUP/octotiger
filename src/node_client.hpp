@@ -75,6 +75,8 @@ public:
 	hpx::future<bool> check_for_refinement() const;
 	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
 
+    void report_timing() const;
+
 //	hpx::future<void> find_family() const;
 
 	};

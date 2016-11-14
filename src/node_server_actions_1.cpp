@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <hpx/include/threads.hpp>
+#include <hpx/lcos/when_all.hpp>
 
 extern options opts;
 
@@ -101,12 +102,14 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me,
         fclose(fp);
     }).get();
 
-    std::list<hpx::future<grid::output_list_type>> futs;
+    std::vector<hpx::future<grid::output_list_type>> futs;
     //printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
     if (flag == '1') {
         is_refined = true;
         children.resize(NCHILD);
-        for (auto& ci : geo::octant::full_set()) {
+        auto full_set = geo::octant::full_set();
+        futs.reserve(full_set.size());
+        for (auto& ci : full_set) {
             integer loc_id = ((cnt * localities.size()) / (total_nodes + 1));
             children[ci] = hpx::async<make_new_node_action>(localities[loc_id],
                 my_location.get_child(ci), me.get_gid());
@@ -163,7 +166,8 @@ hpx::future<grid::output_list_type> node_client::output(std::string fname, int c
 grid::output_list_type node_server::output(std::string fname, int cycle,
     bool analytic) const {
     if (is_refined) {
-        std::list<hpx::future<grid::output_list_type>> futs;
+        std::vector<hpx::future<grid::output_list_type>> futs;
+        futs.reserve(children.size());
         for (auto i = children.begin(); i != children.end(); ++i) {
             futs.push_back(i->output(fname, cycle, analytic));
         }
@@ -209,13 +213,15 @@ integer node_server::regrid_gather(bool rebalance_only) {
         }
 
         if (is_refined) {
-            std::list<hpx::future<integer>> futs;
+            std::vector<hpx::future<integer>> futs;
+            futs.reserve(children.size());
             for (auto& child : children) {
                 futs.push_back(child.regrid_gather(rebalance_only));
             }
+            auto futi = futs.begin();
             for (auto& ci : geo::octant::full_set()) {
-                auto child_cnt = futs.begin()->get();
-                futs.pop_front();
+                auto child_cnt = futi->get();
+                ++futi;
                 child_descendant_count[ci] = child_cnt;
                 count += child_cnt;
             }
@@ -273,10 +279,14 @@ hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
 
 void node_server::regrid_scatter(integer a_, integer total) {
     refinement_flag = 0;
-    std::list<hpx::future<void>> futs;
+    std::vector<hpx::future<void>> futs;
     if (is_refined) {
         integer a = a_;
-        const auto localities = hpx::find_all_localities();
+        std::vector<hpx::id_type> localities;
+        {
+            timings::scope ts(timings_, timings::time_find_localities);
+            localities = hpx::find_all_localities();
+        }
         ++a;
         for (auto& ci : geo::octant::full_set()) {
             const integer loc_index = a * localities.size() / total;
@@ -291,15 +301,15 @@ void node_server::regrid_scatter(integer a_, integer total) {
             }
         }
         a = a_ + 1;
-        for (auto& ci : geo::octant::full_set()) {
+        auto full_set = geo::octant::full_set();
+        futs.reserve(full_set.size());
+        for (auto& ci : full_set) {
             futs.push_back(children[ci].regrid_scatter(a, total));
             a += child_descendant_count[ci];
         }
     }
     clear_family();
-    for (auto&& fut : futs) {
-        fut.get();
-    }
+    hpx::when_all(futs).get();
 }
 
 typedef node_server::regrid_action regrid_action_type;
@@ -310,6 +320,7 @@ hpx::future<void> node_client::regrid(const hpx::id_type& g, bool rb) const {
 }
 
 int node_server::regrid(const hpx::id_type& root_gid, bool rb) {
+    timings::scope ts(timings_, timings::time_regrid);
     assert(grid_ptr != nullptr);
     printf("-----------------------------------------------\n");
     if (!rb) {
@@ -425,13 +436,12 @@ void node_server::solve_gravity(bool ene) {
     if (!gravity_on) {
         return;
     }
-    std::list<hpx::future<void>> child_futs;
+    std::vector<hpx::future<void>> child_futs;
+    child_futs.reserve(children.size());
     for (auto& child : children) {
         child_futs.push_back(child.solve_gravity(ene));
     }
     compute_fmm(RHO, ene);
-    for (auto&& fut : child_futs) {
-        fut.get();
-    }
+    hpx::when_all(child_futs).get();
 }
 

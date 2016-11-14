@@ -16,6 +16,7 @@
 #include "channel.hpp"
 #include "future.hpp"
 #include "eos.hpp"
+#include "profiler.hpp"
 #include <atomic>
 #include <hpx/include/components.hpp>
 
@@ -68,6 +69,9 @@ public:
     channel<real> global_timestep_channel;
     channel<real> local_timestep_channel;
     hpx::mutex load_mutex;
+
+    timings timings_;
+
     public:
     static bool is_gravity_on() {
         return gravity_on;
@@ -98,6 +102,7 @@ public:
         rf = refinement_flag;
         arc & rf;
         refinement_flag = rf;
+        arc & timings_;
     }
 
     node_server(const node_location&, integer, bool, real, real,
@@ -123,11 +128,14 @@ public:
 
     static bool child_is_on_face(integer ci, integer face);
 
-    std::list<hpx::future<void>> set_nieces_amr(const geo::face&) const;
+    std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
     node_server();
     ~node_server();
     node_server(const node_server& other);
     node_server(const node_location&, const node_client& parent_id, real, real);
+
+    void report_timing();
+    HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
 
     void save_to_file(const std::string&) const;
     void load_from_file(const std::string&);
@@ -180,7 +188,7 @@ public:
     real timestep_driver();
     HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver, timestep_driver_action);
 
-    real timestep_driver_descend();
+    hpx::future<real> timestep_driver_descend();
     HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
 
     void timestep_driver_ascend(real);

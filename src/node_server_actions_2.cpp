@@ -4,6 +4,7 @@
 #include "taylor.hpp"
 #include "profiler.hpp"
 #include <hpx/lcos/wait_all.hpp>
+#include <hpx/lcos/when_all.hpp>
 #include <hpx/runtime/serialization/list.hpp>
 #include <hpx/include/threads.hpp>
 
@@ -18,8 +19,9 @@ hpx::future<bool> node_client::check_for_refinement() const {
 
 bool node_server::check_for_refinement() {
     bool rc = false;
-    std::list<hpx::future<bool>> futs;
+    std::vector<hpx::future<bool>> futs;
     if (is_refined) {
+        futs.reserve(children.size());
         for (auto& child : children) {
             futs.push_back(child.check_for_refinement());
         }
@@ -27,9 +29,7 @@ bool node_server::check_for_refinement() {
     if (hydro_on) {
         all_hydro_bounds().get();
     }
-    hpx::wait_all(futs.begin(), futs.end());
-    // FIXME: handle exceptions!
-    futs.clear();
+    hpx::when_all(futs).get();
     if (!rc) {
         rc = grid_ptr->refine_me(my_location.level());
     }
@@ -258,14 +258,13 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
 
     diagnostics_t sums;
     if (is_refined) {
-        std::list<hpx::future<diagnostics_t>> futs;
+        std::vector<hpx::future<diagnostics_t>> futs;
+        futs.reserve(NCHILD);
         for (integer ci = 0; ci != NCHILD; ++ci) {
             futs.push_back(children[ci].diagnostics(axis, l1, c1, c2));
         }
-        for (auto ci = futs.begin(); ci != futs.end(); ++ci) {
-            auto this_sum = ci->get();
-            sums += this_sum;
-        }
+        auto child_sums = hpx::util::unwrapped(futs);
+        sums = std::accumulate(child_sums.begin(), child_sums.end(), sums);
     } else {
 
         sums.primary_sum = grid_ptr->conserved_sums(sums.primary_com,
@@ -383,7 +382,7 @@ hpx::future<void> node_client::force_nodes_to_exist(
 }
 
 void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
-    std::list<hpx::future<void>> futs;
+    std::vector<hpx::future<void>> futs;
     std::list<node_location> parent_list;
     std::vector < std::list < node_location >> child_lists(NCHILD);
     for (auto& loc : locs) {
@@ -407,7 +406,9 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
             parent_list.push_back(loc);
         }
     }
-    for (auto& ci : geo::octant::full_set()) {
+    auto full_set = geo::octant::full_set();
+    futs.reserve(full_set.size() + 1);
+    for (auto& ci : full_set) {
         if (is_refined && child_lists[ci].size()) {
             futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));
         }
@@ -415,9 +416,8 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
     if (parent_list.size()) {
         futs.push_back(parent.force_nodes_to_exist(std::move(parent_list)));
     }
-    for (auto&& fut : futs) {
-        fut.get();
-    }
+
+    hpx::when_all(futs).get();
 }
 
 typedef node_server::form_tree_action form_tree_action_type;
@@ -438,10 +438,11 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
         siblings[face] = neighbors[face.to_direction()];
     }
 
-    std::list<hpx::future<void>> cfuts;
     me = self_gid;
     parent = parent_gid;
     if (is_refined) {
+        std::vector<hpx::future<void>> cfuts;
+        cfuts.reserve(2*2*2);
         amr_flags.resize(NCHILD);
         for (integer cx = 0; cx != 2; ++cx) {
             for (integer cy = 0; cy != 2; ++cy) {
@@ -491,10 +492,7 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
             }
         }
 
-        for (auto&& fut : cfuts) {
-            fut.get();
-        }
-
+        hpx::when_all(cfuts).get();
     } else {
         std::vector < hpx::future<std::vector<hpx::id_type>>>nfuts(NFACE);
         for (auto& f : geo::face::full_set()) {

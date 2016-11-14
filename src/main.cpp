@@ -115,7 +115,8 @@ int hpx_main(int argc, char* argv[]) {
 		if (opts.process_options(argc, argv)) {
 
 			auto all_locs = hpx::find_all_localities();
-			std::list<hpx::future<void>> futs;
+			std::vector<hpx::future<void>> futs;
+            futs.reserve(all_locs.size());
 			for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
 				futs.push_back(hpx::async < initialize_action > (*i, opts));
 			}
@@ -161,6 +162,8 @@ int hpx_main(int argc, char* argv[]) {
 				//	set_problem(null_problem);
 				root_client.start_run(opts.problem == DWD && !opts.found_restart_file).get();
 			}
+
+            root_client.report_timing();
 		}
 	} catch (...) {
 

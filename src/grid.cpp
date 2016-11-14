@@ -10,6 +10,7 @@
 #include "node_server.hpp"
 #include "exact_sod.hpp"
 #include <hpx/include/runtime.hpp>
+#include <hpx/lcos/when_all.hpp>
 extern options opts;
 
 char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
@@ -648,15 +649,18 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 HPX_PLAIN_ACTION(grid::set_AB, set_AB_action);
 
 void grid::set_AB(real a, real b) {
+
+    // FIXME: use proper broadcasting...
+
 	if (hpx::get_locality_id() == 0) {
-		std::list<hpx::future<void>> futs;
+        std::vector<hpx::future<void>> futs;
 		auto remotes = hpx::find_remote_localities();
+        futs.reserve(remotes.size());
 		for (auto& l : remotes) {
 			futs.push_back(hpx::async < set_AB_action > (l, a, b));
 		}
-		for (auto& f : futs) {
-			f.get();
-		}
+
+        hpx::when_all(futs).get();
 	}
 	grid::Acons = a;
 	grid::Bcons = b;
@@ -665,15 +669,18 @@ void grid::set_AB(real a, real b) {
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
 
 void grid::set_omega(real omega) {
+
+    // FIXME: use proper broadcasting...
+
 	if (hpx::get_locality_id() == 0) {
-		std::list<hpx::future<void>> futs;
+        std::vector<hpx::future<void>> futs;
 		auto remotes = hpx::find_remote_localities();
+        futs.reserve(remotes.size());
 		for (auto& l : remotes) {
 			futs.push_back(hpx::async < set_omega_action > (l, omega));
 		}
-		for (auto& f : futs) {
-			f.get();
-		}
+
+        hpx::when_all(futs).get();
 	}
 	grid::omega = omega;
 }

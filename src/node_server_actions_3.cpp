@@ -5,6 +5,7 @@
 #include "util.hpp"
 
 #include <hpx/include/threads.hpp>
+#include <hpx/lcos/when_all.hpp>
 #include <hpx/util/high_resolution_clock.hpp>
 
 extern options opts;
@@ -222,6 +223,7 @@ hpx::future<void> node_client::start_run(bool b) const {
 }
 
 void node_server::start_run(bool scf) {
+    timings::scope ts(timings_, timings::time_total);
     integer output_cnt;
 
     if (!hydro_on) {
@@ -376,59 +378,62 @@ void node_server::step() {
     grid_ptr->set_coordinates();
     real dt = ZERO;
 
-    std::list<hpx::future<void>> child_futs;
+    std::vector<hpx::future<void>> child_futs;
     if (is_refined) {
+        child_futs.reserve(NCHILD);
         for (integer ci = 0; ci != NCHILD; ++ci) {
             child_futs.push_back(children[ci].step());
         }
     }
-    real a;
-    const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
-    real cfl0 = cfl;
-    hpx::future<void> fut;
-    hpx::future<void> fut_flux;
+    {
+        timings::scope ts(timings_, timings::time_computation);
+        real a;
+        const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+        real cfl0 = cfl;
+        hpx::future<void> fut;
+        hpx::future<void> fut_flux;
 
-    fut = all_hydro_bounds();
-//	grid_ptr->set_leaf(!is_refined);
-    if (!is_refined) {
-        grid_ptr->store();
-    }
-    for (integer rk = 0; rk < NRK; ++rk) {
-        if (!is_refined) {
-            //	printf( "%i\n", int(rk));
-            grid_ptr->reconstruct();
-            a = grid_ptr->compute_fluxes();
-            fut_flux = exchange_flux_corrections();
-        } else {
-            a = std::numeric_limits < real > ::min();
-        }
-        if (rk == 0) {
-            dt = cfl0 * dx / a;
-            local_timestep_channel.set_value(dt);
-        }
-        if (!is_refined) {
-            fut_flux.get();
-            grid_ptr->compute_sources(current_time);
-            grid_ptr->compute_dudt();
-            fut.get();
-        }
-        compute_fmm(DRHODT, false);
-
-        if (rk == 0) {
-            dt = global_timestep_channel.get_future().get();
-        }
-        if (!is_refined) {
-            grid_ptr->next_u(rk, current_time, dt);
-        }
-        compute_fmm(RHO, true);
         fut = all_hydro_bounds();
-    }
-    fut.get();
-    grid_ptr->dual_energy_update();
+    //	grid_ptr->set_leaf(!is_refined);
+        if (!is_refined) {
+            grid_ptr->store();
+        }
+        for (integer rk = 0; rk < NRK; ++rk) {
+            if (!is_refined) {
+                //	printf( "%i\n", int(rk));
+                grid_ptr->reconstruct();
+                a = grid_ptr->compute_fluxes();
+                fut_flux = exchange_flux_corrections();
+            } else {
+                a = std::numeric_limits < real > ::min();
+            }
+            if (rk == 0) {
+                dt = cfl0 * dx / a;
+                local_timestep_channel.set_value(dt);
+            }
+            if (!is_refined) {
+                fut_flux.get();
+                grid_ptr->compute_sources(current_time);
+                grid_ptr->compute_dudt();
+                fut.get();
+            }
+            compute_fmm(DRHODT, false);
 
-    for (auto i = child_futs.begin(); i != child_futs.end(); ++i) {
-        i->get();
+            if (rk == 0) {
+                dt = global_timestep_channel.get_future().get();
+            }
+            if (!is_refined) {
+                grid_ptr->next_u(rk, current_time, dt);
+            }
+            compute_fmm(RHO, true);
+            fut = all_hydro_bounds();
+        }
+        fut.get();
+        grid_ptr->dual_energy_update();
     }
+
+    hpx::when_all(child_futs).get();
+
     current_time += dt;
     if (grid::get_omega() != 0.0) {
         rotational_time += grid::get_omega() * dt;
@@ -448,13 +453,12 @@ hpx::future<void> node_client::timestep_driver_ascend(real dt) const {
 void node_server::timestep_driver_ascend(real dt) {
     global_timestep_channel.set_value(dt);
     if (is_refined) {
-        std::list<hpx::future<void>> futs;
-        for (auto i = children.begin(); i != children.end(); ++i) {
-            futs.push_back(i->timestep_driver_ascend(dt));
+        std::vector<hpx::future<void>> futs;
+        futs.reserve(children.size());
+        for(auto& child: children) {
+            futs.push_back(child.timestep_driver_ascend(dt));
         }
-        for (auto i = futs.begin(); i != futs.end(); ++i) {
-            i->get();
-        }
+        hpx::when_all(futs).get();
     }
 }
 
@@ -465,22 +469,25 @@ hpx::future<real> node_client::timestep_driver_descend() const {
     return hpx::async<typename node_server::timestep_driver_descend_action>(get_gid());
 }
 
-real node_server::timestep_driver_descend() {
-    real dt;
+hpx::future<real> node_server::timestep_driver_descend() {
     if (is_refined) {
-        dt = std::numeric_limits < real > ::max();
-        std::list<hpx::future<real>> futs;
-        for (auto i = children.begin(); i != children.end(); ++i) {
-            futs.push_back(i->timestep_driver_descend());
+        std::vector<hpx::future<real>> futs;
+        futs.reserve(children.size() + 1);
+        for(auto& child: children) {
+            futs.push_back(child.timestep_driver_descend());
         }
-        for (auto i = futs.begin(); i != futs.end(); ++i) {
-            dt = std::min(dt, i->get());
-        }
-        dt = std::min(local_timestep_channel.get_future().get(), dt);
+        futs.push_back(local_timestep_channel.get_future());
+
+        return hpx::dataflow(
+            [](std::vector<hpx::future<real>> dts_fut) -> double
+            {
+                auto dts = hpx::util::unwrapped(dts_fut);
+                return *std::min_element(dts.begin(), dts.end());
+            },
+            std::move(futs));
     } else {
-        dt = local_timestep_channel.get_future().get();
+        return local_timestep_channel.get_future();
     }
-    return dt;
 }
 
 typedef node_server::timestep_driver_action timestep_driver_action_type;
@@ -491,7 +498,7 @@ hpx::future<real> node_client::timestep_driver() const {
 }
 
 real node_server::timestep_driver() {
-    const real dt = timestep_driver_descend();
+    const real dt = timestep_driver_descend().get();
     timestep_driver_ascend(dt);
     return dt;
 }
