@@ -105,9 +105,9 @@ struct gravity_boundary_type {
 	}
 	void allocate() {
 		if (M == nullptr) {
-			M = std::shared_ptr < std::vector<multipole> > (new std::vector<multipole>);
-			m = std::shared_ptr < std::vector<real> > (new std::vector<real>);
-			x = std::shared_ptr < std::vector<space_vector> > (new std::vector<space_vector>);
+			M = std::make_shared<std::vector<multipole> >();
+			m = std::make_shared<std::vector<real> >();
+			x = std::make_shared<std::vector<space_vector> >();
 		}
 	}
 	template<class Archive>

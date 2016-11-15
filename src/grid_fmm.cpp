@@ -1147,6 +1147,7 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
 			}
 		}
 	} else {
+        // FIXME: Why is this data never deleted?
 		static const auto nuldel = [](void*) {};
 		if (is_leaf) {
 			data.m = std::shared_ptr < std::vector < real >> (&mon, nuldel);

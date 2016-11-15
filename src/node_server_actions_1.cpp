@@ -92,7 +92,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me,
     {
         FILE* fp = fopen(filename.c_str(), "rb");
         fseek(fp, cnt * rec_size, SEEK_SET);
-        std::size_t read_cnt = read_cnt += fread(&flag, sizeof(char), 1, fp);
+        std::size_t read_cnt = fread(&flag, sizeof(char), 1, fp);
         for (auto& this_cnt : counts) {
             read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
         }
