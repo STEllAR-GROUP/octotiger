@@ -388,21 +388,21 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 m_in_future.then(
                     [&m_out, ci](hpx::future<multipole_pass_type>&& fut)
                     {
-            const integer x0 = ci.get_side(XDIM) * INX / 2;
-            const integer y0 = ci.get_side(YDIM) * INX / 2;
-            const integer z0 = ci.get_side(ZDIM) * INX / 2;
-                        auto m_in = fut.get();
-            for (integer i = 0; i != INX / 2; ++i) {
-                for (integer j = 0; j != INX / 2; ++j) {
-                    for (integer k = 0; k != INX / 2; ++k) {
-                        const integer ii = i * INX * INX / 4 + j * INX / 2 + k;
-                        const integer io = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
-                        m_out.first[io] = m_in.first[ii];
-                        m_out.second[io] = m_in.second[ii];
+                        const integer x0 = ci.get_side(XDIM) * INX / 2;
+                        const integer y0 = ci.get_side(YDIM) * INX / 2;
+                        const integer z0 = ci.get_side(ZDIM) * INX / 2;
+                                    auto m_in = fut.get();
+                        for (integer i = 0; i != INX / 2; ++i) {
+                            for (integer j = 0; j != INX / 2; ++j) {
+                                for (integer k = 0; k != INX / 2; ++k) {
+                                    const integer ii = i * INX * INX / 4 + j * INX / 2 + k;
+                                    const integer io = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
+                                    m_out.first[io] = m_in.first[ii];
+                                    m_out.second[io] = m_in.second[ii];
+                                }
+                            }
+                        }
                     }
-                }
-            }
-        }
                 )
             );
         }
@@ -441,10 +441,10 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 [this, type](hpx::future<neighbor_gravity_type> fut)
                 {
                     auto tmp = fut.get();
-            grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-        }
+                    grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
+                }
             ));
-    }
+        }
     }
     parent_fut.get();
     hpx::when_all(boundary_futs).get();
@@ -458,38 +458,38 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     auto f = [this, type, energy_account](expansion_pass_type ltmp)
     {
         std::vector<hpx::future<void>> child_futs;
-    if (is_refined) {
-            auto full_set = geo::octant::full_set();
-            child_futs.reserve(full_set.size());
-            for (auto& ci : full_set) {
-            expansion_pass_type l_out;
-            l_out.first.resize(INX * INX * INX / NCHILD);
-            if (type == RHO) {
-                l_out.second.resize(INX * INX * INX / NCHILD);
-            }
-            const integer x0 = ci.get_side(XDIM) * INX / 2;
-            const integer y0 = ci.get_side(YDIM) * INX / 2;
-            const integer z0 = ci.get_side(ZDIM) * INX / 2;
-            for (integer i = 0; i != INX / 2; ++i) {
-                for (integer j = 0; j != INX / 2; ++j) {
-                    for (integer k = 0; k != INX / 2; ++k) {
-                        const integer io = i * INX * INX / 4 + j * INX / 2 + k;
-                        const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
-                        auto t = ltmp.first[ii];
-                        l_out.first[io] = t;
-                        if (type == RHO) {
-                            l_out.second[io] = ltmp.second[ii];
+        if (is_refined) {
+                auto full_set = geo::octant::full_set();
+                child_futs.reserve(full_set.size());
+                for (auto& ci : full_set) {
+                expansion_pass_type l_out;
+                l_out.first.resize(INX * INX * INX / NCHILD);
+                if (type == RHO) {
+                    l_out.second.resize(INX * INX * INX / NCHILD);
+                }
+                const integer x0 = ci.get_side(XDIM) * INX / 2;
+                const integer y0 = ci.get_side(YDIM) * INX / 2;
+                const integer z0 = ci.get_side(ZDIM) * INX / 2;
+                for (integer i = 0; i != INX / 2; ++i) {
+                    for (integer j = 0; j != INX / 2; ++j) {
+                        for (integer k = 0; k != INX / 2; ++k) {
+                            const integer io = i * INX * INX / 4 + j * INX / 2 + k;
+                            const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
+                            auto t = ltmp.first[ii];
+                            l_out.first[io] = t;
+                            if (type == RHO) {
+                                l_out.second[io] = ltmp.second[ii];
+                            }
                         }
                     }
                 }
+                child_futs.push_back(children[ci].send_gravity_expansions(std::move(l_out)));
             }
-            child_futs.push_back(children[ci].send_gravity_expansions(std::move(l_out)));
         }
-    }
 
-    if (energy_account) {
-        grid_ptr->etot_to_egas();
-    }
+        if (energy_account) {
+            grid_ptr->etot_to_egas();
+        }
 
         return hpx::when_all(child_futs);
     };

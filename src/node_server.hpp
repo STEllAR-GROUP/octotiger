@@ -124,6 +124,9 @@ public:
     void clear_family();
     hpx::future<void> exchange_flux_corrections();
 
+    void nonrefined_step();
+    void refined_step(std::vector<hpx::future<void>> child_futs);
+
 public:
 
     static bool child_is_on_face(integer ci, integer face);
