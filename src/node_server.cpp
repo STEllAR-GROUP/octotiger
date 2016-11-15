@@ -74,7 +74,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
         }
     }
 
-    return hpx::dataflow([this](hpx::future<void> fut) {
+    return hpx::async([this](hpx::future<void> fut) {
         for (auto& f : geo::face::full_set()) {
             if (this->nieces[f].size()) {
                 const auto face_dim = f.get_dimension();
@@ -491,7 +491,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         grid_ptr->etot_to_egas();
     }
 
-        return child_futs;
+        return hpx::when_all(child_futs);
     };
 
     hpx::when_all(f(ltmp), neighbor_futs).get();

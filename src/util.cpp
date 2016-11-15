@@ -16,6 +16,7 @@
 #include <atomic>
 
 #include <hpx/include/threads.hpp>
+#include <hpx/include/run_as.hpp>
 
 using real = double;
 

@@ -33,10 +33,12 @@ public:
 	bool output_only;
 	real output_dt;
 	real stop_time;
+    integer stop_step;
 	real contact_fill;
 	bool bench;
 	real theta;
 	bool ang_con;
+    bool disable_output;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -50,6 +52,8 @@ public:
 		arc & output_filename;
 		arc & output_only;
 		arc & output_dt;
+        arc & stop_step;
+        arc & disable_output;
 		int tmp = problem;
 		arc & tmp;
 		arc & theta;

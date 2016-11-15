@@ -18,7 +18,9 @@
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
 #define ODT_OPT "-Odt"
+#define DISABLEOUTPUT_OPT "-Disableoutput"
 #define STOPTIME_OPT "-Stoptime"
+#define STOPSTEP_OPT "-Stopstep"
 #define BENCH_OPT "-Bench"
 #define THETA_OPT "-Theta"
 
@@ -68,6 +70,8 @@ bool options::process_options(int argc, char* argv[]) {
 	bench = false;
 	ang_con = true;
 	stop_time = std::numeric_limits < real > ::max();
+    stop_step = std::numeric_limits < integer >::max();
+    disable_output = false;
 
 	for (integer i = 1; i < argc; ++i) {
 		if (cmp(argv[i], HELP_OPT)) {
@@ -114,8 +118,12 @@ bool options::process_options(int argc, char* argv[]) {
 			output_dt = (2.0 * M_PI / omega) / 100.0;
 		} else if (cmp(argv[i], ODT_OPT)) {
 			output_dt = atof(argv[i] + strlen(ODT_OPT) + 1);
+        } else if (cmp(argv[i], DISABLEOUTPUT_OPT)) {
+            disable_output = true;
 		} else if (cmp(argv[i], STOPTIME_OPT)) {
 			stop_time = atof(argv[i] + strlen(STOPTIME_OPT) + 1);
+		} else if (cmp(argv[i], STOPSTEP_OPT)) {
+            stop_step = atoi(argv[i] + strlen(STOPSTEP_OPT) + 1);
 		} else {
 			printf("Unknown option - %s\n", argv[i]);
 			abort();
