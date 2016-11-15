@@ -9,6 +9,7 @@
 #include <unistd.h>
 #endif
 #include <hpx/hpx_init.hpp>
+#include <hpx/include/lcos.hpp>
 #include "problem.hpp"
 
 #include "options.hpp"
@@ -120,9 +121,7 @@ int hpx_main(int argc, char* argv[]) {
 			for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
 				futs.push_back(hpx::async < initialize_action > (*i, opts));
 			}
-			for (auto i = futs.begin(); i != futs.end(); ++i) {
-				i->get();
-			}
+            hpx::when_all(futs).get();
 
 			node_client root_id = hpx::new_ < node_server > (hpx::find_here());
 			node_client root_client(root_id);
@@ -162,11 +161,10 @@ int hpx_main(int argc, char* argv[]) {
 				//	set_problem(null_problem);
 				root_client.start_run(opts.problem == DWD && !opts.found_restart_file).get();
 			}
-
             root_client.report_timing();
 		}
 	} catch (...) {
-
+        throw;
 	}
 	printf("Exiting...\n");
 	return hpx::finalize();

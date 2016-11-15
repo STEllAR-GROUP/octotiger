@@ -7,6 +7,7 @@
 #include <hpx/lcos/when_all.hpp>
 #include <hpx/runtime/serialization/list.hpp>
 #include <hpx/include/threads.hpp>
+#include <hpx/include/run_as.hpp>
 
 #include "options.hpp"
 

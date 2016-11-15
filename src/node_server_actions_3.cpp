@@ -5,6 +5,7 @@
 #include "util.hpp"
 
 #include <hpx/include/threads.hpp>
+#include <hpx/include/run_as.hpp>
 #include <hpx/lcos/when_all.hpp>
 #include <hpx/util/high_resolution_clock.hpp>
 
@@ -260,12 +261,14 @@ void node_server::start_run(bool scf) {
 
     output_cnt = root_ptr->get_rotation_count() / output_dt;
     hpx::future<void> diag_fut = hpx::make_ready_future();
-    hpx::future<void> step_fut = hpx::make_ready_future();
     profiler_output (stdout);
     real bench_start, bench_stop;
     while (current_time < opts.stop_time) {
+        if (step_num > opts.stop_step)
+            break;
+
         auto time_start = std::chrono::high_resolution_clock::now();
-        if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
+        if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
             //	if (step_num != 0) {
 
             char fname[33];    // 21 bytes for int (max) + some leeway
@@ -310,17 +313,19 @@ void node_server::start_run(bool scf) {
         }
         double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
             std::chrono::high_resolution_clock::now() - time_start).count();
-        step_fut.get();
 
         // run output on separate thread
-        hpx::threads::run_as_os_thread([=]()
+        if (!opts.disable_output)
         {
-            FILE* fp = fopen( "step.dat", "at");
-            fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
-                int(step_num), double(t), double(dt), time_elapsed, rotational_time,
-                theta, theta_dot, omega, omega_dot, int(ngrids));
-            fclose(fp);
-        });     // do not wait for it fo finish
+            hpx::threads::run_as_os_thread([=]()
+            {
+                FILE* fp = fopen( "step.dat", "at");
+                fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
+                    int(step_num), double(t), double(dt), time_elapsed, rotational_time,
+                    theta, theta_dot, omega, omega_dot, int(ngrids));
+                fclose(fp);
+            });     // do not wait for it fo finish
+        }
 
         printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
             time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);

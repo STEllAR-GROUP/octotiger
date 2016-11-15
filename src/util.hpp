@@ -13,6 +13,7 @@
 #include <algorithm>
 
 #include <hpx/include/threads.hpp>
+#include <hpx/include/run_as.hpp>
 
 inline integer refinement_freq() {
 	return  integer(R_BW / cfl + 0.5);

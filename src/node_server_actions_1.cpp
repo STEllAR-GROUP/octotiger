@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <hpx/include/threads.hpp>
+#include <hpx/include/run_as.hpp>
 #include <hpx/lcos/when_all.hpp>
 
 extern options opts;
