@@ -194,7 +194,7 @@ public:
 		return r;
 	}
 
-	T operator()() const {
+	T const& operator()() const {
 		return data[0];
 	}
 
