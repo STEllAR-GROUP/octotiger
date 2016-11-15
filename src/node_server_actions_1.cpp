@@ -13,9 +13,9 @@
 #include "options.hpp"
 
 #include <chrono>
-#include <hpx/include/threads.hpp>
+
 #include <hpx/include/run_as.hpp>
-#include <hpx/lcos/when_all.hpp>
+#include <hpx/include/lcos.hpp>
 
 extern options opts;
 
@@ -76,9 +76,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me,
             futs.push_back(
                 hpx::async<set_locality_data_action>(locality, omega, pivot, rec_size));
         }
-        for (auto&& fut : futs) {
-            fut.get();
-        }
+        hpx::when_all(futs).get();
     }
 
     static auto localities = hpx::find_all_localities();

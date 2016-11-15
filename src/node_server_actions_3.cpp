@@ -4,10 +4,9 @@
 #include "options.hpp"
 #include "util.hpp"
 
-#include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
-#include <hpx/lcos/when_all.hpp>
-#include <hpx/util/high_resolution_clock.hpp>
+#include <hpx/include/lcos.hpp>
+#include <hpx/include/util.hpp>
 
 extern options opts;
 
@@ -569,9 +568,7 @@ void node_server::velocity_inc(const space_vector& dv) {
         for (auto& child : children) {
             futs.push_back(child.velocity_inc(dv));
         }
-        for (auto&& fut : futs) {
-            fut.get();
-        }
+        hpx::when_all(futs).get();
     } else {
         grid_ptr->velocity_inc(dv);
     }

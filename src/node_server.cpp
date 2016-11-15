@@ -20,8 +20,7 @@
 #endif
 extern options opts;
 
-#include <hpx/lcos/when_all.hpp>
-#include <hpx/dataflow.hpp>
+#include <hpx/include/lcos.hpp>
 
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
 

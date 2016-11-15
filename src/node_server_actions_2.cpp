@@ -3,10 +3,9 @@
 #include "diagnostics.hpp"
 #include "taylor.hpp"
 #include "profiler.hpp"
-#include <hpx/lcos/wait_all.hpp>
-#include <hpx/lcos/when_all.hpp>
+
+#include <hpx/include/lcos.hpp>
 #include <hpx/runtime/serialization/list.hpp>
-#include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
 
 #include "options.hpp"
