@@ -8,6 +8,7 @@
 #include "node_server.hpp"
 #include "node_client.hpp"
 #include "diagnostics.hpp"
+#include "future.hpp"
 #include "taylor.hpp"
 #include "profiler.hpp"
 #include "options.hpp"
@@ -76,7 +77,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me,
             futs.push_back(
                 hpx::async<set_locality_data_action>(locality, omega, pivot, rec_size));
         }
-        hpx::when_all(futs).get();
+        wait_all_and_propagate_exceptions(futs);
     }
 
     static auto localities = hpx::find_all_localities();
@@ -308,7 +309,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
         }
     }
     clear_family();
-    hpx::when_all(futs).get();
+    wait_all_and_propagate_exceptions(futs);
 }
 
 typedef node_server::regrid_action regrid_action_type;
@@ -441,6 +442,6 @@ void node_server::solve_gravity(bool ene) {
         child_futs.push_back(child.solve_gravity(ene));
     }
     compute_fmm(RHO, ene);
-    hpx::when_all(child_futs).get();
+    wait_all_and_propagate_exceptions(child_futs);
 }
 

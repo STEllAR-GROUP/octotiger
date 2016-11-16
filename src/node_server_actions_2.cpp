@@ -1,6 +1,7 @@
 #include "node_server.hpp"
 #include "node_client.hpp"
 #include "diagnostics.hpp"
+#include "future.hpp"
 #include "taylor.hpp"
 #include "profiler.hpp"
 
@@ -29,7 +30,7 @@ bool node_server::check_for_refinement() {
     if (hydro_on) {
         all_hydro_bounds().get();
     }
-    hpx::when_all(futs).get();
+    wait_all_and_propagate_exceptions(futs);
     if (!rc) {
         rc = grid_ptr->refine_me(my_location.level());
     }
@@ -417,7 +418,7 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
         futs.push_back(parent.force_nodes_to_exist(std::move(parent_list)));
     }
 
-    hpx::when_all(futs).get();
+    wait_all_and_propagate_exceptions(futs);
 }
 
 typedef node_server::form_tree_action form_tree_action_type;
@@ -492,7 +493,7 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
             }
         }
 
-        hpx::when_all(cfuts).get();
+        wait_all_and_propagate_exceptions(cfuts);
     } else {
         std::vector < hpx::future<std::vector<hpx::id_type>>>nfuts(NFACE);
         for (auto& f : geo::face::full_set()) {

@@ -1,18 +1,22 @@
 #include "defs.hpp"
-#include <fenv.h>
 
 #include "node_server.hpp"
 #include "node_client.hpp"
 #include "future.hpp"
+#include "problem.hpp"
+#include "options.hpp"
+
 #include <chrono>
+#include <utility>
+
+#include <fenv.h>
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
+
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/lcos.hpp>
-#include "problem.hpp"
 
-#include "options.hpp"
 options opts;
 
 bool gravity_on = true;
@@ -121,7 +125,7 @@ int hpx_main(int argc, char* argv[]) {
 			for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
 				futs.push_back(hpx::async < initialize_action > (*i, opts));
 			}
-            hpx::when_all(futs).get();
+            wait_all_and_propagate_exceptions(futs);
 
 			node_client root_id = hpx::new_ < node_server > (hpx::find_here());
 			node_client root_client(root_id);

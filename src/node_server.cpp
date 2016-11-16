@@ -405,7 +405,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 )
             );
         }
-        hpx::when_all(futs).get();
+        wait_all_and_propagate_exceptions(futs);
         m_out = grid_ptr->compute_multipoles(type, &m_out);
     } else {
         m_out = grid_ptr->compute_multipoles(type);
@@ -446,7 +446,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         }
     }
     parent_fut.get();
-    hpx::when_all(boundary_futs).get();
+    wait_all_and_propagate_exceptions(boundary_futs);
 
     expansion_pass_type l_in;
     if (my_location.level() != 0) {
@@ -493,7 +493,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         return hpx::when_all(child_futs);
     };
 
-    hpx::when_all(f(ltmp), neighbor_futs).get();
+    wait_all_and_propagate_exceptions(f(ltmp), neighbor_futs);
 }
 
 void node_server::report_timing()

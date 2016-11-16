@@ -1,6 +1,6 @@
 #include "node_server.hpp"
 #include "node_client.hpp"
-
+#include "future.hpp"
 #include "options.hpp"
 #include "util.hpp"
 
@@ -532,7 +532,7 @@ void node_server::timestep_driver_ascend(real dt) {
         for(auto& child: children) {
             futs.push_back(child.timestep_driver_ascend(dt));
         }
-        hpx::when_all(futs).get();
+        wait_all_and_propagate_exceptions(futs);
     }
 }
 
@@ -591,7 +591,7 @@ void node_server::velocity_inc(const space_vector& dv) {
         for (auto& child : children) {
             futs.push_back(child.velocity_inc(dv));
         }
-        hpx::when_all(futs).get();
+        wait_all_and_propagate_exceptions(futs);
     } else {
         grid_ptr->velocity_inc(dv);
     }
