@@ -71,6 +71,7 @@ public:
     hpx::mutex load_mutex;
 
     timings timings_;
+    real dt_;
 
     public:
     static bool is_gravity_on() {
@@ -124,8 +125,8 @@ public:
     void clear_family();
     hpx::future<void> exchange_flux_corrections();
 
-    void nonrefined_step();
-    void refined_step(std::vector<hpx::future<void>> child_futs);
+    hpx::future<void> nonrefined_step();
+    hpx::future<void> refined_step(std::vector<hpx::future<void>> child_futs);
 
 public:
 
@@ -171,7 +172,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
     HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
 
-    void step();
+    hpx::future<void> step();
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
     int regrid(const hpx::id_type& root_gid, bool rb);
