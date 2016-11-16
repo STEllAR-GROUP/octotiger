@@ -1,16 +1,18 @@
+#include "future.hpp"
 #include "grid.hpp"
 #include "problem.hpp"
 #include "options.hpp"
-#include <cmath>
-#include <cassert>
 #include "profiler.hpp"
 #include "taylor.hpp"
 //#include "helmholtz.hpp"
-#include <boost/thread/tss.hpp>
 #include "node_server.hpp"
 #include "exact_sod.hpp"
+
+#include <cmath>
+#include <cassert>
+
 #include <hpx/include/runtime.hpp>
-#include <hpx/lcos/when_all.hpp>
+
 extern options opts;
 
 char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
@@ -34,6 +36,9 @@ real grid::Acons = 1.0;
 real grid::Bcons = 1.0;
 
 #if !defined(_MSC_VER)
+
+#include <boost/thread/tss.hpp>
+
 class tls_t {
 private:
 	pthread_key_t key;
@@ -660,7 +665,7 @@ void grid::set_AB(real a, real b) {
 			futs.push_back(hpx::async < set_AB_action > (l, a, b));
 		}
 
-        hpx::when_all(futs).get();
+        wait_all_and_propagate_exceptions(futs);
 	}
 	grid::Acons = a;
 	grid::Bcons = b;
@@ -680,7 +685,7 @@ void grid::set_omega(real omega) {
 			futs.push_back(hpx::async < set_omega_action > (l, omega));
 		}
 
-        hpx::when_all(futs).get();
+        wait_all_and_propagate_exceptions(futs);
 	}
 	grid::omega = omega;
 }
@@ -902,8 +907,8 @@ bool grid::refine_me(integer lev) const {
 	std::vector < real > state(NF);
     std::array<std::vector<real>, NDIM> dud;
     std::vector<real>& dudx = dud[0];
-    std::vector<real>& dudy = dud[0];
-    std::vector<real>& dudz = dud[0];
+    std::vector<real>& dudy = dud[1];
+    std::vector<real>& dudz = dud[2];
 	dudx.resize(NF);
 	dudy.resize(NF);
 	dudz.resize(NF);
