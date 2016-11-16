@@ -907,8 +907,8 @@ bool grid::refine_me(integer lev) const {
 	std::vector < real > state(NF);
     std::array<std::vector<real>, NDIM> dud;
     std::vector<real>& dudx = dud[0];
-    std::vector<real>& dudy = dud[0];
-    std::vector<real>& dudz = dud[0];
+    std::vector<real>& dudy = dud[1];
+    std::vector<real>& dudz = dud[2];
 	dudx.resize(NF);
 	dudy.resize(NF);
 	dudz.resize(NF);
