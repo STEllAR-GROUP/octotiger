@@ -705,6 +705,7 @@ void compute_ilist() {
 	const real theta0 = opts.theta;
 	const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
 		real tmp = ((i0-i1)*(i0-i1)+(j0-j1)*(j0-j1)+(k0-k1)*(k0-k1));
+		// protect against sqrt(0)
 		if( tmp > 0.0 ) {
 			return 1.0 / (std::sqrt(tmp));
 		} else {
@@ -763,6 +764,7 @@ void compute_ilist() {
 							const real x = i0 - i1;
 							const real y = j0 - j1;
 							const real z = k0 - k1;
+							// protect against sqrt(0)
 							const real r = (x==y==z==0) ? 0 : (std::sqrt(x * x + y * y + z * z));
 							const real r3 = r * r * r;
 							v4sd four;
