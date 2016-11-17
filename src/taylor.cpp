@@ -182,8 +182,8 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     // 2 MULS
     const T d3 = -T(5) * d2 * r2inv;
 
-    // 2 MULS
-    const T d4 = -T(7) * d3 * r2inv;
+//     // 2 MULS
+//     const T d4 = -T(7) * d3 * r2inv;
 
     // 1 STORE
     A() = d0;
