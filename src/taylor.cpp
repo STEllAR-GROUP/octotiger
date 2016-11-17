@@ -149,10 +149,10 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     // STORES XX[0:19] * SIMD_LEN * SIZEOF(REAL) = 1280 BYTES
     //                                           = 1472 BYTES
     //
-    // 3 ITERATIONS * 0 FLOPS * SIMD_LEN 
+    // 3 ITERATIONS * 0 FLOPS * SIMD_LEN
     //  6 ITERATIONS * 1 FLOP * SIMD_LEN  =  48 FLOPS
-    //   9 ITERATIONS * 1 FLOP * SIMD_LEN = 120 FLOPS
-    //                                    = 168 FLOPS
+    //   10 ITERATIONS * 1 FLOP * SIMD_LEN = 80 FLOPS
+    //                                    = 128 FLOPS
     for (integer a = 0; a != NDIM; a++) {
         auto const tmpa = X[a];                   // 1 LOAD (NOTE: CURRENTLY SPILLING)
         XX(a) = tmpa;                             // 1 STORE
@@ -237,9 +237,9 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     //
     // 3  ITERATIONS * 1 FLOP * SIMD_LEN     =  24 FLOPS
     //  6  ITERATIONS * 1 FLOP * SIMD_LEN    =  48 FLOPS
-    //   9  ITERATIONS * 1 FLOP * SIMD_LEN   =  72 FLOPS
-    //    16 ITERATIONS * 0 FLOPS * SIMD_LEN = 
-    //                                       = 144 FLOPS
+    //   10  ITERATIONS * 1 FLOP * SIMD_LEN  =  80 FLOPS
+    //    16 ITERATIONS * 0 FLOPS * SIMD_LEN =
+    //                                       = 152 FLOPS
     for (integer a = 0; a != NDIM; a++) {
         A(a) = XX(a) * d1;                            // 2 LOADS, 1 STORE, 1 MUL
         for (integer b = a; b != NDIM; b++) {
@@ -255,7 +255,45 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
 
     ///////////////////////////////////////////////////////////////////////////
 
-    // TODO
+    // ...
+    //     A[4] = A[4] + d1;
+    //     A[10] = A[10] + XX[1] * d2;
+    //     A[20] = A[20] + XX[4] * d3 + 2.0 * d2;
+    //         A[10] = A[10] + XX[1] * d2;
+    //         A[10] = A[10] + XX[4] * d3;
+    //         A[20] = A[20] + XX[4] * d3
+    //         A[20] = A[20] + XX[4] * d3
+    //         A[20] = A[20] + d2;
+    //             A[20] = A[20] + XX[4] * d3;
+    //             A[20] = A[20] + XX[4] * d3;
+    //             A[20] = A[20] + XX[4] * d3;
+    //             A[21] = A[21] + XX[5] * d3;
+    //             A[21] = A[21] + XX[5] * d3;
+    //             A[23] = A[23] + XX[4] * d3;
+    //             A[22] = A[22] + XX[5] * d3;
+    //             A[22] = A[22] + XX[5] * d3;
+    //             A[25] = A[25] + XX[4] * d3;
+    //         A[11] = A[11] + XX[2] * d2;
+    //         A[13] = A[13] + XX[4] * d3;
+    //         A[21] = A[21] + XX[5] * d3;
+    //         A[26] = A[26] + XX[5] * d3;
+    //         A[23] = A[23] + d2;
+    //             A[22] = A[22] + XX[7] * d3;
+    //             A[26] = A[26] + XX[5] * d3;
+    //             A[26] = A[26] + XX[4] * d3;
+    //             A[24] = A[24] + XX[8] * d3;
+    //             A[27] = A[27] + XX[6] * d3;
+    //             A[28] = A[28] + XX[4] * d3;
+    //         A[12] = A[12] + XX[3] * d2;
+    //         A[15] = A[13] + XX[4] * d3;
+    //         A[21] = A[21] + XX[6] * d3;
+    //         A[29] = A[29] + XX[6] * d3;
+    //         A[25] = A[25] + d2;
+    //             A[25] = A[25] + XX[9] * d3;
+    //             A[29] = A[29] + XX[6] * d3;
+    //             A[29] = A[29] + XX[4] * d3;
+    //
+    // ...
 
     for (integer a = 0; a != NDIM; a++) {
         auto const XXa = XX(a) * d2;
