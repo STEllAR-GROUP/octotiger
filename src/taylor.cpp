@@ -118,7 +118,7 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
 
     ///////////////////////////////////////////////////////////////////////////
 
-    // Assume tmps stay in registers.
+    // Assume tmps stay in registers (NOTE: CURRENTLY SPILLING)
 
     // XX[1] = X[0];
     //     XX[4] = X[0] * X[0];
@@ -149,12 +149,12 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     // STORES XX[0:19] * SIMD_LEN * SIZEOF(REAL) = 1280 BYTES
     //                                           = 1472 BYTES
     //
-    // 3 ITERATIONS * 0 FLOPS
-    //  6 ITERATIONS * 1 FLOP   = 6  FLOPS
-    //   9 ITERATIONS * 1 FLOP  = 15 FLOPS
-    //                          = 21 FLOPS
+    // 3 ITERATIONS * 0 FLOPS * SIMD_LEN 
+    //  6 ITERATIONS * 1 FLOP * SIMD_LEN  =  48 FLOPS
+    //   9 ITERATIONS * 1 FLOP * SIMD_LEN = 120 FLOPS
+    //                                    = 168 FLOPS
     for (integer a = 0; a != NDIM; a++) {
-        auto const tmpa = X[a];                   // 1 LOAD NOTE: CURRENTLY SPILLING
+        auto const tmpa = X[a];                   // 1 LOAD (NOTE: CURRENTLY SPILLING)
         XX(a) = tmpa;                             // 1 STORE
 
         for (integer b = a; b != NDIM; b++) {
@@ -194,7 +194,7 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     // Assume they're in the L1 and all loads and stores are between L1 and
     // registers.
 
-    // A[0] = XX[0] * d1;
+    // A[1] = XX[1] * d1;
     //     A[4] = XX[4] * d2;
     //         A[10] = XX[10] * d3;
     //             A[20] = 0.0;
@@ -215,7 +215,7 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     //         A[15] = XX[15] * d3;
     //             A[29] = 0.0;
     //
-    // A[1] = XX[1] * d1;
+    // A[2] = XX[2] * d1;
     //     A[7] = XX[7] * d2;
     //         A[16] = XX[16] * d3;
     //             A[30] = 0.0;
@@ -226,7 +226,7 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     //         A[18] = XX[18] * d3;
     //             A[33] = 0.0;
     //
-    // A[2] = XX[2] * d1;
+    // A[3] = XX[3] * d1;
     //     A[9] = XX[9] * d2;
     //         A[19] = XX[19] * d3;
     //             A[34] = 0.0;
@@ -235,11 +235,11 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     // STORES A[0:34] * SIMD_LEN * SIZEOF(REAL)  = 2240 BYTES
     //                                           = 3520 BYTES
     //
-    // 3  ITERATIONS * 1 FLOP       = 3 FLOPS
-    //  6  ITERATIONS * 1 FLOP      = 6 FLOPS
-    //   9  ITERATIONS * 1 FLOP     = 9 FLOPS
-    //    16 ITERATIONS * 0 FLOPS
-    //                              = 18 FLOPS
+    // 3  ITERATIONS * 1 FLOP * SIMD_LEN     =  24 FLOPS
+    //  6  ITERATIONS * 1 FLOP * SIMD_LEN    =  48 FLOPS
+    //   9  ITERATIONS * 1 FLOP * SIMD_LEN   =  72 FLOPS
+    //    16 ITERATIONS * 0 FLOPS * SIMD_LEN = 
+    //                                       = 144 FLOPS
     for (integer a = 0; a != NDIM; a++) {
         A(a) = XX(a) * d1;                            // 2 LOADS, 1 STORE, 1 MUL
         for (integer b = a; b != NDIM; b++) {
@@ -258,15 +258,15 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     // TODO
 
     for (integer a = 0; a != NDIM; a++) {
-        A(a, a) += d1;
         auto const XXa = XX(a) * d2;
+        A(a, a) += d1;
         A(a, a, a) += XXa;
         A(a, a, a, a) += XX(a, a) * d3;
         A(a, a, a, a) += 2.0 * d2;
         for (integer b = a; b != NDIM; b++) {
+            auto const XXab = XX(a, b) * d3;
             A(a, a, b) += XX(b) * d2;
             A(a, b, b) += XXa;
-            auto const XXab = XX(a, b) * d3;
             A(a, a, a, b) += XXab;
             A(a, b, b, b) += XXab;
             A(a, a, b, b) += d2;
