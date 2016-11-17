@@ -765,7 +765,8 @@ void compute_ilist() {
 							const real y = j0 - j1;
 							const real z = k0 - k1;
 							// protect against sqrt(0)
-							const real r = (x==y==z==0) ? 0 : (std::sqrt(x * x + y * y + z * z));
+                            const real tmp = x * x + y * y + z * z;
+							const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
 							const real r3 = r * r * r;
 							v4sd four;
 							if (r > 0.0) {
