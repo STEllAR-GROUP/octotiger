@@ -10,11 +10,14 @@
 
 #include "defs.hpp"
 //#include "simd.hpp"
-#include <array>
-#include <cmath>
 #include "profiler.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+
 #if defined(HPX_HAVE_DATAPAR)
+#include <hpx/include/parallel_equal.hpp>
 #include <hpx/include/parallel_fill.hpp>
 #include <hpx/include/parallel_transform.hpp>
 #endif
@@ -30,11 +33,12 @@ struct taylor_consts {
 	static integer map4[3][3][3][3];
 };
 
+constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35}; //
+
 template<int N, class T = real>
 class taylor {
 private:
-	static constexpr integer sizes[MAX_ORDER] = {1, 4, 10, 20, 35}; //
-	static constexpr integer my_size = sizes[N - 1];
+	static constexpr integer my_size = taylor_sizes[N - 1];
 	static taylor_consts tc;
 	std::array<T, my_size> data;
 public:
@@ -194,44 +198,78 @@ public:
 		return r;
 	}
 
+#if defined(HPX_HAVE_DATAPAR)
+    friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs)
+    {
+        return hpx::parallel::equal(
+            hpx::parallel::dataseq_execution,
+            lhs.data.begin(), lhs.data.end(), rhs.data.begin(),
+            [](T const& t1, T const& t2)
+            {
+                return all_of(t1 == t2);
+            });
+    }
+#endif
+
+    constexpr integer index() const {
+        return 0;
+    }
+
+    constexpr integer index(integer i) const {
+        return 1 + i;
+    }
+
+    integer index(integer i, integer j) const {
+        return tc.map2[i][j];
+    }
+
+    integer index(integer i, integer j, integer k) const {
+        return tc.map3[i][j][k];
+    }
+
+    integer index(integer i, integer j, integer k, integer l) const {
+        return tc.map4[i][j][k][l];
+    }
+
+
 	T const& operator()() const {
-		return data[0];
+		return data[index()];
 	}
 
 	T const& operator()(integer i) const {
-		return data[1 + i];
+		return data[index(i)];
 	}
 
 	T const& operator()(integer i, integer j) const {
-		return data[tc.map2[i][j]];
+		return data[index(i, j)];
 	}
 
 	T const& operator()(integer i, integer j, integer k) const {
-		return data[tc.map3[i][j][k]];
+		return data[index(i, j, k)];
 	}
 
 	T const& operator()(integer i, integer j, integer k, integer l) const {
-		return data[tc.map4[i][j][k][l]];
+		return data[index(i, j, k, l)];
 	}
 
 	T& operator()() {
-		return data[0];
+		return data[index()];
 	}
 
 	T& operator()(integer i) {
-		return data[1 + i];
+		return data[index(i)];
 	}
 
 	T& operator()(integer i, integer j) {
-		return data[tc.map2[i][j]];
+		return data[index(i, j)];
 	}
 
 	T& operator()(integer i, integer j, integer k) {
-		return data[tc.map3[i][j][k]];
+		return data[index(i, j, k)];
 	}
 
 	T& operator()(integer i, integer j, integer k, integer l) {
-		return data[tc.map4[i][j][k][l]];
+		return data[index(i, j, k, l)];
 	}
 
 	taylor<N, T>& operator>>=(const std::array<T, NDIM>& X) {
