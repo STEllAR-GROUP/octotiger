@@ -240,17 +240,29 @@ void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     //   10  ITERATIONS * 1 FLOP * SIMD_LEN  =  80 FLOP
     //    15 ITERATIONS * 0 FLOP * SIMD_LEN  =
     //                                       = 152 FLOP
-    for (integer a = 0; a != NDIM; a++) {
-        A(a) = XX(a) * d1;                            // 2 LOADS, 1 STORE, 1 MUL
-        for (integer b = a; b != NDIM; b++) {
-            A(a, b) = XX(a, b) * d2;                  // 2 LOADS, 1 STORE, 1 MUL
-            for (integer c = b; c != NDIM; c++) {
-                A(a, b, c) = XX(a, b, c) * d3;        // 2 LOADS, 1 STORE, 1 MUL
-                for (integer d = c; d != NDIM; ++d) {
-                    A(a, b, c, d) = 0.0;              // 1 STORE
-                }
-            }
-        }
+//     for (integer a = 0; a != NDIM; a++) {
+//         A(a) = XX(a) * d1;                            // 2 LOADS, 1 STORE, 1 MUL
+//         for (integer b = a; b != NDIM; b++) {
+//             A(a, b) = XX(a, b) * d2;                  // 2 LOADS, 1 STORE, 1 MUL
+//             for (integer c = b; c != NDIM; c++) {
+//                 A(a, b, c) = XX(a, b, c) * d3;        // 2 LOADS, 1 STORE, 1 MUL
+//                 for (integer d = c; d != NDIM; ++d) {
+//                     A(a, b, c, d) = 0.0;              // 1 STORE
+//                 }
+//             }
+//         }
+//     }
+    for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
+        A[i] = XX[i] * d1;
+    }
+    for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
+        A[i] = XX[i] * d2;
+    }
+    for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+        A[i] = XX[i] * d3;
+    }
+    for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
+        A[i] = ZERO;
     }
 
     ///////////////////////////////////////////////////////////////////////////
