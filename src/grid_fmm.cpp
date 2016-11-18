@@ -147,45 +147,58 @@ void grid::solve_gravity(gsolve_type type) {
 
 void grid::compute_interactions(gsolve_type type) {
 	PROF_BEGIN;
-	std::array<simd_vector, NDIM> dX;
-	std::array < simd_vector, NDIM > X;
-	std::array<simd_vector, NDIM> Y;
 	std::fill(std::begin(L), std::end(L), ZERO);
 	std::fill(std::begin(L_c), std::end(L_c), ZERO);
 	if (!is_leaf) {
+	    std::array<simd_vector, NDIM> dX;
+	    std::array<simd_vector, NDIM> X;
+	    std::array<simd_vector, NDIM> Y;
+
 		const auto& this_ilist = is_root ? ilist_r : ilist_n;
+		const integer list_size = this_ilist.size();
 		interaction_type np;
 		interaction_type dp;
-		const integer list_size = this_ilist.size();
 		taylor<4, simd_vector> m0;
 		taylor<4, simd_vector> m1;
 		taylor<4, simd_vector> n0;
 		taylor<4, simd_vector> n1;
+        std::vector<space_vector> const& com0 = com[0];
+
 		for (integer li = 0; li < list_size; li += simd_len) {
+            // FIXME: replace with vector-pack gather-loads
 			for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
 				const integer iii0 = this_ilist[li + i].first;
 				const integer iii1 = this_ilist[li + i].second;
+                space_vector const& com0iii0 = com0[iii0];
+                space_vector const& com0iii1 = com0[iii1];
 				for (integer d = 0; d < NDIM; ++d) {
-					X[d][i] = com[0][iii0][d];
-					Y[d][i] = com[0][iii1][d];
+					X[d][i] = com0iii0[d];
+					Y[d][i] = com0iii1[d];
 				}
+                multipole const& Miii0 = M[iii0];
+                multipole const& Miii1 = M[iii1];
 				for (integer j = 0; j != 20; ++j) {
-					m0.ptr()[j][i] = M[iii1].ptr()[j];
-					m1.ptr()[j][i] = M[iii0].ptr()[j];
+					m0[j][i] = Miii1[j];
+					m1[j][i] = Miii0[j];
 				}
-				for (integer j = 10; j != 20; ++j) {
-					if (type == RHO) {
-						n0.ptr()[j][i] = M[iii1].ptr()[j] - M[iii0].ptr()[j] * (M[iii1]() / M[iii0]());
-						n1.ptr()[j][i] = M[iii0].ptr()[j] - M[iii1].ptr()[j] * (M[iii0]() / M[iii1]());
-					} else {
-						n0.ptr()[j][i] = ZERO;
-						n1.ptr()[j][i] = ZERO;
-					}
-				}
+				if (type == RHO) {
+                    real const tmp1 = Miii1() / Miii0();
+                    real const tmp2 = Miii0() / Miii1();
+				    for (integer j = 10; j != 20; ++j) {
+						n0[j][i] = Miii1[j] - Miii0[j] * tmp1;
+						n1[j][i] = Miii0[j] - Miii1[j] * tmp2;
+				    }
+                } else {
+				    for (integer j = 10; j != 20; ++j) {
+						n0[j][i] = ZERO;
+						n1[j][i] = ZERO;
+				    }
+                }
 			}
 			for (integer d = 0; d < NDIM; ++d) {
 				dX[d] = X[d] - Y[d];
 			}
+
 			taylor<5, simd_vector> D;
 			taylor<4, simd_vector> A0, A1;
 			std::array<simd_vector, NDIM> B0 = { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
@@ -200,11 +213,11 @@ void grid::compute_interactions(gsolve_type type) {
 					A1() += m1(a) * D(a);
 				}
 				for (integer b = a; b < NDIM; ++b) {
-					const auto tmp = D(a, b) * (real(1) / real(2)) * factor(a, b);
+					const auto tmp = D(a, b) * (factor(a, b) / real(2));
 					A0() += m0(a, b) * tmp;
 					A1() += m1(a, b) * tmp;
 					for (integer c = b; c < NDIM; ++c) {
-						const auto tmp0 = D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
+						const auto tmp0 = D(a, b, c) * (factor(a, b, c) / real(6));
 						A0() -= m0(a, b, c) * tmp0;
 						A1() += m1(a, b, c) * tmp0;
 					}
@@ -221,7 +234,7 @@ void grid::compute_interactions(gsolve_type type) {
 						A1(a) -= m1(a) * D(a, b);
 					}
 					for (integer c = b; c < NDIM; ++c) {
-						const auto tmp1 = D(a, b, c) * (real(1) / real(2)) * factor(c, b);
+						const auto tmp1 = D(a, b, c) * (factor(c, b) / real(2));
 						A0(a) += m0(c, b) * tmp1;
 						A1(a) -= m1(c, b) * tmp1;
 					}
@@ -234,7 +247,7 @@ void grid::compute_interactions(gsolve_type type) {
 					for (integer b = 0; b < NDIM; ++b) {
 						for (integer c = b; c < NDIM; ++c) {
 							for (integer d = c; d != NDIM; ++d) {
-								const auto tmp = D(a, b, c, d) * (real(1) / real(6)) * factor(b, c, d);
+								const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
 								B0[a] -= n0(b, c, d) * tmp;
 								B1[a] -= n1(b, c, d) * tmp;
 							}
@@ -298,9 +311,10 @@ void grid::compute_interactions(gsolve_type type) {
 		const integer dsize = ilist_d.size();
 		const integer lev = 0;
 		for (integer li = 0; li < dsize; ++li) {
-			const integer iii0 = ilist_d[li].first;
-			const integer iii1 = ilist_d[li].second;
 			const auto& ele = ilist_d[li];
+			const integer iii0 = ele.first;
+			const integer iii1 = ele.second;
+#if !defined(HPX_HAVE_DATAPAR)
 			v4sd m0, m1;
 			for (integer i = 0; i != 4; ++i) {
 				m0[i] = mon[iii1];
@@ -308,6 +322,13 @@ void grid::compute_interactions(gsolve_type type) {
 			for (integer i = 0; i != 4; ++i) {
 				m1[i] = mon[iii0];
 			}
+#else
+            v4sd m0 = mon[iii1];
+            v4sd m1 = mon[iii0];
+#endif
+            // FIXME: explain what's going on here!
+            // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
+            // Even if this is safe, it's probably utterly inefficient.
 			v4sd* l0ptr = (v4sd*) L[iii0].ptr();
 			v4sd* l1ptr = (v4sd*) L[iii1].ptr();
 			*l0ptr += m0 * ele.four * d0;
