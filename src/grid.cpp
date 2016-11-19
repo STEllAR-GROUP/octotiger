@@ -1424,6 +1424,7 @@ void grid::reconstruct() {
 		const real theta_x = (field == sy_i || field == sz_i) ? 1.0 : 2.0;
 		const real theta_y = (field == sx_i || field == sz_i) ? 1.0 : 2.0;
 		const real theta_z = (field == sx_i || field == sy_i) ? 1.0 : 2.0;
+        std::vector<real> const& Vfield = V[field];
 #pragma GCC ivdep
 		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 			if (field == 1) {
@@ -1436,36 +1437,47 @@ void grid::reconstruct() {
 				// printf("%e %e %e\n", V[rho_i][iii + H_DNY], V[rho_i][iii], V[rho_i][iii - H_DNY]);
 				//	printf("%e %e %e\n", V[rho_i][iii + H_DNZ], V[rho_i][iii], V[rho_i][iii - H_DNZ]);
 			}
-			slpx[field][iii] = minmod_theta(V[field][iii + H_DNX] - V[field][iii], V[field][iii] - V[field][iii - H_DNX], theta_x);
-			slpy[field][iii] = minmod_theta(V[field][iii + H_DNY] - V[field][iii], V[field][iii] - V[field][iii - H_DNY], theta_y);
-			slpz[field][iii] = minmod_theta(V[field][iii + H_DNZ] - V[field][iii], V[field][iii] - V[field][iii - H_DNZ], theta_z);
+			slpx[field][iii] = minmod_theta(Vfield[iii + H_DNX] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNX], theta_x);
+			slpy[field][iii] = minmod_theta(Vfield[iii + H_DNY] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNY], theta_y);
+			slpz[field][iii] = minmod_theta(Vfield[iii + H_DNZ] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNZ], theta_z);
 		}
 	}
 
 	if (opts.ang_con) {
 #pragma GCC ivdep
+        auto average = [](real& s1, real& s2) { s1 = s2 = 0.5 * (s1 + s2); };
+        auto step1 = [&](real& lhs, real const& rhs) { lhs += 6.0 * rhs / dx; };
+        auto step2 = [&](real& lhs, real const& rhs) { lhs -= 6.0 * rhs / dx; };
+        auto minmod_step =
+            [](real& lhs, real const& r1, real const& r2, real const& r3)
+            {
+                lhs = minmod(lhs, 2.0 * minmod(r1 - r2, r2 - r3));
+            };
+
 		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
+			average(slpx[sy_i][iii], slpy[sx_i][iii]);
+			average(slpx[sz_i][iii], slpz[sx_i][iii]);
+			average(slpy[sz_i][iii], slpz[sy_i][iii]);
 
-			slpx[sy_i][iii] = slpy[sx_i][iii] = 0.5 * (slpx[sy_i][iii] + slpy[sx_i][iii]);
-			slpx[sz_i][iii] = slpz[sx_i][iii] = 0.5 * (slpx[sz_i][iii] + slpz[sx_i][iii]);
-			slpy[sz_i][iii] = slpz[sy_i][iii] = 0.5 * (slpy[sz_i][iii] + slpz[sy_i][iii]);
+			step1(slpx[sy_i][iii], V[zz_i][iii]);
+			step1(slpy[sz_i][iii], V[zx_i][iii]);
+			step1(slpz[sx_i][iii], V[zy_i][iii]);
 
-			slpy[sz_i][iii] += 6.0 * V[zx_i][iii] / dx;
-			slpz[sy_i][iii] -= 6.0 * V[zx_i][iii] / dx;
-			slpx[sz_i][iii] -= 6.0 * V[zy_i][iii] / dx;
-			slpz[sx_i][iii] += 6.0 * V[zy_i][iii] / dx;
-			slpx[sy_i][iii] += 6.0 * V[zz_i][iii] / dx;
-			slpy[sx_i][iii] -= 6.0 * V[zz_i][iii] / dx;
+			step2(slpy[sx_i][iii], V[zz_i][iii]);
+			step2(slpz[sy_i][iii], V[zx_i][iii]);
+			step2(slpx[sz_i][iii], V[zy_i][iii]);
 
-			slpx[sy_i][iii] = minmod(slpx[sy_i][iii], 2.0 * minmod(V[sy_i][iii + H_DNX] - V[sy_i][iii], V[sy_i][iii] - V[sy_i][iii - H_DNX]));
-			slpx[sz_i][iii] = minmod(slpx[sz_i][iii], 2.0 * minmod(V[sz_i][iii + H_DNX] - V[sz_i][iii], V[sz_i][iii] - V[sz_i][iii - H_DNX]));
-			slpy[sx_i][iii] = minmod(slpy[sx_i][iii], 2.0 * minmod(V[sx_i][iii + H_DNY] - V[sx_i][iii], V[sx_i][iii] - V[sx_i][iii - H_DNY]));
-			slpy[sz_i][iii] = minmod(slpy[sz_i][iii], 2.0 * minmod(V[sz_i][iii + H_DNY] - V[sz_i][iii], V[sz_i][iii] - V[sz_i][iii - H_DNY]));
-			slpz[sx_i][iii] = minmod(slpz[sx_i][iii], 2.0 * minmod(V[sx_i][iii + H_DNZ] - V[sx_i][iii], V[sx_i][iii] - V[sx_i][iii - H_DNZ]));
-			slpz[sy_i][iii] = minmod(slpz[sy_i][iii], 2.0 * minmod(V[sy_i][iii + H_DNZ] - V[sy_i][iii], V[sy_i][iii] - V[sy_i][iii - H_DNZ]));
+			minmod_step(slpx[sy_i][iii], V[sy_i][iii + H_DNX], V[sy_i][iii], V[sy_i][iii - H_DNX]);
+			minmod_step(slpx[sz_i][iii], V[sz_i][iii + H_DNX], V[sz_i][iii], V[sz_i][iii - H_DNX]);
+			minmod_step(slpy[sx_i][iii], V[sx_i][iii + H_DNY], V[sx_i][iii], V[sx_i][iii - H_DNY]);
+			minmod_step(slpy[sz_i][iii], V[sz_i][iii + H_DNY], V[sz_i][iii], V[sz_i][iii - H_DNY]);
+			minmod_step(slpz[sx_i][iii], V[sx_i][iii + H_DNZ], V[sx_i][iii], V[sx_i][iii - H_DNZ]);
+			minmod_step(slpz[sy_i][iii], V[sy_i][iii + H_DNZ], V[sy_i][iii], V[sy_i][iii - H_DNZ]);
+
 			const real zx_lim = +(slpy[sz_i][iii] - slpz[sy_i][iii]) / 12.0;
 			const real zy_lim = -(slpx[sz_i][iii] - slpz[sx_i][iii]) / 12.0;
 			const real zz_lim = +(slpx[sy_i][iii] - slpy[sx_i][iii]) / 12.0;
+
 			for (int face = 0; face != NFACE; ++face) {
 				Uf[face][zx_i][iii] = V[zx_i][iii] - zx_lim * dx;
 				Uf[face][zy_i][iii] = V[zy_i][iii] - zy_lim * dx;

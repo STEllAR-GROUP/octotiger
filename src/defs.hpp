@@ -70,7 +70,7 @@ constexpr integer L_POLES = M_POLES;
 
 //#define GRID_SIZE real(2.0)
 
-const real DEFAULT_OMEGA = 0.0;
+constexpr real DEFAULT_OMEGA = 0.0;
 
 //const integer MAX_LEVEL = 5;
 
@@ -78,102 +78,120 @@ enum boundary_type {
 	OUTFLOW, REFLECT
 };
 
-const integer NDIM = 3;
+constexpr integer NDIM = 3;
 
-const integer NSPECIES = 5;
+constexpr integer NSPECIES = 5;
 
-const integer INX = 8;
-const integer H_BW = 3;
-const integer R_BW = 2;
+constexpr integer INX = 8;
+constexpr integer H_BW = 3;
+constexpr integer R_BW = 2;
 
-const integer H_NX = 2 * H_BW + INX;
-const integer G_NX = INX;
-const integer H_N3 = H_NX * H_NX * H_NX;
-const integer F_N3 = ((INX+1)*(INX+1)*(INX+1));
-const integer G_N3 = G_NX * G_NX * G_NX;
+constexpr integer H_NX = 2 * H_BW + INX;
+constexpr integer G_NX = INX;
+constexpr integer H_N3 = H_NX * H_NX * H_NX;
+constexpr integer F_N3 = ((INX+1)*(INX+1)*(INX+1));
+constexpr integer G_N3 = G_NX * G_NX * G_NX;
 
-
-#define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
-#define hindex(i,j,k) ((i)*H_DNX + (j)*H_DNY + (k)*H_DNZ)
-#define findex(i,j,k) ((i)*(INX+1)*(INX+1) + (j)*(INX+1) + (k))
-#define gindex(i,j,k) ((i)*G_DNX + (j)*G_DNY + (k)*G_DNZ)
+constexpr integer F_DNX = (INX+1)*(INX+1);
+constexpr integer F_DNZ = 1;
+constexpr integer F_DNY = (INX+1);
 
 
-const integer F_DNX = (INX+1)*(INX+1);
-const integer F_DNZ = 1;
-const integer F_DNY = (INX+1);
+constexpr integer NF = 15;
+constexpr integer NDIR = 27;
+constexpr integer H_DNX = H_NX * H_NX;
+constexpr integer H_DNY = H_NX;
+constexpr integer H_DNZ = 1;
+constexpr integer H_DN[NDIM] = { H_NX * H_NX, H_NX, 1 };
+constexpr integer F_DN[NDIM] = {(INX+1)*(INX+1),INX+1,1 };
+constexpr integer G_DNX = G_NX * G_NX;
+constexpr integer G_DNY = G_NX;
+constexpr integer G_DNZ = 1;
+constexpr integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
 
+constexpr integer rho_i = 0;
+constexpr integer egas_i = 1;
+constexpr integer sx_i = 2;
+constexpr integer sy_i = 3;
+constexpr integer sz_i = 4;
+constexpr integer tau_i = 5;
+constexpr integer pot_i = 6;
+constexpr integer zx_i = 7;
+constexpr integer zy_i = 8;
+constexpr integer zz_i = 9;
+constexpr integer spc_i = 10;
+constexpr integer spc_ac_i = 10;
+constexpr integer spc_ae_i = 11;
+constexpr integer spc_dc_i = 12;
+constexpr integer spc_de_i = 13;
+constexpr integer spc_vac_i = 14;
 
-const integer NF = 15;
-const integer NDIR = 27;
-const integer H_DNX = H_NX * H_NX;
-const integer H_DNY = H_NX;
-const integer H_DNZ = 1;
-const integer H_DN[NDIM] = { H_NX * H_NX, H_NX, 1 };
-const integer F_DN[NDIM] = {(INX+1)*(INX+1),INX+1,1 };
-const integer G_DNX = G_NX * G_NX;
-const integer G_DNY = G_NX;
-const integer G_DNZ = 1;
-const integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
+constexpr integer vx_i = sx_i;
+constexpr integer vy_i = sy_i;
+constexpr integer vz_i = sz_i;
+constexpr integer h_i = egas_i;
 
-const integer rho_i = 0;
-const integer egas_i = 1;
-const integer sx_i = 2;
-const integer sy_i = 3;
-const integer sz_i = 4;
-const integer tau_i = 5;
-const integer pot_i = 6;
-const integer zx_i = 7;
-const integer zy_i = 8;
-const integer zz_i = 9;
-const integer spc_i = 10;
-const integer spc_ac_i = 10;
-const integer spc_ae_i = 11;
-const integer spc_dc_i = 12;
-const integer spc_de_i = 13;
-const integer spc_vac_i = 14;
+constexpr integer XDIM = 0;
+constexpr integer YDIM = 1;
+constexpr integer ZDIM = 2;
 
-const integer vx_i = sx_i;
-const integer vy_i = sy_i;
-const integer vz_i = sz_i;
-const integer h_i = egas_i;
+constexpr integer FXM = 0;
+constexpr integer FXP = 1;
+constexpr integer FYM = 2;
+constexpr integer FYP = 3;
+constexpr integer FZM = 4;
+constexpr integer FZP = 5;
 
-const integer XDIM = 0;
-const integer YDIM = 1;
-const integer ZDIM = 2;
+constexpr integer NFACE = 2 * NDIM;
+constexpr integer NVERTEX = 8;
+constexpr integer NCHILD = 8;
 
-const integer FXM = 0;
-const integer FXP = 1;
-const integer FYM = 2;
-const integer FYP = 3;
-const integer FZM = 4;
-const integer FZP = 5;
+constexpr real ZERO = real(0);
+constexpr real ONE = real(1);
+constexpr real TWO = real(2);
+constexpr real THREE = real(3);
+constexpr real FOUR = real(4);
 
-const integer NFACE = 2 * NDIM;
-const integer NVERTEX = 8;
-const integer NCHILD = 8;
+constexpr real HALF = real(real(1) / real(2));
+constexpr real TWELFTH = real(real(1) / real(12));
 
-const real ZERO = real(0);
-const real ONE = real(1);
-const real TWO = real(2);
-const real THREE = real(3);
-const real FOUR = real(4);
+constexpr real cfl = real(real(2) / real(15));
+constexpr real ei_floor = 1.0e-15;
+constexpr integer NRK = 2;
+constexpr real rk_beta[2] = { ONE, HALF };
 
-const real HALF = real(real(1) / real(2));
-const real TWELFTH = real(real(1) / real(12));
+constexpr integer NGF = 4;
+constexpr integer phi_i = 0;
+constexpr integer gx_i = 1;
+constexpr integer gy_i = 2;
+constexpr integer gz_i = 3;
 
-const real cfl = real(real(2) / real(15));
-const real ei_floor = 1.0e-15;
-const integer NRK = 2;
-const real rk_beta[2] = { ONE, HALF };
+constexpr std::array<boundary_type, NFACE> boundary_types = { OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW };
 
-const integer NGF = 4;
-const integer phi_i = 0;
-const integer gx_i = 1;
-const integer gy_i = 2;
-const integer gz_i = 3;
+// #define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
+constexpr inline integer h0index(integer i, integer j, integer k)
+{
+    return i * INX * INX + j * INX + k;
+}
 
-const std::array<boundary_type, NFACE> boundary_types = { OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW };
+// #define hindex(i,j,k) ((i)*H_DNX + (j)*H_DNY + (k)*H_DNZ)
+constexpr inline integer hindex(integer i, integer j, integer k)
+{
+    return i * H_DNX + j * H_DNY + k * H_DNZ;
+}
+
+// #define findex(i,j,k) ((i)*(INX+1)*(INX+1) + (j)*(INX+1) + (k))
+constexpr inline integer findex(integer i, integer j, integer k)
+{
+    return i * (INX + 1) * (INX + 1) + j * (INX + 1) + k;
+}
+
+// #define gindex(i,j,k) ((i)*G_DNX + (j)*G_DNY + (k)*G_DNZ)
+constexpr inline integer gindex(integer i, integer j, integer k)
+{
+    return i * G_DNX + j * G_DNY + k * G_DNZ;
+}
+
 /*
 #define SYSTEM(command) \
 	if( system( (command).c_str()) != 0) { \

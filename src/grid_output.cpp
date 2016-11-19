@@ -19,7 +19,8 @@ std::vector<std::vector<real>>& TLS_V();
 #include <unordered_map>
 
 inline bool float_eq(xpoint_type a, xpoint_type b) {
-	const xpoint_type eps = std::pow(xpoint_type(2), -23);
+    constexpr static xpoint_type eps = 0.00000011920928955078125; // std::pow(xpoint_type(2), -23);
+// 	const xpoint_type eps = std::pow(xpoint_type(2), -23);
 	return std::abs(a - b) < eps;
 }
 
@@ -54,9 +55,7 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 	std::unordered_map<zone_int_type, zone_int_type> index_map;
 
 	if (l2.zones.size() > l1.zones.size()) {
-		auto tmp = std::move(l2);
-		l2 = std::move(l1);
-		l1 = std::move(tmp);
+        std::swap(l1, l2);
 	}
 	for (auto i = l2.nodes.begin(); i != l2.nodes.end(); ++i) {
 		zone_int_type index, oindex;
@@ -88,7 +87,8 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 			const auto l1sz = l1.analytic[field].size();
 			l1.analytic[field].resize(l1sz + l2.analytic[field].size());
 			std::move(l2.analytic[field].begin(), l2.analytic[field].end(), l1.analytic[field].begin() + l1sz);
-		}}
+		}
+    }
 }
 
 grid::output_list_type grid::get_output_list(bool analytic) const {

@@ -10,11 +10,11 @@
 
 static const real n = 1.5;
 
-static real fy(real y, real z, real r) {
+static inline real fy(real y, real z, real r) {
 	return z;
 }
 
-static real fz(real y, real z, real r) {
+static inline real fz(real y, real z, real r) {
 	if (r != 0.0) {
 		return -(std::pow(y, n) + 2.0 * z / r);
 	} else {
@@ -22,8 +22,9 @@ static real fz(real y, real z, real r) {
 	}
 }
 
-static real fm(real theta, real dummy, real r) {
-	return real(4) * M_PI * std::pow(theta, real(1.5)) * r * r;
+static inline real fm(real theta, real dummy, real r) {
+    constexpr static real four_pi = real(4) * M_PI;
+	return four_pi * std::pow(theta, real(1.5)) * r * r;
 }
 
 real lane_emden(real r0, real dr, real* m_enc) {
@@ -57,9 +58,10 @@ real lane_emden(real r0, real dr, real* m_enc) {
 			y = 0.0;
 			break;
 		}
-		dy2 = fy(y, z, r + 0.5 * dr) * dr;
-		dz2 = fz(y, z, r + 0.5 * dr) * dr;
-		dm2 = fm(y, z, r + 0.5 * dr) * dr;
+        real rdr2 = r + 0.5 * dr;
+		dy2 = fy(y, z, rdr2) * dr;
+		dz2 = fz(y, z, rdr2) * dr;
+		dm2 = fm(y, z, rdr2) * dr;
 		y = y0 + 0.5 * dy2;
 		z = z0 + 0.5 * dz2;
 		m = m0 + 0.5 * dm2;
@@ -67,9 +69,9 @@ real lane_emden(real r0, real dr, real* m_enc) {
 			y = 0.0;
 			break;
 		}
-		dy3 = fy(y, z, r + 0.5 * dr) * dr;
-		dz3 = fz(y, z, r + 0.5 * dr) * dr;
-		dm3 = fm(y, z, r + 0.5 * dr) * dr;
+		dy3 = fy(y, z, rdr2) * dr;
+		dz3 = fz(y, z, rdr2) * dr;
+		dm3 = fm(y, z, rdr2) * dr;
 		y = y0 + dy3;
 		z = z0 + dz3;
 		m = m0 + dm3;
@@ -77,9 +79,10 @@ real lane_emden(real r0, real dr, real* m_enc) {
 			y = 0.0;
 			break;
 		}
-		dy4 = fy(y, z, r + dr) * dr;
-		dz4 = fz(y, z, r + dr) * dr;
-		dm4 = fm(y, z, r + dr) * dr;
+        real rdr = r + dr;
+		dy4 = fy(y, z, rdr) * dr;
+		dz4 = fz(y, z, rdr) * dr;
+		dm4 = fm(y, z, rdr) * dr;
 		y = y0 + (dy1 + dy4 + 2.0 * (dy3 + dy2)) / 6.0;
 		z = z0 + (dz1 + dz4 + 2.0 * (dz3 + dz2)) / 6.0;
 		m = m0 + (dm1 + dm4 + 2.0 * (dm3 + dm2)) / 6.0;
