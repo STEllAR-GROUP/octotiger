@@ -279,7 +279,8 @@ std::size_t grid::load(FILE* fp) {
 		for (integer j = 0; j < G_NX; ++j) {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				cnt += foo(&(G[iii][0]), sizeof(real), NGF, fp) * sizeof(real);
+                auto& d = G[iii][0];
+				cnt += foo(&d, sizeof(real), NGF, fp) * sizeof(real);
 			}
 		}
 	}
@@ -305,7 +306,7 @@ std::size_t grid::save(FILE* fp) const {
 		for (integer i = H_BW; i < H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
 				const integer iii = hindex(i, j, H_BW);
-				cnt += foo(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
+				cnt += foo(&U[f][iii], sizeof(real), INX, fp) * sizeof(real);
 			}
 		}
 	}
