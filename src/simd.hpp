@@ -16,7 +16,7 @@ constexpr std::size_t simd_len = 8;
 #if !defined(HPX_HAVE_DATAPAR)
 
 #ifdef USE_SIMD
-#ifndef __MIC__
+#if !defined(__MIC__) && !defined(__AVX512F__)
 #define SIMD_SIZE 2
 #define __mxd __m256d
 #define _mmx_set_pd(d)    _mm256_set_pd((d),(d),(d),(d))

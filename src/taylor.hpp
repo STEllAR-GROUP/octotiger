@@ -11,6 +11,7 @@
 #include "defs.hpp"
 //#include "simd.hpp"
 #include "profiler.hpp"
+#include "simd.hpp"
 
 #include <algorithm>
 #include <array>
@@ -389,5 +390,69 @@ public:
 
 template<int N, class T>
 taylor_consts taylor<N, T>::tc;
+
+template<>
+void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
+    constexpr integer N = 5;
+    using T = simd_vector;
+    //PROF_BEGIN;
+    taylor<N, T>& A = *this;
+
+    const T r2inv = ONE / (X[0] * X[0] + X[1] * X[1] + X[2] * X[2]);
+
+    const T d0 = -sqrt(r2inv);
+    const T d1 = -d0 * r2inv;
+    const T d2 = -T(3) * d1 * r2inv;
+    const T d3 = -T(5) * d2 * r2inv;
+    const T d4 = -T(7) * d3 * r2inv;
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    A() = d0;
+
+    for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a) {
+        A[i] = X[a] * d1;
+    }
+    for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
+        for (integer b = a; b != NDIM; ++b, ++i) {
+            A[i] = X[a] * X[b] * d2;
+        }
+    }
+    for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
+        for (integer b = a; b != NDIM; ++b) {
+            for (integer c = b; c != NDIM; ++c, ++i) {
+                A[i] = X[a] * X[b] * X[c] * d3;
+            }
+        }
+    }
+    for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
+        A[i] = ZERO;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    for (integer a = 0; a != NDIM; a++) {
+        A(a, a) += d1;
+        auto const XXa = X[a] * d2;
+        A(a, a, a) += XXa;
+        A(a, a, a, a) += (X[a] * X[a]) * d3;
+        A(a, a, a, a) += 2.0 * d2;
+        for (integer b = a; b != NDIM; b++) {
+            A(a, a, b) += X[b] * d2;
+            A(a, b, b) += XXa;
+            auto const XXab = (X[a] * X[b]) * d3;
+            A(a, a, a, b) += XXab;
+            A(a, b, b, b) += XXab;
+            A(a, a, b, b) += d2;
+            for (integer c = b; c != NDIM; c++) {
+                A(a, a, b, c) += (X[b] * X[c]) * d3;
+                A(a, b, b, c) += (X[a] * X[c]) * d3;
+                A(a, b, c, c) += XXab;
+            }
+        }
+    }
+
+    //PROF_END;
+}
 
 #endif /* TAYLOR_HPP_ */
