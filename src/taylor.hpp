@@ -190,7 +190,7 @@ public:
 #else
         hpx::parallel::transform(
             hpx::parallel::dataseq_execution,
-            other.data.begin(), other.data.end(),
+            r.data.begin(), r.data.end(),
             [](T const& val)
             {
                 return -val;
@@ -392,7 +392,7 @@ template<int N, class T>
 taylor_consts taylor<N, T>::tc;
 
 template<>
-void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
+inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
     constexpr integer N = 5;
     using T = simd_vector;
     //PROF_BEGIN;

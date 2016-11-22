@@ -26,7 +26,7 @@ inline void propagate_exceptions(hpx::future<T> const& f)
     typename hpx::traits::detail::shared_state_ptr_for<hpx::future<T> >::type
         state = hpx::traits::future_access<hpx::future<T> >::get_shared_state(f);
     if (state->has_exception())
-        state->get_result()     // will rethrow exception
+        state->get_result();     // will rethrow exception
 }
 
 template <typename T>

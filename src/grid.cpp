@@ -1452,7 +1452,7 @@ void grid::reconstruct() {
 	}
 
 	if (opts.ang_con) {
-#pragma GCC ivdep
+//#pragma GCC ivdep
         auto average = [](real& s1, real& s2) { s1 = s2 = 0.5 * (s1 + s2); };
         auto step1 = [&](real& lhs, real const& rhs) { lhs += 6.0 * rhs / dx; };
         auto step2 = [&](real& lhs, real const& rhs) { lhs -= 6.0 * rhs / dx; };
@@ -1615,7 +1615,7 @@ void grid::reconstruct() {
 	}
 
 	if (node_server::is_gravity_on()) {
-#pragma GCC ivdep
+//#pragma GCC ivdep
         std::vector<real>& UfFXMpot_i = Uf[FXM][pot_i];
         std::vector<real>& UfFYMpot_i = Uf[FYM][pot_i];
         std::vector<real>& UfFZMpot_i = Uf[FZM][pot_i];
