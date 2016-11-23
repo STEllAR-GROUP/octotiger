@@ -54,7 +54,9 @@ class simd_vector {
 private:
 	__mxd v[SIMD_SIZE];
 public:
-	simd_vector() = default;
+	simd_vector() {
+		*this = 0;
+	}
 	inline ~simd_vector() = default;
 	simd_vector(const simd_vector&) = default;
 	inline simd_vector(double d) {
