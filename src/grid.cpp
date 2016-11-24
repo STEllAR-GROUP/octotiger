@@ -1400,7 +1400,8 @@ inline void limit_slope(real& ql, real q0, real& qr) {
 	const real tmp1 = qr - ql;
 	const real tmp2 = qr + ql;
 //	if ((qr - q0) * (q0 - ql) <= 0.0) {
-    if (qr < q0 || q0 < ql) {
+	//    if (qr < q0 || q0 < ql) {
+    if (bool(qr < q0) != bool(q0 < ql)) {
 		qr = ql = q0;
 	} else if (tmp1 * (q0 - 0.5 * tmp2) > (tmp1 * tmp1 / 6.0)) {
 		ql = 3.0 * q0 - 2.0 * qr;
