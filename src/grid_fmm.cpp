@@ -24,11 +24,13 @@ void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_typ
         m = T(0.0);
         m = T((*(data.m))[iter]);
     } else {
+        auto const& tmp1 = (*(data.M))[iter];
         for (int i = 0; i != 20; ++i) {
-            m.ptr()[i] = (*(data.M))[iter].ptr()[i];
+            m[i] = tmp1[i];
         }
+        auto const& tmp2 = (*(data.x))[iter];
         for (integer d = 0; d != NDIM; ++d) {
-            c[d] = (*(data.x))[iter][d];
+            c[d] = tmp2[d];
         }
     }
 }
@@ -42,19 +44,20 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
         b0[l] = 1.0;
         do {
             iter++;
-            for (int i = 0; i < 3; i++) {
-                b1[i] = 0.0;
-            }
+//             for (int i = 0; i < 3; i++) {
+//                 b1[i] = 0.0;
+//             }
+            b1[0] = b1[1] = b1[2] = 0.0;
             for (int i = 0; i < 3; i++) {
                 for (int m = 0; m < 3; m++) {
                     b1[i] += q[i][m] * b0[m];
                 }
             }
-            A = 0.0;
-            for (int i = 0; i < 3; i++) {
-                A += b1[i] * b1[i];
-            }
-            A = sqrt(A);
+//             A = 0.0;
+//             for (int i = 0; i < 3; i++) {
+//                 A += b1[i] * b1[i];
+//             }
+            A = sqrt(sqr(b1[0]) + sqr(b1[1]) + sqr(b1[2]));
             bdif = 0.0;
             for (int i = 0; i < 3; i++) {
                 b1[i] = b1[i] / A;
@@ -71,7 +74,7 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
         for (int i = 0; i < 3; i++) {
             A += b0[i] * q[l][i];
         }
-        lambda[l] = sqrt(A) / sqrt(e[l][0] * e[l][0] + e[l][1] * e[l][1] + e[l][2] * e[l][2]);
+        lambda[l] = sqrt(A) / sqrt(sqr(e[l][0]) + sqr(e[l][1]) + sqr(e[l][2]));
     }
     PROF_END;
 }
@@ -90,25 +93,28 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
         }
     }
 
+    std::vector<space_vector> const& com0 = com[0];
     for (integer i = 0; i != G_NX; ++i) {
         for (integer j = 0; j != G_NX; ++j) {
             for (integer k = 0; k != G_NX; ++k) {
                 const integer iii1 = gindex(i, j, k);
                 const integer iii0 = gindex(i + H_BW , j + H_BW , k + H_BW );
+                space_vector const& com0iii1 = com0[iii1];
+                multipole const& Miii1 = M[iii1];
                 for (integer n = 0; n != NDIM; ++n) {
                     real mass;
                     if (is_leaf) {
                         mass = mon[iii1];
                     } else {
-                        mass = M[iii1]();
+                        mass = Miii1();
                     }
-                    this_com[n] += mass * com[0][iii1][n];
+                    this_com[n] += mass * com0iii1[n];
                     mtot += mass;
                     for (integer m = 0; m != NDIM; ++m) {
                         if (!is_leaf) {
-                            quad_moment[n][m] += M[iii1](n, m);
+                            quad_moment[n][m] += Miii1(n, m);
                         }
-                        quad_moment[n][m] += mass * com[0][iii1][n] * com[0][iii1][m];
+                        quad_moment[n][m] += mass * com0iii1[n] * com0iii1[m];
                     }
                 }
             }
@@ -131,9 +137,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
     for (integer j = 0; j != NDIM; ++j) {
         rc[j] = eigen[index][j];
     }
-    std::pair<space_vector, space_vector> pair;
-    pair.first = rc;
-    pair.second = this_com;
+    std::pair<space_vector, space_vector> pair{rc, this_com};
     PROF_END;
     return pair;
 }
@@ -413,8 +417,8 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                 for (integer d = 0; d < NDIM; ++d) {
                     X[d][i] = com0iii0[d];
                 }
-                multipole const& Miii0 = M[iii0];
                 if (type == RHO) {
+                    multipole const& Miii0 = M[iii0];
                     real const tmp = m0()[i] / Miii0();
                     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                         n0[j][i] = m0[j][i] - Miii0[j] * tmp;
@@ -504,12 +508,17 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
             for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                 const integer iii0 = bnd.first[li + i];
+                expansion& Liii0 = L[iii0];
+
+                // FIXME: a similar loop below goes over the range [0, 4)
+                //        which is correct?
                 for (integer j = 0; j != 20; ++j) {
-                    L[iii0][j] += A0[j][i];
+                    Liii0[j] += A0[j][i];
                 }
                 if (type == RHO) {
+                    space_vector& L_ciii0 = L_c[iii0];
                     for (integer j = 0; j != NDIM; ++j) {
-                        L_c[iii0][j] += B0[j][i];
+                        L_ciii0[j] += B0[j][i];
                     }
                 }
             }
@@ -527,6 +536,12 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
     std::array<simd_vector, NDIM> X;
     space_vector Y;
 
+    if (type != RHO) {
+        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+            n0[j] = ZERO;
+        }
+    }
+
     std::vector<space_vector> const& com0 = com[0];
     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
         boundary_interaction_type const& bnd = ilist_n_bnd[si];
@@ -536,10 +551,6 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
         if (type == RHO) {
             for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                 n0[j] = m0[j];
-            }
-        } else {
-            for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                n0[j] = ZERO;
             }
         }
         for (integer li = 0; li < list_size; li += simd_len) {
@@ -555,7 +566,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
             }
 
             taylor<5, simd_vector> D;
-            taylor<2, simd_vector> A0;
+            taylor<2, simd_vector> A0;      // FIXME: this is taylor<4, simd_vector> elsewhere
             std::array<simd_vector, NDIM> B0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
 
             D.set_basis(dX);
@@ -612,12 +623,17 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 
             for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                 const integer iii0 = bnd.first[li + i];
+                expansion& Liii0 = L[iii0];
+
+                // FIXME: a similar loops above/below go over the range [0, 20)
+                //        which is correct?
                 for (integer j = 0; j != 4; ++j) {
-                    L[iii0][j] += A0[j][i];
+                    Liii0[j] += A0[j][i];
                 }
                 if (type == RHO) {
+                    space_vector& L_ciii0 = L_c[iii0];
                     for (integer j = 0; j != NDIM; ++j) {
-                        L_c[iii0][j] += B0[j][i];
+                        L_ciii0[j] += B0[j][i];
                     }
                 }
             }
@@ -751,13 +767,18 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
             }
 
             for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-                const integer iii0 = ilist_n_bnd[si].first[li + i];
+                const integer iii0 = bnd.first[li + i];
+                expansion& Liii0 = L[iii0];
+
+                // FIXME: a similar loop above goes over the range [0, 4)
+                //        which is correct?
                 for (integer j = 0; j != 20; ++j) {
-                    L[iii0].ptr()[j] += A0.ptr()[j][i];
+                    Liii0[j] += A0[j][i];
                 }
                 if (type == RHO) {
+                    space_vector& L_ciii0 = L_c[iii0];
                     for (integer j = 0; j != NDIM; ++j) {
-                        L_c[iii0][j] += B0[j][i];
+                        L_ciii0[j] += B0[j][i];
                     }
                 }
             }
@@ -790,6 +811,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #else
         v4sd m0 = tmp;
 #endif
+        m0 *= d0;
         for (integer li = 0; li < dsize; ++li) {
             const integer iii0 = bnd.first[li];
             const auto& four = bnd.four[li];
@@ -797,7 +819,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
             // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
             // Even if this is safe, it's probably utterly inefficient.
             v4sd* l0ptr = (v4sd*) L[iii0].ptr();
-            *l0ptr += m0 * four * d0;
+            *l0ptr += m0 * four;
         }
     }
     PROF_END;

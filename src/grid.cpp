@@ -1641,9 +1641,10 @@ void grid::reconstruct() {
 		if (field != rho_i && field != tau_i) {
 #pragma GCC ivdep
 			for (integer face = 0; face != NFACE; ++face) {
-                std::vector<std::vector<real> >& Ufface = Uf[face];
+                std::vector<real>& Uffacefield = Uf[face][field];
+                std::vector<real> const& Uffacerho_i = Uf[face][rho_i];
 			    for (integer iii = 0; iii != H_N3; ++iii) {
-					Ufface[field][iii] *= Ufface[rho_i][iii];
+					Uffacefield[iii] *= Uffacerho_i[iii];
 				}
 			}
 		}
@@ -1656,6 +1657,8 @@ void grid::reconstruct() {
 				const integer iii = hindex(i, j, k);
 				for (integer face = 0; face != NFACE; ++face) {
                     std::vector<std::vector<real> >& Ufface = Uf[face];
+                    real const Uffacerho_iiii = Ufface[rho_i][iii];
+
 					real x0 = ZERO;
 					real y0 = ZERO;
 					if (face == FXP) {
@@ -1667,14 +1670,15 @@ void grid::reconstruct() {
 					} else if (face == FYM) {
 						y0 = -HALF * dx;
 					}
-					Ufface[sx_i][iii] -= omega * (X[YDIM][iii] + y0) * Ufface[rho_i][iii];
-					Ufface[sy_i][iii] += omega * (X[XDIM][iii] + x0) * Ufface[rho_i][iii];
-					Ufface[zz_i][iii] += dx * dx * omega *Ufface[rho_i][iii] / 6.0;
-					Ufface[egas_i][iii] += HALF * Ufface[sx_i][iii] * Ufface[sx_i][iii] / Ufface[rho_i][iii];
-					Ufface[egas_i][iii] += HALF * Ufface[sy_i][iii] * Ufface[sy_i][iii] / Ufface[rho_i][iii];
-					Ufface[egas_i][iii] += HALF * Ufface[sz_i][iii] * Ufface[sz_i][iii] / Ufface[rho_i][iii];
+
+					Ufface[sx_i][iii] -= omega * (X[YDIM][iii] + y0) * Uffacerho_iiii;
+					Ufface[sy_i][iii] += omega * (X[XDIM][iii] + x0) * Uffacerho_iiii;
+					Ufface[zz_i][iii] += dx * dx * omega * Uffacerho_iiii / 6.0;
+					Ufface[egas_i][iii] += HALF * sqr(Ufface[sx_i][iii]) / Uffacerho_iiii;
+					Ufface[egas_i][iii] += HALF * sqr(Ufface[sy_i][iii]) / Uffacerho_iiii;
+					Ufface[egas_i][iii] += HALF * sqr(Ufface[sz_i][iii]) / Uffacerho_iiii;
 #ifdef WD_EOS
-					Ufface[egas_i][iii] += ztwd_energy(Ufface[rho_i][iii]);
+					Ufface[egas_i][iii] += ztwd_energy(Uffacerho_iiii);
 #endif
 				}
 			}

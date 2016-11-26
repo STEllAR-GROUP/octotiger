@@ -29,6 +29,12 @@
 
 //typedef double v4sd __attribute__ ((vector_size (32)));
 
+template <typename T>
+inline T sqr(T const& val)
+{
+    return val * val;
+}
+
 
 class analytic_t {
 public:

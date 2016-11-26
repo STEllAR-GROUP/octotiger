@@ -212,23 +212,23 @@ public:
     }
 #endif
 
-    constexpr integer index() const {
+    static constexpr integer index() {
         return 0;
     }
 
-    constexpr integer index(integer i) const {
+    static constexpr integer index(integer i) {
         return 1 + i;
     }
 
-    integer index(integer i, integer j) const {
+    static integer index(integer i, integer j) {
         return tc.map2[i][j];
     }
 
-    integer index(integer i, integer j, integer k) const {
+    static integer index(integer i, integer j, integer k) {
         return tc.map3[i][j][k];
     }
 
-    integer index(integer i, integer j, integer k, integer l) const {
+    static integer index(integer i, integer j, integer k, integer l) {
         return tc.map4[i][j][k][l];
     }
 
@@ -401,10 +401,67 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     const T r2inv = ONE / (X[0] * X[0] + X[1] * X[1] + X[2] * X[2]);
 
     const T d0 = -sqrt(r2inv);
+
+    // 1 MUL
     const T d1 = -d0 * r2inv;
+
+    // 2 MULS
     const T d2 = -T(3) * d1 * r2inv;
+
+    // 2 MULS
     const T d3 = -T(5) * d2 * r2inv;
-    const T d4 = -T(7) * d3 * r2inv;
+//     const T d4 = -T(7) * d3 * r2inv;
+
+    // Previously we've had this code. In my measurements the old code was
+    // about 15% faster than the current code. However, I have measured it on
+    // non-KNL platforms only.
+//     taylor<N - 1, T> XX;
+//     for (integer a = 0; a != NDIM; a++) {
+//         auto const tmpa = X[a];
+//         XX(a) = tmpa;
+//
+//         for (integer b = a; b != NDIM; b++) {
+//             auto const tmpab = tmpa * X[b];
+//             XX(a, b) = tmpab;
+//
+//             for (integer c = b; c != NDIM; c++) {
+//                 XX(a, b, c) = tmpab * X[c];
+//             }
+//         }
+//     }
+//     A[0] = d0;
+//     for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
+//         A[i] = XX[i] * d1;
+//     }
+//     for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
+//         A[i] = XX[i] * d2;
+//     }
+//     for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+//         A[i] = XX[i] * d3;
+//     }
+//     for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
+//         A[i] = ZERO;
+//     }
+//     for (integer a = 0; a != NDIM; a++) {
+//         auto const XXa = XX(a) * d2;
+//         A(a, a) += d1;
+//         A(a, a, a) += XXa;
+//         A(a, a, a, a) += XX(a, a) * d3;
+//         A(a, a, a, a) += 2.0 * d2;
+//         for (integer b = a; b != NDIM; b++) {
+//             auto const XXab = XX(a, b) * d3;
+//             A(a, a, b) += XX(b) * d2;
+//             A(a, b, b) += XXa;
+//             A(a, a, a, b) += XXab;
+//             A(a, b, b, b) += XXab;
+//             A(a, a, b, b) += d2;
+//             for (integer c = b; c != NDIM; c++) {
+//                 A(a, a, b, c) += XX(b, c) * d3;
+//                 A(a, b, b, c) += XX(a, c) * d3;
+//                 A(a, b, c, c) += XXab;
+//             }
+//         }
+//     }
 
     ///////////////////////////////////////////////////////////////////////////
 
@@ -414,14 +471,16 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
         A[i] = X[a] * d1;
     }
     for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
+        T const tmp = X[a] * d2;
         for (integer b = a; b != NDIM; ++b, ++i) {
-            A[i] = X[a] * X[b] * d2;
+            A[i] = tmp * X[b];
         }
     }
     for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
         for (integer b = a; b != NDIM; ++b) {
+            T const tmp = X[a] * X[b] * d3;
             for (integer c = b; c != NDIM; ++c, ++i) {
-                A[i] = X[a] * X[b] * X[c] * d3;
+                A[i] = tmp * X[c];
             }
         }
     }
