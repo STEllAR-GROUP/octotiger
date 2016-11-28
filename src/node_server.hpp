@@ -28,7 +28,7 @@ class node_server: public hpx::components::managed_component_base<node_server> {
 public:
     static void set_gravity(bool);
     static void set_hydro(bool);
-    private:
+private:
     struct neighbor_gravity_type {
         gravity_boundary_type data;
         bool is_monopole;
@@ -73,7 +73,7 @@ public:
     timings timings_;
     real dt_;
 
-    public:
+public:
     static bool is_gravity_on() {
         return gravity_on;
     }
@@ -111,7 +111,7 @@ public:
     node_server(node_server&& other) = default;
     std::size_t load_me(FILE* fp);
     std::size_t save_me(FILE* fp) const;
-    private:
+private:
 
     static bool static_initialized;
     static std::atomic<integer> static_initializing;

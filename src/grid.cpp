@@ -1403,9 +1403,9 @@ inline void limit_slope(real& ql, real q0, real& qr) {
 	//    if (qr < q0 || q0 < ql) {
     if (bool(qr < q0) != bool(q0 < ql)) {
 		qr = ql = q0;
-	} else if (tmp1 * (q0 - 0.5 * tmp2) > (tmp1 * tmp1 / 6.0)) {
+	} else if (tmp1 * (q0 - 0.5 * tmp2) > sqr(tmp1) / 6.0) {
 		ql = 3.0 * q0 - 2.0 * qr;
-	} else if (-(tmp1 * tmp1 / 6.0) > tmp1 * (q0 - 0.5 * tmp2)) {
+	} else if (-(sqr(tmp1) / 6.0) > tmp1 * (q0 - 0.5 * tmp2)) {
 		qr = 3.0 * q0 - 2.0 * ql;
 	}
 }
@@ -1488,8 +1488,8 @@ void grid::reconstruct() {
 			const real zz_lim = +(slpx[sy_i][iii] - slpy[sx_i][iii]) / 12.0;
 
             const real Vzxi = V[zx_i][iii] - zx_lim * dx;
-            const real Vzyi = V[zy_i][iii] - zx_lim * dx;
-            const real Vzzi = V[zz_i][iii] - zx_lim * dx;
+            const real Vzyi = V[zy_i][iii] - zy_lim * dx;
+            const real Vzzi = V[zz_i][iii] - zz_lim * dx;
 
 			for (int face = 0; face != NFACE; ++face) {
 				Uf[face][zx_i][iii] = Vzxi;
@@ -1657,7 +1657,7 @@ void grid::reconstruct() {
 				const integer iii = hindex(i, j, k);
 				for (integer face = 0; face != NFACE; ++face) {
                     std::vector<std::vector<real> >& Ufface = Uf[face];
-                    real const Uffacerho_iiii = Ufface[rho_i][iii];
+                    real const Uffacerho_iii = Ufface[rho_i][iii];
 
 					real x0 = ZERO;
 					real y0 = ZERO;
@@ -1671,14 +1671,14 @@ void grid::reconstruct() {
 						y0 = -HALF * dx;
 					}
 
-					Ufface[sx_i][iii] -= omega * (X[YDIM][iii] + y0) * Uffacerho_iiii;
-					Ufface[sy_i][iii] += omega * (X[XDIM][iii] + x0) * Uffacerho_iiii;
-					Ufface[zz_i][iii] += dx * dx * omega * Uffacerho_iiii / 6.0;
-					Ufface[egas_i][iii] += HALF * sqr(Ufface[sx_i][iii]) / Uffacerho_iiii;
-					Ufface[egas_i][iii] += HALF * sqr(Ufface[sy_i][iii]) / Uffacerho_iiii;
-					Ufface[egas_i][iii] += HALF * sqr(Ufface[sz_i][iii]) / Uffacerho_iiii;
+					Ufface[sx_i][iii] -= omega * (X[YDIM][iii] + y0) * Uffacerho_iii;
+					Ufface[sy_i][iii] += omega * (X[XDIM][iii] + x0) * Uffacerho_iii;
+					Ufface[zz_i][iii] += dx * dx * omega * Uffacerho_iii / 6.0;
+					Ufface[egas_i][iii] += HALF * sqr(Ufface[sx_i][iii]) / Uffacerho_iii;
+					Ufface[egas_i][iii] += HALF * sqr(Ufface[sy_i][iii]) / Uffacerho_iii;
+					Ufface[egas_i][iii] += HALF * sqr(Ufface[sz_i][iii]) / Uffacerho_iii;
 #ifdef WD_EOS
-					Ufface[egas_i][iii] += ztwd_energy(Uffacerho_iiii);
+					Ufface[egas_i][iii] += ztwd_energy(Uffacerho_iii);
 #endif
 				}
 			}

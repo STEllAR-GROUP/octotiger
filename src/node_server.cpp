@@ -390,7 +390,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                         const integer x0 = ci.get_side(XDIM) * INX / 2;
                         const integer y0 = ci.get_side(YDIM) * INX / 2;
                         const integer z0 = ci.get_side(ZDIM) * INX / 2;
-                                    auto m_in = fut.get();
+                        auto m_in = fut.get();
                         for (integer i = 0; i != INX / 2; ++i) {
                             for (integer j = 0; j != INX / 2; ++j) {
                                 for (integer k = 0; k != INX / 2; ++k) {

@@ -177,7 +177,7 @@ void grid::compute_interactions(gsolve_type type) {
                 taylor<4, simd_vector> n0;
                 taylor<4, simd_vector> n1;
 
-            // FIXME: replace with vector-pack gather-loads
+                // FIXME: replace with vector-pack gather-loads
                 for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;
                     const integer iii1 = this_ilist[li + i].second;
@@ -201,11 +201,11 @@ void grid::compute_interactions(gsolve_type type) {
                             n1[j][i] = Miii0[j] - Miii1[j] * tmp2;
                         }
                     }
-                    else {
-                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                            n0[j] = ZERO;
-                            n1[j] = ZERO;
-                        }
+                }
+                if (type != RHO) {
+                    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                        n0[j] = ZERO;
+                        n1[j] = ZERO;
                     }
                 }
                 for (integer d = 0; d < NDIM; ++d) {
@@ -435,10 +435,10 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                             n0[j][i] = m0[j][i] - Miii0[j] * tmp;
                         }
                     }
-                    else {
-                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                            n0[j] = ZERO;
-                        }
+                }
+                if (type != RHO) {
+                    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                        n0[j] = ZERO;
                     }
                 }
                 for (integer d = 0; d < NDIM; ++d) {
@@ -704,11 +704,11 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                             n0[j][i] = -Miii0[j] * tmp;
                         }
                     }
-                    else {
-                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                            n0[j] = ZERO;
-                        }
-                        }
+                }
+                if (type != RHO) {
+                    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                        n0[j] = ZERO;
+                    }
                 }
                 for (integer d = 0; d < NDIM; ++d) {
                     dX[d] = X[d] - Y[d];
@@ -946,7 +946,7 @@ void compute_ilist() {
                             const real y = j0 - j1;
                             const real z = k0 - k1;
                             // protect against sqrt(0)
-                            const real tmp = x * x + y * y + z * z;
+                            const real tmp = sqr(x) + sqr(y) + sqr(z);
                             const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
                             const real r3 = r * r * r;
                             v4sd four;
