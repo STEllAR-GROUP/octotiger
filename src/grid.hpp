@@ -26,7 +26,6 @@
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
 
-
 //typedef double v4sd __attribute__ ((vector_size (32)));
 
 template <typename T>

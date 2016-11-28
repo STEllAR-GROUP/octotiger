@@ -12,6 +12,8 @@
 #include <fenv.h>
 #if !defined(_MSC_VER)
 #include <unistd.h>
+#else
+#include <float.h>
 #endif
 
 #include <hpx/hpx_init.hpp>
@@ -31,6 +33,8 @@ void initialize(options _opts) {
 	feenableexcept (FE_DIVBYZERO);
 	feenableexcept (FE_INVALID);
 	feenableexcept (FE_OVERFLOW);
+// #else
+//     _controlfp(_EM_INEXACT | _EM_DENORMAL | _EM_INVALID, _MCW_EM);
 #endif
 	grid::set_scaling_factor(opts.xscale);
 	grid::set_max_level(opts.max_level);

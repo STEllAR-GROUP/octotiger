@@ -10,6 +10,11 @@
 #include "options.hpp"
 #include "taylor.hpp"
 
+#include <hpx/include/parallel_for_loop.hpp>
+
+#include <cstddef>
+#include <utility>
+
 static std::vector<interaction_type> ilist_n;
 static std::vector<interaction_type> ilist_d;
 static std::vector<interaction_type> ilist_r;
@@ -154,182 +159,189 @@ void grid::compute_interactions(gsolve_type type) {
     std::fill(std::begin(L), std::end(L), ZERO);
     std::fill(std::begin(L_c), std::end(L_c), ZERO);
     if (!is_leaf) {
-        std::array<simd_vector, NDIM> dX;
-        std::array<simd_vector, NDIM> X;
-        std::array<simd_vector, NDIM> Y;
-
         const auto& this_ilist = is_root ? ilist_r : ilist_n;
         const integer list_size = this_ilist.size();
-        interaction_type np;
-        interaction_type dp;
-        taylor<4, simd_vector> m0;
-        taylor<4, simd_vector> m1;
-        taylor<4, simd_vector> n0;
-        taylor<4, simd_vector> n1;
-
-        if (type != RHO) {
-            for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                n0[j] = ZERO;
-                n1[j] = ZERO;
-            }
-        }
 
         std::vector<space_vector> const& com0 = com[0];
-        for (integer li = 0; li < list_size; li += simd_len) {
+//         for (integer li = 0; li < list_size; li += simd_len) {
+        hpx::parallel::for_loop_strided(
+            hpx::parallel::par, 0, list_size, simd_len,
+            [&com0, &this_ilist, list_size, type, this](std::size_t li) {
+
+                std::array<simd_vector, NDIM> dX;
+                std::array<simd_vector, NDIM> X;
+                std::array<simd_vector, NDIM> Y;
+
+                taylor<4, simd_vector> m0;
+                taylor<4, simd_vector> m1;
+                taylor<4, simd_vector> n0;
+                taylor<4, simd_vector> n1;
+
             // FIXME: replace with vector-pack gather-loads
-            for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-                const integer iii0 = this_ilist[li + i].first;
-                const integer iii1 = this_ilist[li + i].second;
-                space_vector const& com0iii0 = com0[iii0];
-                space_vector const& com0iii1 = com0[iii1];
-                for (integer d = 0; d < NDIM; ++d) {
-                    X[d][i] = com0iii0[d];
-                    Y[d][i] = com0iii1[d];
-                }
-                multipole const& Miii0 = M[iii0];
-                multipole const& Miii1 = M[iii1];
-                for (integer j = 0; j != taylor_sizes[3]; ++j) {
-                    m0[j][i] = Miii1[j];
-                    m1[j][i] = Miii0[j];
-                }
-                if (type == RHO) {
-                    real const tmp1 = Miii1() / Miii0();
-                    real const tmp2 = Miii0() / Miii1();
-                    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                        n0[j][i] = Miii1[j] - Miii0[j] * tmp1;
-                        n1[j][i] = Miii0[j] - Miii1[j] * tmp2;
+                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+                    const integer iii0 = this_ilist[li + i].first;
+                    const integer iii1 = this_ilist[li + i].second;
+                    space_vector const& com0iii0 = com0[iii0];
+                    space_vector const& com0iii1 = com0[iii1];
+                    for (integer d = 0; d < NDIM; ++d) {
+                        X[d][i] = com0iii0[d];
+                        Y[d][i] = com0iii1[d];
                     }
-                }
-            }
-            for (integer d = 0; d < NDIM; ++d) {
-                dX[d] = X[d] - Y[d];
-            }
-
-            taylor<5, simd_vector> D;
-            taylor<4, simd_vector> A0, A1;
-            std::array<simd_vector, NDIM> B0 = { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
-            std::array<simd_vector, NDIM> B1 = { simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO) };
-
-            D.set_basis(dX);
-
-//             A0() = m0() * D();
-//             A1() = m1() * D();
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 if (type != RHO) {
-//                     A0() -= m0(a) * D(a);
-//                     A1() += m1(a) * D(a);
-//                 }
-//                 for (integer b = a; b < NDIM; ++b) {
-//                     const auto tmp = D(a, b) * (factor(a, b) / real(2));
-//                     A0() += m0(a, b) * tmp;
-//                     A1() += m1(a, b) * tmp;
-//                     for (integer c = b; c < NDIM; ++c) {
-//                         const auto tmp0 = D(a, b, c) * (factor(a, b, c) / real(6));
-//                         A0() -= m0(a, b, c) * tmp0;
-//                         A1() += m1(a, b, c) * tmp0;
-//                     }
-//
-//                 }
-//             }
-            A0[0] = m0[0] * D[0];
-            A1[0] = m1[0] * D[0];
-            if (type != RHO) {
-                for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
-                    A0[0] -= m0[i] * D[i];
-                    A1[0] += m1[i] * D[i];
-                }
-            }
-            for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
-                const auto tmp = D[i] * (factor[i] / real(2));
-                A0[0] += m0[i] * tmp;
-                A1[0] += m1[i] * tmp;
-            }
-            for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-                const auto tmp = D[i] * (factor[i] / real(6));
-                A0[0] -= m0[i] * tmp;
-                A1[0] += m1[i] * tmp;
-            }
-
-            for (integer a = 0; a < NDIM; ++a) {
-                A0(a) =  m0() * D(a);
-                A1(a) = -m1() * D(a);
-                for (integer b = 0; b < NDIM; ++b) {
-                    if (type != RHO) {
-                        A0(a) -= m0(a) * D(a, b);
-                        A1(a) -= m1(a) * D(a, b);
+                    multipole const& Miii0 = M[iii0];
+                    multipole const& Miii1 = M[iii1];
+                    for (integer j = 0; j != taylor_sizes[3]; ++j) {
+                        m0[j][i] = Miii1[j];
+                        m1[j][i] = Miii0[j];
                     }
-                    for (integer c = b; c < NDIM; ++c) {
-                        const auto tmp1 = D(a, b, c) * (factor(c, b) / real(2));
-                        A0(a) += m0(c, b) * tmp1;
-                        A1(a) -= m1(c, b) * tmp1;
-                    }
-
-                }
-            }
-
-            if (type == RHO) {
-                for (integer a = 0; a < NDIM; ++a) {
-                    for (integer b = 0; b < NDIM; ++b) {
-                        for (integer c = b; c < NDIM; ++c) {
-                            for (integer d = c; d != NDIM; ++d) {
-                                const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
-                                B0[a] -= n0(b, c, d) * tmp;
-                                B1[a] -= n1(b, c, d) * tmp;
-                            }
+                    if (type == RHO) {
+                        real const tmp1 = Miii1() / Miii0();
+                        real const tmp2 = Miii0() / Miii1();
+                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                            n0[j][i] = Miii1[j] - Miii0[j] * tmp1;
+                            n1[j][i] = Miii0[j] - Miii1[j] * tmp2;
                         }
                     }
-
-                }
-            }
-
-            for (integer a = 0; a < NDIM; ++a) {
-                for (integer b = a; b < NDIM; ++b) {
-                    A0(a, b) = m0() * D(a, b);
-                    A1(a, b) = m1() * D(a, b);
-                    for (integer c = 0; c < NDIM; ++c) {
-                        const auto& tmp = D(a, b, c);
-                        A0(a, b) -= m0(c) * tmp;
-                        A1(a, b) += m1(c) * tmp;
+                    else {
+                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                            n0[j] = ZERO;
+                            n1[j] = ZERO;
+                        }
                     }
-
                 }
-            }
-
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 for (integer b = a; b < NDIM; ++b) {
-//                     for (integer c = b; c < NDIM; ++c) {
-//                         const auto tmp2 = D(a, b, c);
-//                         A1(a, b, c) = -m1() * tmp2;
-//                         A0(a, b, c) =  m0() * tmp2;
-//                     }
-//
-//                 }
-//             }
-            for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-                const auto& tmp = D[i];
-                A1[i] = -m1[0] * tmp;
-                A0[i] =  m0[0] * tmp;
-            }
-
-            for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-                const integer iii0 = this_ilist[li + i].first;
-                const integer iii1 = this_ilist[li + i].second;
-                expansion& Liii0 = L[iii0];
-                expansion& Liii1 = L[iii1];
-                for (integer j = 0; j != taylor_sizes[3]; ++j) {
-                    Liii0[j] += A0[j][i];
-                    Liii1[j] += A1[j][i];
+                for (integer d = 0; d < NDIM; ++d) {
+                    dX[d] = X[d] - Y[d];
                 }
+
+                taylor<5, simd_vector> D;
+                taylor<4, simd_vector> A0, A1;
+                std::array<simd_vector, NDIM> B0 = {
+                    simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)
+                };
+                std::array<simd_vector, NDIM> B1 = {
+                    simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)
+                };
+
+                D.set_basis(dX);
+
+    //             A0() = m0() * D();
+    //             A1() = m1() * D();
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 if (type != RHO) {
+    //                     A0() -= m0(a) * D(a);
+    //                     A1() += m1(a) * D(a);
+    //                 }
+    //                 for (integer b = a; b < NDIM; ++b) {
+    //                     const auto tmp = D(a, b) * (factor(a, b) / real(2));
+    //                     A0() += m0(a, b) * tmp;
+    //                     A1() += m1(a, b) * tmp;
+    //                     for (integer c = b; c < NDIM; ++c) {
+    //                         const auto tmp0 = D(a, b, c) * (factor(a, b, c) / real(6));
+    //                         A0() -= m0(a, b, c) * tmp0;
+    //                         A1() += m1(a, b, c) * tmp0;
+    //                     }
+    //
+    //                 }
+    //             }
+                A0[0] = m0[0] * D[0];
+                A1[0] = m1[0] * D[0];
+                if (type != RHO) {
+                    for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
+                        A0[0] -= m0[i] * D[i];
+                        A1[0] += m1[i] * D[i];
+                    }
+                }
+                for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
+                    const auto tmp = D[i] * (factor[i] / real(2));
+                    A0[0] += m0[i] * tmp;
+                    A1[0] += m1[i] * tmp;
+                }
+                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                    const auto tmp = D[i] * (factor[i] / real(6));
+                    A0[0] -= m0[i] * tmp;
+                    A1[0] += m1[i] * tmp;
+                }
+
+                for (integer a = 0; a < NDIM; ++a) {
+                    A0(a) =  m0() * D(a);
+                    A1(a) = -m1() * D(a);
+                    for (integer b = 0; b < NDIM; ++b) {
+                        if (type != RHO) {
+                            A0(a) -= m0(a) * D(a, b);
+                            A1(a) -= m1(a) * D(a, b);
+                        }
+                        for (integer c = b; c < NDIM; ++c) {
+                            const auto tmp1 = D(a, b, c) * (factor(c, b) / real(2));
+                            A0(a) += m0(c, b) * tmp1;
+                            A1(a) -= m1(c, b) * tmp1;
+                        }
+
+                    }
+                }
+
                 if (type == RHO) {
-                    space_vector& L_ciii0 = L_c[iii0];
-                    space_vector& L_ciii1 = L_c[iii1];
-                    for (integer j = 0; j != NDIM; ++j) {
-                        L_ciii0[j] += B0[j][i];
-                        L_ciii1[j] += B1[j][i];
+                    for (integer a = 0; a < NDIM; ++a) {
+                        for (integer b = 0; b < NDIM; ++b) {
+                            for (integer c = b; c < NDIM; ++c) {
+                                for (integer d = c; d != NDIM; ++d) {
+                                    const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
+                                    B0[a] -= n0(b, c, d) * tmp;
+                                    B1[a] -= n1(b, c, d) * tmp;
+                                }
+                            }
+                        }
+
                     }
                 }
-            }
-        }
+
+                for (integer a = 0; a < NDIM; ++a) {
+                    for (integer b = a; b < NDIM; ++b) {
+                        A0(a, b) = m0() * D(a, b);
+                        A1(a, b) = m1() * D(a, b);
+                        for (integer c = 0; c < NDIM; ++c) {
+                            const auto& tmp = D(a, b, c);
+                            A0(a, b) -= m0(c) * tmp;
+                            A1(a, b) += m1(c) * tmp;
+                        }
+
+                    }
+                }
+
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 for (integer b = a; b < NDIM; ++b) {
+    //                     for (integer c = b; c < NDIM; ++c) {
+    //                         const auto tmp2 = D(a, b, c);
+    //                         A1(a, b, c) = -m1() * tmp2;
+    //                         A0(a, b, c) =  m0() * tmp2;
+    //                     }
+    //
+    //                 }
+    //             }
+                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                    const auto& tmp = D[i];
+                    A1[i] = -m1[0] * tmp;
+                    A0[i] =  m0[0] * tmp;
+                }
+
+                for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+                    const integer iii0 = this_ilist[li + i].first;
+                    const integer iii1 = this_ilist[li + i].second;
+                    expansion& Liii0 = L[iii0];
+                    expansion& Liii1 = L[iii1];
+                    for (integer j = 0; j != taylor_sizes[3]; ++j) {
+                        Liii0[j] += A0[j][i];
+                        Liii1[j] += A1[j][i];
+                    }
+
+                    if (type == RHO) {
+                        space_vector& L_ciii0 = L_c[iii0];
+                        space_vector& L_ciii1 = L_c[iii1];
+                        for (integer j = 0; j != NDIM; ++j) {
+                            L_ciii0[j] += B0[j][i];
+                            L_ciii1[j] += B1[j][i];
+                        }
+                    }
+                }
+            });
     } else {
 #if !defined(HPX_HAVE_DATAPAR)
         const v4sd d0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
@@ -392,398 +404,417 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
 void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
-    taylor<4, simd_vector> m0;
-    taylor<4, simd_vector> n0;
-    std::array<simd_vector, NDIM> dX;
-    std::array<simd_vector, NDIM> X;
-    space_vector Y;
-
-    if (type != RHO) {
-        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-            n0[j] = ZERO;
-        }
-    }
 
     std::vector<space_vector> const& com0 = com[0];
-    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
-        boundary_interaction_type const& bnd = ilist_n_bnd[si];
-        integer index = mpoles.is_local ? bnd.second : si;
-        load_multipole(m0, Y, mpoles, index, false);
-        const integer list_size = bnd.first.size();
-        for (integer li = 0; li < list_size; li += simd_len) {
-            for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-                const integer iii0 = bnd.first[li + i];
-                space_vector const& com0iii0 = com0[iii0];
+//    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
+    hpx::parallel::for_loop(
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
+
+            taylor<4, simd_vector> m0;
+            taylor<4, simd_vector> n0;
+            std::array<simd_vector, NDIM> dX;
+            std::array<simd_vector, NDIM> X;
+            space_vector Y;
+
+            boundary_interaction_type const& bnd = ilist_n_bnd[si];
+            integer index = mpoles.is_local ? bnd.second : si;
+            load_multipole(m0, Y, mpoles, index, false);
+            const integer list_size = bnd.first.size();
+            for (integer li = 0; li < list_size; li += simd_len) {
+                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
+                    space_vector const& com0iii0 = com0[iii0];
+                    for (integer d = 0; d < NDIM; ++d) {
+                        X[d][i] = com0iii0[d];
+                    }
+                    if (type == RHO) {
+                        multipole const& Miii0 = M[iii0];
+                        real const tmp = m0()[i] / Miii0();
+                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                            n0[j][i] = m0[j][i] - Miii0[j] * tmp;
+                        }
+                    }
+                    else {
+                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                            n0[j] = ZERO;
+                        }
+                    }
+                }
                 for (integer d = 0; d < NDIM; ++d) {
-                    X[d][i] = com0iii0[d];
+                    dX[d] = X[d] - simd_vector(Y[d]);
                 }
-                if (type == RHO) {
-                    multipole const& Miii0 = M[iii0];
-                    real const tmp = m0()[i] / Miii0();
-                    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                        n0[j][i] = m0[j][i] - Miii0[j] * tmp;
+
+                taylor<5, simd_vector> D;
+                taylor<4, simd_vector> A0;
+                std::array<simd_vector, NDIM> B0 = {
+                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)
+                };
+
+                D.set_basis(dX);
+
+    //             A0() = m0() * D();
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 if (type != RHO) {
+    //                     A0() -= m0(a) * D(a);
+    //                 }
+    //                 for (integer b = a; b < NDIM; ++b) {
+    //                     A0() += m0(a, b) * D(a, b) * (real(1) / real(2)) * factor(a, b);
+    //                     for (integer c = b; c < NDIM; ++c) {
+    //                         A0() -= m0(a, b, c) * D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
+    //                     }
+    //                 }
+    //             }
+                A0[0] = m0[0] * D[0];
+                if (type != RHO) {
+                    for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
+                        A0[0] -= m0[i] * D[i];
                     }
                 }
-            }
-            for (integer d = 0; d < NDIM; ++d) {
-                dX[d] = X[d] - simd_vector(Y[d]);
-            }
-
-            taylor<5, simd_vector> D;
-            taylor<4, simd_vector> A0;
-            std::array<simd_vector, NDIM> B0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
-
-            D.set_basis(dX);
-
-//             A0() = m0() * D();
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 if (type != RHO) {
-//                     A0() -= m0(a) * D(a);
-//                 }
-//                 for (integer b = a; b < NDIM; ++b) {
-//                     A0() += m0(a, b) * D(a, b) * (real(1) / real(2)) * factor(a, b);
-//                     for (integer c = b; c < NDIM; ++c) {
-//                         A0() -= m0(a, b, c) * D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
-//                     }
-//                 }
-//             }
-            A0[0] = m0[0] * D[0];
-            if (type != RHO) {
-                for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
-                    A0[0] -= m0[i] * D[i];
+                for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
+                    A0[0] += m0[i] * D[i] * (factor[i] / real(2));
                 }
-            }
-            for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
-                A0[0] += m0[i] * D[i] * (factor[i] / real(2));
-            }
-            for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-                A0[0] -= m0[i] * D[i] * (factor[i] / real(6));
-            }
-
-            for (integer a = 0; a < NDIM; ++a) {
-                A0(a) = m0() * D(a);
-                for (integer b = 0; b < NDIM; ++b) {
-                    if (type != RHO) {
-                        A0(a) -= m0(a) * D(a, b);
-                    }
-                    for (integer c = b; c < NDIM; ++c) {
-                        const auto tmp = D(a, b, c) * (factor(c, b) / real(2));
-                        A0(a) += m0(c, b) * tmp;
-                    }
+                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                    A0[0] -= m0[i] * D[i] * (factor[i] / real(6));
                 }
-            }
 
-            if (type == RHO) {
                 for (integer a = 0; a < NDIM; ++a) {
+                    A0(a) = m0() * D(a);
                     for (integer b = 0; b < NDIM; ++b) {
+                        if (type != RHO) {
+                            A0(a) -= m0(a) * D(a, b);
+                        }
                         for (integer c = b; c < NDIM; ++c) {
-                            for (integer d = c; d < NDIM; ++d) {
-                                const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
-                                B0[a] -= n0(b, c, d) * tmp;
+                            const auto tmp = D(a, b, c) * (factor(c, b) / real(2));
+                            A0(a) += m0(c, b) * tmp;
+                        }
+                    }
+                }
+
+                if (type == RHO) {
+                    for (integer a = 0; a < NDIM; ++a) {
+                        for (integer b = 0; b < NDIM; ++b) {
+                            for (integer c = b; c < NDIM; ++c) {
+                                for (integer d = c; d < NDIM; ++d) {
+                                    const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
+                                    B0[a] -= n0(b, c, d) * tmp;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            for (integer a = 0; a < NDIM; ++a) {
-                for (integer b = a; b < NDIM; ++b) {
-                    A0(a, b) = m0() * D(a, b);
-                    for (integer c = 0; c < NDIM; ++c) {
-                        A0(a, b) -= m0(c) * D(a, b, c);
+                for (integer a = 0; a < NDIM; ++a) {
+                    for (integer b = a; b < NDIM; ++b) {
+                        A0(a, b) = m0() * D(a, b);
+                        for (integer c = 0; c < NDIM; ++c) {
+                            A0(a, b) -= m0(c) * D(a, b, c);
+                        }
+                    }
+                }
+
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 for (integer b = a; b < NDIM; ++b) {
+    //                     for (integer c = b; c < NDIM; ++c) {
+    //                         A0(a, b, c) = m0() * D(a, b, c);
+    //                     }
+    //                 }
+    //             }
+                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                    A0[i] =  m0[0] * D[i];
+                }
+
+                for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
+                    expansion& Liii0 = L[iii0];
+
+                    // FIXME: a similar loop below goes over the range [0, 4)
+                    //        which is correct?
+                    for (integer j = 0; j != 20; ++j) {
+                        Liii0[j] += A0[j][i];
+                    }
+
+                    if (type == RHO) {
+                        space_vector& L_ciii0 = L_c[iii0];
+                        for (integer j = 0; j != NDIM; ++j) {
+                            L_ciii0[j] += B0[j][i];
+                        }
                     }
                 }
             }
-
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 for (integer b = a; b < NDIM; ++b) {
-//                     for (integer c = b; c < NDIM; ++c) {
-//                         A0(a, b, c) = m0() * D(a, b, c);
-//                     }
-//                 }
-//             }
-            for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-                A0[i] =  m0[0] * D[i];
-            }
-
-            for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-                const integer iii0 = bnd.first[li + i];
-                expansion& Liii0 = L[iii0];
-
-                // FIXME: a similar loop below goes over the range [0, 4)
-                //        which is correct?
-                for (integer j = 0; j != 20; ++j) {
-                    Liii0[j] += A0[j][i];
-                }
-                if (type == RHO) {
-                    space_vector& L_ciii0 = L_c[iii0];
-                    for (integer j = 0; j != NDIM; ++j) {
-                        L_ciii0[j] += B0[j][i];
-                    }
-                }
-            }
-        }
-    }
+        });
     PROF_END;
 }
 
 void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
-    taylor<4, simd_vector> m0;
-    taylor<4, simd_vector> n0;
-    std::array<simd_vector, NDIM> dX;
-    std::array<simd_vector, NDIM> X;
-    space_vector Y;
-
-    if (type != RHO) {
-        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-            n0[j] = ZERO;
-        }
-    }
 
     std::vector<space_vector> const& com0 = com[0];
-    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
-        boundary_interaction_type const& bnd = ilist_n_bnd[si];
-        const integer list_size = bnd.first.size();
-        integer index = mpoles.is_local ? bnd.second : si;
-        load_multipole(m0, Y, mpoles, index, false);
-        if (type == RHO) {
-            for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                n0[j] = m0[j];
-            }
-        }
-        for (integer li = 0; li < list_size; li += simd_len) {
-            for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-                const integer iii0 = bnd.first[li + i];
-                space_vector const& com0iii0 = com0[iii0];
-                for (integer d = 0; d < NDIM; ++d) {
-                    X[d][i] = com0iii0[d];
-                }
-            }
-            for (integer d = 0; d < NDIM; ++d) {
-                dX[d] = X[d] - Y[d];
-            }
+//     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
+    hpx::parallel::for_loop(
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
-            taylor<5, simd_vector> D;
-            taylor<2, simd_vector> A0;      // FIXME: this is taylor<4, simd_vector> elsewhere
-            std::array<simd_vector, NDIM> B0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+            taylor<4, simd_vector> m0;
+            taylor<4, simd_vector> n0;
+            std::array<simd_vector, NDIM> dX;
+            std::array<simd_vector, NDIM> X;
+            space_vector Y;
 
-            D.set_basis(dX);
-
-//             A0() = m0() * D();
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 if (type != RHO) {
-//                     A0() -= m0(a) * D(a);
-//                 }
-//                 for (integer b = a; b < NDIM; ++b) {
-//                     A0() += m0(a, b) * D(a, b) * (real(1) / real(2)) * factor(a, b);
-//                     for (integer c = b; c < NDIM; ++c) {
-//                         A0() -= m0(a, b, c) * D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
-//                     }
-//                 }
-//             }
-            A0[0] = m0[0] * D[0];
-            if (type != RHO) {
-                for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
-                    A0[0] -= m0[i] * D[i];
-                }
-            }
-            for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
-                A0[0] += m0[i] * D[i] * (factor[i] / real(2));
-            }
-            for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-                A0[0] -= m0[i] * D[i] * (factor[i] / real(6));
-            }
-
-            for (integer a = 0; a < NDIM; ++a) {
-                A0(a) = m0() * D(a);
-                for (integer b = 0; b < NDIM; ++b) {
-                    if (type != RHO) {
-                        A0(a) -= m0(a) * D(a, b);
-                    }
-                    for (integer c = b; c < NDIM; ++c) {
-                        A0(a) += m0(c, b) * D(a, b, c) * (factor(b, c) / real(2));
-                    }
-                }
-            }
-
+            boundary_interaction_type const& bnd = ilist_n_bnd[si];
+            const integer list_size = bnd.first.size();
+            integer index = mpoles.is_local ? bnd.second : si;
+            load_multipole(m0, Y, mpoles, index, false);
             if (type == RHO) {
+                for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                    n0[j] = m0[j];
+                }
+            }
+            else {
+                for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                    n0[j] = ZERO;
+                }
+            }
+            for (integer li = 0; li < list_size; li += simd_len) {
+                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
+                    space_vector const& com0iii0 = com0[iii0];
+                    for (integer d = 0; d < NDIM; ++d) {
+                        X[d][i] = com0iii0[d];
+                    }
+                }
+                for (integer d = 0; d < NDIM; ++d) {
+                    dX[d] = X[d] - Y[d];
+                }
+
+                taylor<5, simd_vector> D;
+                taylor<2, simd_vector> A0;      // FIXME: this is taylor<4, simd_vector> elsewhere
+                std::array<simd_vector, NDIM> B0 = {
+                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)
+                };
+
+                D.set_basis(dX);
+
+    //             A0() = m0() * D();
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 if (type != RHO) {
+    //                     A0() -= m0(a) * D(a);
+    //                 }
+    //                 for (integer b = a; b < NDIM; ++b) {
+    //                     A0() += m0(a, b) * D(a, b) * (real(1) / real(2)) * factor(a, b);
+    //                     for (integer c = b; c < NDIM; ++c) {
+    //                         A0() -= m0(a, b, c) * D(a, b, c) * (real(1) / real(6)) * factor(a, b, c);
+    //                     }
+    //                 }
+    //             }
+                A0[0] = m0[0] * D[0];
+                if (type != RHO) {
+                    for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
+                        A0[0] -= m0[i] * D[i];
+                    }
+                }
+                for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
+                    A0[0] += m0[i] * D[i] * (factor[i] / real(2));
+                }
+                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                    A0[0] -= m0[i] * D[i] * (factor[i] / real(6));
+                }
+
                 for (integer a = 0; a < NDIM; ++a) {
+                    A0(a) = m0() * D(a);
                     for (integer b = 0; b < NDIM; ++b) {
+                        if (type != RHO) {
+                            A0(a) -= m0(a) * D(a, b);
+                        }
                         for (integer c = b; c < NDIM; ++c) {
-                            for (integer d = c; d < NDIM; ++d) {
-                                const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
-                                B0[a] -= n0(b, c, d) * tmp;
+                            A0(a) += m0(c, b) * D(a, b, c) * (factor(b, c) / real(2));
+                        }
+                    }
+                }
+
+                if (type == RHO) {
+                    for (integer a = 0; a < NDIM; ++a) {
+                        for (integer b = 0; b < NDIM; ++b) {
+                            for (integer c = b; c < NDIM; ++c) {
+                                for (integer d = c; d < NDIM; ++d) {
+                                    const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
+                                    B0[a] -= n0(b, c, d) * tmp;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-                const integer iii0 = bnd.first[li + i];
-                expansion& Liii0 = L[iii0];
+                for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
+                    expansion& Liii0 = L[iii0];
 
-                // FIXME: a similar loops above/below go over the range [0, 20)
-                //        which is correct?
-                for (integer j = 0; j != 4; ++j) {
-                    Liii0[j] += A0[j][i];
-                }
-                if (type == RHO) {
-                    space_vector& L_ciii0 = L_c[iii0];
-                    for (integer j = 0; j != NDIM; ++j) {
-                        L_ciii0[j] += B0[j][i];
+                    // FIXME: a similar loops above/below go over the range [0, 20)
+                    //        which is correct?
+                    for (integer j = 0; j != 4; ++j) {
+                        Liii0[j] += A0[j][i];
+                    }
+                    if (type == RHO) {
+                        space_vector& L_ciii0 = L_c[iii0];
+                        for (integer j = 0; j != NDIM; ++j) {
+                            L_ciii0[j] += B0[j][i];
+                        }
                     }
                 }
             }
-        }
-    }
+        });
     PROF_END;
 }
 
 void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
-    interaction_type np;
-    simd_vector m0;
-    taylor<4, simd_vector> n0;
-    std::array<simd_vector, NDIM> dX;
-    std::array<simd_vector, NDIM> X;
-    std::array<simd_vector, NDIM> Y;
-
-    if (type != RHO) {
-        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-            n0[j] = ZERO;
-        }
-    }
 
     std::vector<space_vector> const& com0 = com[0];
-    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
-        boundary_interaction_type const& bnd = ilist_n_bnd[si];
-        integer index = mpoles.is_local ? bnd.second : si;
-        const integer list_size = bnd.first.size();
-        for (integer d = 0; d != NDIM; ++d) {
-            Y[d] = bnd.x[d] * dx + this->X[d][hindex(H_BW,H_BW,H_BW)];
-        }
-        m0 = (*(mpoles.m))[index];
-        for (integer li = 0; li < list_size; li += simd_len) {
-            for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-                const integer iii0 = bnd.first[li + i];
-                space_vector const& com0iii0 = com0[iii0];
-                for (integer d = 0; d < NDIM; ++d) {
-                    X[d][i] = com0iii0[d];
-                }
-                if (type == RHO) {
-                    multipole const& Miii0 = M[iii0];
-                    real const tmp = m0[i] / Miii0();
-                    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                        n0[j][i] = -Miii0[j] * tmp;
+//     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
+    hpx::parallel::for_loop(
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
+
+            simd_vector m0;
+            taylor<4, simd_vector> n0;
+            std::array<simd_vector, NDIM> dX;
+            std::array<simd_vector, NDIM> X;
+            std::array<simd_vector, NDIM> Y;
+
+            boundary_interaction_type const& bnd = ilist_n_bnd[si];
+            integer index = mpoles.is_local ? bnd.second : si;
+            const integer list_size = bnd.first.size();
+            for (integer d = 0; d != NDIM; ++d) {
+                Y[d] = bnd.x[d] * dx + this->X[d][hindex(H_BW,H_BW,H_BW)];
+            }
+            m0 = (*(mpoles.m))[index];
+            for (integer li = 0; li < list_size; li += simd_len) {
+                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
+                    space_vector const& com0iii0 = com0[iii0];
+                    for (integer d = 0; d < NDIM; ++d) {
+                        X[d][i] = com0iii0[d];
                     }
+                    if (type == RHO) {
+                        multipole const& Miii0 = M[iii0];
+                        real const tmp = m0[i] / Miii0();
+                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                            n0[j][i] = -Miii0[j] * tmp;
+                        }
+                    }
+                    else {
+                        for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
+                            n0[j] = ZERO;
+                        }
+                        }
                 }
-            }
-            for (integer d = 0; d < NDIM; ++d) {
-                dX[d] = X[d] - Y[d];
-            }
+                for (integer d = 0; d < NDIM; ++d) {
+                    dX[d] = X[d] - Y[d];
+                }
 
-            taylor<5, simd_vector> D;
-            taylor<4, simd_vector> A0;
-            std::array<simd_vector, NDIM> B0 = { simd_vector(0.0), simd_vector(0.0), simd_vector(0.0) };
+                taylor<5, simd_vector> D;
+                taylor<4, simd_vector> A0;
+                std::array<simd_vector, NDIM> B0 = {
+                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)
+                };
 
-            D.set_basis(dX);
+                D.set_basis(dX);
 
-// FIXME: The following loop sections were duplicated (almost). I have removed
-//        the first duplicate. Is that correct?
+    // FIXME: The following loop sections were duplicated (almost). I have removed
+    //        the first duplicate. Is that correct?
 
-//             A0() = m0 * D();
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 A0(a) = +m0 * D(a);
-//                 for (integer b = 0; b < NDIM; ++b) {
-//                     A0(a, b) = m0 * D(a, b);
-//                     for (integer c = 0; c < NDIM; ++c) {
-//                         if (type == RHO) {
-//                             for (integer d = 0; d < NDIM; ++d) {
-//                                 const auto tmp = D(a, b, c, d) * (real(1) / real(6));
-//                                 B0[a] -= n0(b, c, d) * tmp;
-//                             }
-//                         }
-//                         A0(a, b, c) = m0 * D(a, b, c);
-//                     }
-//                 }
-//             }
-//
-//             A0() = m0 * D();
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 A0(a) = +m0 * D(a);
-//             }
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 for (integer b = a; b < NDIM; ++b) {
-//                     A0(a, b) = m0 * D(a, b);
-//                 }
-//             }
-//             for (integer a = 0; a < NDIM; ++a) {
-//                 for (integer b = a; b < NDIM; ++b) {
-//                     for (integer c = b; c < NDIM; ++c) {
-//                         if (type == RHO) {
-//                             A0(a, b, c) = +m0 * D(a, b, c);
-//                         }
-//                     }
-//                 }
-//             }
-//
-//             if (type == RHO) {
-//                 for (integer a = 0; a < NDIM; ++a) {
-//                     for (integer b = 0; b < NDIM; ++b) {
-//                         for (integer c = b; c < NDIM; ++c) {
-//                             for (integer d = c; d < NDIM; ++d) {
-//                                 const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
-//                                 B0[a] -= n0(b, c, d) * tmp;
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-            A0[0] = m0 * D[0];
-            for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
-                A0[i] = m0 * D[i];
-            }
-            if (type == RHO) {
-                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+    //             A0() = m0 * D();
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 A0(a) = +m0 * D(a);
+    //                 for (integer b = 0; b < NDIM; ++b) {
+    //                     A0(a, b) = m0 * D(a, b);
+    //                     for (integer c = 0; c < NDIM; ++c) {
+    //                         if (type == RHO) {
+    //                             for (integer d = 0; d < NDIM; ++d) {
+    //                                 const auto tmp = D(a, b, c, d) * (real(1) / real(6));
+    //                                 B0[a] -= n0(b, c, d) * tmp;
+    //                             }
+    //                         }
+    //                         A0(a, b, c) = m0 * D(a, b, c);
+    //                     }
+    //                 }
+    //             }
+    //
+    //             A0() = m0 * D();
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 A0(a) = +m0 * D(a);
+    //             }
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 for (integer b = a; b < NDIM; ++b) {
+    //                     A0(a, b) = m0 * D(a, b);
+    //                 }
+    //             }
+    //             for (integer a = 0; a < NDIM; ++a) {
+    //                 for (integer b = a; b < NDIM; ++b) {
+    //                     for (integer c = b; c < NDIM; ++c) {
+    //                         if (type == RHO) {
+    //                             A0(a, b, c) = +m0 * D(a, b, c);
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //
+    //             if (type == RHO) {
+    //                 for (integer a = 0; a < NDIM; ++a) {
+    //                     for (integer b = 0; b < NDIM; ++b) {
+    //                         for (integer c = b; c < NDIM; ++c) {
+    //                             for (integer d = c; d < NDIM; ++d) {
+    //                                 const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
+    //                                 B0[a] -= n0(b, c, d) * tmp;
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             }
+                A0[0] = m0 * D[0];
+                for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
                     A0[i] = m0 * D[i];
                 }
-            }
+                if (type == RHO) {
+                    for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                        A0[i] = m0 * D[i];
+                    }
+                }
 
-            if (type == RHO) {
-                for (integer a = 0; a < NDIM; ++a) {
-                    for (integer b = 0; b < NDIM; ++b) {
-                        for (integer c = b; c < NDIM; ++c) {
-                            for (integer d = c; d < NDIM; ++d) {
-                                const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
-                                B0[a] -= n0(b, c, d) * tmp;
+                if (type == RHO) {
+                    for (integer a = 0; a < NDIM; ++a) {
+                        for (integer b = 0; b < NDIM; ++b) {
+                            for (integer c = b; c < NDIM; ++c) {
+                                for (integer d = c; d < NDIM; ++d) {
+                                    const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
+                                    B0[a] -= n0(b, c, d) * tmp;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
-                const integer iii0 = bnd.first[li + i];
-                expansion& Liii0 = L[iii0];
+                for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
+                    expansion& Liii0 = L[iii0];
 
-                // FIXME: a similar loop above goes over the range [0, 4)
-                //        which is correct?
-                for (integer j = 0; j != 20; ++j) {
-                    Liii0[j] += A0[j][i];
-                }
-                if (type == RHO) {
-                    space_vector& L_ciii0 = L_c[iii0];
-                    for (integer j = 0; j != NDIM; ++j) {
-                        L_ciii0[j] += B0[j][i];
+                    // FIXME: a similar loop above goes over the range [0, 4)
+                    //        which is correct?
+                    for (integer j = 0; j != 20; ++j) {
+                        Liii0[j] += A0[j][i];
+                    }
+
+                    if (type == RHO) {
+                        space_vector& L_ciii0 = L_c[iii0];
+                        for (integer j = 0; j != NDIM; ++j) {
+                            L_ciii0[j] += B0[j][i];
+                        }
                     }
                 }
             }
-        }
-    }
+        });
     PROF_END;
 }
 
@@ -797,31 +828,35 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
     const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
     const v4sd d0(di0.data());
 #endif
-    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
-        boundary_interaction_type const& bnd = ilist_n_bnd[si];
-        const integer dsize = bnd.first.size();
-        const integer lev = 0;
-        integer index = mpoles.is_local ? bnd.second : si;
-        const auto tmp = (*(mpoles).m)[index];
+//     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
+    hpx::parallel::for_loop(
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
+
+            boundary_interaction_type const& bnd = ilist_n_bnd[si];
+            const integer dsize = bnd.first.size();
+            const integer lev = 0;
+            integer index = mpoles.is_local ? bnd.second : si;
 #if !defined(HPX_HAVE_DATAPAR)
-        v4sd m0;
-        for (integer i = 0; i != 4; ++i) {
-            m0[i] = tmp;
-        }
+            const auto tmp = (*(mpoles).m)[index];
+            v4sd m0;
+            for (integer i = 0; i != 4; ++i) {
+                m0[i] = tmp;
+            }
 #else
-        v4sd m0 = tmp;
+            v4sd m0 = (*(mpoles).m)[index];
 #endif
-        m0 *= d0;
-        for (integer li = 0; li < dsize; ++li) {
-            const integer iii0 = bnd.first[li];
-            const auto& four = bnd.four[li];
-            // FIXME: explain what's going on here!
-            // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
-            // Even if this is safe, it's probably utterly inefficient.
-            v4sd* l0ptr = (v4sd*) L[iii0].ptr();
-            *l0ptr += m0 * four;
-        }
-    }
+            m0 *= d0;
+            for (integer li = 0; li < dsize; ++li) {
+                const integer iii0 = bnd.first[li];
+                const auto& four = bnd.four[li];
+                // FIXME: explain what's going on here!
+                // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
+                // Even if this is safe, it's probably utterly inefficient.
+                v4sd* l0ptr = (v4sd*) L[iii0].ptr();
+                *l0ptr += m0 * four;
+            }
+        });
     PROF_END;
 }
 
@@ -850,7 +885,7 @@ void compute_ilist() {
     std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd;
     const real theta0 = opts.theta;
     const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
-        real tmp = ((i0-i1)*(i0-i1)+(j0-j1)*(j0-j1)+(k0-k1)*(k0-k1));
+        real tmp = (sqr(i0-i1) + sqr(j0-j1) + sqr(k0-k1));
         // protect against sqrt(0)
         if( tmp > 0.0 ) {
             return 1.0 / (std::sqrt(tmp));
@@ -1056,14 +1091,14 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
         for (integer jp = 0; jp != nxp; ++jp) {
             for (integer kp = 0; kp != nxp; ++kp) {
                 const integer iiip = nxp * nxp * ip + nxp * jp + kp;
-                std::array < simd_vector, NDIM > X;
+                std::array<simd_vector, NDIM> X;
                 std::array<simd_vector, NDIM> dX;
                 taylor<4, simd_vector> l;
                 std::array<simd_vector, NDIM> lc;
                 if (!is_root) {
                     const integer index = (INX * INX / 4) * (ip) + (INX / 2) * (jp) + (kp);
                     for (integer j = 0; j != 20; ++j) {
-                        l.ptr()[j] = parent_expansions->first[index].ptr()[j];
+                        l[j] = parent_expansions->first[index][j];
                     }
                     if (type == RHO) {
                         for (integer j = 0; j != NDIM; ++j) {
@@ -1072,7 +1107,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                     }
                 } else {
                     for (integer j = 0; j != 20; ++j) {
-                        l.ptr()[j] = 0.0;
+                        l[j] = 0.0;
                     }
                     for (integer j = 0; j != NDIM; ++j) {
                         lc[j] = 0.0;
@@ -1091,20 +1126,24 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                 l <<= dX;
                 for (integer ci = 0; ci != NCHILD; ++ci) {
                     const integer iiic = child_index(ip, jp, kp, ci);
+                    expansion& Liiic = L[iiic];
                     for (integer j = 0; j != 20; ++j) {
-                        L[iiic].ptr()[j] += l.ptr()[j][ci];
+                            Liiic[j] += l[j][ci];
                     }
+
+                    space_vector& L_ciiic = L_c[iiic];
                     if (type == RHO) {
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_c[iiic][j] += lc[j][ci];
+                            L_ciiic[j] += lc[j][ci];
                         }
                     }
 
                     if (!is_leaf) {
                         integer index = child_index(ip, jp, kp, ci, 0);
-                        exp_ret.first[index] = L[iiic];
+                        exp_ret.first[index] = Liiic;
+
                         if (type == RHO) {
-                            exp_ret.second[index] = L_c[iiic];
+                            exp_ret.second[index] = L_ciiic;
                         }
                     }
                 }
@@ -1118,7 +1157,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                 for (integer k = 0; k != G_NX; ++k) {
                     const integer iii = gindex(i, j, k);
                     const integer iii0 = h0index(i, j, k);
-                    const integer iiih = hindex(i + H_BW , j + H_BW , k + H_BW );
+                    const integer iiih = hindex(i + H_BW , j + H_BW , k + H_BW);
                     if (type == RHO) {
                         G[iii][phi_i] = L[iii]();
                         for (integer d = 0; d < NDIM; ++d) {
