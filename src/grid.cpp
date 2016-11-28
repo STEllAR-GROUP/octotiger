@@ -1630,8 +1630,8 @@ void grid::reconstruct() {
 			const real phi_y = HALF * (UfFYMpot_i[iii] + UfFYPpot_i[iii - H_DNY]);
 			const real phi_z = HALF * (UfFZMpot_i[iii] + UfFZPpot_i[iii - H_DNZ]);
 			UfFXMpot_i[iii] = phi_x;
-			UfFXMpot_i[iii] = phi_y;
-			UfFXMpot_i[iii] = phi_z;
+			UfFYMpot_i[iii] = phi_y;
+			UfFZMpot_i[iii] = phi_z;
 			UfFXPpot_i[iii - H_DNX] = phi_x;
 			UfFYPpot_i[iii - H_DNY] = phi_y;
 			UfFZPpot_i[iii - H_DNZ] = phi_z;
