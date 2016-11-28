@@ -467,7 +467,7 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 
     A() = d0;
 
-    for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a) {
+    for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
         A[i] = X[a] * d1;
     }
     for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
