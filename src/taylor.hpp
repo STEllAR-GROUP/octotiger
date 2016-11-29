@@ -34,7 +34,7 @@ struct taylor_consts {
 	static integer map4[3][3][3][3];
 };
 
-constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35}; //
+constexpr integer taylor_sizes[MAX_ORDER] = { 1, 4, 10, 20, 35 }; //
 
 template<int N, class T = real>
 class taylor {
@@ -71,9 +71,9 @@ public:
 			data[i] = d;
 		}
 #else
-        hpx::parallel::fill(
-            hpx::parallel::dataseq_execution,
-            data.begin(), data.end(), d);
+		hpx::parallel::fill(
+				hpx::parallel::dataseq_execution,
+				data.begin(), data.end(), d);
 #endif
 		return *this;
 	}
@@ -85,13 +85,13 @@ public:
 			data[i] *= d;
 		}
 #else
-        hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            [d](T const& val)
-            {
-                return val * d;
-            });
+		hpx::parallel::transform(
+				hpx::parallel::dataseq_execution,
+				data.begin(), data.end(),
+				[d](T const& val)
+				{
+					return val * d;
+				});
 #endif
 		return *this;
 	}
@@ -103,13 +103,13 @@ public:
 			data[i] /= d;
 		}
 #else
-        hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            [d](T const& val)
-            {
-                return val / d;
-            });
+		hpx::parallel::transform(
+				hpx::parallel::dataseq_execution,
+				data.begin(), data.end(),
+				[d](T const& val)
+				{
+					return val / d;
+				});
 #endif
 		return *this;
 	}
@@ -121,14 +121,14 @@ public:
 			data[i] += other.data[i];
 		}
 #else
-        hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            other.data.begin(), other.data.end(),
-            [](T const& t1, T const& t2)
-            {
-                return t1 + t2;
-            });
+		hpx::parallel::transform(
+				hpx::parallel::dataseq_execution,
+				data.begin(), data.end(),
+				other.data.begin(), other.data.end(),
+				[](T const& t1, T const& t2)
+				{
+					return t1 + t2;
+				});
 #endif
 		return *this;
 	}
@@ -140,14 +140,14 @@ public:
 			data[i] -= other.data[i];
 		}
 #else
-        hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            other.data.begin(), other.data.end(),
-            [](T const& t1, T const& t2)
-            {
-                return t1 - t2;
-            });
+		hpx::parallel::transform(
+				hpx::parallel::dataseq_execution,
+				data.begin(), data.end(),
+				other.data.begin(), other.data.end(),
+				[](T const& t1, T const& t2)
+				{
+					return t1 - t2;
+				});
 #endif
 		return *this;
 	}
@@ -188,50 +188,49 @@ public:
 			r.data[i] = -r.data[i];
 		}
 #else
-        hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
-            r.data.begin(), r.data.end(),
-            [](T const& val)
-            {
-                return -val;
-            });
+		hpx::parallel::transform(
+				hpx::parallel::dataseq_execution,
+				r.data.begin(), r.data.end(),
+				[](T const& val)
+				{
+					return -val;
+				});
 #endif
 		return r;
 	}
 
 #if defined(HPX_HAVE_DATAPAR)
-    friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs)
-    {
-        return hpx::parallel::equal(
-            hpx::parallel::dataseq_execution,
-            lhs.data.begin(), lhs.data.end(), rhs.data.begin(),
-            [](T const& t1, T const& t2)
-            {
-                return all_of(t1 == t2);
-            });
-    }
+	friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs)
+	{
+		return hpx::parallel::equal(
+				hpx::parallel::dataseq_execution,
+				lhs.data.begin(), lhs.data.end(), rhs.data.begin(),
+				[](T const& t1, T const& t2)
+				{
+					return all_of(t1 == t2);
+				});
+	}
 #endif
 
-    static constexpr integer index() {
-        return 0;
-    }
+	static constexpr integer index() {
+		return 0;
+	}
 
-    static constexpr integer index(integer i) {
-        return 1 + i;
-    }
+	static constexpr integer index(integer i) {
+		return 1 + i;
+	}
 
-    static integer index(integer i, integer j) {
-        return tc.map2[i][j];
-    }
+	static integer index(integer i, integer j) {
+		return tc.map2[i][j];
+	}
 
-    static integer index(integer i, integer j, integer k) {
-        return tc.map3[i][j][k];
-    }
+	static integer index(integer i, integer j, integer k) {
+		return tc.map3[i][j][k];
+	}
 
-    static integer index(integer i, integer j, integer k, integer l) {
-        return tc.map4[i][j][k][l];
-    }
-
+	static integer index(integer i, integer j, integer k, integer l) {
+		return tc.map4[i][j][k][l];
+	}
 
 	T const& operator()() const {
 		return data[index()];
@@ -293,8 +292,11 @@ public:
 					for (integer a = 0; a < NDIM; ++a) {
 						for (integer b = a; b < NDIM; ++b) {
 							for (integer c = b; c < NDIM; ++c) {
-								B(a, b, c) += A(a, b) * X[c] + A(b, c) * X[a] + A(c, a) * X[b];
-								B(a, b, c) += A(a) * X[b] * X[c] + A(b) * X[c] * X[a] + A(c) * X[a] * X[b];
+								B(a, b, c) += A(a, b) * X[c] + A(b, c) * X[a]
+										+ A(c, a) * X[b];
+								B(a, b, c) += A(a) * X[b] * X[c]
+										+ A(b) * X[c] * X[a]
+										+ A(c) * X[a] * X[b];
 								B(a, b, c) += A() * X[a] * X[b] * X[c];
 							}
 						}
@@ -337,14 +339,16 @@ public:
 					for (integer a = 0; a != NDIM; a++) {
 						for (integer b = 0; b != NDIM; b++) {
 							for (integer c = 0; c != NDIM; c++) {
-								B() += A(a, b, c) * X[a] * X[b] * X[c] * T(real(1) / real(6));
+								B() += A(a, b, c) * X[a] * X[b] * X[c]
+										* T(real(1) / real(6));
 							}
 						}
 					}
 					for (integer a = 0; a != NDIM; a++) {
 						for (integer b = 0; b != NDIM; b++) {
 							for (integer c = 0; c != NDIM; c++) {
-								B(a) += A(a, b, c) * X[b] * X[c] * T(real(1) / real(2));
+								B(a) += A(a, b, c) * X[b] * X[c]
+										* T(real(1) / real(2));
 							}
 						}
 					}
@@ -392,29 +396,38 @@ template<int N, class T>
 taylor_consts taylor<N, T>::tc;
 
 template<>
-inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
-    constexpr integer N = 5;
-    using T = simd_vector;
-    //PROF_BEGIN;
-    taylor<N, T>& A = *this;
+inline void taylor<5, simd_vector>::set_basis(
+		const std::array<simd_vector, NDIM>& X) {
+	constexpr integer N = 5;
+	using T = simd_vector;
+	//PROF_BEGIN;
+	taylor<N, T>& A = *this;
 
-    const T r2inv = ONE / (X[0] * X[0] + X[1] * X[1] + X[2] * X[2]);
+	const T r2 = (X[0] * X[0] + X[1] * X[1] + X[2] * X[2]);
+	T r2inv;
+	for (integer i = 0; i != simd_len; ++i) {
+		if (r2[i] > 0.0) {
+			r2inv[i] = ONE / r2[i];
+		} else {
+			r2inv[i] = 0.0;
+		}
+	}
 
-    const T d0 = -sqrt(r2inv);
+	const T d0 = -sqrt(r2inv);
 
-    // 1 MUL
-    const T d1 = -d0 * r2inv;
+	// 1 MUL
+	const T d1 = -d0 * r2inv;
 
-    // 2 MULS
-    const T d2 = -T(3) * d1 * r2inv;
+	// 2 MULS
+	const T d2 = -T(3) * d1 * r2inv;
 
-    // 2 MULS
-    const T d3 = -T(5) * d2 * r2inv;
+	// 2 MULS
+	const T d3 = -T(5) * d2 * r2inv;
 //     const T d4 = -T(7) * d3 * r2inv;
 
-    // Previously we've had this code. In my measurements the old code was
-    // about 15% faster than the current code. However, I have measured it on
-    // non-KNL platforms only.
+	// Previously we've had this code. In my measurements the old code was
+	// about 15% faster than the current code. However, I have measured it on
+	// non-KNL platforms only.
 //     taylor<N - 1, T> XX;
 //     for (integer a = 0; a != NDIM; a++) {
 //         auto const tmpa = X[a];
@@ -463,55 +476,55 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 //         }
 //     }
 
-    ///////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////
 
-    A() = d0;
+	A() = d0;
 
-    for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
-        A[i] = X[a] * d1;
-    }
-    for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
-        T const tmp = X[a] * d2;
-        for (integer b = a; b != NDIM; ++b, ++i) {
-            A[i] = tmp * X[b];
-        }
-    }
-    for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
-        for (integer b = a; b != NDIM; ++b) {
-            T const tmp = X[a] * X[b] * d3;
-            for (integer c = b; c != NDIM; ++c, ++i) {
-                A[i] = tmp * X[c];
-            }
-        }
-    }
-    for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
-        A[i] = ZERO;
-    }
+	for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
+		A[i] = X[a] * d1;
+	}
+	for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
+		T const tmp = X[a] * d2;
+		for (integer b = a; b != NDIM; ++b, ++i) {
+			A[i] = tmp * X[b];
+		}
+	}
+	for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
+		for (integer b = a; b != NDIM; ++b) {
+			T const tmp = X[a] * X[b] * d3;
+			for (integer c = b; c != NDIM; ++c, ++i) {
+				A[i] = tmp * X[c];
+			}
+		}
+	}
+	for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
+		A[i] = ZERO;
+	}
 
-    ///////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////
 
-    for (integer a = 0; a != NDIM; a++) {
-        A(a, a) += d1;
-        auto const XXa = X[a] * d2;
-        A(a, a, a) += XXa;
-        A(a, a, a, a) += (X[a] * X[a]) * d3;
-        A(a, a, a, a) += 2.0 * d2;
-        for (integer b = a; b != NDIM; b++) {
-            A(a, a, b) += X[b] * d2;
-            A(a, b, b) += XXa;
-            auto const XXab = (X[a] * X[b]) * d3;
-            A(a, a, a, b) += XXab;
-            A(a, b, b, b) += XXab;
-            A(a, a, b, b) += d2;
-            for (integer c = b; c != NDIM; c++) {
-                A(a, a, b, c) += (X[b] * X[c]) * d3;
-                A(a, b, b, c) += (X[a] * X[c]) * d3;
-                A(a, b, c, c) += XXab;
-            }
-        }
-    }
+	for (integer a = 0; a != NDIM; a++) {
+		A(a, a) += d1;
+		auto const XXa = X[a] * d2;
+		A(a, a, a) += XXa;
+		A(a, a, a, a) += (X[a] * X[a]) * d3;
+		A(a, a, a, a) += 2.0 * d2;
+		for (integer b = a; b != NDIM; b++) {
+			A(a, a, b) += X[b] * d2;
+			A(a, b, b) += XXa;
+			auto const XXab = (X[a] * X[b]) * d3;
+			A(a, a, a, b) += XXab;
+			A(a, b, b, b) += XXab;
+			A(a, a, b, b) += d2;
+			for (integer c = b; c != NDIM; c++) {
+				A(a, a, b, c) += (X[b] * X[c]) * d3;
+				A(a, b, b, c) += (X[a] * X[c]) * d3;
+				A(a, b, c, c) += XXab;
+			}
+		}
+	}
 
-    //PROF_END;
+	//PROF_END;
 }
 
 #endif /* TAYLOR_HPP_ */
