@@ -432,7 +432,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
     grid_ptr->compute_interactions(type);
 
-    std::vector<hpx::future<void>> boundary_futs;
+    /*The commented out portion does not work BC the same regions of L and L_c may be updated
+     *   at the same time. I have (temporarily?) replaced it with the old section.
+     */
+
+ /*   std::vector<hpx::future<void>> boundary_futs;
     boundary_futs.reserve(full_set.size());
     for (auto& dir : full_set) {
         if (!neighbors[dir].empty()) {
@@ -446,7 +450,17 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         }
     }
     parent_fut.get();
-    wait_all_and_propagate_exceptions(boundary_futs);
+    wait_all_and_propagate_exceptions(boundary_futs);*/
+
+    for (auto& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			auto tmp = neighbor_gravity_channels[dir].get_future().get();
+			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
+		}
+	}
+	parent_fut.get();
+
+	/************************************************************************************************/
 
     expansion_pass_type l_in;
     if (my_location.level() != 0) {
