@@ -1346,6 +1346,9 @@ void grid::allocate() {
 	com[1].resize(G_N3 / 8);
 
 	set_coordinates();
+
+	L_mtx = std::make_shared<hpx::lcos::local::spinlock>();
+
 	PROF_END;
 }
 

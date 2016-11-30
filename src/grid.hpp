@@ -167,6 +167,7 @@ private:
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
+	std::shared_ptr<hpx::lcos::local::spinlock> L_mtx;
 
 	bool is_root;
 	bool is_leaf;

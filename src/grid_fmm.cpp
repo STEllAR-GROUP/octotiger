@@ -165,7 +165,7 @@ void grid::compute_interactions(gsolve_type type) {
         std::vector<space_vector> const& com0 = com[0];
 //         for (integer li = 0; li < list_size; li += simd_len) {
         hpx::parallel::for_loop_strided(
-            hpx::parallel::par, 0, list_size, simd_len,
+            hpx::parallel::seq, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
                 std::array<simd_vector, NDIM> dX;
@@ -322,6 +322,8 @@ void grid::compute_interactions(gsolve_type type) {
                     A0[i] =  m0[0] * tmp;
                 }
 
+                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;
                     const integer iii1 = this_ilist[li + i].second;
@@ -377,6 +379,7 @@ void grid::compute_interactions(gsolve_type type) {
             // Even if this is safe, it's probably utterly inefficient.
             v4sd* l0ptr = (v4sd*) L[iii0].ptr();
             v4sd* l1ptr = (v4sd*) L[iii1].ptr();
+            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
             *l0ptr += m0 * ele.four * d0;
             *l1ptr += m1 * ele.four * d1;
         }
@@ -408,7 +411,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
     std::vector<space_vector> const& com0 = com[0];
 //    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -524,12 +527,14 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                     A0[i] =  m0[0] * D[i];
                 }
 
+                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
 
                     // FIXME: a similar loop below goes over the range [0, 4)
                     //        which is correct?
+                    // DCM: Both
                     for (integer j = 0; j != 20; ++j) {
                         Liii0[j] += A0[j][i];
                     }
@@ -553,7 +558,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -646,12 +651,14 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                     }
                 }
 
+                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
 
                     // FIXME: a similar loops above/below go over the range [0, 20)
-                    //        which is correct?
+                    //        which is correct? DM: Both
                     for (integer j = 0; j != 4; ++j) {
                         Liii0[j] += A0[j][i];
                     }
@@ -674,7 +681,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             simd_vector m0;
@@ -724,55 +731,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 
     // FIXME: The following loop sections were duplicated (almost). I have removed
     //        the first duplicate. Is that correct?
-
-    //             A0() = m0 * D();
-    //             for (integer a = 0; a < NDIM; ++a) {
-    //                 A0(a) = +m0 * D(a);
-    //                 for (integer b = 0; b < NDIM; ++b) {
-    //                     A0(a, b) = m0 * D(a, b);
-    //                     for (integer c = 0; c < NDIM; ++c) {
-    //                         if (type == RHO) {
-    //                             for (integer d = 0; d < NDIM; ++d) {
-    //                                 const auto tmp = D(a, b, c, d) * (real(1) / real(6));
-    //                                 B0[a] -= n0(b, c, d) * tmp;
-    //                             }
-    //                         }
-    //                         A0(a, b, c) = m0 * D(a, b, c);
-    //                     }
-    //                 }
-    //             }
-    //
-    //             A0() = m0 * D();
-    //             for (integer a = 0; a < NDIM; ++a) {
-    //                 A0(a) = +m0 * D(a);
-    //             }
-    //             for (integer a = 0; a < NDIM; ++a) {
-    //                 for (integer b = a; b < NDIM; ++b) {
-    //                     A0(a, b) = m0 * D(a, b);
-    //                 }
-    //             }
-    //             for (integer a = 0; a < NDIM; ++a) {
-    //                 for (integer b = a; b < NDIM; ++b) {
-    //                     for (integer c = b; c < NDIM; ++c) {
-    //                         if (type == RHO) {
-    //                             A0(a, b, c) = +m0 * D(a, b, c);
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //
-    //             if (type == RHO) {
-    //                 for (integer a = 0; a < NDIM; ++a) {
-    //                     for (integer b = 0; b < NDIM; ++b) {
-    //                         for (integer c = b; c < NDIM; ++c) {
-    //                             for (integer d = c; d < NDIM; ++d) {
-    //                                 const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
-    //                                 B0[a] -= n0(b, c, d) * tmp;
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }
+                // DM: Yes
                 A0[0] = m0 * D[0];
                 for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
                     A0[i] = m0 * D[i];
@@ -795,13 +754,14 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                         }
                     }
                 }
+                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
 
                     // FIXME: a similar loop above goes over the range [0, 4)
-                    //        which is correct?
+                    //        which is correct? DM: Both
                     for (integer j = 0; j != 20; ++j) {
                         Liii0[j] += A0[j][i];
                     }
@@ -830,7 +790,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #endif
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
@@ -847,6 +807,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
             v4sd m0 = (*(mpoles).m)[index];
 #endif
             m0 *= d0;
+            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
                 const auto& four = bnd.four[li];
