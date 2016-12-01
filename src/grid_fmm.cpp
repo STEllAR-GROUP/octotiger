@@ -165,7 +165,7 @@ void grid::compute_interactions(gsolve_type type) {
         std::vector<space_vector> const& com0 = com[0];
 //         for (integer li = 0; li < list_size; li += simd_len) {
         hpx::parallel::for_loop_strided(
-            hpx::parallel::seq, 0, list_size, simd_len,
+            hpx::parallel::par, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
                 std::array<simd_vector, NDIM> dX;
@@ -412,7 +412,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
     std::vector<space_vector> const& com0 = com[0];
 //    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -560,7 +560,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -684,7 +684,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             simd_vector m0;
@@ -793,7 +793,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #endif
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
         [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
