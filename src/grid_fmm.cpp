@@ -178,9 +178,10 @@ void grid::compute_interactions(gsolve_type type) {
                 taylor<4, simd_vector> n1;
 
                 // FIXME: replace with vector-pack gather-loads
-                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-                    const integer iii0 = this_ilist[li + i].first;
-                    const integer iii1 = this_ilist[li + i].second;
+                for (integer i = 0; i != simd_len; ++i) {
+                	const auto index = std::min(integer(li + i),integer(list_size-1));
+                    const integer iii0 = this_ilist[index].first;
+                    const integer iii1 = this_ilist[index].second;
                     space_vector const& com0iii0 = com0[iii0];
                     space_vector const& com0iii1 = com0[iii1];
                     for (integer d = 0; d < NDIM; ++d) {
@@ -425,8 +426,9 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
             load_multipole(m0, Y, mpoles, index, false);
             const integer list_size = bnd.first.size();
             for (integer li = 0; li < list_size; li += simd_len) {
-                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-                    const integer iii0 = bnd.first[li + i];
+                for (integer i = 0; i != simd_len; ++i) {
+                	const auto index = std::min(integer(li + i),integer(list_size-1));
+                    const integer iii0 = bnd.first[index];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
                         X[d][i] = com0iii0[d];
@@ -582,8 +584,9 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                 }
             }
             for (integer li = 0; li < list_size; li += simd_len) {
-                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
-                    const integer iii0 = bnd.first[li + i];
+                for (integer i = 0; i != simd_len; ++i) {
+                	const auto index = std::min(integer(li + i),integer(list_size-1));
+                    const integer iii0 = bnd.first[index];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
                         X[d][i] = com0iii0[d];
