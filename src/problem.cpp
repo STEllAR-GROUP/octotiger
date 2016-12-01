@@ -288,7 +288,7 @@ std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
 	u[sx_i] = u[rho_i] * vx;
 	u[sy_i] = u[rho_i] * vy;
 	u[sz_i] = u[rho_i] * vz;
-	u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) * u[rho_i] / 2.0;
+	u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
 	return u;
 }
 
