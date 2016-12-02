@@ -51,12 +51,24 @@ private:
     std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
     real dx;
+
+    /* this node*/
     node_client me;
+    /* The parent is the node one level coarser that this node is a child of*/
     node_client parent;
+    /* neighbors refers to the up to 26 adjacent neighbors to this node (on the same refinement level). These are in the directions
+     *  of the 6 faces, 12 edges, and 8 vertices of the subgrid cube. If there is an AMR boundary to a coarser level, that neighbor is empty. */
     std::vector<node_client> neighbors;
+    /* Child refers to the up to 8 refined children of this node. Either all or none exist.*/
     std::vector<node_client> children;
+    /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
+     * . Only nieces in the face directions are needed, and in each
+     * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/
     std::vector<std::vector<node_client> > nieces;
+    /* An aunt is this node's parent's neighbor, so it is one level coarser.
+     *  Only aunts in the 6 face directions are required. Used for AMR boundary handling. */
     std::vector<node_client> aunts;
+
     std::vector<std::array<bool, geo::direction::count()>> amr_flags;
     hpx::lcos::local::spinlock mtx;
     std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
