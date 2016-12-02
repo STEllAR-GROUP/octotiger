@@ -276,7 +276,6 @@ void node_server::clear_family() {
     parent = hpx::invalid_id;
     me = hpx::invalid_id;
     std::fill(aunts.begin(), aunts.end(), hpx::invalid_id);
-    std::fill(siblings.begin(), siblings.end(), hpx::invalid_id);
     std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
     std::fill(nieces.begin(), nieces.end(), std::vector<node_client>());
 }
@@ -331,7 +330,6 @@ void node_server::initialize(real t, real rt) {
     refinement_flag = 0;
     static_initialize();
     is_refined = false;
-    siblings.resize(NFACE);
     neighbors.resize(geo::direction::count());
     nieces.resize(NFACE);
     aunts.resize(NFACE);

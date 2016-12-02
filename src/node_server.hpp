@@ -54,7 +54,6 @@ private:
     node_client me;
     node_client parent;
     std::vector<node_client> neighbors;
-    std::vector<node_client> siblings;
     std::vector<node_client> children;
     std::vector<std::vector<node_client> > nieces;
     std::vector<node_client> aunts;
@@ -90,7 +89,6 @@ public:
         arc & children;
         arc & parent;
         arc & neighbors;
-        arc & siblings;
         arc & nieces;
         arc & aunts;
         arc & child_descendant_count;

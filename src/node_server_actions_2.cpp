@@ -435,10 +435,6 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
     for (auto& dir : geo::direction::full_set()) {
         neighbors[dir] = neighbor_gids[dir];
     }
-    for (auto& face : geo::face::full_set()) {
-        siblings[face] = neighbors[face.to_direction()];
-    }
-
     me = self_gid;
     parent = parent_gid;
     if (is_refined) {
@@ -497,8 +493,9 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
     } else {
         std::vector < hpx::future<std::vector<hpx::id_type>>>nfuts(NFACE);
         for (auto& f : geo::face::full_set()) {
-            if (!siblings[f].empty()) {
-                nfuts[f] = siblings[f].get_nieces(me.get_gid(), f ^ 1);
+        	const auto& neighbor = neighbors[f.to_direction()];
+            if (!neighbor.empty()) {
+                nfuts[f] = neighbor.get_nieces(me.get_gid(), f ^ 1);
             } else {
                 nfuts[f] = hpx::make_ready_future(std::vector<hpx::id_type>());
             }
