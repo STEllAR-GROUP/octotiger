@@ -165,7 +165,7 @@ void grid::compute_interactions(gsolve_type type) {
         std::vector<space_vector> const& com0 = com[0];
 //         for (integer li = 0; li < list_size; li += simd_len) {
         hpx::parallel::for_loop_strided(
-            hpx::parallel::par, 0, list_size, simd_len,
+            hpx::parallel::seq, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
                 std::array<simd_vector, NDIM> dX;
@@ -331,16 +331,16 @@ void grid::compute_interactions(gsolve_type type) {
                     expansion& Liii0 = L[iii0];
                     expansion& Liii1 = L[iii1];
                     for (integer j = 0; j != taylor_sizes[3]; ++j) {
-                        Liii0[j] += A0[j][i];
-                        Liii1[j] += A1[j][i];
+                        Liii0[j] +=  A0[j][i];
+                        Liii1[j] +=  A1[j][i];
                     }
 
                     if (type == RHO) {
-                        space_vector& L_ciii0 = L_c[iii0];
-                        space_vector& L_ciii1 = L_c[iii1];
+                        auto& L_ciii0 = L_c[iii0];
+                        auto& L_ciii1 = L_c[iii1];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += B0[j][i];
-                            L_ciii1[j] += B1[j][i];
+                            L_ciii0[j] +=  B0[j][i];
+                            L_ciii1[j] +=  B1[j][i];
                         }
                     }
                 }
@@ -378,11 +378,15 @@ void grid::compute_interactions(gsolve_type type) {
             // FIXME: explain what's going on here!
             // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
             // Even if this is safe, it's probably utterly inefficient.
-            v4sd* l0ptr = (v4sd*) L[iii0].ptr();
-            v4sd* l1ptr = (v4sd*) L[iii1].ptr();
+       //     v4sd* l0ptr = (v4sd*) L[iii0].ptr();
+        //    v4sd* l1ptr = (v4sd*) L[iii1].ptr();
             std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-            *l0ptr += m0 * ele.four * d0;
-            *l1ptr += m1 * ele.four * d1;
+            auto tmp1 =  m0 * ele.four * d0;
+            auto tmp2 = m1 * ele.four * d1;
+            for( integer i = 0; i != 4; ++i) {
+              	 L[iii0][i] +=  tmp1[i];
+               	 L[iii1][i] +=  tmp2[i];
+            }
         }
     }
     PROF_END;
@@ -412,7 +416,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
     std::vector<space_vector> const& com0 = com[0];
 //    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -538,13 +542,13 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                     //        which is correct?
                     // DCM: Both
                     for (integer j = 0; j != 20; ++j) {
-                        Liii0[j] += A0[j][i];
+                        Liii0[j] +=  A0[j][i];
                     }
 
                     if (type == RHO) {
-                        space_vector& L_ciii0 = L_c[iii0];
+                        auto& L_ciii0 = L_c[iii0];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += B0[j][i];
+                            L_ciii0[j] +=  B0[j][i];
                         }
                     }
                 }
@@ -560,7 +564,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -663,10 +667,10 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                     // FIXME: a similar loops above/below go over the range [0, 20)
                     //        which is correct? DM: Both
                     for (integer j = 0; j != 4; ++j) {
-                        Liii0[j] += A0[j][i];
+                        Liii0[j] +=  A0[j][i];
                     }
                     if (type == RHO) {
-                        space_vector& L_ciii0 = L_c[iii0];
+                        auto& L_ciii0 = L_c[iii0];
                         for (integer j = 0; j != NDIM; ++j) {
                             L_ciii0[j] += B0[j][i];
                         }
@@ -684,7 +688,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             simd_vector m0;
@@ -766,13 +770,13 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                     // FIXME: a similar loop above goes over the range [0, 4)
                     //        which is correct? DM: Both
                     for (integer j = 0; j != 20; ++j) {
-                        Liii0[j] += A0[j][i];
+                        Liii0[j] +=  A0[j][i];
                     }
 
                     if (type == RHO) {
-                        space_vector& L_ciii0 = L_c[iii0];
+                        auto& L_ciii0 = L_c[iii0];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += B0[j][i];
+                            L_ciii0[j] +=  B0[j][i];
                         }
                     }
                 }
@@ -793,7 +797,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #endif
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        hpx::parallel::seq, 0, ilist_n_bnd.size(),
         [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
@@ -817,8 +821,14 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
                 // FIXME: explain what's going on here!
                 // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
                 // Even if this is safe, it's probably utterly inefficient.
-                v4sd* l0ptr = (v4sd*) L[iii0].ptr();
-                *l0ptr += m0 * four;
+//                v4sd* l0ptr = (v4sd*) L[iii0].ptr();
+ //               *l0ptr += m0 * four;
+         //       std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+                auto tmp1 =  m0 * four;
+                for( integer i = 0; i != 4; ++i) {
+                  	 L[iii0][i] += tmp1[i];
+                }
+
             }
         });
     PROF_END;
@@ -1095,7 +1105,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                             Liiic[j] += l[j][ci];
                     }
 
-                    space_vector& L_ciiic = L_c[iiic];
+                    auto& L_ciiic = L_c[iiic];
                     if (type == RHO) {
                         for (integer j = 0; j != NDIM; ++j) {
                             L_ciiic[j] += lc[j][ci];
@@ -1104,10 +1114,14 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 
                     if (!is_leaf) {
                         integer index = child_index(ip, jp, kp, ci, 0);
-                        exp_ret.first[index] = Liiic;
+                        for( integer j = 0; j != 20; ++j) {
+                         	exp_ret.first[index][j] = Liiic[j];
+                        }
 
                         if (type == RHO) {
-                            exp_ret.second[index] = L_ciiic;
+                            for( integer j = 0; j != 3; ++j) {
+                                exp_ret.second[index][j] = L_ciiic[j];
+                            }
                         }
                     }
                 }
