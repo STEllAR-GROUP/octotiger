@@ -791,8 +791,8 @@ real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const st
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				if (is_in_star(axis, l1, frac, iii)) {
-					mom += (std::pow(X[XDIM][iii], 2) + dx * dx / 6.0) * U[rho_i][iii] * dV;
-					mom += (std::pow(X[YDIM][iii], 2) + dx * dx / 6.0) * U[rho_i][iii] * dV;
+					mom += (std::pow(X[XDIM][iii], 2) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
+					mom += (std::pow(X[YDIM][iii], 2) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
 				}
 			}
 		}
@@ -1078,7 +1078,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
-					V[zz_i][iii] -= dx * dx * omega / 6.0;
+					V[zz_i][iii] -= sqr(dx) * omega / 6.0;
 				}
 			}
 		}
@@ -1103,7 +1103,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					}
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
-					V[zz_i][iii] -= dx * dx * omega / 6.0;
+					V[zz_i][iii] -= sqr(dx) * omega / 6.0;
 				}
 			}
 		}
@@ -1178,7 +1178,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 					const integer iii = hindex(i,j,k);
 					V[sx_i][iii] -= X[YDIM][iii] * omega;
 					V[sy_i][iii] += X[XDIM][iii] * omega;
-					V[zz_i][iii] += dx * dx * omega / 6.0;
+					V[zz_i][iii] += sqr(dx) * omega / 6.0;
 					dVdx[YDIM][sx_i][iii] -= dx * omega;
 					dVdx[XDIM][sy_i][iii] += dx * omega;
 				}
@@ -1347,7 +1347,7 @@ void grid::allocate() {
 
 	set_coordinates();
 
-	L_mtx = std::make_shared<hpx::lcos::local::spinlock>();
+    L_mtx.reset(new hpx::lcos::local::spinlock);
 
 	PROF_END;
 }
@@ -1676,7 +1676,7 @@ void grid::reconstruct() {
 
 					Ufface[sx_i][iii] -= omega * (X[YDIM][iii] + y0) * Uffacerho_iii;
 					Ufface[sy_i][iii] += omega * (X[XDIM][iii] + x0) * Uffacerho_iii;
-					Ufface[zz_i][iii] += dx * dx * omega * Uffacerho_iii / 6.0;
+					Ufface[zz_i][iii] += sqr(dx) * omega * Uffacerho_iii / 6.0;
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sx_i][iii]) / Uffacerho_iii;
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sy_i][iii]) / Uffacerho_iii;
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sz_i][iii]) / Uffacerho_iii;
@@ -2027,7 +2027,7 @@ void grid::next_u(integer rk, real t, real dt) {
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 #pragma GCC ivdep
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			const real dx2 = dx * dx;
+			const real dx2 = sqr(dx);
 			const integer iii_p0 = findex(INX, i - H_BW, j - H_BW);
 			const integer jjj_p0 = findex(j - H_BW, INX, i - H_BW);
 			const integer kkk_p0 = findex(i - H_BW, j - H_BW, INX);

@@ -9,7 +9,7 @@
 #define TAYLOR_HPP_
 
 #include "defs.hpp"
-//#include "simd.hpp"
+#include "simd.hpp"
 #include "profiler.hpp"
 #include "simd.hpp"
 
@@ -398,15 +398,17 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     //PROF_BEGIN;
     taylor<N, T>& A = *this;
 
-	const T r2 = (X[0] * X[0] + X[1] * X[1] + X[2] * X[2]);
-	T r2inv;
+	const T r2 = sqr(X[0]) + sqr(X[1]) + sqr(X[2]);
+	T r2inv = 0.0;
+// #if !defined(HPX_HAVE_DATAPAR)
 	for (integer i = 0; i != simd_len; ++i) {
 		if (r2[i] > 0.0) {
 			r2inv[i] = ONE / r2[i];
-		} else {
-			r2inv[i] = 0.0;
 		}
 	}
+// #else
+//     where(r2 > 0.0) | r2inv = ONE / r2;
+// #endif
 
     const T d0 = -sqrt(r2inv);
 
@@ -414,10 +416,10 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     const T d1 = -d0 * r2inv;
 
     // 2 MULS
-    const T d2 = -T(3) * d1 * r2inv;
+    const T d2 = T(-3) * d1 * r2inv;
 
     // 2 MULS
-    const T d3 = -T(5) * d2 * r2inv;
+    const T d3 = T(-5) * d2 * r2inv;
 //     const T d4 = -T(7) * d3 * r2inv;
 
     // Previously we've had this code. In my measurements the old code was
@@ -472,23 +474,22 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 //     }
 
     ///////////////////////////////////////////////////////////////////////////
-
-    A() = d0;
-
+    A[0] = d0;
     for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
         A[i] = X[a] * d1;
     }
     for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
-        T const tmp = X[a] * d2;
+        T const Xad2 = X[a] * d2;
         for (integer b = a; b != NDIM; ++b, ++i) {
-            A[i] = tmp * X[b];
+            A[i] = Xad2 * X[b];
         }
     }
     for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
+        T const Xad3 = X[a] * d3;
         for (integer b = a; b != NDIM; ++b) {
-            T const tmp = X[a] * X[b] * d3;
+            T const Xabd3 = Xad3 * X[b];
             for (integer c = b; c != NDIM; ++c, ++i) {
-                A[i] = tmp * X[c];
+                A[i] = Xabd3 * X[c];
             }
         }
     }
@@ -497,24 +498,25 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     }
 
     ///////////////////////////////////////////////////////////////////////////
-
+    auto const d22 = 2.0 * d2;
     for (integer a = 0; a != NDIM; a++) {
+        auto const Xad2 = X[a] * d2;
+        auto const Xad3 = X[a] * d3;
         A(a, a) += d1;
-        auto const XXa = X[a] * d2;
-        A(a, a, a) += XXa;
-        A(a, a, a, a) += (X[a] * X[a]) * d3;
-        A(a, a, a, a) += 2.0 * d2;
+        A(a, a, a) += Xad2;
+        A(a, a, a, a) += Xad3 * X[a] + d22;
         for (integer b = a; b != NDIM; b++) {
+            auto const Xabd3 = Xad3 * X[b];
+            auto const Xbd3 = X[b] * d3;
             A(a, a, b) += X[b] * d2;
-            A(a, b, b) += XXa;
-            auto const XXab = (X[a] * X[b]) * d3;
-            A(a, a, a, b) += XXab;
-            A(a, b, b, b) += XXab;
+            A(a, b, b) += Xad2;
+            A(a, a, a, b) += Xabd3;
+            A(a, b, b, b) += Xabd3;
             A(a, a, b, b) += d2;
             for (integer c = b; c != NDIM; c++) {
-                A(a, a, b, c) += (X[b] * X[c]) * d3;
-                A(a, b, b, c) += (X[a] * X[c]) * d3;
-                A(a, b, c, c) += XXab;
+                A(a, a, b, c) += Xbd3 * X[c];
+                A(a, b, b, c) += Xad3 * X[c];
+                A(a, b, c, c) += Xabd3;
             }
         }
     }

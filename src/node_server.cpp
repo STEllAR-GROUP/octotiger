@@ -301,7 +301,7 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
     step_num = _step_num;
     current_time = _current_time;
     rotational_time = _rotational_time;
-    grid test;
+//     grid test;
     grid_ptr = std::make_shared < grid > (std::move(_grid));
     if (is_refined) {
         children.resize(NCHILD);
@@ -424,36 +424,39 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         if (!neighbors[dir].empty()) {
             auto ndir = dir.flip();
             const bool is_monopole = !is_refined;
-            const auto gid = neighbors[dir].get_gid();
+//             const auto gid = neighbors[dir].get_gid();
             const bool is_local = neighbors[dir].is_local();
-            neighbor_futs.push_back(neighbors[dir].send_gravity_boundary(grid_ptr->get_gravity_boundary(dir, is_local), ndir, is_monopole));
+            neighbor_futs.push_back(
+                neighbors[dir].send_gravity_boundary(
+                    grid_ptr->get_gravity_boundary(dir, is_local), ndir, is_monopole));
         }
     }
 
     grid_ptr->compute_interactions(type);
-   std::vector<hpx::future<void>> boundary_futs;
+
+    std::vector<hpx::future<void>> boundary_futs;
     boundary_futs.reserve(full_set.size());
     for (auto& dir : full_set) {
         if (!neighbors[dir].empty()) {
-            boundary_futs.push_back(neighbor_gravity_channels[dir].get_future().then(
+            auto f = neighbor_gravity_channels[dir].get_future();
+            boundary_futs.push_back(f.then(
                 [this, type](hpx::future<neighbor_gravity_type> fut)
                 {
                     auto tmp = fut.get();
                     grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-                }
-            ));
+                })
+            );
         }
     }
-    parent_fut.get();
-    wait_all_and_propagate_exceptions(boundary_futs);
+    wait_all_and_propagate_exceptions(parent_fut, boundary_futs);
 
-   // for (auto& dir : geo::direction::full_set()) {
-//		if (!neighbors[dir].empty()) {
-//			auto tmp = neighbor_gravity_channels[dir].get_future().get();
-//			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-//		}
-//	}
-//	parent_fut.get();
+//     for (auto& dir : geo::direction::full_set()) {
+// 		if (!neighbors[dir].empty()) {
+// 			auto tmp = neighbor_gravity_channels[dir].get_future().get();
+// 			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
+// 		}
+// 	}
+// 	parent_fut.get();
 
 	/************************************************************************************************/
 

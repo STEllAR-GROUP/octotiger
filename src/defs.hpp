@@ -192,6 +192,12 @@ constexpr inline integer gindex(integer i, integer j, integer k)
     return i * G_DNX + j * G_DNY + k * G_DNZ;
 }
 
+template <typename T>
+constexpr inline T sqr(T const& val)
+{
+    return val * val;
+}
+
 /*
 #define SYSTEM(command) \
 	if( system( (command).c_str()) != 0) { \

@@ -15,25 +15,21 @@
 #include "roe.hpp"
 #include "space_vector.hpp"
 #include "geometry.hpp"
-#include <functional>
-#include <list>
-#include <set>
 #include "problem.hpp"
 #include "taylor.hpp"
 #include "scf_data.hpp"
-//#include <hpx/runtime/serialization/serialize.hpp>
+
+#include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
 
+#include <functional>
+#include <list>
+#include <memory>
+#include <set>
+
 //typedef double v4sd __attribute__ ((vector_size (32)));
-
-template <typename T>
-inline T sqr(T const& val)
-{
-    return val * val;
-}
-
 
 class analytic_t {
 public:
@@ -167,7 +163,7 @@ private:
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
-	std::shared_ptr<hpx::lcos::local::spinlock> L_mtx;
+    std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 
 	bool is_root;
 	bool is_leaf;
@@ -246,9 +242,9 @@ public:
 	grid(real dx, std::array<real, NDIM>);
 	grid();
 	~grid();
-	grid(const grid&) = default;
+	grid(const grid&) = delete;
 	grid(grid&&) = default;
-	grid& operator=(const grid&) = default;
+	grid& operator=(const grid&) = delete;
 	grid& operator=(grid&&) = default;
 	std::pair<space_vector,space_vector> find_axis() const;
 	space_vector get_cell_center(integer i, integer j, integer k);

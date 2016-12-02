@@ -165,7 +165,7 @@ void grid::compute_interactions(gsolve_type type) {
         std::vector<space_vector> const& com0 = com[0];
 //         for (integer li = 0; li < list_size; li += simd_len) {
         hpx::parallel::for_loop_strided(
-            hpx::parallel::seq, 0, list_size, simd_len,
+            hpx::parallel::par, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
                 std::array<simd_vector, NDIM> dX;
@@ -179,7 +179,7 @@ void grid::compute_interactions(gsolve_type type) {
 
                 // FIXME: replace with vector-pack gather-loads
                 for (integer i = 0; i != simd_len; ++i) {
-                	const auto index = std::min(integer(li + i),integer(list_size-1));
+                    const auto index = std::min(integer(li + i),integer(list_size-1));
                     const integer iii0 = this_ilist[index].first;
                     const integer iii1 = this_ilist[index].second;
                     space_vector const& com0iii0 = com0[iii0];
@@ -203,6 +203,7 @@ void grid::compute_interactions(gsolve_type type) {
                         }
                     }
                 }
+
                 if (type != RHO) {
                     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                         n0[j] = ZERO;
@@ -280,9 +281,9 @@ void grid::compute_interactions(gsolve_type type) {
                 }
 
                 if (type == RHO) {
-                    for (integer a = 0; a < NDIM; ++a) {
-                        for (integer b = 0; b < NDIM; ++b) {
-                            for (integer c = b; c < NDIM; ++c) {
+                    for (integer a = 0; a != NDIM; ++a) {
+                        for (integer b = 0; b != NDIM; ++b) {
+                            for (integer c = b; c != NDIM; ++c) {
                                 for (integer d = c; d != NDIM; ++d) {
                                     const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
                                     B0[a] -= n0(b, c, d) * tmp;
@@ -347,13 +348,13 @@ void grid::compute_interactions(gsolve_type type) {
             });
     } else {
 #if !defined(HPX_HAVE_DATAPAR)
-        const v4sd d0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
-        const v4sd d1 = { 1.0 / dx, -1.0 / (dx * dx), -1.0 / (dx * dx), -1.0 / (dx * dx) };
+        const v4sd d0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
+        const v4sd d1 = { 1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx) };
 #else
-        const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
+        const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
         const v4sd d0(di0.data());
 
-        const std::array<double, 4> di1 = { 1.0 / dx, -1.0 / (dx * dx), -1.0 / (dx * dx), -1.0 / (dx * dx) };
+        const std::array<double, 4> di1 = { 1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx) };
         const v4sd d1(di1.data());
 #endif
 
@@ -375,17 +376,15 @@ void grid::compute_interactions(gsolve_type type) {
             v4sd m0 = mon[iii1];
             v4sd m1 = mon[iii0];
 #endif
-            // FIXME: explain what's going on here!
-            // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
-            // Even if this is safe, it's probably utterly inefficient.
-       //     v4sd* l0ptr = (v4sd*) L[iii0].ptr();
-        //    v4sd* l1ptr = (v4sd*) L[iii1].ptr();
+
             std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-            auto tmp1 =  m0 * ele.four * d0;
+            auto tmp1 = m0 * ele.four * d0;
             auto tmp2 = m1 * ele.four * d1;
+            auto& Liii0 = L[iii0];
+            auto& Liii1 = L[iii1];
             for( integer i = 0; i != 4; ++i) {
-              	 L[iii0][i] +=  tmp1[i];
-               	 L[iii1][i] +=  tmp2[i];
+                Liii0[i] += tmp1[i];
+                Liii1[i] += tmp2[i];
             }
         }
     }
@@ -416,7 +415,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
     std::vector<space_vector> const& com0 = com[0];
 //    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -427,11 +426,12 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             integer index = mpoles.is_local ? bnd.second : si;
+
             load_multipole(m0, Y, mpoles, index, false);
             const integer list_size = bnd.first.size();
             for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len; ++i) {
-                	const auto index = std::min(integer(li + i),integer(list_size-1));
+                    const auto index = std::min(integer(li + i), integer(list_size-1));
                     const integer iii0 = bnd.first[index];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
@@ -534,13 +534,11 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                 }
 
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
 
-                    // FIXME: a similar loop below goes over the range [0, 4)
-                    //        which is correct?
-                    // DCM: Both
                     for (integer j = 0; j != 20; ++j) {
                         Liii0[j] +=  A0[j][i];
                     }
@@ -564,7 +562,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -589,7 +587,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
             }
             for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len; ++i) {
-                	const auto index = std::min(integer(li + i),integer(list_size-1));
+                    const auto index = std::min(integer(li + i), integer(list_size-1));
                     const integer iii0 = bnd.first[index];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
@@ -601,7 +599,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                 }
 
                 taylor<5, simd_vector> D;
-                taylor<2, simd_vector> A0;      // FIXME: this is taylor<4, simd_vector> elsewhere
+                taylor<2, simd_vector> A0;
                 std::array<simd_vector, NDIM> B0 = {
                     simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)
                 };
@@ -664,8 +662,6 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
 
-                    // FIXME: a similar loops above/below go over the range [0, 20)
-                    //        which is correct? DM: Both
                     for (integer j = 0; j != 4; ++j) {
                         Liii0[j] +=  A0[j][i];
                     }
@@ -685,11 +681,17 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
 
+    std::array<simd_vector, NDIM> Xbase = {
+        X[0][hindex(H_BW, H_BW, H_BW)],
+        X[1][hindex(H_BW, H_BW, H_BW)],
+        X[2][hindex(H_BW, H_BW, H_BW)]
+    };
+
     std::vector<space_vector> const& com0 = com[0];
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
-        [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             simd_vector m0;
             taylor<4, simd_vector> n0;
@@ -700,9 +702,11 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             integer index = mpoles.is_local ? bnd.second : si;
             const integer list_size = bnd.first.size();
+
             for (integer d = 0; d != NDIM; ++d) {
-                Y[d] = bnd.x[d] * dx + this->X[d][hindex(H_BW,H_BW,H_BW)];
+                Y[d] = bnd.x[d] * dx + Xbase[d];
             }
+
             m0 = (*(mpoles.m))[index];
             for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
@@ -719,6 +723,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                         }
                     }
                 }
+
                 if (type != RHO) {
                     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                         n0[j] = ZERO;
@@ -736,9 +741,6 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 
                 D.set_basis(dX);
 
-    // FIXME: The following loop sections were duplicated (almost). I have removed
-    //        the first duplicate. Is that correct?
-                // DM: Yes
                 A0[0] = m0 * D[0];
                 for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
                     A0[i] = m0 * D[i];
@@ -750,10 +752,10 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                 }
 
                 if (type == RHO) {
-                    for (integer a = 0; a < NDIM; ++a) {
-                        for (integer b = 0; b < NDIM; ++b) {
-                            for (integer c = b; c < NDIM; ++c) {
-                                for (integer d = c; d < NDIM; ++d) {
+                    for (integer a = 0; a != NDIM; ++a) {
+                        for (integer b = 0; b != NDIM; ++b) {
+                            for (integer c = b; c != NDIM; ++c) {
+                                for (integer d = c; d != NDIM; ++d) {
                                     const auto tmp = D(a, b, c, d) * (factor(b, c, d) / real(6));
                                     B0[a] -= n0(b, c, d) * tmp;
                                 }
@@ -761,14 +763,13 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                         }
                     }
                 }
+
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
 
-                    // FIXME: a similar loop above goes over the range [0, 4)
-                    //        which is correct? DM: Both
                     for (integer j = 0; j != 20; ++j) {
                         Liii0[j] +=  A0[j][i];
                     }
@@ -790,14 +791,14 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
     PROF_BEGIN;
 
 #if !defined(HPX_HAVE_DATAPAR)
-    const v4sd d0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
+    const v4sd d0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
 #else
-    const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / (dx * dx), +1.0 / (dx * dx), +1.0 / (dx * dx) };
+    const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
     const v4sd d0(di0.data());
 #endif
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::seq, 0, ilist_n_bnd.size(),
+        hpx::parallel::par, 0, ilist_n_bnd.size(),
         [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
@@ -814,21 +815,16 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
             v4sd m0 = (*(mpoles).m)[index];
 #endif
             m0 *= d0;
-            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
                 const auto& four = bnd.four[li];
-                // FIXME: explain what's going on here!
-                // L[...].ptr() is a real*, why is it safe to cast that to a v4sd?
-                // Even if this is safe, it's probably utterly inefficient.
-//                v4sd* l0ptr = (v4sd*) L[iii0].ptr();
- //               *l0ptr += m0 * four;
-         //       std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-                auto tmp1 =  m0 * four;
-                for( integer i = 0; i != 4; ++i) {
-                  	 L[iii0][i] += tmp1[i];
-                }
 
+                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+                auto tmp1 =  m0 * four;
+                auto& Liii0 = L[iii0];
+                for( integer i = 0; i != 4; ++i) {
+                    Liii0[i] += tmp1[i];
+                }
             }
         });
     PROF_END;
