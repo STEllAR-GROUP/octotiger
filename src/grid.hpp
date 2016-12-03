@@ -29,7 +29,14 @@
 #include <memory>
 #include <set>
 
-//typedef double v4sd __attribute__ ((vector_size (32)));
+//#define USE_LONG_DOUBLE_GRAVITY_ACCUMULATOR
+
+#ifdef USE_LONG_DOUBLE_GRAVITY_ACCUMULATOR
+typedef long double lreal;
+#else
+typedef real lreal;
+#endif
+
 
 class analytic_t {
 public:
@@ -93,6 +100,7 @@ struct boundary_interaction_type {
 
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
+typedef taylor<4, lreal> expansion_ld;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
@@ -131,6 +139,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 typedef real xpoint_type;
 typedef int zone_int_type;
 
+
 class grid {
 public:
 	static char const* field_names[];
@@ -160,8 +169,8 @@ private:
 	std::vector<v4sd> G;
 	std::vector<multipole> M;
 	std::vector<real> mon;
-	std::vector<expansion> L;
-	std::vector<space_vector> L_c;
+	std::vector<expansion_ld> L;
+	std::vector<space_vector_gen<lreal>> L_c;
 	std::vector<real> dphi_dt;
     std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 

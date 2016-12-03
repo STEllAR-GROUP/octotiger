@@ -329,19 +329,19 @@ void grid::compute_interactions(gsolve_type type) {
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;
                     const integer iii1 = this_ilist[li + i].second;
-                    expansion& Liii0 = L[iii0];
-                    expansion& Liii1 = L[iii1];
+                    expansion_ld& Liii0 = L[iii0];
+                    expansion_ld& Liii1 = L[iii1];
                     for (integer j = 0; j != taylor_sizes[3]; ++j) {
-                        Liii0[j] +=  A0[j][i];
-                        Liii1[j] +=  A1[j][i];
+                        Liii0[j] += (lreal) A0[j][i];
+                        Liii1[j] += (lreal) A1[j][i];
                     }
 
                     if (type == RHO) {
-                        auto& L_ciii0 = L_c[iii0];
-                        auto& L_ciii1 = L_c[iii1];
+                        space_vector_gen<lreal>& L_ciii0 = L_c[iii0];
+                        space_vector_gen<lreal>& L_ciii1 = L_c[iii1];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] +=  B0[j][i];
-                            L_ciii1[j] +=  B1[j][i];
+                            L_ciii0[j] += (lreal) B0[j][i];
+                            L_ciii1[j] += (lreal) B1[j][i];
                         }
                     }
                 }
@@ -376,15 +376,12 @@ void grid::compute_interactions(gsolve_type type) {
             v4sd m0 = mon[iii1];
             v4sd m1 = mon[iii0];
 #endif
-
             std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-            auto tmp1 = m0 * ele.four * d0;
+            auto tmp1 =  m0 * ele.four * d0;
             auto tmp2 = m1 * ele.four * d1;
-            auto& Liii0 = L[iii0];
-            auto& Liii1 = L[iii1];
             for( integer i = 0; i != 4; ++i) {
-                Liii0[i] += tmp1[i];
-                Liii1[i] += tmp2[i];
+              	 L[iii0][i] += (lreal) tmp1[i];
+               	 L[iii1][i] += (lreal) tmp2[i];
             }
         }
     }
@@ -537,16 +534,16 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
 
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
-                    expansion& Liii0 = L[iii0];
+                    expansion_ld& Liii0 = L[iii0];
 
                     for (integer j = 0; j != 20; ++j) {
-                        Liii0[j] +=  A0[j][i];
+                        Liii0[j] += (lreal) A0[j][i];
                     }
 
                     if (type == RHO) {
-                        auto& L_ciii0 = L_c[iii0];
+                        space_vector_gen<lreal>& L_ciii0 = L_c[iii0];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] +=  B0[j][i];
+                            L_ciii0[j] += (lreal) B0[j][i];
                         }
                     }
                 }
@@ -660,15 +657,15 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
 
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
-                    expansion& Liii0 = L[iii0];
+                    expansion_ld& Liii0 = L[iii0];
 
                     for (integer j = 0; j != 4; ++j) {
-                        Liii0[j] +=  A0[j][i];
+                        Liii0[j] += (lreal) A0[j][i];
                     }
                     if (type == RHO) {
-                        auto& L_ciii0 = L_c[iii0];
+                        space_vector_gen<lreal>& L_ciii0 = L_c[iii0];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += B0[j][i];
+                            L_ciii0[j] += (lreal)B0[j][i];
                         }
                     }
                 }
@@ -681,7 +678,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
 
-    std::array<simd_vector, NDIM> Xbase = {
+    std::array<real, NDIM> Xbase = {
         X[0][hindex(H_BW, H_BW, H_BW)],
         X[1][hindex(H_BW, H_BW, H_BW)],
         X[2][hindex(H_BW, H_BW, H_BW)]
@@ -768,16 +765,16 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
-                    expansion& Liii0 = L[iii0];
+                    expansion_ld& Liii0 = L[iii0];
 
                     for (integer j = 0; j != 20; ++j) {
-                        Liii0[j] +=  A0[j][i];
+                        Liii0[j] += (lreal) A0[j][i];
                     }
 
                     if (type == RHO) {
-                        auto& L_ciii0 = L_c[iii0];
+                        space_vector_gen<lreal>& L_ciii0 = L_c[iii0];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] +=  B0[j][i];
+                            L_ciii0[j] += (lreal) B0[j][i];
                         }
                     }
                 }
@@ -818,13 +815,11 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
                 const auto& four = bnd.four[li];
-
-                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
                 auto tmp1 =  m0 * four;
-                auto& Liii0 = L[iii0];
                 for( integer i = 0; i != 4; ++i) {
-                    Liii0[i] += tmp1[i];
+                  	 L[iii0][i] += (lreal)tmp1[i];
                 }
+
             }
         });
     PROF_END;
@@ -1096,12 +1091,12 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                 l <<= dX;
                 for (integer ci = 0; ci != NCHILD; ++ci) {
                     const integer iiic = child_index(ip, jp, kp, ci);
-                    expansion& Liiic = L[iiic];
+                    expansion_ld& Liiic = L[iiic];
                     for (integer j = 0; j != 20; ++j) {
                             Liiic[j] += l[j][ci];
                     }
 
-                    auto& L_ciiic = L_c[iiic];
+                    space_vector_gen<lreal>& L_ciiic = L_c[iiic];
                     if (type == RHO) {
                         for (integer j = 0; j != NDIM; ++j) {
                             L_ciiic[j] += lc[j][ci];
