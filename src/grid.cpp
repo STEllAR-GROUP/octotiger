@@ -1013,17 +1013,20 @@ void grid::rho_move(real x) {
  }*/
 
 space_vector grid::center_of_mass() const {
+    auto& M = *M_ptr;
+    auto& mon = *mon_ptr;
 	PROF_BEGIN;
 	space_vector this_com;
 	this_com[0] = this_com[1] = this_com[2] = ZERO;
 	real m = ZERO;
+	auto& com0 = *(com_ptr)[0];
 	for (integer i = 0; i != INX + 0; ++i) {
 		for (integer j = 0; j != INX + 0; ++j) {
 			for (integer k = 0; k != INX + 0; ++k) {
 				const integer iii = gindex(i, j, k);
 				const real this_m = is_leaf ? mon[iii] : M[iii]();
 				for (auto& dim : geo::dimension::full_set()) {
-					this_com[dim] += this_m * com[0][iii][dim];
+					this_com[dim] += this_m * com0[iii][dim];
 				}
 				m += this_m;
 			}
@@ -1320,8 +1323,6 @@ analytic_t grid::compute_analytic(real t) {
 
 void grid::allocate() {
 	PROF_BEGIN;
-//	static std::once_flag flag;
-//	std::call_once(flag, compute_ilist);
 	U_out0 = std::vector < real > (NF, ZERO);
 	U_out = std::vector < real > (NF, ZERO);
 	dphi_dt = std::vector < real > (INX * INX * INX);
@@ -1338,12 +1339,10 @@ void grid::allocate() {
 		}
 	}
 	Ua = U;
-	com.resize(2);
 	L.resize(G_N3);
 	L_c.resize(G_N3);
 	integer nlevel = 0;
-	com[0].resize(G_N3);
-	com[1].resize(G_N3 / 8);
+	com_ptr.resize(2);
 
 	set_coordinates();
 

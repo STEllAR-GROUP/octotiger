@@ -29,14 +29,6 @@
 #include <memory>
 #include <set>
 
-//#define USE_LONG_DOUBLE_GRAVITY_ACCUMULATOR
-
-#ifdef USE_LONG_DOUBLE_GRAVITY_ACCUMULATOR
-typedef long double lreal;
-#else
-typedef real lreal;
-#endif
-
 
 class analytic_t {
 public:
@@ -100,7 +92,6 @@ struct boundary_interaction_type {
 
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
-typedef taylor<4, lreal> expansion_ld;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
@@ -167,12 +158,14 @@ private:
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<v4sd> G;
-	std::vector<multipole> M;
-	std::vector<real> mon;
-	std::vector<expansion_ld> L;
-	std::vector<space_vector_gen<lreal>> L_c;
+	std::shared_ptr<std::vector<multipole>> M_ptr;
+	std::shared_ptr<std::vector<real>> mon_ptr;
+	std::vector<expansion> L;
+	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
     std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
+
+//    std::shared_ptr<std::atomic<integer>> Muse_counter;
 
 	bool is_root;
 	bool is_leaf;
@@ -180,7 +173,7 @@ private:
 	std::array<real, NDIM> xmin;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
-	std::vector<std::vector<space_vector> > com;
+	std::vector<std::shared_ptr<std::vector<space_vector>>> com_ptr;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
