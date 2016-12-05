@@ -812,6 +812,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
             v4sd m0 = (*(mpoles).m)[index];
 #endif
             m0 *= d0;
+            lockguard<lock_type> lock(*L_mtx);
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
                 const auto& four = bnd.four[li];
