@@ -279,8 +279,11 @@ std::size_t grid::load(FILE* fp) {
         for (integer j = 0; j < G_NX; ++j) {
             for (integer k = 0; k < G_NX; ++k) {
                 const integer iii = gindex(i, j, k);
-                real* ptr = &(G[iii][0]);
-                cnt += foo(ptr, sizeof(real), NGF, fp) * sizeof(real);
+                real g[NGF];
+            	cnt += foo(g, sizeof(real), NGF, fp) * sizeof(real);
+                for( integer f = 0; f != NGF; ++f) {
+                	G[iii][f] = g[f];
+                }
             }
         }
     }
