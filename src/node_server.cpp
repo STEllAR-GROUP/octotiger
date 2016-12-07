@@ -431,6 +431,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     }
 
     grid_ptr->compute_interactions(type);
+#ifdef USE_GRAV_PAR
 
     std::vector<hpx::future<void>> boundary_futs;
     boundary_futs.reserve(full_set.size());
@@ -447,15 +448,15 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         }
     }
     wait_all_and_propagate_exceptions(parent_fut, boundary_futs);
-
-//     for (auto& dir : geo::direction::full_set()) {
-// 		if (!neighbors[dir].empty()) {
-// 			auto tmp = neighbor_gravity_channels[dir].get_future().get();
-// 			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-// 		}
-// 	}
-// 	parent_fut.get();
-
+#else
+     for (auto& dir : geo::direction::full_set()) {
+ 		if (!neighbors[dir].empty()) {
+ 			auto tmp = neighbor_gravity_channels[dir].get_future().get();
+ 			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
+ 		}
+ 	}
+ 	parent_fut.get();
+#endif
 	/************************************************************************************************/
 
     expansion_pass_type l_in;

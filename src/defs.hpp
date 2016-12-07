@@ -18,6 +18,8 @@
 
 #define EXPERIMENT
 
+#define USE_GRAV_PAR
+
 #ifdef OCTOTIGER_HAVE_SILO
 # define DO_OUTPUT
 #endif

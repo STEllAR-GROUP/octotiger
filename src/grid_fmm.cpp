@@ -15,6 +15,13 @@
 #include <cstddef>
 #include <utility>
 
+#ifdef USE_GRAV_PAR
+const auto for_loop_policy = hpx::parallel::par;
+#else
+const auto for_loop_policy = hpx::parallel::seq;
+#endif
+
+
 static std::vector<interaction_type> ilist_n;
 static std::vector<interaction_type> ilist_d;
 static std::vector<interaction_type> ilist_r;
@@ -169,7 +176,7 @@ void grid::compute_interactions(gsolve_type type) {
         std::vector<space_vector> const& com0 = (*(com_ptr[0]));
 //         for (integer li = 0; li < list_size; li += simd_len) {
         hpx::parallel::for_loop_strided(
-            hpx::parallel::par, 0, list_size, simd_len,
+        		for_loop_policy, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
                 std::array<simd_vector, NDIM> dX;
@@ -329,9 +336,9 @@ void grid::compute_interactions(gsolve_type type) {
                     A1[i] = -m1[0] * tmp;
                     A0[i] =  m0[0] * tmp;
                 }
-
+#ifdef USE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-
+#endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;
                     const integer iii1 = this_ilist[li + i].second;
@@ -382,7 +389,9 @@ void grid::compute_interactions(gsolve_type type) {
             v4sd m0 = mon[iii1];
             v4sd m1 = mon[iii0];
 #endif
-            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+#ifdef USE_GRAV_PAR
+                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+#endif
             auto tmp1 =  m0 * ele.four * d0;
             auto tmp2 = m1 * ele.four * d1;
             for( integer i = 0; i != 4; ++i) {
@@ -420,7 +429,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
 //    for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this, M](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -537,9 +546,9 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                 for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
                     A0[i] =  m0[0] * D[i];
                 }
-
+#ifdef USE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-
+#endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
@@ -569,7 +578,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -662,9 +671,9 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                         }
                     }
                 }
-
+#ifdef USE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-
+#endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
@@ -699,7 +708,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, M](std::size_t si) {
 
             simd_vector m0;
@@ -772,9 +781,9 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                         }
                     }
                 }
-
+#ifdef USE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-
+#endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
@@ -809,7 +818,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #endif
 //     for (integer si = 0; si != ilist_n_bnd.size(); ++si) {
     hpx::parallel::for_loop(
-        hpx::parallel::par, 0, ilist_n_bnd.size(),
+        for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
@@ -826,7 +835,9 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
             v4sd m0 = (*(mpoles).m)[index];
 #endif
             m0 *= d0;
-            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+#ifdef USE_GRAV_PAR
+                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+#endif
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
                 const auto& four = bnd.four[li];
