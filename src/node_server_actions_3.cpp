@@ -291,6 +291,7 @@ void node_server::start_run(bool scf) {
         step().get();
         real dt = ts_fut.get();
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
+        omega = grid::get_omega();
         if (opts.problem == DWD) {
             auto diags = diagnostics();
 
