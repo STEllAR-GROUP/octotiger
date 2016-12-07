@@ -66,7 +66,7 @@ bool options::process_options(int argc, char* argv[]) {
 	omega = -1.0;
 	exe_name = std::string(argv[0]);
 	contact_fill = 0.0;
-	output_dt = 1.0e-2;
+	output_dt = -1;
 	bench = false;
 	ang_con = true;
 	stop_time = std::numeric_limits < real > ::max();
@@ -115,7 +115,6 @@ bool options::process_options(int argc, char* argv[]) {
 			xscale = atof(argv[i] + strlen(XSCALE_OPT) + 1);
 		} else if (cmp(argv[i], OMEGA_OPT)) {
 			omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
-			output_dt = (2.0 * M_PI / omega) / 100.0;
 		} else if (cmp(argv[i], ODT_OPT)) {
 			output_dt = atof(argv[i] + strlen(ODT_OPT) + 1);
         } else if (cmp(argv[i], DISABLEOUTPUT_OPT)) {
@@ -129,10 +128,18 @@ bool options::process_options(int argc, char* argv[]) {
 			abort();
 		}
 	}
+	if( output_dt < 0 ) {
+		if( omega > 0.0 ) {
+			output_dt = (2.0 * M_PI / omega) / 100.0;
+		} else {
+	 		output_dt = 1.0e-2;
+		}
+	}
 	if (!rc) {
 		show_help();
 	}
 	theta = std::max(1.0 / 3.0, theta);
 	theta = std::min(1.0 / 2.0, theta);
+	grid::set_omega(omega);
 	return rc;
 }

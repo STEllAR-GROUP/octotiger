@@ -281,6 +281,11 @@ std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
 	real vx = 1.0;
 	real vy = 1.0;
 	real vz = 0.0;
+	const real omega =  grid::get_omega();
+	const real x0 = x;
+	const real y0 = y;
+	x = x0 * cos(omega*t) - y0 * sin(omega*t);
+	y = y0 * cos(omega*t) + x0 * sin(omega*t);
 	x -= vx * t;
 	y -= vy * t;
 	z -= vz * t;
