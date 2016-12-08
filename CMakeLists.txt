@@ -50,6 +50,7 @@ else()
     add_definitions(-DNOMINMAX)
     include_directories(${CMAKE_SOURCE_DIR}/src)
 
+    hpx_add_compile_flag(-wd4068)   # unknown pragma
     hpx_add_compile_flag(-wd4244)
     hpx_add_compile_flag(-wd4267)
     hpx_add_compile_flag(-wd4800)
