@@ -109,7 +109,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
         }
     }
     const integer this_bw = H_BW;
-    zone_list.reserve(std::pow(H_NX - 2 * this_bw, NDIM) * NCHILD);
+    zone_list.reserve(cube(H_NX - 2 * this_bw) * NCHILD);
     for (integer i = this_bw; i != H_NX - this_bw; ++i) {
         for (integer j = this_bw; j != H_NX - this_bw; ++j) {
             for (integer k = this_bw; k != H_NX - this_bw; ++k) {

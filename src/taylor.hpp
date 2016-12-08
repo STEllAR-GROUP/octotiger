@@ -87,8 +87,8 @@ public:
 #else
         hpx::parallel::transform(
             hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            [d](T const& val)
+            data.begin(), data.end(), data.begin(),
+            [d](auto const& val)
             {
                 return val * d;
             });
@@ -105,8 +105,8 @@ public:
 #else
         hpx::parallel::transform(
             hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            [d](T const& val)
+            data.begin(), data.end(), data.begin(),
+            [d](auto const& val)
             {
                 return val / d;
             });
@@ -115,40 +115,40 @@ public:
 	}
 
 	taylor<N, T>& operator+=(const taylor<N, T>& other) {
-#if !defined(HPX_HAVE_DATAPAR)
+// #if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			data[i] += other.data[i];
 		}
-#else
-        hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            other.data.begin(), other.data.end(),
-            [](T const& t1, T const& t2)
-            {
-                return t1 + t2;
-            });
-#endif
+// #else
+//         hpx::parallel::transform(
+//             hpx::parallel::dataseq_execution,
+//             data.begin(), data.end(),
+//             other.data.begin(), other.data.end(), data.begin(),
+//             [](auto const& t1, auto const& t2)
+//             {
+//                 return t1 + t2;
+//             });
+// #endif
 		return *this;
 	}
 
 	taylor<N, T>& operator-=(const taylor<N, T>& other) {
-#if !defined(HPX_HAVE_DATAPAR)
+// #if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
 		for (integer i = 0; i != my_size; ++i) {
 			data[i] -= other.data[i];
 		}
-#else
-        hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
-            data.begin(), data.end(),
-            other.data.begin(), other.data.end(),
-            [](T const& t1, T const& t2)
-            {
-                return t1 - t2;
-            });
-#endif
+// #else
+//         hpx::parallel::transform(
+//             hpx::parallel::dataseq_execution,
+//             data.begin(), data.end(),
+//             other.data.begin(), other.data.end(), data.begin(),
+//             [](auto const& t1, auto const& t2)
+//             {
+//                 return t1 - t2;
+//             });
+// #endif
 		return *this;
 	}
 
@@ -190,7 +190,7 @@ public:
 #else
         hpx::parallel::transform(
             hpx::parallel::dataseq_execution,
-            r.data.begin(), r.data.end(),
+            r.data.begin(), r.data.end(), r.data.begin()
             [](T const& val)
             {
                 return -val;

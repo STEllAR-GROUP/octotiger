@@ -18,7 +18,9 @@
 
 #define EXPERIMENT
 
-#define USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
+# define USE_GRAV_PAR
+#endif
 
 #ifdef OCTOTIGER_HAVE_SILO
 # define DO_OUTPUT
@@ -198,6 +200,12 @@ template <typename T>
 constexpr inline T sqr(T const& val)
 {
     return val * val;
+}
+
+template <typename T>
+constexpr inline T cube(T const& val)
+{
+    return val * val * val;
 }
 
 /*

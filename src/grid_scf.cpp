@@ -142,8 +142,8 @@ struct scf_parameters {
 		l1_x = a * (0.5 - 0.227 * log10(q)) + c1_x;
 		omega = std::sqrt((G * (M1 + M2)) / (a * a * a));
 		const real fill2 = scf_options::fill2;
-		const real V1 = find_V(M1 / M2) * std::pow(a, 3.0) * std::pow(fill1, 3.0);
-		const real V2 = find_V(M2 / M1) * std::pow(a, 3.0) * std::pow(fill2, 3.0);
+		const real V1 = find_V(M1 / M2) * cube(a) * cube(fill1);
+		const real V2 = find_V(M2 / M1) * cube(a) * cube(fill2);
 		R1 = std::pow(V1 / c, 1.0 / 3.0);
 		R2 = std::pow(V2 / c, 1.0 / 3.0);
 #ifdef WD_EOS

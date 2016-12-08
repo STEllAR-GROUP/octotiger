@@ -300,14 +300,14 @@ void bipolytropic_eos::initialize(real& mass, real& radius) {
 		//	printf("%e %e %e %e %e\n", r, m, h, d, dr);
 		const real dh1 = dh_dr(h, hdot, r) * dr;
 		const real dhdot1 = dhdot_dr(h, hdot, r) * dr;
-		const real dm1 = 4.0 * M_PI * d * std::pow(r, 2) * dr;
+		const real dm1 = 4.0 * M_PI * d * sqr(r) * dr;
 		if (h + dh1 <= ZERO) {
 			break;
 		}
 		d = this->enthalpy_to_density(h + dh1);
 		const real dh2 = dh_dr(h + dh1, hdot + dhdot1, r + dr) * dr;
 		const real dhdot2 = dhdot_dr(h + dh1, hdot + dhdot1, r + dr) * dr;
-		const real dm2 = 4.0 * M_PI * d * std::pow(r + dr, 2) * dr;
+		const real dm2 = 4.0 * M_PI * d * sqr(r + dr) * dr;
 		h += (dh1 + dh2) / 2.0;
 		hdot += (dhdot1 + dhdot2) / 2.0;
 		r += dr;
@@ -339,14 +339,14 @@ void wd_eos::initialize(real& mass, real& radius) {
 		//	printf("%e %e %e %e %e\n", r, m, h, d, dr);
 		const real dh1 = dh_dr(h, hdot, r) * dr;
 		const real dhdot1 = dhdot_dr(h, hdot, r) * dr;
-		const real dm1 = 4.0 * M_PI * d * std::pow(r, 2) * dr;
+		const real dm1 = 4.0 * M_PI * d * sqr(r) * dr;
 		if (h + dh1 <= ZERO) {
 			break;
 		}
 		d = this->enthalpy_to_density(h + dh1);
 		const real dh2 = dh_dr(h + dh1, hdot + dhdot1, r + dr) * dr;
 		const real dhdot2 = dhdot_dr(h + dh1, hdot + dhdot1, r + dr) * dr;
-		const real dm2 = 4.0 * M_PI * d * std::pow(r + dr, 2) * dr;
+		const real dm2 = 4.0 * M_PI * d * sqr(r + dr) * dr;
 		h += (dh1 + dh2) / 2.0;
 		hdot += (dhdot1 + dhdot2) / 2.0;
 		r += dr;
@@ -376,7 +376,7 @@ void bipolytropic_eos::initialize(real& mass, real& radius, real& core_mass) {
 //		printf("%e %e %e %e %e\n", r, m, h, d, dr);
 		const real dh1 = dh_dr(h, hdot, r) * dr;
 		const real dhdot1 = dhdot_dr(h, hdot, r) * dr;
-		const real dm1 = 4.0 * M_PI * d * std::pow(r, 2) * dr;
+		const real dm1 = 4.0 * M_PI * d * sqr(r) * dr;
 		if (d >= dC()) {
 			core_mass += dm1 / 2.0;
 		}
@@ -386,7 +386,7 @@ void bipolytropic_eos::initialize(real& mass, real& radius, real& core_mass) {
 		d = this->enthalpy_to_density(h + dh1);
 		const real dh2 = dh_dr(h + dh1, hdot + dhdot1, r + dr) * dr;
 		const real dhdot2 = dhdot_dr(h + dh1, hdot + dhdot1, r + dr) * dr;
-		const real dm2 = 4.0 * M_PI * d * std::pow(r + dr, 2) * dr;
+		const real dm2 = 4.0 * M_PI * d * sqr(r + dr) * dr;
 		if (enthalpy_to_density(h + dh1) >= dC()) {
 			core_mass += dm1 / 2.0;
 		}

@@ -14,6 +14,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # options
 ################################################################################
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
+option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" ON)
 
 ################################################################################
 # Find required packages
@@ -54,6 +55,11 @@ else()
     hpx_add_compile_flag(-wd4244)
     hpx_add_compile_flag(-wd4267)
     hpx_add_compile_flag(-wd4800)
+endif()
+
+# handle other options
+if (OCTOTIGER_WITH_GRAV_PAR)
+  add_definitions(-DOCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
 set(source_files)
