@@ -190,7 +190,7 @@ public:
 #else
         hpx::parallel::transform(
             hpx::parallel::dataseq_execution,
-            r.data.begin(), r.data.end(), r.data.begin()
+            r.data.begin(), r.data.end(), r.data.begin(),
             [](T const& val)
             {
                 return -val;
