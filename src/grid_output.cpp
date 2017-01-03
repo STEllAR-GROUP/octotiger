@@ -93,7 +93,7 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 
 grid::output_list_type grid::get_output_list(bool analytic) const {
     auto& V = TLS_V();
-    compute_primitives();
+    compute_primitives({{H_BW,H_BW,H_BW}},{{H_NX-H_BW,H_NX-H_BW,H_NX-H_BW}});
     output_list_type rc;
     const integer vertex_order[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
 
