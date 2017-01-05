@@ -8,7 +8,9 @@
 #include "lane_emden.hpp"
 #include <cmath>
 
-static const real n = 1.5;
+static inline real pow_1_5(real y) {
+    return y * std::sqrt(y);
+}
 
 static inline real fy(real y, real z, real r) {
 	return z;
@@ -16,7 +18,7 @@ static inline real fy(real y, real z, real r) {
 
 static inline real fz(real y, real z, real r) {
 	if (r != 0.0) {
-		return -(std::pow(y, n) + 2.0 * z / r);
+		return -(pow_1_5(y) + 2.0 * z / r);
 	} else {
 		return -3.0;
 	}
@@ -24,7 +26,7 @@ static inline real fz(real y, real z, real r) {
 
 static inline real fm(real theta, real dummy, real r) {
     constexpr static real four_pi = real(4) * M_PI;
-	return four_pi * std::pow(theta, real(1.5)) * r * r;
+	return four_pi * pow_1_5(theta) * r * r;
 }
 
 real lane_emden(real r0, real dr, real* m_enc) {
@@ -186,9 +188,10 @@ real find_V(real q) {
 }
 
 real binary_separation(real accretor_mass, real donor_mass, real donor_radius, real fill_factor) {
+    constexpr static real pi_4_3 = 4.0 / 3.0 * M_PI;
 	real q = donor_mass / accretor_mass;
 	real normalized_roche_volume = find_V(q) * fill_factor;
-	real roche_radius = std::pow(normalized_roche_volume / (4.0 / 3.0 * M_PI), 1.0 / 3.0);
+	real roche_radius = std::pow(normalized_roche_volume / pi_4_3, 1.0 / 3.0);
 	real separation = donor_radius / roche_radius;
 	return separation;
 }

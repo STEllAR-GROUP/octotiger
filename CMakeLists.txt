@@ -4,7 +4,7 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger CXX Fortran)
+project(octotiger C CXX Fortran)
 
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
@@ -14,6 +14,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # options
 ################################################################################
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
+option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" ON)
 
 ################################################################################
 # Find required packages
@@ -39,9 +40,18 @@ endif()
 if(NOT MSVC)
     include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
 
-    set(CMAKE_CXX_FLAGS "-std=c++14 -Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
-    set(CMAKE_C_FLAGS "-Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
-    set(CMAKE_F_FLAGS "-Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    	set( COMMON_FLAGS "-march=native -Wno-attributes -Wno-deprecated-declarations")
+	elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+	    #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo" )
+		#set( CMAKE_C_FLAGS_RELEASE "-Ofast -ipo" )
+		#set( CMAKE_Fortran_FLAGS_RELEASE "-Ofast -ipo" )
+		#set( CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo" )
+	    set( COMMON_FLAGS "-march=native -Wno-attributes -Wno-deprecated")
+	endif()
+    set(CMAKE_CXX_FLAGS "-std=c++14 ${COMMON_FLAGS} ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_C_FLAGS "${COMMON_FLAGS} ${CMAKE_C_FLAGS}")
+    set(CMAKE_F_FLAGS "${COMMON_FLAGS} ${CMAKE_F_FLAGS}")
 else()
     # enable solution folders for MSVC
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -50,9 +60,15 @@ else()
     add_definitions(-DNOMINMAX)
     include_directories(${CMAKE_SOURCE_DIR}/src)
 
+    hpx_add_compile_flag(-wd4068)   # unknown pragma
     hpx_add_compile_flag(-wd4244)
     hpx_add_compile_flag(-wd4267)
     hpx_add_compile_flag(-wd4800)
+endif()
+
+# handle other options
+if (OCTOTIGER_WITH_GRAV_PAR)
+  add_definitions(-DOCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
 set(source_files)

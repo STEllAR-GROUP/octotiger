@@ -259,8 +259,8 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 					for (integer l = 0; l != 4; ++l) {
 						e.first[l] += std::abs(a[l] - n[l]) * dV * rho;
 						e.first[4 + l] += std::abs(a[l]) * dV * rho;
-						e.second[l] += std::pow((a[l] - n[l]) * rho, 2) * dV;
-						e.second[4 + l] += std::pow(a[l] * rho, 2) * dV;
+						e.second[l] += sqr((a[l] - n[l]) * rho) * dV;
+						e.second[4 + l] += sqr(a[l] * rho) * dV;
 					}
 				}
 			}
@@ -712,12 +712,12 @@ real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const
 				real y = X[YDIM][iii];
 				real z = X[ZDIM][iii];
 				const real R = std::sqrt(x0 * x0 + y * y);
-				real phi_eff = G[iiig][phi_i] - 0.5 * std::pow(omega * R, 2);
+				real phi_eff = G[iiig][phi_i] - 0.5 * sqr(omega * R);
 				//	real factor = axis.first[0] == l1.first ? 0.5 : 1.0;
 				if ((x0 <= l1.first && !donor) || (x0 >= l1.first && donor)) {
 					if (phi_eff <= l1.second) {
-						const real fx = G[iiig][gx_i] + x0 * std::pow(omega, 2);
-						const real fy = G[iiig][gy_i] + y * std::pow(omega, 2);
+						const real fx = G[iiig][gx_i] + x0 * sqr(omega);
+						const real fy = G[iiig][gy_i] + y * sqr(omega);
 						const real fz = G[iiig][gz_i];
 						real g = x * fx + y * fy + z * fz;
 						if (g <= 0.0) {
@@ -791,8 +791,8 @@ real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const st
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				if (is_in_star(axis, l1, frac, iii)) {
-					mom += (std::pow(X[XDIM][iii], 2) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
-					mom += (std::pow(X[YDIM][iii], 2) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
+					mom += (sqr(X[XDIM][iii]) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
+					mom += (sqr(X[YDIM][iii]) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
 				}
 			}
 		}
@@ -1206,7 +1206,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 						for (integer d1 = 0; d1 != NDIM; ++d1) {
 							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii] + dV[sx_i + d1][iii] * V[rho_i][iii];
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
-							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * std::pow(V[sx_i + d1][iii], 2);
+							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
 							dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii]; // + dV[zx_i + d1][iii] * V[rho_i][iii];
 						}
 #ifdef WD_EOS
@@ -1229,7 +1229,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
 						for (integer d1 = 0; d1 != NDIM; ++d1) {
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
-							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * std::pow(V[sx_i + d1][iii], 2);
+							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
 						}
 					}
 				}

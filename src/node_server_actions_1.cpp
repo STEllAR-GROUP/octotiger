@@ -107,7 +107,7 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type& _me,
     if (flag == '1') {
         is_refined = true;
         children.resize(NCHILD);
-        auto full_set = geo::octant::full_set();
+        constexpr auto full_set = geo::octant::full_set();
         futs.reserve(full_set.size());
         for (auto& ci : full_set) {
             integer loc_id = ((cnt * localities.size()) / (total_nodes + 1));
@@ -301,7 +301,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
             }
         }
         a = a_ + 1;
-        auto full_set = geo::octant::full_set();
+        constexpr auto full_set = geo::octant::full_set();
         futs.reserve(full_set.size());
         for (auto& ci : full_set) {
             futs.push_back(children[ci].regrid_scatter(a, total));

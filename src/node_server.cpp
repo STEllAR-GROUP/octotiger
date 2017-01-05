@@ -53,7 +53,7 @@ real node_server::get_rotation_count() const {
 hpx::future<void> node_server::exchange_flux_corrections() {
     const geo::octant ci = my_location.get_child_index();
     std::vector<hpx::future<void>> futs;
-    auto full_set = geo::face::full_set();
+    constexpr auto full_set = geo::face::full_set();
     futs.reserve(full_set.size());
     for (auto& f : full_set) {
         const auto face_dim = f.get_dimension();
@@ -150,7 +150,7 @@ hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 
 hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
     std::vector<hpx::future<void>> futs;
-    auto full_set = geo::direction::full_set();
+    constexpr auto full_set = geo::direction::full_set();
     futs.reserve(full_set.size());
     for (auto& dir : full_set) {
 //		if (!dir.is_vertex()) {
@@ -187,7 +187,7 @@ hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
     hpx::future<void> fut;
     if (is_refined) {
         std::vector<hpx::future<void>> futs;
-        auto full_set = geo::octant::full_set();
+        constexpr auto full_set = geo::octant::full_set();
         futs.reserve(full_set.size());
         for (auto& ci : full_set) {
             const auto& flags = amr_flags[ci];
@@ -371,12 +371,12 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     //	printf( "!\n");
         grid_ptr->egas_to_etot();
     }
-    multipole_pass_type m_in, m_out;
+    multipole_pass_type m_out;
     m_out.first.resize(INX * INX * INX);
     m_out.second.resize(INX * INX * INX);
     if (is_refined) {
         std::vector<hpx::future<void>> futs;
-        auto full_set = geo::octant::full_set();
+        constexpr auto full_set = geo::octant::full_set();
         futs.reserve(full_set.size());
         for (auto& ci : full_set) {
             hpx::future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
@@ -416,7 +416,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     }
 
     std::vector<hpx::future<void>> neighbor_futs;
-    auto full_set = geo::direction::full_set();
+    constexpr auto full_set = geo::direction::full_set();
     neighbor_futs.reserve(full_set.size());
     for (auto& dir : full_set) {
         if (!neighbors[dir].empty()) {
@@ -432,7 +432,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
     grid_ptr->compute_interactions(type);
 #ifdef USE_GRAV_PAR
-
     std::vector<hpx::future<void>> boundary_futs;
     boundary_futs.reserve(full_set.size());
     for (auto& dir : full_set) {
@@ -441,7 +440,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             boundary_futs.push_back(f.then(
                 [this, type](hpx::future<neighbor_gravity_type> fut)
                 {
-                    auto tmp = fut.get();
+                    auto && tmp = fut.get();
                     grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
                 })
             );
@@ -469,9 +468,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     {
         std::vector<hpx::future<void>> child_futs;
         if (is_refined) {
-                auto full_set = geo::octant::full_set();
-                child_futs.reserve(full_set.size());
-                for (auto& ci : full_set) {
+            constexpr auto full_set = geo::octant::full_set();
+            child_futs.reserve(full_set.size());
+            for (auto& ci : full_set) {
                 expansion_pass_type l_out;
                 l_out.first.resize(INX * INX * INX / NCHILD);
                 if (type == RHO) {
@@ -485,8 +484,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                         for (integer k = 0; k != INX / 2; ++k) {
                             const integer io = i * INX * INX / 4 + j * INX / 2 + k;
                             const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
-                            auto t = ltmp.first[ii];
-                            l_out.first[io] = t;
+                            l_out.first[io] = ltmp.first[ii];
                             if (type == RHO) {
                                 l_out.second[io] = ltmp.second[ii];
                             }

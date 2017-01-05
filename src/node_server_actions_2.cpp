@@ -407,7 +407,7 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
             parent_list.push_back(loc);
         }
     }
-    auto full_set = geo::octant::full_set();
+    constexpr auto full_set = geo::octant::full_set();
     futs.reserve(full_set.size() + 1);
     for (auto& ci : full_set) {
         if (is_refined && child_lists[ci].size()) {

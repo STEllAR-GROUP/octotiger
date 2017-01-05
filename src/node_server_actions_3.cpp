@@ -308,7 +308,7 @@ void node_server::start_run(bool scf) {
             const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
             omega_dot = theta_dot_dot;
             omega += omega_dot * dt;
-//		omega_dot += theta_dot_dot*dt;
+//            omega_dot += theta_dot_dot*dt;
             grid::set_omega(omega);
         }
         double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(

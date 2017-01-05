@@ -170,7 +170,7 @@ void grid::compute_interactions(gsolve_type type) {
 
         std::vector<space_vector> const& com0 = (*(com_ptr[0]));
         hpx::parallel::for_loop_strided(
-        		for_loop_policy, 0, list_size, simd_len,
+            for_loop_policy, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
                 std::array<simd_vector, NDIM> dX;
@@ -312,16 +312,16 @@ void grid::compute_interactions(gsolve_type type) {
                     expansion& Liii0 = L[iii0];
                     expansion& Liii1 = L[iii1];
                     for (integer j = 0; j != taylor_sizes[3]; ++j) {
-                        Liii0[j] +=  A0[j][i];
-                        Liii1[j] +=  A1[j][i];
+                        Liii0[j] += A0[j][i];
+                        Liii1[j] += A1[j][i];
                     }
 
                     if (type == RHO) {
                         space_vector& L_ciii0 = L_c[iii0];
                         space_vector& L_ciii1 = L_c[iii1];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] +=  B0[j][i];
-                            L_ciii1[j] +=  B1[j][i];
+                            L_ciii0[j] += B0[j][i];
+                            L_ciii1[j] += B1[j][i];
                         }
                     }
                 }
@@ -363,10 +363,12 @@ void grid::compute_interactions(gsolve_type type) {
 #endif
             auto tmp1 =  m0 * ele.four * d0;
             auto tmp2 = m1 * ele.four * d1;
+            expansion& Liii0 = L[iii0];
+            expansion& Liii1 = L[iii1];
 #pragma GCC ivdep
-            for( integer i = 0; i != 4; ++i) {
-              	 L[iii0][i] +=  tmp1[i];
-               	 L[iii1][i] +=  tmp2[i];
+            for(integer i = 0; i != 4; ++i) {
+                Liii0[i] += tmp1[i];
+                Liii1[i] += tmp2[i];
             }
         }
     }
@@ -399,7 +401,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
     hpx::parallel::for_loop(
         for_loop_policy, 0, ilist_n_bnd.size(),
-        [&mpoles, &com0, &ilist_n_bnd, type, this, M](std::size_t si) {
+        [&mpoles, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 
             taylor<4, simd_vector> m0;
             taylor<4, simd_vector> n0;
@@ -411,6 +413,11 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
             integer index = mpoles.is_local ? bnd.second : si;
 
             load_multipole(m0, Y, mpoles, index, false);
+
+            std::array<simd_vector, NDIM> simdY = {
+                simd_vector(Y[0]), simd_vector(Y[1]), simd_vector(Y[2]),
+            };
+
             const integer list_size = bnd.first.size();
             for (integer li = 0; li < list_size; li += simd_len) {
 #pragma GCC ivdep
@@ -437,7 +444,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                 }
 #pragma GCC ivdep
                 for (integer d = 0; d < NDIM; ++d) {
-                    dX[d] = X[d] - simd_vector(Y[d]);
+                    dX[d] = X[d] - simdY[d];
                 }
 
                 taylor<5, simd_vector> D;
@@ -543,6 +550,11 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
             const integer list_size = bnd.first.size();
             integer index = mpoles.is_local ? bnd.second : si;
             load_multipole(m0, Y, mpoles, index, false);
+
+            std::array<simd_vector, NDIM> simdY = {
+                simd_vector(Y[0]), simd_vector(Y[1]), simd_vector(Y[2]),
+            };
+
             if (type == RHO) {
 #pragma GCC ivdep
                 for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
@@ -567,7 +579,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                 }
 #pragma GCC ivdep
                 for (integer d = 0; d < NDIM; ++d) {
-                    dX[d] = X[d] - Y[d];
+                    dX[d] = X[d] - simdY[d];
                 }
 
                 taylor<5, simd_vector> D;
@@ -652,7 +664,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
     hpx::parallel::for_loop(
         for_loop_policy, 0, ilist_n_bnd.size(),
-        [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, M](std::size_t si) {
+        [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 
             simd_vector m0;
             taylor<4, simd_vector> n0;
@@ -790,11 +802,11 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #endif
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
-                const auto& four = bnd.four[li];
-                auto tmp1 =  m0 * four;
+                auto tmp1 =  m0 * bnd.four[li];
+                expansion& Liii0 = L[iii0];
 #pragma GCC ivdep
                 for( integer i = 0; i != 4; ++i) {
-                  	 L[iii0][i] += tmp1[i];
+                    Liii0[i] += tmp1[i];
                 }
 
             }
@@ -1131,17 +1143,17 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
     PROF_BEGIN;
     integer lev = 0;
     const real dx3 = dx * dx * dx;
-    M_ptr= std::make_shared<std::vector<multipole>>();
+    M_ptr = std::make_shared<std::vector<multipole>>();
     mon_ptr = std::make_shared<std::vector<real>>();
-    if( com_ptr[1] == nullptr){
-    	com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
+    if (com_ptr[1] == nullptr) {
+        com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
     }
-    if( type == RHO ) {
-    	com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
+    if (type == RHO) {
+        com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
     }
     auto& M = *M_ptr;
-     auto& mon = *mon_ptr;
-   if (is_leaf) {
+    auto& mon = *mon_ptr;
+    if (is_leaf) {
         M.resize(0);
         mon.resize(G_N3);
     } else {
@@ -1151,14 +1163,26 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
     if (type == RHO) {
         const integer iii0 = hindex(H_BW, H_BW, H_BW);
         const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
-        std::array<integer, 3> i;
-        for (i[0] = 0; i[0] != G_NX; ++i[0]) {
-            for (i[1] = 0; i[1] != G_NX; ++i[1]) {
-                for (i[2] = 0; i[2] != G_NX; ++i[2]) {
-                    const integer iii = gindex(i[0], i[1], i[2]);
-                    for (integer dim = 0; dim != NDIM; ++dim) {
-                        (*(com_ptr[0]))[iii][dim] = x0[dim] + (i[dim]) * dx;
-                    }
+
+//         std::array<integer, 3> i;
+//         for (i[0] = 0; i[0] != G_NX; ++i[0]) {
+//             for (i[1] = 0; i[1] != G_NX; ++i[1]) {
+//                 for (i[2] = 0; i[2] != G_NX; ++i[2]) {
+//                     const integer iii = gindex(i[0], i[1], i[2]);
+//                     for (integer dim = 0; dim != NDIM; ++dim) {
+//                         (*(com_ptr[0]))[iii][dim] = x0[dim] + (i[dim]) * dx;
+//                     }
+//                 }
+//             }
+//         }
+        for (integer i = 0; i != G_NX; ++i) {
+            for (integer j = 0; j != G_NX; ++j) {
+                for (integer k = 0; k != G_NX; ++k) {
+                    auto& com0iii = (*(com_ptr[0]))[gindex(i, j, k)];
+                    // for (integer dim = 0; dim != NDIM; ++dim)
+                    com0iii[0] = x0[0] + i * dx;
+                    com0iii[1] = x0[1] + j * dx;
+                    com0iii[2] = x0[2] + k * dx;
                 }
             }
         }
@@ -1228,12 +1252,11 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
                         }
                         const space_vector& Y = (*(com_ptr[lev]))[iiip];
                         for (integer d = 0; d < NDIM; ++d) {
-                            simd_vector y(Y[d]);
-                            dx[d] = x[d] - y;
+                            dx[d] = x[d] - simd_vector(Y[d]);
                         }
                         mp = mc >> dx;
                         for (integer j = 0; j != 20; ++j) {
-                            MM.ptr()[j] = mp.ptr()[j].sum();
+                            MM[j] = mp[j].sum();
                         }
                     } else {
                         if (child_poles == nullptr) {
@@ -1295,11 +1318,6 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
             }
         }
     } else {
-        // FIXME: Why is this data never deleted?
-	//	(*Muse_counter)++;
-        auto nuldel = [this](void*) {
-     //   	(*(this->Muse_counter))--;
-        };
         if (is_leaf) {
             data.m = mon_ptr;
         } else {
