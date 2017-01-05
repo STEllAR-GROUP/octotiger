@@ -39,9 +39,9 @@ endif()
 if(NOT MSVC)
     include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
 
-    set(CMAKE_CXX_FLAGS "-std=c++14 -march=native -Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
-    set(CMAKE_C_FLAGS "-march=native -Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
-    set(CMAKE_F_FLAGS "-march=native -Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-std=c++14 -Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_C_FLAGS "-Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_F_FLAGS "-Wno-attributes -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
 else()
     # enable solution folders for MSVC
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
