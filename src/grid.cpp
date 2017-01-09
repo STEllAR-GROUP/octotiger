@@ -829,6 +829,9 @@ std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot,
 					if (node_server::is_gravity_on()) {
 						sum[egas_i] += U[pot_i][iii] * HALF * dV;
 					}
+					if( !opts.ang_con ) {
+						sum[zx_i] = sum[zy_i] = sum[zz_i] = 0.0;
+					}
 					sum[zx_i] += X[YDIM][iii] * U[sz_i][iii] * dV;
 					sum[zx_i] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
 					sum[zy_i] -= X[XDIM][iii] * U[sz_i][iii] * dV;
@@ -2156,9 +2159,9 @@ void grid::next_u(integer rk, real t, real dt) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				if (opts.problem == SOD && opts.ang_con) {
-					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
-				}
+//				if (opts.problem == SOD && opts.ang_con) {
+//					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
+//				}
 				U[rho_i][iii] = ZERO;
 				for (integer si = 0; si != NSPECIES; ++si) {
 					U[rho_i][iii] += U[spc_i + si][iii];
