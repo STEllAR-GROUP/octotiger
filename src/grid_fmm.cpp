@@ -163,7 +163,9 @@ void grid::compute_interactions(gsolve_type type) {
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
     std::fill(std::begin(L), std::end(L), ZERO);
-    std::fill(std::begin(L_c), std::end(L_c), ZERO);
+    if( opts.ang_con) {
+    	std::fill(std::begin(L_c), std::end(L_c), ZERO);
+    }
     if (!is_leaf) {
         const auto& this_ilist = is_root ? ilist_r : ilist_n;
         const integer list_size = this_ilist.size();
@@ -316,7 +318,7 @@ void grid::compute_interactions(gsolve_type type) {
                         Liii1[j] += A1[j][i];
                     }
 
-                    if (type == RHO) {
+                    if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
                         space_vector& L_ciii1 = L_c[iii1];
                         for (integer j = 0; j != NDIM; ++j) {
@@ -516,7 +518,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                         Liii0[j] +=  A0[j][i];
                     }
 
-                    if (type == RHO) {
+                    if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
@@ -636,7 +638,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                     for (integer j = 0; j != 4; ++j) {
                         Liii0[j] +=  A0[j][i];
                     }
-                    if (type == RHO) {
+                    if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
@@ -753,7 +755,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                         Liii0[j] +=  A0[j][i];
                     }
 
-                    if (type == RHO) {
+                    if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
@@ -1085,11 +1087,13 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                             Liiic[j] += l[j][ci];
                     }
 
-                    space_vector& L_ciiic = L_c[iiic];
-                    if (type == RHO) {
-                        for (integer j = 0; j != NDIM; ++j) {
-                            L_ciiic[j] += lc[j][ci];
-                        }
+                	space_vector& L_ciiic = L_c[iiic];
+                    if( opts.ang_con) {
+                    	if (type == RHO) {
+                        	for (integer j = 0; j != NDIM; ++j) {
+                        		L_ciiic[j] += lc[j][ci];
+                        	}
+                    	}
                     }
 
                     if (!is_leaf) {
@@ -1098,7 +1102,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                          	exp_ret.first[index][j] = Liiic[j];
                         }
 
-                        if (type == RHO) {
+                        if (type == RHO && opts.ang_con) {
                             for( integer j = 0; j != 3; ++j) {
                                 exp_ret.second[index][j] = L_ciiic[j];
                             }
