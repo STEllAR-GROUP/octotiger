@@ -1071,11 +1071,11 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[tau_i][iii] = U[tau_i][iii];
 					const real rhoinv = 1.0 / V[rho_i][iii];
 
-					V[egas_i][iii] = (U[egas_i][iii]
-#ifdef WD_EOS
-						- ztwd_energy(U[rho_i][iii])
-#endif
-						) * rhoinv;
+					if (opts.eos == WD) {
+						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii])) * rhoinv;
+					} else {
+						V[egas_i][iii] = (U[egas_i][iii]) * rhoinv;
+					}
 					for (integer si = 0; si != NSPECIES; ++si) {
 						V[spc_i + si][iii] = U[spc_i + si][iii] * rhoinv;
 					}
@@ -1107,11 +1107,11 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					const integer iii = hindex(i, j, k);
 					V[rho_i][iii] = U[rho_i][iii];
 					const real rhoinv = 1.0 / V[rho_i][iii];
-					V[egas_i][iii] = (U[egas_i][iii]
-#ifdef WD_EOS
-						- ztwd_energy(U[rho_i][iii])
-#endif
-						) * rhoinv;
+					if (opts.eos == WD) {
+						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii])) * rhoinv;
+					} else {
+						V[egas_i][iii] = (U[egas_i][iii]) * rhoinv;
+					}
 					for (integer d = 0; d != NDIM; ++d) {
 						auto& v = V[sx_i + d][iii];
 						v = U[sx_i + d][iii] * rhoinv;
@@ -1233,9 +1233,9 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 								dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];
 							}
 						}
-#ifdef WD_EOS
-						V[egas_i][iii] += ztwd_enthalpy(V[rho_i][iii]) * dV[rho_i][iii];
-#endif
+						if( opts.eos == WD) {
+							V[egas_i][iii] += ztwd_enthalpy(V[rho_i][iii]) * dV[rho_i][iii];
+						}
 						dU[tau_i][iii] = dV[tau_i][iii];
 					}
 				}
@@ -1703,9 +1703,9 @@ void grid::reconstruct() {
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sx_i][iii]) / Uffacerho_iii;
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sy_i][iii]) / Uffacerho_iii;
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sz_i][iii]) / Uffacerho_iii;
-#ifdef WD_EOS
-					Ufface[egas_i][iii] += ztwd_energy(Uffacerho_iii);
-#endif
+					if( opts.eos == WD ) {
+						Ufface[egas_i][iii] += ztwd_energy(Uffacerho_iii);
+					}
 				}
 			}
 		}
@@ -2199,11 +2199,12 @@ void grid::dual_energy_update() {
 				ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
 				ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
 				ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
-				real ei = U[egas_i][iii] - ek
-#ifdef WD_EOS
-					- ztwd_energy(U[rho_i][iii])
-#endif
-					;
+				real ei;
+				if (opts.eos == WD) {
+					ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
+				} else {
+					ei = U[egas_i][iii] - ek;
+				}
 				real et = U[egas_i][iii];
 				et = std::max(et, U[egas_i][iii + H_DNX]);
 				et = std::max(et, U[egas_i][iii - H_DNX]);
