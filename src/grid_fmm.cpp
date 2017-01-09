@@ -1056,7 +1056,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                     for (integer j = 0; j != 20; ++j) {
                         l[j] = parent_expansions->first[index][j];
                     }
-                    if (type == RHO) {
+                    if (type == RHO && opts.ang_con) {
                         for (integer j = 0; j != NDIM; ++j) {
                             lc[j] = parent_expansions->second[index][j];
                         }
@@ -1065,8 +1065,10 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                     for (integer j = 0; j != 20; ++j) {
                         l[j] = 0.0;
                     }
-                    for (integer j = 0; j != NDIM; ++j) {
-                        lc[j] = 0.0;
+                    if( opts.ang_con ) {
+                    	for (integer j = 0; j != NDIM; ++j) {
+                    		lc[j] = 0.0;
+                    	}
                     }
                 }
                 for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -1089,7 +1091,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 
                 	space_vector& L_ciiic = L_c[iiic];
                     if( opts.ang_con) {
-                    	if (type == RHO) {
+                    	if (type == RHO && opts.ang_con) {
                         	for (integer j = 0; j != NDIM; ++j) {
                         		L_ciiic[j] += lc[j][ci];
                         	}
