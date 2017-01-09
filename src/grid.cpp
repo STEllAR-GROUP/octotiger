@@ -833,14 +833,12 @@ std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot,
 					if (node_server::is_gravity_on()) {
 						sum[egas_i] += U[pot_i][iii] * HALF * dV;
 					}
-					if (opts.ang_con) {
-						sum[zx_i] += X[YDIM][iii] * U[sz_i][iii] * dV;
-						sum[zx_i] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
-						sum[zy_i] -= X[XDIM][iii] * U[sz_i][iii] * dV;
-						sum[zy_i] += X[ZDIM][iii] * U[sx_i][iii] * dV;
-						sum[zz_i] += X[XDIM][iii] * U[sy_i][iii] * dV;
-						sum[zz_i] -= X[YDIM][iii] * U[sx_i][iii] * dV;
-					}
+					sum[zx_i] += X[YDIM][iii] * U[sz_i][iii] * dV;
+					sum[zx_i] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
+					sum[zy_i] -= X[XDIM][iii] * U[sz_i][iii] * dV;
+					sum[zy_i] += X[ZDIM][iii] * U[sx_i][iii] * dV;
+					sum[zz_i] += X[XDIM][iii] * U[sy_i][iii] * dV;
+					sum[zz_i] -= X[YDIM][iii] * U[sx_i][iii] * dV;
 				}
 			}
 		}
