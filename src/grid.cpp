@@ -581,17 +581,15 @@ std::vector<real> grid::get_restrict() const {
 							for (integer z = 0; z != 2; ++z) {
 								const integer jjj = iii + x * H_DNX + y * H_DNY + z * H_DNZ;
 								pt += U[field][jjj];
-								if (opts.ang_con) {
-									if (field == zx_i) {
-										pt += X[YDIM][jjj] * U[sz_i][jjj];
-										pt -= X[ZDIM][jjj] * U[sy_i][jjj];
-									} else if (field == zy_i) {
-										pt -= X[XDIM][jjj] * U[sz_i][jjj];
-										pt += X[ZDIM][jjj] * U[sx_i][jjj];
-									} else if (field == zz_i) {
-										pt += X[XDIM][jjj] * U[sy_i][jjj];
-										pt -= X[YDIM][jjj] * U[sx_i][jjj];
-									}
+								if (field == zx_i) {
+									pt += X[YDIM][jjj] * U[sz_i][jjj];
+									pt -= X[ZDIM][jjj] * U[sy_i][jjj];
+								} else if (field == zy_i) {
+									pt -= X[XDIM][jjj] * U[sz_i][jjj];
+									pt += X[ZDIM][jjj] * U[sx_i][jjj];
+								} else if (field == zz_i) {
+									pt += X[XDIM][jjj] * U[sy_i][jjj];
+									pt -= X[YDIM][jjj] * U[sx_i][jjj];
 								}
 							}
 						}
@@ -622,17 +620,15 @@ void grid::set_restrict(const std::vector<real>& data, const geo::octant& octant
 					const integer iii = (i + i0) * H_DNX + (j + j0) * H_DNY + (k + k0) * H_DNZ;
 					auto& v = U[field][iii];
 					v = data[index];
-					if( opts.ang_con) {
-						if (field == zx_i) {
-							v -= X[YDIM][iii] * U[sz_i][iii];
-							v += X[ZDIM][iii] * U[sy_i][iii];
-						} else if (field == zy_i) {
-							v += X[XDIM][iii] * U[sz_i][iii];
-							v -= X[ZDIM][iii] * U[sx_i][iii];
-						} else if (field == zz_i) {
-							v -= X[XDIM][iii] * U[sy_i][iii];
-							v += X[YDIM][iii] * U[sx_i][iii];
-						}
+					if (field == zx_i) {
+						v -= X[YDIM][iii] * U[sz_i][iii];
+						v += X[ZDIM][iii] * U[sy_i][iii];
+					} else if (field == zy_i) {
+						v += X[XDIM][iii] * U[sz_i][iii];
+						v -= X[ZDIM][iii] * U[sx_i][iii];
+					} else if (field == zz_i) {
+						v -= X[XDIM][iii] * U[sy_i][iii];
+						v += X[YDIM][iii] * U[sx_i][iii];
 					}
 					++index;
 				}
