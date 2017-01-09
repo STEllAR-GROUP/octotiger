@@ -2089,62 +2089,60 @@ void grid::next_u(integer rk, real t, real dt) {
 					du[field] += (-F[ZDIM][field][kkk_m0]) * dx2;
 				}
 			}
-			if (opts.ang_con) {
-				if (X[XDIM][iii_p] + pivot[XDIM] > scaling_factor) {
-					const real xp = X[XDIM][iii_p] - HALF * dx;
-					du[zx_i] += (X[YDIM][iii_p] * F[XDIM][sz_i][iii_p0]) * dx2;
-					du[zx_i] -= (X[ZDIM][iii_p] * F[XDIM][sy_i][iii_p0]) * dx2;
-					du[zy_i] -= (xp * F[XDIM][sz_i][iii_p0]) * dx2;
-					du[zy_i] += (X[ZDIM][iii_p] * F[XDIM][sx_i][iii_p0]) * dx2;
-					du[zz_i] += (xp * F[XDIM][sy_i][iii_p0]) * dx2;
-					du[zz_i] -= (X[YDIM][iii_p] * F[XDIM][sx_i][iii_p0]) * dx2;
-				}
-				if (X[YDIM][jjj_p] + pivot[YDIM] > scaling_factor) {
-					const real yp = X[YDIM][jjj_p] - HALF * dx;
-					du[zx_i] += (yp * F[YDIM][sz_i][jjj_p0]) * dx2;
-					du[zx_i] -= (X[ZDIM][jjj_p] * F[YDIM][sy_i][jjj_p0]) * dx2;
-					du[zy_i] -= (X[XDIM][jjj_p] * F[YDIM][sz_i][jjj_p0]) * dx2;
-					du[zy_i] += (X[ZDIM][jjj_p] * F[YDIM][sx_i][jjj_p0]) * dx2;
-					du[zz_i] += (X[XDIM][jjj_p] * F[YDIM][sy_i][jjj_p0]) * dx2;
-					du[zz_i] -= (yp * F[YDIM][sx_i][jjj_p0]) * dx2;
-				}
-				if (X[ZDIM][kkk_p] + pivot[ZDIM] > scaling_factor) {
-					const real zp = X[ZDIM][kkk_p] - HALF * dx;
-					du[zx_i] -= (zp * F[ZDIM][sy_i][kkk_p0]) * dx2;
-					du[zx_i] += (X[YDIM][kkk_p] * F[ZDIM][sz_i][kkk_p0]) * dx2;
-					du[zy_i] += (zp * F[ZDIM][sx_i][kkk_p0]) * dx2;
-					du[zy_i] -= (X[XDIM][kkk_p] * F[ZDIM][sz_i][kkk_p0]) * dx2;
-					du[zz_i] += (X[XDIM][kkk_p] * F[ZDIM][sy_i][kkk_p0]) * dx2;
-					du[zz_i] -= (X[YDIM][kkk_p] * F[ZDIM][sx_i][kkk_p0]) * dx2;
-				}
+			if (X[XDIM][iii_p] + pivot[XDIM] > scaling_factor) {
+				const real xp = X[XDIM][iii_p] - HALF * dx;
+				du[zx_i] += (X[YDIM][iii_p] * F[XDIM][sz_i][iii_p0]) * dx2;
+				du[zx_i] -= (X[ZDIM][iii_p] * F[XDIM][sy_i][iii_p0]) * dx2;
+				du[zy_i] -= (xp * F[XDIM][sz_i][iii_p0]) * dx2;
+				du[zy_i] += (X[ZDIM][iii_p] * F[XDIM][sx_i][iii_p0]) * dx2;
+				du[zz_i] += (xp * F[XDIM][sy_i][iii_p0]) * dx2;
+				du[zz_i] -= (X[YDIM][iii_p] * F[XDIM][sx_i][iii_p0]) * dx2;
+			}
+			if (X[YDIM][jjj_p] + pivot[YDIM] > scaling_factor) {
+				const real yp = X[YDIM][jjj_p] - HALF * dx;
+				du[zx_i] += (yp * F[YDIM][sz_i][jjj_p0]) * dx2;
+				du[zx_i] -= (X[ZDIM][jjj_p] * F[YDIM][sy_i][jjj_p0]) * dx2;
+				du[zy_i] -= (X[XDIM][jjj_p] * F[YDIM][sz_i][jjj_p0]) * dx2;
+				du[zy_i] += (X[ZDIM][jjj_p] * F[YDIM][sx_i][jjj_p0]) * dx2;
+				du[zz_i] += (X[XDIM][jjj_p] * F[YDIM][sy_i][jjj_p0]) * dx2;
+				du[zz_i] -= (yp * F[YDIM][sx_i][jjj_p0]) * dx2;
+			}
+			if (X[ZDIM][kkk_p] + pivot[ZDIM] > scaling_factor) {
+				const real zp = X[ZDIM][kkk_p] - HALF * dx;
+				du[zx_i] -= (zp * F[ZDIM][sy_i][kkk_p0]) * dx2;
+				du[zx_i] += (X[YDIM][kkk_p] * F[ZDIM][sz_i][kkk_p0]) * dx2;
+				du[zy_i] += (zp * F[ZDIM][sx_i][kkk_p0]) * dx2;
+				du[zy_i] -= (X[XDIM][kkk_p] * F[ZDIM][sz_i][kkk_p0]) * dx2;
+				du[zz_i] += (X[XDIM][kkk_p] * F[ZDIM][sy_i][kkk_p0]) * dx2;
+				du[zz_i] -= (X[YDIM][kkk_p] * F[ZDIM][sx_i][kkk_p0]) * dx2;
+			}
 
-				if (X[XDIM][iii_m] + pivot[XDIM] < -scaling_factor + dx) {
-					const real xm = X[XDIM][iii_m] - HALF * dx;
-					du[zx_i] += (-X[YDIM][iii_m] * F[XDIM][sz_i][iii_m0]) * dx2;
-					du[zx_i] -= (-X[ZDIM][iii_m] * F[XDIM][sy_i][iii_m0]) * dx2;
-					du[zy_i] -= (-xm * F[XDIM][sz_i][iii_m0]) * dx2;
-					du[zy_i] += (-X[ZDIM][iii_m] * F[XDIM][sx_i][iii_m0]) * dx2;
-					du[zz_i] += (-xm * F[XDIM][sy_i][iii_m0]) * dx2;
-					du[zz_i] -= (-X[YDIM][iii_m] * F[XDIM][sx_i][iii_m0]) * dx2;
-				}
-				if (X[YDIM][jjj_m] + pivot[YDIM] < -scaling_factor + dx) {
-					const real ym = X[YDIM][jjj_m] - HALF * dx;
-					du[zx_i] -= (-X[ZDIM][jjj_m] * F[YDIM][sy_i][jjj_m0]) * dx2;
-					du[zx_i] += (-ym * F[YDIM][sz_i][jjj_m0]) * dx2;
-					du[zy_i] -= (-X[XDIM][jjj_m] * F[YDIM][sz_i][jjj_m0]) * dx2;
-					du[zy_i] += (-X[ZDIM][jjj_m] * F[YDIM][sx_i][jjj_m0]) * dx2;
-					du[zz_i] += (-X[XDIM][jjj_m] * F[YDIM][sy_i][jjj_m0]) * dx2;
-					du[zz_i] -= (-ym * F[YDIM][sx_i][jjj_m0]) * dx2;
-				}
-				if (X[ZDIM][kkk_m] + pivot[ZDIM] < -scaling_factor + dx) {
-					const real zm = X[ZDIM][kkk_m] - HALF * dx;
-					du[zx_i] -= (-zm * F[ZDIM][sy_i][kkk_m0]) * dx2;
-					du[zx_i] += (-X[YDIM][kkk_m] * F[ZDIM][sz_i][kkk_m0]) * dx2;
-					du[zy_i] += (-zm * F[ZDIM][sx_i][kkk_m0]) * dx2;
-					du[zy_i] -= (-X[XDIM][kkk_m] * F[ZDIM][sz_i][kkk_m0]) * dx2;
-					du[zz_i] += (-X[XDIM][kkk_m] * F[ZDIM][sy_i][kkk_m0]) * dx2;
-					du[zz_i] -= (-X[YDIM][kkk_m] * F[ZDIM][sx_i][kkk_m0]) * dx2;
-				}
+			if (X[XDIM][iii_m] + pivot[XDIM] < -scaling_factor + dx) {
+				const real xm = X[XDIM][iii_m] - HALF * dx;
+				du[zx_i] += (-X[YDIM][iii_m] * F[XDIM][sz_i][iii_m0]) * dx2;
+				du[zx_i] -= (-X[ZDIM][iii_m] * F[XDIM][sy_i][iii_m0]) * dx2;
+				du[zy_i] -= (-xm * F[XDIM][sz_i][iii_m0]) * dx2;
+				du[zy_i] += (-X[ZDIM][iii_m] * F[XDIM][sx_i][iii_m0]) * dx2;
+				du[zz_i] += (-xm * F[XDIM][sy_i][iii_m0]) * dx2;
+				du[zz_i] -= (-X[YDIM][iii_m] * F[XDIM][sx_i][iii_m0]) * dx2;
+			}
+			if (X[YDIM][jjj_m] + pivot[YDIM] < -scaling_factor + dx) {
+				const real ym = X[YDIM][jjj_m] - HALF * dx;
+				du[zx_i] -= (-X[ZDIM][jjj_m] * F[YDIM][sy_i][jjj_m0]) * dx2;
+				du[zx_i] += (-ym * F[YDIM][sz_i][jjj_m0]) * dx2;
+				du[zy_i] -= (-X[XDIM][jjj_m] * F[YDIM][sz_i][jjj_m0]) * dx2;
+				du[zy_i] += (-X[ZDIM][jjj_m] * F[YDIM][sx_i][jjj_m0]) * dx2;
+				du[zz_i] += (-X[XDIM][jjj_m] * F[YDIM][sy_i][jjj_m0]) * dx2;
+				du[zz_i] -= (-ym * F[YDIM][sx_i][jjj_m0]) * dx2;
+			}
+			if (X[ZDIM][kkk_m] + pivot[ZDIM] < -scaling_factor + dx) {
+				const real zm = X[ZDIM][kkk_m] - HALF * dx;
+				du[zx_i] -= (-zm * F[ZDIM][sy_i][kkk_m0]) * dx2;
+				du[zx_i] += (-X[YDIM][kkk_m] * F[ZDIM][sz_i][kkk_m0]) * dx2;
+				du[zy_i] += (-zm * F[ZDIM][sx_i][kkk_m0]) * dx2;
+				du[zy_i] -= (-X[XDIM][kkk_m] * F[ZDIM][sz_i][kkk_m0]) * dx2;
+				du[zz_i] += (-X[XDIM][kkk_m] * F[ZDIM][sy_i][kkk_m0]) * dx2;
+				du[zz_i] -= (-X[YDIM][kkk_m] * F[ZDIM][sx_i][kkk_m0]) * dx2;
 			}
 			for (integer field = 0; field != NF; ++field) {
 				du_out[field] += du[field] * dt;
