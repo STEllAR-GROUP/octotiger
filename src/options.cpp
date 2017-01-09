@@ -102,10 +102,10 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], BENCH_OPT)) {
 			bench = true;
 		} else if (cmp(argv[i], EOS_OPT)) {
-			const char* str = argv[i] + strlen(THETA_OPT) + 1;
-			if( strcmp(str, "ideal") == 0 ) {
+			const char* str = argv[i] + strlen(EOS_OPT) + 1;
+			if( strncmp(str, "ideal", 3) == 0 ) {
 				eos = IDEAL;
-			} else if( strcmp( str, "wd") == 0 ) {
+			} else if( strncmp( str, "wd", 2) == 0 ) {
 				eos = WD;
 			} else {
 				printf( "Unknown EOS specified - choose ideal or wd.\n");
