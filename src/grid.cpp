@@ -825,12 +825,12 @@ std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot,
 					com_dot[2] += U[sz_i][iii] * dV;
 					for (integer field = 0; field != NF; ++field) {
 						sum[field] += U[field][iii] * dV;
+						if( !opts.ang_con && (field >= zx_i || field <= zz_i)) {
+							continue;
+						}
 					}
 					if (node_server::is_gravity_on()) {
 						sum[egas_i] += U[pot_i][iii] * HALF * dV;
-					}
-					if( !opts.ang_con ) {
-						sum[zx_i] = sum[zy_i] = sum[zz_i] = 0.0;
 					}
 					sum[zx_i] += X[YDIM][iii] * U[sz_i][iii] * dV;
 					sum[zx_i] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
