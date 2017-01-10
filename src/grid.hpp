@@ -30,6 +30,8 @@
 #include <set>
 
 
+class struct_eos;
+
 class analytic_t {
 public:
 	std::array<real,NF> l1, l2, linf;
@@ -65,16 +67,6 @@ public:
 		return *this;
 	}
 };
-
-#ifdef WD_EOS
-class wd_eos;
-using accretor_eos = wd_eos;
-using donor_eos = wd_eos;
-#else
-class bipolytropic_eos;
-using accretor_eos = bipolytropic_eos;
-using donor_eos = bipolytropic_eos;
-#endif
 
 struct interaction_type {
 	std::uint16_t first;
@@ -206,7 +198,7 @@ public:
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
 	scf_data_t scf_params();
-	real scf_update(real, real, real, real, real, real, real, accretor_eos, donor_eos);
+	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, output_list_type&& l2);

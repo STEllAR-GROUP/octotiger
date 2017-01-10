@@ -67,9 +67,6 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 	const integer u_i = vx_i + dimension;
 	const integer v_i = vx_i + (dimension == XDIM ? YDIM : XDIM);
 	const integer w_i = vx_i + (dimension == ZDIM ? YDIM : ZDIM);
-	const integer zu_i = zx_i + dimension;
-	const integer zv_i = zx_i + (dimension == XDIM ? YDIM : XDIM);
-	const integer zw_i = zx_i + (dimension == ZDIM ? YDIM : ZDIM);
 	real max_lambda = real(0);
 	integer this_simd_len;
 

@@ -15,7 +15,7 @@
 #include "geometry.hpp"
 #include "channel.hpp"
 #include "future.hpp"
-#include "eos.hpp"
+#include "struct_eos.hpp"
 #include "profiler.hpp"
 #include <atomic>
 #include <hpx/include/components.hpp>
@@ -253,7 +253,7 @@ public:
     scf_data_t scf_params();
     HPX_DEFINE_COMPONENT_ACTION(node_server, scf_params, scf_params_action);
 
-    real scf_update(real, real, real, real, real, real, real, accretor_eos, donor_eos);
+    real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
     HPX_DEFINE_COMPONENT_ACTION(node_server, scf_update, scf_update_action);
 
     void velocity_inc(const space_vector& dv);
