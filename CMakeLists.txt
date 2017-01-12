@@ -8,6 +8,9 @@ project(octotiger C CXX Fortran)
 
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
+cmake_policy(SET CMP0022 NEW)
+cmake_policy(SET CMP0042 NEW)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 ################################################################################
@@ -38,7 +41,7 @@ else()
 endif()
 
 if(NOT MSVC)
-    include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
+    include_directories(${PROJECT_SOURCE_DIR}/src ${Silo_INCLUDE_DIR})
 
 	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     	set( COMMON_FLAGS "-Wno-attributes -Wno-deprecated-declarations")
@@ -58,7 +61,7 @@ else()
 
     add_definitions(-D_USE_MATH_DEFINES)
     add_definitions(-DNOMINMAX)
-    include_directories(${CMAKE_SOURCE_DIR}/src)
+    include_directories(${PROJECT_SOURCE_DIR}/src)
 
     hpx_add_compile_flag(-wd4068)   # unknown pragma
     hpx_add_compile_flag(-wd4244)
@@ -99,10 +102,28 @@ if(MSVC)
         # Make sure the C++ linker will find the Fortran runtime libraries.
         link_directories("$ENV{IFORT_COMPILER16}/compiler/lib/intel64_win")
     endif()
+elseif(APPLE)
+    set(CMAKE_Fortran_FLAGS "-DDOUBLE_PRECISION ${CMAKE_Fortran_FLAGS}")
+
+    # using add_hpx_library on OSX for non C++ targets causes problems
+    add_library(octotiger_fortran
+        STATIC
+         src/sedov3.f src/sedov3.def)
+    set_target_properties(octotiger_fortran
+        PROPERTIES LINKER_LANGUAGE Fortran)
+
+    set(dependencies octotiger_fortran)
 else()
     set(source_files ${source_files} src/sedov3.f)
     set(dependencies ${Silo_LIBRARY})
 endif()
+
+# using add_hpx_library on OSX for non C++ targets causes problems
+add_library(octotiger_c STATIC src/sedov.c)
+set_source_files_properties(src/sedov.c PROPERTIES LANGUAGE C LINKER_LANGUAGE C)
+set_target_properties(octotiger_c PROPERTIES LINKER_LANGUAGE C)
+#target_link_libraries(octotiger_c octotiger_fortran_lib)
+set(dependencies octotiger_c ${dependencies} )
 
 # Octotiger executable
 set(source_files ${source_files}
@@ -112,7 +133,6 @@ set(source_files ${source_files}
     src/node_server_actions_3.cpp
     src/scf_data.cpp
     src/exact_sod.cpp
-    src/sedov.c
     src/profiler.cpp
     src/geometry.cpp
     src/grid.cpp
@@ -166,5 +186,4 @@ add_hpx_executable(
     ${header_files}
   FOLDER  "Octotiger"
 )
-
 
