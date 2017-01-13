@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 import re
 import os
 
+# font = {'family' : 'normal',
+#         'weight' : 'normal',
+#         'size'   : 18}
+
+# plt.rc('font', **font)
+
 performance_tuples = {}
 result_dir = 'results/'
 
@@ -69,7 +75,10 @@ for memory_type in performance_tuples.keys():
 
 plt.xlabel('threads')
 plt.ylabel('time (s)')
+plt.savefig("total_time.svg")
 plt.show()
+
+plt.close()
 
 # parallel efficieny (time compared to 1 thread)
 for memory_type in performance_tuples.keys():
@@ -98,4 +107,5 @@ for memory_type in performance_tuples.keys():
 
 plt.xlabel('threads')
 plt.ylabel('parallel efficiency')
+plt.savefig("parallel_efficiency.svg")
 plt.show()
