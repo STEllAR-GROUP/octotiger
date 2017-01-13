@@ -76,6 +76,7 @@ for memory_type in performance_tuples.keys():
 plt.xlabel('threads')
 plt.ylabel('time (s)')
 plt.savefig("total_time.svg")
+plt.savefig("total_time.png")
 plt.show()
 
 plt.close()
@@ -108,4 +109,5 @@ for memory_type in performance_tuples.keys():
 plt.xlabel('threads')
 plt.ylabel('parallel efficiency')
 plt.savefig("parallel_efficiency.svg")
+plt.savefig("parallel_efficiency.png")
 plt.show()
