@@ -20,6 +20,10 @@ for subdir, dirs, files in os.walk(result_dir):
             nodes = match.group(1)
             threads = match.group(2)
             level = match.group(3)
+
+            if int(level) < 7:
+                continue
+
             memory_type = match.group(4)
 
             print "file:", f, "l:", level, "memory_type: ", memory_type, "nodes:", nodes, "threads:", threads
