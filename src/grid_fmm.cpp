@@ -16,9 +16,9 @@
 #include <utility>
 
 #ifdef USE_GRAV_PAR
-const auto for_loop_policy = hpx::parallel::par;
+const auto for_loop_policy = hpx::parallel::execution::par;
 #else
-const auto for_loop_policy = hpx::parallel::seq;
+const auto for_loop_policy = hpx::parallel::execution::seq;
 #endif
 
 
@@ -361,7 +361,7 @@ void grid::compute_interactions(gsolve_type type) {
             v4sd m1 = mon[iii0];
 #endif
 #ifdef USE_GRAV_PAR
-                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
             auto tmp1 =  m0 * ele.four * d0;
             auto tmp2 = m1 * ele.four * d1;
@@ -800,7 +800,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #endif
             m0 *= d0;
 #ifdef USE_GRAV_PAR
-                std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];

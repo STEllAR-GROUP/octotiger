@@ -72,7 +72,7 @@ public:
 		}
 #else
         hpx::parallel::fill(
-            hpx::parallel::dataseq_execution,
+            hpx::parallel::execution::dataseq,
             data.begin(), data.end(), d);
 #endif
 		return *this;
@@ -86,7 +86,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
+            hpx::parallel::execution::dataseq,
             data.begin(), data.end(), data.begin(),
             [d](auto const& val)
             {
@@ -104,7 +104,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
+            hpx::parallel::execution::dataseq,
             data.begin(), data.end(), data.begin(),
             [d](auto const& val)
             {
@@ -122,7 +122,7 @@ public:
 		}
 // #else
 //         hpx::parallel::transform(
-//             hpx::parallel::dataseq_execution,
+//             hpx::parallel::execution::dataseq,
 //             data.begin(), data.end(),
 //             other.data.begin(), other.data.end(), data.begin(),
 //             [](auto const& t1, auto const& t2)
@@ -141,7 +141,7 @@ public:
 		}
 // #else
 //         hpx::parallel::transform(
-//             hpx::parallel::dataseq_execution,
+//             hpx::parallel::execution::dataseq,
 //             data.begin(), data.end(),
 //             other.data.begin(), other.data.end(), data.begin(),
 //             [](auto const& t1, auto const& t2)
@@ -189,7 +189,7 @@ public:
 		}
 #else
         hpx::parallel::transform(
-            hpx::parallel::dataseq_execution,
+            hpx::parallel::execution::dataseq,
             r.data.begin(), r.data.end(), r.data.begin(),
             [](T const& val)
             {
@@ -203,7 +203,7 @@ public:
     friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs)
     {
         return hpx::parallel::equal(
-            hpx::parallel::dataseq_execution,
+            hpx::parallel::execution::dataseq,
             lhs.data.begin(), lhs.data.end(), rhs.data.begin(),
             [](T const& t1, T const& t2)
             {
