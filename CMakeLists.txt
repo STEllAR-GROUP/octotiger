@@ -14,7 +14,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # options
 ################################################################################
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
-option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" ON)
+option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 
 ################################################################################
 # Find required packages
