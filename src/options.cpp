@@ -36,122 +36,158 @@
 #define PROBLEM_OPT_MOVING_STAR "moving_star"
 
 bool options::cmp(const char* str1, const char* str2) {
-	return strncmp(str1, str2, strlen(str2)) == 0;
+    return strncmp(str1, str2, strlen(str2)) == 0;
 }
 
 bool options::cmp(const std::string str1, const char* str2) {
-	return strncmp(str1.c_str(), str2, strlen(str2)) == 0;
+    return strncmp(str1.c_str(), str2, strlen(str2)) == 0;
 }
 
 void options::show_help() {
-	printf("Command line options for Octo-tiger\n");
-	printf("-Problem=<problem name> - sets up the initial model\n");
-	printf("\t\t\t\tDWD - use SCF solver.\n");
-	printf("\t\t\t\tSod - Sod shock tube.\n");
-	printf("-Restart=<file name> - restart from a checkpoint file\n");
-	printf("-Output=<file name> - output restart to silo file and exit\n");
-	printf(
-			"-Max_level=<number of refined levels> - set maximum number of refinement levels\n");
-	printf("-Help - displays this help page\n");
+    printf( "Command line options for Octo-tiger\n\n"
+            "-AngCon=<1/0>                         - 1 (default) turns on the angular momentum conservation feature, 0 turns it off.\n"
+            "\n"
+    		"-Bench                                - Runs for a few time-steps then exit.\n"
+            "\n"
+            "-Disableoutput                        - Disables SILO and checkpoint output.\n"
+            "\n"
+            "-Eos=<equation of state>              - Sets the equation of state for pressure and energy\n"
+            "                                        ideal        - ideal gas equation of state\n"
+            "                                        wd           - white dwarf equation of state\n"
+            "\n"
+            "-Help                                 - Displays this help page and exits\n"
+            "\n"
+            "-Max_level=<number of refined levels> - Set maximum level of refinment.\n"
+            "\n"
+            "-Odt=<output frequency>               - Specifies the frequency for SILO output in units of simulation time.\n"
+            "\n"
+            "-Omega=<angular frequency>            - The grid rotates along z axis at x=0 and y=0 with this angular frequency (default 0.0). \n"
+            "                                        (Note that for the dwd problem this specifies only the initial value)\n"
+            "\n"
+            "-Output=<file name>                   - Load restart file, output to SILO, then exit. Used for converting checkpoints to SILO.\n"
+            "\n"
+            "-Problem=<problem name>               - Sets up the initial model\n"
+            "                                        blast        - Set up and run a Sedov-Taylor blast wave.\n"
+            "                                        dwd          - use SCF solver to find an initial model for a double white dwarf (see grid_scf.cpp for options). \n"
+            "                                                       Terminates after creating restart file.\n"
+            "                                        moving_star  - Set up a single equilibrium star moving across grid at constant velocity, then run.\n"
+            "                                        sod          - Set up and run a Sod shock tube.\n"
+            "                                        solid_sphere - Set up a constant density solid sphere, solve for gravity, then exit.\n"
+            "                                        star         - Set up a single equilibrium star at zero velocity, then run.\n"
+            "\n"
+            "-Restart=<file name>                  - Restart from a checkpoint file. If this option is not selected, Octo-tiger sets up the\n"
+            "                                        initial problem based on the -Problem option\n"
+            "\n"
+            "-Stopstep=<stop step>                 - The simulation runs until stop step number of steps have executed. The firs step from a restart file\n"
+            "                                        is counted as step one regardless of the number of steps prior to the restart (default is infinity).\n"
+            "                                        If the simulation time reaches the time specified by Stoptime first, Octotiger exits then.\n"
+            "\n"
+            "-Stoptime=<stop time>                 - The simulation runs until the simulation time hits the time specified here, or until the maximum\n"
+            "                                        number of steps specified by Stopstep. (default is infinity)\n"
+            "\n"
+            "-Theta                                - 'Opening criterion' for FMM (default 0.35). Must be between 1/3 and 1/2, inclusive. Larger values\n"
+            "                                        mean faster FMM execution but a higher solution error.\n"
+            "-Xscale=<xmax>                        - The domain of the coarsest grid is set to (-xmax,xmax) for each all three dimensions (default 1.0)\n"
+            "\n"
+            "");
 }
 
 bool options::process_options(int argc, char* argv[]) {
-	bool rc;
-	eos = IDEAL;
-	rc = true;
-	theta = 0.35;
-	max_level = 5;
-	problem = NONE;
-	found_restart_file = false;
-	output_only = false;
-	xscale = 2.0;
-	omega = -1.0;
-	exe_name = std::string(argv[0]);
-	contact_fill = 0.0;
-	output_dt = -1;
-	bench = false;
-	ang_con = true;
-	stop_time = std::numeric_limits < real > ::max();
-    stop_step = std::numeric_limits < integer >::max();
+    bool rc;
+    eos = IDEAL;
+    rc = true;
+    theta = 0.35;
+    max_level = 5;
+    problem = NONE;
+    found_restart_file = false;
+    output_only = false;
+    xscale = 2.0;
+    omega = -1.0;
+    exe_name = std::string(argv[0]);
+    contact_fill = 0.0;
+    output_dt = -1;
+    bench = false;
+    ang_con = true;
+    stop_time = std::numeric_limits<real>::max();
+    stop_step = std::numeric_limits<integer>::max();
     disable_output = false;
 
-	for (integer i = 1; i < argc; ++i) {
-		if (cmp(argv[i], HELP_OPT)) {
-			rc = false;
-		} else if (cmp(argv[i], PROBLEM_OPT)) {
-			std::string prob(argv[i] + strlen(PROBLEM_OPT) + 1);
-			if (cmp(prob, PROBLEM_OPT_DWD)) {
-				problem = DWD;
-				//	} else if (cmp(prob, PROBLEM_OPT_OLD_SCF)) {
-				//		problem = OLD_SCF;
-			} else if (cmp(prob, PROBLEM_OPT_SOLID_SPHERE)) {
-				problem = SOLID_SPHERE;
-			} else if (cmp(prob, PROBLEM_OPT_STAR)) {
-				problem = STAR;
-			} else if (cmp(prob, PROBLEM_OPT_MOVING_STAR)) {
-				problem = MOVING_STAR;
-			} else if (cmp(prob, PROBLEM_OPT_SOD)) {
-				problem = SOD;
-			} else if (cmp(prob, PROBLEM_OPT_BLAST)) {
-				problem = BLAST;
-			} else {
-				printf("The user specified an invalid problem type, \"%s\"\n",
-						prob.c_str());
-				rc = false;
-			}
-		} else if (cmp(argv[i], BENCH_OPT)) {
-			bench = true;
-		} else if (cmp(argv[i], EOS_OPT)) {
-			const char* str = argv[i] + strlen(EOS_OPT) + 1;
-			if( strncmp(str, "ideal", 3) == 0 ) {
-				eos = IDEAL;
-			} else if( strncmp( str, "wd", 2) == 0 ) {
-				eos = WD;
-			} else {
-				printf( "Unknown EOS specified - choose ideal or wd.\n");
-				abort();
-			}
-		} else if (cmp(argv[i], THETA_OPT)) {
-			theta = atof(argv[i] + strlen(THETA_OPT) + 1);
-		} else if (cmp(argv[i], RESTART_OPT)) {
-			restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
-			found_restart_file = true;
-		} else if (cmp(argv[i], OUTPUT_OPT)) {
-			output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
-			output_only = true;
-		} else if (cmp(argv[i], ANGCON_OPT)) {
-			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
-		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
-			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
-		} else if (cmp(argv[i], XSCALE_OPT)) {
-			xscale = atof(argv[i] + strlen(XSCALE_OPT) + 1);
-		} else if (cmp(argv[i], OMEGA_OPT)) {
-			omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
-		} else if (cmp(argv[i], ODT_OPT)) {
-			output_dt = atof(argv[i] + strlen(ODT_OPT) + 1);
+    for (integer i = 1; i < argc; ++i) {
+        if (cmp(argv[i], HELP_OPT)) {
+            rc = false;
+        } else if (cmp(argv[i], PROBLEM_OPT)) {
+            std::string prob(argv[i] + strlen(PROBLEM_OPT) + 1);
+            if (cmp(prob, PROBLEM_OPT_DWD)) {
+                problem = DWD;
+                //    } else if (cmp(prob, PROBLEM_OPT_OLD_SCF)) {
+                //        problem = OLD_SCF;
+            } else if (cmp(prob, PROBLEM_OPT_SOLID_SPHERE)) {
+                problem = SOLID_SPHERE;
+            } else if (cmp(prob, PROBLEM_OPT_STAR)) {
+                problem = STAR;
+            } else if (cmp(prob, PROBLEM_OPT_MOVING_STAR)) {
+                problem = MOVING_STAR;
+            } else if (cmp(prob, PROBLEM_OPT_SOD)) {
+                problem = SOD;
+            } else if (cmp(prob, PROBLEM_OPT_BLAST)) {
+                problem = BLAST;
+            } else {
+                printf("The user specified an invalid problem type, \"%s\"\n", prob.c_str());
+                rc = false;
+            }
+        } else if (cmp(argv[i], BENCH_OPT)) {
+            bench = true;
+        } else if (cmp(argv[i], EOS_OPT)) {
+            const char* str = argv[i] + strlen(EOS_OPT) + 1;
+            if (strncmp(str, "ideal", 3) == 0) {
+                eos = IDEAL;
+            } else if (strncmp(str, "wd", 2) == 0) {
+                eos = WD;
+            } else {
+                printf("Unknown EOS specified - choose ideal or wd.\n");
+                abort();
+            }
+        } else if (cmp(argv[i], THETA_OPT)) {
+            theta = atof(argv[i] + strlen(THETA_OPT) + 1);
+        } else if (cmp(argv[i], RESTART_OPT)) {
+            restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
+            found_restart_file = true;
+        } else if (cmp(argv[i], OUTPUT_OPT)) {
+            output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
+            output_only = true;
+        } else if (cmp(argv[i], ANGCON_OPT)) {
+            ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
+        } else if (cmp(argv[i], MAX_LEVEL_OPT)) {
+            max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
+        } else if (cmp(argv[i], XSCALE_OPT)) {
+            xscale = atof(argv[i] + strlen(XSCALE_OPT) + 1);
+        } else if (cmp(argv[i], OMEGA_OPT)) {
+            omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
+        } else if (cmp(argv[i], ODT_OPT)) {
+            output_dt = atof(argv[i] + strlen(ODT_OPT) + 1);
         } else if (cmp(argv[i], DISABLEOUTPUT_OPT)) {
             disable_output = true;
-		} else if (cmp(argv[i], STOPTIME_OPT)) {
-			stop_time = atof(argv[i] + strlen(STOPTIME_OPT) + 1);
-		} else if (cmp(argv[i], STOPSTEP_OPT)) {
+        } else if (cmp(argv[i], STOPTIME_OPT)) {
+            stop_time = atof(argv[i] + strlen(STOPTIME_OPT) + 1);
+        } else if (cmp(argv[i], STOPSTEP_OPT)) {
             stop_step = atoi(argv[i] + strlen(STOPSTEP_OPT) + 1);
-		} else {
-			printf("Unknown option - %s\n", argv[i]);
-			abort();
-		}
-	}
-	if( output_dt < 0 ) {
-		if( omega > 0.0 ) {
-			output_dt = (2.0 * M_PI / omega) / 100.0;
-		} else {
-	 		output_dt = 1.0e-2;
-		}
-	}
-	if (!rc) {
-		show_help();
-	}
-	theta = std::max(1.0 / 3.0, theta);
-	theta = std::min(1.0 / 2.0, theta);
-	grid::set_omega(omega);
-	return rc;
+        } else {
+            printf("Unknown option - %s\n", argv[i]);
+            abort();
+        }
+    }
+    if (output_dt < 0) {
+        if (omega > 0.0) {
+            output_dt = (2.0 * M_PI / omega) / 100.0;
+        } else {
+            output_dt = 1.0e-2;
+        }
+    }
+    if (!rc) {
+        show_help();
+    }
+    theta = std::max(1.0 / 3.0, theta);
+    theta = std::min(1.0 / 2.0, theta);
+    grid::set_omega(omega);
+    return rc;
 }
