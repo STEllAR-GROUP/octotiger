@@ -313,10 +313,15 @@ void grid::compute_interactions(gsolve_type type) {
                     const integer iii1 = this_ilist[li + i].second;
                     expansion& Liii0 = L[iii0];
                     expansion& Liii1 = L[iii1];
+
+                    expansion tmp1, tmp2;
+#pragma GCC ivdep
                     for (integer j = 0; j != taylor_sizes[3]; ++j) {
-                        Liii0[j] += A0[j][i];
-                        Liii1[j] += A1[j][i];
+                        tmp1[j] = A0[j][i];
+                        tmp2[j] = A1[j][i];
                     }
+                    Liii0 += tmp1;
+                    Liii1 += tmp2;
 
                     if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
@@ -417,7 +422,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
             load_multipole(m0, Y, mpoles, index, false);
 
             std::array<simd_vector, NDIM> simdY = {
-                simd_vector(Y[0]), simd_vector(Y[1]), simd_vector(Y[2]),
+                simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])),
             };
 
             const integer list_size = bnd.first.size();
@@ -513,10 +518,12 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                     const integer iii0 = bnd.first[li + i];
                     expansion& Liii0 = L[iii0];
 
+                    expansion tmp;
 #pragma GCC ivdep
-                    for (integer j = 0; j != 20; ++j) {
-                        Liii0[j] +=  A0[j][i];
+                    for (integer j = 0; j != taylor_sizes[3]; ++j) {
+                        tmp[j] = A0[j][i];
                     }
+                    Liii0 += tmp;
 
                     if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
@@ -554,7 +561,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
             load_multipole(m0, Y, mpoles, index, false);
 
             std::array<simd_vector, NDIM> simdY = {
-                simd_vector(Y[0]), simd_vector(Y[1]), simd_vector(Y[2]),
+                simd_vector(real(Y[0])), simd_vector(real(Y[1])), simd_vector(real(Y[2])),
             };
 
             if (type == RHO) {

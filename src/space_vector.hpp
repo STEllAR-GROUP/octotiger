@@ -8,10 +8,14 @@
 #ifndef SPACE_VECTOR_HPP_
 #define SPACE_VECTOR_HPP_
 
+#include "defs.hpp"
+
 #include <cmath>
 
+#if !defined(HPX_HAVE_DATAPAR)
+
 template<class T = real>
-class space_vector_gen: public std::array<T, NDIM> {
+class space_vector_gen : public std::array<T, NDIM> {
 public:
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {
@@ -100,5 +104,14 @@ public:
 };
 
 using space_vector = space_vector_gen<real>;
+
+#else
+
+#include <hpx/parallel/traits/vector_pack_type.hpp>
+#include <hpx/runtime/serialization/datapar.hpp>
+
+using space_vector = typename hpx::parallel::traits::vector_pack_type<real, 4>::type;
+
+#endif
 
 #endif /* SPACE_VECTOR_HPP_ */
