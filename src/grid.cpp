@@ -143,11 +143,12 @@ void grid::set_hydro_boundary(const std::vector<real>& data, const geo::directio
 	integer iter = 0;
 
 	for (integer field = 0; field != NF; ++field) {
+        auto& Ufield = U[field];
 		if (!etot_only || (etot_only && field == egas_i)) {
 			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-						U[field][hindex( i, j, k)] = data[iter];
+						Ufield[hindex(i, j, k)] = data[iter];
 						++iter;
 					}
 				}

@@ -150,9 +150,8 @@ hpx::future<void> node_server::exchange_interlevel_hydro_data() {
 
 hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
     std::vector<hpx::future<void>> futs;
-    constexpr auto full_set = geo::direction::full_set();
-    futs.reserve(full_set.size());
-    for (auto& dir : full_set) {
+    futs.reserve(geo::direction::count());
+    for (auto& dir : geo::direction::full_set()) {
 //		if (!dir.is_vertex()) {
         if (!neighbors[dir].empty()) {
 //				const integer width = dir.is_face() ? H_BW : 1;
@@ -163,16 +162,19 @@ hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
 //		}
     }
 
+    std::vector<hpx::future<void> > results;
+    results.reserve(geo::direction::count());
     for (auto& dir : geo::direction::full_set()) {
-//		if (!dir.is_vertex()) {
         if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-            auto tmp = sibling_hydro_channels[dir].get_future().get();
-            //				const integer width = dir.is_face() ? H_BW : 1;
-            const integer width = H_BW;
-            grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, width, tau_only);
+            results.push_back(sibling_hydro_channels[dir].get_future().then(
+                [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
+                {
+                    auto&& tmp = f.get();
+                    grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, H_BW, tau_only);
+                }));
         }
-//		}
     }
+    wait_all_and_propagate_exceptions(std::move(results));
 
     for (auto& face : geo::face::full_set()) {
         if (my_location.is_physical_boundary(face)) {
