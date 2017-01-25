@@ -165,22 +165,22 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
     void recv_hydro_boundary(std::vector<real>&&, const geo::direction&);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
 
     void recv_hydro_children(std::vector<real>&&, const geo::octant& ci);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
     void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
         const geo::octant& ci);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
     void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
         bool monopole);
     void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
     void recv_gravity_expansions(expansion_pass_type&&);
 
-    HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
 
     hpx::future<void> step();
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
@@ -212,14 +212,14 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, copy_to_locality, copy_to_locality_action);
 
     hpx::id_type get_child_client(const geo::octant&);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, get_child_client, get_child_client_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
     void form_tree(const hpx::id_type&, const hpx::id_type&,
         const std::vector<hpx::id_type>&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
     std::uintptr_t get_ptr();
-    HPX_DEFINE_COMPONENT_ACTION(node_server, get_ptr, get_ptr_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_ptr, get_ptr_action);
 
     analytic_t compare_analytic();
     HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
@@ -242,7 +242,7 @@ public:
 
     std::vector<hpx::id_type> get_nieces(const hpx::id_type&,
         const geo::face& face) const;
-    HPX_DEFINE_COMPONENT_ACTION(node_server, get_nieces, get_nieces_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_nieces, get_nieces_action);
 
     bool check_for_refinement();
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
