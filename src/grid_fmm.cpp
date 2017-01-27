@@ -811,12 +811,13 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
 #endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
-                    expansion& Liii0 = L[iii0];
 
+                    expansion tmp;
 #pragma GCC ivdep
-                    for (integer j = 0; j != 20; ++j) {
-                        Liii0[j] += A0[j][i];
+                    for (integer j = 0; j != taylor_sizes[3]; ++j) {
+                        tmp[j] = A0[j][i];
                     }
+                    L[iii0] += tmp;
 
                     if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
@@ -849,7 +850,6 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             const integer dsize = bnd.first.size();
-            const integer lev = 0;
             integer index = mpoles.is_local ? bnd.second : si;
 #if !defined(HPX_HAVE_DATAPAR)
             const auto tmp = (*(mpoles).m)[index];
