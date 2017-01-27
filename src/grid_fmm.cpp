@@ -30,7 +30,7 @@ static std::vector<interaction_type> ilist_n;
 // monopole-monopole interactions? (David)
 static std::vector<interaction_type> ilist_d;
 // interactions of root node (empty list? boundary stuff?) (David)
-static std::vector<interaction_type> ilist_r; 
+static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>>
     ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>>
@@ -171,11 +171,21 @@ void grid::solve_gravity(gsolve_type type) {
 void grid::compute_interactions(gsolve_type type) {
   PROF_BEGIN;
 
+	// calculating the contribution of all the inner cells
+	// calculating the interaction
+
   auto &mon = *mon_ptr;
+	// L stores the gravitational potentatial (Dominic)
+		// L should be L, (10) in the paper
+	// L_c stores the correction for angular momentum (Dominic)
+	// L_c, (20) in the paper (Dominic)
   std::fill(std::begin(L), std::end(L), ZERO);
   if (opts.ang_con) {
     std::fill(std::begin(L_c), std::end(L_c), ZERO);
   }
+
+	// Non-leaf nodes use taylor expansion
+	// For leaf node, calculates the gravitational potential between two particles
   if (!is_leaf) {
     // Non-leaf means that multipole-multipole interaction (David)
 
@@ -184,22 +194,27 @@ void grid::compute_interactions(gsolve_type type) {
     const integer list_size = this_ilist.size();
 
     // Space vector is a vector pack (David)
-    // What does the comp vector-vector store? (David)
+		// Center of masses of each cell (com_ptr1 is the center of mass of the parent cell)
     std::vector<space_vector> const &com0 = (*(com_ptr[0]));
-    // Do 8 interactions at the same time (simd.hpp) (David)
+    // Do 8 cell-cell interactions at the same time (simd.hpp) (Dominic)
     // This could lead to problems either on Haswell or on KNL as the number is hardcoded (David)
-    // It is unclear what the underlying vectorization library does, if simd_len > architectural length (David) 
+    // It is unclear what the underlying vectorization library does, if simd_len > architectural length (David)
     hpx::parallel::for_loop_strided(
         for_loop_policy, 0, list_size, simd_len,
         [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
 	  // variable for every dimension (per simd element, SoA style) (David)
+					// dX is distance between X and Y
+					// X and Y are the two cells interacting
+					// X and Y store the 3D center of masses
           std::array<simd_vector, NDIM> dX;
           std::array<simd_vector, NDIM> X;
           std::array<simd_vector, NDIM> Y;
 
+					// m multipole-moments of the cells
           taylor<4, simd_vector> m0;
           taylor<4, simd_vector> m1;
+					// n angular momentum of the cells
           taylor<4, simd_vector> n0;
           taylor<4, simd_vector> n1;
 
@@ -207,6 +222,8 @@ void grid::compute_interactions(gsolve_type type) {
           auto &M = *M_ptr;
 	  // No idea what the next loop does. It seems to fetch data (David)
 // FIXME: replace with vector-pack gather-loads
+
+					// only uses first 10 coefficients
 #pragma GCC ivdep
           for (integer i = 0; i != simd_len; ++i) {
             const auto index =
@@ -216,18 +233,29 @@ void grid::compute_interactions(gsolve_type type) {
             space_vector const &com0iii0 = com0[iii0];
             space_vector const &com0iii1 = com0[iii1];
             for (integer d = 0; d < NDIM; ++d) {
+							// load the 3D center of masses
               X[d][i] = com0iii0[d];
               Y[d][i] = com0iii1[d];
             }
+
+						// cell specific taylor series coefficients
             multipole const &Miii0 = M[iii0];
             multipole const &Miii1 = M[iii1];
             for (integer j = 0; j != taylor_sizes[3]; ++j) {
               m0[j][i] = Miii1[j];
               m1[j][i] = Miii0[j];
             }
+
+						// RHO computes the gravitational potential based on the mass density
+						// non-RHO computes the time derivative (hydrodynamics code V_t)
             if (type == RHO) {
+							// this branch computes the angular momentum correction, (20) in the paper
+							// divide by mass of other cell
               real const tmp1 = Miii1() / Miii0();
               real const tmp2 = Miii0() / Miii1();
+							// calculating the coeffcieints for formula (M are the octopole moments)
+							// the coefficients are calculated in (17) and (18)
+							// TODO: Dominic
               for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                 n0[j][i] = Miii1[j] - Miii0[j] * tmp1;
                 n1[j][i] = Miii0[j] - Miii1[j] * tmp2;
@@ -242,19 +270,28 @@ void grid::compute_interactions(gsolve_type type) {
               n1[j] = ZERO;
             }
           }
+
+					// distance between cells in all dimensions
 #pragma GCC ivdep
           for (integer d = 0; d < NDIM; ++d) {
             dX[d] = X[d] - Y[d];
           }
 
+					// R_i in paper is the dX in the code
+					// D is taylor expansion value for a given X expansion of the gravitational potential (multipole expansion)
           taylor<5, simd_vector> D;
+					// A0, A1 are the contributions to L (for each cell)
           taylor<4, simd_vector> A0, A1;
+					// B0, B1 are the contributions to L_c (for each cell)
           std::array<simd_vector, NDIM> B0 = {
               simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)};
           std::array<simd_vector, NDIM> B1 = {
               simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)};
 
+					// calculates all D-values, calculate all coefficients of 1/r (not the potential), formula (6)-(9) and (19)
           D.set_basis(dX);
+
+					// the following loops calculate formula (10), potential from A->B and B->A (basically alternating)
           A0[0] = m0[0] * D[0];
           A1[0] = m1[0] * D[0];
           if (type != RHO) {
@@ -325,6 +362,8 @@ void grid::compute_interactions(gsolve_type type) {
 #ifdef USE_GRAV_PAR
           std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
+
+					// potential and correction have been computed, no scatter the results
           for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
             const integer iii0 = this_ilist[li + i].first;
             const integer iii1 = this_ilist[li + i].second;
@@ -356,11 +395,15 @@ void grid::compute_interactions(gsolve_type type) {
     const v4sd d1 = {1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
 #else
 
+		// first compute potential and the the three components of the force
+		// vectorizating across across the dimensions, therefore 1 component for the potential + 3 components for the force
+
     // Coefficients for potential evaluation? (David)
     const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx),
                                        +1.0 / sqr(dx)};
     const v4sd d0(di0.data());
 
+		// negative of d0 because it's the force in the opposite direction
     const std::array<double, 4> di1 = {1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx),
                                        -1.0 / sqr(dx)};
     const v4sd d1(di1.data());
@@ -388,6 +431,7 @@ void grid::compute_interactions(gsolve_type type) {
       }
 #else
       // fetch both interacting bodies (monopoles) (David)
+			// broadcasts a single value
       v4sd m0 = mon[iii1];
       v4sd m1 = mon[iii0];
 #endif
@@ -395,14 +439,12 @@ void grid::compute_interactions(gsolve_type type) {
       std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
 
-      // Do the expansions also accumulate the forces? (David)
-      
-      // Probably actual interaction between to bodies? (David)
+			// potential and force calculation
       auto tmp1 = m0 * ele.four * d0;
       auto tmp2 = m1 * ele.four * d1;
       // Expansion is typedef to taylor<4, real> (David)
-      // Guess: Accumulate the influence of the body on the other body (and vice versa) (David)
-      expansion &Liii0 = L[iii0]; 
+			// update the results, this is a scatter operation
+      expansion &Liii0 = L[iii0];
       expansion &Liii1 = L[iii1];
 
       // Strange: A taylor<4> creates a array of size 20?

@@ -396,6 +396,10 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     constexpr integer N = 5;
     using T = simd_vector;
     //PROF_BEGIN;
+
+		// also highly optimized
+
+		// A is D in the paper in formula (6)
     taylor<N, T>& A = *this;
 
 	const T r2 = sqr(X[0]) + sqr(X[1]) + sqr(X[2]);
@@ -410,15 +414,13 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 //     where(r2 > 0.0) | r2inv = ONE / r2;
 // #endif
 
+	// parts of formula (6)
     const T d0 = -sqrt(r2inv);
-
-    // 1 MUL
+		// parts of formula (7)
     const T d1 = -d0 * r2inv;
-
-    // 2 MULS
+		// parts of formula (8)
     const T d2 = T(-3) * d1 * r2inv;
-
-    // 2 MULS
+		// parts of  formula (9)
     const T d3 = T(-5) * d2 * r2inv;
 //     const T d4 = -T(7) * d3 * r2inv;
 
@@ -474,16 +476,21 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 //     }
 
     ///////////////////////////////////////////////////////////////////////////
+
+		// forumla (6)
     A[0] = d0;
+		// forumla (7)
     for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
         A[i] = X[a] * d1;
     }
+		// forumla (8)
     for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
-        T const Xad2 = X[a] * d2;
-        for (integer b = a; b != NDIM; ++b, ++i) {
-            A[i] = Xad2 * X[b];
-        }
+			T const Xad2 = X[a] * d2;
+			for (integer b = a; b != NDIM; ++b, ++i) {
+				A[i] = Xad2 * X[b];
+			}
     }
+		// formula (9)
     for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
         T const Xad3 = X[a] * d3;
         for (integer b = a; b != NDIM; ++b) {
@@ -493,11 +500,17 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
             }
         }
     }
+
+
+    ///////////////////////////////////////////////////////////////////////////
+
+		// calculation of formula (19)
+
+		// set the coefficients to zero that are calculated next
     for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
         A[i] = ZERO;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
     auto const d22 = 2.0 * d2;
     for (integer a = 0; a != NDIM; a++) {
         auto const Xad2 = X[a] * d2;
