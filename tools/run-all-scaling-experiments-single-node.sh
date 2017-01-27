@@ -1,7 +1,8 @@
 #!/bin/bash
 
 name=node_level_scaling
-threads_per_job=15
+jobs_per_thread_scaling_experiment=6
+job_increment=${jobs}
 
 job_count=0
 
@@ -13,11 +14,9 @@ do
 	echo level: ${level}
 	# min
 	threads=1
-	max_threads=68
-	while [ ${threads} -le ${max_threads} ]; do
-	    echo "threads from: ${threads} to: $[${threads}+${threads_per_job}] (limited to 68)"
-	    sbatch -N 1 -n 1 -J \"octotiger_N1_l${level}_t${threads}\" scaling-experiment-single-node.sh ${name} ${level} ${memory_type} ${threads} $[${threads}+${threads_per_job}]
-	    let threads=threads+${threads_per_job}
+	while [ ${threads} -le ${jobs_per_thread_scaling_experiment} ]; do
+	    sbatch -N 1 -n 1 -J \"octotiger_N1_l${level}_t${threads}\" scaling-experiment-single-node.sh ${name} ${level} ${memory_type} ${threads} ${jobs_per_thread_scaling_experiment}
+	    let threads=threads+1
 	    let job_count=job_count+1
 	done
     done
