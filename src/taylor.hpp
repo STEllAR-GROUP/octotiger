@@ -170,7 +170,7 @@ public:
         return *this;
     }
 
-    taylor<N, T>& operator+=(v4sd& other) {
+    taylor<N, T>& operator+=(v4sd const& other) {
 #pragma GCC ivdep
         for (integer i = 0; i != 4; ++i) {
             data[i] += other[i];
