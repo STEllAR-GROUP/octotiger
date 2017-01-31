@@ -172,11 +172,12 @@ std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, integer wi
 	integer iter = 0;
 
 	for (integer field = 0; field != NF; ++field) {
+        auto& Ufield = U[field];
 		if (!etot_only || (etot_only && field == egas_i)) {
 			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-						data[iter] = U[field][hindex( i, j, k)];
+						data[iter] = Ufield[hindex(i, j, k)];
 						++iter;
 					}
 				}
@@ -1368,7 +1369,9 @@ void grid::allocate() {
 
 	set_coordinates();
 
+#ifdef USE_GRAV_PAR
     L_mtx.reset(new hpx::lcos::local::spinlock);
+#endif
 
 	PROF_END;
 }

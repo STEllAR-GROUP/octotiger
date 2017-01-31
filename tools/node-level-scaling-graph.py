@@ -4,6 +4,23 @@ import matplotlib.pyplot as plt
 import re
 import os
 
+from optparse import OptionParser
+
+parser = OptionParser()
+parser.add_option("-d", "--display", dest="display",
+                  action="store_true", default=False,
+                  help="display the graphs in a window")
+parser.add_option("-w", "--write-files",
+                  dest="write_files",
+                  action="store_true", default=False,
+                  help="don't print status messages to stdout")
+
+(options, args) = parser.parse_args()
+
+if options.display == None and options.write_files == None:
+    print "no options set, nothing to do, (see \"--help\")"
+    exit()
+
 # font = {'family' : 'normal',
 #         'weight' : 'normal',
 #         'size'   : 18}
@@ -79,9 +96,11 @@ for memory_type in performance_tuples.keys():
 
 plt.xlabel('threads')
 plt.ylabel('time (s)')
-plt.savefig("total_time.svg")
-plt.savefig("total_time.png")
-plt.show()
+if options.write_files:
+    # plt.savefig("total_time.svg")
+    plt.savefig("total-time.png")
+if options.display:
+    plt.show()
 
 plt.close()
 
@@ -112,6 +131,8 @@ for memory_type in performance_tuples.keys():
 
 plt.xlabel('threads')
 plt.ylabel('parallel efficiency')
-plt.savefig("parallel_efficiency.svg")
-plt.savefig("parallel_efficiency.png")
-plt.show()
+if options.write_files:
+    # plt.savefig("parallel_efficiency.svg")
+    plt.savefig("parallel-efficiency.png")
+if options.display:
+    plt.show()

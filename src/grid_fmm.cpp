@@ -5,9 +5,9 @@
  *      Author: dmarce1
  */
 #include "grid.hpp"
-#include "simd.hpp"
-#include "profiler.hpp"
 #include "options.hpp"
+#include "profiler.hpp"
+#include "simd.hpp"
 #include "taylor.hpp"
 
 #include <hpx/include/parallel_for_loop.hpp>
@@ -21,17 +21,24 @@ const auto for_loop_policy = hpx::parallel::execution::par;
 const auto for_loop_policy = hpx::parallel::execution::seq;
 #endif
 
+// why not lists per cell? (David)
+// is a grid actually a cell? (David)
+// what is the semantics of a space_vector? (David)
 
+// non-root and non-leaf node (David)
 static std::vector<interaction_type> ilist_n;
+// monopole-monopole interactions? (David)
 static std::vector<interaction_type> ilist_d;
+// interactions of root node (empty list? boundary stuff?) (David)
 static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
 static taylor<4, real> factor;
 extern options opts;
 
-template<class T>
-void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_type& data, integer iter, bool monopole) {
+template <class T>
+void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_type& data,
+    integer iter, bool monopole) {
     if (monopole) {
         m = T(0.0);
         m = T((*(data.m))[iter]);
@@ -107,7 +114,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
         for (integer j = 0; j != G_NX; ++j) {
             for (integer k = 0; k != G_NX; ++k) {
                 const integer iii1 = gindex(i, j, k);
-                const integer iii0 = gindex(i + H_BW , j + H_BW , k + H_BW );
+                const integer iii0 = gindex(i + H_BW, j + H_BW, k + H_BW);
                 space_vector const& com0iii1 = com0[iii1];
                 multipole const& Miii1 = M[iii1];
                 for (integer n = 0; n != NDIM; ++n) {
@@ -152,7 +159,6 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 }
 
 void grid::solve_gravity(gsolve_type type) {
-
     compute_multipoles(type);
     compute_interactions(type);
     compute_expansions(type);
@@ -160,53 +166,89 @@ void grid::solve_gravity(gsolve_type type) {
 
 void grid::compute_interactions(gsolve_type type) {
     PROF_BEGIN;
-    auto& M = *M_ptr;
+
+    // calculating the contribution of all the inner cells
+    // calculating the interaction
+
     auto& mon = *mon_ptr;
+    // L stores the gravitational potentatial
+    // L should be L, (10) in the paper
+    // L_c stores the correction for angular momentum
+    // L_c, (20) in the paper (Dominic)
     std::fill(std::begin(L), std::end(L), ZERO);
-    if( opts.ang_con) {
-    	std::fill(std::begin(L_c), std::end(L_c), ZERO);
+    if (opts.ang_con) {
+        std::fill(std::begin(L_c), std::end(L_c), ZERO);
     }
+
+    // Non-leaf nodes use taylor expansion
+    // For leaf node, calculates the gravitational potential between two particles
     if (!is_leaf) {
+        // Non-leaf means that multipole-multipole interaction (David)
+        // Fetch the interaction list for the current cell (David)
         const auto& this_ilist = is_root ? ilist_r : ilist_n;
         const integer list_size = this_ilist.size();
 
+        // Space vector is a vector pack (David)
+        // Center of masses of each cell (com_ptr1 is the center of mass of the parent cell)
         std::vector<space_vector> const& com0 = (*(com_ptr[0]));
-        hpx::parallel::for_loop_strided(
-            for_loop_policy, 0, list_size, simd_len,
+        // Do 8 cell-cell interactions at the same time (simd.hpp) (Dominic)
+        // This could lead to problems either on Haswell or on KNL as the number is hardcoded
+        // (David)
+        // It is unclear what the underlying vectorization library does, if simd_len > architectural
+        // length (David)
+        hpx::parallel::for_loop_strided(for_loop_policy, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
+                // dX is distance between X and Y
+                // X and Y are the two cells interacting
+                // X and Y store the 3D center of masses (per simd element, SoA style)
                 std::array<simd_vector, NDIM> dX;
                 std::array<simd_vector, NDIM> X;
                 std::array<simd_vector, NDIM> Y;
 
+                // m multipole moments of the cells
                 taylor<4, simd_vector> m0;
                 taylor<4, simd_vector> m1;
+                // n angular momentum of the cells
                 taylor<4, simd_vector> n0;
                 taylor<4, simd_vector> n1;
 
+                // vector of multipoles (== taylor<4>s)
+                // here the multipoles are used as a storage of expansion coefficients
                 auto& M = *M_ptr;
-                auto& mon = *mon_ptr;
+
                 // FIXME: replace with vector-pack gather-loads
+                // TODO: only uses first 10 coefficients? ask Dominic
 #pragma GCC ivdep
-                for (integer i = 0; i != simd_len; ++i) {
-                    const auto index = std::min(integer(li + i),integer(list_size-1));
-                    const integer iii0 = this_ilist[index].first;
-                    const integer iii1 = this_ilist[index].second;
+                for (integer i = 0; i != simd_len && integer(li + i) < list_size; ++i) {
+                    const integer iii0 = this_ilist[li + i].first;
+                    const integer iii1 = this_ilist[li + i].second;
                     space_vector const& com0iii0 = com0[iii0];
                     space_vector const& com0iii1 = com0[iii1];
                     for (integer d = 0; d < NDIM; ++d) {
+                        // load the 3D center of masses
                         X[d][i] = com0iii0[d];
                         Y[d][i] = com0iii1[d];
                     }
+
+                    // cell specific taylor series coefficients
                     multipole const& Miii0 = M[iii0];
                     multipole const& Miii1 = M[iii1];
                     for (integer j = 0; j != taylor_sizes[3]; ++j) {
                         m0[j][i] = Miii1[j];
                         m1[j][i] = Miii0[j];
                     }
+
+                    // RHO computes the gravitational potential based on the mass density
+                    // non-RHO computes the time derivative (hydrodynamics code V_t)
                     if (type == RHO) {
+                        // this branch computes the angular momentum correction, (20) in the paper
+                        // divide by mass of other cell
                         real const tmp1 = Miii1() / Miii0();
                         real const tmp2 = Miii0() / Miii1();
+                        // calculating the coeffcieints for formula (M are the octopole moments)
+                        // the coefficients are calculated in (17) and (18)
+                        // TODO: Dominic
                         for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                             n0[j][i] = Miii1[j] - Miii0[j] * tmp1;
                             n1[j][i] = Miii0[j] - Miii1[j] * tmp2;
@@ -221,21 +263,31 @@ void grid::compute_interactions(gsolve_type type) {
                         n1[j] = ZERO;
                     }
                 }
+
+// distance between cells in all dimensions
 #pragma GCC ivdep
                 for (integer d = 0; d < NDIM; ++d) {
                     dX[d] = X[d] - Y[d];
                 }
 
+                // R_i in paper is the dX in the code
+                // D is taylor expansion value for a given X expansion of the gravitational
+                // potential (multipole expansion)
                 taylor<5, simd_vector> D;
+                // A0, A1 are the contributions to L (for each cell)
                 taylor<4, simd_vector> A0, A1;
+                // B0, B1 are the contributions to L_c (for each cell)
                 std::array<simd_vector, NDIM> B0 = {
-                    simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)
-                };
+                    simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)};
                 std::array<simd_vector, NDIM> B1 = {
-                    simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)
-                };
+                    simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)};
 
+                // calculates all D-values, calculate all coefficients of 1/r (not the potential),
+                // formula (6)-(9) and (19)
                 D.set_basis(dX);
+
+                // the following loops calculate formula (10), potential from A->B and B->A
+                // (basically alternating)
                 A0[0] = m0[0] * D[0];
                 A1[0] = m1[0] * D[0];
                 if (type != RHO) {
@@ -256,7 +308,7 @@ void grid::compute_interactions(gsolve_type type) {
                 }
 
                 for (integer a = 0; a < NDIM; ++a) {
-                    A0(a) =  m0() * D(a);
+                    A0(a) = m0() * D(a);
                     A1(a) = -m1() * D(a);
                     for (integer b = 0; b < NDIM; ++b) {
                         if (type != RHO) {
@@ -268,7 +320,6 @@ void grid::compute_interactions(gsolve_type type) {
                             A0(a) += m0(c, b) * tmp1;
                             A1(a) -= m1(c, b) * tmp1;
                         }
-
                     }
                 }
 
@@ -283,7 +334,6 @@ void grid::compute_interactions(gsolve_type type) {
                                 }
                             }
                         }
-
                     }
                 }
 
@@ -296,23 +346,22 @@ void grid::compute_interactions(gsolve_type type) {
                             A0(a, b) -= m0(c) * tmp;
                             A1(a, b) += m1(c) * tmp;
                         }
-
                     }
                 }
 
                 for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
                     const auto& tmp = D[i];
                     A1[i] = -m1[0] * tmp;
-                    A0[i] =  m0[0] * tmp;
+                    A0[i] = m0[0] * tmp;
                 }
 #ifdef USE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
+
+                // potential and correction have been computed, no scatter the results
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;
                     const integer iii1 = this_ilist[li + i].second;
-                    expansion& Liii0 = L[iii0];
-                    expansion& Liii1 = L[iii1];
 
                     expansion tmp1, tmp2;
 #pragma GCC ivdep
@@ -320,8 +369,8 @@ void grid::compute_interactions(gsolve_type type) {
                         tmp1[j] = A0[j][i];
                         tmp2[j] = A1[j][i];
                     }
-                    Liii0 += tmp1;
-                    Liii1 += tmp2;
+                    L[iii0] += tmp1;
+                    L[iii1] += tmp2;
 
                     if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
@@ -335,20 +384,35 @@ void grid::compute_interactions(gsolve_type type) {
             });
     } else {
 #if !defined(HPX_HAVE_DATAPAR)
-        const v4sd d0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
-        const v4sd d1 = { 1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx) };
+        const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
+        const v4sd d1 = {1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
 #else
-        const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
+
+        // first compute potential and the the three components of the force
+        // vectorizating across across the dimensions, therefore 1 component for the potential + 3
+        // components for the force
+
+        // Coefficients for potential evaluation? (David)
+        const std::array<double, 4> di0 = {
+            1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
         const v4sd d0(di0.data());
 
-        const std::array<double, 4> di1 = { 1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx) };
+        // negative of d0 because it's the force in the opposite direction
+        const std::array<double, 4> di1 = {
+            1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
         const v4sd d1(di1.data());
 #endif
 
+        // Number of body-body interactions current leaf cell, probably includes interactions with
+        // bodies in neighboring cells  (David)
         const integer dsize = ilist_d.size();
-        const integer lev = 0;
+
+        // Iterate interaction description between bodies in the current cell and closeby bodies
+        // (David)
         for (integer li = 0; li < dsize; ++li) {
+            // Retrieve the interaction description for the current body (David)
             const auto& ele = ilist_d[li];
+            // Extract the indices of the two interacting bodies (David)
             const integer iii0 = ele.first;
             const integer iii1 = ele.second;
 #if !defined(HPX_HAVE_DATAPAR)
@@ -361,28 +425,28 @@ void grid::compute_interactions(gsolve_type type) {
             for (integer i = 0; i != 4; ++i) {
                 m1[i] = mon[iii0];
             }
-#else
-            v4sd m0 = mon[iii1];
-            v4sd m1 = mon[iii0];
-#endif
+
 #ifdef USE_GRAV_PAR
             std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
-            auto tmp1 =  m0 * ele.four * d0;
-            auto tmp2 = m1 * ele.four * d1;
-            expansion& Liii0 = L[iii0];
-            expansion& Liii1 = L[iii1];
-#pragma GCC ivdep
-            for(integer i = 0; i != 4; ++i) {
-                Liii0[i] += tmp1[i];
-                Liii1[i] += tmp2[i];
-            }
+            L[iii0] += m0 * ele.four * d0;
+            L[iii1] += m1 * ele.four * d1;
+#else
+#ifdef USE_GRAV_PAR
+            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
+#endif
+            // fetch both interacting bodies (monopoles) (David)
+            // broadcasts a single value
+            L[iii0] += mon[iii1] * ele.four * d0;
+            L[iii1] += mon[iii0] * ele.four * d1;
+#endif
         }
     }
     PROF_END;
 }
 
-void grid::compute_boundary_interactions(gsolve_type type, const geo::direction& dir, bool is_monopole, const gravity_boundary_type& mpoles) {
+void grid::compute_boundary_interactions(gsolve_type type, const geo::direction& dir,
+    bool is_monopole, const gravity_boundary_type& mpoles) {
     if (!is_leaf) {
         if (!is_monopole) {
             compute_boundary_interactions_multipole_multipole(type, ilist_n_bnd[dir], mpoles);
@@ -396,18 +460,17 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
             compute_boundary_interactions_monopole_monopole(type, ilist_d_bnd[dir], mpoles);
         }
     }
-
 }
 
-void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>& ilist_n_bnd,
+void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
+    const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
-    hpx::parallel::for_loop(
-        for_loop_policy, 0, ilist_n_bnd.size(),
+    hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -428,9 +491,8 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
             const integer list_size = bnd.first.size();
             for (integer li = 0; li < list_size; li += simd_len) {
 #pragma GCC ivdep
-                for (integer i = 0; i != simd_len; ++i) {
-                    const auto index = std::min(integer(li + i), integer(list_size-1));
-                    const integer iii0 = bnd.first[index];
+                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
                         X[d][i] = com0iii0[d];
@@ -457,8 +519,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                 taylor<5, simd_vector> D;
                 taylor<4, simd_vector> A0;
                 std::array<simd_vector, NDIM> B0 = {
-                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)
-                };
+                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)};
 
                 D.set_basis(dX);
                 A0[0] = m0[0] * D[0];
@@ -509,7 +570,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                     }
                 }
                 for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-                    A0[i] =  m0[0] * D[i];
+                    A0[i] = m0[0] * D[i];
                 }
 #ifdef USE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
@@ -529,7 +590,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] +=  B0[j][i];
+                            L_ciii0[j] += B0[j][i];
                         }
                     }
                 }
@@ -538,15 +599,15 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type, c
     PROF_END;
 }
 
-void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>& ilist_n_bnd,
+void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
+    const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
-    hpx::parallel::for_loop(
-        for_loop_policy, 0, ilist_n_bnd.size(),
+    hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &com0, &ilist_n_bnd, type, this](std::size_t si) {
 
             taylor<4, simd_vector> m0;
@@ -569,8 +630,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                 for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                     n0[j] = m0[j];
                 }
-            }
-            else {
+            } else {
 #pragma GCC ivdep
                 for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
                     n0[j] = ZERO;
@@ -578,9 +638,8 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
             }
             for (integer li = 0; li < list_size; li += simd_len) {
 #pragma GCC ivdep
-                for (integer i = 0; i != simd_len; ++i) {
-                    const auto index = std::min(integer(li + i), integer(list_size-1));
-                    const integer iii0 = bnd.first[index];
+                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+                    const integer iii0 = bnd.first[li + i];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
                         X[d][i] = com0iii0[d];
@@ -594,8 +653,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                 taylor<5, simd_vector> D;
                 taylor<2, simd_vector> A0;
                 std::array<simd_vector, NDIM> B0 = {
-                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)
-                };
+                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)};
 
                 D.set_basis(dX);
                 A0[0] = m0[0] * D[0];
@@ -643,7 +701,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
                     expansion& Liii0 = L[iii0];
 #pragma GCC ivdep
                     for (integer j = 0; j != 4; ++j) {
-                        Liii0[j] +=  A0[j][i];
+                        Liii0[j] += A0[j][i];
                     }
                     if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
@@ -658,21 +716,18 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type, co
     PROF_END;
 }
 
-void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>& ilist_n_bnd,
+void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
+    const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
-    std::array<real, NDIM> Xbase = {
-        X[0][hindex(H_BW, H_BW, H_BW)],
-        X[1][hindex(H_BW, H_BW, H_BW)],
-        X[2][hindex(H_BW, H_BW, H_BW)]
-    };
+    std::array<real, NDIM> Xbase = {X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)],
+        X[2][hindex(H_BW, H_BW, H_BW)]};
 
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
-    hpx::parallel::for_loop(
-        for_loop_policy, 0, ilist_n_bnd.size(),
+    hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
 
             simd_vector m0;
@@ -723,8 +778,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
                 taylor<5, simd_vector> D;
                 taylor<4, simd_vector> A0;
                 std::array<simd_vector, NDIM> B0 = {
-                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)
-                };
+                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)};
 
                 D.set_basis(dX);
 
@@ -755,18 +809,19 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
 #endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
-                    expansion& Liii0 = L[iii0];
 
+                    expansion tmp;
 #pragma GCC ivdep
-                    for (integer j = 0; j != 20; ++j) {
-                        Liii0[j] +=  A0[j][i];
+                    for (integer j = 0; j != taylor_sizes[3]; ++j) {
+                        tmp[j] = A0[j][i];
                     }
+                    L[iii0] += tmp;
 
                     if (type == RHO && opts.ang_con) {
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] +=  B0[j][i];
+                            L_ciii0[j] += B0[j][i];
                         }
                     }
                 }
@@ -775,25 +830,24 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type, co
     PROF_END;
 }
 
-void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>& ilist_n_bnd,
+void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
+    const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
 #if !defined(HPX_HAVE_DATAPAR)
-    const v4sd d0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
+    const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
 #else
-    const std::array<double, 4> di0 = { 1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx) };
+    const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
     const v4sd d0(di0.data());
 #endif
     hpx::parallel::for_loop(
-        for_loop_policy, 0, ilist_n_bnd.size(),
-        [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
+        for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             const integer dsize = bnd.first.size();
-            const integer lev = 0;
             integer index = mpoles.is_local ? bnd.second : si;
 #if !defined(HPX_HAVE_DATAPAR)
             const auto tmp = (*(mpoles).m)[index];
@@ -803,7 +857,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
                 m0[i] = tmp;
             }
 #else
-            v4sd m0 = (*(mpoles).m)[index];
+                v4sd m0 = (*(mpoles).m)[index];
 #endif
             m0 *= d0;
 #ifdef USE_GRAV_PAR
@@ -811,20 +865,18 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 #endif
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
-                auto tmp1 =  m0 * bnd.four[li];
+                auto tmp1 = m0 * bnd.four[li];
                 expansion& Liii0 = L[iii0];
 #pragma GCC ivdep
-                for( integer i = 0; i != 4; ++i) {
+                for (integer i = 0; i != 4; ++i) {
                     Liii0[i] += tmp1[i];
                 }
-
             }
         });
     PROF_END;
 }
 
 void compute_ilist() {
-
     factor = 0.0;
     factor() += 1.0;
     for (integer a = 0; a < NDIM; ++a) {
@@ -844,13 +896,13 @@ void compute_ilist() {
     std::vector<interaction_type> ilist_r0;
     std::vector<interaction_type> ilist_n0;
     std::vector<interaction_type> ilist_d0;
-    std::array < std::vector<interaction_type>, geo::direction::count() > ilist_n0_bnd;
-    std::array < std::vector<interaction_type>, geo::direction::count() > ilist_d0_bnd;
+    std::array<std::vector<interaction_type>, geo::direction::count()> ilist_n0_bnd;
+    std::array<std::vector<interaction_type>, geo::direction::count()> ilist_d0_bnd;
     const real theta0 = opts.theta;
     const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
-        real tmp = (sqr(i0-i1) + sqr(j0-j1) + sqr(k0-k1));
+        real tmp = (sqr(i0 - i1) + sqr(j0 - j1) + sqr(k0 - k1));
         // protect against sqrt(0)
-        if( tmp > 0.0 ) {
+        if (tmp > 0.0) {
             return 1.0 / (std::sqrt(tmp));
         } else {
             return 1.0e+10;
@@ -858,36 +910,34 @@ void compute_ilist() {
     };
     const auto interior = [](integer i, integer j, integer k) {
         bool rc = true;
-        if( i < 0 || i >= G_NX ) {
+        if (i < 0 || i >= G_NX) {
             rc = false;
-        }
-        else if( j < 0 || j >= G_NX ) {
+        } else if (j < 0 || j >= G_NX) {
             rc = false;
-        }
-        else if( k < 0 || k >= G_NX ) {
+        } else if (k < 0 || k >= G_NX) {
             rc = false;
         }
         return rc;
     };
     const auto neighbor_dir = [](integer i, integer j, integer k) {
         integer i0 = 0, j0 = 0, k0 = 0;
-        if( i < 0) {
+        if (i < 0) {
             i0 = -1;
-        } else if( i >= G_NX ) {
+        } else if (i >= G_NX) {
             i0 = +1;
         }
-        if( j < 0) {
+        if (j < 0) {
             j0 = -1;
-        } else if( j >= G_NX ) {
+        } else if (j >= G_NX) {
             j0 = +1;
         }
-        if( k < 0) {
+        if (k < 0) {
             k0 = -1;
-        } else if( k >= G_NX ) {
+        } else if (k >= G_NX) {
             k0 = +1;
         }
         geo::direction d;
-        d.set(i0,j0,k0);
+        d.set(i0, j0, k0);
         return d;
     };
     integer max_d = 0;
@@ -935,7 +985,8 @@ void compute_ilist() {
                             const real theta_f = theta(i0, j0, k0, i1, j1, k1);
                             const real theta_c = theta(i0_c, j0_c, k0_c, i1_c, j1_c, k1_c);
                             const integer iii0 = gindex(i0, j0, k0);
-                            const integer iii1n = gindex((i1+INX)%INX, (j1+INX)%INX, (k1+INX)%INX);
+                            const integer iii1n =
+                                gindex((i1 + INX) % INX, (j1 + INX) % INX, (k1 + INX) % INX);
                             const integer iii1 = gindex(i1, j1, k1);
                             if (theta_c > theta0 && theta_f <= theta0) {
                                 np.first = iii0;
@@ -989,9 +1040,9 @@ void compute_ilist() {
         }
     }
     printf("# direct = %i\n", int(max_d));
-    ilist_n = std::vector < interaction_type > (ilist_n0.begin(), ilist_n0.end());
-    ilist_d = std::vector < interaction_type > (ilist_d0.begin(), ilist_d0.end());
-    ilist_r = std::vector < interaction_type > (ilist_r0.begin(), ilist_r0.end());
+    ilist_n = std::vector<interaction_type>(ilist_n0.begin(), ilist_n0.end());
+    ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
+    ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
     for (auto& dir : geo::direction::full_set()) {
         auto& d = ilist_d_bnd[dir];
         auto& d0 = ilist_d0_bnd[dir];
@@ -1032,7 +1083,8 @@ void compute_ilist() {
     }
 }
 
-expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_pass_type* parent_expansions) {
+expansion_pass_type grid::compute_expansions(
+    gsolve_type type, const expansion_pass_type* parent_expansions) {
     PROF_BEGIN;
     expansion_pass_type exp_ret;
     if (!is_leaf) {
@@ -1043,11 +1095,12 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
     }
     const integer inx = INX;
     const integer nxp = (inx / 2);
-    auto child_index = [=](integer ip, integer jp, integer kp, integer ci, integer bw=0) -> integer {
-        const integer ic = (2 * (ip )+bw) + ((ci >> 0) & 1);
-        const integer jc = (2 * (jp )+bw) + ((ci >> 1) & 1);
-        const integer kc = (2 * (kp )+bw) + ((ci >> 2) & 1);
-        return (inx+2*bw) * (inx+2*bw) * ic + (inx+2*bw) * jc + kc;
+    auto child_index = [=](
+        integer ip, integer jp, integer kp, integer ci, integer bw = 0) -> integer {
+        const integer ic = (2 * (ip) + bw) + ((ci >> 0) & 1);
+        const integer jc = (2 * (jp) + bw) + ((ci >> 1) & 1);
+        const integer kc = (2 * (kp) + bw) + ((ci >> 2) & 1);
+        return (inx + 2 * bw) * (inx + 2 * bw) * ic + (inx + 2 * bw) * jc + kc;
     };
 
     for (integer ip = 0; ip != nxp; ++ip) {
@@ -1072,10 +1125,10 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                     for (integer j = 0; j != 20; ++j) {
                         l[j] = 0.0;
                     }
-                    if( opts.ang_con ) {
-                    	for (integer j = 0; j != NDIM; ++j) {
-                    		lc[j] = 0.0;
-                    	}
+                    if (opts.ang_con) {
+                        for (integer j = 0; j != NDIM; ++j) {
+                            lc[j] = 0.0;
+                        }
                     }
                 }
                 for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -1093,26 +1146,26 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                     const integer iiic = child_index(ip, jp, kp, ci);
                     expansion& Liiic = L[iiic];
                     for (integer j = 0; j != 20; ++j) {
-                            Liiic[j] += l[j][ci];
+                        Liiic[j] += l[j][ci];
                     }
 
-                	space_vector& L_ciiic = L_c[iiic];
-                    if( opts.ang_con) {
-                    	if (type == RHO && opts.ang_con) {
-                        	for (integer j = 0; j != NDIM; ++j) {
-                        		L_ciiic[j] += lc[j][ci];
-                        	}
-                    	}
+                    space_vector& L_ciiic = L_c[iiic];
+                    if (opts.ang_con) {
+                        if (type == RHO && opts.ang_con) {
+                            for (integer j = 0; j != NDIM; ++j) {
+                                L_ciiic[j] += lc[j][ci];
+                            }
+                        }
                     }
 
                     if (!is_leaf) {
                         integer index = child_index(ip, jp, kp, ci, 0);
-                        for( integer j = 0; j != 20; ++j) {
-                         	exp_ret.first[index][j] = Liiic[j];
+                        for (integer j = 0; j != 20; ++j) {
+                            exp_ret.first[index][j] = Liiic[j];
                         }
 
                         if (type == RHO && opts.ang_con) {
-                            for( integer j = 0; j != 3; ++j) {
+                            for (integer j = 0; j != 3; ++j) {
                                 exp_ret.second[index][j] = L_ciiic[j];
                             }
                         }
@@ -1128,7 +1181,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
                 for (integer k = 0; k != G_NX; ++k) {
                     const integer iii = gindex(i, j, k);
                     const integer iii0 = h0index(i, j, k);
-                    const integer iiih = hindex(i + H_BW , j + H_BW , k + H_BW);
+                    const integer iiih = hindex(i + H_BW, j + H_BW, k + H_BW);
                     if (type == RHO) {
                         G[iii][phi_i] = L[iii]();
                         for (integer d = 0; d < NDIM; ++d) {
@@ -1149,10 +1202,10 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
     return exp_ret;
 }
 
-multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_pass_type* child_poles) {
-
-//	if( int(*Muse_counter) > 0)
-//	printf( "%i\n", int(*Muse_counter));
+multipole_pass_type grid::compute_multipoles(
+    gsolve_type type, const multipole_pass_type* child_poles) {
+    //	if( int(*Muse_counter) > 0)
+    //	printf( "%i\n", int(*Muse_counter));
     PROF_BEGIN;
     integer lev = 0;
     const real dx3 = dx * dx * dx;
@@ -1175,19 +1228,20 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
     }
     if (type == RHO) {
         const integer iii0 = hindex(H_BW, H_BW, H_BW);
-        const std::array<real, NDIM> x0 = { X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0] };
+        const std::array<real, NDIM> x0 = {X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0]};
 
-//         std::array<integer, 3> i;
-//         for (i[0] = 0; i[0] != G_NX; ++i[0]) {
-//             for (i[1] = 0; i[1] != G_NX; ++i[1]) {
-//                 for (i[2] = 0; i[2] != G_NX; ++i[2]) {
-//                     const integer iii = gindex(i[0], i[1], i[2]);
-//                     for (integer dim = 0; dim != NDIM; ++dim) {
-//                         (*(com_ptr[0]))[iii][dim] = x0[dim] + (i[dim]) * dx;
-//                     }
-//                 }
-//             }
-//         }
+        //         std::array<integer, 3> i;
+        //         for (i[0] = 0; i[0] != G_NX; ++i[0]) {
+        //             for (i[1] = 0; i[1] != G_NX; ++i[1]) {
+        //                 for (i[2] = 0; i[2] != G_NX; ++i[2]) {
+        //                     const integer iii = gindex(i[0], i[1], i[2]);
+        //                     for (integer dim = 0; dim != NDIM; ++dim) {
+        //                         (*(com_ptr[0]))[iii][dim] = x0[dim] + (i[dim]) *
+        //                         dx;
+        //                     }
+        //                 }
+        //             }
+        //         }
         for (integer i = 0; i != G_NX; ++i) {
             for (integer j = 0; j != G_NX; ++j) {
                 for (integer k = 0; k != G_NX; ++k) {
@@ -1209,14 +1263,13 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
     taylor<4, real> MM;
     integer index = 0;
     for (integer inx = INX; (inx >= INX / 2); inx >>= 1) {
-
         const integer nxp = inx;
         const integer nxc = (2 * inx);
 
         auto child_index = [=](integer ip, integer jp, integer kp, integer ci) -> integer {
-            const integer ic = (2 * ip ) + ((ci >> 0) & 1);
-            const integer jc = (2 * jp ) + ((ci >> 1) & 1);
-            const integer kc = (2 * kp ) + ((ci >> 2) & 1);
+            const integer ic = (2 * ip) + ((ci >> 0) & 1);
+            const integer jc = (2 * jp) + ((ci >> 1) & 1);
+            const integer kc = (2 * kp) + ((ci >> 2) & 1);
             return nxc * nxc * ic + nxc * jc + kc;
         };
 
@@ -1227,7 +1280,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
                     if (lev != 0) {
                         if (type == RHO) {
                             simd_vector mc;
-                            std::array < simd_vector, NDIM > X;
+                            std::array<simd_vector, NDIM> X;
                             for (integer ci = 0; ci != NCHILD; ++ci) {
                                 const integer iiic = child_index(ip, jp, kp, ci);
                                 if (is_leaf) {
@@ -1273,7 +1326,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
                         }
                     } else {
                         if (child_poles == nullptr) {
-                            const integer iiih = hindex(ip + H_BW , jp + H_BW , kp + H_BW );
+                            const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
                             const integer iii0 = h0index(ip, jp, kp);
                             if (type == RHO) {
                                 mon[iiip] = U[rho_i][iiih] * dx3;
@@ -1305,7 +1358,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 
 gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool is_local) {
     PROF_BEGIN;
-//	std::array<integer, NDIM> lb, ub;
+    //	std::array<integer, NDIM> lb, ub;
     gravity_boundary_type data;
     data.is_local = is_local;
     auto& M = *M_ptr;
