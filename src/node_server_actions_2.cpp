@@ -28,7 +28,7 @@ bool node_server::check_for_refinement() {
         }
     }
     if (hydro_on) {
-        all_hydro_bounds().get();
+        all_hydro_bounds();
     }
     if (!rc) {
         rc = grid_ptr->refine_me(my_location.level());

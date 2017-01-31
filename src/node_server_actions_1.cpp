@@ -32,13 +32,6 @@ void set_locality_data(real omega, space_vector pivot, integer record_size) {
   rec_size = record_size;
 }
 
-hpx::id_type make_new_node(const node_location &loc,
-                           const hpx::id_type &_parent) {
-  return hpx::new_<node_server>(hpx::find_here(), loc, _parent, ZERO, ZERO)
-      .get();
-}
-
-HPX_PLAIN_ACTION(make_new_node, make_new_node_action);
 HPX_PLAIN_ACTION(set_locality_data, set_locality_data_action);
 
 hpx::future<grid::output_list_type> node_client::load(integer i,
@@ -116,8 +109,8 @@ grid::output_list_type node_server::load(integer cnt, const hpx::id_type &_me,
     futs.reserve(full_set.size());
     for (auto &ci : full_set) {
       integer loc_id = ((cnt * localities.size()) / (total_nodes + 1));
-      children[ci] = hpx::async<make_new_node_action>(
-          localities[loc_id], my_location.get_child(ci), me.get_gid());
+      children[ci] = hpx::new_<node_server>(
+            localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
       futs.push_back(children[ci].load(counts[ci], children[ci].get_gid(),
                                        do_output, filename));
     }
