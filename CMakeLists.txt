@@ -41,7 +41,7 @@ if(NOT MSVC)
     include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
 
 	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    	set( COMMON_FLAGS "-Wno-attributes -Wno-deprecated-declarations")
+    	set( COMMON_FLAGS "-Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations")
 	elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 	    #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo" )
 		#set( CMAKE_C_FLAGS_RELEASE "-Ofast -ipo" )
