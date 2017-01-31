@@ -20,7 +20,7 @@ dependencies:
 compile:
     override:
         - mkdir build
-	- cd build && cmake -DCMAKE_PREFIX_PATH="`realpath ../hpx_install`" ../
+        - cd build && cmake -DCMAKE_PREFIX_PATH="`realpath ../hpx_install`" ../
         - cd build && make -j2 VERBOSE=1
 
 test:
