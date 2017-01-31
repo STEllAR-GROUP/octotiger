@@ -247,7 +247,7 @@ public:
     bool check_for_refinement();
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
-    void force_nodes_to_exist(const std::list<node_location>& loc);
+    void force_nodes_to_exist(std::vector<node_location>&& loc);
     HPX_DEFINE_COMPONENT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
 
     scf_data_t scf_params();

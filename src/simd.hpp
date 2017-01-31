@@ -9,6 +9,7 @@
 #define SIMD_VECTOR_HPP_
 #include "defs.hpp"
 #include <cstdlib>
+#include <cstdio>
 #include "immintrin.h"
 
 constexpr std::size_t simd_len = 8;

@@ -20,9 +20,9 @@ hpx::future<bool> node_client::check_for_refinement() const {
 
 bool node_server::check_for_refinement() {
     bool rc = false;
-    std::vector<hpx::future<bool>> futs;
+    std::vector<hpx::future<void>> futs;
     if (is_refined) {
-        futs.reserve(children.size());
+        futs.reserve(children.size() + 1);
         for (auto& child : children) {
             futs.push_back(child.check_for_refinement());
         }
@@ -30,19 +30,18 @@ bool node_server::check_for_refinement() {
     if (hydro_on) {
         all_hydro_bounds().get();
     }
-    wait_all_and_propagate_exceptions(futs);
     if (!rc) {
         rc = grid_ptr->refine_me(my_location.level());
     }
     if (rc) {
         if (refinement_flag++ == 0) {
             if (!parent.empty()) {
-                const auto neighbors = my_location.get_neighbors();
-                parent.force_nodes_to_exist(
-                    std::list < node_location > (neighbors.begin(), neighbors.end())).get();
+                futs.push_back(
+                    parent.force_nodes_to_exist(my_location.get_neighbors()));
             }
         }
     }
+    wait_all_and_propagate_exceptions(futs);
     return refinement_flag != 0;
 }
 
@@ -377,26 +376,35 @@ typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_typ
 HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
 
 hpx::future<void> node_client::force_nodes_to_exist(
-    std::list<node_location>&& locs) const {
+    std::vector<node_location>&& locs) const {
     return hpx::async<typename node_server::force_nodes_to_exist_action>(get_gid(),
         std::move(locs));
 }
 
-void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
+void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
     std::vector<hpx::future<void>> futs;
-    std::list<node_location> parent_list;
-    std::vector < std::list < node_location >> child_lists(NCHILD);
+    std::vector<node_location> parent_list;
+    std::vector < std::vector < node_location >> child_lists(NCHILD);
+
+    constexpr auto full_set = geo::octant::full_set();
+    futs.reserve(full_set.size() + 2);
+
+    parent_list.reserve(locs.size());
+
     for (auto& loc : locs) {
         assert(loc != my_location);
         if (loc.is_child_of(my_location)) {
             if (refinement_flag++ == 0 && !parent.empty()) {
-                const auto neighbors = my_location.get_neighbors();
-                parent.force_nodes_to_exist(
-                    std::list < node_location > (neighbors.begin(), neighbors.end())).get();
+                futs.push_back(
+                    parent.force_nodes_to_exist(my_location.get_neighbors()));
             }
             if (is_refined) {
                 for (auto& ci : geo::octant::full_set()) {
                     if (loc.is_child_of(my_location.get_child(ci))) {
+                        if (child_lists[ci].empty())
+                        {
+                            child_lists[ci].reserve(locs.size());
+                        }
                         child_lists[ci].push_back(loc);
                         break;
                     }
@@ -407,8 +415,6 @@ void node_server::force_nodes_to_exist(const std::list<node_location>& locs) {
             parent_list.push_back(loc);
         }
     }
-    constexpr auto full_set = geo::octant::full_set();
-    futs.reserve(full_set.size() + 1);
     for (auto& ci : full_set) {
         if (is_refined && child_lists[ci].size()) {
             futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));

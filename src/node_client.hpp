@@ -73,7 +73,7 @@ public:
 	hpx::future<void> velocity_inc(const space_vector&) const;
 	integer save(integer,std::string) const;
 	hpx::future<bool> check_for_refinement() const;
-	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
+	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
 
     void report_timing() const;
 
