@@ -58,7 +58,7 @@ void node_server::rho_move(real x) {
 		}
 	}
 	grid_ptr->rho_move(x);
-	all_hydro_bounds().get();
+	all_hydro_bounds();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -87,7 +87,7 @@ void node_server::rho_mult(real f0, real f1) {
 		}
 	}
 	grid_ptr->rho_mult(f0, f1);
-	all_hydro_bounds().get();
+	all_hydro_bounds();
 	for (auto&& fut : futs ) {
 		fut.get();
 	}
@@ -106,7 +106,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	} else {
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
-	all_hydro_bounds().get();
+	all_hydro_bounds();
 	for (auto&& fut : futs) {
 		res += fut.get();
 	}

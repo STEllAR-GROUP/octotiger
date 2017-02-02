@@ -41,8 +41,8 @@ public:
 	hpx::future<void> rho_mult(real, real) const;
 	hpx::future<void> rho_move(real) const;
 	hpx::future<real> scf_update(real,real,real,real, real, real, real, struct_eos, struct_eos) const;
-	hpx::future<void> send_hydro_children( std::vector<real>&&, const geo::octant& ci) const;
-	hpx::future<void> send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
+	void send_hydro_children( std::vector<real>&&, const geo::octant& ci) const;
+	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	hpx::future<analytic_t> compare_analytic() const;
@@ -56,24 +56,23 @@ public:
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;
 	hpx::future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line) const;
-	hpx::future<void> send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
-	hpx::future<void> send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole) const;
-	hpx::future<void> send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
-	hpx::future<void> send_gravity_expansions(expansion_pass_type&&) const;
+	void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
+	void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole) const;
+	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
+	void send_gravity_expansions(expansion_pass_type&&) const;
 	hpx::future<void> step() const;
 	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, bool rb) const;
 	hpx::future<void> solve_gravity(bool ene) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
-	hpx::future<real> timestep_driver() const;
-	hpx::future<void> timestep_driver_ascend(real) const;
+	void timestep_driver_ascend(real) const;
 	hpx::future<real> timestep_driver_descend() const;
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
 	integer save(integer,std::string) const;
 	hpx::future<bool> check_for_refinement() const;
-	hpx::future<void> force_nodes_to_exist(std::list<node_location>&& loc) const;
+	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
 
     void report_timing() const;
 

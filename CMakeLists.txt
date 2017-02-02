@@ -4,7 +4,7 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX Fortran)
+project(octotiger C CXX)
 
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
@@ -49,7 +49,7 @@ if(NOT MSVC)
 		#set( CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo" )
 	    set( COMMON_FLAGS "-Wno-attributes -Wno-deprecated")
 	endif()
-    set(CMAKE_CXX_FLAGS "-std=c++14 ${COMMON_FLAGS} ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${COMMON_FLAGS} ${CMAKE_CXX_FLAGS}")
     set(CMAKE_C_FLAGS "${COMMON_FLAGS} ${CMAKE_C_FLAGS}")
     set(CMAKE_F_FLAGS "${COMMON_FLAGS} ${CMAKE_F_FLAGS}")
 else()
@@ -74,35 +74,7 @@ endif()
 set(source_files)
 set(dependencies)
 
-enable_language(Fortran)
-
-# We have to compile the Fortran sources into a separate static library as
-# cmake does not support generating mixed C++/Fortran modules for MSVC.
-if(MSVC)
-    set(CMAKE_Fortran_FLAGS "-DDOUBLE_PRECISION ${CMAKE_Fortran_FLAGS}")
-
-    add_hpx_library(octotiger_fortran
-        SHARED
-        SOURCES src/sedov3.f src/sedov3.def
-        FOLDER "Octotiger/Dependencies")
-    set_target_properties(octotiger_fortran_lib
-        PROPERTIES LINKER_LANGUAGE Fortran)
-
-    set(dependencies octotiger_fortran_lib)
-
-    # Special hackery to make everything work for Windows Intel compiler
-    if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-        # Make sure all Fortran symbols are lower case for Windows Intel ifort
-        # compiler.
-        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} /names:lowercase /assume:underscore")
-
-        # Make sure the C++ linker will find the Fortran runtime libraries.
-        link_directories("$ENV{IFORT_COMPILER16}/compiler/lib/intel64_win")
-    endif()
-else()
-    set(source_files ${source_files} src/sedov3.f)
-    set(dependencies ${Silo_LIBRARY})
-endif()
+set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
@@ -112,7 +84,6 @@ set(source_files ${source_files}
     src/node_server_actions_3.cpp
     src/scf_data.cpp
     src/exact_sod.cpp
-    src/sedov.c
     src/profiler.cpp
     src/geometry.cpp
     src/grid.cpp

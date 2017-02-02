@@ -11,6 +11,8 @@
 #include "defs.hpp"
 #include "space_vector.hpp"
 
+#include <vector>
+
 struct diagnostics_t {
 	std::vector<real> primary_sum;
 	std::vector<real> secondary_sum;
