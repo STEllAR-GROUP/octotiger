@@ -18,7 +18,9 @@
 #include "struct_eos.hpp"
 #include "profiler.hpp"
 #include <atomic>
+
 #include <hpx/include/components.hpp>
+#include <hpx/include/serialization.hpp>
 
 namespace hpx {
     using mutex = hpx::lcos::local::spinlock;
@@ -109,7 +111,7 @@ public:
         arc & xmin;
         arc & dx;
         arc & amr_flags;
-        arc & *grid_ptr;
+        arc & grid_ptr;
         rf = refinement_flag;
         arc & rf;
         refinement_flag = rf;

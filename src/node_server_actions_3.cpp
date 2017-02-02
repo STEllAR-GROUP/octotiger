@@ -407,7 +407,7 @@ hpx::future<void> node_server::refined_step(hpx::future<void> child_futs) {
     }
 
     return hpx::dataflow(
-        [this](hpx::future<void> children)
+        hpx::util::annotated_function([this](hpx::future<void> && children)
         {
             children.get(); // propagate exceptions
 
@@ -419,7 +419,7 @@ hpx::future<void> node_server::refined_step(hpx::future<void> child_futs) {
                 rotational_time = current_time;
             }
             ++step_num;
-        },
+        }, "node_server::refined_step::dual_energy_update"),
         std::move(child_futs));
 }
 
@@ -436,7 +436,7 @@ hpx::future<void> node_server::nonrefined_step() {
 
     for (integer rk = 0; rk < NRK; ++rk) {
 
-        fut = fut.then(
+        fut = fut.then(hpx::util::annotated_function(
             [rk, cfl0, this](hpx::future<void> f)
             {
                 f.get();        // propagate exceptions
@@ -453,7 +453,7 @@ hpx::future<void> node_server::nonrefined_step() {
                     local_timestep_channel.set_value(dt_);
                 }
 
-                return fut_flux.then(
+                return fut_flux.then(hpx::util::annotated_function(
                     [rk, this](hpx::future<void> f)
                     {
                         f.get();        // propagate exceptions
@@ -471,11 +471,11 @@ hpx::future<void> node_server::nonrefined_step() {
 
                         compute_fmm(RHO, true);
                         return all_hydro_bounds();
-                    });
-            });
+                    }, "node_server::nonrefined_step::compute_fmm"));
+            }, "node_server::nonrefined_step::compute_fluxes"));
     }
 
-    return fut.then(
+    return fut.then(hpx::util::annotated_function(
         [this](hpx::future<void> f)
         {
             f.get();        // propagate exceptions
@@ -489,7 +489,7 @@ hpx::future<void> node_server::nonrefined_step() {
                 rotational_time = current_time;
             }
             ++step_num;
-        });
+        }, "node_server::nonrefined_step::dual_energy_update"));
 }
 
 hpx::future<void> node_server::step() {
@@ -539,7 +539,7 @@ hpx::future<real> node_server::timestep_driver_descend() {
         }
         futs.push_back(local_timestep_channel.get_future());
 
-        return hpx::dataflow(
+        return hpx::dataflow(hpx::util::annotated_function(
             [this](std::vector<hpx::future<real>> dts_fut) -> double
             {
                 auto dts = hpx::util::unwrapped(dts_fut);
@@ -551,7 +551,7 @@ hpx::future<real> node_server::timestep_driver_descend() {
                 }
 
                 return dt;
-            },
+            }, "node_server::timestep_driver_descend"),
             std::move(futs));
     } else {
         return local_timestep_channel.get_future();

@@ -21,8 +21,9 @@
 extern options opts;
 
 #include <hpx/include/lcos.hpp>
+#include <hpx/include/util.hpp>
 
-HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
+HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
@@ -71,7 +72,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
         }
     }
 
-    return hpx::async([this]() {
+    return hpx::async(hpx::util::annotated_function([this]() {
         for (auto& f : geo::face::full_set()) {
             if (this->nieces[f].size()) {
                 const auto face_dim = f.get_dimension();
@@ -108,7 +109,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
                 }
             }
         }
-    });
+    }, "node_server::set_flux_restrict"));
 }
 
 void node_server::all_hydro_bounds(bool tau_only) {
@@ -155,12 +156,13 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
     results.reserve(geo::direction::count());
     for (auto& dir : geo::direction::full_set()) {
         if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-            results.push_back(sibling_hydro_channels[dir].get_future().then(
-                [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
-                {
-                    auto&& tmp = f.get();
-                    grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, H_BW, tau_only);
-                }));
+            results.push_back(
+                sibling_hydro_channels[dir].get_future().then(hpx::util::annotated_function(
+                    [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void {
+                        auto&& tmp = f.get();
+                        grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, H_BW, tau_only);
+                    },
+                    "node_server::collect_hydro_boundaries::set_hydro_boundary")));
         }
     }
     wait_all_and_propagate_exceptions(std::move(results));
@@ -362,7 +364,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             hpx::future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
 
             futs.push_back(
-                m_in_future.then(
+                m_in_future.then(hpx::util::annotated_function(
                     [&m_out, ci](hpx::future<multipole_pass_type>&& fut)
                     {
                         const integer x0 = ci.get_side(XDIM) * INX / 2;
@@ -379,9 +381,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                                 }
                             }
                         }
-                    }
-                )
-            );
+                    },
+                    "node_server::compute_fmm::gather_from::child_gravity_channels")));
         }
         wait_all_and_propagate_exceptions(futs);
         m_out = grid_ptr->compute_multipoles(type, &m_out);
@@ -412,13 +413,14 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     for (auto& dir : full_set) {
         if (!neighbors[dir].empty()) {
             auto f = neighbor_gravity_channels[dir].get_future();
-            boundary_futs.push_back(f.then(
+            boundary_futs.push_back(f.then(hpx::util::annotated_function(
                 [this, type](hpx::future<neighbor_gravity_type> fut)
                 {
                     auto && tmp = fut.get();
                     grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-                })
-            );
+                },
+                "node_server::compute_fmm::compute_boundary_interactions"
+            )))
         }
     }
     wait_all_and_propagate_exceptions(boundary_futs);

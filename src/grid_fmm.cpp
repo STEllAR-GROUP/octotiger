@@ -178,8 +178,8 @@ void grid::compute_interactions(gsolve_type type) {
     hpx::parallel::fill(hpx::parallel::execution::dataseq,L.begin(),L.end(),ZERO);
     //std::fill(std::begin(L), std::end(L), ZERO);
     if (opts.ang_con) {
-	hpx::parallel::fill(hpx::parallel::execution::dataseq,L_c.begin(),L_c.end(),ZERO);
-	//std::fill(std::begin(L_c), std::end(L_c), ZERO);
+        hpx::parallel::fill(hpx::parallel::execution::dataseq, L_c.begin(), L_c.end(), ZERO);
+        //std::fill(std::begin(L_c), std::end(L_c), ZERO);
     }
 
     // Non-leaf nodes use taylor expansion
