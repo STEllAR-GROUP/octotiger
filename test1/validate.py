@@ -17,11 +17,12 @@ def compare(old,test):
             if not (o == n):
                 print "Missmatch: " + o + " and " + n
                 index = [ i for i,(a1,a2) in enumerate(izip(o,n)) if a1!=a2 ]
-                print "Differnces at position " + str(index) 
+                for i in index:
+                    print "Difference at " + str(i) + " where is " + o[i] + " instead " + n[i]  
 
-
-
-
+if (len(sys.argv) != 3):
+    print sys.argv[0] + " file1 file2"
+    sys.exit()
 
 file = open(sys.argv[1],'r')
 file2 = open(sys.argv[2],'r')
