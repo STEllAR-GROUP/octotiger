@@ -1,5 +1,6 @@
 import mmap
 import sys
+from itertools import izip
 
 strings = ["rho","egas","sx","sy","tau","primary_core"]
 
@@ -14,7 +15,10 @@ def find(f):
 def compare(old,test):
         for o, n in zip(old,test):
             if not (o == n):
-                print "Missmatch: " + o + " and " + n  
+                print "Missmatch: " + o + " and " + n
+                index = [ i for i,(a1,a2) in enumerate(izip(o,n)) if a1!=a2 ]
+                print "Differnces at position " + str(index) 
+
 
 
 
