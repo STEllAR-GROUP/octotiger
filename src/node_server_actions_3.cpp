@@ -380,7 +380,7 @@ hpx::future<void> node_client::step() const {
     return hpx::async<typename node_server::step_action>(get_gid());
 }
 
-hpx::future<void> node_server::refined_step(hpx::future<void> child_futs) {
+void node_server::refined_step() {
     timings::scope ts(timings_, timings::time_computation);
     const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
     real cfl0 = cfl;
@@ -405,22 +405,6 @@ hpx::future<void> node_server::refined_step(hpx::future<void> child_futs) {
         compute_fmm(RHO, true);
         all_hydro_bounds();
     }
-
-    return hpx::dataflow(
-        hpx::util::annotated_function([this](hpx::future<void> && children)
-        {
-            children.get(); // propagate exceptions
-
-            grid_ptr->dual_energy_update();
-            current_time += dt_;
-            if (grid::get_omega() != 0.0) {
-                rotational_time += grid::get_omega() * dt_;
-            } else {
-                rotational_time = current_time;
-            }
-            ++step_num;
-        }, "node_server::refined_step::dual_energy_update"),
-        std::move(child_futs));
 }
 
 hpx::future<void> node_server::nonrefined_step() {
@@ -436,47 +420,77 @@ hpx::future<void> node_server::nonrefined_step() {
 
     for (integer rk = 0; rk < NRK; ++rk) {
 
-        fut = fut.then(hpx::util::annotated_function(
-            [rk, cfl0, this](hpx::future<void> f)
-            {
-                f.get();        // propagate exceptions
+        fut = fut.then(
+            hpx::util::annotated_function(
+                [rk, cfl0, this](hpx::future<void> f)
+                {
+                    f.get();        // propagate exceptions
 
-                grid_ptr->reconstruct();
-                real a = grid_ptr->compute_fluxes();
+                    grid_ptr->reconstruct();
+                    real a = grid_ptr->compute_fluxes();
 
-                hpx::future<void> fut_flux = exchange_flux_corrections();
+                    hpx::future<void> fut_flux = exchange_flux_corrections();
 
-                if (rk == 0) {
-                    const real dx = TWO * grid::get_scaling_factor() /
-                        real(INX << my_location.level());
-                    dt_ = cfl0 * dx / a;
-                    local_timestep_channel.set_value(dt_);
-                }
+                    if (rk == 0) {
+                        const real dx = TWO * grid::get_scaling_factor() /
+                            real(INX << my_location.level());
+                        dt_ = cfl0 * dx / a;
+                        local_timestep_channel.set_value(dt_);
+                    }
 
-                return fut_flux.then(hpx::util::annotated_function(
-                    [rk, this](hpx::future<void> f)
-                    {
-                        f.get();        // propagate exceptions
+                    return fut_flux.then(
+                        hpx::launch::async(hpx::threads::thread_priority_boost),
+                        hpx::util::annotated_function(
+                            [rk, this](hpx::future<void> f)
+                            {
+                                f.get();        // propagate exceptions
 
-                        grid_ptr->compute_sources(current_time);
-                        grid_ptr->compute_dudt();
+                                grid_ptr->compute_sources(current_time);
+                                grid_ptr->compute_dudt();
 
-                        compute_fmm(DRHODT, false);
+                                compute_fmm(DRHODT, false);
 
-                        if (rk == 0) {
-                            dt_ = global_timestep_channel.get_future().get();
-                        }
+                                if (rk == 0) {
+                                    dt_ = global_timestep_channel.get_future().get();
+                                }
 
-                        grid_ptr->next_u(rk, current_time, dt_);
+                                grid_ptr->next_u(rk, current_time, dt_);
 
-                        compute_fmm(RHO, true);
-                        return all_hydro_bounds();
-                    }, "node_server::nonrefined_step::compute_fmm"));
-            }, "node_server::nonrefined_step::compute_fluxes"));
+                                compute_fmm(RHO, true);
+                                return all_hydro_bounds();
+                            }, "node_server::nonrefined_step::compute_fmm"
+                        ));
+                }, "node_server::nonrefined_step::compute_fluxes"
+            )
+        );
     }
 
-    return fut.then(hpx::util::annotated_function(
-        [this](hpx::future<void> f)
+    return fut;
+}
+
+hpx::future<void> node_server::step() {
+    grid_ptr->set_coordinates();
+
+    hpx::future<void> fut;
+
+    if (is_refined) {
+        std::vector<hpx::future<void>> child_futs;
+        child_futs.reserve(NCHILD);
+
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            child_futs.push_back(children[ci].step());
+        }
+        refined_step();
+
+        fut = hpx::when_all(std::move(child_futs));
+    }
+    else
+    {
+        fut = nonrefined_step();
+    }
+
+    return fut.then(
+        hpx::util::annotated_function([this](hpx::future<void> && f)
         {
             f.get();        // propagate exceptions
 
@@ -490,21 +504,6 @@ hpx::future<void> node_server::nonrefined_step() {
             }
             ++step_num;
         }, "node_server::nonrefined_step::dual_energy_update"));
-}
-
-hpx::future<void> node_server::step() {
-    grid_ptr->set_coordinates();
-
-    if (is_refined) {
-        std::vector<hpx::future<void>> child_futs;
-        child_futs.reserve(NCHILD);
-        for (integer ci = 0; ci != NCHILD; ++ci) {
-            child_futs.push_back(children[ci].step());
-        }
-        return refined_step(hpx::when_all(std::move(child_futs)));
-    }
-
-    return nonrefined_step();
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
@@ -539,19 +538,22 @@ hpx::future<real> node_server::timestep_driver_descend() {
         }
         futs.push_back(local_timestep_channel.get_future());
 
-        return hpx::dataflow(hpx::util::annotated_function(
-            [this](std::vector<hpx::future<real>> dts_fut) -> double
-            {
-                auto dts = hpx::util::unwrapped(dts_fut);
-                real dt = *std::min_element(dts.begin(), dts.end());
-
-                if (my_location.level() == 0)
+        return hpx::dataflow(
+            hpx::launch::sync,
+            hpx::util::annotated_function(
+                [this](std::vector<hpx::future<real>> dts_fut) -> double
                 {
-                    timestep_driver_ascend(dt);
-                }
+                    auto dts = hpx::util::unwrapped(dts_fut);
+                    real dt = *std::min_element(dts.begin(), dts.end());
 
-                return dt;
-            }, "node_server::timestep_driver_descend"),
+                    if (my_location.level() == 0)
+                    {
+                        timestep_driver_ascend(dt);
+                    }
+
+                    return dt;
+                },
+                "node_server::timestep_driver_descend"),
             std::move(futs));
     } else {
         return local_timestep_channel.get_future();

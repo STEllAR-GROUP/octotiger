@@ -157,12 +157,18 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
     for (auto& dir : geo::direction::full_set()) {
         if (!(neighbors[dir].empty() && my_location.level() == 0)) {
             results.push_back(
-                sibling_hydro_channels[dir].get_future().then(hpx::util::annotated_function(
-                    [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void {
-                        auto&& tmp = f.get();
-                        grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, H_BW, tau_only);
-                    },
-                    "node_server::collect_hydro_boundaries::set_hydro_boundary")));
+                sibling_hydro_channels[dir].get_future().then(
+                    hpx::util::annotated_function(
+                        [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
+                        {
+                            auto&& tmp = f.get();
+                            grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
+                                H_BW, tau_only);
+                        },
+                        "node_server::collect_hydro_boundaries::set_hydro_boundary"
+                    )
+                )
+            );
         }
     }
     wait_all_and_propagate_exceptions(std::move(results));
@@ -382,7 +388,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                             }
                         }
                     },
-                    "node_server::compute_fmm::gather_from::child_gravity_channels")));
+                    "node_server::compute_fmm::gather_from::child_gravity_channels"
+                ))
+            );
         }
         wait_all_and_propagate_exceptions(futs);
         m_out = grid_ptr->compute_multipoles(type, &m_out);
@@ -413,24 +421,26 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     for (auto& dir : full_set) {
         if (!neighbors[dir].empty()) {
             auto f = neighbor_gravity_channels[dir].get_future();
-            boundary_futs.push_back(f.then(hpx::util::annotated_function(
-                [this, type](hpx::future<neighbor_gravity_type> fut)
-                {
-                    auto && tmp = fut.get();
-                    grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-                },
-                "node_server::compute_fmm::compute_boundary_interactions"
+            boundary_futs.push_back(f.then(
+                hpx::util::annotated_function(
+                    [this, type](hpx::future<neighbor_gravity_type> fut)
+                    {
+                        auto && tmp = fut.get();
+                        grid_ptr->compute_boundary_interactions(type,
+                            tmp.direction, tmp.is_monopole, tmp.data);
+                    },
+                    "node_server::compute_fmm::compute_boundary_interactions"
             )))
         }
     }
     wait_all_and_propagate_exceptions(boundary_futs);
 #else
      for (auto& dir : geo::direction::full_set()) {
- 		if (!neighbors[dir].empty()) {
- 			auto tmp = neighbor_gravity_channels[dir].get_future().get();
- 			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
- 		}
- 	}
+        if (!neighbors[dir].empty()) {
+            auto tmp = neighbor_gravity_channels[dir].get_future().get();
+            grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
+        }
+    }
 #endif
 	/************************************************************************************************/
 

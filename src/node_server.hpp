@@ -138,7 +138,7 @@ private:
     hpx::future<void> exchange_flux_corrections();
 
     hpx::future<void> nonrefined_step();
-    hpx::future<void> refined_step(hpx::future<void> child_futs);
+    void refined_step();
 
 public:
 
