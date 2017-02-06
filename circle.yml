@@ -30,6 +30,6 @@ test:
     override:
         - cd build && ./octotiger -Disableoutput -Problem=moving_star -Max_level=2 -Xscale=32 -Odt=0.5 -Stopstep=0 --hpx:threads=2 --hpx:bind=none
         - cd test1 && ./test1.sh > output.txt
-        - python validate.py output.txt test1.txt
+        - cd test1 &&  python validate.py output.txt test1.txt
 
 
