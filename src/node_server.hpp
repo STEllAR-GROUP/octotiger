@@ -18,6 +18,7 @@
 #include "struct_eos.hpp"
 #include "profiler.hpp"
 #include <atomic>
+#include "rad_grid.hpp"
 #include <hpx/include/components.hpp>
 
 namespace hpx {
@@ -47,6 +48,9 @@ private:
     real current_time;
     real rotational_time;
     std::shared_ptr<grid> grid_ptr; //
+#ifdef RADIATION
+    std::shared_ptr<rad_grid> rad_grid_ptr; //
+#endif
     bool is_refined;
     std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
@@ -270,6 +274,27 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server,rho_move, rho_move_action);
 
     void run_scf();
+
+#ifdef RADIATION
+private:
+	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>> , geo::dimension::count()>, geo::octant::count()> sibling_rad_channels;
+	std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::face::count()> sibling_rad_bnd_channels;
+	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::octant::count()>, geo::octant::count()> child_rad_channels;
+public:
+	void compute_radiation(real dt);
+	hpx::future<void> collect_radiation_boundaries();
+
+	void recv_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_boundary, send_rad_boundary_action);
+
+	void recv_rad_bnd_boundary(std::vector<rad_type>&&, const geo::face&);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_bnd_boundary, send_rad_bnd_boundary_action);
+
+	void recv_rad_children(std::vector<real>&&, const geo::octant& ci, const geo::octant& icot);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_children, send_rad_children_action);
+
+#endif
+
 
 };
 

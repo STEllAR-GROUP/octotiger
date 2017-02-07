@@ -4,6 +4,7 @@
  *  Created on: May 26, 2015
  *      Author: dmarce1
  */
+#define RADIATION
 
 #include <hpx/config.hpp>
 
@@ -17,6 +18,18 @@
 
 
 #define EXPERIMENT
+#ifdef RADIATION
+#define NRADF 10
+#define NRF 4
+#endif
+#define LIGHTSPEED 1.0
+
+#define NPF 5
+
+
+#define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
+
+
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 # define USE_GRAV_PAR
@@ -129,6 +142,7 @@ constexpr integer spc_ae_i = 11;
 constexpr integer spc_dc_i = 12;
 constexpr integer spc_de_i = 13;
 constexpr integer spc_vac_i = 14;
+
 
 constexpr integer vx_i = sx_i;
 constexpr integer vy_i = sy_i;

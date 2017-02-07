@@ -15,6 +15,65 @@
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
 
+#ifdef RADIATION
+bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
+	bool rc = false;
+	real den_floor = 1.0e-4;
+	integer test_level = max_level;
+	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
+		if (U[rho_i] > den_floor) {
+			rc = rc || (level < this_test_level);
+		}
+		if (rc) {
+			break;
+		}
+		den_floor /= 8.0;
+	}
+	return rc;
+
+}
+
+
+bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> const& dudx) {
+
+	return level < max_level;
+
+	bool rc = false;
+	real den_floor = 1.0e-1;
+	integer test_level = max_level;
+	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
+		if (U[rho_i] > den_floor) {
+			rc = rc || (level < this_test_level);
+		}
+		if (rc) {
+			break;
+		}
+		den_floor /= 8.0;
+	}
+	return rc;
+
+}
+#endif
+
+
+std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
+	std::vector<real> u(NF + NRF, real(0));
+	x -= 0.0;
+	y -= 0.0;
+	z -= 0.0;
+	real r = std::max(dx,0.25);
+	if (std::sqrt(x*x + y*y + z*z) < r) {
+		u[rho_i] = 1.0;
+		u[NF+0] = 2.0;
+	} else {
+		u[NF+0] = 1.0;
+		u[rho_i] = 1.0e-20;
+	}
+	u[sx_i] = u[rho_i] / 10.0;
+	return u;
+}
+
+
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {

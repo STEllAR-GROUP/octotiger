@@ -176,6 +176,10 @@ public:
 	side get_side(const dimension&) const;
 	bool is_on_face(const face&) const;
 	quadrant get_quadrant(const dimension&) const;
+	face get_face(const dimension& d) const{
+		const integer o = *this;
+		return face(2 * d + ((o >> d) & 1));
+	}
 	integer operator[](const dimension& dim) const {
 		return (i >> dim) & 1;
 	}

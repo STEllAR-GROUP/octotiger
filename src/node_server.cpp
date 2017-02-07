@@ -185,6 +185,10 @@ hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
     return hpx::when_all(futs);
 }
 
+hpx::future<void> collect_radiation_boundaries() {
+
+}
+
 hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
     hpx::future<void> fut;
     if (is_refined) {
@@ -347,6 +351,20 @@ void node_server::initialize(real t, real rt) {
     } else {
         grid_ptr = std::make_shared < grid > (dx, xmin);
     }
+#ifdef RADIATION
+	for (auto& face : geo::face::full_set()) {
+		sibling_rad_bnd_channels[face] = std::make_shared<channel<std::vector<rad_type>> >();
+	}
+	for (auto& oct : geo::octant::full_set()) {
+		for (auto& dim : geo::dimension::full_set()) {
+			sibling_rad_channels[oct][dim] = std::make_shared<channel<std::vector<rad_type>> >();
+		}
+		for (auto& oct2 : geo::octant::full_set()) {
+			child_rad_channels[oct][oct2] = std::make_shared<channel<std::vector<rad_type>> >();
+		}
+	}
+	rad_grid_ptr = grid_ptr->get_rad_grid();
+#endif
     if (my_location.level() == 0) {
         grid_ptr->set_root();
     }
