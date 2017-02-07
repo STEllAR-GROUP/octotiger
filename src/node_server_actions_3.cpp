@@ -501,6 +501,21 @@ hpx::future<void> node_server::nonrefined_step() {
 hpx::future<void> node_server::step() {
     grid_ptr->set_coordinates();
 
+#ifdef RADIATION
+    if (opts.problem == RADIATION_TEST) {
+        std::vector<hpx::future<void>> child_futs;
+        if (is_refined) {
+            child_futs.reserve(NCHILD);
+            for (integer ci = 0; ci != NCHILD; ++ci) {
+                child_futs.push_back(children[ci].step());
+            }
+        }
+        compute_radiation(0.0);
+        hpx::wait_all(child_futs.begin(), child_futs.end());
+        printf("Success\n");
+        return hpx::make_ready_future();
+    }
+#else
     hpx::future<void> fut;
 
     if (is_refined) {
@@ -534,36 +549,6 @@ hpx::future<void> node_server::step() {
             }
             ++step_num;
         }, "node_server::nonrefined_step::dual_energy_update"));
-}
-
-hpx::future<void> node_server::step() {
-	grid_ptr->set_coordinates();
-#ifdef RADIATION
-	if (opts.problem == RADIATION_TEST) {
-		std::vector<hpx::future<void>> child_futs;
-		if (is_refined) {
-			std::vector<hpx::future<void>> child_futs;
-			child_futs.reserve(NCHILD);
-			for (integer ci = 0; ci != NCHILD; ++ci) {
-				child_futs.push_back(children[ci].step());
-			}
-		}
-		compute_radiation(0.0);
-		hpx::wait_all(child_futs.begin(), child_futs.end());
-		printf("Success\n");
-		return hpx::make_ready_future();
-	}
-#else
-	if (is_refined) {
-		std::vector<hpx::future<void>> child_futs;
-		child_futs.reserve(NCHILD);
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			child_futs.push_back(children[ci].step());
-		}
-		return refined_step(hpx::when_all(std::move(child_futs)));
-	}
-
-	return nonrefined_step();
 #endif
 }
 

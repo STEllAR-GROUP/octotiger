@@ -184,11 +184,10 @@ std::vector<sphere_point> generate_sphere_points(int nlev) {
 
 
 geo::octant sphere_point::get_octant() const {
-	geo::octant octant;
+// 	geo::octant octant;
 	const integer ix = nx > 0.0 ? 1 : 0;
 	const integer iy = ny > 0.0 ? 1 : 0;
 	const integer iz = nz > 0.0 ? 1 : 0;
 	return geo::octant(4 * iz + 2 * iy + ix);
-
 }
 

@@ -4,9 +4,20 @@
  *  Created on: May 26, 2015
  *      Author: dmarce1
  */
-//#define RADIATION
 
 #include <hpx/config.hpp>
+
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
+# define USE_GRAV_PAR
+#endif
+
+#ifdef OCTOTIGER_HAVE_SILO
+# define DO_OUTPUT
+#endif
+
+#ifdef OCTOTIGER_HAVE_RADIATION
+# define RADIATION
+#endif
 
 #ifndef TYPES444_HPP_
 
@@ -34,14 +45,6 @@
 #define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
 
 
-
-#ifdef OCTOTIGER_HAVE_GRAV_PAR
-# define USE_GRAV_PAR
-#endif
-
-#ifdef OCTOTIGER_HAVE_SILO
-# define DO_OUTPUT
-#endif
 
 #define USE_SIMD
 
