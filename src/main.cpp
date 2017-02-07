@@ -40,7 +40,13 @@ void initialize(options _opts) {
 #endif
 	grid::set_scaling_factor(opts.xscale);
 	grid::set_max_level(opts.max_level);
-
+#ifdef RADIATION
+	if (opts.problem == RADIATION_TEST) {
+		gravity_on = false;
+		set_problem(radiation_test_problem);
+		set_refine_test(radiation_test_refine);
+	} else
+#endif
 	if (opts.problem == DWD) {
 		set_problem(scf_binary);
 		set_refine_test(refine_test_bibi);

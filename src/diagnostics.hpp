@@ -10,6 +10,7 @@
 
 #include "defs.hpp"
 #include "space_vector.hpp"
+#include <vector>
 
 #include <vector>
 

@@ -14,6 +14,7 @@
 #include "geometry.hpp"
 #include "eos.hpp"
 #include "diagnostics.hpp"
+#include "rad_grid.hpp"
 
 //#include <boost/mpi/packed_iarchive.hpp>
 
@@ -76,7 +77,11 @@ public:
 
     void report_timing() const;
 
-//	hpx::future<void> find_family() const;
 
+#ifdef RADIATION
+	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci, const geo::octant& ioct) const;
+	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&) const;
+	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::face&) const;
+#endif
 	};
 #endif /* NODE_CLIENT_HPP_ */
