@@ -307,7 +307,7 @@ void node_server::start_run(bool scf) {
 #endif
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
-        if (opts.problem == DWD) {
+        if (opts.problem == DWD && step_num % refinement_freq() == 0) {
             auto diags = diagnostics();
 
             const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
