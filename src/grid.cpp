@@ -1102,7 +1102,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
 //					if( opts.ang_con) {
-//						V[zz_i][iii] -= sqr(dx) * omega / 6.0;
+						V[zz_i][iii] -= sqr(dx) * omega / 6.0;
 //					}
 				}
 			}
