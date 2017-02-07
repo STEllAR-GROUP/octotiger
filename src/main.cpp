@@ -7,7 +7,9 @@
 #include "options.hpp"
 
 #include <chrono>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include <fenv.h>
 #if !defined(_MSC_VER)
@@ -127,7 +129,7 @@ int hpx_main(int argc, char* argv[]) {
 			std::vector<hpx::future<void>> futs;
             futs.reserve(all_locs.size());
 			for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
-				futs.push_back(hpx::async < initialize_action > (*i, opts));
+				futs.push_back(hpx::async<initialize_action> (*i, opts));
 			}
             wait_all_and_propagate_exceptions(futs);
 
@@ -178,3 +180,12 @@ int hpx_main(int argc, char* argv[]) {
 	return hpx::finalize();
 }
 
+int main(int argc, char* argv[])
+{
+    std::vector<std::string> cfg = {
+        "hpx.commandline.allow_unknown=1",      // HPX should not complain about unknown command line options
+        "hpx.scheduler=local-priority-lifo"     // use LIFO scheduler by default
+    };
+
+    return hpx::init(argc, argv, cfg);
+}

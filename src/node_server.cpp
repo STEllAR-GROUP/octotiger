@@ -56,7 +56,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
     constexpr auto full_set = geo::face::full_set();
     for (auto& f : full_set) {
         const auto face_dim = f.get_dimension();
-        auto& this_aunt = aunts[f];
+        auto const& this_aunt = aunts[f];
         if (!this_aunt.empty()) {
             std::array<integer, NDIM> lb, ub;
             lb[XDIM] = lb[YDIM] = lb[ZDIM] = 0;
@@ -73,42 +73,51 @@ hpx::future<void> node_server::exchange_flux_corrections() {
     }
 
     return hpx::async(hpx::util::annotated_function([this]() {
-        for (auto& f : geo::face::full_set()) {
+        std::vector<hpx::future<void> > futs;
+        futs.reserve(geo::face::count() * geo::quadrant::count());
+        for (auto const& f : geo::face::full_set()) {
             if (this->nieces[f].size()) {
-                const auto face_dim = f.get_dimension();
-                for (auto& quadrant : geo::quadrant::full_set()) {
-                    std::array<integer, NDIM> lb, ub;
-                    switch (face_dim) {
-                        case XDIM:
-                        lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
-                        lb[YDIM] = quadrant.get_side(0) * (INX / 2);
-                        lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
-                        ub[XDIM] = lb[XDIM] + 1;
-                        ub[YDIM] = lb[YDIM] + (INX / 2);
-                        ub[ZDIM] = lb[ZDIM] + (INX / 2);
-                        break;
-                        case YDIM:
-                        lb[XDIM] = quadrant.get_side(0) * (INX / 2);
-                        lb[YDIM] = f.get_side() == geo::MINUS ? 0 : INX;
-                        lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
-                        ub[XDIM] = lb[XDIM] + (INX / 2);
-                        ub[YDIM] = lb[YDIM] + 1;
-                        ub[ZDIM] = lb[ZDIM] + (INX / 2);
-                        break;
-                        case ZDIM:
-                        lb[XDIM] = quadrant.get_side(0) * (INX / 2);
-                        lb[YDIM] = quadrant.get_side(1) * (INX / 2);
-                        lb[ZDIM] = f.get_side() == geo::MINUS ? 0 : INX;
-                        ub[XDIM] = lb[XDIM] + (INX / 2);
-                        ub[YDIM] = lb[YDIM] + (INX / 2);
-                        ub[ZDIM] = lb[ZDIM] + 1;
-                        break;
-                    }
-                    std::vector<real> data = niece_hydro_channels[f][quadrant].get_future().get();
-                    grid_ptr->set_flux_restrict(data, lb, ub, face_dim);
+                for (auto const& quadrant : geo::quadrant::full_set()) {
+                    futs.push_back(niece_hydro_channels[f][quadrant].get_future().then(
+                        hpx::util::annotated_function(
+                            [this, f, quadrant](hpx::future<std::vector<real> > && fdata) -> void
+                            {
+                                const auto face_dim = f.get_dimension();
+                                std::array<integer, NDIM> lb, ub;
+                                switch (face_dim) {
+                                case XDIM:
+                                    lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
+                                    lb[YDIM] = quadrant.get_side(0) * (INX / 2);
+                                    lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
+                                    ub[XDIM] = lb[XDIM] + 1;
+                                    ub[YDIM] = lb[YDIM] + (INX / 2);
+                                    ub[ZDIM] = lb[ZDIM] + (INX / 2);
+                                    break;
+                                case YDIM:
+                                    lb[XDIM] = quadrant.get_side(0) * (INX / 2);
+                                    lb[YDIM] = f.get_side() == geo::MINUS ? 0 : INX;
+                                    lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
+                                    ub[XDIM] = lb[XDIM] + (INX / 2);
+                                    ub[YDIM] = lb[YDIM] + 1;
+                                    ub[ZDIM] = lb[ZDIM] + (INX / 2);
+                                    break;
+                                case ZDIM:
+                                    lb[XDIM] = quadrant.get_side(0) * (INX / 2);
+                                    lb[YDIM] = quadrant.get_side(1) * (INX / 2);
+                                    lb[ZDIM] = f.get_side() == geo::MINUS ? 0 : INX;
+                                    ub[XDIM] = lb[XDIM] + (INX / 2);
+                                    ub[YDIM] = lb[YDIM] + (INX / 2);
+                                    ub[ZDIM] = lb[ZDIM] + 1;
+                                    break;
+                                }
+                                grid_ptr->set_flux_restrict(fdata.get(), lb, ub, face_dim);
+                            }, "node_server::exchange_flux_corrections::set_flux_restrict"
+                        )
+                    ));
                 }
             }
         }
+        return hpx::when_all(std::move(futs));
     }, "node_server::set_flux_restrict"));
 }
 
@@ -120,10 +129,10 @@ void node_server::all_hydro_bounds(bool tau_only) {
 
 void node_server::exchange_interlevel_hydro_data() {
 
-    std::vector < real > outflow(NF, ZERO);
     if (is_refined) {
-        for (auto& ci : geo::octant::full_set()) {
-            std::vector < real > data = child_hydro_channels[ci].get_future().get();
+        std::vector<real> outflow(NF, ZERO);
+        for (auto const& ci : geo::octant::full_set()) {
+            std::vector<real> data = child_hydro_channels[ci].get_future().get();
             grid_ptr->set_restrict(data, ci);
             integer fi = 0;
             for (auto i = data.end() - NF; i != data.end(); ++i) {
@@ -134,27 +143,24 @@ void node_server::exchange_interlevel_hydro_data() {
         grid_ptr->set_outflows(std::move(outflow));
     }
     if (my_location.level() > 0) {
-        std::vector < real > data = grid_ptr->get_restrict();
+        std::vector<real> data = grid_ptr->get_restrict();
         integer ci = my_location.get_child_index();
         parent.send_hydro_children(std::move(data), ci);
     }
 }
 
 void node_server::collect_hydro_boundaries(bool tau_only) {
-    for (auto& dir : geo::direction::full_set()) {
-//		if (!dir.is_vertex()) {
+    for (auto const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
-//				const integer width = dir.is_face() ? H_BW : 1;
             const integer width = H_BW;
             auto bdata = grid_ptr->get_hydro_boundary(dir, width, tau_only);
             neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip());
         }
-//		}
     }
 
     std::vector<hpx::future<void> > results;
     results.reserve(geo::direction::count());
-    for (auto& dir : geo::direction::full_set()) {
+    for (auto const& dir : geo::direction::full_set()) {
         if (!(neighbors[dir].empty() && my_location.level() == 0)) {
             results.push_back(
                 sibling_hydro_channels[dir].get_future().then(

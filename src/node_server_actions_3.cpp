@@ -381,6 +381,11 @@ hpx::future<void> node_client::step() const {
 }
 
 void node_server::refined_step() {
+#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+    static hpx::util::itt::string_handle sh("node_server::refined_step");
+    hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+#endif
+
     timings::scope ts(timings_, timings::time_computation);
     const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
     real cfl0 = cfl;
@@ -408,6 +413,11 @@ void node_server::refined_step() {
 }
 
 hpx::future<void> node_server::nonrefined_step() {
+#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+    static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
+    hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+#endif
+
     timings::scope ts(timings_, timings::time_computation);
 
     real cfl0 = cfl;

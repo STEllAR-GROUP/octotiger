@@ -846,7 +846,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     const v4sd d0(di0.data());
 #endif
     hpx::parallel::for_loop(
-        for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
+        for_loop_policy, 0, ilist_n_bnd.size(),
+        [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             const integer dsize = bnd.first.size();

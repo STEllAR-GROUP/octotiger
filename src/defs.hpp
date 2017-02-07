@@ -208,6 +208,18 @@ constexpr inline T cube(T const& val)
     return val * val * val;
 }
 
+template <typename T>
+constexpr inline void inplace_average(T& s1, T& s2)
+{
+    s1 = s2 = 0.5 * (s1 + s2);
+};
+
+template <typename T>
+constexpr inline T average(T& s1, T& s2)
+{
+    return 0.5 * (s1 + s2);
+};
+
 /*
 #define SYSTEM(command) \
 	if( system( (command).c_str()) != 0) { \
