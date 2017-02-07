@@ -1404,12 +1404,14 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 				for (integer field = 0; field != NF; ++field) {
 					U[field][iii] = this_u[field];
 				}
+#ifdef RADIATION
 				if (this_u.size() > NF) {
 					for (integer f = 0; f != NRF; ++f) {
 						const integer d = R_BW - H_BW;
 						rad_grid_ptr->set_field(this_u[NF + f], f, i + d, j + d, k + d);
 					}
 				}
+#endif
 			}
 		}
 	}

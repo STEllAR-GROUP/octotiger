@@ -6,8 +6,6 @@
 
 extern options opts;
 
-#define RADIATION
-
 #ifdef RADIATION
 
 typedef node_server::send_rad_boundary_action send_rad_boundary_action_type;

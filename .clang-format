@@ -39,7 +39,7 @@ BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Custom
 BreakBeforeTernaryOperators: false
 BreakConstructorInitializersBeforeComma: true
-BreakStringLiterals: true
+# BreakStringLiterals: true
 ColumnLimit: 100
 CommentPragmas: "///"
 ConstructorInitializerAllOnOneLineOrOnePerLine: false

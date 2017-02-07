@@ -10,6 +10,7 @@
 
 #include "defs.hpp"
 #include <cassert>
+#include <cstdlib>
 
 namespace geo {
 

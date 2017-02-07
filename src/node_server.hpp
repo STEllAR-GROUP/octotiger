@@ -131,16 +131,16 @@ private:
     static std::atomic<integer> static_initializing;
 
     void initialize(real, real);
-    hpx::future<void> send_hydro_amr_boundaries(bool tau_only = false);
-    hpx::future<void> collect_hydro_boundaries(bool tau_only = false);
-    hpx::future<void> exchange_interlevel_hydro_data();
+    void send_hydro_amr_boundaries(bool tau_only = false);
+    void collect_hydro_boundaries(bool tau_only = false);
+    void exchange_interlevel_hydro_data();
     static void static_initialize();
-    hpx::future<void> all_hydro_bounds(bool tau_only = false);
+    void all_hydro_bounds(bool tau_only = false);
     void clear_family();
     hpx::future<void> exchange_flux_corrections();
 
     hpx::future<void> nonrefined_step();
-    hpx::future<void> refined_step(std::vector<hpx::future<void>> child_futs);
+    hpx::future<void> refined_step(hpx::future<void> child_futs);
 
 public:
 
@@ -203,14 +203,11 @@ public:
     void set_grid(const std::vector<real>&, std::vector<real>&&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
 
-    real timestep_driver();
-    HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver, timestep_driver_action);
-
     hpx::future<real> timestep_driver_descend();
     HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
 
     void timestep_driver_ascend(real);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_ascend, timestep_driver_ascend_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, timestep_driver_ascend, timestep_driver_ascend_action);
 
     hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, copy_to_locality, copy_to_locality_action);
@@ -251,7 +248,7 @@ public:
     bool check_for_refinement();
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
-    void force_nodes_to_exist(const std::list<node_location>& loc);
+    void force_nodes_to_exist(std::vector<node_location>&& loc);
     HPX_DEFINE_COMPONENT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
 
     scf_data_t scf_params();
@@ -298,39 +295,23 @@ public:
 
 };
 
-HPX_ACTION_USES_LARGE_STACK(node_server::rho_mult_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::output_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::line_of_centers_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::scf_update_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::set_grid_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::force_nodes_to_exist_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::check_for_refinement_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::set_aunt_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::get_nieces_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::load_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::save_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::send_hydro_children_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::send_hydro_flux_correct_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::regrid_gather_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::regrid_scatter_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::send_hydro_boundary_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::send_gravity_boundary_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::send_gravity_multipoles_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::send_gravity_expansions_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::step_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::regrid_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::solve_gravity_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::start_run_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::copy_to_locality_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::get_child_client_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::form_tree_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::get_ptr_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::diagnostics_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::scf_params_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::timestep_driver_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::timestep_driver_ascend_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::timestep_driver_descend_action);
-HPX_ACTION_USES_LARGE_STACK(node_server::velocity_inc_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::rho_mult_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::output_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::line_of_centers_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::scf_update_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::set_aunt_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::get_nieces_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::load_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::save_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::step_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::solve_gravity_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::start_run_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::copy_to_locality_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::get_child_client_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::get_ptr_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::diagnostics_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::scf_params_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::velocity_inc_action);
 
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::output_action);
@@ -361,7 +342,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);

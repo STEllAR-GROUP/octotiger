@@ -8,7 +8,7 @@
 #ifndef OPTIONS_HPP_
 #define OPTIONS_HPP_
 
-#include <string.h>
+#include <string>
 #include "defs.hpp"
 
 enum problem_type {

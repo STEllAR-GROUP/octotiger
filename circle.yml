@@ -1,0 +1,35 @@
+machine:
+    environment:
+        Vc_ROOT: /home/ubuntu/Vc_install
+        Boost_ROOT: /home/ubuntu/boost_1_63_0_install
+        HPX_ROOT: /home/ubuntu/hpx_install
+        LD_LIBRARY_PATH: /home/ubuntu/boost_1_63_0_install/lib:/home/ubuntu/hpx_install/lib:/home/ubuntu/Vc_install/lib
+
+dependencies:
+    pre:
+        - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && sudo add-apt-repository -y ppa:george-edison55/cmake-3.x
+        - sudo apt-get update
+        - sudo apt-get install -y gcc-6 g++-6 gfortran-6 cmake libgoogle-perftools-dev libhwloc-dev
+        - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 20
+        - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 20
+        - sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-6 20
+        - ./circle_ci_scripts/build-boost.sh
+        - ./circle_ci_scripts/build-Vc.sh
+        - ./circle_ci_scripts/build-hpx.sh
+    cache_directories:
+        - "/home/ubuntu/octotiger/boost_1_63_0"
+        - "/home/ubuntu/boost_1_63_0_install"
+        - "/home/ubuntu/octotiger/Vc"
+        - "/home/ubuntu/Vc_install"
+        - "/home/ubuntu/octotiger/hpx"
+        - "/home/ubuntu/hpx_install"
+compile:
+    override:
+        - ./circle_ci_scripts/build-octotiger.sh
+test:
+    override:
+        - cd build && ./octotiger -Disableoutput -Problem=moving_star -Max_level=2 -Xscale=32 -Odt=0.5 -Stopstep=0 --hpx:threads=2 --hpx:bind=none
+        - cd test1 && ./test1.sh > output.txt
+        - cd test1 &&  python validate.py output.txt test1.txt
+
+

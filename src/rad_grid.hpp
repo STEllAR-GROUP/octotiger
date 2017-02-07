@@ -10,6 +10,8 @@
 
 #include "defs.hpp"
 
+#ifdef RADIAITON
+
 #define R_BW 1
 #define R_NX (INX+2*R_BW)
 #define R_N3 (R_NX*R_NX*R_NX)
@@ -97,3 +99,5 @@ public:
 };
 
 #endif /* RAD_GRID_HPP_ */
+
+#endif

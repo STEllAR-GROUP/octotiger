@@ -171,20 +171,27 @@ void grid::compute_interactions(gsolve_type type) {
     // calculating the interaction
 
     auto& mon = *mon_ptr;
-    // L stores the gravitational potentatial (Dominic)
+    // L stores the gravitational potentatial
     // L should be L, (10) in the paper
-    // L_c stores the correction for angular momentum (Dominic)
+    // L_c stores the correction for angular momentum
     // L_c, (20) in the paper (Dominic)
-    std::fill(std::begin(L), std::end(L), ZERO);
+    #if defined(HPX_HAVE_DATAPAR)
+    	hpx::parallel::fill(hpx::parallel::execution::dataseq,L.begin(),L.end(),ZERO);
+    #else
+    	std::fill(std::begin(L), std::end(L), ZERO);
+    #endif
     if (opts.ang_con) {
-        std::fill(std::begin(L_c), std::end(L_c), ZERO);
+	#if defined(HPX_HAVE_DATAPAR)
+		hpx::parallel::fill(hpx::parallel::execution::dataseq,L_c.begin(),L_c.end(),ZERO);	
+	#else
+		std::fill(std::begin(L_c), std::end(L_c), ZERO);
+	#endif
     }
 
     // Non-leaf nodes use taylor expansion
     // For leaf node, calculates the gravitational potential between two particles
     if (!is_leaf) {
         // Non-leaf means that multipole-multipole interaction (David)
-
         // Fetch the interaction list for the current cell (David)
         const auto& this_ilist = is_root ? ilist_r : ilist_n;
         const integer list_size = this_ilist.size();
@@ -200,27 +207,26 @@ void grid::compute_interactions(gsolve_type type) {
         hpx::parallel::for_loop_strided(for_loop_policy, 0, list_size, simd_len,
             [&com0, &this_ilist, list_size, type, this](std::size_t li) {
 
-                // variable for every dimension (per simd element, SoA style) (David)
                 // dX is distance between X and Y
                 // X and Y are the two cells interacting
-                // X and Y store the 3D center of masses
+                // X and Y store the 3D center of masses (per simd element, SoA style)
                 std::array<simd_vector, NDIM> dX;
                 std::array<simd_vector, NDIM> X;
                 std::array<simd_vector, NDIM> Y;
 
-                // m multipole-moments of the cells
+                // m multipole moments of the cells
                 taylor<4, simd_vector> m0;
                 taylor<4, simd_vector> m1;
                 // n angular momentum of the cells
                 taylor<4, simd_vector> n0;
                 taylor<4, simd_vector> n1;
 
-                // vector of multipoles (== taylor<4>s) (David)
+                // vector of multipoles (== taylor<4>s)
+                // here the multipoles are used as a storage of expansion coefficients
                 auto& M = *M_ptr;
-// No idea what the next loop does. It seems to fetch data (David)
-// FIXME: replace with vector-pack gather-loads
 
-// only uses first 10 coefficients
+                // FIXME: replace with vector-pack gather-loads
+                // TODO: only uses first 10 coefficients? ask Dominic
 #pragma GCC ivdep
                 for (integer i = 0; i != simd_len && integer(li + i) < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;

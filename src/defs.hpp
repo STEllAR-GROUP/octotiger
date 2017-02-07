@@ -4,7 +4,7 @@
  *  Created on: May 26, 2015
  *      Author: dmarce1
  */
-#define RADIATION
+//#define RADIATION
 
 #include <hpx/config.hpp>
 
@@ -21,7 +21,11 @@
 #ifdef RADIATION
 #define NRADF 10
 #define NRF 4
+#else
+#define NRF 0
+#define NRADF 0
 #endif
+
 #define LIGHTSPEED 1.0
 
 #define NPF 5
