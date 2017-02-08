@@ -260,8 +260,9 @@ void node_server::start_run(bool scf) {
     node_server* root_ptr = fut_ptr.get();
 
     output_cnt = root_ptr->get_rotation_count() / output_dt;
-    hpx::future<void> diag_fut = hpx::make_ready_future();
-    profiler_output (stdout);
+
+    profiler_output(stdout);
+
     real bench_start, bench_stop;
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
@@ -289,22 +290,22 @@ void node_server::start_run(bool scf) {
 
         //	break;
         hpx::future<real> ts_fut;
+        real dt = 0;
+
 #ifdef RADIATION
-		if (opts.problem != RADIATION_TEST) {
-#endif
-		    ts_fut = timestep_driver_descend();
-#ifdef RADIATION
-		}
-#endif
-        step().get();
-        real dt;
-#ifdef RADIATION
-        if( opts.problem != RADIATION_TEST) {
-#endif
-            dt = ts_fut.get();
-#ifdef RADIATION
+        if (opts.problem != RADIATION_TEST) {
+            ts_fut = timestep_driver_descend();
         }
+        step().get();
+        if(opts.problem != RADIATION_TEST) {
+            dt = ts_fut.get();
+        }
+#else
+        ts_fut = timestep_driver_descend();
+        step().get();
+        dt = ts_fut.get();
 #endif
+
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
         if (opts.problem == DWD && step_num % refinement_freq() == 0) {
@@ -339,11 +340,14 @@ void node_server::start_run(bool scf) {
                     int(step_num), double(t), double(dt), time_elapsed, rotational_time,
                     theta, theta_dot, omega, omega_dot, int(ngrids));
                 fclose(fp);
-            });     // do not wait for it fo finish
+            });     // do not wait for it to finish
         }
 
-        printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
-            time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+        hpx::threads::run_as_os_thread([=]()
+        {
+            printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
+                time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+        });     // do not wait for output to finish
 
 //		t += dt;
         ++step_num;
@@ -576,6 +580,14 @@ hpx::future<real> node_client::timestep_driver_descend() const {
 }
 
 hpx::future<real> node_server::timestep_driver_descend() {
+    if (my_location.level() == 0)
+    {
+        return hpx::async(&node_server::timestep_driver_descend_helper, this);
+    }
+    return timestep_driver_descend_helper();
+}
+
+hpx::future<real> node_server::timestep_driver_descend_helper() {
     if (is_refined) {
         std::vector<hpx::future<real>> futs;
         futs.reserve(children.size() + 1);

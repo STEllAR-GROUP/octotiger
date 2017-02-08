@@ -207,6 +207,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
 
     hpx::future<real> timestep_driver_descend();
+    hpx::future<real> timestep_driver_descend_helper();
     HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
 
     void timestep_driver_ascend(real);
