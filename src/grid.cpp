@@ -466,6 +466,10 @@ const std::vector<real>& grid::get_field(integer f) const {
 	return U[f];
 }
 
+std::vector<real>& grid::get_field(integer f) {
+	return U[f];
+}
+
 void grid::set_field(std::vector<real>&& data, integer f) {
 	U[f] = std::move(data);
 }
@@ -1125,13 +1129,13 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 						v = U[sx_i + d][iii] * rhoinv;
 						V[egas_i][iii] -= 0.5 * v * v;
 						//	if( opts.ang_con) {
-						//		V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
+								V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
 						//	}
 					}
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
 					//	if( opts.ang_con ) {
-					//		V[zz_i][iii] -= sqr(dx) * omega / 6.0;
+							V[zz_i][iii] -= sqr(dx) * omega / 6.0;
 					//	}
 				}
 			}
@@ -1404,18 +1408,12 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 				for (integer field = 0; field != NF; ++field) {
 					U[field][iii] = this_u[field];
 				}
-#ifdef RADIATION
-				if (this_u.size() > NF) {
-					for (integer f = 0; f != NRF; ++f) {
-						const integer d = R_BW - H_BW;
-						rad_grid_ptr->set_field(this_u[NF + f], f, i + d, j + d, k + d);
-					}
-				}
-#endif
 			}
 		}
 	}
-
+#ifdef RADIATION
+		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+#endif
 	if (node_server::is_gravity_on()) {
 		for (integer i = 0; i != G_N3; ++i) {
 			for (integer field = 0; field != NGF; ++field) {
@@ -2175,7 +2173,7 @@ void grid::next_u(integer rk, real t, real dt) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 //				if (opts.problem == SOD && opts.ang_con) {
-//					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
+					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
 //				}
 				U[rho_i][iii] = ZERO;
 				for (integer si = 0; si != NSPECIES; ++si) {
