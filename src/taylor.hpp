@@ -394,7 +394,7 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 // #if !defined(HPX_HAVE_DATAPAR)
     for (integer i = 0; i != simd_len; ++i) {
         if (r2[i] > 0.0) {
-            r2inv[i] = ONE / r2[i];
+            r2inv[i] = ONE / std::max(r2[i],1.0e-20);
         }
     }
 // #else
