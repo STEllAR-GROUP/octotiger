@@ -186,6 +186,7 @@ public:
 	}
 #endif
 	real get_dx() const;
+	std::vector<real>& get_field( integer f );
 	const std::vector<real>& get_field( integer f ) const;
 	void set_field( std::vector<real>&& data, integer f );
 	void set_field( const std::vector<real>& data, integer f );

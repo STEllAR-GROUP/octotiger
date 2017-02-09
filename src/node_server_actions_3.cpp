@@ -308,7 +308,7 @@ void node_server::start_run(bool scf) {
 
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
-        if (opts.problem == DWD && step_num % refinement_freq() == 0) {
+        if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             auto diags = diagnostics();
 
             const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
@@ -386,11 +386,6 @@ void node_server::start_run(bool scf) {
             //	fclose(fp);
             break;
         }
-#ifdef RADIATION
-        if( opts.problem == RADIATION_TEST ) {
-        	break;
-        }
-#endif
     }
     compare_analytic();
     output("final.silo", output_cnt, true);
@@ -432,6 +427,13 @@ void node_server::refined_step() {
 
         compute_fmm(RHO, true);
         all_hydro_bounds();
+
+#ifdef RADIATION
+        if( rk == NRK - 1 ) {
+            compute_radiation(dt_);
+            all_hydro_bounds();
+        }
+#endif
     }
 }
 
@@ -458,7 +460,6 @@ hpx::future<void> node_server::nonrefined_step() {
                 [rk, cfl0, this](hpx::future<void> f)
                 {
                     f.get();        // propagate exceptions
-
 
                     grid_ptr->reconstruct();
                     real a = grid_ptr->compute_fluxes();
@@ -487,11 +488,17 @@ hpx::future<void> node_server::nonrefined_step() {
                                 if (rk == 0) {
                                     dt_ = global_timestep_channel.get_future().get();
                                 }
-
                                 grid_ptr->next_u(rk, current_time, dt_);
 
                                 compute_fmm(RHO, true);
-                                return all_hydro_bounds();
+                                all_hydro_bounds();
+
+#ifdef RADIATION
+                                if(rk == NRK - 1) {
+                                    compute_radiation(dt_);
+                                    all_hydro_bounds();
+                                }
+#endif
                             }, "node_server::nonrefined_step::compute_fmm"
                         ));
                 }, "node_server::nonrefined_step::compute_fluxes"
