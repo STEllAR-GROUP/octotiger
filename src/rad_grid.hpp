@@ -10,7 +10,7 @@
 
 #include "defs.hpp"
 
-#ifdef RADIAITON
+#ifdef RADIATION
 
 #define R_BW 1
 #define R_NX (INX+2*R_BW)
@@ -27,6 +27,25 @@ typedef real rad_type;
 class rad_grid_init {
 public:
 	rad_grid_init();
+};
+
+static constexpr auto kappa_p = [](real rho, real e) {
+	return rho;
+};
+
+static constexpr auto dkappa_p_de = [](real rho, real e) {
+	return 0.0;
+};
+
+static constexpr auto kappa_R = [](real rho, real e) {
+	return rho;
+};
+
+static constexpr auto B_p = [](real rho, real e) {
+	return std::pow( e / rho, 4.0);
+};
+static constexpr auto dB_p_de = [](real rho, real e) {
+	return 4.0 * std::pow( e / rho, 4.0) / e;
 };
 
 class rad_grid: public rad_grid_init {
@@ -73,10 +92,13 @@ public:
 		arc & dx;
 		arc & U;
 	}
+	void initialize_erad(const std::vector<real> rho, const std::vector<real> tau);
 	void set_dx(real dx);
 	void compute_fEdd();
 	void compute_flux();
 	void advance(real dt);
+	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
+			const std::vector<real>& rho, real dt);
 	std::vector<real> get_restrict(const geo::octant&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
 	void set_prolong(const std::vector<real>&, const geo::octant&);

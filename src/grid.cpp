@@ -2184,7 +2184,7 @@ void grid::next_u(integer rk, real t, real dt) {
 					//	abort();
 				} else if (U[rho_i][iii] <= ZERO) {
 					printf("Rho is non-positive - %e %i %i %i\n", double(U[rho_i][iii]), int(i), int(j), int(k));
-					//	abort();
+					abort();
 				}
 				if (!opts.ang_con) {
 					U[zx_i][iii] = U[zy_i][iii] = U[zx_i][iii] = 0.0;

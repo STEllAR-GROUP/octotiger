@@ -288,26 +288,14 @@ void node_server::start_run(bool scf) {
         }
 
         //	break;
-        hpx::future<real> ts_fut;
-#ifdef RADIATION
-		if (opts.problem != RADIATION_TEST) {
-#endif
-		    ts_fut = timestep_driver_descend();
-#ifdef RADIATION
-		}
-#endif
-        step().get();
-        real dt;
-#ifdef RADIATION
-        if( opts.problem != RADIATION_TEST) {
-#endif
-            dt = ts_fut.get();
-#ifdef RADIATION
-        }
-#endif
-        real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
-        omega = grid::get_omega();
-        if (opts.problem == DWD && step_num % refinement_freq() == 0) {
+		hpx::future<real> ts_fut;
+		ts_fut = timestep_driver_descend();
+		step().get();
+		real dt;
+		dt = ts_fut.get();
+		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
+		omega = grid::get_omega();
+        if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             auto diags = diagnostics();
 
             const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
@@ -382,11 +370,6 @@ void node_server::start_run(bool scf) {
             //	fclose(fp);
             break;
         }
-#ifdef RADIATION
-        if( opts.problem == RADIATION_TEST ) {
-        	break;
-        }
-#endif
     }
     compare_analytic();
     output("final.silo", output_cnt, true);
@@ -423,13 +406,18 @@ hpx::future<void> node_server::refined_step(hpx::future<void> child_futs) {
 
         compute_fmm(RHO, true);
         all_hydro_bounds();
+#ifdef RADIATION
+        if( rk == NRK - 1 ) {
+        	compute_radiation(dt_);
+			all_hydro_bounds();
+        }
+#endif
     }
 
     return hpx::dataflow(
         [this](hpx::future<void> children)
         {
             children.get(); // propagate exceptions
-
             grid_ptr->dual_energy_update();
             current_time += dt_;
             if (grid::get_omega() != 0.0) {
@@ -486,14 +474,20 @@ hpx::future<void> node_server::nonrefined_step() {
                         if (rk == 0) {
                             dt_ = global_timestep_channel.get_future().get();
                         }
-
                         grid_ptr->next_u(rk, current_time, dt_);
 
                         compute_fmm(RHO, true);
-                        return all_hydro_bounds();
+                        all_hydro_bounds();
+#ifdef RADIATION
+                        if( rk == NRK - 1 ) {
+                        	compute_radiation(dt_);
+                        	all_hydro_bounds();
+                        }
+#endif
                     });
             });
     }
+
 
     return fut.then(
         [this](hpx::future<void> f)
@@ -514,22 +508,6 @@ hpx::future<void> node_server::nonrefined_step() {
 
 hpx::future<void> node_server::step() {
 	grid_ptr->set_coordinates();
-#ifdef RADIATION
-	if (opts.problem == RADIATION_TEST) {
-		std::vector<hpx::future<void>> child_futs;
-		if (is_refined) {
-			std::vector<hpx::future<void>> child_futs;
-			child_futs.reserve(NCHILD);
-			for (integer ci = 0; ci != NCHILD; ++ci) {
-				child_futs.push_back(children[ci].step());
-			}
-		}
-		compute_radiation(0.0);
-		hpx::wait_all(child_futs.begin(), child_futs.end());
-		printf("Success\n");
-		return hpx::make_ready_future();
-	}
-#else
 	if (is_refined) {
 		std::vector<hpx::future<void>> child_futs;
 		child_futs.reserve(NCHILD);
@@ -540,7 +518,6 @@ hpx::future<void> node_server::step() {
 	}
 
 	return nonrefined_step();
-#endif
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;

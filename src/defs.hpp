@@ -4,7 +4,7 @@
  *  Created on: May 26, 2015
  *      Author: dmarce1
  */
-//#define RADIATION
+#define RADIATION
 
 #include <hpx/config.hpp>
 
