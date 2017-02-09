@@ -17,9 +17,12 @@
 #include "future.hpp"
 #include "struct_eos.hpp"
 #include "profiler.hpp"
-#include <atomic>
 #include "rad_grid.hpp"
+
+#include <atomic>
+
 #include <hpx/include/components.hpp>
+#include <hpx/include/serialization.hpp>
 
 namespace hpx {
     using mutex = hpx::lcos::local::spinlock;
@@ -113,7 +116,7 @@ public:
         arc & xmin;
         arc & dx;
         arc & amr_flags;
-        arc & *grid_ptr;
+        arc & grid_ptr;
         rf = refinement_flag;
         arc & rf;
         refinement_flag = rf;
@@ -140,7 +143,7 @@ private:
     hpx::future<void> exchange_flux_corrections();
 
     hpx::future<void> nonrefined_step();
-    hpx::future<void> refined_step(hpx::future<void> child_futs);
+    void refined_step();
 
 public:
 
@@ -204,6 +207,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
 
     hpx::future<real> timestep_driver_descend();
+    hpx::future<real> timestep_driver_descend_helper();
     HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
 
     void timestep_driver_ascend(real);

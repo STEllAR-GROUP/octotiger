@@ -260,8 +260,9 @@ void node_server::start_run(bool scf) {
     node_server* root_ptr = fut_ptr.get();
 
     output_cnt = root_ptr->get_rotation_count() / output_dt;
-    hpx::future<void> diag_fut = hpx::make_ready_future();
-    profiler_output (stdout);
+
+    profiler_output(stdout);
+
     real bench_start, bench_stop;
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
@@ -288,13 +289,25 @@ void node_server::start_run(bool scf) {
         }
 
         //	break;
-		hpx::future<real> ts_fut;
-		ts_fut = timestep_driver_descend();
-		step().get();
-		real dt;
-		dt = ts_fut.get();
-		real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
-		omega = grid::get_omega();
+        hpx::future<real> ts_fut;
+        real dt = 0;
+
+#ifdef RADIATION
+        if (opts.problem != RADIATION_TEST) {
+            ts_fut = timestep_driver_descend();
+        }
+        step().get();
+        if(opts.problem != RADIATION_TEST) {
+            dt = ts_fut.get();
+        }
+#else
+        ts_fut = timestep_driver_descend();
+        step().get();
+        dt = ts_fut.get();
+#endif
+
+        real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
+        omega = grid::get_omega();
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             auto diags = diagnostics();
 
@@ -327,11 +340,14 @@ void node_server::start_run(bool scf) {
                     int(step_num), double(t), double(dt), time_elapsed, rotational_time,
                     theta, theta_dot, omega, omega_dot, int(ngrids));
                 fclose(fp);
-            });     // do not wait for it fo finish
+            });     // do not wait for it to finish
         }
 
-        printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
-            time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+        hpx::threads::run_as_os_thread([=]()
+        {
+            printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
+                time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+        });     // do not wait for output to finish
 
 //		t += dt;
         ++step_num;
@@ -382,7 +398,12 @@ hpx::future<void> node_client::step() const {
     return hpx::async<typename node_server::step_action>(get_gid());
 }
 
-hpx::future<void> node_server::refined_step(hpx::future<void> child_futs) {
+void node_server::refined_step() {
+#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+    static hpx::util::itt::string_handle sh("node_server::refined_step");
+    hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+#endif
+
     timings::scope ts(timings_, timings::time_computation);
     const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
     real cfl0 = cfl;
@@ -406,31 +427,22 @@ hpx::future<void> node_server::refined_step(hpx::future<void> child_futs) {
 
         compute_fmm(RHO, true);
         all_hydro_bounds();
+
 #ifdef RADIATION
         if( rk == NRK - 1 ) {
-        	compute_radiation(dt_);
-			all_hydro_bounds();
+            compute_radiation(dt_);
+            all_hydro_bounds();
         }
 #endif
     }
-
-    return hpx::dataflow(
-        [this](hpx::future<void> children)
-        {
-            children.get(); // propagate exceptions
-            grid_ptr->dual_energy_update();
-            current_time += dt_;
-            if (grid::get_omega() != 0.0) {
-                rotational_time += grid::get_omega() * dt_;
-            } else {
-                rotational_time = current_time;
-            }
-            ++step_num;
-        },
-        std::move(child_futs));
 }
 
 hpx::future<void> node_server::nonrefined_step() {
+#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+    static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
+    hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+#endif
+
     timings::scope ts(timings_, timings::time_computation);
 
     real cfl0 = cfl;
@@ -444,53 +456,97 @@ hpx::future<void> node_server::nonrefined_step() {
     for (integer rk = 0; rk < NRK; ++rk) {
 
         fut = fut.then(
-            [rk, cfl0, this](hpx::future<void> f)
-            {
-                f.get();        // propagate exceptions
+            hpx::util::annotated_function(
+                [rk, cfl0, this](hpx::future<void> f)
+                {
+                    f.get();        // propagate exceptions
 
+                    grid_ptr->reconstruct();
+                    real a = grid_ptr->compute_fluxes();
 
-                grid_ptr->reconstruct();
-                real a = grid_ptr->compute_fluxes();
+                    hpx::future<void> fut_flux = exchange_flux_corrections();
 
-                hpx::future<void> fut_flux = exchange_flux_corrections();
+                    if (rk == 0) {
+                        const real dx = TWO * grid::get_scaling_factor() /
+                            real(INX << my_location.level());
+                        dt_ = cfl0 * dx / a;
+                        local_timestep_channel.set_value(dt_);
+                    }
 
-                if (rk == 0) {
-                    const real dx = TWO * grid::get_scaling_factor() /
-                        real(INX << my_location.level());
-                    dt_ = cfl0 * dx / a;
-                    local_timestep_channel.set_value(dt_);
-                }
+                    return fut_flux.then(
+                        hpx::launch::async(hpx::threads::thread_priority_boost),
+                        hpx::util::annotated_function(
+                            [rk, this](hpx::future<void> f)
+                            {
+                                f.get();        // propagate exceptions
 
-                return fut_flux.then(
-                    [rk, this](hpx::future<void> f)
-                    {
-                        f.get();        // propagate exceptions
+                                grid_ptr->compute_sources(current_time);
+                                grid_ptr->compute_dudt();
 
-                        grid_ptr->compute_sources(current_time);
-                        grid_ptr->compute_dudt();
+                                compute_fmm(DRHODT, false);
 
-                        compute_fmm(DRHODT, false);
+                                if (rk == 0) {
+                                    dt_ = global_timestep_channel.get_future().get();
+                                }
+                                grid_ptr->next_u(rk, current_time, dt_);
 
-                        if (rk == 0) {
-                            dt_ = global_timestep_channel.get_future().get();
-                        }
-                        grid_ptr->next_u(rk, current_time, dt_);
+                                compute_fmm(RHO, true);
+                                all_hydro_bounds();
 
-                        compute_fmm(RHO, true);
-                        all_hydro_bounds();
 #ifdef RADIATION
-                        if( rk == NRK - 1 ) {
-                        	compute_radiation(dt_);
-                        	all_hydro_bounds();
-                        }
+                                if(rk == NRK - 1) {
+                                    compute_radiation(dt_);
+                                    all_hydro_bounds();
+                                }
 #endif
-                    });
-            });
+                            }, "node_server::nonrefined_step::compute_fmm"
+                        ));
+                }, "node_server::nonrefined_step::compute_fluxes"
+            )
+        );
     }
 
+    return fut;
+}
+
+hpx::future<void> node_server::step() {
+    grid_ptr->set_coordinates();
+
+#ifdef RADIATION
+    if (opts.problem == RADIATION_TEST) {
+        std::vector<hpx::future<void>> child_futs;
+        if (is_refined) {
+            child_futs.reserve(NCHILD);
+            for (integer ci = 0; ci != NCHILD; ++ci) {
+                child_futs.push_back(children[ci].step());
+            }
+        }
+        compute_radiation(0.0);
+        hpx::wait_all(child_futs.begin(), child_futs.end());
+        printf("Success\n");
+        return hpx::make_ready_future();
+    }
+#else
+    hpx::future<void> fut;
+
+    if (is_refined) {
+        std::vector<hpx::future<void>> child_futs;
+        child_futs.reserve(NCHILD);
+
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            child_futs.push_back(children[ci].step());
+        }
+        refined_step();
+
+        fut = hpx::when_all(std::move(child_futs));
+    }
+    else
+    {
+        fut = nonrefined_step();
+    }
 
     return fut.then(
-        [this](hpx::future<void> f)
+        hpx::util::annotated_function([this](hpx::future<void> && f)
         {
             f.get();        // propagate exceptions
 
@@ -503,21 +559,8 @@ hpx::future<void> node_server::nonrefined_step() {
                 rotational_time = current_time;
             }
             ++step_num;
-        });
-}
-
-hpx::future<void> node_server::step() {
-	grid_ptr->set_coordinates();
-	if (is_refined) {
-		std::vector<hpx::future<void>> child_futs;
-		child_futs.reserve(NCHILD);
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			child_futs.push_back(children[ci].step());
-		}
-		return refined_step(hpx::when_all(std::move(child_futs)));
-	}
-
-	return nonrefined_step();
+        }, "node_server::nonrefined_step::dual_energy_update"));
+#endif
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
@@ -544,6 +587,14 @@ hpx::future<real> node_client::timestep_driver_descend() const {
 }
 
 hpx::future<real> node_server::timestep_driver_descend() {
+    if (my_location.level() == 0)
+    {
+        return hpx::async(&node_server::timestep_driver_descend_helper, this);
+    }
+    return timestep_driver_descend_helper();
+}
+
+hpx::future<real> node_server::timestep_driver_descend_helper() {
     if (is_refined) {
         std::vector<hpx::future<real>> futs;
         futs.reserve(children.size() + 1);
@@ -553,18 +604,21 @@ hpx::future<real> node_server::timestep_driver_descend() {
         futs.push_back(local_timestep_channel.get_future());
 
         return hpx::dataflow(
-            [this](std::vector<hpx::future<real>> dts_fut) -> double
-            {
-                auto dts = hpx::util::unwrapped(dts_fut);
-                real dt = *std::min_element(dts.begin(), dts.end());
-
-                if (my_location.level() == 0)
+            hpx::launch::sync,
+            hpx::util::annotated_function(
+                [this](std::vector<hpx::future<real>> dts_fut) -> double
                 {
-                    timestep_driver_ascend(dt);
-                }
+                    auto dts = hpx::util::unwrapped(dts_fut);
+                    real dt = *std::min_element(dts.begin(), dts.end());
 
-                return dt;
-            },
+                    if (my_location.level() == 0)
+                    {
+                        timestep_driver_ascend(dt);
+                    }
+
+                    return dt;
+                },
+                "node_server::timestep_driver_descend"),
             std::move(futs));
     } else {
         return local_timestep_channel.get_future();
