@@ -30,8 +30,9 @@ struct timings
         time_total = 0,
         time_computation = 1,
         time_regrid = 2,
-        time_find_localities = 3,
-        time_last = 4
+        time_compare_analytic = 3,
+        time_find_localities = 4,
+        time_last = 5
     };
 
     struct scope
@@ -83,10 +84,11 @@ struct timings
     void report(std::string const& name)
     {
         std::cout << name << ":\n";
-        std::cout << "   Total: "           << times_[time_total] << '\n';
-        std::cout << "   Computation: "     << times_[time_computation] << '\n';
-        std::cout << "   Regrid: "          << times_[time_regrid] << '\n';
-        std::cout << "   Find Localities: " << times_[time_find_localities] << '\n';
+        std::cout << "   Total: "             << times_[time_total] << '\n';
+        std::cout << "   Computation: "       << times_[time_computation] << '\n';
+        std::cout << "   Regrid: "            << times_[time_regrid] << '\n';
+        std::cout << "   Compare Anaylitic: " << times_[time_compare_analytic] << '\n';
+        std::cout << "   Find Localities: "   << times_[time_find_localities] << '\n';
     }
 
     std::array<double, timer::time_last> times_;

@@ -223,7 +223,9 @@ hpx::future<void> node_client::start_run(bool b) const {
     return hpx::async<typename node_server::start_run_action>(get_gid(), b);
 }
 
-void node_server::start_run(bool scf) {
+void node_server::start_run(bool scf)
+{
+    timings_.times_[timings::time_regrid] = 0.0;
     timings::scope ts(timings_, timings::time_total);
     integer output_cnt;
 
@@ -387,8 +389,12 @@ void node_server::start_run(bool scf) {
             break;
         }
     }
-    compare_analytic();
-    output("final.silo", output_cnt, true);
+    {
+        timings::scope ts(timings_, timings::time_compare_analytic);
+        compare_analytic();
+        if (!opts.disable_output)
+            output("final.silo", output_cnt, true);
+    }
 }
 
 typedef node_server::step_action step_action_type;
