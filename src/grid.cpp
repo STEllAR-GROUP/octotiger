@@ -2197,7 +2197,7 @@ void grid::next_u(integer rk, real t, real dt) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 //				if (opts.problem == SOD && opts.ang_con) {
-					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
+//					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
 //				}
 				U[rho_i][iii] = ZERO;
 				for (integer si = 0; si != NSPECIES; ++si) {
