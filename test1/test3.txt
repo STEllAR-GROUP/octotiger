@@ -1,0 +1,81 @@
+Running
+# direct = 743
+-----------------------------------------------
+checking for refinement
+regridding
+rebalancing 9 nodes
+forming tree connections
+regrid done
+-----------------------------------------------
+---------------Created Level 1---------------
+
+-----------------------------------------------
+checking for refinement
+regridding
+rebalancing 73 nodes
+forming tree connections
+regrid done
+-----------------------------------------------
+---------------Created Level 2---------------
+
+-----------------------------------------------
+checking for refinement
+regridding
+rebalancing 169 nodes
+forming tree connections
+regrid done
+-----------------------------------------------
+---------------Created Level 3---------------
+
+-----------------------------------------------
+checking for refinement
+regridding
+rebalancing 617 nodes
+forming tree connections
+regrid done
+-----------------------------------------------
+---------------Created Level 4---------------
+
+-----------------------------------------------
+checking for refinement
+regridding
+rebalancing 2249 nodes
+forming tree connections
+regrid done
+-----------------------------------------------
+---------------Created Level 5---------------
+
+-----------------------------------------------
+checking for refinement
+regridding
+rebalancing 2249 nodes
+forming tree connections
+regrid done
+-----------------------------------------------
+---------------Regridded Level 5---------------
+
+solving gravity------------
+...done
+Saved 2249 grids to checkpoint file
+L1
+Gravity Phi Error - 3.680366e-04
+Gravity gx Error - 9.836060e-04
+Gravity gy Error - 9.836060e-04
+Gravity gz Error - 9.836060e-04
+L2
+Gravity Phi Error - 3.685485e-04
+Gravity gx Error - 1.755220e-03
+Gravity gy Error - 1.755220e-03
+Gravity gz Error - 1.755220e-03
+Total Mass = 9.999997e-01
+9.714451e-17 -4.126367e-18
+0.000000e+00 0.000000e+00
+0.000000e+00 0.000000e+00
+...:
+   Total: 1.19597
+   Computation: 0
+   Regrid: 0
+   Compare Anaylitic: 0
+   Find Localities: 2.9317e-05
+Exiting...
+
