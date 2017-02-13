@@ -7,7 +7,9 @@
 #include "options.hpp"
 
 #include <chrono>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include <fenv.h>
 #if !defined(_MSC_VER)
@@ -33,8 +35,8 @@ void initialize(options _opts) {
 	feenableexcept (FE_DIVBYZERO);
 	feenableexcept (FE_INVALID);
 	feenableexcept (FE_OVERFLOW);
-// #else
-//     _controlfp(_EM_INEXACT | _EM_DENORMAL | _EM_INVALID, _MCW_EM);
+#else
+    _controlfp(_EM_INEXACT | _EM_DENORMAL | _EM_INVALID, _MCW_EM);
 #endif
 	grid::set_scaling_factor(opts.xscale);
 	grid::set_max_level(opts.max_level);
@@ -133,7 +135,7 @@ int hpx_main(int argc, char* argv[]) {
 			std::vector<hpx::future<void>> futs;
             futs.reserve(all_locs.size());
 			for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
-				futs.push_back(hpx::async < initialize_action > (*i, opts));
+				futs.push_back(hpx::async<initialize_action> (*i, opts));
 			}
             wait_all_and_propagate_exceptions(futs);
 
@@ -161,15 +163,13 @@ int hpx_main(int argc, char* argv[]) {
 				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
 
-			std::vector < hpx::id_type > null_sibs(geo::direction::count());
-			printf("Forming tree connections------------\n");
-			root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs).get();
 			if (gravity_on) {
+			    printf("solving gravity------------\n");
 				//real tstart = MPI_Wtime();
 				root_client.solve_gravity(false).get();
 				//	printf("Gravity Solve Time = %e\n", MPI_Wtime() - tstart);
+                printf("...done\n");
 			}
-			printf("...done\n");
 
 			if (!opts.output_only) {
 				//	set_problem(null_problem);
@@ -184,3 +184,12 @@ int hpx_main(int argc, char* argv[]) {
 	return hpx::finalize();
 }
 
+int main(int argc, char* argv[])
+{
+    std::vector<std::string> cfg = {
+        "hpx.commandline.allow_unknown=1",      // HPX should not complain about unknown command line options
+        "hpx.scheduler=local-priority-lifo"     // use LIFO scheduler by default
+    };
+
+    return hpx::init(argc, argv, cfg);
+}

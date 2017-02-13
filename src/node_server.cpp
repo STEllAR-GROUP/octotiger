@@ -21,8 +21,9 @@
 extern options opts;
 
 #include <hpx/include/lcos.hpp>
+#include <hpx/include/util.hpp>
 
-HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::managed_component<node_server>, node_server);
+HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
@@ -55,7 +56,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
     constexpr auto full_set = geo::face::full_set();
     for (auto& f : full_set) {
         const auto face_dim = f.get_dimension();
-        auto& this_aunt = aunts[f];
+        auto const& this_aunt = aunts[f];
         if (!this_aunt.empty()) {
             std::array<integer, NDIM> lb, ub;
             lb[XDIM] = lb[YDIM] = lb[ZDIM] = 0;
@@ -71,44 +72,53 @@ hpx::future<void> node_server::exchange_flux_corrections() {
         }
     }
 
-    return hpx::async([this]() {
-        for (auto& f : geo::face::full_set()) {
+    return hpx::async(hpx::util::annotated_function([this]() {
+        std::vector<hpx::future<void> > futs;
+        futs.reserve(geo::face::count() * geo::quadrant::count());
+        for (auto const& f : geo::face::full_set()) {
             if (this->nieces[f].size()) {
-                const auto face_dim = f.get_dimension();
-                for (auto& quadrant : geo::quadrant::full_set()) {
-                    std::array<integer, NDIM> lb, ub;
-                    switch (face_dim) {
-                        case XDIM:
-                        lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
-                        lb[YDIM] = quadrant.get_side(0) * (INX / 2);
-                        lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
-                        ub[XDIM] = lb[XDIM] + 1;
-                        ub[YDIM] = lb[YDIM] + (INX / 2);
-                        ub[ZDIM] = lb[ZDIM] + (INX / 2);
-                        break;
-                        case YDIM:
-                        lb[XDIM] = quadrant.get_side(0) * (INX / 2);
-                        lb[YDIM] = f.get_side() == geo::MINUS ? 0 : INX;
-                        lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
-                        ub[XDIM] = lb[XDIM] + (INX / 2);
-                        ub[YDIM] = lb[YDIM] + 1;
-                        ub[ZDIM] = lb[ZDIM] + (INX / 2);
-                        break;
-                        case ZDIM:
-                        lb[XDIM] = quadrant.get_side(0) * (INX / 2);
-                        lb[YDIM] = quadrant.get_side(1) * (INX / 2);
-                        lb[ZDIM] = f.get_side() == geo::MINUS ? 0 : INX;
-                        ub[XDIM] = lb[XDIM] + (INX / 2);
-                        ub[YDIM] = lb[YDIM] + (INX / 2);
-                        ub[ZDIM] = lb[ZDIM] + 1;
-                        break;
-                    }
-                    std::vector<real> data = niece_hydro_channels[f][quadrant].get_future().get();
-                    grid_ptr->set_flux_restrict(data, lb, ub, face_dim);
+                for (auto const& quadrant : geo::quadrant::full_set()) {
+                    futs.push_back(niece_hydro_channels[f][quadrant].get_future().then(
+                        hpx::util::annotated_function(
+                            [this, f, quadrant](hpx::future<std::vector<real> > && fdata) -> void
+                            {
+                                const auto face_dim = f.get_dimension();
+                                std::array<integer, NDIM> lb, ub;
+                                switch (face_dim) {
+                                case XDIM:
+                                    lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
+                                    lb[YDIM] = quadrant.get_side(0) * (INX / 2);
+                                    lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
+                                    ub[XDIM] = lb[XDIM] + 1;
+                                    ub[YDIM] = lb[YDIM] + (INX / 2);
+                                    ub[ZDIM] = lb[ZDIM] + (INX / 2);
+                                    break;
+                                case YDIM:
+                                    lb[XDIM] = quadrant.get_side(0) * (INX / 2);
+                                    lb[YDIM] = f.get_side() == geo::MINUS ? 0 : INX;
+                                    lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
+                                    ub[XDIM] = lb[XDIM] + (INX / 2);
+                                    ub[YDIM] = lb[YDIM] + 1;
+                                    ub[ZDIM] = lb[ZDIM] + (INX / 2);
+                                    break;
+                                case ZDIM:
+                                    lb[XDIM] = quadrant.get_side(0) * (INX / 2);
+                                    lb[YDIM] = quadrant.get_side(1) * (INX / 2);
+                                    lb[ZDIM] = f.get_side() == geo::MINUS ? 0 : INX;
+                                    ub[XDIM] = lb[XDIM] + (INX / 2);
+                                    ub[YDIM] = lb[YDIM] + (INX / 2);
+                                    ub[ZDIM] = lb[ZDIM] + 1;
+                                    break;
+                                }
+                                grid_ptr->set_flux_restrict(fdata.get(), lb, ub, face_dim);
+                            }, "node_server::exchange_flux_corrections::set_flux_restrict"
+                        )
+                    ));
                 }
             }
         }
-    });
+        return hpx::when_all(std::move(futs));
+    }, "node_server::set_flux_restrict"));
 }
 
 void node_server::all_hydro_bounds(bool tau_only) {
@@ -119,10 +129,10 @@ void node_server::all_hydro_bounds(bool tau_only) {
 
 void node_server::exchange_interlevel_hydro_data() {
 
-    std::vector < real > outflow(NF, ZERO);
     if (is_refined) {
-        for (auto& ci : geo::octant::full_set()) {
-            std::vector < real > data = child_hydro_channels[ci].get_future().get();
+        std::vector<real> outflow(NF, ZERO);
+        for (auto const& ci : geo::octant::full_set()) {
+            auto data = child_hydro_channels[ci].get_future().get();
             grid_ptr->set_restrict(data, ci);
             integer fi = 0;
             for (auto i = data.end() - NF; i != data.end(); ++i) {
@@ -133,34 +143,38 @@ void node_server::exchange_interlevel_hydro_data() {
         grid_ptr->set_outflows(std::move(outflow));
     }
     if (my_location.level() > 0) {
-        std::vector < real > data = grid_ptr->get_restrict();
+        auto data = grid_ptr->get_restrict();
         integer ci = my_location.get_child_index();
         parent.send_hydro_children(std::move(data), ci);
     }
 }
 
 void node_server::collect_hydro_boundaries(bool tau_only) {
-    for (auto& dir : geo::direction::full_set()) {
-//		if (!dir.is_vertex()) {
+    for (auto const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
-//				const integer width = dir.is_face() ? H_BW : 1;
             const integer width = H_BW;
             auto bdata = grid_ptr->get_hydro_boundary(dir, width, tau_only);
             neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip());
         }
-//		}
     }
 
     std::vector<hpx::future<void> > results;
     results.reserve(geo::direction::count());
-    for (auto& dir : geo::direction::full_set()) {
+    for (auto const& dir : geo::direction::full_set()) {
         if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-            results.push_back(sibling_hydro_channels[dir].get_future().then(
-                [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
-                {
-                    auto&& tmp = f.get();
-                    grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, H_BW, tau_only);
-                }));
+            results.push_back(
+                sibling_hydro_channels[dir].get_future().then(
+                    hpx::util::annotated_function(
+                        [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
+                        {
+                            auto&& tmp = f.get();
+                            grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
+                                H_BW, tau_only);
+                        },
+                        "node_server::collect_hydro_boundaries::set_hydro_boundary"
+                    )
+                )
+            );
         }
     }
     wait_all_and_propagate_exceptions(std::move(results));
@@ -376,7 +390,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             hpx::future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
 
             futs.push_back(
-                m_in_future.then(
+                m_in_future.then(hpx::util::annotated_function(
                     [&m_out, ci](hpx::future<multipole_pass_type>&& fut)
                     {
                         const integer x0 = ci.get_side(XDIM) * INX / 2;
@@ -393,8 +407,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                                 }
                             }
                         }
-                    }
-                )
+                    },
+                    "node_server::compute_fmm::gather_from::child_gravity_channels"
+                ))
             );
         }
         wait_all_and_propagate_exceptions(futs);
@@ -427,22 +442,25 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         if (!neighbors[dir].empty()) {
             auto f = neighbor_gravity_channels[dir].get_future();
             boundary_futs.push_back(f.then(
-                [this, type](hpx::future<neighbor_gravity_type> fut)
-                {
-                    auto && tmp = fut.get();
-                    grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-                })
-            );
+                hpx::util::annotated_function(
+                    [this, type](hpx::future<neighbor_gravity_type> fut)
+                    {
+                        auto && tmp = fut.get();
+                        grid_ptr->compute_boundary_interactions(type,
+                            tmp.direction, tmp.is_monopole, tmp.data);
+                    },
+                    "node_server::compute_fmm::compute_boundary_interactions"
+            )))
         }
     }
     wait_all_and_propagate_exceptions(boundary_futs);
 #else
      for (auto& dir : geo::direction::full_set()) {
- 		if (!neighbors[dir].empty()) {
- 			auto tmp = neighbor_gravity_channels[dir].get_future().get();
- 			grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
- 		}
- 	}
+        if (!neighbors[dir].empty()) {
+            auto tmp = neighbor_gravity_channels[dir].get_future().get();
+            grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
+        }
+    }
 #endif
 	/************************************************************************************************/
 
