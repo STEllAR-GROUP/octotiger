@@ -382,18 +382,26 @@ void node_server::start_run(bool scf)
         //		set_omega_and_pivot();
         if (scf) {
             bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
-            printf("Total time = %e s\n", double(bench_stop - bench_start));
+             printf("Total time = %e s\n", double(bench_stop - bench_start));
             //	FILE* fp = fopen( "bench.dat", "at" );
             //	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
             //	fclose(fp);
             break;
         }
     }
+    bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
     {
         timings::scope ts(timings_, timings::time_compare_analytic);
         compare_analytic();
         if (!opts.disable_output)
             output("final.silo", output_cnt, true);
+    }
+
+    if( opts.bench ) {
+        FILE* fp = fopen( "scaling.dat", "at");
+        const auto nproc = hpx::find_all_localities().size();
+        fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));
+        fclose( fp );
     }
 }
 
