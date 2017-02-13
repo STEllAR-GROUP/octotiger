@@ -88,11 +88,6 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				const integer iiih = hindex(i + d, j + d, k + d);
 				const integer iiir = rindex(i, j, k);
 
-				real f = U[fx_i][iiir]*U[fx_i][iiir];
-				f += U[fy_i][iiir]*U[fy_i][iiir];
-				f += U[fz_i][iiir]*U[fz_i][iiir];
-				f = std::sqrt(f);
-				f = std::min(1.0, U[er_i][iiir] / (f / c));
 				/* Compute transformation parameters */
 				const real vx = sx[iiih] / rho[iiih];
 				const real vy = sy[iiih] / rho[iiih];
@@ -107,9 +102,9 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 
 				real E0 = U[er_i][iiir] * (1.0 + beta_2);
 				real tmp1 = 0.0, tmp2 = 0.0;
-				tmp1 -= 2.0 * beta_x * cinv * U[fx_i][iiir] * f;
-				tmp1 -= 2.0 * beta_y * cinv * U[fy_i][iiir] * f;
-				tmp1 -= 2.0 * beta_z * cinv * U[fz_i][iiir] * f;
+				tmp1 -= 2.0 * beta_x * cinv * U[fx_i][iiir];
+				tmp1 -= 2.0 * beta_y * cinv * U[fy_i][iiir];
+				tmp1 -= 2.0 * beta_z * cinv * U[fz_i][iiir];
 				tmp2 += 2.0 * beta_x * fEdd_xx[iiir] * beta_x * U[er_i][iiir];
 				tmp2 += 2.0 * beta_y * fEdd_yy[iiir] * beta_y * U[er_i][iiir];
 				tmp2 += 2.0 * beta_z * fEdd_zz[iiir] * beta_z * U[er_i][iiir];
@@ -118,7 +113,7 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				tmp2 += 4.0 * beta_y * fEdd_yz[iiir] * beta_z * U[er_i][iiir];
 				E0 += tmp1 + tmp2;
 				if( E0 < 0.0 ) {
-					printf( "1 %e %e %e %e %e %e %e %e %e \n", E0,  U[er_i][iiir] , f / c, tmp1, tmp2, beta_2, fEdd_xx[iiir], fEdd_yy[iiir], fEdd_zz[iiir]);
+					printf( "1 %e %e %e %e %e %e %e %e \n", E0,  U[er_i][iiir] , tmp1, tmp2, beta_2, fEdd_xx[iiir], fEdd_yy[iiir], fEdd_zz[iiir]);
 					abort();
 				}
 				real Fx0, Fy0, Fz0;
@@ -151,16 +146,54 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				if (e0 < egas[iiih] * 0.001) {
 					e0 = std::pow(tau[iiih], fgamma);
 				}
-				/* Find time derivatives in co-moving frame */
-				const real er0 = U[er_i][iiir];
-				rad_imp_comoving(E0, e0, rho[iiih], dt);
-				const real dE0_dt = (E0 - U[er_i][iiir]) / dt;
-				const real de_dt = -dE0_dt;
-				const real e1 = e0;
-				const real kR = kappa_R(rho[iiih], e1);
-				const real dFx0_dt = -Fx0 * (c * kR) / (1.0 + c * dt * kR);
-				const real dFy0_dt = -Fy0 * (c * kR) / (1.0 + c * dt * kR);
-				const real dFz0_dt = -Fz0 * (c * kR) / (1.0 + c * dt * kR);
+
+				real En, Fxn, Fyn, Fzn, en;
+				real Enp1, Fxnp1, Fynp1, Fznp1, enp1;
+				real E1, Fx1, Fy1, Fz1, e1;
+				real E2, Fx2, Fy2, Fz2, e2;
+				real de1, dE1, dFx1, dFy1, dFz1;
+				real de2, dE2, dFx2, dFy2, dFz2;
+				en = e0;
+				En = E0;
+				Fxn = Fx0;
+				Fyn = Fy0;
+				Fzn = Fz0;
+
+				const real gam = 1.0 - std::sqrt(2.0)/2.0;
+
+				real this_E = En;
+				real this_e = en;
+				rad_imp_comoving(this_E, this_e, rho[iiih], gam*dt);
+
+				real kR = kappa_R(rho[iiih], this_e);
+				de1 = (this_e - en) / (gam * dt);
+				dE1 = (this_E - En) / (gam * dt);
+				dFx1 = (-(Fx0 * (c * kR) / (1.0 + c * gam * dt * kR))) / (gam * dt);
+				dFy1 = (-(Fy0 * (c * kR) / (1.0 + c * gam * dt * kR))) / (gam * dt);
+				dFz1 = (-(Fz0 * (c * kR) / (1.0 + c * gam * dt * kR))) / (gam * dt);
+
+				const real tmpE = (1.0 - 2.0 * gam) * dE1 * dt;
+				const real tmpe = (1.0 - 2.0 * gam) * de1 * dt;
+				const real tmpFx = (1.0 - 2.0 * gam) * dFx1 * dt;
+				const real tmpFy = (1.0 - 2.0 * gam) * dFy1 * dt;
+				const real tmpFz = (1.0 - 2.0 * gam) * dFz1 * dt;
+				this_E = En + tmpE;
+				this_e = en + tmpe;
+
+				rad_imp_comoving(this_E, this_e, rho[iiih], gam * dt);
+				kR = kappa_R(rho[iiih], this_e);
+				de2 = (this_e - (en + tmpe)) / (gam * dt);
+				dE2 = (this_E - (En + tmpE)) / (gam * dt);
+				dFx2 = (-((Fx0 + tmpFx) * (c * kR) / (1.0 + c * dt * kR))) / (gam * dt);
+				dFy2 = (-((Fy0 + tmpFy) * (c * kR) / (1.0 + c * dt * kR))) / (gam * dt);
+				dFz2 = (-((Fz0 + tmpFz) * (c * kR) / (1.0 + c * dt * kR))) / (gam * dt);
+
+				const real dE0_dt = (dE1 + dE2) * 0.5;
+				const real de0_dt = (de1 + de2) * 0.5;
+				const real dFx0_dt = (dFx1 + dFx2) * 0.5;
+				const real dFy0_dt = (dFy1 + dFy2) * 0.5;
+				const real dFz0_dt = (dFz1 + dFz2) * 0.5;
+
 
 				/* Transform time derivatives to lab frame */
 				const real b2o2p1 = (1.0 + 0.5 * beta_2);
@@ -189,7 +222,7 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 					e = e1;
 				}
 				if( U[er_i][iiir] < 0.0 )  {
-					printf( "%e %e %e %e\n", E0, er0, dE0_dt*dt, dE_dt*dt);
+					printf( "%e %e %e\n", E0, dE0_dt*dt, dE_dt*dt);
 					abort();
 				}
 				tau[iiih] = std::pow(e, 1.0 / fgamma);
@@ -239,6 +272,7 @@ void node_server::compute_radiation(real dt, bool new_eddington) {
 		std::list<hpx::future<void>> oct_futs;
 		for (auto& this_oct : geo::octant::full_set()) {
 			oct_futs.push_back(hpx::async([&](const geo::octant& oct) {
+				rgrid->alloc_octant(oct);
 				geo::face f_out[NDIM];
 				geo::face f_in[NDIM];
 				std::list<hpx::future<void>> futs;
@@ -266,7 +300,7 @@ void node_server::compute_radiation(real dt, bool new_eddington) {
 						const auto& flags = amr_flags[ci];
 						for (auto& dim : geo::dimension::full_set()) {
 							auto dir = f_in[dim].to_direction();
-							if (flags[dir]) {
+							if (flags[dir] && !my_location.is_physical_boundary(f_in[dim])) {
 								std::array<integer, NDIM> lb, ub;
 								std::vector<real> data;
 								get_boundary_size(lb, ub, dir, OUTER, INX, R_BW, 1);
@@ -312,6 +346,7 @@ void node_server::compute_radiation(real dt, bool new_eddington) {
 				rgrid->accumulate_intensity(oct);
 
 				hpx::wait_all(futs.begin(), futs.end());
+				rgrid->free_octant(oct);
 
 			}, this_oct));
 		}
@@ -388,7 +423,7 @@ void rad_grid::initialize() {
 
 	static std::once_flag flag;
 	std::call_once(flag, [&]() {
-		sphere_points = generate_sphere_points(4);
+		sphere_points = generate_sphere_points(3);
 	});
 
 }
@@ -416,9 +451,6 @@ void rad_grid::allocate() {
 	fEdd_yz.resize(R_N3, 0.0);
 	fEdd_zz.resize(R_N3, 0.0);
 	E.resize(R_N3, 0.0);
-	Fx.resize(R_N3, 0.0);
-	Fy.resize(R_N3, 0.0);
-	Fz.resize(R_N3, 0.0);
 	Beta_x.resize(R_N3, 0.0);
 	Beta_y.resize(R_N3, 0.0);
 	Beta_z.resize(R_N3, 0.0);
@@ -881,7 +913,18 @@ void rad_grid::free_octant(const geo::octant& oct) {
 	for (integer spi = 0; spi != sphere_points.size(); ++spi) {
 		const auto& pt = sphere_points[spi];
 		if (pt.get_octant() == oct) {
+			I[spi].resize(0);
 			I[spi].reserve(0);
+		}
+	}
+}
+
+void rad_grid::alloc_octant(const geo::octant& oct) {
+	for (integer spi = 0; spi != sphere_points.size(); ++spi) {
+		const auto& pt = sphere_points[spi];
+		if (pt.get_octant() == oct) {
+			I[spi].reserve(R_N3);
+			I[spi].resize(R_N3);
 		}
 	}
 }
