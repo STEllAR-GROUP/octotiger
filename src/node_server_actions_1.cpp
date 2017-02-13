@@ -265,7 +265,7 @@ hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
     return hpx::async<typename node_server::regrid_scatter_action>(get_gid(), a, b);
 }
 
-void node_server::regrid_scatter(integer a_, integer total) {
+hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
     refinement_flag = 0;
     std::vector<hpx::future<void>> futs;
     if (is_refined) {
@@ -296,7 +296,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
         }
     }
     clear_family();
-    wait_all_and_propagate_exceptions(futs);
+    return hpx::when_all(futs);
 }
 
 typedef node_server::regrid_action regrid_action_type;
@@ -312,16 +312,16 @@ int node_server::regrid(const hpx::id_type& root_gid, bool rb) {
     printf("-----------------------------------------------\n");
     if (!rb) {
         printf("checking for refinement\n");
-        check_for_refinement();
+        check_for_refinement().get();
     }
     printf("regridding\n");
     integer a = regrid_gather(rb);
     printf("rebalancing %i nodes\n", int(a));
-    regrid_scatter(0, a);
+    regrid_scatter(0, a).get();
     assert(grid_ptr != nullptr);
     std::vector<hpx::id_type> null_neighbors(geo::direction::count());
     printf("forming tree connections\n");
-    form_tree(root_gid, hpx::invalid_id, null_neighbors);
+    form_tree(root_gid, hpx::invalid_id, null_neighbors).get();
     if (current_time > ZERO) {
         printf("solving gravity\n");
         solve_gravity(true);

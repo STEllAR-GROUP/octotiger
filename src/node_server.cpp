@@ -132,7 +132,7 @@ void node_server::exchange_interlevel_hydro_data() {
     if (is_refined) {
         std::vector<real> outflow(NF, ZERO);
         for (auto const& ci : geo::octant::full_set()) {
-            std::vector<real> data = child_hydro_channels[ci].get_future().get();
+            auto data = child_hydro_channels[ci].get_future().get();
             grid_ptr->set_restrict(data, ci);
             integer fi = 0;
             for (auto i = data.end() - NF; i != data.end(); ++i) {
@@ -143,7 +143,7 @@ void node_server::exchange_interlevel_hydro_data() {
         grid_ptr->set_outflows(std::move(outflow));
     }
     if (my_location.level() > 0) {
-        std::vector<real> data = grid_ptr->get_restrict();
+        auto data = grid_ptr->get_restrict();
         integer ci = my_location.get_child_index();
         parent.send_hydro_children(std::move(data), ci);
     }

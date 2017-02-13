@@ -420,27 +420,26 @@ void node_server::refined_step() {
     dt_ = cfl0 * dx / a;
 
     all_hydro_bounds();
+    local_timestep_channel.set_value(dt_);
+    auto dt_fut = global_timestep_channel.get_future();
     for (integer rk = 0; rk < NRK; ++rk) {
-        if (rk == 0) {
-            local_timestep_channel.set_value(dt_);
-        }
 
         compute_fmm(DRHODT, false);
-
-        if (rk == 0) {
-            dt_ = global_timestep_channel.get_future().get();
-        }
 
         compute_fmm(RHO, true);
         all_hydro_bounds();
 
 #ifdef RADIATION
         if( rk == NRK - 1 ) {
+            dt_ = dt_fut.get();
             compute_radiation(dt_);
             all_hydro_bounds();
         }
 #endif
     }
+#ifndef RADIATION
+    dt_ = dt_fut.get();
+#endif
 }
 
 hpx::future<void> node_server::nonrefined_step() {
@@ -459,11 +458,13 @@ hpx::future<void> node_server::nonrefined_step() {
     grid_ptr->store();
     hpx::future<void> fut = hpx::make_ready_future();
 
+    hpx::shared_future<real> dt_fut = global_timestep_channel.get_future();
+
     for (integer rk = 0; rk < NRK; ++rk) {
 
         fut = fut.then(
             hpx::util::annotated_function(
-                [rk, cfl0, this](hpx::future<void> f)
+                [rk, cfl0, this, dt_fut](hpx::future<void> f)
                 {
                     f.get();        // propagate exceptions
 
@@ -482,7 +483,7 @@ hpx::future<void> node_server::nonrefined_step() {
                     return fut_flux.then(
                         hpx::launch::async(hpx::threads::thread_priority_boost),
                         hpx::util::annotated_function(
-                            [rk, this](hpx::future<void> f)
+                            [rk, this, dt_fut](hpx::future<void> f)
                             {
                                 f.get();        // propagate exceptions
 
@@ -492,7 +493,7 @@ hpx::future<void> node_server::nonrefined_step() {
                                 compute_fmm(DRHODT, false);
 
                                 if (rk == 0) {
-                                    dt_ = global_timestep_channel.get_future().get();
+                                    dt_ = dt_fut.get();
                                 }
                                 grid_ptr->next_u(rk, current_time, dt_);
 
