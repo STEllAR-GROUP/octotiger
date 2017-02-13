@@ -19,6 +19,7 @@
 #include "profiler.hpp"
 #include "rad_grid.hpp"
 
+#include <array>
 #include <atomic>
 
 #include <hpx/include/components.hpp>
@@ -67,7 +68,7 @@ private:
      *  of the 6 faces, 12 edges, and 8 vertices of the subgrid cube. If there is an AMR boundary to a coarser level, that neighbor is empty. */
     std::vector<node_client> neighbors;
     /* Child refers to the up to 8 refined children of this node. Either all or none exist.*/
-    std::vector<node_client> children;
+    std::array<node_client, NCHILD> children;
     /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
      * . Only nieces in the face directions are needed, and in each
      * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/

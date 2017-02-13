@@ -11,6 +11,7 @@
 #include "defs.hpp"
 #include <hpx/include/lcos.hpp>
 
+#include <array>
 #include <vector>
 
 template <typename T>
@@ -38,6 +39,20 @@ inline void propagate_exceptions(std::vector<hpx::future<T> >& futs)
 
 template <typename T>
 inline void propagate_exceptions(std::vector<hpx::future<T> > const& futs)
+{
+    for (auto const& f : futs)
+        propagate_exceptions(f);
+}
+
+template <typename T, std::size_t N>
+inline void propagate_exceptions(std::array<hpx::future<T>, N>& futs)
+{
+    for (auto& f : futs)
+        propagate_exceptions(f);
+}
+
+template <typename T, std::size_t N>
+inline void propagate_exceptions(std::array<hpx::future<T>, N> const& futs)
 {
     for (auto const& f : futs)
         propagate_exceptions(f);

@@ -11,6 +11,7 @@
 #include "node_server.hpp"
 #include "exact_sod.hpp"
 
+#include <array>
 #include <cmath>
 #include <cassert>
 
@@ -627,7 +628,8 @@ std::vector<real> grid::get_restrict() const {
 	}
 	for (integer field = 0; field != NF; ++field) {
 		data.push_back(U_out[field]);
-	}PROF_END;
+	}
+    PROF_END;
 	return data;
 }
 

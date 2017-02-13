@@ -50,18 +50,17 @@ hpx::future<void> node_client::rho_move(real x) const {
 }
 
 void node_server::rho_move(real x) {
-	std::vector<hpx::future<void>> futs;
+	std::array<hpx::future<void>, NCHILD> futs;
 	if (is_refined) {
-		futs.reserve(NCHILD);
+        integer index = 0;
 		for (auto& child : children) {
-			futs.push_back(child.rho_move(x));
+			futs[index++] = child.rho_move(x);
 		}
 	}
 	grid_ptr->rho_move(x);
 	all_hydro_bounds();
-	for (auto&& fut : futs ) {
-		fut.get();
-	}
+
+    wait_all_and_propagate_exceptions(futs);
 }
 
 typedef typename node_server::scf_update_action scf_update_action_type;
@@ -79,37 +78,39 @@ hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2
 }
 
 void node_server::rho_mult(real f0, real f1) {
-	std::vector<hpx::future<void>> futs;
+	std::array<hpx::future<void>, NCHILD> futs;
 	if (is_refined) {
-		futs.reserve(NCHILD);
+        integer index = 0;
 		for (auto& child : children) {
-			futs.push_back(child.rho_mult(f0, f1));
+			futs[index++] = child.rho_mult(f0, f1);
 		}
 	}
 	grid_ptr->rho_mult(f0, f1);
 	all_hydro_bounds();
-	for (auto&& fut : futs ) {
-		fut.get();
-	}
+
+    wait_all_and_propagate_exceptions(futs);
 }
 
 real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) {
 	grid::set_omega(omega);
-	std::vector < hpx::future < real >> futs;
+	std::array<hpx::future<real>, NCHILD> futs;
 	real res;
 	if (is_refined) {
-		futs.reserve(NCHILD);
+        integer index = 0;
 		for (auto& child : children) {
-			futs.push_back(child.scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2));
+			futs[index++] = child.scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 		}
 		res = ZERO;
 	} else {
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
 	all_hydro_bounds();
-	for (auto&& fut : futs) {
-		res += fut.get();
-	}
+    res = std::accumulate(
+        futs.begin(), futs.end(), res,
+        [](real res, hpx::future<real> & f)
+        {
+            return res + f.get();
+        });
 	current_time += 1.0e-100;
 	return res;
 }
