@@ -294,19 +294,9 @@ void node_server::start_run(bool scf)
         hpx::future<real> ts_fut;
         real dt = 0;
 
-#ifdef RADIATION
-        if (opts.problem != RADIATION_TEST) {
-            ts_fut = timestep_driver_descend();
-        }
-        step().get();
-        if(opts.problem != RADIATION_TEST) {
-            dt = ts_fut.get();
-        }
-#else
         ts_fut = timestep_driver_descend();
         step().get();
         dt = ts_fut.get();
-#endif
 
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
@@ -438,8 +428,10 @@ void node_server::refined_step() {
         all_hydro_bounds();
 
 #ifdef RADIATION
-        if( rk == NRK - 1 ) {
-            dt_ = dt_fut.get();
+       if( rk == 0 ) {
+           dt_ = dt_fut.get();
+       }
+       if( rk == NRK - 1 ) {
             compute_radiation(dt_);
             all_hydro_bounds();
         }
