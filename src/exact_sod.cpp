@@ -13,59 +13,63 @@ static double func(double pm);
 static double rtbis(double x1, double x2, double xacc);
 
 void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t) {
-	Gamma = in->gamma;
-	const double mu2 = (Gamma - 1.) / (Gamma + 1.);
-	const double xmax = 1.0;
-	const int numcells = 500;
-	double pm, pressure, rhoml, vs, vt;
-	double vm, density, velocity, rhomr;
+	if (t == 0.0) {
+		*out = *in;
+	} else {
+		Gamma = in->gamma;
+		const double mu2 = (Gamma - 1.) / (Gamma + 1.);
+		const double xmax = 1.0;
+		const int numcells = 500;
+		double pm, pressure, rhoml, vs, vt;
+		double vm, density, velocity, rhomr;
 //	int i;
-	pl = in->pl;
-	pr = in->pr;
-	rhol = in->rhol;
-	rhor = in->rhor;
-	cl = sqrt(Gamma * pl / rhol);
-	cr = sqrt(Gamma * pr / rhor);
-	pm = rtbis(pr, pl, 1.E-16);
-	rhoml = rhol * pow((pm / pl), (1. / Gamma));
-	vm = 2.0 * cl / (Gamma - 1.) * (1.0 - pow((pm / pl), ((Gamma - 1.0) / (2.0 * Gamma))));
-	rhomr = rhor * ((pm + mu2 * pr) / (pr + mu2 * pm));
-	vs = vm / (1. - rhor / rhomr);
-	vt = cl - vm / (1. - mu2);
+		pl = in->pl;
+		pr = in->pr;
+		rhol = in->rhol;
+		rhor = in->rhor;
+		cl = sqrt(Gamma * pl / rhol);
+		cr = sqrt(Gamma * pr / rhor);
+		pm = rtbis(pr, pl, 1.E-16);
+		rhoml = rhol * pow((pm / pl), (1. / Gamma));
+		vm = 2.0 * cl / (Gamma - 1.) * (1.0 - pow((pm / pl), ((Gamma - 1.0) / (2.0 * Gamma))));
+		rhomr = rhor * ((pm + mu2 * pr) / (pr + mu2 * pm));
+		vs = vm / (1. - rhor / rhomr);
+		vt = cl - vm / (1. - mu2);
 
-	if (x <= -cl * t) {
-		density = rhol;
-	} else if (x <= -vt * t) {
-		density = rhol * pow((-mu2 * (x / (cl * t)) + (1. - mu2)), (2. / (Gamma - 1.)));
-	} else if (x <= vm * t) {
-		density = rhoml;
-	} else if (x <= vs * t) {
-		density = rhomr;
-	} else {
-		density = rhor;
-	}
-	if (x <= -cl * t) {
-		pressure = pl;
-	} else if (x <= -vt * t) {
-		pressure = pl * pow((-mu2 * (x / (cl * t)) + (1. - mu2)), (2. * Gamma / (Gamma - 1.)));
-	} else if (x <= vs * t) {
-		pressure = pm;
-	} else {
-		pressure = pr;
-	}
-	if (x <= -cl * t) {
-		velocity = 0.0;
-	} else if (x <= -vt * t) {
-		velocity = (1 - mu2) * (x / t + cl);
-	} else if (x <= vs * t) {
-		velocity = vm;
-	} else {
-		velocity = 0.0;
-	}
+		if (x <= -cl * t) {
+			density = rhol;
+		} else if (x <= -vt * t) {
+			density = rhol * pow((-mu2 * (x / (cl * t)) + (1. - mu2)), (2. / (Gamma - 1.)));
+		} else if (x <= vm * t) {
+			density = rhoml;
+		} else if (x <= vs * t) {
+			density = rhomr;
+		} else {
+			density = rhor;
+		}
+		if (x <= -cl * t) {
+			pressure = pl;
+		} else if (x <= -vt * t) {
+			pressure = pl * pow((-mu2 * (x / (cl * t)) + (1. - mu2)), (2. * Gamma / (Gamma - 1.)));
+		} else if (x <= vs * t) {
+			pressure = pm;
+		} else {
+			pressure = pr;
+		}
+		if (x <= -cl * t) {
+			velocity = 0.0;
+		} else if (x <= -vt * t) {
+			velocity = (1 - mu2) * (x / t + cl);
+		} else if (x <= vs * t) {
+			velocity = vm;
+		} else {
+			velocity = 0.0;
+		}
 
-	out->rho = density;
-	out->v = velocity;
-	out->p = pressure;
+		out->rho = density;
+		out->v = velocity;
+		out->p = pressure;
+	}
 }
 
 static double func(double pm) {

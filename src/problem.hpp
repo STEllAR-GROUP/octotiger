@@ -19,7 +19,8 @@ using refine_test_type = std::function<bool(integer,integer, real,real,real,std:
 const static init_func_type null_problem = nullptr;
 std::vector<real> old_scf(real, real, real, real, real, real, real);
 std::vector<real> blast_wave(real, real, real, real);
-std::vector<real> sod_shock_tube(real, real, real, real);
+std::vector<real> sod_shock_tube_init(real, real, real, real);
+std::vector<real> sod_shock_tube_analytic(real, real, real, real);
 std::vector<real> star(real, real, real, real);
 std::vector<real> moving_star_analytic(real, real, real, real);
 std::vector<real> moving_star(real, real, real, real);
