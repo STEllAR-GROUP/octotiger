@@ -93,6 +93,8 @@ grid::output_list_type node_server::load(
         total_nodes = ftell(fp) / rec_size;
         fclose(fp);
     }).get();
+    rad_grid_ptr = grid_ptr->get_rad_grid();
+	rad_grid_ptr->sanity_check();
 
     std::vector<hpx::future<grid::output_list_type>> futs;
     // printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
@@ -142,6 +144,7 @@ grid::output_list_type node_server::load(
         printf("Loaded checkpoint file\n");
         my_list = decltype(my_list)();
     }
+
     return my_list;
 }
 

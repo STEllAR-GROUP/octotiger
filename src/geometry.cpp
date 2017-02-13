@@ -131,11 +131,14 @@ octant quadrant::get_octant_on_face(const face& f) const {
 }
 
 integer get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub, const geo::direction& dir,
-		const geo::side& side, integer inx, integer bw) {
+		const geo::side& side, integer inx, integer bw, integer use_bw) {
 	integer hsize, size;
 	size = 0;
-	const integer nx = 2 * bw + inx;
-	const integer off = (side == OUTER) ? bw : 0;
+	integer nx = 2 * bw + inx;
+	if( use_bw < 0 ) {
+		use_bw = bw;
+	}
+	const integer off = (side == OUTER) ? use_bw : 0;
 	hsize = 1;
 	for (auto& d : geo::dimension::full_set()) {
 		auto this_dir = dir[d];
@@ -144,10 +147,11 @@ integer get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDI
 			ub[d] = nx - bw;
 		} else if (this_dir < 0) {
 			lb[d] = bw - off;
-			ub[d] = 2 * bw - off;
+	//		ub[d] = 2 * bw - off;
+			ub[d] = lb[d] + use_bw;
 		} else /*if (this_dir > 0) */{
-			lb[d] = nx - 2 * bw + off;
 			ub[d] = nx - bw + off;
+			lb[d] = ub[d] - use_bw;
 		}
 		const integer width = ub[d] - lb[d];
 		hsize *= width;

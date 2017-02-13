@@ -278,7 +278,7 @@ private:
 	std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::face::count()> sibling_rad_bnd_channels;
 	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::octant::count()>, geo::octant::count()> child_rad_channels;
 public:
-	void compute_radiation(real dt);
+	void compute_radiation(real dt, bool = true);
 	hpx::future<void> collect_radiation_boundaries();
 
 	void recv_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&);

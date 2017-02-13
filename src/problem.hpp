@@ -16,6 +16,7 @@ using init_func_type = std::function<std::vector<real>(real,real,real,real)>;
 using analytic_func_type = init_func_type;
 using refine_test_type = std::function<bool(integer,integer, real,real,real,std::vector<real> const&,std::array<std::vector<real>,NDIM> const&)>;
 
+const static init_func_type null_problem = nullptr;
 std::vector<real> old_scf(real, real, real, real, real, real, real);
 std::vector<real> blast_wave(real, real, real, real);
 std::vector<real> sod_shock_tube(real, real, real, real);
@@ -24,7 +25,7 @@ std::vector<real> moving_star_analytic(real, real, real, real);
 std::vector<real> moving_star(real, real, real, real);
 std::vector<real> equal_mass_binary(real, real, real, real);
 std::vector<real> scf_binary(real, real, real, real);
-std::vector<real> null_problem(real x, real y, real z, real);
+//std::vector<real> null_problem(real x, real y, real z, real);
 std::vector<real> solid_sphere(real, real, real, real, real);
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real);
 std::vector<real> double_solid_sphere(real, real, real, real);

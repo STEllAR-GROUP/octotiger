@@ -59,17 +59,15 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
-	real r = std::max(dx, 0.25);
+	real r = std::max(dx, 0.20);
+	const real eint = 1.0e-3;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
-		u[tau_i] = 1.0;
-		u[NF + 0] = 2.0;
 	} else {
-		u[NF + 0] = 1.0;
-		u[rho_i] = 1.0e-2;
-		u[tau_i] = 1.0e-2;
+		u[rho_i] = 1.0e-3;
 	}
-	u[sx_i] = 0.0; //u[rho_i] / 10.0;
+	u[tau_i] = std::pow( eint * u[rho_i], 1.0 / grid::get_fgamma() );
+//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
 	const real fgamma = grid::get_fgamma();
 	u[egas_i] = std::pow(u[tau_i], fgamma);
 	u[egas_i] += u[sx_i] * u[sx_i] / u[rho_i] / 2.0;
@@ -153,10 +151,11 @@ init_func_type get_problem() {
 	return problem;
 }
 
+/*
 std::vector<real> null_problem(real x, real y, real z, real dx) {
 	std::vector<real> u(NF, real(0));
 	return u;
-}
+}*/
 
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();

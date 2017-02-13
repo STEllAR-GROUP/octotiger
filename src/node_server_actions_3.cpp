@@ -507,6 +507,8 @@ hpx::future<void> node_server::nonrefined_step() {
 }
 
 hpx::future<void> node_server::step() {
+	rad_grid_ptr->sanity_check();
+
 	grid_ptr->set_coordinates();
 	if (is_refined) {
 		std::vector<hpx::future<void>> child_futs;
