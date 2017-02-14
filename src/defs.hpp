@@ -16,7 +16,7 @@
 #endif
 
 #ifdef OCTOTIGER_HAVE_RADIATION
-//#define RADIATION
+#define RADIATION
 #endif
 
 #ifndef TYPES444_HPP_
