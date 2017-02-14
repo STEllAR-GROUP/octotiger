@@ -87,7 +87,7 @@ struct timings
         std::cout << "   Total: "             << times_[time_total] << '\n';
         std::cout << "   Computation: "       << times_[time_computation] << '\n';
         std::cout << "   Regrid: "            << times_[time_regrid] << '\n';
-        std::cout << "   Compare Anaylitic: " << times_[time_compare_analytic] << '\n';
+        std::cout << "   Compare Analytic: "  << times_[time_compare_analytic] << '\n';
         std::cout << "   Find Localities: "   << times_[time_find_localities] << '\n';
     }
 

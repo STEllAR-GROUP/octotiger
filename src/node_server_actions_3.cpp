@@ -293,19 +293,9 @@ void node_server::start_run(bool scf)
         hpx::future<real> ts_fut;
         real dt = 0;
 
-#ifdef RADIATION
-        if (opts.problem != RADIATION_TEST) {
-            ts_fut = timestep_driver_descend();
-        }
-        step().get();
-        if(opts.problem != RADIATION_TEST) {
-            dt = ts_fut.get();
-        }
-#else
         ts_fut = timestep_driver_descend();
         step().get();
         dt = ts_fut.get();
-#endif
 
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
@@ -381,18 +371,26 @@ void node_server::start_run(bool scf)
         //		set_omega_and_pivot();
         if (scf) {
             bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
-            printf("Total time = %e s\n", double(bench_stop - bench_start));
+             printf("Total time = %e s\n", double(bench_stop - bench_start));
             //	FILE* fp = fopen( "bench.dat", "at" );
             //	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
             //	fclose(fp);
             break;
         }
     }
+    bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
     {
         timings::scope ts(timings_, timings::time_compare_analytic);
         compare_analytic();
         if (!opts.disable_output)
             output("final.silo", output_cnt, true);
+    }
+
+    if( opts.bench ) {
+        FILE* fp = fopen( "scaling.dat", "at");
+        const auto nproc = hpx::find_all_localities().size();
+        fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));
+        fclose( fp );
     }
 }
 
@@ -419,27 +417,28 @@ void node_server::refined_step() {
     dt_ = cfl0 * dx / a;
 
     all_hydro_bounds();
+    local_timestep_channel.set_value(dt_);
+    auto dt_fut = global_timestep_channel.get_future();
     for (integer rk = 0; rk < NRK; ++rk) {
-        if (rk == 0) {
-            local_timestep_channel.set_value(dt_);
-        }
 
         compute_fmm(DRHODT, false);
-
-        if (rk == 0) {
-            dt_ = global_timestep_channel.get_future().get();
-        }
 
         compute_fmm(RHO, true);
         all_hydro_bounds();
 
 #ifdef RADIATION
-        if( rk == NRK - 1 ) {
+       if( rk == 0 ) {
+           dt_ = dt_fut.get();
+       }
+       if( rk == NRK - 1 ) {
             compute_radiation(dt_);
             all_hydro_bounds();
         }
 #endif
     }
+#ifndef RADIATION
+    dt_ = dt_fut.get();
+#endif
 }
 
 hpx::future<void> node_server::nonrefined_step() {
@@ -458,11 +457,13 @@ hpx::future<void> node_server::nonrefined_step() {
     grid_ptr->store();
     hpx::future<void> fut = hpx::make_ready_future();
 
+    hpx::shared_future<real> dt_fut = global_timestep_channel.get_future();
+
     for (integer rk = 0; rk < NRK; ++rk) {
 
         fut = fut.then(
             hpx::util::annotated_function(
-                [rk, cfl0, this](hpx::future<void> f)
+                [rk, cfl0, this, dt_fut](hpx::future<void> f)
                 {
                     f.get();        // propagate exceptions
 
@@ -481,7 +482,7 @@ hpx::future<void> node_server::nonrefined_step() {
                     return fut_flux.then(
                         hpx::launch::async(hpx::threads::thread_priority_boost),
                         hpx::util::annotated_function(
-                            [rk, this](hpx::future<void> f)
+                            [rk, this, dt_fut](hpx::future<void> f)
                             {
                                 f.get();        // propagate exceptions
 
@@ -491,7 +492,7 @@ hpx::future<void> node_server::nonrefined_step() {
                                 compute_fmm(DRHODT, false);
 
                                 if (rk == 0) {
-                                    dt_ = global_timestep_channel.get_future().get();
+                                    dt_ = dt_fut.get();
                                 }
                                 grid_ptr->next_u(rk, current_time, dt_);
 
@@ -515,23 +516,9 @@ hpx::future<void> node_server::nonrefined_step() {
 }
 
 hpx::future<void> node_server::step() {
-    grid_ptr->set_coordinates();
+	grid_ptr->set_coordinates();
 
-#ifdef RADIATION
-    if (opts.problem == RADIATION_TEST) {
-        std::array<hpx::future<void>, NCHILD> child_futs;
-        if (is_refined) {
-            for (integer ci = 0; ci != NCHILD; ++ci) {
-                child_futs[ci] = children[ci].step();
-            }
-        }
-        compute_radiation(0.0);
-        wait_all_and_propagate_exceptions(child_futs);
-        printf("Success\n");
-        return hpx::make_ready_future();
-    }
-#else
-    hpx::future<void> fut;
+	hpx::future<void> fut;
 
     if (is_refined) {
         std::array<hpx::future<void>, NCHILD> child_futs;
@@ -541,29 +528,25 @@ hpx::future<void> node_server::step() {
         }
         refined_step();
 
-        fut = hpx::when_all(std::move(child_futs));
-    }
-    else
-    {
-        fut = nonrefined_step();
-    }
+		fut = hpx::when_all(std::move(child_futs));
+	} else {
+		fut = nonrefined_step();
+	}
 
-    return fut.then(
-        hpx::util::annotated_function([this](hpx::future<void> && f)
-        {
-            f.get();        // propagate exceptions
+	return fut.then(hpx::util::annotated_function([this](hpx::future<void> && f)
+	{
+		f.get();        // propagate exceptions
 
-            grid_ptr->dual_energy_update();
+			grid_ptr->dual_energy_update();
 
-            current_time += dt_;
-            if (grid::get_omega() != 0.0) {
-                rotational_time += grid::get_omega() * dt_;
-            } else {
-                rotational_time = current_time;
-            }
-            ++step_num;
-        }, "node_server::nonrefined_step::dual_energy_update"));
-#endif
+			current_time += dt_;
+			if (grid::get_omega() != 0.0) {
+				rotational_time += grid::get_omega() * dt_;
+			} else {
+				rotational_time = current_time;
+			}
+			++step_num;
+		}, "node_server::nonrefined_step::dual_energy_update"));
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;

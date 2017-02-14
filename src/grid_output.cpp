@@ -296,6 +296,9 @@ std::size_t grid::load(FILE* fp) {
 		}
 	}
 	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+#ifdef RADIATION
+	cnt += rad_grid_ptr->load(fp);
+#endif
 	set_coordinates();
 	return cnt;
 }
@@ -331,6 +334,9 @@ std::size_t grid::save(FILE* fp) const {
 		}
 	}
 	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+#ifdef RADIATION
+	cnt += rad_grid_ptr->save(fp);
+#endif
 	return cnt;
 }
 

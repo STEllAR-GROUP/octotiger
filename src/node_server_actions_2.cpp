@@ -14,11 +14,11 @@
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
-hpx::future<bool> node_client::check_for_refinement() const {
+hpx::future<void> node_client::check_for_refinement() const {
     return hpx::async<typename node_server::check_for_refinement_action>(get_gid());
 }
 
-bool node_server::check_for_refinement() {
+hpx::future<void> node_server::check_for_refinement() {
     bool rc = false;
     std::array<hpx::future<void>, NCHILD+1> futs;
     integer index = 0;
@@ -41,8 +41,7 @@ bool node_server::check_for_refinement() {
             }
         }
     }
-    wait_all_and_propagate_exceptions(futs);
-    return refinement_flag != 0;
+    return hpx::when_all(futs);
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
@@ -435,7 +434,7 @@ hpx::future<void> node_client::form_tree(const hpx::id_type& id1, const hpx::id_
         std::move(ids));
 }
 
-void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
+hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
     const std::vector<hpx::id_type>& neighbor_gids) {
     for (auto& dir : geo::direction::full_set()) {
         neighbors[dir] = neighbor_gids[dir];
@@ -494,27 +493,34 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
                 }
             }
         }
-
-        wait_all_and_propagate_exceptions(cfuts);
+        return hpx::when_all(cfuts);
     } else {
         std::vector < hpx::future<std::vector<hpx::id_type>>>nfuts(NFACE);
         for (auto& f : geo::face::full_set()) {
         	const auto& neighbor = neighbors[f.to_direction()];
-            if (!neighbor.empty()) {
+            if (!neighbor.empty())
+            {
                 nfuts[f] = neighbor.get_nieces(me.get_gid(), f ^ 1);
-            } else {
+            }
+            else
+            {
                 nfuts[f] = hpx::make_ready_future(std::vector<hpx::id_type>());
             }
         }
-        for (auto& f : geo::face::full_set()) {
-            auto ids = nfuts[f].get();
-            nieces[f].resize(ids.size());
-            for (std::size_t i = 0; i != ids.size(); ++i) {
-                nieces[f][i] = ids[i];
+        return hpx::dataflow(
+            [this](std::vector<hpx::future<std::vector<hpx::id_type>>> nfuts)
+            {
+                for (auto& f : geo::face::full_set()) {
+                    auto ids = nfuts[f].get();
+                    nieces[f].resize(ids.size());
+                    for (std::size_t i = 0; i != ids.size(); ++i) {
+                        nieces[f][i] = ids[i];
+                    }
+                }
             }
-        }
+          , std::move(nfuts)
+        );
     }
-
 }
 
 typedef node_server::get_child_client_action get_child_client_action_type;

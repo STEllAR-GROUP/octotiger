@@ -344,6 +344,6 @@ inline face face::flip() const {
 constexpr integer INNER = 0;
 constexpr integer OUTER = 1;
 
-integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer inx, integer bw);
+integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer inx, integer bw, integer nx = -1);
 
 #endif /* GEOMETRY_HPP_ */

@@ -59,17 +59,15 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
-	real r = std::max(dx, 0.25);
+	real r = std::max(dx, 0.20);
+	const real eint = 1.0e-3;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
-		u[tau_i] = 1.0;
-		u[NF + 0] = 2.0;
 	} else {
-		u[NF + 0] = 1.0;
-		u[rho_i] = 1.0e-2;
-		u[tau_i] = 1.0e-2;
+		u[rho_i] = 1.0e-3;
 	}
-	u[sx_i] = 0.0; //u[rho_i] / 10.0;
+	u[tau_i] = std::pow( eint * u[rho_i], 1.0 / grid::get_fgamma() );
+//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
 	const real fgamma = grid::get_fgamma();
 	u[egas_i] = std::pow(u[tau_i], fgamma);
 	u[egas_i] += u[sx_i] * u[sx_i] / u[rho_i] / 2.0;
@@ -153,10 +151,11 @@ init_func_type get_problem() {
 	return problem;
 }
 
+/*
 std::vector<real> null_problem(real x, real y, real z, real dx) {
 	std::vector<real> u(NF, real(0));
 	return u;
-}
+}*/
 
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
@@ -171,7 +170,25 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	return u;
 }
 
-std::vector<real> sod_shock_tube(real x0, real y, real z, real t) {
+std::vector<real> sod_shock_tube_init(real x0, real y, real z, real) {
+	std::vector<real> U(NF, 0.0);
+	const real fgamma = grid::get_fgamma();
+	sod_state_t s;
+	real x = (x0 + y + z) / std::sqrt(3.0);
+	exact_sod(&s, &sod_init, x, 0.0);
+	U[rho_i] = s.rho;
+	U[egas_i] = s.p / (fgamma - 1.0);
+	U[sx_i] = s.rho * s.v / std::sqrt(3.0);
+	U[sy_i] = s.rho * s.v / std::sqrt(3.0);
+	U[sz_i] = s.rho * s.v / std::sqrt(3.0);
+	U[tau_i] = std::pow(U[egas_i], 1.0 / fgamma);
+	U[egas_i] += s.rho * s.v * s.v / 2.0;
+	U[spc_ac_i] = s.rho;
+	printf( "%e %e\n", t, s.v);
+	return U;
+}
+
+std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
 	std::vector<real> U(NF, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
@@ -185,6 +202,7 @@ std::vector<real> sod_shock_tube(real x0, real y, real z, real t) {
 	U[tau_i] = std::pow(U[egas_i], 1.0 / fgamma);
 	U[egas_i] += s.rho * s.v * s.v / 2.0;
 	U[spc_ac_i] = s.rho;
+	printf( "%e %e\n", t, s.v);
 	return U;
 }
 

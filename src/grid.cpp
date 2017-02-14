@@ -1406,15 +1406,23 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				std::vector<real> this_u = init_func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], dx);
-				for (integer field = 0; field != NF; ++field) {
-					U[field][iii] = this_u[field];
+				if (init_func != nullptr) {
+					std::vector<real> this_u = init_func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], dx);
+					for (integer field = 0; field != NF; ++field) {
+						U[field][iii] = this_u[field];
+					}
+				} else {
+					for (integer field = 0; field != NF; ++field) {
+						U[field][iii] = 0.0;
+					}
 				}
 			}
 		}
 	}
 #ifdef RADIATION
+	if (init_func != nullptr) {
 		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+	}
 #endif
 	if (node_server::is_gravity_on()) {
 		for (integer i = 0; i != G_N3; ++i) {
@@ -1422,7 +1430,8 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 				G[i][field] = 0.0;
 			}
 		}
-	}PROF_END;
+	}
+	PROF_END;
 }
 
 inline real limit_range(real a, real b, real& c) {
@@ -1797,6 +1806,21 @@ void grid::store() {
 		}
 	}
 	U_out0 = U_out;
+}
+
+
+void grid::restore() {
+	for (integer field = 0; field != NF; ++field) {
+#pragma GCC ivdep
+		for (integer i = 0; i != INX; ++i) {
+			for (integer j = 0; j != INX; ++j) {
+				for (integer k = 0; k != INX; ++k) {
+					U[field][h0index(i, j, k)] = U0[field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+				}
+			}
+		}
+	}
+	U_out = U_out0;
 }
 
 void grid::set_physical_boundaries(const geo::face& face, real t) {
@@ -2175,7 +2199,7 @@ void grid::next_u(integer rk, real t, real dt) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 //				if (opts.problem == SOD && opts.ang_con) {
-					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
+//					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
 //				}
 				U[rho_i][iii] = ZERO;
 				for (integer si = 0; si != NSPECIES; ++si) {

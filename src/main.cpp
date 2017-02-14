@@ -163,15 +163,13 @@ int hpx_main(int argc, char* argv[]) {
 				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
 
-			std::vector < hpx::id_type > null_sibs(geo::direction::count());
-			printf("Forming tree connections------------\n");
-			root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs).get();
 			if (gravity_on) {
+			    printf("solving gravity------------\n");
 				//real tstart = MPI_Wtime();
 				root_client.solve_gravity(false).get();
 				//	printf("Gravity Solve Time = %e\n", MPI_Wtime() - tstart);
+                printf("...done\n");
 			}
-			printf("...done\n");
 
 			if (!opts.output_only) {
 				//	set_problem(null_problem);

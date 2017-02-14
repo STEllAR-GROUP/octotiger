@@ -169,7 +169,7 @@ public:
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
 
-    void regrid_scatter(integer, integer);
+    hpx::future<void> regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
     void recv_hydro_boundary(std::vector<real>&&, const geo::direction&);
@@ -220,7 +220,7 @@ public:
     hpx::id_type get_child_client(const geo::octant&);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-    void form_tree(const hpx::id_type&, const hpx::id_type&,
+    hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&,
         const std::vector<hpx::id_type>&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
@@ -250,7 +250,7 @@ public:
         const geo::face& face) const;
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_nieces, get_nieces_action);
 
-    bool check_for_refinement();
+    hpx::future<void> check_for_refinement();
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);
@@ -283,7 +283,7 @@ private:
 	std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::face::count()> sibling_rad_bnd_channels;
 	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::octant::count()>, geo::octant::count()> child_rad_channels;
 public:
-	void compute_radiation(real dt);
+	void compute_radiation(real dt, bool = true);
 	hpx::future<void> collect_radiation_boundaries();
 
 	void recv_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&);
