@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <cassert>
 
 static double pl, pr, rhol, rhor, cl, cr, Gamma;
 static double func(double pm);
@@ -15,8 +14,14 @@ static double rtbis(double x1, double x2, double xacc);
 
 void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t) {
 	if (t == 0.0) {
-        assert(false);
-//		*out = *in;
+		out->v = 0.0;
+		if( x > 0.0) {
+			out->p = in->pr;
+			out->rho = in->rhor;
+		} else {
+			out->p = in->pl;
+			out->rho = in->rhol;
+		}
 	} else {
 		Gamma = in->gamma;
 		const double mu2 = (Gamma - 1.) / (Gamma + 1.);

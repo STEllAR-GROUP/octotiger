@@ -54,17 +54,18 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 }
 #endif
 
+
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	std::vector<real> u(NF + NRF, real(0));
 	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
-	real r = std::max(dx, 0.20);
-	const real eint = 1.0e-3;
+	real r = std::max(dx, 0.50);
+	const real eint = 1.0e-2;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
 	} else {
-		u[rho_i] = 1.0e-3;
+		u[rho_i] = 1.0e-10;
 	}
 	u[tau_i] = std::pow( eint * u[rho_i], 1.0 / grid::get_fgamma() );
 //	u[sx_i] = 0.0; //u[rho_i] / 10.0;
@@ -184,7 +185,7 @@ std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
 	U[tau_i] = std::pow(U[egas_i], 1.0 / fgamma);
 	U[egas_i] += s.rho * s.v * s.v / 2.0;
 	U[spc_ac_i] = s.rho;
-	printf( "%e %e\n", t, s.v);
+	//printf( "%e %e\n", t, s.v);
 	return U;
 }
 
@@ -202,7 +203,6 @@ std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
 	U[tau_i] = std::pow(U[egas_i], 1.0 / fgamma);
 	U[egas_i] += s.rho * s.v * s.v / 2.0;
 	U[spc_ac_i] = s.rho;
-	printf( "%e %e\n", t, s.v);
 	return U;
 }
 
