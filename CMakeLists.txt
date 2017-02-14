@@ -128,12 +128,13 @@ set(header_files
     src/node_server.hpp
     src/options.hpp
     src/problem.hpp
+    src/profiler.hpp
     src/real.hpp
-    src/util.hpp
     src/roe.hpp
     src/simd.hpp
     src/space_vector.hpp
     src/taylor.hpp
+    src/util.hpp
 )
 
 add_hpx_executable(
