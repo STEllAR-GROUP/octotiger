@@ -53,9 +53,9 @@ void initialize(options _opts) {
 	} else if (opts.problem == SOD) {
 		grid::set_fgamma(7.0 / 5.0);
 		gravity_on = false;
-		set_problem(sod_shock_tube);
+		set_problem(sod_shock_tube_init);
 		set_refine_test (refine_sod);
-		grid::set_analytic_func(sod_shock_tube);
+		grid::set_analytic_func(sod_shock_tube_analytic);
 	} else if (opts.problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
 		gravity_on = false;
