@@ -20,11 +20,11 @@ hpx::future<void> node_client::check_for_refinement() const {
 
 hpx::future<void> node_server::check_for_refinement() {
     bool rc = false;
-    std::vector<hpx::future<void>> futs;
+    std::array<hpx::future<void>, NCHILD+1> futs;
+    integer index = 0;
     if (is_refined) {
-        futs.reserve(children.size() + 1);
         for (auto& child : children) {
-            futs.push_back(child.check_for_refinement());
+            futs[index++] = child.check_for_refinement();
         }
     }
     if (hydro_on) {
@@ -36,8 +36,8 @@ hpx::future<void> node_server::check_for_refinement() {
     if (rc) {
         if (refinement_flag++ == 0) {
             if (!parent.empty()) {
-                futs.push_back(
-                    parent.force_nodes_to_exist(my_location.get_neighbors()));
+                futs[index++] =
+                    parent.force_nodes_to_exist(my_location.get_neighbors());
             }
         }
     }
@@ -92,10 +92,10 @@ analytic_t node_server::compare_analytic() {
     if (!is_refined) {
         a = grid_ptr->compute_analytic(current_time);
     } else {
-        std::vector<hpx::future<analytic_t>> futs;
-        futs.reserve(NCHILD);
+        std::array<hpx::future<analytic_t>, NCHILD> futs;
+        integer index = 0;
         for (integer i = 0; i != NCHILD; ++i) {
-            futs.push_back(children[i].compare_analytic());
+            futs[index++] = children[i].compare_analytic();
         }
         for (integer i = 0; i != NCHILD; ++i) {
             a += futs[i].get();
@@ -257,10 +257,10 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
 
     diagnostics_t sums;
     if (is_refined) {
-        std::vector<hpx::future<diagnostics_t>> futs;
-        futs.reserve(NCHILD);
+        std::array<hpx::future<diagnostics_t>, NCHILD> futs;
+        integer index = 0;
         for (integer ci = 0; ci != NCHILD; ++ci) {
-            futs.push_back(children[ci].diagnostics(axis, l1, c1, c2));
+            futs[index++] = children[ci].diagnostics(axis, l1, c1, c2);
         }
         auto child_sums = hpx::util::unwrapped(futs);
         sums = std::accumulate(child_sums.begin(), child_sums.end(), sums);
@@ -383,13 +383,12 @@ hpx::future<void> node_client::force_nodes_to_exist(
 void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
     std::vector<hpx::future<void>> futs;
     std::vector<node_location> parent_list;
-    std::vector < std::vector < node_location >> child_lists(NCHILD);
+    std::vector<std::vector<node_location>> child_lists(NCHILD);
 
-    constexpr auto full_set = geo::octant::full_set();
-    futs.reserve(full_set.size() + 2);
-
+    futs.reserve(geo::octant::count() + 2);
     parent_list.reserve(locs.size());
 
+    integer index = 0;
     for (auto& loc : locs) {
         assert(loc != my_location);
         if (loc.is_child_of(my_location)) {
@@ -414,7 +413,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
             parent_list.push_back(loc);
         }
     }
-    for (auto& ci : full_set) {
+    for (auto& ci : geo::octant::full_set()) {
         if (is_refined && child_lists[ci].size()) {
             futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));
         }
@@ -443,8 +442,9 @@ hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx
     me = self_gid;
     parent = parent_gid;
     if (is_refined) {
-        std::vector<hpx::future<void>> cfuts;
-        cfuts.reserve(2*2*2);
+        std::array<hpx::future<void>, 2*2*2> cfuts;
+        integer index = 0;
+
         amr_flags.resize(NCHILD);
         for (integer cx = 0; cx != 2; ++cx) {
             for (integer cy = 0; cy != 2; ++cy) {
@@ -487,9 +487,9 @@ hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx
                             amr_flags[ci][dir] = false;
                         }
                     }
-                    cfuts.push_back(
+                    cfuts[index++] =
                         children[ci].form_tree(children[ci].get_gid(), me.get_gid(),
-                            std::move(child_neighbors)));
+                            std::move(child_neighbors));
                 }
             }
         }
@@ -555,16 +555,14 @@ std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt,
     const geo::face& face) const {
     std::vector<hpx::id_type> nieces;
     if (is_refined) {
-        std::vector<hpx::future<void>> futs;
-        nieces.reserve(geo::quadrant::count());
-        futs.reserve(geo::quadrant::count());
-        for (auto& ci : geo::octant::face_subset(face)) {
+        std::array<hpx::future<void>, geo::octant::count()> futs;
+        nieces.reserve(geo::octant::count());
+        integer index = 0;
+        for (auto const& ci : geo::octant::face_subset(face)) {
             nieces.push_back(children[ci].get_gid());
-            futs.push_back(children[ci].set_aunt(aunt, face));
+            futs[index++] = children[ci].set_aunt(aunt, face);
         }
-        for (auto&& this_fut : futs) {
-            this_fut.get();
-        }
+        wait_all_and_propagate_exceptions(futs);
     }
     return nieces;
 }

@@ -171,7 +171,7 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	return u;
 }
 
-std::vector<real> sod_shock_tube_init(real x0, real y, real z, real) {
+std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
 	std::vector<real> U(NF, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;

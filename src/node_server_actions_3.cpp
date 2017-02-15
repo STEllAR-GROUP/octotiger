@@ -122,10 +122,9 @@ line_of_centers_t node_server::line_of_centers(
     const std::pair<space_vector, space_vector>& line) const {
     line_of_centers_t return_line;
     if (is_refined) {
-        std::vector < hpx::future < line_of_centers_t >> futs;
-        futs.reserve(NCHILD);
+        std::array<hpx::future<line_of_centers_t>, NCHILD> futs;
         for (integer ci = 0; ci != NCHILD; ++ci) {
-            futs.push_back(children[ci].line_of_centers(line));
+            futs[ci] = children[ci].line_of_centers(line);
         }
         std::map<real, std::vector<real>> map;
         for (auto&& fut : futs) {
@@ -521,14 +520,13 @@ hpx::future<void> node_server::step() {
 
 	hpx::future<void> fut;
 
-	if (is_refined) {
-		std::vector<hpx::future<void>> child_futs;
-		child_futs.reserve(NCHILD);
+    if (is_refined) {
+        std::array<hpx::future<void>, NCHILD> child_futs;
 
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			child_futs.push_back(children[ci].step());
-		}
-		refined_step();
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            child_futs[ci] = children[ci].step();
+        }
+        refined_step();
 
 		fut = hpx::when_all(std::move(child_futs));
 	} else {
@@ -584,17 +582,17 @@ hpx::future<real> node_server::timestep_driver_descend() {
 
 hpx::future<real> node_server::timestep_driver_descend_helper() {
     if (is_refined) {
-        std::vector<hpx::future<real>> futs;
-        futs.reserve(children.size() + 1);
+        std::array<hpx::future<real>, NCHILD+1> futs;
+        integer index = 0;
         for(auto& child: children) {
-            futs.push_back(child.timestep_driver_descend());
+            futs[index++] = child.timestep_driver_descend();
         }
-        futs.push_back(local_timestep_channel.get_future());
+        futs[index++] = local_timestep_channel.get_future();
 
         return hpx::dataflow(
             hpx::launch::sync,
             hpx::util::annotated_function(
-                [this](std::vector<hpx::future<real>> dts_fut) -> double
+                [this](std::array<hpx::future<real>, NCHILD+1> dts_fut) -> double
                 {
                     auto dts = hpx::util::unwrapped(dts_fut);
                     real dt = *std::min_element(dts.begin(), dts.end());
@@ -607,7 +605,7 @@ hpx::future<real> node_server::timestep_driver_descend_helper() {
                     return dt;
                 },
                 "node_server::timestep_driver_descend"),
-            std::move(futs));
+            futs);
     } else {
         return local_timestep_channel.get_future();
     }
@@ -622,10 +620,10 @@ hpx::future<void> node_client::velocity_inc(const space_vector& dv) const {
 
 void node_server::velocity_inc(const space_vector& dv) {
     if (is_refined) {
-        std::vector<hpx::future<void>> futs;
-        futs.reserve(NCHILD);
+        std::array<hpx::future<void>, NCHILD> futs;
+        integer index = 0;
         for (auto& child : children) {
-            futs.push_back(child.velocity_inc(dv));
+            futs[index++] = child.velocity_inc(dv);
         }
         wait_all_and_propagate_exceptions(futs);
     } else {

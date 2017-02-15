@@ -13,6 +13,8 @@
 #include "profiler.hpp"
 #include "taylor.hpp"
 
+#include <algorithm>
+#include <array>
 #include <chrono>
 
 #include <hpx/include/lcos.hpp>
@@ -56,7 +58,7 @@ grid::output_list_type node_server::load(
             std::size_t read_cnt = fread(&rec_size, sizeof(integer), 1, fp);
             fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
             read_cnt += fread(&omega, sizeof(real), 1, fp);
-            for (auto& d : geo::dimension::full_set()) {
+            for (auto const& d : geo::dimension::full_set()) {
                 real temp_pivot;
                 read_cnt += fread(&temp_pivot, sizeof(real), 1, fp);
                 pivot[d] = temp_pivot;
@@ -98,29 +100,29 @@ grid::output_list_type node_server::load(
 	rad_grid_ptr->sanity_check();
 #endif
 
-    std::vector<hpx::future<grid::output_list_type>> futs;
+    std::array<hpx::future<grid::output_list_type>, NCHILD> futs;
     // printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
     if (flag == '1') {
         is_refined = true;
-        children.resize(NCHILD);
-        constexpr auto full_set = geo::octant::full_set();
-        futs.reserve(full_set.size());
-        for (auto& ci : full_set) {
+
+        integer index = 0;
+        for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * localities.size()) / (total_nodes + 1));
             children[ci] = hpx::new_<node_server>(
                 localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
-            futs.push_back(
-                children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename));
+            futs[index++] =
+                children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename);
         }
     } else if (flag == '0') {
         is_refined = false;
-        children.clear();
+        std::fill_n(children.begin(), NCHILD, node_client());
     } else {
         printf("Corrupt checkpoint file\n");
         //		sleep(10);
         hpx::this_thread::sleep_for(std::chrono::seconds(10));
         abort();
     }
+
     grid::output_list_type my_list;
     for (auto&& fut : futs) {
         if (do_output) {
@@ -160,11 +162,12 @@ hpx::future<grid::output_list_type> node_client::output(
 
 grid::output_list_type node_server::output(std::string fname, int cycle, bool analytic) const {
     if (is_refined) {
-        std::vector<hpx::future<grid::output_list_type>> futs;
-        futs.reserve(children.size());
+        std::array<hpx::future<grid::output_list_type>, NCHILD> futs;
+        integer index = 0;
         for (auto i = children.begin(); i != children.end(); ++i) {
-            futs.push_back(i->output(fname, cycle, analytic));
+            futs[index++] = i->output(fname, cycle, analytic);
         }
+
         auto i = futs.begin();
         grid::output_list_type my_list = i->get();
         for (++i; i != futs.end(); ++i) {
@@ -200,27 +203,27 @@ integer node_server::regrid_gather(bool rebalance_only) {
         if (!rebalance_only) {
             /* Turning refinement off */
             if (refinement_flag == 0) {
-                children.clear();
+                std::fill_n(children.begin(), NCHILD, node_client());
                 is_refined = false;
                 grid_ptr->set_leaf(true);
             }
         }
 
         if (is_refined) {
-            std::vector<hpx::future<integer>> futs;
-            futs.reserve(children.size());
+            std::array<hpx::future<integer>, NCHILD> futs;
+            integer index = 0;
             for (auto& child : children) {
-                futs.push_back(child.regrid_gather(rebalance_only));
+                futs[index++] = child.regrid_gather(rebalance_only);
             }
             auto futi = futs.begin();
-            for (auto& ci : geo::octant::full_set()) {
+            for (auto const& ci : geo::octant::full_set()) {
                 auto child_cnt = futi->get();
                 ++futi;
                 child_descendant_count[ci] = child_cnt;
                 count += child_cnt;
             }
         } else {
-            for (auto& ci : geo::octant::full_set()) {
+            for (auto const& ci : geo::octant::full_set()) {
                 child_descendant_count[ci] = 0;
             }
         }
@@ -229,9 +232,6 @@ integer node_server::regrid_gather(bool rebalance_only) {
         if (refinement_flag != 0) {
             refinement_flag = 0;
             count += NCHILD;
-
-            children.resize(NCHILD);
-            std::vector<node_location> clocs(NCHILD);
 
             /* Turning refinement on*/
             is_refined = true;
@@ -272,7 +272,7 @@ hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
 
 hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
     refinement_flag = 0;
-    std::vector<hpx::future<void>> futs;
+    std::array<hpx::future<void>, geo::octant::count()> futs;
     if (is_refined) {
         integer a = a_;
         std::vector<hpx::id_type> localities;
@@ -293,10 +293,9 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
             }
         }
         a = a_ + 1;
-        constexpr auto full_set = geo::octant::full_set();
-        futs.reserve(full_set.size());
-        for (auto& ci : full_set) {
-            futs.push_back(children[ci].regrid_scatter(a, total));
+        integer index = 0;
+        for (auto const& ci : geo::octant::full_set()) {
+            futs[index++] = children[ci].regrid_scatter(a, total);
             a += child_descendant_count[ci];
         }
     }
@@ -427,10 +426,13 @@ void node_server::solve_gravity(bool ene) {
     if (!gravity_on) {
         return;
     }
-    std::vector<hpx::future<void>> child_futs;
-    child_futs.reserve(children.size());
-    for (auto& child : children) {
-        child_futs.push_back(child.solve_gravity(ene));
+    std::array<hpx::future<void>, NCHILD> child_futs;
+    if (is_refined)
+    {
+        integer index = 0;;
+        for (auto& child : children) {
+            child_futs[index++] = child.solve_gravity(ene);
+        }
     }
     compute_fmm(RHO, ene);
     wait_all_and_propagate_exceptions(child_futs);
