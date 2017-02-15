@@ -83,7 +83,6 @@ set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
-    src/sphere_points.cpp
     src/rad_grid.cpp
     src/eos.cpp
     src/node_server_actions_1.cpp
@@ -113,7 +112,6 @@ set(source_files ${source_files}
 )
 
 set(header_files
-    src/sphere_points.hpp
     src/rad_grid.hpp
     src/diagnostics.hpp
     src/channel.hpp

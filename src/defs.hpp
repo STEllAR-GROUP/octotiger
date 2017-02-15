@@ -30,7 +30,6 @@
 
 #define EXPERIMENT
 #ifdef RADIATION
-#define NRADF 10
 #define NRF 4
 #else
 #define NRF 0

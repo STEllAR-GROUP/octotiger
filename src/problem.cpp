@@ -61,7 +61,7 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	y -= 0.0;
 	z -= 0.0;
 	real r = std::max(dx, 0.50);
-	const real eint = 1.0e-4;
+	const real eint = 1.0e-2;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
 	} else {
