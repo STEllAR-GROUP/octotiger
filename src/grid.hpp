@@ -299,13 +299,13 @@ struct grid::node_point {
 struct grid::output_list_type {
 	std::set<node_point> nodes;
 	std::vector<zone_int_type> zones;
-	std::array<std::vector<real>, NF + NGF + NRADF + NPF> data;
-	std::array<std::vector<real>, NF + NGF + NRADF + NPF> analytic;
+	std::array<std::vector<real>, NF + NGF + NRF + NPF> data;
+	std::array<std::vector<real>, NF + NGF + NRF + NPF> analytic;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;
 		arc & zones;
-		for (integer i = 0; i != NF + NGF + NRADF + NPF; ++i) {
+		for (integer i = 0; i != NF + NGF + NRF + NPF; ++i) {
 			arc & data[i];
 		}
 	}
