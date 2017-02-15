@@ -171,7 +171,7 @@ void grid::compute_interactions(gsolve_type type) {
     // calculating the interaction
 
     auto& mon = *mon_ptr;
-    // L stores the gravitational potentatial
+    // L stores the gravitational potential
     // L should be L, (10) in the paper
     // L_c stores the correction for angular momentum
     // L_c, (20) in the paper (Dominic)
@@ -182,9 +182,9 @@ void grid::compute_interactions(gsolve_type type) {
 #endif
     if (opts.ang_con) {
 #if defined(HPX_HAVE_DATAPAR)
-    hpx::parallel::fill(hpx::parallel::execution::dataseq, L_c.begin(), L_c.end(), ZERO);
+        hpx::parallel::fill(hpx::parallel::execution::dataseq, L_c.begin(), L_c.end(), ZERO);
 #else
-    std::fill(std::begin(L_c), std::end(L_c), ZERO);
+        std::fill(std::begin(L_c), std::end(L_c), ZERO);
 #endif
     }
 
@@ -397,7 +397,7 @@ void grid::compute_interactions(gsolve_type type) {
 #else
 
         // first compute potential and the the three components of the force
-        // vectorizating across across the dimensions, therefore 1 component for the potential + 3
+        // vectorizing across the dimensions, therefore 1 component for the potential + 3
         // components for the force
 
         // Coefficients for potential evaluation? (David)
