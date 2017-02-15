@@ -277,6 +277,36 @@ void rad_grid::set_X(const std::vector<std::vector<real>>& x) {
 	}
 }
 
+real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& tau, const std::vector<real>& sx, const std::vector<real>& sy,
+		const std::vector<real>& sz, const std::vector<real>& rho) {
+	real a = 0.0;
+	const real fgamma = grid::get_fgamma();
+	for (integer xi = R_BW; xi != R_NX - R_BW; ++xi) {
+		for (integer yi = R_BW; yi != R_NX - R_BW; ++yi) {
+			for (integer zi = R_BW; zi != R_NX - R_BW; ++zi) {
+				const integer D = H_BW - R_BW;
+				const integer iiir = rindex(xi, yi, zi);
+				const integer iiih = hindex(xi + D, yi + D, zi + D);
+				real vx = sx[iiih] / rho[iiih];
+				real vy = sy[iiih] / rho[iiih];
+				real vz = sz[iiih] / rho[iiih];
+				real e0 = egas[iiih];
+				e0 -= 0.5 * vx * vx * rho[iiih];
+				e0 -= 0.5 * vy * vy * rho[iiih];
+				e0 -= 0.5 * vz * vz * rho[iiih];
+				if (e0 < egas[iiih] * 0.001) {
+					e0 = std::pow(tau[iiih], fgamma);
+				}
+
+				real this_a = (4.0 / 9.0) * U[er_i][iiir] / rho[iiih];
+				this_a *= std::max(1.0 - std::exp(-kappa_R(rho[iiih], e0) * dx), 0.0);
+				a = std::max(this_a, a);
+			}
+		}
+	}
+	return std::sqrt(a);
+}
+
 
 void node_server::compute_radiation(real dt) {
 	if (my_location.level() == 0) {

@@ -419,6 +419,13 @@ void node_server::refined_step() {
     all_hydro_bounds();
     local_timestep_channel.set_value(dt_);
     auto dt_fut = global_timestep_channel.get_future();
+
+#ifdef RADIATION
+    dt_ = dt_fut.get();
+    compute_radiation(dt_/2.0);
+    all_hydro_bounds();
+#endif
+
     for (integer rk = 0; rk < NRK; ++rk) {
 
         compute_fmm(DRHODT, false);
@@ -426,19 +433,14 @@ void node_server::refined_step() {
         compute_fmm(RHO, true);
         all_hydro_bounds();
 
-#ifdef RADIATION
-       if( rk == 0 ) {
-           dt_ = dt_fut.get();
-       }
-       if( rk == NRK - 1 ) {
-            compute_radiation(dt_);
-            all_hydro_bounds();
-        }
-#endif
     }
-#ifndef RADIATION
+#ifdef RADIATION
+    compute_radiation(dt_/2.0);
+    all_hydro_bounds();
+#else
     dt_ = dt_fut.get();
 #endif
+
 }
 
 hpx::future<void> node_server::nonrefined_step() {
@@ -459,6 +461,7 @@ hpx::future<void> node_server::nonrefined_step() {
 
     hpx::shared_future<real> dt_fut = global_timestep_channel.get_future();
 
+
     for (integer rk = 0; rk < NRK; ++rk) {
 
         fut = fut.then(
@@ -469,7 +472,21 @@ hpx::future<void> node_server::nonrefined_step() {
 
                     grid_ptr->reconstruct();
                     real a = grid_ptr->compute_fluxes();
+#ifdef RADIATION
+                    if( rk == 0 ) {
+                        const real dx = TWO * grid::get_scaling_factor() /
+                            real(INX << my_location.level());
+                        dt_ = cfl0 * dx / a;
+                        local_timestep_channel.set_value(dt_);
+                        dt_ = dt_fut.get();
+                    	compute_radiation(dt_/2.0);
+                    	all_hydro_bounds();
+                        grid_ptr->reconstruct();
+                        grid_ptr->compute_fluxes();
+                    }
 
+                    hpx::future<void> fut_flux = exchange_flux_corrections();
+#else
                     hpx::future<void> fut_flux = exchange_flux_corrections();
 
                     if (rk == 0) {
@@ -478,6 +495,7 @@ hpx::future<void> node_server::nonrefined_step() {
                         dt_ = cfl0 * dx / a;
                         local_timestep_channel.set_value(dt_);
                     }
+#endif
 
                     return fut_flux.then(
                         hpx::launch::async(hpx::threads::thread_priority_boost),
@@ -501,8 +519,7 @@ hpx::future<void> node_server::nonrefined_step() {
 
 #ifdef RADIATION
                                 if(rk == NRK - 1) {
-                                    compute_radiation(dt_);
-                                    all_hydro_bounds();
+                                	all_hydro_bounds();
                                 }
 #endif
                             }, "node_server::nonrefined_step::compute_fmm"

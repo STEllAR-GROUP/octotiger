@@ -15,6 +15,8 @@
 # define DO_OUTPUT
 #endif
 
+//#define OCTOTIGER_HAVE_RADIATION
+
 #ifdef OCTOTIGER_HAVE_RADIATION
 #define RADIATION
 #endif

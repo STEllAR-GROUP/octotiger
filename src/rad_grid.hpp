@@ -113,6 +113,9 @@ public:
 	void set_physical_boundaries(geo::face f);
 	std::vector<real> get_boundary(const geo::direction& dir);
 	using kappa_type = std::function<real(real)>;
+
+	real hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& tau, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
+			const std::vector<real>& rho);
 };
 
 #endif /* RAD_GRID_HPP_ */

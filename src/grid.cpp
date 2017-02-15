@@ -1786,6 +1786,16 @@ real grid::compute_fluxes() {
 		}
 	}
 
+#ifdef RADIATION
+	const auto& egas = get_field(egas_i);
+	const auto& rho = get_field(rho_i);
+	const auto& tau = get_field(tau_i);
+	const auto& sx = get_field(sx_i);
+	const auto& sy = get_field(sy_i);
+	const auto& sz = get_field(sz_i);
+	const real b = rad_grid_ptr->hydro_signal_speed(egas, tau, sx, sy, sz, rho);
+	max_lambda += b;
+#endif
 	PROF_END;
 	return max_lambda;
 }
