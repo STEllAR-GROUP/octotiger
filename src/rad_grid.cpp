@@ -8,15 +8,15 @@ extern options opts;
 
 #ifdef RADIATION
 
-typedef node_server::send_rad_boundary_action send_rad_boundary_action_type;
-HPX_REGISTER_ACTION (send_rad_boundary_action_type);
+//typedef node_server::send_rad_boundary_action send_rad_boundary_action_type;
+//HPX_REGISTER_ACTION (send_rad_boundary_action_type);
 
 typedef node_server::send_rad_bnd_boundary_action send_rad_bnd_boundary_action_type;
 HPX_REGISTER_ACTION (send_rad_bnd_boundary_action_type);
 
-hpx::future<void> node_client::send_rad_boundary(std::vector<rad_type>&& data, const geo::octant& oct, const geo::dimension& dim) const {
-	return hpx::async<typename node_server::send_rad_boundary_action>(get_gid(), std::move(data), oct, dim);
-}
+//hpx::future<void> node_client::send_rad_boundary(std::vector<rad_type>&& data, const geo::octant& oct, const geo::dimension& dim) const {
+//	return hpx::async<typename node_server::send_rad_boundary_action>(get_gid(), std::move(data), oct, dim);
+//}
 
 hpx::future<void> node_client::send_rad_boundary(std::vector<rad_type>&& data, const geo::face& f) const {
 	return hpx::async<typename node_server::send_rad_bnd_boundary_action>(get_gid(), std::move(data), f);
@@ -26,18 +26,18 @@ void node_server::recv_rad_bnd_boundary(std::vector<rad_type>&& bdata, const geo
 	sibling_rad_bnd_channels[f]->set_value(std::move(bdata));
 }
 
-void node_server::recv_rad_boundary(std::vector<rad_type>&& bdata, const geo::octant& oct, const geo::dimension& dim) {
-	sibling_rad_channels[oct][dim]->set_value(std::move(bdata));
-}
+//void node_server::recv_rad_boundary(std::vector<rad_type>&& bdata, const geo::octant& oct, const geo::dimension& dim) {
+//	sibling_rad_channels[oct][dim]->set_value(std::move(bdata));
+//}
 
-typedef node_server::send_rad_children_action send_rad_children_action_type;
-HPX_REGISTER_ACTION (send_rad_children_action_type);
+//typedef node_server::send_rad_children_action send_rad_children_action_type;
+//HPX_REGISTER_ACTION (send_rad_children_action_type);
 
-hpx::future<void> node_client::send_rad_children(std::vector<rad_type>&& data, const geo::octant& oct, const geo::octant& ioct) const {
-	return hpx::async<typename node_server::send_rad_children_action>(get_gid(), std::move(data), oct, ioct);
-}
+//hpx::future<void> node_client::send_rad_children(std::vector<rad_type>&& data, const geo::octant& oct, const geo::octant& ioct) const {
+//	return hpx::async<typename node_server::send_rad_children_action>(get_gid(), std::move(data), oct, ioct);
+//}
 
-void rad_grid::rad_imp_comoving(real& E, real& e, real rho, real dt) {
+real rad_grid::rad_imp_comoving(real& E, real& e, real rho, real dt) {
 //	printf("%e %e\n", e, E);
 	const integer max_iter = 100;
 	const real E0 = E;
@@ -74,6 +74,7 @@ void rad_grid::rad_imp_comoving(real& E, real& e, real rho, real dt) {
 			abort();
 		}
 	} while (std::abs(f / std::max(E0, e0)) > 1.0e-9);
+	return (E - E0)/dt;
 }
 
 void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
@@ -88,64 +89,71 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				const integer iiih = hindex(i + d, j + d, k + d);
 				const integer iiir = rindex(i, j, k);
 
-				/* Compute transformation parameters */
-				const real vx = sx[iiih] / rho[iiih];
-				const real vy = sy[iiih] / rho[iiih];
-				const real vz = sz[iiih] / rho[iiih];
-				const real v2 = vx * vx + vy * vy + vz * vz;
-				const real beta_x = std::max(std::min(0.1, vx * cinv), -0.1);
-				const real beta_y = std::max(std::min(0.1, vy * cinv), -0.1);
-				const real beta_z = std::max(std::min(0.1, vz * cinv), -0.1);
-				const real beta_2 = beta_x * beta_x + beta_y * beta_y + beta_z * beta_z;
+				real vx = sx[iiih] / rho[iiih];
+				real vy = sy[iiih] / rho[iiih];
+				real vz = sz[iiih] / rho[iiih];
 
-				/* Transform E and F from lab frame to comoving frame */
-
-				real E0 = U[er_i][iiir] * (1.0 + beta_2);
-				real tmp1 = 0.0, tmp2 = 0.0;
-				tmp1 -= 2.0 * beta_x * cinv * U[fx_i][iiir];
-				tmp1 -= 2.0 * beta_y * cinv * U[fy_i][iiir];
-				tmp1 -= 2.0 * beta_z * cinv * U[fz_i][iiir];
-				tmp2 += 2.0 * beta_x * fEdd_xx[iiir] * beta_x * U[er_i][iiir];
-				tmp2 += 2.0 * beta_y * fEdd_yy[iiir] * beta_y * U[er_i][iiir];
-				tmp2 += 2.0 * beta_z * fEdd_zz[iiir] * beta_z * U[er_i][iiir];
-				tmp2 += 4.0 * beta_x * fEdd_xy[iiir] * beta_y * U[er_i][iiir];
-				tmp2 += 4.0 * beta_x * fEdd_xz[iiir] * beta_z * U[er_i][iiir];
-				tmp2 += 4.0 * beta_y * fEdd_yz[iiir] * beta_z * U[er_i][iiir];
-				E0 += tmp1 + tmp2;
-				if( E0 < 0.0 ) {
-					printf( "1 %e %e %e %e %e %e %e %e \n", E0,  U[er_i][iiir] , tmp1, tmp2, beta_2, fEdd_xx[iiir], fEdd_yy[iiir], fEdd_zz[iiir]);
-					abort();
-				}
-				real Fx0, Fy0, Fz0;
-				Fx0 = U[fx_i][iiir] * (1.0 + 2.0 * beta_2);
-				Fy0 = U[fy_i][iiir] * (1.0 + 2.0 * beta_2);
-				Fz0 = U[fz_i][iiir] * (1.0 + 2.0 * beta_2);
-
-				Fx0 -= beta_x * c * U[er_i][iiir];
-				Fx0 -= beta_y * c * fEdd_xy[iiir] * U[er_i][iiir];
-				Fx0 -= beta_z * c * fEdd_xz[iiir] * U[er_i][iiir];
-				Fx0 -= beta_x * c * fEdd_xx[iiir] * U[er_i][iiir];
-
-				Fy0 -= beta_y * c * U[er_i][iiir];
-				Fy0 -= beta_x * c * fEdd_xy[iiir] * U[er_i][iiir];
-				Fy0 -= beta_y * c * fEdd_yy[iiir] * U[er_i][iiir];
-				Fy0 -= beta_z * c * fEdd_yz[iiir] * U[er_i][iiir];
-
-				Fz0 -= beta_z * c * U[er_i][iiir];
-				Fz0 -= beta_x * c * fEdd_xz[iiir] * U[er_i][iiir];
-				Fz0 -= beta_y * c * fEdd_yz[iiir] * U[er_i][iiir];
-				Fz0 -= beta_z * c * fEdd_zz[iiir] * U[er_i][iiir];
-
-
-				/* Computer e0 from dual energy formalism */
+				/* Compute e0 from dual energy formalism */
 				real e0 = egas[iiih];
 				e0 -= 0.5 * vx * vx * rho[iiih];
 				e0 -= 0.5 * vy * vy * rho[iiih];
 				e0 -= 0.5 * vz * vz * rho[iiih];
-				const bool sw = false;
 				if (e0 < egas[iiih] * 0.001) {
 					e0 = std::pow(tau[iiih], fgamma);
 				}
+
+				/* Compute transformation parameters */
+				const real v2 = vx * vx + vy * vy + vz * vz;
+				const real kr = kappa_R(rho[iiih], e0);
+				real coeff = c * kr * dt * 0.5;
+				coeff = coeff * coeff / (1.0 + coeff);
+				vx += coeff * U[fx_i][iiir] / rho[iiih];
+				vy += coeff * U[fy_i][iiir] / rho[iiih];
+				vz += coeff * U[fz_i][iiir] / rho[iiih];
+				const real beta_x = vx * cinv;
+				const real beta_y = vy * cinv;
+				const real beta_z = vz * cinv;
+				const real beta_2 = beta_x * beta_x + beta_y * beta_y + beta_z * beta_z;
+
+				/* Transform E and F from lab frame to comoving frame */
+
+				real E0 = U[er_i][iiir];// * (1.0 + beta_2);
+				real tmp1 = 0.0, tmp2 = 0.0;
+				tmp1 -= 2.0 * beta_x * cinv * U[fx_i][iiir];
+				tmp1 -= 2.0 * beta_y * cinv * U[fy_i][iiir];
+				tmp1 -= 2.0 * beta_z * cinv * U[fz_i][iiir];
+				const auto P = compute_p(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
+				tmp2 += 2.0 * beta_x * P[XDIM][XDIM] * beta_x;
+				tmp2 += 2.0 * beta_y * P[YDIM][YDIM] * beta_y;
+				tmp2 += 2.0 * beta_z * P[ZDIM][ZDIM] * beta_z;
+				tmp2 += 4.0 * beta_x * P[XDIM][YDIM] * beta_y;
+				tmp2 += 4.0 * beta_x * P[XDIM][ZDIM] * beta_z;
+				tmp2 += 4.0 * beta_y * P[YDIM][ZDIM] * beta_z;
+				E0 += tmp1 + tmp2;
+				E0 = std::max(E0, 0.0);
+			///	if( U[er_i][iiir] < 0.0 ) {
+			//		printf( "1 %e %e %e %e %e %e %e %e \n", E0,  U[er_i][iiir] , tmp1, tmp2, beta_2, fEdd_xx[iiir], fEdd_yy[iiir], fEdd_zz[iiir]);
+			//		abort();
+			//	}
+				real Fx0, Fy0, Fz0;
+				Fx0 = U[fx_i][iiir];// * (1.0 + 2.0 * beta_2);
+				Fy0 = U[fy_i][iiir]; // * (1.0 + 2.0 * beta_2);
+				Fz0 = U[fz_i][iiir]; // * (1.0 + 2.0 * beta_2);
+
+				Fx0 -= beta_x * c * U[er_i][iiir];
+				Fx0 -= beta_y * c * P[XDIM][YDIM];
+				Fx0 -= beta_z * c * P[XDIM][ZDIM];
+				Fx0 -= beta_x * c * P[XDIM][XDIM];
+
+				Fy0 -= beta_y * c * U[er_i][iiir];
+				Fy0 -= beta_x * c * P[YDIM][XDIM];
+				Fy0 -= beta_y * c * P[YDIM][YDIM];
+				Fy0 -= beta_z * c * P[YDIM][ZDIM];
+
+				Fz0 -= beta_z * c * U[er_i][iiir];
+				Fz0 -= beta_x * c * P[ZDIM][XDIM];
+				Fz0 -= beta_y * c * P[ZDIM][YDIM];
+				Fz0 -= beta_z * c * P[ZDIM][ZDIM];
 
 				real En, Fxn, Fyn, Fzn, en;
 				real Enp1, Fxnp1, Fynp1, Fznp1, enp1;
@@ -159,44 +167,37 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				Fyn = Fy0;
 				Fzn = Fz0;
 
-				const real gam = 1.0 - std::sqrt(2.0)/2.0;
+				const real gam = 1.0 - std::sqrt(2.0) / 2.0;
 
 				real this_E = En;
 				real this_e = en;
-				rad_imp_comoving(this_E, this_e, rho[iiih], gam*dt);
-
+				dE1 = rad_imp_comoving(this_E, this_e, rho[iiih], gam * dt);
+				de1 = -dE1;
 				real kR = kappa_R(rho[iiih], this_e);
-				de1 = (this_e - en) / (gam * dt);
-				dE1 = (this_E - En) / (gam * dt);
-				dFx1 = (-(Fx0 * (c * kR) / (1.0 + c * gam * dt * kR))) / (gam * dt);
-				dFy1 = (-(Fy0 * (c * kR) / (1.0 + c * gam * dt * kR))) / (gam * dt);
-				dFz1 = (-(Fz0 * (c * kR) / (1.0 + c * gam * dt * kR))) / (gam * dt);
+				dFx1 = -(Fx0 * c * kR) / (1.0 + c * gam * dt * kR);
+				dFy1 = -(Fy0 * c * kR) / (1.0 + c * gam * dt * kR);
+				dFz1 = -(Fz0 * c * kR) / (1.0 + c * gam * dt * kR);
 
-				const real tmpE = (1.0 - 2.0 * gam) * dE1 * dt;
-				const real tmpe = (1.0 - 2.0 * gam) * de1 * dt;
-				const real tmpFx = (1.0 - 2.0 * gam) * dFx1 * dt;
-				const real tmpFy = (1.0 - 2.0 * gam) * dFy1 * dt;
-				const real tmpFz = (1.0 - 2.0 * gam) * dFz1 * dt;
-				this_E = En + tmpE;
-				this_e = en + tmpe;
+				this_E = En + (1.0 - 2.0 * gam) * dE1 * dt;
+				this_e = en + (1.0 - 2.0 * gam) * de1 * dt;
 
-				rad_imp_comoving(this_E, this_e, rho[iiih], gam * dt);
+				dE2 = rad_imp_comoving(this_E, this_e, rho[iiih], gam * dt);
+				de2 = -dE1;
 				kR = kappa_R(rho[iiih], this_e);
-				de2 = (this_e - (en + tmpe)) / (gam * dt);
-				dE2 = (this_E - (En + tmpE)) / (gam * dt);
-				dFx2 = (-((Fx0 + tmpFx) * (c * kR) / (1.0 + c * dt * kR))) / (gam * dt);
-				dFy2 = (-((Fy0 + tmpFy) * (c * kR) / (1.0 + c * dt * kR))) / (gam * dt);
-				dFz2 = (-((Fz0 + tmpFz) * (c * kR) / (1.0 + c * dt * kR))) / (gam * dt);
+				dFx2 = -(Fx0 + (1.0 - 2.0 * gam) * dFx1 * dt) * (c * kR) / (1.0 + c * dt * kR);
+				dFy2 = -(Fy0 + (1.0 - 2.0 * gam) * dFy1 * dt) * (c * kR) / (1.0 + c * dt * kR);
+				dFz2 = -(Fz0 + (1.0 - 2.0 * gam) * dFz1 * dt) * (c * kR) / (1.0 + c * dt * kR);
 
 				const real dE0_dt = (dE1 + dE2) * 0.5;
 				const real de0_dt = (de1 + de2) * 0.5;
 				const real dFx0_dt = (dFx1 + dFx2) * 0.5;
 				const real dFy0_dt = (dFy1 + dFy2) * 0.5;
 				const real dFz0_dt = (dFz1 + dFz2) * 0.5;
-
+				e1 = e0 + de0_dt * dt;
 
 				/* Transform time derivatives to lab frame */
-				const real b2o2p1 = (1.0 + 0.5 * beta_2);
+		//		const real b2o2p1 = (1.0 + 0.5 * beta_2);
+				const real b2o2p1 = 1.0;
 				const real dE_dt = b2o2p1 * dE0_dt + (beta_x * dFx0_dt + beta_y * dFy0_dt + beta_z * dFz0_dt) * cinv;
 				const real dFx_dt = b2o2p1 * dFx0_dt + beta_x * c * dE0_dt;
 				const real dFy_dt = b2o2p1 * dFy0_dt + beta_y * c * dE0_dt;
@@ -226,31 +227,31 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 					abort();
 				}
 				tau[iiih] = std::pow(e, 1.0 / fgamma);
-				if( U[er_i][iiir] < 0.0 ) {
-					printf( "2 %e %e %e %e %e %e %e %e \n", E0,  U[er_i][iiir] , tmp1, tmp2, beta_2, fEdd_xx[iiir], fEdd_yy[iiir], fEdd_zz[iiir]);
-					abort();
-				}
+			//	if( U[er_i][iiir] < 0.0 ) {
+			//		printf( "2 %e %e %e %e %e %e %e %e \n", E0,  U[er_i][iiir] , tmp1, tmp2, beta_2, fEdd_xx[iiir], fEdd_yy[iiir], fEdd_zz[iiir]);
+			//		abort();
+			//	}
 			}
 		}
 	}
 }
-void node_server::recv_rad_children(std::vector<rad_type>&& bdata, const geo::octant& oct, const geo::octant& ioct) {
+/*void node_server::recv_rad_children(std::vector<rad_type>&& bdata, const geo::octant& oct, const geo::octant& ioct) {
 	child_rad_channels[ioct][oct]->set_value(std::move(bdata));
-}
+}*/
 
-void rad_grid::get_output(std::array<std::vector<real>, NF + NGF + NRADF + NPF>& v, integer i, integer j, integer k) const {
+void rad_grid::get_output(std::array<std::vector<real>, NF + NGF + NRF + NPF>& v, integer i, integer j, integer k) const {
 	const integer iii = rindex(i, j, k);
 //	printf("%e\n", fEdd_xx[iii]);
-	v[NF + 0].push_back(fEdd_xx[iii]);
-	v[NF + 1].push_back(fEdd_xy[iii]);
-	v[NF + 2].push_back(fEdd_xz[iii]);
-	v[NF + 3].push_back(fEdd_yy[iii]);
-	v[NF + 4].push_back(fEdd_yz[iii]);
-	v[NF + 5].push_back(fEdd_zz[iii]);
-	v[NF + 6].push_back(real(U[er_i][iii]));
-	v[NF + 7].push_back(real(U[fx_i][iii]));
-	v[NF + 8].push_back(real(U[fy_i][iii]));
-	v[NF + 9].push_back(real(U[fz_i][iii]));
+//	v[NF + 0].push_back(fEdd_xx[iii]);
+//	v[NF + 1].push_back(fEdd_xy[iii]);
+//	v[NF + 2].push_back(fEdd_xz[iii]);
+//	v[NF + 3].push_back(fEdd_yy[iii]);
+//	v[NF + 4].push_back(fEdd_yz[iii]);
+//	v[NF + 5].push_back(fEdd_zz[iii]);
+	v[NF + 0].push_back(real(U[er_i][iii]));
+	v[NF + 1].push_back(real(U[fx_i][iii]));
+	v[NF + 2].push_back(real(U[fy_i][iii]));
+	v[NF + 3].push_back(real(U[fz_i][iii]));
 
 }
 
@@ -258,113 +259,38 @@ void rad_grid::set_dx(real _dx) {
 	dx = _dx;
 }
 
-void node_server::compute_radiation(real dt, bool new_eddington) {
+void rad_grid::set_X(const std::vector<std::vector<real>>& x) {
+	X.resize(NDIM);
+	for (integer d = 0; d != NDIM; ++d) {
+		X[d].resize(R_N3);
+		for (integer xi = 0; xi != R_NX; ++xi) {
+			for (integer yi = 0; yi != R_NX; ++yi) {
+				for (integer zi = 0; zi != R_NX; ++zi) {
+					const auto D = H_BW - R_BW;
+					const integer iiir = rindex(xi, yi, zi);
+					const integer iiih = hindex(xi + D, yi + D, zi + D);
+			//		printf( "%i %i %i %i %i %i \n", d, iiir, xi, yi, zi, iiih);
+					X[d][iiir] = x[d][iiih];
+				}
+			}
+		}
+	}
+}
+
+
+void node_server::compute_radiation(real dt) {
 	if (my_location.level() == 0) {
 		printf("Eddington\n");
 	}
 
 	rad_grid_ptr->set_dx(grid_ptr->get_dx());
 	auto rgrid = rad_grid_ptr;
-	if (new_eddington) {
-		rgrid->set_emissivity(grid_ptr->get_field(rho_i), grid_ptr->get_field(sx_i), grid_ptr->get_field(sy_i), grid_ptr->get_field(sz_i),
-				grid_ptr->get_field(tau_i));
 
-		std::list<hpx::future<void>> oct_futs;
-		for (auto& this_oct : geo::octant::full_set()) {
-			oct_futs.push_back(hpx::async([&](const geo::octant& oct) {
-				rgrid->alloc_octant(oct);
-				geo::face f_out[NDIM];
-				geo::face f_in[NDIM];
-				std::list<hpx::future<void>> futs;
-				for (integer d = 0; d != NDIM; ++d) {
-					f_out[d] = oct.get_face(d);
-					f_in[d] = f_out[d].flip();
-				}
-
-				/* get boundaries */
-				for (integer d = 0; d != NDIM; ++d) {
-					const auto& n = neighbors[f_in[d].to_direction()];
-					if (!my_location.is_physical_boundary(f_in[d])) {
-						auto f = sibling_rad_channels[oct][d]->get_future();
-						std::array<integer, NDIM> lb, ub;
-						get_boundary_size(lb, ub, f_in[d].to_direction(), OUTER, INX, R_BW, 1);
-						rgrid->set_intensity(f.get(), lb, ub, oct);
-					}
-				}
-
-				/* compute or get interior */
-				if (!is_refined) {
-					rgrid->compute_intensity(oct);
-				} else {
-					for (auto& ci : geo::octant::full_set()) {
-						const auto& flags = amr_flags[ci];
-						for (auto& dim : geo::dimension::full_set()) {
-							auto dir = f_in[dim].to_direction();
-							if (flags[dir] && !my_location.is_physical_boundary(f_in[dim])) {
-								std::array<integer, NDIM> lb, ub;
-								std::vector<real> data;
-								get_boundary_size(lb, ub, dir, OUTER, INX, R_BW, 1);
-								for (integer d = 0; d != NDIM; ++d) {
-									lb[d] = ((lb[d] - R_BW)) + 2 * R_BW + ci.get_side(d) * (INX);
-									ub[d] = ((ub[d] - R_BW)) + 2 * R_BW + ci.get_side(d) * (INX);
-								}
-								data = rgrid->get_prolong(lb, ub, oct);
-								futs.push_back(children[ci].send_rad_boundary(std::move(data), oct, dim));
-							}
-						}
-					}
-					hpx::wait_all(futs.begin(), futs.end());
-					futs.clear();
-					for( integer ci = 0; ci != NCHILD; ++ci) {
-						auto f = child_rad_channels[oct][ci]->get_future();
-						auto fcont = f.then([=](hpx::future<std::vector<real>>&& fut) {
-									rgrid->set_restrict(fut.get(), ci, oct);
-								});
-						futs.push_back(std::move(fcont));
-					}
-					hpx::wait_all(futs.begin(), futs.end());
-					futs.clear();
-				}
-
-				/* send boundaries, restrict to parent, and send amr boundaries */
-				if( !parent.empty() ) {
-					auto f = parent.send_rad_children(rgrid->get_restrict(oct), my_location.get_child_index(), oct);
-					futs.push_back(std::move(f));
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					if (!my_location.is_physical_boundary(f_out[d])) {
-						const auto& n = neighbors[f_out[d].to_direction()];
-						if( !n.empty()) {
-							std::array<integer, NDIM> lb, ub;
-							get_boundary_size(lb, ub, f_out[d].to_direction(), INNER, INX, R_BW, 1);
-							auto data = rgrid->get_intensity(lb, ub, oct);
-							futs.push_back(n.send_rad_boundary(std::move(data), oct, d));
-						}
-					}
-				}
-
-				rgrid->accumulate_intensity(oct);
-
-				hpx::wait_all(futs.begin(), futs.end());
-				rgrid->free_octant(oct);
-
-			}, this_oct));
-		}
-		hpx::wait_all(oct_futs.begin(), oct_futs.end());
-		rgrid->compute_fEdd();
-	}
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts.max_level);
 	const real c = LIGHTSPEED;
 	const real max_dt = min_dx / c * 0.4 / 3.0;
 	integer nsteps = std::max(int(std::ceil(dt / max_dt)), 1);
-	//if( nsteps % 2 == 1 ) {
-	//	++nsteps;
-//	}
 
-//	if (my_location.level() == 0) {
-//		printf("%i %e %e\n", int(nsteps), dt, max_dt);
-//	}
-//	nsteps *= 2;
 	const real this_dt = dt / real(nsteps);
 	auto& egas = grid_ptr->get_field(egas_i);
 	const auto& rho = grid_ptr->get_field(rho_i);
@@ -372,8 +298,16 @@ void node_server::compute_radiation(real dt, bool new_eddington) {
 	auto& sx = grid_ptr->get_field(sx_i);
 	auto& sy = grid_ptr->get_field(sy_i);
 	auto& sz = grid_ptr->get_field(sz_i);
+	if (my_location.level() == 0) {
+		printf("Implicit 1\n");
+	}
+	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt/2.0);
+	if (my_location.level() == 0) {
+		printf("Explicit\n");
+	}
 	rgrid->store();
 	for (integer i = 0; i != nsteps; ++i) {
+		rgrid->sanity_check();
 		if (my_location.level() == 0) {
 			printf("rad sub-step %i\n", int(i));
 		}
@@ -385,16 +319,52 @@ void node_server::compute_radiation(real dt, bool new_eddington) {
 		rgrid->advance(this_dt, 0.5);
 	}
 	if (my_location.level() == 0) {
-		printf("Implicit\n");
+		printf("Implicit 2\n");
 	}
-	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt);
+	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt/2.0);
+	collect_radiation_boundaries().get();
 	if (my_location.level() == 0) {
 		printf("Rad done\n");
 	}
 }
 
-std::vector<sphere_point> rad_grid::sphere_points;
 
+std::array<std::array<real,NDIM>,NDIM> rad_grid::compute_p( real E, real Fx, real Fy, real Fz) {
+	constexpr real c = LIGHTSPEED;
+	std::array<std::array<real,NDIM>,NDIM> P;
+	const real f = std::sqrt(Fx * Fx + Fy * Fy + Fz * Fz) / (c*E);
+	real nx, ny, nz;
+	if (E > 0.0) {
+		if (f > 0.0) {
+			const real finv = 1.0 / (E * f);
+			nx = Fx * finv;
+			ny = Fy * finv;
+			nz = Fz * finv;
+		} else {
+			nx = ny = nz = 0.0;
+		}
+		if (4.0 - 3 * f * f < 0.0) {
+			printf("%e %e\n", f, 4.0 - 3 * f * f);
+		}
+		const real chi = (3.0 + 4.0 * f * f) / (5.0 + 2.0 * std::sqrt(4.0 - 3 * f * f));
+		const real f1 = ((1.0 - chi) / 2.0);
+		const real f2 = ((3.0 * chi - 1.0) / 2.0);
+		P[XDIM][YDIM] = P[YDIM][XDIM] = f2 * nx * ny * E;
+		P[XDIM][ZDIM] = P[ZDIM][XDIM] = f2 * nx * nz * E;
+		P[ZDIM][YDIM] = P[YDIM][ZDIM] = f2 * ny * nz * E;
+		P[XDIM][XDIM] = (f1 + f2 * nx * nx) * E;
+		P[YDIM][YDIM] = (f1 + f2 * ny * ny) * E;
+		P[ZDIM][ZDIM] = (f1 + f2 * nz * nz) * E;
+	} else {
+		for( integer d1 = 0; d1 != NDIM; ++d1) {
+			for( integer d2 = 0; d2 != NDIM; ++d2) {
+				P[d1][d2] = 0.0;
+			}
+		}
+	}
+	return P;
+}
+/*
 void rad_grid::compute_fEdd() {
 	const real c = LIGHTSPEED;
 	for (integer xi = 0; xi != R_NX; ++xi) {
@@ -412,20 +382,47 @@ void rad_grid::compute_fEdd() {
 					//			printf( "%i %i %i %e\n", int(xi), int(yi), int(zi), E[iii]);
 					fEdd_xx[iii] = fEdd_xy[iii] = fEdd_xz[iii] = fEdd_yy[iii] = fEdd_yz[iii] = fEdd_zz[iii] = 0.0;
 				}
+				const real er = U[er_i][iii];
+				if (er != 0.0) {
+					const real fx = U[fx_i][iii];
+					const real fy = U[fy_i][iii];
+					const real fz = U[fz_i][iii];
+			//		printf("%e %e %e %e\n", er, fx, fy, fz);
+					const real f = (std::sqrt(fx * fx + fy * fy + fz * fz)) / er;
+					real nx, ny, nz;
+					if (f > 0.0) {
+						const real finv = 1.0 / (er * f);
+						nx = fx * finv;
+						ny = fy * finv;
+						nz = fz * finv;
+					} else {
+						nx = ny = nz = 0.0;
+					}
+				//	printf("%e\n", f);
+					fEdd_xy[iii] = nx * ny * f2;
+					fEdd_xz[iii] = nx * nz * f2;
+					fEdd_yz[iii] = ny * nz * f2;
+					fEdd_xx[iii] = f1 + nx * nx * f2;
+					fEdd_yy[iii] = f1 + ny * ny * f2;
+					fEdd_zz[iii] = f1 + nz * nz * f2;
+			//		if( f > 0.1 ) {
+			//			printf( "%e %e %e %e %e\n", chi, f, f1, nx, f2);
+			//		}
+				}
 				//	printf( "%e\n", fEdd_xx[iii]);
 			}
 		}
 	}
 
 }
-
+*/
 void rad_grid::initialize() {
 
-	static std::once_flag flag;
+/*	static std::once_flag flag;
 	std::call_once(flag, [&]() {
 		sphere_points = generate_sphere_points(3);
 	});
-
+*/
 }
 
 rad_grid_init::rad_grid_init() {
@@ -433,27 +430,7 @@ rad_grid_init::rad_grid_init() {
 }
 
 void rad_grid::allocate() {
-	fEdd[XDIM][XDIM] = &fEdd_xx;
-	fEdd[YDIM][YDIM] = &fEdd_yy;
-	fEdd[ZDIM][ZDIM] = &fEdd_zz;
-	fEdd[XDIM][YDIM] = fEdd[YDIM][XDIM] = &fEdd_xy;
-	fEdd[XDIM][ZDIM] = fEdd[ZDIM][XDIM] = &fEdd_xz;
-	fEdd[YDIM][ZDIM] = fEdd[ZDIM][YDIM] = &fEdd_yz;
 	rad_grid::dx = dx;
-	J.resize(R_N3);
-	sigma_a.resize(R_N3, 0.0);
-	sigma_s.resize(R_N3, 0.0);
-	I = std::vector<std::vector<rad_type> >(sphere_points.size(), std::vector<rad_type>(R_N3, 0.0));
-	fEdd_xx.resize(R_N3, 0.0);
-	fEdd_xy.resize(R_N3, 0.0);
-	fEdd_xz.resize(R_N3, 0.0);
-	fEdd_yy.resize(R_N3, 0.0);
-	fEdd_yz.resize(R_N3, 0.0);
-	fEdd_zz.resize(R_N3, 0.0);
-	E.resize(R_N3, 0.0);
-	Beta_x.resize(R_N3, 0.0);
-	Beta_y.resize(R_N3, 0.0);
-	Beta_z.resize(R_N3, 0.0);
 	for (integer f = 0; f != NRF; ++f) {
 		U0[f].resize(R_N3);
 		U[f].resize(R_N3);
@@ -553,7 +530,7 @@ void rad_grid::compute_flux() {
 	for (integer d = 0; d != NDIM; ++d) {
 		fs[d].resize(R_N3);
 	}
-	auto& f = fEdd;
+//	auto& f = fEdd;
 	for (integer i = 0; i != R_N3; ++i) {
 		for (integer f = 0; f != NRF; ++f) {
 			for (integer d = 0; d != NDIM; ++d) {
@@ -561,6 +538,19 @@ void rad_grid::compute_flux() {
 			}
 		}
 	}
+
+	const auto lambda_max = []( real mu, real er, real absf) {
+		if( er > 0.0 ) {
+			constexpr real c = LIGHTSPEED;
+			const real f = absf / (c*er);
+			const real tmp = std::sqrt(4.0-3.0*f*f);
+			const real tmp2 = std::sqrt((2.0/3.0)*(4.0-3.0*f*f -tmp)+2*mu*mu*(2.0-f*f-tmp));
+			return (tmp2 + std::abs(mu*f)) / tmp;
+		} else {
+			return 0.0;
+		}
+	};
+
 	const integer D[3] = { DX, DY, DZ };
 	for (integer d2 = 0; d2 != NDIM; ++d2) {
 		for (integer f = 0; f != NRF; ++f) {
@@ -569,37 +559,43 @@ void rad_grid::compute_flux() {
 				const real tmp1 = U[f][i + D[d2]] - tmp0;
 				const real tmp2 = tmp0 - U[f][i - D[d2]];
 				s[f][i] = minmod(tmp1, tmp2);
-				//		s[f][i] = 0.0;
-			}
-		}
-		for (integer d1 = 0; d1 != NDIM; ++d1) {
-			for (integer i = DX; i != R_N3 - DX; ++i) {
-				const real tmp0 = (*fEdd[d1][d2])[i];
-				const real tmp1 = (*fEdd[d1][d2])[i + D[d2]] - tmp0;
-				const real tmp2 = tmp0 - (*fEdd[d1][d2])[i - D[d2]];
-				fs[d1][i] = minmod(tmp1, tmp2);
-				//	fs[d1][i] = 0.0;
 			}
 		}
 		for (integer i = 2 * DX; i != R_N3 - DX; ++i) {
-			real cx;
-			const real vp = U[fx_i + d2][i] - 0.5 * s[fx_i + d2][i];
-			const real vm = U[fx_i + d2][i - D[d2]] + 0.5 * s[fx_i + d2][i - D[d2]];
-			flux[d2][er_i][i] += (vp + vm) * 0.5;
-			for (integer d1 = 0; d1 != NDIM; ++d1) {
-				const real vp = U[er_i][i] - 0.5 * s[er_i][i];
-				const real vm = U[er_i][i - D[d2]] + 0.5 * s[er_i][i - D[d2]];
-				const real fp = (*fEdd[d1][d2])[i] - 0.5 * fs[d1][i];
-				const real fm = (*fEdd[d1][d2])[i - D[d2]] + 0.5 * fs[d1][i - D[d2]];
-				flux[d2][fx_i + d1][i] += c * c * (fp * vp + fm * vm) * 0.5;
+			real f_p[3], f_m[3], absf_m = 0.0, absf_p = 0.0;
+			const real er_m = U[er_i][i - D[d2]] + 0.5 * s[er_i][i - D[d2]];
+			const real er_p = U[er_i][i] - 0.5 * s[er_i][i];
+			for (integer d = 0; d != NDIM; ++d) {
+				f_m[d] = U[fx_i + d][i - D[d2]] + 0.5 * s[fx_i + d][i - D[d2]];
+				f_p[d] = U[fx_i + d][i] - 0.5 * s[fx_i + d][i];
+				absf_m += f_m[d] * f_m[d];
+				absf_p += f_p[d] * f_p[d];
 			}
-			cx = c * std::sqrt(std::max((*f[d2][d2])[i], (*f[d2][d2])[i - D[d2]]));
+			absf_m = std::sqrt(absf_m);
+			absf_p = std::sqrt(absf_p);
+			const auto P_p = compute_p(er_p, f_p[0], f_p[1], f_p[2]);
+			const auto P_m = compute_p(er_m, f_m[0], f_m[1], f_m[2]);
+			real mu_m = 0.0;
+			real mu_p = 0.0;
+			if (absf_m > 0.0) {
+				mu_m = f_m[d2] / absf_m;
+			}
+			if (absf_p > 0.0) {
+				mu_p = f_p[d2] / absf_p;
+			}
+			const real a_m = lambda_max(mu_m, er_m, absf_m );
+			const real a_p = lambda_max(mu_p, er_p, absf_p );
+			const real a = std::max(a_m, a_p);
+	//		real a = 1.0;
+			flux[d2][er_i][i] += (f_p[d2] + f_m[d2]) * 0.5;
+			for (integer d1 = 0; d1 != NDIM; ++d1) {
+				flux[d2][fx_i + d1][i] += c * c * (P_p[d1][d2] + P_m[d1][d2]) * 0.5;
+			}
 			for (integer f = 0; f != NRF; ++f) {
 				const real vp = U[f][i] - 0.5 * s[f][i];
 				const real vm = U[f][i - D[d2]] + 0.5 * s[f][i - D[d2]];
-				flux[d2][f][i] -= (vp - vm) * 0.5 * cx;
+				flux[d2][f][i] -= (vp - vm) * 0.5 * a;
 			}
-
 		}
 	}
 }
@@ -659,31 +655,51 @@ void rad_grid::set_physical_boundaries(geo::face face) {
 				}
 				for (integer f = 0; f != NRF; ++f) {
 					U[f][iii1] = U[f][iii0];
+			//		U[f][iii1] = 0.0;
 				}
-				fEdd_xx[iii1] = fEdd_xx[iii0];
-				fEdd_yy[iii1] = fEdd_yy[iii0];
-				fEdd_zz[iii1] = fEdd_zz[iii0];
-				fEdd_xy[iii1] = fEdd_xy[iii0];
-				fEdd_xz[iii1] = fEdd_xz[iii0];
-				fEdd_yz[iii1] = fEdd_yz[iii0];
+				//fEdd_xx[iii1] = fEdd_xx[iii0];
+				//fEdd_yy[iii1] = fEdd_yy[iii0];
+				//fEdd_zz[iii1] = fEdd_zz[iii0];
+				//fEdd_xy[iii1] = fEdd_xy[iii0];
+				//fEdd_xz[iii1] = fEdd_xz[iii0];
+			//	fEdd_yz[iii1] = fEdd_yz[iii0];
+			//	const real c = LIGHTSPEED;
+			//	const real x = X[XDIM][iii1];
+			//	const real y = X[YDIM][iii1];
+			//	const real z = X[ZDIM][iii1];
+			//	const real rinv = 1.0 / std::sqrt(x*x+y*y+z*z);
+		//		const real nx = x / rinv;
+		//		const real ny = y / rinv;
+		//		const real nz = z / rinv;
+				for (integer d = 0; d != NDIM; ++d) {
+		//			U[fx_i][iii1] = nx * c * U[er_i][iii0];
+		//			U[fy_i][iii1] = ny * c * U[er_i][iii0];
+		//			U[fz_i][iii1] = nz * c * U[er_i][iii0];
+				}
 				switch (face) {
 				case 0:
 					U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
+				//	U[fx_i][iii1] = -c * U[er_i][iii1] * std::sqrt(fEdd_xx[iii1]);
 					break;
 				case 1:
 					U[fx_i][iii1] = std::max(U[fx_i][iii1], 0.0);
+				//	U[fx_i][iii1] = +c * U[er_i][iii1] * std::sqrt(fEdd_xx[iii1]);
 					break;
 				case 2:
 					U[fy_i][iii1] = std::min(U[fy_i][iii1], 0.0);
+				//	U[fy_i][iii1] =  -c * U[er_i][iii1] * std::sqrt(fEdd_yy[iii1]);
 					break;
 				case 3:
 					U[fy_i][iii1] = std::max(U[fy_i][iii1], 0.0);
+				//	U[fy_i][iii1] = +c * U[er_i][iii1] * std::sqrt(fEdd_yy[iii1]);
 					break;
 				case 4:
 					U[fz_i][iii1] = std::min(U[fz_i][iii1], 0.0);
+			//		U[fz_i][iii1] =  -c * U[er_i][iii1] * std::sqrt(fEdd_zz[iii1]);
 					break;
 				case 5:
 					U[fz_i][iii1] = std::max(U[fz_i][iii1], 0.0);
+				//	U[fz_i][iii1] = +c * U[er_i][iii1] * std::sqrt(fEdd_zz[iii1]);
 					break;
 				}
 			}
@@ -754,7 +770,7 @@ integer rad_grid::rindex(integer x, integer y, integer z) {
 	return z + R_NX * (y + R_NX * x);
 }
 
-void rad_grid::compute_intensity(const geo::octant& oct) {
+/*void rad_grid::compute_intensity(const geo::octant& oct) {
 	const auto indexes = [](integer x, integer& inc, integer& b, integer& e) {
 		if( x > 0 ) {
 			inc = +1;
@@ -786,6 +802,9 @@ void rad_grid::compute_intensity(const geo::octant& oct) {
 						const real& bx = Beta_x[iii];
 						const real& by = Beta_y[iii];
 						const real& bz = Beta_z[iii];
+				//		const real& bx = 0.0;
+				//		const real& by = 0.0;
+				//		const real& bz = 0.0;
 						const real b2 = bx * bx + by * by + bz * bz;
 						const real nuonu0 = (1.0 + pt.nx * bx + pt.ny * by + pt.nz * bz) * (1.0 + 0.5 * b2);
 						const real j0 = J[iii] * nuonu0 * nuonu0 + sigma_s[iii] * U[er_i][iii] / nuonu0;
@@ -797,7 +816,7 @@ void rad_grid::compute_intensity(const geo::octant& oct) {
 			}
 		}
 	}
-}
+}*/
 
 void rad_grid::set_boundary(const std::vector<real>& data, const geo::direction& dir) {
 	PROF_BEGIN;
@@ -816,7 +835,7 @@ void rad_grid::set_boundary(const std::vector<real>& data, const geo::direction&
 			}
 		}
 	}
-	for (integer d1 = 0; d1 != NDIM; ++d1) {
+	/*for (integer d1 = 0; d1 != NDIM; ++d1) {
 		for (integer d2 = d1; d2 != NDIM; ++d2) {
 			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
@@ -827,7 +846,7 @@ void rad_grid::set_boundary(const std::vector<real>& data, const geo::direction&
 				}
 			}
 		}
-	}PROF_END;
+	}*/PROF_END;
 }
 
 std::vector<real> rad_grid::get_boundary(const geo::direction& dir) {
@@ -835,7 +854,7 @@ std::vector<real> rad_grid::get_boundary(const geo::direction& dir) {
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	integer size;
-	size = NRADF * get_boundary_size(lb, ub, dir, INNER, INX, R_BW);
+	size = NRF * get_boundary_size(lb, ub, dir, INNER, INX, R_BW);
 	data.resize(size);
 	integer iter = 0;
 
@@ -850,7 +869,7 @@ std::vector<real> rad_grid::get_boundary(const geo::direction& dir) {
 			}
 		}
 	}
-	for (integer d1 = 0; d1 != NDIM; ++d1) {
+	/*for (integer d1 = 0; d1 != NDIM; ++d1) {
 		for (integer d2 = d1; d2 != NDIM; ++d2) {
 			auto& Ufield = (*fEdd[d1][d2]);
 			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
@@ -862,10 +881,10 @@ std::vector<real> rad_grid::get_boundary(const geo::direction& dir) {
 				}
 			}
 		}
-	}PROF_END;
+	}*/PROF_END;
 	return data;
 }
-
+/*
 void rad_grid::accumulate_intensity(const geo::octant& oct) {
 	std::lock_guard < hpx::lcos::local::mutex > lock(Pmtx);
 	for (integer spi = 0; spi != sphere_points.size(); ++spi) {
@@ -928,45 +947,12 @@ void rad_grid::alloc_octant(const geo::octant& oct) {
 		}
 	}
 }
-
-void rad_grid::set_emissivity(const std::vector<real>& rho, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
-		const std::vector<real>& tau) {
-	const real fgamma = grid::get_fgamma();
-	for (integer xi = 0; xi != R_NX; ++xi) {
-		for (integer yi = 0; yi != R_NX; ++yi) {
-			for (integer zi = 0; zi != R_NX; ++zi) {
-				const integer iii = rindex(xi, yi, zi);
-				E[iii] = 0.0;
-				fEdd_xx[iii] = fEdd_yy[iii] = fEdd_zz[iii] = 0.0;
-				fEdd_xy[iii] = fEdd_yz[iii] = fEdd_xz[iii] = 0.0;
-			}
-		}
-	}
-	const real c = LIGHTSPEED;
-	for (integer xi = 0; xi != R_NX; ++xi) {
-		for (integer yi = 0; yi != R_NX; ++yi) {
-			for (integer zi = 0; zi != R_NX; ++zi) {
-				const auto D = H_BW - R_BW;
-				const integer iiir = rindex(xi, yi, zi);
-				const integer iiih = hindex(xi + D, yi + D, zi + D);
-				const real e = std::pow(tau[iiih], fgamma);
-				//	sigma_a[iiir] = J[iiir] = rho[iiih];
-				J[iiir] = kappa_p(rho[iiih], e) * B_p(rho[iiih], e) * (4.0*M_PI/c);
-				sigma_a[iiir] = kappa_R(rho[iiih], e);
-				sigma_s[iiir] = kappa_s(rho[iiih], e);
-				Beta_x[iiir] = sx[iiih] / rho[iiih] / c;
-				Beta_y[iiir] = sy[iiih] / rho[iiih] / c;
-				Beta_z[iiir] = sz[iiih] / rho[iiih] / c;
-			}
-		}
-	}
-	I = std::vector<std::vector<rad_type> >(sphere_points.size(), std::vector<rad_type>(R_N3, 0.0));
-}
+*/
 
 void rad_grid::set_field(rad_type v, integer f, integer i, integer j, integer k) {
 	U[f][rindex(i, j, k)] = v;
 }
-
+/*
 std::vector<rad_type> rad_grid::get_intensity(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant& oct) {
 	std::vector<rad_type> data;
 	const std::size_t box_size = (ub[XDIM] - lb[XDIM]) * (ub[YDIM] - lb[YDIM]) * (ub[ZDIM] - lb[ZDIM]);
@@ -1084,6 +1070,6 @@ void rad_grid::set_restrict(const std::vector<real>& data, const geo::octant& oc
 
 }
 ;
-
+*/
 #endif
 

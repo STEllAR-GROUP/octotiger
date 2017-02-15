@@ -81,7 +81,7 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 		l1.zones[zzz] = index_map[*i];
 		++zzz;
 	}
-	for (integer field = 0; field < NF + NRADF + NGF + NPF; ++field) {
+	for (integer field = 0; field < NF + NRF + NGF + NPF; ++field) {
 		const auto l1sz = l1.data[field].size();
 		l1.data[field].resize(l1sz + l2.data[field].size());
 		std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
@@ -103,10 +103,10 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
-	std::array<std::vector<real>, NF + NRADF + NGF + NPF> &data = rc.data;
-	std::array<std::vector<real>, NF + NRADF + NGF + NPF> &A = rc.analytic;
+	std::array<std::vector<real>, NF + NRF + NGF + NPF> &data = rc.data;
+	std::array<std::vector<real>, NF + NRF + NGF + NPF> &A = rc.analytic;
 
-	for (integer field = 0; field != NF + NRADF + NGF + NPF; ++field) {
+	for (integer field = 0; field != NF + NRF + NGF + NPF; ++field) {
 		data[field].reserve(INX * INX * INX);
 		if (analytic) {
 			A[field].reserve(INX * INX * INX);
@@ -158,17 +158,17 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 				rad_grid_ptr->get_output(data, i - d, j - d, k - d);
 #endif
 				for (integer field = 0; field != NGF; ++field) {
-					data[field + NRADF + NF].push_back(G[iiig][field]);
+					data[field + NRF + NF].push_back(G[iiig][field]);
 				}
-				data[NGF + NRADF + NF + 0].push_back(V[vx_i][iii]);
-				data[NGF + NRADF + NF + 1].push_back(V[vy_i][iii]);
-				data[NGF + NRADF + NF + 2].push_back(V[vz_i][iii]);
+				data[NGF + NRF + NF + 0].push_back(V[vx_i][iii]);
+				data[NGF + NRF + NF + 1].push_back(V[vy_i][iii]);
+				data[NGF + NRF + NF + 2].push_back(V[vz_i][iii]);
 				if (V[egas_i][iii] * V[rho_i][iii] < de_switch2 * U[egas_i][iii]) {
-					data[NGF + NRADF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma) / V[rho_i][iii]);
+					data[NGF + NRF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma) / V[rho_i][iii]);
 				} else {
-					data[NGF + NRADF + NF + 3].push_back(V[egas_i][iii]);
+					data[NGF + NRF + NF + 3].push_back(V[egas_i][iii]);
 				}
-				data[NGF + NRADF + NF + 4].push_back(V[zz_i][iii]);
+				data[NGF + NRF + NF + 4].push_back(V[zz_i][iii]);
 			}
 		}
 	}
@@ -223,7 +223,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 						olist);
 				const char* analytic_names[] = {"rho_a", "egas_a", "sx_a", "sy_a", "sz_a", "tau_a"};
 				DBFreeOptlist(olist);
-				for (int field = 0; field != NF + NGF + NPF + NRADF; ++field) {
+				for (int field = 0; field != NF + NGF + NPF + NRF; ++field) {
 					auto olist = DBMakeOptlist(1);
 					double time = double(t);
 					int istrue = 1;
