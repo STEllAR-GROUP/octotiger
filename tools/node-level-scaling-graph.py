@@ -32,11 +32,11 @@ if options.display == None and options.write_files == None:
 # plt.rc('font', **font)
 
 performance_tuples = {}
-result_dir = 'results'
+result_dir = 'results-node-level-scaling'
 
 compiler_suffix = None
 if options.compiler == "gnu":
-    compiler_suffix = "-gcc"
+    compiler_suffix = "-gnu"
 elif options.compiler == "intel":
     compiler_suffix = "-intel"
 else:
@@ -57,7 +57,7 @@ for subdir, dirs, files in os.walk(result_dir):
 
             memory_type = match.group(4)
 
-            print "file:", f, "l:", level, "memory_type: ", memory_type, "nodes:", nodes, "threads:", threads
+            # print "file:", f, "l:", level, "memory_type: ", memory_type, "nodes:", nodes, "threads:", threads
             result_file = open(result_dir + f, "r")
             result_text = result_file.read()
             result_file.close()
@@ -79,7 +79,7 @@ for subdir, dirs, files in os.walk(result_dir):
             result_match = re.search(r"Find Localities: (.+?)\n", result_text)
             if result_match:
                 find_localities = result_match.group(1)
-            print "total_time:", total_time, "computation:", computation, "regrid:", regrid, "find_localities:", find_localities
+            # print "total_time:", total_time, "computation:", computation, "regrid:", regrid, "find_localities:", find_localities
 
             if not memory_type in performance_tuples:
                 performance_tuples[memory_type] = {}
@@ -115,7 +115,7 @@ plt.xlabel('threads')
 plt.ylabel('time (s)')
 if options.write_files:
     # plt.savefig("total_time.svg")
-    fig.savefig("total-time" + compiler_suffix + ".png")
+    fig.savefig("total-time-node-level-scaling" + compiler_suffix + ".png")
 if options.display:
     plt.show()
 
@@ -153,7 +153,7 @@ plt.xlabel('threads')
 plt.ylabel('parallel efficiency')
 if options.write_files:
     # plt.savefig("parallel_efficiency.svg")
-    fig.savefig("parallel-efficiency" + compiler_suffix + ".png")
+    fig.savefig("parallel-efficiency-node-level-scaling" + compiler_suffix + ".png")
 if options.display:
     plt.show()
 
