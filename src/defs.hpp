@@ -7,6 +7,20 @@
 
 #include <hpx/config.hpp>
 
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
+# define USE_GRAV_PAR
+#endif
+
+#ifdef OCTOTIGER_HAVE_SILO
+# define DO_OUTPUT
+#endif
+
+//#define OCTOTIGER_HAVE_RADIATION
+
+#ifdef OCTOTIGER_HAVE_RADIATION
+#define RADIATION
+#endif
+
 #ifndef TYPES444_HPP_
 
 //#define CWD
@@ -17,14 +31,21 @@
 
 
 #define EXPERIMENT
-
-#ifdef OCTOTIGER_HAVE_GRAV_PAR
-# define USE_GRAV_PAR
+#ifdef RADIATION
+#define NRF 4
+#else
+#define NRF 0
+#define NRADF 0
 #endif
 
-#ifdef OCTOTIGER_HAVE_SILO
-# define DO_OUTPUT
-#endif
+#define LIGHTSPEED 1.0
+
+#define NPF 5
+
+
+#define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
+
+
 
 #define USE_SIMD
 
@@ -130,6 +151,7 @@ constexpr integer spc_dc_i = 12;
 constexpr integer spc_de_i = 13;
 constexpr integer spc_vac_i = 14;
 
+
 constexpr integer vx_i = sx_i;
 constexpr integer vy_i = sy_i;
 constexpr integer vz_i = sz_i;
@@ -207,6 +229,18 @@ constexpr inline T cube(T const& val)
 {
     return val * val * val;
 }
+
+template <typename T>
+constexpr inline T average(T const& s1, T const& s2)
+{
+    return 0.5 * (s1 + s2);
+};
+
+template <typename T>
+constexpr inline void inplace_average(T& s1, T& s2)
+{
+    s1 = s2 = average(s1, s2);
+};
 
 /*
 #define SYSTEM(command) \

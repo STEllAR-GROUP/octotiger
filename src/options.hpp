@@ -13,6 +13,9 @@
 
 enum problem_type {
 	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR
+#ifdef RADIATION
+	, RADIATION_TEST
+#endif
 };
 
 enum eos_type {

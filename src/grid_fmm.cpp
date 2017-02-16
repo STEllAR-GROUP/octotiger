@@ -171,21 +171,21 @@ void grid::compute_interactions(gsolve_type type) {
     // calculating the interaction
 
     auto& mon = *mon_ptr;
-    // L stores the gravitational potentatial
+    // L stores the gravitational potential
     // L should be L, (10) in the paper
     // L_c stores the correction for angular momentum
     // L_c, (20) in the paper (Dominic)
-    #if defined(HPX_HAVE_DATAPAR)
-    	hpx::parallel::fill(hpx::parallel::execution::dataseq,L.begin(),L.end(),ZERO);
-    #else
-    	std::fill(std::begin(L), std::end(L), ZERO);
-    #endif
+#if defined(HPX_HAVE_DATAPAR)
+    hpx::parallel::fill(hpx::parallel::execution::dataseq, L.begin(), L.end(), ZERO);
+#else
+    std::fill(std::begin(L), std::end(L), ZERO);
+#endif
     if (opts.ang_con) {
-	#if defined(HPX_HAVE_DATAPAR)
-		hpx::parallel::fill(hpx::parallel::execution::dataseq,L_c.begin(),L_c.end(),ZERO);	
-	#else
-		std::fill(std::begin(L_c), std::end(L_c), ZERO);
-	#endif
+#if defined(HPX_HAVE_DATAPAR)
+        hpx::parallel::fill(hpx::parallel::execution::dataseq, L_c.begin(), L_c.end(), ZERO);
+#else
+        std::fill(std::begin(L_c), std::end(L_c), ZERO);
+#endif
     }
 
     // Non-leaf nodes use taylor expansion
@@ -397,7 +397,7 @@ void grid::compute_interactions(gsolve_type type) {
 #else
 
         // first compute potential and the the three components of the force
-        // vectorizating across across the dimensions, therefore 1 component for the potential + 3
+        // vectorizing across the dimensions, therefore 1 component for the potential + 3
         // components for the force
 
         // Coefficients for potential evaluation? (David)
@@ -852,7 +852,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     const v4sd d0(di0.data());
 #endif
     hpx::parallel::for_loop(
-        for_loop_policy, 0, ilist_n_bnd.size(), [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
+        for_loop_policy, 0, ilist_n_bnd.size(),
+        [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             const integer dsize = bnd.first.size();

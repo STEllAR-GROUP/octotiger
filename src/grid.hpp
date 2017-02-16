@@ -8,8 +8,6 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
-#define NPF 5
-
 #include "simd.hpp"
 #include "defs.hpp"
 #include "roe.hpp"
@@ -18,6 +16,10 @@
 #include "problem.hpp"
 #include "taylor.hpp"
 #include "scf_data.hpp"
+
+#ifdef RADIATION
+class rad_grid;
+#endif
 
 #include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/runtime/serialization/set.hpp>
@@ -143,6 +145,10 @@ private:
 	static space_vector pivot;
 	static real scaling_factor;
 
+#ifdef RADIATION
+	std::shared_ptr<rad_grid> rad_grid_ptr;
+#endif
+
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> Ua;
 	std::vector<std::vector<real>> U0;
@@ -174,6 +180,16 @@ private:
 	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 public:
+#ifdef RADIATION
+	std::shared_ptr<rad_grid> get_rad_grid() {
+		return rad_grid_ptr;
+	}
+#endif
+	real get_dx() const;
+	std::vector<real>& get_field( integer f );
+	const std::vector<real>& get_field( integer f ) const;
+	void set_field( std::vector<real>&& data, integer f );
+	void set_field( const std::vector<real>& data, integer f );
 	analytic_t compute_analytic(real);
 	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const gravity_boundary_type&);
 	static void set_scaling_factor(real f);
@@ -248,51 +264,17 @@ public:
    void allocate();
    void reconstruct();
    void store();
-   real compute_fluxes();
+   void restore();
+    real compute_fluxes();
    void compute_sources(real t);
    void set_physical_boundaries(const geo::face&, real t);
    void next_u(integer rk, real t, real dt);
    static void output(const output_list_type&, std::string, real t, int cycle, bool a);
    output_list_type get_output_list(bool analytic) const;
    template<class Archive>
-   void load(Archive& arc, const unsigned) {
-   	arc >> is_leaf;
-   	arc >> is_root;
-   	arc >> dx;
-   	arc >> xmin;
-   	allocate();
-   	arc >> U;
-   	for( integer i = 0; i != INX*INX*INX; ++i ) {
-#if defined(HPX_HAVE_DATAPAR)
-        arc >> G[i];
-#else
-   		arc >> G[i][0];
-   		arc >> G[i][1];
-   		arc >> G[i][2];
-   		arc >> G[i][3];
-#endif
-   	}
-   	arc >> U_out;
-   }
+   void load(Archive& arc, const unsigned);
    template<class Archive>
-   void save(Archive& arc, const unsigned) const {
-   	arc << is_leaf;
-   	arc << is_root;
-   	arc << dx;
-   	arc << xmin;
-   	arc << U;
-   	for( integer i = 0; i != INX*INX*INX; ++i ) {
-#if defined(HPX_HAVE_DATAPAR)
-        arc << G[i];
-#else
-   		arc << G[i][0];
-   		arc << G[i][1];
-   		arc << G[i][2];
-   		arc << G[i][3];
-#endif
-   	}
-   	arc << U_out;
-   }
+   void save(Archive& arc, const unsigned) const;
    HPX_SERIALIZATION_SPLIT_MEMBER();
    std::size_t load(FILE* fp);
    std::size_t save(FILE* fp) const;
@@ -317,13 +299,13 @@ struct grid::node_point {
 struct grid::output_list_type {
 	std::set<node_point> nodes;
 	std::vector<zone_int_type> zones;
-	std::array<std::vector<real>, NF + NGF + NPF> data;
-	std::array<std::vector<real>, NF + NGF + NPF> analytic;
+	std::array<std::vector<real>, NF + NGF + NRF + NPF> data;
+	std::array<std::vector<real>, NF + NGF + NRF + NPF> analytic;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;
 		arc & zones;
-		for (integer i = 0; i != NF + NGF + NPF; ++i) {
+		for (integer i = 0; i != NF + NGF + NRF + NPF; ++i) {
 			arc & data[i];
 		}
 	}
@@ -331,5 +313,56 @@ struct grid::output_list_type {
 ;
 
 void scf_binary_init();
+
+#ifdef RADIATION
+#include "rad_grid.hpp"
+#endif
+
+template<class Archive>
+void grid::load(Archive& arc, const unsigned) {
+	arc >> is_leaf;
+	arc >> is_root;
+	arc >> dx;
+	arc >> xmin;
+	allocate();
+	arc >> U;
+#ifdef RADIATION
+	arc >> *rad_grid_ptr;
+#endif
+	for( integer i = 0; i != INX*INX*INX; ++i ) {
+#if defined(HPX_HAVE_DATAPAR)
+     arc >> G[i];
+#else
+		arc >> G[i][0];
+		arc >> G[i][1];
+		arc >> G[i][2];
+		arc >> G[i][3];
+#endif
+	}
+	arc >> U_out;
+}
+template<class Archive>
+void grid::save(Archive& arc, const unsigned) const {
+	arc << is_leaf;
+	arc << is_root;
+	arc << dx;
+	arc << xmin;
+	arc << U;
+#ifdef RADIATION
+	arc << *rad_grid_ptr;
+#endif
+	for( integer i = 0; i != INX*INX*INX; ++i ) {
+#if defined(HPX_HAVE_DATAPAR)
+     arc << G[i];
+#else
+		arc << G[i][0];
+		arc << G[i][1];
+		arc << G[i][2];
+		arc << G[i][3];
+#endif
+	}
+	arc << U_out;
+}
+
 
 #endif /* GRID_HPP_ */

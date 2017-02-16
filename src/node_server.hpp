@@ -17,8 +17,13 @@
 #include "future.hpp"
 #include "struct_eos.hpp"
 #include "profiler.hpp"
+#include "rad_grid.hpp"
+
+#include <array>
 #include <atomic>
+
 #include <hpx/include/components.hpp>
+#include <hpx/include/serialization.hpp>
 
 namespace hpx {
     using mutex = hpx::lcos::local::spinlock;
@@ -47,6 +52,9 @@ private:
     real current_time;
     real rotational_time;
     std::shared_ptr<grid> grid_ptr; //
+#ifdef RADIATION
+    std::shared_ptr<rad_grid> rad_grid_ptr; //
+#endif
     bool is_refined;
     std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
@@ -60,7 +68,7 @@ private:
      *  of the 6 faces, 12 edges, and 8 vertices of the subgrid cube. If there is an AMR boundary to a coarser level, that neighbor is empty. */
     std::vector<node_client> neighbors;
     /* Child refers to the up to 8 refined children of this node. Either all or none exist.*/
-    std::vector<node_client> children;
+    std::array<node_client, NCHILD> children;
     /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
      * . Only nieces in the face directions are needed, and in each
      * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/
@@ -109,7 +117,7 @@ public:
         arc & xmin;
         arc & dx;
         arc & amr_flags;
-        arc & *grid_ptr;
+        arc & grid_ptr;
         rf = refinement_flag;
         arc & rf;
         refinement_flag = rf;
@@ -136,7 +144,7 @@ private:
     hpx::future<void> exchange_flux_corrections();
 
     hpx::future<void> nonrefined_step();
-    hpx::future<void> refined_step(hpx::future<void> child_futs);
+    void refined_step();
 
 public:
 
@@ -161,7 +169,7 @@ public:
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
 
-    void regrid_scatter(integer, integer);
+    hpx::future<void> regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
     void recv_hydro_boundary(std::vector<real>&&, const geo::direction&);
@@ -200,6 +208,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
 
     hpx::future<real> timestep_driver_descend();
+    hpx::future<real> timestep_driver_descend_helper();
     HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
 
     void timestep_driver_ascend(real);
@@ -211,7 +220,7 @@ public:
     hpx::id_type get_child_client(const geo::octant&);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-    void form_tree(const hpx::id_type&, const hpx::id_type&,
+    hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&,
         const std::vector<hpx::id_type>&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
@@ -241,7 +250,7 @@ public:
         const geo::face& face) const;
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_nieces, get_nieces_action);
 
-    bool check_for_refinement();
+    hpx::future<void> check_for_refinement();
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);
@@ -267,6 +276,27 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server,rho_move, rho_move_action);
 
     void run_scf();
+
+#ifdef RADIATION
+private:
+	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>> , geo::dimension::count()>, geo::octant::count()> sibling_rad_channels;
+	std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::face::count()> sibling_rad_bnd_channels;
+	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::octant::count()>, geo::octant::count()> child_rad_channels;
+public:
+	void compute_radiation(real dt);
+	hpx::future<void> collect_radiation_boundaries();
+
+	void recv_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_boundary, send_rad_boundary_action);
+
+	void recv_rad_bnd_boundary(std::vector<rad_type>&&, const geo::face&);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_bnd_boundary, send_rad_bnd_boundary_action);
+
+	void recv_rad_children(std::vector<real>&&, const geo::octant& ci, const geo::octant& icot);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_children, send_rad_children_action);
+
+#endif
+
 
 };
 

@@ -34,6 +34,7 @@
 #define PROBLEM_OPT_SOLID_SPHERE "solid_sphere"
 #define PROBLEM_OPT_STAR "star"
 #define PROBLEM_OPT_MOVING_STAR "moving_star"
+#define PROBLEM_OPT_RADIATION_TEST "radiation_test"
 
 bool options::cmp(const char* str1, const char* str2) {
     return strncmp(str1, str2, strlen(str2)) == 0;
@@ -102,7 +103,7 @@ bool options::process_options(int argc, char* argv[]) {
     found_restart_file = false;
     output_only = false;
     xscale = 2.0;
-    omega = -1.0;
+    omega = 0.0;
     exe_name = std::string(argv[0]);
     contact_fill = 0.0;
     output_dt = -1;
@@ -127,6 +128,10 @@ bool options::process_options(int argc, char* argv[]) {
                 problem = STAR;
             } else if (cmp(prob, PROBLEM_OPT_MOVING_STAR)) {
                 problem = MOVING_STAR;
+#ifdef RADIATION
+            } else if (cmp(prob, PROBLEM_OPT_RADIATION_TEST)) {
+                problem = RADIATION_TEST;
+#endif
             } else if (cmp(prob, PROBLEM_OPT_SOD)) {
                 problem = SOD;
             } else if (cmp(prob, PROBLEM_OPT_BLAST)) {

@@ -15,6 +15,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 ################################################################################
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
+option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 
 ################################################################################
 # Find required packages
@@ -40,15 +41,15 @@ endif()
 if(NOT MSVC)
     include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
 
-	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    	set( COMMON_FLAGS "-Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations")
-	elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-	    #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo" )
-		#set( CMAKE_C_FLAGS_RELEASE "-Ofast -ipo" )
-		#set( CMAKE_Fortran_FLAGS_RELEASE "-Ofast -ipo" )
-		#set( CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo" )
-	    set( COMMON_FLAGS "-Wno-attributes -Wno-deprecated")
-	endif()
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        set( COMMON_FLAGS "-Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations")
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+        #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo" )
+        #set( CMAKE_C_FLAGS_RELEASE "-Ofast -ipo" )
+        #set( CMAKE_Fortran_FLAGS_RELEASE "-Ofast -ipo" )
+        #set( CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo" )
+        set( COMMON_FLAGS "-Wno-attributes -Wno-deprecated")
+    endif()
     set(CMAKE_CXX_FLAGS "${COMMON_FLAGS} ${CMAKE_CXX_FLAGS}")
     set(CMAKE_C_FLAGS "${COMMON_FLAGS} ${CMAKE_C_FLAGS}")
     set(CMAKE_F_FLAGS "${COMMON_FLAGS} ${CMAKE_F_FLAGS}")
@@ -71,6 +72,10 @@ if (OCTOTIGER_WITH_GRAV_PAR)
   add_definitions(-DOCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
+if (OCTOTIGER_WITH_RADIATION)
+  add_definitions(-DOCTOTIGER_HAVE_RADIATION)
+endif()
+
 set(source_files)
 set(dependencies)
 
@@ -78,6 +83,7 @@ set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
+    src/rad_grid.cpp
     src/eos.cpp
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
@@ -106,6 +112,7 @@ set(source_files ${source_files}
 )
 
 set(header_files
+    src/rad_grid.hpp
     src/diagnostics.hpp
     src/channel.hpp
     src/defs.hpp
@@ -119,12 +126,13 @@ set(header_files
     src/node_server.hpp
     src/options.hpp
     src/problem.hpp
+    src/profiler.hpp
     src/real.hpp
-    src/util.hpp
     src/roe.hpp
     src/simd.hpp
     src/space_vector.hpp
     src/taylor.hpp
+    src/util.hpp
 )
 
 add_hpx_executable(

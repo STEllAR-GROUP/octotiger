@@ -15,6 +15,69 @@
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
 
+#ifdef RADIATION
+bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
+	bool rc = false;
+	real den_floor = 1.0e-4;
+	integer test_level = max_level;
+	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
+		if (U[rho_i] > den_floor) {
+			rc = rc || (level < this_test_level);
+		}
+		if (rc) {
+			break;
+		}
+		den_floor /= 8.0;
+	}
+	return rc;
+
+}
+
+bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> const& dudx) {
+
+	return level < max_level;
+
+	bool rc = false;
+	real den_floor = 1.0e-1;
+	integer test_level = max_level;
+	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
+		if (U[rho_i] > den_floor) {
+			rc = rc || (level < this_test_level);
+		}
+		if (rc) {
+			break;
+		}
+		den_floor /= 8.0;
+	}
+	return rc;
+
+}
+#endif
+
+
+std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
+	std::vector<real> u(NF + NRF, real(0));
+	x -= 0.0;
+	y -= 0.0;
+	z -= 0.0;
+	real r = std::max(dx, 0.50);
+	const real eint = 1.0e-1;
+	if (std::sqrt(x * x + y * y + z * z) < r) {
+		u[rho_i] = 1.0;
+	} else {
+		u[rho_i] = 1.0e-10;
+	}
+	u[tau_i] = std::pow( eint * u[rho_i], 1.0 / grid::get_fgamma() );
+//	u[sx_i] = 0.0; //u[rho_i] / 10.0;
+	const real fgamma = grid::get_fgamma();
+	u[egas_i] = std::pow(u[tau_i], fgamma);
+	u[egas_i] += u[sx_i] * u[sx_i] / u[rho_i] / 2.0;
+	u[egas_i] += u[sy_i] * u[sy_i] / u[rho_i] / 2.0;
+	u[egas_i] += u[sz_i] * u[sz_i] / u[rho_i] / 2.0;
+	u[spc_ac_i] = u[rho_i];
+	return u;
+}
+
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
@@ -89,16 +152,17 @@ init_func_type get_problem() {
 	return problem;
 }
 
+/*
 std::vector<real> null_problem(real x, real y, real z, real dx) {
-	std::vector < real > u(NF, real(0));
+	std::vector<real> u(NF, real(0));
 	return u;
-}
+}*/
 
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
 	x -= 0.453;
 	y -= 0.043;
-	std::vector < real > u(NF, real(0));
+	std::vector<real> u(NF, real(0));
 	u[spc_dc_i] = u[rho_i] = 1.0;
 	const real a = std::sqrt(2.0) * dx;
 	real r = std::sqrt(x * x + y * y + z * z);
@@ -107,8 +171,26 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	return u;
 }
 
-std::vector<real> sod_shock_tube(real x0, real y, real z, real t) {
-	std::vector < real > U(NF, 0.0);
+std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
+	std::vector<real> U(NF, 0.0);
+	const real fgamma = grid::get_fgamma();
+	sod_state_t s;
+	real x = (x0 + y + z) / std::sqrt(3.0);
+	exact_sod(&s, &sod_init, x, 0.0);
+	U[rho_i] = s.rho;
+	U[egas_i] = s.p / (fgamma - 1.0);
+	U[sx_i] = s.rho * s.v / std::sqrt(3.0);
+	U[sy_i] = s.rho * s.v / std::sqrt(3.0);
+	U[sz_i] = s.rho * s.v / std::sqrt(3.0);
+	U[tau_i] = std::pow(U[egas_i], 1.0 / fgamma);
+	U[egas_i] += s.rho * s.v * s.v / 2.0;
+	U[spc_ac_i] = s.rho;
+	//printf( "%e %e\n", t, s.v);
+	return U;
+}
+
+std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
+	std::vector<real> U(NF, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
 	real x = (x0 + y + z) / std::sqrt(3.0);
@@ -128,7 +210,7 @@ const real dxs = 0.0;
 const real dys = -0.0;
 
 std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
-	std::vector < real > u(4, real(0));
+	std::vector<real> u(4, real(0));
 	auto u1 = solid_sphere_analytic_phi(x0, y0, z0, dxs);
 	auto u2 = solid_sphere_analytic_phi(x0, y0, z0, dys);
 	for (integer f = 0; f != 4; ++f) {
@@ -141,7 +223,7 @@ const real ssr0 = 1.0 / 3.0;
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
 	const real r0 = ssr0;
 	const real M = 1.0;
-	std::vector < real > g(4);
+	std::vector<real> g(4);
 	x -= xshift;
 //	x0 -= -0.0444;
 //	y0 -= +0.345;
@@ -161,7 +243,7 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 }
 
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
-	std::vector < real > u(NF, real(0));
+	std::vector<real> u(NF, real(0));
 	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);
 	auto u2 = solid_sphere(x0, y0, z0, dx, dys);
 	for (integer f = 0; f != NF; ++f) {
@@ -176,7 +258,7 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	const real rho_floor = 1.0e-50;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
 	const real drho = 1.0 / real(N * N * N) / V;
-	std::vector < real > u(NF, real(0));
+	std::vector<real> u(NF, real(0));
 	x0 -= xshift;
 //	x0 -= -0.0444;
 //	y0 -= +0.345;
@@ -240,7 +322,7 @@ std::vector<real> star(real x, real y, real z, real) {
 	z -= 0.0;
 //	real menc;
 	const real r = std::sqrt(x * x + y * y + z * z);
-	std::vector < real > u(NF, real(0));
+	std::vector<real> u(NF, real(0));
 	real theta;
 	const real n = real(1) / (fgamma - real(1));
 	const real rho_min = 1.0e-10;
@@ -281,11 +363,11 @@ std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
 	real vx = 1.0;
 	real vy = 1.0;
 	real vz = 0.0;
-	const real omega =  grid::get_omega();
+	const real omega = grid::get_omega();
 	const real x0 = x;
 	const real y0 = y;
-	x = x0 * cos(omega*t) - y0 * sin(omega*t);
-	y = y0 * cos(omega*t) + x0 * sin(omega*t);
+	x = x0 * cos(omega * t) - y0 * sin(omega * t);
+	y = y0 * cos(omega * t) + x0 * sin(omega * t);
 	x -= vx * t;
 	y -= vy * t;
 	z -= vz * t;
@@ -306,7 +388,7 @@ std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 	real alpha = 1.0 / 15.0;
 	const real n = real(1) / (fgamma - real(1));
 	const real rho_min = 1.0e-12;
-	std::vector < real > u(NF, real(0));
+	std::vector<real> u(NF, real(0));
 	const real d = 1.0 / 2.0;
 	real x1 = x - d;
 	real x2 = x + d;

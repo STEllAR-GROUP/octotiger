@@ -14,6 +14,7 @@
 #include "geometry.hpp"
 #include "eos.hpp"
 #include "diagnostics.hpp"
+#include "rad_grid.hpp"
 
 //#include <boost/mpi/packed_iarchive.hpp>
 
@@ -71,12 +72,16 @@ public:
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
 	integer save(integer,std::string) const;
-	hpx::future<bool> check_for_refinement() const;
+	hpx::future<void> check_for_refinement() const;
 	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
 
     void report_timing() const;
 
-//	hpx::future<void> find_family() const;
 
+#ifdef RADIATION
+	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci, const geo::octant& ioct) const;
+	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&) const;
+	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::face&) const;
+#endif
 	};
 #endif /* NODE_CLIENT_HPP_ */

@@ -177,6 +177,10 @@ public:
 	side get_side(const dimension&) const;
 	bool is_on_face(const face&) const;
 	quadrant get_quadrant(const dimension&) const;
+	face get_face(const dimension& d) const{
+		const integer o = *this;
+		return face(2 * d + ((o >> d) & 1));
+	}
 	integer operator[](const dimension& dim) const {
 		return (i >> dim) & 1;
 	}
@@ -340,6 +344,6 @@ inline face face::flip() const {
 constexpr integer INNER = 0;
 constexpr integer OUTER = 1;
 
-integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer inx, integer bw);
+integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, const geo::direction&, const geo::side&, integer inx, integer bw, integer nx = -1);
 
 #endif /* GEOMETRY_HPP_ */
