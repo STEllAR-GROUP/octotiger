@@ -13,7 +13,11 @@ parser.add_option("-d", "--display", dest="display",
 parser.add_option("-w", "--write-files",
                   dest="write_files",
                   action="store_true", default=False,
-                  help="don't print status messages to stdout")
+                  help="write graphs to png files")
+parser.add_option("-c", "--compiler",
+                  dest="compiler",
+                  action="store", default="gnu",
+                  help="results type, either \"gnu\" or \"intel\"")
 
 (options, args) = parser.parse_args()
 
@@ -28,7 +32,17 @@ if options.display == None and options.write_files == None:
 # plt.rc('font', **font)
 
 performance_tuples = {}
-result_dir = 'results/'
+result_dir = 'results'
+
+compiler_suffix = None
+if options.compiler == "gnu":
+    compiler_suffix = "-gcc"
+elif options.compiler == "intel":
+    compiler_suffix = "-intel"
+else:
+    exit("error: invalid compiler specified");
+
+result_dir = result_dir + compiler_suffix + "/"
 
 for subdir, dirs, files in os.walk(result_dir):
     for f in files:
@@ -76,6 +90,9 @@ for subdir, dirs, files in os.walk(result_dir):
         else:
             print "warning: file ignored \"" + f + "\""
 
+fig = plt.figure(figsize=(12,8))
+ax = fig.add_subplot(111)
+
 # total time comparison
 for memory_type in performance_tuples.keys():
     for level in performance_tuples[memory_type].keys():
@@ -91,18 +108,21 @@ for memory_type in performance_tuples.keys():
             y_list.append(t[1])
 
         mem_label = "MCDRAM" if int(memory_type) == 1 else "DRAM"
-        plt.plot(x_list, y_list, 'o', label=str(mem_label + ", level=" + level))
-        plt.legend()
+        ax.plot(x_list, y_list, 'o--', label=str(mem_label + ", level=" + level))
+        ax.legend()
 
 plt.xlabel('threads')
 plt.ylabel('time (s)')
 if options.write_files:
     # plt.savefig("total_time.svg")
-    plt.savefig("total-time.png")
+    fig.savefig("total-time" + compiler_suffix + ".png")
 if options.display:
     plt.show()
 
 plt.close()
+
+fig = plt.figure(figsize=(12,8))
+ax = fig.add_subplot(111)
 
 # parallel efficieny (time compared to 1 thread)
 for memory_type in performance_tuples.keys():
@@ -126,13 +146,15 @@ for memory_type in performance_tuples.keys():
                 y_list[i] = (float(reference_value) / float(x_list[i])) / float(y_list[i])
 
         mem_label = "MCDRAM" if int(memory_type) == 1 else "DRAM"
-        plt.plot(x_list, y_list, 'o', label=str(mem_label + ", level=" + level))
-        plt.legend()
+        ax.plot(x_list, y_list, 'o--', label=str(mem_label + ", level=" + level))
+        ax.legend(loc=3)
 
 plt.xlabel('threads')
 plt.ylabel('parallel efficiency')
 if options.write_files:
     # plt.savefig("parallel_efficiency.svg")
-    plt.savefig("parallel-efficiency.png")
+    fig.savefig("parallel-efficiency" + compiler_suffix + ".png")
 if options.display:
     plt.show()
+
+plt.close()

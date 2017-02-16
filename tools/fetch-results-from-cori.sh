@@ -1,24 +1,46 @@
 #!/bin/bash
 
+compiler=$1
+
+if [[ ! ($compiler == "gnu" || $compiler == "intel") ]]; then
+		echo "specify either \"intel\" or \"gnu\""
+		exit 1
+fi;
+
 # fetch new results from cori
+if [[ $compiler == "intel" ]]; then
 ssh cori <<'ENDSSH'
 cd $SCRATCH/cori
-rm -f results.tar.gz
-tar zcf results.tar.gz results
+mv -f results results-intel
+rm -f results-intel.tar.gz
+tar zcf results-intel.tar.gz results-intel
 ENDSSH
 
-scp cori:/global/cscratch1/sd/pfandedd/cori/results.tar.gz .
-tar xf results.tar.gz
+scp cori:/global/cscratch1/sd/pfandedd/cori/results-intel.tar.gz .
 
-cp results.tar.gz node-level-scaling-latest.tar
-mv results.tar.gz node-level-scaling-`date +%F`.tar
+elif [[ $compiler == "gnu" ]]; then
+ssh cori <<'ENDSSH'
+cd $SCRATCH/cori/gcc
+mv -f results results-gcc
+rm -f results-gcc.tar.gz
+tar zcf results-gcc.tar.gz results-gcc
+ENDSSH
 
-./node-level-scaling-graph.py -w
+scp cori:/global/cscratch1/sd/pfandedd/cori/gcc/results-gcc.tar.gz .
+fi
 
-cp total-time-latest.png total-time-second.png
-cp total-time.png total-time-latest.png
-mv total-time.png total-time-`date +%F`.png
+rm -Rf results-$compiler
+tar xf results-$compiler.tar.gz
 
-cp parallel-efficiency-latest.png parallel_efficiency-second.png
-cp parallel-efficiency.png parallel-efficiency-latest.png
-mv parallel-efficiency.png parallel-efficiency-`date +%F`.png
+cp results-$compiler.tar.gz node-level-scaling-latest-$compiler.tar
+mv results-$compiler.tar.gz node-level-scaling-`date +%F`-$compiler.tar
+
+./node-level-scaling-graph.py -w -c $compiler
+
+cp total-time-latest-$compiler.png total-time-second-$compiler.png
+cp total-time-$compiler.png total-time-latest-$compiler.png
+mv total-time-$compiler.png total-time-`date +%F`-$compiler.png
+
+cp parallel-efficiency-latest-$compiler.png parallel_efficiency-second-$compiler.png
+cp parallel-efficiency-$compiler.png parallel-efficiency-latest-$compiler.png
+mv parallel-efficiency-$compiler.png parallel-efficiency-`date +%F`-$compiler.png
