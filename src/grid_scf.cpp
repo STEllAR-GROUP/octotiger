@@ -46,7 +46,7 @@ static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT
 //0.6 .305
 
 hpx::future<void> node_client::rho_move(real x) const {
-	return hpx::async<typename node_server::rho_move_action>(get_gid(), x);
+	return hpx::async<typename node_server::rho_move_action>(get_unmanaged_gid(), x);
 }
 
 void node_server::rho_move(real x) {
@@ -72,11 +72,11 @@ typedef typename node_server::rho_mult_action rho_mult_action_type;
 HPX_REGISTER_ACTION (rho_mult_action_type);
 
 hpx::future<void> node_client::rho_mult(real f0, real f1) const {
-	return hpx::async<typename node_server::rho_mult_action>(get_gid(), f0, f1);
+	return hpx::async<typename node_server::rho_mult_action>(get_unmanaged_gid(), f0, f1);
 }
 
 hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) const {
-	return hpx::async<typename node_server::scf_update_action>(get_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
+	return hpx::async<typename node_server::scf_update_action>(get_unmanaged_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 }
 
 void node_server::rho_mult(real f0, real f1) {
@@ -488,7 +488,7 @@ void node_server::run_scf() {
 			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
 			diags.secondary_volume, diags.roche_vol2);
 		if (i % 10 == 0) {
-			regrid(me.get_gid(), false);
+			regrid(me.get_unmanaged_gid(), false);
 		}
 		grid::set_omega(omega);
 		if( opts.eos == WD ) {
