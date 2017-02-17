@@ -86,7 +86,7 @@ private:
     std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
     std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
     channel<real> global_timestep_channel;
-    channel<real> local_timestep_channel;
+    std::array<channel<real>, NCHILD + 1> local_timestep_channels;
     hpx::mutex load_mutex;
 
     timings timings_;
@@ -208,7 +208,9 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
 
     hpx::future<real> timestep_driver_descend();
-    HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
+
+    void set_local_timestep(integer i, real dt);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_local_timestep, set_local_timestep_action);
 
     void timestep_driver_ascend(real);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, timestep_driver_ascend, timestep_driver_ascend_action);
@@ -347,7 +349,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
 
 #endif /* NODE_SERVER_HPP_ */
