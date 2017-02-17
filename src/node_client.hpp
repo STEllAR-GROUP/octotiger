@@ -83,7 +83,7 @@ public:
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
 	void timestep_driver_ascend(real) const;
-	hpx::future<real> timestep_driver_descend() const;
+    void set_local_timestep(integer, real) const;
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
 	integer save(integer,std::string) const;

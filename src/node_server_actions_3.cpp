@@ -415,7 +415,7 @@ void node_server::refined_step() {
     dt_ = cfl0 * dx / a;
 
     all_hydro_bounds();
-    local_timestep_channel.set_value(dt_);
+    local_timestep_channels[NCHILD].set_value(dt_);
     auto dt_fut = global_timestep_channel.get_future();
 
 #ifdef RADIATION
@@ -475,7 +475,7 @@ hpx::future<void> node_server::nonrefined_step() {
                         const real dx = TWO * grid::get_scaling_factor() /
                             real(INX << my_location.level());
                         dt_ = cfl0 * dx / a;
-                        local_timestep_channel.set_value(dt_);
+                        local_timestep_channels[NCHILD].set_value(dt_);
                         dt_ = dt_fut.get();
                     	compute_radiation(dt_/2.0);
                     	all_hydro_bounds();
@@ -491,7 +491,7 @@ hpx::future<void> node_server::nonrefined_step() {
                         const real dx = TWO * grid::get_scaling_factor() /
                             real(INX << my_location.level());
                         dt_ = cfl0 * dx / a;
-                        local_timestep_channel.set_value(dt_);
+                        local_timestep_channels[NCHILD].set_value(dt_);
                     }
 #endif
 
@@ -545,12 +545,11 @@ hpx::future<real> node_server::step(integer steps) {
         }
     }
 
-    hpx::shared_future<real> dt_fut;
+    real dt = 0.0;
     for (integer i = 0; i != steps; ++i)
     {
         auto time_start = std::chrono::high_resolution_clock::now();
-        if (my_location.level() == 0)
-            dt_fut = timestep_driver_descend();
+        auto dt_fut = timestep_driver_descend();
 
         if (is_refined)
         {
@@ -571,9 +570,9 @@ hpx::future<real> node_server::step(integer steps) {
             rotational_time = current_time;
         }
 
-        if (dt_fut.valid())
+        dt = dt_fut.get();
+        if (my_location.level() == 0)
         {
-            real dt = dt_fut.get();
             double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
                 std::chrono::high_resolution_clock::now() - time_start).count();
 
@@ -592,11 +591,10 @@ hpx::future<real> node_server::step(integer steps) {
     if (is_refined)
     {
         return hpx::when_all(std::move(child_futs)).then(
-            [this, dt_fut](hpx::future<void>&& f)
+            [this, dt](hpx::future<void>&& f)
             {
                 f.get(); // propagate exceptions
-                if (dt_fut.valid()) return dt_fut.get();
-                else return 0.0;
+                return dt;
             });
     }
     else
@@ -639,32 +637,36 @@ void node_client::timestep_driver_ascend(real dt) const {
 }
 
 void node_server::timestep_driver_ascend(real dt) {
-    global_timestep_channel.set_value(dt);
     if (is_refined) {
         for(auto& child: children) {
             child.timestep_driver_ascend(dt);
         }
     }
+    global_timestep_channel.set_value(dt);
 }
 
-typedef node_server::timestep_driver_descend_action timestep_driver_descend_action_type;
-HPX_REGISTER_ACTION(timestep_driver_descend_action_type);
+typedef node_server::set_local_timestep_action set_local_timestep_action_type;
+HPX_REGISTER_ACTION(set_local_timestep_action_type);
 
-hpx::future<real> node_client::timestep_driver_descend() const {
-    return hpx::async<typename node_server::timestep_driver_descend_action>(get_unmanaged_gid());
+void node_client::set_local_timestep(integer idx, real dt) const {
+    hpx::apply<typename node_server::set_local_timestep_action>(get_unmanaged_gid(), idx, dt);
+}
+
+void node_server::set_local_timestep(integer idx, real dt)
+{
+    local_timestep_channels[idx].set_value(dt);
 }
 
 hpx::future<real> node_server::timestep_driver_descend() {
     if (is_refined) {
         std::array<hpx::future<real>, NCHILD+1> futs;
         integer index = 0;
-        for(auto& child: children) {
-            futs[index++] = child.timestep_driver_descend();
+        for(auto& local_timestep: local_timestep_channels)
+        {
+            futs[index++] = local_timestep.get_future();
         }
-        futs[index++] = local_timestep_channel.get_future();
 
-        return hpx::dataflow(
-            hpx::launch::sync,
+        return hpx::dataflow(hpx::launch::sync,
             hpx::util::annotated_function(
                 [this](std::array<hpx::future<real>, NCHILD+1> dts_fut) -> double
                 {
@@ -675,13 +677,23 @@ hpx::future<real> node_server::timestep_driver_descend() {
                     {
                         timestep_driver_ascend(dt);
                     }
+                    else
+                    {
+                        parent.set_local_timestep(my_location.get_child_index(), dt);
+                    }
 
                     return dt;
                 },
                 "node_server::timestep_driver_descend"),
             futs);
     } else {
-        return local_timestep_channel.get_future();
+        return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync,
+            [this](hpx::future<real>&& f)
+            {
+                real dt = f.get();
+                parent.set_local_timestep(my_location.get_child_index(), dt);
+                return dt;
+            });
     }
 }
 
