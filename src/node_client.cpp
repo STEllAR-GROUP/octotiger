@@ -15,9 +15,14 @@ hpx::id_type node_client::get_gid() const {
 	return id;
 }
 
+hpx::id_type node_client::get_unmanaged_gid() const {
+	return unmanaged;
+}
+
 node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 	if( !empty() ) {
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 	return *this;
@@ -26,6 +31,7 @@ node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 node_client& node_client::operator=(const hpx::id_type& _id) {
 	id = _id;
 	if (!empty()) {
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 	return *this;
@@ -34,6 +40,7 @@ node_client& node_client::operator=(const hpx::id_type& _id) {
 node_client::node_client(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 	if( !empty() ) {
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 }
@@ -41,6 +48,7 @@ node_client::node_client(hpx::future<hpx::id_type>&& fut) {
 node_client::node_client(const hpx::id_type& _id) {
 	id = _id;
 	if (!empty()) {
+        unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 }

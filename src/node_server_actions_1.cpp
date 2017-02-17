@@ -38,7 +38,7 @@ HPX_PLAIN_ACTION(set_locality_data, set_locality_data_action);
 
 hpx::future<grid::output_list_type> node_client::load(
     integer i, const hpx::id_type& _me, bool do_o, std::string s) const {
-    return hpx::async<typename node_server::load_action>(get_gid(), i, _me, do_o, s);
+    return hpx::async<typename node_server::load_action>(get_unmanaged_gid(), i, _me, do_o, s);
 }
 
 grid::output_list_type node_server::load(
@@ -157,7 +157,7 @@ HPX_REGISTER_ACTION(output_action_type);
 
 hpx::future<grid::output_list_type> node_client::output(
     std::string fname, int cycle, bool flag) const {
-    return hpx::async<typename node_server::output_action>(get_gid(), fname, cycle, flag);
+    return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), fname, cycle, flag);
 }
 
 grid::output_list_type node_server::output(std::string fname, int cycle, bool analytic) const {
@@ -193,7 +193,7 @@ typedef node_server::regrid_gather_action regrid_gather_action_type;
 HPX_REGISTER_ACTION(regrid_gather_action_type);
 
 hpx::future<integer> node_client::regrid_gather(bool rb) const {
-    return hpx::async<typename node_server::regrid_gather_action>(get_gid(), rb);
+    return hpx::async<typename node_server::regrid_gather_action>(get_unmanaged_gid(), rb);
 }
 
 integer node_server::regrid_gather(bool rebalance_only) {
@@ -267,7 +267,7 @@ typedef node_server::regrid_scatter_action regrid_scatter_action_type;
 HPX_REGISTER_ACTION(regrid_scatter_action_type);
 
 hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
-    return hpx::async<typename node_server::regrid_scatter_action>(get_gid(), a, b);
+    return hpx::async<typename node_server::regrid_scatter_action>(get_unmanaged_gid(), a, b);
 }
 
 hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
@@ -307,7 +307,7 @@ typedef node_server::regrid_action regrid_action_type;
 HPX_REGISTER_ACTION(regrid_action_type);
 
 hpx::future<void> node_client::regrid(const hpx::id_type& g, bool rb) const {
-    return hpx::async<typename node_server::regrid_action>(get_gid(), g, rb);
+    return hpx::async<typename node_server::regrid_action>(get_unmanaged_gid(), g, rb);
 }
 
 int node_server::regrid(const hpx::id_type& root_gid, bool rb) {
@@ -338,7 +338,7 @@ typedef node_server::save_action save_action_type;
 HPX_REGISTER_ACTION(save_action_type);
 
 integer node_client::save(integer i, std::string s) const {
-    return hpx::async<typename node_server::save_action>(get_gid(), i, s).get();
+    return hpx::async<typename node_server::save_action>(get_unmanaged_gid(), i, s).get();
 }
 
 integer node_server::save(integer cnt, std::string filename) const {
@@ -397,7 +397,7 @@ typedef node_server::set_aunt_action set_aunt_action_type;
 HPX_REGISTER_ACTION(set_aunt_action_type);
 
 hpx::future<void> node_client::set_aunt(const hpx::id_type& aunt, const geo::face& f) const {
-    return hpx::async<typename node_server::set_aunt_action>(get_gid(), aunt, f);
+    return hpx::async<typename node_server::set_aunt_action>(get_unmanaged_gid(), aunt, f);
 }
 
 void node_server::set_aunt(const hpx::id_type& aunt, const geo::face& face) {
@@ -408,7 +408,7 @@ typedef node_server::set_grid_action set_grid_action_type;
 HPX_REGISTER_ACTION(set_grid_action_type);
 
 hpx::future<void> node_client::set_grid(std::vector<real>&& g, std::vector<real>&& o) const {
-    return hpx::async<typename node_server::set_grid_action>(get_gid(), g, o);
+    return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(), g, o);
 }
 
 void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& outflows) {
@@ -419,7 +419,7 @@ typedef node_server::solve_gravity_action solve_gravity_action_type;
 HPX_REGISTER_ACTION(solve_gravity_action_type);
 
 hpx::future<void> node_client::solve_gravity(bool ene) const {
-    return hpx::async<typename node_server::solve_gravity_action>(get_gid(), ene);
+    return hpx::async<typename node_server::solve_gravity_action>(get_unmanaged_gid(), ene);
 }
 
 void node_server::solve_gravity(bool ene) {

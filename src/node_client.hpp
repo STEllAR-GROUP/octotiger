@@ -25,15 +25,30 @@ class node_client {
 private:
 //	hpx::shared_future<hpx::id_type> id_fut;
 	hpx::id_type id;
+    hpx::id_type unmanaged;
 	bool local;
 public:
 	bool is_local();
 	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
+	void load(Arc& arc, unsigned)
+    {
 		arc & id;
+        if (!empty())
+        {
+            unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+        }
 	}
+
+	template<class Arc>
+	void save(Arc& arc, unsigned) const
+    {
+		arc & id;
+    }
+    HPX_SERIALIZATION_SPLIT_MEMBER();
+
 	bool empty() const;
 	hpx::id_type get_gid() const;
+	hpx::id_type get_unmanaged_gid() const;
 	node_client& operator=(hpx::future<hpx::id_type>&& fut );
 	node_client& operator=(const hpx::id_type& _id );
 	node_client(hpx::future<hpx::id_type>&& fut );
@@ -61,7 +76,7 @@ public:
 	void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole) const;
 	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	void send_gravity_expansions(expansion_pass_type&&) const;
-	hpx::future<void> step() const;
+	hpx::future<void> step(integer) const;
 	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, bool rb) const;
 	hpx::future<void> solve_gravity(bool ene) const;

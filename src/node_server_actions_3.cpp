@@ -15,7 +15,7 @@ HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 
 void node_client::send_gravity_boundary(gravity_boundary_type&& data,
     const geo::direction& dir, bool monopole) const {
-    hpx::apply<typename node_server::send_gravity_boundary_action>(get_gid(),
+    hpx::apply<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(),
         std::move(data), dir, monopole);
 }
 
@@ -36,7 +36,7 @@ void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
 }
 
 void node_client::send_gravity_expansions(expansion_pass_type&& data) const {
-    hpx::apply<typename node_server::send_gravity_expansions_action>(get_gid(),
+    hpx::apply<typename node_server::send_gravity_expansions_action>(get_unmanaged_gid(),
         std::move(data));
 }
 
@@ -45,7 +45,7 @@ HPX_REGISTER_ACTION(send_gravity_multipoles_action_type);
 
 void node_client::send_gravity_multipoles(multipole_pass_type&& data,
     const geo::octant& ci) const {
-    hpx::apply<typename node_server::send_gravity_multipoles_action>(get_gid(),
+    hpx::apply<typename node_server::send_gravity_multipoles_action>(get_unmanaged_gid(),
         std::move(data), ci);
 }
 
@@ -59,7 +59,7 @@ HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
 void node_client::send_hydro_boundary(std::vector<real>&& data,
     const geo::direction& dir) const {
-    hpx::apply<typename node_server::send_hydro_boundary_action>(get_gid(),
+    hpx::apply<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(),
         std::move(data), dir);
 }
 
@@ -80,7 +80,7 @@ void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octan
 
 void node_client::send_hydro_children(std::vector<real>&& data,
     const geo::octant& ci) const {
-    hpx::apply<typename node_server::send_hydro_children_action>(get_gid(),
+    hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(),
         std::move(data), ci);
 }
 
@@ -90,7 +90,7 @@ HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 void node_client::send_hydro_flux_correct(std::vector<real>&& data,
     const geo::face& face,
     const geo::octant& ci) const {
-    hpx::apply<typename node_server::send_hydro_flux_correct_action>(get_gid(),
+    hpx::apply<typename node_server::send_hydro_flux_correct_action>(get_unmanaged_gid(),
         std::move(data), face, ci);
 }
 
@@ -105,7 +105,7 @@ HPX_REGISTER_ACTION(line_of_centers_action_type);
 
 hpx::future<line_of_centers_t> node_client::line_of_centers(
     const std::pair<space_vector, space_vector>& line) const {
-    return hpx::async<typename node_server::line_of_centers_action>(get_gid(), line);
+    return hpx::async<typename node_server::line_of_centers_action>(get_unmanaged_gid(), line);
 }
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc) {
@@ -219,7 +219,7 @@ typedef node_server::start_run_action start_run_action_type;
 HPX_REGISTER_ACTION(start_run_action_type);
 
 hpx::future<void> node_client::start_run(bool b) const {
-    return hpx::async<typename node_server::start_run_action>(get_gid(), b);
+    return hpx::async<typename node_server::start_run_action>(get_unmanaged_gid(), b);
 }
 
 void node_server::start_run(bool scf)
@@ -290,12 +290,10 @@ void node_server::start_run(bool scf)
         }
 
         //	break;
-        hpx::future<real> ts_fut;
         real dt = 0;
 
-        ts_fut = timestep_driver_descend();
-        step().get();
-        dt = ts_fut.get();
+        integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
+        dt = step(next_step - step_num).get();
 
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
@@ -328,7 +326,7 @@ void node_server::start_run(bool scf)
             {
                 FILE* fp = fopen( "step.dat", "at");
                 fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
-                    int(step_num), double(t), double(dt), time_elapsed, rotational_time,
+                    int(next_step - 1), double(t), double(dt), time_elapsed, rotational_time,
                     theta, theta_dot, omega, omega_dot, int(ngrids));
                 fclose(fp);
             });     // do not wait for it to finish
@@ -336,12 +334,12 @@ void node_server::start_run(bool scf)
 
         hpx::threads::run_as_os_thread([=]()
         {
-            printf("%i %e %e %e %e %e %e %e %e\n", int(step_num), double(t), double(dt),
+            printf("%i %e %e %e %e %e %e %e %e\n", int(next_step - 1), double(t), double(dt),
                 time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
         });     // do not wait for output to finish
 
 //		t += dt;
-        ++step_num;
+        step_num += next_step;
 
         if (step_num % refinement_freq() == 0) {
             ngrids = regrid(me.get_gid(), false);
@@ -397,8 +395,8 @@ void node_server::start_run(bool scf)
 typedef node_server::step_action step_action_type;
 HPX_REGISTER_ACTION(step_action_type);
 
-hpx::future<void> node_client::step() const {
-    return hpx::async<typename node_server::step_action>(get_gid());
+hpx::future<void> node_client::step(integer steps) const {
+    return hpx::async<typename node_server::step_action>(get_unmanaged_gid(), steps);
 }
 
 void node_server::refined_step() {
@@ -532,45 +530,112 @@ hpx::future<void> node_server::nonrefined_step() {
     return fut;
 }
 
-hpx::future<void> node_server::step() {
+hpx::future<real> node_server::step(integer steps) {
 	grid_ptr->set_coordinates();
 
+    // using shared_future here to copy into lambda...
 	hpx::future<void> fut;
 
-    if (is_refined) {
-        std::array<hpx::future<void>, NCHILD> child_futs;
 
+    std::array<hpx::future<void>, NCHILD> child_futs;
+    if (is_refined)
+    {
         for (integer ci = 0; ci != NCHILD; ++ci) {
-            child_futs[ci] = children[ci].step();
+            child_futs[ci] = children[ci].step(steps);
         }
-        refined_step();
+    }
 
-		fut = hpx::when_all(std::move(child_futs));
-	} else {
-		fut = nonrefined_step();
-	}
+    hpx::shared_future<real> dt_fut;
+    for (integer i = 0; i != steps; ++i)
+    {
+        auto time_start = std::chrono::high_resolution_clock::now();
+        if (my_location.level() == 0)
+            dt_fut = timestep_driver_descend();
 
-	return fut.then(hpx::util::annotated_function([this](hpx::future<void> && f)
-	{
-		f.get();        // propagate exceptions
+        if (is_refined)
+        {
+            refined_step();
+        }
+        else
+        {
+            nonrefined_step().get();
+        }
+        grid_ptr->dual_energy_update();
+        current_time += dt_;
+        if (grid::get_omega() != 0.0)
+        {
+            rotational_time += grid::get_omega() * dt_;
+        }
+        else
+        {
+            rotational_time = current_time;
+        }
 
-			grid_ptr->dual_energy_update();
+        if (dt_fut.valid())
+        {
+            real dt = dt_fut.get();
+            double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+                std::chrono::high_resolution_clock::now() - time_start).count();
 
-			current_time += dt_;
-			if (grid::get_omega() != 0.0) {
-				rotational_time += grid::get_omega() * dt_;
-			} else {
-				rotational_time = current_time;
-			}
-			++step_num;
-		}, "node_server::nonrefined_step::dual_energy_update"));
+            if (i + 1 != steps)
+            {
+                hpx::threads::run_as_os_thread([=]()
+                {
+                    printf("%i %e %e %e %e\n", int(step_num), double(current_time), double(dt),
+                        time_elapsed, rotational_time);
+                });     // do not wait for output to finish
+            }
+        }
+        ++step_num;
+    }
+
+    if (is_refined)
+    {
+        return hpx::when_all(std::move(child_futs)).then(
+            [this, dt_fut](hpx::future<void>&& f)
+            {
+                f.get(); // propagate exceptions
+                if (dt_fut.valid()) return dt_fut.get();
+                else return 0.0;
+            });
+    }
+    else
+    {
+        return hpx::make_ready_future(0.0);
+    }
+
+//         refined_step();
+
+// 		fut = hpx::when_all(std::move(child_futs));
+// 	} else {
+// 		fut = nonrefined_step();
+// 	}
+
+
+
+// 	return fut.then(hpx::util::annotated_function([this, dt_fut](hpx::future<void> && f)
+//         {
+//             f.get();        // propagate exceptions
+//
+// 			grid_ptr->dual_energy_update();
+//
+// 			current_time += dt_;
+// 			if (grid::get_omega() != 0.0) {
+// 				rotational_time += grid::get_omega() * dt_;
+// 			} else {
+// 				rotational_time = current_time;
+// 			}
+// 			++step_num;
+//             if (dt_fut.valid()) return dt_fut.get();
+//             return 0.0;
+// 		}, "node_server::nonrefined_step::dual_energy_update"));
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
 HPX_REGISTER_ACTION(timestep_driver_ascend_action_type);
 
 void node_client::timestep_driver_ascend(real dt) const {
-    hpx::apply<typename node_server::timestep_driver_ascend_action>(get_gid(), dt);
+    hpx::apply<typename node_server::timestep_driver_ascend_action>(get_unmanaged_gid(), dt);
 }
 
 void node_server::timestep_driver_ascend(real dt) {
@@ -586,18 +651,10 @@ typedef node_server::timestep_driver_descend_action timestep_driver_descend_acti
 HPX_REGISTER_ACTION(timestep_driver_descend_action_type);
 
 hpx::future<real> node_client::timestep_driver_descend() const {
-    return hpx::async<typename node_server::timestep_driver_descend_action>(get_gid());
+    return hpx::async<typename node_server::timestep_driver_descend_action>(get_unmanaged_gid());
 }
 
 hpx::future<real> node_server::timestep_driver_descend() {
-    if (my_location.level() == 0)
-    {
-        return hpx::async(&node_server::timestep_driver_descend_helper, this);
-    }
-    return timestep_driver_descend_helper();
-}
-
-hpx::future<real> node_server::timestep_driver_descend_helper() {
     if (is_refined) {
         std::array<hpx::future<real>, NCHILD+1> futs;
         integer index = 0;

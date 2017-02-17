@@ -190,7 +190,7 @@ public:
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
 
-    hpx::future<void> step();
+    hpx::future<real> step(integer steps);
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
     int regrid(const hpx::id_type& root_gid, bool rb);
@@ -208,7 +208,6 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
 
     hpx::future<real> timestep_driver_descend();
-    hpx::future<real> timestep_driver_descend_helper();
     HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
 
     void timestep_driver_ascend(real);
