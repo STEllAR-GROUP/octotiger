@@ -36,6 +36,7 @@ struct taylor_consts
 
 constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35};    //
 
+///////////////////////////////////////////////////////////////////////////////
 template <int N, class T = real>
 class taylor
 {
@@ -313,7 +314,7 @@ public:
             if (N > 2) {
                 for (integer a = 0; a != NDIM; a++) {
                     for (integer b = 0; b != NDIM; b++) {
-                        B() += A(a, b) * X[a] * X[b] * T(real(1) / real(2));
+                        B() += A(a, b) * X[a] * X[b] * T(HALF);
                     }
                 }
                 for (integer a = 0; a != NDIM; a++) {
@@ -325,14 +326,14 @@ public:
                     for (integer a = 0; a != NDIM; a++) {
                         for (integer b = 0; b != NDIM; b++) {
                             for (integer c = 0; c != NDIM; c++) {
-                                B() += A(a, b, c) * X[a] * X[b] * X[c] * T(real(1) / real(6));
+                                B() += A(a, b, c) * X[a] * X[b] * X[c] * T(SIXTH);
                             }
                         }
                     }
                     for (integer a = 0; a != NDIM; a++) {
                         for (integer b = 0; b != NDIM; b++) {
                             for (integer c = 0; c != NDIM; c++) {
-                                B(a) += A(a, b, c) * X[b] * X[c] * T(real(1) / real(2));
+                                B(a) += A(a, b, c) * X[b] * X[c] * T(HALF);
                             }
                         }
                     }
@@ -394,7 +395,7 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 // #if !defined(HPX_HAVE_DATAPAR)
     for (volatile integer i = 0; i != simd_len; ++i) {
         if (r2[i] > 0.0) {
-            r2inv[i] = ONE / std::max(r2[i],1.0e-20);
+            r2inv[i] = ONE / std::max(r2[i], 1.0e-20);
         }
     }
 // #else
@@ -411,61 +412,9 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     const T d3 = T(-5) * d2 * r2inv;
     //     const T d4 = -T(7) * d3 * r2inv;
 
-    // Previously we've had this code. In my measurements the old code was
-    // about 15% faster than the current code. However, I have measured it on
-    // non-KNL platforms only.
-    //     taylor<N - 1, T> XX;
-    //     for (integer a = 0; a != NDIM; a++) {
-    //         auto const tmpa = X[a];
-    //         XX(a) = tmpa;
-    //
-    //         for (integer b = a; b != NDIM; b++) {
-    //             auto const tmpab = tmpa * X[b];
-    //             XX(a, b) = tmpab;
-    //
-    //             for (integer c = b; c != NDIM; c++) {
-    //                 XX(a, b, c) = tmpab * X[c];
-    //             }
-    //         }
-    //     }
-    //     A[0] = d0;
-    //     for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
-    //         A[i] = XX[i] * d1;
-    //     }
-    //     for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
-    //         A[i] = XX[i] * d2;
-    //     }
-    //     for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-    //         A[i] = XX[i] * d3;
-    //     }
-    //     for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
-    //         A[i] = ZERO;
-    //     }
-    //     for (integer a = 0; a != NDIM; a++) {
-    //         auto const XXa = XX(a) * d2;
-    //         A(a, a) += d1;
-    //         A(a, a, a) += XXa;
-    //         A(a, a, a, a) += XX(a, a) * d3;
-    //         A(a, a, a, a) += 2.0 * d2;
-    //         for (integer b = a; b != NDIM; b++) {
-    //             auto const XXab = XX(a, b) * d3;
-    //             A(a, a, b) += XX(b) * d2;
-    //             A(a, b, b) += XXa;
-    //             A(a, a, a, b) += XXab;
-    //             A(a, b, b, b) += XXab;
-    //             A(a, a, b, b) += d2;
-    //             for (integer c = b; c != NDIM; c++) {
-    //                 A(a, a, b, c) += XX(b, c) * d3;
-    //                 A(a, b, b, c) += XX(a, c) * d3;
-    //                 A(a, b, c, c) += XXab;
-    //             }
-    //         }
-    //     }
-
-    ///////////////////////////////////////////////////////////////////////////
-
     // formula (6)
     A[0] = d0;
+
     // formula (7)
     for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
         A[i] = X[a] * d1;
@@ -488,9 +437,7 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
         }
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-
-    // calculation of formula (19)
+    // formula (19)
 
     // set the coefficients to zero that are calculated next
     for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
