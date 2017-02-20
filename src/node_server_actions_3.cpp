@@ -339,7 +339,7 @@ void node_server::start_run(bool scf)
         });     // do not wait for output to finish
 
 //		t += dt;
-        step_num += next_step;
+        step_num = next_step;
 
         if (step_num % refinement_freq() == 0) {
             ngrids = regrid(me.get_gid(), false);
