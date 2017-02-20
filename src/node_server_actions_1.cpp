@@ -125,10 +125,12 @@ grid::output_list_type node_server::load(
 
     grid::output_list_type my_list;
     for (auto&& fut : futs) {
-        if (do_output) {
-            grid::merge_output_lists(my_list, fut.get());
-        } else {
-            fut.get();
+        if (fut.valid()) {
+            if (do_output) {
+                grid::merge_output_lists(my_list, fut.get());
+            } else {
+                fut.get();
+            }
         }
     }
     // printf( "***************************************\n" );
