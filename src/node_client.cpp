@@ -23,7 +23,8 @@ node_client& node_client::operator=(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 	if( !empty() ) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
-		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
+        local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
+// 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 	return *this;
 }
@@ -32,7 +33,8 @@ node_client& node_client::operator=(const hpx::id_type& _id) {
 	id = _id;
 	if (!empty()) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
-		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
+        local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
+// 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 	return *this;
 }
@@ -41,7 +43,8 @@ node_client::node_client(hpx::future<hpx::id_type>&& fut) {
 	id = fut.get();
 	if( !empty() ) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
-		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
+        local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
+// 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 }
 
@@ -49,7 +52,8 @@ node_client::node_client(const hpx::id_type& _id) {
 	id = _id;
 	if (!empty()) {
         unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
-		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
+        local = hpx::naming::get_locality_from_id(id) == hpx::find_here();
+// 		local = bool(hpx::get_colocation_id(id).get() == hpx::find_here());
 	}
 }
 
