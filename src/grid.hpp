@@ -25,6 +25,7 @@ class rad_grid;
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+#include <hpx/traits/is_bitwise_serializable.hpp>
 
 #include <functional>
 #include <list>
@@ -107,9 +108,9 @@ struct gravity_boundary_type {
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {
 		allocate();
-		arc & *M;
-		arc & *m;
-		arc & *x;
+		arc & M;
+		arc & m;
+		arc & x;
 		arc & is_local;
 	}
 };
@@ -286,15 +287,20 @@ struct grid::node_point {
 	integer index;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
-		arc & pt[XDIM];
-		arc & pt[YDIM];
-		arc & pt[ZDIM];
+		arc & pt;
 		arc & index;
 	}
 	bool operator==(const grid::node_point& other) const;
 	bool operator<(const grid::node_point& other) const;
-}
-;
+};
+
+namespace hpx { namespace traits
+{
+    template <>
+    struct is_bitwise_serializable<grid::node_point>
+      : std::true_type
+    {};
+}}
 
 struct grid::output_list_type {
 	std::set<node_point> nodes;
@@ -305,9 +311,7 @@ struct grid::output_list_type {
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;
 		arc & zones;
-		for (integer i = 0; i != NF + NGF + NRF + NPF; ++i) {
-			arc & data[i];
-		}
+        arc & data;
 	}
 }
 ;

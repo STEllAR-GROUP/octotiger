@@ -15,12 +15,14 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <type_traits>
 
 #if defined(HPX_HAVE_DATAPAR)
 #include <hpx/include/parallel_equal.hpp>
 #include <hpx/include/parallel_fill.hpp>
 #include <hpx/include/parallel_transform.hpp>
 #endif
+#include <hpx/traits/is_bitwise_serializable.hpp>
 
 // class simd_vector;
 
@@ -373,6 +375,14 @@ public:
         arc& data;
     }
 };
+
+namespace hpx { namespace traits
+{
+    template <int N, class T>
+    struct is_bitwise_serializable<taylor<N, T> >
+      : is_bitwise_serializable<typename std::remove_const<T>::type>
+    {};
+}}
 
 #include "space_vector.hpp"
 
