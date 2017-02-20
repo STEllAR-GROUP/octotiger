@@ -12,13 +12,13 @@ if [[ $compiler == "intel" ]]; then
 ssh cori <<'ENDSSH'
 cd $SCRATCH/cori
 ./build-all.sh
-./run-all-scaling-experiments-single-node.sh
+./run-distributed-scaling-experiments.sh
 ENDSSH
 elif [[ $compiler == "gnu" ]]; then
 ssh cori <<'ENDSSH'
 cd $SCRATCH/cori/gcc
 ./build-all.sh
-./run-all-scaling-experiments-single-node.sh
+./run-distributed-scaling-experiments.sh
 ENDSSH
 fi
 
