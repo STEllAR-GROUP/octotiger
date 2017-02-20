@@ -179,6 +179,7 @@ constexpr real THREE = real(3);
 constexpr real FOUR = real(4);
 
 constexpr real HALF = real(real(1) / real(2));
+constexpr real SIXTH = real(real(1) / real(6));
 constexpr real TWELFTH = real(real(1) / real(12));
 
 constexpr real cfl = real(real(2) / real(15));
