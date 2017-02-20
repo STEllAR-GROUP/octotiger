@@ -439,6 +439,7 @@ void node_server::refined_step() {
     dt_ = dt_fut.get();
 #endif
 
+    update();
 }
 
 hpx::future<void> node_server::nonrefined_step() {
@@ -458,7 +459,6 @@ hpx::future<void> node_server::nonrefined_step() {
     hpx::future<void> fut = hpx::make_ready_future();
 
     hpx::shared_future<real> dt_fut = global_timestep_channel.get_future();
-
 
     for (integer rk = 0; rk < NRK; ++rk) {
 
@@ -527,15 +527,31 @@ hpx::future<void> node_server::nonrefined_step() {
         );
     }
 
-    return fut;
+    return fut.then(hpx::launch::sync,
+        [this](hpx::future<void>&& f)
+        {
+            f.get(); // propagate exceptions...
+            update();
+        }
+    );
+}
+
+void node_server::update()
+{
+    grid_ptr->dual_energy_update();
+    current_time += dt_;
+    if (grid::get_omega() != 0.0)
+    {
+        rotational_time += grid::get_omega() * dt_;
+    }
+    else
+    {
+        rotational_time = current_time;
+    }
 }
 
 hpx::future<real> node_server::step(integer steps) {
 	grid_ptr->set_coordinates();
-
-    // using shared_future here to copy into lambda...
-	hpx::future<void> fut;
-
 
     std::array<hpx::future<void>, NCHILD> child_futs;
     if (is_refined)
@@ -545,88 +561,61 @@ hpx::future<real> node_server::step(integer steps) {
         }
     }
 
-    real dt = 0.0;
+    hpx::future<real> dt_fut = hpx::make_ready_future(0.0);
     for (integer i = 0; i != steps; ++i)
     {
-        auto time_start = std::chrono::high_resolution_clock::now();
-        auto dt_fut = timestep_driver_descend();
-
-        if (is_refined)
-        {
-            refined_step();
-        }
-        else
-        {
-            nonrefined_step().get();
-        }
-        grid_ptr->dual_energy_update();
-        current_time += dt_;
-        if (grid::get_omega() != 0.0)
-        {
-            rotational_time += grid::get_omega() * dt_;
-        }
-        else
-        {
-            rotational_time = current_time;
-        }
-
-        dt = dt_fut.get();
-        if (my_location.level() == 0)
-        {
-            double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
-                std::chrono::high_resolution_clock::now() - time_start).count();
-
-            if (i + 1 != steps)
+        dt_fut = dt_fut.then(
+            [this, i, steps](hpx::future<real> dt_fut) -> hpx::future<real>
             {
-                hpx::threads::run_as_os_thread([=]()
+                auto time_start = std::chrono::high_resolution_clock::now();
+                auto next_dt = timestep_driver_descend();
+
+                if (is_refined)
                 {
-                    printf("%i %e %e %e %e\n", int(step_num), double(current_time), double(dt),
-                        time_elapsed, rotational_time);
-                });     // do not wait for output to finish
-            }
-        }
-        ++step_num;
+                    refined_step();
+                }
+                else
+                {
+                    nonrefined_step().get();
+                }
+
+                real dt = dt_fut.get();
+                if (my_location.level() == 0)
+                {
+                    double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+                        std::chrono::high_resolution_clock::now() - time_start).count();
+
+                    if (i + 1 != steps)
+                    {
+                        hpx::threads::run_as_os_thread([=]()
+                        {
+                            printf("%i %e %e %e %e\n", int(step_num), double(current_time), double(dt),
+                                time_elapsed, rotational_time);
+                        });     // do not wait for output to finish
+                    }
+                }
+                ++step_num;
+
+                return next_dt;
+            });
     }
 
     if (is_refined)
     {
-        return hpx::when_all(std::move(child_futs)).then(
-            [this, dt](hpx::future<void>&& f)
+        return hpx::dataflow(hpx::launch::sync,
+            [this](hpx::future<real> dt_fut, hpx::future<void>&& f)
             {
                 f.get(); // propagate exceptions
-                return dt;
-            });
+                return dt_fut;
+            },
+            std::move(dt_fut),
+            hpx::when_all(std::move(child_futs))
+            );
     }
     else
     {
-        return hpx::make_ready_future(0.0);
+        return dt_fut;
     }
-
-//         refined_step();
-
-// 		fut = hpx::when_all(std::move(child_futs));
-// 	} else {
-// 		fut = nonrefined_step();
-// 	}
-
-
-
-// 	return fut.then(hpx::util::annotated_function([this, dt_fut](hpx::future<void> && f)
-//         {
-//             f.get();        // propagate exceptions
-//
-// 			grid_ptr->dual_energy_update();
-//
-// 			current_time += dt_;
-// 			if (grid::get_omega() != 0.0) {
-// 				rotational_time += grid::get_omega() * dt_;
-// 			} else {
-// 				rotational_time = current_time;
-// 			}
-// 			++step_num;
-//             if (dt_fut.valid()) return dt_fut.get();
-//             return 0.0;
-// 		}, "node_server::nonrefined_step::dual_energy_update"));
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
@@ -637,12 +626,12 @@ void node_client::timestep_driver_ascend(real dt) const {
 }
 
 void node_server::timestep_driver_ascend(real dt) {
+    global_timestep_channel.set_value(dt);
     if (is_refined) {
         for(auto& child: children) {
             child.timestep_driver_ascend(dt);
         }
     }
-    global_timestep_channel.set_value(dt);
 }
 
 typedef node_server::set_local_timestep_action set_local_timestep_action_type;

@@ -192,6 +192,7 @@ public:
 
     hpx::future<real> step(integer steps);
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
+    void update();
 
     int regrid(const hpx::id_type& root_gid, bool rb);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid, regrid_action);
