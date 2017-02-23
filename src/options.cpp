@@ -109,7 +109,7 @@ bool options::process_options(int argc, char* argv[]) {
     output_dt = -1;
     bench = false;
     ang_con = true;
-    stop_time = std::numeric_limits<real>::max();
+    stop_time = std::numeric_limits<real>::max() - 1;
     stop_step = std::numeric_limits<integer>::max();
     disable_output = false;
 
