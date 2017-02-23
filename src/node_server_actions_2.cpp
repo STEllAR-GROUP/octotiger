@@ -41,7 +41,11 @@ hpx::future<void> node_server::check_for_refinement() {
             }
         }
     }
-    return hpx::when_all(futs);
+    if( is_refined ) {
+    	return hpx::when_all(futs);
+    } else {
+    	return hpx::make_ready_future();
+    }
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
@@ -555,8 +559,8 @@ std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt,
     const geo::face& face) const {
     std::vector<hpx::id_type> nieces;
     if (is_refined) {
-        std::array<hpx::future<void>, geo::octant::count()> futs;
-        nieces.reserve(geo::octant::count());
+        std::array<hpx::future<void>, geo::octant::count() / 2> futs;
+        nieces.reserve(geo::octant::count() / 2);
         integer index = 0;
         for (auto const& ci : geo::octant::face_subset(face)) {
             nieces.push_back(children[ci].get_gid());

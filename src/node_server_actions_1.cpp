@@ -302,7 +302,11 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
         }
     }
     clear_family();
-    return hpx::when_all(futs);
+    if( is_refined ) {
+    	return hpx::when_all(futs);
+    } else {
+    	return hpx::make_ready_future();
+    }
 }
 
 typedef node_server::regrid_action regrid_action_type;
@@ -437,5 +441,7 @@ void node_server::solve_gravity(bool ene) {
         }
     }
     compute_fmm(RHO, ene);
-    wait_all_and_propagate_exceptions(child_futs);
+    if( is_refined ) {
+    	wait_all_and_propagate_exceptions(child_futs);
+    }
 }
