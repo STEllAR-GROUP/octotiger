@@ -60,7 +60,9 @@ void node_server::rho_move(real x) {
 	grid_ptr->rho_move(x);
 	all_hydro_bounds();
 
-    wait_all_and_propagate_exceptions(futs);
+	if( is_refined ) {
+		wait_all_and_propagate_exceptions(futs);
+	}
 }
 
 typedef typename node_server::scf_update_action scf_update_action_type;
@@ -88,7 +90,9 @@ void node_server::rho_mult(real f0, real f1) {
 	grid_ptr->rho_mult(f0, f1);
 	all_hydro_bounds();
 
-    wait_all_and_propagate_exceptions(futs);
+	if( is_refined ) {
+		wait_all_and_propagate_exceptions(futs);
+	}
 }
 
 real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) {
@@ -105,12 +109,14 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
 	all_hydro_bounds();
+	if( is_refined ) {
     res = std::accumulate(
         futs.begin(), futs.end(), res,
         [](real res, hpx::future<real> & f)
         {
             return res + f.get();
         });
+	}
 	current_time += 1.0e-100;
 	return res;
 }
