@@ -49,7 +49,7 @@ void initialize(options _opts) {
 #endif
 	if (opts.problem == DWD) {
 		set_problem(scf_binary);
-		set_refine_test(refine_test_bibi);
+		set_refine_test(refine_test);
 	} else if (opts.problem == SOD) {
 		grid::set_fgamma(7.0 / 5.0);
 		gravity_on = false;

@@ -278,6 +278,7 @@ public:
    HPX_SERIALIZATION_SPLIT_MEMBER();
    std::size_t load(FILE* fp);
    std::size_t save(FILE* fp) const;
+   std::pair<real,real> virial() const;
 
 };
 

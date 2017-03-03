@@ -101,7 +101,7 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 
 bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
-	real den_floor = 1.0e-4;
+	real den_floor = 1.0e-3;
 	integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
