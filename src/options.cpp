@@ -110,7 +110,7 @@ bool options::process_options(int argc, char* argv[]) {
     bench = false;
     ang_con = true;
     stop_time = std::numeric_limits<real>::max() - 1;
-    stop_step = std::numeric_limits<integer>::max();
+    stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
 
     for (integer i = 1; i < argc; ++i) {
