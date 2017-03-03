@@ -165,9 +165,9 @@ void grid::solve_gravity(gsolve_type type) {
 }
 
 constexpr int to_ab_idx_map3[3][6] = {
-    {  4,  4,  4,  5,  5,  6,  },
-    {  5,  5,  5,  7,  7,  8,  },
-    {  6,  6,  6,  8,  8,  9,  }
+    {  4,  5,  6  },
+    {  5,  7,  8  },
+    {  6,  8,  9  }
 };
 
 constexpr int cb_idx_map[6] = {
