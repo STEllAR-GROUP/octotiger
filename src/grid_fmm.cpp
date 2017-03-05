@@ -164,7 +164,7 @@ void grid::solve_gravity(gsolve_type type) {
     compute_expansions(type);
 }
 
-constexpr int to_ab_idx_map3[3][6] = {
+constexpr int to_ab_idx_map3[3][3] = {
     {  4,  5,  6  },
     {  5,  7,  8  },
     {  6,  8,  9  }
