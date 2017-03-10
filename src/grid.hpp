@@ -133,12 +133,9 @@ public:
 	static void set_max_level(integer l);
 	static void set_fgamma(real);
 	static real get_fgamma();
-	static real get_A();
-	static real get_B();
 	static void set_analytic_func(const analytic_func_type& func);
 private:
 	static analytic_func_type analytic;
-	static real Acons, Bcons;
 	static real fgamma;
 	static integer max_level;
 	static real omega;
@@ -185,6 +182,7 @@ public:
 		return rad_grid_ptr;
 	}
 #endif
+	void change_units( real mass, real length, real time, real temp);
 	real get_dx() const;
 	std::vector<real>& get_field( integer f );
 	const std::vector<real>& get_field( integer f ) const;
@@ -202,7 +200,6 @@ public:
 	void set_leaf(bool flag = true);
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
 	static void set_omega(real);
-	static void set_AB(real, real);
 	static real get_omega();
 	static void set_pivot(const space_vector& p);
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
@@ -278,7 +275,7 @@ public:
    HPX_SERIALIZATION_SPLIT_MEMBER();
    std::size_t load(FILE* fp);
    std::size_t save(FILE* fp) const;
-
+   friend class node_server;
 };
 
 struct grid::node_point {

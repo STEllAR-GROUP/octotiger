@@ -42,9 +42,6 @@ struct tls_data_t {
 	std::vector<std::vector<real>> zz;
 };
 
-real grid::Acons = 1.0;
-real grid::Bcons = 1.0;
-
 #if !defined(_MSC_VER)
 
 #include <boost/thread/tss.hpp>
@@ -280,13 +277,6 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 	return e;
 }
 
-real grid::get_A() {
-	return Acons;
-}
-
-real grid::get_B() {
-	return Bcons;
-}
 
 analytic_func_type grid::analytic = nullptr;
 
@@ -686,24 +676,32 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
-HPX_PLAIN_ACTION(grid::set_AB, set_AB_action);
 
-void grid::set_AB(real a, real b) {
-
-	// FIXME: use proper broadcasting...
-
-	if (hpx::get_locality_id() == 0) {
-		std::vector<hpx::future<void>> futs;
-		auto remotes = hpx::find_remote_localities();
-		futs.reserve(remotes.size());
-		for (auto& l : remotes) {
-			futs.push_back(hpx::async < set_AB_action > (l, a, b));
+void grid::change_units(real m, real l, real t, real k) {
+	const real l2 = l * l;
+	const real t2 = t * t;
+	const real t2inv = 1.0 / t2;
+	const real tinv = 1.0 / t;
+	const real l3 = l2 * l;
+	const real l3inv = 1.0 / l3;
+	for (integer i = 0; i != H_N3; ++i) {
+		U[rho_i][i] *= m * l3inv;
+		for (integer si = 0; si != NSPECIES; ++si) {
+			U[spc_i + si][i] *= m * l3inv;
 		}
-
-		wait_all_and_propagate_exceptions(futs);
+		U[egas_i][i] *= (m * l2 * t2inv) * l3inv;
+		U[tau_i][i] *= std::pow((m * l2 * t2inv), 1.0 / fgamma) * l3inv;
+		U[pot_i][i] *= (m * l2 * t2inv) * l3inv;
+		U[sx_i][i] *= (m * l * tinv) * l3inv;
+		U[sy_i][i] *= (m * l * tinv) * l3inv;
+		U[sz_i][i] *= (m * l * tinv) * l3inv;
+		U[zx_i][i] *= (m * l2 * tinv) * l3inv;
+		U[zy_i][i] *= (m * l2 * tinv) * l3inv;
+		U[zz_i][i] *= (m * l2 * tinv) * l3inv;
 	}
-	grid::Acons = a;
-	grid::Bcons = b;
+#ifdef RADIATION
+	rad_grid_ptr->change_units(m, l, t, k);
+#endif
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
@@ -1407,9 +1405,9 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+	for (integer i = 0; i != H_NX; ++i) {
+		for (integer j = 0; j != H_NX; ++j) {
+			for (integer k = 0; k != H_NX; ++k) {
 				const integer iii = hindex(i, j, k);
 				if (init_func != nullptr) {
 					std::vector<real> this_u = init_func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], dx);
@@ -1426,7 +1424,9 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	}
 #ifdef RADIATION
 	if (init_func != nullptr) {
+		rad_grid_ptr->compute_mmw(U);
 		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+
 	}
 #endif
 	if (node_server::is_gravity_on()) {
