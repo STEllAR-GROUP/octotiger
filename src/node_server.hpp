@@ -148,6 +148,7 @@ private:
 
 public:
 
+
      static bool child_is_on_face(integer ci, integer face);
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;

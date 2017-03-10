@@ -20,6 +20,7 @@
 //#include "sphere_points.hpp"
 #include <cmath>
 #include <vector>
+#include "physcon.hpp"
 #include <hpx/lcos/local/mutex.hpp>
 
 typedef real rad_type;
@@ -29,28 +30,45 @@ public:
 	rad_grid_init();
 };
 
-static constexpr auto kappa_p = [](real rho, real e) {
-	return rho;
-};
+inline static real temperature(real rho, real e, real mmw) {
+	const real gm1 = 2.0 / 3.0;
+	return (gm1 * mmw * physcon.mh / physcon.kb) * (e / rho);
+}
 
-static constexpr auto dkappa_p_de = [](real rho, real e) {
+inline static real kappa_p(real rho, real e, real mmw) {
+	const real T = temperature(rho, e, mmw);
+	return rho;
+}
+;
+
+inline static real dkappa_p_de(real rho, real e, real mmw) {
+	const real T = temperature(rho, e, mmw);
 	return 0.0;
-};
+}
+;
 
-static constexpr auto kappa_R = [](real rho, real e) {
+inline static real kappa_R(real rho, real e, real mmw) {
+	const real T = temperature(rho, e, mmw);
 	return rho;
-};
+}
+;
 
-static constexpr auto kappa_s = [](real rho, real e) {
+inline static real kappa_s(real rho, real e, real mmw) {
+	const real T = temperature(rho, e, mmw);
 	return rho;
-};
+}
+;
 
-static constexpr auto B_p = [](real rho, real e) {
-	return std::pow( e / rho, 4.0);
-};
-static constexpr auto dB_p_de = [](real rho, real e) {
-	return 4.0 * std::pow( e / rho, 4.0) / e;
-};
+inline static real B_p(real rho, real e, real mmw) {
+	const real T = temperature(rho, e, mmw);
+	return physcon.sigma * std::pow(T, 4.0);
+}
+;
+
+inline static real dB_p_de(real rho, real e, real mmw) {
+	return 4.0 * B_p(rho, e, mmw) / e;
+}
+;
 
 class rad_grid: public rad_grid_init {
 private:
@@ -64,13 +82,13 @@ private:
 
 	friend class rad_grid_init;
 	static void initialize();
-	static integer rindex(integer, integer, integer);
 	real dx;
 	std::array<std::vector<rad_type>, NRF> U;
 	std::array<std::vector<rad_type>, NRF> U0;
 	std::array<std::array<std::vector<rad_type>, NRF>,NDIM> flux;
 	std::array<std::array<std::vector<rad_type>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
+	std::vector<real> mmw;
 	static std::array<std::array<real,NDIM>,NDIM> compute_p( real E, real Fx, real Fy, real Fz);
 public:
 	void set_X( const std::vector<std::vector<real>>& x );
@@ -84,8 +102,9 @@ public:
 		arc & dx;
 		arc & U;
 	}
-
-	real rad_imp_comoving(real& E, real& e, real rho, real dt);
+	void compute_mmw(const std::vector<std::vector<real>>& U);
+	void change_units(real m, real l, real t, real k);
+	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real dt);
 	void sanity_check();
 	void initialize_erad(const std::vector<real> rho, const std::vector<real> tau);
 	void set_dx(real dx);
@@ -101,11 +120,6 @@ public:
 	void set_flux_restrict(const std::vector<rad_type>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension& dim);
 	std::vector<rad_type> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const;
-//	void compute_intensity(const geo::octant& oct);
-//	void accumulate_intensity(const geo::octant& oct);
-//	void free_octant(const geo::octant& oct);
-//	void alloc_octant(const geo::octant& oct);
-//	void set_intensity(const std::vector<rad_type>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& u);
 	std::vector<rad_type> get_intensity(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
 	void allocate();
 	void get_output(std::array<std::vector<real>, NF + NGF + NRF + NPF>& v, integer, integer, integer) const;
@@ -119,6 +133,8 @@ public:
 
 	real hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& tau, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
 			const std::vector<real>& rho);
+
+	friend class node_server;
 };
 
 #endif /* RAD_GRID_HPP_ */

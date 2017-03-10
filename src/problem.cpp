@@ -165,7 +165,7 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	//y -= 0.043;
 	std::vector<real> u(NF, real(0));
 	u[spc_dc_i] = u[rho_i] = 1.0e-3;
-	const real a = std::sqrt(2.0) * std::min(dx,0.3);
+	const real a = std::sqrt(10.0) * std::min(dx,0.1);
 	real r = std::sqrt(x * x + y * y + z * z);
 	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a))/100.0;
 	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);

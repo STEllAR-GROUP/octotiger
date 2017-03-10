@@ -233,7 +233,6 @@ void node_server::start_run(bool scf)
         diagnostics();
         return;
     }
-    printf("%e %e\n", grid::get_A(), grid::get_B());
     if (scf) {
         run_scf();
         set_pivot();

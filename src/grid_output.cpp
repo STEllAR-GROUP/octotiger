@@ -5,6 +5,7 @@
 #include <fstream>
 #include <thread>
 #include <cmath>
+#include "physcon.hpp"
 
 #ifdef RADIATION
 #include "rad_grid.hpp"
@@ -261,6 +262,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 
 std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
+	real Acons, Bcons;
 	auto foo = std::fread;
 	{
 		static hpx::mutex mtx;
@@ -269,6 +271,9 @@ std::size_t grid::load(FILE* fp) {
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
 		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
+	}
+	if( hpx::get_locality_id() == 0 ) {
+		set_AB(Acons, Bcons);
 	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
@@ -305,6 +310,8 @@ std::size_t grid::load(FILE* fp) {
 
 std::size_t grid::save(FILE* fp) const {
 	std::size_t cnt = 0;
+	const real Acons = physcon.A;
+	const real Bcons = physcon.B;
 	auto foo = std::fwrite;
 	{
 		static hpx::mutex mtx;

@@ -12,6 +12,7 @@
 #include "options.hpp"
 #include "eos.hpp"
 #include "util.hpp"
+#include "physcon.hpp"
 #include "profiler.hpp"
 extern options opts;
 
@@ -59,7 +60,6 @@ void node_server::rho_move(real x) {
 	}
 	grid_ptr->rho_move(x);
 	all_hydro_bounds();
-
 	if( is_refined ) {
 		wait_all_and_propagate_exceptions(futs);
 	}
@@ -100,7 +100,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	std::array<hpx::future<real>, NCHILD> futs;
 	real res;
 	if (is_refined) {
-        integer index = 0;
+		integer index = 0;
 		for (auto& child : children) {
 			futs[index++] = child.scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 		}
@@ -109,13 +109,13 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
 	all_hydro_bounds();
-	if( is_refined ) {
-    res = std::accumulate(
-        futs.begin(), futs.end(), res,
-        [](real res, hpx::future<real> & f)
-        {
-            return res + f.get();
-        });
+	if (is_refined) {
+        res = std::accumulate(
+            futs.begin(), futs.end(), res,
+            [](real res, hpx::future<real> & f)
+            {
+                return res + f.get();
+            });
 	}
 	current_time += 1.0e-100;
 	return res;
@@ -492,7 +492,7 @@ void node_server::run_scf() {
 		}
 		grid::set_omega(omega);
 		if( opts.eos == WD ) {
-			grid::set_AB(e2->A, e2->B());
+			set_AB(e2->A, e2->B());
 		}
 //		printf( "%e %e\n", grid::get_A(), grid::get_B());
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);

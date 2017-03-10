@@ -9,6 +9,7 @@
 #include "profiler.hpp"
 #include "simd.hpp"
 #include "taylor.hpp"
+#include "physcon.hpp"
 
 #include <hpx/include/parallel_for_loop.hpp>
 
@@ -1380,24 +1381,10 @@ multipole_pass_type grid::compute_multipoles(
     if (type == RHO) {
         const integer iii0 = hindex(H_BW, H_BW, H_BW);
         const std::array<real, NDIM> x0 = {X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0]};
-
-        //         std::array<integer, 3> i;
-        //         for (i[0] = 0; i[0] != G_NX; ++i[0]) {
-        //             for (i[1] = 0; i[1] != G_NX; ++i[1]) {
-        //                 for (i[2] = 0; i[2] != G_NX; ++i[2]) {
-        //                     const integer iii = gindex(i[0], i[1], i[2]);
-        //                     for (integer dim = 0; dim != NDIM; ++dim) {
-        //                         (*(com_ptr[0]))[iii][dim] = x0[dim] + (i[dim]) *
-        //                         dx;
-        //                     }
-        //                 }
-        //             }
-        //         }
         for (integer i = 0; i != G_NX; ++i) {
             for (integer j = 0; j != G_NX; ++j) {
                 for (integer k = 0; k != G_NX; ++k) {
                     auto& com0iii = (*(com_ptr[0]))[gindex(i, j, k)];
-                    // for (integer dim = 0; dim != NDIM; ++dim)
                     com0iii[0] = x0[0] + i * dx;
                     com0iii[1] = x0[1] + j * dx;
                     com0iii[2] = x0[2] + k * dx;
@@ -1480,7 +1467,7 @@ multipole_pass_type grid::compute_multipoles(
                             const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
                             const integer iii0 = h0index(ip, jp, kp);
                             if (type == RHO) {
-                                mon[iiip] = U[rho_i][iiih] * dx3;
+                                mon[iiip] = physcon.G * U[rho_i][iiih] * dx3;
                             } else {
                                 mon[iiip] = dUdt[rho_i][iii0] * dx3;
                             }

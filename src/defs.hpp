@@ -15,7 +15,7 @@
 # define DO_OUTPUT
 #endif
 
-//#define OCTOTIGER_HAVE_RADIATION
+#define OCTOTIGER_HAVE_RADIATION
 
 #ifdef OCTOTIGER_HAVE_RADIATION
 #define RADIATION
@@ -37,8 +37,6 @@
 #define NRF 0
 #define NRADF 0
 #endif
-
-#define LIGHTSPEED 1.0
 
 #define NPF 5
 
