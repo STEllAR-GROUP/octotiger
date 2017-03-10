@@ -94,10 +94,13 @@ public:
 	void advance(real dt, real beta);
 	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 			const std::vector<real>& rho, real dt);
-	std::vector<real> get_restrict(const geo::octant&) const;
-	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
-//	void set_prolong(const std::vector<real>&, const geo::octant&);
-//	void set_restrict(const std::vector<real>&, const geo::octant&, const geo::octant&);
+	std::vector<real> get_restrict() const;
+	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	void set_prolong(const std::vector<real>&);
+	void set_restrict(const std::vector<real>&, const geo::octant&);
+	void set_flux_restrict(const std::vector<rad_type>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
+			const geo::dimension& dim);
+	std::vector<rad_type> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const;
 //	void compute_intensity(const geo::octant& oct);
 //	void accumulate_intensity(const geo::octant& oct);
 //	void free_octant(const geo::octant& oct);

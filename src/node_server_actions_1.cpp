@@ -125,11 +125,13 @@ grid::output_list_type node_server::load(
 
     grid::output_list_type my_list;
     for (auto&& fut : futs) {
-        if (do_output) {
-            grid::merge_output_lists(my_list, fut.get());
-        } else {
-            fut.get();
-        }
+		if (fut.valid()) {
+			if (do_output) {
+				grid::merge_output_lists(my_list, fut.get());
+			} else {
+				fut.get();
+			}
+		}
     }
     // printf( "***************************************\n" );
     if (!is_refined && do_output) {
@@ -241,21 +243,44 @@ integer node_server::regrid_gather(bool rebalance_only) {
                 child_descendant_count[ci] = 1;
                 children[ci] = hpx::new_<node_server>(
                     hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
-                std::array<integer, NDIM> lb = {2 * H_BW, 2 * H_BW, 2 * H_BW};
-                std::array<integer, NDIM> ub;
-                lb[XDIM] += (1 & (ci >> 0)) * (INX);
-                lb[YDIM] += (1 & (ci >> 1)) * (INX);
-                lb[ZDIM] += (1 & (ci >> 2)) * (INX);
-                for (integer d = 0; d != NDIM; ++d) {
-                    ub[d] = lb[d] + (INX);
-                }
-                std::vector<real> outflows(NF, ZERO);
-                if (ci == 0) {
-                    outflows = grid_ptr->get_outflows();
-                }
-                if (current_time > ZERO) {
-                    children[ci].set_grid(grid_ptr->get_prolong(lb, ub), std::move(outflows)).get();
-                }
+				{
+					std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
+					std::array<integer, NDIM> ub;
+					lb[XDIM] += (1 & (ci >> 0)) * (INX);
+					lb[YDIM] += (1 & (ci >> 1)) * (INX);
+					lb[ZDIM] += (1 & (ci >> 2)) * (INX);
+					for (integer d = 0; d != NDIM; ++d) {
+						ub[d] = lb[d] + (INX);
+					}
+					std::vector<real> outflows(NF, ZERO);
+					if (ci == 0) {
+						outflows = grid_ptr->get_outflows();
+					}
+					if (current_time > ZERO) {
+						children[ci].set_grid(grid_ptr->get_prolong(lb, ub), std::move(outflows)).get();
+					}
+				}
+#ifdef RADIATION
+				{
+					std::array<integer, NDIM> lb = { 2 * R_BW, 2 * R_BW, 2 * R_BW };
+					std::array<integer, NDIM> ub;
+					lb[XDIM] += (1 & (ci >> 0)) * (INX);
+					lb[YDIM] += (1 & (ci >> 1)) * (INX);
+					lb[ZDIM] += (1 & (ci >> 2)) * (INX);
+					for (integer d = 0; d != NDIM; ++d) {
+						ub[d] = lb[d] + (INX);
+					}
+				/*	std::vector<real> outflows(NF, ZERO);
+					if (ci == 0) {
+						outflows = grid_ptr->get_outflows();
+					}*/
+					if (current_time > ZERO) {
+						children[ci].set_rad_grid(rad_grid_ptr->get_prolong(lb, ub)/*, std::move(outflows)*/).get();
+					}
+				}
+#endif
+
+
             }
         }
     }
@@ -300,7 +325,11 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
         }
     }
     clear_family();
-    return hpx::when_all(futs);
+    if( is_refined ) {
+    	return hpx::when_all(futs);
+    } else {
+    	return hpx::make_ready_future();
+    }
 }
 
 typedef node_server::regrid_action regrid_action_type;
@@ -435,5 +464,7 @@ void node_server::solve_gravity(bool ene) {
         }
     }
     compute_fmm(RHO, ene);
-    wait_all_and_propagate_exceptions(child_futs);
+    if( is_refined ) {
+    	wait_all_and_propagate_exceptions(child_futs);
+    }
 }

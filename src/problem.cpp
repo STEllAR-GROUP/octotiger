@@ -34,8 +34,8 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 }
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> const& dudx) {
-
-	return level < max_level;
+	return refine_blast(level,max_level,x,y,z,U,dudx);
+	//return level < max_level;
 
 	bool rc = false;
 	real den_floor = 1.0e-1;
@@ -56,12 +56,13 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 
 
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
+	return blast_wave(x,y,z,dx);
 	std::vector<real> u(NF + NRF, real(0));
 	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
 	real r = std::max(dx, 0.50);
-	const real eint = 1.0e-1;
+	const real eint = 1.0e-4;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
 	} else {
@@ -89,7 +90,7 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 
 bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
-		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
+		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.01) {
 			return level < max_level;
 		}
 		if (std::abs(dudx[i][tau_i]) > 0.01) {
@@ -160,13 +161,13 @@ std::vector<real> null_problem(real x, real y, real z, real dx) {
 
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
-	x -= 0.453;
-	y -= 0.043;
+	//x -= 0.453;
+	//y -= 0.043;
 	std::vector<real> u(NF, real(0));
-	u[spc_dc_i] = u[rho_i] = 1.0;
-	const real a = std::sqrt(2.0) * dx;
+	u[spc_dc_i] = u[rho_i] = 1.0e-3;
+	const real a = std::sqrt(2.0) * std::min(dx,0.3);
 	real r = std::sqrt(x * x + y * y + z * z);
-	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a));
+	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a))/100.0;
 	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
 	return u;
 }

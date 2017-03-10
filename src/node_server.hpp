@@ -69,7 +69,7 @@ private:
     std::vector<node_client> neighbors;
     /* Child refers to the up to 8 refined children of this node. Either all or none exist.*/
     std::array<node_client, NCHILD> children;
-    /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
+     /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
      * . Only nieces in the face directions are needed, and in each
      * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/
     std::vector<std::vector<node_client> > nieces;
@@ -80,8 +80,8 @@ private:
     std::vector<std::array<bool, geo::direction::count()>> amr_flags;
     hpx::lcos::local::spinlock mtx;
     std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
-    channel<expansion_pass_type> parent_gravity_channel;
-    std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
+     channel<expansion_pass_type> parent_gravity_channel;
+     std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
     std::array<channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
     std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
     std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
@@ -148,7 +148,7 @@ private:
 
 public:
 
-    static bool child_is_on_face(integer ci, integer face);
+     static bool child_is_on_face(integer ci, integer face);
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
     node_server();
@@ -281,21 +281,38 @@ public:
 
 #ifdef RADIATION
 private:
-	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>> , geo::dimension::count()>, geo::octant::count()> sibling_rad_channels;
-	std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::face::count()> sibling_rad_bnd_channels;
-	std::array<std::array<std::shared_ptr<channel<std::vector<rad_type>>>, geo::octant::count()>, geo::octant::count()> child_rad_channels;
-public:
-	void compute_radiation(real dt);
-	hpx::future<void> collect_radiation_boundaries();
+    struct sibling_rad_type {
+        std::vector<rad_type> data;
+        geo::direction direction;
+    };
 
-	void recv_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&);
+	std::array<channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
+	std::array<channel<std::vector<real>>, NCHILD> child_rad_channels;
+	channel<expansion_pass_type> parent_rad_channel;
+public:
+	hpx::future<void> exchange_rad_flux_corrections();
+	void compute_radiation(real dt);
+	hpx::future<void> exchange_interlevel_rad_data();
+	void all_rad_bounds();
+
+	void collect_radiation_bounds();
+    void send_rad_amr_bounds();
+
+    void recv_rad_flux_correct(std::vector<real>&&, const geo::face& face,
+        const geo::octant& ci);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_flux_correct, send_rad_flux_correct_action);
+
+
+	void recv_rad_boundary(std::vector<rad_type>&&, const geo::direction&);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_boundary, send_rad_boundary_action);
 
-	void recv_rad_bnd_boundary(std::vector<rad_type>&&, const geo::face&);
-	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_bnd_boundary, send_rad_bnd_boundary_action);
-
-	void recv_rad_children(std::vector<real>&&, const geo::octant& ci, const geo::octant& icot);
+	void recv_rad_children(std::vector<real>&&, const geo::octant& ci);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_children, send_rad_children_action);
+
+    std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_rad_channels;
+
+    void set_rad_grid(const std::vector<real>&/*, std::vector<real>&&*/);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);
 
 #endif
 
@@ -351,5 +368,12 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
+
+#ifdef RADIATION
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
+#endif
 
 #endif /* NODE_SERVER_HPP_ */

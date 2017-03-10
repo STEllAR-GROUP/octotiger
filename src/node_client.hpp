@@ -59,6 +59,8 @@ public:
 	hpx::future<real> scf_update(real,real,real,real, real, real, real, struct_eos, struct_eos) const;
 	void send_hydro_children( std::vector<real>&&, const geo::octant& ci) const;
 	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
+	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
+	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	hpx::future<analytic_t> compare_analytic() const;
@@ -94,9 +96,9 @@ public:
 
 
 #ifdef RADIATION
-	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci, const geo::octant& ioct) const;
-	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&) const;
-	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::face&) const;
+	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci) const;
+	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&) const;
+	hpx::future<void> set_rad_grid(std::vector<real>&&) const;
 #endif
 	};
 #endif /* NODE_CLIENT_HPP_ */

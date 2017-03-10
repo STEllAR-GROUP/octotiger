@@ -21,6 +21,9 @@ hpx::future<void> node_client::check_for_refinement() const {
 hpx::future<void> node_server::check_for_refinement() {
     bool rc = false;
     std::array<hpx::future<void>, NCHILD+1> futs;
+    for( integer i = 0; i != NCHILD + 1; ++i) {
+    	futs[i] = hpx::make_ready_future();
+    }
     integer index = 0;
     if (is_refined) {
         for (auto& child : children) {
