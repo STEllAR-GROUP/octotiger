@@ -263,7 +263,9 @@ void grid::compute_interactions(gsolve_type type) {
 
                 // FIXME: replace with vector-pack gather-loads
                 // TODO: only uses first 10 coefficients? ask Dominic
+#ifndef __GNUG__
 #pragma GCC ivdep
+#endif
                 for (integer i = 0; i != simd_len && integer(li + i) < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;
                     const integer iii1 = this_ilist[li + i].second;
@@ -572,8 +574,10 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
 
             const integer list_size = bnd.first.size();
             for (integer li = 0; li < list_size; li += simd_len) {
+#ifndef __GNUG__
 #pragma GCC ivdep
-                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+#endif
+            	for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
@@ -751,8 +755,8 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
                     n0[j] = ZERO;
                 }
             }
-            for (integer li = 0; li < list_size; li += simd_len) {
 #pragma GCC ivdep
+            for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     space_vector const& com0iii0 = com0[iii0];
