@@ -517,6 +517,8 @@ hpx::future<void> node_server::nonrefined_step() {
 
 #ifdef RADIATION
                                 if(rk == NRK - 1) {
+                      //          	all_hydro_bounds();
+                                	compute_radiation(dt_/2.0);
                                 	all_hydro_bounds();
                                 }
 #endif

@@ -1083,7 +1083,12 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					const integer iii = hindex(i, j, k);
 					V[rho_i][iii] = U[rho_i][iii];
 					V[tau_i][iii] = U[tau_i][iii];
-					const real rhoinv = 1.0 / V[rho_i][iii];
+					const real rho = V[rho_i][iii];
+					if( rho <= 0.0 ) {
+						printf( "%i %i %i %e\n", int(i), int(j), int(k), rho);
+						abort_error();
+					}
+					const real rhoinv = 1.0 / rho;
 
 					if (opts.eos == WD) {
 						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii])) * rhoinv;
