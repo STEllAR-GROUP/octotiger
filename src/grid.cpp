@@ -16,6 +16,7 @@
 #include <cassert>
 
 #include <hpx/include/runtime.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 extern options opts;
 
@@ -284,7 +285,7 @@ void grid::set_analytic_func(const analytic_func_type& func) {
 	analytic = func;
 }
 
-real grid::get_omega() {
+real& grid::get_omega() {
 	return omega;
 }
 
@@ -676,7 +677,6 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
-
 void grid::change_units(real m, real l, real t, real k) {
 	const real l2 = l * l;
 	const real t2 = t * t;
@@ -705,20 +705,19 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action)
+HPX_REGISTER_BROADCAST_ACTION(set_omega_action)
 
 void grid::set_omega(real omega) {
-
-	// FIXME: use proper broadcasting...
-
 	if (hpx::get_locality_id() == 0) {
-		std::vector<hpx::future<void>> futs;
-		auto remotes = hpx::find_remote_localities();
-		futs.reserve(remotes.size());
-		for (auto& l : remotes) {
-			futs.push_back(hpx::async < set_omega_action > (l, omega));
-		}
-
-		wait_all_and_propagate_exceptions(futs);
+        std::vector<hpx::id_type> remotes;
+        remotes.reserve(options::all_localities.size()-1);
+        for (hpx::id_type const& id: options::all_localities)
+        {
+            if(id != hpx::find_here());
+                remotes.push_back(id);
+        }
+        hpx::lcos::broadcast<set_omega_action>(remotes, omega).get();
 	}
 	grid::omega = omega;
 }
