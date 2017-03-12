@@ -9,6 +9,7 @@
 #include "physcon.hpp"
 #include <hpx/hpx.hpp>
 #include "future.hpp"
+#include <hpx/lcos/broadcast.hpp>
 
 physcon_t physcon = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
 
