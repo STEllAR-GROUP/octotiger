@@ -7,6 +7,7 @@
 
 #define __NPHYSCON__
 #include "physcon.hpp"
+#include "options.hpp"
 #include <hpx/hpx.hpp>
 #include "future.hpp"
 #include <hpx/lcos/broadcast.hpp>
