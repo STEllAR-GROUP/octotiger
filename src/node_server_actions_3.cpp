@@ -7,6 +7,7 @@
 #include <hpx/include/run_as.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 extern options opts;
 
@@ -355,7 +356,7 @@ void node_server::start_run(bool scf)
                 if (scf || opts.bench) {
                     printf("Total time = %e s\n", double(bench_stop - bench_start));
                     FILE* fp = fopen("bench.dat", "at");
-                    fprintf(fp, "%i %e\n", int(hpx::find_all_localities().size()),
+                    fprintf(fp, "%i %e\n", int(options::all_localities.size()),
                         double(bench_stop - bench_start));
                     fclose(fp);
                     return true;
@@ -370,7 +371,7 @@ void node_server::start_run(bool scf)
             bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
              printf("Total time = %e s\n", double(bench_stop - bench_start));
             //	FILE* fp = fopen( "bench.dat", "at" );
-            //	fprintf( fp, "%i %e\n", int(hpx::find_all_localities().size()), double(bench_stop - bench_start));
+            //	fprintf( fp, "%i %e\n", int(options::all_localities.size()), double(bench_stop - bench_start));
             //	fclose(fp);
             break;
         }
@@ -385,7 +386,7 @@ void node_server::start_run(bool scf)
 
     if( opts.bench ) {
         FILE* fp = fopen( "scaling.dat", "at");
-        const auto nproc = hpx::find_all_localities().size();
+        const auto nproc = options::all_localities.size();
         fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));
         fclose( fp );
     }

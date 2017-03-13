@@ -19,6 +19,7 @@
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 extern options opts;
 
@@ -35,6 +36,8 @@ void set_locality_data(real omega, space_vector pivot, integer record_size) {
 }
 
 HPX_PLAIN_ACTION(set_locality_data, set_locality_data_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_locality_data_action)
+HPX_REGISTER_BROADCAST_ACTION(set_locality_data_action)
 
 hpx::future<grid::output_list_type> node_client::load(
     integer i, const hpx::id_type& _me, bool do_o, std::string s) const {
@@ -66,16 +69,9 @@ grid::output_list_type node_server::load(
             fclose(fp);
         }).get();
 
-        auto localities = hpx::find_all_localities();
-        std::vector<hpx::future<void>> futs;
-        futs.reserve(localities.size());
-        for (auto& locality : localities) {
-            futs.push_back(hpx::async<set_locality_data_action>(locality, omega, pivot, rec_size));
-        }
-        wait_all_and_propagate_exceptions(futs);
+        hpx::lcos::broadcast<set_locality_data_action>(options::all_localities, omega, pivot, rec_size).get();
     }
 
-    static auto localities = hpx::find_all_localities();
     me = _me;
 
     char flag = '0';
@@ -107,9 +103,9 @@ grid::output_list_type node_server::load(
 
         integer index = 0;
         for (auto const& ci : geo::octant::full_set()) {
-            integer loc_id = ((cnt * localities.size()) / (total_nodes + 1));
+            integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
             children[ci] = hpx::new_<node_server>(
-                localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
+                options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
             futs[index++] =
                 children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename);
         }
@@ -300,19 +296,14 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
     std::array<hpx::future<void>, geo::octant::count()> futs;
     if (is_refined) {
         integer a = a_;
-        std::vector<hpx::id_type> localities;
-        {
-            timings::scope ts(timings_, timings::time_find_localities);
-            localities = hpx::find_all_localities();
-        }
         ++a;
         for (auto& ci : geo::octant::full_set()) {
-            const integer loc_index = a * localities.size() / total;
-            const auto child_loc = localities[loc_index];
+            const integer loc_index = a * options::all_localities.size() / total;
+            const auto child_loc = options::all_localities[loc_index];
             a += child_descendant_count[ci];
             const hpx::id_type id = children[ci].get_gid();
             integer current_child_id = hpx::naming::get_locality_id_from_gid(id.get_gid());
-            auto current_child_loc = localities[current_child_id];
+            auto current_child_loc = options::all_localities[current_child_id];
             if (child_loc != current_child_loc) {
                 children[ci] = children[ci].copy_to_locality(child_loc);
             }

@@ -25,8 +25,8 @@ namespace scf_options {
 static constexpr real async1 = -0.0e-2;
 static constexpr real async2 = -0.0e-2;
 static constexpr bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
-static constexpr real M1 = 1.0;// Mass of primary
-static constexpr real M2 = 0.2;// Mass of secondaries
+static constexpr real M1 = 0.6;// Mass of primary
+static constexpr real M2 = 0.3;// Mass of secondaries
 static constexpr real nc1 = 2.5;// Primary core polytropic index
 static constexpr real nc2 = 1.5;// Secondary core polytropic index
 static constexpr real ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_struct_eos=true
@@ -89,7 +89,7 @@ void node_server::rho_mult(real f0, real f1) {
 	}
 	grid_ptr->rho_mult(f0, f1);
 	all_hydro_bounds();
-	if( is_refined )  {
+	if( is_refined ) {
 		wait_all_and_propagate_exceptions(futs);
 	}
 }
@@ -109,10 +109,12 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	}
 	all_hydro_bounds();
 	if (is_refined) {
-		res = std::accumulate(futs.begin(), futs.end(), res, [](real res, hpx::future<real> & f)
-		{
-			return res + f.get();
-        });
+        res = std::accumulate(
+            futs.begin(), futs.end(), res,
+            [](real res, hpx::future<real> & f)
+            {
+                return res + f.get();
+            });
 	}
 	current_time += 1.0e-100;
 	return res;
@@ -434,7 +436,11 @@ void node_server::run_scf() {
 		real core_frac_2 = diags.grid_sum[spc_dc_i] / M2;
 		const real eptot = diags.grid_sum[pot_i];
 		const real ektot = diags.grid_sum[egas_i] - 0.5 * eptot;
-		const real virial = (2.0 * ektot + 0.5 * eptot) / (2.0 * ektot - 0.5 * eptot);
+		if( diags.virial.second == 0.0 ) {
+			printf( "ZERO              !!!!\n" );
+			abort();
+		}
+		const real virial = diags.virial.first / diags.virial.second;
 		const real v1 = diags.primary_volume;
 		const real v2 = diags.secondary_volume;
 		const real vfactor = 4.0 / 3.0 * M_PI;

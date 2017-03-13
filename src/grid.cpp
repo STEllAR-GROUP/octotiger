@@ -16,6 +16,7 @@
 #include <cassert>
 
 #include <hpx/include/runtime.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 extern options opts;
 
@@ -284,7 +285,7 @@ void grid::set_analytic_func(const analytic_func_type& func) {
 	analytic = func;
 }
 
-real grid::get_omega() {
+real& grid::get_omega() {
 	return omega;
 }
 
@@ -676,7 +677,6 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	return minmax;
 }
 
-
 void grid::change_units(real m, real l, real t, real k) {
 	const real l2 = l * l;
 	const real t2 = t * t;
@@ -705,20 +705,19 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action)
+HPX_REGISTER_BROADCAST_ACTION(set_omega_action)
 
 void grid::set_omega(real omega) {
-
-	// FIXME: use proper broadcasting...
-
 	if (hpx::get_locality_id() == 0) {
-		std::vector<hpx::future<void>> futs;
-		auto remotes = hpx::find_remote_localities();
-		futs.reserve(remotes.size());
-		for (auto& l : remotes) {
-			futs.push_back(hpx::async < set_omega_action > (l, omega));
-		}
-
-		wait_all_and_propagate_exceptions(futs);
+        std::vector<hpx::id_type> remotes;
+        remotes.reserve(options::all_localities.size()-1);
+        for (hpx::id_type const& id: options::all_localities)
+        {
+            if(id != hpx::find_here());
+                remotes.push_back(id);
+        }
+        hpx::lcos::broadcast<set_omega_action>(remotes, omega).get();
 	}
 	grid::omega = omega;
 }
@@ -2235,6 +2234,8 @@ void grid::next_u(integer rk, real t, real dt) {
 	}PROF_END;
 }
 
+
+
 void grid::dual_energy_update() {
 	PROF_BEGIN;
 //	bool in_bnd;
@@ -2266,6 +2267,44 @@ void grid::dual_energy_update() {
 			}
 		}
 	}PROF_END;
+}
+
+
+
+std::pair<real,real> grid::virial() const {
+	PROF_BEGIN;
+//	bool in_bnd;
+	std::pair<real,real> v;
+	v.first = v.second = 0.0;
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+#pragma GCC ivdep
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				const integer iii = hindex(i, j, k);
+				real ek = ZERO;
+				ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
+				ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
+				ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
+				real ei;
+				if (opts.eos == WD) {
+					ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
+				} else {
+					ei = U[egas_i][iii] - ek;
+				}
+				real et = U[egas_i][iii];
+				if (ei > de_switch2 * et) {
+					ei = std::pow(U[tau_i][iii], fgamma);
+				}
+				real p = (fgamma-1.0)*ei;
+				if( opts.eos == WD ) {
+					p += ztwd_pressure(U[rho_i][iii]);
+				}
+				v.first += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
+				v.second += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
+			}
+		}
+	}PROF_END;
+	return v;
 }
 
 std::vector<real> grid::conserved_outflows() const {

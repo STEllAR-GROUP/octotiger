@@ -20,17 +20,23 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/lcos.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 options opts;
 
 bool gravity_on = true;
 bool hydro_on = true;
 HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_pivot_action)
+HPX_REGISTER_BROADCAST_ACTION(set_pivot_action)
 
 void compute_ilist();
 
-void initialize(options _opts) {
+void initialize(options _opts, std::vector<hpx::id_type> const& localities)
+{
+    options::all_localities = localities;
 	opts = _opts;
+    grid::get_omega() = opts.omega;
 #if !defined(_MSC_VER)
 	feenableexcept (FE_DIVBYZERO);
 	feenableexcept (FE_INVALID);
@@ -49,7 +55,7 @@ void initialize(options _opts) {
 #endif
 	if (opts.problem == DWD) {
 		set_problem(scf_binary);
-		set_refine_test(refine_test_bibi);
+		set_refine_test(refine_test);
 	} else if (opts.problem == SOD) {
 		grid::set_fgamma(7.0 / 5.0);
 		gravity_on = false;
@@ -104,21 +110,13 @@ void initialize(options _opts) {
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action)
+HPX_REGISTER_BROADCAST_ACTION(initialize_action)
 
 real OMEGA;
 void node_server::set_pivot() {
-	auto localities = hpx::find_all_localities();
 	space_vector pivot = grid_ptr->center_of_mass();
-	std::vector<hpx::future<void>> futs;
-	futs.reserve(localities.size());
-	for (auto& locality : localities) {
-		if (current_time == ZERO) {
-			futs.push_back(hpx::async < set_pivot_action > (locality, pivot));
-		}
-	}
-	for (auto&& fut : futs) {
-		fut.get();
-	}
+    hpx::lcos::broadcast<set_pivot_action>(options::all_localities, pivot).get();
 }
 
 int hpx_main(int argc, char* argv[]) {
@@ -130,14 +128,8 @@ int hpx_main(int argc, char* argv[]) {
 
 	try {
 		if (opts.process_options(argc, argv)) {
-
 			auto all_locs = hpx::find_all_localities();
-			std::vector<hpx::future<void>> futs;
-            futs.reserve(all_locs.size());
-			for (auto i = all_locs.begin(); i != all_locs.end(); ++i) {
-				futs.push_back(hpx::async<initialize_action> (*i, opts));
-			}
-            wait_all_and_propagate_exceptions(futs);
+            hpx::lcos::broadcast<initialize_action>(all_locs, opts, all_locs).get();
 
 			node_client root_id = hpx::new_ < node_server > (hpx::find_here());
 			node_client root_client(root_id);
@@ -187,9 +179,13 @@ int hpx_main(int argc, char* argv[]) {
 int main(int argc, char* argv[])
 {
     std::vector<std::string> cfg = {
-        "hpx.commandline.allow_unknown=1",      // HPX should not complain about unknown command line options
-        "hpx.scheduler=local-priority-lifo"     // use LIFO scheduler by default
+        "hpx.commandline.allow_unknown=1",         // HPX should not complain about unknown command line options
+        "hpx.scheduler=local-priority-lifo",       // use LIFO scheduler by default
+        "hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
     };
 
-    return hpx::init(argc, argv, cfg);
+    hpx::register_pre_shutdown_function([](){ std::cout << "clearing localities ...\n"; options::all_localities.clear(); });
+
+    hpx::init(argc, argv, cfg);
+    std::cout << "done...\n";
 }

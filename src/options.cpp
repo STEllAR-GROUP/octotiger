@@ -193,6 +193,7 @@ bool options::process_options(int argc, char* argv[]) {
     }
     theta = std::max(1.0 / 3.0, theta);
     theta = std::min(1.0 / 2.0, theta);
-    grid::set_omega(omega);
     return rc;
 }
+
+std::vector<hpx::id_type> options::all_localities = {};

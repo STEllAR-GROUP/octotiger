@@ -31,5 +31,6 @@ test:
         - cd build && ./octotiger -Disableoutput -Problem=moving_star -Max_level=2 -Xscale=32 -Odt=0.5 -Stopstep=0 --hpx:threads=2 --hpx:bind=none
         - cd test1 && ./test1.sh > output.txt
         - cd test1 &&  python validate.py output.txt test1.txt
-
+        - cd tools && tar xf restart7.chk.tar.gz
+        - cd build && ./octotiger -Problem=dwd -Max_level=7 -Xscale=4.0 -Eos=wd -Angcon=1 -Restart=../tools/restart7.chk -Stopstep=1 --hpx:threads=2 --hpx:bind=none
 

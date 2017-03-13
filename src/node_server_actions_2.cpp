@@ -44,7 +44,11 @@ hpx::future<void> node_server::check_for_refinement() {
             }
         }
     }
-    return hpx::when_all(futs);
+    if( is_refined ) {
+    	return hpx::when_all(futs);
+    } else {
+    	return hpx::make_ready_future();
+    }
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
@@ -163,6 +167,7 @@ diagnostics_t node_server::diagnostics() const {
             for (integer f = 0; f != NDIM; ++f) {
                 fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
             }
+                fprintf(fp, "%23.16e ", double(diags.virial.first/diags.virial.second));
             fprintf(fp, "\n");
             fclose(fp);
         }).get();
@@ -277,6 +282,7 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
         sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1);
         sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis,
             l1, 0);
+	sums.virial = grid_ptr->virial();
         sums.outflow_sum = grid_ptr->conserved_outflows();
         sums.l_sum = grid_ptr->l_sums();
         auto tmp = grid_ptr->field_range();
@@ -310,6 +316,7 @@ diagnostics_t::diagnostics_t() :
         primary_com[d] = secondary_com[d] = grid_com[d] = 0.0;
         primary_com_dot[d] = secondary_com_dot[d] = grid_com_dot[d] = 0.0;
     }
+	virial.first = virial.second = 0.0;
 }
 
 diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
@@ -326,6 +333,8 @@ diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
     }
     for (integer f = 0; f != NF; ++f) {
         grid_sum[f] += other.grid_sum[f];
+        virial.first += other.virial.first;
+        virial.second += other.virial.second;
         primary_sum[f] += other.primary_sum[f];
         secondary_sum[f] += other.secondary_sum[f];
         outflow_sum[f] += other.outflow_sum[f];
@@ -558,8 +567,8 @@ std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt,
     const geo::face& face) const {
     std::vector<hpx::id_type> nieces;
     if (is_refined) {
-        std::array<hpx::future<void>, geo::octant::count()> futs;
-        nieces.reserve(geo::octant::count());
+        std::array<hpx::future<void>, geo::octant::count() / 2> futs;
+        nieces.reserve(geo::octant::count() / 2);
         integer index = 0;
         for (auto const& ci : geo::octant::face_subset(face)) {
             nieces.push_back(children[ci].get_gid());
