@@ -480,12 +480,21 @@ void grid::compute_interactions(gsolve_type type) {
         // Coefficients for potential evaluation? (David)
         const std::array<double, 4> di0 = {
             1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
+#ifdef Vc_IS_VERSION_2 
+        const v4sd d0(di0);
+#else
         const v4sd d0(di0.data());
+#endif
 
         // negative of d0 because it's the force in the opposite direction
         const std::array<double, 4> di1 = {
             1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
+#ifdef Vc_IS_VERSION_2 
+        const v4sd d1(di1);
+#else
         const v4sd d1(di1.data());
+#endif
+
 #endif
 
         // Number of body-body interactions current leaf cell, probably includes interactions with
@@ -992,7 +1001,11 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
 #else
     const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
+#ifdef Vc_IS_VERSION_2 
+    const v4sd d0(di0);
+#else
     const v4sd d0(di0.data());
+#endif
 #endif
     hpx::parallel::for_loop(
         for_loop_policy, 0, ilist_n_bnd.size(),
@@ -1430,9 +1443,17 @@ multipole_pass_type grid::compute_multipoles(
                                     X[d][ci] = (*(com_ptr[0]))[iiic][d];
                                 }
                             }
+#ifdef Vc_IS_VERSION_2 
+                            real mtot = Vc::reduce(mc);
+#else
                             real mtot = mc.sum();
+#endif
                             for (integer d = 0; d < NDIM; ++d) {
+#ifdef Vc_IS_VERSION_2 
+                                (*(com_ptr[1]))[iiip][d] = Vc::reduce(X[d] * mc) / mtot;
+#else
                                 (*(com_ptr[1]))[iiip][d] = (X[d] * mc).sum() / mtot;
+#endif
                             }
                         }
                         taylor<4, simd_vector> mc, mp;
@@ -1460,7 +1481,11 @@ multipole_pass_type grid::compute_multipoles(
                         }
                         mp = mc >> dx;
                         for (integer j = 0; j != 20; ++j) {
+#ifdef Vc_IS_VERSION_2 
+                            MM[j] = Vc::reduce(mp[j]);
+#else
                             MM[j] = mp[j].sum();
+#endif
                         }
                     } else {
                         if (child_poles == nullptr) {
