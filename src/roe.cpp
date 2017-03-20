@@ -155,7 +155,11 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 				F[field][iii + j] = f[field][j];
 			}
 		}
-		max_lambda = std::max(max_lambda, a.max());
+#ifdef Vc_IS_VERSION_2  
+		max_lambda = std::max(max_lambda, Vc::reduce(a, [](auto x, auto y) { return Vc::max(x, y); }));
+#else
+        max_lambda = std::max(max_lambda, a.max());
+#endif
 	}
 
 	return max_lambda;
