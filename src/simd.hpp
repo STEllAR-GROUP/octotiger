@@ -402,7 +402,7 @@ public:
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 
-using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
+using simd_vector = Vc::datapar<double, Vc::datapar_abi::native<double>>;
 using v4sd = typename hpx::parallel::traits::vector_pack_type<double, 4>::type;
 
 #endif
