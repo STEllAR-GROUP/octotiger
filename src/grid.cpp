@@ -1438,14 +1438,14 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	PROF_END;
 }
 
-inline real limit_range(real a, real b, real& c) {
+inline void limit_range(real a, real b, real& c) {
 	const real max = std::max(a, b);
 	const real min = std::min(a, b);
 	c = std::min(max, std::max(min, c));
 }
 ;
 
-inline real limit_range_all(real am, real ap, real& bl, real& br) {
+inline void limit_range_all(real am, real ap, real& bl, real& br) {
 	real avg = (br + bl) / 2.0;
 	limit_range(am, ap, avg);
 	limit_range(am, avg, bl);
