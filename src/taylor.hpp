@@ -469,15 +469,20 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 
     const T r2 = sqr(X[0]) + sqr(X[1]) + sqr(X[2]);
     T r2inv = 0.0;
-// #if !defined(HPX_HAVE_DATAPAR)
+#if !defined(HPX_HAVE_DATAPAR)
     for (volatile integer i = 0; i != simd_len; ++i) {
         if (r2[i] > 0.0) {
             r2inv[i] = ONE / std::max(r2[i], 1.0e-20);
         }
     }
-// #else
-//     where(r2 > 0.0) | r2inv = ONE / r2;
-// #endif
+#else
+    #ifdef Vc_IS_VERSION_2  
+        where(r2 > 0.0, r2inv) = ONE / r2;
+        using Vc::sqrt;
+    #else
+        where(r2 > 0.0) | r2inv = ONE / r2;
+    #endif
+#endif
 
     // parts of formula (6)
     const T d0 = -sqrt(r2inv);
