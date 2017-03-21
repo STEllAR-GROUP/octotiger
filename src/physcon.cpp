@@ -28,10 +28,12 @@ void set_AB(real a, real b) {
         remotes.reserve(options::all_localities.size()-1);
         for (hpx::id_type const& id: options::all_localities)
         {
-            // if(id != hpx::find_here())
+            if(id != hpx::find_here())
                 remotes.push_back(id);
         }
-        hpx::lcos::broadcast<set_AB_action>(remotes, a, b).get();
+        if (remotes.size() > 0) {
+            hpx::lcos::broadcast<set_AB_action>(remotes, a, b).get();
+        }
 	}
 	A = a;
 	B = b;
