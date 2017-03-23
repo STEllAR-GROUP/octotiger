@@ -5,14 +5,15 @@
 #include <fstream>
 #include <thread>
 #include <cmath>
+#include "physcon.hpp"
 
 #ifdef RADIATION
 #include "rad_grid.hpp"
 #endif
 
 #include <hpx/include/lcos.hpp>
-//#define EQ_ONLY
-//#define RHO_ONLY
+#define EQ_ONLY
+#define RHO_ONLY
 
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
@@ -97,7 +98,7 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 
 grid::output_list_type grid::get_output_list(bool analytic) const {
 	auto& V = TLS_V();
-	compute_primitives( { { H_BW, H_BW, H_BW } }, { { H_NX - H_BW, H_NX - H_BW, H_NX - H_BW } });
+	compute_primitives( { { H_BW+1, H_BW+1, H_BW+1 } }, { { H_NX - H_BW-1, H_NX - H_BW-1, H_NX - H_BW-1 } });
 	output_list_type rc;
 	const integer vertex_order[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
 
@@ -212,9 +213,9 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 				auto olist = DBMakeOptlist(1);
 				double time = double(t);
 				int ndim = 3;
-				DBAddOption(olist, DBOPT_CYCLE, &cycle);
+//				DBAddOption(olist, DBOPT_CYCLE, &cycle);
 				DBAddOption(olist, DBOPT_DTIME, &time);
-				DBAddOption(olist, DBOPT_NSPACE, &ndim );
+			//	DBAddOption(olist, DBOPT_NSPACE, &ndim );
 				DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
 				assert(db);
 				DBPutZonelist2(db, "zones", nzones, int(NDIM), zone_nodes.data(), nzones * NVERTEX, 0, 0, 0, shapetype, shapesize,
@@ -228,20 +229,20 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 					double time = double(t);
 					int istrue = 1;
 					int isfalse = 0;
-					DBAddOption(olist, DBOPT_CYCLE, &cycle);
+			//		DBAddOption(olist, DBOPT_CYCLE, &cycle);
 					DBAddOption(olist, DBOPT_DTIME, &time);
-					DBAddOption(olist, DBOPT_NSPACE, &ndim );
-					if( field == rho_i || field == sx_i || field == sy_i || field == sz_i || field == spc_ac_i || field == spc_ae_i || field == spc_dc_i || field == spc_de_i || field == spc_vac_i ) {
-						DBAddOption(olist, DBOPT_CONSERVED, &istrue);
-					} else {
-						DBAddOption(olist, DBOPT_CONSERVED, &isfalse );
-					}
-					if( field < NF ) {
-						DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
-					} else {
-						DBAddOption(olist, DBOPT_EXTENSIVE, &isfalse);
-					}
-					DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
+		//			DBAddOption(olist, DBOPT_NSPACE, &ndim );
+			//		if( field == rho_i || field == sx_i || field == sy_i || field == sz_i || field == spc_ac_i || field == spc_ae_i || field == spc_dc_i || field == spc_de_i || field == spc_vac_i ) {
+			//			DBAddOption(olist, DBOPT_CONSERVED, &istrue);
+			//		} else {
+			//			DBAddOption(olist, DBOPT_CONSERVED, &isfalse );
+			//		}
+			//		if( field < NF ) {
+			//			DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
+			//		} else {
+			//			DBAddOption(olist, DBOPT_EXTENSIVE, &isfalse);
+			//		}
+			//		DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
 					DBPutUcdvar1(db, field_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.data[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 							olist);
 					if( analytic && field < 6) {
@@ -261,6 +262,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 
 std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
+	real Acons, Bcons;
 	auto foo = std::fread;
 	{
 		static hpx::mutex mtx;
@@ -269,6 +271,9 @@ std::size_t grid::load(FILE* fp) {
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
 		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
+	}
+	if( hpx::get_locality_id() == 0 ) {
+		set_AB(Acons, Bcons);
 	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
@@ -305,6 +310,8 @@ std::size_t grid::load(FILE* fp) {
 
 std::size_t grid::save(FILE* fp) const {
 	std::size_t cnt = 0;
+	const real Acons = physcon.A;
+	const real Bcons = physcon.B;
 	auto foo = std::fwrite;
 	{
 		static hpx::mutex mtx;

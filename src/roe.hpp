@@ -22,4 +22,13 @@ constexpr real de_switch1 = real(1.0e-1);
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL,
 		std::array<std::vector<real>, NF>& UR,  const std::vector<space_vector>& X, real omega, integer dimension, real dx);
 
+
+real ztwd_pressure(real d);
+
+real ztwd_enthalpy(real d);
+
+real ztwd_energy(real d);
+
+real ztwd_sound_speed(real d, real ei);
+
 #endif /* ROE_HPP_ */

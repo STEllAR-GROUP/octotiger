@@ -25,15 +25,30 @@ class node_client {
 private:
 //	hpx::shared_future<hpx::id_type> id_fut;
 	hpx::id_type id;
+    hpx::id_type unmanaged;
 	bool local;
 public:
 	bool is_local();
 	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
+	void load(Arc& arc, unsigned)
+    {
 		arc & id;
+        if (!empty())
+        {
+            unmanaged = hpx::id_type(id.get_gid(), hpx::id_type::unmanaged);
+        }
 	}
+
+	template<class Arc>
+	void save(Arc& arc, unsigned) const
+    {
+		arc & id;
+    }
+    HPX_SERIALIZATION_SPLIT_MEMBER();
+
 	bool empty() const;
 	hpx::id_type get_gid() const;
+	hpx::id_type get_unmanaged_gid() const;
 	node_client& operator=(hpx::future<hpx::id_type>&& fut );
 	node_client& operator=(const hpx::id_type& _id );
 	node_client(hpx::future<hpx::id_type>&& fut );
@@ -44,6 +59,8 @@ public:
 	hpx::future<real> scf_update(real,real,real,real, real, real, real, struct_eos, struct_eos) const;
 	void send_hydro_children( std::vector<real>&&, const geo::octant& ci) const;
 	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
+	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
+	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	hpx::future<analytic_t> compare_analytic() const;
@@ -61,14 +78,14 @@ public:
 	void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole) const;
 	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	void send_gravity_expansions(expansion_pass_type&&) const;
-	hpx::future<void> step() const;
+	hpx::future<void> step(integer) const;
 	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, bool rb) const;
 	hpx::future<void> solve_gravity(bool ene) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
 	void timestep_driver_ascend(real) const;
-	hpx::future<real> timestep_driver_descend() const;
+    void set_local_timestep(integer, real) const;
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
 	integer save(integer,std::string) const;
@@ -79,9 +96,9 @@ public:
 
 
 #ifdef RADIATION
-	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci, const geo::octant& ioct) const;
-	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::octant&, const geo::dimension&) const;
-	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::face&) const;
+	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci) const;
+	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&) const;
+	hpx::future<void> set_rad_grid(std::vector<real>&&) const;
 #endif
 	};
 #endif /* NODE_CLIENT_HPP_ */

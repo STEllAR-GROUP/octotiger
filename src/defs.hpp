@@ -38,8 +38,6 @@
 #define NRADF 0
 #endif
 
-#define LIGHTSPEED 1.0
-
 #define NPF 5
 
 

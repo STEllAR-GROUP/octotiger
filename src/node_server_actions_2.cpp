@@ -15,12 +15,15 @@ typedef node_server::check_for_refinement_action check_for_refinement_action_typ
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
 hpx::future<void> node_client::check_for_refinement() const {
-    return hpx::async<typename node_server::check_for_refinement_action>(get_gid());
+    return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid());
 }
 
 hpx::future<void> node_server::check_for_refinement() {
     bool rc = false;
     std::array<hpx::future<void>, NCHILD+1> futs;
+    for( integer i = 0; i != NCHILD + 1; ++i) {
+    	futs[i] = hpx::make_ready_future();
+    }
     integer index = 0;
     if (is_refined) {
         for (auto& child : children) {
@@ -41,7 +44,11 @@ hpx::future<void> node_server::check_for_refinement() {
             }
         }
     }
-    return hpx::when_all(futs);
+    if( is_refined ) {
+    	return hpx::when_all(futs);
+    } else {
+    	return hpx::make_ready_future();
+    }
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
@@ -76,7 +83,7 @@ hpx::future<diagnostics_t> node_client::diagnostics(
     const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1,
     real c1,
     real c2) const {
-    return hpx::async<typename node_server::diagnostics_action>(get_gid(), axis, l1, c1,
+    return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), axis, l1, c1,
         c2);
 }
 
@@ -84,7 +91,7 @@ typedef node_server::compare_analytic_action compare_analytic_action_type;
 HPX_REGISTER_ACTION(compare_analytic_action_type);
 
 hpx::future<analytic_t> node_client::compare_analytic() const {
-    return hpx::async<typename node_server::compare_analytic_action>(get_gid());
+    return hpx::async<typename node_server::compare_analytic_action>(get_unmanaged_gid());
 }
 
 analytic_t node_server::compare_analytic() {
@@ -160,6 +167,7 @@ diagnostics_t node_server::diagnostics() const {
             for (integer f = 0; f != NDIM; ++f) {
                 fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
             }
+                fprintf(fp, "%23.16e ", double(diags.virial.first/diags.virial.second));
             fprintf(fp, "\n");
             fclose(fp);
         }).get();
@@ -274,6 +282,7 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
         sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1);
         sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis,
             l1, 0);
+	sums.virial = grid_ptr->virial();
         sums.outflow_sum = grid_ptr->conserved_outflows();
         sums.l_sum = grid_ptr->l_sums();
         auto tmp = grid_ptr->field_range();
@@ -307,6 +316,7 @@ diagnostics_t::diagnostics_t() :
         primary_com[d] = secondary_com[d] = grid_com[d] = 0.0;
         primary_com_dot[d] = secondary_com_dot[d] = grid_com_dot[d] = 0.0;
     }
+	virial.first = virial.second = 0.0;
 }
 
 diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
@@ -323,6 +333,8 @@ diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
     }
     for (integer f = 0; f != NF; ++f) {
         grid_sum[f] += other.grid_sum[f];
+        virial.first += other.virial.first;
+        virial.second += other.virial.second;
         primary_sum[f] += other.primary_sum[f];
         secondary_sum[f] += other.secondary_sum[f];
         outflow_sum[f] += other.outflow_sum[f];
@@ -376,7 +388,7 @@ HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
 
 hpx::future<void> node_client::force_nodes_to_exist(
     std::vector<node_location>&& locs) const {
-    return hpx::async<typename node_server::force_nodes_to_exist_action>(get_gid(),
+    return hpx::async<typename node_server::force_nodes_to_exist_action>(get_unmanaged_gid(),
         std::move(locs));
 }
 
@@ -430,7 +442,7 @@ HPX_REGISTER_ACTION(form_tree_action_type);
 
 hpx::future<void> node_client::form_tree(const hpx::id_type& id1, const hpx::id_type& id2,
     const std::vector<hpx::id_type>& ids) {
-    return hpx::async<typename node_server::form_tree_action>(get_gid(), id1, id2,
+    return hpx::async<typename node_server::form_tree_action>(get_unmanaged_gid(), id1, id2,
         std::move(ids));
 }
 
@@ -528,7 +540,7 @@ HPX_REGISTER_ACTION(get_child_client_action_type);
 
 hpx::future<hpx::id_type> node_client::get_child_client(const geo::octant& ci) {
     if (get_gid() != hpx::invalid_id) {
-        return hpx::async<typename node_server::get_child_client_action>(get_gid(), ci);
+        return hpx::async<typename node_server::get_child_client_action>(get_unmanaged_gid(), ci);
     } else {
         auto tmp = hpx::invalid_id;
         return hpx::make_ready_future<hpx::id_type>(std::move(tmp));
@@ -548,15 +560,15 @@ HPX_REGISTER_ACTION(get_nieces_action_type);
 
 hpx::future<std::vector<hpx::id_type>> node_client::get_nieces(const hpx::id_type& aunt,
     const geo::face& f) const {
-    return hpx::async<typename node_server::get_nieces_action>(get_gid(), aunt, f);
+    return hpx::async<typename node_server::get_nieces_action>(get_unmanaged_gid(), aunt, f);
 }
 
 std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt,
     const geo::face& face) const {
     std::vector<hpx::id_type> nieces;
     if (is_refined) {
-        std::array<hpx::future<void>, geo::octant::count()> futs;
-        nieces.reserve(geo::octant::count());
+        std::array<hpx::future<void>, geo::octant::count() / 2> futs;
+        nieces.reserve(geo::octant::count() / 2);
         integer index = 0;
         for (auto const& ci : geo::octant::face_subset(face)) {
             nieces.push_back(children[ci].get_gid());
@@ -575,7 +587,7 @@ std::uintptr_t node_server::get_ptr() {
 }
 
 hpx::future<node_server*> node_client::get_ptr() const {
-    return hpx::async<typename node_server::get_ptr_action>(get_gid()).then(
+    return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then(
         [](hpx::future<std::uintptr_t>&& fut) {
             return reinterpret_cast<node_server*>(fut.get());
         });

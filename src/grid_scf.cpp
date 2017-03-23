@@ -12,6 +12,7 @@
 #include "options.hpp"
 #include "eos.hpp"
 #include "util.hpp"
+#include "physcon.hpp"
 #include "profiler.hpp"
 extern options opts;
 
@@ -24,8 +25,8 @@ namespace scf_options {
 static constexpr real async1 = -0.0e-2;
 static constexpr real async2 = -0.0e-2;
 static constexpr bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
-static constexpr real M1 = 1.0;// Mass of primary
-static constexpr real M2 = 0.2;// Mass of secondaries
+static constexpr real M1 = 0.6;// Mass of primary
+static constexpr real M2 = 0.3;// Mass of secondaries
 static constexpr real nc1 = 2.5;// Primary core polytropic index
 static constexpr real nc2 = 1.5;// Secondary core polytropic index
 static constexpr real ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_struct_eos=true
@@ -46,7 +47,7 @@ static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT
 //0.6 .305
 
 hpx::future<void> node_client::rho_move(real x) const {
-	return hpx::async<typename node_server::rho_move_action>(get_gid(), x);
+	return hpx::async<typename node_server::rho_move_action>(get_unmanaged_gid(), x);
 }
 
 void node_server::rho_move(real x) {
@@ -59,8 +60,9 @@ void node_server::rho_move(real x) {
 	}
 	grid_ptr->rho_move(x);
 	all_hydro_bounds();
-
-    wait_all_and_propagate_exceptions(futs);
+	if( is_refined ) {
+		wait_all_and_propagate_exceptions(futs);
+	}
 }
 
 typedef typename node_server::scf_update_action scf_update_action_type;
@@ -70,11 +72,11 @@ typedef typename node_server::rho_mult_action rho_mult_action_type;
 HPX_REGISTER_ACTION (rho_mult_action_type);
 
 hpx::future<void> node_client::rho_mult(real f0, real f1) const {
-	return hpx::async<typename node_server::rho_mult_action>(get_gid(), f0, f1);
+	return hpx::async<typename node_server::rho_mult_action>(get_unmanaged_gid(), f0, f1);
 }
 
 hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) const {
-	return hpx::async<typename node_server::scf_update_action>(get_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
+	return hpx::async<typename node_server::scf_update_action>(get_unmanaged_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 }
 
 void node_server::rho_mult(real f0, real f1) {
@@ -87,8 +89,9 @@ void node_server::rho_mult(real f0, real f1) {
 	}
 	grid_ptr->rho_mult(f0, f1);
 	all_hydro_bounds();
-
-    wait_all_and_propagate_exceptions(futs);
+	if( is_refined ) {
+		wait_all_and_propagate_exceptions(futs);
+	}
 }
 
 real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) {
@@ -96,7 +99,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	std::array<hpx::future<real>, NCHILD> futs;
 	real res;
 	if (is_refined) {
-        integer index = 0;
+		integer index = 0;
 		for (auto& child : children) {
 			futs[index++] = child.scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 		}
@@ -105,12 +108,14 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 		res = grid_ptr->scf_update(com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 	}
 	all_hydro_bounds();
-    res = std::accumulate(
-        futs.begin(), futs.end(), res,
-        [](real res, hpx::future<real> & f)
-        {
-            return res + f.get();
-        });
+	if (is_refined) {
+        res = std::accumulate(
+            futs.begin(), futs.end(), res,
+            [](real res, hpx::future<real> & f)
+            {
+                return res + f.get();
+            });
+	}
 	current_time += 1.0e-100;
 	return res;
 }
@@ -431,7 +436,11 @@ void node_server::run_scf() {
 		real core_frac_2 = diags.grid_sum[spc_dc_i] / M2;
 		const real eptot = diags.grid_sum[pot_i];
 		const real ektot = diags.grid_sum[egas_i] - 0.5 * eptot;
-		const real virial = (2.0 * ektot + 0.5 * eptot) / (2.0 * ektot - 0.5 * eptot);
+		if( diags.virial.second == 0.0 ) {
+			printf( "ZERO              !!!!\n" );
+			abort();
+		}
+		const real virial = diags.virial.first / diags.virial.second;
 		const real v1 = diags.primary_volume;
 		const real v2 = diags.secondary_volume;
 		const real vfactor = 4.0 / 3.0 * M_PI;
@@ -478,11 +487,11 @@ void node_server::run_scf() {
 			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
 			diags.secondary_volume, diags.roche_vol2);
 		if (i % 10 == 0) {
-			regrid(me.get_gid(), false);
+			regrid(me.get_unmanaged_gid(), false);
 		}
 		grid::set_omega(omega);
 		if( opts.eos == WD ) {
-			grid::set_AB(e2->A, e2->B());
+			set_AB(e2->A, e2->B());
 		}
 //		printf( "%e %e\n", grid::get_A(), grid::get_B());
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);

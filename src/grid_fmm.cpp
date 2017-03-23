@@ -9,6 +9,7 @@
 #include "profiler.hpp"
 #include "simd.hpp"
 #include "taylor.hpp"
+#include "physcon.hpp"
 
 #include <hpx/include/parallel_for_loop.hpp>
 
@@ -164,10 +165,10 @@ void grid::solve_gravity(gsolve_type type) {
     compute_expansions(type);
 }
 
-constexpr int to_ab_idx_map3[3][6] = {
-    {  4,  4,  4,  5,  5,  6,  },
-    {  5,  5,  5,  7,  7,  8,  },
-    {  6,  6,  6,  8,  8,  9,  }
+constexpr int to_ab_idx_map3[3][3] = {
+    {  4,  5,  6  },
+    {  5,  7,  8  },
+    {  6,  8,  9  }
 };
 
 constexpr int cb_idx_map[6] = {
@@ -263,7 +264,9 @@ void grid::compute_interactions(gsolve_type type) {
 
                 // FIXME: replace with vector-pack gather-loads
                 // TODO: only uses first 10 coefficients? ask Dominic
+#ifndef __GNUG__
 #pragma GCC ivdep
+#endif
                 for (integer i = 0; i != simd_len && integer(li + i) < list_size; ++i) {
                     const integer iii0 = this_ilist[li + i].first;
                     const integer iii1 = this_ilist[li + i].second;
@@ -572,8 +575,10 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
 
             const integer list_size = bnd.first.size();
             for (integer li = 0; li < list_size; li += simd_len) {
+#ifndef __GNUG__
 #pragma GCC ivdep
-                for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
+#endif
+            	for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     space_vector const& com0iii0 = com0[iii0];
                     for (integer d = 0; d < NDIM; ++d) {
@@ -751,8 +756,8 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
                     n0[j] = ZERO;
                 }
             }
-            for (integer li = 0; li < list_size; li += simd_len) {
 #pragma GCC ivdep
+            for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
                     space_vector const& com0iii0 = com0[iii0];
@@ -1376,24 +1381,10 @@ multipole_pass_type grid::compute_multipoles(
     if (type == RHO) {
         const integer iii0 = hindex(H_BW, H_BW, H_BW);
         const std::array<real, NDIM> x0 = {X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0]};
-
-        //         std::array<integer, 3> i;
-        //         for (i[0] = 0; i[0] != G_NX; ++i[0]) {
-        //             for (i[1] = 0; i[1] != G_NX; ++i[1]) {
-        //                 for (i[2] = 0; i[2] != G_NX; ++i[2]) {
-        //                     const integer iii = gindex(i[0], i[1], i[2]);
-        //                     for (integer dim = 0; dim != NDIM; ++dim) {
-        //                         (*(com_ptr[0]))[iii][dim] = x0[dim] + (i[dim]) *
-        //                         dx;
-        //                     }
-        //                 }
-        //             }
-        //         }
         for (integer i = 0; i != G_NX; ++i) {
             for (integer j = 0; j != G_NX; ++j) {
                 for (integer k = 0; k != G_NX; ++k) {
                     auto& com0iii = (*(com_ptr[0]))[gindex(i, j, k)];
-                    // for (integer dim = 0; dim != NDIM; ++dim)
                     com0iii[0] = x0[0] + i * dx;
                     com0iii[1] = x0[1] + j * dx;
                     com0iii[2] = x0[2] + k * dx;
@@ -1476,7 +1467,7 @@ multipole_pass_type grid::compute_multipoles(
                             const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
                             const integer iii0 = h0index(ip, jp, kp);
                             if (type == RHO) {
-                                mon[iiip] = U[rho_i][iiih] * dx3;
+                                mon[iiip] = physcon.G * U[rho_i][iiih] * dx3;
                             } else {
                                 mon[iiip] = dUdt[rho_i][iii0] * dx3;
                             }

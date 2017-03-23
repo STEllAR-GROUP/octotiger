@@ -37,6 +37,7 @@ struct diagnostics_t {
 	std::vector<real> l2_error;
 	std::vector<real> gforce_sum;
 	std::vector<real> gtorque_sum;
+	std::pair<real,real> virial;
 	diagnostics_t();
 	diagnostics_t& operator+=(const diagnostics_t& other);
 	friend diagnostics_t operator+(const diagnostics_t& lhs, const diagnostics_t& rhs)
@@ -66,6 +67,7 @@ struct diagnostics_t {
 		arc & primary_sum;
 		arc & secondary_sum;
 		arc & grid_sum;
+		arc & virial;
 		arc & outflow_sum;
 		arc & l_sum;
 		arc & field_max;

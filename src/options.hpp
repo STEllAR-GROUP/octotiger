@@ -9,6 +9,8 @@
 #define OPTIONS_HPP_
 
 #include <string>
+#include <vector>
+#include <hpx/hpx.hpp>
 #include "defs.hpp"
 
 enum problem_type {
@@ -73,6 +75,8 @@ public:
 	}
 
 	bool process_options(int argc, char* argv[]);
+
+    static std::vector<hpx::id_type> all_localities;
 };
 
 #endif /* OPTIONS_HPP_ */
