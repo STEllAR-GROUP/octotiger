@@ -25,6 +25,7 @@ class rad_grid;
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/vector.hpp>
+#include <hpx/traits/is_bitwise_serializable.hpp>
 
 #include <functional>
 #include <list>
@@ -107,9 +108,9 @@ struct gravity_boundary_type {
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {
 		allocate();
-		arc & *M;
-		arc & *m;
-		arc & *x;
+		arc & M;
+		arc & m;
+		arc & x;
 		arc & is_local;
 	}
 };
@@ -181,8 +182,10 @@ public:
 	std::shared_ptr<rad_grid> get_rad_grid() {
 		return rad_grid_ptr;
 	}
+	void rad_init();
 #endif
 	void change_units( real mass, real length, real time, real temp);
+	static hpx::future<void> static_change_units( real mass, real length, real time, real temp);
 	real get_dx() const;
 	std::vector<real>& get_field( integer f );
 	const std::vector<real>& get_field( integer f ) const;
@@ -199,7 +202,7 @@ public:
 	void set_root(bool flag = true);
 	void set_leaf(bool flag = true);
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
-	static void set_omega(real);
+	static void set_omega(real, bool bcast=true);
 	static real& get_omega();
 	static void set_pivot(const space_vector& p);
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
@@ -284,15 +287,20 @@ struct grid::node_point {
 	integer index;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
-		arc & pt[XDIM];
-		arc & pt[YDIM];
-		arc & pt[ZDIM];
+		arc & pt;
 		arc & index;
 	}
 	bool operator==(const grid::node_point& other) const;
 	bool operator<(const grid::node_point& other) const;
-}
-;
+};
+
+namespace hpx { namespace traits
+{
+    template <>
+    struct is_bitwise_serializable<grid::node_point>
+      : std::true_type
+    {};
+}}
 
 struct grid::output_list_type {
 	std::set<node_point> nodes;
@@ -303,9 +311,7 @@ struct grid::output_list_type {
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;
 		arc & zones;
-		for (integer i = 0; i != NF + NGF + NRF + NPF; ++i) {
-			arc & data[i];
-		}
+        arc & data;
 	}
 }
 ;
@@ -326,6 +332,7 @@ void grid::load(Archive& arc, const unsigned) {
 	arc >> U;
 #ifdef RADIATION
 	arc >> *rad_grid_ptr;
+	rad_grid_ptr->set_dx(dx);
 #endif
 	for( integer i = 0; i != INX*INX*INX; ++i ) {
 #if defined(HPX_HAVE_DATAPAR)

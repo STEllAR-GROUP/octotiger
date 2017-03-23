@@ -341,6 +341,7 @@ void node_server::initialize(real t, real rt) {
     }
 #ifdef RADIATION
 	rad_grid_ptr = grid_ptr->get_rad_grid();
+	rad_grid_ptr->set_dx(dx);
 #endif
     if (my_location.level() == 0) {
         grid_ptr->set_root();

@@ -30,7 +30,7 @@ hpx::mutex rec_size_mutex;
 integer rec_size = -1;
 
 void set_locality_data(real omega, space_vector pivot, integer record_size) {
-    grid::set_omega(omega);
+    grid::set_omega(omega,false);
     grid::set_pivot(pivot);
     rec_size = record_size;
 }
@@ -47,6 +47,11 @@ hpx::future<grid::output_list_type> node_client::load(
 grid::output_list_type node_server::load(
     integer cnt, const hpx::id_type& _me, bool do_output, std::string filename) {
     if (rec_size == -1 && my_location.level() == 0) {
+#ifdef RADIATION
+	if (opts.eos == WD) {
+		set_cgs(false);
+	}
+#endif
         real omega = 0;
         space_vector pivot;
 
@@ -79,10 +84,10 @@ grid::output_list_type node_server::load(
     std::vector<integer> counts(NCHILD);
 
     // run output on separate thread
-    hpx::threads::run_as_os_thread([&]() {
-        FILE* fp = fopen(filename.c_str(), "rb");
-        fseek(fp, cnt * rec_size, SEEK_SET);
-        std::size_t read_cnt = fread(&flag, sizeof(char), 1, fp);
+    FILE* fp = fopen(filename.c_str(), "rb");
+    fseek(fp, cnt * rec_size, SEEK_SET);
+    std::size_t read_cnt = fread(&flag, sizeof(char), 1, fp);
+    auto load_fut = hpx::threads::run_as_os_thread([&]() {
         for (auto& this_cnt : counts) {
             read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
         }
@@ -90,7 +95,7 @@ grid::output_list_type node_server::load(
         fseek(fp, 0L, SEEK_END);
         total_nodes = ftell(fp) / rec_size;
         fclose(fp);
-    }).get();
+    });
 #ifdef RADIATION
     rad_grid_ptr = grid_ptr->get_rad_grid();
 	rad_grid_ptr->sanity_check();
@@ -118,7 +123,7 @@ grid::output_list_type node_server::load(
         hpx::this_thread::sleep_for(std::chrono::seconds(10));
         abort();
     }
-
+    load_fut.get();
     grid::output_list_type my_list;
     for (auto&& fut : futs) {
 		if (fut.valid()) {

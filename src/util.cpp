@@ -22,6 +22,23 @@ using real = double;
 
 
 
+real LambertW(real z) {
+	real W;
+	if (z >= 0.0) {
+		W = z < 1.0 ? z : 1.0 + std::log(z);
+		for (int i = 0; i != 7; ++i) {
+			const real eW = std::exp(W);
+			const real WeW = W * eW;
+			const real WeWmz = WeW - z;
+			W -= WeWmz / (eW + WeW - 0.5 * ((W + 2.0) * WeWmz) / (W + 1.0));
+		}
+	} else {
+		printf("LambertW not uniquely defined for z <= 0.0\n");
+		abort();
+	}
+	return W;
+}
+
 int file_copy(const char* fin, const char* fout) {
     // run output on separate thread
     auto f = hpx::threads::run_as_os_thread([&]()

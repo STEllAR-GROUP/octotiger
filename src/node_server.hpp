@@ -15,7 +15,7 @@
 #include "geometry.hpp"
 #include "channel.hpp"
 #include "future.hpp"
-#include "struct_eos.hpp"
+//#include "struct_eos.hpp"
 #include "profiler.hpp"
 #include "rad_grid.hpp"
 
@@ -102,7 +102,6 @@ public:
 
     template<class Archive>
     void serialize(Archive& arc, unsigned) {
-        integer rf;
         arc & my_location;
         arc & step_num;
         arc & is_refined;
@@ -118,7 +117,7 @@ public:
         arc & dx;
         arc & amr_flags;
         arc & grid_ptr;
-        rf = refinement_flag;
+        integer rf = refinement_flag;
         arc & rf;
         refinement_flag = rf;
         arc & timings_;
@@ -315,7 +314,15 @@ public:
     void set_rad_grid(const std::vector<real>&/*, std::vector<real>&&*/);
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);
 
+    void erad_init();
+    HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);
+
 #endif
+
+    hpx::future<void> change_units(real m, real l, real t, real k);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, change_units, change_units_action);
+
+    void set_cgs(bool change = true);
 
 
 };
@@ -337,7 +344,7 @@ public:
 // HPX_ACTION_USES_LARGE_STACK(node_server::diagnostics_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::scf_params_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::velocity_inc_action);
-
+HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::output_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
@@ -375,6 +382,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
 #endif
 
 #endif /* NODE_SERVER_HPP_ */

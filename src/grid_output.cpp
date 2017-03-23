@@ -12,7 +12,7 @@
 #endif
 
 #include <hpx/include/lcos.hpp>
-#define EQ_ONLY
+//#define EQ_ONLY
 #define RHO_ONLY
 
 namespace hpx {
@@ -262,19 +262,19 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 
 std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
-	real Acons, Bcons;
+	real dummy;
 	auto foo = std::fread;
 	{
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&omega, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
 	}
-	if( hpx::get_locality_id() == 0 ) {
-		set_AB(Acons, Bcons);
-	}
+//	if( hpx::get_locality_id() == 0 ) {
+//		set_AB(Acons, Bcons);
+//	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 
@@ -310,16 +310,15 @@ std::size_t grid::load(FILE* fp) {
 
 std::size_t grid::save(FILE* fp) const {
 	std::size_t cnt = 0;
-	const real Acons = physcon.A;
-	const real Bcons = physcon.B;
+	const real dummy = 0.0;
 	auto foo = std::fwrite;
 	{
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&omega, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
 	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);

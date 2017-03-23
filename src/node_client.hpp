@@ -94,9 +94,11 @@ public:
 
     void report_timing() const;
 
+    hpx::future<void> change_units(real,real,real,real) const;
 
 #ifdef RADIATION
-	hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci) const;
+    hpx::future<void> erad_init() const ;
+    hpx::future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci) const;
 	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&) const;
 	hpx::future<void> set_rad_grid(std::vector<real>&&) const;
 #endif

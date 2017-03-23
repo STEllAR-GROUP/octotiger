@@ -11,6 +11,8 @@
 
 #include "options.hpp"
 
+
+
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 

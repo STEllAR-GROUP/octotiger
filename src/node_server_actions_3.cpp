@@ -246,6 +246,13 @@ void node_server::start_run(bool scf)
         this->velocity_inc(dv);
         save_to_file("scf.chk");
     }
+#ifdef RADIATION
+    if( opts.eos == WD && opts.problem == STAR) {
+    	printf( "Initialized radiation and cgs\n");
+    	set_cgs();
+    	erad_init();
+    }
+#endif
 
     printf("Starting...\n");
     solve_gravity(false);
@@ -265,6 +272,7 @@ void node_server::start_run(bool scf)
     profiler_output(stdout);
 
     real bench_start, bench_stop;
+
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
             break;
@@ -411,11 +419,11 @@ void node_server::refined_step() {
 
     // FIXME: is this correct? ('a' was never re-initialized for refined == true)
     real a = std::numeric_limits<real>::min();
-
-    dt_ = cfl0 * dx / a;
+ //   printf( "%e %e\n", dx, a);
+//    dt_ = cfl0 * dx / a;
 
     all_hydro_bounds();
-    local_timestep_channels[NCHILD].set_value(dt_);
+    local_timestep_channels[NCHILD].set_value(std::numeric_limits<real>::max());
     auto dt_fut = global_timestep_channel.get_future();
 
 #ifdef RADIATION
