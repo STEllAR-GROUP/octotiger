@@ -738,7 +738,9 @@ void grid::set_omega(real omega) {
             if(id != hpx::find_here())
                 remotes.push_back(id);
         }
-        hpx::lcos::broadcast<set_omega_action>(remotes, omega).get();
+        if (remotes.size() > 0) {
+            hpx::lcos::broadcast<set_omega_action>(remotes, omega).get();
+        }
 	}
 	grid::omega = omega;
 }
@@ -1462,6 +1464,7 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	PROF_END;
 }
 
+
 #ifdef RADIATION
 void grid::rad_init() {
 	rad_grid_ptr->set_dx(dx);
@@ -1477,7 +1480,7 @@ inline real limit_range(real a, real b, real& c) {
 }
 ;
 
-inline real limit_range_all(real am, real ap, real& bl, real& br) {
+inline void limit_range_all(real am, real ap, real& bl, real& br) {
 	real avg = (br + bl) / 2.0;
 	limit_range(am, ap, avg);
 	limit_range(am, avg, bl);
