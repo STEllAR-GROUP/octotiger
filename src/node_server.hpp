@@ -102,7 +102,6 @@ public:
 
     template<class Archive>
     void serialize(Archive& arc, unsigned) {
-        integer rf;
         arc & my_location;
         arc & step_num;
         arc & is_refined;
@@ -118,7 +117,7 @@ public:
         arc & dx;
         arc & amr_flags;
         arc & grid_ptr;
-        rf = refinement_flag;
+        integer rf = refinement_flag;
         arc & rf;
         refinement_flag = rf;
         arc & timings_;
