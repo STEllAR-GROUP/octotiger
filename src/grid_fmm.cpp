@@ -480,19 +480,19 @@ void grid::compute_interactions(gsolve_type type) {
         // Coefficients for potential evaluation? (David)
         const std::array<double, 4> di0 = {
             1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-#ifdef Vc_IS_VERSION_2 
-        const v4sd d0(di0);
-#else
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
         const v4sd d0(di0.data());
+#else
+        const v4sd d0(di0);
 #endif
 
         // negative of d0 because it's the force in the opposite direction
         const std::array<double, 4> di1 = {
             1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
-#ifdef Vc_IS_VERSION_2 
-        const v4sd d1(di1);
-#else
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1 
         const v4sd d1(di1.data());
+#else
+        const v4sd d1(di1);
 #endif
 
 #endif
@@ -1001,10 +1001,10 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
 #else
     const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-#ifdef Vc_IS_VERSION_2 
-    const v4sd d0(di0);
-#else
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1 
     const v4sd d0(di0.data());
+#else
+    const v4sd d0(di0);
 #endif
 #endif
     hpx::parallel::for_loop(
@@ -1443,16 +1443,16 @@ multipole_pass_type grid::compute_multipoles(
                                     X[d][ci] = (*(com_ptr[0]))[iiic][d];
                                 }
                             }
-#ifdef Vc_IS_VERSION_2 
-                            real mtot = Vc::reduce(mc);
-#else
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
                             real mtot = mc.sum();
+#else
+                            real mtot = Vc::reduce(mc);
 #endif
                             for (integer d = 0; d < NDIM; ++d) {
-#ifdef Vc_IS_VERSION_2 
-                                (*(com_ptr[1]))[iiip][d] = Vc::reduce(X[d] * mc) / mtot;
-#else
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1 
                                 (*(com_ptr[1]))[iiip][d] = (X[d] * mc).sum() / mtot;
+#else
+                                (*(com_ptr[1]))[iiip][d] = Vc::reduce(X[d] * mc) / mtot;
 #endif
                             }
                         }
@@ -1481,10 +1481,10 @@ multipole_pass_type grid::compute_multipoles(
                         }
                         mp = mc >> dx;
                         for (integer j = 0; j != 20; ++j) {
-#ifdef Vc_IS_VERSION_2 
-                            MM[j] = Vc::reduce(mp[j]);
-#else
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
                             MM[j] = mp[j].sum();
+#else
+                            MM[j] = Vc::reduce(mp[j]);
 #endif
                         }
                     } else {
