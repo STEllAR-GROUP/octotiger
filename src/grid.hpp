@@ -181,8 +181,10 @@ public:
 	std::shared_ptr<rad_grid> get_rad_grid() {
 		return rad_grid_ptr;
 	}
+	void rad_init();
 #endif
 	void change_units( real mass, real length, real time, real temp);
+	static hpx::future<void> static_change_units( real mass, real length, real time, real temp);
 	real get_dx() const;
 	std::vector<real>& get_field( integer f );
 	const std::vector<real>& get_field( integer f ) const;
@@ -326,6 +328,7 @@ void grid::load(Archive& arc, const unsigned) {
 	arc >> U;
 #ifdef RADIATION
 	arc >> *rad_grid_ptr;
+	rad_grid_ptr->set_dx(dx);
 #endif
 	for( integer i = 0; i != INX*INX*INX; ++i ) {
 #if defined(HPX_HAVE_DATAPAR)

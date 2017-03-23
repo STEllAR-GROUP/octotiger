@@ -11,6 +11,8 @@
 
 #include "options.hpp"
 
+
+
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
@@ -44,11 +46,7 @@ hpx::future<void> node_server::check_for_refinement() {
             }
         }
     }
-    if( is_refined ) {
-    	return hpx::when_all(futs);
-    } else {
-    	return hpx::make_ready_future();
-    }
+    return hpx::when_all(futs);
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;

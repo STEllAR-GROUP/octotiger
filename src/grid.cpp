@@ -311,6 +311,7 @@ void grid::velocity_inc(const space_vector& dv) {
 
 void grid::set_pivot(const space_vector& p) {
 	pivot = p;
+	pivot[0] = pivot[1] = pivot[2] = 0.0;
 }
 
 inline real minmod(real a, real b) {
@@ -684,13 +685,19 @@ void grid::change_units(real m, real l, real t, real k) {
 	const real tinv = 1.0 / t;
 	const real l3 = l2 * l;
 	const real l3inv = 1.0 / l3;
+	xmin[XDIM] *= l;
+	xmin[YDIM] *= l;
+	xmin[ZDIM] *= l;
+	dx *= l;
+	if( dx > 1.0e+12)
+	printf( "++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx*l);
 	for (integer i = 0; i != H_N3; ++i) {
 		U[rho_i][i] *= m * l3inv;
 		for (integer si = 0; si != NSPECIES; ++si) {
 			U[spc_i + si][i] *= m * l3inv;
 		}
 		U[egas_i][i] *= (m * l2 * t2inv) * l3inv;
-		U[tau_i][i] *= std::pow((m * l2 * t2inv), 1.0 / fgamma) * l3inv;
+		U[tau_i][i] *= std::pow(m * l2 * t2inv * l3inv, 1.0 / fgamma);
 		U[pot_i][i] *= (m * l2 * t2inv) * l3inv;
 		U[sx_i][i] *= (m * l * tinv) * l3inv;
 		U[sy_i][i] *= (m * l * tinv) * l3inv;
@@ -698,29 +705,44 @@ void grid::change_units(real m, real l, real t, real k) {
 		U[zx_i][i] *= (m * l2 * tinv) * l3inv;
 		U[zy_i][i] *= (m * l2 * tinv) * l3inv;
 		U[zz_i][i] *= (m * l2 * tinv) * l3inv;
+		X[XDIM][i] *= l;
+		X[YDIM][i] *= l;
+		X[ZDIM][i] *= l;
+//		if (std::abs(X[XDIM][i]) > 1.0e+12) {
+//			printf("!!!!!!!!!!!! %e !!!!!!!!!!!!!!!!\n", std::abs(X[XDIM][i]));
+//		}
+	}
+	for (integer i = 0; i != INX * INX * INX; ++i) {
+		G[i][phi_i] *= l2 * t2inv;
+		G[i][gx_i] *= l2 * tinv;
+		G[i][gy_i] *= l2 * tinv;
+		G[i][gz_i] *= l2 * tinv;
 	}
 #ifdef RADIATION
 	rad_grid_ptr->change_units(m, l, t, k);
 #endif
+
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action)
-HPX_REGISTER_BROADCAST_ACTION(set_omega_action)
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 
 void grid::set_omega(real omega) {
-	if (hpx::get_locality_id() == 0) {
+	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
+		printf( "!\n");
         std::vector<hpx::id_type> remotes;
         remotes.reserve(options::all_localities.size()-1);
         for (hpx::id_type const& id: options::all_localities)
         {
-            if(id != hpx::find_here());
+            if(id != hpx::find_here())
                 remotes.push_back(id);
         }
         hpx::lcos::broadcast<set_omega_action>(remotes, omega).get();
 	}
 	grid::omega = omega;
 }
+
 
 real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real cx, bool donor) const {
 	PROF_BEGIN;
@@ -1059,6 +1081,7 @@ space_vector grid::center_of_mass() const {
 			this_com[dim] /= m;
 		}
 	}PROF_END;
+	printf( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk %e %e %e\n", this_com[0], this_com[1], this_com[2] );
 	return this_com;
 }
 
@@ -1067,6 +1090,7 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
+
 }
 
 void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) const {
@@ -1331,6 +1355,7 @@ void grid::set_coordinates() {
 				X[XDIM][iii] = (real(i - H_BW) + HALF) * dx + xmin[XDIM] - pivot[XDIM];
 				X[YDIM][iii] = (real(j - H_BW) + HALF) * dx + xmin[YDIM] - pivot[YDIM];
 				X[ZDIM][iii] = (real(k - H_BW) + HALF) * dx + xmin[ZDIM] - pivot[ZDIM];
+//				printf( "mmmmmmmmmmmmmm %e %e\n", xmin[XDIM], pivot[XDIM]);
 			}
 		}
 	}PROF_END;
@@ -1362,6 +1387,7 @@ void grid::allocate() {
 	PROF_BEGIN;
 #ifdef RADIATION
 	rad_grid_ptr = std::make_shared<rad_grid>();
+	rad_grid_ptr->set_dx(dx);
 #endif
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
@@ -1423,9 +1449,7 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	}
 #ifdef RADIATION
 	if (init_func != nullptr) {
-		rad_grid_ptr->compute_mmw(U);
-		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
-
+		rad_init();
 	}
 #endif
 	if (node_server::is_gravity_on()) {
@@ -1437,6 +1461,14 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	}
 	PROF_END;
 }
+
+#ifdef RADIATION
+void grid::rad_init() {
+	rad_grid_ptr->set_dx(dx);
+	rad_grid_ptr->compute_mmw(U);
+	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+}
+#endif
 
 inline real limit_range(real a, real b, real& c) {
 	const real max = std::max(a, b);
@@ -1743,6 +1775,9 @@ void grid::reconstruct() {
 }
 
 real grid::compute_fluxes() {
+#ifdef RADIATION
+	rad_grid_ptr->set_dx(dx);
+#endif
 	PROF_BEGIN;
 	const auto& Uf = TLS_Uf();
 	real max_lambda = ZERO;
