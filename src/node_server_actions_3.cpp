@@ -246,13 +246,13 @@ void node_server::start_run(bool scf)
         this->velocity_inc(dv);
         save_to_file("scf.chk");
     }
+#ifdef RADIATION
     if( opts.eos == WD && opts.problem == STAR) {
     	printf( "Initialized radiation and cgs\n");
     	set_cgs();
-#ifdef RADIATION
     	erad_init();
-#endif
     }
+#endif
 
     printf("Starting...\n");
     solve_gravity(false);

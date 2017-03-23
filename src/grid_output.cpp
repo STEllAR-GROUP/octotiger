@@ -13,7 +13,7 @@
 
 #include <hpx/include/lcos.hpp>
 //#define EQ_ONLY
-//#define RHO_ONLY
+#define RHO_ONLY
 
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;

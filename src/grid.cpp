@@ -728,19 +728,21 @@ HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
 HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 
-void grid::set_omega(real omega) {
-	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
-		printf( "!\n");
-        std::vector<hpx::id_type> remotes;
-        remotes.reserve(options::all_localities.size()-1);
-        for (hpx::id_type const& id: options::all_localities)
-        {
-            if(id != hpx::find_here())
-                remotes.push_back(id);
-        }
-        if (remotes.size() > 0) {
-            hpx::lcos::broadcast<set_omega_action>(remotes, omega).get();
-        }
+void grid::set_omega(real omega, bool bcast) {
+	if( bcast ) {
+	   if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
+		printf( "%e !\n", omega);
+           std::vector<hpx::id_type> remotes;
+           remotes.reserve(options::all_localities.size()-1);
+           for (hpx::id_type const& id: options::all_localities) {
+               if(id != hpx::find_here()) {
+                  remotes.push_back(id);
+               }
+           }
+              if (remotes.size() > 0) {
+                 hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
+              }
+	   }
 	}
 	grid::omega = omega;
 }

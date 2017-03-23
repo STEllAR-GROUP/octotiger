@@ -504,14 +504,13 @@ void node_server::run_scf() {
 		solve_gravity(false);
 
 	}
+#ifdef RADIATION
 	if( opts.eos == WD) {
 		set_cgs();
 		all_hydro_bounds();
-#ifdef RADIATION
-		all_rad_bounds();
 		erad_init();
-#endif
 	}
+#endif
 }
 
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
