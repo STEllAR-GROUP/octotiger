@@ -57,9 +57,6 @@ static void these_units(real& m, real& l, real& t, real& k) {
 	k = k2 / k1;
 }
 
-;
-
-__attribute__((constructor))
 void normalize_constants() {
 	real m, l, t, k;
 //	physcon.A = 6.00228e+22;
@@ -84,14 +81,23 @@ void normalize_constants() {
 ///			physcon.sigma, physcon.h);
 }
 
-static hpx::future<void> set_physcon(const physcon_t& p);
+struct call_normalize_constants
+{
+    call_normalize_constants()
+    {
+        normalize_constants();
+    }
+};
+call_normalize_constants init;
+
+hpx::future<void> set_physcon(const physcon_t& p);
 
 HPX_PLAIN_ACTION(set_physcon, set_physcon_action);
 
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_physcon_action);
 HPX_REGISTER_BROADCAST_ACTION (set_physcon_action);
 
-static hpx::future<void> set_physcon(const physcon_t& p) {
+hpx::future<void> set_physcon(const physcon_t& p) {
 	hpx::future<void> f;
 	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
 		std::vector<hpx::id_type> remotes;
@@ -266,7 +272,7 @@ real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s) {
 }
 
 
-real rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde) {
+void rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde) {
 	constexpr  const real gm1 = 2.0 / 3.0;
 	constexpr real pi_inv = 1.0 / M_PI;
 	constexpr real coeff = 30.262 * 4.0e+25;

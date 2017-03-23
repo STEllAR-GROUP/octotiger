@@ -54,7 +54,7 @@ real B_p(real rho, real e, real mmw);
 real dB_p_de(real rho, real e, real mmw);
 real find_T_rad_gas(real p, real rho, real mu);
 
-real rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde);
+void rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde);
 
 
 #endif /* SRC_PHYSCON_HPP_ */
