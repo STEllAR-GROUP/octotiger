@@ -1497,9 +1497,9 @@ inline void limit_slope(real& ql, real q0, real& qr) {
 //    if (qr < q0 || q0 < ql) {
 	if (bool(qr < q0) != bool(q0 < ql)) {
 		qr = ql = q0;
-	} else if (tmp1 * (q0 - 0.5 * tmp2) > sqr(tmp1) / 6.0) {
+	} else if (tmp1 * (q0 - 0.5 * tmp2) > sqr(tmp1) * SIXTH) {
 		ql = 3.0 * q0 - 2.0 * qr;
-	} else if (-(sqr(tmp1) / 6.0) > tmp1 * (q0 - 0.5 * tmp2)) {
+	} else if (-(sqr(tmp1) * SIXTH) > tmp1 * (q0 - 0.5 * tmp2)) {
 		qr = 3.0 * q0 - 2.0 * ql;
 	}
 }
@@ -1530,7 +1530,7 @@ void grid::reconstruct() {
 		std::vector<real> const& Vfield = V[field];
 #pragma GCC ivdep
 		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-			if (field == 1) {
+			// if (field == 1) {
 				//	printf("%i %i %i\n", int(iii / (H_NX * H_NX)), int((iii / H_NX) % H_NX), int(iii % H_NX));
 				//	printf("%e %e %e\n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
 				//	printf("%e %e %e\n", V[field][iii + H_DNX], V[field][iii], V[field][iii - H_DNX]);
@@ -1539,7 +1539,7 @@ void grid::reconstruct() {
 				//	printf("%e %e %e\n", V[rho_i][iii + H_DNX], V[rho_i][iii], V[rho_i][iii - H_DNX]);
 				// printf("%e %e %e\n", V[rho_i][iii + H_DNY], V[rho_i][iii], V[rho_i][iii - H_DNY]);
 				//	printf("%e %e %e\n", V[rho_i][iii + H_DNZ], V[rho_i][iii], V[rho_i][iii - H_DNZ]);
-			}
+			// }
 			slpx[field][iii] = minmod_theta(Vfield[iii + H_DNX] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNX], theta_x);
 			slpy[field][iii] = minmod_theta(Vfield[iii + H_DNY] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNY], theta_y);
 			slpz[field][iii] = minmod_theta(Vfield[iii + H_DNZ] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNZ], theta_z);
@@ -1548,18 +1548,17 @@ void grid::reconstruct() {
 
 	if (opts.ang_con) {
 //#pragma GCC ivdep
-		auto average = [](real& s1, real& s2) {s1 = s2 = 0.5 * (s1 + s2);};
-		auto step1 = [&](real& lhs, real const& rhs) {lhs += 6.0 * rhs / dx;};
-		auto step2 = [&](real& lhs, real const& rhs) {lhs -= 6.0 * rhs / dx;};
+		auto step1 = [&](real& lhs, real const& rhs) { lhs += 6.0 * rhs / dx; };
+		auto step2 = [&](real& lhs, real const& rhs) { lhs -= 6.0 * rhs / dx; };
 		auto minmod_step = [](real& lhs, real const& r1, real const& r2, real const& r3)
 		{
 			lhs = minmod(lhs, 2.0 * minmod(r1 - r2, r2 - r3));
 		};
 
 		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-			average(slpx[sy_i][iii], slpy[sx_i][iii]);
-			average(slpx[sz_i][iii], slpz[sx_i][iii]);
-			average(slpy[sz_i][iii], slpz[sy_i][iii]);
+			inplace_average(slpx[sy_i][iii], slpy[sx_i][iii]);
+			inplace_average(slpx[sz_i][iii], slpz[sx_i][iii]);
+			inplace_average(slpy[sz_i][iii], slpz[sy_i][iii]);
 
 			step1(slpx[sy_i][iii], V[zz_i][iii]);
 			step1(slpy[sz_i][iii], V[zx_i][iii]);
@@ -1617,23 +1616,22 @@ void grid::reconstruct() {
 		if (!(field == sy_i || field == sz_i)) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != H_N3 - H_NX * H_NX; ++iii) {
-				const real& u0 = Vfield[iii];
-				UfFXPfield[iii] = UfFXMfield[iii + H_DNX] = (Vfield[iii + H_DNX] + u0) * HALF;
+				UfFXPfield[iii] = UfFXMfield[iii + H_DNX] = average(Vfield[iii + H_DNX], Vfield[iii]);
 			}
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-				const real& u0 = Vfield[iii];
 				const real& sx = slpxfield[iii];
 				UfFXPfield[iii] += (-(slpxfield[iii + H_DNX] - sx) / 3.0) * HALF;
 				UfFXMfield[iii] += ((slpxfield[iii - H_DNX] - sx) / 3.0) * HALF;
-				limit_slope(UfFXMfield[iii], u0, UfFXPfield[iii]);
+				limit_slope(UfFXMfield[iii], Vfield[iii], UfFXPfield[iii]);
 			}
 		} else {
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 				const real& u0 = Vfield[iii];
-				UfFXPfield[iii] = u0 + 0.5 * slpxfield[iii];
-				UfFXMfield[iii] = u0 - 0.5 * slpxfield[iii];
+                const real slpxfield_half = slpxfield[iii] * HALF;
+				UfFXPfield[iii] = u0 + slpxfield_half;
+				UfFXMfield[iii] = u0 - slpxfield_half;
 			}
 		}
 
@@ -1644,23 +1642,22 @@ void grid::reconstruct() {
 		if (!(field == sx_i || field == sz_i)) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != H_N3 - H_NX * H_NX; ++iii) {
-				const real& u0 = Vfield[iii];
-				UfFYPfield[iii] = UfFYMfield[iii + H_DNY] = (Vfield[iii + H_DNY] + u0) * HALF;
+				UfFYPfield[iii] = UfFYMfield[iii + H_DNY] = average(Vfield[iii + H_DNY], Vfield[iii]);
 			}
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-				const real& u0 = Vfield[iii];
 				const real& sy = slpyfield[iii];
 				UfFYPfield[iii] += (-(slpyfield[iii + H_DNY] - sy) / 3.0) * HALF;
 				UfFYMfield[iii] += ((slpyfield[iii - H_DNY] - sy) / 3.0) * HALF;
-				limit_slope(UfFYMfield[iii], u0, UfFYPfield[iii]);
+				limit_slope(UfFYMfield[iii], Vfield[iii], UfFYPfield[iii]);
 			}
 		} else {
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 				const real& u0 = Vfield[iii];
-				UfFYPfield[iii] = u0 + 0.5 * slpyfield[iii];
-				UfFYMfield[iii] = u0 - 0.5 * slpyfield[iii];
+                const real slpyfield_half = slpyfield[iii] * HALF;
+				UfFYPfield[iii] = u0 + slpyfield_half;
+				UfFYMfield[iii] = u0 - slpyfield_half;
 			}
 		}
 
@@ -1671,23 +1668,22 @@ void grid::reconstruct() {
 		if (!(field == sx_i || field == sy_i)) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != H_N3 - H_NX * H_NX; ++iii) {
-				const real& u0 = Vfield[iii];
-				UfFZPfield[iii] = UfFZMfield[iii + H_DNZ] = (Vfield[iii + H_DNZ] + u0) * HALF;
+				UfFZPfield[iii] = UfFZMfield[iii + H_DNZ] = average(Vfield[iii + H_DNZ], Vfield[iii]);
 			}
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-				const real& u0 = Vfield[iii];
 				const real& sz = slpzfield[iii];
 				UfFZPfield[iii] += (-(slpzfield[iii + H_DNZ] - sz) / 3.0) * HALF;
 				UfFZMfield[iii] += ((slpzfield[iii - H_DNZ] - sz) / 3.0) * HALF;
-				limit_slope(UfFZMfield[iii], u0, UfFZPfield[iii]);
+				limit_slope(UfFZMfield[iii], Vfield[iii], UfFZPfield[iii]);
 			}
 		} else {
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 				const real& u0 = Vfield[iii];
-				UfFZPfield[iii] = u0 + 0.5 * slpzfield[iii];
-				UfFZMfield[iii] = u0 - 0.5 * slpzfield[iii];
+                const real slpzfield_half = slpzfield[iii] * HALF;
+				UfFZPfield[iii] = u0 + slpzfield_half;
+				UfFZMfield[iii] = u0 - slpzfield_half;
 			}
 		}
 	}
