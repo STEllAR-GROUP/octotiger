@@ -709,7 +709,6 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action)
 HPX_REGISTER_BROADCAST_ACTION(set_omega_action)
 
 void grid::set_omega(real omega) {
-    std::cout << "set omega" << std::endl;
 	if (hpx::get_locality_id() == 0) {
         std::vector<hpx::id_type> remotes;
         remotes.reserve(options::all_localities.size()-1);
