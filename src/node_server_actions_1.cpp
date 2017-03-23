@@ -326,17 +326,17 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
 typedef node_server::regrid_action regrid_action_type;
 HPX_REGISTER_ACTION(regrid_action_type);
 
-hpx::future<void> node_client::regrid(const hpx::id_type& g, bool rb) const {
-    return hpx::async<typename node_server::regrid_action>(get_unmanaged_gid(), g, rb);
+hpx::future<void> node_client::regrid(const hpx::id_type& g, real omega, bool rb) const {
+    return hpx::async<typename node_server::regrid_action>(get_unmanaged_gid(), g, omega, rb);
 }
 
-int node_server::regrid(const hpx::id_type& root_gid, bool rb) {
+int node_server::regrid(const hpx::id_type& root_gid, real omega, bool rb) {
     timings::scope ts(timings_, timings::time_regrid);
     assert(grid_ptr != nullptr);
     printf("-----------------------------------------------\n");
     if (!rb) {
         printf("checking for refinement\n");
-        check_for_refinement().get();
+        check_for_refinement(omega).get();
     }
     printf("regridding\n");
     integer a = regrid_gather(rb);

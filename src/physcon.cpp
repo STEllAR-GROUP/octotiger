@@ -40,7 +40,7 @@ void set_AB(real a, real b) {
 }
 
 real mean_ion_weight(const std::array<real,NSPECIES> species) {
-	real N;
+//	real N;
 	real mtot = 0.0;
 	real ntot = 0.0;
 	for (integer i = 0; i != NSPECIES; ++i) {

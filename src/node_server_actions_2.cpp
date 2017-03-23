@@ -14,20 +14,22 @@
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
-hpx::future<void> node_client::check_for_refinement() const {
-    return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid());
+hpx::future<void> node_client::check_for_refinement(real omega) const {
+    return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid(), omega);
 }
 
-hpx::future<void> node_server::check_for_refinement() {
+hpx::future<void> node_server::check_for_refinement(real omega) {
+    grid::omega = omega;
+
     bool rc = false;
     std::array<hpx::future<void>, NCHILD+1> futs;
-    for( integer i = 0; i != NCHILD + 1; ++i) {
-    	futs[i] = hpx::make_ready_future();
-    }
+//     for( integer i = 0; i != NCHILD + 1; ++i) {
+//         futs[i] = hpx::make_ready_future();
+//     }
     integer index = 0;
     if (is_refined) {
         for (auto& child : children) {
-            futs[index++] = child.check_for_refinement();
+            futs[index++] = child.check_for_refinement(omega);
         }
     }
     if (hydro_on) {
@@ -45,9 +47,9 @@ hpx::future<void> node_server::check_for_refinement() {
         }
     }
     if( is_refined ) {
-    	return hpx::when_all(futs);
+        return hpx::when_all(futs);
     } else {
-    	return hpx::make_ready_future();
+        return hpx::make_ready_future();
     }
 }
 
@@ -237,24 +239,27 @@ diagnostics_t node_server::diagnostics() const {
             fclose(fp);
         }).get();
     } else {
-        printf("L1\n");
-        printf("Gravity Phi Error - %e\n", (diags.l1_error[0] / diags.l1_error[4]));
-        printf("Gravity gx Error - %e\n", (diags.l1_error[1] / diags.l1_error[5]));
-        printf("Gravity gy Error - %e\n", (diags.l1_error[2] / diags.l1_error[6]));
-        printf("Gravity gz Error - %e\n", (diags.l1_error[3] / diags.l1_error[7]));
-        printf("L2\n");
-        printf("Gravity Phi Error - %e\n",
-            std::sqrt(diags.l2_error[0] / diags.l2_error[4]));
-        printf("Gravity gx Error - %e\n",
-            std::sqrt(diags.l2_error[1] / diags.l2_error[5]));
-        printf("Gravity gy Error - %e\n",
-            std::sqrt(diags.l2_error[2] / diags.l2_error[6]));
-        printf("Gravity gz Error - %e\n",
-            std::sqrt(diags.l2_error[3] / diags.l2_error[7]));
-        printf("Total Mass = %e\n", diags.grid_sum[rho_i]);
-        for (integer d = 0; d != NDIM; ++d) {
-            printf("%e %e\n", diags.gforce_sum[d], diags.gtorque_sum[d]);
-        }
+        hpx::threads::run_as_os_thread([&]()
+        {
+            printf("L1\n");
+            printf("Gravity Phi Error - %e\n", (diags.l1_error[0] / diags.l1_error[4]));
+            printf("Gravity gx Error - %e\n", (diags.l1_error[1] / diags.l1_error[5]));
+            printf("Gravity gy Error - %e\n", (diags.l1_error[2] / diags.l1_error[6]));
+            printf("Gravity gz Error - %e\n", (diags.l1_error[3] / diags.l1_error[7]));
+            printf("L2\n");
+            printf("Gravity Phi Error - %e\n",
+                std::sqrt(diags.l2_error[0] / diags.l2_error[4]));
+            printf("Gravity gx Error - %e\n",
+                std::sqrt(diags.l2_error[1] / diags.l2_error[5]));
+            printf("Gravity gy Error - %e\n",
+                std::sqrt(diags.l2_error[2] / diags.l2_error[6]));
+            printf("Gravity gz Error - %e\n",
+                std::sqrt(diags.l2_error[3] / diags.l2_error[7]));
+            printf("Total Mass = %e\n", diags.grid_sum[rho_i]);
+            for (integer d = 0; d != NDIM; ++d) {
+                printf("%e %e\n", diags.gforce_sum[d], diags.gtorque_sum[d]);
+            }
+        }).get();
     }
 
     return diags;
@@ -282,7 +287,7 @@ diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vecto
         sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1);
         sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis,
             l1, 0);
-	sums.virial = grid_ptr->virial();
+        sums.virial = grid_ptr->virial();
         sums.outflow_sum = grid_ptr->conserved_outflows();
         sums.l_sum = grid_ptr->l_sums();
         auto tmp = grid_ptr->field_range();

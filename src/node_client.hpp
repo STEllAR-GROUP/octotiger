@@ -80,7 +80,7 @@ public:
 	void send_gravity_expansions(expansion_pass_type&&) const;
 	hpx::future<void> step(integer) const;
 	hpx::future<void> start_run(bool) const;
-	hpx::future<void> regrid(const hpx::id_type&, bool rb) const;
+	hpx::future<void> regrid(const hpx::id_type&, real omega, bool rb) const;
 	hpx::future<void> solve_gravity(bool ene) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
@@ -89,7 +89,7 @@ public:
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
 	integer save(integer,std::string) const;
-	hpx::future<void> check_for_refinement() const;
+	hpx::future<void> check_for_refinement(real omega) const;
 	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
 
     void report_timing() const;

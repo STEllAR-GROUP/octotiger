@@ -143,15 +143,15 @@ int hpx_main(int argc, char* argv[]) {
 					root_client.get_ptr().get()->load_from_file_and_output(fname, oname);
 				} else {
 					root_client.get_ptr().get()->load_from_file(fname);
-					root_client.regrid(root_client.get_gid(), true).get();
+					root_client.regrid(root_client.get_gid(), ZERO, true).get();
 				}
 				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {
-					root_client.regrid(root_client.get_gid(), false).get();
+					root_client.regrid(root_client.get_gid(), grid::get_omega(), false).get();
 					printf("---------------Created Level %i---------------\n\n", int(l + 1));
 				}
-				root_client.regrid(root_client.get_gid(), false).get();
+				root_client.regrid(root_client.get_gid(), grid::get_omega(), false).get();
 				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
 
