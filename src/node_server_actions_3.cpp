@@ -289,16 +289,16 @@ void node_server::start_run(bool scf)
             bench_start = hpx::util::high_resolution_clock::now() / 1e9;
         }
 
-        //	break;
         real dt = 0;
 
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
-        dt = step(next_step - step_num).get();
-
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
-        omega = grid::get_omega();
+
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
-            auto diags = diagnostics();
+            auto result = root_step_with_diagnostics(next_step - step_num).get();
+            auto diags = result.second;
+            dt = result.first;
+            omega = grid::get_omega();
 
             const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
             const real dy = diags.secondary_com[YDIM] - diags.primary_com[YDIM];
@@ -316,6 +316,11 @@ void node_server::start_run(bool scf)
 //            omega_dot += theta_dot_dot*dt;
             grid::set_omega(omega);
         }
+        else {
+            dt = step(next_step - step_num).get();
+            omega = grid::get_omega();
+        }
+
         double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
             std::chrono::high_resolution_clock::now() - time_start).count();
 
@@ -395,7 +400,7 @@ void node_server::start_run(bool scf)
 typedef node_server::step_action step_action_type;
 HPX_REGISTER_ACTION(step_action_type);
 
-hpx::future<void> node_client::step(integer steps) const {
+hpx::future<real> node_client::step(integer steps) const {
     return hpx::async<typename node_server::step_action>(get_unmanaged_gid(), steps);
 }
 
@@ -477,8 +482,8 @@ hpx::future<void> node_server::nonrefined_step() {
                         dt_ = cfl0 * dx / a;
                         local_timestep_channels[NCHILD].set_value(dt_);
                         dt_ = dt_fut.get();
-                    	compute_radiation(dt_/2.0);
-                    	all_hydro_bounds();
+                        compute_radiation(dt_/2.0);
+                        all_hydro_bounds();
                         grid_ptr->reconstruct();
                         grid_ptr->compute_fluxes();
                     }
@@ -552,16 +557,7 @@ void node_server::update()
     }
 }
 
-hpx::future<real> node_server::step(integer steps) {
-	grid_ptr->set_coordinates();
-
-    std::array<hpx::future<void>, NCHILD> child_futs;
-    if (is_refined)
-    {
-        for (integer ci = 0; ci != NCHILD; ++ci) {
-            child_futs[ci] = children[ci].step(steps);
-        }
-    }
+hpx::future<real> node_server::local_step(integer steps) {
 
     hpx::future<real> dt_fut = hpx::make_ready_future(0.0);
     for (integer i = 0; i != steps; ++i)
@@ -601,6 +597,21 @@ hpx::future<real> node_server::step(integer steps) {
                 return next_dt;
             });
     }
+    return dt_fut;
+}
+
+hpx::future<real> node_server::step(integer steps) {
+    grid_ptr->set_coordinates();
+
+    std::array<hpx::future<void>, NCHILD> child_futs;
+    if (is_refined)
+    {
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            child_futs[ci] = children[ci].step(steps);
+        }
+    }
+
+    hpx::future<real> dt_fut = local_step(steps);
 
     if (is_refined)
     {
@@ -612,12 +623,83 @@ hpx::future<real> node_server::step(integer steps) {
             },
             std::move(dt_fut),
             hpx::when_all(std::move(child_futs))
-            );
+        );
     }
-    else
+
+    return dt_fut;
+}
+
+typedef node_server::step_with_diagnostics_action step_with_diagnostics_action_type;
+HPX_REGISTER_ACTION(step_with_diagnostics_action_type);
+
+hpx::future<std::pair<real, diagnostics_t> > node_client::step_with_diagnostics(integer steps,
+    const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const
+{
+    return hpx::async<step_with_diagnostics_action_type>(get_unmanaged_gid(), steps, axis, l1, c1, c2);
+}
+
+hpx::future<std::pair<real, diagnostics_t> > node_server::step_with_diagnostics(integer steps,
+    const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2)
+{
+    if (is_refined)
     {
-        return dt_fut;
+        std::array<hpx::future<std::pair<real, diagnostics_t> >, NCHILD> child_futs;
+        for (integer ci = 0; ci != NCHILD; ++ci) {
+            child_futs[ci] = children[ci].step_with_diagnostics(steps, axis, l1, c1, c2);
+        }
+
+        hpx::future<real> dt_fut = local_step(steps);
+
+        return hpx::dataflow(hpx::launch::sync,
+            [](hpx::future<real> dt_fut,
+                std::array<hpx::future<std::pair<real, diagnostics_t> >, NCHILD> && d)
+            -> std::pair<real, diagnostics_t>
+            {
+                diagnostics_t diags;
+                for (auto& f : d)
+                {
+                    diags += f.get().second;
+                }
+                return std::make_pair(dt_fut.get(), std::move(diags));
+            },
+            std::move(dt_fut), std::move(child_futs)
+        );
     }
+
+    diagnostics_t diags = local_diagnostics(axis, l1, c1, c2);
+    hpx::future<real> dt_fut = local_step(steps);
+    return hpx::dataflow(hpx::launch::sync,
+            [](hpx::future<real> dt_fut, diagnostics_t && diags)
+            ->  std::pair<real, diagnostics_t>
+            {
+                return std::make_pair(dt_fut.get(), std::move(diags));
+            },
+            std::move(dt_fut), std::move(diags)
+        );
+}
+
+hpx::future<std::pair<real, diagnostics_t> > node_server::root_step_with_diagnostics(integer steps)
+{
+    auto axis = grid_ptr->find_axis();
+    auto loc = line_of_centers(axis);
+    real this_omega = grid::get_omega();
+    std::pair<real, real> rho1, rho2, l1, l2, l3;
+    real phi_1, phi_2;
+    line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, l2, l3, phi_1, phi_2);
+
+    hpx::future<std::pair<real, diagnostics_t> > fut =
+        step_with_diagnostics(steps, axis, l1, rho1.first, rho2.first);
+
+    return fut.then(hpx::launch::sync,
+        [=](hpx::future<std::pair<real, diagnostics_t> > f)
+        ->  std::pair<real, diagnostics_t>
+        {
+            auto result = f.get();
+            return std::make_pair(
+                result.first,
+                root_diagnostics(std::move(result.second), rho1, rho2, phi_1, phi_2)
+            );
+        });
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;

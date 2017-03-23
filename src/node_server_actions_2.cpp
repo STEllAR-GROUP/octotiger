@@ -135,7 +135,11 @@ diagnostics_t node_server::diagnostics() const {
     //		line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, phi_1, phi_2);
     //	}
 //	}
-    auto diags = diagnostics(axis, l1, rho1.first, rho2.first);
+    return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first), rho1, rho2, phi_1, phi_2);
+}
+
+diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,
+    std::pair<real, real> rho1, std::pair<real, real> rho2,real phi_1, real phi_2) const {
 
     diags.z_moment -= diags.grid_sum[rho_i]
         * (std::pow(diags.grid_com[XDIM], 2) + std::pow(diags.grid_com[YDIM], 2));
@@ -200,7 +204,7 @@ diagnostics_t node_server::diagnostics() const {
             fprintf(fp, "%15.8e ", double(current_time));
             fprintf(fp, "%15.8e ", double(m1));
             fprintf(fp, "%15.8e ", double(m2));
-            fprintf(fp, "%15.8e ", double(this_omega));
+            fprintf(fp, "%15.8e ", double(grid::get_omega()));
             fprintf(fp, "%15.8e ", double(a));
             fprintf(fp, "%15.8e ", double(rho1.second));
             fprintf(fp, "%15.8e ", double(rho2.second));
@@ -260,46 +264,61 @@ diagnostics_t node_server::diagnostics() const {
     return diags;
 }
 
-diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vector>& axis,
+diagnostics_t node_server::diagnostics(
+    const std::pair<space_vector, space_vector>& axis,
+    const std::pair<real, real>& l1, real c1, real c2) const {
+
+    if (is_refined) {
+        return child_diagnostics(axis, l1, c1, c2);
+    }
+    return local_diagnostics(axis, l1, c1, c2);
+}
+
+diagnostics_t node_server::child_diagnostics(
+    const std::pair<space_vector, space_vector>& axis,
     const std::pair<real, real>& l1, real c1, real c2) const {
 
     diagnostics_t sums;
-    if (is_refined) {
-        std::array<hpx::future<diagnostics_t>, NCHILD> futs;
-        integer index = 0;
-        for (integer ci = 0; ci != NCHILD; ++ci) {
-            futs[index++] = children[ci].diagnostics(axis, l1, c1, c2);
-        }
-        auto child_sums = hpx::util::unwrapped(futs);
-        sums = std::accumulate(child_sums.begin(), child_sums.end(), sums);
-    } else {
-
-        sums.primary_sum = grid_ptr->conserved_sums(sums.primary_com,
-            sums.primary_com_dot, axis, l1, +1);
-        sums.secondary_sum = grid_ptr->conserved_sums(sums.secondary_com,
-            sums.secondary_com_dot, axis, l1, -1);
-        sums.primary_z_moment = grid_ptr->z_moments(axis, l1, +1);
-        sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1);
-        sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis,
-            l1, 0);
-	sums.virial = grid_ptr->virial();
-        sums.outflow_sum = grid_ptr->conserved_outflows();
-        sums.l_sum = grid_ptr->l_sums();
-        auto tmp = grid_ptr->field_range();
-        sums.field_min = std::move(tmp.first);
-        sums.field_max = std::move(tmp.second);
-        sums.gforce_sum = grid_ptr->gforce_sum(false);
-        sums.gtorque_sum = grid_ptr->gforce_sum(true);
-        auto tmp2 = grid_ptr->diagnostic_error();
-        sums.l1_error = tmp2.first;
-        sums.l2_error = tmp2.second;
-        auto vols = grid_ptr->frac_volumes();
-        sums.roche_vol1 = grid_ptr->roche_volume(axis, l1, std::min(c1, c2), false);
-        sums.roche_vol2 = grid_ptr->roche_volume(axis, l1, std::max(c1, c2), true);
-        sums.primary_volume = vols[spc_ac_i - spc_i] + vols[spc_ae_i - spc_i];
-        sums.secondary_volume = vols[spc_dc_i - spc_i] + vols[spc_de_i - spc_i];
-        sums.z_moment = grid_ptr->z_moments(axis, l1, 0);
+    std::array<hpx::future<diagnostics_t>, NCHILD> futs;
+    integer index = 0;
+    for (integer ci = 0; ci != NCHILD; ++ci) {
+        futs[index++] = children[ci].diagnostics(axis, l1, c1, c2);
     }
+    auto child_sums = hpx::util::unwrapped(futs);
+    return std::accumulate(child_sums.begin(), child_sums.end(), sums);
+}
+
+diagnostics_t node_server::local_diagnostics(
+    const std::pair<space_vector, space_vector>& axis,
+    const std::pair<real, real>& l1, real c1, real c2) const {
+
+    diagnostics_t sums;
+
+    sums.primary_sum = grid_ptr->conserved_sums(sums.primary_com,
+        sums.primary_com_dot, axis, l1, +1);
+    sums.secondary_sum = grid_ptr->conserved_sums(sums.secondary_com,
+        sums.secondary_com_dot, axis, l1, -1);
+    sums.primary_z_moment = grid_ptr->z_moments(axis, l1, +1);
+    sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1);
+    sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis,
+        l1, 0);
+    sums.virial = grid_ptr->virial();
+    sums.outflow_sum = grid_ptr->conserved_outflows();
+    sums.l_sum = grid_ptr->l_sums();
+    auto tmp = grid_ptr->field_range();
+    sums.field_min = std::move(tmp.first);
+    sums.field_max = std::move(tmp.second);
+    sums.gforce_sum = grid_ptr->gforce_sum(false);
+    sums.gtorque_sum = grid_ptr->gforce_sum(true);
+    auto tmp2 = grid_ptr->diagnostic_error();
+    sums.l1_error = tmp2.first;
+    sums.l2_error = tmp2.second;
+    auto vols = grid_ptr->frac_volumes();
+    sums.roche_vol1 = grid_ptr->roche_volume(axis, l1, std::min(c1, c2), false);
+    sums.roche_vol2 = grid_ptr->roche_volume(axis, l1, std::max(c1, c2), true);
+    sums.primary_volume = vols[spc_ac_i - spc_i] + vols[spc_ae_i - spc_i];
+    sums.secondary_volume = vols[spc_dc_i - spc_i] + vols[spc_de_i - spc_i];
+    sums.z_moment = grid_ptr->z_moments(axis, l1, 0);
 
     return sums;
 }
