@@ -264,17 +264,16 @@ std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
 	real dummy;
 	auto foo = std::fread;
+	real Acon, Bcon;
 	{
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&omega, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
+		cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
 	}
-//	if( hpx::get_locality_id() == 0 ) {
-//		set_AB(Acons, Bcons);
-//	}
+
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 
@@ -317,8 +316,8 @@ std::size_t grid::save(FILE* fp) const {
 		std::lock_guard<hpx::mutex> lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&omega, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
+		cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
 	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
