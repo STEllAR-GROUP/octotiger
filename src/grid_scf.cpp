@@ -25,8 +25,8 @@ namespace scf_options {
 static constexpr real async1 = -0.0e-2;
 static constexpr real async2 = -0.0e-2;
 static constexpr bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
-static constexpr real M1 = 1.0;// Mass of primary
-static constexpr real M2 = 0.2;// Mass of secondaries
+static constexpr real M1 = 0.6;// Mass of primary
+static constexpr real M2 = 0.3;// Mass of secondaries
 static constexpr real nc1 = 2.5;// Primary core polytropic index
 static constexpr real nc2 = 1.5;// Secondary core polytropic index
 static constexpr real ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_struct_eos=true
@@ -39,10 +39,7 @@ static constexpr real core_frac2 = 0.9;// Desired core fraction of secondary - I
 static constexpr real fill1 = 1.0;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
 static constexpr real fill2 = 1.0;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
 static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
-// Contact fill factor
 }
-;
-
 //0.5=.313
 //0.6 .305
 
