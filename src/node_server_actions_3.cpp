@@ -256,6 +256,7 @@ void node_server::start_run(bool scf)
 
     printf("Starting...\n");
     solve_gravity(false);
+  //  int ngrids = 0;
     int ngrids = regrid(me.get_gid(), false);
 
     real output_dt = opts.output_dt;

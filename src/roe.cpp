@@ -151,11 +151,12 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 				F[field][iii + j] = f[field][j];
 			}
 		}
-#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
+#if (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1) || !defined(HPX_WITH_DATAPAR_VC)
         max_lambda = std::max(max_lambda, a.max());
 #else
 		max_lambda = std::max(max_lambda, Vc::reduce(a, [](auto x, auto y) { return Vc::max(x, y); }));
 #endif
+
 	}
 
 	return max_lambda;

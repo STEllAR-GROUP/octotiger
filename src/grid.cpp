@@ -731,7 +731,7 @@ HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 void grid::set_omega(real omega, bool bcast) {
 	if( bcast ) {
 	   if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
-		printf( "%e !\n", omega);
+		//printf( "%e !\n", omega);
            std::vector<hpx::id_type> remotes;
            remotes.reserve(options::all_localities.size()-1);
            for (hpx::id_type const& id: options::all_localities) {

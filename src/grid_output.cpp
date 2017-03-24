@@ -263,13 +263,14 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
 	real dummy;
+	integer dummy_int;
 	auto foo = std::fread;
 	real Acon, Bcon;
 	{
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
 		cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
 		cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
 	}
