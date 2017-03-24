@@ -312,7 +312,7 @@ void grid::velocity_inc(const space_vector& dv) {
 
 void grid::set_pivot(const space_vector& p) {
 	pivot = p;
-	pivot[0] = pivot[1] = pivot[2] = 0.0;
+//	pivot[0] = pivot[1] = pivot[2] = 0.0;
 }
 
 inline real minmod(real a, real b) {
