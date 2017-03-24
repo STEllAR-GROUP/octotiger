@@ -1271,9 +1271,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii] + dV[sx_i + d1][iii] * V[rho_i][iii];
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
 							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
-							//			if( opts.ang_con ) {
-							dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];
-							//			}
+							dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii] + dV[zx_i + d1][iii] * V[rho_i][iii];
 						}
 						if (opts.eos == WD) {
 							V[egas_i][iii] += ztwd_enthalpy(V[rho_i][iii]) * dV[rho_i][iii];
