@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <fstream>
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
@@ -87,15 +88,19 @@ grid::output_list_type node_server::load(
     FILE* fp = fopen(filename.c_str(), "rb");
     fseek(fp, cnt * rec_size, SEEK_SET);
     std::size_t read_cnt = fread(&flag, sizeof(char), 1, fp);
-    auto load_fut = hpx::threads::run_as_os_thread([&]() {
+    hpx::threads::run_as_os_thread([&]() {
         for (auto& this_cnt : counts) {
             read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
         }
         load_me(fp);
-        fseek(fp, 0L, SEEK_END);
-        total_nodes = ftell(fp) / rec_size;
         fclose(fp);
-    });
+
+        // work around limitation of ftell returning 32bit offset
+        std::ifstream in(filename.c_str(), std::ifstream::ate | std::ifstream::binary);
+        std::size_t end_pos = in.tellg();
+
+        total_nodes = end_pos / rec_size;
+    }).get();
 #ifdef RADIATION
     rad_grid_ptr = grid_ptr->get_rad_grid();
 	rad_grid_ptr->sanity_check();
@@ -123,7 +128,7 @@ grid::output_list_type node_server::load(
         hpx::this_thread::sleep_for(std::chrono::seconds(10));
         abort();
     }
-    load_fut.get();
+
     grid::output_list_type my_list;
     for (auto&& fut : futs) {
 		if (fut.valid()) {
