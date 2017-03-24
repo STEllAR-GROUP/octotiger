@@ -139,6 +139,7 @@ private:
 	static analytic_func_type analytic;
 	static real fgamma;
 	static integer max_level;
+    static hpx::lcos::local::spinlock omega_mtx;
 	static real omega;
 	static space_vector pivot;
 	static real scaling_factor;
@@ -202,7 +203,7 @@ public:
 	void set_root(bool flag = true);
 	void set_leaf(bool flag = true);
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
-	static void set_omega(real, bool bcast=true);
+	void set_omega(real, bool bcast=true);
 	static real& get_omega();
 	static void set_pivot(const space_vector& p);
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
