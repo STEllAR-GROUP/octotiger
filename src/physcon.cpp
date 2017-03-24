@@ -22,11 +22,11 @@ void normalize_constants();
 real find_T_rad_gas(real p, real rho, real mu) {
 	const real cg = physcon.kb / (mu * physcon.mh);
 	const real cr = (4.0 * physcon.sigma) / (3.0 * physcon.c);
-	real T = std::min(p / (cg * rho), std::pow(p / cr, 0.25));
+	real T = min(p / (cg * rho), pow(p / cr, 0.25));
 	real dfdT, f;
 	for (int i = 0; i != 6; ++i) {
-		f = cg * rho * T + cr * std::pow(T, 4) - p;
-		dfdT = cg * rho + 4.0 * cr * std::pow(T, 3);
+		f = cg * rho * T + cr * pow(T, 4) - p;
+		dfdT = cg * rho + 4.0 * cr * pow(T, 3);
 		T -= f / dfdT;
 	}
 //	printf("%e\n", f / (T * dfdT));
@@ -130,7 +130,7 @@ void node_server::set_cgs(bool change) {
 	physcon.h = 6.6260755e-27;
 	auto f1 = set_physcon(physcon);
 	if (change) {
-		printf("%e %e %e %e\n", m, l, t, k);
+		printf("%e %e %e %e\n", double(m), double(l), double(t), double(k));
 		auto f2 = change_units(m, l, t, k);
 		auto f3 = grid::static_change_units(m, l, t, k);
 		f2.get();
@@ -168,7 +168,7 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION (static_change_units_action);
 HPX_REGISTER_BROADCAST_ACTION (static_change_units_action);
 
 hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
-	printf("%e %e %e %e\n", m, l, t, k);
+	printf("%e %e %e %e\n", double(m), double(l), double(t), double(k));
 	hpx::future<void> f;
 	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
 		std::vector<hpx::id_type> remotes;

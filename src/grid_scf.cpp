@@ -5,6 +5,7 @@
  *      Author: dmarce1
  */
 
+#include "defs.hpp"
 #include "grid.hpp"
 #include "node_server.hpp"
 #include "lane_emden.hpp"
@@ -237,7 +238,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				if (g <= 0.0) {
 					ASSERT_NONAN(phi_eff);
 					ASSERT_NONAN(C);
-					new_rho = std::max(this_struct_eos.enthalpy_to_density(std::max(C - phi_eff, smallest)), rho_floor);
+					new_rho = max(this_struct_eos.enthalpy_to_density(max(C - phi_eff, smallest)), rho_floor);
 				} else {
 					new_rho = rho_floor;
 				}
@@ -246,7 +247,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				if( opts.eos == WD ) {
 					eint = this_struct_eos.energy(rho);
 				} else {
-					eint = std::max(ei_floor, this_struct_eos.pressure(rho) / (fgamma - 1.0));
+					eint = max(ei_floor, this_struct_eos.pressure(rho) / (fgamma - 1.0));
 				}
 				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
@@ -271,9 +272,9 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				real etherm = eint;
 				if (opts.eos == WD) {
 					etherm -= ztwd_energy(rho, this_struct_eos.A, this_struct_eos.B());
-					etherm = std::max(0.0, etherm);
+					etherm = max(ZERO, etherm);
 				}
-				U[tau_i][iiih] = std::pow(etherm, 1.0 / fgamma);
+				U[tau_i][iiih] = pow(etherm, 1.0 / fgamma);
 				U[egas_i][iiih] = eint + std::pow(R * omega, 2) * rho / 2.0;
 				U[zx_i][iiih] = 0.0;
 				U[zy_i][iiih] = 0.0;
@@ -527,9 +528,9 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	const real R0 = this_struct_eos->get_R0();
 	int M = int(dx / R0) + 1;
 	int nsamp = 0;
-	for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx; x0 += dx / M) {
-		for (double y0 = y - dx / 2.0 + dx / 2.0 / M; y0 < y + dx; y0 += dx / M) {
-			for (double z0 = z - dx / 2.0 + dx / 2.0 / M; z0 < z + dx; z0 += dx / M) {
+	for (double x0 = x - dx / 2.0 + dx / 2.0 / real(M); x0 < x + dx; x0 += dx / real(M)) {
+		for (double y0 = y - dx / 2.0 + dx / 2.0 / real(M); y0 < y + dx; y0 += dx / real(M)) {
+			for (double z0 = z - dx / 2.0 + dx / 2.0 / real(M); z0 < z + dx; z0 += dx / real(M)) {
 				++nsamp;
 				if (x < params.l1_x) {
 					r = std::sqrt(std::pow(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
@@ -543,7 +544,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		}
 	}
 //	grid::set_AB(this_struct_eos->A, this_struct_eos->B());
-	rho = std::max(rho / nsamp, rho_floor);
+	rho = max(rho / real(nsamp), rho_floor);
 	if( opts.eos == WD ) {
 		ei = this_struct_eos->energy(rho);
 	} else {
@@ -566,9 +567,9 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
 	if( opts.eos != WD ) {
-		u[tau_i] = std::pow(ei, 1.0 / fgamma);
+		u[tau_i] = pow(ei, 1.0 / fgamma);
 	} else {
-		u[tau_i] = std::pow(1.0e-15, 1.0 / fgamma);
+		u[tau_i] = pow(real(1.0e-15), 1.0 / fgamma);
 	}
 	return u;
 }

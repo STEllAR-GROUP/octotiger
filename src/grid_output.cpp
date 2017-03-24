@@ -1,3 +1,4 @@
+#include "defs.hpp"
 #include "grid.hpp"
 #ifdef DO_OUTPUT
 #include <silo.h>
@@ -25,8 +26,7 @@ std::vector<std::vector<real>>& TLS_V();
 
 inline bool float_eq(xpoint_type a, xpoint_type b) {
 	constexpr static xpoint_type eps = 0.00000011920928955078125; // std::pow(xpoint_type(2), -23);
-// 	const xpoint_type eps = std::pow(xpoint_type(2), -23);
-	return std::abs(a - b) < eps;
+	return abs(a - b) < eps;
 }
 
 bool grid::xpoint_eq(const xpoint& a, const xpoint& b) {
@@ -165,7 +165,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 				data[NGF + NRF + NF + 1].push_back(V[vy_i][iii]);
 				data[NGF + NRF + NF + 2].push_back(V[vz_i][iii]);
 				if (V[egas_i][iii] * V[rho_i][iii] < de_switch2 * U[egas_i][iii]) {
-					data[NGF + NRF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma) / V[rho_i][iii]);
+					data[NGF + NRF + NF + 3].push_back(pow(V[tau_i][iii], fgamma) / V[rho_i][iii]);
 				} else {
 					data[NGF + NRF + NF + 3].push_back(V[egas_i][iii]);
 				}
@@ -262,10 +262,10 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 
 std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
-	real dummy;
+//	real dummy;
 	integer dummy_int;
 	auto foo = std::fread;
-	real Acon, Bcon;
+//	real Acon, Bcon;
 	{
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);

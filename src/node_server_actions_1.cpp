@@ -48,9 +48,9 @@ grid::output_list_type node_server::load(
     integer cnt, const hpx::id_type& _me, bool do_output, std::string filename) {
     if (rec_size == -1 && my_location.level() == 0) {
 #ifdef RADIATION
-	if (opts.eos == WD) {
-		set_cgs(false);
-	}
+        if (opts.eos == WD) {
+            set_cgs(false);
+        }
 #endif
         real omega = 0;
         space_vector pivot;

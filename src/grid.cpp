@@ -135,9 +135,9 @@ static std::vector<std::vector<std::vector<real>>>& TLS_Uf() {
 space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	const integer iii0 = hindex(H_BW, H_BW, H_BW);
 	space_vector c;
-	c[XDIM] = X[XDIM][iii0] + (i) * dx;
-	c[YDIM] = X[XDIM][iii0] + (j) * dx;
-	c[ZDIM] = X[XDIM][iii0] + (k) * dx;
+	c[XDIM] = X[XDIM][iii0] + real(i) * dx;
+	c[YDIM] = X[XDIM][iii0] + real(j) * dx;
+	c[ZDIM] = X[XDIM][iii0] + real(k) * dx;
 	return c;
 }
 
@@ -317,8 +317,8 @@ void grid::set_pivot(const space_vector& p) {
 
 inline real minmod(real a, real b) {
 //    return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
-	bool a_is_neg = a < 0;
-	bool b_is_neg = b < 0;
+	bool a_is_neg = a < ZERO;
+	bool b_is_neg = b < ZERO;
 	if (a_is_neg != b_is_neg)
 		return ZERO;
 
@@ -691,7 +691,7 @@ void grid::change_units(real m, real l, real t, real k) {
 	xmin[ZDIM] *= l;
 	dx *= l;
 	if( dx > 1.0e+12)
-	printf( "++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx*l);
+	printf( "++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", double(dx), double(dx*l));
 	for (integer i = 0; i != H_N3; ++i) {
 		U[rho_i][i] *= m * l3inv;
 		for (integer si = 0; si != NSPECIES; ++si) {
@@ -1037,20 +1037,20 @@ void grid::rho_move(real x) {
 	real w = x / dx;
 	const real rho_floor = 1.0e-15;
 
-	w = std::max(-0.5, std::min(0.5, w));
+	w = max(-0.5, min(0.5, w));
 	for (integer i = 1; i != H_NX - 1; ++i) {
 		for (integer j = 1; j != H_NX - 1; ++j) {
 			for (integer k = 1; k != H_NX - 1; ++k) {
 				for (integer si = spc_i; si != NSPECIES + spc_i; ++si) {
 					U[si][hindex(i, j, k)] += w * U[si][hindex(i + 1, j, k)];
 					U[si][hindex(i, j, k)] -= w * U[si][hindex(i - 1, j, k)];
-					U[si][hindex(i, j, k)] = std::max(U[si][hindex(i, j, k)], 0.0);
+					U[si][hindex(i, j, k)] = max(U[si][hindex(i, j, k)], 0.0);
 				}
 				U[rho_i][hindex(i, j, k)] = 0.0;
 				for (integer si = 0; si != NSPECIES; ++si) {
 					U[rho_i][hindex(i, j, k)] += U[spc_i + si][hindex(i, j, k)];
 				}
-				U[rho_i][hindex(i, j, k)] = std::max(U[rho_i][hindex(i, j, k)], rho_floor);
+				U[rho_i][hindex(i, j, k)] = max(U[rho_i][hindex(i, j, k)], rho_floor);
 			}
 		}
 	}
@@ -1089,7 +1089,7 @@ space_vector grid::center_of_mass() const {
 			this_com[dim] /= m;
 		}
 	}PROF_END;
-	printf( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk %e %e %e\n", this_com[0], this_com[1], this_com[2] );
+	printf( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk %e %e %e\n", double(this_com[0]), double(this_com[1]), double(this_com[2]) );
 	return this_com;
 }
 
@@ -1114,7 +1114,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[tau_i][iii] = U[tau_i][iii];
 					const real rho = V[rho_i][iii];
 					if( rho <= 0.0 ) {
-						printf( "%i %i %i %e\n", int(i), int(j), int(k), rho);
+						printf( "%i %i %i %e\n", int(i), int(j), int(k), double(rho));
 						abort_error();
 					}
 					const real rhoinv = 1.0 / rho;

@@ -111,9 +111,9 @@ hpx::future<line_of_centers_t> node_client::line_of_centers(
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc) {
     for (integer i = 0; i != loc.size(); ++i) {
-        fprintf(fp, "%e ", loc[i].first);
+        fprintf(fp, "%e ", double(loc[i].first));
         for (integer j = 0; j != NF + NGF; ++j) {
-            fprintf(fp, "%e ", loc[i].second[j]);
+            fprintf(fp, "%e ", double(loc[i].second[j]));
         }
         fprintf(fp, "\n");
     }
@@ -260,7 +260,7 @@ void node_server::start_run(bool scf)
 
     real output_dt = opts.output_dt;
 
-    printf("OMEGA = %e, output_dt = %e\n", grid::get_omega(), output_dt);
+    printf("OMEGA = %e, output_dt = %e\n", double(grid::get_omega()), double(output_dt));
     real& t = current_time;
     integer step_num = 0;
 
@@ -278,7 +278,7 @@ void node_server::start_run(bool scf)
             break;
 
         auto time_start = std::chrono::high_resolution_clock::now();
-        if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
+        if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= real(output_cnt)) {
             //	if (step_num != 0) {
 
             char fname[33];    // 21 bytes for int (max) + some leeway
@@ -334,8 +334,10 @@ void node_server::start_run(bool scf)
             {
                 FILE* fp = fopen( "step.dat", "at");
                 fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
-                    int(next_step - 1), double(t), double(dt), time_elapsed, rotational_time,
-                    theta, theta_dot, omega, omega_dot, int(ngrids));
+                    int(next_step - 1), double(t), double(dt), time_elapsed,
+                    double(rotational_time),
+                    double(theta), double(theta_dot), double(omega), double(omega_dot),
+                    int(ngrids));
                 fclose(fp);
             });     // do not wait for it to finish
         }
@@ -343,7 +345,8 @@ void node_server::start_run(bool scf)
         hpx::threads::run_as_os_thread([=]()
         {
             printf("%i %e %e %e %e %e %e %e %e\n", int(next_step - 1), double(t), double(dt),
-                time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
+                time_elapsed, double(rotational_time), double(theta), double(theta_dot),
+                double(omega), double(omega_dot));
         });     // do not wait for output to finish
 
 //		t += dt;
@@ -571,7 +574,7 @@ hpx::future<real> node_server::step(integer steps) {
         }
     }
 
-    hpx::future<real> dt_fut = hpx::make_ready_future(0.0);
+    hpx::future<real> dt_fut = hpx::make_ready_future(ZERO);
     for (integer i = 0; i != steps; ++i)
     {
         dt_fut = dt_fut.then(
@@ -600,7 +603,7 @@ hpx::future<real> node_server::step(integer steps) {
                         hpx::threads::run_as_os_thread([=]()
                         {
                             printf("%i %e %e %e %e\n", int(step_num), double(current_time), double(dt),
-                                time_elapsed, rotational_time);
+                                time_elapsed, double(rotational_time));
                         });     // do not wait for output to finish
                     }
                 }
@@ -667,7 +670,7 @@ hpx::future<real> node_server::timestep_driver_descend() {
 
         return hpx::dataflow(hpx::launch::sync,
             hpx::util::annotated_function(
-                [this](std::array<hpx::future<real>, NCHILD+1> dts_fut) -> double
+                [this](std::array<hpx::future<real>, NCHILD+1> dts_fut) -> real
                 {
                     auto dts = hpx::util::unwrapped(dts_fut);
                     real dt = *std::min_element(dts.begin(), dts.end());

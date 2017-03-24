@@ -117,7 +117,8 @@ analytic_t node_server::compare_analytic() {
         for (integer field = 0; field != NF; ++field) {
             if (a.l1a[field] > 0.0) {
                 printf("%16s %e %e\n", grid::field_names[field],
-                    a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
+                    double(a.l1[field] / a.l1a[field]),
+                    std::sqrt(a.l2[field] / a.l2a[field]));
             }
         }
     }
@@ -244,10 +245,10 @@ diagnostics_t node_server::diagnostics() const {
         hpx::threads::run_as_os_thread([&]()
         {
             printf("L1\n");
-            printf("Gravity Phi Error - %e\n", (diags.l1_error[0] / diags.l1_error[4]));
-            printf("Gravity gx Error - %e\n", (diags.l1_error[1] / diags.l1_error[5]));
-            printf("Gravity gy Error - %e\n", (diags.l1_error[2] / diags.l1_error[6]));
-            printf("Gravity gz Error - %e\n", (diags.l1_error[3] / diags.l1_error[7]));
+            printf("Gravity Phi Error - %e\n", double(diags.l1_error[0] / diags.l1_error[4]));
+            printf("Gravity gx Error - %e\n", double(diags.l1_error[1] / diags.l1_error[5]));
+            printf("Gravity gy Error - %e\n", double(diags.l1_error[2] / diags.l1_error[6]));
+            printf("Gravity gz Error - %e\n", double(diags.l1_error[3] / diags.l1_error[7]));
             printf("L2\n");
             printf("Gravity Phi Error - %e\n",
                 std::sqrt(diags.l2_error[0] / diags.l2_error[4]));
@@ -257,9 +258,9 @@ diagnostics_t node_server::diagnostics() const {
                 std::sqrt(diags.l2_error[2] / diags.l2_error[6]));
             printf("Gravity gz Error - %e\n",
                 std::sqrt(diags.l2_error[3] / diags.l2_error[7]));
-            printf("Total Mass = %e\n", diags.grid_sum[rho_i]);
+            printf("Total Mass = %e\n", double(diags.grid_sum[rho_i]));
             for (integer d = 0; d != NDIM; ++d) {
-                printf("%e %e\n", diags.gforce_sum[d], diags.gtorque_sum[d]);
+                printf("%e %e\n", double(diags.gforce_sum[d]), double(diags.gtorque_sum[d]));
             }
         }).get();
     }

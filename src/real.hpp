@@ -16,6 +16,7 @@
 
 using real_type = double;
 
+#if !defined(OCTOTIGER_HAVE_OPERATIONS_COUNT)
 
 #ifdef DIAGNOSTIC_MODE
 
@@ -106,8 +107,25 @@ inline real sqrt(const real& a) {
 
 #else
 
+#include <algorithm>
+#include <cmath>
+
+using std::max;
+using std::min;
+using std::sqrt;
+using std::abs;
+using std::pow;
+
 using real = real_type;
 
 #endif
+
+#else  // OCTOTIGER_HAVE_OPERATIONS_COUNT
+
+#include "counting_double.hpp"
+
+using real = counting_double;
+
+#endif // OCTOTIGER_HAVE_OPERATIONS_COUNT
 
 #endif /* REAL_HPP_ */

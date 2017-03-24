@@ -9,7 +9,7 @@
 #include <cmath>
 
 static inline real pow_1_5(real y) {
-    return y * std::sqrt(y);
+    return y * sqrt(y);
 }
 
 static inline real fy(real y, real z, real r) {
@@ -25,7 +25,7 @@ static inline real fz(real y, real z, real r) {
 }
 
 static inline real fm(real theta, real dummy, real r) {
-    constexpr static real four_pi = real(4) * M_PI;
+    constexpr static real four_pi = 4.0 * M_PI;
 	return four_pi * pow_1_5(theta) * r * r;
 }
 
@@ -127,8 +127,8 @@ real wd_radius(real mass, real* rho0) {
 double find_l1(double q) {
 
 	double y, f, df, f1, f2, fr, df1, df2, dfr;
-	const double qp1 = 1.0 + q;
-	const double qp1inv = 1.0 / qp1;
+	const real qp1 = 1.0 + q;
+	const real qp1inv = 1.0 / qp1;
 
 	y = 0.0;
 	do {

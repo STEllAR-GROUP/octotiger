@@ -109,7 +109,7 @@ bool options::process_options(int argc, char* argv[]) {
     output_dt = -1;
     bench = false;
     ang_con = true;
-    stop_time = std::numeric_limits<real>::max() - 1;
+    stop_time = real(std::numeric_limits<double>::max()) - real(1);
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
 
@@ -181,8 +181,8 @@ bool options::process_options(int argc, char* argv[]) {
             abort();
         }
     }
-    if (output_dt < 0) {
-        if (omega > 0.0) {
+    if (output_dt < ZERO) {
+        if (omega > ZERO) {
             output_dt = (2.0 * M_PI / omega) / 100.0;
         } else {
             output_dt = 1.0e-2;
@@ -191,8 +191,8 @@ bool options::process_options(int argc, char* argv[]) {
     if (!rc) {
         show_help();
     }
-    theta = std::max(1.0 / 3.0, theta);
-    theta = std::min(1.0 / 2.0, theta);
+    theta = max(1.0 / 3.0, theta);
+    theta = min(1.0 / 2.0, theta);
     return rc;
 }
 

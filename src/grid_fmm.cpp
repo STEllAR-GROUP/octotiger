@@ -4,6 +4,7 @@
  *  Created on: Jun 3, 2015
  *      Author: dmarce1
  */
+#include "defs.hpp"
 #include "grid.hpp"
 #include "options.hpp"
 #include "profiler.hpp"
@@ -479,18 +480,18 @@ void grid::compute_interactions(gsolve_type type) {
         // components for the force
 
         // Coefficients for potential evaluation? (David)
-        const std::array<double, 4> di0 = {
+        const std::array<real, 4> di0 = {
             1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
         const v4sd d0(di0.data());
 #else
         const v4sd d0(di0.data(), Vc::flags::vector_aligned);
 #endif
 
         // negative of d0 because it's the force in the opposite direction
-        const std::array<double, 4> di1 = {
+        const std::array<real, 4> di1 = {
             1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
-#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
         const v4sd d1(di1.data());
 #else
         const v4sd d1(di1.data(), Vc::flags::vector_aligned);
@@ -1001,8 +1002,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
 #if !defined(HPX_HAVE_DATAPAR)
     const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
 #else
-    const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+    const std::array<real, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
+#if defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1
     const v4sd d0(di0.data());
 #else
     const v4sd d0(di0.data(), Vc::flags::vector_aligned);
@@ -1126,7 +1127,7 @@ void compute_ilist() {
                             const real z = k0 - k1;
                             // protect against sqrt(0)
                             const real tmp = sqr(x) + sqr(y) + sqr(z);
-                            const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
+                            const real r = (tmp == ZERO) ? 0 : std::sqrt(tmp);
                             const real r3 = r * r * r;
                             v4sd four;
                             if (r > 0.0) {
@@ -1402,9 +1403,9 @@ multipole_pass_type grid::compute_multipoles(
             for (integer j = 0; j != G_NX; ++j) {
                 for (integer k = 0; k != G_NX; ++k) {
                     auto& com0iii = (*(com_ptr[0]))[gindex(i, j, k)];
-                    com0iii[0] = x0[0] + i * dx;
-                    com0iii[1] = x0[1] + j * dx;
-                    com0iii[2] = x0[2] + k * dx;
+                    com0iii[0] = x0[0] + real(i) * dx;
+                    com0iii[1] = x0[1] + real(j) * dx;
+                    com0iii[2] = x0[2] + real(k) * dx;
                //     if( std::abs(com0iii[0]) > 1.0e+12)
               //      printf( "!!!!!!!!!!!!!  %e  %i %e %e  !!!!!!!!!!!!1111 \n", x0[0], int(i), dx, com0iii[0]);
                 }

@@ -63,6 +63,7 @@
 //}
 
 #include "real.hpp"
+
 typedef long long int integer;
 #define TYPES444_HPP_
 
@@ -176,11 +177,11 @@ constexpr real TWO = real(2);
 constexpr real THREE = real(3);
 constexpr real FOUR = real(4);
 
-constexpr real HALF = real(real(1) / real(2));
-constexpr real SIXTH = real(real(1) / real(6));
-constexpr real TWELFTH = real(real(1) / real(12));
+constexpr real HALF = 1.0 / 2;
+constexpr real SIXTH = 1.0 / 6;
+constexpr real TWELFTH = 1.0 / 12;
 
-constexpr real cfl = real(real(2) / real(15));
+constexpr real cfl = 2.0 / 15;
 constexpr real ei_floor = 1.0e-15;
 constexpr integer NRK = 2;
 constexpr real rk_beta[2] = { ONE, HALF };

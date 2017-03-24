@@ -65,17 +65,17 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
-	real r = std::max(dx, 0.50);
+	real r = max(dx, 0.50);
 	const real eint = 1.0e-4;
-	if (std::sqrt(x * x + y * y + z * z) < r) {
+	if (sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
 	} else {
 		u[rho_i] = 1.0e-10;
 	}
-	u[tau_i] = std::pow( eint * u[rho_i], 1.0 / grid::get_fgamma() );
+	u[tau_i] = pow( eint * u[rho_i], 1.0 / grid::get_fgamma() );
 //	u[sx_i] = 0.0; //u[rho_i] / 10.0;
 	const real fgamma = grid::get_fgamma();
-	u[egas_i] = std::pow(u[tau_i], fgamma);
+	u[egas_i] = pow(u[tau_i], fgamma);
 	u[egas_i] += u[sx_i] * u[sx_i] / u[rho_i] / 2.0;
 	u[egas_i] += u[sy_i] * u[sy_i] / u[rho_i] / 2.0;
 	u[egas_i] += u[sz_i] * u[sz_i] / u[rho_i] / 2.0;
@@ -172,10 +172,10 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	//y -= 0.043;
 	std::vector<real> u(NF, real(0));
 	u[spc_dc_i] = u[rho_i] = 1.0e-3;
-	const real a = std::sqrt(10.0) * std::min(dx,0.1);
-	real r = std::sqrt(x * x + y * y + z * z);
-	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a))/100.0;
-	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
+	const real a = sqrt(10.0) * min(dx, 0.1);
+	real r = sqrt(x * x + y * y + z * z);
+	u[egas_i] = max(1.0e-10, exp(-r * r / a / a))/100.0;
+	u[tau_i] = pow(u[egas_i], ONE / fgamma);
 	return u;
 }
 
@@ -236,9 +236,9 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 //	x0 -= -0.0444;
 //	y0 -= +0.345;
 //	z0 -= -.2565;
-	const real r = std::sqrt(x * x + y * y + z * z);
+	const real r = sqrt(x * x + y * y + z * z);
 	const real r3 = r * r * r;
-	const real Menc = M * std::pow(std::min(r / r0, 1.0), 3);
+	const real Menc = M * pow(min(r / r0, 1.0), 3);
 	if (r < r0) {
 		g[phi_i] = -M * (3.0 * r0 * r0 - r * r) / (2.0 * r0 * r0 * r0);
 	} else {
@@ -275,9 +275,9 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 		if( a * b < ZERO ) {
 			return ZERO;
 		} else if( a > ZERO ) {
-			return std::min(a,b);
+			return min(a, b);
 		} else {
-			return std::max(a,b);
+			return max(a, b);
 		}
 	};
 	const real xmax = std::max(std::abs(x0 + dx / 2.0), std::abs(x0 - dx / 2.0));
@@ -287,12 +287,12 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	const real ymin = mm(y0 + dx / 2.0, y0 - dx / 2.0);
 	const real zmin = mm(z0 + dx / 2.0, z0 - dx / 2.0);
 	if (xmax * xmax + ymax * ymax + zmax * zmax <= r0 * r0) {
-		u[rho_i] += drho * N * N * N;
+		u[rho_i] += drho * cube(real(N));
 	} else if (xmin * xmin + ymin * ymin + zmin * zmin <= r0 * r0) {
 		x0 -= dx / 2.0;
 		y0 -= dx / 2.0;
 		z0 -= dx / 2.0;
-		const real d = dx / N;
+		const real d = dx / real(N);
 		x0 += d / 2.0;
 		y0 += d / 2.0;
 		z0 += d / 2.0;
@@ -333,11 +333,11 @@ std::vector<real> star(real x, real y, real z, real) {
 		physcon.A = eos.A;
 		physcon.B = eos.B();
 		normalize_constants();
-		const real rho = std::max(eos.density_at(r,0.01),1.0e-10);
+		const real rho = max(eos.density_at(r,0.01),1.0e-10);
 		const real ei = eos.energy(rho);
 		u[rho_i] = rho;
 		u[egas_i] = ei;
-		u[tau_i] = std::pow(std::max(ei-ztwd_energy(rho),0.0),1.0/fgamma);
+		u[tau_i] = pow(max(ei-ztwd_energy(rho),0.0),1.0/fgamma);
 		u[spc_i] = rho;
 		return u;
 	} else {
@@ -346,7 +346,7 @@ std::vector<real> star(real x, real y, real z, real) {
 		y -= 0.0;
 		z -= 0.0;
 //	real menc;
-		const real r = std::sqrt(x * x + y * y + z * z);
+		const real r = sqrt(x * x + y * y + z * z);
 		real theta;
 		const real n = real(1) / (fgamma - real(1));
 		const real rho_min = 1.0e-10;
@@ -354,17 +354,17 @@ std::vector<real> star(real x, real y, real z, real) {
 		const auto c0 = real(4) * real(M_PI) / (n + real(1));
 		if (r <= rmax) {
 			theta = lane_emden(r, dr);
-			theta = std::max(theta, theta_min);
+			theta = max(theta, theta_min);
 		} else {
 			theta = theta_min;
 		}
-		u[rho_i] = std::max(std::pow(theta, n), 1.0e-10);
+		u[rho_i] = max(pow(theta, n), 1.0e-10);
 		u[spc_i] = u[rho_i];
-		u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
+		u[egas_i] = pow(theta, fgamma * n) * c0 / (fgamma - real(1));
 		if (theta <= theta_min) {
 			u[egas_i] *= real(100);
 		}
-		u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+		u[tau_i] = pow(u[egas_i], (real(1) / real(fgamma)));
 	}
 	return u;
 }
@@ -422,10 +422,10 @@ std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 	real z1 = z;
 	real z2 = z;
 
-	const real r1 = std::sqrt(x1 * x1 + y1 * y1 + z1 * z1) / alpha;
-	const real r2 = std::sqrt(x2 * x2 + y2 * y2 + z2 * z2) / alpha;
+	const real r1 = sqrt(x1 * x1 + y1 * y1 + z1 * z1) / alpha;
+	const real r2 = sqrt(x2 * x2 + y2 * y2 + z2 * z2) / alpha;
 
-	const real theta_min = std::pow(rho_min, real(1) / n);
+	const real theta_min = pow(rho_min, real(1) / n);
 	const auto c0 = real(4) * real(M_PI) * alpha * alpha / (n + real(1));
 
 	if (r1 <= rmax || r2 <= rmax) {
@@ -435,10 +435,10 @@ std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 	} else {
 		theta = theta_min;
 	}
-	u[rho_i] = std::pow(theta, n);
-	u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
-	u[egas_i] = std::max(u[egas_i], ei_floor);
-	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+	u[rho_i] = pow(theta, n);
+	u[egas_i] = pow(theta, fgamma * n) * c0 / (fgamma - real(1));
+	u[egas_i] = max(u[egas_i], ei_floor);
+	u[tau_i] = pow(u[egas_i], (real(1) / real(fgamma)));
 	u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
 	u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
 	u[egas_i] += HALF * DEFAULT_OMEGA * DEFAULT_OMEGA * (x * x + y * y) * u[rho_i];

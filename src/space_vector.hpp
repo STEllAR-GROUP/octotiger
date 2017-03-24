@@ -9,6 +9,7 @@
 #define SPACE_VECTOR_HPP_
 
 #include "defs.hpp"
+#include "simd.hpp"
 
 #include <cmath>
 
@@ -107,10 +108,20 @@ using space_vector = space_vector_gen<real>;
 
 #else
 
+#if !defined(OCTOTIGER_HAVE_OPERATIONS_COUNT)
+
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 
 using space_vector = typename hpx::parallel::traits::vector_pack_type<real, 4>::type;
+
+#else // OCTOTIGER_HAVE_OPERATIONS_COUNT
+
+#include "simd.hpp"
+
+using space_vector = counting_double_array<4>;
+
+#endif // OCTOTIGER_HAVE_OPERATIONS_COUNT
 
 #endif
 

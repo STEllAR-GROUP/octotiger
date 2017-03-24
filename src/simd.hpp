@@ -1,5 +1,5 @@
 /*
- * simd_vector.hpp
+ * counting_double_array.hpp
  *
  *  Created on: Jun 7, 2015
  *      Author: dmarce1
@@ -7,14 +7,17 @@
 
 #ifndef SIMD_VECTOR_HPP_
 #define SIMD_VECTOR_HPP_
+
+#include <cstddef>
 #include "defs.hpp"
-#include <cstdlib>
-#include <cstdio>
-#include "immintrin.h"
 
 constexpr std::size_t simd_len = 8;
 
 #if !defined(HPX_HAVE_DATAPAR)
+
+#include "immintrin.h"
+#include <cstdlib>
+#include <cstdio>
 
 #ifdef USE_SIMD
 #if !defined(__MIC__) && !defined(__AVX512F__)
@@ -399,6 +402,8 @@ public:
 
 #else
 
+#if !defined(OCTOTIGER_HAVE_OPERATIONS_COUNT)
+
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 
@@ -413,6 +418,273 @@ using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>:
 using v4sd = typename hpx::parallel::traits::vector_pack_type<double, 4>::type;
 #endif
 
-#endif
+#else // OCTOTIGER_HAVE_OPERATIONS_COUNT
 
-#endif /* SIMD_VECTOR_HPP_ */
+///////////////////////////////////////////////////////////////////////////////
+#include <array>
+
+#include "counting_double.hpp"
+
+template <int N>
+class counting_double_array;
+
+template <int N>
+counting_double_array<N> sqrt(const counting_double_array<N>&);
+template <int N>
+counting_double_array<N> operator*(double, const counting_double_array<N>& other);
+template <int N>
+counting_double_array<N> operator/(double, const counting_double_array<N>& other);
+template <int N>
+counting_double_array<N> max(const counting_double_array<N>& a, const counting_double_array<N>& b);
+template <int N>
+counting_double_array<N> min(const counting_double_array<N>& a, const counting_double_array<N>& b);
+
+template <int N>
+class counting_double_array
+{
+private:
+    std::array<counting_double, N> v;
+
+public:
+    counting_double_array() {
+        *this = counting_double(0.0);
+    }
+    inline ~counting_double_array() = default;
+    counting_double_array(const counting_double_array&) = default;
+    inline counting_double_array(double d) {
+        for (integer i = 0; i != N; ++i) {
+            v[i] = d;
+        }
+    }
+    inline double sum() const {
+        double r = ZERO;
+        for (integer i = 0; i != N; ++i) {
+            r += (*this)[i];
+        }
+        return r;
+    }
+    counting_double_array(counting_double_array&& other) {
+        *this = std::move(other);
+    }
+    counting_double_array(counting_double const* d) {
+        for (integer i = 0; i != N; ++i)
+            v[i] = d[i];
+    }
+
+    inline counting_double_array& operator=(const counting_double_array& other) = default;
+    counting_double_array& operator=(counting_double_array&& other) {
+        for (integer i = 0; i != N; ++i) {
+            v[i] = std::move(other.v[i]);
+        }
+        return *this;
+    }
+    counting_double_array& operator=(counting_double other) {
+        for (integer i = 0; i != N; ++i) {
+            v[i] = other;
+        }
+        return *this;
+    }
+    counting_double_array& operator=(counting_double_base_type other) {
+        for (integer i = 0; i != N; ++i) {
+            v[i] = other;
+        }
+        return *this;
+    }
+    inline counting_double_array operator+(const counting_double_array& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] + other.v[i];
+        }
+        return r;
+    }
+    inline counting_double_array operator+(const counting_double& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] + other;
+        }
+        return r;
+    }
+    inline counting_double_array operator-(const counting_double_array& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] - other.v[i];
+        }
+        return r;
+    }
+    inline counting_double_array operator-(const counting_double& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] - other;
+        }
+        return r;
+    }
+    inline counting_double_array operator*(const counting_double_array& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] * other.v[i];
+        }
+        return r;
+    }
+    inline counting_double_array operator*(const counting_double& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] * other;
+        }
+        return r;
+    }
+    inline counting_double_array operator/(const counting_double_array& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] / other.v[i];
+        }
+        return r;
+    }
+    inline counting_double_array operator/(const counting_double& other) const {
+        counting_double_array r;
+        for (integer i = 0; i != N; ++i) {
+            r.v[i] = v[i] / other;
+        }
+        return r;
+    }
+    inline counting_double_array operator+() const {
+        return *this;
+    }
+    inline counting_double_array operator-() const {
+        return counting_double_array(ZERO) - *this;
+    }
+    inline counting_double_array& operator+=(const counting_double_array& other) {
+        *this = *this + other;
+        return *this;
+    }
+    inline counting_double_array& operator-=(const counting_double_array& other) {
+        *this = *this - other;
+        return *this;
+    }
+    inline counting_double_array& operator*=(const counting_double_array& other) {
+        *this = *this * other;
+        return *this;
+    }
+    inline counting_double_array& operator/=(const counting_double_array& other) {
+        *this = *this / other;
+        return *this;
+    }
+
+    inline counting_double_array operator*(double d) const {
+        const counting_double_array other = d;
+        return other * *this;
+    }
+    inline counting_double_array operator/(double d) const {
+        const counting_double_array other = ONE / d;
+        return *this * other;
+    }
+
+    inline counting_double_array operator*=(double d) {
+        *this = *this * d;
+        return *this;
+    }
+    inline counting_double_array operator/=(double d) {
+        *this = *this * (ONE / d);
+        return *this;
+    }
+    inline counting_double& operator[](std::size_t i) {
+        counting_double* a = reinterpret_cast<counting_double*>(&v);
+        return a[i];
+    }
+    inline counting_double operator[](std::size_t i) const {
+        const counting_double* a = reinterpret_cast<const counting_double*>(&v);
+        return a[i];
+    }
+
+    double max() const {
+        counting_double t = (*this)[0];
+        for (integer i = 1; i != N; ++i) {
+            t = std::max(t.value(), double((*this)[i]));
+        }
+        return t;
+    }
+    double min() const {
+        counting_double t = (*this)[0];
+        for (integer i = 1; i != N; ++i) {
+            t = std::min(t.value(), double((*this)[i]));
+        }
+        return t;
+    }
+    template <int M> friend counting_double_array<M> sqrt(const counting_double_array<M>&);
+    template <int M> friend counting_double_array<M> operator*(double, const counting_double_array<M>& other);
+    template <int M> friend counting_double_array<M> operator/(double, const counting_double_array<M>& other);
+    template <int M> friend counting_double_array<M> max(const counting_double_array<M>& a, const counting_double_array<M>& b);
+    template <int M> friend counting_double_array<M> min(const counting_double_array<M>& a, const counting_double_array<M>& b);
+
+    template <typename Archive>
+    void serialize(Archive & ar, const unsigned) {
+        ar & v;
+    }
+};
+
+template <int N>
+counting_double_array<N> sqrt(const counting_double_array<N>& vec) {
+    counting_double_array<N> r;
+    for (integer i = 0; i != N; ++i) {
+        r.v[i] = std::sqrt(double(vec.v[i]));
+    }
+    return r;
+}
+
+template <int N>
+counting_double_array<N> operator*(double d, const counting_double_array<N>& other) {
+    const counting_double_array<N> a = d;
+    return a * other;
+}
+
+template <int N>
+counting_double_array<N> operator/(double d, const counting_double_array<N>& other) {
+    const counting_double_array<N> a = d;
+    return a / other;
+}
+
+template <int N>
+void simd_pack(counting_double_array<N>* dest, double* src, integer src_len, integer pos) {
+    for (integer i = 0; i != src_len; ++i) {
+        dest[i][pos] = src[i];
+    }
+}
+
+template <int N>
+void simd_unpack(double* dest, counting_double_array<N>* src, integer src_len, integer pos) {
+    for (integer i = 0; i != src_len; ++i) {
+        dest[i] = src[i][pos];
+    }
+}
+
+template <int N>
+counting_double_array<N> max(const counting_double_array<N>& a, const counting_double_array<N>& b) {
+    counting_double_array<N> r;
+    for (integer i = 0; i != N; ++i) {
+        r.v[i] = std::max(double(a.v[i]), double(b.v[i]));
+    }
+    return r;
+}
+
+template <int N>
+counting_double_array<N> min(const counting_double_array<N>& a, const counting_double_array<N>& b) {
+    counting_double_array<N> r;
+    for (integer i = 0; i != N; ++i) {
+        r.v[i] = std::min(double(a.v[i]), double(b.v[i]));
+    }
+    return r;
+}
+
+template <int N>
+counting_double_array<N> abs(const counting_double_array<N>& a) {
+    return max(a, -a);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+using simd_vector = counting_double_array<8>;
+using v4sd = counting_double_array<4>;
+
+#endif // OCTOTIGER_HAVE_OPERATIONS_COUNT
+
+#endif // HPX_HAVE_DATAPAR
+
+#endif // SIMD_VECTOR_HPP_

@@ -18,7 +18,7 @@
 #include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
 
-using real = double;
+using real = real;
 
 
 
@@ -64,14 +64,14 @@ int file_copy(const char* fin, const char* fout) {
     return f.get();
 }
 
-bool find_root(std::function<double(double)>& func, double xmin, double xmax,
-		double& root, double toler) {
-	double xmid;
-	const auto error = [](const double _xmax, const double _xmin) {
+bool find_root(std::function<real(real)>& func, real xmin, real xmax,
+		real& root, real toler) {
+	real xmid;
+	const auto error = [](const real _xmax, const real _xmin) {
 		return (_xmax - _xmin) / (std::abs(_xmax) + std::abs(_xmin))*2.0;
 	};
-	double xmin0 = xmin;
-	double xmax0 = xmax;
+	real xmin0 = xmin;
+	real xmax0 = xmax;
 	while (error(xmax,xmin) > toler) {
 		xmid = (xmax + xmin) / 2.0;
 		if (func(xmid) * func(xmax) < 0.0) {

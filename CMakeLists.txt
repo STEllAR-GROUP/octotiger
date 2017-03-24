@@ -16,6 +16,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
+option(OCTOTIGER_WITH_OPERATIONS_COUNT "Enable counting floating point operations" OFF)
 
 ################################################################################
 # Find required packages
@@ -76,6 +77,10 @@ if (OCTOTIGER_WITH_RADIATION)
   add_definitions(-DOCTOTIGER_HAVE_RADIATION)
 endif()
 
+if (OCTOTIGER_WITH_OPERATIONS_COUNT)
+  add_definitions(-DOCTOTIGER_HAVE_OPERATIONS_COUNT)
+endif()
+
 set(source_files)
 set(dependencies)
 
@@ -83,6 +88,7 @@ set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
+    src/counting_double.cpp
     src/physcon.cpp
     src/rad_grid.cpp
     src/eos.cpp
@@ -117,6 +123,7 @@ set(header_files
     src/rad_grid.hpp
     src/diagnostics.hpp
     src/channel.hpp
+    src/counting_double.hpp
     src/defs.hpp
     src/eos.hpp
     src/future.hpp

@@ -19,7 +19,7 @@
 real LambertW(real z);
 
 inline integer refinement_freq() {
-	return  integer(R_BW / cfl + 0.5);
+	return  integer(real(R_BW) / cfl + real(0.5));
 }
 int file_copy(const char* fin, const char* fout);
 
@@ -45,7 +45,7 @@ bool find_root(std::function<real(real)>& func, real xmin, real xmax,
 		real& root, real toler = 1.0e-10);
 
 inline real  assert_positive(real r, const char* filename, int line) {
-	if( r <= 0.0 ) {
+	if( r <= ZERO ) {
 		FILE* fp = fopen("assert.log", "at");
 		printf( "ASSERT_POSITIVE FAILED\n");
 		printf( "file %s line %i\n", filename, line);
