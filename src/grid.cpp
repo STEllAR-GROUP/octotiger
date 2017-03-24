@@ -29,6 +29,7 @@ char const* grid::field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot"
 	"secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint", "zzs"};
 #endif
 
+hpx::lcos::local::spinlock grid::omega_mtx;
 real grid::omega = ZERO;
 space_vector grid::pivot(ZERO);
 real grid::scaling_factor = 1.0;
@@ -731,7 +732,6 @@ HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 void grid::set_omega(real omega, bool bcast) {
 	if( bcast ) {
 	   if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
-		//printf( "%e !\n", omega);
            std::vector<hpx::id_type> remotes;
            remotes.reserve(options::all_localities.size()-1);
            for (hpx::id_type const& id: options::all_localities) {
@@ -744,6 +744,10 @@ void grid::set_omega(real omega, bool bcast) {
               }
 	   }
 	}
+    std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
+    // if someone else has the lock, it's fine, we just return and have it set
+    // by the other thread
+    if (!l) return;
 	grid::omega = omega;
 }
 

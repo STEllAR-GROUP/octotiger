@@ -256,8 +256,7 @@ void node_server::start_run(bool scf)
 
     printf("Starting...\n");
     solve_gravity(false);
-  //  int ngrids = 0;
-    int ngrids = regrid(me.get_gid(), false);
+    int ngrids = regrid(me.get_gid(), grid::get_omega(), false);
 
     real output_dt = opts.output_dt;
 
@@ -323,7 +322,7 @@ void node_server::start_run(bool scf)
             omega_dot = theta_dot_dot;
             omega += omega_dot * dt;
 //            omega_dot += theta_dot_dot*dt;
-            grid::set_omega(omega);
+//             grid::set_omega(omega);          // now done during check_for_refinement below
         }
         double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
             std::chrono::high_resolution_clock::now() - time_start).count();
@@ -351,7 +350,7 @@ void node_server::start_run(bool scf)
         step_num = next_step;
 
         if (step_num % refinement_freq() == 0) {
-            ngrids = regrid(me.get_gid(), false);
+            ngrids = regrid(me.get_gid(), omega, false);
 
             // run output on separate thread
             auto need_break = hpx::threads::run_as_os_thread([&]()
@@ -621,7 +620,7 @@ hpx::future<real> node_server::step(integer steps) {
             },
             std::move(dt_fut),
             hpx::when_all(std::move(child_futs))
-            );
+        );
     }
     else
     {
