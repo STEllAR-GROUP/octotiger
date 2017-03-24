@@ -236,7 +236,7 @@ constexpr inline T average(T const& s1, T const& s2)
 };
 
 template <typename T>
-constexpr inline void inplace_average(T& s1, T& s2)
+inline void inplace_average(T& s1, T& s2)
 {
     s1 = s2 = average(s1, s2);
 };

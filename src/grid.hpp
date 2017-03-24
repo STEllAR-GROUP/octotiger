@@ -203,7 +203,7 @@ public:
 	void set_root(bool flag = true);
 	void set_leaf(bool flag = true);
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
-	void set_omega(real, bool bcast=true);
+	static void set_omega(real, bool bcast=true);
 	static real& get_omega();
 	static void set_pivot(const space_vector& p);
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);

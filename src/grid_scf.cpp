@@ -327,7 +327,7 @@ void node_server::run_scf() {
 //	printf( "Starting SCF\n");
 	grid::set_omega(omega);
 	printf( "Starting SCF\n");
-	for (integer i = 0; i != 25; ++i) {
+	for (integer i = 0; i != 50; ++i) {
 //		profiler_output(stdout);
         char buffer[33];    // 21 bytes for int (max) + some leeway
         sprintf(buffer, "X.scf.%i.silo", int(i));
