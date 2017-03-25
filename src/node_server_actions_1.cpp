@@ -116,8 +116,12 @@ grid::output_list_type node_server::load(
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
             children[ci] = hpx::new_<node_server>(
                 options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
+#ifdef OCTOTIGER_RESTART_LOAD_SEQ
+            children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename).get();
+#else
             futs[index++] =
                 children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename);
+#endif
         }
     } else if (flag == '0') {
         is_refined = false;
