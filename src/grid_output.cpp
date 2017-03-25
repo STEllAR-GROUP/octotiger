@@ -261,18 +261,27 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 }
 
 std::size_t grid::load(FILE* fp) {
+	static hpx::mutex mtx;
 	std::size_t cnt = 0;
 	real dummy;
 	integer dummy_int;
 	auto foo = std::fread;
 	real Acon, Bcon;
 	{
-		static hpx::mutex mtx;
+		static bool statics_loaded = false;
 		std::lock_guard<hpx::mutex> lock(mtx);
-		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
+		if( !statics_loaded ) {
+			cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
+			cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
+			statics_loaded = true;
+		} else {
+			cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
+			cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&dummy, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
+		}
 	}
 
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
@@ -292,10 +301,8 @@ std::size_t grid::load(FILE* fp) {
 		for (integer j = 0; j < G_NX; ++j) {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				real g[NGF];
-				cnt += foo(g, sizeof(real), NGF, fp) * sizeof(real);
-				for (integer f = 0; f != NGF; ++f) {
-					G[iii][f] = g[f];
+				for( integer f = 0; f != NGF; ++f ) {
+					cnt += foo(&(G[iii][f]), sizeof(real), 1, fp) * sizeof(real);
 				}
 			}
 		}
@@ -334,8 +341,9 @@ std::size_t grid::save(FILE* fp) const {
 		for (integer j = 0; j < G_NX; ++j) {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				const auto d = G[iii][0];
-				cnt += foo(&d, sizeof(real), NGF, fp) * sizeof(real);
+				for( integer f = 0; f != NGF; ++f ) {
+					cnt += foo(&(G[iii][f]), sizeof(real), 1, fp) * sizeof(real);
+				}
 			}
 		}
 	}

@@ -384,8 +384,6 @@ integer node_server::save(integer cnt, std::string filename) const {
         FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
         fwrite(&flag, sizeof(flag), 1, fp);
         ++cnt;
-        //	printf("                                   \rSaved %li sub-grids\r",
-        //(long int) cnt);
         integer value = cnt;
         std::array<integer, NCHILD> values;
         for (auto& ci : geo::octant::full_set()) {
@@ -413,9 +411,7 @@ integer node_server::save(integer cnt, std::string filename) const {
             space_vector pivot = grid::get_pivot();
             fwrite(&omega, sizeof(real), 1, fp);
             for (auto& d : geo::dimension::full_set()) {
-                real temp_pivot;
-                fwrite(&temp_pivot, sizeof(real), 1, fp);
-                pivot[d] = temp_pivot;
+                fwrite(&(pivot[d]), sizeof(real), 1, fp);
             }
             fwrite(&record_size, sizeof(integer), 1, fp);
             fclose(fp);

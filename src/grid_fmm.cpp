@@ -1371,7 +1371,7 @@ multipole_pass_type grid::compute_multipoles(
     gsolve_type type, const multipole_pass_type* child_poles) {
     //	if( int(*Muse_counter) > 0)
     //	printf( "%i\n", int(*Muse_counter));
-//	set_coordinates();
+//	printf( "%\n", scaling_factor);
 	//if( dx  > 1.0e+12)
 //	printf( "+-00000--------++++++++++++++++++++++++++++ %e \n", dx);
 
