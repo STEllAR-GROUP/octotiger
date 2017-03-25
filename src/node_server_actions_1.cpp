@@ -114,8 +114,8 @@ grid::output_list_type node_server::load(
         integer index = 0;
         for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
-            children[ci] = hpx::new_<node_server>(
-                options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
+			children[ci] = hpx::new_ < node_server
+					> (options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
 #ifdef OCTOTIGER_RESTART_LOAD_SEQ
             children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename).get();
 #else
@@ -251,8 +251,8 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
             for (auto& ci : geo::octant::full_set()) {
                 child_descendant_count[ci] = 1;
-                children[ci] = hpx::new_<node_server>(
-                    hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
+				children[ci] = hpx::new_ < node_server
+						> (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle);
 				{
 					std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
 					std::array<integer, NDIM> ub;

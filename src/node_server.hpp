@@ -159,7 +159,7 @@ public:
 	node_server();
 	~node_server();
 	node_server(const node_server& other);
-	node_server(const node_location&, const node_client& parent_id, real, real);
+	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
 			std::size_t);
 	node_server(node_server&& other) = default;

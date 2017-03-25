@@ -335,12 +335,16 @@ node_server::~node_server() {
 }
 
 node_server::node_server() {
-    initialize(ZERO, ZERO);
+	initialize(ZERO, ZERO);
 }
 
-node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt) :
-    my_location(loc), parent(parent_id) {
-    initialize(t, rt);
+node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num, std::size_t _hcycle,
+		std::size_t _gcycle) :
+		my_location(loc), parent(parent_id) {
+	initialize(t, rt);
+	step_num = _step_num;
+	gcycle = _gcycle;
+	hcycle = _hcycle;
 }
 
 
