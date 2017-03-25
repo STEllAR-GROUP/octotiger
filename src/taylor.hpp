@@ -5,6 +5,12 @@
  *      Author: dmarce1
  */
 
+//  Copyright (c) 2015-2017 Louisiana State University
+//  Copyright (c) 2017      Bryce Adelstein Lelbach 
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TAYLOR_HPP_
 #define TAYLOR_HPP_
 
@@ -28,15 +34,37 @@
 
 #define MAX_ORDER 5
 
-struct taylor_consts
-{
-    static const real delta[3][3];
-    static integer map2[3][3];
-    static integer map3[3][3][3];
-    static integer map4[3][3][3][3];
+constexpr real taylor_elta[3][3] = {
+    { ONE, ZERO, ZERO },
+    { ZERO, ONE, ZERO },
+    { ZERO, ZERO, ONE }
 };
 
-constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35};    //
+constexpr integer taylor_map2[3][3] = {
+    { 4+0, 4+1, 4+2 },
+    { 4+1, 4+3, 4+4 },
+    { 4+2, 4+4, 4+5 }
+};
+
+constexpr integer taylor_map3[3][3][3] = {
+    { { 10+0, 10+1, 10+2 }, { 10+1, 10+3, 10+4 }, { 10+2, 10+4, 10+5 } },
+    { { 10+1, 10+3, 10+4 }, { 10+3, 10+6, 10+7 }, { 10+4, 10+7, 10+8 } },
+    { { 10+2, 10+4, 10+5 }, { 10+4, 10+7, 10+8 }, { 10+5, 10+8, 10+9 } }
+};
+
+constexpr integer taylor_map4[3][3][3][3] = {
+    { { { 20+0,  20+1,  20+2 }, { 20+1,  20+3,  20+4 }, { 20+2,  20+4,  20+5 } },
+      { { 20+1,  20+3,  20+4 }, { 20+3,  20+6,  20+7 }, { 20+4,  20+7,  20+8 } },
+      { { 20+2,  20+4,  20+5 }, { 20+4,  20+7,  20+8 }, { 20+5,  20+8,  20+9 } } },
+    { { { 20+1,  20+3,  20+4 }, { 20+3,  20+6,  20+7 }, { 20+4,  20+7,  20+8 } },
+      { { 20+3,  20+6,  20+7 }, { 20+6, 20+10, 20+11 }, { 20+7, 20+11, 20+12 } },
+      { { 20+4,  20+7,  20+8 }, { 20+7, 20+11, 20+12 }, { 20+8, 20+12, 20+13 } } },
+    { { { 20+2,  20+4,  20+5 }, { 20+4,  20+7,  20+8 }, { 20+5,  20+8,  20+9 } },
+      { { 20+4,  20+7,  20+8 }, { 20+7, 20+11, 20+12 }, { 20+8, 20+12, 20+13 } },
+      { { 20+5,  20+8,  20+9 }, { 20+8, 20+12, 20+13 }, { 20+9, 20+13, 20+14 } } }
+};
+
+constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35};
 
 ///////////////////////////////////////////////////////////////////////////////
 template <int N, class T = real>
@@ -44,72 +72,71 @@ class taylor
 {
 private:
     static constexpr integer my_size = taylor_sizes[N - 1];
-    static taylor_consts tc;
     std::array<T, my_size> data;
 
 public:
-    T& operator[](integer i) {
+    constexpr T& operator[](integer i) {
         return data[i];
     }
-    const T& operator[](integer i) const {
+    constexpr const T& operator[](integer i) const {
         return data[i];
     }
     static constexpr decltype(my_size) size() {
         return my_size;
     }
-    taylor() = default;
+    constexpr taylor() = default;
     ~taylor() = default;
-    taylor(const taylor<N, T>&) = default;
-    taylor(taylor<N, T>&& other) {
+    constexpr taylor(const taylor<N, T>&) = default;
+    constexpr taylor(taylor<N, T>&& other) {
         data = std::move(other.data);
     }
-    taylor<N, T>& operator=(const taylor<N, T>&) = default;
-    taylor<N, T>& operator=(taylor<N, T>&& other) {
+    constexpr taylor<N, T>& operator=(const taylor<N, T>&) = default;
+    constexpr taylor<N, T>& operator=(taylor<N, T>&& other) {
         data = std::move(other.data);
         return *this;
     }
 
-    taylor<N, T>& operator=(T d) {
-#if !defined(HPX_HAVE_DATAPAR)
-#pragma GCC ivdep
+    constexpr taylor<N, T>& operator=(T d) {
+//#if !defined(HPX_HAVE_DATAPAR)
+//#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] = d;
         }
-#else
-        hpx::parallel::fill(hpx::parallel::execution::dataseq, data.begin(), data.end(), d);
-#endif
+//#else
+//        hpx::parallel::fill(hpx::parallel::execution::dataseq, data.begin(), data.end(), d);
+//#endif
         return *this;
     }
 
-    taylor<N, T>& operator*=(T d) {
-#if !defined(HPX_HAVE_DATAPAR)
-#pragma GCC ivdep
+    constexpr taylor<N, T>& operator*=(T d) {
+//#if !defined(HPX_HAVE_DATAPAR)
+//#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] *= d;
         }
-#else
-        hpx::parallel::transform(hpx::parallel::execution::dataseq, data.begin(), data.end(),
-            data.begin(), [d](auto const& val) { return val * d; });
-#endif
+//#else
+//        hpx::parallel::transform(hpx::parallel::execution::dataseq, data.begin(), data.end(),
+//            data.begin(), [d](auto const& val) { return val * d; });
+//#endif
         return *this;
     }
 
-    taylor<N, T>& operator/=(T d) {
-#if !defined(HPX_HAVE_DATAPAR)
-#pragma GCC ivdep
+    constexpr taylor<N, T>& operator/=(T d) {
+//#if !defined(HPX_HAVE_DATAPAR)
+//#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] /= d;
         }
-#else
-        hpx::parallel::transform(hpx::parallel::execution::dataseq, data.begin(), data.end(),
-            data.begin(), [d](auto const& val) { return val / d; });
-#endif
+//#else
+//        hpx::parallel::transform(hpx::parallel::execution::dataseq, data.begin(), data.end(),
+//            data.begin(), [d](auto const& val) { return val / d; });
+//#endif
         return *this;
     }
 
-    taylor<N, T>& operator+=(const taylor<N, T>& other) {
+    constexpr taylor<N, T>& operator+=(const taylor<N, T>& other) {
 // #if !defined(HPX_HAVE_DATAPAR)
-#pragma GCC ivdep
+//#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] += other.data[i];
         }
@@ -126,9 +153,9 @@ public:
         return *this;
     }
 
-    taylor<N, T>& operator-=(const taylor<N, T>& other) {
+    constexpr taylor<N, T>& operator-=(const taylor<N, T>& other) {
 // #if !defined(HPX_HAVE_DATAPAR)
-#pragma GCC ivdep
+//#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] -= other.data[i];
         }
@@ -145,63 +172,64 @@ public:
         return *this;
     }
 
-    taylor<N, T> operator+(const taylor<N, T>& other) const {
+    constexpr taylor<N, T> operator+(const taylor<N, T>& other) const {
         taylor<N, T> r = *this;
         r += other;
         return r;
     }
 
-    taylor<N, T> operator-(const taylor<N, T>& other) const {
+    constexpr taylor<N, T> operator-(const taylor<N, T>& other) const {
         taylor<N, T> r = *this;
         r -= other;
         return r;
     }
 
-    taylor<N, T> operator*(const T& d) const {
+    constexpr taylor<N, T> operator*(const T& d) const {
         taylor<N, T> r = *this;
         r *= d;
         return r;
     }
 
-    taylor<N, T> operator/(const T& d) const {
+    constexpr taylor<N, T> operator/(const T& d) const {
         taylor<N, T> r = *this;
         r /= d;
         return r;
     }
 
-    taylor<N, T> operator+() const {
+    constexpr taylor<N, T> operator+() const {
         return *this;
     }
 
     taylor<N, T>& operator+=(v4sd const& other) {
-#pragma GCC ivdep
+//#pragma GCC ivdep
         for (integer i = 0; i != 4; ++i) {
             data[i] += other[i];
         }
         return *this;
     }
 
-    taylor<N, T> operator-() const {
+    constexpr taylor<N, T> operator-() const {
         taylor<N, T> r = *this;
-#if !defined(HPX_HAVE_DATAPAR)
-#pragma GCC ivdep
+//#if !defined(HPX_HAVE_DATAPAR)
+//#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             r.data[i] = -r.data[i];
         }
-#else
-        hpx::parallel::transform(hpx::parallel::execution::dataseq, r.data.begin(), r.data.end(),
-            r.data.begin(), [](T const& val) { return -val; });
-#endif
+//#else
+//        hpx::parallel::transform(hpx::parallel::execution::dataseq, r.data.begin(), r.data.end(),
+//            r.data.begin(), [](T const& val) { return -val; });
+//#endif
         return r;
     }
 
-#if defined(HPX_HAVE_DATAPAR)
-    friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs) {
-        return hpx::parallel::equal(hpx::parallel::execution::dataseq, lhs.data.begin(),
-            lhs.data.end(), rhs.data.begin(),
-            [](T const& t1, T const& t2) { return all_of(t1 == t2); });
-    }
-#endif
+// FIXME: Why do we only need this if we have datapar?
+//#if defined(HPX_HAVE_DATAPAR)
+//    friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs) {
+//        return hpx::parallel::equal(hpx::parallel::execution::dataseq, lhs.data.begin(),
+//            lhs.data.end(), rhs.data.begin(),
+//            [](T const& t1, T const& t2) { return all_of(t1 == t2); });
+//    }
+//#endif
 
     static constexpr integer index() {
         return 0;
@@ -211,55 +239,55 @@ public:
         return 1 + i;
     }
 
-    static integer index(integer i, integer j) {
-        return tc.map2[i][j];
+    static constexpr integer index(integer i, integer j) {
+        return taylor_map2[i][j];
     }
 
-    static integer index(integer i, integer j, integer k) {
-        return tc.map3[i][j][k];
+    static constexpr integer index(integer i, integer j, integer k) {
+        return taylor_map3[i][j][k];
     }
 
-    static integer index(integer i, integer j, integer k, integer l) {
-        return tc.map4[i][j][k][l];
+    static constexpr integer index(integer i, integer j, integer k, integer l) {
+        return taylor_map4[i][j][k][l];
     }
 
-    T const& operator()() const {
+    constexpr T const& operator()() const {
         return data[index()];
     }
 
-    T const& operator()(integer i) const {
+    constexpr T const& operator()(integer i) const {
         return data[index(i)];
     }
 
-    T const& operator()(integer i, integer j) const {
+    constexpr T const& operator()(integer i, integer j) const {
         return data[index(i, j)];
     }
 
-    T const& operator()(integer i, integer j, integer k) const {
+    constexpr T const& operator()(integer i, integer j, integer k) const {
         return data[index(i, j, k)];
     }
 
-    T const& operator()(integer i, integer j, integer k, integer l) const {
+    constexpr T const& operator()(integer i, integer j, integer k, integer l) const {
         return data[index(i, j, k, l)];
     }
 
-    T& operator()() {
+    constexpr T& operator()() {
         return data[index()];
     }
 
-    T& operator()(integer i) {
+    constexpr T& operator()(integer i) {
         return data[index(i)];
     }
 
-    T& operator()(integer i, integer j) {
+    constexpr T& operator()(integer i, integer j) {
         return data[index(i, j)];
     }
 
-    T& operator()(integer i, integer j, integer k) {
+    constexpr T& operator()(integer i, integer j, integer k) {
         return data[index(i, j, k)];
     }
 
-    T& operator()(integer i, integer j, integer k, integer l) {
+    constexpr T& operator()(integer i, integer j, integer k, integer l) {
         return data[index(i, j, k, l)];
     }
 
@@ -362,11 +390,11 @@ public:
 
     void set_basis(const std::array<T, NDIM>& X);
 
-    T* ptr() {
+    constexpr T* ptr() {
         return data.data();
     }
 
-    const T* ptr() const {
+    constexpr const T* ptr() const {
         return data.data();
     }
 
@@ -386,8 +414,8 @@ namespace hpx { namespace traits
 
 #include "space_vector.hpp"
 
-template <int N, class T>
-taylor_consts taylor<N, T>::tc;
+//template <int N, class T>
+//taylor_consts taylor<N, T>::tc;
 
 constexpr integer to_aa[] = {
     -1,

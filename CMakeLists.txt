@@ -108,7 +108,6 @@ set(source_files ${source_files}
     src/real.cpp
     src/roe.cpp
     src/stack_trace.cpp
-    src/taylor.cpp
     src/util.cpp
 )
 
