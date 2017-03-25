@@ -14,9 +14,9 @@ extern options opts;
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
 HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 
-void node_client::send_gravity_boundary(gravity_boundary_type&& data,
+hpx::future<void> node_client::send_gravity_boundary(gravity_boundary_type&& data,
     const geo::direction& dir, bool monopole) const {
-    hpx::apply<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(),
+    return hpx::async<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(),
         std::move(data), dir, monopole);
 }
 
@@ -58,9 +58,9 @@ void node_server::recv_gravity_multipoles(multipole_pass_type&& v,
 typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
 HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
-void node_client::send_hydro_boundary(std::vector<real>&& data,
+hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data,
     const geo::direction& dir) const {
-    hpx::apply<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(),
+    return hpx::async<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(),
         std::move(data), dir);
 }
 
@@ -79,9 +79,9 @@ void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octan
     child_hydro_channels[ci].set_value(std::move(data));
 }
 
-void node_client::send_hydro_children(std::vector<real>&& data,
+hpx::future<void> node_client::send_hydro_children(std::vector<real>&& data,
     const geo::octant& ci) const {
-    hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(),
+    return hpx::async<typename node_server::send_hydro_children_action>(get_unmanaged_gid(),
         std::move(data), ci);
 }
 
@@ -305,8 +305,8 @@ void node_server::start_run(bool scf)
 
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
+        auto diags = diagnostics();
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
-            auto diags = diagnostics();
 
             const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
             const real dy = diags.secondary_com[YDIM] - diags.primary_com[YDIM];

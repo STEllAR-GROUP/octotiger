@@ -56,7 +56,9 @@ private:
     std::shared_ptr<rad_grid> rad_grid_ptr; //
 #endif
     bool is_refined;
-    std::array<integer, NVERTEX> child_descendant_count;
+   hpx::future<void> grav_bound_lock;
+   hpx::future<void> hydro_bound_lock;
+   std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
     real dx;
 
@@ -134,9 +136,9 @@ private:
     static std::atomic<integer> static_initializing;
 
     void initialize(real, real);
-    void send_hydro_amr_boundaries(bool tau_only = false);
-    void collect_hydro_boundaries(bool tau_only = false);
-    void exchange_interlevel_hydro_data();
+    hpx::future<void> send_hydro_amr_boundaries(bool tau_only = false);
+    hpx::future<void> collect_hydro_boundaries(bool tau_only = false);
+    hpx::future<void> exchange_interlevel_hydro_data();
     static void static_initialize();
     void all_hydro_bounds(bool tau_only = false);
     void clear_family();

@@ -125,7 +125,7 @@ analytic_t node_server::compare_analytic() {
 }
 
 diagnostics_t node_server::diagnostics() const {
-    auto axis = grid_ptr->find_axis();
+	auto axis = grid_ptr->find_axis();
     auto loc = line_of_centers(axis);
     real this_omega = grid::get_omega();
     std::pair<real, real> rho1, rho2, l1, l2, l3;
