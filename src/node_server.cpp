@@ -250,20 +250,20 @@ std::size_t node_server::save_me(FILE* fp) const {
 
 #include "util.hpp"
 
-void node_server::save_to_file(const std::string& fname) const {
-    save(0, fname);
-    file_copy(fname.c_str(), "restart.chk");
+void node_server::save_to_file(const std::string& fname, std::string const& data_dir) const {
+    save(0, data_dir + fname);
+    file_copy((data_dir + fname).c_str(), (data_dir + "restart.chk").c_str());
 //	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
 //	SYSTEM(command);
 }
 
-void node_server::load_from_file(const std::string& fname) {
+void node_server::load_from_file(const std::string& fname, std::string const& data_dir) {
     load(0, hpx::id_type(), false, fname);
 }
 
-void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname) {
-    load(0, hpx::id_type(), true, fname);
-    file_copy("data.silo", outname.c_str());
+void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname, std::string const& data_dir) {
+    load(0, hpx::id_type(), true, data_dir + fname);
+    file_copy((data_dir + "data.silo").c_str(), (data_dir + outname).c_str());
 //	std::string command = std::string("mv data.silo ") + outname + std::string("\n");
 //	SYSTEM(command);
 }

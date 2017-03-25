@@ -159,9 +159,9 @@ public:
     void report_timing();
     HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
 
-    void save_to_file(const std::string&) const;
-    void load_from_file(const std::string&);
-    void load_from_file_and_output(const std::string&, const std::string&);
+    void save_to_file(const std::string&, std::string const& data_dir) const;
+    void load_from_file(const std::string&, std::string const& data_dir);
+    void load_from_file_and_output(const std::string&, const std::string&, std::string const& data_dir);
 
     grid::output_list_type output(std::string fname, int cycle, bool analytic) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
@@ -277,7 +277,7 @@ public:
     void rho_move(real);
     HPX_DEFINE_COMPONENT_ACTION(node_server,rho_move, rho_move_action);
 
-    void run_scf();
+    void run_scf(std::string const& data_dir);
 
 #ifdef RADIATION
 private:

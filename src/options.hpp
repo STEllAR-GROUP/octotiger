@@ -49,6 +49,7 @@ public:
 	real theta;
 	bool ang_con;
     bool disable_output;
+    std::string data_dir;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -71,7 +72,7 @@ public:
 		tmp = eos;
 		arc & tmp;
 		eos = (eos_type)tmp;
-
+        arc & data_dir;
 	}
 
 	bool process_options(int argc, char* argv[]);

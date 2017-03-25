@@ -317,7 +317,7 @@ real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3, 
 
 }
 
-void node_server::run_scf() {
+void node_server::run_scf(std::string const& data_dir) {
 	solve_gravity(false);
 	real omega = initial_params().omega;
 	real jorb0;
@@ -332,7 +332,7 @@ void node_server::run_scf() {
 		//	set_omega_and_pivot();
 		if (i % 100 == 0 && i != 0) {
 			output(buffer, i, false);
-			save_to_file("scf.chk");
+			save_to_file("scf.chk", data_dir);
 		}
 		auto diags = diagnostics();
 		real f0 = scf_options::M1 / (diags.primary_sum[rho_i]);

@@ -262,10 +262,10 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 
 std::size_t grid::load(FILE* fp) {
 	std::size_t cnt = 0;
-	real dummy;
+// 	real dummy;
 	integer dummy_int;
 	auto foo = std::fread;
-	real Acon, Bcon;
+// 	real Acon, Bcon;
 	{
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);

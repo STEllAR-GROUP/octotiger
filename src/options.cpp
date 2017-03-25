@@ -14,6 +14,7 @@
 #define PROBLEM_OPT "-Problem"
 #define RESTART_OPT "-Restart"
 #define OUTPUT_OPT "-Output"
+#define DATA_DIR_OPT "-Datadir"
 #define ANGCON_OPT "-Angcon"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
@@ -66,6 +67,8 @@ void options::show_help() {
             "                                        (Note that for the dwd problem this specifies only the initial value)\n"
             "\n"
             "-Output=<file name>                   - Load restart file, output to SILO, then exit. Used for converting checkpoints to SILO.\n"
+            "\n"
+            "-Datadir=<directory name>             - Directory where to load input from/write output to (must exist!).\n"
             "\n"
             "-Problem=<problem name>               - Sets up the initial model\n"
             "                                        blast        - Set up and run a Sedov-Taylor blast wave.\n"
@@ -157,6 +160,9 @@ bool options::process_options(int argc, char* argv[]) {
         } else if (cmp(argv[i], RESTART_OPT)) {
             restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
             found_restart_file = true;
+        } else if (cmp(argv[i], DATA_DIR_OPT)) {
+            data_dir = std::string(argv[i] + strlen(DATA_DIR_OPT) + 1);
+            data_dir += "/";
         } else if (cmp(argv[i], OUTPUT_OPT)) {
             output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
             output_only = true;
