@@ -49,6 +49,8 @@ private:
     static bool gravity_on;
     node_location my_location;
     integer step_num;
+    std::size_t hcycle;
+    std::size_t gcycle;
     real current_time;
     real rotational_time;
     std::shared_ptr<grid> grid_ptr; //
@@ -56,8 +58,6 @@ private:
     std::shared_ptr<rad_grid> rad_grid_ptr; //
 #endif
     bool is_refined;
-   hpx::future<void> grav_bound_lock;
-   hpx::future<void> hydro_bound_lock;
    std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
     real dx;
@@ -104,6 +104,10 @@ public:
 
     template<class Archive>
     void serialize(Archive& arc, unsigned) {
+    	std::size_t _hb = hcycle;
+    	std::size_t _gb = gcycle;
+    	arc & _hb;
+    	arc & _gb;
         arc & my_location;
         arc & step_num;
         arc & is_refined;
@@ -123,11 +127,10 @@ public:
         arc & rf;
         refinement_flag = rf;
         arc & timings_;
+        hcycle = _hb;
+        gcycle = _gb;
     }
 
-    node_server(const node_location&, integer, bool, real, real,
-        const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&);
-    node_server(node_server&& other) = default;
     std::size_t load_me(FILE* fp);
     std::size_t save_me(FILE* fp) const;
 private:
@@ -136,9 +139,9 @@ private:
     static std::atomic<integer> static_initializing;
 
     void initialize(real, real);
-    hpx::future<void> send_hydro_amr_boundaries(bool tau_only = false);
-    hpx::future<void> collect_hydro_boundaries(bool tau_only = false);
-    hpx::future<void> exchange_interlevel_hydro_data();
+    void send_hydro_amr_boundaries(bool tau_only = false);
+    void collect_hydro_boundaries(bool tau_only = false);
+    void exchange_interlevel_hydro_data();
     static void static_initialize();
     void all_hydro_bounds(bool tau_only = false);
     void clear_family();
@@ -153,10 +156,14 @@ public:
      static bool child_is_on_face(integer ci, integer face);
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
-    node_server();
-    ~node_server();
-    node_server(const node_server& other);
-    node_server(const node_location&, const node_client& parent_id, real, real);
+	node_server();
+	~node_server();
+	node_server(const node_server& other);
+	node_server(const node_location&, const node_client& parent_id, real, real);
+	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
+			std::size_t);
+	node_server(node_server&& other) = default;
+
 
     void report_timing();
     HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
@@ -174,19 +181,18 @@ public:
     hpx::future<void> regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
-    void recv_hydro_boundary(std::vector<real>&&, const geo::direction&);
+    void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
 
-    void recv_hydro_children(std::vector<real>&&, const geo::octant& ci);
+    void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
-    void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
-        const geo::octant& ci);
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
-    void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
-        bool monopole);
-    void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
-    void recv_gravity_expansions(expansion_pass_type&&);
+	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
+	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
+
+	void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
+	void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
+	void recv_gravity_expansions(expansion_pass_type&&);
 
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);

@@ -122,22 +122,18 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 }
 
 void node_server::all_hydro_bounds(bool tau_only) {
-	if( hydro_bound_lock.valid()) {
-		hydro_bound_lock.get();
-	}
-	std::array<hpx::future<void>,3> f;
-	f[0] = exchange_interlevel_hydro_data();
-	f[1] = collect_hydro_boundaries(tau_only);
-	f[2] = send_hydro_amr_boundaries(tau_only);
-	hydro_bound_lock = hpx::when_all(f);
+	exchange_interlevel_hydro_data();
+	collect_hydro_boundaries(tau_only);
+	send_hydro_amr_boundaries(tau_only);
+	++hcycle;
 }
 
-hpx::future<void> node_server::exchange_interlevel_hydro_data() {
+void node_server::exchange_interlevel_hydro_data() {
 
     if (is_refined) {
         std::vector<real> outflow(NF, ZERO);
         for (auto const& ci : geo::octant::full_set()) {
-            auto data = child_hydro_channels[ci].get_future().get();
+            auto data = child_hydro_channels[ci].get_future(hcycle).get();
             grid_ptr->set_restrict(data, ci);
             integer fi = 0;
             for (auto i = data.end() - NF; i != data.end(); ++i) {
@@ -147,22 +143,19 @@ hpx::future<void> node_server::exchange_interlevel_hydro_data() {
         }
         grid_ptr->set_outflows(std::move(outflow));
     }
-    if (my_location.level() > 0) {
-        auto data = grid_ptr->get_restrict();
-        integer ci = my_location.get_child_index();
-        return parent.send_hydro_children(std::move(data), ci);
-    } else {
-    	return hpx::make_ready_future();
-    }
+    auto data = grid_ptr->get_restrict();
+    integer ci = my_location.get_child_index();
+	if (my_location.level() != 0) {
+		parent.send_hydro_children(std::move(data), ci, hcycle);
+	}
 }
 
-hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
-	std::vector<hpx::future<void>> send_futs;
-    for (auto const& dir : geo::direction::full_set()) {
+void node_server::collect_hydro_boundaries(bool tau_only) {
+	for (auto const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
             const integer width = H_BW;
             auto bdata = grid_ptr->get_hydro_boundary(dir, width, tau_only);
-            send_futs.push_back(neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip()));
+            neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
         }
     }
 
@@ -171,7 +164,7 @@ hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
     for (auto const& dir : geo::direction::full_set()) {
         if (!(neighbors[dir].empty() && my_location.level() == 0)) {
             results[index++] =
-                sibling_hydro_channels[dir].get_future().then(
+                sibling_hydro_channels[dir].get_future(hcycle).then(
                     hpx::util::annotated_function(
                         [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
                         {
@@ -191,12 +184,10 @@ hpx::future<void> node_server::collect_hydro_boundaries(bool tau_only) {
             grid_ptr->set_physical_boundaries(face, current_time);
         }
     }
-    return hpx::when_all(send_futs);
 }
 
-hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
-	std::vector<hpx::future<void>> futs;
-    if (is_refined) {
+void node_server::send_hydro_amr_boundaries(bool tau_only) {
+	if (is_refined) {
         constexpr auto full_set = geo::octant::full_set();
         for (auto& ci : full_set) {
             const auto& flags = amr_flags[ci];
@@ -217,13 +208,12 @@ hpx::future<void> node_server::send_hydro_amr_boundaries(bool tau_only) {
                         ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
                     }
                     data = grid_ptr->get_prolong(lb, ub, tau_only);
-                    futs.push_back(children[ci].send_hydro_boundary(std::move(data), dir));
+                    children[ci].send_hydro_boundary(std::move(data), dir, hcycle);
                 }
             }
 //			}
         }
     }
-    return hpx::when_all(std::move(futs));
 }
 
 inline bool file_exists(const std::string& name) {
@@ -296,22 +286,6 @@ integer child_index_to_quadrant_index(integer ci, integer dim) {
     return index;
 }
 
-node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
-    const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c) {
-    my_location = _my_location;
-    initialize(_current_time, _rotational_time);
-    is_refined = _is_refined;
-    step_num = _step_num;
-    current_time = _current_time;
-    rotational_time = _rotational_time;
-//     grid test;
-    grid_ptr = std::make_shared<grid>(std::move(_grid));
-    if (is_refined) {
-        std::copy(_c.begin(), _c.end(), children.begin());
-    }
-    child_descendant_count = _child_d;
-}
-
 bool node_server::child_is_on_face(integer ci, integer face) {
     return (((ci >> (face / 2)) & 1) == (face & 1));
 }
@@ -329,6 +303,7 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
+	gcycle = hcycle = 0;
     step_num = 0;
     refinement_flag = 0;
     static_initialize();
@@ -368,11 +343,27 @@ node_server::node_server(const node_location& loc, const node_client& parent_id,
     initialize(t, rt);
 }
 
+
+node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
+    const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c, std::size_t _hcycle, std::size_t _gcycle) {
+	hcycle = _hcycle;
+	gcycle = _gcycle;
+    my_location = _my_location;
+    initialize(_current_time, _rotational_time);
+    is_refined = _is_refined;
+    step_num = _step_num;
+    current_time = _current_time;
+    rotational_time = _rotational_time;
+//     grid test;
+    grid_ptr = std::make_shared<grid>(std::move(_grid));
+    if (is_refined) {
+        std::copy(_c.begin(), _c.end(), children.begin());
+    }
+    child_descendant_count = _child_d;
+}
+
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
-	if( grav_bound_lock.valid() ) {
-		grav_bound_lock.get();
-	}
-    if (!gravity_on) {
+	if (!gravity_on) {
         return;
     }
 
@@ -430,8 +421,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             const bool is_monopole = !is_refined;
 //             const auto gid = neighbors[dir].get_gid();
             const bool is_local = neighbors[dir].is_local();
-            send_futs.push_back(neighbors[dir].send_gravity_boundary(
-                grid_ptr->get_gravity_boundary(dir, is_local), ndir, is_monopole));
+            neighbors[dir].send_gravity_boundary(
+                grid_ptr->get_gravity_boundary(dir, is_local), ndir, is_monopole, gcycle);
         }
     }
 
@@ -458,7 +449,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 #else
      for (auto const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
-            auto tmp = neighbor_gravity_channels[dir].get_future().get();
+            auto tmp = neighbor_gravity_channels[dir].get_future(gcycle).get();
             grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
         }
     }
@@ -500,7 +491,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     if (energy_account) {
         grid_ptr->etot_to_egas();
     }
-    grav_bound_lock = hpx::when_all(send_futs);
+    ++gcycle;
 }
 
 void node_server::report_timing()

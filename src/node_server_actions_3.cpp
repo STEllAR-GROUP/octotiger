@@ -12,21 +12,18 @@
 extern options opts;
 
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
-HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
+HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
 
-hpx::future<void> node_client::send_gravity_boundary(gravity_boundary_type&& data,
-    const geo::direction& dir, bool monopole) const {
-    return hpx::async<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(),
-        std::move(data), dir, monopole);
+void node_client::send_gravity_boundary(gravity_boundary_type&& data, const geo::direction& dir, bool monopole, std::size_t cycle) const {
+	hpx::apply<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(), std::move(data), dir, monopole, cycle);
 }
 
-void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata,
-    const geo::direction& dir, bool monopole) {
-    neighbor_gravity_type tmp;
-    tmp.data = std::move(bdata);
-    tmp.is_monopole = monopole;
-    tmp.direction = dir;
-    neighbor_gravity_channels[dir].set_value(std::move(tmp));
+void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata, const geo::direction& dir, bool monopole, std::size_t cycle) {
+	neighbor_gravity_type tmp;
+	tmp.data = std::move(bdata);
+	tmp.is_monopole = monopole;
+	tmp.direction = dir;
+	neighbor_gravity_channels[dir].set_value(std::move(tmp), cycle);
 }
 
 typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;
@@ -58,31 +55,31 @@ void node_server::recv_gravity_multipoles(multipole_pass_type&& v,
 typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
 HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
-hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data,
-    const geo::direction& dir) const {
-    return hpx::async<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(),
-        std::move(data), dir);
+void node_client::send_hydro_boundary(std::vector<real>&& data,
+    const geo::direction& dir, std::size_t cycle) const {
+    hpx::apply<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(),
+        std::move(data), dir, cycle);
 }
 
 void node_server::recv_hydro_boundary(std::vector<real>&& bdata,
-    const geo::direction& dir) {
+    const geo::direction& dir, std::size_t cycle) {
     sibling_hydro_type tmp;
     tmp.data = std::move(bdata);
     tmp.direction = dir;
-    sibling_hydro_channels[dir].set_value(std::move(tmp));
+    sibling_hydro_channels[dir].set_value(std::move(tmp),cycle);
 }
 
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
 HPX_REGISTER_ACTION(send_hydro_children_action_type);
 
-void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci) {
-    child_hydro_channels[ci].set_value(std::move(data));
+void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci, std::size_t cycle) {
+    child_hydro_channels[ci].set_value(std::move(data), cycle);
 }
 
-hpx::future<void> node_client::send_hydro_children(std::vector<real>&& data,
-    const geo::octant& ci) const {
-    return hpx::async<typename node_server::send_hydro_children_action>(get_unmanaged_gid(),
-        std::move(data), ci);
+void node_client::send_hydro_children(std::vector<real>&& data,
+    const geo::octant& ci, std::size_t cycle) const {
+    hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(),
+        std::move(data), ci, cycle);
 }
 
 typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
@@ -418,10 +415,7 @@ void node_server::refined_step() {
     const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
     real cfl0 = cfl;
 
-    // FIXME: is this correct? ('a' was never re-initialized for refined == true)
     real a = std::numeric_limits<real>::min();
- //   printf( "%e %e\n", dx, a);
-//    dt_ = cfl0 * dx / a;
 
     all_hydro_bounds();
     local_timestep_channels[NCHILD].set_value(std::numeric_limits<real>::max());

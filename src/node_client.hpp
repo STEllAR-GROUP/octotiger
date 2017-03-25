@@ -57,7 +57,7 @@ public:
 	hpx::future<void> rho_mult(real, real) const;
 	hpx::future<void> rho_move(real) const;
 	hpx::future<real> scf_update(real,real,real,real, real, real, real, struct_eos, struct_eos) const;
-	hpx::future<void> send_hydro_children( std::vector<real>&&, const geo::octant& ci) const;
+	void send_hydro_children( std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
 	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
@@ -74,8 +74,8 @@ public:
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;
 	hpx::future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line) const;
-	hpx::future<void> send_hydro_boundary(std::vector<real>&&, const geo::direction& dir) const;
-	hpx::future<void> send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole) const;
+	void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir, std::size_t cycle) const;
+	void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle) const;
 	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	void send_gravity_expansions(expansion_pass_type&&) const;
 	hpx::future<void> step(integer) const;
