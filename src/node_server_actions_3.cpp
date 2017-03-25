@@ -301,12 +301,13 @@ void node_server::start_run(bool scf)
         real dt = 0;
 
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
+     //   next_step = step_num + 1;
         dt = step(next_step - step_num).get();
 
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
         omega = grid::get_omega();
-        auto diags = diagnostics();
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
+            auto diags = diagnostics();
 
             const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
             const real dy = diags.secondary_com[YDIM] - diags.primary_com[YDIM];
