@@ -224,7 +224,7 @@ public:
 	void velocity_inc(const space_vector& dv);
 	void set_outflows(std::vector<real>&&);
 	std::vector<real> get_restrict() const;
-	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension&)/* const*/;
+	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only=false);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
