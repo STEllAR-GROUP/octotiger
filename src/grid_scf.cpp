@@ -486,9 +486,9 @@ void node_server::run_scf(std::string const& data_dir) {
 			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
 				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "r1", "r2", "iorb", "pvol", "proche", "svol",
 				"sroche");
-		lprintf("log.txt", "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
-			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
-			diags.secondary_volume, diags.roche_vol2);
+		    lprintf((opts.data_dir + "log.txt").c_str(), "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
+			    omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
+			    diags.secondary_volume, diags.roche_vol2);
 		if (i % 10 == 0) {
 			regrid(me.get_unmanaged_gid(), omega, false);
 		}

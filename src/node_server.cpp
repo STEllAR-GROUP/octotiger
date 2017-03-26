@@ -257,7 +257,7 @@ void node_server::save_to_file(const std::string& fname, std::string const& data
 }
 
 void node_server::load_from_file(const std::string& fname, std::string const& data_dir) {
-    load(0, hpx::id_type(), false, fname);
+    load(0, hpx::id_type(), false, data_dir + fname);
 }
 
 void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname, std::string const& data_dir) {
