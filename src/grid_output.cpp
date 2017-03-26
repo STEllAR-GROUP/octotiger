@@ -344,9 +344,8 @@ std::size_t grid::save(FILE* fp) const {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
 				for( integer f = 0; f != NGF; ++f ) {
-					real tmp;
+					real tmp = G[iii][f];
 					cnt += foo(&tmp, sizeof(real), 1, fp) * sizeof(real);
-					G[iii][f] = tmp;
 				}
 			}
 		}
