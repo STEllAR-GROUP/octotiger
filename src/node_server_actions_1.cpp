@@ -114,10 +114,14 @@ grid::output_list_type node_server::load(
         integer index = 0;
         for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
-            children[ci] = hpx::new_<node_server>(
-                options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
+			children[ci] = hpx::new_ < node_server
+					> (options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
+#ifdef OCTOTIGER_RESTART_LOAD_SEQ
+            children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename).get();
+#else
             futs[index++] =
                 children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename);
+#endif
         }
     } else if (flag == '0') {
         is_refined = false;
@@ -247,8 +251,8 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
             for (auto& ci : geo::octant::full_set()) {
                 child_descendant_count[ci] = 1;
-                children[ci] = hpx::new_<node_server>(
-                    hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
+				children[ci] = hpx::new_ < node_server
+						> (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle);
 				{
 					std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
 					std::array<integer, NDIM> ub;
@@ -380,8 +384,6 @@ integer node_server::save(integer cnt, std::string filename) const {
         FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
         fwrite(&flag, sizeof(flag), 1, fp);
         ++cnt;
-        //	printf("                                   \rSaved %li sub-grids\r",
-        //(long int) cnt);
         integer value = cnt;
         std::array<integer, NCHILD> values;
         for (auto& ci : geo::octant::full_set()) {
@@ -409,9 +411,8 @@ integer node_server::save(integer cnt, std::string filename) const {
             space_vector pivot = grid::get_pivot();
             fwrite(&omega, sizeof(real), 1, fp);
             for (auto& d : geo::dimension::full_set()) {
-                real temp_pivot;
-                fwrite(&temp_pivot, sizeof(real), 1, fp);
-                pivot[d] = temp_pivot;
+            	real tmp = pivot[d];
+                fwrite(&tmp, sizeof(real), 1, fp);
             }
             fwrite(&record_size, sizeof(integer), 1, fp);
             fclose(fp);

@@ -49,6 +49,8 @@ private:
     static bool gravity_on;
     node_location my_location;
     integer step_num;
+    std::size_t hcycle;
+    std::size_t gcycle;
     real current_time;
     real rotational_time;
     std::shared_ptr<grid> grid_ptr; //
@@ -56,7 +58,7 @@ private:
     std::shared_ptr<rad_grid> rad_grid_ptr; //
 #endif
     bool is_refined;
-    std::array<integer, NVERTEX> child_descendant_count;
+   std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
     real dx;
 
@@ -102,6 +104,10 @@ public:
 
     template<class Archive>
     void serialize(Archive& arc, unsigned) {
+    	std::size_t _hb = hcycle;
+    	std::size_t _gb = gcycle;
+    	arc & _hb;
+    	arc & _gb;
         arc & my_location;
         arc & step_num;
         arc & is_refined;
@@ -121,11 +127,10 @@ public:
         arc & rf;
         refinement_flag = rf;
         arc & timings_;
+        hcycle = _hb;
+        gcycle = _gb;
     }
 
-    node_server(const node_location&, integer, bool, real, real,
-        const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&);
-    node_server(node_server&& other) = default;
     std::size_t load_me(FILE* fp);
     std::size_t save_me(FILE* fp) const;
 private:
@@ -145,16 +150,26 @@ private:
     hpx::future<void> nonrefined_step();
     void refined_step();
 
+    diagnostics_t root_diagnostics(diagnostics_t && diags,
+        std::pair<real, real> rho1, std::pair<real, real> rho2,real phi_1, real phi_2) const;
+    diagnostics_t child_diagnostics(const std::pair<space_vector, space_vector>& axis,
+        const std::pair<real, real>& l1, real, real) const;
+    diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
+        const std::pair<real, real>& l1, real, real) const;
+    hpx::future<real> local_step(integer steps);
+
 public:
-
-
      static bool child_is_on_face(integer ci, integer face);
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
-    node_server();
-    ~node_server();
-    node_server(const node_server& other);
-    node_server(const node_location&, const node_client& parent_id, real, real);
+	node_server();
+	~node_server();
+	node_server(const node_server& other);
+	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
+	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
+			std::size_t);
+	node_server(node_server&& other) = default;
+
 
     void report_timing();
     HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
@@ -172,19 +187,18 @@ public:
     hpx::future<void> regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
-    void recv_hydro_boundary(std::vector<real>&&, const geo::direction&);
+    void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
 
-    void recv_hydro_children(std::vector<real>&&, const geo::octant& ci);
+    void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
-    void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
-        const geo::octant& ci);
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
-    void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
-        bool monopole);
-    void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
-    void recv_gravity_expansions(expansion_pass_type&&);
+	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
+	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
+
+	void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
+	void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
+	void recv_gravity_expansions(expansion_pass_type&&);
 
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
@@ -192,6 +206,14 @@ public:
 
     hpx::future<real> step(integer steps);
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
+
+    hpx::future<std::pair<real, diagnostics_t> > step_with_diagnostics(integer steps,
+        const std::pair<space_vector, space_vector>& axis,
+        const std::pair<real, real>& l1, real, real);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, step_with_diagnostics, step_with_diagnostics_action);
+
+    hpx::future<std::pair<real, diagnostics_t> > root_step_with_diagnostics(integer steps);
+
     void update();
 
     int regrid(const hpx::id_type& root_gid, real omega, bool rb);
@@ -366,6 +388,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::step_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::step_with_diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::solve_gravity_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::start_run_action);

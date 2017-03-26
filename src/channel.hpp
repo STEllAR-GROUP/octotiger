@@ -36,6 +36,14 @@ public:
 		return buffer.receive(recv_step++);
 	}
 
+    void set_value( T value, std::size_t cycle ) {
+        buffer.store_received(cycle, std::move(value));
+	}
+
+	hpx::future<T> get_future(std::size_t cycle) {
+		return buffer.receive(cycle);
+	}
+
 };
 
 #endif /* CHANNEL_HPP_ */

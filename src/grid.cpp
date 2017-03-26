@@ -1361,6 +1361,7 @@ void grid::set_coordinates() {
 				X[XDIM][iii] = (real(i - H_BW) + HALF) * dx + xmin[XDIM] - pivot[XDIM];
 				X[YDIM][iii] = (real(j - H_BW) + HALF) * dx + xmin[YDIM] - pivot[YDIM];
 				X[ZDIM][iii] = (real(k - H_BW) + HALF) * dx + xmin[ZDIM] - pivot[ZDIM];
+		//		printf( "%e %e %e %e %e %e \n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], pivot[XDIM], pivot[YDIM], pivot[ZDIM]);
 //				printf( "mmmmmmmmmmmmmm %e %e\n", xmin[XDIM], pivot[XDIM]);
 			}
 		}
