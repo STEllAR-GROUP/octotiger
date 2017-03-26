@@ -150,9 +150,15 @@ private:
     hpx::future<void> nonrefined_step();
     void refined_step();
 
+    diagnostics_t root_diagnostics(diagnostics_t && diags,
+        std::pair<real, real> rho1, std::pair<real, real> rho2,real phi_1, real phi_2) const;
+    diagnostics_t child_diagnostics(const std::pair<space_vector, space_vector>& axis,
+        const std::pair<real, real>& l1, real, real) const;
+    diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
+        const std::pair<real, real>& l1, real, real) const;
+    hpx::future<real> local_step(integer steps);
+
 public:
-
-
      static bool child_is_on_face(integer ci, integer face);
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
@@ -200,6 +206,14 @@ public:
 
     hpx::future<real> step(integer steps);
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
+
+    hpx::future<std::pair<real, diagnostics_t> > step_with_diagnostics(integer steps,
+        const std::pair<space_vector, space_vector>& axis,
+        const std::pair<real, real>& l1, real, real);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, step_with_diagnostics, step_with_diagnostics_action);
+
+    hpx::future<std::pair<real, diagnostics_t> > root_step_with_diagnostics(integer steps);
+
     void update();
 
     int regrid(const hpx::id_type& root_gid, real omega, bool rb);
@@ -374,6 +388,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::step_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::step_with_diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::solve_gravity_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::start_run_action);

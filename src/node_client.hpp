@@ -78,7 +78,9 @@ public:
 	void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle) const;
 	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	void send_gravity_expansions(expansion_pass_type&&) const;
-	hpx::future<void> step(integer) const;
+	hpx::future<real> step(integer) const;
+	hpx::future<std::pair<real, diagnostics_t> > step_with_diagnostics(integer,
+        const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const;
 	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, real omega, bool rb) const;
 	hpx::future<void> solve_gravity(bool ene) const;
