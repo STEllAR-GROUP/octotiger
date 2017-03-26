@@ -175,7 +175,7 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,
             for (integer f = 0; f != NDIM; ++f) {
                 fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
             }
-                fprintf(fp, "%23.16e ", double(diags.virial.first/diags.virial.second));
+            fprintf(fp, "%23.16e ", double(diags.virial.first/diags.virial.second));
             fprintf(fp, "\n");
             fclose(fp);
         }).get();
