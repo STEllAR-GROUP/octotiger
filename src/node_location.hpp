@@ -10,8 +10,9 @@
 
 #include "defs.hpp"
 #include "geometry.hpp"
-#include <hpx/include/components.hpp>
 
+#include <hpx/include/components.hpp>
+#include <hpx/traits/is_bitwise_serializable.hpp>
 
 class node_client;
 
@@ -57,5 +58,13 @@ public:
 	std::vector<node_location> get_neighbors() const;
 	bool is_child_of(const node_location& other) const;
 };
+
+namespace hpx { namespace traits
+{
+    template <>
+    struct is_bitwise_serializable<node_location>
+      : std::true_type
+    {};
+}}
 
 #endif /* NODE_LOCATION_HPP_ */

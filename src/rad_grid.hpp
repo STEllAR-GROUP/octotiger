@@ -30,45 +30,7 @@ public:
 	rad_grid_init();
 };
 
-inline static real temperature(real rho, real e, real mmw) {
-	const real gm1 = 2.0 / 3.0;
-	return (gm1 * mmw * physcon.mh / physcon.kb) * (e / rho);
-}
 
-inline static real kappa_p(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	return rho;
-}
-;
-
-inline static real dkappa_p_de(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	return 0.0;
-}
-;
-
-inline static real kappa_R(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	return rho;
-}
-;
-
-inline static real kappa_s(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	return rho;
-}
-;
-
-inline static real B_p(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	return physcon.sigma * std::pow(T, 4.0);
-}
-;
-
-inline static real dB_p_de(real rho, real e, real mmw) {
-	return 4.0 * B_p(rho, e, mmw) / e;
-}
-;
 
 class rad_grid: public rad_grid_init {
 private:
@@ -99,6 +61,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & dx;
 		arc & dx;
 		arc & U;
 	}

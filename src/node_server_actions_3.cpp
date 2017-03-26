@@ -12,21 +12,18 @@
 extern options opts;
 
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
-HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
+HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
 
-void node_client::send_gravity_boundary(gravity_boundary_type&& data,
-    const geo::direction& dir, bool monopole) const {
-    hpx::apply<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(),
-        std::move(data), dir, monopole);
+void node_client::send_gravity_boundary(gravity_boundary_type&& data, const geo::direction& dir, bool monopole, std::size_t cycle) const {
+	hpx::apply<typename node_server::send_gravity_boundary_action>(get_unmanaged_gid(), std::move(data), dir, monopole, cycle);
 }
 
-void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata,
-    const geo::direction& dir, bool monopole) {
-    neighbor_gravity_type tmp;
-    tmp.data = std::move(bdata);
-    tmp.is_monopole = monopole;
-    tmp.direction = dir;
-    neighbor_gravity_channels[dir].set_value(std::move(tmp));
+void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata, const geo::direction& dir, bool monopole, std::size_t cycle) {
+	neighbor_gravity_type tmp;
+	tmp.data = std::move(bdata);
+	tmp.is_monopole = monopole;
+	tmp.direction = dir;
+	neighbor_gravity_channels[dir].set_value(std::move(tmp), cycle);
 }
 
 typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;
@@ -59,30 +56,30 @@ typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
 HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
 void node_client::send_hydro_boundary(std::vector<real>&& data,
-    const geo::direction& dir) const {
+    const geo::direction& dir, std::size_t cycle) const {
     hpx::apply<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(),
-        std::move(data), dir);
+        std::move(data), dir, cycle);
 }
 
 void node_server::recv_hydro_boundary(std::vector<real>&& bdata,
-    const geo::direction& dir) {
+    const geo::direction& dir, std::size_t cycle) {
     sibling_hydro_type tmp;
     tmp.data = std::move(bdata);
     tmp.direction = dir;
-    sibling_hydro_channels[dir].set_value(std::move(tmp));
+    sibling_hydro_channels[dir].set_value(std::move(tmp),cycle);
 }
 
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
 HPX_REGISTER_ACTION(send_hydro_children_action_type);
 
-void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci) {
-    child_hydro_channels[ci].set_value(std::move(data));
+void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci, std::size_t cycle) {
+    child_hydro_channels[ci].set_value(std::move(data), cycle);
 }
 
 void node_client::send_hydro_children(std::vector<real>&& data,
-    const geo::octant& ci) const {
+    const geo::octant& ci, std::size_t cycle) const {
     hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(),
-        std::move(data), ci);
+        std::move(data), ci, cycle);
 }
 
 typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
@@ -246,10 +243,17 @@ void node_server::start_run(bool scf)
         this->velocity_inc(dv);
         save_to_file("scf.chk");
     }
+#ifdef RADIATION
+    if( opts.eos == WD && opts.problem == STAR) {
+    	printf( "Initialized radiation and cgs\n");
+    	set_cgs();
+    	erad_init();
+    }
+#endif
 
     printf("Starting...\n");
     solve_gravity(false);
-    int ngrids = regrid(me.get_gid(), false);
+    int ngrids = regrid(me.get_gid(), grid::get_omega(), false);
 
     real output_dt = opts.output_dt;
 
@@ -265,6 +269,7 @@ void node_server::start_run(bool scf)
     profiler_output(stdout);
 
     real bench_start, bench_stop;
+
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
             break;
@@ -314,7 +319,7 @@ void node_server::start_run(bool scf)
             omega_dot = theta_dot_dot;
             omega += omega_dot * dt;
 //            omega_dot += theta_dot_dot*dt;
-            grid::set_omega(omega);
+//             grid::set_omega(omega);          // now done during check_for_refinement below
         }
         else {
             dt = step(next_step - step_num).get();
@@ -347,7 +352,7 @@ void node_server::start_run(bool scf)
         step_num = next_step;
 
         if (step_num % refinement_freq() == 0) {
-            ngrids = regrid(me.get_gid(), false);
+            ngrids = regrid(me.get_gid(), omega, false);
 
             // run output on separate thread
             auto need_break = hpx::threads::run_as_os_thread([&]()
@@ -414,13 +419,10 @@ void node_server::refined_step() {
     const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
     real cfl0 = cfl;
 
-    // FIXME: is this correct? ('a' was never re-initialized for refined == true)
     real a = std::numeric_limits<real>::min();
 
-    dt_ = cfl0 * dx / a;
-
     all_hydro_bounds();
-    local_timestep_channels[NCHILD].set_value(dt_);
+    local_timestep_channels[NCHILD].set_value(std::numeric_limits<real>::max());
     auto dt_fut = global_timestep_channel.get_future();
 
 #ifdef RADIATION

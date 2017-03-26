@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <fstream>
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
@@ -30,7 +31,7 @@ hpx::mutex rec_size_mutex;
 integer rec_size = -1;
 
 void set_locality_data(real omega, space_vector pivot, integer record_size) {
-    grid::set_omega(omega);
+    grid::set_omega(omega,false);
     grid::set_pivot(pivot);
     rec_size = record_size;
 }
@@ -47,6 +48,11 @@ hpx::future<grid::output_list_type> node_client::load(
 grid::output_list_type node_server::load(
     integer cnt, const hpx::id_type& _me, bool do_output, std::string filename) {
     if (rec_size == -1 && my_location.level() == 0) {
+#ifdef RADIATION
+	if (opts.eos == WD) {
+		set_cgs(false);
+	}
+#endif
         real omega = 0;
         space_vector pivot;
 
@@ -79,17 +85,21 @@ grid::output_list_type node_server::load(
     std::vector<integer> counts(NCHILD);
 
     // run output on separate thread
+    FILE* fp = fopen(filename.c_str(), "rb");
+    fseek(fp, cnt * rec_size, SEEK_SET);
+    std::size_t read_cnt = fread(&flag, sizeof(char), 1, fp);
     hpx::threads::run_as_os_thread([&]() {
-        FILE* fp = fopen(filename.c_str(), "rb");
-        fseek(fp, cnt * rec_size, SEEK_SET);
-        std::size_t read_cnt = fread(&flag, sizeof(char), 1, fp);
         for (auto& this_cnt : counts) {
             read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
         }
         load_me(fp);
-        fseek(fp, 0L, SEEK_END);
-        total_nodes = ftell(fp) / rec_size;
         fclose(fp);
+
+        // work around limitation of ftell returning 32bit offset
+        std::ifstream in(filename.c_str(), std::ifstream::ate | std::ifstream::binary);
+        std::size_t end_pos = in.tellg();
+
+        total_nodes = end_pos / rec_size;
     }).get();
 #ifdef RADIATION
     rad_grid_ptr = grid_ptr->get_rad_grid();
@@ -104,10 +114,14 @@ grid::output_list_type node_server::load(
         integer index = 0;
         for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
-            children[ci] = hpx::new_<node_server>(
-                options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO);
+			children[ci] = hpx::new_ < node_server
+					> (options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
+#ifdef OCTOTIGER_RESTART_LOAD_SEQ
+            children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename).get();
+#else
             futs[index++] =
                 children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename);
+#endif
         }
     } else if (flag == '0') {
         is_refined = false;
@@ -237,8 +251,8 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
             for (auto& ci : geo::octant::full_set()) {
                 child_descendant_count[ci] = 1;
-                children[ci] = hpx::new_<node_server>(
-                    hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time);
+				children[ci] = hpx::new_ < node_server
+						> (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle);
 				{
 					std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
 					std::array<integer, NDIM> ub;
@@ -326,17 +340,17 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
 typedef node_server::regrid_action regrid_action_type;
 HPX_REGISTER_ACTION(regrid_action_type);
 
-hpx::future<void> node_client::regrid(const hpx::id_type& g, bool rb) const {
-    return hpx::async<typename node_server::regrid_action>(get_unmanaged_gid(), g, rb);
+hpx::future<void> node_client::regrid(const hpx::id_type& g, real omega, bool rb) const {
+    return hpx::async<typename node_server::regrid_action>(get_unmanaged_gid(), g, omega, rb);
 }
 
-int node_server::regrid(const hpx::id_type& root_gid, bool rb) {
+int node_server::regrid(const hpx::id_type& root_gid, real omega, bool rb) {
     timings::scope ts(timings_, timings::time_regrid);
     assert(grid_ptr != nullptr);
     printf("-----------------------------------------------\n");
     if (!rb) {
         printf("checking for refinement\n");
-        check_for_refinement().get();
+        check_for_refinement(omega).get();
     }
     printf("regridding\n");
     integer a = regrid_gather(rb);
@@ -370,8 +384,6 @@ integer node_server::save(integer cnt, std::string filename) const {
         FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
         fwrite(&flag, sizeof(flag), 1, fp);
         ++cnt;
-        //	printf("                                   \rSaved %li sub-grids\r",
-        //(long int) cnt);
         integer value = cnt;
         std::array<integer, NCHILD> values;
         for (auto& ci : geo::octant::full_set()) {
@@ -399,9 +411,8 @@ integer node_server::save(integer cnt, std::string filename) const {
             space_vector pivot = grid::get_pivot();
             fwrite(&omega, sizeof(real), 1, fp);
             for (auto& d : geo::dimension::full_set()) {
-                real temp_pivot;
-                fwrite(&temp_pivot, sizeof(real), 1, fp);
-                pivot[d] = temp_pivot;
+            	real tmp = pivot[d];
+                fwrite(&tmp, sizeof(real), 1, fp);
             }
             fwrite(&record_size, sizeof(integer), 1, fp);
             fclose(fp);

@@ -12,8 +12,8 @@
 #endif
 
 #include <hpx/include/lcos.hpp>
-#define EQ_ONLY
-#define RHO_ONLY
+//#define EQ_ONLY
+//#define RHO_ONLY
 
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
@@ -261,20 +261,29 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 }
 
 std::size_t grid::load(FILE* fp) {
+	static hpx::mutex mtx;
 	std::size_t cnt = 0;
-	real Acons, Bcons;
+	real dummy;
+	integer dummy_int;
 	auto foo = std::fread;
+	real Acon, Bcon;
 	{
-		static hpx::mutex mtx;
+		static bool statics_loaded = false;
 		std::lock_guard<hpx::mutex> lock(mtx);
-		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
+		if( !statics_loaded ) {
+			cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
+			cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
+			statics_loaded = true;
+		} else {
+			cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
+			cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&dummy, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
+		}
 	}
-	if( hpx::get_locality_id() == 0 ) {
-		set_AB(Acons, Bcons);
-	}
+
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 
@@ -292,10 +301,10 @@ std::size_t grid::load(FILE* fp) {
 		for (integer j = 0; j < G_NX; ++j) {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				real g[NGF];
-				cnt += foo(g, sizeof(real), NGF, fp) * sizeof(real);
-				for (integer f = 0; f != NGF; ++f) {
-					G[iii][f] = g[f];
+				for( integer f = 0; f != NGF; ++f ) {
+					real tmp;
+					cnt += foo(&tmp, sizeof(real), 1, fp) * sizeof(real);
+					G[iii][f] = tmp;
 				}
 			}
 		}
@@ -310,16 +319,15 @@ std::size_t grid::load(FILE* fp) {
 
 std::size_t grid::save(FILE* fp) const {
 	std::size_t cnt = 0;
-	const real Acons = physcon.A;
-	const real Bcons = physcon.B;
+	const real dummy = 0.0;
 	auto foo = std::fwrite;
 	{
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);
 		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&Acons, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&Bcons, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
+		cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
 	}
 	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
@@ -335,8 +343,10 @@ std::size_t grid::save(FILE* fp) const {
 		for (integer j = 0; j < G_NX; ++j) {
 			for (integer k = 0; k < G_NX; ++k) {
 				const integer iii = gindex(i, j, k);
-				const auto d = G[iii][0];
-				cnt += foo(&d, sizeof(real), NGF, fp) * sizeof(real);
+				for( integer f = 0; f != NGF; ++f ) {
+					real tmp = G[iii][f];
+					cnt += foo(&tmp, sizeof(real), 1, fp) * sizeof(real);
+				}
 			}
 		}
 	}

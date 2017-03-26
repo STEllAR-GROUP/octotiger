@@ -11,9 +11,7 @@
 #include "defs.hpp"
 #include "space_vector.hpp"
 #include <vector>
-
-real ztwd_energy(real d);
-real ztwd_enthalpy(real d);
+#include "physcon.hpp"
 
 
 constexpr real de_switch2 = real(1.0e-3);
@@ -23,11 +21,11 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 		std::array<std::vector<real>, NF>& UR,  const std::vector<space_vector>& X, real omega, integer dimension, real dx);
 
 
-real ztwd_pressure(real d);
+real ztwd_pressure(real d, real A = physcon.A, real B = physcon.B);
 
-real ztwd_enthalpy(real d);
+real ztwd_enthalpy(real d, real A = physcon.A, real B = physcon.B);
 
-real ztwd_energy(real d);
+real ztwd_energy(real d, real A = physcon.A, real B = physcon.B);
 
 real ztwd_sound_speed(real d, real ei);
 

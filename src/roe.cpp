@@ -21,9 +21,7 @@ const integer acr_i = sy_i;
 const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
-real ztwd_pressure(real d) {
-	const real A = physcon.A;
-	const real B = physcon.B;
+real ztwd_pressure(real d, real A, real B) {
 	const real x = pow(d / B, 1.0 / 3.0);
 	real p;
 	if (x < 0.01) {
@@ -34,9 +32,7 @@ real ztwd_pressure(real d) {
 	return p;
 }
 
-real ztwd_enthalpy(real d) {
-	const real A = physcon.A;
-	const real B = physcon.B;
+real ztwd_enthalpy(real d, real A, real B) {
 	const real x = pow(d / B, 1.0 / 3.0);
 	real h;
 	if (x < 0.01) {
@@ -47,7 +43,7 @@ real ztwd_enthalpy(real d) {
 	return h;
 }
 
-real ztwd_energy(real d) {
+real ztwd_energy(real d, real A, real B) {
 	return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), real(0));
 }
 
@@ -155,7 +151,14 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 				F[field][iii + j] = f[field][j];
 			}
 		}
-		max_lambda = std::max(max_lambda, a.max());
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
+        max_lambda = std::max(max_lambda, a.max());
+#else
+        using Vc::max;
+        using std::max;
+		max_lambda = std::max(max_lambda, Vc::reduce(a, [](auto x, auto y) { return (max)(x, y); }));
+#endif
+
 	}
 
 	return max_lambda;

@@ -15,6 +15,9 @@
 #include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
 
+
+real LambertW(real z);
+
 inline integer refinement_freq() {
 	return  integer(R_BW / cfl + 0.5);
 }

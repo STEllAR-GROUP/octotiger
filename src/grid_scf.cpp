@@ -39,10 +39,7 @@ static constexpr real core_frac2 = 0.9;// Desired core fraction of secondary - I
 static constexpr real fill1 = 1.0;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
 static constexpr real fill2 = 1.0;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
 static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
-// Contact fill factor
 }
-;
-
 //0.5=.313
 //0.6 .305
 
@@ -271,12 +268,12 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[sx_i][iiih] += -ti_omega * y * rho;
 				U[sy_i][iiih] += +ti_omega * (x - cx) * rho;
 				U[sz_i][iiih] = 0.0;
-				if( opts.eos == WD ) {
-					U[tau_i][iiih] = 1.0e-40;
-					eint += std::pow(U[tau_i][iiih],1.0/fgamma);
-				} else {
-					U[tau_i][iiih] = std::pow(eint, 1.0 / fgamma);
+				real etherm = eint;
+				if (opts.eos == WD) {
+					etherm -= ztwd_energy(rho, this_struct_eos.A, this_struct_eos.B());
+					etherm = std::max(0.0, etherm);
 				}
+				U[tau_i][iiih] = std::pow(etherm, 1.0 / fgamma);
 				U[egas_i][iiih] = eint + std::pow(R * omega, 2) * rho / 2.0;
 				U[zx_i][iiih] = 0.0;
 				U[zy_i][iiih] = 0.0;
@@ -284,6 +281,9 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 			}
 		}
 	}
+#ifdef RADIATION
+	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+#endif
 	PROF_END;
 	return 0.0;
 }
@@ -318,12 +318,13 @@ real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3, 
 }
 
 void node_server::run_scf() {
-
 	solve_gravity(false);
 	real omega = initial_params().omega;
 	real jorb0;
+//	printf( "Starting SCF\n");
 	grid::set_omega(omega);
-	for (integer i = 0; i != 100; ++i) {
+	printf( "Starting SCF\n");
+	for (integer i = 0; i != 50; ++i) {
 //		profiler_output(stdout);
         char buffer[33];    // 21 bytes for int (max) + some leeway
         sprintf(buffer, "X.scf.%i.silo", int(i));
@@ -467,7 +468,9 @@ void node_server::run_scf() {
 				} else {
 					e2f = (1.0 - w0) * e2f + w0 * std::pow(e2f, scf_options::core_frac2 / core_frac_2);
 				}
-				e2->set_frac(e2f);
+				if( !scf_options::equal_struct_eos) {
+					e2->set_frac(e2f);
+				}
 			} else {
 				e2->set_entropy(e1->s0());
 			}
@@ -487,9 +490,11 @@ void node_server::run_scf() {
 			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
 			diags.secondary_volume, diags.roche_vol2);
 		if (i % 10 == 0) {
-			regrid(me.get_unmanaged_gid(), false);
+			regrid(me.get_unmanaged_gid(), omega, false);
 		}
-		grid::set_omega(omega);
+        else {
+            grid::set_omega(omega);
+        }
 		if( opts.eos == WD ) {
 			set_AB(e2->A, e2->B());
 		}
@@ -498,6 +503,13 @@ void node_server::run_scf() {
 		solve_gravity(false);
 
 	}
+#ifdef RADIATION
+	if( opts.eos == WD) {
+		set_cgs();
+		all_hydro_bounds();
+		erad_init();
+	}
+#endif
 }
 
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
@@ -553,7 +565,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[sx_i] = -y * params.omega * rho;
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
-	if( opts.eos == WD ) {
+	if( opts.eos != WD ) {
 		u[tau_i] = std::pow(ei, 1.0 / fgamma);
 	} else {
 		u[tau_i] = std::pow(1.0e-15, 1.0 / fgamma);

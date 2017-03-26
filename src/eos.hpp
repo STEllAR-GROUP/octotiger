@@ -11,6 +11,7 @@
 #include "defs.hpp"
 #include "grid.hpp"
 
+
 class struct_eos {
 protected:
 	static constexpr real G = 1.0;
@@ -57,6 +58,7 @@ public:
 public:
 	real get_R0() const;
 	real dC() const;
+
 
 	void set_d0_using_struct_eos(real newd, const struct_eos& other);
 	struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu);

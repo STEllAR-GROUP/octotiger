@@ -11,6 +11,7 @@
 #include "taylor.hpp"
 #include "physcon.hpp"
 
+
 #include <hpx/include/parallel_for_loop.hpp>
 
 #include <cstddef>
@@ -480,12 +481,21 @@ void grid::compute_interactions(gsolve_type type) {
         // Coefficients for potential evaluation? (David)
         const std::array<double, 4> di0 = {
             1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
         const v4sd d0(di0.data());
+#else
+        const v4sd d0(di0.data(), Vc::flags::vector_aligned);
+#endif
 
         // negative of d0 because it's the force in the opposite direction
         const std::array<double, 4> di1 = {
             1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
         const v4sd d1(di1.data());
+#else
+        const v4sd d1(di1.data(), Vc::flags::vector_aligned);
+#endif
+
 #endif
 
         // Number of body-body interactions current leaf cell, probably includes interactions with
@@ -992,7 +1002,11 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
 #else
     const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
     const v4sd d0(di0.data());
+#else
+    const v4sd d0(di0.data(), Vc::flags::vector_aligned);
+#endif
 #endif
     hpx::parallel::for_loop(
         for_loop_policy, 0, ilist_n_bnd.size(),
@@ -1327,30 +1341,29 @@ expansion_pass_type grid::compute_expansions(
         }
     }
 
-    if (is_leaf) {
-        for (integer i = 0; i != G_NX; ++i) {
-            for (integer j = 0; j != G_NX; ++j) {
-                for (integer k = 0; k != G_NX; ++k) {
-                    const integer iii = gindex(i, j, k);
-                    const integer iii0 = h0index(i, j, k);
-                    const integer iiih = hindex(i + H_BW, j + H_BW, k + H_BW);
-                    if (type == RHO) {
-                        G[iii][phi_i] = L[iii]();
-                        for (integer d = 0; d < NDIM; ++d) {
-                            G[iii][gx_i + d] = -L[iii](d);
-                            if (opts.ang_con == true) {
-                                G[iii][gx_i + d] -= L_c[iii][d];
-                            }
-                        }
-                        U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
-                    } else {
-                        dphi_dt[iii0] = L[iii]();
-                    }
-                }
-            }
-        }
-    }
-    PROF_END;
+	if (is_leaf) {
+		for (integer i = 0; i != G_NX; ++i) {
+			for (integer j = 0; j != G_NX; ++j) {
+				for (integer k = 0; k != G_NX; ++k) {
+					const integer iii = gindex(i, j, k);
+					const integer iii0 = h0index(i, j, k);
+					const integer iiih = hindex(i + H_BW, j + H_BW, k + H_BW);
+					if (type == RHO) {
+						G[iii][phi_i] = physcon.G * L[iii]();
+						for (integer d = 0; d < NDIM; ++d) {
+							G[iii][gx_i + d] = -physcon.G * L[iii](d);
+							if (opts.ang_con == true) {
+								G[iii][gx_i + d] -= physcon.G * L_c[iii][d];
+							}
+						}
+						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
+					} else {
+						dphi_dt[iii0] = physcon.G * L[iii]();
+					}
+				}
+			}
+		}
+	} PROF_END;
     return exp_ret;
 }
 
@@ -1358,6 +1371,10 @@ multipole_pass_type grid::compute_multipoles(
     gsolve_type type, const multipole_pass_type* child_poles) {
     //	if( int(*Muse_counter) > 0)
     //	printf( "%i\n", int(*Muse_counter));
+//	printf( "%\n", scaling_factor);
+	//if( dx  > 1.0e+12)
+//	printf( "+-00000--------++++++++++++++++++++++++++++ %e \n", dx);
+
     PROF_BEGIN;
     integer lev = 0;
     const real dx3 = dx * dx * dx;
@@ -1388,6 +1405,8 @@ multipole_pass_type grid::compute_multipoles(
                     com0iii[0] = x0[0] + i * dx;
                     com0iii[1] = x0[1] + j * dx;
                     com0iii[2] = x0[2] + k * dx;
+               //     if( std::abs(com0iii[0]) > 1.0e+12)
+              //      printf( "!!!!!!!!!!!!!  %e  %i %e %e  !!!!!!!!!!!!1111 \n", x0[0], int(i), dx, com0iii[0]);
                 }
             }
         }
@@ -1430,9 +1449,17 @@ multipole_pass_type grid::compute_multipoles(
                                     X[d][ci] = (*(com_ptr[0]))[iiic][d];
                                 }
                             }
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
                             real mtot = mc.sum();
+#else
+                            real mtot = Vc::reduce(mc);
+#endif
                             for (integer d = 0; d < NDIM; ++d) {
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
                                 (*(com_ptr[1]))[iiip][d] = (X[d] * mc).sum() / mtot;
+#else
+                                (*(com_ptr[1]))[iiip][d] = Vc::reduce(X[d] * mc) / mtot;
+#endif
                             }
                         }
                         taylor<4, simd_vector> mc, mp;
@@ -1457,17 +1484,23 @@ multipole_pass_type grid::compute_multipoles(
                         const space_vector& Y = (*(com_ptr[lev]))[iiip];
                         for (integer d = 0; d < NDIM; ++d) {
                             dx[d] = x[d] - simd_vector(Y[d]);
+                 //           if( std::abs(x[d][0]) > 5.0 )
+                   //         printf( "%e %e ---\n", x[d][0], Y[d]);
                         }
                         mp = mc >> dx;
                         for (integer j = 0; j != 20; ++j) {
+#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
                             MM[j] = mp[j].sum();
+#else
+                            MM[j] = Vc::reduce(mp[j]);
+#endif
                         }
                     } else {
                         if (child_poles == nullptr) {
                             const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
                             const integer iii0 = h0index(ip, jp, kp);
                             if (type == RHO) {
-                                mon[iiip] = physcon.G * U[rho_i][iiih] * dx3;
+                                mon[iiip] = U[rho_i][iiih] * dx3;
                             } else {
                                 mon[iiip] = dUdt[rho_i][iii0] * dx3;
                             }

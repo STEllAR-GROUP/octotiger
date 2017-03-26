@@ -7,10 +7,14 @@
 
 #include "defs.hpp"
 #include "problem.hpp"
+#include "options.hpp"
 #include "grid.hpp"
 #include "lane_emden.hpp"
 #include <cmath>
 #include "exact_sod.hpp"
+#include "eos.hpp"
+
+extern options opts;
 
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
@@ -119,6 +123,9 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 
 bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
+//#ifdef RADIATION
+//	return level < max_level;
+//#endif
 	real den_floor = 1.0e-2;
 	//integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
 //	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
@@ -315,33 +322,50 @@ const real rmax = 3.7;
 const real dr = rmax / 128.0;
 const real alpha = 1.0;
 
+void normalize_constants();
+
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
-
-	x -= 0.0;
-	y -= 0.0;
-	z -= 0.0;
-//	real menc;
-	const real r = std::sqrt(x * x + y * y + z * z);
 	std::vector<real> u(NF, real(0));
-	real theta;
-	const real n = real(1) / (fgamma - real(1));
-	const real rho_min = 1.0e-10;
-	const real theta_min = std::pow(rho_min, real(1) / n);
-	const auto c0 = real(4) * real(M_PI) / (n + real(1));
-	if (r <= rmax) {
-		theta = lane_emden(r, dr);
-		theta = std::max(theta, theta_min);
+	if( opts.eos == WD ){
+		const real r = std::sqrt(x*x+y*y+z*z);
+		static struct_eos eos(1.0, 1.0);
+		physcon.A = eos.A;
+		physcon.B = eos.B();
+		normalize_constants();
+		const real rho = std::max(eos.density_at(r,0.01),1.0e-10);
+		const real ei = eos.energy(rho);
+		u[rho_i] = rho;
+		u[egas_i] = ei;
+		u[tau_i] = std::pow(std::max(ei-ztwd_energy(rho),0.0),1.0/fgamma);
+		u[spc_i] = rho;
+		return u;
 	} else {
-		theta = theta_min;
+
+		x -= 0.0;
+		y -= 0.0;
+		z -= 0.0;
+//	real menc;
+		const real r = std::sqrt(x * x + y * y + z * z);
+		real theta;
+		const real n = real(1) / (fgamma - real(1));
+		const real rho_min = 1.0e-10;
+		const real theta_min = std::pow(rho_min, real(1) / n);
+		const auto c0 = real(4) * real(M_PI) / (n + real(1));
+		if (r <= rmax) {
+			theta = lane_emden(r, dr);
+			theta = std::max(theta, theta_min);
+		} else {
+			theta = theta_min;
+		}
+		u[rho_i] = std::max(std::pow(theta, n), 1.0e-10);
+		u[spc_i] = u[rho_i];
+		u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
+		if (theta <= theta_min) {
+			u[egas_i] *= real(100);
+		}
+		u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
 	}
-	u[rho_i] = std::max(std::pow(theta, n), 1.0e-10);
-	u[spc_i] = u[rho_i];
-	u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
-	if (theta <= theta_min) {
-		u[egas_i] *= real(100);
-	}
-	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
 	return u;
 }
 

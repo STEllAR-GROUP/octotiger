@@ -15,7 +15,7 @@
 #include "geometry.hpp"
 #include "channel.hpp"
 #include "future.hpp"
-#include "struct_eos.hpp"
+//#include "struct_eos.hpp"
 #include "profiler.hpp"
 #include "rad_grid.hpp"
 
@@ -49,6 +49,8 @@ private:
     static bool gravity_on;
     node_location my_location;
     integer step_num;
+    std::size_t hcycle;
+    std::size_t gcycle;
     real current_time;
     real rotational_time;
     std::shared_ptr<grid> grid_ptr; //
@@ -56,7 +58,7 @@ private:
     std::shared_ptr<rad_grid> rad_grid_ptr; //
 #endif
     bool is_refined;
-    std::array<integer, NVERTEX> child_descendant_count;
+   std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
     real dx;
 
@@ -102,7 +104,10 @@ public:
 
     template<class Archive>
     void serialize(Archive& arc, unsigned) {
-        integer rf;
+    	std::size_t _hb = hcycle;
+    	std::size_t _gb = gcycle;
+    	arc & _hb;
+    	arc & _gb;
         arc & my_location;
         arc & step_num;
         arc & is_refined;
@@ -118,15 +123,14 @@ public:
         arc & dx;
         arc & amr_flags;
         arc & grid_ptr;
-        rf = refinement_flag;
+        integer rf = refinement_flag;
         arc & rf;
         refinement_flag = rf;
         arc & timings_;
+        hcycle = _hb;
+        gcycle = _gb;
     }
 
-    node_server(const node_location&, integer, bool, real, real,
-        const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&);
-    node_server(node_server&& other) = default;
     std::size_t load_me(FILE* fp);
     std::size_t save_me(FILE* fp) const;
 private:
@@ -158,10 +162,14 @@ public:
      static bool child_is_on_face(integer ci, integer face);
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
-    node_server();
-    ~node_server();
-    node_server(const node_server& other);
-    node_server(const node_location&, const node_client& parent_id, real, real);
+	node_server();
+	~node_server();
+	node_server(const node_server& other);
+	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
+	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
+			std::size_t);
+	node_server(node_server&& other) = default;
+
 
     void report_timing();
     HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
@@ -179,19 +187,18 @@ public:
     hpx::future<void> regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
-    void recv_hydro_boundary(std::vector<real>&&, const geo::direction&);
+    void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
 
-    void recv_hydro_children(std::vector<real>&&, const geo::octant& ci);
+    void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
-    void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
-        const geo::octant& ci);
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
-    void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
-        bool monopole);
-    void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
-    void recv_gravity_expansions(expansion_pass_type&&);
+	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
+	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
+
+	void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
+	void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
+	void recv_gravity_expansions(expansion_pass_type&&);
 
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
@@ -209,7 +216,7 @@ public:
 
     void update();
 
-    int regrid(const hpx::id_type& root_gid, bool rb);
+    int regrid(const hpx::id_type& root_gid, real omega, bool rb);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid, regrid_action);
 
     void compute_fmm(gsolve_type gs, bool energy_account);
@@ -267,7 +274,7 @@ public:
         const geo::face& face) const;
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_nieces, get_nieces_action);
 
-    hpx::future<void> check_for_refinement();
+    hpx::future<void> check_for_refinement(real omega);
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);
@@ -329,7 +336,15 @@ public:
     void set_rad_grid(const std::vector<real>&/*, std::vector<real>&&*/);
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_rad_grid, set_rad_grid_action);
 
+    void erad_init();
+    HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);
+
 #endif
+
+    hpx::future<void> change_units(real m, real l, real t, real k);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, change_units, change_units_action);
+
+    void set_cgs(bool change = true);
 
 
 };
@@ -351,7 +366,7 @@ public:
 // HPX_ACTION_USES_LARGE_STACK(node_server::diagnostics_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::scf_params_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::velocity_inc_action);
-
+HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::output_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
@@ -390,6 +405,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
 #endif
 
 #endif /* NODE_SERVER_HPP_ */

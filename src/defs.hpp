@@ -7,6 +7,8 @@
 
 #include <hpx/config.hpp>
 
+//#define OCTOTIGER_RESTART_LOAD_SEQ
+
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 # define USE_GRAV_PAR
 #endif
@@ -236,7 +238,7 @@ constexpr inline T average(T const& s1, T const& s2)
 };
 
 template <typename T>
-constexpr inline void inplace_average(T& s1, T& s2)
+inline void inplace_average(T& s1, T& s2)
 {
     s1 = s2 = average(s1, s2);
 };

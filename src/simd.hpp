@@ -402,8 +402,16 @@ public:
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 
+#if defined(Vc_HAVE_AVX512F)
+using simd_vector = Vc::datapar<double, Vc::datapar_abi::avx512>;
+using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
+#elif defined(Vc_HAVE_AVX)
+using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
+using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
+#else
 using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
 using v4sd = typename hpx::parallel::traits::vector_pack_type<double, 4>::type;
+#endif
 
 #endif
 
