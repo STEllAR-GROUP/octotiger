@@ -411,7 +411,8 @@ integer node_server::save(integer cnt, std::string filename) const {
             space_vector pivot = grid::get_pivot();
             fwrite(&omega, sizeof(real), 1, fp);
             for (auto& d : geo::dimension::full_set()) {
-                fwrite(&(pivot[d]), sizeof(real), 1, fp);
+            	real tmp = pivot[d];
+                fwrite(&tmp, sizeof(real), 1, fp);
             }
             fwrite(&record_size, sizeof(integer), 1, fp);
             fclose(fp);
