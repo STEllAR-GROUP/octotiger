@@ -166,7 +166,7 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,
         // run output on separate thread
         hpx::threads::run_as_os_thread([&]()
         {
-            FILE* fp = fopen("diag.dat", "at");
+            FILE* fp = fopen((opts.data_dir + "diag.dat").c_str(), "at");
             fprintf(fp, "%23.16e ", double(current_time));
             for (integer f = 0; f != NF; ++f) {
                 fprintf(fp, "%23.16e ", double(diags.grid_sum[f] + diags.outflow_sum[f]));
@@ -204,7 +204,7 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,
         // run output on separate thread
         hpx::threads::run_as_os_thread([&]()
         {
-            FILE* fp = fopen("binary.dat", "at");
+            FILE* fp = fopen((opts.data_dir + "binary.dat").c_str(), "at");
             fprintf(fp, "%15.8e ", double(current_time));
             fprintf(fp, "%15.8e ", double(m1));
             fprintf(fp, "%15.8e ", double(m2));
@@ -221,7 +221,7 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,
             fprintf(fp, "\n");
             fclose(fp);
 
-            fp = fopen("minmax.dat", "at");
+            fp = fopen((opts.data_dir + "minmax.dat").c_str(), "at");
             fprintf(fp, "%23.16e ", double(current_time));
             for (integer f = 0; f != NF; ++f) {
                 fprintf(fp, "%23.16e ", double(diags.field_min[f]));
@@ -230,7 +230,7 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,
             fprintf(fp, "\n");
             fclose(fp);
 
-            fp = fopen("com.dat", "at");
+            fp = fopen((opts.data_dir + "com.dat").c_str(), "at");
             fprintf(fp, "%23.16e ", double(current_time));
             for (integer d = 0; d != NDIM; ++d) {
                 fprintf(fp, "%23.16e ", double(diags.primary_com[d]));

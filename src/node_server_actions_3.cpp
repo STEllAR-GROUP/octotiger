@@ -227,12 +227,12 @@ void node_server::start_run(bool scf)
     integer output_cnt;
 
     if (!hydro_on) {
-        save_to_file("X.chk");
+        save_to_file("X.chk", opts.data_dir);
         diagnostics();
         return;
     }
     if (scf) {
-        run_scf();
+        run_scf(opts.data_dir);
         set_pivot();
         printf("Adjusting velocities:\n");
         auto diag = diagnostics();
@@ -241,7 +241,7 @@ void node_server::start_run(bool scf)
         dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
         dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
         this->velocity_inc(dv);
-        save_to_file("scf.chk");
+        save_to_file("scf.chk", opts.data_dir);
     }
 #ifdef RADIATION
     if( opts.eos == WD && opts.problem == STAR) {
@@ -280,9 +280,9 @@ void node_server::start_run(bool scf)
 
             char fname[33];    // 21 bytes for int (max) + some leeway
             sprintf(fname, "X.%i.chk", int(output_cnt));
-            save_to_file(fname);
+            save_to_file(fname, opts.data_dir);
 
-            sprintf(fname, "X.%i.silo", int(output_cnt));
+            sprintf(fname, "%sX.%i.silo", opts.data_dir.c_str(), int(output_cnt));
             output(fname, output_cnt, false);
 
             //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
@@ -334,7 +334,7 @@ void node_server::start_run(bool scf)
         {
             hpx::threads::run_as_os_thread([=]()
             {
-                FILE* fp = fopen( "step.dat", "at");
+                FILE* fp = fopen( (opts.data_dir + "step.dat").c_str(), "at");
                 fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
                     int(next_step - 1), double(t), double(dt), time_elapsed, rotational_time,
                     theta, theta_dot, omega, omega_dot, int(ngrids));
@@ -357,7 +357,7 @@ void node_server::start_run(bool scf)
             // run output on separate thread
             auto need_break = hpx::threads::run_as_os_thread([&]()
             {
-                FILE* fp = fopen("profile.txt", "wt");
+                FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
                 profiler_output(fp);
                 fclose(fp);
 
@@ -365,7 +365,7 @@ void node_server::start_run(bool scf)
                 bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
                 if (scf || opts.bench) {
                     printf("Total time = %e s\n", double(bench_stop - bench_start));
-                    FILE* fp = fopen("bench.dat", "at");
+                    FILE* fp = fopen((opts.data_dir + "bench.dat").c_str(), "at");
                     fprintf(fp, "%i %e\n", int(options::all_localities.size()),
                         double(bench_stop - bench_start));
                     fclose(fp);
@@ -379,7 +379,7 @@ void node_server::start_run(bool scf)
         //		set_omega_and_pivot();
         if (scf) {
             bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
-             printf("Total time = %e s\n", double(bench_stop - bench_start));
+            printf("Total time = %e s\n", double(bench_stop - bench_start));
             //	FILE* fp = fopen( "bench.dat", "at" );
             //	fprintf( fp, "%i %e\n", int(options::all_localities.size()), double(bench_stop - bench_start));
             //	fclose(fp);
@@ -395,10 +395,13 @@ void node_server::start_run(bool scf)
     }
 
     if( opts.bench ) {
-        FILE* fp = fopen( "scaling.dat", "at");
-        const auto nproc = options::all_localities.size();
-        fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));
-        fclose( fp );
+        hpx::threads::run_as_os_thread([&]()
+        {
+            FILE* fp = fopen( (opts.data_dir + "scaling.dat").c_str(), "at");
+            const auto nproc = options::all_localities.size();
+            fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));
+            fclose( fp );
+        }).get();
     }
 }
 

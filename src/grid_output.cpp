@@ -266,7 +266,7 @@ std::size_t grid::load(FILE* fp) {
 	real dummy;
 	integer dummy_int;
 	auto foo = std::fread;
-	real Acon, Bcon;
+// 	real Acon, Bcon;
 	{
 		static bool statics_loaded = false;
 		std::lock_guard<hpx::mutex> lock(mtx);

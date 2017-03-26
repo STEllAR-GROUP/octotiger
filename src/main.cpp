@@ -140,9 +140,9 @@ int hpx_main(int argc, char* argv[]) {
 				printf("Loading from %s...\n", fname.c_str());
 				if (opts.output_only) {
 					const std::string oname = opts.output_filename;
-					root_client.get_ptr().get()->load_from_file_and_output(fname, oname);
+					root_client.get_ptr().get()->load_from_file_and_output(fname, oname, opts.data_dir);
 				} else {
-					root_client.get_ptr().get()->load_from_file(fname);
+					root_client.get_ptr().get()->load_from_file(fname, opts.data_dir);
 					root_client.regrid(root_client.get_gid(), ZERO, true).get();
 				}
 				printf("Done. \n");
