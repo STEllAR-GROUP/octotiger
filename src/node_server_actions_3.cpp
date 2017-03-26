@@ -227,7 +227,9 @@ void node_server::start_run(bool scf)
     integer output_cnt;
 
     if (!hydro_on) {
-        save_to_file("X.chk", opts.data_dir);
+        if (!opts.disable_output) {
+            save_to_file("X.chk", opts.data_dir);
+        }
         diagnostics();
         return;
     }
@@ -241,7 +243,9 @@ void node_server::start_run(bool scf)
         dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
         dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
         this->velocity_inc(dv);
-        save_to_file("scf.chk", opts.data_dir);
+        if (!opts.disable_output) {
+            save_to_file("scf.chk", opts.data_dir);
+        }
     }
 #ifdef RADIATION
     if( opts.eos == WD && opts.problem == STAR) {
@@ -357,18 +361,22 @@ void node_server::start_run(bool scf)
             // run output on separate thread
             auto need_break = hpx::threads::run_as_os_thread([&]()
             {
-                FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
-                profiler_output(fp);
-                fclose(fp);
+                if (!opts.disable_output) {
+                    FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
+                    profiler_output(fp);
+                    fclose(fp);
+                }
 
                 //		set_omega_and_pivot();
                 bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
                 if (scf || opts.bench) {
                     printf("Total time = %e s\n", double(bench_stop - bench_start));
-                    FILE* fp = fopen((opts.data_dir + "bench.dat").c_str(), "at");
-                    fprintf(fp, "%i %e\n", int(options::all_localities.size()),
-                        double(bench_stop - bench_start));
-                    fclose(fp);
+                    if (!opts.disable_output) {
+                        FILE* fp = fopen((opts.data_dir + "bench.dat").c_str(), "at");
+                        fprintf(fp, "%i %e\n", int(options::all_localities.size()),
+                            double(bench_stop - bench_start));
+                        fclose(fp);
+                    }
                     return true;
                 }
                 return false;
@@ -394,7 +402,7 @@ void node_server::start_run(bool scf)
             output("final.silo", output_cnt, true);
     }
 
-    if( opts.bench ) {
+    if(opts.bench && !opts.disable_output) {
         hpx::threads::run_as_os_thread([&]()
         {
             FILE* fp = fopen( (opts.data_dir + "scaling.dat").c_str(), "at");

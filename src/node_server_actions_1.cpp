@@ -85,10 +85,11 @@ grid::output_list_type node_server::load(
     std::vector<integer> counts(NCHILD);
 
     // run output on separate thread
-    FILE* fp = fopen(filename.c_str(), "rb");
-    fseek(fp, cnt * rec_size, SEEK_SET);
-    std::size_t read_cnt = fread(&flag, sizeof(char), 1, fp);
+    std::size_t read_cnt = 0;
     hpx::threads::run_as_os_thread([&]() {
+        FILE* fp = fopen(filename.c_str(), "rb");
+        fseek(fp, cnt * rec_size, SEEK_SET);
+        read_cnt = fread(&flag, sizeof(char), 1, fp);
         for (auto& this_cnt : counts) {
             read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
         }

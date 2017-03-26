@@ -15,6 +15,7 @@
 #include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
 
+#include "options.hpp"
 
 real LambertW(real z);
 
@@ -28,13 +29,15 @@ int lprintf( const char* log, const char* str, Args&&...args) {
     // run output on separate thread
     auto f = hpx::threads::run_as_os_thread([&]() -> int
     {
-        FILE* fp = fopen (log, "at");
-	    if( fp == NULL) {
-		    return -1;
+        if(!opts.disable_output) {
+            FILE* fp = fopen (log, "at");
+	        if( fp == NULL) {
+		        return -1;
+	        }
+	        fprintf( fp, str, std::forward<Args>(args)...);
+	        fclose(fp);
 	    }
-	    fprintf( fp, str, std::forward<Args>(args)...);
-	    printf( str, std::forward<Args>(args)...);
-	    fclose(fp);
+        printf( str, std::forward<Args>(args)...);
 	    return 0;
     });
     return f.get();

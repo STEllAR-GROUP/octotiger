@@ -331,8 +331,10 @@ void node_server::run_scf(std::string const& data_dir) {
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
 		if (i % 100 == 0 && i != 0) {
-			output(buffer, i, false);
-			save_to_file("scf.chk", data_dir);
+            if (!opts.disable_output) {
+			    output(buffer, i, false);
+			    save_to_file("scf.chk", data_dir);
+            }
 		}
 		auto diags = diagnostics();
 		real f0 = scf_options::M1 / (diags.primary_sum[rho_i]);
@@ -482,14 +484,15 @@ void node_server::run_scf(std::string const& data_dir) {
 		amin = std::sqrt(3.0 * (is1 + is2) / mu);
 
 		jmin = std::sqrt((M1 + M2)) * (mu * std::pow(amin, 0.5) + (is1 + is2) * std::pow(amin, -1.5));
-		if (i % 5 == 0)
+		if (i % 5 == 0) {
 			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
 				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "r1", "r2", "iorb", "pvol", "proche", "svol",
 				"sroche");
-		    lprintf((opts.data_dir + "log.txt").c_str(), "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
-			    omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
-			    diags.secondary_volume, diags.roche_vol2);
-		if (i % 10 == 0) {
+        }
+		lprintf((opts.data_dir + "log.txt").c_str(), "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
+			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
+			diags.secondary_volume, diags.roche_vol2);
+        if (i % 10 == 0) {
 			regrid(me.get_unmanaged_gid(), omega, false);
 		}
         else {
