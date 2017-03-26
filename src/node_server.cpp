@@ -350,10 +350,10 @@ node_server::node_server(const node_location& loc, const node_client& parent_id,
 
 node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
     const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c, std::size_t _hcycle, std::size_t _gcycle) {
-	hcycle = _hcycle;
-	gcycle = _gcycle;
     my_location = _my_location;
     initialize(_current_time, _rotational_time);
+	hcycle = _hcycle;
+	gcycle = _gcycle;
     is_refined = _is_refined;
     step_num = _step_num;
     current_time = _current_time;
