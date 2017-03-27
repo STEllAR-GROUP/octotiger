@@ -74,6 +74,10 @@ enum gsolve_type {
 	RHO, DRHODT
 };
 
+enum ang_con_type {
+	ANG_CON_OFF, ANG_CON_ON
+};
+
 #include <array>
 
 //#include <hpx/runtime/serialization/serialize.hpp>
