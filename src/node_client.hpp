@@ -90,7 +90,7 @@ public:
     void set_local_timestep(integer, real) const;
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
-	integer save(integer,std::string) const;
+    hpx::future<integer> save(integer,std::string) const;
 	hpx::future<void> check_for_refinement(real omega) const;
 	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
 

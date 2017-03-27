@@ -372,17 +372,52 @@ int node_server::regrid(const hpx::id_type& root_gid, real omega, bool rb) {
 typedef node_server::save_action save_action_type;
 HPX_REGISTER_ACTION(save_action_type);
 
-integer node_client::save(integer i, std::string s) const {
-    return hpx::async<typename node_server::save_action>(get_unmanaged_gid(), i, s).get();
+hpx::future<integer> node_client::save(integer i, std::string s) const {
+    return hpx::async<typename node_server::save_action>(get_unmanaged_gid(), i, s);
 }
 
 integer node_server::save(integer cnt, std::string filename) const {
     char flag = is_refined ? '1' : '0';
-    integer record_size = 0;
+    // FIXME: replace with dynamically calculated value...
+    integer record_size = 78067;
+
+    integer debug = 0;
+
+    // create file and save metadata if location == 0
+    if (my_location.level() == 0) {
+        std::size_t total = 1;
+        for (auto& ci : geo::octant::full_set()) {
+            total += child_descendant_count[ci];
+        }
+        // run output on separate thread
+        hpx::threads::run_as_os_thread([&]() {
+            FILE* fp = fopen(filename.c_str(), "wb");
+            fseek(fp, record_size * total, SEEK_CUR);
+            real omega = grid::get_omega();
+            space_vector pivot = grid::get_pivot();
+            fwrite(&omega, sizeof(real), 1, fp);
+            for (auto& d : geo::dimension::full_set()) {
+            	real tmp = pivot[d];
+                fwrite(&tmp, sizeof(real), 1, fp);
+            }
+            fwrite(&record_size, sizeof(debug), 1, fp);
+            fclose(fp);
+        }).get();
+    }
+
+    std::array<hpx::future<integer>, NCHILD> child_futs;
+    if (is_refined) {
+        std::size_t i = cnt + 1;
+        for (auto& ci : geo::octant::full_set()) {
+            child_futs[ci] = children[ci].save(i, filename);
+            i += child_descendant_count[ci];
+        }
+    }
 
     // run output on separate thread
     hpx::threads::run_as_os_thread([&]() {
-        FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
+        FILE* fp = fopen(filename.c_str(), "rb+");
+        fseek(fp, record_size * cnt, SEEK_SET);
         fwrite(&flag, sizeof(flag), 1, fp);
         ++cnt;
         integer value = cnt;
@@ -394,31 +429,18 @@ integer node_server::save(integer cnt, std::string filename) const {
             values[ci] = value;
             fwrite(&value, sizeof(value), 1, fp);
         }
-        record_size = save_me(fp) + sizeof(flag) + NCHILD * sizeof(integer);
+        save_me(fp) + sizeof(flag) + NCHILD * sizeof(integer);
         fclose(fp);
     }).get();
 
-    if (is_refined) {
-        for (auto& ci : geo::octant::full_set()) {
-            cnt = children[ci].save(cnt, filename);
-        }
+
+    if (is_refined)
+    {
+        wait_all_and_propagate_exceptions(child_futs);
+        cnt = child_futs.back().get();
     }
 
     if (my_location.level() == 0) {
-        // run output on separate thread
-        hpx::threads::run_as_os_thread([&]() {
-            FILE* fp = fopen(filename.c_str(), "ab");
-            real omega = grid::get_omega();
-            space_vector pivot = grid::get_pivot();
-            fwrite(&omega, sizeof(real), 1, fp);
-            for (auto& d : geo::dimension::full_set()) {
-            	real tmp = pivot[d];
-                fwrite(&tmp, sizeof(real), 1, fp);
-            }
-            fwrite(&record_size, sizeof(integer), 1, fp);
-            fclose(fp);
-        }).get();
-
         printf("Saved %li grids to checkpoint file\n", (long int) cnt);
     }
 
