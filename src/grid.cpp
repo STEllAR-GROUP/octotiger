@@ -1065,8 +1065,8 @@ void grid::rho_move(real x) {
  }*/
 
 space_vector grid::center_of_mass() const {
-	auto& M = *M_ptr;
-	auto& mon = *mon_ptr;
+	auto& M = M_ptr;
+	auto& mon = mon_ptr;
 	PROF_BEGIN;
 	space_vector this_com;
 	this_com[0] = this_com[1] = this_com[2] = ZERO;

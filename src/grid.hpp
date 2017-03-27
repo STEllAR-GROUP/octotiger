@@ -91,19 +91,21 @@ typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_p
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
 struct gravity_boundary_type {
-	std::shared_ptr<std::vector<multipole>> M;
-	std::shared_ptr<std::vector<real>> m;
+	std::vector<multipole> M;
+	std::vector<real> m;
 	std::shared_ptr<std::vector<space_vector>> x;
 	bool is_local;
-	gravity_boundary_type() :
-		M(nullptr), m(nullptr), x(nullptr) {
+	gravity_boundary_type()
+            // :
+	    //     M(nullptr), m(nullptr), x(nullptr)
+    {
 	}
 	void allocate() {
-		if (M == nullptr) {
-			M = std::make_shared<std::vector<multipole> >();
-			m = std::make_shared<std::vector<real> >();
-			x = std::make_shared<std::vector<space_vector> >();
-		}
+		// if (M == nullptr) {
+		// 	M = std::make_shared<std::vector<multipole> >();
+		// 	m = std::make_shared<std::vector<real> >();
+		// 	x = std::make_shared<std::vector<space_vector> >();
+		// }
 	}
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {
@@ -155,8 +157,10 @@ private:
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<v4sd> G;
-	std::shared_ptr<std::vector<multipole>> M_ptr;
-	std::shared_ptr<std::vector<real>> mon_ptr;
+	// std::shared_ptr<std::vector<multipole>> M_ptr;
+	// std::shared_ptr<std::vector<real>> mon_ptr;
+    	std::vector<multipole> M_ptr;
+	std::vector<real> mon_ptr;
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;

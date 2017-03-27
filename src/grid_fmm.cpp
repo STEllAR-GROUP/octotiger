@@ -43,9 +43,9 @@ void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_typ
     integer iter, bool monopole) {
     if (monopole) {
         m = T(0.0);
-        m = T((*(data.m))[iter]);
+        m = T(data.m[iter]);
     } else {
-        auto const& tmp1 = (*(data.M))[iter];
+        auto const& tmp1 = data.M[iter];
 #pragma GCC ivdep
         for (int i = 0; i != 20; ++i) {
             m[i] = tmp1[i];
@@ -109,8 +109,8 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
         }
     }
 
-    auto& M = *M_ptr;
-    auto& mon = *mon_ptr;
+    auto& M = M_ptr;
+    auto& mon = mon_ptr;
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
     for (integer i = 0; i != G_NX; ++i) {
         for (integer j = 0; j != G_NX; ++j) {
@@ -208,7 +208,7 @@ void grid::compute_interactions(gsolve_type type) {
     // calculating the contribution of all the inner cells
     // calculating the interaction
 
-    auto& mon = *mon_ptr;
+    auto& mon = mon_ptr;
     // L stores the gravitational potential
     // L should be L, (10) in the paper
     // L_c stores the correction for angular momentum
@@ -261,7 +261,7 @@ void grid::compute_interactions(gsolve_type type) {
 
                 // vector of multipoles (== taylor<4>s)
                 // here the multipoles are used as a storage of expansion coefficients
-                auto& M = *M_ptr;
+                auto &M = M_ptr;
 
                 // FIXME: replace with vector-pack gather-loads
                 // TODO: only uses first 10 coefficients? ask Dominic
@@ -561,8 +561,8 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
-    auto& M = *M_ptr;
-    auto& mon = *mon_ptr;
+    auto &M = M_ptr;
+    auto& mon = mon_ptr;
 
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
     hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(),
@@ -733,8 +733,8 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
-    auto& M = *M_ptr;
-    auto& mon = *mon_ptr;
+    auto &M = M_ptr;
+    auto& mon = mon_ptr;
 
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
     hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(),
@@ -872,8 +872,8 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
-    auto& M = *M_ptr;
-    auto& mon = *mon_ptr;
+    auto &M = M_ptr;
+    auto& mon = mon_ptr;
 
     std::array<real, NDIM> Xbase = {X[0][hindex(H_BW, H_BW, H_BW)], X[1][hindex(H_BW, H_BW, H_BW)],
         X[2][hindex(H_BW, H_BW, H_BW)]};
@@ -897,7 +897,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                 Y[d] = bnd.x[d] * dx + Xbase[d];
             }
 
-            m0 = (*(mpoles.m))[index];
+            m0 = mpoles.m[index];
             for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
@@ -995,8 +995,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
     PROF_BEGIN;
-    auto& M = *M_ptr;
-    auto& mon = *mon_ptr;
+    auto &M = M_ptr;
+    auto& mon = mon_ptr;
 
 #if !defined(HPX_HAVE_DATAPAR)
     const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
@@ -1023,7 +1023,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
                 m0[i] = tmp;
             }
 #else
-                v4sd m0 = (*(mpoles).m)[index];
+                v4sd m0 = mpoles.m[index];
 #endif
             m0 *= d0;
 #ifdef USE_GRAV_PAR
@@ -1378,16 +1378,16 @@ multipole_pass_type grid::compute_multipoles(
     PROF_BEGIN;
     integer lev = 0;
     const real dx3 = dx * dx * dx;
-    M_ptr = std::make_shared<std::vector<multipole>>();
-    mon_ptr = std::make_shared<std::vector<real>>();
+    M_ptr = std::vector<multipole>();
+    mon_ptr = std::vector<real>();
     if (com_ptr[1] == nullptr) {
         com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
     }
     if (type == RHO) {
         com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
     }
-    auto& M = *M_ptr;
-    auto& mon = *mon_ptr;
+    auto &M = M_ptr;
+    auto& mon = mon_ptr;
     if (is_leaf) {
         M.resize(0);
         mon.resize(G_N3);
@@ -1532,25 +1532,25 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
     //	std::array<integer, NDIM> lb, ub;
     gravity_boundary_type data;
     data.is_local = is_local;
-    auto& M = *M_ptr;
-    auto& mon = *mon_ptr;
+    auto &M = M_ptr;
+    auto& mon = mon_ptr;
     if (!is_local) {
         data.allocate();
         integer iter = 0;
         const std::vector<boundary_interaction_type>& list = ilist_n_bnd[dir.flip()];
         if (is_leaf) {
-            data.m->reserve(list.size());
+            data.m.reserve(list.size());
             for (auto i : list) {
                 const integer iii = i.second;
-                data.m->push_back(mon[iii]);
+                data.m.push_back(mon[iii]);
             }
         } else {
-            data.M->reserve(list.size());
+            data.M.reserve(list.size());
             data.x->reserve(list.size());
             for (auto i : list) {
                 const integer iii = i.second;
                 const integer top = M[iii].size();
-                data.M->push_back(M[iii]);
+                data.M.push_back(M[iii]);
                 data.x->push_back((*(com_ptr[0]))[iii]);
             }
         }
