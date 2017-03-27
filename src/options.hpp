@@ -34,6 +34,7 @@ class options {
 public:
 	eos_type eos;
 	integer max_level;
+	integer max_restart_level;
 	real xscale;
 	real omega;
 	problem_type problem;
@@ -56,6 +57,7 @@ public:
 		arc & ang_con;
 		arc & stop_time;
 		arc & max_level;
+		arc & max_restart_level;
 		arc & xscale;
 		arc & omega;
 		arc & restart_filename;

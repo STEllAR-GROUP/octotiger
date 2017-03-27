@@ -27,6 +27,7 @@
 #define EOS_OPT "-Eos"
 
 #define MAX_LEVEL_OPT "-Max_level"
+#define MAX_RESTART_LEVEL_OPT "-Regrid_level"
 
 #define PROBLEM_OPT_DWD "dwd"
 #define PROBLEM_OPT_SOD "sod"
@@ -60,6 +61,7 @@ void options::show_help() {
             "-Help                                 - Displays this help page and exits\n"
             "\n"
             "-Max_level=<number of refined levels> - Set maximum level of refinment.\n"
+            "-Regrid_level=<number of refined levels> - Number of regrids ater loading restart file.\n"
             "\n"
             "-Odt=<output frequency>               - Specifies the frequency for SILO output in units of simulation time.\n"
             "\n"
@@ -102,6 +104,7 @@ bool options::process_options(int argc, char* argv[]) {
     rc = true;
     theta = 0.35;
     max_level = 5;
+    max_restart_level = 0;
     problem = NONE;
     found_restart_file = false;
     output_only = false;
@@ -170,6 +173,8 @@ bool options::process_options(int argc, char* argv[]) {
             ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
         } else if (cmp(argv[i], MAX_LEVEL_OPT)) {
             max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
+        } else if (cmp(argv[i], MAX_RESTART_LEVEL_OPT)) {
+            max_restart_level = atoi(argv[i] + strlen(MAX_RESTART_LEVEL_OPT) + 1);
         } else if (cmp(argv[i], XSCALE_OPT)) {
             xscale = atof(argv[i] + strlen(XSCALE_OPT) + 1);
         } else if (cmp(argv[i], OMEGA_OPT)) {

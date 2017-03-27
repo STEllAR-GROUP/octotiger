@@ -144,6 +144,11 @@ int hpx_main(int argc, char* argv[]) {
 				} else {
 					root_client.get_ptr().get()->load_from_file(fname, opts.data_dir);
 					root_client.regrid(root_client.get_gid(), ZERO, true).get();
+                    for (integer l = 0; l < opts.max_restart_level; ++l)
+                    {
+                        root_client.regrid(root_client.get_gid(), grid::get_omega(), false).get();
+                        printf("---------------Created Level %i---------------\n\n", int(l + 1));
+                    }
 				}
 				printf("Done. \n");
 			} else {
