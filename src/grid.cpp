@@ -1071,7 +1071,7 @@ space_vector grid::center_of_mass() const {
 	space_vector this_com;
 	this_com[0] = this_com[1] = this_com[2] = ZERO;
 	real m = ZERO;
-	auto& com0 = *(com_ptr)[0];
+	auto& com0 = com_ptr[0];
 	for (integer i = 0; i != INX + 0; ++i) {
 		for (integer j = 0; j != INX + 0; ++j) {
 			for (integer k = 0; k != INX + 0; ++k) {

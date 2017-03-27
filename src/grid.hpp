@@ -176,7 +176,7 @@ private:
 	std::array<real, NDIM> xmin;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
-	std::vector<std::shared_ptr<std::vector<space_vector>>> com_ptr;
+	std::vector<std::vector<space_vector>> com_ptr;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
