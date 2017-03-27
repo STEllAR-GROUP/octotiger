@@ -36,24 +36,6 @@ static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
    
-constexpr taylor<4, real> generate_factor()
-{ 
-    taylor<4, real> tmp{};
-    tmp() += 1.0;
-    for (integer a = 0; a < NDIM; ++a) {
-        tmp(a) += 1.0;
-        for (integer b = 0; b < NDIM; ++b) {
-            tmp(a, b) += 1.0;
-            for (integer c = 0; c < NDIM; ++c) {
-                tmp(a, b, c) += 1.0;
-            }
-        }
-    }
-    return tmp;
-}
-
-constexpr taylor<4, real> factor = generate_factor();
-
 extern options opts;
 
 template <class T>
