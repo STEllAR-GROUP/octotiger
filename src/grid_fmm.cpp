@@ -1380,9 +1380,9 @@ multipole_pass_type grid::compute_multipoles(
     const real dx3 = dx * dx * dx;
     M_ptr = std::vector<multipole>();
     mon_ptr = std::vector<real>();
-    // if (com_ptr[1] == nullptr) {
-    com_ptr[1] = std::vector<space_vector>(G_N3 / 8);
-    // }
+    if (com_ptr[1].size() == 0) {
+        com_ptr[1] = std::vector<space_vector>(G_N3 / 8);
+    }
     if (type == RHO) {
         com_ptr[0] = std::vector<space_vector>(G_N3);
     }
