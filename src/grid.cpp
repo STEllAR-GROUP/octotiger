@@ -1263,9 +1263,10 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 #pragma GCC ivdep
 					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 						const integer iii = hindex(i, j, k);
-						dU[rho_i][iii] = dV[rho_i][iii];
+						dU[rho_i][iii] = 0.0;
 						for (integer si = 0; si != NSPECIES; ++si) {
 							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
+							dU[rho_i][iii] += dU[spc_i + si][iii];
 						}
 						if (node_server::is_gravity_on()) {
 							dU[pot_i][iii] = V[pot_i][iii] * dV[rho_i][iii] + dV[pot_i][iii] * V[rho_i][iii];
