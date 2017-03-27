@@ -80,4 +80,6 @@ public:
     static std::vector<hpx::id_type> all_localities;
 };
 
+extern options opts;
+
 #endif /* OPTIONS_HPP_ */
