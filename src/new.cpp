@@ -15,8 +15,7 @@ constexpr std::size_t alignment = 32;
 #endif
 
 
-#if 0
-!defined(_MSC_VER)
+#if !defined(_MSC_VER) && !defined(HPX_HAVE_DATAPAR_VC)
 
 static void* allocate(std::size_t);
 static void deallocate(void*);
