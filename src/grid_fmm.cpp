@@ -50,7 +50,7 @@ void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_typ
         for (int i = 0; i != 20; ++i) {
             m[i] = tmp1[i];
         }
-        auto const& tmp2 = (*(data.x))[iter];
+        auto const& tmp2 = data.x[iter];
 #pragma GCC ivdep
         for (integer d = 0; d != NDIM; ++d) {
             c[d] = tmp2[d];
@@ -1546,20 +1546,20 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
             }
         } else {
             data.M.reserve(list.size());
-            data.x->reserve(list.size());
+            data.x.reserve(list.size());
             for (auto i : list) {
                 const integer iii = i.second;
                 const integer top = M[iii].size();
                 data.M.push_back(M[iii]);
-                data.x->push_back((*(com_ptr[0]))[iii]);
+                data.x.push_back((*(com_ptr[0]))[iii]);
             }
         }
     } else {
         if (is_leaf) {
-            data.m = mon_ptr;
+            data.m = mon_ptr; // copy
         } else {
-            data.M = M_ptr;
-            data.x = com_ptr[0];
+            data.M = M_ptr; // copy
+            data.x = *(com_ptr[0]); // copy
         }
     }
     PROF_END;

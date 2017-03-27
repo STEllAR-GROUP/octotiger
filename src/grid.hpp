@@ -93,7 +93,7 @@ typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_p
 struct gravity_boundary_type {
 	std::vector<multipole> M;
 	std::vector<real> m;
-	std::shared_ptr<std::vector<space_vector>> x;
+	std::vector<space_vector> x;
 	bool is_local;
 	gravity_boundary_type()
             // :
