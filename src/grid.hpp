@@ -48,7 +48,9 @@ constexpr taylor<4, real> generate_factor()
     return tmp;
 }
 
-constexpr taylor<4, real> factor = generate_factor();
+constexpr taylor<4, real> factor       = generate_factor();
+constexpr taylor<4, real> half_factor  = factor * HALF; 
+constexpr taylor<4, real> sixth_factor = factor * SIXTH;; 
 
 class struct_eos;
 
@@ -300,6 +302,120 @@ public:
    std::size_t save(FILE* fp) const;
    std::pair<real,real> virial() const;
    friend class node_server;
+
+   void compute_interactions_initialize_L_c(std::true_type) noexcept;
+
+   void compute_interactions_initialize_L_c(std::false_type) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+   void compute_interactions_initialize_n_ang_mom(
+        integer i_begin
+      , integer i_end
+      , taylor<4, std::array<real, TileWidth>>& n0
+      , taylor<4, std::array<real, TileWidth>>& n1
+      , std::true_type
+        ) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+    void compute_interactions_initialize_n_ang_mom(
+        integer i_begin
+      , integer i_end
+      , taylor<4, std::array<real, TileWidth>>& n0
+      , taylor<4, std::array<real, TileWidth>>& n1
+      , std::false_type
+        ) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+    void compute_interactions_A0_A1_0(
+        taylor<4, std::array<real, TileWidth>>& A0
+      , taylor<4, std::array<real, TileWidth>>& A1
+      , taylor<4, std::array<real, TileWidth>> const& m0
+      , taylor<4, std::array<real, TileWidth>> const& m1
+      , taylor<5, std::array<real, TileWidth>> const& D
+      , std::true_type
+        ) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+    void compute_interactions_A0_A1_0(
+        taylor<4, std::array<real, TileWidth>>& A0
+      , taylor<4, std::array<real, TileWidth>>& A1
+      , taylor<4, std::array<real, TileWidth>> const& m0
+      , taylor<4, std::array<real, TileWidth>> const& m1
+      , taylor<5, std::array<real, TileWidth>> const& D
+      , std::false_type
+        ) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+    void compute_interactions_B0_B1(
+        std::array<std::array<real, TileWidth>, NDIM>& B0 
+      , std::array<std::array<real, TileWidth>, NDIM>& B1
+      , taylor<4, std::array<real, TileWidth>> const& n0
+      , taylor<4, std::array<real, TileWidth>> const& n1
+      , taylor<5, std::array<real, TileWidth>> const& D
+      , std::true_type
+        ) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+    void compute_interactions_B0_B1(
+        std::array<std::array<real, TileWidth>, NDIM>& B0 
+      , std::array<std::array<real, TileWidth>, NDIM>& B1
+      , taylor<4, std::array<real, TileWidth>> const& m0
+      , taylor<4, std::array<real, TileWidth>> const& m1
+      , taylor<5, std::array<real, TileWidth>> const& D
+      , std::false_type
+        ) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+    void store_to_L_c(
+        integer i_begin
+      , integer i_end
+      , std::array<std::array<real, TileWidth>, NDIM>& B0 
+      , std::array<std::array<real, TileWidth>, NDIM>& B1
+      , std::true_type
+        ) noexcept;
+
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+    >
+    void store_to_L_c(
+        integer i_begin
+      , integer i_end
+      , std::array<std::array<real, TileWidth>, NDIM>& B0 
+      , std::array<std::array<real, TileWidth>, NDIM>& B1
+      , std::false_type
+        ) noexcept;
+
+    // Computes the interactions between interior points in non-leaf nodes using
+    // taylor expansions [David].
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+      , ang_con_type AngConKind
+      , gsolve_type SolveKind
+        >
+    void compute_interactions_non_leaf();
 };
 
 struct grid::node_point {
@@ -389,5 +505,6 @@ void grid::save(Archive& arc, const unsigned) const {
 	arc << U_out;
 }
 
+#include "grid_fmm_new.hpp"
 
 #endif /* GRID_HPP_ */

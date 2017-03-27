@@ -162,7 +162,56 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 
 void grid::solve_gravity(gsolve_type type) {
     compute_multipoles(type);
-    compute_interactions(type);
+
+    if (!is_leaf)
+    {
+        if (is_root)
+        {
+            if (RHO == type)
+            {
+                if (opts.ang_con)
+                    // Non-leaf, root, ANG_CON_ON, RHO
+                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_ON, RHO>();
+                else
+                    // Non-leaf, root, ANG_CON_OFF, RHO
+                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_OFF, NON_RHO>();
+            }
+            else
+            {
+                if (opts.ang_con)
+                    // Non-leaf, root, non-ANG_CON_ON, RHO
+                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_ON, NON_RHO>();
+                else
+                    // Non-leaf, root, non-ANG_CON_OFF, RHO
+                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_OFF, NON_RHO>();
+            }
+        }
+        else
+        {
+            if (RHO == type)
+            {
+                if (opts.ang_con)
+                    // Non-leaf, non-root, ANG_CON_ON, RHO
+                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_ON, RHO>();
+                else
+                    // Non-leaf, non-root, ANG_CON_OFF, RHO
+                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_OFF, RHO>();
+            }
+            else
+            {
+                if (opts.ang_con)
+                    // Non-leaf, non-root, non-ANG_CON_ON, RHO
+                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_ON, NON_RHO>();
+                else
+                    // Non-leaf, non-root, non-ANG_CON_OFF, RHO
+                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_OFF, NON_RHO>();
+            }
+        }
+    }
+    else
+        // Leaf
+        compute_interactions(type);
+
     compute_expansions(type);
 }
 

@@ -71,7 +71,7 @@ typedef long long int integer;
 typedef unsigned char byte;
 
 enum gsolve_type {
-	RHO, DRHODT
+	NON_RHO, RHO, DRHODT
 };
 
 enum ang_con_type {
