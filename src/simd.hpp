@@ -145,7 +145,7 @@ public:
 		return other * *this;
 	}
 	inline simd_vector operator/(double d) const {
-		const simd_vector other = ONE / d;
+            const simd_vector other = simd_vector(ONE / d);
 		return *this * other;
 	}
 

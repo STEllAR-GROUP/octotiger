@@ -252,15 +252,15 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
 				if( opts.eos == WD ) {
-					U[spc_ac_i][iiih] = (is_donor_side ? 0.0 : rho0);
-					U[spc_dc_i][iiih] = (is_donor_side ? rho0 : 0.0);
+                                    U[spc_ac_i][iiih] = (is_donor_side ? counting_double(0.0) : rho0);
+                                    U[spc_dc_i][iiih] = (is_donor_side ? rho0 : counting_double(0.0));
 					U[spc_ae_i][iiih] = 0.0;
 					U[spc_de_i][iiih] = 0.0;
 				} else {
-					U[spc_ac_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-					U[spc_dc_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
-					U[spc_ae_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-					U[spc_de_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+                                    U[spc_ac_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? counting_double(0.0) : rho0) : counting_double(0.0);
+                                    U[spc_dc_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : counting_double(0.0)) : counting_double(0.0);
+                                    U[spc_ae_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? counting_double(0.0) : rho0) : counting_double(0.0);
+                                    U[spc_de_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? rho0 : counting_double(0.0)) : counting_double(0.0);
 				}
 				U[spc_vac_i][iiih] = rho_floor;
 
@@ -552,15 +552,15 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	}
 	u[rho_i] = rho;
 	if( opts.eos == WD ) {
-		u[spc_ac_i] = x > params.l1_x ? 0.0 : rho;
-		u[spc_dc_i] = x > params.l1_x ? rho : 0.0;
+            u[spc_ac_i] = x > params.l1_x ? counting_double(0.0) : rho;
+            u[spc_dc_i] = x > params.l1_x ? rho : counting_double(0.0);
 		u[spc_ae_i] = 0.0;
 		u[spc_de_i] = 0.0;
 	} else {
-		u[spc_ac_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
-		u[spc_dc_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
-		u[spc_ae_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
-		u[spc_de_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
+            u[spc_ac_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? counting_double(0.0) : rho) : counting_double(0.0);
+            u[spc_dc_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? rho : counting_double(0.0)) : counting_double(0.0);
+            u[spc_ae_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? counting_double(0.0) : rho) : counting_double(0.0);
+            u[spc_de_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? rho : counting_double(0.0)) : counting_double(0.0);
 	}
 	u[egas_i] = ei + 0.5 * (x * x + y * y) * params.omega * params.omega;
 	u[sx_i] = -y * params.omega * rho;

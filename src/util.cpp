@@ -25,7 +25,7 @@ using real = real;
 real LambertW(real z) {
 	real W;
 	if (z >= 0.0) {
-		W = z < 1.0 ? z : 1.0 + std::log(z);
+            W = z < 1.0 ? z : counting_double(1.0 + std::log(z));
 		for (int i = 0; i != 7; ++i) {
 			const real eW = std::exp(W);
 			const real WeW = W * eW;

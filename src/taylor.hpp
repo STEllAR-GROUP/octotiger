@@ -524,7 +524,7 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 
     // set the coefficients to zero that are calculated next
     for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
-        A[i] = ZERO;
+        A[i] = simd_vector(ZERO);
     }
 
     auto const d22 = 2.0 * d2;

@@ -49,7 +49,7 @@ void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_typ
         auto const& tmp1 = (*(data.M))[iter];
 #pragma GCC ivdep
         for (int i = 0; i != 20; ++i) {
-            m[i] = tmp1[i];
+            m[i] = simd_vector(tmp1[i]);
         }
         auto const& tmp2 = (*(data.x))[iter];
 #pragma GCC ivdep
@@ -308,8 +308,8 @@ void grid::compute_interactions(gsolve_type type) {
                 if (type != RHO) {
 #pragma GCC ivdep
                     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                        n0[j] = ZERO;
-                        n1[j] = ZERO;
+                        n0[j] = simd_vector(ZERO);
+                        n1[j] = simd_vector(ZERO);
                     }
                 }
 
@@ -606,7 +606,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
                 if (type != RHO) {
 #pragma GCC ivdep
                     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                        n0[j] = ZERO;
+                        n0[j] = simd_vector(ZERO);
                     }
                 }
 #pragma GCC ivdep
@@ -764,7 +764,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
             } else {
 #pragma GCC ivdep
                 for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                    n0[j] = ZERO;
+                    n0[j] = simd_vector(ZERO);
                 }
             }
 #pragma GCC ivdep
@@ -895,10 +895,10 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
 
 #pragma GCC ivdep
             for (integer d = 0; d != NDIM; ++d) {
-                Y[d] = bnd.x[d] * dx + Xbase[d];
+                Y[d] = simd_vector(bnd.x[d] * dx + Xbase[d]);
             }
 
-            m0 = (*(mpoles.m))[index];
+            m0 = simd_vector((*(mpoles.m))[index]);
             for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];
@@ -920,7 +920,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                 if (type != RHO) {
 #pragma GCC ivdep
                     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                        n0[j] = ZERO;
+                        n0[j] = simd_vector(ZERO);
                     }
                 }
 #pragma GCC ivdep
@@ -1024,7 +1024,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
                 m0[i] = tmp;
             }
 #else
-                v4sd m0 = (*(mpoles).m)[index];
+            const auto tmp = (*(mpoles).m)[index];
+            v4sd m0(tmp);
 #endif
             m0 *= d0;
 #ifdef USE_GRAV_PAR
@@ -1281,11 +1282,11 @@ expansion_pass_type grid::compute_expansions(
                 if (!is_root) {
                     const integer index = (INX * INX / 4) * (ip) + (INX / 2) * (jp) + (kp);
                     for (integer j = 0; j != 20; ++j) {
-                        l[j] = parent_expansions->first[index][j];
+                        l[j] = simd_vector(parent_expansions->first[index][j]);
                     }
                     if (type == RHO && opts.ang_con) {
                         for (integer j = 0; j != NDIM; ++j) {
-                            lc[j] = parent_expansions->second[index][j];
+                            lc[j] = simd_vector(parent_expansions->second[index][j]);
                         }
                     }
                 } else {
@@ -1306,7 +1307,7 @@ expansion_pass_type grid::compute_expansions(
                 }
                 const auto& Y = (*(com_ptr[1]))[iiip];
                 for (integer d = 0; d < NDIM; ++d) {
-                    dX[d] = X[d] - Y[d];
+                    dX[d] = X[d] - simd_vector(Y[d]); //TODO: very fishy line, possible bug
                 }
                 l <<= dX;
                 for (integer ci = 0; ci != NCHILD; ++ci) {
