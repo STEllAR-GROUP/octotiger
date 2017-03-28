@@ -27,6 +27,7 @@ class rad_grid;
 #include <hpx/runtime/serialization/vector.hpp>
 #include <hpx/traits/is_bitwise_serializable.hpp>
 
+#include <iostream>
 #include <functional>
 #include <list>
 #include <memory>
@@ -279,7 +280,7 @@ public:
    void save(Archive& arc, const unsigned) const;
    HPX_SERIALIZATION_SPLIT_MEMBER();
    std::size_t load(FILE* fp);
-   std::size_t save(FILE* fp) const;
+   std::size_t save(std::ostream& strm) const;
    std::pair<real,real> virial() const;
    friend class node_server;
 };

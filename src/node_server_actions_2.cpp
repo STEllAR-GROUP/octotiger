@@ -509,7 +509,7 @@ hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx
                                         + 4 * (z % 2);
                                     if (x / 2 == 1 && y / 2 == 1 && z / 2 == 1) {
                                         ref = hpx::make_ready_future<hpx::id_type>(
-                                            children[other_child].get_gid());
+                                            hpx::unmanaged(children[other_child].get_gid()));
                                     } else {
                                         geo::direction dir = geo::direction(
                                             (x / 2) + NDIM * ((y / 2) + NDIM * (z / 2)));
@@ -530,8 +530,8 @@ hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx
                         }
                     }
                     cfuts[index++] =
-                        children[ci].form_tree(children[ci].get_gid(), me.get_gid(),
-                            std::move(child_neighbors));
+                        children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
+                            me.get_gid(), std::move(child_neighbors));
                 }
             }
         }

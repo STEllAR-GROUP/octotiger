@@ -7,7 +7,7 @@
 
 #include "node_server.hpp"
 
-bool node_client::is_local() {
+bool node_client::is_local() const {
 	return local;
 }
 

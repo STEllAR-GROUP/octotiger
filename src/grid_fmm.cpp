@@ -1197,7 +1197,8 @@ void compute_ilist() {
             }
         }
     }
-    printf("# direct = %i\n", int(max_d));
+
+//     printf("# direct = %i\n", int(max_d));
     ilist_n = std::vector<interaction_type>(ilist_n0.begin(), ilist_n0.end());
     ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
     ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
