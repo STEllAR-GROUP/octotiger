@@ -1,7 +1,9 @@
+#include "defs.hpp"
 #include "grid.hpp"
 #ifdef DO_OUTPUT
 #include <silo.h>
 #endif
+#include <atomic>
 #include <fstream>
 #include <thread>
 #include <cmath>
@@ -263,29 +265,25 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 std::size_t grid::load(FILE* fp) {
 	static hpx::mutex mtx;
 	std::size_t cnt = 0;
-	real dummy;
 	integer dummy_int;
-	auto foo = std::fread;
-// 	real Acon, Bcon;
 	{
-		static bool statics_loaded = false;
-		std::lock_guard<hpx::mutex> lock(mtx);
-		if( !statics_loaded ) {
-			cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
-			cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
-			cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
-			cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
+		static std::atomic<bool> statics_loaded(false);
+        bool expected = false;
+		if(statics_loaded.compare_exchange_strong(expected, true)) {
+			cnt += std::fread(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
+			cnt += std::fread(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
+			cnt += std::fread(&physcon.A, sizeof(real), 1, fp) * sizeof(real);
+			cnt += std::fread(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
 			statics_loaded = true;
 		} else {
-			cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
-			cnt += foo(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
-			cnt += foo(&dummy, sizeof(integer), 1, fp) * sizeof(integer);
-			cnt += foo(&dummy, sizeof(real), 1, fp) * sizeof(real);
+            std::size_t offset = 3*sizeof(real) + sizeof(integer);
+            std::fseek(fp, offset, SEEK_CUR);
+			cnt += offset;
 		}
 	}
 
-	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
-	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
+	cnt += std::fread(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
+	cnt += std::fread(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 
 	allocate();
 
@@ -293,7 +291,7 @@ std::size_t grid::load(FILE* fp) {
 		for (integer i = H_BW; i < H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
 				const integer iii = hindex(i, j, H_BW);
-				cnt += foo(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
+				cnt += std::fread(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
 			}
 		}
 	}
@@ -303,13 +301,13 @@ std::size_t grid::load(FILE* fp) {
 				const integer iii = gindex(i, j, k);
 				for( integer f = 0; f != NGF; ++f ) {
 					real tmp;
-					cnt += foo(&tmp, sizeof(real), 1, fp) * sizeof(real);
+					cnt += std::fread(&tmp, sizeof(real), 1, fp) * sizeof(real);
 					G[iii][f] = tmp;
 				}
 			}
 		}
 	}
-	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+	cnt += std::fread(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
 #ifdef RADIATION
 	cnt += rad_grid_ptr->load(fp);
 #endif
@@ -317,43 +315,40 @@ std::size_t grid::load(FILE* fp) {
 	return cnt;
 }
 
-std::size_t grid::save(FILE* fp) const {
-	std::size_t cnt = 0;
-	const real dummy = 0.0;
-	auto foo = std::fwrite;
-	{
-		static hpx::mutex mtx;
-		std::lock_guard<hpx::mutex> lock(mtx);
-		cnt += foo(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
-		cnt += foo(&max_level, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&physcon.A, sizeof(integer), 1, fp) * sizeof(integer);
-		cnt += foo(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
-	}
-	cnt += foo(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
-	cnt += foo(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
-	for (integer f = 0; f != NF; ++f) {
-		for (integer i = H_BW; i < H_NX - H_BW; ++i) {
-			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
-				const integer iii = hindex(i, j, H_BW);
-				cnt += foo(&U[f][iii], sizeof(real), INX, fp) * sizeof(real);
-			}
-		}
-	}
-	for (integer i = 0; i < G_NX; ++i) {
-		for (integer j = 0; j < G_NX; ++j) {
-			for (integer k = 0; k < G_NX; ++k) {
-				const integer iii = gindex(i, j, k);
-				for( integer f = 0; f != NGF; ++f ) {
-					real tmp = G[iii][f];
-					cnt += foo(&tmp, sizeof(real), 1, fp) * sizeof(real);
-				}
-			}
-		}
-	}
-	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+std::size_t grid::save(std::ostream& strm) const {
+    std::size_t cnt = 0;
+
+    cnt += write(strm, scaling_factor);
+    cnt += write(strm, max_level);
+    cnt += write(strm, physcon.A);
+    cnt += write(strm, physcon.B);
+
+    cnt += write(strm, is_leaf);
+    cnt += write(strm, is_root);
+
+    for (integer f = 0; f != NF; ++f) {
+        for (integer i = H_BW; i < H_NX - H_BW; ++i) {
+            for (integer j = H_BW; j < H_NX - H_BW; ++j) {
+                const integer iii = hindex(i, j, H_BW);
+                cnt += write(strm, &U[f][iii], INX);
+            }
+        }
+    }
+    for (integer i = 0; i < G_NX; ++i) {
+        for (integer j = 0; j < G_NX; ++j) {
+            for (integer k = 0; k < G_NX; ++k) {
+                const integer iii = gindex(i, j, k);
+                for( integer f = 0; f != NGF; ++f ) {
+                    real tmp = G[iii][f];
+                    cnt += write(strm, tmp);
+                }
+            }
+        }
+    }
+    cnt += write(strm, U_out.data(), U_out.size());
 #ifdef RADIATION
-	cnt += rad_grid_ptr->save(fp);
+    cnt += rad_grid_ptr->save(strm);
 #endif
-	return cnt;
+    return cnt;
 }
 

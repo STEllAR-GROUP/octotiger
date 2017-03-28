@@ -133,46 +133,58 @@ int hpx_main(int argc, char* argv[]) {
 
 			node_client root_id = hpx::new_ < node_server > (hpx::find_here());
 			node_client root_client(root_id);
+            node_server* root = root_client.get_ptr().get();
 
+            int ngrids = 0;
 			if (opts.found_restart_file) {
 				set_problem(null_problem);
 				const std::string fname = opts.restart_filename;
 				printf("Loading from %s...\n", fname.c_str());
 				if (opts.output_only) {
 					const std::string oname = opts.output_filename;
-					root_client.get_ptr().get()->load_from_file_and_output(fname, oname, opts.data_dir);
+					root->load_from_file_and_output(fname, oname, opts.data_dir);
 				} else {
-					root_client.get_ptr().get()->load_from_file(fname, opts.data_dir);
-					root_client.regrid(root_client.get_gid(), ZERO, true).get();
-                    for (integer l = 0; l < opts.max_restart_level; ++l)
+					root->load_from_file(fname, opts.data_dir);
+//                     if (opts.max_restart_level == 0)
                     {
-                        root_client.regrid(root_client.get_gid(), grid::get_omega(), false).get();
-                        printf("---------------Created Level %i---------------\n\n", int(l + 1));
+                        ngrids = root->regrid(root_client.get_gid(), ZERO, true);
+                    }
+//                     else
+                    {
+                        if (opts.max_restart_level > 0)
+                        {
+                            for (integer l = 0; l < opts.max_restart_level - 1; ++l)
+                            {
+                                ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), false);
+                                printf("---------------Created Level %i---------------\n\n", int(l + 1));
+                            }
+                        }
                     }
 				}
 				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {
-					root_client.regrid(root_client.get_gid(), grid::get_omega(), false).get();
+					ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), false);
 					printf("---------------Created Level %i---------------\n\n", int(l + 1));
 				}
-				root_client.regrid(root_client.get_gid(), grid::get_omega(), false).get();
+				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), false);
 				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
 
-			if (gravity_on) {
-			    printf("solving gravity------------\n");
-				//real tstart = MPI_Wtime();
-				root_client.solve_gravity(false).get();
-				//	printf("Gravity Solve Time = %e\n", MPI_Wtime() - tstart);
-                printf("...done\n");
-			}
+// 			if (gravity_on) {
+// 			    printf("solving gravity------------\n");
+// 				//real tstart = MPI_Wtime();
+// 				root_client.solve_gravity(false).get();
+// 				//	printf("Gravity Solve Time = %e\n", MPI_Wtime() - tstart);
+//                 printf("...done\n");
+// 			}
 
 			if (!opts.output_only) {
 				//	set_problem(null_problem);
-				root_client.start_run(opts.problem == DWD && !opts.found_restart_file).get();
+                hpx::async(&node_server::start_run, root, opts.problem == DWD && !opts.found_restart_file, ngrids).get();
+// 				root->start_run(opts.problem == DWD && !opts.found_restart_file, ngrids);
 			}
-            root_client.report_timing();
+            root->report_timing();
 		}
 	} catch (...) {
         throw;
@@ -189,8 +201,7 @@ int main(int argc, char* argv[])
         "hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
     };
 
-    hpx::register_pre_shutdown_function([](){ std::cout << "clearing localities ...\n"; options::all_localities.clear(); });
+    hpx::register_pre_shutdown_function([](){options::all_localities.clear(); });
 
     hpx::init(argc, argv, cfg);
-    std::cout << "done...\n";
 }

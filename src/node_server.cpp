@@ -5,11 +5,13 @@
  *      Author: dmarce1
  */
 
+#include "defs.hpp"
 #include "node_server.hpp"
 #include "problem.hpp"
 #include "future.hpp"
 #include "options.hpp"
 #include "taylor.hpp"
+#include "set_locality_data.hpp"
 
 #include <array>
 #include <streambuf>
@@ -224,7 +226,7 @@ inline bool file_exists(const std::string& name) {
 //HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
 //HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
 
-std::size_t node_server::load_me(FILE* fp) {
+std::size_t node_server::load_me(FILE *fp) {
     std::size_t cnt = 0;
     auto foo = std::fread;
     refinement_flag = false;
@@ -235,33 +237,82 @@ std::size_t node_server::load_me(FILE* fp) {
     return cnt;
 }
 
-std::size_t node_server::save_me(FILE* fp) const {
-    auto foo = std::fwrite;
+std::size_t node_server::save_me(std::ostream& strm) const {
     std::size_t cnt = 0;
 
-    cnt += foo(&step_num, sizeof(integer), 1, fp) * sizeof(integer);
-    cnt += foo(&current_time, sizeof(real), 1, fp) * sizeof(real);
-    cnt += foo(&rotational_time, sizeof(real), 1, fp) * sizeof(real);
+    cnt += write(strm, step_num);
+    cnt += write(strm, current_time);
+    cnt += write(strm, rotational_time);
+
     assert(grid_ptr != nullptr);
-    cnt += grid_ptr->save(fp);
+    cnt += grid_ptr->save(strm);
     return cnt;
 }
 
 #include "util.hpp"
 
 void node_server::save_to_file(const std::string& fname, std::string const& data_dir) const {
-    save(0, data_dir + fname);
-    file_copy((data_dir + fname).c_str(), (data_dir + "restart.chk").c_str());
+    hpx::util::high_resolution_timer timer;
+    save(0, data_dir + fname).get();
+//     file_copy((data_dir + fname).c_str(), (data_dir + "restart.chk").c_str());
 //	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
 //	SYSTEM(command);
+
+    double elapsed = timer.elapsed();
+    printf("Saving took %f seconds\n", elapsed);
 }
 
 void node_server::load_from_file(const std::string& fname, std::string const& data_dir) {
-    load(0, hpx::id_type(), false, data_dir + fname);
+    hpx::util::high_resolution_timer timer;
+#ifdef RADIATION
+    if (opts.eos == WD) {
+        set_cgs(false);
+    }
+#endif
+    real omega = 0;
+    space_vector pivot;
+
+    // run output on separate thread
+    integer rec_size = 0;
+    int total_nodes;
+    hpx::threads::run_as_os_thread([&]() {
+        FILE* fp = fopen((data_dir + fname).c_str(), "rb");
+        if (fp == NULL) {
+            printf("Failed to open file\n");
+            abort();
+        }
+        fseek(fp, -sizeof(integer), SEEK_END);
+        std::size_t read_cnt = fread(&rec_size, sizeof(integer), 1, fp);
+        fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
+        read_cnt += fread(&omega, sizeof(real), 1, fp);
+        for (auto const& d : geo::dimension::full_set()) {
+            real temp_pivot;
+            read_cnt += fread(&temp_pivot, sizeof(real), 1, fp);
+            pivot[d] = temp_pivot;
+        }
+        fclose(fp);
+
+        // work around limitation of ftell returning 32bit offset
+        std::ifstream in((data_dir + fname).c_str(), std::ifstream::ate | std::ifstream::binary);
+        std::size_t end_pos = in.tellg();
+
+        total_nodes = end_pos / rec_size;
+    }).get();
+
+    printf("Loading %d nodes\n", total_nodes);
+
+//     auto meta_read =
+        hpx::lcos::broadcast<set_locality_data_action>(
+            options::all_localities, omega, pivot).get();
+
+    load(0, total_nodes, rec_size, false, data_dir + fname);
+//     meta_read.get();
+    double elapsed = timer.elapsed();
+    printf("Loading took %f seconds\n", elapsed);
 }
 
 void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname, std::string const& data_dir) {
-    load(0, hpx::id_type(), true, data_dir + fname);
+    load_from_file(fname, data_dir);
     file_copy((data_dir + "data.silo").c_str(), (data_dir + outname).c_str());
 //	std::string command = std::string("mv data.silo ") + outname + std::string("\n");
 //	SYSTEM(command);

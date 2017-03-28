@@ -75,6 +75,7 @@ enum gsolve_type {
 };
 
 #include <array>
+#include <iostream>
 
 //#include <hpx/runtime/serialization/serialize.hpp>
 //#include <hpx/runtime/serialization/list.hpp>
@@ -250,4 +251,35 @@ inline void inplace_average(T& s1, T& s2)
 		abort(); \
 	}
 */
+
+template <typename T>
+std::size_t write(std::ostream& strm, T && t)
+{
+    typedef typename std::decay<T>::type output_type;
+    strm.write(reinterpret_cast<char const*>(&t), sizeof(output_type));
+    return sizeof(output_type);
+}
+
+template <typename T>
+std::size_t write(std::ostream& strm, T* t, std::size_t size)
+{
+    strm.write(reinterpret_cast<char const*>(t), sizeof(T) * size);
+    return sizeof(T) * size;
+}
+
+template <typename T>
+std::size_t read(std::istream& strm, T & t)
+{
+    typedef typename std::decay<T>::type input_type;
+    strm.read(reinterpret_cast<char*>(&t), sizeof(input_type));
+    return sizeof(input_type);
+}
+
+template <typename T>
+std::size_t read(std::istream& strm, T* t, std::size_t size)
+{
+    strm.read(reinterpret_cast<char*>(t), sizeof(T) * size);
+    return sizeof(T) * size;
+}
+
 #endif /* TYPES_HPP_ */

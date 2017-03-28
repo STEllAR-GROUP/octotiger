@@ -56,8 +56,8 @@ public:
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
 	void store();
-	std::size_t load(FILE* fp);
-	std::size_t save(FILE* fp) const;
+	std::size_t load(std::istream& strm);
+	std::size_t save(std::ostream& strm) const;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
