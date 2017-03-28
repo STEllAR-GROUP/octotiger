@@ -12,7 +12,7 @@
 
 #include <cmath>
 
-#if !defined(HPX_HAVE_DATAPAR)
+#if 1 //!defined(HPX_HAVE_DATAPAR)
 
 template<class T = real>
 class space_vector_gen : public std::array<T, NDIM> {

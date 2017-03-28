@@ -160,9 +160,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
     return pair;
 }
 
-void grid::solve_gravity(gsolve_type type) {
-    compute_multipoles(type);
-
+void grid::compute_interactions(gsolve_type type) {
     if (!is_leaf)
     {
         if (is_root)
@@ -171,19 +169,19 @@ void grid::solve_gravity(gsolve_type type) {
             {
                 if (opts.ang_con)
                     // Non-leaf, root, ANG_CON_ON, RHO
-                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_ON, RHO>();
+                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, RHO>();
                 else
                     // Non-leaf, root, ANG_CON_OFF, RHO
-                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_OFF, NON_RHO>();
+                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
             }
             else
             {
                 if (opts.ang_con)
                     // Non-leaf, root, non-ANG_CON_ON, RHO
-                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_ON, NON_RHO>();
+                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, NON_RHO>();
                 else
                     // Non-leaf, root, non-ANG_CON_OFF, RHO
-                    compute_interactions_non_leaf<&ilist_r, 16, ANG_CON_OFF, NON_RHO>();
+                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
             }
         }
         else
@@ -192,10 +190,10 @@ void grid::solve_gravity(gsolve_type type) {
             {
                 if (opts.ang_con)
                     // Non-leaf, non-root, ANG_CON_ON, RHO
-                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_ON, RHO>();
+                    compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_ON, RHO>();
                 else
                     // Non-leaf, non-root, ANG_CON_OFF, RHO
-                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_OFF, RHO>();
+                    compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_OFF, RHO>();
             }
             else
             {
@@ -210,8 +208,12 @@ void grid::solve_gravity(gsolve_type type) {
     }
     else
         // Leaf
-        compute_interactions(type);
+        compute_interactions_legacy(type);
+}
 
+void grid::solve_gravity(gsolve_type type) {
+    compute_multipoles(type);
+    compute_interactions(type);
     compute_expansions(type);
 }
 
@@ -251,7 +253,7 @@ constexpr int ab_idx_map6[6] = {
     4, 5, 6, 7, 8, 9
 };
 
-void grid::compute_interactions(gsolve_type type) {
+void grid::compute_interactions_legacy(gsolve_type type) {
     PROF_BEGIN;
 
     // calculating the contribution of all the inner cells

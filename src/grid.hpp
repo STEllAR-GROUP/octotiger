@@ -204,8 +204,6 @@ public:
 	}
 	void rad_init();
 #endif
-    real index_M(integer j, integer i) noexcept { return (*M_ptr)[j][i]; }
-    real index_com(integer j, integer i) noexcept { return (*com_ptr[0])[j][i]; }
 	void change_units( real mass, real length, real time, real temp);
 	static hpx::future<void> static_change_units( real mass, real length, real time, real temp);
 	real get_dx() const;
@@ -258,6 +256,7 @@ public:
 	void dual_energy_update();
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
+	void compute_interactions_legacy(gsolve_type);
 	void compute_interactions(gsolve_type);
 	void rho_mult(real f0, real f1 );
 	void rho_move(real x);

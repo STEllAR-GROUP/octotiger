@@ -37,25 +37,31 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
   , std::true_type
     ) noexcept
 {
+    auto& M = *M_ptr;
+
     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j)                // TRIP COUNT: 10
-        #pragma GCC ivdep
-        for (integer i = i_begin; i != i_end; ++i)                              // TRIP COUNT: TileWidth CONTROLLED; UNIT STRIDE
+        //#pragma GCC ivdep
+        #pragma omp simd
+        for (integer i = i_begin; i < i_end; ++i)                               // TRIP COUNT: TileWidth CONTROLLED; UNIT STRIDE
         {
             integer const ti = i - i_begin;
 
             integer const iii0 = (*IList)[i].first;                             // 1 INT LOAD FROM MEM (indirect addressing)
             integer const iii1 = (*IList)[i].second;                            // 1 INT LOAD FROM MEM (indirect addressing)
 
-            auto const M0 = index_M(j, iii0);                                   // 1 FP LOAD FROM MEM
-            auto const M1 = index_M(j, iii0);                                   // 1 FP LOAD FROM MEM
+            auto const M00 = M[iii0]();                                         // 1 FP LOAD FROM MEM
+            auto const M10 = M[iii1]();                                         // 1 FP LOAD FROM MEM
 
             // NOTE: Due to the order of iteration, these computations are
             // performed redundantly.
-            auto const M1divM0 = M1 / M0;                                       // 1 FP DIV
-            auto const M0divM1 = M0 / M1;                                       // 1 FP DIV
+            auto const M10divM00 = M10 / M00;                                   // 1 FP DIV
+            auto const M00divM10 = M00 / M10;                                   // 1 FP DIV
 
-            n0[j][ti] = index_M(j, iii1) - index_M(j, iii0) * M1divM0;          // 1 FMA, 1 STORE TO TILE
-            n1[j][ti] = index_M(j, iii0) - index_M(j, iii1) * M0divM1;          // 1 FMA, 1 STORE TO TILE
+            auto const M0j = M[iii0]();                                         // 1 FP LOAD FROM MEM
+            auto const M1j = M[iii1]();                                         // 1 FP LOAD FROM MEM
+
+            n0[j][ti] = M1j - M0j * M10divM00;                                  // 1 FMA, 1 STORE TO TILE
+            n1[j][ti] = M0j - M1j * M00divM10;                                  // 1 FMA, 1 STORE TO TILE
         }
 }
 
@@ -333,6 +339,9 @@ inline void grid::compute_interactions_non_leaf()
     static_assert(0 < TileWidth, "TileWidth cannot be negative.");
     static_assert(0 == (TileWidth % 16), "TileWidth must be a multiple of 16.");
 
+    auto& M = *M_ptr;
+    std::vector<space_vector> const& com = *(com_ptr[0]);
+
     std::integral_constant<
         bool, ANG_CON_ON == AngConKind
     > ang_con_is_on{};
@@ -396,9 +405,10 @@ inline void grid::compute_interactions_non_leaf()
                 integer const iii0 = (*IList)[i].first;                         // 1 INT LOAD FROM MEM (indirect addressing)
                 integer const iii1 = (*IList)[i].second;                        // 1 INT LOAD FROM MEM (indirect addressing)
 
-                auto const x = index_com(j, iii0);                              // 1 FP LOAD FROM MEM
-                auto const y = index_com(j, iii1);                              // 1 FP LOAD FROM MEM
-                dX[j][ti] = x - y;                                              // 1 FP ADD, 1 FP STORE TO TILE
+                real const x = com.at(iii0)[j];                                    // 1 FP LOAD FROM MEM
+                real const y = com.at(iii1)[j];                                    // 1 FP LOAD FROM MEM
+                real const d = x - y;                                           // 1 FP ADD
+                dX[j][ti] = d;                                                  // 1 FP STORE TO TILE
             }
 
         for (integer j = 0; j != taylor_sizes[3]; ++j)                          // TRIP COUNT: 20
@@ -410,8 +420,8 @@ inline void grid::compute_interactions_non_leaf()
                 integer const iii0 = (*IList)[i].first;                         // 1 INT LOAD FROM MEM (indirect addressing)
                 integer const iii1 = (*IList)[i].second;                        // 1 INT LOAD FROM MEM (indirect addressing)
 
-                m0[j][ti] = index_M(j, iii0);                                   // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
-                m1[j][ti] = index_M(j, iii1);                                   // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
+                m0[j][ti] = M[iii0](j);                                         // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
+                m1[j][ti] = M[iii1](j);                                         // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
             }
 
         compute_interactions_initialize_n_ang_mom<IList, TileWidth>(i_begin, i_end, n0, n1, is_rho_type);
