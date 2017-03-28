@@ -27,6 +27,7 @@
 #include <cmath>
 #include <ostream>
 #include <istream>
+#include <iostream>
 
 typedef real_type counting_double_base_type;
 
@@ -37,6 +38,57 @@ public:
     static boost::atomic<std::size_t> subtractions;
     static boost::atomic<std::size_t> multiplications;
     static boost::atomic<std::size_t> divisions;
+    static boost::atomic<std::size_t> transcendentals;
+    static boost::atomic<std::size_t> miscellaneous;
+
+    static std::size_t additions_overall;
+    static std::size_t subtractions_overall;
+    static std::size_t multiplications_overall;
+    static std::size_t divisions_overall;
+    static std::size_t transcendentals_overall;
+    static std::size_t miscellaneous_overall;
+
+    static void report_counters() {
+        std::cout << "   Additions: "         << counting_double::additions.load() << '\n';
+        std::cout << "   Subtractions: "      << counting_double::subtractions.load() << '\n';
+        std::cout << "   Multiplications: "   << counting_double::multiplications.load() << '\n';
+        std::cout << "   Divisions: "         << counting_double::divisions.load() << '\n';
+        std::cout << "   Transcendentals: "         << counting_double::transcendentals.load() << '\n';
+        std::cout << "   Miscellaneous: "         << counting_double::miscellaneous.load() << '\n';
+        size_t total = counting_double::additions.load() + counting_double::subtractions.load() + counting_double::multiplications.load() + counting_double::divisions.load() + counting_double::transcendentals.load() + counting_double::miscellaneous.load();
+        std::cout << "   == Total Step Flop: "         << total << '\n';
+    }
+    
+    static void reset_counters() {
+        // context is single thread
+        additions_overall += counting_double::additions.load();
+        subtractions_overall += counting_double::subtractions.load();
+        multiplications_overall += counting_double::multiplications.load();
+        divisions_overall += counting_double::divisions.load();
+        transcendentals_overall += counting_double::transcendentals.load();
+        miscellaneous_overall += counting_double::miscellaneous.load();
+        // lost update shouldn't be possible as context is single-threaded
+        counting_double::additions.store(0);
+        counting_double::subtractions.store(0);
+        counting_double::multiplications.store(0);
+        counting_double::divisions.store(0);
+        counting_double::transcendentals.store(0);
+        counting_double::miscellaneous.store(0);
+    }
+
+    static void report_counters_overall() {
+        // make sure you catch the last remaining flops after the last step
+        counting_double::reset_counters();
+        // context is single thread
+        std::cout << "   Additions: "         << additions_overall << '\n';
+        std::cout << "   Subtractions: "      << subtractions_overall << '\n';
+        std::cout << "   Multiplications: "   << multiplications_overall << '\n';
+        std::cout << "   Divisions: "         << divisions_overall << '\n';
+        std::cout << "   Transcendentals: "   << transcendentals_overall << '\n';
+        std::cout << "   Miscellaneous: "     << miscellaneous_overall << '\n';
+        size_t total = additions_overall + subtractions_overall + multiplications_overall + divisions_overall + transcendentals_overall + miscellaneous_overall;
+        std::cout << "   == Total Application Flop: "         << total << '\n';
+    }
 
     // Constructors:
     constexpr counting_double()
@@ -174,7 +226,8 @@ public:
         return *this;
     }
 
-    constexpr counting_double operator-() const {
+    counting_double operator-() const {
+        ++subtractions; // check
         return counting_double(-m_value);
     }
     constexpr counting_double const& operator+() const {
@@ -328,139 +381,178 @@ constexpr inline bool operator>=(const counting_double_base_type& a, const count
 
 // Non-member functions:
 inline counting_double acos(counting_double a) {
+    ++counting_double::transcendentals;
     return std::acos(a.value());
 }
 inline counting_double cos(counting_double a) {
+    ++counting_double::transcendentals;
     return std::cos(a.value());
 }
 inline counting_double asin(counting_double a) {
+    ++counting_double::transcendentals;
     return std::asin(a.value());
 }
 inline counting_double atan(counting_double a) {
+    ++counting_double::transcendentals;
     return std::atan(a.value());
 }
 inline counting_double atan2(counting_double a, counting_double b) {
+    ++counting_double::transcendentals;
     return std::atan2(a.value(), b.value());
 }
 inline counting_double ceil(counting_double a) {
+    ++counting_double::miscellaneous;
     return std::ceil(a.value());
 }
 // I've seen std::fmod(long double) crash on some platforms
 // so use fmodl instead:
 inline counting_double fmod(counting_double a, counting_double b) {
+    ++counting_double::miscellaneous;
     return fmodl(a.value(), b.value());
 }
 inline counting_double cosh(counting_double a) {
+    ++counting_double::transcendentals;
     return std::cosh(a.value());
 }
 inline counting_double exp(counting_double a) {
+    ++counting_double::transcendentals;
     return std::exp(a.value());
 }
 inline counting_double fabs(counting_double a) {
+    ++counting_double::miscellaneous;
     return std::fabs(a.value());
 }
 inline counting_double abs(counting_double a) {
+    ++counting_double::miscellaneous;
     return std::abs(a.value());
 }
 inline counting_double floor(counting_double a) {
+    ++counting_double::miscellaneous;
     return std::floor(a.value());
 }
 inline counting_double modf(counting_double a, counting_double* ipart) {
+    ++counting_double::miscellaneous;
     counting_double_base_type ip;
     counting_double_base_type result = std::modf(a.value(), &ip);
     *ipart = ip;
     return result;
 }
 inline counting_double frexp(counting_double a, int* expon) {
+    ++counting_double::transcendentals;
     return std::frexp(a.value(), expon);
 }
 inline counting_double ldexp(counting_double a, int expon) {
+    ++counting_double::transcendentals;
     return std::ldexp(a.value(), expon);
 }
 inline counting_double log(counting_double a) {
+    ++counting_double::transcendentals;
     return std::log(a.value());
 }
 inline counting_double log10(counting_double a) {
+    ++counting_double::transcendentals;
     return std::log10(a.value());
 }
 inline counting_double tan(counting_double a) {
+    ++counting_double::transcendentals;
     return std::tan(a.value());
 }
 inline counting_double pow(counting_double a, counting_double b) {
+    ++counting_double::transcendentals;
     return std::pow(a.value(), b.value());
 }
 inline counting_double pow(counting_double a, counting_double_base_type b) {
+    ++counting_double::transcendentals;
     return std::pow(a.value(), b);
 }
 inline counting_double pow(counting_double a, int b) {
+    ++counting_double::transcendentals;
     return std::pow(a.value(), b);
 }
 inline counting_double sin(counting_double a) {
+    ++counting_double::transcendentals;
     return std::sin(a.value());
 }
 inline counting_double sinh(counting_double a) {
+    ++counting_double::transcendentals;
     return std::sinh(a.value());
 }
 inline counting_double sqrt(counting_double a) {
+    ++counting_double::transcendentals;
     return std::sqrt(a.value());
 }
 inline counting_double tanh(counting_double a) {
+    ++counting_double::transcendentals;
     return std::tanh(a.value());
 }
 inline counting_double max(counting_double a, counting_double b) {
+    ++counting_double::miscellaneous;
     return std::max(a.value(), b.value());
 }
 inline counting_double min(counting_double a, counting_double b) {
+    ++counting_double::miscellaneous;
     return std::min(a.value(), b.value());
 }
 
 // Conversion and truncation routines:
 template <class Policy>
 inline int iround(const counting_double& v, const Policy& pol) {
+    ++counting_double::miscellaneous;
     return boost::math::iround(v.value(), pol);
 }
 inline int iround(const counting_double& v) {
+    ++counting_double::miscellaneous;
     return boost::math::iround(v.value(), boost::math::policies::policy<>());
 }
 template <class Policy>
 inline long lround(const counting_double& v, const Policy& pol) {
+    ++counting_double::miscellaneous;
     return boost::math::lround(v.value(), pol);
 }
 inline long lround(const counting_double& v) {
+    ++counting_double::miscellaneous;
     return boost::math::lround(v.value(), boost::math::policies::policy<>());
 }
 
 #ifdef BOOST_HAS_LONG_LONG
 template <class Policy>
 inline boost::long_long_type llround(const counting_double& v, const Policy& pol) {
+    ++counting_double::miscellaneous;
     return boost::math::llround(v.value(), pol);
 }
 inline boost::long_long_type llround(const counting_double& v) {
+    ++counting_double::miscellaneous;
     return boost::math::llround(v.value(), boost::math::policies::policy<>());
 }
 #endif
 
 template <class Policy>
 inline int itrunc(const counting_double& v, const Policy& pol) {
+    ++counting_double::miscellaneous;
     return boost::math::itrunc(v.value(), pol);
 }
 inline int itrunc(const counting_double& v) {
+    ++counting_double::miscellaneous;
     return boost::math::itrunc(v.value(), boost::math::policies::policy<>());
 }
 template <class Policy>
 inline long ltrunc(const counting_double& v, const Policy& pol) {
+    ++counting_double::miscellaneous;
     return boost::math::ltrunc(v.value(), pol);
 }
 inline long ltrunc(const counting_double& v) {
+    ++counting_double::miscellaneous;
     return boost::math::ltrunc(v.value(), boost::math::policies::policy<>());
 }
 
 #ifdef BOOST_HAS_LONG_LONG
 template <class Policy>
 inline boost::long_long_type lltrunc(const counting_double& v, const Policy& pol) {
+    ++counting_double::miscellaneous;
     return boost::math::lltrunc(v.value(), pol);
 }
 inline boost::long_long_type lltrunc(const counting_double& v) {
+    ++counting_double::miscellaneous;
     return boost::math::lltrunc(v.value(), boost::math::policies::policy<>());
 }
 #endif

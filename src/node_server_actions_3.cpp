@@ -273,7 +273,12 @@ void node_server::start_run(bool scf)
 
     real bench_start, bench_stop;
 
+    std::cout << "measured flop during initialization:" << std::endl;
+    counting_double::report_counters();
+    counting_double::reset_counters();
+    
     while (current_time < opts.stop_time) {
+
         if (step_num > opts.stop_step)
             break;
 
@@ -583,6 +588,7 @@ hpx::future<real> node_server::step(integer steps) {
                 auto time_start = std::chrono::high_resolution_clock::now();
                 auto next_dt = timestep_driver_descend();
 
+                
                 if (is_refined)
                 {
                     refined_step();
@@ -595,6 +601,9 @@ hpx::future<real> node_server::step(integer steps) {
                 real dt = dt_fut.get();
                 if (my_location.level() == 0)
                 {
+                    std::cout << "measured flop for step " << step_num << ":" << std::endl;
+                    counting_double::report_counters();
+                    counting_double::reset_counters();
                     double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
                         std::chrono::high_resolution_clock::now() - time_start).count();
 

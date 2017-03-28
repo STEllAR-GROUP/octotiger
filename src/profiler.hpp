@@ -89,12 +89,13 @@ struct timings
         std::cout << "   Regrid: "            << times_[time_regrid] << '\n';
         std::cout << "   Compare Analytic: "  << times_[time_compare_analytic] << '\n';
         std::cout << "   Find Localities: "   << times_[time_find_localities] << '\n';
-#if defined(OCTOTIGER_HAVE_OPERATIONS_COUNT)
-        std::cout << "   Additions: "         << counting_double::additions.load() << '\n';
-        std::cout << "   Subtractions: "      << counting_double::subtractions.load() << '\n';
-        std::cout << "   Multiplications: "   << counting_double::multiplications.load() << '\n';
-        std::cout << "   Divisions: "         << counting_double::divisions.load() << '\n';
-#endif
+        counting_double::report_counters_overall();
+// #if defined(OCTOTIGER_HAVE_OPERATIONS_COUNT)
+//         std::cout << "   Additions: "         << counting_double::additions.load() << '\n';
+//         std::cout << "   Subtractions: "      << counting_double::subtractions.load() << '\n';
+//         std::cout << "   Multiplications: "   << counting_double::multiplications.load() << '\n';
+//         std::cout << "   Divisions: "         << counting_double::divisions.load() << '\n';
+// #endif
     }
 
     std::array<double, timer::time_last> times_;
