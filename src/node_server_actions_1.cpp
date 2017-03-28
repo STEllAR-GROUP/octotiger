@@ -87,7 +87,7 @@ grid::output_list_type node_server::load(
         for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
             children[ci] = hpx::new_<node_server>(options::all_localities[loc_id],
-                hpx::unmanaged(my_location.get_child(ci)), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
+                my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
 #ifdef OCTOTIGER_RESTART_LOAD_SEQ
             children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename).get();
 #else
