@@ -1,5 +1,8 @@
+
 #include "grid.hpp"
+#ifdef DO_OUTPUT
 #include <silo.h>
+#endif
 #include <atomic>
 #include <fstream>
 #include <thread>
@@ -202,7 +205,7 @@ void delete_names(std::vector<char*>& names) {
 }
 
 void grid::output_header(std::string base, real t, int cycle, bool a, int procs) {
-
+#ifdef DO_OUTPUT
 	std::thread([&]() {
 		auto olist = DBMakeOptlist(1);
 		double time = double(t);
@@ -230,11 +233,11 @@ void grid::output_header(std::string base, real t, int cycle, bool a, int procs)
 		DBFreeOptlist(olist);
 		DBClose(db);
 	}).join();
-
+#endif
 }
 
 void grid::output(const output_list_type& olists, std::string _filename, real _t, int cycle, bool analytic) {
-
+#ifdef DO_OUTPUT
 	std::thread(
 			[&](const std::string& filename, real t) {
 				const std::set<node_point>& node_list = olists.nodes;
@@ -305,6 +308,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 				}
 				DBClose(db);
 			}, _filename, _t).join();
+#endif
 }
 
 std::size_t grid::load(FILE* fp) {
