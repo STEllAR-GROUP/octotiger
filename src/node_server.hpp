@@ -47,6 +47,7 @@ private:
     std::atomic<integer> refinement_flag;
     static bool hydro_on;
     static bool gravity_on;
+    static std::stack<grid::output_list_type> pending_output;
     node_location my_location;
     integer step_num;
     std::size_t hcycle;
@@ -178,8 +179,12 @@ public:
     void load_from_file(const std::string&, std::string const& data_dir);
     void load_from_file_and_output(const std::string&, const std::string&, std::string const& data_dir);
 
+
     grid::output_list_type output(std::string fname, int cycle, bool analytic) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
+
+    static void parallel_output_gather(grid::output_list_type&&);
+    static void parallel_output_complete(std::string fname, real tm, int cycle, bool analytic);
 
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);

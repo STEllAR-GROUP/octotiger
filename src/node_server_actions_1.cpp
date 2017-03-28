@@ -40,6 +40,31 @@ HPX_PLAIN_ACTION(set_locality_data, set_locality_data_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_locality_data_action)
 HPX_REGISTER_BROADCAST_ACTION(set_locality_data_action)
 
+
+void parallel_output_gather(grid::output_list_type);
+void parallel_output_complete(std::string fname, int cycle, bool analytic);
+HPX_PLAIN_ACTION(node_server::parallel_output_complete, parallel_output_complete_action);
+
+
+std::stack<grid::output_list_type> node_server::pending_output;
+
+void node_server::parallel_output_gather(grid::output_list_type&& list) {
+	static hpx::mutex mtx;
+	std::lock_guard<hpx::mutex> lock(mtx);
+	pending_output.push(std::move(list));
+}
+
+void node_server::parallel_output_complete(std::string fname, real tm, int cycle, bool analytic) {
+	grid::output_list_type olist;
+	while( !pending_output.empty()) {
+		auto next_list = std::move(pending_output.top());
+		pending_output.pop();
+		grid::merge_output_lists(olist, std::move(next_list));
+	}
+	grid::output(std::move(olist), fname, tm, cycle, false);
+
+}
+
 hpx::future<grid::output_list_type> node_client::load(
     integer i, const hpx::id_type& _me, bool do_o, std::string s) const {
     return hpx::async<typename node_server::load_action>(get_unmanaged_gid(), i, _me, do_o, s);
@@ -183,22 +208,45 @@ grid::output_list_type node_server::output(std::string fname, int cycle, bool an
 
         auto i = futs.begin();
         grid::output_list_type my_list = i->get();
-        for (++i; i != futs.end(); ++i) {
-            grid::merge_output_lists(my_list, i->get());
-        }
-
-        if (my_location.level() == 0) {
-            //			hpx::apply([](const grid::output_list_type&
-            // olists, const char* filename) {
-            printf("Outputing...\n");
-            grid::output(my_list, fname, get_time(), cycle, analytic);
-            printf("Done...\n");
-            //		}, std::move(my_list), fname.c_str());
-        }
+		if (opts.parallel_silo) {
+			parallel_output_gather(std::move(my_list));
+			for (++i; i != futs.end(); ++i) {
+				i->get();
+			}
+		} else {
+			for (++i; i != futs.end(); ++i) {
+				grid::merge_output_lists(my_list, i->get());
+			}
+		}
+		if (my_location.level() == 0) {
+			std::string this_fname;
+			printf("Outputing...\n");
+			if (opts.parallel_silo) {
+				std::string dir_name = fname + std::string(".silo.data");
+				if (system((std::string("mkdir -p ") + dir_name + std::string("\n")).c_str()) != 0) {
+					abort_error();
+				}
+				const auto sz = opts.all_localities.size();
+				std::vector<hpx::future<void>> futs(sz);
+				for (integer i = 0; i != sz; ++i) {
+					this_fname = dir_name + std::string("/") + fname + std::string(".") + std::to_string(i) + std::string(".silo");
+					futs[i] = hpx::async < parallel_output_complete_action > (opts.all_localities[i], this_fname, get_time(), cycle, analytic);
+				}
+				hpx::wait_all(futs);
+				grid::output_header(fname, get_time(), cycle, analytic, opts.all_localities.size());
+			} else {
+				this_fname = fname + std::string(".silo");
+				grid::output(my_list, this_fname, get_time(), cycle, analytic);
+			}
+			printf("Done...\n");
+		}
         return my_list;
-
     } else {
-        return grid_ptr->get_output_list(analytic);
+    	auto l = grid_ptr->get_output_list(analytic);
+		if (opts.parallel_silo) {
+			parallel_output_gather(std::move(l));
+		}
+		return l;
     }
 }
 

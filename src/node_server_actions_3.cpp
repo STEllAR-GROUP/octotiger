@@ -286,7 +286,7 @@ void node_server::start_run(bool scf)
             sprintf(fname, "X.%i.chk", int(output_cnt));
             save_to_file(fname, opts.data_dir);
 
-            sprintf(fname, "%sX.%i.silo", opts.data_dir.c_str(), int(output_cnt));
+            sprintf(fname, "%sX.%i", opts.data_dir.c_str(), int(output_cnt));
             output(fname, output_cnt, false);
 
             //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
@@ -399,7 +399,7 @@ void node_server::start_run(bool scf)
         timings::scope ts(timings_, timings::time_compare_analytic);
         compare_analytic();
         if (!opts.disable_output)
-            output("final.silo", output_cnt, true);
+            output("final", output_cnt, true);
     }
 
     if(opts.bench && !opts.disable_output) {

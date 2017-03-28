@@ -50,10 +50,14 @@ public:
 	real theta;
 	bool ang_con;
     bool disable_output;
+    bool parallel_silo;
+    bool silo_planes_only;
     std::string data_dir;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & parallel_silo;
+		arc & silo_planes_only;
 		arc & ang_con;
 		arc & stop_time;
 		arc & max_level;
