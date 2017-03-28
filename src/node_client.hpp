@@ -28,7 +28,7 @@ private:
     hpx::id_type unmanaged;
 	bool local;
 public:
-	bool is_local();
+	bool is_local() const;
 	template<class Arc>
 	void load(Arc& arc, unsigned)
     {

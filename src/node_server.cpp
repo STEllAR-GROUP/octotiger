@@ -5,6 +5,7 @@
  *      Author: dmarce1
  */
 
+#include "defs.hpp"
 #include "node_server.hpp"
 #include "problem.hpp"
 #include "future.hpp"
@@ -235,15 +236,15 @@ std::size_t node_server::load_me(FILE* fp) {
     return cnt;
 }
 
-std::size_t node_server::save_me(FILE* fp) const {
-    auto foo = std::fwrite;
+std::size_t node_server::save_me(std::ostream& strm) const {
     std::size_t cnt = 0;
 
-    cnt += foo(&step_num, sizeof(integer), 1, fp) * sizeof(integer);
-    cnt += foo(&current_time, sizeof(real), 1, fp) * sizeof(real);
-    cnt += foo(&rotational_time, sizeof(real), 1, fp) * sizeof(real);
+    cnt += write(strm, step_num);
+    cnt += write(strm, current_time);
+    cnt += write(strm, rotational_time);
+
     assert(grid_ptr != nullptr);
-    cnt += grid_ptr->save(fp);
+    cnt += grid_ptr->save(strm);
     return cnt;
 }
 

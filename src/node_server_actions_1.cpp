@@ -5,6 +5,8 @@
  *      Author: dmarce1
  */
 
+#include "defs.hpp"
+#include "container_device.hpp"
 #include "diagnostics.hpp"
 #include "future.hpp"
 #include "node_client.hpp"
@@ -17,10 +19,13 @@
 #include <array>
 #include <chrono>
 #include <fstream>
+#include <vector>
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
 #include <hpx/lcos/broadcast.hpp>
+
+#include <boost/iostreams/stream.hpp>
 
 extern options opts;
 
@@ -49,9 +54,9 @@ grid::output_list_type node_server::load(
     integer cnt, const hpx::id_type& _me, bool do_output, std::string filename) {
     if (rec_size == -1 && my_location.level() == 0) {
 #ifdef RADIATION
-	if (opts.eos == WD) {
-		set_cgs(false);
-	}
+        if (opts.eos == WD) {
+            set_cgs(false);
+        }
 #endif
         real omega = 0;
         space_vector pivot;
@@ -102,9 +107,10 @@ grid::output_list_type node_server::load(
 
         total_nodes = end_pos / rec_size;
     }).get();
+
 #ifdef RADIATION
     rad_grid_ptr = grid_ptr->get_rad_grid();
-	rad_grid_ptr->sanity_check();
+    rad_grid_ptr->sanity_check();
 #endif
 
     std::array<hpx::future<grid::output_list_type>, NCHILD> futs;
@@ -115,8 +121,8 @@ grid::output_list_type node_server::load(
         integer index = 0;
         for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
-			children[ci] = hpx::new_ < node_server
-					> (options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
+            children[ci] = hpx::new_ < node_server
+                    > (options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
 #ifdef OCTOTIGER_RESTART_LOAD_SEQ
             children[ci].load(counts[ci], children[ci].get_gid(), do_output, filename).get();
 #else
@@ -136,13 +142,13 @@ grid::output_list_type node_server::load(
 
     grid::output_list_type my_list;
     for (auto&& fut : futs) {
-		if (fut.valid()) {
-			if (do_output) {
-				grid::merge_output_lists(my_list, fut.get());
-			} else {
-				fut.get();
-			}
-		}
+        if (fut.valid()) {
+            if (do_output) {
+                grid::merge_output_lists(my_list, fut.get());
+            } else {
+                fut.get();
+            }
+        }
     }
     // printf( "***************************************\n" );
     if (!is_refined && do_output) {
@@ -376,51 +382,84 @@ integer node_client::save(integer i, std::string s) const {
     return hpx::async<typename node_server::save_action>(get_unmanaged_gid(), i, s).get();
 }
 
-integer node_server::save(integer cnt, std::string filename) const {
-    char flag = is_refined ? '1' : '0';
-    integer record_size = 0;
+std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std::string const& filename) const {
 
-    // run output on separate thread
-    hpx::threads::run_as_os_thread([&]() {
-        FILE* fp = fopen(filename.c_str(), (cnt == 0) ? "wb" : "ab");
-        fwrite(&flag, sizeof(flag), 1, fp);
-        ++cnt;
-        integer value = cnt;
+    std::map<integer, std::vector<char> > result;
+    char flag = is_refined ? '1' : '0';
+    integer my_cnt = cnt;
+
+    std::vector<char> out_buffer;
+    {
+        typedef hpx::util::container_device<std::vector<char> > io_device_type;
+        boost::iostreams::stream<io_device_type> strm(out_buffer);
+
+        // determine record size
+        write(strm, flag);
+        integer value = ++cnt;
         std::array<integer, NCHILD> values;
-        for (auto& ci : geo::octant::full_set()) {
+        for (auto const& ci : geo::octant::full_set()) {
             if (ci != 0 && is_refined) {
                 value += child_descendant_count[ci - 1];
             }
             values[ci] = value;
-            fwrite(&value, sizeof(value), 1, fp);
+            write(strm, value);
         }
-        record_size = save_me(fp) + sizeof(flag) + NCHILD * sizeof(integer);
-        fclose(fp);
-    }).get();
+        save_me(strm);
+    }
+    result.emplace(my_cnt, std::move(out_buffer));
 
     if (is_refined) {
         for (auto& ci : geo::octant::full_set()) {
-            cnt = children[ci].save(cnt, filename);
+            if (children[ci].is_local()) {
+                std::map<integer, std::vector<char> > child_result =
+                    children[ci].get_ptr().get()->save_local(cnt, filename);
+                for (auto && d : child_result) {
+                    result.emplace(std::move(d));
+                }
+            }
+            else {
+                cnt = children[ci].save(cnt, filename);
+            }
         }
     }
 
-    if (my_location.level() == 0) {
-        // run output on separate thread
-        hpx::threads::run_as_os_thread([&]() {
-            FILE* fp = fopen(filename.c_str(), "ab");
+    return result;
+}
+
+integer node_server::save(integer cnt, std::string const& filename) const {
+
+    std::map<integer, std::vector<char> > result = save_local(cnt, filename);
+
+    // run output on separate thread
+    hpx::threads::run_as_os_thread([&]() {
+        // write all of the buffers to file
+        integer record_size = 0;
+        FILE* fp = fopen(filename.c_str(), "wb+");
+        for (auto const& d : result) {
+            if (record_size == 0) {
+                record_size = d.second.size();
+            }
+            else {
+                assert(record_size == d.second.size());
+            }
+            fseek(fp, record_size * d.first, SEEK_SET);
+            fwrite(d.second.data(), sizeof(char), d.second.size(), fp);
+        }
+
+        if (my_location.level() == 0) {
             real omega = grid::get_omega();
-            space_vector pivot = grid::get_pivot();
             fwrite(&omega, sizeof(real), 1, fp);
-            for (auto& d : geo::dimension::full_set()) {
-            	real tmp = pivot[d];
+            space_vector pivot = grid::get_pivot();
+            for (auto const& d : geo::dimension::full_set()) {
+                real tmp = pivot[d];
                 fwrite(&tmp, sizeof(real), 1, fp);
             }
             fwrite(&record_size, sizeof(integer), 1, fp);
-            fclose(fp);
-        }).get();
+        }
+        fclose(fp);
+    }).get();
 
-        printf("Saved %li grids to checkpoint file\n", (long int) cnt);
-    }
+    printf("Saved %li grids to checkpoint file\n", (long int) cnt);
 
     return cnt;
 }

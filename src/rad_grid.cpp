@@ -5,6 +5,8 @@
 #include "node_server.hpp"
 #include "physcon.hpp"
 
+#include <iostream>
+
 extern options opts;
 
 #ifdef RADIATION
@@ -566,19 +568,19 @@ std::size_t rad_grid::load(FILE * fp) {
 	return cnt;
 }
 
-std::size_t rad_grid::save(FILE * fp) const {
-	std::size_t cnt = 0;
-	auto foo = std::fwrite;
-	cnt += foo(&dx, sizeof(real), 1, fp) * sizeof(real);
-	for (integer i = R_BW; i < R_NX - R_BW; ++i) {
-		for (integer j = R_BW; j < R_NX - R_BW; ++j) {
-			const integer iiir = rindex(i, j, R_BW);
-			for (integer f = 0; f != NRF; ++f) {
-				cnt += foo(&U[f][iiir], sizeof(real), INX, fp) * sizeof(real);
-			}
-		}
-	}
-	return cnt;
+std::size_t rad_grid::save(std::ostream& strm) const {
+    std::size_t cnt = 0;
+
+    cnt += write(strm, dx);
+    for (integer i = R_BW; i < R_NX - R_BW; ++i) {
+        for (integer j = R_BW; j < R_NX - R_BW; ++j) {
+            const integer iiir = rindex(i, j, R_BW);
+            for (integer f = 0; f != NRF; ++f) {
+                cnt += write(strm, &U[f][iiir], INX);
+            }
+        }
+    }
+    return cnt;
 }
 
 void rad_grid::compute_flux() {

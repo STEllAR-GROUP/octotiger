@@ -21,6 +21,9 @@
 
 #include <array>
 #include <atomic>
+#include <iostream>
+#include <map>
+#include <vector>
 
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
@@ -132,7 +135,7 @@ public:
     }
 
     std::size_t load_me(FILE* fp);
-    std::size_t save_me(FILE* fp) const;
+    std::size_t save_me(std::ostream& strm) const;
 private:
 
     static bool static_initialized;
@@ -157,6 +160,8 @@ private:
     diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
         const std::pair<real, real>& l1, real, real) const;
     hpx::future<real> local_step(integer steps);
+
+    std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std::string const& filename) const;
 
 public:
      static bool child_is_on_face(integer ci, integer face);
@@ -264,7 +269,7 @@ public:
         std::string);
     HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
 
-    integer save(integer, std::string) const;
+    integer save(integer, std::string const&) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
 
     void set_aunt(const hpx::id_type&, const geo::face& face);
