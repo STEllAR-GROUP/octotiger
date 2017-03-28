@@ -394,7 +394,7 @@ void node_server::start_run(bool scf, integer ngrids)
         timings::scope ts(timings_, timings::time_compare_analytic);
         compare_analytic();
         if (!opts.disable_output)
-            output("final.silo", output_cnt, true);
+            output("final", output_cnt, true);
     }
 
     if(opts.bench && !opts.disable_output) {

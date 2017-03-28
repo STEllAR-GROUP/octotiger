@@ -25,6 +25,8 @@
 #define BENCH_OPT "-Bench"
 #define THETA_OPT "-Theta"
 #define EOS_OPT "-Eos"
+#define PARALLEL_SILO_OPT "-ParallelSilo"
+#define SILO_PLANES_ONLY_OPT "-SiloPlanesOnly"
 
 #define MAX_LEVEL_OPT "-Max_level"
 #define MAX_RESTART_LEVEL_OPT "-Regrid_level"
@@ -102,9 +104,11 @@ bool options::process_options(int argc, char* argv[]) {
     bool rc;
     eos = IDEAL;
     rc = true;
-    theta = 0.35;
-    max_level = 5;
-    max_restart_level = 0;
+	theta = 0.35;
+	parallel_silo = false;
+	silo_planes_only = false;
+	max_level = 5;
+	max_restart_level = 0;
     problem = NONE;
     found_restart_file = false;
     output_only = false;
@@ -161,18 +165,22 @@ bool options::process_options(int argc, char* argv[]) {
         } else if (cmp(argv[i], THETA_OPT)) {
             theta = atof(argv[i] + strlen(THETA_OPT) + 1);
         } else if (cmp(argv[i], RESTART_OPT)) {
-            restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
-            found_restart_file = true;
-        } else if (cmp(argv[i], DATA_DIR_OPT)) {
-            data_dir = std::string(argv[i] + strlen(DATA_DIR_OPT) + 1);
-            data_dir += "/";
-        } else if (cmp(argv[i], OUTPUT_OPT)) {
-            output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
-            output_only = true;
-        } else if (cmp(argv[i], ANGCON_OPT)) {
-            ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
-        } else if (cmp(argv[i], MAX_LEVEL_OPT)) {
-            max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
+			restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
+			found_restart_file = true;
+		} else if (cmp(argv[i], DATA_DIR_OPT)) {
+			data_dir = std::string(argv[i] + strlen(DATA_DIR_OPT) + 1);
+			data_dir += "/";
+		} else if (cmp(argv[i], PARALLEL_SILO_OPT)) {
+			parallel_silo = true;
+		} else if (cmp(argv[i], SILO_PLANES_ONLY_OPT)) {
+			silo_planes_only = true;
+		} else if (cmp(argv[i], OUTPUT_OPT)) {
+			output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
+			output_only = true;
+		} else if (cmp(argv[i], ANGCON_OPT)) {
+			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
+		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
+			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
         } else if (cmp(argv[i], MAX_RESTART_LEVEL_OPT)) {
             max_restart_level = atoi(argv[i] + strlen(MAX_RESTART_LEVEL_OPT) + 1);
         } else if (cmp(argv[i], XSCALE_OPT)) {

@@ -213,17 +213,9 @@ void grid::compute_interactions(gsolve_type type) {
     // L should be L, (10) in the paper
     // L_c stores the correction for angular momentum
     // L_c, (20) in the paper (Dominic)
-#if defined(HPX_HAVE_DATAPAR)
-    hpx::parallel::fill(hpx::parallel::execution::dataseq, L.begin(), L.end(), ZERO);
-#else
     std::fill(std::begin(L), std::end(L), ZERO);
-#endif
     if (opts.ang_con) {
-#if defined(HPX_HAVE_DATAPAR)
-        hpx::parallel::fill(hpx::parallel::execution::dataseq, L_c.begin(), L_c.end(), ZERO);
-#else
         std::fill(std::begin(L_c), std::end(L_c), ZERO);
-#endif
     }
 
     // Non-leaf nodes use taylor expansion
