@@ -70,78 +70,42 @@ public:
     }
 
     taylor<N, T>& operator=(T d) {
-#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] = d;
         }
-#else
-        hpx::parallel::fill(hpx::parallel::execution::dataseq, data.begin(), data.end(), d);
-#endif
         return *this;
     }
 
     taylor<N, T>& operator*=(T d) {
-#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] *= d;
         }
-#else
-        hpx::parallel::transform(hpx::parallel::execution::dataseq, data.begin(), data.end(),
-            data.begin(), [d](auto const& val) { return val * d; });
-#endif
         return *this;
     }
 
     taylor<N, T>& operator/=(T d) {
-#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] /= d;
         }
-#else
-        hpx::parallel::transform(hpx::parallel::execution::dataseq, data.begin(), data.end(),
-            data.begin(), [d](auto const& val) { return val / d; });
-#endif
         return *this;
     }
 
     taylor<N, T>& operator+=(const taylor<N, T>& other) {
-// #if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] += other.data[i];
         }
-        // #else
-        //         hpx::parallel::transform(
-        //             hpx::parallel::execution::dataseq,
-        //             data.begin(), data.end(),
-        //             other.data.begin(), other.data.end(), data.begin(),
-        //             [](auto const& t1, auto const& t2)
-        //             {
-        //                 return t1 + t2;
-        //             });
-        // #endif
         return *this;
     }
 
     taylor<N, T>& operator-=(const taylor<N, T>& other) {
-// #if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] -= other.data[i];
         }
-        // #else
-        //         hpx::parallel::transform(
-        //             hpx::parallel::execution::dataseq,
-        //             data.begin(), data.end(),
-        //             other.data.begin(), other.data.end(), data.begin(),
-        //             [](auto const& t1, auto const& t2)
-        //             {
-        //                 return t1 - t2;
-        //             });
-        // #endif
         return *this;
     }
 
@@ -183,15 +147,10 @@ public:
 
     taylor<N, T> operator-() const {
         taylor<N, T> r = *this;
-#if !defined(HPX_HAVE_DATAPAR)
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             r.data[i] = -r.data[i];
         }
-#else
-        hpx::parallel::transform(hpx::parallel::execution::dataseq, r.data.begin(), r.data.end(),
-            r.data.begin(), [](T const& val) { return -val; });
-#endif
         return r;
     }
 
