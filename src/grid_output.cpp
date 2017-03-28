@@ -1,7 +1,5 @@
 #include "grid.hpp"
-#ifdef DO_OUTPUT
 #include <silo.h>
-#endif
 #include <atomic>
 #include <fstream>
 #include <thread>
