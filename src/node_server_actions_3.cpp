@@ -213,14 +213,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
     }
 }
 
-typedef node_server::start_run_action start_run_action_type;
-HPX_REGISTER_ACTION(start_run_action_type);
-
-hpx::future<void> node_client::start_run(bool b) const {
-    return hpx::async<typename node_server::start_run_action>(get_unmanaged_gid(), b);
-}
-
-void node_server::start_run(bool scf)
+void node_server::start_run(bool scf, integer ngrids)
 {
     timings_.times_[timings::time_regrid] = 0.0;
     timings::scope ts(timings_, timings::time_total);
@@ -257,7 +250,7 @@ void node_server::start_run(bool scf)
 
     printf("Starting...\n");
     solve_gravity(false);
-    int ngrids = regrid(me.get_gid(), grid::get_omega(), false);
+    ngrids = regrid(me.get_gid(), grid::get_omega(), false);
 
     real output_dt = opts.output_dt;
 
@@ -282,11 +275,11 @@ void node_server::start_run(bool scf)
         if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
             //	if (step_num != 0) {
 
-            char fname[33];    // 21 bytes for int (max) + some leeway
-            sprintf(fname, "X.%i.chk", int(output_cnt));
+            std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
             save_to_file(fname, opts.data_dir);
+            printf("doing silo out...\n");
 
-            sprintf(fname, "%sX.%i", opts.data_dir.c_str(), int(output_cnt));
+            fname = opts.data_dir + "X." + std::to_string(int(output_cnt)) + ".silo";
             output(fname, output_cnt, false);
 
             //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
@@ -304,6 +297,7 @@ void node_server::start_run(bool scf)
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
+            printf("dwd step...\n");
             auto result = root_step_with_diagnostics(next_step - step_num).get();
             auto diags = result.second;
             dt = result.first;
@@ -326,6 +320,7 @@ void node_server::start_run(bool scf)
 //             grid::set_omega(omega);          // now done during check_for_refinement below
         }
         else {
+            printf("normal step...\n");
             dt = step(next_step - step_num).get();
             omega = grid::get_omega();
         }
@@ -405,6 +400,13 @@ void node_server::start_run(bool scf)
     if(opts.bench && !opts.disable_output) {
         hpx::threads::run_as_os_thread([&]()
         {
+            std::string fname;
+            if (output_cnt > 0)
+                fname = opts.data_dir + "X." + std::to_string(int(output_cnt) - 1) + ".chk";
+            else
+                fname = opts.data_dir + "X.0.chk";
+
+            file_copy(fname.c_str(), (opts.data_dir + "restart.chk").c_str());
             FILE* fp = fopen( (opts.data_dir + "scaling.dat").c_str(), "at");
             const auto nproc = options::all_localities.size();
             fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));
