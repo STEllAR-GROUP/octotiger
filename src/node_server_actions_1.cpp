@@ -51,9 +51,9 @@ grid::output_list_type node_server::load(
     integer cnt, integer total_nodes, integer rec_size, bool do_output, std::string filename)
 {
     if (my_location.level() == 0)
-        me = hpx::id_type();
+        me = hpx::invalid_id;
     else
-        me = this->get_id();
+        me = this->get_unmanaged_id();
 
     char flag = '0';
     std::vector<integer> counts(NCHILD);
@@ -86,8 +86,8 @@ grid::output_list_type node_server::load(
         integer index = 0;
         for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
-            children[ci] = hpx::new_ < node_server
-                    > (options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
+            children[ci] = hpx::new_<node_server>(options::all_localities[loc_id],
+                hpx::unmanaged(my_location.get_child(ci)), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
 #ifdef OCTOTIGER_RESTART_LOAD_SEQ
             children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename).get();
 #else
@@ -324,7 +324,7 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, bool rb) {
     assert(grid_ptr != nullptr);
     std::vector<hpx::id_type> null_neighbors(geo::direction::count());
     printf("forming tree connections\n");
-    form_tree(root_gid, hpx::invalid_id, null_neighbors).get();
+    form_tree(hpx::unmanaged(root_gid), hpx::invalid_id, null_neighbors).get();
     if (current_time > ZERO) {
         printf("solving gravity\n");
         solve_gravity(true);
