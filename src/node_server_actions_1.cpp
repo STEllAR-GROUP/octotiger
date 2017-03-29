@@ -94,7 +94,8 @@ grid::output_list_type node_server::load(
         {
             read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
         }
-        load_me(fp);
+      //  printf( "RECSIZE=%i\n", int(rec_size));
+        load_me(fp, rec_size==65739);
         fclose(fp);
     }).get();
 

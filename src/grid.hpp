@@ -307,7 +307,7 @@ public:
     template<class Archive>
     void save(Archive& arc, const unsigned) const;
     HPX_SERIALIZATION_SPLIT_MEMBER();
-    std::size_t load(FILE* fp);
+    std::size_t load(FILE* fp, bool old_format);
     std::size_t save(std::ostream& strm) const;
     std::pair<real,real> virial() const;
     friend class node_server;

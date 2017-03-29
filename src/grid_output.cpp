@@ -311,7 +311,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 #endif
 }
 
-std::size_t grid::load(FILE* fp) {
+std::size_t grid::load(FILE* fp, bool old_format) {
 	static hpx::mutex mtx;
 	std::size_t cnt = 0;
 	integer dummy_int;
@@ -321,11 +321,13 @@ std::size_t grid::load(FILE* fp) {
 		if(statics_loaded.compare_exchange_strong(expected, true)) {
 			cnt += std::fread(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
 			cnt += std::fread(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
-			cnt += std::fread(&physcon.A, sizeof(real), 1, fp) * sizeof(real);
-			cnt += std::fread(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
+			if( !old_format ) {
+				cnt += std::fread(&physcon.A, sizeof(real), 1, fp) * sizeof(real);
+				cnt += std::fread(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
+			}
 			statics_loaded = true;
 		} else {
-            std::size_t offset = 3*sizeof(real) + sizeof(integer);
+			std::size_t offset = (old_format ? 1 : 3) * sizeof(real) + sizeof(integer);
             std::fseek(fp, offset, SEEK_CUR);
 			cnt += offset;
 		}
@@ -339,8 +341,15 @@ std::size_t grid::load(FILE* fp) {
 	for (integer f = 0; f != NF; ++f) {
 		for (integer i = H_BW; i < H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
-				const integer iii = hindex(i, j, H_BW);
-				cnt += std::fread(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
+				if( f < NF - 3 || !old_format) {
+					const integer iii = hindex(i, j, H_BW);
+					cnt += std::fread(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
+				} else {
+					for( integer k = H_BW; k != H_NX - H_BW; ++k) {
+						const integer iii = hindex(i, j, k);
+						U[f][iii] = 0.0;
+					}
+				}
 			}
 		}
 	}
@@ -356,7 +365,12 @@ std::size_t grid::load(FILE* fp) {
 			}
 		}
 	}
-	cnt += std::fread(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+	if (!old_format) {
+		cnt += std::fread(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+	} else {
+		std::fill(U_out.begin(), U_out.end(), 0.0);
+		cnt += std::fread(U_out.data(), sizeof(real), U_out.size() - 3, fp) * sizeof(real);
+	}
 #ifdef RADIATION
 	cnt += rad_grid_ptr->load(fp);
 #endif

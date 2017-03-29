@@ -141,7 +141,7 @@ public:
         gcycle = _gb;
     }
 
-    std::size_t load_me(FILE *fp);
+    std::size_t load_me(FILE *fp, bool old_format);
     std::size_t save_me(std::ostream& strm) const;
 private:
 

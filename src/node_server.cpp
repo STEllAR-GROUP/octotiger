@@ -214,14 +214,14 @@ inline bool file_exists(const std::string& name) {
 //HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
 //HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
 
-std::size_t node_server::load_me(FILE *fp) {
+std::size_t node_server::load_me(FILE *fp, bool old_format) {
     std::size_t cnt = 0;
     auto foo = std::fread;
     refinement_flag = false;
     cnt += foo(&step_num, sizeof(integer), 1, fp) * sizeof(integer);
     cnt += foo(&current_time, sizeof(real), 1, fp) * sizeof(real);
     cnt += foo(&rotational_time, sizeof(real), 1, fp) * sizeof(real);
-    cnt += grid_ptr->load(fp);
+    cnt += grid_ptr->load(fp, old_format);
     return cnt;
 }
 
@@ -271,6 +271,9 @@ void node_server::load_from_file(const std::string& fname, std::string const& da
         }
         fseek(fp, -sizeof(integer), SEEK_END);
         std::size_t read_cnt = fread(&rec_size, sizeof(integer), 1, fp);
+        if( rec_size == 65739) {
+        	printf( "Old checkpoint format detected\n");
+        }
         fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
         read_cnt += fread(&omega, sizeof(real), 1, fp);
         for (auto const& d : geo::dimension::full_set()) {
