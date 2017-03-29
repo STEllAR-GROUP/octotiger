@@ -75,7 +75,7 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
         BOOST_ASSUME_ALIGNED(VM_, 64);
         BOOST_ASSUME_ALIGNED(VMj, 64);
 
-        for (integer i = i_begin; i < i_end/8; i += 8)                          // TRIP COUNT: 10 * TileWidth; UNIT STRIDE
+        for (integer i = i_begin; i < i_end / 8; i += 8)
         {
             integer const ti = i - i_begin;
 
@@ -105,57 +105,6 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
 
             s.add_fp_memloads(2*8);
 
-/*
-            std::cout << "iii0: " << iii0[0]
-                             <<","<< iii0[1]
-                             <<","<< iii0[2]
-                             <<","<< iii0[3]
-                             <<","<< iii0[4]
-                             <<","<< iii0[5]
-                             <<","<< iii0[6]
-                             <<","<< iii0[7] << "\n"; 
-            std::cout << "iii1: " << iii1[0]
-                             <<","<< iii1[1]
-                             <<","<< iii1[2]    
-                             <<","<< iii1[3]
-                             <<","<< iii1[4]
-                             <<","<< iii1[5]
-                             <<","<< iii1[6]
-                             <<","<< iii1[7] << "\n"; 
-            std::cout << "M00 (paper): " << M00[(*IList)[i  ].first]
-                                    <<","<< M00[(*IList)[i+1].first]
-                                    <<","<< M00[(*IList)[i+2].first]
-                                    <<","<< M00[(*IList)[i+3].first]
-                                    <<","<< M00[(*IList)[i+4].first]
-                                    <<","<< M00[(*IList)[i+5].first]
-                                    <<","<< M00[(*IList)[i+6].first]  
-                                    <<","<< M00[(*IList)[i+7].first] << "\n"; 
-            std::cout << "M10 (paper): " << M10[(*IList)[i  ].first]
-                                    <<","<< M10[(*IList)[i+1].first]
-                                    <<","<< M10[(*IList)[i+2].first]
-                                    <<","<< M10[(*IList)[i+3].first]
-                                    <<","<< M10[(*IList)[i+4].first]
-                                    <<","<< M10[(*IList)[i+5].first]
-                                    <<","<< M10[(*IList)[i+6].first]  
-                                    <<","<< M10[(*IList)[i+7].first] << "\n"; 
-            std::cout << "M00:         " << M00[0]
-                                    <<","<< M00[1]
-                                    <<","<< M00[2]
-                                    <<","<< M00[3]
-                                    <<","<< M00[4]
-                                    <<","<< M00[5]
-                                    <<","<< M00[6]
-                                    <<","<< M00[7] << "\n"; 
-            std::cout << "M10:         " << M10[0]
-                                    <<","<< M10[1]
-                                    <<","<< M10[2]
-                                    <<","<< M10[3]
-                                    <<","<< M10[4]
-                                    <<","<< M10[5]
-                                    <<","<< M10[6]
-                                    <<","<< M10[7] << "\n"; 
-*/
-
             // NOTE: Due to the order of iteration, these computations are
             // performed redundantly.
             __m512d const M10divM00 = _mm512_div_pd(M10, M00);
@@ -167,25 +116,6 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
             __m512d const M1j = _mm512_i64gather_pd(iii1, Mj, 8);
 
             s.add_fp_memloads(2*8); 
-
-/*
-            std::cout << "M0j:         " << M0j[0]
-                                    <<","<< M0j[1]
-                                    <<","<< M0j[2]
-                                    <<","<< M0j[3]
-                                    <<","<< M0j[4]
-                                    <<","<< M0j[5]
-                                    <<","<< M0j[6]
-                                    <<","<< M0j[7] << "\n"; 
-            std::cout << "M1j:         " << M1j[0]
-                                    <<","<< M1j[1]
-                                    <<","<< M1j[2]
-                                    <<","<< M1j[3]
-                                    <<","<< M1j[4]
-                                    <<","<< M1j[5]
-                                    <<","<< M1j[6]
-                                    <<","<< M1j[7] << "\n"; 
-*/
 
             *(Vn0j + ti) = _mm512_fnmadd_pd(M0j, M10divM00, M1j); // -(M0j * M10divM00) + M1j
             *(Vn1j + ti) = _mm512_fnmadd_pd(M1j, M00divM10, M0j); // -(M1j * M00divM10) + M0j
@@ -276,18 +206,17 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
 
     for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j)                // TRIP COUNT: 10
     {
-        real* __restrict__ n0j = t.n0[j].data();
-        real* __restrict__ n1j = t.n1[j].data();
-        BOOST_ASSUME_ALIGNED(n0j, 64);
-        BOOST_ASSUME_ALIGNED(n1j, 64);
+        __m512d* __restrict__ Vn0j = reinterpret_cast<__m512d* __restrict__>(t.n0[j].data());
+        __m512d* __restrict__ Vn1j = reinterpret_cast<__m512d* __restrict__>(t.n1[j].data());
+        BOOST_ASSUME_ALIGNED(Vn0j, 64);
+        BOOST_ASSUME_ALIGNED(Vn1j, 64);
 
-        #pragma omp simd 
-        for (integer i = i_begin; i < i_end; ++i)                               // TRIP COUNT: 10 * TileWidth; UNIT STRIDE
+        for (integer i = i_begin; i < i_end / 8; i += 8)
         {
             integer const ti = i - i_begin;
 
-            n0j[ti] = ZERO;                                                     // 1 FP STORE TO TILE
-            n1j[ti] = ZERO;                                                     // 1 FP STORE TO TILE
+            *(Vn0j + ti) = _mm512_set1_pd(ZERO);
+            *(Vn1j + ti) = _mm512_set1_pd(ZERO);
 
             s.add_fp_tilestores(2);
         }

@@ -17,6 +17,8 @@
 #include <cstddef>
 #include <utility>
 
+constexpr integer TILE_WIDTH = 64;
+
 #ifdef USE_GRAV_PAR
 const auto for_loop_policy = hpx::parallel::execution::par;
 #else
@@ -170,19 +172,19 @@ op_stats grid::compute_interactions(gsolve_type type) {
             {
                 if (opts.ang_con)
                     // Non-leaf, root, ANG_CON_ON, RHO
-                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, TILE_WIDTH, ANG_CON_ON, RHO>();
                 else
                     // Non-leaf, root, ANG_CON_OFF, RHO
-                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, TILE_WIDTH, ANG_CON_OFF, NON_RHO>();
             }
             else
             {
                 if (opts.ang_con)
                     // Non-leaf, root, non-ANG_CON_ON, RHO
-                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, TILE_WIDTH, ANG_CON_ON, NON_RHO>();
                 else
                     // Non-leaf, root, non-ANG_CON_OFF, RHO
-                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, TILE_WIDTH, ANG_CON_OFF, NON_RHO>();
             }
         }
         else
@@ -191,19 +193,19 @@ op_stats grid::compute_interactions(gsolve_type type) {
             {
                 if (opts.ang_con)
                     // Non-leaf, non-root, ANG_CON_ON, RHO
-                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_ON, RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, TILE_WIDTH, ANG_CON_ON, RHO>();
                 else
                     // Non-leaf, non-root, ANG_CON_OFF, RHO
-                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_OFF, RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, TILE_WIDTH, ANG_CON_OFF, RHO>();
             }
             else
             {
                 if (opts.ang_con)
                     // Non-leaf, non-root, non-ANG_CON_ON, RHO
-                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_ON, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, TILE_WIDTH, ANG_CON_ON, NON_RHO>();
                 else
                     // Non-leaf, non-root, non-ANG_CON_OFF, RHO
-                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_OFF, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, TILE_WIDTH, ANG_CON_OFF, NON_RHO>();
             }
         }
     }

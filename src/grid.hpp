@@ -59,6 +59,7 @@ constexpr taylor<4, real> sixth_factor = factor * SIXTH;;
 struct op_stats
 {
     double time;
+/*
     std::size_t fp_adds;
     std::size_t fp_muls;
     std::size_t fp_fmas;
@@ -70,23 +71,27 @@ struct op_stats
     std::size_t fp_tilestores; 
     std::size_t fp_cacheloads; 
     std::size_t fp_cachestores; 
+*/
 
     constexpr op_stats() :
-        time{0.0},
-        fp_adds{0},
-        fp_muls{0},
-        fp_fmas{0},
-        fp_divs{0},
-        fp_sqrts{0},
-        fp_memloads{0}, 
-        fp_memstores{0}, 
-        fp_tileloads{0}, 
-        fp_tilestores{0}, 
-        fp_cacheloads{0}, 
-        fp_cachestores{0}
+        time{0.0}
+/*
+      , fp_adds{0}
+      , fp_muls{0}
+      , fp_fmas{0}
+      , fp_divs{0}
+      , fp_sqrts{0}
+      , fp_memloads{0} 
+      , fp_memstores{0} 
+      , fp_tileloads{0} 
+      , fp_tilestores{0} 
+      , fp_cacheloads{0} 
+      , fp_cachestores{0}
+*/
     {}
 
     constexpr void add_time(double time_) noexcept { time += time_; }
+/*
     constexpr void add_fp_adds(std::size_t fp_adds_) noexcept { fp_adds += fp_adds_; }
     constexpr void add_fp_muls(std::size_t fp_muls_) noexcept { fp_muls += fp_muls_; }
     constexpr void add_fp_fmas(std::size_t fp_fmas_) noexcept { fp_fmas += fp_fmas_; }
@@ -98,10 +103,23 @@ struct op_stats
     constexpr void add_fp_tilestores(std::size_t fp_tilestores_) noexcept { fp_tilestores += fp_tilestores_; }
     constexpr void add_fp_cacheloads(std::size_t fp_cacheloads_) noexcept { fp_cacheloads += fp_cacheloads_; }
     constexpr void add_fp_cachestores(std::size_t fp_cachestores_) noexcept { fp_cachestores += fp_cachestores_; }
+*/
+    constexpr void add_fp_adds(std::size_t fp_adds_) noexcept { }
+    constexpr void add_fp_muls(std::size_t fp_muls_) noexcept { }
+    constexpr void add_fp_fmas(std::size_t fp_fmas_) noexcept { }
+    constexpr void add_fp_divs(std::size_t fp_divs_) noexcept { }
+    constexpr void add_fp_sqrts(std::size_t fp_sqrts_) noexcept { }
+    constexpr void add_fp_memloads(std::size_t fp_memloads_) noexcept { }
+    constexpr void add_fp_memstores(std::size_t fp_memstores_) noexcept { }
+    constexpr void add_fp_tileloads(std::size_t fp_tileloads_) noexcept { }
+    constexpr void add_fp_tilestores(std::size_t fp_tilestores_) noexcept { }
+    constexpr void add_fp_cacheloads(std::size_t fp_cacheloads_) noexcept { }
+    constexpr void add_fp_cachestores(std::size_t fp_cachestores_) noexcept { }
 
     op_stats& operator+=(op_stats const& rhs) noexcept
     {
         time += rhs.time;
+/*
         fp_adds += rhs.fp_adds;
         fp_muls += rhs.fp_muls;
         fp_fmas += rhs.fp_fmas;
@@ -113,6 +131,7 @@ struct op_stats
         fp_tilestores += rhs.fp_tilestores; 
         fp_cacheloads += rhs.fp_cacheloads;
         fp_cachestores += rhs.fp_cachestores;
+*/
         return *this;
     }
 
@@ -127,6 +146,7 @@ struct op_stats
 	void serialize(Archive& ar, unsigned)
     {
         ar & time;
+/*
         ar & fp_adds;
         ar & fp_muls;
         ar & fp_fmas;
@@ -138,12 +158,14 @@ struct op_stats
         ar & fp_tilestores; 
         ar & fp_cacheloads; 
         ar & fp_cachestores; 
+*/
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, op_stats const& rhs)
     {
         os << "compute_interactions stats:\n"
            << "time:           " << rhs.time << "\n"
+/*
            << "fp_adds:        " << rhs.fp_adds << "\n"
            << "fp_muls:        " << rhs.fp_muls << "\n"
            << "fp_fmas:        " << rhs.fp_fmas << "\n"
@@ -154,7 +176,10 @@ struct op_stats
            << "fp_tileloads:   " << rhs.fp_tileloads << "\n" 
            << "fp_tilestores:  " << rhs.fp_tilestores << "\n" 
            << "fp_cacheloads:  " << rhs.fp_cacheloads << "\n"
-           << "fp_cachestores: " << rhs.fp_cachestores;
+           << "fp_cachestores: " << rhs.fp_cachestores
+*/
+            ;
+
         return os;
 	}
 };
