@@ -279,7 +279,7 @@ void node_server::start_run(bool scf, integer ngrids)
             save_to_file(fname, opts.data_dir);
             printf("doing silo out...\n");
 
-            fname = opts.data_dir + "X." + std::to_string(int(output_cnt)) + ".silo";
+            fname = opts.data_dir + "X." + std::to_string(int(output_cnt));
             output(fname, output_cnt, false);
 
             //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
