@@ -22,15 +22,15 @@ const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
 real ztwd_sound_speed(real d, real ei) {
-	const real A = physcon.A;
-	const real B = physcon.B;
-	real x, dp_depsilon, dp_drho, cs2;
-	const real fgamma = grid::get_fgamma();
-	x = pow(d / B, 1.0 / 3.0);
-	dp_drho = ((8.0 * A) / (3.0 * B)) * x * x / sqrt(x * x + 1.0) + (fgamma - 1.0) * ei / d;
-	dp_depsilon = (fgamma - 1.0) * d;
-	cs2 = std::max(((fgamma - 1.0) * ei / (d * d)) * dp_depsilon + dp_drho, real(0));
-	return sqrt(cs2);
+    const real A = physcon.A;
+    const real B = physcon.B;
+    real x, dp_depsilon, dp_drho, cs2;
+    const real fgamma = grid::get_fgamma();
+    x = pow(d / B, 1.0 / 3.0);
+    dp_drho = ((8.0 * A) / (3.0 * B)) * sqr(x) / sqrt(sqr(x) + 1.0) + (fgamma - 1.0) * ei / d;
+    dp_depsilon = (fgamma - 1.0) * d;
+    cs2 = std::max(((fgamma - 1.0) * ei / sqr(d)) * dp_depsilon + dp_drho, real(0));
+    return sqrt(cs2);
 }
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL, std::array<std::vector<real>, NF>& UR,

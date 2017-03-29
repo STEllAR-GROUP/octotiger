@@ -34,18 +34,6 @@ std::atomic<integer> node_server::static_initializing(0);
 bool node_server::hydro_on = true;
 bool node_server::gravity_on = true;
 
-void node_server::set_gravity(bool b) {
-    gravity_on = b;
-}
-
-void node_server::set_hydro(bool b) {
-    hydro_on = b;
-}
-
-real node_server::get_time() const {
-    return current_time;
-}
-
 real node_server::get_rotation_count() const {
     if (opts.problem == DWD) {
         return rotational_time / (2.0 * M_PI);
@@ -337,10 +325,6 @@ integer child_index_to_quadrant_index(integer ci, integer dim) {
     return index;
 }
 
-bool node_server::child_is_on_face(integer ci, integer face) {
-    return (((ci >> (face / 2)) & 1) == (face & 1));
-}
-
 void node_server::static_initialize() {
     if (!static_initialized) {
         bool test = (static_initializing++ != 0) ? true : false;
@@ -381,12 +365,6 @@ void node_server::initialize(real t, real rt) {
     if (my_location.level() == 0) {
         grid_ptr->set_root();
     }
-}
-node_server::~node_server() {
-}
-
-node_server::node_server() {
-	initialize(ZERO, ZERO);
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num, std::size_t _hcycle,

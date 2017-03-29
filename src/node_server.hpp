@@ -34,8 +34,12 @@ namespace hpx {
 
 class node_server: public hpx::components::managed_component_base<node_server> {
 public:
-    static void set_gravity(bool);
-    static void set_hydro(bool);
+    static void set_gravity(bool b) {
+        gravity_on = b;
+    }
+    static void set_hydro(bool b) {
+        hydro_on = b;
+}
 private:
     struct neighbor_gravity_type {
         gravity_boundary_type data;
@@ -102,7 +106,9 @@ public:
     static bool is_gravity_on() {
         return gravity_on;
     }
-    real get_time() const;
+    real get_time() const {
+        return current_time;
+    }
     real get_rotation_count() const;
     node_server& operator=(node_server&&) = default;
 
@@ -165,11 +171,15 @@ private:
     std::map<integer, std::vector<char> > save_local(integer& cnt, std::string const& filename, hpx::future<void>& child_fut) const;
 
 public:
-     static bool child_is_on_face(integer ci, integer face);
+     static bool child_is_on_face(integer ci, integer face) {
+        return (((ci >> (face / 2)) & 1) == (face & 1));
+    }
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
-	node_server();
-	~node_server();
+	node_server() {
+	    initialize(ZERO, ZERO);
+    }
+	~node_server() {}
 	node_server(const node_server& other);
 	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,

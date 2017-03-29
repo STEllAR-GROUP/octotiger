@@ -48,28 +48,28 @@ private:
     std::array<T, my_size> data;
 
 public:
-    T& operator[](integer i) {
+    OCTOTIGER_FORCEINLINE T& operator[](integer i) {
         return data[i];
     }
-    const T& operator[](integer i) const {
+    OCTOTIGER_FORCEINLINE const T& operator[](integer i) const {
         return data[i];
     }
-    static constexpr decltype(my_size) size() {
+    OCTOTIGER_FORCEINLINE static constexpr integer size() {
         return my_size;
     }
     taylor() = default;
     ~taylor() = default;
     taylor(const taylor<N, T>&) = default;
-    taylor(taylor<N, T>&& other) {
+    OCTOTIGER_FORCEINLINE taylor(taylor<N, T>&& other) {
         data = std::move(other.data);
     }
     taylor<N, T>& operator=(const taylor<N, T>&) = default;
-    taylor<N, T>& operator=(taylor<N, T>&& other) {
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator=(taylor<N, T>&& other) {
         data = std::move(other.data);
         return *this;
     }
 
-    taylor<N, T>& operator=(T d) {
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator=(T d) {
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] = d;
@@ -77,7 +77,7 @@ public:
         return *this;
     }
 
-    taylor<N, T>& operator*=(T d) {
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator*=(T d) {
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] *= d;
@@ -85,7 +85,7 @@ public:
         return *this;
     }
 
-    taylor<N, T>& operator/=(T d) {
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator/=(T d) {
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] /= d;
@@ -93,7 +93,7 @@ public:
         return *this;
     }
 
-    taylor<N, T>& operator+=(const taylor<N, T>& other) {
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator+=(const taylor<N, T>& other) {
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] += other.data[i];
@@ -101,7 +101,7 @@ public:
         return *this;
     }
 
-    taylor<N, T>& operator-=(const taylor<N, T>& other) {
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator-=(const taylor<N, T>& other) {
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
             data[i] -= other.data[i];
@@ -109,35 +109,35 @@ public:
         return *this;
     }
 
-    taylor<N, T> operator+(const taylor<N, T>& other) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator+(const taylor<N, T>& other) const {
         taylor<N, T> r = *this;
         r += other;
         return r;
     }
 
-    taylor<N, T> operator-(const taylor<N, T>& other) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator-(const taylor<N, T>& other) const {
         taylor<N, T> r = *this;
         r -= other;
         return r;
     }
 
-    taylor<N, T> operator*(const T& d) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator*(const T& d) const {
         taylor<N, T> r = *this;
         r *= d;
         return r;
     }
 
-    taylor<N, T> operator/(const T& d) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator/(const T& d) const {
         taylor<N, T> r = *this;
         r /= d;
         return r;
     }
 
-    taylor<N, T> operator+() const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator+() const {
         return *this;
     }
 
-    taylor<N, T>& operator+=(v4sd const& other) {
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator+=(v4sd const& other) {
 #pragma GCC ivdep
         for (integer i = 0; i != 4; ++i) {
             data[i] += other[i];
@@ -145,7 +145,7 @@ public:
         return *this;
     }
 
-    taylor<N, T> operator-() const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator-() const {
         taylor<N, T> r = *this;
 #pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
@@ -155,70 +155,69 @@ public:
     }
 
 #if defined(HPX_HAVE_DATAPAR)
-    friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs) {
-        return hpx::parallel::equal(hpx::parallel::execution::dataseq, lhs.data.begin(),
-            lhs.data.end(), rhs.data.begin(),
+    OCTOTIGER_FORCEINLINE friend bool operator==(taylor<N, T> const& lhs, taylor<N, T> const& rhs) {
+        return std::equal(lhs.data.begin(), lhs.data.end(), rhs.data.begin(),
             [](T const& t1, T const& t2) { return all_of(t1 == t2); });
     }
 #endif
 
-    static constexpr integer index() {
+    OCTOTIGER_FORCEINLINE static constexpr integer index() {
         return 0;
     }
 
-    static constexpr integer index(integer i) {
+    OCTOTIGER_FORCEINLINE static constexpr integer index(integer i) {
         return 1 + i;
     }
 
-    static integer index(integer i, integer j) {
+    OCTOTIGER_FORCEINLINE static integer index(integer i, integer j) {
         return tc.map2[i][j];
     }
 
-    static integer index(integer i, integer j, integer k) {
+    OCTOTIGER_FORCEINLINE static integer index(integer i, integer j, integer k) {
         return tc.map3[i][j][k];
     }
 
-    static integer index(integer i, integer j, integer k, integer l) {
+    OCTOTIGER_FORCEINLINE static integer index(integer i, integer j, integer k, integer l) {
         return tc.map4[i][j][k][l];
     }
 
-    T const& operator()() const {
+    OCTOTIGER_FORCEINLINE T const& operator()() const {
         return data[index()];
     }
 
-    T const& operator()(integer i) const {
+    OCTOTIGER_FORCEINLINE T const& operator()(integer i) const {
         return data[index(i)];
     }
 
-    T const& operator()(integer i, integer j) const {
+    OCTOTIGER_FORCEINLINE T const& operator()(integer i, integer j) const {
         return data[index(i, j)];
     }
 
-    T const& operator()(integer i, integer j, integer k) const {
+    OCTOTIGER_FORCEINLINE T const& operator()(integer i, integer j, integer k) const {
         return data[index(i, j, k)];
     }
 
-    T const& operator()(integer i, integer j, integer k, integer l) const {
+    OCTOTIGER_FORCEINLINE T const& operator()(integer i, integer j, integer k, integer l) const {
         return data[index(i, j, k, l)];
     }
 
-    T& operator()() {
+    OCTOTIGER_FORCEINLINE T& operator()() {
         return data[index()];
     }
 
-    T& operator()(integer i) {
+    OCTOTIGER_FORCEINLINE T& operator()(integer i) {
         return data[index(i)];
     }
 
-    T& operator()(integer i, integer j) {
+    OCTOTIGER_FORCEINLINE T& operator()(integer i, integer j) {
         return data[index(i, j)];
     }
 
-    T& operator()(integer i, integer j, integer k) {
+    OCTOTIGER_FORCEINLINE T& operator()(integer i, integer j, integer k) {
         return data[index(i, j, k)];
     }
 
-    T& operator()(integer i, integer j, integer k, integer l) {
+    OCTOTIGER_FORCEINLINE T& operator()(integer i, integer j, integer k, integer l) {
         return data[index(i, j, k, l)];
     }
 
@@ -257,7 +256,7 @@ public:
         return *this;
     }
 
-    taylor<N, T> operator>>(const std::array<T, NDIM>& X) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator>>(const std::array<T, NDIM>& X) const {
         taylor<N, T> r = *this;
         r >>= X;
         return r;
@@ -313,7 +312,7 @@ public:
         return *this;
     }
 
-    taylor<N, T> operator<<(const std::array<T, NDIM>& X) const {
+    OCTOTIGER_FORCEINLINE taylor<N, T> operator<<(const std::array<T, NDIM>& X) const {
         taylor<N, T> r = *this;
         r <<= X;
         return r;
@@ -321,17 +320,17 @@ public:
 
     void set_basis(const std::array<T, NDIM>& X);
 
-    T* ptr() {
+    OCTOTIGER_FORCEINLINE T* ptr() {
         return data.data();
     }
 
-    const T* ptr() const {
+    OCTOTIGER_FORCEINLINE const T* ptr() const {
         return data.data();
     }
 
     template <class Arc>
     void serialize(Arc& arc, const unsigned) {
-        arc& data;
+        arc & data;
     }
 };
 
@@ -438,15 +437,11 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
 
     const T r2 = sqr(X[0]) + sqr(X[1]) + sqr(X[2]);
     T r2inv = 0.0;
-// #if !defined(HPX_HAVE_DATAPAR)
     for (volatile integer i = 0; i != simd_len; ++i) {
         if (r2[i] > 0.0) {
             r2inv[i] = ONE / std::max(r2[i], 1.0e-20);
         }
     }
-// #else
-//     where(r2 > 0.0) | r2inv = ONE / r2;
-// #endif
 
     // parts of formula (6)
     const T d0 = -sqrt(r2inv);
