@@ -32,6 +32,7 @@ class options {
 	bool cmp(const std::string str1, const char* str2);
 	void show_help();
 public:
+	bool vomega;
 	eos_type eos;
 	integer max_level;
 	integer max_restart_level;
@@ -56,6 +57,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & vomega;
 		arc & parallel_silo;
 		arc & silo_planes_only;
 		arc & ang_con;

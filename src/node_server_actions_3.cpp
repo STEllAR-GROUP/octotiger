@@ -311,12 +311,16 @@ void node_server::start_run(bool scf, integer ngrids)
                 - diags.primary_com_dot[YDIM];
             theta = atan2(dy, dx);
             omega = grid::get_omega();
-            theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
-            const real w0 = grid::get_omega() * 100.0;
-            const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
-            omega_dot = theta_dot_dot;
-            omega += omega_dot * dt;
-//            omega_dot += theta_dot_dot*dt;
+            printf( "Old Omega = %e\n", omega );
+           if( opts.vomega ) {
+            	theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
+            	const real w0 = grid::get_omega() * 100.0;
+            	const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
+            	omega_dot = theta_dot_dot;
+            	omega += omega_dot * dt;
+            }
+            printf( "New Omega = %e\n", omega );
+ //            omega_dot += theta_dot_dot*dt;
 //             grid::set_omega(omega);          // now done during check_for_refinement below
         }
         else {

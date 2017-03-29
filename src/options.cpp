@@ -18,6 +18,7 @@
 #define ANGCON_OPT "-Angcon"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
+#define VOMEGA_OPT "-VariableOmega"
 #define ODT_OPT "-Odt"
 #define DISABLEOUTPUT_OPT "-Disableoutput"
 #define STOPTIME_OPT "-Stoptime"
@@ -93,6 +94,8 @@ void options::show_help() {
             "-Stoptime=<stop time>                 - The simulation runs until the simulation time hits the time specified here, or until the maximum\n"
             "                                        number of steps specified by Stopstep. (default is infinity)\n"
             "\n"
+            "-VariableOmega=1/0                    - 1 turns on variable omega, 0 off. 0 by default, unless problem=dwd, then 1 by default\n"
+            "                                        mean faster FMM execution but a higher solution error.\n"
             "-Theta                                - 'Opening criterion' for FMM (default 0.35). Must be between 1/3 and 1/2, inclusive. Larger values\n"
             "                                        mean faster FMM execution but a higher solution error.\n"
             "-Xscale=<xmax>                        - The domain of the coarsest grid is set to (-xmax,xmax) for each all three dimensions (default 1.0)\n"
@@ -122,6 +125,7 @@ bool options::process_options(int argc, char* argv[]) {
     stop_time = std::numeric_limits<real>::max() - 1;
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
+    vomega = -1;
 
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
@@ -179,6 +183,8 @@ bool options::process_options(int argc, char* argv[]) {
 			output_only = true;
 		} else if (cmp(argv[i], ANGCON_OPT)) {
 			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
+		} else if (cmp(argv[i], VOMEGA_OPT)) {
+			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
         } else if (cmp(argv[i], MAX_RESTART_LEVEL_OPT)) {
@@ -212,6 +218,9 @@ bool options::process_options(int argc, char* argv[]) {
     }
     theta = std::max(1.0 / 3.0, theta);
     theta = std::min(1.0 / 2.0, theta);
+    if( vomega == -1 ) {
+    	vomega = problem == DWD ? 1 : 0;
+    }
     return rc;
 }
 
