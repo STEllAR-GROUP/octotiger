@@ -41,7 +41,7 @@ inline constexpr typename std::enable_if<
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void* align_ptr(
+inline void* align_ptr(
     void* ptr
   , std::ptrdiff_t alignment
   , std::ptrdiff_t size
@@ -124,8 +124,6 @@ inline aligned_array_ptr<T> make_aligned_array(
   , std::ptrdiff_t size
     ) noexcept
 {
-    static_assert(true == std::is_pod<T>::value, "T must be POD");
-
     BOOST_ASSUME(0 == (alignment % (2 * sizeof(void*))));
 
     if (is_power_of_2(alignment))
@@ -148,7 +146,10 @@ struct free_deleter
 template <typename T>
 struct aligned_array_ptr
 {
-    static_assert(true == std::is_pod<T>::value, "T must be POD");
+    static_assert(true == std::is_trivially_constructible<T>::value,
+                  "T must be TriviallyConstructible.");
+    static_assert(true == std::is_trivially_constructible<T>::value,
+                  "T must be TriviallyDestructible.");
 
     using size_type  = std::ptrdiff_t;
     using value_type = T;

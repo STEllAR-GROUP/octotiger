@@ -160,7 +160,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
     return pair;
 }
 
-void grid::compute_interactions(gsolve_type type) {
+op_stats grid::compute_interactions(gsolve_type type) {
     if (!is_leaf)
     {
         if (is_root)
@@ -169,19 +169,19 @@ void grid::compute_interactions(gsolve_type type) {
             {
                 if (opts.ang_con)
                     // Non-leaf, root, ANG_CON_ON, RHO
-                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, RHO>();
                 else
                     // Non-leaf, root, ANG_CON_OFF, RHO
-                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
             }
             else
             {
                 if (opts.ang_con)
                     // Non-leaf, root, non-ANG_CON_ON, RHO
-                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_ON, NON_RHO>();
                 else
                     // Non-leaf, root, non-ANG_CON_OFF, RHO
-                    compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_r, 128, ANG_CON_OFF, NON_RHO>();
             }
         }
         else
@@ -190,25 +190,28 @@ void grid::compute_interactions(gsolve_type type) {
             {
                 if (opts.ang_con)
                     // Non-leaf, non-root, ANG_CON_ON, RHO
-                    compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_ON, RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_ON, RHO>();
                 else
                     // Non-leaf, non-root, ANG_CON_OFF, RHO
-                    compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_OFF, RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_OFF, RHO>();
             }
             else
             {
                 if (opts.ang_con)
                     // Non-leaf, non-root, non-ANG_CON_ON, RHO
-                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_ON, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_ON, NON_RHO>();
                 else
                     // Non-leaf, non-root, non-ANG_CON_OFF, RHO
-                    compute_interactions_non_leaf<&ilist_n, 16, ANG_CON_OFF, NON_RHO>();
+                    return compute_interactions_non_leaf<&ilist_n, 128, ANG_CON_OFF, NON_RHO>();
             }
         }
     }
     else
+    {
         // Leaf
         compute_interactions_legacy(type);
+        return op_stats{};
+    }
 }
 
 void grid::solve_gravity(gsolve_type type) {
