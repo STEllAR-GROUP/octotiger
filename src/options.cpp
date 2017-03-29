@@ -125,7 +125,7 @@ bool options::process_options(int argc, char* argv[]) {
     stop_time = std::numeric_limits<real>::max() - 1;
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
-    vomega = -1;
+    bool vomega_found = false;
 
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
@@ -184,6 +184,7 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], ANGCON_OPT)) {
 			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
 		} else if (cmp(argv[i], VOMEGA_OPT)) {
+			vomega_found = true;
 			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
@@ -218,9 +219,10 @@ bool options::process_options(int argc, char* argv[]) {
     }
     theta = std::max(1.0 / 3.0, theta);
     theta = std::min(1.0 / 2.0, theta);
-    if( vomega == -1 ) {
-    	vomega = problem == DWD ? 1 : 0;
+    if( !vomega_found ) {
+    	vomega = (problem == DWD);
     }
+    printf( "Variable omega is %s\n", vomega ? "on" : "off");
     return rc;
 }
 
