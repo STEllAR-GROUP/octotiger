@@ -38,17 +38,18 @@ static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::dire
    
 extern options opts;
 
-template <class T>
-void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_type& data,
+//template <class T>
+void load_multipole(taylor<4, simd_vector>& m, space_vector& c, const gravity_boundary_type& data,
     integer iter, bool monopole) {
     if (monopole) {
-        m = T(0.0);
-        m = T((*(data.m))[iter]);
+        m = simd_vector(0.0);
+        m = simd_vector((*(data.m))[iter]);
     } else {
-        auto const& tmp1 = (*(data.M))[iter];
+        //auto const& tmp1 = (*(data.M))[iter];
 #pragma GCC ivdep
-        for (int i = 0; i != 20; ++i) {
-            m[i] = tmp1[i];
+        for (int j = 0; j != 20; ++j) {
+            for (int i = 0; i != 8; ++i)
+                m[j][i] = (*(data.M))[j][iter];
         }
         auto const& tmp2 = (*(data.x))[iter];
 #pragma GCC ivdep
@@ -118,19 +119,19 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
                 const integer iii1 = gindex(i, j, k);
                 const integer iii0 = gindex(i + H_BW, j + H_BW, k + H_BW);
                 space_vector const& com0iii1 = com0[iii1];
-                multipole const& Miii1 = M[iii1];
+                //multipole const& Miii1 = M[iii1];
                 for (integer n = 0; n != NDIM; ++n) {
                     real mass;
                     if (is_leaf) {
                         mass = mon[iii1];
                     } else {
-                        mass = Miii1();
+                        mass = M()[iii1];
                     }
                     this_com[n] += mass * com0iii1[n];
                     mtot += mass;
                     for (integer m = 0; m != NDIM; ++m) {
                         if (!is_leaf) {
-                            quad_moment[n][m] += Miii1(n, m);
+                            quad_moment[n][m] += M(n, m)[iii1];
                         }
                         quad_moment[n][m] += mass * com0iii1[n] * com0iii1[m];
                     }
@@ -334,11 +335,11 @@ void grid::compute_interactions_legacy(gsolve_type type) {
                     }
 
                     // cell specific taylor series coefficients
-                    multipole const& Miii0 = M[iii0];
-                    multipole const& Miii1 = M[iii1];
+                    //multipole const& Miii0 = M[iii0];
+                    //multipole const& Miii1 = M[iii1];
                     for (integer j = 0; j != taylor_sizes[3]; ++j) {
-                        m0[j][i] = Miii1[j];
-                        m1[j][i] = Miii0[j];
+                        m0[j][i] = M[j][iii1];
+                        m1[j][i] = M[j][iii0];
                     }
 
                     // RHO computes the gravitational potential based on the mass density
@@ -346,14 +347,14 @@ void grid::compute_interactions_legacy(gsolve_type type) {
                     if (type == RHO) {
                         // this branch computes the angular momentum correction, (20) in the paper
                         // divide by mass of other cell
-                        real const tmp1 = Miii1() / Miii0();
-                        real const tmp2 = Miii0() / Miii1();
+                        real const tmp1 = M()[iii1] / M()[iii0];
+                        real const tmp2 = M()[iii0] / M()[iii1];
                         // calculating the coefficients for formula (M are the octopole moments)
                         // the coefficients are calculated in (17) and (18)
                         // TODO: Dominic
                         for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                            n0[j][i] = Miii1[j] - Miii0[j] * tmp1;
-                            n1[j][i] = Miii0[j] - Miii1[j] * tmp2;
+                            n0[j][i] = M[j][iii1] - M[j][iii0] * tmp1;
+                            n1[j][i] = M[j][iii0] - M[j][iii1] * tmp2;
                         }
                     }
                 }
@@ -649,10 +650,10 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
                         X[d][i] = com0iii0[d];
                     }
                     if (type == RHO) {
-                        multipole const& Miii0 = M[iii0];
-                        real const tmp = m0()[i] / Miii0();
+                        //multipole const& Miii0 = M[iii0];
+                        real const tmp = m0()[i] / M()[iii0];
                         for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                            n0[j][i] = m0[j][i] - Miii0[j] * tmp;
+                            n0[j][i] = m0[j][i] - M[j][iii0] * tmp;
                         }
                     }
                 }
@@ -961,11 +962,11 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                         X[d][i] = com0iii0[d];
                     }
                     if (type == RHO) {
-                        multipole const& Miii0 = M[iii0];
-                        real const tmp = m0[i] / Miii0();
+                        //multipole const& Miii0 = M[iii0];
+                        real const tmp = m0[i] / M()[iii0];
 #pragma GCC ivdep
                         for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j) {
-                            n0[j][i] = -Miii0[j] * tmp;
+                            n0[j][i] = -M[j][iii0] * tmp;
                         }
                     }
                 }
@@ -1420,7 +1421,7 @@ multipole_pass_type grid::compute_multipoles(
     PROF_BEGIN;
     integer lev = 0;
     const real dx3 = dx * dx * dx;
-    M_ptr = std::make_shared<std::vector<multipole>>();
+    M_ptr = std::make_shared<taylor<4, std::vector<real>>>();
     mon_ptr = std::make_shared<std::vector<real>>();
     if (com_ptr[1] == nullptr) {
         com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
@@ -1431,10 +1432,12 @@ multipole_pass_type grid::compute_multipoles(
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
     if (is_leaf) {
-        M.resize(0);
+        for (integer j = 0; j != taylor_sizes[3]; ++j)
+            M[j].clear();
         mon.resize(G_N3);
     } else {
-        M.resize(G_N3);
+        for (integer j = 0; j != taylor_sizes[3]; ++j)
+            M[j].resize(G_N3);
         mon.resize(0);
     }
     if (type == RHO) {
@@ -1485,7 +1488,7 @@ multipole_pass_type grid::compute_multipoles(
                                 if (is_leaf) {
                                     mc[ci] = mon[iiic];
                                 } else {
-                                    mc[ci] = M[iiic]();
+                                    mc[ci] = M()[iiic];
                                 }
                                 for (integer d = 0; d < NDIM; ++d) {
                                     X[d][ci] = (*(com_ptr[0]))[iiic][d];
@@ -1516,7 +1519,7 @@ multipole_pass_type grid::compute_multipoles(
                                 }
                             } else {
                                 for (integer j = 0; j != 20; ++j) {
-                                    mc.ptr()[j][ci] = M[iiic].ptr()[j];
+                                    mc.ptr()[j][ci] = M[j][iiic];
                                 }
                             }
                             for (integer d = 0; d < NDIM; ++d) {
@@ -1547,7 +1550,9 @@ multipole_pass_type grid::compute_multipoles(
                                 mon[iiip] = dUdt[rho_i][iii0] * dx3;
                             }
                         } else {
-                            M[iiip] = child_poles->first[index];
+                            for (integer j = 0; j != taylor_sizes[3]; ++j)
+                                M[j][iiip] = child_poles->first[index][j];
+
                             if (type == RHO) {
                                 (*(com_ptr)[lev])[iiip] = child_poles->second[index];
                             }
@@ -1587,12 +1592,14 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
                 data.m->push_back(mon[iii]);
             }
         } else {
-            data.M->reserve(list.size());
+            for (integer j = 0; j != taylor_sizes[3]; ++j)
+                (*data.M)[j].reserve(list.size());
             data.x->reserve(list.size());
             for (auto i : list) {
                 const integer iii = i.second;
-                const integer top = M[iii].size();
-                data.M->push_back(M[iii]);
+                //const integer top = M[iii].size();
+                for (integer j = 0; j != taylor_sizes[3]; ++j)
+                    (*data.M)[j].push_back(M[j][iii]);
                 data.x->push_back((*(com_ptr[0]))[iii]);
             }
         }

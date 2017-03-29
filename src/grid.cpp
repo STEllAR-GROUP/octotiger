@@ -1076,7 +1076,7 @@ space_vector grid::center_of_mass() const {
 		for (integer j = 0; j != INX + 0; ++j) {
 			for (integer k = 0; k != INX + 0; ++k) {
 				const integer iii = gindex(i, j, k);
-				const real this_m = is_leaf ? mon[iii] : M[iii]();
+				const real this_m = is_leaf ? mon[iii] : M()[iii];
 				for (auto& dim : geo::dimension::full_set()) {
 					this_com[dim] += this_m * com0[iii][dim];
 				}

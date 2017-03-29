@@ -8,6 +8,8 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
+#include <immintrin.h>
+
 #include "simd.hpp"
 #include "defs.hpp"
 #include "roe.hpp"
@@ -57,30 +59,45 @@ constexpr taylor<4, real> sixth_factor = factor * SIXTH;;
 struct op_stats
 {
     double time;
-    integer fp_adds;
-    integer fp_muls;
-    integer fp_fmas;
-    integer fp_divs;
-    integer fp_sqrts;
-    integer fp_memloads; 
-    integer fp_memstores; 
-    integer fp_tileloads; 
-    integer fp_tilestores; 
-    integer fp_cacheloads; 
-    integer fp_cachestores; 
+    std::size_t fp_adds;
+    std::size_t fp_muls;
+    std::size_t fp_fmas;
+    std::size_t fp_divs;
+    std::size_t fp_sqrts;
+    std::size_t fp_memloads; 
+    std::size_t fp_memstores; 
+    std::size_t fp_tileloads; 
+    std::size_t fp_tilestores; 
+    std::size_t fp_cacheloads; 
+    std::size_t fp_cachestores; 
+
+    constexpr op_stats() :
+        time{0.0},
+        fp_adds{0},
+        fp_muls{0},
+        fp_fmas{0},
+        fp_divs{0},
+        fp_sqrts{0},
+        fp_memloads{0}, 
+        fp_memstores{0}, 
+        fp_tileloads{0}, 
+        fp_tilestores{0}, 
+        fp_cacheloads{0}, 
+        fp_cachestores{0}
+    {}
 
     constexpr void add_time(double time_) noexcept { time += time_; }
-    constexpr void add_fp_adds(integer fp_adds_) noexcept { fp_adds += fp_adds_; }
-    constexpr void add_fp_muls(integer fp_muls_) noexcept { fp_muls += fp_muls_; }
-    constexpr void add_fp_fmas(integer fp_fmas_) noexcept { fp_fmas += fp_fmas_; }
-    constexpr void add_fp_divs(integer fp_divs_) noexcept { fp_divs += fp_divs_; }
-    constexpr void add_fp_sqrts(integer fp_sqrts_) noexcept { fp_sqrts += fp_sqrts_; }
-    constexpr void add_fp_memloads(integer fp_memloads_) noexcept { fp_memloads += fp_memloads_; }
-    constexpr void add_fp_memstores(integer fp_memstores_) noexcept { fp_memstores += fp_memstores_; }
-    constexpr void add_fp_tileloads(integer fp_tileloads_) noexcept { fp_tileloads += fp_tileloads_; }
-    constexpr void add_fp_tilestores(integer fp_tilestores_) noexcept { fp_tilestores += fp_tilestores_; }
-    constexpr void add_fp_cacheloads(integer fp_cacheloads_) noexcept { fp_cacheloads += fp_cacheloads_; }
-    constexpr void add_fp_cachestores(integer fp_cachestores_) noexcept { fp_cachestores += fp_cachestores_; }
+    constexpr void add_fp_adds(std::size_t fp_adds_) noexcept { fp_adds += fp_adds_; }
+    constexpr void add_fp_muls(std::size_t fp_muls_) noexcept { fp_muls += fp_muls_; }
+    constexpr void add_fp_fmas(std::size_t fp_fmas_) noexcept { fp_fmas += fp_fmas_; }
+    constexpr void add_fp_divs(std::size_t fp_divs_) noexcept { fp_divs += fp_divs_; }
+    constexpr void add_fp_sqrts(std::size_t fp_sqrts_) noexcept { fp_sqrts += fp_sqrts_; }
+    constexpr void add_fp_memloads(std::size_t fp_memloads_) noexcept { fp_memloads += fp_memloads_; }
+    constexpr void add_fp_memstores(std::size_t fp_memstores_) noexcept { fp_memstores += fp_memstores_; }
+    constexpr void add_fp_tileloads(std::size_t fp_tileloads_) noexcept { fp_tileloads += fp_tileloads_; }
+    constexpr void add_fp_tilestores(std::size_t fp_tilestores_) noexcept { fp_tilestores += fp_tilestores_; }
+    constexpr void add_fp_cacheloads(std::size_t fp_cacheloads_) noexcept { fp_cacheloads += fp_cacheloads_; }
+    constexpr void add_fp_cachestores(std::size_t fp_cachestores_) noexcept { fp_cachestores += fp_cachestores_; }
 
     op_stats& operator+=(op_stats const& rhs) noexcept
     {
@@ -229,7 +246,7 @@ typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_p
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
 struct gravity_boundary_type {
-	std::shared_ptr<std::vector<multipole>> M;
+	std::shared_ptr<taylor<4, std::vector<real>>> M;
 	std::shared_ptr<std::vector<real>> m;
 	std::shared_ptr<std::vector<space_vector>> x;
 	bool is_local;
@@ -238,7 +255,7 @@ struct gravity_boundary_type {
 	}
 	void allocate() {
 		if (M == nullptr) {
-			M = std::make_shared<std::vector<multipole> >();
+			M = std::make_shared<taylor<4, std::vector<real>>>();
 			m = std::make_shared<std::vector<real> >();
 			x = std::make_shared<std::vector<space_vector> >();
 		}
@@ -293,7 +310,7 @@ private:
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<v4sd> G;
-	std::shared_ptr<std::vector<multipole>> M_ptr;
+	std::shared_ptr<taylor<4, std::vector<real>>> M_ptr;
 	std::shared_ptr<std::vector<real>> mon_ptr;
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
@@ -440,6 +457,31 @@ public:
       , compute_interactions_tile<TileWidth>& t
       , op_stats& s
       , std::true_type
+      , vector_function_tag
+        ) noexcept;
+    template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+        >
+    void compute_interactions_initialize_n_ang_mom(
+        integer i_begin
+      , integer i_end
+      , compute_interactions_tile<TileWidth>& t
+      , op_stats& s
+      , std::true_type
+      , scalar_function_tag
+        ) noexcept;
+    template <
+        std::vector<interaction_type> const* __restrict__ IList 
+      , std::size_t TileWidth
+        >
+    void compute_interactions_initialize_n_ang_mom(
+        integer i_begin
+      , integer i_end
+      , compute_interactions_tile<TileWidth>& t
+      , op_stats& s
+      , std::false_type
+      , vector_function_tag
         ) noexcept;
     template <
         std::vector<interaction_type> const* __restrict__ IList
@@ -451,6 +493,7 @@ public:
       , compute_interactions_tile<TileWidth>& t
       , op_stats& s
       , std::false_type
+      , scalar_function_tag
         ) noexcept;
 
     template <
