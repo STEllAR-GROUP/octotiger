@@ -16,13 +16,15 @@
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
-hpx::future<void> node_client::check_for_refinement(real omega) const {
-    return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid(), omega);
+hpx::future<void> node_client::check_for_refinement(real omega, real r) const {
+    return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid(), omega, r);
 }
 
-hpx::future<void> node_server::check_for_refinement(real omega) {
-    grid::omega = omega;
-
+hpx::future<void> node_server::check_for_refinement(real omega, real new_floor) {
+	grid::omega = omega;
+	if (new_floor > 0) {
+		opts.refinement_floor = new_floor;
+	}
     bool rc = false;
     std::array<hpx::future<void>, NCHILD+1> futs;
 //     for( integer i = 0; i != NCHILD + 1; ++i) {
@@ -31,14 +33,14 @@ hpx::future<void> node_server::check_for_refinement(real omega) {
     integer index = 0;
     if (is_refined) {
         for (auto& child : children) {
-            futs[index++] = child.check_for_refinement(omega);
+            futs[index++] = child.check_for_refinement(omega, new_floor);
         }
     }
     if (hydro_on) {
         all_hydro_bounds();
     }
     if (!rc) {
-        rc = grid_ptr->refine_me(my_location.level());
+        rc = grid_ptr->refine_me(my_location.level(), new_floor);
     }
     if (rc) {
         if (refinement_flag++ == 0) {

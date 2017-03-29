@@ -18,6 +18,8 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
+
+
 extern options opts;
 
 #ifdef RADIATION
@@ -932,7 +934,7 @@ std::vector<real> grid::l_sums() const {
 	return sum;
 }
 
-bool grid::refine_me(integer lev) const {
+bool grid::refine_me(integer lev, integer last_ngrids) const {
 	PROF_BEGIN;
 	auto test = get_refine_test();
 	if (lev < 2) {

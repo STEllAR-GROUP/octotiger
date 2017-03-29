@@ -14,6 +14,8 @@
 #define PROBLEM_OPT "-Problem"
 #define RESTART_OPT "-Restart"
 #define OUTPUT_OPT "-Output"
+#define NGRIDS_OPT "-Ngrids"
+#define REFINEMENT_FLOOR_OPT "-RefinementFloor"
 #define DATA_DIR_OPT "-Datadir"
 #define ANGCON_OPT "-Angcon"
 #define XSCALE_OPT "-Xscale"
@@ -110,7 +112,10 @@ bool options::process_options(int argc, char* argv[]) {
 	theta = 0.35;
 	parallel_silo = false;
 	silo_planes_only = false;
+	ngrids = -1;
 	max_level = 5;
+	refinement_floor = -1.0;
+	refinement_floor_specified = false;
 	max_restart_level = 0;
     problem = NONE;
     found_restart_file = false;
@@ -181,6 +186,9 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], OUTPUT_OPT)) {
 			output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
 			output_only = true;
+		} else if (cmp(argv[i], REFINEMENT_FLOOR_OPT)) {
+			refinement_floor = atof(argv[i] + strlen(REFINEMENT_FLOOR_OPT) + 1);
+			refinement_floor_specified = true;
 		} else if (cmp(argv[i], ANGCON_OPT)) {
 			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
 		} else if (cmp(argv[i], VOMEGA_OPT)) {
@@ -188,6 +196,8 @@ bool options::process_options(int argc, char* argv[]) {
 			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
+		} else if (cmp(argv[i], NGRIDS_OPT)) {
+			ngrids = atoi(argv[i] + strlen(NGRIDS_OPT) + 1);
         } else if (cmp(argv[i], MAX_RESTART_LEVEL_OPT)) {
             max_restart_level = atoi(argv[i] + strlen(MAX_RESTART_LEVEL_OPT) + 1);
         } else if (cmp(argv[i], XSCALE_OPT)) {

@@ -358,13 +358,13 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
     }
 }
 
-integer node_server::regrid(const hpx::id_type& root_gid, real omega, bool rb) {
+integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb) {
     timings::scope ts(timings_, timings::time_regrid);
     assert(grid_ptr != nullptr);
     printf("-----------------------------------------------\n");
     if (!rb) {
         printf("checking for refinement\n");
-        check_for_refinement(omega).get();
+        check_for_refinement(omega,  new_floor).get();
     }
     printf("regridding\n");
     integer a = regrid_gather(rb);

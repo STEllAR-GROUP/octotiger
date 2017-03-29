@@ -259,7 +259,7 @@ public:
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension&);
 	space_vector center_of_mass() const;
-	bool refine_me(integer lev) const;
+	bool refine_me(integer lev, integer last_ngrids) const;
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();

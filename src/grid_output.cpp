@@ -314,20 +314,24 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 std::size_t grid::load(FILE* fp, bool old_format) {
 	static hpx::mutex mtx;
 	std::size_t cnt = 0;
-	integer dummy_int;
 	{
 		static std::atomic<bool> statics_loaded(false);
         bool expected = false;
 		if(statics_loaded.compare_exchange_strong(expected, true)) {
 			cnt += std::fread(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
-			cnt += std::fread(&dummy_int, sizeof(integer), 1, fp) * sizeof(integer);
+			if( opts.ngrids > -1 && !opts.refinement_floor_specified) {
+				cnt += std::fread(&opts.refinement_floor, sizeof(real), 1, fp) * sizeof(real);
+			} else {
+				real dummy;
+				cnt += std::fread(&dummy, sizeof(real), 1, fp) * sizeof(real);
+			}
 			if( !old_format ) {
 				cnt += std::fread(&physcon.A, sizeof(real), 1, fp) * sizeof(real);
 				cnt += std::fread(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
 			}
 			statics_loaded = true;
 		} else {
-			std::size_t offset = (old_format ? 1 : 3) * sizeof(real) + sizeof(integer);
+			std::size_t offset = (old_format ? 2 : 4) * sizeof(real);
             std::fseek(fp, offset, SEEK_CUR);
 			cnt += offset;
 		}
@@ -382,7 +386,7 @@ std::size_t grid::save(std::ostream& strm) const {
     std::size_t cnt = 0;
 
     cnt += write(strm, scaling_factor);
-    cnt += write(strm, max_level);
+    cnt += write(strm, opts.refinement_floor);
     cnt += write(strm, physcon.A);
     cnt += write(strm, physcon.B);
 

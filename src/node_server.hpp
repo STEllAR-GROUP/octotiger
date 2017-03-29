@@ -236,7 +236,7 @@ public:
 
     void update();
 
-    integer regrid(const hpx::id_type& root_gid, real omega, bool rb);
+    integer regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb);
 
     void compute_fmm(gsolve_type gs, bool energy_account);
 
@@ -292,7 +292,7 @@ public:
         const geo::face& face) const;
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_nieces, get_nieces_action);
 
-    hpx::future<void> check_for_refinement(real omega);
+    hpx::future<void> check_for_refinement(real omega,real new_floor);
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);

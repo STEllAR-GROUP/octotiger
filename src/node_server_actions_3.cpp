@@ -250,7 +250,7 @@ void node_server::start_run(bool scf, integer ngrids)
 
     printf("Starting...\n");
     solve_gravity(false);
-    ngrids = regrid(me.get_gid(), grid::get_omega(), false);
+    ngrids = regrid(me.get_gid(), grid::get_omega(), -1,  false);
 
     real output_dt = opts.output_dt;
 
@@ -355,7 +355,14 @@ void node_server::start_run(bool scf, integer ngrids)
         step_num = next_step;
 
         if (step_num % refinement_freq() == 0) {
-            ngrids = regrid(me.get_gid(), omega, false);
+        	real new_floor = opts.refinement_floor;
+			if (opts.ngrids > 0) {
+				new_floor *= std::pow( real(ngrids) / real(opts.ngrids), 3);
+				printf("Old refinement floor = %e\n", opts.refinement_floor);
+				printf("New refinement floor = %e\n", new_floor);
+			}
+
+            ngrids = regrid(me.get_gid(), omega, new_floor, false);
 
             // run output on separate thread
             auto need_break = hpx::threads::run_as_os_thread([&]()

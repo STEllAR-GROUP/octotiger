@@ -13,6 +13,12 @@
 #include <cmath>
 #include "exact_sod.hpp"
 #include "eos.hpp"
+#include <hpx/include/lcos.hpp>
+
+
+namespace hpx {
+using mutex = hpx::lcos::local::spinlock;
+}
 
 extern options opts;
 
@@ -106,7 +112,13 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 
 bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
-	real den_floor = 1.0e-3;
+	if( opts.refinement_floor < 0.0 ) {
+		static hpx::mutex mtx;
+		std::lock_guard<hpx::mutex> lock(mtx);
+		opts.refinement_floor = 1.0e-3;
+	}
+	real den_floor = opts.refinement_floor;
+	//printf( "%e\n", den_floor);
 	integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
@@ -126,7 +138,12 @@ bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, 
 //#ifdef RADIATION
 //	return level < max_level;
 //#endif
-	real den_floor = 1.0e-2;
+	if( opts.refinement_floor < 0.0 ) {
+		static hpx::mutex mtx;
+		std::lock_guard<hpx::mutex> lock(mtx);
+		opts.refinement_floor = 1.0e-2;
+	}
+	real den_floor = opts.refinement_floor;
 	//integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
 //	integer test_level = ((U[spc_ae_i]+U[spc_de_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
 	integer test_level = ((U[spc_dc_i] + U[spc_de_i]) > 0.5 * U[rho_i] ? max_level - 1 : max_level);

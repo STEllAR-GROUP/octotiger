@@ -89,7 +89,7 @@ public:
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
     hpx::future<void> save(integer,std::string) const;
-	hpx::future<void> check_for_refinement(real omega) const;
+	hpx::future<void> check_for_refinement(real omega, real) const;
 	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
 
     void report_timing() const;

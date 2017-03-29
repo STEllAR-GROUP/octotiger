@@ -141,13 +141,13 @@ int hpx_main(int argc, char* argv[]) {
                     root->load_from_file_and_output(fname, oname, opts.data_dir);
                 } else {
                     root->load_from_file(fname, opts.data_dir);
-                    ngrids = root->regrid(root_client.get_gid(), ZERO, true);
+                    ngrids = root->regrid(root_client.get_gid(), ZERO, -1, true);
 
                     if (opts.max_restart_level > 0)
                     {
                         for (integer l = 0; l < opts.max_restart_level - 1; ++l)
                         {
-                            ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), false);
+                            ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
                             printf("---------------Created Level %i---------------\n\n", int(l + 1));
                         }
                     }
@@ -155,10 +155,10 @@ int hpx_main(int argc, char* argv[]) {
                 printf("Done. \n");
             } else {
                 for (integer l = 0; l < opts.max_level; ++l) {
-                    ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), false);
+                    ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
                     printf("---------------Created Level %i---------------\n\n", int(l + 1));
                 }
-                ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), false);
+                ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
                 printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
             }
 
