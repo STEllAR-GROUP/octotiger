@@ -299,7 +299,7 @@ void node_server::start_run(bool scf)
         }
 
         real dt = 0;
-        op_stats s;
+        compute_interactions_stats_t s;
 
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
@@ -357,7 +357,7 @@ void node_server::start_run(bool scf)
 
         hpx::threads::run_as_os_thread([=]()
         {
-            std::cout << s << "\n";
+            s.print();
         });     // do not wait for output to finish
 
 //		t += dt;
@@ -424,11 +424,11 @@ void node_server::start_run(bool scf)
 typedef node_server::step_action step_action_type;
 HPX_REGISTER_ACTION(step_action_type);
 
-hpx::future<hpx::util::tuple<real, op_stats>> node_client::step(integer steps) const {
+hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> node_client::step(integer steps) const {
     return hpx::async<typename node_server::step_action>(get_unmanaged_gid(), steps);
 }
 
-op_stats node_server::refined_step() {
+compute_interactions_stats_t node_server::refined_step() {
 #if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
     static hpx::util::itt::string_handle sh("node_server::refined_step");
     hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
@@ -450,7 +450,7 @@ op_stats node_server::refined_step() {
     all_hydro_bounds();
 #endif
 
-    op_stats s;
+    compute_interactions_stats_t s;
 
     for (integer rk = 0; rk < NRK; ++rk) {
 
@@ -471,7 +471,7 @@ op_stats node_server::refined_step() {
     return s;
 }
 
-hpx::future<op_stats> node_server::nonrefined_step() {
+hpx::future<compute_interactions_stats_t> node_server::nonrefined_step() {
 #if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
     static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
     hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
@@ -485,7 +485,7 @@ hpx::future<op_stats> node_server::nonrefined_step() {
     all_hydro_bounds();
 
     grid_ptr->store();
-    hpx::future<op_stats> fut = hpx::make_ready_future(op_stats{});
+    hpx::future<compute_interactions_stats_t> fut = hpx::make_ready_future(compute_interactions_stats_t{});
 
     hpx::shared_future<real> dt_fut = global_timestep_channel.get_future();
 
@@ -493,9 +493,9 @@ hpx::future<op_stats> node_server::nonrefined_step() {
 
         fut = fut.then(
             hpx::util::annotated_function(
-                [rk, cfl0, this, dt_fut](hpx::future<op_stats> f) -> hpx::future<op_stats>
+                [rk, cfl0, this, dt_fut](hpx::future<compute_interactions_stats_t> f) -> hpx::future<compute_interactions_stats_t>
                 {
-                    op_stats s = f.get();        // propagate exceptions
+                    compute_interactions_stats_t s = f.get();        // propagate exceptions
 
                     grid_ptr->reconstruct();
                     real a = grid_ptr->compute_fluxes();
@@ -527,14 +527,14 @@ hpx::future<op_stats> node_server::nonrefined_step() {
                     return fut_flux.then(
                         hpx::launch::async(hpx::threads::thread_priority_boost),
                         hpx::util::annotated_function(
-                            [s, rk, this, dt_fut](hpx::future<void> f) -> op_stats
+                            [s, rk, this, dt_fut](hpx::future<void> f) -> compute_interactions_stats_t
                             {
                                 f.get();        // propagate exceptions
 
                                 grid_ptr->compute_sources(current_time);
                                 grid_ptr->compute_dudt();
 
-                                op_stats s2 = s;
+                                compute_interactions_stats_t s2 = s;
 
                                 s2 += compute_fmm(DRHODT, false);
 
@@ -562,9 +562,9 @@ hpx::future<op_stats> node_server::nonrefined_step() {
     }
 
     return fut.then(hpx::launch::sync,
-        [this](hpx::future<op_stats>&& f) -> op_stats
+        [this](hpx::future<compute_interactions_stats_t>&& f) -> compute_interactions_stats_t
         {
-            op_stats s = f.get(); // propagate exceptions...
+            compute_interactions_stats_t s = f.get(); // propagate exceptions...
             update();
             return s;
         }
@@ -585,20 +585,20 @@ void node_server::update()
     }
 }
 
-hpx::future<hpx::util::tuple<real, op_stats>> node_server::local_step(integer steps) {
+hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> node_server::local_step(integer steps) {
 
-    hpx::future<hpx::util::tuple<real, op_stats>> dt_fut =
-        hpx::make_ready_future(hpx::util::tuple<real, op_stats>{0.0, op_stats{}});
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut =
+        hpx::make_ready_future(hpx::util::tuple<real, compute_interactions_stats_t>{0.0, compute_interactions_stats_t{}});
     for (integer i = 0; i != steps; ++i)
     {
         dt_fut = dt_fut.then(
-            [this, i, steps](hpx::future<hpx::util::tuple<real, op_stats>> dt_fut)
-                -> hpx::future<hpx::util::tuple<real, op_stats>>
+            [this, i, steps](hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut)
+                -> hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>>
             {
                 auto time_start = std::chrono::high_resolution_clock::now();
                 auto next_dt = timestep_driver_descend();
 
-                op_stats s;
+                compute_interactions_stats_t s;
 
                 if (is_refined)
                 {
@@ -630,19 +630,19 @@ hpx::future<hpx::util::tuple<real, op_stats>> node_server::local_step(integer st
                 s += hpx::util::get<1>(dt_and_opstats);
 
                 return next_dt.then(
-                    [s](hpx::future<real> next_dt_) -> hpx::util::tuple<real, op_stats>
+                    [s](hpx::future<real> next_dt_) -> hpx::util::tuple<real, compute_interactions_stats_t>
                     {
-                        return hpx::util::tuple<real, op_stats>(next_dt_.get(), s);
+                        return hpx::util::tuple<real, compute_interactions_stats_t>(next_dt_.get(), s);
                     });
             });
     }
     return dt_fut;
 }
 
-hpx::future<hpx::util::tuple<real, op_stats>> node_server::step(integer steps) {
+hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> node_server::step(integer steps) {
     grid_ptr->set_coordinates();
 
-    std::array<hpx::future<hpx::util::tuple<real, op_stats>>, NCHILD> child_futs;
+    std::array<hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>>, NCHILD> child_futs;
     if (is_refined)
     {
         for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -650,17 +650,17 @@ hpx::future<hpx::util::tuple<real, op_stats>> node_server::step(integer steps) {
         }
     }
 
-    hpx::future<hpx::util::tuple<real, op_stats>> dt_fut = local_step(steps);
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut = local_step(steps);
 
     if (is_refined)
     {
         return hpx::dataflow(hpx::launch::sync,
-            [this](hpx::future<hpx::util::tuple<real, op_stats>> dt_fut
+            [this](hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut
                  , hpx::future<decltype(child_futs)>&& f)
             {
                 auto child_futs = f.get(); // propagate exceptions
 
-                hpx::util::tuple<real, op_stats> dt_and_s(dt_fut.get());
+                hpx::util::tuple<real, compute_interactions_stats_t> dt_and_s(dt_fut.get());
 
                 for (auto& child : child_futs)
                     hpx::util::get<1>(dt_and_s) += hpx::util::get<1>(child.get());
@@ -678,32 +678,32 @@ hpx::future<hpx::util::tuple<real, op_stats>> node_server::step(integer steps) {
 typedef node_server::step_with_diagnostics_action step_with_diagnostics_action_type;
 HPX_REGISTER_ACTION(step_with_diagnostics_action_type);
 
-hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > node_client::step_with_diagnostics(integer steps,
+hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > node_client::step_with_diagnostics(integer steps,
     const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const
 {
     return hpx::async<step_with_diagnostics_action_type>(get_unmanaged_gid(), steps, axis, l1, c1, c2);
 }
 
-hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > node_server::step_with_diagnostics(integer steps,
+hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > node_server::step_with_diagnostics(integer steps,
     const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2)
 {
     if (is_refined)
     {
-        std::array<hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> >, NCHILD> child_futs;
+        std::array<hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> >, NCHILD> child_futs;
         for (integer ci = 0; ci != NCHILD; ++ci) {
             child_futs[ci] = children[ci].step_with_diagnostics(steps, axis, l1, c1, c2);
         }
 
-        hpx::future<hpx::util::tuple<real, op_stats>> dt_fut = local_step(steps);
+        hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut = local_step(steps);
 
         return hpx::dataflow(hpx::launch::sync,
-            [](hpx::future<hpx::util::tuple<real, op_stats>> dt_fut,
-                std::array<hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> >, NCHILD> && d)
-            -> hpx::util::tuple<real, op_stats, diagnostics_t>
+            [](hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut,
+                std::array<hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> >, NCHILD> && d)
+            -> hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t>
             {
                 diagnostics_t diags;
                 auto dt_and_s = dt_fut.get();
-                op_stats s = hpx::util::get<1>(dt_and_s);
+                compute_interactions_stats_t s = hpx::util::get<1>(dt_and_s);
                 for (auto& f : d)
                 {
                     auto t = f.get();
@@ -717,10 +717,10 @@ hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > node_server::step_
     }
 
     diagnostics_t diags = local_diagnostics(axis, l1, c1, c2);
-    hpx::future<hpx::util::tuple<real, op_stats>> dt_fut = local_step(steps);
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut = local_step(steps);
     return hpx::dataflow(hpx::launch::sync,
-            [](hpx::future<hpx::util::tuple<real, op_stats>> dt_fut, diagnostics_t && diags)
-            ->  hpx::util::tuple<real, op_stats, diagnostics_t>
+            [](hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> dt_fut, diagnostics_t && diags)
+            ->  hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t>
             {
                 auto dt_and_s = dt_fut.get();
                 return hpx::util::make_tuple(hpx::util::get<0>(dt_and_s), hpx::util::get<1>(dt_and_s), std::move(diags));
@@ -729,7 +729,7 @@ hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > node_server::step_
         );
 }
 
-hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > node_server::root_step_with_diagnostics(integer steps)
+hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > node_server::root_step_with_diagnostics(integer steps)
 {
     auto axis = grid_ptr->find_axis();
     auto loc = line_of_centers(axis);
@@ -738,12 +738,12 @@ hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > node_server::root_
     real phi_1, phi_2;
     line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, l2, l3, phi_1, phi_2);
 
-    hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > fut =
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > fut =
         step_with_diagnostics(steps, axis, l1, rho1.first, rho2.first);
 
     return fut.then(hpx::launch::sync,
-        [=](hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > f)
-        ->  hpx::util::tuple<real, op_stats, diagnostics_t>
+        [=](hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > f)
+        ->  hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t>
         {
             auto t = f.get();
             return hpx::util::make_tuple(

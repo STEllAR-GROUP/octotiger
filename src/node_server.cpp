@@ -366,9 +366,9 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
     child_descendant_count = _child_d;
 }
 
-op_stats node_server::compute_fmm(gsolve_type type, bool energy_account) {
+compute_interactions_stats_t node_server::compute_fmm(gsolve_type type, bool energy_account) {
 	if (!gravity_on) {
-        return op_stats{};
+        return compute_interactions_stats_t{};
     }
 
     hpx::future<void> parent_fut;
@@ -430,7 +430,7 @@ op_stats node_server::compute_fmm(gsolve_type type, bool energy_account) {
         }
     }
 
-    op_stats s = grid_ptr->compute_interactions(type);
+    compute_interactions_stats_t s = grid_ptr->compute_interactions(type);
 #ifdef USE_GRAV_PAR
     std::array<hpx::future<void>, geo::direction::count()> boundary_futs;
     integer index = 0;

@@ -450,15 +450,15 @@ void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& ou
 typedef node_server::solve_gravity_action solve_gravity_action_type;
 HPX_REGISTER_ACTION(solve_gravity_action_type);
 
-hpx::future<op_stats> node_client::solve_gravity(bool ene) const {
+hpx::future<compute_interactions_stats_t> node_client::solve_gravity(bool ene) const {
     return hpx::async<typename node_server::solve_gravity_action>(get_unmanaged_gid(), ene);
 }
 
-op_stats node_server::solve_gravity(bool ene) {
+compute_interactions_stats_t node_server::solve_gravity(bool ene) {
     if (!gravity_on) {
-        return op_stats{};
+        return compute_interactions_stats_t{};
     }
-    std::array<hpx::future<op_stats>, NCHILD> child_futs;
+    std::array<hpx::future<compute_interactions_stats_t>, NCHILD> child_futs;
     if (is_refined)
     {
         integer index = 0;;
@@ -466,7 +466,7 @@ op_stats node_server::solve_gravity(bool ene) {
             child_futs[index++] = child.solve_gravity(ene);
         }
     }
-    op_stats s = compute_fmm(RHO, ene);
+    compute_interactions_stats_t s = compute_fmm(RHO, ene);
     if( is_refined ) {
     	wait_all_and_propagate_exceptions(child_futs);
         for (auto& f : child_futs) {

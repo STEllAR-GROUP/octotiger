@@ -78,12 +78,12 @@ public:
 	void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle) const;
 	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	void send_gravity_expansions(expansion_pass_type&&) const;
-	hpx::future<hpx::util::tuple<real, op_stats>> step(integer) const;
-	hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > step_with_diagnostics(integer,
+	hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> step(integer) const;
+	hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > step_with_diagnostics(integer,
         const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const;
 	hpx::future<void> start_run(bool) const;
 	hpx::future<void> regrid(const hpx::id_type&, real omega, bool rb) const;
-	hpx::future<op_stats> solve_gravity(bool ene) const;
+	hpx::future<compute_interactions_stats_t> solve_gravity(bool ene) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
 	void timestep_driver_ascend(real) const;

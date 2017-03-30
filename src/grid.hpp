@@ -56,134 +56,6 @@ constexpr taylor<4, real> factor       = generate_factor();
 constexpr taylor<4, real> half_factor  = factor * HALF; 
 constexpr taylor<4, real> sixth_factor = factor * SIXTH;; 
 
-struct op_stats
-{
-    double time;
-/*
-    std::size_t fp_adds;
-    std::size_t fp_muls;
-    std::size_t fp_fmas;
-    std::size_t fp_divs;
-    std::size_t fp_sqrts;
-    std::size_t fp_memloads; 
-    std::size_t fp_memstores; 
-    std::size_t fp_tileloads; 
-    std::size_t fp_tilestores; 
-    std::size_t fp_cacheloads; 
-    std::size_t fp_cachestores; 
-*/
-
-    constexpr op_stats() :
-        time{0.0}
-/*
-      , fp_adds{0}
-      , fp_muls{0}
-      , fp_fmas{0}
-      , fp_divs{0}
-      , fp_sqrts{0}
-      , fp_memloads{0} 
-      , fp_memstores{0} 
-      , fp_tileloads{0} 
-      , fp_tilestores{0} 
-      , fp_cacheloads{0} 
-      , fp_cachestores{0}
-*/
-    {}
-
-    constexpr void add_time(double time_) noexcept { time += time_; }
-/*
-    constexpr void add_fp_adds(std::size_t fp_adds_) noexcept { fp_adds += fp_adds_; }
-    constexpr void add_fp_muls(std::size_t fp_muls_) noexcept { fp_muls += fp_muls_; }
-    constexpr void add_fp_fmas(std::size_t fp_fmas_) noexcept { fp_fmas += fp_fmas_; }
-    constexpr void add_fp_divs(std::size_t fp_divs_) noexcept { fp_divs += fp_divs_; }
-    constexpr void add_fp_sqrts(std::size_t fp_sqrts_) noexcept { fp_sqrts += fp_sqrts_; }
-    constexpr void add_fp_memloads(std::size_t fp_memloads_) noexcept { fp_memloads += fp_memloads_; }
-    constexpr void add_fp_memstores(std::size_t fp_memstores_) noexcept { fp_memstores += fp_memstores_; }
-    constexpr void add_fp_tileloads(std::size_t fp_tileloads_) noexcept { fp_tileloads += fp_tileloads_; }
-    constexpr void add_fp_tilestores(std::size_t fp_tilestores_) noexcept { fp_tilestores += fp_tilestores_; }
-    constexpr void add_fp_cacheloads(std::size_t fp_cacheloads_) noexcept { fp_cacheloads += fp_cacheloads_; }
-    constexpr void add_fp_cachestores(std::size_t fp_cachestores_) noexcept { fp_cachestores += fp_cachestores_; }
-*/
-    constexpr void add_fp_adds(std::size_t fp_adds_) noexcept { }
-    constexpr void add_fp_muls(std::size_t fp_muls_) noexcept { }
-    constexpr void add_fp_fmas(std::size_t fp_fmas_) noexcept { }
-    constexpr void add_fp_divs(std::size_t fp_divs_) noexcept { }
-    constexpr void add_fp_sqrts(std::size_t fp_sqrts_) noexcept { }
-    constexpr void add_fp_memloads(std::size_t fp_memloads_) noexcept { }
-    constexpr void add_fp_memstores(std::size_t fp_memstores_) noexcept { }
-    constexpr void add_fp_tileloads(std::size_t fp_tileloads_) noexcept { }
-    constexpr void add_fp_tilestores(std::size_t fp_tilestores_) noexcept { }
-    constexpr void add_fp_cacheloads(std::size_t fp_cacheloads_) noexcept { }
-    constexpr void add_fp_cachestores(std::size_t fp_cachestores_) noexcept { }
-
-    op_stats& operator+=(op_stats const& rhs) noexcept
-    {
-        time += rhs.time;
-/*
-        fp_adds += rhs.fp_adds;
-        fp_muls += rhs.fp_muls;
-        fp_fmas += rhs.fp_fmas;
-        fp_divs += rhs.fp_divs;
-        fp_sqrts += rhs.fp_sqrts;
-        fp_memloads += rhs.fp_memloads; 
-        fp_memstores += rhs.fp_memstores; 
-        fp_tileloads += rhs.fp_tileloads; 
-        fp_tilestores += rhs.fp_tilestores; 
-        fp_cacheloads += rhs.fp_cacheloads;
-        fp_cachestores += rhs.fp_cachestores;
-*/
-        return *this;
-    }
-
-    op_stats operator+(op_stats const& rhs) const noexcept
-    {
-        op_stats tmp = *this;
-        tmp += rhs;
-        return tmp;
-    }
-
-	template <typename Archive>
-	void serialize(Archive& ar, unsigned)
-    {
-        ar & time;
-/*
-        ar & fp_adds;
-        ar & fp_muls;
-        ar & fp_fmas;
-        ar & fp_divs;
-        ar & fp_sqrts;
-        ar & fp_memloads; 
-        ar & fp_memstores; 
-        ar & fp_tileloads; 
-        ar & fp_tilestores; 
-        ar & fp_cacheloads; 
-        ar & fp_cachestores; 
-*/
-	}
-
-	friend std::ostream& operator<<(std::ostream& os, op_stats const& rhs)
-    {
-        os << "compute_interactions stats:\n"
-           << "time:           " << rhs.time << "\n"
-/*
-           << "fp_adds:        " << rhs.fp_adds << "\n"
-           << "fp_muls:        " << rhs.fp_muls << "\n"
-           << "fp_fmas:        " << rhs.fp_fmas << "\n"
-           << "fp_divs:        " << rhs.fp_divs << "\n"
-           << "fp_sqrts:       " << rhs.fp_sqrts << "\n"
-           << "fp_memloads:    " << rhs.fp_memloads << "\n" 
-           << "fp_memstores:   " << rhs.fp_memstores << "\n" 
-           << "fp_tileloads:   " << rhs.fp_tileloads << "\n" 
-           << "fp_tilestores:  " << rhs.fp_tilestores << "\n" 
-           << "fp_cacheloads:  " << rhs.fp_cacheloads << "\n"
-           << "fp_cachestores: " << rhs.fp_cachestores
-*/
-            ;
-
-        return os;
-	}
-};
-
 template <std::size_t TileWidth>
 struct alignas(128) compute_interactions_tile
 {
@@ -418,7 +290,7 @@ public:
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
 	void compute_interactions_legacy(gsolve_type);
-	op_stats compute_interactions(gsolve_type);
+	compute_interactions_stats_t compute_interactions(gsolve_type);
 	void rho_mult(real f0, real f1 );
 	void rho_move(real x);
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
@@ -478,7 +350,7 @@ public:
         integer i_begin
       , integer i_end
       , compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::true_type
       , vector_function_tag
         ) noexcept;
@@ -490,7 +362,7 @@ public:
         integer i_begin
       , integer i_end
       , compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::true_type
       , scalar_function_tag
         ) noexcept;
@@ -502,7 +374,7 @@ public:
         integer i_begin
       , integer i_end
       , compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::false_type
       , vector_function_tag
         ) noexcept;
@@ -514,7 +386,7 @@ public:
         integer i_begin
       , integer i_end
       , compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::false_type
       , scalar_function_tag
         ) noexcept;
@@ -525,7 +397,7 @@ public:
         >
     void compute_interactions_A0_A1_0(
         compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::true_type
         ) noexcept;
     template <
@@ -534,7 +406,7 @@ public:
         >
     void compute_interactions_A0_A1_0(
         compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::false_type
         ) noexcept;
 
@@ -544,7 +416,7 @@ public:
         >
     void compute_interactions_A0_A1(
         compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::true_type
         ) noexcept;
     template <
@@ -553,7 +425,7 @@ public:
         >
     void compute_interactions_A0_A1(
         compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::false_type
         ) noexcept;
 
@@ -563,7 +435,7 @@ public:
         >
     void compute_interactions_B0_B1(
         compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::true_type
         ) noexcept;
     template <
@@ -572,7 +444,7 @@ public:
         >
     void compute_interactions_B0_B1(
         compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::false_type
         ) noexcept;
 
@@ -584,7 +456,7 @@ public:
         integer i_begin
       , integer i_end
       , compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::true_type
         ) noexcept;
     template <
@@ -595,7 +467,7 @@ public:
         integer i_begin
       , integer i_end
       , compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
       , std::false_type
         ) noexcept;
 
@@ -609,7 +481,7 @@ public:
         integer i_begin
       , integer i_end
       , compute_interactions_tile<TileWidth>& t
-      , op_stats& s
+      , compute_interactions_stats_t& s
         );
 
     template <
@@ -618,7 +490,7 @@ public:
       , ang_con_type AngConKind
       , gsolve_type SolveKind
         >
-    op_stats compute_interactions_non_leaf();
+    compute_interactions_stats_t compute_interactions_non_leaf();
 
 };
 

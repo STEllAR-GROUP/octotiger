@@ -39,7 +39,7 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
     integer i_begin
   , integer i_end
   , compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::true_type
   , vector_function_tag 
     ) noexcept
@@ -129,7 +129,7 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
     integer i_begin
   , integer i_end
   , compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::true_type
   , scalar_function_tag 
     ) noexcept
@@ -192,7 +192,7 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
     integer i_begin
   , integer i_end
   , compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::false_type
   , vector_function_tag
     ) noexcept
@@ -226,7 +226,7 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
     integer i_begin
   , integer i_end
   , compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::false_type
   , scalar_function_tag
     ) noexcept
@@ -261,7 +261,7 @@ template <
     >
 inline void grid::compute_interactions_A0_A1_0(
     compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::true_type
     ) noexcept
 {}
@@ -272,7 +272,7 @@ template <
     >
 inline void grid::compute_interactions_A0_A1_0(
     compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::false_type
     ) noexcept
 {
@@ -312,7 +312,7 @@ template <
     >
 inline void grid::compute_interactions_A0_A1(
     compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::true_type
     ) noexcept
 {}
@@ -323,7 +323,7 @@ template <
     >
 inline void grid::compute_interactions_A0_A1(
     compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::false_type
     ) noexcept
 {
@@ -367,7 +367,7 @@ template <
     >
 inline void grid::compute_interactions_B0_B1(
     compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::true_type
     ) noexcept
 {
@@ -414,7 +414,7 @@ template <
     >
 inline void grid::compute_interactions_B0_B1(
     compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::false_type
     ) noexcept
 {}
@@ -429,7 +429,7 @@ inline void grid::store_to_L_c(
     integer i_begin
   , integer i_end
   , compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::true_type
     ) noexcept
 {
@@ -469,7 +469,7 @@ inline void grid::store_to_L_c(
     integer i_begin
   , integer i_end
   , compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
   , std::false_type
     ) noexcept
 {}
@@ -481,7 +481,7 @@ inline taylor<5, std::array<real, TileWidth>>
 set_basis(
     taylor<5, std::array<real, TileWidth>>& A
   , std::array<std::array<real, TileWidth>, NDIM> const& X
-  , op_stats& s
+  , compute_interactions_stats_t& s
     ) noexcept
 {
     alignas(128) std::array<real, TileWidth> d0_array;
@@ -761,7 +761,7 @@ inline void grid::compute_interactions_non_leaf_tiled(
     integer i_begin
   , integer i_end
   , compute_interactions_tile<TileWidth>& t
-  , op_stats& s
+  , compute_interactions_stats_t& s
     )
 {
     auto& M = *M_ptr;
@@ -1128,7 +1128,7 @@ template <
   , ang_con_type AngConKind
   , gsolve_type SolveKind
     >
-inline op_stats grid::compute_interactions_non_leaf()
+inline compute_interactions_stats_t grid::compute_interactions_non_leaf()
 {
     static_assert(0 < TileWidth, "TileWidth cannot be negative.");
     static_assert(0 == (TileWidth % 16), "TileWidth must be a multiple of 16.");
@@ -1152,7 +1152,7 @@ inline op_stats grid::compute_interactions_non_leaf()
 
     auto const ilist_main_loop_size = (IList->size() / TileWidth) * TileWidth;
 
-    op_stats s;
+    compute_interactions_stats_t s;
 
     { // Vector primary loop.
         //auto tile = std::make_unique<compute_interactions_tile<TileWidth>>();
@@ -1171,7 +1171,7 @@ inline op_stats grid::compute_interactions_non_leaf()
     }
 
     { // Scalar remainder loop.
-        op_stats dummy;
+        compute_interactions_stats_t dummy;
 
         //auto tile = std::make_unique<compute_interactions_tile<1>>();
         auto tile = tsb::make_aligned_array<compute_interactions_tile<1>>(128, 1);

@@ -147,8 +147,8 @@ private:
     void clear_family();
     hpx::future<void> exchange_flux_corrections();
 
-    hpx::future<op_stats> nonrefined_step();
-    op_stats refined_step();
+    hpx::future<compute_interactions_stats_t> nonrefined_step();
+    compute_interactions_stats_t refined_step();
 
     diagnostics_t root_diagnostics(diagnostics_t && diags,
         std::pair<real, real> rho1, std::pair<real, real> rho2,real phi_1, real phi_2) const;
@@ -156,7 +156,7 @@ private:
         const std::pair<real, real>& l1, real, real) const;
     diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
         const std::pair<real, real>& l1, real, real) const;
-    hpx::future<hpx::util::tuple<real, op_stats>> local_step(integer steps);
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> local_step(integer steps);
 
 public:
      static bool child_is_on_face(integer ci, integer face);
@@ -204,24 +204,24 @@ public:
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
 
-    hpx::future<hpx::util::tuple<real, op_stats>> step(integer steps);
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> step(integer steps);
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
-    hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > step_with_diagnostics(integer steps,
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > step_with_diagnostics(integer steps,
         const std::pair<space_vector, space_vector>& axis,
         const std::pair<real, real>& l1, real, real);
     HPX_DEFINE_COMPONENT_ACTION(node_server, step_with_diagnostics, step_with_diagnostics_action);
 
-    hpx::future<hpx::util::tuple<real, op_stats, diagnostics_t> > root_step_with_diagnostics(integer steps);
+    hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > root_step_with_diagnostics(integer steps);
 
     void update();
 
     int regrid(const hpx::id_type& root_gid, real omega, bool rb);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid, regrid_action);
 
-    op_stats compute_fmm(gsolve_type gs, bool energy_account);
+    compute_interactions_stats_t compute_fmm(gsolve_type gs, bool energy_account);
 
-    op_stats solve_gravity(bool ene);
+    compute_interactions_stats_t solve_gravity(bool ene);
     HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
 
     void start_run(bool scf);

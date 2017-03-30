@@ -163,7 +163,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
     return pair;
 }
 
-op_stats grid::compute_interactions(gsolve_type type) {
+compute_interactions_stats_t grid::compute_interactions(gsolve_type type) {
     if (!is_leaf && !opts.compute_interactions_legacy)
     {
         if (is_root)
@@ -213,7 +213,7 @@ op_stats grid::compute_interactions(gsolve_type type) {
     {
         // Leaf
         compute_interactions_legacy(type);
-        return op_stats{};
+        return compute_interactions_stats_t{};
     }
 }
 
