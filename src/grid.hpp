@@ -541,6 +541,25 @@ public:
         ) noexcept;
 
     template <
+        std::vector<interaction_type> const* __restrict__ IList
+      , std::size_t TileWidth
+        >
+    void compute_interactions_A0_A1(
+        compute_interactions_tile<TileWidth>& t
+      , op_stats& s
+      , std::true_type
+        ) noexcept;
+    template <
+        std::vector<interaction_type> const* __restrict__ IList 
+      , std::size_t TileWidth
+        >
+    void compute_interactions_A0_A1(
+        compute_interactions_tile<TileWidth>& t
+      , op_stats& s
+      , std::false_type
+        ) noexcept;
+
+    template <
         std::vector<interaction_type> const* __restrict__ IList 
       , std::size_t TileWidth
         >

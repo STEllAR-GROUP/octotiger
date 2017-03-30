@@ -100,25 +100,27 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
               , (*IList)[i+7].second
             };
 
-            __m512d const M00 = _mm512_i64gather_pd(iii0, M_, 8);
-            __m512d const M10 = _mm512_i64gather_pd(iii1, M_, 8);
+            __m512d const M_0 = _mm512_i64gather_pd(iii0, M_, 8);
+            __m512d const M_1 = _mm512_i64gather_pd(iii1, M_, 8);
 
             s.add_fp_memloads(2*8);
 
             // NOTE: Due to the order of iteration, these computations are
             // performed redundantly.
-            __m512d const M10divM00 = _mm512_div_pd(M10, M00);
-            __m512d const M00divM10 = _mm512_div_pd(M00, M10);
+            __m512d const M_1divM_0 = _mm512_div_pd(M_1, M_0);
+            __m512d const M_0divM_1 = _mm512_div_pd(M_0, M_1);
 
             s.add_fp_divs(2*8);
 
-            __m512d const M0j = _mm512_i64gather_pd(iii0, Mj, 8);
-            __m512d const M1j = _mm512_i64gather_pd(iii1, Mj, 8);
+            __m512d const Mj0 = _mm512_i64gather_pd(iii0, Mj, 8);
+            __m512d const Mj1 = _mm512_i64gather_pd(iii1, Mj, 8);
 
             s.add_fp_memloads(2*8); 
 
-            *(Vn0j + ti) = _mm512_fnmadd_pd(M0j, M10divM00, M1j); // -(M0j * M10divM00) + M1j
-            *(Vn1j + ti) = _mm512_fnmadd_pd(M1j, M00divM10, M0j); // -(M1j * M00divM10) + M0j
+            *(Vn0j + ti) = _mm512_fnmadd_pd(Mj0, M_1divM_0, Mj1); // -(Mj0 * M_1divM_0) + Mj1
+                                                                  // Mj1 - Mj0 * M_1divM_0
+            *(Vn1j + ti) = _mm512_fnmadd_pd(Mj1, M_0divM_1, Mj0); // -(Mj1 * M_0divM_1) + Mj0
+                                                                  // Mj0 - Mj1 * M_0divM_1
 
             s.add_fp_fmas(      2*8);
             s.add_fp_tilestores(2*8);
@@ -305,6 +307,61 @@ inline void grid::compute_interactions_A0_A1_0(
             s.add_fp_tileloads( 6);
             s.add_fp_fmas(      2);
             s.add_fp_tilestores(2);
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+template <
+    std::vector<interaction_type> const* __restrict__ IList
+  , std::size_t TileWidth
+    >
+inline void grid::compute_interactions_A0_A1(
+    compute_interactions_tile<TileWidth>& t
+  , op_stats& s
+  , std::true_type
+    ) noexcept
+{}
+
+template <
+    std::vector<interaction_type> const* __restrict__ IList 
+  , std::size_t TileWidth
+    >
+inline void grid::compute_interactions_A0_A1(
+    compute_interactions_tile<TileWidth>& t
+  , op_stats& s
+  , std::false_type
+    ) noexcept
+{
+    for (integer a = 0; a != NDIM; ++a)                                         // TRIP COUNT: 3
+    {
+        real* __restrict__ A0a = t.A0(a).data();
+        real* __restrict__ A1a = t.A1(a).data();
+        BOOST_ASSUME_ALIGNED(A0a, 64);
+        BOOST_ASSUME_ALIGNED(A1a, 64);
+
+        for (integer b = 0; b != NDIM; ++b)                                     // TRIP COUNT: 9
+        {
+            real const* __restrict__ m0a = t.m0(a).data();
+            real const* __restrict__ m1a = t.m1(a).data();
+            BOOST_ASSUME_ALIGNED(m0a, 64);
+            BOOST_ASSUME_ALIGNED(m1a, 64);
+
+            real const* __restrict__ Dab = t.D(a, b).data();
+            BOOST_ASSUME_ALIGNED(Dab, 64);
+
+            #pragma omp simd
+            for (integer ti = 0; ti < TileWidth; ++ti)                          // TRIP COUNT: 9 * TileWidth; UNIT STRIDE
+            {
+                auto const tmp = Dab[ti];                                       // 1 FP LOAD FROM TILE
+                A0a[ti] -= m0a[ti] * tmp;                                       // 2 FP LOADS FROM TILE, 1 FMA, 1 FP STORE TO TILE
+                A1a[ti] -= m1a[ti] * tmp;                                       // 2 FP LOADS FROM TILE, 1 FMA, 1 FP STORE TO TILE
+
+                s.add_fp_tileloads( 5);
+                s.add_fp_fmas(      2);
+                s.add_fp_tilestores(2);
+            }
         }
     }
 }
@@ -776,8 +833,8 @@ inline void grid::compute_interactions_non_leaf_tiled(
             integer const iii0 = (*IList)[i].first;                             // 1 INT LOAD FROM MEM (indirect addressing)
             integer const iii1 = (*IList)[i].second;                            // 1 INT LOAD FROM MEM (indirect addressing)
 
-            m0j[ti] = Mj[iii0];                                                 // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
-            m1j[ti] = Mj[iii1];                                                 // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
+            m0j[ti] = Mj[iii1];                                                 // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
+            m1j[ti] = Mj[iii0];                                                 // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
 
             s.add_fp_memloads(  2);
             s.add_fp_tilestores(2);
@@ -823,6 +880,8 @@ inline void grid::compute_interactions_non_leaf_tiled(
         s.add_fp_muls(      2);
         s.add_fp_tilestores(2);
     }
+
+    compute_interactions_A0_A1_0<IList, TileWidth>(t, s, is_rho_type); 
 
     for (integer j = taylor_sizes[1]; j != taylor_sizes[2]; ++j)                // TRIP COUNT: 6
     {
@@ -899,7 +958,7 @@ inline void grid::compute_interactions_non_leaf_tiled(
         }
     }
 
-    compute_interactions_A0_A1_0<IList, TileWidth>(t, s, is_rho_type); 
+    compute_interactions_A0_A1<IList, TileWidth>(t, s, is_rho_type); 
 
     for (integer a = 0; a != NDIM; ++a)                                         // TRIP COUNT: 3
     {
