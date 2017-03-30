@@ -69,7 +69,7 @@ public:
 	hpx::future<bool> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
-	hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::id_type>& );
+	hpx::future<void> form_tree(hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&& );
 	hpx::future<hpx::id_type> get_child_client(const geo::octant&);
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;

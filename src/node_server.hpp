@@ -262,8 +262,7 @@ public:
     hpx::id_type get_child_client(const geo::octant&);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-    hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&,
-        const std::vector<hpx::id_type>&);
+    hpx::future<void> form_tree(hpx::id_type, hpx::id_type, std::vector<hpx::id_type>);
     HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
     std::uintptr_t get_ptr();

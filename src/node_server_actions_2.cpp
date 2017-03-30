@@ -472,30 +472,27 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 typedef node_server::form_tree_action form_tree_action_type;
 HPX_REGISTER_ACTION(form_tree_action_type);
 
-hpx::future<void> node_client::form_tree(const hpx::id_type& id1, const hpx::id_type& id2,
-    const std::vector<hpx::id_type>& ids) {
-    return hpx::async<typename node_server::form_tree_action>(get_unmanaged_gid(), id1, id2,
+hpx::future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2,
+    std::vector<hpx::id_type>&& ids) {
+    return hpx::async<typename node_server::form_tree_action>(get_unmanaged_gid(), std::move(id1), std::move(id2),
         std::move(ids));
 }
 
-hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
-    const std::vector<hpx::id_type>& neighbor_gids) {
+hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
     for (auto& dir : geo::direction::full_set()) {
-        neighbors[dir] = neighbor_gids[dir];
+        neighbors[dir] = std::move(neighbor_gids[dir]);
     }
-    me = self_gid;
-    parent = parent_gid;
+    me = std::move(self_gid);
+    parent = std::move(parent_gid);
     if (is_refined) {
-        std::array<hpx::future<void>, 2*2*2> cfuts;
+        std::array<hpx::future<void>, NCHILD> cfuts;
         integer index = 0;
-
         amr_flags.resize(NCHILD);
         for (integer cx = 0; cx != 2; ++cx) {
             for (integer cy = 0; cy != 2; ++cy) {
                 for (integer cz = 0; cz != 2; ++cz) {
                     std::vector<hpx::future<hpx::id_type>> child_neighbors_f(
                         geo::direction::count());
-                    std::vector<hpx::id_type> child_neighbors(geo::direction::count());
                     const integer ci = cx + 2 * cy + 4 * cz;
                     for (integer dx = -1; dx != 2; ++dx) {
                         for (integer dy = -1; dy != 2; ++dy) {
@@ -522,18 +519,16 @@ hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx
                             }
                         }
                     }
-
-                    for (auto& dir : geo::direction::full_set()) {
-                        child_neighbors[dir] = child_neighbors_f[dir].get();
-                        if (child_neighbors[dir] == hpx::invalid_id) {
-                            amr_flags[ci][dir] = true;
-                        } else {
-                            amr_flags[ci][dir] = false;
-                        }
-                    }
-                    cfuts[index++] =
-                        children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
-                            me.get_gid(), std::move(child_neighbors));
+                    cfuts[index++] = hpx::when_all(child_neighbors_f).then([this, ci](hpx::future<std::vector<hpx::future<hpx::id_type>>> f) {
+						auto cns = f.get();
+						std::vector<hpx::id_type> child_neighbors(geo::direction::count());
+						for (auto& dir : geo::direction::full_set()) {
+							child_neighbors[dir] = cns[dir].get();
+							amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
+						}
+						children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
+								me.get_gid(), std::move(child_neighbors)).get();
+					});
                 }
             }
         }
