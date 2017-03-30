@@ -464,12 +464,10 @@ public:
    friend class node_server;
 
     void compute_interactions_initialize_L_c(
-        op_stats& s
-      , std::true_type
+        std::true_type
         ) noexcept;
     void compute_interactions_initialize_L_c(
-        op_stats& s
-      , std::false_type
+        std::false_type
         ) noexcept;
 
     template <

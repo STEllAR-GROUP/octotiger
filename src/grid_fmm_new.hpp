@@ -15,10 +15,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-inline void grid::compute_interactions_initialize_L_c(
-    op_stats& s
-  , std::true_type
-    ) noexcept
+inline void grid::compute_interactions_initialize_L_c(std::true_type) noexcept
 {
     #if defined(HPX_HAVE_DATAPAR)
         hpx::parallel::fill(hpx::parallel::execution::dataseq,
@@ -27,14 +24,10 @@ inline void grid::compute_interactions_initialize_L_c(
         std::fill(std::begin(L_c), std::end(L_c), ZERO);
     #endif
 
-    s.add_fp_memstores(L_c.size());
+    //s.add_fp_memstores(L_c.size());
 }
 
-inline void grid::compute_interactions_initialize_L_c(
-    op_stats& s
-  , std::false_type
-    ) noexcept
-{}
+inline void grid::compute_interactions_initialize_L_c(std::false_type) noexcept {}
 
 ///////////////////////////////////////////////////////////////////////////////
         
@@ -776,9 +769,12 @@ inline void grid::compute_interactions_non_leaf_tiled(
 
     BOOST_ASSUME((i_end - i_begin) == TileWidth);
 
+/*
     typename std::conditional<
         1 == TileWidth, scalar_function_tag, vector_function_tag
     >::type constexpr function_type{};
+*/
+    scalar_function_tag constexpr function_type{};
     std::integral_constant<
         bool, ANG_CON_ON == AngConKind
     > constexpr ang_con_is_on{};
@@ -837,6 +833,25 @@ inline void grid::compute_interactions_non_leaf_tiled(
             m1j[ti] = Mj[iii0];                                                 // 1 FP LOAD FROM MEM, 1 FP STORE TO TILE
 
             s.add_fp_memloads(  2);
+            s.add_fp_tilestores(2);
+        }
+    }
+
+    for (integer a = 0; a != NDIM; ++a)                                         // TRIP COUNT: 10
+    {
+        real* __restrict__ B0a = t.B0[a].data();
+        real* __restrict__ B1a = t.B1[a].data();
+        BOOST_ASSUME_ALIGNED(B0a, 64);
+        BOOST_ASSUME_ALIGNED(B1a, 64);
+
+        #pragma omp simd 
+        for (integer i = i_begin; i < i_end; ++i)                               // TRIP COUNT: 10 * TileWidth; UNIT STRIDE
+        {
+            integer const ti = i - i_begin;
+
+            B0a[ti] = ZERO;                                                     // 1 FP STORE TO TILE
+            B1a[ti] = ZERO;                                                     // 1 FP STORE TO TILE
+
             s.add_fp_tilestores(2);
         }
     }
@@ -1104,10 +1119,6 @@ inline void grid::compute_interactions_non_leaf_tiled(
         }
     }
 
-    // L_c stores the correction for angular momentum.
-    // #20 in the paper ([Bryce] FIXME: Link to the paper) [Dominic].
-    compute_interactions_initialize_L_c(s, ang_con_is_on);
-
     store_to_L_c<IList, TileWidth>(i_begin, i_end, t, s, ang_con_is_on_and_is_rho_type);
 }
 
@@ -1122,6 +1133,10 @@ inline op_stats grid::compute_interactions_non_leaf()
     static_assert(0 < TileWidth, "TileWidth cannot be negative.");
     static_assert(0 == (TileWidth % 16), "TileWidth must be a multiple of 16.");
 
+    std::integral_constant<
+        bool, ANG_CON_ON == AngConKind
+    > constexpr ang_con_is_on{};
+
     // L stores the gravitational potential.
     // #10 in the paper ([Bryce] FIXME: Link to the paper) [Dominic].
     #if defined(HPX_HAVE_DATAPAR)
@@ -1130,6 +1145,10 @@ inline op_stats grid::compute_interactions_non_leaf()
     #else
         std::fill(std::begin(L), std::end(L), ZERO);
     #endif
+
+    // L_c stores the correction for angular momentum.
+    // #20 in the paper ([Bryce] FIXME: Link to the paper) [Dominic].
+    compute_interactions_initialize_L_c(ang_con_is_on);
 
     auto const ilist_main_loop_size = (IList->size() / TileWidth) * TileWidth;
 
