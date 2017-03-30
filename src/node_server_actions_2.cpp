@@ -539,28 +539,24 @@ hpx::future<void> node_server::form_tree(const hpx::id_type& self_gid, const hpx
         }
         return hpx::when_all(cfuts);
     } else {
-        std::vector < hpx::future<std::vector<hpx::id_type>>>nfuts(NFACE);
+        std::vector < hpx::future<bool>>nfuts(NFACE);
         for (auto& f : geo::face::full_set()) {
         	const auto& neighbor = neighbors[f.to_direction()];
             if (!neighbor.empty())
             {
-                nfuts[f] = neighbor.get_nieces(me.get_gid(), f ^ 1);
+                nfuts[f] = neighbor.set_child_aunt(me.get_gid(), f ^ 1);
             }
             else
             {
-                nfuts[f] = hpx::make_ready_future(std::vector<hpx::id_type>());
+                nfuts[f] = hpx::make_ready_future(false);
             }
         }
         return hpx::dataflow(
-            [this](std::vector<hpx::future<std::vector<hpx::id_type>>> nfuts)
+            [this](std::vector<hpx::future<bool>> nfuts)
             {
                 for (auto& f : geo::face::full_set()) {
-                    auto ids = nfuts[f].get();
-                    nieces[f].resize(ids.size());
-                    for (std::size_t i = 0; i != ids.size(); ++i) {
-                        nieces[f][i] = ids[i];
-                    }
-                }
+                    nieces[f] = nfuts[f].get();
+                 }
             }
           , std::move(nfuts)
         );
@@ -587,28 +583,25 @@ hpx::id_type node_server::get_child_client(const geo::octant& ci) {
     }
 }
 
-typedef node_server::get_nieces_action get_nieces_action_type;
-HPX_REGISTER_ACTION(get_nieces_action_type);
+typedef node_server::set_child_aunt_action set_child_aunt_action_type;
+HPX_REGISTER_ACTION(set_child_aunt_action_type);
 
-hpx::future<std::vector<hpx::id_type>> node_client::get_nieces(const hpx::id_type& aunt,
+hpx::future<bool> node_client::set_child_aunt(const hpx::id_type& aunt,
     const geo::face& f) const {
-    return hpx::async<typename node_server::get_nieces_action>(get_unmanaged_gid(), aunt, f);
+    return hpx::async<typename node_server::set_child_aunt_action>(get_unmanaged_gid(), aunt, f);
 }
 
-std::vector<hpx::id_type> node_server::get_nieces(const hpx::id_type& aunt,
+bool node_server::set_child_aunt(const hpx::id_type& aunt,
     const geo::face& face) const {
-    std::vector<hpx::id_type> nieces;
     if (is_refined) {
         std::array<hpx::future<void>, geo::octant::count() / 2> futs;
-        nieces.reserve(geo::octant::count() / 2);
         integer index = 0;
         for (auto const& ci : geo::octant::face_subset(face)) {
-            nieces.push_back(children[ci].get_gid());
             futs[index++] = children[ci].set_aunt(aunt, face);
         }
         wait_all_and_propagate_exceptions(futs);
     }
-    return nieces;
+    return is_refined;
 }
 
 typedef node_server::get_ptr_action get_ptr_action_type;

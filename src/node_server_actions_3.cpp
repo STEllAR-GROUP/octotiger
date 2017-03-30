@@ -357,7 +357,7 @@ void node_server::start_run(bool scf, integer ngrids)
         if (step_num % refinement_freq() == 0) {
         	real new_floor = opts.refinement_floor;
 			if (opts.ngrids > 0) {
-				new_floor *= std::pow( real(ngrids) / real(opts.ngrids), 3);
+				new_floor *= std::pow( real(ngrids) / real(opts.ngrids), 2);
 				printf("Old refinement floor = %e\n", opts.refinement_floor);
 				printf("New refinement floor = %e\n", new_floor);
 			}

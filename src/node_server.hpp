@@ -82,7 +82,7 @@ private:
      /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
      * . Only nieces in the face directions are needed, and in each
      * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/
-    std::vector<std::vector<node_client> > nieces;
+    std::vector<bool> nieces;
     /* An aunt is this node's parent's neighbor, so it is one level coarser.
      *  Only aunts in the 6 face directions are required. Used for AMR boundary handling. */
     std::vector<node_client> aunts;
@@ -288,9 +288,9 @@ public:
     void set_aunt(const hpx::id_type&, const geo::face& face);
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_aunt, set_aunt_action);
 
-    std::vector<hpx::id_type> get_nieces(const hpx::id_type&,
+    bool set_child_aunt(const hpx::id_type&,
         const geo::face& face) const;
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_nieces, get_nieces_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_child_aunt, set_child_aunt_action);
 
     hpx::future<void> check_for_refinement(real omega,real new_floor);
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
@@ -372,7 +372,7 @@ public:
 // HPX_ACTION_USES_LARGE_STACK(node_server::line_of_centers_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::scf_update_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::set_aunt_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::get_nieces_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::set_child_aunt_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::load_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::save_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::step_action);
@@ -393,7 +393,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::set_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::check_for_refinement_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_aunt_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::get_nieces_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::set_child_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::load_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::save_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);

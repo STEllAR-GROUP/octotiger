@@ -70,7 +70,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 	}
 	integer index = 0;
 	for (auto const& f : geo::face::full_set()) {
-		if (this->nieces[f].size()) {
+		if (this->nieces[f]) {
 			for (auto const& quadrant : geo::quadrant::full_set()) {
 				futs[index++] = niece_hydro_channels[f][quadrant].get_future().then(
 						hpx::util::annotated_function([this, f, quadrant](hpx::future<std::vector<real> > && fdata) -> void
@@ -313,7 +313,7 @@ void node_server::clear_family() {
     me = hpx::invalid_id;
     std::fill(aunts.begin(), aunts.end(), hpx::invalid_id);
     std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
-    std::fill(nieces.begin(), nieces.end(), std::vector<node_client>());
+    std::fill(nieces.begin(), nieces.end(), false);
 }
 
 integer child_index_to_quadrant_index(integer ci, integer dim) {

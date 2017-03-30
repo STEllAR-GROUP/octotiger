@@ -66,7 +66,7 @@ public:
 	hpx::future<analytic_t> compare_analytic() const;
 	hpx::future<grid::output_list_type> output(std::string fname, int, bool) const;
 	node_client();
-	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
+	hpx::future<bool> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
 	hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::id_type>& );
