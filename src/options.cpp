@@ -25,6 +25,7 @@
 #define BENCH_OPT "-Bench"
 #define THETA_OPT "-Theta"
 #define EOS_OPT "-Eos"
+#define COMPUTE_INTERACTIONS_LEGACY_OPT "-Compute_interactions_legacy"
 
 #define MAX_LEVEL_OPT "-Max_level"
 #define MAX_RESTART_LEVEL_OPT "-Regrid_level"
@@ -94,6 +95,7 @@ void options::show_help() {
             "-Theta                                - 'Opening criterion' for FMM (default 0.35). Must be between 1/3 and 1/2, inclusive. Larger values\n"
             "                                        mean faster FMM execution but a higher solution error.\n"
             "-Xscale=<xmax>                        - The domain of the coarsest grid is set to (-xmax,xmax) for each all three dimensions (default 1.0)\n"
+            "-Compute_interactions_legacy          - Use the legacy compute_interactions solver is used for non-leaf nodes.\n"
             "\n"
             "");
 }
@@ -118,6 +120,7 @@ bool options::process_options(int argc, char* argv[]) {
     stop_time = std::numeric_limits<real>::max() - 1;
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
+    compute_interactions_legacy = false;
 
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
@@ -187,6 +190,8 @@ bool options::process_options(int argc, char* argv[]) {
             stop_time = atof(argv[i] + strlen(STOPTIME_OPT) + 1);
         } else if (cmp(argv[i], STOPSTEP_OPT)) {
             stop_step = atoi(argv[i] + strlen(STOPSTEP_OPT) + 1);
+        } else if (cmp(argv[i], COMPUTE_INTERACTIONS_LEGACY_OPT)) {
+            compute_interactions_legacy = true;
         } else {
             printf("Unknown option - %s\n", argv[i]);
             abort();

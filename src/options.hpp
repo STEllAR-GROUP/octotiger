@@ -51,6 +51,7 @@ public:
 	bool ang_con;
     bool disable_output;
     std::string data_dir;
+    bool compute_interactions_legacy;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -75,6 +76,7 @@ public:
 		arc & tmp;
 		eos = (eos_type)tmp;
         arc & data_dir;
+        arc & compute_interactions_legacy;
 	}
 
 	bool process_options(int argc, char* argv[]);
