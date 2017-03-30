@@ -350,7 +350,7 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
             a += child_descendant_count[ci];
         }
     }
-    clear_family();
+   // clear_family();
     if( is_refined ) {
     	return hpx::when_all(futs);
     } else {

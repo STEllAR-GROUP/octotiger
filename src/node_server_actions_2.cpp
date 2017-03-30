@@ -76,7 +76,8 @@ hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) 
     auto rc = hpx::new_<node_server
         >(id, my_location, step_num, is_refined, current_time, rotational_time,
             child_descendant_count, std::move(*grid_ptr), cids, std::size_t(hcycle), std::size_t(gcycle));
-    clear_family();
+  //  clear_family();
+    me = hpx::invalid_id;
     return rc;
 }
 
