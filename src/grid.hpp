@@ -581,6 +581,4 @@ void grid::save(Archive& arc, const unsigned) const {
 	arc << U_out;
 }
 
-#include "grid_fmm_new.hpp"
-
 #endif /* GRID_HPP_ */

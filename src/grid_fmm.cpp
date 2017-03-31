@@ -10,7 +10,7 @@
 #include "simd.hpp"
 #include "taylor.hpp"
 #include "physcon.hpp"
-
+#include "grid_fmm_new.hpp"
 
 #include <hpx/include/parallel_for_loop.hpp>
 
