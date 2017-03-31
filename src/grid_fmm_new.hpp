@@ -649,14 +649,17 @@ set_basis(
         {
             auto const d1ti = d1[ti];                                           // 1 FP LOAD FROM CACHE
             auto const d2ti = d2[ti];                                           // 1 FP LOAD FROM CACHE
+            auto const d3ti = d3[ti];                                           // 1 FP LOAD FROM CACHE
             auto const Xati = Xa[ti];                                           // 1 FP LOAD FROM TILE
+
             Aaa[ti]   += d1ti;                                                  // 1 FP LOAD FROM TILE, 1 FP ADD, 1 FP STORE TO TILE
             Aaaa[ti]  += Xati * d2ti;                                           // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP STORE TO TILE
-            Aaaaa[ti] += Xati * Xati + 2.0 * d2ti;                              // 1 FP LOAD FROM TILE, 2 FP FMA, 1 FP STORE TO TILE 
+            Aaaaa[ti] += Xati * Xati * d3ti + 2.0 * d2ti;                       // 1 FP LOAD FROM TILE, 2 FP FMA, 1 FP STORE TO TILE 
 
-            s.add_fp_cacheloads(2);
+            s.add_fp_cacheloads(3);
             s.add_fp_tileloads( 4);
             s.add_fp_adds(      1);
+            s.add_fp_muls(      1);
             s.add_fp_fmas(      3);
             s.add_fp_tilestores(3);
         }
@@ -690,17 +693,20 @@ set_basis(
                 auto const d3ti = d3[ti];                                       // 1 FP LOAD FROM CACHE
                 auto const Xati = Xa[ti];                                       // 1 FP LOAD FROM TILE
                 auto const Xbti = Xb[ti];                                       // 1 FP LOAD FROM TILE
+
+                auto const Xabd3 = Xati * Xbti * d3ti;                          // 2 FP MULS
+
                 Aaab[ti]  += Xbti * d2ti;                                       // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP STORE TO TILE
                 Aabb[ti]  += Xati * d2ti;                                       // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP STORE TO TILE
-                Aaaab[ti] += Xati * Xbti * d3ti;                                // 1 FP LOAD FROM TILE, 1 FP MUL, 1 FP FMA, 1 FP STORE TO TILE
-                Aabbb[ti] += Xati * Xbti * d3ti;                                // 1 FP LOAD FROM TILE, 1 FP MUL, 1 FP FMA, 1 FP STORE TO TILE
+                Aaaab[ti] += Xabd3;                                             // 1 FP LOAD FROM TILE, 1 FP ADD, 1 FP STORE TO TILE
+                Aabbb[ti] += Xabd3;                                             // 1 FP LOAD FROM TILE, 1 FP ADD, 1 FP STORE TO TILE
                 Aaabb[ti] += d2ti;                                              // 1 FP LOAD FROM TILE, 1 FP ADD, 1 FP STORE TO TILE
 
                 s.add_fp_cacheloads(2);
                 s.add_fp_tileloads( 7);
-                s.add_fp_adds(      1);
+                s.add_fp_adds(      3);
                 s.add_fp_muls(      2);
-                s.add_fp_fmas(      4);
+                s.add_fp_fmas(      2);
                 s.add_fp_tilestores(5);
             }
         }
@@ -731,18 +737,20 @@ set_basis(
                 #pragma omp simd 
                 for (integer ti = 0; ti < TileWidth; ++ti)                      // TRIP COUNT: 10 * TileWidth; UNIT STRIDE
                 {
-                    auto const d2ti = d2[ti];                                   // 1 FP LOAD FROM CACHE
                     auto const d3ti = d3[ti];                                   // 1 FP LOAD FROM CACHE
                     auto const Xati = Xa[ti];                                   // 1 FP LOAD FROM TILE
                     auto const Xbti = Xb[ti];                                   // 1 FP LOAD FROM TILE
                     auto const Xcti = Xc[ti];                                   // 1 FP LOAD FROM TILE
-                    Aaabc[ti] += Xati * Xcti * d2ti;                            // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP MUL, 1 FP STORE TO TILE
-                    Aabbc[ti] += Xbti * Xcti * d3ti;                            // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP MUL, 1 FP STORE TO TILE
-                    Aabcc[ti] += Xati * Xbti * d3ti;                            // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP MUL, 1 FP STORE TO TILE
 
-                    s.add_fp_cacheloads(2);
+                    auto const Xbd3 = Xbti * d3ti;                              // 1 FP MUL
+
+                    Aaabc[ti] += Xbd3 * Xcti;                                   // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP STORE TO TILE
+                    Aabbc[ti] += Xati * Xcti * d3ti;                            // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP MUL, 1 FP STORE TO TILE
+                    Aabcc[ti] += Xati * Xbd3;                                   // 1 FP LOAD FROM TILE, 1 FP FMA, 1 FP STORE TO TILE
+
+                    s.add_fp_cacheloads(1);
                     s.add_fp_tileloads( 6);
-                    s.add_fp_muls(      3);
+                    s.add_fp_muls(      2);
                     s.add_fp_fmas(      3);
                     s.add_fp_tilestores(3);
                 }
