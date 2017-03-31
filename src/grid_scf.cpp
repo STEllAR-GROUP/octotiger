@@ -493,7 +493,7 @@ void node_server::run_scf(std::string const& data_dir) {
 			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
 			diags.secondary_volume, diags.roche_vol2);
         if (i % 10 == 0) {
-			regrid(me.get_unmanaged_gid(), omega, false);
+			regrid(me.get_unmanaged_gid(), omega, -1, false);
 		}
         else {
             grid::set_omega(omega);

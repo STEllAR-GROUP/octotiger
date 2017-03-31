@@ -18,6 +18,8 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
+
+
 extern options opts;
 
 #ifdef RADIATION
@@ -315,7 +317,7 @@ void grid::set_pivot(const space_vector& p) {
 //	pivot[0] = pivot[1] = pivot[2] = 0.0;
 }
 
-inline real minmod(real a, real b) {
+OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
 //    return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
 	bool a_is_neg = a < 0;
 	bool b_is_neg = b < 0;
@@ -326,11 +328,11 @@ inline real minmod(real a, real b) {
 	return a_is_neg ? -val : val;
 }
 
-inline real minmod_theta(real a, real b, real c, real theta) {
+OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real c, real theta) {
 	return minmod(theta * minmod(a, b), c);
 }
 
-inline real minmod_theta(real a, real b, real theta = 1.0) {
+OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real theta = 1.0) {
 	return minmod(theta * minmod(a, b), HALF * (a + b));
 }
 
@@ -450,30 +452,6 @@ void grid::set_flux_restrict(const std::vector<real>& data, const std::array<int
 			}
 		}
 	}PROF_END;
-}
-
-real grid::get_dx() const {
-	return dx;
-}
-
-const std::vector<real>& grid::get_field(integer f) const {
-	return U[f];
-}
-
-std::vector<real>& grid::get_field(integer f) {
-	return U[f];
-}
-
-void grid::set_field(std::vector<real>&& data, integer f) {
-	U[f] = std::move(data);
-}
-
-void grid::set_field(const std::vector<real>& data, integer f) {
-	U[f] = data;
-}
-
-void grid::set_outflows(std::vector<real>&& u) {
-	U_out = std::move(u);
 }
 
 void grid::set_prolong(const std::vector<real>& data, std::vector<real>&& outflows) {
@@ -956,7 +934,7 @@ std::vector<real> grid::l_sums() const {
 	return sum;
 }
 
-bool grid::refine_me(integer lev) const {
+bool grid::refine_me(integer lev, integer last_ngrids) const {
 	PROF_BEGIN;
 	auto test = get_refine_test();
 	if (lev < 2) {
@@ -1009,10 +987,6 @@ bool grid::refine_me(integer lev) const {
 		}
 	}PROF_END;
 	return rc;
-}
-
-grid::~grid() {
-
 }
 
 void grid::rho_mult(real f0, real f1) {
@@ -1263,9 +1237,10 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 #pragma GCC ivdep
 					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 						const integer iii = hindex(i, j, k);
-						dU[rho_i][iii] = dV[rho_i][iii];
+						dU[rho_i][iii] = 0.0;
 						for (integer si = 0; si != NSPECIES; ++si) {
 							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
+							dU[rho_i][iii] += dU[spc_i + si][iii];
 						}
 						if (node_server::is_gravity_on()) {
 							dU[pot_i][iii] = V[pot_i][iii] * dV[rho_i][iii] + dV[pot_i][iii] * V[rho_i][iii];
@@ -1308,49 +1283,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 	PROF_END;
 }
 
-void grid::set_root(bool flag) {
-	is_root = flag;
-}
-
-void grid::set_leaf(bool flag) {
-	if (is_leaf != flag) {
-		is_leaf = flag;
-	}
-}
-
-void grid::set_fgamma(real fg) {
-	fgamma = fg;
-}
-
-real grid::get_fgamma() {
-	return fgamma;
-}
-
 real grid::fgamma = 5.0 / 3.0;
-
-void grid::set_scaling_factor(real f) {
-	scaling_factor = f;
-}
-
-real grid::get_scaling_factor() {
-	return scaling_factor;
-}
-
-bool grid::get_leaf() const {
-	return is_leaf;
-}
-
-space_vector grid::get_pivot() {
-	return pivot;
-}
-
-real grid::get_source(integer i, integer j, integer k) const {
-	return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
-}
-
-std::vector<real> grid::get_outflows() {
-	return U_out;
-}
 
 void grid::set_coordinates() {
 	PROF_BEGIN;
@@ -1494,17 +1427,20 @@ inline void limit_range_all(real am, real ap, real& bl, real& br) {
 ;
 
 inline void limit_slope(real& ql, real q0, real& qr) {
-	const real tmp1 = qr - ql;
-	const real tmp2 = qr + ql;
-//	if ((qr - q0) * (q0 - ql) <= 0.0) {
-//    if (qr < q0 || q0 < ql) {
-	if (bool(qr < q0) != bool(q0 < ql)) {
-		qr = ql = q0;
-	} else if (tmp1 * (q0 - 0.5 * tmp2) > sqr(tmp1) * SIXTH) {
-		ql = 3.0 * q0 - 2.0 * qr;
-	} else if (-(sqr(tmp1) * SIXTH) > tmp1 * (q0 - 0.5 * tmp2)) {
-		qr = 3.0 * q0 - 2.0 * ql;
-	}
+    const real tmp1 = qr - ql;
+    const real tmp2 = qr + ql;
+
+    if (bool(qr < q0) != bool(q0 < ql)) {
+        qr = ql = q0;
+        return;
+    }
+    const real tmp3 = sqr(tmp1) * SIXTH;
+    const real tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+    if (tmp4 > tmp3) {
+        ql = 3.0 * q0 - 2.0 * qr;
+    } else if (-tmp3 > tmp4) {
+        qr = 3.0 * q0 - 2.0 * ql;
+    }
 }
 ;
 

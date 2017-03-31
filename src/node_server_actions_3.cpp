@@ -213,14 +213,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
     }
 }
 
-typedef node_server::start_run_action start_run_action_type;
-HPX_REGISTER_ACTION(start_run_action_type);
-
-hpx::future<void> node_client::start_run(bool b) const {
-    return hpx::async<typename node_server::start_run_action>(get_unmanaged_gid(), b);
-}
-
-void node_server::start_run(bool scf)
+void node_server::start_run(bool scf, integer ngrids)
 {
     timings_.times_[timings::time_regrid] = 0.0;
     timings::scope ts(timings_, timings::time_total);
@@ -257,7 +250,7 @@ void node_server::start_run(bool scf)
 
     printf("Starting...\n");
     solve_gravity(false);
-    int ngrids = regrid(me.get_gid(), grid::get_omega(), false);
+    ngrids = regrid(me.get_gid(), grid::get_omega(), -1,  false);
 
     real output_dt = opts.output_dt;
 
@@ -282,11 +275,11 @@ void node_server::start_run(bool scf)
         if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
             //	if (step_num != 0) {
 
-            char fname[33];    // 21 bytes for int (max) + some leeway
-            sprintf(fname, "X.%i.chk", int(output_cnt));
+            std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
             save_to_file(fname, opts.data_dir);
+            printf("doing silo out...\n");
 
-            sprintf(fname, "%sX.%i.silo", opts.data_dir.c_str(), int(output_cnt));
+            fname = opts.data_dir + "X." + std::to_string(int(output_cnt));
             output(fname, output_cnt, false);
 
             //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
@@ -305,6 +298,7 @@ void node_server::start_run(bool scf)
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
+            printf("dwd step...\n");
             auto result = root_step_with_diagnostics(next_step - step_num).get();
             auto diags = hpx::util::get<2>(result);
             dt = hpx::util::get<0>(result);
@@ -318,15 +312,20 @@ void node_server::start_run(bool scf)
                 - diags.primary_com_dot[YDIM];
             theta = atan2(dy, dx);
             omega = grid::get_omega();
-            theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
-            const real w0 = grid::get_omega() * 100.0;
-            const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
-            omega_dot = theta_dot_dot;
-            omega += omega_dot * dt;
-//            omega_dot += theta_dot_dot*dt;
+            printf( "Old Omega = %e\n", omega );
+           if( opts.vomega ) {
+            	theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
+            	const real w0 = grid::get_omega() * 100.0;
+            	const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
+            	omega_dot = theta_dot_dot;
+            	omega += omega_dot * dt;
+            }
+            printf( "New Omega = %e\n", omega );
+ //            omega_dot += theta_dot_dot*dt;
 //             grid::set_omega(omega);          // now done during check_for_refinement below
         }
         else {
+            printf("normal step...\n");
             auto dt_and_s = step(next_step - step_num).get();
             dt = hpx::util::get<0>(dt_and_s); 
             s = hpx::util::get<1>(dt_and_s); 
@@ -364,7 +363,14 @@ void node_server::start_run(bool scf)
         step_num = next_step;
 
         if (step_num % refinement_freq() == 0) {
-            ngrids = regrid(me.get_gid(), omega, false);
+        	real new_floor = opts.refinement_floor;
+			if (opts.ngrids > 0) {
+				new_floor *= std::pow( real(ngrids) / real(opts.ngrids), 2);
+				printf("Old refinement floor = %e\n", opts.refinement_floor);
+				printf("New refinement floor = %e\n", new_floor);
+			}
+
+            ngrids = regrid(me.get_gid(), omega, new_floor, false);
 
             // run output on separate thread
             auto need_break = hpx::threads::run_as_os_thread([&]()
@@ -407,12 +413,19 @@ void node_server::start_run(bool scf)
         timings::scope ts(timings_, timings::time_compare_analytic);
         compare_analytic();
         if (!opts.disable_output)
-            output("final.silo", output_cnt, true);
+            output("final", output_cnt, true);
     }
 
     if(opts.bench && !opts.disable_output) {
         hpx::threads::run_as_os_thread([&]()
         {
+            std::string fname;
+            if (output_cnt > 0)
+                fname = opts.data_dir + "X." + std::to_string(int(output_cnt) - 1) + ".chk";
+            else
+                fname = opts.data_dir + "X.0.chk";
+
+            file_copy(fname.c_str(), (opts.data_dir + "restart.chk").c_str());
             FILE* fp = fopen( (opts.data_dir + "scaling.dat").c_str(), "at");
             const auto nproc = options::all_localities.size();
             fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));

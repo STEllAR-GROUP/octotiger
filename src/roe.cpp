@@ -21,42 +21,16 @@ const integer acr_i = sy_i;
 const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
-real ztwd_pressure(real d, real A, real B) {
-	const real x = pow(d / B, 1.0 / 3.0);
-	real p;
-	if (x < 0.01) {
-		p = 1.6 * A * pow(x, 5);
-	} else {
-		p = A * (x * (2.0 * x * x - 3.0) * sqrt(x * x + 1.0) + 3.0 * asinh(x));
-	}
-	return p;
-}
-
-real ztwd_enthalpy(real d, real A, real B) {
-	const real x = pow(d / B, 1.0 / 3.0);
-	real h;
-	if (x < 0.01) {
-		h = 4.0 * A / B * x * x;
-	} else {
-		h = 8.0 * A / B * (sqrt(x * x + 1.0) - 1.0);
-	}
-	return h;
-}
-
-real ztwd_energy(real d, real A, real B) {
-	return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), real(0));
-}
-
 real ztwd_sound_speed(real d, real ei) {
-	const real A = physcon.A;
-	const real B = physcon.B;
-	real x, dp_depsilon, dp_drho, cs2;
-	const real fgamma = grid::get_fgamma();
-	x = pow(d / B, 1.0 / 3.0);
-	dp_drho = ((8.0 * A) / (3.0 * B)) * x * x / sqrt(x * x + 1.0) + (fgamma - 1.0) * ei / d;
-	dp_depsilon = (fgamma - 1.0) * d;
-	cs2 = std::max(((fgamma - 1.0) * ei / (d * d)) * dp_depsilon + dp_drho, real(0));
-	return sqrt(cs2);
+    const real A = physcon.A;
+    const real B = physcon.B;
+    real x, dp_depsilon, dp_drho, cs2;
+    const real fgamma = grid::get_fgamma();
+    x = pow(d / B, 1.0 / 3.0);
+    dp_drho = ((8.0 * A) / (3.0 * B)) * sqr(x) / sqrt(sqr(x) + 1.0) + (fgamma - 1.0) * ei / d;
+    dp_depsilon = (fgamma - 1.0) * d;
+    cs2 = std::max(((fgamma - 1.0) * ei / sqr(d)) * dp_depsilon + dp_drho, real(0));
+    return sqrt(cs2);
 }
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL, std::array<std::vector<real>, NF>& UR,

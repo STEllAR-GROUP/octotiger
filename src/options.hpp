@@ -32,6 +32,9 @@ class options {
 	bool cmp(const std::string str1, const char* str2);
 	void show_help();
 public:
+	bool vomega;
+	real refinement_floor;
+	bool refinement_floor_specified;
 	eos_type eos;
 	integer max_level;
 	integer max_restart_level;
@@ -46,15 +49,24 @@ public:
 	real stop_time;
     integer stop_step;
 	real contact_fill;
+	integer ngrids;
 	bool bench;
 	real theta;
 	bool ang_con;
     bool disable_output;
+    bool parallel_silo;
+    bool silo_planes_only;
     std::string data_dir;
     bool compute_interactions_legacy;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & refinement_floor;
+		arc & refinement_floor_specified;
+		arc & ngrids;
+		arc & vomega;
+		arc & parallel_silo;
+		arc & silo_planes_only;
 		arc & ang_con;
 		arc & stop_time;
 		arc & max_level;

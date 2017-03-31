@@ -76,28 +76,28 @@ private:
     hpx::util::array<T, my_size> data;
 
 public:
-    constexpr T& operator[](integer i) {
+    OCTOTIGER_FORCEINLINE constexpr T& operator[](integer i) {
         return data[i];
     }
-    constexpr const T& operator[](integer i) const {
+    OCTOTIGER_FORCEINLINE constexpr const T& operator[](integer i) const {
         return data[i];
     }
-    static constexpr decltype(my_size) size() {
+    OCTOTIGER_FORCEINLINE static constexpr decltype(my_size) size() {
         return my_size;
     }
     constexpr taylor() = default;
     ~taylor() = default;
     constexpr taylor(const taylor<N, T>&) = default;
-    constexpr taylor(taylor<N, T>&& other) {
+    OCTOTIGER_FORCEINLINE constexpr taylor(taylor<N, T>&& other) {
         data = std::move(other.data);
     }
     constexpr taylor<N, T>& operator=(const taylor<N, T>&) = default;
-    constexpr taylor<N, T>& operator=(taylor<N, T>&& other) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator=(taylor<N, T>&& other) {
         data = std::move(other.data);
         return *this;
     }
 
-    constexpr taylor<N, T>& operator=(T d) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator=(T d) {
 //#if !defined(HPX_HAVE_DATAPAR)
 //#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
@@ -109,7 +109,7 @@ public:
         return *this;
     }
 
-    constexpr taylor<N, T>& operator*=(T d) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator*=(T d) {
 //#if !defined(HPX_HAVE_DATAPAR)
 //#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
@@ -122,7 +122,7 @@ public:
         return *this;
     }
 
-    constexpr taylor<N, T>& operator/=(T d) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator/=(T d) {
 //#if !defined(HPX_HAVE_DATAPAR)
 //#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
@@ -135,7 +135,7 @@ public:
         return *this;
     }
 
-    constexpr taylor<N, T>& operator+=(const taylor<N, T>& other) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator+=(const taylor<N, T>& other) {
 // #if !defined(HPX_HAVE_DATAPAR)
 //#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
@@ -154,7 +154,7 @@ public:
         return *this;
     }
 
-    constexpr taylor<N, T>& operator-=(const taylor<N, T>& other) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator-=(const taylor<N, T>& other) {
 // #if !defined(HPX_HAVE_DATAPAR)
 //#pragma GCC ivdep
         for (integer i = 0; i != my_size; ++i) {
@@ -173,35 +173,35 @@ public:
         return *this;
     }
 
-    constexpr taylor<N, T> operator+(const taylor<N, T>& other) const {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T> operator+(const taylor<N, T>& other) const {
         taylor<N, T> r = *this;
         r += other;
         return r;
     }
 
-    constexpr taylor<N, T> operator-(const taylor<N, T>& other) const {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T> operator-(const taylor<N, T>& other) const {
         taylor<N, T> r = *this;
         r -= other;
         return r;
     }
 
-    constexpr taylor<N, T> operator*(const T& d) const {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T> operator*(const T& d) const {
         taylor<N, T> r = *this;
         r *= d;
         return r;
     }
 
-    constexpr taylor<N, T> operator/(const T& d) const {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T> operator/(const T& d) const {
         taylor<N, T> r = *this;
         r /= d;
         return r;
     }
 
-    constexpr taylor<N, T> operator+() const {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T> operator+() const {
         return *this;
     }
 
-    taylor<N, T>& operator+=(v4sd const& other) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator+=(v4sd const& other) {
 //#pragma GCC ivdep
         for (integer i = 0; i != 4; ++i) {
             data[i] += other[i];
@@ -232,67 +232,67 @@ public:
 //    }
 //#endif
 
-    static constexpr integer index() {
+    OCTOTIGER_FORCEINLINE static constexpr integer index() {
         return 0;
     }
 
-    static constexpr integer index(integer i) {
+    OCTOTIGER_FORCEINLINE static constexpr integer index(integer i) {
         return 1 + i;
     }
 
-    static constexpr integer index(integer i, integer j) {
+    OCTOTIGER_FORCEINLINE static constexpr integer index(integer i, integer j) {
         return taylor_map2[i][j];
     }
 
-    static constexpr integer index(integer i, integer j, integer k) {
+    OCTOTIGER_FORCEINLINE static constexpr integer index(integer i, integer j, integer k) {
         return taylor_map3[i][j][k];
     }
 
-    static constexpr integer index(integer i, integer j, integer k, integer l) {
+    OCTOTIGER_FORCEINLINE static constexpr integer index(integer i, integer j, integer k, integer l) {
         return taylor_map4[i][j][k][l];
     }
 
-    constexpr T const& operator()() const {
+    OCTOTIGER_FORCEINLINE constexpr T const& operator()() const {
         return data[index()];
     }
 
-    constexpr T const& operator()(integer i) const {
+    OCTOTIGER_FORCEINLINE constexpr T const& operator()(integer i) const {
         return data[index(i)];
     }
 
-    constexpr T const& operator()(integer i, integer j) const {
+    OCTOTIGER_FORCEINLINE constexpr T const& operator()(integer i, integer j) const {
         return data[index(i, j)];
     }
 
-    constexpr T const& operator()(integer i, integer j, integer k) const {
+    OCTOTIGER_FORCEINLINE constexpr T const& operator()(integer i, integer j, integer k) const {
         return data[index(i, j, k)];
     }
 
-    constexpr T const& operator()(integer i, integer j, integer k, integer l) const {
+    OCTOTIGER_FORCEINLINE constexpr T const& operator()(integer i, integer j, integer k, integer l) const {
         return data[index(i, j, k, l)];
     }
 
-    constexpr T& operator()() {
+    OCTOTIGER_FORCEINLINE constexpr T& operator()() {
         return data[index()];
     }
 
-    constexpr T& operator()(integer i) {
+    OCTOTIGER_FORCEINLINE constexpr T& operator()(integer i) {
         return data[index(i)];
     }
 
-    constexpr T& operator()(integer i, integer j) {
+    OCTOTIGER_FORCEINLINE constexpr T& operator()(integer i, integer j) {
         return data[index(i, j)];
     }
 
-    constexpr T& operator()(integer i, integer j, integer k) {
+    OCTOTIGER_FORCEINLINE constexpr T& operator()(integer i, integer j, integer k) {
         return data[index(i, j, k)];
     }
 
-    constexpr T& operator()(integer i, integer j, integer k, integer l) {
+    OCTOTIGER_FORCEINLINE constexpr T& operator()(integer i, integer j, integer k, integer l) {
         return data[index(i, j, k, l)];
     }
 
-    constexpr taylor<N, T>& operator>>=(const std::array<T, NDIM>& X) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator>>=(const std::array<T, NDIM>& X) {
         // PROF_BEGIN;
         const taylor<N, T>& A = *this;
         taylor<N, T> B = A;
@@ -327,13 +327,13 @@ public:
         return *this;
     }
 
-    constexpr taylor<N, T> operator>>(const std::array<T, NDIM>& X) const {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T> operator>>(const std::array<T, NDIM>& X) const {
         taylor<N, T> r = *this;
         r >>= X;
         return r;
     }
 
-    constexpr taylor<N, T>& operator<<=(const std::array<T, NDIM>& X) {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T>& operator<<=(const std::array<T, NDIM>& X) {
         // PROF_BEGIN;
         const taylor<N, T>& A = *this;
         taylor<N, T> B = A;
@@ -383,25 +383,26 @@ public:
         return *this;
     }
 
-    taylor<N, T> operator<<(const std::array<T, NDIM>& X) const {
+    OCTOTIGER_FORCEINLINE constexpr taylor<N, T> operator<<(const std::array<T, NDIM>& X) const {
         taylor<N, T> r = *this;
         r <<= X;
         return r;
     }
 
+    // FIXME: CONSTEXPR?
     void set_basis(const std::array<T, NDIM>& X);
 
-    constexpr T* ptr() {
+    OCTOTIGER_FORCEINLINE constexpr T* ptr() {
         return data.data();
     }
 
-    constexpr const T* ptr() const {
+    OCTOTIGER_FORCEINLINE constexpr const T* ptr() const {
         return data.data();
     }
 
     template <class Arc>
     void serialize(Arc& arc, const unsigned) {
-        arc& data;
+        arc & data;
     }
 };
 

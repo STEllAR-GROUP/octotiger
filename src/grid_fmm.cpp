@@ -270,17 +270,9 @@ void grid::compute_interactions_legacy(gsolve_type type) {
     // L should be L, (10) in the paper
     // L_c stores the correction for angular momentum
     // L_c, (20) in the paper (Dominic)
-#if defined(HPX_HAVE_DATAPAR)
-    hpx::parallel::fill(hpx::parallel::execution::dataseq, L.begin(), L.end(), ZERO);
-#else
     std::fill(std::begin(L), std::end(L), ZERO);
-#endif
     if (opts.ang_con) {
-#if defined(HPX_HAVE_DATAPAR)
-        hpx::parallel::fill(hpx::parallel::execution::dataseq, L_c.begin(), L_c.end(), ZERO);
-#else
         std::fill(std::begin(L_c), std::end(L_c), ZERO);
-#endif
     }
 
     // Non-leaf nodes use taylor expansion
@@ -1250,7 +1242,8 @@ void compute_ilist() {
             }
         }
     }
-    printf("# direct = %i\n", int(max_d));
+
+//     printf("# direct = %i\n", int(max_d));
     ilist_n = std::vector<interaction_type>(ilist_n0.begin(), ilist_n0.end());
     ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
     ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());

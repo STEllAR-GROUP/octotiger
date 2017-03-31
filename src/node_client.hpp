@@ -28,7 +28,7 @@ private:
     hpx::id_type unmanaged;
 	bool local;
 public:
-	bool is_local();
+	bool is_local() const;
 	template<class Arc>
 	void load(Arc& arc, unsigned)
     {
@@ -61,15 +61,15 @@ public:
 	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
-	hpx::future<grid::output_list_type> load(integer, const hpx::id_type&, bool do_output,std::string) const;
+	hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	hpx::future<analytic_t> compare_analytic() const;
 	hpx::future<grid::output_list_type> output(std::string fname, int, bool) const;
 	node_client();
-	hpx::future<std::vector<hpx::id_type>> get_nieces(const hpx::id_type&, const geo::face&) const;
+	hpx::future<bool> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
-	hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::id_type>& );
+	hpx::future<void> form_tree(hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&& );
 	hpx::future<hpx::id_type> get_child_client(const geo::octant&);
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;
@@ -81,8 +81,6 @@ public:
 	hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> step(integer) const;
 	hpx::future<hpx::util::tuple<real, compute_interactions_stats_t, diagnostics_t> > step_with_diagnostics(integer,
         const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const;
-	hpx::future<void> start_run(bool) const;
-	hpx::future<void> regrid(const hpx::id_type&, real omega, bool rb) const;
 	hpx::future<compute_interactions_stats_t> solve_gravity(bool ene) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
@@ -90,8 +88,8 @@ public:
     void set_local_timestep(integer, real) const;
 	hpx::future<grid::output_list_type> output() const;
 	hpx::future<void> velocity_inc(const space_vector&) const;
-	integer save(integer,std::string) const;
-	hpx::future<void> check_for_refinement(real omega) const;
+    hpx::future<void> save(integer,std::string) const;
+	hpx::future<void> check_for_refinement(real omega, real) const;
 	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
 
     void report_timing() const;

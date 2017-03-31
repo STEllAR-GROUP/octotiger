@@ -31,6 +31,7 @@ class rad_grid;
 #include <hpx/runtime/serialization/vector.hpp>
 #include <hpx/traits/is_bitwise_serializable.hpp>
 
+#include <iostream>
 #include <functional>
 #include <list>
 #include <memory>
@@ -184,8 +185,12 @@ public:
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
 	static void set_max_level(integer l);
-	static void set_fgamma(real);
-	static real get_fgamma();
+	static void set_fgamma(real fg) {
+	    fgamma = fg;
+    }
+	static real get_fgamma() {
+	    return fgamma;
+    }
 	static void set_analytic_func(const analytic_func_type& func);
 private:
 	static analytic_func_type analytic;
@@ -239,21 +244,43 @@ public:
 #endif
 	void change_units( real mass, real length, real time, real temp);
 	static hpx::future<void> static_change_units( real mass, real length, real time, real temp);
-	real get_dx() const;
-	std::vector<real>& get_field( integer f );
-	const std::vector<real>& get_field( integer f ) const;
-	void set_field( std::vector<real>&& data, integer f );
-	void set_field( const std::vector<real>& data, integer f );
+	real get_dx() const { return dx; }
+	std::vector<real>& get_field( integer f ) { return U[f]; }
+	const std::vector<real>& get_field( integer f ) const { return U[f]; }
+	void set_field( std::vector<real>&& data, integer f ) {
+	    U[f] = std::move(data);
+    }
+	void set_field( const std::vector<real>& data, integer f ) {
+	    U[f] = data;
+    }
 	analytic_t compute_analytic(real);
 	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const gravity_boundary_type&);
-	static void set_scaling_factor(real f);
-	static real get_scaling_factor();
-	bool get_leaf() const;
-	static space_vector get_pivot();
-	real get_source(integer i, integer j, integer k) const;
-	std::vector<real> get_outflows();
-	void set_root(bool flag = true);
-	void set_leaf(bool flag = true);
+	static void set_scaling_factor(real f) {
+	    scaling_factor = f;
+    }
+	static real get_scaling_factor() {
+	    return scaling_factor;
+    }
+	bool get_leaf() const {
+	    return is_leaf;
+    }
+	static space_vector get_pivot() {
+	    return pivot;
+    }
+	real get_source(integer i, integer j, integer k) const {
+	    return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
+    }
+	std::vector<real> const& get_outflows() const {
+	    return U_out;
+    }
+	void set_root(bool flag = true) {
+	    is_root = flag;
+    }
+	void set_leaf(bool flag = true) {
+	    if (is_leaf != flag) {
+		    is_leaf = flag;
+	    }
+    }
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
 	static void set_omega(real, bool bcast=true);
 	static real& get_omega();
@@ -274,7 +301,9 @@ public:
 	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, output_list_type&& l2);
 	void velocity_inc(const space_vector& dv);
-	void set_outflows(std::vector<real>&&);
+	void set_outflows(std::vector<real>&& u) {
+	    U_out = std::move(u);
+    }
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only=false);
@@ -282,7 +311,7 @@ public:
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension&);
 	space_vector center_of_mass() const;
-	bool refine_me(integer lev) const;
+	bool refine_me(integer lev, integer last_ngrids) const;
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();
@@ -307,7 +336,7 @@ public:
 	grid(const init_func_type&, real dx, std::array<real, NDIM> xmin);
 	grid(real dx, std::array<real, NDIM>);
 	grid();
-	~grid();
+	~grid() {}
 	grid(const grid&) = delete;
 	grid(grid&&) = default;
 	grid& operator=(const grid&) = delete;
@@ -315,25 +344,26 @@ public:
 	std::pair<space_vector,space_vector> find_axis() const;
 	space_vector get_cell_center(integer i, integer j, integer k);
 	gravity_boundary_type get_gravity_boundary(const geo::direction& dir, bool is_local);
-   void allocate();
-   void reconstruct();
-   void store();
-   void restore();
+    void allocate();
+    void reconstruct();
+    void store();
+    void restore();
     real compute_fluxes();
-   void compute_sources(real t);
-   void set_physical_boundaries(const geo::face&, real t);
-   void next_u(integer rk, real t, real dt);
-   static void output(const output_list_type&, std::string, real t, int cycle, bool a);
-   output_list_type get_output_list(bool analytic) const;
-   template<class Archive>
-   void load(Archive& arc, const unsigned);
-   template<class Archive>
-   void save(Archive& arc, const unsigned) const;
-   HPX_SERIALIZATION_SPLIT_MEMBER();
-   std::size_t load(FILE* fp);
-   std::size_t save(FILE* fp) const;
-   std::pair<real,real> virial() const;
-   friend class node_server;
+    void compute_sources(real t);
+    void set_physical_boundaries(const geo::face&, real t);
+    void next_u(integer rk, real t, real dt);
+    static void output(const output_list_type&, std::string, real t, int cycle, bool a);
+    static void output_header(std::string, real t, int cycle, bool a, int procs);
+    output_list_type get_output_list(bool analytic) const;
+    template<class Archive>
+    void load(Archive& arc, const unsigned);
+    template<class Archive>
+    void save(Archive& arc, const unsigned) const;
+    HPX_SERIALIZATION_SPLIT_MEMBER();
+    std::size_t load(FILE* fp, bool old_format);
+    std::size_t save(std::ostream& strm) const;
+    std::pair<real,real> virial() const;
+    friend class node_server;
 
     void compute_interactions_initialize_L_c(
         std::true_type
@@ -491,7 +521,6 @@ public:
       , gsolve_type SolveKind
         >
     compute_interactions_stats_t compute_interactions_non_leaf();
-
 };
 
 struct grid::node_point {

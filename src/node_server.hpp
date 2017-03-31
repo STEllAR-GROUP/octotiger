@@ -21,6 +21,9 @@
 
 #include <array>
 #include <atomic>
+#include <iostream>
+#include <map>
+#include <vector>
 
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
@@ -31,8 +34,12 @@ namespace hpx {
 
 class node_server: public hpx::components::managed_component_base<node_server> {
 public:
-    static void set_gravity(bool);
-    static void set_hydro(bool);
+    static void set_gravity(bool b) {
+        gravity_on = b;
+    }
+    static void set_hydro(bool b) {
+        hydro_on = b;
+}
 private:
     struct neighbor_gravity_type {
         gravity_boundary_type data;
@@ -47,6 +54,7 @@ private:
     std::atomic<integer> refinement_flag;
     static bool hydro_on;
     static bool gravity_on;
+    static std::stack<grid::output_list_type> pending_output;
     node_location my_location;
     integer step_num;
     std::size_t hcycle;
@@ -74,7 +82,7 @@ private:
      /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
      * . Only nieces in the face directions are needed, and in each
      * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/
-    std::vector<std::vector<node_client> > nieces;
+    std::vector<bool> nieces;
     /* An aunt is this node's parent's neighbor, so it is one level coarser.
      *  Only aunts in the 6 face directions are required. Used for AMR boundary handling. */
     std::vector<node_client> aunts;
@@ -98,7 +106,9 @@ public:
     static bool is_gravity_on() {
         return gravity_on;
     }
-    real get_time() const;
+    real get_time() const {
+        return current_time;
+    }
     real get_rotation_count() const;
     node_server& operator=(node_server&&) = default;
 
@@ -131,8 +141,8 @@ public:
         gcycle = _gb;
     }
 
-    std::size_t load_me(FILE* fp);
-    std::size_t save_me(FILE* fp) const;
+    std::size_t load_me(FILE *fp, bool old_format);
+    std::size_t save_me(std::ostream& strm) const;
 private:
 
     static bool static_initialized;
@@ -144,7 +154,7 @@ private:
     void exchange_interlevel_hydro_data();
     static void static_initialize();
     void all_hydro_bounds(bool tau_only = false);
-    void clear_family();
+  //  void clear_family();
     hpx::future<void> exchange_flux_corrections();
 
     hpx::future<compute_interactions_stats_t> nonrefined_step();
@@ -158,12 +168,18 @@ private:
         const std::pair<real, real>& l1, real, real) const;
     hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> local_step(integer steps);
 
+    std::map<integer, std::vector<char> > save_local(integer& cnt, std::string const& filename, hpx::future<void>& child_fut) const;
+
 public:
-     static bool child_is_on_face(integer ci, integer face);
+     static bool child_is_on_face(integer ci, integer face) {
+        return (((ci >> (face / 2)) & 1) == (face & 1));
+    }
 
     std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
-	node_server();
-	~node_server();
+	node_server() {
+	    initialize(ZERO, ZERO);
+    }
+	~node_server() {}
 	node_server(const node_server& other);
 	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
@@ -178,8 +194,12 @@ public:
     void load_from_file(const std::string&, std::string const& data_dir);
     void load_from_file_and_output(const std::string&, const std::string&, std::string const& data_dir);
 
+
     grid::output_list_type output(std::string fname, int cycle, bool analytic) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
+
+    static void parallel_output_gather(grid::output_list_type&&);
+    static void parallel_output_complete(std::string fname, real tm, int cycle, bool analytic);
 
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
@@ -216,16 +236,14 @@ public:
 
     void update();
 
-    int regrid(const hpx::id_type& root_gid, real omega, bool rb);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, regrid, regrid_action);
+    integer regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb);
 
     compute_interactions_stats_t compute_fmm(gsolve_type gs, bool energy_account);
 
     compute_interactions_stats_t solve_gravity(bool ene);
     HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
 
-    void start_run(bool scf);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, start_run, start_run_action);
+    void start_run(bool scf, integer);
 
     void set_grid(const std::vector<real>&, std::vector<real>&&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
@@ -244,8 +262,7 @@ public:
     hpx::id_type get_child_client(const geo::octant&);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-    hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&,
-        const std::vector<hpx::id_type>&);
+    hpx::future<void> form_tree(hpx::id_type, hpx::id_type, std::vector<hpx::id_type>);
     HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
     std::uintptr_t get_ptr();
@@ -260,21 +277,21 @@ public:
 
     diagnostics_t diagnostics() const;
 
-    grid::output_list_type load(integer, const hpx::id_type& _me, bool do_output,
+    grid::output_list_type load(integer, integer, integer, bool do_output,
         std::string);
     HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
 
-    integer save(integer, std::string) const;
+    hpx::future<void> save(integer, std::string const&) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
 
     void set_aunt(const hpx::id_type&, const geo::face& face);
     HPX_DEFINE_COMPONENT_ACTION(node_server, set_aunt, set_aunt_action);
 
-    std::vector<hpx::id_type> get_nieces(const hpx::id_type&,
+    bool set_child_aunt(const hpx::id_type&,
         const geo::face& face) const;
-    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_nieces, get_nieces_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_child_aunt, set_child_aunt_action);
 
-    hpx::future<void> check_for_refinement(real omega);
+    hpx::future<void> check_for_refinement(real omega,real new_floor);
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);
@@ -354,12 +371,11 @@ public:
 // HPX_ACTION_USES_LARGE_STACK(node_server::line_of_centers_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::scf_update_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::set_aunt_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::get_nieces_action);
+// HPX_ACTION_USES_LARGE_STACK(node_server::set_child_aunt_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::load_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::save_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::step_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::solve_gravity_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::start_run_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::copy_to_locality_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::get_child_client_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::get_ptr_action);
@@ -376,7 +392,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::set_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::check_for_refinement_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_aunt_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::get_nieces_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::set_child_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::load_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::save_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);
@@ -389,9 +405,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::step_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::step_with_diagnostics_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::solve_gravity_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::start_run_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::copy_to_locality_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);

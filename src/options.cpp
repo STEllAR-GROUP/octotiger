@@ -14,10 +14,13 @@
 #define PROBLEM_OPT "-Problem"
 #define RESTART_OPT "-Restart"
 #define OUTPUT_OPT "-Output"
+#define NGRIDS_OPT "-Ngrids"
+#define REFINEMENT_FLOOR_OPT "-RefinementFloor"
 #define DATA_DIR_OPT "-Datadir"
 #define ANGCON_OPT "-Angcon"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
+#define VOMEGA_OPT "-VariableOmega"
 #define ODT_OPT "-Odt"
 #define DISABLEOUTPUT_OPT "-Disableoutput"
 #define STOPTIME_OPT "-Stoptime"
@@ -26,6 +29,8 @@
 #define THETA_OPT "-Theta"
 #define EOS_OPT "-Eos"
 #define COMPUTE_INTERACTIONS_LEGACY_OPT "-Compute_interactions_legacy"
+#define PARALLEL_SILO_OPT "-ParallelSilo"
+#define SILO_PLANES_ONLY_OPT "-SiloPlanesOnly"
 
 #define MAX_LEVEL_OPT "-Max_level"
 #define MAX_RESTART_LEVEL_OPT "-Regrid_level"
@@ -92,6 +97,8 @@ void options::show_help() {
             "-Stoptime=<stop time>                 - The simulation runs until the simulation time hits the time specified here, or until the maximum\n"
             "                                        number of steps specified by Stopstep. (default is infinity)\n"
             "\n"
+            "-VariableOmega=1/0                    - 1 turns on variable omega, 0 off. 0 by default, unless problem=dwd, then 1 by default\n"
+            "                                        mean faster FMM execution but a higher solution error.\n"
             "-Theta                                - 'Opening criterion' for FMM (default 0.35). Must be between 1/3 and 1/2, inclusive. Larger values\n"
             "                                        mean faster FMM execution but a higher solution error.\n"
             "-Xscale=<xmax>                        - The domain of the coarsest grid is set to (-xmax,xmax) for each all three dimensions (default 1.0)\n"
@@ -104,9 +111,14 @@ bool options::process_options(int argc, char* argv[]) {
     bool rc;
     eos = IDEAL;
     rc = true;
-    theta = 0.35;
-    max_level = 5;
-    max_restart_level = 0;
+	theta = 0.35;
+	parallel_silo = false;
+	silo_planes_only = false;
+	ngrids = -1;
+	max_level = 5;
+	refinement_floor = -1.0;
+	refinement_floor_specified = false;
+	max_restart_level = 0;
     problem = NONE;
     found_restart_file = false;
     output_only = false;
@@ -121,6 +133,7 @@ bool options::process_options(int argc, char* argv[]) {
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
     compute_interactions_legacy = false;
+    bool vomega_found = false;
 
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
@@ -164,18 +177,30 @@ bool options::process_options(int argc, char* argv[]) {
         } else if (cmp(argv[i], THETA_OPT)) {
             theta = atof(argv[i] + strlen(THETA_OPT) + 1);
         } else if (cmp(argv[i], RESTART_OPT)) {
-            restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
-            found_restart_file = true;
-        } else if (cmp(argv[i], DATA_DIR_OPT)) {
-            data_dir = std::string(argv[i] + strlen(DATA_DIR_OPT) + 1);
-            data_dir += "/";
-        } else if (cmp(argv[i], OUTPUT_OPT)) {
-            output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
-            output_only = true;
-        } else if (cmp(argv[i], ANGCON_OPT)) {
-            ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
-        } else if (cmp(argv[i], MAX_LEVEL_OPT)) {
-            max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
+			restart_filename = std::string(argv[i] + strlen(RESTART_OPT) + 1);
+			found_restart_file = true;
+		} else if (cmp(argv[i], DATA_DIR_OPT)) {
+			data_dir = std::string(argv[i] + strlen(DATA_DIR_OPT) + 1);
+			data_dir += "/";
+		} else if (cmp(argv[i], PARALLEL_SILO_OPT)) {
+			parallel_silo = true;
+		} else if (cmp(argv[i], SILO_PLANES_ONLY_OPT)) {
+			silo_planes_only = true;
+		} else if (cmp(argv[i], OUTPUT_OPT)) {
+			output_filename = std::string(argv[i] + strlen(OUTPUT_OPT) + 1);
+			output_only = true;
+		} else if (cmp(argv[i], REFINEMENT_FLOOR_OPT)) {
+			refinement_floor = atof(argv[i] + strlen(REFINEMENT_FLOOR_OPT) + 1);
+			refinement_floor_specified = true;
+		} else if (cmp(argv[i], ANGCON_OPT)) {
+			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
+		} else if (cmp(argv[i], VOMEGA_OPT)) {
+			vomega_found = true;
+			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
+		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
+			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
+		} else if (cmp(argv[i], NGRIDS_OPT)) {
+			ngrids = atoi(argv[i] + strlen(NGRIDS_OPT) + 1);
         } else if (cmp(argv[i], MAX_RESTART_LEVEL_OPT)) {
             max_restart_level = atoi(argv[i] + strlen(MAX_RESTART_LEVEL_OPT) + 1);
         } else if (cmp(argv[i], XSCALE_OPT)) {
@@ -209,6 +234,10 @@ bool options::process_options(int argc, char* argv[]) {
     }
     theta = std::max(1.0 / 3.0, theta);
     theta = std::min(1.0 / 2.0, theta);
+    if( !vomega_found ) {
+    	vomega = (problem == DWD);
+    }
+    printf( "Variable omega is %s\n", vomega ? "on" : "off");
     return rc;
 }
 

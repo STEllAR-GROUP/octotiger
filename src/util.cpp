@@ -43,7 +43,7 @@ int file_copy(const char* fin, const char* fout) {
     // run output on separate thread
     auto f = hpx::threads::run_as_os_thread([&]()
     {
-	    constexpr size_t chunk_size = 1024;
+	    constexpr size_t chunk_size = BUFSIZ;
 	    char buffer[chunk_size];
 	    FILE* fp_in = fopen(fin, "rb");
 	    FILE* fp_out = fopen(fout, "wb");
