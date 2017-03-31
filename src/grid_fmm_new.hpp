@@ -447,7 +447,7 @@ inline void grid::store_to_L_c(
         #pragma omp simd 
         for (integer i = i_begin; i < i_end; ++i)                               // TRIP COUNT: 3 * TileWidth; UNIT STRIDE
         {
-            integer const ti = i_begin - i;
+            integer const ti = i - i_begin;
 
             integer const iii0 = (*IList)[i].first;                             // 1 INT LOAD FROM MEM (indirect addressing)
             integer const iii1 = (*IList)[i].second;                            // 1 INT LOAD FROM MEM (indirect addressing)
@@ -479,7 +479,7 @@ inline void grid::store_to_L_c(
 ///////////////////////////////////////////////////////////////////////////////
 
 template <std::size_t TileWidth>
-inline taylor<5, std::array<real, TileWidth>>
+inline void 
 set_basis(
     taylor<5, std::array<real, TileWidth>>& A
   , std::array<std::array<real, TileWidth>, NDIM> const& X
