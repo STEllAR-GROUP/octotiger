@@ -70,7 +70,7 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
         BOOST_ASSUME_ALIGNED(VM_, 64);
         BOOST_ASSUME_ALIGNED(VMj, 64);
 
-        for (integer i = i_begin; i < i_end / 8; i += 8)
+        for (integer i = i_begin; i < i_end; i += 8)
         {
             integer const ti = i - i_begin;
 
@@ -112,10 +112,13 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
 
             s.add_fp_memloads(2*8); 
 
-            *(Vn0j + ti) = _mm512_fnmadd_pd(Mj0, M_1divM_0, Mj1); // -(Mj0 * M_1divM_0) + Mj1
-                                                                  // Mj1 - Mj0 * M_1divM_0
-            *(Vn1j + ti) = _mm512_fnmadd_pd(Mj1, M_0divM_1, Mj0); // -(Mj1 * M_0divM_1) + Mj0
-                                                                  // Mj0 - Mj1 * M_0divM_1
+            __m512d const n0jrhs = _mm512_fnmadd_pd(Mj0, M_1divM_0, Mj1); // -(Mj0 * M_1divM_0) + Mj1
+                                                                          // Mj1 - Mj0 * M_1divM_0
+            __m512d const n1jrhs = _mm512_fnmadd_pd(Mj1, M_0divM_1, Mj0); // -(Mj1 * M_0divM_1) + Mj0
+                                                                          // Mj0 - Mj1 * M_0divM_1
+
+            _mm512_store_pd(n0j + ti, n0jrhs);
+            _mm512_store_pd(n1j + ti, n1jrhs);
 
             s.add_fp_fmas(      2*8);
             s.add_fp_tilestores(2*8);
@@ -160,25 +163,28 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
             integer const iii0 = (*IList)[i].first;                             // 1 INT LOAD FROM MEM (indirect addressing)
             integer const iii1 = (*IList)[i].second;                            // 1 INT LOAD FROM MEM (indirect addressing)
 
-            auto const M00 = M_[iii0];                                          // 1 FP LOAD FROM MEM
-            auto const M10 = M_[iii1];                                          // 1 FP LOAD FROM MEM
+            auto const M_0 = M_[iii0];                                          // 1 FP LOAD FROM MEM
+            auto const M_1 = M_[iii1];                                          // 1 FP LOAD FROM MEM
 
             s.add_fp_memloads(2);
 
             // NOTE: Due to the order of iteration, these computations are
             // performed redundantly.
-            auto const M10divM00 = M10 / M00;                                   // 1 FP DIV
-            auto const M00divM10 = M00 / M10;                                   // 1 FP DIV
+            auto const M_1divM_0 = M_1 / M_0;                                   // 1 FP DIV
+            auto const M_0divM_1 = M_0 / M_1;                                   // 1 FP DIV
 
             s.add_fp_divs(2);
 
-            auto const M0j = Mj[iii0];                                          // 1 FP LOAD FROM MEM
-            auto const M1j = Mj[iii1];                                          // 1 FP LOAD FROM MEM
+            auto const Mj0 = Mj[iii0];                                          // 1 FP LOAD FROM MEM
+            auto const Mj1 = Mj[iii1];                                          // 1 FP LOAD FROM MEM
 
             s.add_fp_memloads(2);
 
-            n0j[ti] = M1j - M0j * M10divM00;                                    // 1 FP FMA, 1 FP STORE TO TILE
-            n1j[ti] = M0j - M1j * M00divM10;                                    // 1 FP FMA, 1 FP STORE TO TILE
+            auto const n0jrhs = Mj1 - Mj0 * M_1divM_0;                          // 1 FP FMA
+            auto const n1jrhs = Mj0 - Mj1 * M_0divM_1;                          // 1 FP FMA
+
+            n0j[ti] = n0jrhs;                                                   // 1 FP STORE TO TILE
+            n1j[ti] = n1jrhs;                                                   // 1 FP STORE TO TILE
 
             s.add_fp_fmas(      2);
             s.add_fp_tilestores(2);
@@ -201,14 +207,14 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
 {
     BOOST_ASSUME((i_end - i_begin) == TileWidth);
 
-    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j)                // TRIP COUNT: 10
+    for (integer j = taylor_sizes[2]; j != taylor_sizes[3]; ++j)
     {
         __m512d* __restrict__ Vn0j = reinterpret_cast<__m512d* __restrict__>(t.n0[j].data());
         __m512d* __restrict__ Vn1j = reinterpret_cast<__m512d* __restrict__>(t.n1[j].data());
         BOOST_ASSUME_ALIGNED(Vn0j, 64);
         BOOST_ASSUME_ALIGNED(Vn1j, 64);
 
-        for (integer i = i_begin; i < i_end / 8; i += 8)
+        for (integer i = i_begin; i < i_end; i += 8)
         {
             integer const ti = i - i_begin;
 
@@ -779,12 +785,9 @@ inline void grid::compute_interactions_non_leaf_tiled(
 
     BOOST_ASSUME((i_end - i_begin) == TileWidth);
 
-/*
     typename std::conditional<
         1 == TileWidth, scalar_function_tag, vector_function_tag
     >::type constexpr function_type{};
-*/
-    scalar_function_tag constexpr function_type{};
     std::integral_constant<
         bool, ANG_CON_ON == AngConKind
     > constexpr ang_con_is_on{};
@@ -1160,7 +1163,7 @@ inline compute_interactions_stats_t grid::compute_interactions_non_leaf()
     // #20 in the paper ([Bryce] FIXME: Link to the paper) [Dominic].
     compute_interactions_initialize_L_c(ang_con_is_on);
 
-    auto const ilist_main_loop_size = (IList->size() / TileWidth) * TileWidth;
+    auto const ilist_primary_loop_size = (IList->size() / TileWidth) * TileWidth;
 
     compute_interactions_stats_t s;
 
@@ -1170,7 +1173,7 @@ inline compute_interactions_stats_t grid::compute_interactions_non_leaf()
 
         hpx::util::high_resolution_timer timer;
 
-        for (integer i_begin = 0; i_begin != ilist_main_loop_size; i_begin += TileWidth)
+        for (integer i_begin = 0; i_begin != ilist_primary_loop_size; i_begin += TileWidth)
         {
             integer const i_end = i_begin + TileWidth;
 
@@ -1186,7 +1189,7 @@ inline compute_interactions_stats_t grid::compute_interactions_non_leaf()
         //auto tile = std::make_unique<compute_interactions_tile<1>>();
         auto tile = tsb::make_aligned_array<compute_interactions_tile<1>>(128, 1);
 
-        for (integer i_begin = ilist_main_loop_size; i_begin != IList->size(); ++i_begin)
+        for (integer i_begin = ilist_primary_loop_size; i_begin != IList->size(); ++i_begin)
         {
             integer const i_end = i_begin + 1;
 
