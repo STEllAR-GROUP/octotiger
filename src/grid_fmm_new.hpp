@@ -11,6 +11,8 @@
 // TODO: Don't use auto everywhere.
 // TODO: Ilist indices should be SoA not AoS
 
+// TODO: Looks like only 10 elements of n0 and n1 are used (taylor_sizes[2] to taylor_sizes[3])
+
 #pragma once
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -563,13 +565,13 @@ set_basis(
         real const* __restrict__ Xa = X[a].data();
         BOOST_ASSUME_ALIGNED(Xa, 64);
 
-        real* __restrict__ Aj = A[j].data();
-        BOOST_ASSUME_ALIGNED(Aj, 64);
-
         for (integer b = a; b != NDIM; ++b, ++j)                                // TRIP COUNT: 6
         {
             real const* __restrict__ Xb = X[b].data();
             BOOST_ASSUME_ALIGNED(Xb, 64);
+
+            real* __restrict__ Aj = A[j].data();
+            BOOST_ASSUME_ALIGNED(Aj, 64);
 
             #pragma omp simd
             for (integer ti = 0; ti < TileWidth; ++ti)                          // TRIP COUNT: TileWidth; UNIT STRIDE
@@ -589,9 +591,6 @@ set_basis(
         real const* __restrict__ Xa = X[a].data();
         BOOST_ASSUME_ALIGNED(Xa, 64);
 
-        real* __restrict__ Aj = A[j].data();
-        BOOST_ASSUME_ALIGNED(Aj, 64);
-
         for (integer b = a; b != NDIM; ++b)                                     // TRIP COUNT: 6
         {
             real const* __restrict__ Xb = X[b].data();
@@ -601,6 +600,9 @@ set_basis(
             {
                 real const* __restrict__ Xc = X[c].data();
                 BOOST_ASSUME_ALIGNED(Xc, 64);
+
+                real* __restrict__ Aj = A[j].data();
+                BOOST_ASSUME_ALIGNED(Aj, 64);
 
                 #pragma omp simd
                 for (integer ti = 0; ti < TileWidth; ++ti)                      // TRIP COUNT: 10 * TileWidth; UNIT STRIDE
@@ -856,7 +858,7 @@ inline void grid::compute_interactions_non_leaf_tiled(
         }
     }
 
-    compute_interactions_initialize_n_ang_mom<IList, TileWidth>(i_begin, i_end, t, s, is_rho_type, function_type);
+    compute_interactions_initialize_n_ang_mom<IList, TileWidth>(i_begin, i_end, t, s, ang_con_is_on_and_is_rho_type, function_type);
 
     ///////////////////////////////////////////////////////////////////////
     // COMPUTE
@@ -1010,7 +1012,7 @@ inline void grid::compute_interactions_non_leaf_tiled(
             }
     }
 
-    compute_interactions_B0_B1<IList, TileWidth>(t, s, is_rho_type);
+    compute_interactions_B0_B1<IList, TileWidth>(t, s, ang_con_is_on_and_is_rho_type);
 
     for (integer a = 0; a != NDIM; ++a)                                         // TRIP COUNT: 3
         for (integer b = a; b != NDIM; ++b)                                     // TRIP COUNT: 6
