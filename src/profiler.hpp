@@ -131,10 +131,10 @@ struct op_stats_t
     {
     #if !defined(OCTOTIGER_HAVE_DISABLE_OPS_TRACKING)
         // KNL AVX512
-        integer const gflops       = (fp_adds + fp_muls + 2 * fp_fmas + 10 * fp_divs + 2 * fp_sqrts) / (1024 * 1024 * 1024);
-        integer const mem_gbytes   = (sizeof(real) * fp_memloads + sizeof(real) * fp_memstores) / (1024 * 1024 * 1024);
-        integer const tile_gbytes  = (sizeof(real) * fp_tileloads + sizeof(real) * fp_tilestores) / (1024 * 1024 * 1024);
-        integer const cache_gbytes = (sizeof(real) * fp_cacheloads + sizeof(real) * fp_cachestores) / (1024 * 1024 * 1024);
+        double const gflops       = double(fp_adds + fp_muls + 2 * fp_fmas + 10 * fp_divs + 2 * fp_sqrts) / double(1024 * 1024 * 1024);
+        double const mem_gbytes   = double(sizeof(real) * fp_memloads + sizeof(real) * fp_memstores) / double(1024 * 1024 * 1024);
+        double const tile_gbytes  = double(sizeof(real) * fp_tileloads + sizeof(real) * fp_tilestores) / double(1024 * 1024 * 1024);
+        double const cache_gbytes = double(sizeof(real) * fp_cacheloads + sizeof(real) * fp_cachestores) / double(1024 * 1024 * 1024);
         double const gflopss       = (tsb::fp_equals(time, 0.0) ? 0.0 : gflops / time);
         double const mem_gbytess   = (tsb::fp_equals(time, 0.0) ? 0.0 : mem_gbytes / time);
         double const tile_gbytess  = (tsb::fp_equals(time, 0.0) ? 0.0 : tile_gbytes / time);
