@@ -781,7 +781,7 @@ inline void grid::compute_interactions_non_leaf_tiled(
     )
 {
     auto& M = *M_ptr;
-    std::vector<space_vector> const& com = *(com_ptr[0]);
+    auto const& com0 = *com0_ptr;
 
     BOOST_ASSUME((i_end - i_begin) == TileWidth);
 
@@ -814,8 +814,8 @@ inline void grid::compute_interactions_non_leaf_tiled(
             integer const iii0 = (*IList)[i].first;                             // 1 INT LOAD FROM MEM (indirect addressing)
             integer const iii1 = (*IList)[i].second;                            // 1 INT LOAD FROM MEM (indirect addressing)
 
-            real const x = com[iii0][j];                                        // 1 FP LOAD FROM MEM; FIXME INEFFICIENT ACCESS
-            real const y = com[iii1][j];                                        // 1 FP LOAD FROM MEM; FIXME INEFFICIENT ACCESS
+            real const x = com0[j][iii0];                                       // 1 FP LOAD FROM MEM; FIXME INEFFICIENT ACCESS
+            real const y = com0[j][iii1];                                       // 1 FP LOAD FROM MEM; FIXME INEFFICIENT ACCESS
             dXj[ti] = x - y;                                                    // 1 FP ADD, 1 FP STORE TO TILE
 
             s.add_fp_memloads(  2);

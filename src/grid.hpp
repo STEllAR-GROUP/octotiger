@@ -140,22 +140,27 @@ struct boundary_interaction_type {
 
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
-typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
-typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
+typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type; // TODO: SoA not AoS
+typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type; // TODO: SoA not AoS
 
 struct gravity_boundary_type {
-	std::shared_ptr<taylor<4, std::vector<real>>> M;
-	std::shared_ptr<std::vector<real>> m;
-	std::shared_ptr<std::vector<space_vector>> x;
-	bool is_local;
-	gravity_boundary_type() :
-		M(nullptr), m(nullptr), x(nullptr) {
-	}
+    std::shared_ptr<taylor<4, std::vector<real>>> M;
+    std::shared_ptr<std::vector<real>> m;
+    //std::shared_ptr<std::vector<space_vector>> x;
+    std::shared_ptr<std::array<std::array<real, G_N3>, NDIM>> com;
+    bool is_local;
+
+    gravity_boundary_type() : M(nullptr), m(nullptr), com{} {}
+
+    // FIXME: This is pretty ugly, and introduces an invariant that if
+    // M == nullptr, m == nullptr and x == nullptr.
 	void allocate() {
 		if (M == nullptr) {
 			M = std::make_shared<taylor<4, std::vector<real>>>();
-			m = std::make_shared<std::vector<real> >();
-			x = std::make_shared<std::vector<space_vector> >();
+			m = std::make_shared<std::vector<real>>();
+            com = std::make_shared<std::array<std::array<real, G_N3>, NDIM>>();
+            for (std::array<real, G_N3>& a : *com)
+                std::fill(a.begin(), a.end(), ZERO);
 		}
 	}
 	template<class Archive>
@@ -163,7 +168,7 @@ struct gravity_boundary_type {
 		allocate();
 		arc & M;
 		arc & m;
-		arc & x;
+		arc & com;
 		arc & is_local;
 	}
 };
@@ -229,7 +234,8 @@ private:
 	std::array<real, NDIM> xmin;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
-	std::vector<std::shared_ptr<std::vector<space_vector>>> com_ptr;
+    std::shared_ptr<std::array<std::array<real, G_N3>,     NDIM>> com0_ptr;
+    std::shared_ptr<std::array<std::array<real, G_N3 / 8>, NDIM>> com1_ptr;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
