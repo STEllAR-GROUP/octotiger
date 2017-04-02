@@ -513,8 +513,8 @@ hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type par
                                     } else {
                                         geo::direction dir = geo::direction(
                                             (x / 2) + NDIM * ((y / 2) + NDIM * (z / 2)));
-                                        ref = neighbors[dir].get_child_client(
-                                            other_child);
+                                        node_location parent_loc = my_location.get_neighbor(dir);
+										ref = neighbors[dir].get_child_client(parent_loc, other_child);
                                     }
                                 }
                             }
@@ -562,14 +562,54 @@ hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type par
 typedef node_server::get_child_client_action get_child_client_action_type;
 HPX_REGISTER_ACTION(get_child_client_action_type);
 
-hpx::future<hpx::id_type> node_client::get_child_client(const geo::octant& ci) {
-    if (get_gid() != hpx::invalid_id) {
-        return hpx::async<typename node_server::get_child_client_action>(get_unmanaged_gid(), ci);
+hpx::future<hpx::id_type> node_client::get_child_client(const node_location& parent_loc, const geo::octant& ci) {
+	hpx::future<hpx::id_type> rfut;
+	hpx::shared_future<hpx::id_type> sfut;
+#ifdef OCTOTIGER_USE_NODE_CACHE
+	bool found;
+#endif
+	if (get_gid() != hpx::invalid_id) {
+#ifdef OCTOTIGER_USE_NODE_CACHE
+		auto loc = parent_loc.get_child(ci);
+		table_type::iterator entry;
+		std::unique_lock<hpx::mutex> lock(node_cache_mutex);
+		entry = node_cache.find(loc);
+		found = bool(entry != node_cache.end());
+		if (!found) {
+			sfut = hpx::async<typename node_server::get_child_client_action>(get_unmanaged_gid(), ci);
+			node_cache[loc] = sfut;
+			lock.unlock();
+		} else {
+			lock.unlock();
+			sfut = entry->second;
+		}
+		if (found) {
+			++hits;
+			if (sfut.is_ready()) {
+				rfut = hpx::make_ready_future(entry->second.get());
+			} else {
+				found = false;
+			}
+		} else {
+			++misses;
+		}
+		if (!found) {
+			rfut = hpx::async([=]() {
+				return sfut.get();
+			});
+		}
+#else
+		rfut = hpx::async<typename node_server::get_child_client_action>(get_unmanaged_gid(), ci);;
+#endif
     } else {
-        auto tmp = hpx::invalid_id;
-        return hpx::make_ready_future<hpx::id_type>(std::move(tmp));
+       auto tmp = hpx::invalid_id;
+       rfut = hpx::make_ready_future<hpx::id_type>(std::move(tmp));
     }
+	return rfut;
 }
+
+
+
 
 hpx::id_type node_server::get_child_client(const geo::octant& ci) {
     if (is_refined) {
