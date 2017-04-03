@@ -930,10 +930,8 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                 for (integer i = taylor_sizes[0]; i != taylor_sizes[2]; ++i) {
                     A0[i] = m0 * D[i];
                 }
-                if (type == RHO) {
-                    for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
-                        A0[i] = m0 * D[i];
-                    }
+                for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                    A0[i] = m0 * D[i];
                 }
 
                 if (type == RHO) {
