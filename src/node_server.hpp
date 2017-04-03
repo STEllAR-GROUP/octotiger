@@ -154,7 +154,7 @@ private:
     void exchange_interlevel_hydro_data();
     static void static_initialize();
     void all_hydro_bounds(bool tau_only = false);
-  //  void clear_family();
+    void clear_family();
     hpx::future<void> exchange_flux_corrections();
 
     hpx::future<void> nonrefined_step();

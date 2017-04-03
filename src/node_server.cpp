@@ -309,13 +309,13 @@ void node_server::load_from_file_and_output(const std::string& fname, const std:
 //	SYSTEM(command);
 }
 
-/*void node_server::clear_family() {
-    parent = hpx::invalid_id;
+void node_server::clear_family() {
+ //   parent = hpx::invalid_id;
     me = hpx::invalid_id;
     std::fill(aunts.begin(), aunts.end(), hpx::invalid_id);
-    std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
+  //  std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
     std::fill(nieces.begin(), nieces.end(), false);
-}*/
+}
 
 integer child_index_to_quadrant_index(integer ci, integer dim) {
     integer index;

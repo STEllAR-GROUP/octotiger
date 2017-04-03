@@ -78,8 +78,7 @@ hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) 
 			hpx::new_ < node_server
 					> (id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
 							hcycle), std::size_t(gcycle));
-	//  clear_family();
-	me = hpx::invalid_id;
+	clear_family();
 	return rc;
 }
 
@@ -456,7 +455,6 @@ hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type par
 	me = std::move(self_gid);
 	parent = std::move(parent_gid);
 	if (is_refined) {
-		std::fill(nieces.begin(), nieces.end(), false);
 		std::array<hpx::future<void>, NCHILD> cfuts;
 		integer index = 0;
 		amr_flags.resize(NCHILD);
