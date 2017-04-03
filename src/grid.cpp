@@ -1761,6 +1761,14 @@ real grid::compute_fluxes() {
 						F[dim][field][i0] = f[field][i - H_BW];
 					}
 				}
+				for (integer i = H_BW; i != H_NX - H_BW + 1; ++i) {
+					real rho_tot = 0.0;
+					const integer i0 = F_DN[dx_i] * (i - H_BW) + F_DN[dy_i] * (j - H_BW) + F_DN[dz_i] * (k - H_BW);
+					for (integer field = spc_i; field != spc_i + NSPECIES; ++field) {
+						rho_tot += F[dim][field][i0];
+					}
+					F[dim][rho_i][i0] = rho_tot;
+				}
 			}
 		}
 	}
@@ -2190,10 +2198,12 @@ void grid::next_u(integer rk, real t, real dt) {
 //				if (opts.problem == SOD && opts.ang_con) {
 //					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
 //				}
-				U[rho_i][iii] = ZERO;
+				/* The following commented out section is now enforced in fluxes */
+	/*			U[rho_i][iii] = ZERO;
 				for (integer si = 0; si != NSPECIES; ++si) {
 					U[rho_i][iii] += U[spc_i + si][iii];
-				}
+				}*/
+
 				if (U[tau_i][iii] < ZERO) {
 					printf("Tau is negative- %e\n", double(U[tau_i][iii]));
 					//	abort();
