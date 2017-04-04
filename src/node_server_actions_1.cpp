@@ -360,6 +360,7 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
 
 integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb) {
     timings::scope ts(timings_, timings::time_regrid);
+    hpx::util::high_resolution_timer timer;
     assert(grid_ptr != nullptr);
     printf("-----------------------------------------------\n");
     if (!rb) {
@@ -381,7 +382,8 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
         printf("solving gravity\n");
         solve_gravity(true);
     }
-    printf("regrid done\n-----------------------------------------------\n");
+    double elapsed = timer.elapsed();
+    printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
 #ifdef OCTOTIGER_USE_NODE_CACHE
     node_client::cycle_node_cache();
 #endif
