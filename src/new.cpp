@@ -8,7 +8,7 @@
 #include <cstdio>
 #include <hpx/config/defines.hpp>
 
-#ifdef __MIC__
+#if defined(__MIC__) || defined(__AVX512CD__)
 constexpr std::size_t alignment = 64;
 #else
 constexpr std::size_t alignment = 32;
