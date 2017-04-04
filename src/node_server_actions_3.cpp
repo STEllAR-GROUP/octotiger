@@ -300,8 +300,9 @@ void node_server::start_run(bool scf, integer ngrids)
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             printf("dwd step...\n");
             auto result = root_step_with_diagnostics(next_step - step_num).get();
-            auto diags = hpx::util::get<2>(result);
             dt = hpx::util::get<0>(result);
+            s += hpx::util::get<1>(result);
+            auto diags = hpx::util::get<2>(result);
             omega = grid::get_omega();
 
             const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
@@ -328,7 +329,7 @@ void node_server::start_run(bool scf, integer ngrids)
             printf("normal step...\n");
             auto dt_and_s = step(next_step - step_num).get();
             dt = hpx::util::get<0>(dt_and_s); 
-            s = hpx::util::get<1>(dt_and_s); 
+            s += hpx::util::get<1>(dt_and_s); 
             omega = grid::get_omega();
         }
 
@@ -622,8 +623,8 @@ hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> node_server::l
                     s = nonrefined_step().get();
                 }
 
-                auto dt_and_opstats = dt_fut.get();
-                real dt = hpx::util::get<0>(dt_and_opstats);
+                auto dt_and_s = dt_fut.get();
+                real dt = hpx::util::get<0>(dt_and_s);
                 if (my_location.level() == 0)
                 {
                     double time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
@@ -640,7 +641,7 @@ hpx::future<hpx::util::tuple<real, compute_interactions_stats_t>> node_server::l
                 }
                 ++step_num;
 
-                s += hpx::util::get<1>(dt_and_opstats);
+                s += hpx::util::get<1>(dt_and_s);
 
                 return next_dt.then(
                     [s](hpx::future<real> next_dt_) -> hpx::util::tuple<real, compute_interactions_stats_t>
