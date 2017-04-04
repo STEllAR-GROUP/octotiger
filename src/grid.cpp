@@ -1041,18 +1041,18 @@ void grid::rho_move(real x) {
 space_vector grid::center_of_mass() const {
 	auto& M = *M_ptr;
 	auto& mon = *mon_ptr;
-	auto const& com0 = *com0_ptr;
 	PROF_BEGIN;
 	space_vector this_com;
 	this_com[0] = this_com[1] = this_com[2] = ZERO;
 	real m = ZERO;
+	auto& com0 = *(com_ptr)[0];
 	for (integer i = 0; i != INX + 0; ++i) {
 		for (integer j = 0; j != INX + 0; ++j) {
 			for (integer k = 0; k != INX + 0; ++k) {
 				const integer iii = gindex(i, j, k);
-				const real this_m = is_leaf ? mon[iii] : M()[iii];
+				const real this_m = is_leaf ? mon[iii] : M[iii]();
 				for (auto& dim : geo::dimension::full_set()) {
-					this_com[dim] += this_m * com0[dim][iii];
+					this_com[dim] += this_m * com0[iii][dim];
 				}
 				m += this_m;
 			}
@@ -1354,6 +1354,7 @@ void grid::allocate() {
 	L.resize(G_N3);
 	L_c.resize(G_N3);
 	integer nlevel = 0;
+	com_ptr.resize(2);
 
 	set_coordinates();
 

@@ -16,8 +16,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
-option(OCTOTIGER_WITH_DISABLE_OPS_TRACKING "Disable operation counting" ON)
-option(OCTOTIGER_WITH_COMPUTE_INTERACTIONS_LEGACY "Use the old compute_interactions implementation" ON)
 
 ################################################################################
 # Find required packages
@@ -78,14 +76,6 @@ if (OCTOTIGER_WITH_RADIATION)
   add_definitions(-DOCTOTIGER_HAVE_RADIATION)
 endif()
 
-if (OCTOTIGER_WITH_DISABLE_OPS_TRACKING)
-  add_definitions(-DOCTOTIGER_HAVE_DISABLE_OPS_TRACKING)
-endif()
-
-if (OCTOTIGER_WITH_COMPUTE_INTERACTIONS_LEGACY)
-  add_definitions(-DOCTOTIGER_HAVE_COMPUTE_INTERACTIONS_LEGACY)
-endif()
-
 set(source_files)
 set(dependencies)
 
@@ -118,6 +108,7 @@ set(source_files ${source_files}
     src/real.cpp
     src/roe.cpp
     src/stack_trace.cpp
+    src/taylor.cpp
     src/util.cpp
 )
 

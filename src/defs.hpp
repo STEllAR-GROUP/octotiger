@@ -78,18 +78,8 @@ typedef long long int integer;
 
 typedef unsigned char byte;
 
-struct vector_function_tag {};
-struct scalar_function_tag {};
-
-constexpr vector_function_tag vector_function{};
-constexpr scalar_function_tag scalar_function{};
-
 enum gsolve_type {
-	NON_RHO, RHO, DRHODT
-};
-
-enum ang_con_type {
-	ANG_CON_OFF, ANG_CON_ON
+	RHO, DRHODT
 };
 
 #include <array>

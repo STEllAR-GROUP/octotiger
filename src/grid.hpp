@@ -8,8 +8,6 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
-#include <immintrin.h>
-
 #include "simd.hpp"
 #include "defs.hpp"
 #include "roe.hpp"
@@ -35,56 +33,6 @@ class rad_grid;
 #include <memory>
 #include <set>
 
-constexpr taylor<4, real> generate_factor()
-{ 
-    taylor<4, real> tmp{};
-    tmp() += 1.0;
-    for (integer a = 0; a < NDIM; ++a) {
-        tmp(a) += 1.0;
-        for (integer b = 0; b < NDIM; ++b) {
-            tmp(a, b) += 1.0;
-            for (integer c = 0; c < NDIM; ++c) {
-                tmp(a, b, c) += 1.0;
-            }
-        }
-    }
-    return tmp;
-}
-
-constexpr taylor<4, real> factor       = generate_factor();
-constexpr taylor<4, real> half_factor  = factor * HALF; 
-constexpr taylor<4, real> sixth_factor = factor * SIXTH;; 
-
-#if !defined(OCTOTIGER_HAVE_COMPUTE_INTERACTIONS_LEGACY)
-template <std::size_t TileWidth>
-struct alignas(128) compute_interactions_tile
-{
-    // X and Y are the two cells interacting [David].
-    // X and Y store the 3D center of masses (per simd element, SoA style) [David].
-    // dX is distance between X and Y [David].
-    alignas(128) std::array<std::array<real, TileWidth>, NDIM> dX; // 3 * TileWidth FPs
-
-    // m multipole moments of the cells [David].
-    alignas(128) taylor<4, std::array<real, TileWidth>> m0; // 20 * TileWidth FPs
-    alignas(128) taylor<4, std::array<real, TileWidth>> m1; // 20 * TileWidth FPs
-    // n angular momentum of the cells [David].
-    alignas(128) taylor<4, std::array<real, TileWidth>> n0; // 20 * TileWidth FPs
-    alignas(128) taylor<4, std::array<real, TileWidth>> n1; // 20 * TileWidth FPs
-
-    // R_i in paper is the dX in the code
-    // D is taylor expansion value for a given X expansion of the gravitational
-    // potential (multipole expansion) [David].
-    alignas(128) taylor<5, std::array<real, TileWidth>> D; // 35 * TileWidth FPs
-
-    // A0, A1 are the contributions to L [David].
-    alignas(128) taylor<4, std::array<real, TileWidth>> A0; // 20 * TileWidth FPs
-    alignas(128) taylor<4, std::array<real, TileWidth>> A1; // 20 * TileWidth FPs
-
-    // B0, B1 are the contributions to L_c (for each cell) [David].
-    alignas(128) std::array<std::array<real, TileWidth>, NDIM> B0; // 3 * TileWidth FPs
-    alignas(128) std::array<std::array<real, TileWidth>, NDIM> B1; // 3 * TileWidth FPs
-};
-#endif
 
 class struct_eos;
 
@@ -140,26 +88,22 @@ struct boundary_interaction_type {
 
 typedef taylor<4, real> multipole;
 typedef taylor<4, real> expansion;
-typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type; // TODO: SoA not AoS
-typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type; // TODO: SoA not AoS
+typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
+typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
 struct gravity_boundary_type {
-    std::shared_ptr<taylor<4, std::vector<real>>> M;
-    std::shared_ptr<std::vector<real>> m;
-    std::shared_ptr<std::array<std::array<real, G_N3>, NDIM>> com;
-    bool is_local;
-
-    gravity_boundary_type() : M(nullptr), m(nullptr), com{} {}
-
-    // FIXME: This is pretty ugly, and introduces an invariant that if
-    // M == nullptr, m == nullptr and x == nullptr.
+	std::shared_ptr<std::vector<multipole>> M;
+	std::shared_ptr<std::vector<real>> m;
+	std::shared_ptr<std::vector<space_vector>> x;
+	bool is_local;
+	gravity_boundary_type() :
+		M(nullptr), m(nullptr), x(nullptr) {
+	}
 	void allocate() {
 		if (M == nullptr) {
-			M = std::make_shared<taylor<4, std::vector<real>>>();
-			m = std::make_shared<std::vector<real>>();
-            com = std::make_shared<std::array<std::array<real, G_N3>, NDIM>>();
-            for (std::array<real, G_N3>& a : *com)
-                std::fill(a.begin(), a.end(), ZERO);
+			M = std::make_shared<std::vector<multipole> >();
+			m = std::make_shared<std::vector<real> >();
+			x = std::make_shared<std::vector<space_vector> >();
 		}
 	}
 	template<class Archive>
@@ -167,7 +111,7 @@ struct gravity_boundary_type {
 		allocate();
 		arc & M;
 		arc & m;
-		arc & com;
+		arc & x;
 		arc & is_local;
 	}
 };
@@ -216,7 +160,7 @@ private:
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<v4sd> G;
-	std::shared_ptr<taylor<4, std::vector<real>>> M_ptr;
+	std::shared_ptr<std::vector<multipole>> M_ptr;
 	std::shared_ptr<std::vector<real>> mon_ptr;
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
@@ -225,14 +169,15 @@ private:
     std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 #endif
 
+//    std::shared_ptr<std::atomic<integer>> Muse_counter;
+
 	bool is_root;
 	bool is_leaf;
 	real dx;
 	std::array<real, NDIM> xmin;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
-    std::shared_ptr<std::array<std::array<real, G_N3>,     NDIM>> com0_ptr;
-    std::shared_ptr<std::array<std::array<real, G_N3 / 8>, NDIM>> com1_ptr;
+	std::vector<std::shared_ptr<std::vector<space_vector>>> com_ptr;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
@@ -321,8 +266,7 @@ public:
 	void dual_energy_update();
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
-	void compute_interactions_legacy(gsolve_type);
-	compute_interactions_stats_t compute_interactions(gsolve_type);
+	void compute_interactions(gsolve_type);
 	void rho_mult(real f0, real f1 );
 	void rho_move(real x);
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
@@ -367,165 +311,6 @@ public:
     std::size_t save(std::ostream& strm) const;
     std::pair<real,real> virial() const;
     friend class node_server;
-
-#if !defined(OCTOTIGER_HAVE_COMPUTE_INTERACTIONS_LEGACY)
-    void compute_interactions_initialize_L_c(
-        std::true_type
-        ) noexcept;
-    void compute_interactions_initialize_L_c(
-        std::false_type
-        ) noexcept;
-
-    template <
-        std::vector<interaction_type> const* __restrict__ IList 
-      , std::size_t TileWidth
-        >
-    void compute_interactions_initialize_n_ang_mom(
-        integer i_begin
-      , integer i_end
-      , compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::true_type
-      , vector_function_tag
-        ) noexcept;
-    template <
-        std::vector<interaction_type> const* __restrict__ IList
-      , std::size_t TileWidth
-        >
-    void compute_interactions_initialize_n_ang_mom(
-        integer i_begin
-      , integer i_end
-      , compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::true_type
-      , scalar_function_tag
-        ) noexcept;
-    template <
-        std::vector<interaction_type> const* __restrict__ IList 
-      , std::size_t TileWidth
-        >
-    void compute_interactions_initialize_n_ang_mom(
-        integer i_begin
-      , integer i_end
-      , compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::false_type
-      , vector_function_tag
-        ) noexcept;
-    template <
-        std::vector<interaction_type> const* __restrict__ IList
-      , std::size_t TileWidth
-        >
-    void compute_interactions_initialize_n_ang_mom(
-        integer i_begin
-      , integer i_end
-      , compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::false_type
-      , scalar_function_tag
-        ) noexcept;
-
-    template <
-        std::vector<interaction_type> const* __restrict__ IList
-      , std::size_t TileWidth
-        >
-    void compute_interactions_A0_A1_0(
-        compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::true_type
-        ) noexcept;
-    template <
-        std::vector<interaction_type> const* __restrict__ IList 
-      , std::size_t TileWidth
-        >
-    void compute_interactions_A0_A1_0(
-        compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::false_type
-        ) noexcept;
-
-    template <
-        std::vector<interaction_type> const* __restrict__ IList
-      , std::size_t TileWidth
-        >
-    void compute_interactions_A0_A1(
-        compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::true_type
-        ) noexcept;
-    template <
-        std::vector<interaction_type> const* __restrict__ IList 
-      , std::size_t TileWidth
-        >
-    void compute_interactions_A0_A1(
-        compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::false_type
-        ) noexcept;
-
-    template <
-        std::vector<interaction_type> const* __restrict__ IList 
-      , std::size_t TileWidth
-        >
-    void compute_interactions_B0_B1(
-        compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::true_type
-        ) noexcept;
-    template <
-        std::vector<interaction_type> const* __restrict__ IList 
-      , std::size_t TileWidth
-        >
-    void compute_interactions_B0_B1(
-        compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::false_type
-        ) noexcept;
-
-    template <
-        std::vector<interaction_type> const* __restrict__ IList
-      , std::size_t TileWidth
-        >
-    void store_to_L_c(
-        integer i_begin
-      , integer i_end
-      , compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::true_type
-        ) noexcept;
-    template <
-        std::vector<interaction_type> const* __restrict__ IList 
-      , std::size_t TileWidth
-        >
-    void store_to_L_c(
-        integer i_begin
-      , integer i_end
-      , compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-      , std::false_type
-        ) noexcept;
-
-    template <
-        std::vector<interaction_type> const* __restrict__ IList
-      , std::size_t TileWidth
-      , ang_con_type AngConKind
-      , gsolve_type SolveKind
-        >
-    void compute_interactions_non_leaf_tiled(
-        integer i_begin
-      , integer i_end
-      , compute_interactions_tile<TileWidth>& t
-      , compute_interactions_stats_t& s
-        );
-
-    template <
-        std::vector<interaction_type> const* __restrict__ IList /* lol C# */
-      , std::size_t TileWidth
-      , ang_con_type AngConKind
-      , gsolve_type SolveKind
-        >
-    compute_interactions_stats_t compute_interactions_non_leaf();
-#endif
 };
 
 struct grid::node_point {
@@ -614,5 +399,6 @@ void grid::save(Archive& arc, const unsigned) const {
 	}
 	arc << U_out;
 }
+
 
 #endif /* GRID_HPP_ */
