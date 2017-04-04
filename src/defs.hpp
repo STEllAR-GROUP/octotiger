@@ -9,6 +9,8 @@
 
 //#define OCTOTIGER_RESTART_LOAD_SEQ
 
+//#define OCTOTIGER_USE_NODE_CACHE
+
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 # define USE_GRAV_PAR
 #endif

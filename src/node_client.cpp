@@ -6,6 +6,19 @@
  */
 
 #include "node_server.hpp"
+#include "options.hpp"
+
+extern options opts;
+
+#include <hpx/lcos/broadcast.hpp>
+
+#ifdef OCTOTIGER_USE_NODE_CACHE
+typename node_client::table_type node_client::node_cache;
+hpx::mutex node_client::node_cache_mutex;
+std::atomic<integer> node_client::hits(0);
+std::atomic<integer> node_client::misses(0);
+#endif
+
 
 bool node_client::is_local() const {
 	return local;
@@ -72,3 +85,42 @@ bool node_client::empty() const {
 void node_client::report_timing() const {
     hpx::async<typename node_server::report_timing_action>(get_gid()).get();
 }
+
+
+
+#ifdef OCTOTIGER_USE_NODE_CACHE
+
+HPX_PLAIN_ACTION(node_client::cycle_node_cache, cycle_node_cache_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (cycle_node_cache_action);
+HPX_REGISTER_BROADCAST_ACTION (cycle_node_cache_action);
+
+
+void node_client::cycle_node_cache() {
+	hpx::future<void> fut;
+	fut = hpx::make_ready_future();
+	if (hpx::get_locality_id() == 0) {
+		std::vector<hpx::id_type> remotes;
+		remotes.reserve(options::all_localities.size() - 1);
+		for (hpx::id_type const& id : options::all_localities) {
+			if (id != hpx::find_here())
+				remotes.push_back(id);
+		}
+		if (remotes.size() > 0) {
+			hpx::lcos::broadcast < cycle_node_cache_action > (remotes);
+		}
+	}
+	auto func = [&](){
+		std::lock_guard<hpx::mutex> lock(node_cache_mutex);
+		node_cache.clear();
+		hits = misses = 0;
+	};
+	if (hpx::get_locality_id() == 0) {
+		printf( "Node location cache efficiency\n");
+		printf( "Hits: %i Misses: %i Hit Rate: %.1f%%\n", int(hits), int(misses), 100.0*real(hits) / real(hits+misses));
+		hpx::apply(func);
+	} else {
+		func();
+	}
+}
+
+#endif

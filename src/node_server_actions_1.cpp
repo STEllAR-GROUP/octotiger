@@ -350,7 +350,7 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
             a += child_descendant_count[ci];
         }
     }
-   // clear_family();
+    clear_family();
     if( is_refined ) {
     	return hpx::when_all(futs);
     } else {
@@ -372,16 +372,19 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
     regrid_scatter(0, a).get();
     assert(grid_ptr != nullptr);
     std::vector<hpx::id_type> null_neighbors(geo::direction::count());
-  //  real tstart = clock();
+    real tstart = clock();
     printf("forming tree connections\n");
     form_tree(hpx::unmanaged(root_gid), hpx::invalid_id, null_neighbors).get();
-   // real tstop = clock();
-   // printf( "Formed tree in %e seconds\n", real(tstop - tstart)/real(CLOCKS_PER_SEC));
+    real tstop = clock();
+    printf( "Formed tree in %e seconds\n", real(tstop - tstart)/real(CLOCKS_PER_SEC));
     if (current_time > ZERO) {
         printf("solving gravity\n");
         solve_gravity(true);
     }
     printf("regrid done\n-----------------------------------------------\n");
+#ifdef OCTOTIGER_USE_NODE_CACHE
+    node_client::cycle_node_cache();
+#endif
     return a;
 }
 

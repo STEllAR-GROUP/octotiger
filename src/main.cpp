@@ -120,6 +120,20 @@ void node_server::set_pivot() {
 }
 
 int hpx_main(int argc, char* argv[]) {
+    printf("###########################################################\n");
+    #if defined(__AVX512F__)
+        printf("Compiled for AVX512 SIMD architectures.\n");
+    #elif defined(__AVX2__)
+        printf("Compiled for AVX2 SIMD architectures.\n");
+    #elif defined(__AVX__)
+        printf("Compiled for AVX SIMD architectures.\n");
+    #elif defined(__SSE2__ )
+        printf("Compiled for SSE2 SIMD architectures.\n");
+    #else
+        printf("Not compiled for a known SIMD architecture.\n");
+    #endif
+    printf("###########################################################\n");
+
     printf("Running\n");
 
     try {

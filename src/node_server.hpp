@@ -25,12 +25,11 @@
 #include <map>
 #include <vector>
 
+
+
+
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
-
-namespace hpx {
-    using mutex = hpx::lcos::local::spinlock;
-}
 
 class node_server: public hpx::components::managed_component_base<node_server> {
 public:
@@ -102,6 +101,7 @@ private:
     timings timings_;
     real dt_;
 
+
 public:
     static bool is_gravity_on() {
         return gravity_on;
@@ -154,7 +154,7 @@ private:
     void exchange_interlevel_hydro_data();
     static void static_initialize();
     void all_hydro_bounds(bool tau_only = false);
-  //  void clear_family();
+    void clear_family();
     hpx::future<void> exchange_flux_corrections();
 
     hpx::future<compute_interactions_stats_t> nonrefined_step();

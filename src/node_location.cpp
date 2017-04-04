@@ -230,6 +230,36 @@ std::size_t node_location::unique_id() const {
  return hpx::find_id_from_basename("node_location", unique_id());
  }
  */
+
+node_location node_location::get_neighbor(const geo::direction dir) const {
+	node_location nloc;
+	nloc = *this;
+	for( auto d : geo::dimension::full_set()) {
+		nloc.xloc[d] += dir[d];
+	}
+	return nloc;
+}
+
+
+bool node_location::has_neighbor(const geo::direction dir) const {
+	bool rc = true;;
+	for( auto d : geo::dimension::full_set()) {
+		if( dir[d] == -1 ) {
+			if( xloc[d] == 0 ) {
+				rc = false;
+				break;
+			}
+		}
+		else if( dir[d] == +1 ) {
+			if( xloc[d] == ((1 << level()) - 1) ) {
+				rc = false;
+				break;
+			}
+		}
+	}
+	return rc;
+}
+
 bool node_location::is_physical_boundary(integer face) const {
 	bool rc = false;
 	const integer dim = face / 2;

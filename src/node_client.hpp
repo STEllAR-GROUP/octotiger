@@ -21,7 +21,13 @@
 class node_server;
 class analytic_t;
 
+
+namespace hpx {
+    using mutex = hpx::lcos::local::spinlock;
+}
+
 class node_client {
+
 private:
 //	hpx::shared_future<hpx::id_type> id_fut;
 	hpx::id_type id;
@@ -70,7 +76,7 @@ public:
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
 	hpx::future<void> form_tree(hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&& );
-	hpx::future<hpx::id_type> get_child_client(const geo::octant&);
+	hpx::future<hpx::id_type> get_child_client(const node_location& parent_loc, const geo::octant&);
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<integer> regrid_gather(bool) const;
 	hpx::future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line) const;
@@ -102,5 +108,19 @@ public:
 	hpx::future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&) const;
 	hpx::future<void> set_rad_grid(std::vector<real>&&) const;
 #endif
+#ifdef OCTOTIGER_USE_NODE_CACHE
+    struct node_loc_hash_t {
+    	std::size_t operator()( const node_location& loc) const {
+    		return loc.unique_id();
+    	}
+    };
+ 	using table_type = std::unordered_map<node_location, hpx::shared_future<hpx::id_type>, node_loc_hash_t>;
+	static table_type node_cache;
+	static hpx::mutex node_cache_mutex;
+	static std::atomic<integer> hits;
+	static std::atomic<integer> misses;
+	static void cycle_node_cache();
+#endif
+
 	};
 #endif /* NODE_CLIENT_HPP_ */
