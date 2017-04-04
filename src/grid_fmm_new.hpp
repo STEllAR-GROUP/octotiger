@@ -2,16 +2,19 @@
 // Left/Fortran/Column-Major Layout : L[i][j]
 // Right/C++/Row-Major Layout       : L[j][i] 
 
-// TODO: FUSION/FISSION
-// TODO: LOOP INVARIANT CODE MOTION
-// TODO: POST-VECTORIZATION UNROLLING 
+// TODO: Remove interactions list (significant code rewrite)
+
+// TODO: Replace scalar loops annotated for vectorization with Vc
+
+// TODO: Fusion/fission
+// TODO: Loop invariant code motion 
+// TODO: Post-vectorization unrolling 
 // TODO: Split into two phases
 // TODO: Fix SoA in grid
 // TODO: Why don't we just access m0 and m1 directly?
 // TODO: Don't use auto everywhere.
 // TODO: Ilist indices should be SoA not AoS
-
-// TODO: Looks like only 10 elements of n0 and n1 are used (taylor_sizes[2] to taylor_sizes[3])
+// TODO: Looks like only 10 elements of n0 and n1 are used (taylor_sizes[2] to taylor_sizes[3])?
 
 #pragma once
 
@@ -46,6 +49,8 @@ inline void grid::compute_interactions_initialize_n_ang_mom(
   , vector_function_tag 
     ) noexcept
 {
+    // TODO: Switch to Vc.
+
     BOOST_ASSUME((i_end - i_begin) == TileWidth);
 
     auto& M = *M_ptr;

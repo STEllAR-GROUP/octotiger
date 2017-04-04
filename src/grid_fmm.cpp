@@ -10,14 +10,19 @@
 #include "simd.hpp"
 #include "taylor.hpp"
 #include "physcon.hpp"
-#include "grid_fmm_new.hpp"
+
+#if !defined(OCTOTIGER_HAVE_COMPUTE_INTERACTIONS_LEGACY)
+    // This should remain compile-time so that loop bounds are known by
+    // the compiler.
+    constexpr integer TILE_WIDTH = 64;
+
+    #include "grid_fmm_new.hpp"
+#endif
 
 #include <hpx/include/parallel_for_loop.hpp>
 
 #include <cstddef>
 #include <utility>
-
-constexpr integer TILE_WIDTH = 64;
 
 #ifdef USE_GRAV_PAR
 const auto for_loop_policy = hpx::parallel::execution::par;
@@ -45,7 +50,6 @@ void load_multipole(taylor<4, simd_vector>& m, space_vector& c, const gravity_bo
     integer iter, bool monopole) {
     if (monopole) {
         m = simd_vector(0.0);
-        #warning This is probably broken, FIXME
         m = simd_vector((*(data.m))[iter]);
     } else {
         //auto const& tmp1 = (*(data.M))[iter];
@@ -163,6 +167,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
 }
 
 compute_interactions_stats_t grid::compute_interactions(gsolve_type type) {
+#if !defined(OCTOTIGER_HAVE_COMPUTE_INTERACTIONS_LEGACY)
     if (!is_leaf && !opts.compute_interactions_legacy)
     {
         if (is_root)
@@ -208,9 +213,9 @@ compute_interactions_stats_t grid::compute_interactions(gsolve_type type) {
             }
         }
     }
-    else
+    else // Leaf
+#endif
     {
-        // Leaf
         compute_interactions_legacy(type);
         return compute_interactions_stats_t{};
     }

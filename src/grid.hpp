@@ -57,6 +57,7 @@ constexpr taylor<4, real> factor       = generate_factor();
 constexpr taylor<4, real> half_factor  = factor * HALF; 
 constexpr taylor<4, real> sixth_factor = factor * SIXTH;; 
 
+#if !defined(OCTOTIGER_HAVE_COMPUTE_INTERACTIONS_LEGACY)
 template <std::size_t TileWidth>
 struct alignas(128) compute_interactions_tile
 {
@@ -85,6 +86,7 @@ struct alignas(128) compute_interactions_tile
     alignas(128) std::array<std::array<real, TileWidth>, NDIM> B0; // 3 * TileWidth FPs
     alignas(128) std::array<std::array<real, TileWidth>, NDIM> B1; // 3 * TileWidth FPs
 };
+#endif
 
 class struct_eos;
 
@@ -146,7 +148,6 @@ typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_p
 struct gravity_boundary_type {
     std::shared_ptr<taylor<4, std::vector<real>>> M;
     std::shared_ptr<std::vector<real>> m;
-    //std::shared_ptr<std::vector<space_vector>> x;
     std::shared_ptr<std::array<std::array<real, G_N3>, NDIM>> com;
     bool is_local;
 
@@ -225,8 +226,6 @@ private:
 #ifdef USE_GRAV_PAR
     std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 #endif
-
-//    std::shared_ptr<std::atomic<integer>> Muse_counter;
 
 	bool is_root;
 	bool is_leaf;
@@ -371,6 +370,7 @@ public:
     std::pair<real,real> virial() const;
     friend class node_server;
 
+#if !defined(OCTOTIGER_HAVE_COMPUTE_INTERACTIONS_LEGACY)
     void compute_interactions_initialize_L_c(
         std::true_type
         ) noexcept;
@@ -527,6 +527,7 @@ public:
       , gsolve_type SolveKind
         >
     compute_interactions_stats_t compute_interactions_non_leaf();
+#endif
 };
 
 struct grid::node_point {
