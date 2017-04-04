@@ -33,7 +33,6 @@ class rad_grid;
 #include <memory>
 #include <set>
 
-
 class struct_eos;
 
 class analytic_t {
@@ -71,6 +70,8 @@ public:
 		return *this;
 	}
 };
+
+HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
 
 struct interaction_type {
 	std::uint16_t first;

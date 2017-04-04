@@ -10,6 +10,8 @@
 
 #include "defs.hpp"
 
+#include <hpx/traits/is_bitwise_serializable.hpp>
+
 struct scf_data_t {
 	real m_x;
 	real m;
@@ -66,6 +68,7 @@ struct scf_data_t {
 	void accumulate(const scf_data_t& other);
 };
 
+HPX_IS_BITWISE_SERIALIZABLE(scf_data_t);
 
 
 #endif /* SCF_DATA_HPP_ */

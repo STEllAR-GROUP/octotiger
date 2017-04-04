@@ -10,6 +10,8 @@
 
 #include "defs.hpp"
 
+#include <hpx/traits/is_bitwise_serializable.hpp>
+
 #include <cmath>
 
 #if !defined(HPX_HAVE_DATAPAR)
@@ -102,6 +104,14 @@ public:
 		return std::sqrt(sum);
 	}
 };
+
+namespace hpx { namespace traits
+{
+    template <class T>
+    struct is_bitwise_serializable<space_vector_gen<T> >
+      : is_bitwise_serializable<typename std::remove_const<T>::type>
+    {};
+}}
 
 using space_vector = space_vector_gen<real>;
 

@@ -9,6 +9,7 @@
 #define SRC_PHYSCON_HPP_
 
 #include "defs.hpp"
+#include <hpx/traits/is_bitwise_serializable.hpp>
 
 struct physcon_t {
 	real A;
@@ -35,6 +36,8 @@ struct physcon_t {
 		arc & _Z;
 	}
 };
+
+HPX_IS_BITWISE_SERIALIZABLE(physcon_t);
 
 #ifndef __NPHYSCON__
 extern physcon_t physcon;

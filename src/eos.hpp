@@ -65,8 +65,8 @@ public:
 	struct_eos(real M, real R, real _n_C, real _n_E, real mu, const struct_eos& other);
 	struct_eos(real M, real _n_C, const struct_eos& other);
 	void set_entropy(real other_s0);
-	virtual ~struct_eos() = default;
-	virtual real enthalpy_to_density(real h) const;
+	~struct_eos() = default;
+	real enthalpy_to_density(real h) const;
 	real dE() const;
 	real s0() const;
 	real P0() const;
@@ -77,9 +77,11 @@ public:
 	real h0() const;
 	void set_h0(real h);
 	void set_d0(real d);
-	virtual real density_to_enthalpy(real d) const;
-	virtual real pressure(real d) const;
+	real density_to_enthalpy(real d) const;
+	real pressure(real d) const;
 
 };
+
+HPX_IS_BITWISE_SERIALIZABLE(struct_eos);
 
 #endif /* POLYTROPE_HPP_ */

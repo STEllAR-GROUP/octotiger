@@ -24,4 +24,6 @@ public:
 	}
 };
 
+HPX_IS_BITWISE_SERIALIZABLE(state);
+
 #endif /* STATE_HPP_ */
