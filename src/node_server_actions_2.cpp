@@ -461,7 +461,7 @@ hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type par
 		for (integer cx = 0; cx != 2; ++cx) {
 			for (integer cy = 0; cy != 2; ++cy) {
 				for (integer cz = 0; cz != 2; ++cz) {
-					std::vector < hpx::future < hpx::id_type >> child_neighbors_f(geo::direction::count());
+					std::array<hpx::future<hpx::id_type>, geo::direction::count()> child_neighbors_f;
 					const integer ci = cx + 2 * cy + 4 * cz;
 					for (integer dx = -1; dx != 2; ++dx) {
 						for (integer dy = -1; dy != 2; ++dy) {
@@ -485,36 +485,38 @@ hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type par
 							}
 						}
 					}
-					cfuts[index++] = hpx::when_all(child_neighbors_f).then([this, ci](hpx::future<std::vector<hpx::future<hpx::id_type>>> f) {
-						auto cns = f.get();
-						std::vector<hpx::id_type> child_neighbors(geo::direction::count());
-						for (auto& dir : geo::direction::full_set()) {
-							child_neighbors[dir] = cns[dir].get();
-							amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
-						}
-						children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
-								me.get_gid(), std::move(child_neighbors)).get();
-					});
+                    cfuts[index++] = hpx::dataflow(hpx::launch::sync,
+					    [this, ci](std::array<hpx::future<hpx::id_type>, geo::direction::count()>&& cns) {
+                            std::vector<hpx::id_type> child_neighbors(geo::direction::count());
+                            for (auto& dir : geo::direction::full_set()) {
+                                child_neighbors[dir] = cns[dir].get();
+                                amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
+                            }
+                            return children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
+                                    me.get_gid(), std::move(child_neighbors));
+                        },
+                        std::move(child_neighbors_f));
 				}
 			}
 		}
 		return hpx::when_all(cfuts);
 	} else {
-		std::vector<hpx::future<bool>> nfuts(NFACE);
+		std::vector<hpx::future<void>> nfuts;
+        nfuts.reserve(NFACE);
 		for (auto& f : geo::face::full_set()) {
 			const auto& neighbor = neighbors[f.to_direction()];
 			if (!neighbor.empty()) {
-				nfuts[f] = neighbor.set_child_aunt(me.get_gid(), f ^ 1);
+				nfuts.push_back(neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
+                    [this, f](hpx::future<bool>&& n)
+                    {
+                        nieces[f] = n.get();
+                    }
+                ));
 			} else {
-				nfuts[f] = hpx::make_ready_future(false);
+                nieces[f] = false;
 			}
 		}
-		return hpx::dataflow([this](std::vector<hpx::future<bool>> nfuts)
-		{
-			for (auto& f : geo::face::full_set()) {
-				nieces[f] = nfuts[f].get();
-			}
-		}, std::move(nfuts));
+        return hpx::when_all(nfuts);
 	}
 }
 
@@ -523,8 +525,8 @@ HPX_REGISTER_ACTION (get_child_client_action_type);
 
 hpx::future<hpx::id_type> node_client::get_child_client(const node_location& parent_loc, const geo::octant& ci) {
 	hpx::future < hpx::id_type > rfut;
-	hpx::shared_future < hpx::id_type > sfut;
 #ifdef OCTOTIGER_USE_NODE_CACHE
+	hpx::shared_future < hpx::id_type > sfut;
 	bool found;
 #endif
 	if (get_gid() != hpx::invalid_id) {
@@ -590,9 +592,9 @@ bool node_server::set_child_aunt(const hpx::id_type& aunt, const geo::face& face
 		for (auto const& ci : geo::octant::face_subset(face)) {
 			futs[index++] = children[ci].set_aunt(aunt, face);
 		}
-		wait_all_and_propagate_exceptions(futs);
+        wait_all_and_propagate_exceptions(futs);
 	}
-	return is_refined;
+    return is_refined;
 }
 
 typedef node_server::get_ptr_action get_ptr_action_type;

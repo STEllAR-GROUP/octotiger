@@ -296,7 +296,7 @@ void node_server::load_from_file(const std::string& fname, std::string const& da
         hpx::lcos::broadcast<set_locality_data_action>(
             options::all_localities, omega, pivot).get();
 
-    load(0, total_nodes, rec_size, false, data_dir + fname);
+    load(0, total_nodes, rec_size, false, data_dir + fname).get();
 //     meta_read.get();
     double elapsed = timer.elapsed();
     printf("Loading took %f seconds\n", elapsed);

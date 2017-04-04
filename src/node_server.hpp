@@ -204,6 +204,8 @@ public:
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
 
+    hpx::future<hpx::id_type> create_child(hpx::id_type const& locality, integer ci);
+
     hpx::future<void> regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
@@ -277,7 +279,7 @@ public:
 
     diagnostics_t diagnostics() const;
 
-    grid::output_list_type load(integer, integer, integer, bool do_output,
+    hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,
         std::string);
     HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
 
@@ -285,7 +287,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
 
     void set_aunt(const hpx::id_type&, const geo::face& face);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, set_aunt, set_aunt_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_aunt, set_aunt_action);
 
     bool set_child_aunt(const hpx::id_type&,
         const geo::face& face) const;

@@ -72,7 +72,7 @@ hpx::future<grid::output_list_type> node_client::load(
     return hpx::async<typename node_server::load_action>(get_unmanaged_gid(), i, total, rec_size, do_o, s);
 }
 
-grid::output_list_type node_server::load(
+hpx::future<grid::output_list_type> node_server::load(
     integer cnt, integer total_nodes, integer rec_size, bool do_output, std::string filename)
 {
     if (my_location.level() == 0)
@@ -112,14 +112,25 @@ grid::output_list_type node_server::load(
         integer index = 0;
         for (auto const& ci : geo::octant::full_set()) {
             integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
-            children[ci] = hpx::new_<node_server>(options::all_localities[loc_id],
-                my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
-#ifdef OCTOTIGER_RESTART_LOAD_SEQ
-            children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename).get();
-#else
+
             futs[index++] =
-                children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename);
-#endif
+                hpx::new_<node_server>(options::all_localities[loc_id],
+                    my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle).then(
+                        [this, ci, counts, do_output, total_nodes, rec_size, filename](hpx::future<hpx::id_type>&& fut)
+                        {
+                            children[ci] = fut.get();
+                            return children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename);
+                        }
+                    );
+
+//             children[ci] = hpx::new_<node_server>(options::all_localities[loc_id],
+//                 my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
+// #ifdef OCTOTIGER_RESTART_LOAD_SEQ
+//             children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename).get();
+// #else
+//             futs[index++] =
+//                 children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename);
+// #endif
         }
     } else if (flag == '0') {
         is_refined = false;
@@ -131,35 +142,70 @@ grid::output_list_type node_server::load(
         abort();
     }
 
-    grid::output_list_type my_list;
-    for (auto&& fut : futs) {
-        if (fut.valid()) {
-            if (do_output) {
-                grid::merge_output_lists(my_list, fut.get());
-            } else {
-                fut.get();
-            }
-        }
-    }
-    // printf( "***************************************\n" );
-    if (!is_refined && do_output) {
-        my_list = grid_ptr->get_output_list(false);
-        //	grid_ptr = nullptr;
-    }
-    //	hpx::async<inc_grids_loaded_action>(localities[0]).get();
-    if (my_location.level() == 0) {
-        if (do_output) {
-            if (hydro_on && opts.problem == DWD) {
-                diagnostics();
-            }
-            grid::output(
-                my_list, "data.silo", current_time, get_rotation_count() / opts.output_dt, false);
-        }
-        printf("Loaded checkpoint file\n");
-        my_list = decltype(my_list)();
+    if (!is_refined && do_output)
+    {
+        return hpx::make_ready_future(grid_ptr->get_output_list(false));
     }
 
-    return my_list;
+
+    return hpx::dataflow(
+        [this, do_output](std::array<hpx::future<grid::output_list_type>, NCHILD>&& futs)
+        {
+            grid::output_list_type my_list;
+            for (auto&& fut : futs) {
+                if (fut.valid()) {
+                    if (do_output) {
+                        grid::merge_output_lists(my_list, fut.get());
+                    } else {
+                        fut.get();
+                    }
+                }
+            }
+            if (my_location.level() == 0) {
+                if (do_output) {
+                    if (hydro_on && opts.problem == DWD) {
+                        diagnostics();
+                    }
+                    grid::output(
+                        my_list, "data.silo", current_time, get_rotation_count() / opts.output_dt, false);
+                }
+                printf("Loaded checkpoint file\n");
+                my_list = decltype(my_list)();
+            }
+
+            return my_list;
+        },
+        std::move(futs));
+
+//     grid::output_list_type my_list;
+//     for (auto&& fut : futs) {
+//         if (fut.valid()) {
+//             if (do_output) {
+//                 grid::merge_output_lists(my_list, fut.get());
+//             } else {
+//                 fut.get();
+//             }
+//         }
+//     }
+//     // printf( "***************************************\n" );
+//     if (!is_refined && do_output) {
+//         my_list = grid_ptr->get_output_list(false);
+//         //	grid_ptr = nullptr;
+//     }
+    //	hpx::async<inc_grids_loaded_action>(localities[0]).get();
+//     if (my_location.level() == 0) {
+//         if (do_output) {
+//             if (hydro_on && opts.problem == DWD) {
+//                 diagnostics();
+//             }
+//             grid::output(
+//                 my_list, "data.silo", current_time, get_rotation_count() / opts.output_dt, false);
+//         }
+//         printf("Loaded checkpoint file\n");
+//         my_list = decltype(my_list)();
+//     }
+//
+//     return my_list;
 }
 
 typedef node_server::output_action output_action_type;
@@ -272,51 +318,62 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
             for (auto& ci : geo::octant::full_set()) {
                 child_descendant_count[ci] = 1;
-				children[ci] = hpx::new_ < node_server
-						> (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle);
-				{
-					std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
-					std::array<integer, NDIM> ub;
-					lb[XDIM] += (1 & (ci >> 0)) * (INX);
-					lb[YDIM] += (1 & (ci >> 1)) * (INX);
-					lb[ZDIM] += (1 & (ci >> 2)) * (INX);
-					for (integer d = 0; d != NDIM; ++d) {
-						ub[d] = lb[d] + (INX);
-					}
-					std::vector<real> outflows(NF, ZERO);
-					if (ci == 0) {
-						outflows = grid_ptr->get_outflows();
-					}
-					if (current_time > ZERO) {
-						children[ci].set_grid(grid_ptr->get_prolong(lb, ub), std::move(outflows)).get();
-					}
-				}
-#ifdef RADIATION
-				{
-					std::array<integer, NDIM> lb = { 2 * R_BW, 2 * R_BW, 2 * R_BW };
-					std::array<integer, NDIM> ub;
-					lb[XDIM] += (1 & (ci >> 0)) * (INX);
-					lb[YDIM] += (1 & (ci >> 1)) * (INX);
-					lb[ZDIM] += (1 & (ci >> 2)) * (INX);
-					for (integer d = 0; d != NDIM; ++d) {
-						ub[d] = lb[d] + (INX);
-					}
-				/*	std::vector<real> outflows(NF, ZERO);
-					if (ci == 0) {
-						outflows = grid_ptr->get_outflows();
-					}*/
-					if (current_time > ZERO) {
-						children[ci].set_rad_grid(rad_grid_ptr->get_prolong(lb, ub)/*, std::move(outflows)*/).get();
-					}
-				}
-#endif
 
+//                 children[ci] = create_child(hpx::find_here(), ci);
 
             }
         }
     }
 
     return count;
+}
+
+hpx::future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, integer ci)
+{
+    return hpx::new_ < node_server
+            > (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle).then(
+        [this, ci](hpx::future<hpx::id_type>&& child_idf)
+        {
+            hpx::id_type child_id = child_idf.get();
+            node_client child = child_id;
+            {
+                std::array<integer, NDIM> lb = { 2 * H_BW, 2 * H_BW, 2 * H_BW };
+                std::array<integer, NDIM> ub;
+                lb[XDIM] += (1 & (ci >> 0)) * (INX);
+                lb[YDIM] += (1 & (ci >> 1)) * (INX);
+                lb[ZDIM] += (1 & (ci >> 2)) * (INX);
+                for (integer d = 0; d != NDIM; ++d) {
+                    ub[d] = lb[d] + (INX);
+                }
+                std::vector<real> outflows(NF, ZERO);
+                if (ci == 0) {
+                    outflows = grid_ptr->get_outflows();
+                }
+                if (current_time > ZERO) {
+                    child.set_grid(grid_ptr->get_prolong(lb, ub), std::move(outflows)).get();
+                }
+            }
+#ifdef RADIATION
+            {
+                std::array<integer, NDIM> lb = { 2 * R_BW, 2 * R_BW, 2 * R_BW };
+                std::array<integer, NDIM> ub;
+                lb[XDIM] += (1 & (ci >> 0)) * (INX);
+                lb[YDIM] += (1 & (ci >> 1)) * (INX);
+                lb[ZDIM] += (1 & (ci >> 2)) * (INX);
+                for (integer d = 0; d != NDIM; ++d) {
+                    ub[d] = lb[d] + (INX);
+                }
+            /*	std::vector<real> outflows(NF, ZERO);
+                if (ci == 0) {
+                    outflows = grid_ptr->get_outflows();
+                }*/
+                if (current_time > ZERO) {
+                    child.set_rad_grid(rad_grid_ptr->get_prolong(lb, ub)/*, std::move(outflows)*/).get();
+                }
+            }
+#endif
+            return child_id;
+        });
 }
 
 typedef node_server::regrid_scatter_action regrid_scatter_action_type;
@@ -332,21 +389,40 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
     if (is_refined) {
         integer a = a_;
         ++a;
+        integer index = 0;
         for (auto& ci : geo::octant::full_set()) {
             const integer loc_index = a * options::all_localities.size() / total;
             const auto child_loc = options::all_localities[loc_index];
-            a += child_descendant_count[ci];
-            const hpx::id_type id = children[ci].get_gid();
-            integer current_child_id = hpx::naming::get_locality_id_from_gid(id.get_gid());
-            auto current_child_loc = options::all_localities[current_child_id];
-            if (child_loc != current_child_loc) {
-                children[ci] = children[ci].copy_to_locality(child_loc);
+            if (children[ci].empty())
+            {
+                futs[index++] = create_child(child_loc, ci).then(
+                    [this, ci, a, total](hpx::future<hpx::id_type>&& child)
+                    {
+                        children[ci] = child.get();
+                        return children[ci].regrid_scatter(a, total);
+                    }
+                );
             }
-        }
-        a = a_ + 1;
-        integer index = 0;
-        for (auto const& ci : geo::octant::full_set()) {
-            futs[index++] = children[ci].regrid_scatter(a, total);
+            else
+            {
+                const hpx::id_type id = children[ci].get_gid();
+                integer current_child_id = hpx::naming::get_locality_id_from_gid(id.get_gid());
+                auto current_child_loc = options::all_localities[current_child_id];
+                if (child_loc != current_child_loc)
+                {
+                    futs[index++] = children[ci].copy_to_locality(child_loc).then(
+                        [this, ci, a, total](hpx::future<hpx::id_type>&& child)
+                        {
+                            children[ci] = child.get();
+                            return children[ci].regrid_scatter(a, total);
+                        }
+                    );
+                }
+                else
+                {
+                    futs[index++] = children[ci].regrid_scatter(a, total);
+                }
+            }
             a += child_descendant_count[ci];
         }
     }
@@ -368,16 +444,22 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
         check_for_refinement(omega,  new_floor).get();
     }
     printf("regridding\n");
+    real tstart = timer.elapsed();
     integer a = regrid_gather(rb);
+    real tstop = timer.elapsed();
+    printf( "Regridded tree in %f seconds\n", real(tstop - tstart));
     printf("rebalancing %i nodes\n", int(a));
+    tstart = timer.elapsed();
     regrid_scatter(0, a).get();
+    tstop = timer.elapsed();
+    printf( "Rebalanced tree in %f seconds\n", real(tstop - tstart));
     assert(grid_ptr != nullptr);
     std::vector<hpx::id_type> null_neighbors(geo::direction::count());
-    real tstart = clock();
+    tstart = timer.elapsed();
     printf("forming tree connections\n");
     form_tree(hpx::unmanaged(root_gid), hpx::invalid_id, null_neighbors).get();
-    real tstop = clock();
-    printf( "Formed tree in %e seconds\n", real(tstop - tstart)/real(CLOCKS_PER_SEC));
+    tstop = timer.elapsed();
+    printf( "Formed tree in %f seconds\n", real(tstop - tstart));
     if (current_time > ZERO) {
         printf("solving gravity\n");
         solve_gravity(true);
