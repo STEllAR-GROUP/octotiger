@@ -14,7 +14,7 @@ constexpr std::size_t alignment = 64;
 constexpr std::size_t alignment = 32;
 #endif
 
-#if !defined(_MSC_VER) && !defined(HPX_HAVE_DATAPAR_VC)
+#if !defined(_MSC_VER) 
 #pragma message( "Compiling with custom new/delete" )
 static void* allocate(std::size_t);
 static void deallocate(void*);
