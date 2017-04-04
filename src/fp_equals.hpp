@@ -5,14 +5,11 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 ///////////////////////////////////////////////////////////////////////////////
 
-#if !defined(TSB_A983ED3B_3C3B_42AF_8057_C5E91CA3242B)
-#define TSB_A983ED3B_3C3B_42AF_8057_C5E91CA3242B
+#if !defined(OCTOTIGER_63801C03_BBA2_4F5E_A30C_4387A73F8AE2)
+#define OCTOTIGER_63801C03_BBA2_4F5E_A30C_4387A73F8AE2
 
 #include <type_traits>
 #include <limits>
-
-namespace tsb
-{
 
 template <typename T>
 constexpr bool fp_equals(
@@ -28,7 +25,5 @@ constexpr bool fp_equals(
            : false);
 }
 
-} // tsb
-
-#endif // TSB_A983ED3B_3C3B_42AF_8057_C5E91CA3242B
+#endif // OCTOTIGER_63801C03_BBA2_4F5E_A30C_4387A73F8AE2
 

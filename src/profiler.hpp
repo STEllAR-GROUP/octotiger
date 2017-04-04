@@ -10,7 +10,7 @@
 
 #include "defs.hpp"
 #include "options.hpp"
-#include "tsb_fp_equals.hpp"
+#include "fp_equals.hpp"
 
 #include <hpx/util/high_resolution_timer.hpp>
 #include <hpx/include/serialization.hpp>
@@ -135,10 +135,10 @@ struct op_stats_t
         double const mem_gbytes   = double(sizeof(real) * fp_memloads + sizeof(real) * fp_memstores) / double(1024 * 1024 * 1024);
         double const tile_gbytes  = double(sizeof(real) * fp_tileloads + sizeof(real) * fp_tilestores) / double(1024 * 1024 * 1024);
         double const cache_gbytes = double(sizeof(real) * fp_cacheloads + sizeof(real) * fp_cachestores) / double(1024 * 1024 * 1024);
-        double const gflopss       = (tsb::fp_equals(time, 0.0) ? 0.0 : gflops / time);
-        double const mem_gbytess   = (tsb::fp_equals(time, 0.0) ? 0.0 : mem_gbytes / time);
-        double const tile_gbytess  = (tsb::fp_equals(time, 0.0) ? 0.0 : tile_gbytes / time);
-        double const cache_gbytess = (tsb::fp_equals(time, 0.0) ? 0.0 : cache_gbytes / time);
+        double const gflopss       = (fp_equals(time, 0.0) ? 0.0 : gflops / time);
+        double const mem_gbytess   = (fp_equals(time, 0.0) ? 0.0 : mem_gbytes / time);
+        double const tile_gbytess  = (fp_equals(time, 0.0) ? 0.0 : tile_gbytes / time);
+        double const cache_gbytess = (fp_equals(time, 0.0) ? 0.0 : cache_gbytes / time);
     #endif
 
         os << Target::name() << " stats:\n"

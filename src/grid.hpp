@@ -18,8 +18,6 @@
 #include "problem.hpp"
 #include "taylor.hpp"
 #include "scf_data.hpp"
-#include "vectorization_and_assumption_hints.hpp"
-#include "tsb_make_aligned_array.hpp"
 
 #ifdef RADIATION
 class rad_grid;

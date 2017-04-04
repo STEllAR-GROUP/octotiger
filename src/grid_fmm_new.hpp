@@ -1,3 +1,11 @@
+///////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 2017 Louisiana State University 
+// Copyright (c) 2017 Bryce Adelstein Lelbach aka wash <brycelelbach@gmail.com>
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+///////////////////////////////////////////////////////////////////////////////
+
 // Convention: i is the dimension with the least stride.
 // Left/Fortran/Column-Major Layout : L[i][j]
 // Right/C++/Row-Major Layout       : L[j][i] 
@@ -16,7 +24,10 @@
 // TODO: Ilist indices should be SoA not AoS
 // TODO: Looks like only 10 elements of n0 and n1 are used (taylor_sizes[2] to taylor_sizes[3])?
 
-#pragma once
+#include "vectorization_and_assumption_hints.hpp"
+
+#if !defined(OCTOTIGER_82BA7119_59FB_4018_88F8_AF18F969220C)
+#define OCTOTIGER_82BA7119_59FB_4018_88F8_AF18F969220C
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1173,8 +1184,7 @@ inline compute_interactions_stats_t grid::compute_interactions_non_leaf()
     compute_interactions_stats_t s;
 
     { // Vector primary loop.
-        //auto tile = std::make_unique<compute_interactions_tile<TileWidth>>();
-        auto tile = tsb::make_aligned_array<compute_interactions_tile<TileWidth>>(128, 1);
+        auto tile = std::make_unique<compute_interactions_tile<TileWidth>>();
 
         hpx::util::high_resolution_timer timer;
 
@@ -1191,8 +1201,7 @@ inline compute_interactions_stats_t grid::compute_interactions_non_leaf()
     { // Scalar remainder loop.
         compute_interactions_stats_t dummy;
 
-        //auto tile = std::make_unique<compute_interactions_tile<1>>();
-        auto tile = tsb::make_aligned_array<compute_interactions_tile<1>>(128, 1);
+        auto tile = std::make_unique<compute_interactions_tile<1>>();
 
         for (integer i_begin = ilist_primary_loop_size; i_begin != IList->size(); ++i_begin)
         {
@@ -1204,4 +1213,6 @@ inline compute_interactions_stats_t grid::compute_interactions_non_leaf()
 
     return s;
 }
+
+#endif // OCTOTIGER_82BA7119_59FB_4018_88F8_AF18F969220C
 
