@@ -349,8 +349,14 @@ hpx::future<hpx::id_type> node_server::create_child(hpx::id_type const& locality
                 if (ci == 0) {
                     outflows = grid_ptr->get_outflows();
                 }
-                if (current_time > ZERO) {
-                    child.set_grid(grid_ptr->get_prolong(lb, ub), std::move(outflows)).get();
+                if (current_time > ZERO)
+                {
+                    std::vector<real> prolong;
+                    {
+                        std::unique_lock<hpx::lcos::local::spinlock> lk(prolong_mtx);
+                        prolong = grid_ptr->get_prolong(lb, ub);
+                    }
+                    child.set_grid(std::move(prolong), std::move(outflows)).get();
                 }
             }
 #ifdef RADIATION
@@ -368,7 +374,12 @@ hpx::future<hpx::id_type> node_server::create_child(hpx::id_type const& locality
                     outflows = grid_ptr->get_outflows();
                 }*/
                 if (current_time > ZERO) {
-                    child.set_rad_grid(rad_grid_ptr->get_prolong(lb, ub)/*, std::move(outflows)*/).get();
+                    std::vector<real> prolong;
+                    {
+                        std::unique_lock<hpx::lcos::local::spinlock> lk(prolong_mtx);
+                        prolong = rad_grid_ptr->get_prolong(lb, ub);
+                    }
+                    child.set_rad_grid(std::move(prolong)/*, std::move(outflows)*/).get();
                 }
             }
 #endif
@@ -615,7 +626,7 @@ typedef node_server::set_grid_action set_grid_action_type;
 HPX_REGISTER_ACTION(set_grid_action_type);
 
 hpx::future<void> node_client::set_grid(std::vector<real>&& g, std::vector<real>&& o) const {
-    return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(), g, o);
+    return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(), std::move(g), std::move(o));
 }
 
 void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& outflows) {

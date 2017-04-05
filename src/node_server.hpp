@@ -88,6 +88,7 @@ private:
 
     std::vector<std::array<bool, geo::direction::count()>> amr_flags;
     hpx::lcos::local::spinlock mtx;
+    hpx::lcos::local::spinlock prolong_mtx;
     std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
      channel<expansion_pass_type> parent_gravity_channel;
      std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
@@ -248,7 +249,7 @@ public:
     void start_run(bool scf, integer);
 
     void set_grid(const std::vector<real>&, std::vector<real>&&);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
     hpx::future<real> timestep_driver_descend();
 
