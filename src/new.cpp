@@ -4,9 +4,10 @@
  *  Created on: Oct 1, 2015
  *      Author: dmarce1
  */
+#include <hpx/config/defines.hpp>
+
 #include <cstdlib>
 #include <cstdio>
-#include <hpx/config/defines.hpp>
 
 #if defined(__MIC__) || defined(__AVX512CD__)
 constexpr std::size_t alignment = 64;
@@ -14,7 +15,7 @@ constexpr std::size_t alignment = 64;
 constexpr std::size_t alignment = 32;
 #endif
 
-#if !defined(_MSC_VER) 
+#if !defined(_MSC_VER)
 #pragma message( "Compiling with custom new/delete" )
 static void* allocate(std::size_t);
 static void deallocate(void*);
@@ -48,7 +49,7 @@ static void* allocate(std::size_t n) {
 			printf("malloc failed!\n");
 			abort();
 		}
-	
+
 }
 	return ptr;
 }
