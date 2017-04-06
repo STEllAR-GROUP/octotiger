@@ -200,7 +200,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
 
     static void parallel_output_gather(grid::output_list_type&&);
-    static void parallel_output_complete(std::string fname, real tm, int cycle, bool analytic);
+    static void parallel_output_complete(std::string dname, std::string fname, real tm, int cycle, bool analytic);
 
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
