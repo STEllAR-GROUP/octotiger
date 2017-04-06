@@ -296,7 +296,7 @@ void node_server::load_from_file(const std::string& fname, std::string const& da
         hpx::lcos::broadcast<set_locality_data_action>(
             options::all_localities, omega, pivot).get();
 
-    load(0, total_nodes, rec_size, false, data_dir + fname).get();
+    load(0, total_nodes, rec_size, opts.output_only, data_dir + fname).get();
 //     meta_read.get();
     double elapsed = timer.elapsed();
     printf("Loading took %f seconds\n", elapsed);
@@ -304,7 +304,7 @@ void node_server::load_from_file(const std::string& fname, std::string const& da
 
 void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname, std::string const& data_dir) {
     load_from_file(fname, data_dir);
-    file_copy((data_dir + "data.silo").c_str(), (data_dir + outname).c_str());
+//    file_copy((data_dir + "data.silo").c_str(), (data_dir + outname).c_str());
 //	std::string command = std::string("mv data.silo ") + outname + std::string("\n");
 //	SYSTEM(command);
 }

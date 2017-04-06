@@ -52,8 +52,10 @@ std::stack<grid::output_list_type> node_server::pending_output;
 
 void node_server::parallel_output_gather(grid::output_list_type&& list) {
 	static hpx::mutex mtx;
-	std::lock_guard<hpx::mutex> lock(mtx);
-	pending_output.push(std::move(list));
+	if (!list.nodes.empty()) {
+		std::lock_guard<hpx::mutex> lock(mtx);
+		pending_output.push(std::move(list));
+	}
 }
 
 void node_server::parallel_output_complete(std::string fname, real tm, int cycle, bool analytic) {
@@ -144,12 +146,16 @@ hpx::future<grid::output_list_type> node_server::load(
 
     if (!is_refined && do_output)
     {
-        return hpx::make_ready_future(grid_ptr->get_output_list(false));
+    	auto l = grid_ptr->get_output_list(false);
+    	if( opts.parallel_silo ) {
+    		parallel_output_gather(std::move(l));
+    	}
+        return hpx::make_ready_future(l);
     }
 
 
     return hpx::dataflow(
-        [this, do_output](std::array<hpx::future<grid::output_list_type>, NCHILD>&& futs)
+        [this, do_output, filename](std::array<hpx::future<grid::output_list_type>, NCHILD>&& futs)
         {
             grid::output_list_type my_list;
             for (auto&& fut : futs) {
@@ -160,16 +166,41 @@ hpx::future<grid::output_list_type> node_server::load(
                         fut.get();
                     }
                 }
-            }
-            if (my_location.level() == 0) {
-                if (do_output) {
-                    if (hydro_on && opts.problem == DWD) {
-                        diagnostics();
-                    }
-                    grid::output(
-                        my_list, "data.silo", current_time, get_rotation_count() / opts.output_dt, false);
-                }
-                printf("Loaded checkpoint file\n");
+		}
+		if (my_location.level() == 0) {
+			if (do_output) {
+				auto silo_name = opts.output_filename;
+				/* Skip for now, more interested in SILO */
+				//	if (hydro_on && opts.problem == DWD) {
+			//		diagnostics();
+			//	}
+				std::string this_fname;
+				printf("Outputing...\n");
+				if (opts.parallel_silo) {
+					std::string dir_name = silo_name + std::string(".silo.data");
+					if (system((std::string("mkdir -p ") + dir_name + std::string("\n")).c_str()) != 0) {
+						abort_error();
+					}
+					const auto cycle = get_rotation_count();
+					const auto sz = opts.all_localities.size();
+					std::vector<hpx::future<void>> futs(sz);
+					for (integer i = 0; i != sz; ++i) {
+						this_fname = dir_name + std::string("/") + silo_name + std::string(".") + std::to_string(i) + std::string(".silo");
+						futs[i] = hpx::async < parallel_output_complete_action > (opts.all_localities[i], this_fname, get_time(), cycle, false);
+					}
+					hpx::wait_all(futs);
+					grid::output_header(silo_name, get_time(), cycle, false, opts.all_localities.size());
+				} else {
+					this_fname = silo_name + std::string(".silo");
+					grid::output(
+							my_list, this_fname, current_time, get_rotation_count() / opts.output_dt, false);
+				}
+			}
+			printf("Done...\n");
+
+			if( !opts.parallel_silo) {
+			}
+			printf("Loaded checkpoint file\n");
                 my_list = decltype(my_list)();
             }
 
