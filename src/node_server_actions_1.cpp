@@ -272,7 +272,7 @@ grid::output_list_type node_server::output(std::string dname, std::string fname,
 			printf("Outputing...\n");
 			if (opts.parallel_silo) {
 				std::string this_dname = dname + fname + std::string(".silo.data/");
-                printf("node_server::output (mkdir): this_dname('%s')\n", this_dname.c_str());
+                //printf("node_server::output (mkdir): this_dname('%s')\n", this_dname.c_str());
 				if (system((std::string("mkdir -p ") + this_dname + std::string("\n")).c_str()) != 0) {
 					abort_error();
 				}

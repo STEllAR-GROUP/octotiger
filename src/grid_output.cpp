@@ -196,8 +196,8 @@ void make_names(std::vector<char*>& names, std::vector<int>& types,
 		names[i] = (char*) malloc(name.size() + 1);
 		types[i] = type;
 		strcpy(names[i], name.c_str());
-		printf("make_names: name[%i]('%s') dirname('%s') base('%s') title('%s')\n",
-            i, names[i], dirname.c_str(), base.c_str(), title.c_str());
+//		printf("make_names: name[%i]('%s') dirname('%s') base('%s') title('%s')\n",
+//            i, names[i], dirname.c_str(), base.c_str(), title.c_str());
 	}
 }
 
@@ -216,8 +216,8 @@ void grid::output_header(std::string dirname, std::string base, real t, int cycl
 		int ndim = 3;
 		DBAddOption(olist, DBOPT_DTIME, &time);
 		std::string filename = dirname + base + std::string(".silo");
-		printf("grid::output_header: filename('%s') dirname('%s') base('%s')\n",
-            filename.c_str(), dirname.c_str(), base.c_str());
+//		printf("grid::output_header: filename('%s') dirname('%s') base('%s')\n",
+//            filename.c_str(), dirname.c_str(), base.c_str());
 		DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
 		assert(db);
 		std::vector<char*> names(procs);
@@ -275,12 +275,12 @@ void grid::output(const output_list_type& olists,
 				auto olist = DBMakeOptlist(1);
 				double time = double(t);
 				int ndim = 3;
-//				DBAddOption(olist, DBOPT_CYCLE, &cycle);
+				//DBAddOption(olist, DBOPT_CYCLE, &cycle);
 				DBAddOption(olist, DBOPT_DTIME, &time);
-			//	DBAddOption(olist, DBOPT_NSPACE, &ndim );
+				//DBAddOption(olist, DBOPT_NSPACE, &ndim );
                 std::string filename = dirname + base;
-        		printf("grid::output: filename('%s') dirname('%s') base('%s')\n",
-                    filename.c_str(), dirname.c_str(), base.c_str());
+//        		printf("grid::output: filename('%s') dirname('%s') base('%s')\n",
+//                    filename.c_str(), dirname.c_str(), base.c_str());
 				DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
 				assert(db);
 				DBPutZonelist2(db, "zones", nzones, int(NDIM), zone_nodes.data(), nzones * NVERTEX, 0, 0, 0, shapetype, shapesize,
@@ -294,20 +294,20 @@ void grid::output(const output_list_type& olists,
 					double time = double(t);
 					int istrue = 1;
 					int isfalse = 0;
-			//		DBAddOption(olist, DBOPT_CYCLE, &cycle);
+					//DBAddOption(olist, DBOPT_CYCLE, &cycle);
 					DBAddOption(olist, DBOPT_DTIME, &time);
-		//			DBAddOption(olist, DBOPT_NSPACE, &ndim );
-			//		if( field == rho_i || field == sx_i || field == sy_i || field == sz_i || field == spc_ac_i || field == spc_ae_i || field == spc_dc_i || field == spc_de_i || field == spc_vac_i ) {
-			//			DBAddOption(olist, DBOPT_CONSERVED, &istrue);
-			//		} else {
-			//			DBAddOption(olist, DBOPT_CONSERVED, &isfalse );
-			//		}
-			//		if( field < NF ) {
-			//			DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
-			//		} else {
-			//			DBAddOption(olist, DBOPT_EXTENSIVE, &isfalse);
-			//		}
-			//		DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
+					//DBAddOption(olist, DBOPT_NSPACE, &ndim );
+					//if( field == rho_i || field == sx_i || field == sy_i || field == sz_i || field == spc_ac_i || field == spc_ae_i || field == spc_dc_i || field == spc_de_i || field == spc_vac_i ) {
+					//	DBAddOption(olist, DBOPT_CONSERVED, &istrue);
+					//} else {
+					//	DBAddOption(olist, DBOPT_CONSERVED, &isfalse );
+					//}
+					//if( field < NF ) {
+					//	DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
+					//} else {
+					//	DBAddOption(olist, DBOPT_EXTENSIVE, &isfalse);
+					//}
+					//DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
 					DBPutUcdvar1(db, field_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.data[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 							olist);
 					if( analytic && field < 6) {
