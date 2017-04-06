@@ -196,7 +196,7 @@ public:
     void load_from_file_and_output(const std::string&, const std::string&, std::string const& data_dir);
 
 
-    grid::output_list_type output(std::string fname, int cycle, bool analytic) const;
+    grid::output_list_type output(std::string dname, std::string fname, int cycle, bool analytic) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
 
     static void parallel_output_gather(grid::output_list_type&&);

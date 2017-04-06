@@ -211,17 +211,17 @@ hpx::future<grid::output_list_type> node_server::load(
 typedef node_server::output_action output_action_type;
 HPX_REGISTER_ACTION(output_action_type);
 
-hpx::future<grid::output_list_type> node_client::output(
+hpx::future<grid::output_list_type> node_client::output(std::string dname,
     std::string fname, int cycle, bool flag) const {
-    return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), fname, cycle, flag);
+    return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), dname, fname, cycle, flag);
 }
 
-grid::output_list_type node_server::output(std::string fname, int cycle, bool analytic) const {
+grid::output_list_type node_server::output(std::string dname, std::string fname, int cycle, bool analytic) const {
     if (is_refined) {
         std::array<hpx::future<grid::output_list_type>, NCHILD> futs;
         integer index = 0;
         for (auto i = children.begin(); i != children.end(); ++i) {
-            futs[index++] = i->output(fname, cycle, analytic);
+            futs[index++] = i->output(dname, fname, cycle, analytic);
         }
 
         auto i = futs.begin();
@@ -240,7 +240,7 @@ grid::output_list_type node_server::output(std::string fname, int cycle, bool an
 			std::string this_fname;
 			printf("Outputing...\n");
 			if (opts.parallel_silo) {
-				std::string dir_name = fname + std::string(".silo.data");
+				std::string dir_name = dname + fname + std::string(".silo.data");
 				if (system((std::string("mkdir -p ") + dir_name + std::string("\n")).c_str()) != 0) {
 					abort_error();
 				}
@@ -251,9 +251,9 @@ grid::output_list_type node_server::output(std::string fname, int cycle, bool an
 					futs[i] = hpx::async < parallel_output_complete_action > (opts.all_localities[i], this_fname, get_time(), cycle, analytic);
 				}
 				hpx::wait_all(futs);
-				grid::output_header(fname, get_time(), cycle, analytic, opts.all_localities.size());
+				grid::output_header(dir_name + fname, get_time(), cycle, analytic, opts.all_localities.size());
 			} else {
-				this_fname = fname + std::string(".silo");
+				this_fname = dname + fname + std::string(".silo");
 				grid::output(my_list, this_fname, get_time(), cycle, analytic);
 			}
 			printf("Done...\n");
