@@ -83,15 +83,9 @@ set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
-    src/physcon.cpp
-    src/rad_grid.cpp
     src/eos.cpp
-    src/node_server_actions_1.cpp
-    src/node_server_actions_2.cpp
-    src/node_server_actions_3.cpp
     src/scf_data.cpp
     src/exact_sod.cpp
-    src/profiler.cpp
     src/geometry.cpp
     src/grid.cpp
     src/grid_fmm.cpp
@@ -103,22 +97,29 @@ set(source_files ${source_files}
     src/node_client.cpp
     src/node_location.cpp
     src/node_server.cpp
+    src/node_server_actions_1.cpp
+    src/node_server_actions_2.cpp
+    src/node_server_actions_3.cpp
     src/options.cpp
+    src/physcon.cpp
     src/problem.cpp
+    src/profiler.cpp
+    src/rad_grid.cpp
     src/real.cpp
     src/roe.cpp
+    src/scf_data.cpp
     src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
 )
 
 set(header_files
-    src/physcon.hpp
-    src/rad_grid.hpp
-    src/diagnostics.hpp
     src/channel.hpp
+    src/container_device.hpp
     src/defs.hpp
+    src/diagnostics.hpp
     src/eos.hpp
+    src/exact_sod.hpp
     src/future.hpp
     src/geometry.hpp
     src/grid.hpp
@@ -127,12 +128,18 @@ set(header_files
     src/node_location.hpp
     src/node_server.hpp
     src/options.hpp
+    src/physcon.hpp
     src/problem.hpp
     src/profiler.hpp
+    src/rad_grid.hpp
     src/real.hpp
     src/roe.hpp
+    src/scf_data.hpp
+    src/set_locality_data.hpp
     src/simd.hpp
     src/space_vector.hpp
+    src/state.hpp
+    src/struct_eos.hpp
     src/taylor.hpp
     src/util.hpp
 )
