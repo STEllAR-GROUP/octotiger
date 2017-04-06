@@ -44,7 +44,7 @@ HPX_REGISTER_BROADCAST_ACTION(set_locality_data_action)
 
 
 void parallel_output_gather(grid::output_list_type);
-void parallel_output_complete(std::string fname, int cycle, bool analytic);
+void parallel_output_complete(std::string dirname, std::string fname, int cycle, bool analytic);
 HPX_PLAIN_ACTION(node_server::parallel_output_complete, parallel_output_complete_action);
 
 
@@ -58,14 +58,14 @@ void node_server::parallel_output_gather(grid::output_list_type&& list) {
 	}
 }
 
-void node_server::parallel_output_complete(std::string fname, real tm, int cycle, bool analytic) {
+void node_server::parallel_output_complete(std::string dirname, std::string fname, real tm, int cycle, bool analytic) {
 	grid::output_list_type olist;
 	while( !pending_output.empty()) {
 		auto next_list = std::move(pending_output.top());
 		pending_output.pop();
 		grid::merge_output_lists(olist, std::move(next_list));
 	}
-	grid::output(std::move(olist), fname, tm, cycle, false);
+	grid::output(std::move(olist), dirname, fname, tm, cycle, false);
 
 }
 
@@ -242,17 +242,17 @@ hpx::future<grid::output_list_type> node_server::load(
 typedef node_server::output_action output_action_type;
 HPX_REGISTER_ACTION(output_action_type);
 
-hpx::future<grid::output_list_type> node_client::output(
+hpx::future<grid::output_list_type> node_client::output(std::string dname,
     std::string fname, int cycle, bool flag) const {
-    return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), fname, cycle, flag);
+    return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), dname, fname, cycle, flag);
 }
 
-grid::output_list_type node_server::output(std::string fname, int cycle, bool analytic) const {
+grid::output_list_type node_server::output(std::string dname, std::string fname, int cycle, bool analytic) const {
     if (is_refined) {
         std::array<hpx::future<grid::output_list_type>, NCHILD> futs;
         integer index = 0;
         for (auto i = children.begin(); i != children.end(); ++i) {
-            futs[index++] = i->output(fname, cycle, analytic);
+            futs[index++] = i->output(dname, fname, cycle, analytic);
         }
 
         auto i = futs.begin();
@@ -271,21 +271,22 @@ grid::output_list_type node_server::output(std::string fname, int cycle, bool an
 			std::string this_fname;
 			printf("Outputing...\n");
 			if (opts.parallel_silo) {
-				std::string dir_name = fname + std::string(".silo.data");
-				if (system((std::string("mkdir -p ") + dir_name + std::string("\n")).c_str()) != 0) {
+				std::string this_dname = dname + fname + std::string(".silo.data/");
+                printf("node_server::output (mkdir): this_dname('%s')\n", this_dname.c_str());
+				if (system((std::string("mkdir -p ") + this_dname + std::string("\n")).c_str()) != 0) {
 					abort_error();
 				}
 				const auto sz = opts.all_localities.size();
 				std::vector<hpx::future<void>> futs(sz);
 				for (integer i = 0; i != sz; ++i) {
-					this_fname = dir_name + std::string("/") + fname + std::string(".") + std::to_string(i) + std::string(".silo");
-					futs[i] = hpx::async < parallel_output_complete_action > (opts.all_localities[i], this_fname, get_time(), cycle, analytic);
+					this_fname = fname + std::string(".") + std::to_string(i) + std::string(".silo");
+					futs[i] = hpx::async<parallel_output_complete_action>(opts.all_localities[i], this_dname, this_fname, get_time(), cycle, analytic);
 				}
 				hpx::wait_all(futs);
-				grid::output_header(fname, get_time(), cycle, analytic, opts.all_localities.size());
+				grid::output_header(this_dname, fname, get_time(), cycle, analytic, opts.all_localities.size());
 			} else {
 				this_fname = fname + std::string(".silo");
-				grid::output(my_list, this_fname, get_time(), cycle, analytic);
+				grid::output(my_list, dname, this_fname, get_time(), cycle, analytic);
 			}
 			printf("Done...\n");
 		}

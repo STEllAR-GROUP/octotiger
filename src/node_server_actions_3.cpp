@@ -279,8 +279,8 @@ void node_server::start_run(bool scf, integer ngrids)
             save_to_file(fname, opts.data_dir);
             printf("doing silo out...\n");
 
-            fname = opts.data_dir + "X." + std::to_string(int(output_cnt));
-            output(fname, output_cnt, false);
+            fname = "X." + std::to_string(int(output_cnt));
+            output(opts.data_dir, fname, output_cnt, false);
 
             //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
             //	}
@@ -405,7 +405,7 @@ void node_server::start_run(bool scf, integer ngrids)
         timings::scope ts(timings_, timings::time_compare_analytic);
         compare_analytic();
         if (!opts.disable_output)
-            output("final", output_cnt, true);
+            output(opts.data_dir, "final", output_cnt, true);
     }
 
     if(opts.bench && !opts.disable_output) {

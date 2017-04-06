@@ -185,15 +185,19 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 	return rc;
 }
 
-void make_names(std::vector<char*>& names, std::vector<int>& types, std::string base, std::string title, int type) {
+void make_names(std::vector<char*>& names, std::vector<int>& types,
+    std::string dirname, std::string base, std::string title, int type)
+{
 	const integer sz = names.size();
-	std::string dir_name = base + std::string(".silo.data");
+	//std::string base_dirname = dirname + base + std::string(".silo.data");
 	for (integer i = 0; i != sz; ++i) {
-		std::string name = dir_name + std::string("/") + base + std::string(".") + std::to_string(i) + std::string(".silo:") + title;
+		std::string name = dirname + base + std::string(".") + std::to_string(i)
+                         + std::string(".silo:") + title;
 		names[i] = (char*) malloc(name.size() + 1);
 		types[i] = type;
 		strcpy(names[i], name.c_str());
-//		printf( "%s\n", names[i]);
+		printf("make_names: name[%i]('%s') dirname('%s') base('%s') title('%s')\n",
+            i, names[i], dirname.c_str(), base.c_str(), title.c_str());
 	}
 }
 
@@ -204,28 +208,30 @@ void delete_names(std::vector<char*>& names) {
 	}
 }
 
-void grid::output_header(std::string base, real t, int cycle, bool a, int procs) {
+void grid::output_header(std::string dirname, std::string base, real t, int cycle, bool a, int procs) {
 #ifdef DO_OUTPUT
 	std::thread([&]() {
 		auto olist = DBMakeOptlist(1);
 		double time = double(t);
 		int ndim = 3;
 		DBAddOption(olist, DBOPT_DTIME, &time);
-		std::string filename = base + std::string(".silo");
+		std::string filename = dirname + base + std::string(".silo");
+		printf("grid::output_header: filename('%s') dirname('%s') base('%s')\n",
+            filename.c_str(), dirname.c_str(), base.c_str());
 		DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
 		assert(db);
 		std::vector<char*> names(procs);
 		std::vector<int> types(procs);
-		make_names(names,types,base, "mesh", DB_UCDMESH);
+		make_names(names, types, dirname, base, "mesh", DB_UCDMESH);
 		DBPutMultimesh(db, "mesh", procs, names.data(), types.data(), olist);
 		delete_names(names);
 		const char* analytic_names[] = {"rho_a", "egas_a", "sx_a", "sy_a", "sz_a", "tau_a"};
 		for (int field = 0; field != NF + NGF + NPF + NRF; ++field) {
-			make_names(names,types,base, field_names[field], DB_UCDVAR);
+			make_names(names, types, dirname, base, field_names[field], DB_UCDVAR);
 			DBPutMultivar(db, field_names[field], procs, names.data(), types.data(), olist);
 			delete_names(names);
 			if( analytic && field < 6) {
-				make_names(names,types,base, analytic_names[field], DB_UCDVAR);
+				make_names(names, types, dirname, base, analytic_names[field], DB_UCDVAR);
 				DBPutMultivar(db, analytic_names[field], procs, names.data(), types.data(), olist);
 				delete_names(names);
 			}
@@ -236,10 +242,12 @@ void grid::output_header(std::string base, real t, int cycle, bool a, int procs)
 #endif
 }
 
-void grid::output(const output_list_type& olists, std::string _filename, real _t, int cycle, bool analytic) {
+void grid::output(const output_list_type& olists,
+    std::string _dirname, std::string _base,
+    real _t, int cycle, bool analytic) {
 #ifdef DO_OUTPUT
 	std::thread(
-			[&](const std::string& filename, real t) {
+			[&](const std::string& dirname, const std::string& base, real t) {
 				const std::set<node_point>& node_list = olists.nodes;
 				const std::vector<zone_int_type>& zone_list = olists.zones;
 
@@ -259,8 +267,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 					z_coord[i] = iter->pt[2];
 				}
 
-				constexpr
-				int nshapes = 1;
+				constexpr int nshapes = 1;
 				int shapesize[1] = {NVERTEX};
 				int shapetype[1] = {DB_ZONETYPE_HEX};
 				int shapecnt[1] = {nzones};
@@ -271,6 +278,9 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 //				DBAddOption(olist, DBOPT_CYCLE, &cycle);
 				DBAddOption(olist, DBOPT_DTIME, &time);
 			//	DBAddOption(olist, DBOPT_NSPACE, &ndim );
+                std::string filename = dirname + base;
+        		printf("grid::output: filename('%s') dirname('%s') base('%s')\n",
+                    filename.c_str(), dirname.c_str(), base.c_str());
 				DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
 				assert(db);
 				DBPutZonelist2(db, "zones", nzones, int(NDIM), zone_nodes.data(), nzones * NVERTEX, 0, 0, 0, shapetype, shapesize,
@@ -307,7 +317,7 @@ void grid::output(const output_list_type& olists, std::string _filename, real _t
 					DBFreeOptlist(olist);
 				}
 				DBClose(db);
-			}, _filename, _t).join();
+			}, _dirname, _base, _t).join();
 #endif
 }
 
