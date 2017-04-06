@@ -166,8 +166,8 @@ hpx::future<grid::output_list_type> node_server::load(
                         fut.get();
                     }
                 }
-		}
-		if (my_location.level() == 0) {
+            }
+            if (my_location.level() == 0) {
 			if (do_output) {
 				auto silo_name = opts.output_filename;
 				/* Skip for now, more interested in SILO */
@@ -186,14 +186,14 @@ hpx::future<grid::output_list_type> node_server::load(
 					std::vector<hpx::future<void>> futs(sz);
 					for (integer i = 0; i != sz; ++i) {
 						this_fname = dir_name + std::string("/") + silo_name + std::string(".") + std::to_string(i) + std::string(".silo");
-						futs[i] = hpx::async < parallel_output_complete_action > (opts.all_localities[i], this_fname, get_time(), cycle, false);
+						futs[i] = hpx::async < parallel_output_complete_action > (opts.all_localities[i], opts.data_dir, this_fname, get_time(), cycle, false);
 					}
 					hpx::wait_all(futs);
-					grid::output_header(silo_name, get_time(), cycle, false, opts.all_localities.size());
+					grid::output_header(opts.data_dir, silo_name, get_time(), cycle, false, opts.all_localities.size());
 				} else {
 					this_fname = silo_name + std::string(".silo");
 					grid::output(
-							my_list, this_fname, current_time, get_rotation_count() / opts.output_dt, false);
+							my_list, opts.data_dir, this_fname, current_time, get_rotation_count() / opts.output_dt, false);
 				}
 			}
 			printf("Done...\n");
