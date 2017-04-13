@@ -493,7 +493,7 @@ hpx::future<void> node_server::nonrefined_step() {
 
     for (integer rk = 0; rk < NRK; ++rk) {
 
-        fut = fut.then(
+        fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
             hpx::util::annotated_function(
                 [rk, cfl0, this, dt_fut](hpx::future<void> f)
                 {
@@ -588,7 +588,7 @@ hpx::future<real> node_server::local_step(integer steps) {
     hpx::future<real> dt_fut = hpx::make_ready_future(0.0);
     for (integer i = 0; i != steps; ++i)
     {
-        dt_fut = dt_fut.then(
+        dt_fut = dt_fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
             [this, i, steps](hpx::future<real> dt_fut) -> hpx::future<real>
             {
                 auto time_start = std::chrono::high_resolution_clock::now();
