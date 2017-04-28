@@ -279,8 +279,8 @@ void node_server::start_run(bool scf, integer ngrids)
             save_to_file(fname, opts.data_dir);
             printf("doing silo out...\n");
 
-            fname = opts.data_dir + "X." + std::to_string(int(output_cnt));
-            output(fname, output_cnt, false);
+            fname = "X." + std::to_string(int(output_cnt));
+            output(opts.data_dir, fname, output_cnt, false);
 
             //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
             //	}
@@ -405,7 +405,7 @@ void node_server::start_run(bool scf, integer ngrids)
         timings::scope ts(timings_, timings::time_compare_analytic);
         compare_analytic();
         if (!opts.disable_output)
-            output("final", output_cnt, true);
+            output(opts.data_dir, "final", output_cnt, true);
     }
 
     if(opts.bench && !opts.disable_output) {
@@ -493,7 +493,7 @@ hpx::future<void> node_server::nonrefined_step() {
 
     for (integer rk = 0; rk < NRK; ++rk) {
 
-        fut = fut.then(
+        fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
             hpx::util::annotated_function(
                 [rk, cfl0, this, dt_fut](hpx::future<void> f)
                 {
@@ -588,7 +588,7 @@ hpx::future<real> node_server::local_step(integer steps) {
     hpx::future<real> dt_fut = hpx::make_ready_future(0.0);
     for (integer i = 0; i != steps; ++i)
     {
-        dt_fut = dt_fut.then(
+        dt_fut = dt_fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
             [this, i, steps](hpx::future<real> dt_fut) -> hpx::future<real>
             {
                 auto time_start = std::chrono::high_resolution_clock::now();

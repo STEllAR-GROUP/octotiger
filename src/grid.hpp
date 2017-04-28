@@ -300,8 +300,8 @@ public:
     void compute_sources(real t);
     void set_physical_boundaries(const geo::face&, real t);
     void next_u(integer rk, real t, real dt);
-    static void output(const output_list_type&, std::string, real t, int cycle, bool a);
-    static void output_header(std::string, real t, int cycle, bool a, int procs);
+    static void output(const output_list_type&, std::string, std::string, real t, int cycle, bool a);
+    static void output_header(std::string, std::string, real t, int cycle, bool a, int procs);
     output_list_type get_output_list(bool analytic) const;
     template<class Archive>
     void load(Archive& arc, const unsigned);

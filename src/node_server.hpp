@@ -88,6 +88,7 @@ private:
 
     std::vector<std::array<bool, geo::direction::count()>> amr_flags;
     hpx::lcos::local::spinlock mtx;
+    hpx::lcos::local::spinlock prolong_mtx;
     std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
      channel<expansion_pass_type> parent_gravity_channel;
      std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
@@ -195,14 +196,16 @@ public:
     void load_from_file_and_output(const std::string&, const std::string&, std::string const& data_dir);
 
 
-    grid::output_list_type output(std::string fname, int cycle, bool analytic) const;
+    grid::output_list_type output(std::string dname, std::string fname, int cycle, bool analytic) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
 
     static void parallel_output_gather(grid::output_list_type&&);
-    static void parallel_output_complete(std::string fname, real tm, int cycle, bool analytic);
+    static void parallel_output_complete(std::string dname, std::string fname, real tm, int cycle, bool analytic);
 
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
+
+    hpx::future<hpx::id_type> create_child(hpx::id_type const& locality, integer ci);
 
     hpx::future<void> regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
@@ -246,7 +249,7 @@ public:
     void start_run(bool scf, integer);
 
     void set_grid(const std::vector<real>&, std::vector<real>&&);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, set_grid, set_grid_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
     hpx::future<real> timestep_driver_descend();
 
@@ -277,7 +280,7 @@ public:
 
     diagnostics_t diagnostics() const;
 
-    grid::output_list_type load(integer, integer, integer, bool do_output,
+    hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,
         std::string);
     HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
 
@@ -285,7 +288,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
 
     void set_aunt(const hpx::id_type&, const geo::face& face);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, set_aunt, set_aunt_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_aunt, set_aunt_action);
 
     bool set_child_aunt(const hpx::id_type&,
         const geo::face& face) const;

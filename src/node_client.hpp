@@ -70,7 +70,7 @@ public:
 	hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,std::string) const;
 	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
 	hpx::future<analytic_t> compare_analytic() const;
-	hpx::future<grid::output_list_type> output(std::string fname, int, bool) const;
+	hpx::future<grid::output_list_type> output(std::string dname, std::string fname, int, bool) const;
 	node_client();
 	hpx::future<bool> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;

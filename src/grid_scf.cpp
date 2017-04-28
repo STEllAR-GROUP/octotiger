@@ -332,7 +332,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		//	set_omega_and_pivot();
 		if (i % 100 == 0 && i != 0) {
             if (!opts.disable_output) {
-			    output(buffer, i, false);
+			    output(opts.data_dir, buffer, i, false);
 			    save_to_file("scf.chk", data_dir);
             }
 		}
