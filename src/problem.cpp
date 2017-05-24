@@ -119,7 +119,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	}
 	int test_level = max_level;
 	if( opts.core_refine) {
-		if(U[spc_dc_i] + U[spc_de_i] > 0.5 * U[rho_i]) {
+		if(U[spc_ae_i] + U[spc_de_i] > 0.5 * U[rho_i]) {
 			test_level--;
 		}
 	}
