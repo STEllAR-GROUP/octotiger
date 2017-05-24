@@ -197,6 +197,7 @@ bool options::process_options(int argc, char* argv[]) {
 			vomega_found = true;
 			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
 		} else if (cmp(argv[i], CORE_REFINE_OPT)) {
+			printf( "Core refine set\n");
 			core_refine = true;
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
