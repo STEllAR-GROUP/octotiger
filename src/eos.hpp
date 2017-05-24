@@ -10,7 +10,7 @@
 
 #include "defs.hpp"
 #include "grid.hpp"
-
+#define V1309
 
 class struct_eos {
 protected:
@@ -19,14 +19,22 @@ protected:
 	real dh_dr(real h, real hdot, real r) const;
 
 public:
-	real density_at(real, real) const;
+	real density_at(real, real);
 	struct_eos() {
 	}
 
 //	class wd_struct_eos: public struct_eos {
 public:
+	real hfloor() const {
+		if (rho_cut > 0.0) {
+			const real h0_ = density_to_enthalpy(rho_cut);
+			return h0_ * (1.0 - 2.5 / (1.0 + n_E));
+		} else {
+			return 0.0;
+		}
+	}
 	real B() const;
-	real A, d0_;
+	real A, d0_, my_radius;
 	void conversion_factors(real& m, real& l, real& t) const;
 	struct_eos(real M, real R);
 	struct_eos(real M, const struct_eos& other);
@@ -50,15 +58,20 @@ public:
 private:
 	real n_C, n_E;
 	real f_C, f_E;
-
+	real rho_cut;
 public:
+	void set_cutoff_density(real d) {
+		rho_cut = d;
+	}
+	real get_cutoff_density() const {
+		return rho_cut;
+	}
 	void initialize(real&, real&);
 	void initialize(real&, real&, real&);
 
 public:
 	real get_R0() const;
 	real dC() const;
-
 
 	void set_d0_using_struct_eos(real newd, const struct_eos& other);
 	struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu);
@@ -82,6 +95,6 @@ public:
 
 };
 
-HPX_IS_BITWISE_SERIALIZABLE(struct_eos);
+HPX_IS_BITWISE_SERIALIZABLE (struct_eos);
 
 #endif /* POLYTROPE_HPP_ */
