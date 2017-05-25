@@ -153,7 +153,7 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
     integer index = 0;
     for (auto const& dir : geo::direction::full_set()) {
         if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-            results[index++] =
+        	results[index++] =
                 sibling_hydro_channels[dir].get_future(hcycle).then(
                     hpx::util::annotated_function(
                         [this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
@@ -166,6 +166,9 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
                     )
                 );
         }
+    }
+    while( index < geo::direction::count()) {
+    	results[index++] = hpx::make_ready_future();
     }
     wait_all_and_propagate_exceptions(std::move(results));
 
@@ -441,6 +444,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 )
             );
         }
+        while( index < geo::octant::count()) {
+        	futs[index++] = hpx::make_ready_future();
+        }
         wait_all_and_propagate_exceptions(std::move(futs));
         m_out = grid_ptr->compute_multipoles(type, &m_out);
     } else {
@@ -481,6 +487,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                     "node_server::compute_fmm::compute_boundary_interactions"
             ));
         }
+    }
+    while( index < geo::direction::count()) {
+    	boundary_futs[index++] = hpx::make_ready_future();
     }
     wait_all_and_propagate_exceptions(boundary_futs);
 #else
