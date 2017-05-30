@@ -26,8 +26,6 @@
 #include <vector>
 
 
-
-
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
 
@@ -90,8 +88,9 @@ private:
     hpx::lcos::local::spinlock mtx;
     hpx::lcos::local::spinlock prolong_mtx;
     std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
-     channel<expansion_pass_type> parent_gravity_channel;
-     std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
+    channel<expansion_pass_type> parent_gravity_channel;
+    std::array<semaphore, geo::direction::count()> neighbor_signals;
+    std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
     std::array<channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
     std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
     std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
@@ -176,8 +175,7 @@ public:
         return (((ci >> (face / 2)) & 1) == (face & 1));
     }
 
-    std::vector<hpx::future<void>> set_nieces_amr(const geo::face&) const;
-	node_server() {
+   node_server() {
 	    initialize(ZERO, ZERO);
     }
 	~node_server() {}
@@ -207,7 +205,7 @@ public:
 
     hpx::future<hpx::id_type> create_child(hpx::id_type const& locality, integer ci);
 
-    hpx::future<void> regrid_scatter(integer, integer);
+    void regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
     void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
@@ -265,7 +263,7 @@ public:
     hpx::id_type get_child_client(const geo::octant&);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-    hpx::future<void> form_tree(hpx::id_type, hpx::id_type, std::vector<hpx::id_type>);
+    void form_tree(hpx::id_type, hpx::id_type, std::vector<hpx::id_type>);
     HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
     std::uintptr_t get_ptr();
@@ -284,7 +282,7 @@ public:
         std::string);
     HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
 
-    hpx::future<void> save(integer, std::string const&) const;
+    void save(integer, std::string const&) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
 
     void set_aunt(const hpx::id_type&, const geo::face& face);
@@ -294,7 +292,7 @@ public:
         const geo::face& face) const;
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_child_aunt, set_child_aunt_action);
 
-    hpx::future<void> check_for_refinement(real omega,real new_floor);
+    void check_for_refinement(real omega,real new_floor);
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);
@@ -332,9 +330,9 @@ private:
 	std::array<channel<std::vector<real>>, NCHILD> child_rad_channels;
 	channel<expansion_pass_type> parent_rad_channel;
 public:
-	hpx::future<void> exchange_rad_flux_corrections();
+	void exchange_rad_flux_corrections();
 	void compute_radiation(real dt);
-	hpx::future<void> exchange_interlevel_rad_data();
+	void exchange_interlevel_rad_data();
 	void all_rad_bounds();
 
 	void collect_radiation_bounds();
@@ -361,7 +359,7 @@ public:
 
 #endif
 
-    hpx::future<void> change_units(real m, real l, real t, real k);
+    void change_units(real m, real l, real t, real k);
     HPX_DEFINE_COMPONENT_ACTION(node_server, change_units, change_units_action);
 
     void set_cgs(bool change = true);

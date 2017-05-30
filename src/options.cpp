@@ -10,7 +10,6 @@
 #include <math.h>
 #include "grid.hpp"
 
-#define CORE_REFINE_OPT "-CoreRefine"
 #define HELP_OPT "-Help"
 #define PROBLEM_OPT "-Problem"
 #define RESTART_OPT "-Restart"
@@ -132,7 +131,6 @@ bool options::process_options(int argc, char* argv[]) {
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
     bool vomega_found = false;
-    bool core_refine = false;
 
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
@@ -196,9 +194,6 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], VOMEGA_OPT)) {
 			vomega_found = true;
 			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
-		} else if (cmp(argv[i], CORE_REFINE_OPT)) {
-			printf( "Core refine set\n");
-			core_refine = true;
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
 		} else if (cmp(argv[i], NGRIDS_OPT)) {

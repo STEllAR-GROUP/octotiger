@@ -526,7 +526,7 @@ hpx::future<void> node_server::nonrefined_step() {
                     }
 #endif
 
-                    return fut_flux.then(
+                    fut_flux.then(
                         hpx::launch::async(hpx::threads::thread_priority_boost),
                         hpx::util::annotated_function(
                             [rk, this, dt_fut](hpx::future<void> f)
@@ -554,7 +554,7 @@ hpx::future<void> node_server::nonrefined_step() {
                                 }
 #endif
                             }, "node_server::nonrefined_step::compute_fmm"
-                        ));
+                        )).get();
                 }, "node_server::nonrefined_step::compute_fluxes"
             )
         );

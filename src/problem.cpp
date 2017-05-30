@@ -117,13 +117,9 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		std::lock_guard<hpx::mutex> lock(mtx);
 		opts.refinement_floor = 1.0e-3;
 	}
-	int test_level = max_level;
-	if( opts.core_refine) {
-		if(U[spc_ae_i] + U[spc_de_i] > 0.5 * U[rho_i]) {
-			test_level--;
-		}
-	}
 	real den_floor = opts.refinement_floor;
+	//printf( "%e\n", den_floor);
+	integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);
@@ -134,9 +130,34 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		den_floor /= 8.0;
 	}
 	return rc;
+
 }
 
 bool refine_test_bibi(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
+	bool rc = false;
+//#ifdef RADIATION
+//	return level < max_level;
+//#endif
+	if( opts.refinement_floor < 0.0 ) {
+		static hpx::mutex mtx;
+		std::lock_guard<hpx::mutex> lock(mtx);
+		opts.refinement_floor = 1.0e-2;
+	}
+	real den_floor = opts.refinement_floor;
+	//integer test_level = ((U[spc_de_i]+U[spc_dc_i]) < 0.5*U[rho_i] ? max_level  - 1 : max_level);
+	integer test_level = ((U[spc_ae_i]+U[spc_de_i]+U[spc_vac_i]) > 0.5*U[rho_i] ? max_level  - 1 : max_level);
+//	integer test_level = ((U[spc_dc_i] + U[spc_de_i]) > 0.5 * U[rho_i] ? max_level - 1 : max_level);
+//	integer test_level = max_level;
+	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
+		if (U[rho_i] > den_floor) {
+			rc = rc || (level < this_test_level);
+		}
+		if (rc) {
+			break;
+		}
+		den_floor /= 8.0;
+	}
+	return rc;
 
 }
 

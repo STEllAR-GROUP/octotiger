@@ -92,15 +92,19 @@ typedef taylor<4, real> expansion;
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
+#include <hpx/lcos/local/counting_semaphore.hpp>
+using semaphore = hpx::lcos::local::counting_semaphore;
+
 struct gravity_boundary_type {
 	std::shared_ptr<std::vector<multipole>> M;
 	std::shared_ptr<std::vector<real>> m;
 	std::shared_ptr<std::vector<space_vector>> x;
-	bool is_local;
+	semaphore* local_semaphore;
 	gravity_boundary_type() :
 		M(nullptr), m(nullptr), x(nullptr) {
 	}
 	void allocate() {
+		local_semaphore = nullptr;
 		if (M == nullptr) {
 			M = std::make_shared<std::vector<multipole> >();
 			m = std::make_shared<std::vector<real> >();
@@ -110,10 +114,12 @@ struct gravity_boundary_type {
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {
 		allocate();
+		std::uintptr_t tmp = reinterpret_cast<std::uintptr_t>(local_semaphore);
 		arc & M;
 		arc & m;
 		arc & x;
-		arc & is_local;
+		arc & tmp;
+		local_semaphore = reinterpret_cast<decltype(local_semaphore)>(tmp);
 	}
 };
 

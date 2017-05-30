@@ -567,7 +567,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
             space_vector Y;
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
-            integer index = mpoles.is_local ? bnd.second : si;
+            integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
 
             load_multipole(m0, Y, mpoles, index, false);
 
@@ -740,7 +740,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             const integer list_size = bnd.first.size();
-            integer index = mpoles.is_local ? bnd.second : si;
+            integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
             load_multipole(m0, Y, mpoles, index, false);
 
             std::array<simd_vector, NDIM> simdY = {
@@ -881,7 +881,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
             std::array<simd_vector, NDIM> Y;
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
-            integer index = mpoles.is_local ? bnd.second : si;
+            integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
             const integer list_size = bnd.first.size();
 
 #pragma GCC ivdep
@@ -1004,7 +1004,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
 
             boundary_interaction_type const& bnd = ilist_n_bnd[si];
             const integer dsize = bnd.first.size();
-            integer index = mpoles.is_local ? bnd.second : si;
+            integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
 #if !defined(HPX_HAVE_DATAPAR)
             const auto tmp = (*(mpoles).m)[index];
             v4sd m0;
@@ -1522,7 +1522,6 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
     PROF_BEGIN;
     //	std::array<integer, NDIM> lb, ub;
     gravity_boundary_type data;
-    data.is_local = is_local;
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
     if (!is_local) {

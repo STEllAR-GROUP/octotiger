@@ -2283,7 +2283,7 @@ std::pair<real,real> grid::virial() const {
 					ei = U[egas_i][iii] - ek;
 				}
 				real et = U[egas_i][iii];
-				if (ei > de_switch2 * et) {
+				if (ei < de_switch2 * et) {
 					ei = std::pow(U[tau_i][iii], fgamma);
 				}
 				real p = (fgamma-1.0)*ei;

@@ -426,7 +426,7 @@ hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
     return hpx::async<typename node_server::regrid_scatter_action>(get_unmanaged_gid(), a, b);
 }
 
-hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
+void node_server::regrid_scatter(integer a_, integer total) {
     refinement_flag = 0;
     std::array<hpx::future<void>, geo::octant::count()> futs;
     if (is_refined) {
@@ -442,7 +442,7 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
                     [this, ci, a, total](hpx::future<hpx::id_type>&& child)
                     {
                         children[ci] = child.get();
-                        return children[ci].regrid_scatter(a, total);
+                        children[ci].regrid_scatter(a, total).get();
                     }
                 );
             }
@@ -457,7 +457,7 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
                         [this, ci, a, total](hpx::future<hpx::id_type>&& child)
                         {
                             children[ci] = child.get();
-                            return children[ci].regrid_scatter(a, total);
+                            children[ci].regrid_scatter(a, total).get();
                         }
                     );
                 }
@@ -471,9 +471,7 @@ hpx::future<void> node_server::regrid_scatter(integer a_, integer total) {
     }
     clear_family();
     if( is_refined ) {
-    	return hpx::when_all(futs);
-    } else {
-    	return hpx::make_ready_future();
+    	hpx::when_all(futs).get();
     }
 }
 
@@ -484,7 +482,7 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
     printf("-----------------------------------------------\n");
     if (!rb) {
         printf("checking for refinement\n");
-        check_for_refinement(omega,  new_floor).get();
+        check_for_refinement(omega,  new_floor);
     }
     printf("regridding\n");
     real tstart = timer.elapsed();
@@ -493,14 +491,14 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
     printf( "Regridded tree in %f seconds\n", real(tstop - tstart));
     printf("rebalancing %i nodes\n", int(a));
     tstart = timer.elapsed();
-    regrid_scatter(0, a).get();
+    regrid_scatter(0, a);
     tstop = timer.elapsed();
     printf( "Rebalanced tree in %f seconds\n", real(tstop - tstart));
     assert(grid_ptr != nullptr);
     std::vector<hpx::id_type> null_neighbors(geo::direction::count());
     tstart = timer.elapsed();
     printf("forming tree connections\n");
-    form_tree(hpx::unmanaged(root_gid), hpx::invalid_id, null_neighbors).get();
+    form_tree(hpx::unmanaged(root_gid), hpx::invalid_id, null_neighbors);
     tstop = timer.elapsed();
     printf( "Formed tree in %f seconds\n", real(tstop - tstart));
     if (current_time > ZERO) {
@@ -589,7 +587,7 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
     return result;
 }
 
-hpx::future<void> node_server::save(integer cnt, std::string const& filename) const
+void node_server::save(integer cnt, std::string const& filename) const
 {
     // Create file and save metadata if location == 0
     if (my_location.level() == 0)
@@ -640,7 +638,7 @@ hpx::future<void> node_server::save(integer cnt, std::string const& filename) co
         fclose(fp);
     });
 
-    return hpx::when_all(fut, child_fut);
+    hpx::when_all(fut, child_fut).get();
 }
 
 typedef node_server::set_aunt_action set_aunt_action_type;

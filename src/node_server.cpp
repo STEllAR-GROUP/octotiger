@@ -244,7 +244,7 @@ std::size_t node_server::save_me(std::ostream& strm) const {
 
 void node_server::save_to_file(const std::string& fname, std::string const& data_dir) const {
     hpx::util::high_resolution_timer timer;
-    save(0, data_dir + fname).get();
+    save(0, data_dir + fname);
 //     file_copy((data_dir + fname).c_str(), (data_dir + "restart.chk").c_str());
 //	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
 //	SYSTEM(command);
@@ -345,6 +345,9 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
+    for (auto const& dir : geo::direction::full_set()) {
+        neighbor_signals[dir].signal();
+    }
 	gcycle = hcycle = 0;
     step_num = 0;
     refinement_flag = 0;
@@ -415,6 +418,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     multipole_pass_type m_out;
     m_out.first.resize(INX * INX * INX);
     m_out.second.resize(INX * INX * INX);
+
+    for (auto const& dir : geo::direction::full_set()) {
+        if (!neighbors[dir].empty()) {
+        	neighbor_signals[dir].wait();
+        }
+    }
+
     if (is_refined) {
         std::array<hpx::future<void>, geo::octant::count()> futs;
         integer index = 0;
@@ -444,9 +454,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 )
             );
         }
-        while( index < geo::octant::count()) {
-        	futs[index++] = hpx::make_ready_future();
-        }
         wait_all_and_propagate_exceptions(std::move(futs));
         m_out = grid_ptr->compute_multipoles(type, &m_out);
     } else {
@@ -464,8 +471,14 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             const bool is_monopole = !is_refined;
 //             const auto gid = neighbors[dir].get_gid();
             const bool is_local = neighbors[dir].is_local();
-            neighbors[dir].send_gravity_boundary(
-                grid_ptr->get_gravity_boundary(dir, is_local), ndir, is_monopole, gcycle);
+            auto data = grid_ptr->get_gravity_boundary(dir, is_local);
+            if( is_local ) {
+            	data.local_semaphore = &neighbor_signals[dir];
+            } else {
+            	neighbor_signals[dir].signal();
+            	data.local_semaphore = nullptr;
+            }
+            neighbors[dir].send_gravity_boundary( std::move(data), ndir, is_monopole, gcycle);
         }
     }
 
@@ -475,7 +488,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
     integer index = 0;
     for (auto const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
-            auto f = neighbor_gravity_channels[dir].get_future();
+            auto f = neighbor_gravity_channels[dir].get_future(gcycle);
             boundary_futs[index++] = f.then(
                 hpx::util::annotated_function(
                     [this, type](hpx::future<neighbor_gravity_type> fut)
@@ -496,7 +509,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
      for (auto const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
             auto tmp = neighbor_gravity_channels[dir].get_future(gcycle).get();
+            auto signal = tmp.data.local_semaphore;
             grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
+            if( signal != nullptr ) {
+            	signal->signal();
+            }
         }
     }
 #endif

@@ -18,7 +18,7 @@ hpx::future<void> node_client::check_for_refinement(real omega, real r) const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid(), omega, r);
 }
 
-hpx::future<void> node_server::check_for_refinement(real omega, real new_floor) {
+void node_server::check_for_refinement(real omega, real new_floor) {
 	static hpx::mutex mtx;
 	{
 		std::lock_guard<hpx::mutex> lock(mtx);
@@ -29,9 +29,9 @@ hpx::future<void> node_server::check_for_refinement(real omega, real new_floor) 
 	}
 	bool rc = false;
 	std::array<hpx::future<void>, NCHILD + 1> futs;
-//     for( integer i = 0; i != NCHILD + 1; ++i) {
-//         futs[i] = hpx::make_ready_future();
-//     }
+    for( integer i = 0; i != NCHILD + 1; ++i) {
+         futs[i] = hpx::make_ready_future();
+    }
 	integer index = 0;
 	if (is_refined) {
 		for (auto& child : children) {
@@ -51,11 +51,7 @@ hpx::future<void> node_server::check_for_refinement(real omega, real new_floor) 
 			}
 		}
 	}
-	if (is_refined) {
-		return hpx::when_all(futs);
-	} else {
-		return hpx::make_ready_future();
-	}
+	hpx::when_all(futs).get();
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
@@ -339,10 +335,10 @@ diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
 		secondary_com_dot[d] *= secondary_sum[rho_i];
 		grid_com_dot[d] *= grid_sum[rho_i];
 	}
+	virial.first += other.virial.first;
+	virial.second += other.virial.second;
 	for (integer f = 0; f != NF; ++f) {
 		grid_sum[f] += other.grid_sum[f];
-		virial.first += other.virial.first;
-		virial.second += other.virial.second;
 		primary_sum[f] += other.primary_sum[f];
 		secondary_sum[f] += other.secondary_sum[f];
 		outflow_sum[f] += other.outflow_sum[f];
@@ -448,7 +444,7 @@ hpx::future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2,
 	return hpx::async<typename node_server::form_tree_action>(get_unmanaged_gid(), std::move(id1), std::move(id2), std::move(ids));
 }
 
-hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
+void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
 	for (auto& dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
@@ -492,14 +488,14 @@ hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type par
                                 child_neighbors[dir] = cns[dir].get();
                                 amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
                             }
-                            return children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
-                                    me.get_gid(), std::move(child_neighbors));
+                            children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
+                                    me.get_gid(), std::move(child_neighbors)).get();
                         },
                         std::move(child_neighbors_f));
 				}
 			}
 		}
-		return hpx::when_all(cfuts);
+		hpx::when_all(cfuts).get();
 	} else {
 		std::vector<hpx::future<void>> nfuts;
         nfuts.reserve(NFACE);
@@ -516,7 +512,7 @@ hpx::future<void> node_server::form_tree(hpx::id_type self_gid, hpx::id_type par
                 nieces[f] = false;
 			}
 		}
-        return hpx::when_all(nfuts);
+        hpx::when_all(nfuts).get();
 	}
 }
 

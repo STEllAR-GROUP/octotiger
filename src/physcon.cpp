@@ -131,9 +131,8 @@ void node_server::set_cgs(bool change) {
 	auto f1 = set_physcon(physcon);
 	if (change) {
 		printf("%e %e %e %e\n", m, l, t, k);
-		auto f2 = change_units(m, l, t, k);
+		change_units(m, l, t, k);
 		auto f3 = grid::static_change_units(m, l, t, k);
-		f2.get();
 		f3.get();
 	}
 	f1.get();
@@ -210,7 +209,7 @@ hpx::future<void> node_client::change_units(real a, real b, real c, real d) cons
 	return hpx::async<typename node_server::change_units_action>(get_unmanaged_gid(), a, b, c, d);
 }
 
-hpx::future<void> node_server::change_units(real a, real b, real c, real d) {
+void node_server::change_units(real a, real b, real c, real d) {
 	dx *= b;
 	hpx::future<void> f;
 	std::array<hpx::future<void>, NCHILD> futs;
@@ -226,7 +225,7 @@ hpx::future<void> node_server::change_units(real a, real b, real c, real d) {
 	} else {
 		f = hpx::make_ready_future();
 	}
-	return f;
+	f.get();
 }
 
 real stellar_temp_from_rho_mu_s(real rho, real mu, real s) {

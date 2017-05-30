@@ -32,7 +32,6 @@ class options {
 	bool cmp(const std::string str1, const char* str2);
 	void show_help();
 public:
-	bool core_refine;
 	bool vomega;
 	real refinement_floor;
 	bool refinement_floor_specified;
@@ -81,7 +80,6 @@ public:
         arc & stop_step;
         arc & disable_output;
 		arc & theta;
-		arc & core_refine;
 		int tmp = problem;
 		arc & tmp;
 		problem = (problem_type)tmp;
