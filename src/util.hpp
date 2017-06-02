@@ -17,6 +17,8 @@
 
 #include "options.hpp"
 
+extern options opts;
+
 real LambertW(real z);
 
 inline integer refinement_freq() {

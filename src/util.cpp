@@ -22,6 +22,7 @@ using real = double;
 
 
 
+
 real LambertW(real z) {
 	real W;
 	if (z >= 0.0) {
