@@ -220,7 +220,7 @@ inline bool file_exists(const std::string& name) {
 std::size_t node_server::load_me(FILE *fp, bool old_format) {
     std::size_t cnt = 0;
     auto foo = std::fread;
-    refinement_flag = false;
+    refinement_flag = 0;
     cnt += foo(&step_num, sizeof(integer), 1, fp) * sizeof(integer);
     cnt += foo(&current_time, sizeof(real), 1, fp) * sizeof(real);
     cnt += foo(&rotational_time, sizeof(real), 1, fp) * sizeof(real);

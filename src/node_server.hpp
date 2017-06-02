@@ -249,7 +249,7 @@ public:
     void set_grid(const std::vector<real>&, std::vector<real>&&);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
 
-    hpx::future<real> timestep_driver_descend();
+    hpx::future<void> timestep_driver_descend();
 
     void set_local_timestep(integer i, real dt);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_local_timestep, set_local_timestep_action);
