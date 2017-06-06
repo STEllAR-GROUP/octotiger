@@ -785,36 +785,42 @@ std::vector<real> grid::frac_volumes() const {
 	return V;
 }
 
-bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer iii) const {
+bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis,
+		const std::pair<real, real>& l1, integer frac, integer iii,
+		real rho_cut) const {
 	bool use = false;
 	if (frac == 0) {
 		use = true;
 	} else {
-		space_vector a = axis.first;
-		const space_vector& o = axis.second;
-		space_vector b;
-		real aa = 0.0;
-		real ab = 0.0;
-		for (integer d = 0; d != NDIM; ++d) {
-			a[d] -= o[d];
-			b[d] = X[d][iii] - o[d];
-		}
-		for (integer d = 0; d != NDIM; ++d) {
-			aa += a[d] * a[d];
-			ab += a[d] * b[d];
-		}
-		real p = ab / std::sqrt(aa);
+		if (U[rho_i][iii] < rho_cut) {
+			use = false;
+		} else {
+			space_vector a = axis.first;
+			const space_vector& o = axis.second;
+			space_vector b;
+			real aa = 0.0;
+			real ab = 0.0;
+			for (integer d = 0; d != NDIM; ++d) {
+				a[d] -= o[d];
+				b[d] = X[d][iii] - o[d];
+			}
+			for (integer d = 0; d != NDIM; ++d) {
+				aa += a[d] * a[d];
+				ab += a[d] * b[d];
+			}
+			real p = ab / std::sqrt(aa);
 //		printf( "%e\n", l1.first);
-		if (p < l1.first && frac == +1) {
-			use = true;
-		} else if (p >= l1.first && frac == -1) {
-			use = true;
+			if (p < l1.first && frac == +1) {
+				use = true;
+			} else if (p >= l1.first && frac == -1) {
+				use = true;
+			}
 		}
 	}
 	return use;
 }
 
-real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac) const {
+real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, real rho_cut) const {
 	PROF_BEGIN;
 	real mom = 0.0;
 	const real dV = dx * dx * dx;
@@ -822,7 +828,7 @@ real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const st
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				if (is_in_star(axis, l1, frac, iii)) {
+				if (is_in_star(axis, l1, frac, iii, rho_cut)) {
 					mom += (sqr(X[XDIM][iii]) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
 					mom += (sqr(X[YDIM][iii]) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
 				}
@@ -833,7 +839,7 @@ real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const st
 }
 
 std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot, const std::pair<space_vector, space_vector>& axis,
-		const std::pair<real, real>& l1, integer frac) const {
+		const std::pair<real, real>& l1, integer frac, real rho_cut) const {
 	PROF_BEGIN;
 	std::vector<real> sum(NF, ZERO);
 	com[0] = com[1] = com[2] = 0.0;
@@ -843,7 +849,7 @@ std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot,
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				if (is_in_star(axis, l1, frac, iii)) {
+				if (is_in_star(axis, l1, frac, iii, rho_cut)) {
 					com[0] += X[XDIM][iii] * U[rho_i][iii] * dV;
 					com[1] += X[YDIM][iii] * U[rho_i][iii] * dV;
 					com[2] += X[ZDIM][iii] * U[rho_i][iii] * dV;

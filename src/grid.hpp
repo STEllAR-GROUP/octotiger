@@ -236,7 +236,7 @@ public:
 		    is_leaf = flag;
 	    }
     }
-	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index) const;
+	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index, real rho_cut) const;
 	static void set_omega(real, bool bcast=true);
 	static real& get_omega();
 	static void set_pivot(const space_vector& p);
@@ -278,10 +278,10 @@ public:
 	void rho_move(real x);
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
 	integer get_step() const;
-	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1,integer frac) const;
+	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1,integer frac, real rho_cut) const;
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
-	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac) const;
+	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac, real rho_cut) const;
 	std::vector<real> frac_volumes() const;
 	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real, bool donor) const;
 	std::vector<real> l_sums() const;

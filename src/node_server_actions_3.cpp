@@ -223,14 +223,14 @@ void node_server::start_run(bool scf, integer ngrids)
         if (!opts.disable_output) {
             save_to_file("X.chk", opts.data_dir);
         }
-        diagnostics();
+        diagnostics(0.0);
         return;
     }
     if (scf) {
         run_scf(opts.data_dir);
         set_pivot();
         printf("Adjusting velocities:\n");
-        auto diag = diagnostics();
+        auto diag = diagnostics(0.0);
         space_vector dv;
         dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
         dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
@@ -247,6 +247,15 @@ void node_server::start_run(bool scf, integer ngrids)
     	erad_init();
     }
 #endif
+
+    if( opts.output_only ) {
+    	diagnostics(0.0);
+    	for( real rhoc = 1.0e-10; rhoc < 1.0e+5; rhoc *= 10.0) {
+    		printf( "%e\n", rhoc);
+    		diagnostics(rhoc);
+    	}
+    	return;
+    }
 
     printf("Starting...\n");
     solve_gravity(false);
@@ -266,6 +275,7 @@ void node_server::start_run(bool scf, integer ngrids)
     profiler_output(stdout);
 
     real bench_start, bench_stop;
+
 
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
@@ -692,7 +702,7 @@ hpx::future<std::pair<real, diagnostics_t> > node_server::step_with_diagnostics(
         );
     }
 
-    diagnostics_t diags = local_diagnostics(axis, l1, c1, c2);
+    diagnostics_t diags = local_diagnostics(axis, l1, c1, c2, 0.0);
     hpx::future<real> dt_fut = local_step(steps);
     return hpx::dataflow(hpx::launch::sync,
             [](hpx::future<real> dt_fut, diagnostics_t && diags)
@@ -723,7 +733,7 @@ hpx::future<std::pair<real, diagnostics_t> > node_server::root_step_with_diagnos
             auto result = f.get();
             return std::make_pair(
                 result.first,
-                root_diagnostics(std::move(result.second), rho1, rho2, phi_1, phi_2)
+                root_diagnostics(std::move(result.second), rho1, rho2, phi_1, phi_2, 0.0)
             );
         });
 }

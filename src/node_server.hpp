@@ -161,11 +161,11 @@ private:
     void refined_step();
 
     diagnostics_t root_diagnostics(diagnostics_t && diags,
-        std::pair<real, real> rho1, std::pair<real, real> rho2,real phi_1, real phi_2) const;
+        std::pair<real, real> rho1, std::pair<real, real> rho2,real phi_1, real phi_2, real rho_cutoff) const;
     diagnostics_t child_diagnostics(const std::pair<space_vector, space_vector>& axis,
-        const std::pair<real, real>& l1, real, real) const;
+        const std::pair<real, real>& l1, real, real, real) const;
     diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
-        const std::pair<real, real>& l1, real, real) const;
+        const std::pair<real, real>& l1, real, real, real) const;
     hpx::future<real> local_step(integer steps);
 
     std::map<integer, std::vector<char> > save_local(integer& cnt, std::string const& filename, hpx::future<void>& child_fut) const;
@@ -273,10 +273,10 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
 
     diagnostics_t diagnostics(const std::pair<space_vector, space_vector>& axis,
-        const std::pair<real, real>& l1, real, real) const;
+        const std::pair<real, real>& l1, real, real, real) const;
     HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
-    diagnostics_t diagnostics() const;
+    diagnostics_t diagnostics(real) const;
 
     hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,
         std::string);

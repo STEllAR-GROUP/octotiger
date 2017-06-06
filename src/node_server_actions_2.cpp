@@ -87,8 +87,8 @@ typedef node_server::diagnostics_action diagnostics_action_type;
 HPX_REGISTER_ACTION (diagnostics_action_type);
 
 hpx::future<diagnostics_t> node_client::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1,
-		real c2) const {
-	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), axis, l1, c1, c2);
+		real c2, real rho_cut) const {
+	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), axis, l1, c1, c2, rho_cut);
 }
 
 typedef node_server::compare_analytic_action compare_analytic_action_type;
@@ -123,7 +123,7 @@ analytic_t node_server::compare_analytic() {
 	return a;
 }
 
-diagnostics_t node_server::diagnostics() const {
+diagnostics_t node_server::diagnostics(real rho_cut) const {
 	auto axis = grid_ptr->find_axis();
 	auto loc = line_of_centers(axis);
 	real this_omega = grid::get_omega();
@@ -138,10 +138,10 @@ diagnostics_t node_server::diagnostics() const {
 	//		line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, phi_1, phi_2);
 	//	}
 //	}
-	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first), rho1, rho2, phi_1, phi_2);
+	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first, rho_cut), rho1, rho2, phi_1, phi_2, rho_cut);
 }
 
-diagnostics_t node_server::root_diagnostics(diagnostics_t && diags, std::pair<real, real> rho1, std::pair<real, real> rho2, real phi_1, real phi_2) const {
+diagnostics_t node_server::root_diagnostics(diagnostics_t && diags, std::pair<real, real> rho1, std::pair<real, real> rho2, real phi_1, real phi_2, real rho_cut) const {
 
 	diags.z_moment -= diags.grid_sum[rho_i] * (std::pow(diags.grid_com[XDIM], 2) + std::pow(diags.grid_com[YDIM], 2));
 	diags.primary_z_moment -= diags.primary_sum[rho_i] * (std::pow(diags.primary_com[XDIM], 2) + std::pow(diags.primary_com[YDIM], 2));
@@ -196,7 +196,11 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags, std::pair<re
 		if (!opts.disable_output) {
 			hpx::threads::run_as_os_thread([&]()
 			{
-				FILE* fp = fopen((opts.data_dir + "binary.dat").c_str(), "at");
+				std::string outname = "binary.dat";
+				if( rho_cut > 0.0 ) {
+					outname = std::string("binary.") + std::to_string(integer(log10(rho_cut))) + std::string(".dat");
+				}
+				FILE* fp = fopen((opts.data_dir + outname).c_str(), "at");
 				fprintf(fp, "%15.8e ", double(current_time));
 				fprintf(fp, "%15.8e ", double(m1));
 				fprintf(fp, "%15.8e ", double(m2));
@@ -264,35 +268,35 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags, std::pair<re
 	return diags;
 }
 
-diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const {
+diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2, real rho_cut) const {
 
 	if (is_refined) {
-		return child_diagnostics(axis, l1, c1, c2);
+		return child_diagnostics(axis, l1, c1, c2, rho_cut);
 	}
-	return local_diagnostics(axis, l1, c1, c2);
+	return local_diagnostics(axis, l1, c1, c2, rho_cut);
 }
 
-diagnostics_t node_server::child_diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const {
+diagnostics_t node_server::child_diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2, real rho_cut) const {
 
 	diagnostics_t sums;
 	std::array<hpx::future<diagnostics_t>, NCHILD> futs;
 	integer index = 0;
 	for (integer ci = 0; ci != NCHILD; ++ci) {
-		futs[index++] = children[ci].diagnostics(axis, l1, c1, c2);
+		futs[index++] = children[ci].diagnostics(axis, l1, c1, c2, rho_cut);
 	}
 	auto child_sums = hpx::util::unwrapped(futs);
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
 }
 
-diagnostics_t node_server::local_diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const {
+diagnostics_t node_server::local_diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2, real rho_cut) const {
 
 	diagnostics_t sums;
 
-	sums.primary_sum = grid_ptr->conserved_sums(sums.primary_com, sums.primary_com_dot, axis, l1, +1);
-	sums.secondary_sum = grid_ptr->conserved_sums(sums.secondary_com, sums.secondary_com_dot, axis, l1, -1);
-	sums.primary_z_moment = grid_ptr->z_moments(axis, l1, +1);
-	sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1);
-	sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis, l1, 0);
+	sums.primary_sum = grid_ptr->conserved_sums(sums.primary_com, sums.primary_com_dot, axis, l1, +1, rho_cut);
+	sums.secondary_sum = grid_ptr->conserved_sums(sums.secondary_com, sums.secondary_com_dot, axis, l1, -1, rho_cut);
+	sums.primary_z_moment = grid_ptr->z_moments(axis, l1, +1, rho_cut);
+	sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1, rho_cut);
+	sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis, l1, 0, rho_cut);
 	sums.virial = grid_ptr->virial();
 	sums.outflow_sum = grid_ptr->conserved_outflows();
 	sums.l_sum = grid_ptr->l_sums();
@@ -309,7 +313,7 @@ diagnostics_t node_server::local_diagnostics(const std::pair<space_vector, space
 	sums.roche_vol2 = grid_ptr->roche_volume(axis, l1, std::max(c1, c2), true);
 	sums.primary_volume = vols[spc_ac_i - spc_i] + vols[spc_ae_i - spc_i];
 	sums.secondary_volume = vols[spc_dc_i - spc_i] + vols[spc_de_i - spc_i];
-	sums.z_moment = grid_ptr->z_moments(axis, l1, 0);
+	sums.z_moment = grid_ptr->z_moments(axis, l1, 0, rho_cut);
 
 	return sums;
 }
