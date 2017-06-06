@@ -68,7 +68,7 @@ public:
 	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,std::string) const;
-	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real) const;
+	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real, real) const;
 	hpx::future<analytic_t> compare_analytic() const;
 	hpx::future<grid::output_list_type> output(std::string dname, std::string fname, int, bool) const;
 	node_client();

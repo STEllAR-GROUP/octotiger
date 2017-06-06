@@ -150,13 +150,13 @@ int hpx_main(int argc, char* argv[]) {
                 set_problem(null_problem);
                 const std::string fname = opts.restart_filename;
                 printf("Loading from %s...\n", fname.c_str());
-                if (opts.output_only) {
-                    const std::string oname = opts.output_filename;
-                    root->load_from_file_and_output(fname, oname, opts.data_dir);
-                } else {
+            //    if (opts.output_only) {
+             //       const std::string oname = opts.output_filename;
+              //      root->load_from_file_and_output(fname, oname, opts.data_dir);
+              //  } else {
                     root->load_from_file(fname, opts.data_dir);
                     ngrids = root->regrid(root_client.get_gid(), ZERO, -1, true);
-
+/*
                     if (opts.max_restart_level > 0)
                     {
                         for (integer l = 0; l < opts.max_restart_level - 1; ++l)
@@ -164,8 +164,8 @@ int hpx_main(int argc, char* argv[]) {
                             ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
                             printf("---------------Created Level %i---------------\n\n", int(l + 1));
                         }
-                    }
-                }
+                    }*/
+               // }
                 printf("Done. \n");
             } else {
                 for (integer l = 0; l < opts.max_level; ++l) {
@@ -176,17 +176,17 @@ int hpx_main(int argc, char* argv[]) {
                 printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
             }
 
-            if (gravity_on && !opts.output_only) {
+            if (gravity_on /*&& !opts.output_only*/) {
                 printf("solving gravity------------\n");
                 root->solve_gravity(false);
                 printf("...done\n");
             }
 
-            if (!opts.output_only) {
+       //     if (!opts.output_only) {
                 //  set_problem(null_problem);
                 hpx::async(&node_server::start_run, root, opts.problem == DWD && !opts.found_restart_file, ngrids).get();
 //              root->start_run(opts.problem == DWD && !opts.found_restart_file, ngrids);
-            }
+        //    }
             root->report_timing();
         }
     } catch (...) {

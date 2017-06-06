@@ -336,16 +336,16 @@ void node_server::run_scf(std::string const& data_dir) {
 			    save_to_file("scf.chk", data_dir);
             }
 		}
-		auto diags = diagnostics();
+		auto diags = diagnostics(0.0);
 		real f0 = scf_options::M1 / (diags.primary_sum[rho_i]);
 		real f1 = scf_options::M2 / (diags.secondary_sum[rho_i]);
 		real f = (scf_options::M1 + scf_options::M2) / diags.grid_sum[rho_i];
 //		f = (f + 1.0)/2.0;
 		//	printf( "%e %e \n", f0, f1);
 		rho_mult(f0, f1);
-		diags = diagnostics();
+		diags = diagnostics(0.0);
 		rho_move(diags.grid_com[rho_i] / 2.0);
-		diags = diagnostics();
+		diags = diagnostics(0.0);
 		real iorb = diags.z_moment;
 		real is1 = diags.primary_z_moment;
 		real is2 = diags.secondary_z_moment;
