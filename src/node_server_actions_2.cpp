@@ -54,7 +54,9 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			}
 		}
 	}
-	hpx::when_all(futs).get();
+	for( auto& f : futs ) {
+		f.get();
+	}
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
@@ -502,7 +504,9 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 				}
 			}
 		}
-		hpx::when_all(cfuts).get();
+		for( auto& f : cfuts ) {
+			f.get();
+		}
 	} else {
 		std::vector<hpx::future<void>> nfuts;
         nfuts.reserve(NFACE);
@@ -519,7 +523,9 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
                 nieces[f] = false;
 			}
 		}
-        hpx::when_all(nfuts).get();
+		for( auto& f : nfuts ) {
+			f.get();
+		}
 	}
 }
 

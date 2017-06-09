@@ -248,6 +248,8 @@ public:
 	void compute_primitives(const std::array<integer, NDIM> lb = { 1, 1, 1 }, const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 },
 		bool tau_only = false) const;
 	void set_coordinates();
+	std::vector<real> get_flux_check( const geo::face&);
+	void set_flux_check( const std::vector<real>&, const geo::face&);
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
 	scf_data_t scf_params();

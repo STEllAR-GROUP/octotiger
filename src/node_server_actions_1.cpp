@@ -471,7 +471,9 @@ void node_server::regrid_scatter(integer a_, integer total) {
     }
     clear_family();
     if( is_refined ) {
-    	hpx::when_all(futs).get();
+    	for( auto& f : futs ) {
+    		f.get();
+    	}
     }
 }
 
@@ -581,7 +583,11 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
                 result.emplace(std::move(d));
             }
         }
-        child_fut = hpx::when_all(child_futs);
+        for( auto& f : child_futs ) {
+			if (f.valid()) {
+				f.get();
+			}
+		}
     }
 
     return result;
@@ -637,8 +643,12 @@ void node_server::save(integer cnt, std::string const& filename) const
         }
         fclose(fp);
     });
-
-    hpx::when_all(fut, child_fut).get();
+    if( fut.valid() ) {
+        fut.get();
+    }
+    if( child_fut.valid() ) {
+    	child_fut.get();
+    }
 }
 
 typedef node_server::set_aunt_action set_aunt_action_type;

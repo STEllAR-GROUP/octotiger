@@ -13,7 +13,7 @@
 
 #include <array>
 #include <vector>
-
+/*
 template <typename T>
 inline void propagate_exceptions(hpx::future<T>& f)
 {
@@ -56,16 +56,25 @@ inline void propagate_exceptions(std::array<hpx::future<T>, N> const& futs)
 {
     for (auto const& f : futs)
         propagate_exceptions(f);
-}
+}*/
 
-template <typename ... Ts>
-inline void wait_all_and_propagate_exceptions(Ts&& ... futs)
+template <typename Ts>
+inline void wait_all_and_propagate_exceptions(Ts&& futs)
 {
-    hpx::wait_all(futs...);
-    int const sequencer[] = {
+    for( auto& f : futs ) {
+    	if( !f.valid()) {
+    		printf( "INVALID FUTURE\n");
+    		abort();
+    	}
+    }
+    hpx::wait_all(futs);
+    for( auto& f : futs ) {
+    	f.get();
+    }
+  /*  int const sequencer[] = {
         0, (propagate_exceptions(futs), 0) ...
     };
-    (void)sequencer;
+    (void)sequencer;*/
 }
 
 #endif /* FUTURE_HPP_ */

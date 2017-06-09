@@ -11,6 +11,8 @@
 
 //#define OCTOTIGER_USE_NODE_CACHE
 
+#define OCTOTIGER_FLUX_CHECK
+
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 # define USE_GRAV_PAR
 #endif

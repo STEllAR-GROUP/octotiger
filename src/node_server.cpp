@@ -34,6 +34,44 @@ std::atomic<integer> node_server::static_initializing(0);
 bool node_server::hydro_on = true;
 bool node_server::gravity_on = true;
 
+hpx::future<void> node_server::check_flux_consistency() {
+	const integer this_cycle = hcycle  ^ 0xFFFFFFFF;
+	for (auto const& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty() && dir.is_face()) {
+			if (!nieces[dir.to_face()]) {
+				auto bdata = grid_ptr->get_flux_check(dir.to_face());
+				neighbors[dir].send_flux_check(std::move(bdata), dir.flip(),
+						this_cycle);
+			}
+		}
+	}
+
+	std::vector<hpx::future<void>> results;
+	integer index = 0;
+	for (auto const& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty() && dir.is_face()) {
+			if (!nieces[dir.to_face()]) {
+				results.push_back(
+						sibling_hydro_channels[dir].get_future(this_cycle).then(
+								[this](hpx::future<sibling_hydro_type> && f) -> void
+								{
+									auto&& tmp = f.get();
+									grid_ptr->set_flux_check(tmp.data, tmp.direction.to_face());
+								}));
+			}
+		}
+	}
+	return hpx::when_all(std::move(results)).then(
+			[this](hpx::future<std::vector<hpx::future<void>>> f) {
+				auto f2 = f.get();
+				for( integer i = 0; i != f2.size(); ++i) {
+					f2[i].get();
+				}
+	//			++hcycle;
+			});
+
+}
+
 real node_server::get_rotation_count() const {
     if (opts.problem == DWD) {
         return rotational_time / (2.0 * M_PI);
@@ -108,7 +146,13 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 			}
 		}
 	}
-	return hpx::when_all(std::move(futs));
+	return hpx::when_all(std::move(futs)).then(
+			[](hpx::future<decltype(futs)> fout) {
+				auto fin = fout.get();
+				for( auto& f : fin ) {
+					f.get();
+				}
+			});
 }
 
 void node_server::all_hydro_bounds(bool tau_only) {

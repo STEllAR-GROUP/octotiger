@@ -69,6 +69,24 @@ void node_server::recv_hydro_boundary(std::vector<real>&& bdata,
     sibling_hydro_channels[dir].set_value(std::move(tmp),cycle);
 }
 
+
+typedef node_server::send_flux_check_action send_flux_check_action_type;
+HPX_REGISTER_ACTION(send_flux_check_action_type);
+
+void node_client::send_flux_check(std::vector<real>&& data,
+    const geo::direction& dir, std::size_t cycle) const {
+    hpx::apply<typename node_server::send_flux_check_action>(get_unmanaged_gid(),
+        std::move(data), dir, cycle);
+}
+
+void node_server::recv_flux_check(std::vector<real>&& bdata,
+    const geo::direction& dir, std::size_t cycle) {
+	sibling_hydro_type tmp;
+    tmp.data = std::move(bdata);
+    tmp.direction = dir;
+    sibling_hydro_channels[dir].set_value(std::move(tmp),cycle);
+}
+
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
 HPX_REGISTER_ACTION(send_hydro_children_action_type);
 
@@ -269,6 +287,7 @@ void node_server::start_run(bool scf, integer ngrids)
 
     auto fut_ptr = me.get_ptr();
     node_server* root_ptr = fut_ptr.get();
+    printf( "1\n");
 
     output_cnt = root_ptr->get_rotation_count() / output_dt;
 
@@ -276,10 +295,12 @@ void node_server::start_run(bool scf, integer ngrids)
 
     real bench_start, bench_stop;
 
+    printf( "2\n");
 
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
             break;
+        printf( "3\n");
 
         auto time_start = std::chrono::high_resolution_clock::now();
         if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
@@ -297,12 +318,13 @@ void node_server::start_run(bool scf, integer ngrids)
             ++output_cnt;
 
         }
+        printf( "4\n");
         if (step_num == 0) {
             bench_start = hpx::util::high_resolution_clock::now() / 1e9;
         }
 
         real dt = 0;
-
+        printf( "5\n");
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
@@ -324,7 +346,7 @@ void node_server::start_run(bool scf, integer ngrids)
             printf( "Old Omega = %e\n", omega );
            if( opts.vomega ) {
             	theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
-            	const real w0 = grid::get_omega() * 100.0;
+            	const real w0 = grid::get_omega() * 10.0;
             	const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
             	omega_dot = theta_dot_dot;
             	omega += omega_dot * dt;
@@ -542,6 +564,9 @@ hpx::future<void> node_server::nonrefined_step() {
                             [rk, this, dt_fut](hpx::future<void> f)
                             {
                                 f.get();        // propagate exceptions
+#ifdef OCTOTIGER_FLUX_CHECK
+                                auto fcheck = check_flux_consistency();
+#endif
 
                                 grid_ptr->compute_sources(current_time);
                                 grid_ptr->compute_dudt();
@@ -554,8 +579,10 @@ hpx::future<void> node_server::nonrefined_step() {
                                 grid_ptr->next_u(rk, current_time, dt_);
 
                                 compute_fmm(RHO, true);
+#ifdef OCTOTIGER_FLUX_CHECK
+                                fcheck.get();
+#endif
                                 all_hydro_bounds();
-
 #ifdef RADIATION
                                 if(rk == NRK - 1) {
                       //          	all_hydro_bounds();
@@ -652,9 +679,12 @@ hpx::future<real> node_server::step(integer steps) {
     if (is_refined)
     {
         return hpx::dataflow(hpx::launch::sync,
-            [this](hpx::future<real> dt_fut, hpx::future<void>&& f)
+            [this](hpx::future<real> dt_fut, hpx::future<std::array<hpx::future<void>, NCHILD>>&& f)
             {
-                f.get(); // propagate exceptions
+                auto fi = f.get(); // propagate exceptions
+                for( auto& f : fi ) {
+                	f.get();
+                }
                 return dt_fut;
             },
             std::move(fut),

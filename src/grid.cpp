@@ -20,6 +20,57 @@
 
 
 
+std::vector<real> grid::get_flux_check(const geo::face& f) {
+	std::vector<real> flux;
+	const integer dim = f.get_dimension();
+	int i, j, k;
+	int& i1 = dim == XDIM ? j : i;
+	int& i2 = dim == ZDIM ? j : k;
+	int& n = dim == XDIM ? i : (dim == YDIM ? j : k);
+	if( f.get_side() == geo::MINUS ) {
+		n = 0;
+	} else {
+		n = INX;
+	}
+	for (integer f = 0; f != NF; ++f) {
+		for (i1 = 0; i1 != INX; ++i1) {
+			for (i2 = 0; i2 != INX; ++i2) {
+				flux.push_back(F[dim][f][findex(i, j, k)]);
+			}
+		}
+	}
+	return flux;
+}
+
+void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
+	const integer dim = f.get_dimension();
+	integer index = 0;
+	int i, j, k;
+	int& i1 = dim == XDIM ? j : i;
+	int& i2 = dim == ZDIM ? j : k;
+	int& n = dim == XDIM ? i : (dim == YDIM ? j : k);
+	if (f.get_side() == geo::MINUS) {
+		n = 0;
+	} else {
+		n = INX;
+	}
+	for (integer f = 0; f != NF; ++f) {
+		for (i1 = 0; i1 != INX; ++i1) {
+			for (i2 = 0; i2 != INX; ++i2) {
+				const real a = F[dim][f][findex(i, j, k)];
+				const real b = data[index];
+				++index;
+				if (a != b) {
+					printf("Flux error\n");
+					printf("%e %e %i\n", a, b, f);
+//					abort();
+				}
+			}
+		}
+	}
+}
+
+
 extern options opts;
 
 #ifdef RADIATION

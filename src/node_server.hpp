@@ -151,6 +151,7 @@ private:
     void initialize(real, real);
     void send_hydro_amr_boundaries(bool tau_only = false);
     void collect_hydro_boundaries(bool tau_only = false);
+    hpx::future<void> check_flux_consistency();
     void exchange_interlevel_hydro_data();
     static void static_initialize();
     void all_hydro_bounds(bool tau_only = false);
@@ -207,6 +208,9 @@ public:
 
     void regrid_scatter(integer, integer);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
+
+    void recv_flux_check(std::vector<real>&&, const geo::direction&, std::size_t cycle);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_flux_check, send_flux_check_action);
 
     void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
@@ -400,6 +404,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_gather_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_scatter_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_flux_check_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
