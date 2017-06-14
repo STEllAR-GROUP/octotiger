@@ -79,7 +79,7 @@ private:
      /* nieces are the children of neighbors that are adjacent to this node. They are one level finer than this node
      * . Only nieces in the face directions are needed, and in each
      * face direction there are 4 adjacent neighbors (or zero). This is used for AMR boundary handling - interpolation onto finer boundaries and flux matchinig.*/
-    std::vector<bool> nieces;
+    std::vector<integer> nieces;
     /* An aunt is this node's parent's neighbor, so it is one level coarser.
      *  Only aunts in the 6 face directions are required. Used for AMR boundary handling. */
     std::vector<node_client> aunts;
@@ -87,9 +87,9 @@ private:
     std::vector<std::array<bool, geo::direction::count()>> amr_flags;
     hpx::lcos::local::spinlock mtx;
     hpx::lcos::local::spinlock prolong_mtx;
-    std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
     channel<expansion_pass_type> parent_gravity_channel;
     std::array<semaphore, geo::direction::count()> neighbor_signals;
+    std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
     std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
     std::array<channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
     std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
@@ -147,7 +147,6 @@ private:
 
     static bool static_initialized;
     static std::atomic<integer> static_initializing;
-
     void initialize(real, real);
     void send_hydro_amr_boundaries(bool tau_only = false);
     void collect_hydro_boundaries(bool tau_only = false);
@@ -292,7 +291,7 @@ public:
     void set_aunt(const hpx::id_type&, const geo::face& face);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_aunt, set_aunt_action);
 
-    bool set_child_aunt(const hpx::id_type&,
+    integer set_child_aunt(const hpx::id_type&,
         const geo::face& face) const;
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_child_aunt, set_child_aunt_action);
 
@@ -320,6 +319,9 @@ public:
 
     void rho_move(real);
     HPX_DEFINE_COMPONENT_ACTION(node_server,rho_move, rho_move_action);
+
+    void check_channels() const;
+    HPX_DEFINE_COMPONENT_ACTION(node_server,check_channels, check_channels_action);
 
     void run_scf(std::string const& data_dir);
 
@@ -419,6 +421,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::check_channels_action);
 
 #ifdef RADIATION
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);

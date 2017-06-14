@@ -356,7 +356,6 @@ integer node_server::regrid_gather(bool rebalance_only) {
             }
         }
     }
-
     return count;
 }
 
@@ -659,6 +658,10 @@ hpx::future<void> node_client::set_aunt(const hpx::id_type& aunt, const geo::fac
 }
 
 void node_server::set_aunt(const hpx::id_type& aunt, const geo::face& face) {
+	if( aunts[face].get_gid() != hpx::invalid_id) {
+		printf( "AUNT ALREADY SET\n");
+		abort();
+	}
     aunts[face] = aunt;
 }
 

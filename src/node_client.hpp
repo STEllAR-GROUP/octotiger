@@ -62,6 +62,7 @@ public:
 	hpx::future<scf_data_t> scf_params() const;
 	hpx::future<void> rho_mult(real, real) const;
 	hpx::future<void> rho_move(real) const;
+	hpx::future<void> check_channels() const;
 	hpx::future<real> scf_update(real,real,real,real, real, real, real, struct_eos, struct_eos) const;
 	void send_hydro_children( std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
 	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
@@ -72,7 +73,7 @@ public:
 	hpx::future<analytic_t> compare_analytic() const;
 	hpx::future<grid::output_list_type> output(std::string dname, std::string fname, int, bool) const;
 	node_client();
-	hpx::future<bool> set_child_aunt(const hpx::id_type&, const geo::face&) const;
+	hpx::future<integer> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
 	hpx::future<void> form_tree(hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&& );
