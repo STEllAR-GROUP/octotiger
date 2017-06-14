@@ -11,59 +11,6 @@
 
 extern options opts;
 
-typedef node_server::check_channels_action check_channels_action_type;
-HPX_REGISTER_ACTION(check_channels_action_type);
-
-hpx::future<void> node_client::check_channels() const {
-	return hpx::async<typename node_server::check_channels_action>(get_unmanaged_gid());
-}
-
-void node_server::check_channels() const {
-	std::vector<hpx::future<void>> futs;
-#ifdef CHANNEL_CHECK
-	if (is_refined) {
-		for (integer c = 0; c != NCHILD; ++c) {
-			futs.push_back(children[c].check_channels());
-		}
-	}
-	for (auto& c : sibling_hydro_channels) {
-		if (c.message_count() > 0) {
-			printf("SIBLING HYDRO CHANNEL FAILURE\n");
-			abort();
-		}
-	}
-	for (auto& c : neighbor_gravity_channels) {
-		if (c.message_count() > 0) {
-			printf("NEIGHBOR GRAVITY CHANNEL FAILURE\n");
-			abort();
-		}
-	}
-	for (auto& c : child_hydro_channels) {
-		if (c.message_count() > 0) {
-			printf("CHILD_HYDRO CHANNEL FAILURE\n");
-			abort();
-		}
-	}
-	for (auto& c : child_gravity_channels) {
-		if (c.message_count() > 0) {
-			printf("CHILD GRAVITY CHANNEL FAILURE\n");
-			abort();
-		}
-	}
-	for (auto i = 0; i != NFACE; ++i) {
-		for (auto& c : niece_hydro_channels[i]) {
-			if (c.message_count() > 0) {
-				printf("NIECE HYDRO CHANNEL FAILURE\n");
-				abort();
-			}
-		}
-	}
-	for( auto& f : futs ) {
-		f.get();
-	}
-#endif
-}
-
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
 HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
 
@@ -773,12 +720,7 @@ hpx::future<std::pair<real, diagnostics_t> > node_client::step_with_diagnostics(
 hpx::future<std::pair<real, diagnostics_t> > node_server::step_with_diagnostics(integer steps,
     const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2)
 {
-#ifdef CHANNEL_CHECK
-	if( my_location.level() == 0 ) {
-		check_channels();
-	}
-#endif
-    if (is_refined)
+	if (is_refined)
     {
         std::array<hpx::future<std::pair<real, diagnostics_t> >, NCHILD> child_futs;
         for (integer ci = 0; ci != NCHILD; ++ci) {

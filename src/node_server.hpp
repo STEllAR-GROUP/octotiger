@@ -320,9 +320,6 @@ public:
     void rho_move(real);
     HPX_DEFINE_COMPONENT_ACTION(node_server,rho_move, rho_move_action);
 
-    void check_channels() const;
-    HPX_DEFINE_COMPONENT_ACTION(node_server,check_channels, check_channels_action);
-
     void run_scf(std::string const& data_dir);
 
 #ifdef RADIATION
@@ -421,7 +418,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::check_channels_action);
 
 #ifdef RADIATION
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);
