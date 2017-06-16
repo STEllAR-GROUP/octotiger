@@ -22,6 +22,13 @@ class node_server;
 class analytic_t;
 
 
+#ifdef USE_NIECE_BOOL
+typedef bool set_child_aunt_type;
+#else
+typedef integer set_child_aunt_type;
+#endif
+
+
 namespace hpx {
     using mutex = hpx::lcos::local::spinlock;
 }
@@ -73,7 +80,7 @@ public:
 	hpx::future<analytic_t> compare_analytic() const;
 	hpx::future<grid::output_list_type> output(std::string dname, std::string fname, int, bool) const;
 	node_client();
-	hpx::future<integer> set_child_aunt(const hpx::id_type&, const geo::face&) const;
+	hpx::future<set_child_aunt_type> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	hpx::future<node_server*> get_ptr() const;
 	hpx::future<void> form_tree(hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&& );

@@ -457,7 +457,11 @@ hpx::future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2,
 }
 
 void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
+#ifdef NIECE_BOOL
+	std::fill(nieces.begin(), nieces.end(), false);
+#else
 	std::fill(nieces.begin(), nieces.end(), 0);
+#endif
 
 	for (auto& dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
@@ -520,12 +524,16 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 			if (!neighbor.empty()) {
 				nfuts.push_back(
 						neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
-								[this, f](hpx::future<integer>&& n)
+								[this, f](hpx::future<set_child_aunt_type>&& n)
 								{
 									nieces[f] = n.get();
 								}));
 			} else {
+#ifdef USE_NIECE_BOOL
+				nieces[f] = false;
+#else
 				nieces[f] = -2;
+#endif
 			}
 		}
 		for (auto& f : nfuts) {
@@ -596,11 +604,11 @@ hpx::id_type node_server::get_child_client(const geo::octant& ci) {
 typedef node_server::set_child_aunt_action set_child_aunt_action_type;
 HPX_REGISTER_ACTION (set_child_aunt_action_type);
 
-hpx::future<integer> node_client::set_child_aunt(const hpx::id_type& aunt, const geo::face& f) const {
+hpx::future<set_child_aunt_type> node_client::set_child_aunt(const hpx::id_type& aunt, const geo::face& f) const {
 	return hpx::async<typename node_server::set_child_aunt_action>(get_unmanaged_gid(), aunt, f);
 }
 
-integer node_server::set_child_aunt(const hpx::id_type& aunt, const geo::face& face) const {
+set_child_aunt_type node_server::set_child_aunt(const hpx::id_type& aunt, const geo::face& face) const {
 	if (is_refined) {
 		std::array<hpx::future<void>, geo::octant::count() / 2> futs;
 		integer index = 0;
@@ -616,7 +624,11 @@ integer node_server::set_child_aunt(const hpx::id_type& aunt, const geo::face& f
 			}
 		}
 	}
+#ifdef NIECE_BOOL
+    return is_refined;
+#else
     return is_refined ? +1 : -1;
+#endif
 }
 
 typedef node_server::get_ptr_action get_ptr_action_type;

@@ -37,6 +37,8 @@
 
 //#define WD_EOS
 
+#define USE_NIECE_BOOL
+
 
 #define EXPERIMENT
 #ifdef RADIATION
@@ -64,7 +66,7 @@
 #define USE_PPM
 //#define USE_MINMOD
 
-#if !defined(OCTOTIGER_FORCEINLINE)
+ #if !defined(OCTOTIGER_FORCEINLINE)
 #   if defined(__NVCC__) || defined(__CUDACC__)
 #       define OCTOTIGER_FORCEINLINE inline
 #   elif defined(_MSC_VER)

@@ -25,7 +25,6 @@
 #include <map>
 #include <vector>
 
-
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
 
@@ -291,7 +290,7 @@ public:
     void set_aunt(const hpx::id_type&, const geo::face& face);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_aunt, set_aunt_action);
 
-    integer set_child_aunt(const hpx::id_type&,
+    set_child_aunt_type set_child_aunt(const hpx::id_type&,
         const geo::face& face) const;
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_child_aunt, set_child_aunt_action);
 
