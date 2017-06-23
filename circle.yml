@@ -28,10 +28,10 @@ compile:
         - ./circle_ci_scripts/build-octotiger.sh
 test:
     override:
-        - cd build && ./octotiger -Disableoutput -Problem=moving_star -Max_level=2 -Xscale=32 -Odt=0.5 -Stopstep=0 --hpx:threads=2 --hpx:bind=none
+        - cd build && ./octotiger -Disableoutput -Problem=moving_star -Max_level=2 -Xscale=32 -Odt=0.5 -Stopstep=0 --hpx:threads=1 --hpx:bind=none
         - cd test1 && ./test1.sh > output.txt
         - cd test1 &&  python validate.py output.txt test1.txt
         - cd tools && tar xf restart7.chk.tar.gz
 # FIXME - this isn't working. I think its using up too much memory for the machine it is on.
-#        - cd build && ./octotiger -Problem=dwd -Max_level=7 -Xscale=4.0 -Eos=wd -Angcon=1 -Restart=../tools/restart7.chk -Stopstep=1 --hpx:threads=2 --hpx:bind=none
+#        - cd build && ./octotiger -Problem=dwd -Max_level=7 -Xscale=4.0 -Eos=wd -Angcon=1 -Restart=../tools/restart7.chk -Stopstep=1 --hpx:threads=1 --hpx:bind=none
 
