@@ -260,22 +260,20 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 				space_vector a = line.first;
 				const space_vector& o = line.second;
 				space_vector b;
-				real aa = 0.0;
 				real bb = 0.0;
 				real ab = 0.0;
 				for (integer d = 0; d != NDIM; ++d) {
-					a[d] -= o[d];
+			//		a[d] -= o[d];
 					b[d] = X[d][iii] - o[d];
 				}
 				for (integer d = 0; d != NDIM; ++d) {
-					aa += a[d] * a[d];
 					bb += b[d] * b[d];
 					ab += a[d] * b[d];
 				}
-				const real d = std::sqrt((aa * bb - ab * ab) / aa);
-				real p = ab / std::sqrt(aa);
+				const real d = std::sqrt(bb - ab * ab);
+				real p = ab;
 				std::vector<real> data(NF + NGF);
-				if (d < std::sqrt(3.0) * dx / 2.0) {
+				if (d < std::sqrt(3.0) * dx / 2.0 ) {
 					for (integer ui = 0; ui != NF; ++ui) {
 						data[ui] = U[ui][iii];
 					}
@@ -849,17 +847,14 @@ bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis,
 			space_vector a = axis.first;
 			const space_vector& o = axis.second;
 			space_vector b;
-			real aa = 0.0;
 			real ab = 0.0;
 			for (integer d = 0; d != NDIM; ++d) {
-				a[d] -= o[d];
 				b[d] = X[d][iii] - o[d];
 			}
 			for (integer d = 0; d != NDIM; ++d) {
-				aa += a[d] * a[d];
 				ab += a[d] * b[d];
 			}
-			real p = ab / std::sqrt(aa);
+			real p = ab;
 //		printf( "%e\n", l1.first);
 			if (p < l1.first && frac == +1) {
 				use = true;

@@ -37,7 +37,7 @@
 
 //#define WD_EOS
 
-#define USE_NIECE_BOOL
+//#define USE_NIECE_BOOL
 
 
 #define EXPERIMENT

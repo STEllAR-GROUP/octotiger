@@ -159,8 +159,10 @@ private:
     hpx::future<void> nonrefined_step();
     void refined_step();
 
-    diagnostics_t root_diagnostics(diagnostics_t && diags,
-        std::pair<real, real> rho1, std::pair<real, real> rho2,real phi_1, real phi_2, real rho_cutoff) const;
+	diagnostics_t root_diagnostics(diagnostics_t && diags, std::pair<space_vector, space_vector> axis,
+			std::pair<real, real> rho1, std::pair<real, real> rho2,
+			std::pair<real, real>, std::pair<real, real>, std::pair<real, real>,
+			real phi_1, real phi_2, real rho_cutoff) const;
     diagnostics_t child_diagnostics(const std::pair<space_vector, space_vector>& axis,
         const std::pair<real, real>& l1, real, real, real) const;
     diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,

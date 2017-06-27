@@ -143,11 +143,11 @@ diagnostics_t node_server::diagnostics(real rho_cut) const {
 	//		line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, phi_1, phi_2);
 	//	}
 //	}
-	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first, rho_cut), rho1, rho2, phi_1, phi_2, rho_cut);
+	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first, rho_cut), axis, rho1, rho2, l1, l2, l3,  phi_1, phi_2, rho_cut);
 }
 
-diagnostics_t node_server::root_diagnostics(diagnostics_t && diags, std::pair<real, real> rho1, std::pair<real, real> rho2, real phi_1, real phi_2, real rho_cut) const {
-
+diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,  std::pair<space_vector, space_vector> axis, std::pair<real, real> rho1, std::pair<real, real> rho2, std::pair<real, real>  l1, std::pair<real, real> l2, std::pair<real, real> l3, real phi_1, real phi_2, real rho_cut) const {
+//	diags.
 	diags.z_moment -= diags.grid_sum[rho_i] * (std::pow(diags.grid_com[XDIM], 2) + std::pow(diags.grid_com[YDIM], 2));
 	diags.primary_z_moment -= diags.primary_sum[rho_i] * (std::pow(diags.primary_com[XDIM], 2) + std::pow(diags.primary_com[YDIM], 2));
 	diags.secondary_z_moment -= diags.secondary_sum[rho_i] * (std::pow(diags.secondary_com[XDIM], 2) + std::pow(diags.secondary_com[YDIM], 2));
@@ -202,10 +202,29 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags, std::pair<re
 			hpx::threads::run_as_os_thread([&]()
 			{
 				std::string outname = "binary.dat";
+				FILE* fp;
 				if( rho_cut > 0.0 ) {
 					outname = std::string("binary.") + std::to_string(integer(log10(rho_cut))) + std::string(".dat");
+				} else {
+					fp  = fopen((opts.data_dir + std::string( "roche.dat")).c_str(), "at");
+					fprintf( fp, "%15.8e ", double(current_time));
+					fprintf( fp, "%15.8e ", double(l1.first));
+					fprintf( fp, "%15.8e ", double(l1.second));
+					fprintf( fp, "%15.8e ", double(l2.first));
+					fprintf( fp, "%15.8e ", double(l2.second));
+					fprintf( fp, "%15.8e ", double(l3.first));
+					fprintf( fp, "%15.8e ", double(l3.second));
+					fprintf( fp, "%15.8e ", double(axis.first[0]));
+					fprintf( fp, "%15.8e ", double(axis.first[1]));
+					fprintf( fp, "%15.8e ", double(axis.first[2]));
+					fprintf( fp, "%15.8e ", double(axis.second[0]));
+					fprintf( fp, "%15.8e ", double(axis.second[1]));
+					fprintf( fp, "%15.8e ", double(axis.second[2]));
+					fprintf( fp, "\n ");
+					fclose(fp);
+
 				}
-				FILE* fp = fopen((opts.data_dir + outname).c_str(), "at");
+				fp = fopen((opts.data_dir + outname).c_str(), "at");
 				fprintf(fp, "%15.8e ", double(current_time));
 				fprintf(fp, "%15.8e ", double(m1));
 				fprintf(fp, "%15.8e ", double(m2));
