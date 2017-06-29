@@ -257,6 +257,18 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
+				const auto R2 = std::sqrt(
+						X[XDIM][iii] * X[XDIM][iii]
+								+ X[YDIM][iii] * X[YDIM][iii]);
+				const real dV = dx * dx * dx;
+				for (integer d = 0; d != NDIM; ++d) {
+					loc.core1_s[d] += U[sx_i + d][iii] * U[spc_ac_i][iii]
+							/ U[rho_i][iii]* dV;
+					loc.core2_s[d] += U[sx_i + d][iii] * U[spc_dc_i][iii]
+							/ U[rho_i][iii]* dV;
+				}
+				loc.core1 += U[spc_ac_i][iii] * dV;
+				loc.core2 += U[spc_dc_i][iii] * dV;
 				space_vector a = line.first;
 				const space_vector& o = line.second;
 				space_vector b;
@@ -270,7 +282,7 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 					bb += b[d] * b[d];
 					ab += a[d] * b[d];
 				}
-				const real d = std::sqrt(bb - ab * ab);
+				const real d = std::sqrt(std::max(bb - ab * ab,0.0));
 				real p = ab;
 				std::vector<real> data(NF + NGF);
 				if (d < std::sqrt(3.0) * dx / 2.0 ) {
@@ -280,9 +292,9 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 					for (integer gi = 0; gi != NGF; ++gi) {
 						data[NF + gi] = G[iiig][gi];
 					}
-					loc.resize(loc.size() + 1);
-					loc[loc.size() - 1].first = p;
-					loc[loc.size() - 1].second = std::move(data);
+					loc.line.resize(loc.line.size() + 1);
+					loc.line[loc.line.size() - 1].first = p;
+					loc.line[loc.line.size() - 1].second = std::move(data);
 				}
 			}
 		}

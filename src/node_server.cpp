@@ -28,6 +28,67 @@ extern options opts;
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
+
+#ifdef FIND_AXIS_V2
+std::array<std::pair<real,space_vector>,2> node_server::find_axis_tool() const {
+	std::array<std::pair<real,space_vector>,2> rc;
+	if( is_refined ) {
+		rc[0].first = rc[1].first = 0.0;
+		std::vector<hpx::future<std::array<std::pair<real,space_vector>,2>>> futs;
+		futs.reserve(NCHILD);
+		for( integer ci = 0; ci != NCHILD; ++ci) {
+			futs.push_back(children[ci].find_axis_tool());
+		}
+		hpx::wait_all(futs);
+		for( auto& fut : futs) {
+			auto c = fut.get();
+			for( integer i = 0; i != 2; ++i) {
+				if( rc[i].first < c[i].first) {
+					rc[i].first = c[i].first;
+					rc[i].second = c[i].second;
+				}
+			}
+		}
+	} else {
+		rc = grid_ptr->find_core_max();
+	}
+	return rc;
+}
+
+
+typedef node_server::find_axis_tool_action find_axis_tool_action_type;
+HPX_REGISTER_ACTION(find_axis_tool_action_type);
+
+hpx::future<std::array<std::pair<real,space_vector>,2>> node_client::find_axis_tool() const {
+    return hpx::async<typename node_server::find_axis_tool_action>(get_unmanaged_gid());
+}
+
+
+
+std::pair<space_vector,space_vector> node_server::find_axis() const {
+	auto c = find_axis_tool();
+	std::pair<space_vector,space_vector> rc;
+	real norm = 0.0;
+	for( integer d = 0; d != NDIM;++d) {
+		rc.first[d] = c[1].second[d] - c[0].second[d];
+		rc.second[d] = c[0].second[d];
+		norm += rc.first[d] * rc.first[d];
+	}
+	norm = std::sqrt(norm);
+	for( integer d = 0; d != NDIM;++d) {
+		rc.first[d] /= norm;
+	}
+	printf( "%e %e %e %e %e %e\n", rc.first[0], rc.first[1], rc.first[2], rc.second[0], rc.second[1], rc.second[2]);
+	return rc;
+}
+
+
+#endif
+
+
+
+
+
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
 

@@ -362,7 +362,11 @@ void node_server::run_scf(std::string const& data_dir) {
 		real this_m = diags.grid_sum[rho_i];
 		solve_gravity(false);
 
+#ifdef FIND_AXIS_V2
+		auto axis = find_axis();
+#else
 		auto axis = grid_ptr->find_axis();
+#endif
 		auto loc = line_of_centers(axis);
 
 		real l1_x, c1_x, c2_x; //, l2_x, l3_x;
@@ -378,7 +382,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		std::pair < real, real > l2_phi_pair;
 		std::pair < real, real > l3_phi_pair;
 		real phi_1, phi_2;
-		line_of_centers_analyze(loc, omega, rho1_max, rho2_max, l1_phi_pair, l2_phi_pair, l3_phi_pair, phi_1, phi_2);
+		line_of_centers_analyze(loc, axis, rho1_max, rho2_max, l1_phi_pair, l2_phi_pair, l3_phi_pair, phi_1, phi_2);
 		real rho1, rho2;
 		if (rho1_max.first > rho2_max.first) {
 			std::swap(phi_1, phi_2);

@@ -123,11 +123,26 @@ struct gravity_boundary_type {
 	}
 };
 
-using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
+
+//using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
+struct line_of_centers_t {
+	 std::vector<std::pair<real,std::vector<real>>> line;
+	 space_vector core1_s, core2_s;
+	 real core1, core2;
+	 line_of_centers_t() : core1_s(0.0), core2_s(0.0), core1(0.0), core2(0.0){};
+	 template<class Arc>
+	 void serialize(Arc& arc, unsigned ) {
+		 arc & line;
+		 arc & core1_s;
+		 arc & core2_s;
+		 arc & core1;
+		 arc & core2;
+	 }
+};
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
-void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
+real line_of_centers_analyze(const line_of_centers_t& loc, std::pair<space_vector,space_vector> axis, std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
 	std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real&, real&);
 
 typedef real xpoint_type;
@@ -297,7 +312,11 @@ public:
 	grid(grid&&) = default;
 	grid& operator=(const grid&) = delete;
 	grid& operator=(grid&&) = default;
+#ifdef FIND_AXIS_V2
+	std::array<std::pair<real, space_vector>,2> find_core_max() const;
+#else
 	std::pair<space_vector,space_vector> find_axis() const;
+#endif
 	space_vector get_cell_center(integer i, integer j, integer k);
 	gravity_boundary_type get_gravity_boundary(const geo::direction& dir, bool is_local);
     void allocate();

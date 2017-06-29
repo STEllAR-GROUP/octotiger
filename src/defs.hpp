@@ -21,6 +21,8 @@
 # define DO_OUTPUT
 #endif
 
+#define FIND_AXIS_V2
+
 #define REGRID_CHECK
 #define CHANNEL_CHECK
 //#define OCTOTIGER_HAVE_RADIATION

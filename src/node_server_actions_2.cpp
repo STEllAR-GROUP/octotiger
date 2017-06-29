@@ -129,12 +129,15 @@ analytic_t node_server::compare_analytic() {
 }
 
 diagnostics_t node_server::diagnostics(real rho_cut) const {
-	auto axis = grid_ptr->find_axis();
+#ifdef FIND_AXIS_V2
+		auto axis = find_axis();
+#else
+		auto axis = grid_ptr->find_axis();
+#endif
 	auto loc = line_of_centers(axis);
-	real this_omega = grid::get_omega();
 	std::pair<real, real> rho1, rho2, l1, l2, l3;
 	real phi_1, phi_2;
-	line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, l2, l3, phi_1, phi_2);
+	real this_omega = line_of_centers_analyze(loc, axis, rho1, rho2, l1, l2, l3, phi_1, phi_2);
 	//if( rho1.first > rho2.first ) {
 	//	for( integer d = 0; d != NDIM; ++d ) {
 	//		//printf( "Flipping axis\n" );
@@ -143,10 +146,10 @@ diagnostics_t node_server::diagnostics(real rho_cut) const {
 	//		line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, phi_1, phi_2);
 	//	}
 //	}
-	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first, rho_cut), axis, rho1, rho2, l1, l2, l3,  phi_1, phi_2, rho_cut);
+	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first, rho_cut), axis, rho1, rho2, l1, l2, l3,  phi_1, phi_2, rho_cut, this_omega);
 }
 
-diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,  std::pair<space_vector, space_vector> axis, std::pair<real, real> rho1, std::pair<real, real> rho2, std::pair<real, real>  l1, std::pair<real, real> l2, std::pair<real, real> l3, real phi_1, real phi_2, real rho_cut) const {
+diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,  std::pair<space_vector, space_vector> axis, std::pair<real, real> rho1, std::pair<real, real> rho2, std::pair<real, real>  l1, std::pair<real, real> l2, std::pair<real, real> l3, real phi_1, real phi_2, real rho_cut, real omega) const {
 //	diags.
 	diags.z_moment -= diags.grid_sum[rho_i] * (std::pow(diags.grid_com[XDIM], 2) + std::pow(diags.grid_com[YDIM], 2));
 	diags.primary_z_moment -= diags.primary_sum[rho_i] * (std::pow(diags.primary_com[XDIM], 2) + std::pow(diags.primary_com[YDIM], 2));
@@ -228,7 +231,7 @@ diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,  std::pair<s
 				fprintf(fp, "%15.8e ", double(current_time));
 				fprintf(fp, "%15.8e ", double(m1));
 				fprintf(fp, "%15.8e ", double(m2));
-				fprintf(fp, "%15.8e ", double(grid::get_omega()));
+				fprintf(fp, "%15.8e ", double(omega));
 				fprintf(fp, "%15.8e ", double(a));
 				fprintf(fp, "%15.8e ", double(rho1.second));
 				fprintf(fp, "%15.8e ", double(rho2.second));

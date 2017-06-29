@@ -106,6 +106,9 @@ public:
     hpx::future<void> save(integer,std::string) const;
 	hpx::future<void> check_for_refinement(real omega, real) const;
 	hpx::future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
+#ifdef FIND_AXIS_V2
+    hpx::future<std::array<std::pair<real,space_vector>,2>> find_axis_tool() const;
+#endif
 
     void report_timing() const;
 

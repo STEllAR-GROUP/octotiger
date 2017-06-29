@@ -162,7 +162,7 @@ private:
 	diagnostics_t root_diagnostics(diagnostics_t && diags, std::pair<space_vector, space_vector> axis,
 			std::pair<real, real> rho1, std::pair<real, real> rho2,
 			std::pair<real, real>, std::pair<real, real>, std::pair<real, real>,
-			real phi_1, real phi_2, real rho_cutoff) const;
+			real phi_1, real phi_2, real rho_cutoff, real) const;
     diagnostics_t child_diagnostics(const std::pair<space_vector, space_vector>& axis,
         const std::pair<real, real>& l1, real, real, real) const;
     diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
@@ -244,6 +244,12 @@ public:
     integer regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb);
 
     void compute_fmm(gsolve_type gs, bool energy_account);
+
+#ifdef FIND_AXIS_V2
+    std::array<std::pair<real,space_vector>,2> find_axis_tool() const;
+    HPX_DEFINE_COMPONENT_ACTION(node_server, find_axis_tool, find_axis_tool_action);
+    std::pair<space_vector,space_vector> find_axis() const;
+#endif
 
     void solve_gravity(bool ene);
     HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
@@ -387,6 +393,7 @@ public:
 // HPX_ACTION_USES_LARGE_STACK(node_server::diagnostics_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::scf_params_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::velocity_inc_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::find_axis_tool_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::output_action);
