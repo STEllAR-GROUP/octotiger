@@ -76,7 +76,6 @@ public:
 	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,std::string) const;
-	hpx::future<diagnostics_t> diagnostics(const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, real, real, real) const;
 	hpx::future<new_diagnostics_t> new_diagnostics(const new_diagnostics_t&) const;
 	hpx::future<analytic_t> compare_analytic() const;
 	hpx::future<grid::output_list_type> output(std::string dname, std::string fname, int, bool) const;
@@ -95,8 +94,6 @@ public:
 	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	void send_gravity_expansions(expansion_pass_type&&) const;
 	hpx::future<real> step(integer) const;
-	hpx::future<std::pair<real, diagnostics_t> > step_with_diagnostics(integer,
-        const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const;
 	hpx::future<void> solve_gravity(bool ene) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;

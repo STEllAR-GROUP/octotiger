@@ -311,14 +311,14 @@ void node_server::start_run(bool scf, integer ngrids)
         if (!opts.disable_output) {
             save_to_file("X.chk", opts.data_dir);
         }
-        diagnostics(0.0);
+        new_diagnostics();
         return;
     }
     if (scf) {
         run_scf(opts.data_dir);
         set_pivot();
         printf("Adjusting velocities:\n");
-        auto diag = diagnostics(0.0);
+        auto diag = new_diagnostics();
         space_vector dv;
         dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
         dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
@@ -405,17 +405,16 @@ void node_server::start_run(bool scf, integer ngrids)
 
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             printf("dwd step...\n");
-            auto result = root_step_with_diagnostics(next_step - step_num).get();
-            auto diags = result.second;
-            dt = result.first;
+            auto dt = step(next_step - step_num).get();
+            auto diags = new_diagnostics();
             omega = grid::get_omega();
 
-            const real dx = diags.secondary_com[XDIM] - diags.primary_com[XDIM];
-            const real dy = diags.secondary_com[YDIM] - diags.primary_com[YDIM];
-            const real dx_dot = diags.secondary_com_dot[XDIM]
-                - diags.primary_com_dot[XDIM];
-            const real dy_dot = diags.secondary_com_dot[YDIM]
-                - diags.primary_com_dot[YDIM];
+            const real dx = diags.com[1][XDIM] - diags.com[0][XDIM];
+            const real dy = diags.com[1][YDIM] - diags.com[0][YDIM];
+            const real dx_dot = diags.com_dot[1][XDIM]
+                - diags.com_dot[0][XDIM];
+            const real dy_dot = diags.com_dot[1][YDIM]
+                - diags.com_dot[0][YDIM];
             theta = atan2(dy, dx);
             omega = grid::get_omega();
             printf( "Old Omega = %e\n", omega );
@@ -769,82 +768,6 @@ hpx::future<real> node_server::step(integer steps) {
     return fut;
 }
 
-typedef node_server::step_with_diagnostics_action step_with_diagnostics_action_type;
-HPX_REGISTER_ACTION(step_with_diagnostics_action_type);
-
-hpx::future<std::pair<real, diagnostics_t> > node_client::step_with_diagnostics(integer steps,
-    const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2) const
-{
-    return hpx::async<step_with_diagnostics_action_type>(get_unmanaged_gid(), steps, axis, l1, c1, c2);
-}
-
-hpx::future<std::pair<real, diagnostics_t> > node_server::step_with_diagnostics(integer steps,
-    const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2)
-{
-	if (is_refined)
-    {
-        std::array<hpx::future<std::pair<real, diagnostics_t> >, NCHILD> child_futs;
-        for (integer ci = 0; ci != NCHILD; ++ci) {
-            child_futs[ci] = children[ci].step_with_diagnostics(steps, axis, l1, c1, c2);
-        }
-
-        hpx::future<real> dt_fut = local_step(steps);
-
-        return hpx::dataflow(hpx::launch::sync,
-            [](hpx::future<real> dt_fut,
-                std::array<hpx::future<std::pair<real, diagnostics_t> >, NCHILD> && d)
-            -> std::pair<real, diagnostics_t>
-            {
-                diagnostics_t diags;
-                for (auto& f : d)
-                {
-                    diags += f.get().second;
-                }
-                return std::make_pair(dt_fut.get(), std::move(diags));
-            },
-            std::move(dt_fut), std::move(child_futs)
-        );
-    }
-
-    diagnostics_t diags = local_diagnostics(axis, l1, c1, c2, 0.0);
-    hpx::future<real> dt_fut = local_step(steps);
-    return hpx::dataflow(hpx::launch::sync,
-            [](hpx::future<real> dt_fut, diagnostics_t && diags)
-            ->  std::pair<real, diagnostics_t>
-            {
-                return std::make_pair(dt_fut.get(), std::move(diags));
-            },
-            std::move(dt_fut), std::move(diags)
-        );
-}
-
-hpx::future<std::pair<real, diagnostics_t> > node_server::root_step_with_diagnostics(integer steps)
-{
-#ifdef FIND_AXIS_V2
-		auto axis = find_axis();
-#else
-		auto axis = grid_ptr->find_axis();
-#endif
-    auto loc = line_of_centers(axis);
-  //  real this_omega = grid::get_omega();
-    std::pair<real, real> rho1, rho2, l1, l2, l3;
-    real phi_1, phi_2;
-    real this_omega = line_of_centers_analyze(loc, axis, rho1, rho2, l1, l2, l3, phi_1, phi_2);
-
-    hpx::future<std::pair<real, diagnostics_t> > fut =
-        step_with_diagnostics(steps, axis, l1, rho1.first, rho2.first);
-
-    return fut.then(hpx::launch::sync,
-        [=](hpx::future<std::pair<real, diagnostics_t> > f)
-        ->  std::pair<real, diagnostics_t>
-        {
-            auto result = f.get();
-            return std::make_pair(
-                result.first,
-                root_diagnostics(std::move(result.second), axis, rho1, rho2, l1, l2, l3, phi_1, phi_2, 0.0, this_omega)
-            );
-        });
-}
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
 HPX_REGISTER_ACTION(timestep_driver_ascend_action_type);

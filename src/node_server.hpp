@@ -159,14 +159,6 @@ private:
     hpx::future<void> nonrefined_step();
     void refined_step();
 
-	diagnostics_t root_diagnostics(diagnostics_t && diags, std::pair<space_vector, space_vector> axis,
-			std::pair<real, real> rho1, std::pair<real, real> rho2,
-			std::pair<real, real>, std::pair<real, real>, std::pair<real, real>,
-			real phi_1, real phi_2, real rho_cutoff, real) const;
-    diagnostics_t child_diagnostics(const std::pair<space_vector, space_vector>& axis,
-        const std::pair<real, real>& l1, real, real, real) const;
-    diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
-        const std::pair<real, real>& l1, real, real, real) const;
 	new_diagnostics_t root_new_diagnostics(const new_diagnostics_t& diags) ;
     new_diagnostics_t child_new_diagnostics(const new_diagnostics_t& diags);
     new_diagnostics_t local_new_diagnostics(const new_diagnostics_t& diags);
@@ -235,12 +227,6 @@ public:
     hpx::future<real> step(integer steps);
     HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
-    hpx::future<std::pair<real, diagnostics_t> > step_with_diagnostics(integer steps,
-        const std::pair<space_vector, space_vector>& axis,
-        const std::pair<real, real>& l1, real, real);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, step_with_diagnostics, step_with_diagnostics_action);
-
-    hpx::future<std::pair<real, diagnostics_t> > root_step_with_diagnostics(integer steps);
 
     void update();
 
@@ -284,13 +270,6 @@ public:
 
     analytic_t compare_analytic();
     HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
-
-    diagnostics_t diagnostics(const std::pair<space_vector, space_vector>& axis,
-        const std::pair<real, real>& l1, real, real, real) const;
-    HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
-
-    diagnostics_t diagnostics(real) const;
-
 
     new_diagnostics_t new_diagnostics(const new_diagnostics_t&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, new_diagnostics, new_diagnostics_action);
@@ -426,13 +405,11 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::step_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::step_with_diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::solve_gravity_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::copy_to_locality_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::new_diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);

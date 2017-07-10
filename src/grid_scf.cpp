@@ -336,22 +336,22 @@ void node_server::run_scf(std::string const& data_dir) {
 			    save_to_file("scf.chk", data_dir);
             }
 		}
-		auto diags = diagnostics(0.0);
-		real f0 = scf_options::M1 / (diags.primary_sum[rho_i]);
-		real f1 = scf_options::M2 / (diags.secondary_sum[rho_i]);
-		real f = (scf_options::M1 + scf_options::M2) / diags.grid_sum[rho_i];
+		auto diags = new_diagnostics();
+		real f0 = scf_options::M1 / (diags.m[0]);
+		real f1 = scf_options::M2 / (diags.m[1]);
+		real f = (scf_options::M1 + scf_options::M2) / (diags.m[0] + diags.m[1]);
 //		f = (f + 1.0)/2.0;
 		//	printf( "%e %e \n", f0, f1);
 		rho_mult(f0, f1);
-		diags = diagnostics(0.0);
-		rho_move(diags.grid_com[rho_i] / 2.0);
-		diags = diagnostics(0.0);
-		real iorb = diags.z_moment;
-		real is1 = diags.primary_z_moment;
-		real is2 = diags.secondary_z_moment;
+		diags = new_diagnostics();
+		rho_move(diags.grid_com[0] / 2.0);
+		diags = new_diagnostics();
+		real iorb = diags.z_mom_orb;
+		real is1 = diags.z_moment[0];
+		real is2 = diags.z_moment[1];
 		iorb -= is1 + is2;
-		real M1 = diags.primary_sum[rho_i];
-		real M2 = diags.secondary_sum[rho_i];
+		real M1 = diags.m[0];
+		real M2 = diags.m[1];
 		real j1 = is1 * omega * (1.0 + scf_options::async1);
 		real j2 = is2 * omega * (1.0 + scf_options::async2);
 		real jorb = iorb * omega;
@@ -359,7 +359,7 @@ void node_server::run_scf(std::string const& data_dir) {
 			jorb0 = jorb;
 		}
 		real spin_ratio = (j1 + j2) / (jorb);
-		real this_m = diags.grid_sum[rho_i];
+		real this_m = (diags.m[0] + diags.m[1]);
 		solve_gravity(false);
 
 #ifdef FIND_AXIS_V2
@@ -388,10 +388,10 @@ void node_server::run_scf(std::string const& data_dir) {
 			std::swap(phi_1, phi_2);
 			std::swap(rho1_max, rho2_max);
 		}
-		c1_x = diags.primary_com[XDIM];
-		c2_x = diags.secondary_com[XDIM];
-		rho1 = std::max(diags.field_max[spc_ac_i], diags.field_max[spc_ae_i]);
-		rho2 = std::max(diags.field_max[spc_dc_i], diags.field_max[spc_de_i]);
+		c1_x = diags.com[0][XDIM];
+		c2_x = diags.com[1][XDIM];
+		rho1 = diags.rho_max[0];
+		rho2 = diags.rho_max[1];
 		l1_x = l1_phi_pair.first;
 		l1_phi = l1_phi_pair.second;
 		l2_phi = l2_phi_pair.second;
@@ -441,21 +441,21 @@ void node_server::run_scf(std::string const& data_dir) {
 
 		real core_frac_1 = diags.grid_sum[spc_ac_i] / M1;
 		real core_frac_2 = diags.grid_sum[spc_dc_i] / M2;
-		const real eptot = diags.grid_sum[pot_i];
+	/*	const real eptot = diags.grid_sum[pot_i];
 		const real ektot = diags.grid_sum[egas_i] - 0.5 * eptot;
 		if( diags.virial.second == 0.0 ) {
 			printf( "ZERO              !!!!\n" );
 			abort();
-		}
-		const real virial = diags.virial.first / diags.virial.second;
-		const real v1 = diags.primary_volume;
+		}*/
+		const real virial = diags.virial;
+	/*	const real v1 = diags.primary_volume;
 		const real v2 = diags.secondary_volume;
 		const real vfactor = 4.0 / 3.0 * M_PI;
 		const real r1 = std::pow(v1 / vfactor, 1.0 / 3.0);
 		const real r2 = std::pow(v2 / vfactor, 1.0 / 3.0);
 		const real g1 = std::sqrt(is1 / (r1 * r1) / M1);
 		const real g2 = std::sqrt(is2 / (r2 * r2) / M2);
-		const real etot = diags.grid_sum[egas_i] + 0.5 * diags.grid_sum[pot_i];
+		const real etot = diags.grid_sum[egas_i] + 0.5 * diags.grid_sum[pot_i];*/
 		real e1f;
 		if (opts.eos == WD) {
 			if (!scf_options::equal_struct_eos) {
@@ -489,13 +489,11 @@ void node_server::run_scf(std::string const& data_dir) {
 
 		jmin = std::sqrt((M1 + M2)) * (mu * std::pow(amin, 0.5) + (is1 + is2) * std::pow(amin, -1.5));
 		if (i % 5 == 0) {
-			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
-				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "r1", "r2", "iorb", "pvol", "proche", "svol",
-				"sroche");
+			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
+				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "iorb");
         }
-		lprintf((opts.data_dir + "log.txt").c_str(), "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
-			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, r1, r2, iorb, diags.primary_volume, diags.roche_vol1,
-			diags.secondary_volume, diags.roche_vol2);
+		lprintf((opts.data_dir + "log.txt").c_str(), "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
+			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, iorb );
         if (i % 10 == 0) {
 			regrid(me.get_unmanaged_gid(), omega, -1, false);
 		}

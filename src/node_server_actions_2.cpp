@@ -88,14 +88,6 @@ hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) 
 
 extern options opts;
 
-typedef node_server::diagnostics_action diagnostics_action_type;
-HPX_REGISTER_ACTION (diagnostics_action_type);
-
-hpx::future<diagnostics_t> node_client::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1,
-		real c2, real rho_cut) const {
-	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), axis, l1, c1, c2, rho_cut);
-}
-
 typedef node_server::new_diagnostics_action new_diagnostics_action_type;
 HPX_REGISTER_ACTION (new_diagnostics_action_type);
 
@@ -136,225 +128,6 @@ analytic_t node_server::compare_analytic() {
 	return a;
 }
 
-diagnostics_t node_server::diagnostics(real rho_cut) const {
-#ifdef FIND_AXIS_V2
-		auto axis = find_axis();
-#else
-		auto axis = grid_ptr->find_axis();
-#endif
-	auto loc = line_of_centers(axis);
-	std::pair<real, real> rho1, rho2, l1, l2, l3;
-	real phi_1, phi_2;
-	real this_omega = line_of_centers_analyze(loc, axis, rho1, rho2, l1, l2, l3, phi_1, phi_2);
-	//if( rho1.first > rho2.first ) {
-	//	for( integer d = 0; d != NDIM; ++d ) {
-	//		//printf( "Flipping axis\n" );
-	//		axis.first[d] = -axis.first[d];
-	//		loc = line_of_centers(axis);
-	//		line_of_centers_analyze(loc, this_omega, rho1, rho2, l1, phi_1, phi_2);
-	//	}
-//	}
-	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first, rho_cut), axis, rho1, rho2, l1, l2, l3,  phi_1, phi_2, rho_cut, this_omega);
-}
-
-
-diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,  std::pair<space_vector, space_vector> axis, std::pair<real, real> rho1, std::pair<real, real> rho2, std::pair<real, real>  l1, std::pair<real, real> l2, std::pair<real, real> l3, real phi_1, real phi_2, real rho_cut, real omega) const {
-//	diags.
-	diags.z_moment -= diags.grid_sum[rho_i] * (std::pow(diags.grid_com[XDIM], 2) + std::pow(diags.grid_com[YDIM], 2));
-	diags.primary_z_moment -= diags.primary_sum[rho_i] * (std::pow(diags.primary_com[XDIM], 2) + std::pow(diags.primary_com[YDIM], 2));
-	diags.secondary_z_moment -= diags.secondary_sum[rho_i] * (std::pow(diags.secondary_com[XDIM], 2) + std::pow(diags.secondary_com[YDIM], 2));
-	if (diags.primary_sum[rho_i] < diags.secondary_sum[rho_i]) {
-		std::swap(diags.primary_sum, diags.secondary_sum);
-		std::swap(diags.primary_com, diags.secondary_com);
-		std::swap(diags.primary_com_dot, diags.secondary_com_dot);
-		std::swap(rho1, rho2);
-		std::swap(phi_1, phi_2);
-		std::swap(diags.primary_z_moment, diags.secondary_z_moment);
-	}
-
-	if (opts.problem != SOLID_SPHERE) {
-		// run output on separate thread
-		if (!opts.disable_output) {
-			hpx::threads::run_as_os_thread([&]()
-			{
-				FILE* fp = fopen((opts.data_dir + "diag.dat").c_str(), "at");
-				fprintf(fp, "%23.16e ", double(current_time));
-				for (integer f = 0; f != NF; ++f) {
-					fprintf(fp, "%23.16e ", double(diags.grid_sum[f] + diags.outflow_sum[f]));
-					fprintf(fp, "%23.16e ", double(diags.outflow_sum[f]));
-				}
-				for (integer f = 0; f != NDIM; ++f) {
-					fprintf(fp, "%23.16e ", double(diags.l_sum[f]));
-				}
-				fprintf(fp, "%23.16e ", double(diags.virial.first/diags.virial.second));
-				fprintf(fp, "\n");
-				fclose(fp);
-			}).get();
-		}
-
-		real a = 0.0;
-		for (integer d = 0; d != NDIM; ++d) {
-			a += std::pow(diags.primary_com[d] - diags.secondary_com[d], 2);
-		}
-		a = std::sqrt(a);
-		real j1 = 0.0;
-		real j2 = 0.0;
-		real m1 = diags.primary_sum[rho_i];
-		real m2 = diags.secondary_sum[rho_i];
-		j1 -= diags.primary_com_dot[XDIM] * (diags.primary_com[YDIM] - diags.grid_com[YDIM]) * m1;
-		j1 += diags.primary_com_dot[YDIM] * (diags.primary_com[XDIM] - diags.grid_com[XDIM]) * m1;
-		j2 -= diags.secondary_com_dot[XDIM] * (diags.secondary_com[YDIM] - diags.grid_com[YDIM]) * m2;
-		j2 += diags.secondary_com_dot[YDIM] * (diags.secondary_com[XDIM] - diags.grid_com[XDIM]) * m2;
-		const real jorb = j1 + j2;
-		j1 = diags.primary_sum[zz_i] - j1;
-		j2 = diags.secondary_sum[zz_i] - j2;
-
-		// run output on separate thread
-		if (!opts.disable_output) {
-			hpx::threads::run_as_os_thread([&]()
-			{
-				std::string outname = "binary.dat";
-				FILE* fp;
-				if( rho_cut > 0.0 ) {
-					outname = std::string("binary.") + std::to_string(integer(log10(rho_cut))) + std::string(".dat");
-				} else {
-					fp  = fopen((opts.data_dir + std::string( "roche.dat")).c_str(), "at");
-					fprintf( fp, "%15.8e ", double(current_time));
-					fprintf( fp, "%15.8e ", double(l1.first));
-					fprintf( fp, "%15.8e ", double(l1.second));
-					fprintf( fp, "%15.8e ", double(l2.first));
-					fprintf( fp, "%15.8e ", double(l2.second));
-					fprintf( fp, "%15.8e ", double(l3.first));
-					fprintf( fp, "%15.8e ", double(l3.second));
-					fprintf( fp, "%15.8e ", double(axis.first[0]));
-					fprintf( fp, "%15.8e ", double(axis.first[1]));
-					fprintf( fp, "%15.8e ", double(axis.first[2]));
-					fprintf( fp, "%15.8e ", double(axis.second[0]));
-					fprintf( fp, "%15.8e ", double(axis.second[1]));
-					fprintf( fp, "%15.8e ", double(axis.second[2]));
-					fprintf( fp, "\n ");
-					fclose(fp);
-
-				}
-				fp = fopen((opts.data_dir + outname).c_str(), "at");
-				fprintf(fp, "%15.8e ", double(current_time));
-				fprintf(fp, "%15.8e ", double(m1));
-				fprintf(fp, "%15.8e ", double(m2));
-				fprintf(fp, "%15.8e ", double(omega));
-				fprintf(fp, "%15.8e ", double(a));
-				fprintf(fp, "%15.8e ", double(rho1.second));
-				fprintf(fp, "%15.8e ", double(rho2.second));
-				fprintf(fp, "%15.8e ", double(jorb));
-				fprintf(fp, "%15.8e ", double(j1));
-				fprintf(fp, "%15.8e ", double(j2));
-				fprintf(fp, "%15.8e ", double(diags.z_moment));
-				fprintf(fp, "%15.8e ", double(diags.primary_z_moment));
-				fprintf(fp, "%15.8e ", double(diags.secondary_z_moment));
-				fprintf(fp, "\n");
-				fclose(fp);
-
-				fp = fopen((opts.data_dir + "minmax.dat").c_str(), "at");
-				fprintf(fp, "%23.16e ", double(current_time));
-				for (integer f = 0; f != NF; ++f) {
-					fprintf(fp, "%23.16e ", double(diags.field_min[f]));
-					fprintf(fp, "%23.16e ", double(diags.field_max[f]));
-				}
-				fprintf(fp, "\n");
-				fclose(fp);
-
-				fp = fopen((opts.data_dir + "com.dat").c_str(), "at");
-				fprintf(fp, "%23.16e ", double(current_time));
-				for (integer d = 0; d != NDIM; ++d) {
-					fprintf(fp, "%23.16e ", double(diags.primary_com[d]));
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					fprintf(fp, "%23.16e ", double(diags.secondary_com[d]));
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					fprintf(fp, "%23.16e ", double(diags.grid_com[d]));
-				}
-				fprintf(fp, "\n");
-				fclose(fp);
-			}).get();
-		}
-	} else {
-		hpx::threads::run_as_os_thread([&]()
-		{
-			printf("L1\n");
-			printf("Gravity Phi Error - %e\n", (diags.l1_error[0] / diags.l1_error[4]));
-			printf("Gravity gx Error - %e\n", (diags.l1_error[1] / diags.l1_error[5]));
-			printf("Gravity gy Error - %e\n", (diags.l1_error[2] / diags.l1_error[6]));
-			printf("Gravity gz Error - %e\n", (diags.l1_error[3] / diags.l1_error[7]));
-			printf("L2\n");
-			printf("Gravity Phi Error - %e\n",
-					std::sqrt(diags.l2_error[0] / diags.l2_error[4]));
-			printf("Gravity gx Error - %e\n",
-					std::sqrt(diags.l2_error[1] / diags.l2_error[5]));
-			printf("Gravity gy Error - %e\n",
-					std::sqrt(diags.l2_error[2] / diags.l2_error[6]));
-			printf("Gravity gz Error - %e\n",
-					std::sqrt(diags.l2_error[3] / diags.l2_error[7]));
-			printf("Total Mass = %e\n", diags.grid_sum[rho_i]);
-			for (integer d = 0; d != NDIM; ++d) {
-				printf("%e %e\n", diags.gforce_sum[d], diags.gtorque_sum[d]);
-			}
-		}).get();
-	}
-
-	return diags;
-}
-
-diagnostics_t node_server::diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2, real rho_cut) const {
-
-	if (is_refined) {
-		return child_diagnostics(axis, l1, c1, c2, rho_cut);
-	}
-	return local_diagnostics(axis, l1, c1, c2, rho_cut);
-}
-
-diagnostics_t node_server::child_diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2, real rho_cut) const {
-
-	diagnostics_t sums;
-	std::array<hpx::future<diagnostics_t>, NCHILD> futs;
-	integer index = 0;
-	for (integer ci = 0; ci != NCHILD; ++ci) {
-		futs[index++] = children[ci].diagnostics(axis, l1, c1, c2, rho_cut);
-	}
-	auto child_sums = hpx::util::unwrapped(futs);
-	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
-}
-
-diagnostics_t node_server::local_diagnostics(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real c1, real c2, real rho_cut) const {
-
-	diagnostics_t sums;
-
-	sums.primary_sum = grid_ptr->conserved_sums(sums.primary_com, sums.primary_com_dot, axis, l1, +1, rho_cut);
-	sums.secondary_sum = grid_ptr->conserved_sums(sums.secondary_com, sums.secondary_com_dot, axis, l1, -1, rho_cut);
-	sums.primary_z_moment = grid_ptr->z_moments(axis, l1, +1, rho_cut);
-	sums.secondary_z_moment = grid_ptr->z_moments(axis, l1, -1, rho_cut);
-	sums.grid_sum = grid_ptr->conserved_sums(sums.grid_com, sums.grid_com_dot, axis, l1, 0, rho_cut);
-	sums.virial = grid_ptr->virial();
-	sums.outflow_sum = grid_ptr->conserved_outflows();
-	sums.l_sum = grid_ptr->l_sums();
-	auto tmp = grid_ptr->field_range();
-	sums.field_min = std::move(tmp.first);
-	sums.field_max = std::move(tmp.second);
-	sums.gforce_sum = grid_ptr->gforce_sum(false);
-	sums.gtorque_sum = grid_ptr->gforce_sum(true);
-	auto tmp2 = grid_ptr->diagnostic_error();
-	sums.l1_error = tmp2.first;
-	sums.l2_error = tmp2.second;
-	auto vols = grid_ptr->frac_volumes();
-	sums.roche_vol1 = grid_ptr->roche_volume(axis, l1, std::min(c1, c2), false);
-	sums.roche_vol2 = grid_ptr->roche_volume(axis, l1, std::max(c1, c2), true);
-	sums.primary_volume = vols[spc_ac_i - spc_i] + vols[spc_ae_i - spc_i];
-	sums.secondary_volume = vols[spc_dc_i - spc_i] + vols[spc_de_i - spc_i];
-	sums.z_moment = grid_ptr->z_moments(axis, l1, 0, rho_cut);
-
-	return sums;
-}
-
-
 
 const new_diagnostics_t& new_diagnostics_t::compute() {
 	real dX[NDIM], V[NDIM];
@@ -363,12 +136,7 @@ const new_diagnostics_t& new_diagnostics_t::compute() {
 		V[d] = com_dot[1][d] - com_dot[0][d];
 	}
 	real sep2 = dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2];
-	const real new_omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) / sep2);
-	//if( stage > 3 ) {
-//		omega = 0.5 * omega + 0.5 * new_omega;
-//	} else {
-		omega = new_omega;
-//	}
+	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) / sep2);
 	a = std::sqrt(sep2);
 	real mu = m[0] * m[1] / (m[1] + m[0]);
 	jorb = mu * omega * sep2;
@@ -391,6 +159,10 @@ const new_diagnostics_t& new_diagnostics_t::compute() {
 		tidal[s] /= std::pow(a,3.0);
 		tidal[s] *= m[1-s];
 	}
+	if( virial_norm > 0.0 ) {
+		virial /= virial_norm;
+	}
+	z_mom_orb = mu * sep2;
 	return *this;
 }
 
@@ -400,7 +172,8 @@ new_diagnostics_t node_server::new_diagnostics() {
 	for( integer i = 1; i != 10; ++i) {
 		diags.stage = i;
 		diags = new_diagnostics(diags).compute();
-		printf( "%e %e %e %e %e %e %e\n", diags.omega, diags.m[0], diags.m[1], diags.cop[0][XDIM], diags.com[0][XDIM], diags.cop[1][XDIM], diags.com[1][XDIM]);
+		diags.grid_com = grid_ptr->center_of_mass();
+	//	printf( "%e %e %e %e %e %e %e\n", diags.omega, diags.m[0], diags.m[1], diags.cop[0][XDIM], diags.com[0][XDIM], diags.cop[1][XDIM], diags.com[1][XDIM]);
 	}
 
 	FILE* fp = fopen( "new_binary.dat", "at");
@@ -417,7 +190,7 @@ new_diagnostics_t node_server::new_diagnostics() {
 	}
 	fprintf( fp, "\n");
 	fclose(fp);
-
+	return diags;
 }
 
 new_diagnostics_t node_server::root_new_diagnostics(const new_diagnostics_t & diags)  {
@@ -441,7 +214,7 @@ new_diagnostics_t node_server::child_new_diagnostics(const new_diagnostics_t& di
 		futs[index++] = children[ci].new_diagnostics(diags);
 	}
 //	if( diags.stage == 1 ) {
-		all_hydro_bounds();
+//		all_hydro_bounds();
 //	}
 	auto child_sums = hpx::util::unwrapped(futs);
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
@@ -450,82 +223,6 @@ new_diagnostics_t node_server::child_new_diagnostics(const new_diagnostics_t& di
 new_diagnostics_t node_server::local_new_diagnostics(const new_diagnostics_t& diags)  {
 	all_hydro_bounds();
 	return grid_ptr->new_diagnostics(diags);
-}
-
-diagnostics_t::diagnostics_t() :
-		primary_sum(NF, ZERO), secondary_sum(NF, ZERO), grid_sum(NF, ZERO), outflow_sum(NF, ZERO), l_sum(NDIM, ZERO), field_max(NF,
-				-std::numeric_limits<real>::max()), field_min(NF, +std::numeric_limits<real>::max()), gforce_sum(NDIM, ZERO), gtorque_sum(NDIM, ZERO) {
-	for (integer d = 0; d != NDIM; ++d) {
-		primary_z_moment = secondary_z_moment = z_moment = 0.0;
-		roche_vol1 = roche_vol2 = primary_volume = secondary_volume = 0.0;
-		primary_com[d] = secondary_com[d] = grid_com[d] = 0.0;
-		primary_com_dot[d] = secondary_com_dot[d] = grid_com_dot[d] = 0.0;
-	}
-	virial.first = virial.second = 0.0;
-}
-
-diagnostics_t& diagnostics_t::operator+=(const diagnostics_t& other) {
-	primary_z_moment += other.primary_z_moment;
-	secondary_z_moment += other.secondary_z_moment;
-	z_moment += other.z_moment;
-	for (integer d = 0; d != NDIM; ++d) {
-		primary_com[d] *= primary_sum[rho_i];
-		secondary_com[d] *= secondary_sum[rho_i];
-		grid_com[d] *= grid_sum[rho_i];
-		primary_com_dot[d] *= primary_sum[rho_i];
-		secondary_com_dot[d] *= secondary_sum[rho_i];
-		grid_com_dot[d] *= grid_sum[rho_i];
-	}
-	virial.first += other.virial.first;
-	virial.second += other.virial.second;
-	for (integer f = 0; f != NF; ++f) {
-		grid_sum[f] += other.grid_sum[f];
-		primary_sum[f] += other.primary_sum[f];
-		secondary_sum[f] += other.secondary_sum[f];
-		outflow_sum[f] += other.outflow_sum[f];
-		field_max[f] = std::max(field_max[f], other.field_max[f]);
-		field_min[f] = std::min(field_min[f], other.field_min[f]);
-	}
-	for (integer d = 0; d != NDIM; ++d) {
-		l_sum[d] += other.l_sum[d];
-		gforce_sum[d] += other.gforce_sum[d];
-		gtorque_sum[d] += other.gtorque_sum[d];
-	}
-	if (l1_error.size() < other.l1_error.size()) {
-		l1_error.resize(other.l1_error.size(), ZERO);
-		l2_error.resize(other.l2_error.size(), ZERO);
-	}
-	for (std::size_t i = 0; i != l1_error.size(); ++i) {
-		l1_error[i] += other.l1_error[i];
-	}
-	for (std::size_t i = 0; i != l1_error.size(); ++i) {
-		l2_error[i] += other.l2_error[i];
-	}
-	for (integer d = 0; d != NDIM; ++d) {
-		primary_com[d] += other.primary_com[d] * other.primary_sum[rho_i];
-		secondary_com[d] += other.secondary_com[d] * other.secondary_sum[rho_i];
-		grid_com[d] += other.grid_com[d] * other.grid_sum[rho_i];
-		primary_com_dot[d] += other.primary_com_dot[d] * other.primary_sum[rho_i];
-		secondary_com_dot[d] += other.secondary_com_dot[d] * other.secondary_sum[rho_i];
-		grid_com_dot[d] += other.grid_com_dot[d] * other.grid_sum[rho_i];
-	}
-	for (integer d = 0; d != NDIM; ++d) {
-		if (primary_sum[rho_i] > 0.0) {
-			primary_com[d] /= primary_sum[rho_i];
-			primary_com_dot[d] /= primary_sum[rho_i];
-		}
-		if (secondary_sum[rho_i] > 0.0) {
-			secondary_com[d] /= secondary_sum[rho_i];
-			secondary_com_dot[d] /= secondary_sum[rho_i];
-		}
-		grid_com[d] /= grid_sum[rho_i];
-		grid_com_dot[d] /= grid_sum[rho_i];
-	}
-	roche_vol1 += other.roche_vol1;
-	roche_vol2 += other.roche_vol2;
-	primary_volume += other.primary_volume;
-	secondary_volume += other.secondary_volume;
-	return *this;
 }
 
 typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;

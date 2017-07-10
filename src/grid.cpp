@@ -19,6 +19,10 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
+
+extern options opts;
+
+
 new_diagnostics_t grid::new_diagnostics(const new_diagnostics_t& diags) {
 	new_diagnostics_t rc;
 	constexpr integer nspec = 2;
@@ -85,12 +89,6 @@ new_diagnostics_t grid::new_diagnostics(const new_diagnostics_t& diags) {
 				z = X[ZDIM][iii];
 				const real o2 = diags.omega * diags.omega;
 				const real rhoinv = 1.0 / U[rho_i][iii];
-			/*	phi_eff_xp = G[iii + G_DNX][phi_i] - 0.5 * (std::pow(X[XDIM][iii + H_DNX],2) + y * y) * o2;
-				phi_eff_xm = G[iii - G_DNX][phi_i] - 0.5 * (std::pow(X[XDIM][iii - H_DNX],2) + y * y) * o2;
-				phi_eff_yp = G[iii + G_DNY][phi_i] - 0.5 * (std::pow(X[YDIM][iii + H_DNY],2) + x * x) * o2;
-				phi_eff_ym = G[iii - G_DNY][phi_i] - 0.5 * (std::pow(X[YDIM][iii - H_DNY],2) + x * x) * o2;
-				phi_eff_zp = G[iii + G_DNZ][phi_i] - 0.5 * (y*y + x * x) * o2;
-				phi_eff_zm = G[iii - G_DNZ][phi_i] - 0.5 * (y*y + x * x) * o2;*/
 				const real vx = U[sx_i][iii] / U[rho_i][iii];
 				const real vy = U[sy_i][iii] / U[rho_i][iii];
 				const real vz = U[sz_i][iii] / U[rho_i][iii];
@@ -126,12 +124,6 @@ new_diagnostics_t grid::new_diagnostics(const new_diagnostics_t& diags) {
 						i = -1;
 					}
 					if( i != -1 ) {
-						if (phi_eff < rc.phi_eff_min[i] && 10.0 * std::abs(phi_g) > std::abs(phi_r)) {
-							rc.phi_eff_min[i] = phi_eff;
-							rc.cop[i][XDIM] = x;
-							rc.cop[i][YDIM] = y;
-							rc.cop[i][ZDIM] = z;
-						}
 						const real dX[NDIM] = {(x - diags.com[i][XDIM]),(y - diags.com[i][YDIM]),(z - diags.com[i][ZDIM])};
 						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
 						rc.js[i] -= dX[1] * U[sx_i][iii] * dV;
@@ -144,9 +136,36 @@ new_diagnostics_t grid::new_diagnostics(const new_diagnostics_t& diags) {
 							}
 							rc.mom[i](n, n) -= r * r * rho0 * dV;
 						}
+						rc.z_moment[i] += (dX[0] * dX[0] + dX[1] * dX[1]) * rho0 * dV;
 					}
-					U[spc_vac_i][iii] = real(i+2);
+					rc.rho_max[i] = std::max(rc.rho_max[i], rho0);
+			//		U[spc_vac_i][iii] = real(i+2);
+					const integer iii = hindex(i, j, k);
+					real ek = ZERO;
+					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
+					ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
+					ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
+					real ei;
+					if (opts.eos == WD) {
+						ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
+					} else {
+						ei = U[egas_i][iii] - ek;
+					}
+					real et = U[egas_i][iii];
+					if (ei < de_switch2 * et) {
+						ei = std::pow(U[tau_i][iii], fgamma);
+					}
+					real p = (fgamma-1.0)*ei;
+					if( opts.eos == WD ) {
+						p += ztwd_pressure(U[rho_i][iii]);
+					}
+					rc.virial += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
+					rc.virial_norm += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
+					for( integer f = 0; f != NF; ++f) {
+						rc.grid_sum[f] += U[f][iii] * dV;
+					}
 				}
+
 				for (integer s = 0; s != nspec; ++s) {
 					rc.m[s] += rho[s] * dV;
 					rc.com[s][XDIM] += x * rho[s] * dV;
@@ -223,8 +242,6 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 	}
 }
 
-
-extern options opts;
 
 #ifdef RADIATION
 char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
