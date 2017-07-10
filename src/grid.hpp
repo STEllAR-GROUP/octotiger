@@ -229,7 +229,7 @@ public:
 	static void set_scaling_factor(real f) {
 	    scaling_factor = f;
     }
-	new_diagnostics_t new_diagnostics( const new_diagnostics_t& diags);
+	diagnostics_t diagnostics( const diagnostics_t& diags);
 	static real get_scaling_factor() {
 	    return scaling_factor;
     }

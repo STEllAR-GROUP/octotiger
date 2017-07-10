@@ -311,14 +311,14 @@ void node_server::start_run(bool scf, integer ngrids)
         if (!opts.disable_output) {
             save_to_file("X.chk", opts.data_dir);
         }
-        new_diagnostics();
+        diagnostics();
         return;
     }
     if (scf) {
         run_scf(opts.data_dir);
         set_pivot();
         printf("Adjusting velocities:\n");
-        auto diag = new_diagnostics();
+        auto diag = diagnostics();
         space_vector dv;
         dv[XDIM] = -diag.grid_sum[sx_i] / diag.grid_sum[rho_i];
         dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
@@ -340,7 +340,7 @@ void node_server::start_run(bool scf, integer ngrids)
     node_server* root_ptr = fut_ptr.get();
     if( opts.output_only ) {
    // 	diagnostics(0.0);
-    	new_diagnostics();
+    	diagnostics();
  //       printf("doing silo out...\n");
   	output_cnt = root_ptr->get_rotation_count() / opts.output_dt;
         std::string fname = "X." + std::to_string(int(output_cnt));
@@ -406,7 +406,7 @@ void node_server::start_run(bool scf, integer ngrids)
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             printf("dwd step...\n");
             auto dt = step(next_step - step_num).get();
-            auto diags = new_diagnostics();
+            auto diags = diagnostics();
             omega = grid::get_omega();
 
             const real dx = diags.com[1][XDIM] - diags.com[0][XDIM];

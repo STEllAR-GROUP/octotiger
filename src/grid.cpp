@@ -23,8 +23,8 @@
 extern options opts;
 
 
-new_diagnostics_t grid::new_diagnostics(const new_diagnostics_t& diags) {
-	new_diagnostics_t rc;
+diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
+	diagnostics_t rc;
 	constexpr integer nspec = 2;
 	const real dV = dx * dx * dx;
 	real x, y, z;

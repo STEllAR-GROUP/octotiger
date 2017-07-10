@@ -15,7 +15,7 @@
 #include "real.hpp"
 #include <taylor.hpp>
 
-struct new_diagnostics_t {
+struct diagnostics_t {
 	static constexpr integer nspec = 2;
 	real omega;
 	real m[nspec];
@@ -37,7 +37,7 @@ struct new_diagnostics_t {
 	real z_mom_orb;
 	real rho_max[nspec];
 	std::array<real,NF> grid_sum;
-	new_diagnostics_t() {
+	diagnostics_t() {
 		stage = 1;
 		omega = -1.0;
 		grid_com = 0.0;
@@ -69,8 +69,8 @@ struct new_diagnostics_t {
 		const real d = 0.6 * q23 + std::log(1.0 + q13);
 		return n / d;
 	}
-	const new_diagnostics_t& compute();
-	new_diagnostics_t& operator+=(const new_diagnostics_t& other) {
+	const diagnostics_t& compute();
+	diagnostics_t& operator+=(const diagnostics_t& other) {
 		for( integer f = 0; f != NF; ++f) {
 			grid_sum[f] += other.grid_sum[f];
 		}
@@ -97,12 +97,12 @@ struct new_diagnostics_t {
 		}
 		return *this;
 	}
-	friend new_diagnostics_t operator+(const new_diagnostics_t& lhs, const new_diagnostics_t& rhs)
+	friend diagnostics_t operator+(const diagnostics_t& lhs, const diagnostics_t& rhs)
     {
-        new_diagnostics_t res(lhs);
+        diagnostics_t res(lhs);
         return res += rhs;
     }
-	new_diagnostics_t& operator=(const new_diagnostics_t& other) = default;
+	diagnostics_t& operator=(const diagnostics_t& other) = default;
 
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {

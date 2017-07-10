@@ -88,11 +88,11 @@ hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) 
 
 extern options opts;
 
-typedef node_server::new_diagnostics_action new_diagnostics_action_type;
-HPX_REGISTER_ACTION (new_diagnostics_action_type);
+typedef node_server::diagnostics_action diagnostics_action_type;
+HPX_REGISTER_ACTION (diagnostics_action_type);
 
-hpx::future<new_diagnostics_t> node_client::new_diagnostics(const new_diagnostics_t& d) const {
-	return hpx::async<typename node_server::new_diagnostics_action>(get_unmanaged_gid(), d);
+hpx::future<diagnostics_t> node_client::diagnostics(const diagnostics_t& d) const {
+	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), d);
 }
 
 
@@ -129,7 +129,7 @@ analytic_t node_server::compare_analytic() {
 }
 
 
-const new_diagnostics_t& new_diagnostics_t::compute() {
+const diagnostics_t& diagnostics_t::compute() {
 	real dX[NDIM], V[NDIM];
 	for (integer d = 0; d != NDIM; ++d) {
 		dX[d] = com[1][d] - com[0][d];
@@ -166,12 +166,12 @@ const new_diagnostics_t& new_diagnostics_t::compute() {
 	return *this;
 }
 
-new_diagnostics_t node_server::new_diagnostics() {
-	new_diagnostics_t diags;
+diagnostics_t node_server::diagnostics() {
+	diagnostics_t diags;
 
 	for( integer i = 1; i != 10; ++i) {
 		diags.stage = i;
-		diags = new_diagnostics(diags).compute();
+		diags = diagnostics(diags).compute();
 		diags.grid_com = grid_ptr->center_of_mass();
 	//	printf( "%e %e %e %e %e %e %e\n", diags.omega, diags.m[0], diags.m[1], diags.cop[0][XDIM], diags.com[0][XDIM], diags.cop[1][XDIM], diags.com[1][XDIM]);
 	}
@@ -193,25 +193,25 @@ new_diagnostics_t node_server::new_diagnostics() {
 	return diags;
 }
 
-new_diagnostics_t node_server::root_new_diagnostics(const new_diagnostics_t & diags)  {
+diagnostics_t node_server::root_diagnostics(const diagnostics_t & diags)  {
 	return diags;
 }
 
-new_diagnostics_t node_server::new_diagnostics(const new_diagnostics_t& diags)  {
+diagnostics_t node_server::diagnostics(const diagnostics_t& diags)  {
 	if (is_refined) {
-		return child_new_diagnostics(diags);
+		return child_diagnostics(diags);
 	} else {
-		return local_new_diagnostics(diags);
+		return local_diagnostics(diags);
 	}
 }
 
 
-new_diagnostics_t node_server::child_new_diagnostics(const new_diagnostics_t& diags) {
-	new_diagnostics_t sums;
-	std::array<hpx::future<new_diagnostics_t>, NCHILD> futs;
+diagnostics_t node_server::child_diagnostics(const diagnostics_t& diags) {
+	diagnostics_t sums;
+	std::array<hpx::future<diagnostics_t>, NCHILD> futs;
 	integer index = 0;
 	for (integer ci = 0; ci != NCHILD; ++ci) {
-		futs[index++] = children[ci].new_diagnostics(diags);
+		futs[index++] = children[ci].diagnostics(diags);
 	}
 //	if( diags.stage == 1 ) {
 //		all_hydro_bounds();
@@ -220,9 +220,9 @@ new_diagnostics_t node_server::child_new_diagnostics(const new_diagnostics_t& di
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
 }
 
-new_diagnostics_t node_server::local_new_diagnostics(const new_diagnostics_t& diags)  {
+diagnostics_t node_server::local_diagnostics(const diagnostics_t& diags)  {
 	all_hydro_bounds();
-	return grid_ptr->new_diagnostics(diags);
+	return grid_ptr->diagnostics(diags);
 }
 
 typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;
