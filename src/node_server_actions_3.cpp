@@ -336,12 +336,19 @@ void node_server::start_run(bool scf, integer ngrids)
     }
 #endif
 
+    auto fut_ptr = me.get_ptr();
+    node_server* root_ptr = fut_ptr.get();
     if( opts.output_only ) {
-    	diagnostics(0.0);
-    	for( real rhoc = 1.0e-10; rhoc < 1.0e+5; rhoc *= 10.0) {
-    		printf( "%e\n", rhoc);
-    		diagnostics(rhoc);
-    	}
+   // 	diagnostics(0.0);
+    	new_diagnostics();
+ //       printf("doing silo out...\n");
+  	output_cnt = root_ptr->get_rotation_count() / opts.output_dt;
+        std::string fname = "X." + std::to_string(int(output_cnt));
+        output(opts.data_dir, fname, output_cnt, false);
+    //	for( real rhoc = 1.0e-10; rhoc < 1.0e+5; rhoc *= 10.0) {
+    //		printf( "%e\n", rhoc);
+    	//	diagnostics(rhoc);
+    //	}
     	return;
     }
 
@@ -355,8 +362,6 @@ void node_server::start_run(bool scf, integer ngrids)
     real& t = current_time;
     integer step_num = 0;
 
-    auto fut_ptr = me.get_ptr();
-    node_server* root_ptr = fut_ptr.get();
     printf( "1\n");
 
     output_cnt = root_ptr->get_rotation_count() / output_dt;

@@ -26,6 +26,7 @@ inline integer refinement_freq() {
 }
 int file_copy(const char* fin, const char* fout);
 
+
 template<class... Args>
 int lprintf( const char* log, const char* str, Args&&...args) {
     // run output on separate thread

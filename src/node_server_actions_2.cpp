@@ -96,6 +96,14 @@ hpx::future<diagnostics_t> node_client::diagnostics(const std::pair<space_vector
 	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), axis, l1, c1, c2, rho_cut);
 }
 
+typedef node_server::new_diagnostics_action new_diagnostics_action_type;
+HPX_REGISTER_ACTION (new_diagnostics_action_type);
+
+hpx::future<new_diagnostics_t> node_client::new_diagnostics(const new_diagnostics_t& d) const {
+	return hpx::async<typename node_server::new_diagnostics_action>(get_unmanaged_gid(), d);
+}
+
+
 typedef node_server::compare_analytic_action compare_analytic_action_type;
 HPX_REGISTER_ACTION (compare_analytic_action_type);
 
@@ -148,6 +156,7 @@ diagnostics_t node_server::diagnostics(real rho_cut) const {
 //	}
 	return root_diagnostics(diagnostics(axis, l1, rho1.first, rho2.first, rho_cut), axis, rho1, rho2, l1, l2, l3,  phi_1, phi_2, rho_cut, this_omega);
 }
+
 
 diagnostics_t node_server::root_diagnostics(diagnostics_t && diags,  std::pair<space_vector, space_vector> axis, std::pair<real, real> rho1, std::pair<real, real> rho2, std::pair<real, real>  l1, std::pair<real, real> l2, std::pair<real, real> l3, real phi_1, real phi_2, real rho_cut, real omega) const {
 //	diags.
@@ -343,6 +352,104 @@ diagnostics_t node_server::local_diagnostics(const std::pair<space_vector, space
 	sums.z_moment = grid_ptr->z_moments(axis, l1, 0, rho_cut);
 
 	return sums;
+}
+
+
+
+const new_diagnostics_t& new_diagnostics_t::compute() {
+	real dX[NDIM], V[NDIM];
+	for (integer d = 0; d != NDIM; ++d) {
+		dX[d] = com[1][d] - com[0][d];
+		V[d] = com_dot[1][d] - com_dot[0][d];
+	}
+	real sep2 = dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2];
+	const real new_omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) / sep2);
+	//if( stage > 3 ) {
+//		omega = 0.5 * omega + 0.5 * new_omega;
+//	} else {
+		omega = new_omega;
+//	}
+	a = std::sqrt(sep2);
+	real mu = m[0] * m[1] / (m[1] + m[0]);
+	jorb = mu * omega * sep2;
+	if (m[0] > 0.0 && m[1] > 0.0) {
+		const real q = m[1] / m[0];
+		rL[0] = RL_radius(1.0 / q) * a;
+		rL[1] = RL_radius(q) * a;
+	}
+	printf( "%13e %13e %13e\n", mom[1](0,0), mom[1](0,1), mom[1](0,2));
+	printf( "%13e %13e %13e\n", mom[1](1,0), mom[1](1,1), mom[1](1,2));
+	printf( "%13e %13e %13e\n", mom[1](2,0), mom[1](2,1), mom[1](2,2));
+	for( integer s = 0; s != nspec; ++s) {
+		space_vector RdotQ = 0.0;
+		for (integer d = 0; d != NDIM; ++d) {
+			RdotQ[d] += mom[s](0, d) * dX[0];
+			RdotQ[d] += mom[s](1, d) * dX[1];
+			RdotQ[d] += mom[s](2, d) * dX[2];
+		}
+		tidal[s] = RdotQ[0] * dX[1] - RdotQ[1] * dX[0];
+		tidal[s] /= std::pow(a,3.0);
+		tidal[s] *= m[1-s];
+	}
+	return *this;
+}
+
+new_diagnostics_t node_server::new_diagnostics() {
+	new_diagnostics_t diags;
+
+	for( integer i = 1; i != 10; ++i) {
+		diags.stage = i;
+		diags = new_diagnostics(diags).compute();
+		printf( "%e %e %e %e %e %e %e\n", diags.omega, diags.m[0], diags.m[1], diags.cop[0][XDIM], diags.com[0][XDIM], diags.cop[1][XDIM], diags.com[1][XDIM]);
+	}
+
+	FILE* fp = fopen( "new_binary.dat", "at");
+	fprintf( fp, "%13e ", current_time);
+	fprintf( fp, "%13e ", diags.a);
+	fprintf( fp, "%13e ", diags.omega);
+	fprintf( fp, "%13e ", diags.jorb);
+	for( integer s = 0; s != 2; ++s) {
+		fprintf( fp, "%13e ", diags.m[s]);
+		fprintf( fp, "%13e ", diags.js[s]);
+		fprintf( fp, "%13e ", diags.rL[s]);
+		fprintf( fp, "%13e ", diags.gt[s]);
+		fprintf( fp, "%13e ", diags.tidal[s]);
+	}
+	fprintf( fp, "\n");
+	fclose(fp);
+
+}
+
+new_diagnostics_t node_server::root_new_diagnostics(const new_diagnostics_t & diags)  {
+	return diags;
+}
+
+new_diagnostics_t node_server::new_diagnostics(const new_diagnostics_t& diags)  {
+	if (is_refined) {
+		return child_new_diagnostics(diags);
+	} else {
+		return local_new_diagnostics(diags);
+	}
+}
+
+
+new_diagnostics_t node_server::child_new_diagnostics(const new_diagnostics_t& diags) {
+	new_diagnostics_t sums;
+	std::array<hpx::future<new_diagnostics_t>, NCHILD> futs;
+	integer index = 0;
+	for (integer ci = 0; ci != NCHILD; ++ci) {
+		futs[index++] = children[ci].new_diagnostics(diags);
+	}
+//	if( diags.stage == 1 ) {
+		all_hydro_bounds();
+//	}
+	auto child_sums = hpx::util::unwrapped(futs);
+	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
+}
+
+new_diagnostics_t node_server::local_new_diagnostics(const new_diagnostics_t& diags)  {
+	all_hydro_bounds();
+	return grid_ptr->new_diagnostics(diags);
 }
 
 diagnostics_t::diagnostics_t() :

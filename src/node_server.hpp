@@ -167,6 +167,9 @@ private:
         const std::pair<real, real>& l1, real, real, real) const;
     diagnostics_t local_diagnostics(const std::pair<space_vector, space_vector>& axis,
         const std::pair<real, real>& l1, real, real, real) const;
+	new_diagnostics_t root_new_diagnostics(const new_diagnostics_t& diags) ;
+    new_diagnostics_t child_new_diagnostics(const new_diagnostics_t& diags);
+    new_diagnostics_t local_new_diagnostics(const new_diagnostics_t& diags);
     hpx::future<real> local_step(integer steps);
 
     std::map<integer, std::vector<char> > save_local(integer& cnt, std::string const& filename, hpx::future<void>& child_fut) const;
@@ -287,6 +290,12 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
     diagnostics_t diagnostics(real) const;
+
+
+    new_diagnostics_t new_diagnostics(const new_diagnostics_t&);
+    HPX_DEFINE_COMPONENT_ACTION(node_server, new_diagnostics, new_diagnostics_action);
+
+    new_diagnostics_t new_diagnostics();
 
     hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,
         std::string);
@@ -424,6 +433,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::new_diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
 

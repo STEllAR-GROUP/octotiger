@@ -4,6 +4,7 @@
 #include "options.hpp"
 #include "profiler.hpp"
 #include "taylor.hpp"
+#include "diagnostics.hpp"
 #ifdef RADIATION
 #include "rad_grid.hpp"
 #endif
@@ -18,6 +19,158 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
+new_diagnostics_t grid::new_diagnostics(const new_diagnostics_t& diags) {
+	new_diagnostics_t rc;
+	constexpr integer nspec = 2;
+	const real dV = dx * dx * dx;
+	real x, y, z;
+	integer iii, iiig;
+	const auto in_star =
+			[&]() {
+				integer rc = 0;
+				const real ax = G[iiig][gx_i] + x * diags.omega * diags.omega;
+				const real ay = G[iiig][gy_i] + y * diags.omega * diags.omega;
+				const real az = G[iiig][gz_i];
+				real nx, ny, nz;
+				const real a = std::sqrt(ax * ax + ay * ay + az * az);
+				if( a > 0.0 ) {
+					nx = ax / a;
+					ny = ay / a;
+					nz = az / a;
+					space_vector dX[nspec];
+					real g[nspec] = {0.0,0.0};
+					for( integer s = 0; s != nspec; ++s) {
+						dX[s][XDIM] = x - diags.com[s][XDIM];
+						dX[s][YDIM] = y - diags.com[s][YDIM];
+						dX[s][ZDIM] = z - diags.com[s][ZDIM];
+					}
+					const real x0 = std::pow(dX[0][XDIM],2)+std::pow(dX[0][YDIM],2)+std::pow(dX[0][ZDIM],2);
+					const real x1 = std::pow(dX[1][XDIM],2)+std::pow(dX[1][YDIM],2)+std::pow(dX[1][ZDIM],2);
+					if( x1 >= 0.25 * diags.rL[1] && x0 < 0.25 * diags.rL[0] && diags.stage > 3) {
+						rc = +1;
+					} else if(x0 >= 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3) {
+						rc = -1;
+					} else if(x0 < 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3){
+						rc = x0 < x1 ? +1 : -1;							
+					} else {
+						for( integer s = 0; s != nspec; ++s) {
+							const real this_x = s == 0 ? x0 : x1;
+							g[s] += ax * dX[s][XDIM] / this_x;
+							g[s] += ay * dX[s][YDIM] / this_x;
+							g[s] += az * dX[s][ZDIM] / this_x;
+						}
+						if( g[0] <= 0.0 && g[1] > 0.0) {
+							rc = +1;
+						} else if( g[0] > 0.0 && g[1] <= 0.0 ) {
+							rc = -1;
+						} else if( g[0] <= 0.0 && g[1] <= 0.0 ) {
+							if( std::abs(g[0]) > std::abs(g[1]) ) {
+								rc = +1;
+							} else {
+								rc = -1;
+							}
+						}
+					}
+				}
+				return rc;
+			};
+
+	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				iii = hindex(i, j, k);
+				iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
+				x = X[XDIM][iii];
+				y = X[YDIM][iii];
+				z = X[ZDIM][iii];
+				const real o2 = diags.omega * diags.omega;
+				const real rhoinv = 1.0 / U[rho_i][iii];
+			/*	phi_eff_xp = G[iii + G_DNX][phi_i] - 0.5 * (std::pow(X[XDIM][iii + H_DNX],2) + y * y) * o2;
+				phi_eff_xm = G[iii - G_DNX][phi_i] - 0.5 * (std::pow(X[XDIM][iii - H_DNX],2) + y * y) * o2;
+				phi_eff_yp = G[iii + G_DNY][phi_i] - 0.5 * (std::pow(X[YDIM][iii + H_DNY],2) + x * x) * o2;
+				phi_eff_ym = G[iii - G_DNY][phi_i] - 0.5 * (std::pow(X[YDIM][iii - H_DNY],2) + x * x) * o2;
+				phi_eff_zp = G[iii + G_DNZ][phi_i] - 0.5 * (y*y + x * x) * o2;
+				phi_eff_zm = G[iii - G_DNZ][phi_i] - 0.5 * (y*y + x * x) * o2;*/
+				const real vx = U[sx_i][iii] / U[rho_i][iii];
+				const real vy = U[sy_i][iii] / U[rho_i][iii];
+				const real vz = U[sz_i][iii] / U[rho_i][iii];
+				std::array<real,nspec> rho;
+				integer star;
+				if (diags.stage <= 2) {
+					rho =
+					{	U[spc_ac_i][iii], U[spc_dc_i][iii]};
+				} else {
+					star = in_star();
+					if( star == +1 ) {
+						rho = {U[rho_i][iii], 0.0};
+				//		printf( "+1 %e\n", U[rho_i][iii]);
+					} else if( star == -1 ) {
+						rho = {0.0, U[rho_i][iii]};
+				//		printf( "-1 %e\n", U[rho_i][iii]);
+					} else {
+						rho = {0.0, 0.0};
+					}
+				}
+				if (diags.stage > 1) {
+					const real R2 = x * x + y * y;
+					const real phi_g = G[iiig][phi_i];
+					const real phi_r = -0.5 * std::pow(diags.omega, 2) * R2;
+					const real phi_eff = phi_g + phi_r;
+					const real rho0 = U[rho_i][iii];
+					integer i;
+					if( rho[1] > 0.5 * rho0) {
+						i = 1;
+					} else if( rho[0] > 0.5 * rho0) {
+						i = 0;
+					} else {
+						i = -1;
+					}
+					if( i != -1 ) {
+						if (phi_eff < rc.phi_eff_min[i] && 10.0 * std::abs(phi_g) > std::abs(phi_r)) {
+							rc.phi_eff_min[i] = phi_eff;
+							rc.cop[i][XDIM] = x;
+							rc.cop[i][YDIM] = y;
+							rc.cop[i][ZDIM] = z;
+						}
+						const real dX[NDIM] = {(x - diags.com[i][XDIM]),(y - diags.com[i][YDIM]),(z - diags.com[i][ZDIM])};
+						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
+						rc.js[i] -= dX[1] * U[sx_i][iii] * dV;
+						rc.gt[i] += dX[0] * G[iiig][gy_i] * dV * rho0;
+						rc.gt[i] -= dX[1] * G[iiig][gx_i] * dV * rho0;
+						const real r = std::sqrt(dX[0]*dX[0]+dX[1]*dX[1]+dX[2]*dX[2]);
+						for (integer n = 0; n != NDIM; ++n) {
+							for (integer m = 0; m <= n; ++m) {
+								rc.mom[i](n, m) += 3.0 * dX[n] * dX[m] * rho0 * dV;
+							}
+							rc.mom[i](n, n) -= r * r * rho0 * dV;
+						}
+					}
+					U[spc_vac_i][iii] = real(i+2);
+				}
+				for (integer s = 0; s != nspec; ++s) {
+					rc.m[s] += rho[s] * dV;
+					rc.com[s][XDIM] += x * rho[s] * dV;
+					rc.com[s][YDIM] += y * rho[s] * dV;
+					rc.com[s][ZDIM] += z * rho[s] * dV;
+					rc.com_dot[s][XDIM] += vx * rho[s] * dV;
+					rc.com_dot[s][YDIM] += vy * rho[s] * dV;
+					rc.com_dot[s][ZDIM] += vz * rho[s] * dV;
+				}
+			}
+		}
+	}
+	for (integer s = 0; s != nspec; ++s) {
+		if( rc.m[s] > 0.0 ) {
+			rc.com[s][XDIM] /= rc.m[s];
+			rc.com[s][YDIM] /= rc.m[s];
+			rc.com[s][ZDIM] /= rc.m[s];
+			rc.com_dot[s][XDIM] /= rc.m[s];
+			rc.com_dot[s][YDIM] /= rc.m[s];
+			rc.com_dot[s][ZDIM] /= rc.m[s];
+		}
+	}
+	return rc;
+}
 
 
 std::vector<real> grid::get_flux_check(const geo::face& f) {
@@ -62,7 +215,7 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 				++index;
 				if (a != b) {
 					printf("Flux error\n");
-					printf("%e %e %i\n", a, b, f);
+			//		printf("%e %e %i\n", a, b, f);
 //					abort();
 				}
 			}
@@ -867,7 +1020,6 @@ bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis,
 				ab += a[d] * b[d];
 			}
 			real p = ab;
-//		printf( "%e\n", l1.first);
 			if (p < l1.first && frac == +1) {
 				use = true;
 			} else if (p >= l1.first && frac == -1) {

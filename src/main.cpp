@@ -176,7 +176,7 @@ int hpx_main(int argc, char* argv[]) {
                 printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
             }
 
-            if (gravity_on /*&& !opts.output_only*/) {
+            if (gravity_on && !opts.output_only) {
                 printf("solving gravity------------\n");
                 root->solve_gravity(false);
                 printf("...done\n");
