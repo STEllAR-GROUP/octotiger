@@ -19,7 +19,6 @@ extern options opts;
 
 // w0 = speed of convergence. Adjust lower if nan
 const real w0 = 1.0 / 4.0;
-const real rho_floor = 1.0e-15;
 
 namespace scf_options {
 
@@ -254,7 +253,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		printf("OMEGA <= 0.0\n");
 		abort();
 	}
-	real rho_int = std::max(struct_eos_1.d0(),struct_eos_2.d0());
+	real rho_int = 10.0 * rho_floor;
 	rho_int = std::sqrt(rho_int * rho_floor);
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -322,7 +321,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				} else {
 					eint = std::max(0.0, this_struct_eos.pressure(rho) / (fgamma - 1.0));
 				}
-				if (rho < rho_int) {
+				if (new_rho < rho_int) {
 					rho = rho_floor;
 				}
 				U[rho_i][iiih] = rho;
@@ -568,8 +567,8 @@ void node_server::run_scf(std::string const& data_dir) {
 
 		jmin = std::sqrt((M1 + M2)) * (mu * std::pow(amin, 0.5) + (is1 + is2) * std::pow(amin, -1.5));
 		if (i % 5 == 0) {
-			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2", "is1", "is2",
-				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "iorb");
+			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2", "is1", "is2",
+				"omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "iorb", "Roche_fill_1", "Roche_fill_2");
         }
 		lprintf((opts.data_dir + "log.txt").c_str(), "%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,is1, is2,
 			omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, iorb, diags.stellar_vol[0]/ diags.roche_vol[0], diags.stellar_vol[1]/ diags.roche_vol[1] );

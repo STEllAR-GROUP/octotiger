@@ -140,7 +140,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 						if( phi_eff < diags.l1_phi) {
 							rc.roche_vol[i] += dV;
 						}
-						if( U[rho_i][iii] > 1.0e-10) {
+						if( U[rho_i][iii] > 10.0 * rho_floor) {
 							rc.stellar_vol[i] += dV;
 						}
 					}
@@ -1253,8 +1253,6 @@ void grid::rho_mult(real f0, real f1) {
 
 void grid::rho_move(real x) {
 	real w = x / dx;
-	const real rho_floor = 1.0e-15;
-
 	U0 = U;
 
 	w = std::max(-0.5, std::min(0.5, w));

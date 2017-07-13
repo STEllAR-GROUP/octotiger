@@ -118,12 +118,16 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		opts.refinement_floor = 1.0e-3;
 	}
 	int test_level = max_level;
-//	if( opts.core_refine) {
+	int penalty = 0;
+	if( opts.core_refine) {
 //		printf( "!\n");
-		if(U[spc_de_i] + U[spc_dc_i] < 0.5 * U[rho_i]) {
+		if(U[spc_ac_i] + U[spc_dc_i] < 0.5 * U[rho_i]) {
 			test_level -= 1;
 		}
-//	}
+	}
+	if (U[spc_de_i] + U[spc_dc_i] < 0.5 * U[rho_i]) {
+		test_level -= opts.donor_refine;
+	}
 	real den_floor = opts.refinement_floor;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
@@ -260,7 +264,6 @@ std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) {
 	const integer N = 25;
 	const real r0 = ssr0;
-	const real rho_floor = 1.0e-50;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
 	const real drho = 1.0 / real(N * N * N) / V;
 	std::vector<real> u(NF, real(0));

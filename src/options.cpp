@@ -11,6 +11,7 @@
 #include "grid.hpp"
 
 #define CORE_REFINE_OPT "-CoreRefine"
+#define DONOR_REFINE_OPT "-DonorRefine"
 #define HELP_OPT "-Help"
 #define PROBLEM_OPT "-Problem"
 #define RESTART_OPT "-Restart"
@@ -133,7 +134,7 @@ bool options::process_options(int argc, char* argv[]) {
     disable_output = false;
     bool vomega_found = false;
     core_refine = false;
-
+    donor_refine = 0;
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
             rc = false;
@@ -199,6 +200,9 @@ bool options::process_options(int argc, char* argv[]) {
 		} else if (cmp(argv[i], CORE_REFINE_OPT)) {
 			printf( "Core Refinement on\n");
 			core_refine = true;
+		} else if (cmp(argv[i], DONOR_REFINE_OPT)) {
+			printf( "Donor Refinement on\n");
+			donor_refine =  std::max(1,atoi(argv[i] + strlen(DONOR_REFINE_OPT) + 1));
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
 		} else if (cmp(argv[i], NGRIDS_OPT)) {
