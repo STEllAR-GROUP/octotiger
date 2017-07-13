@@ -34,6 +34,12 @@ inline real ztwd_pressure(real d, real A = physcon.A, real B = physcon.B) {
 }
 
 inline real ztwd_enthalpy(real d, real A = physcon.A, real B = physcon.B) {
+#ifndef NDEBUG
+	if( d < 0.0 ) {
+		printf( "d = %e in ztwd_enthalpy\n", d);
+		abort();
+	}
+#endif
     const real x = pow(d / B, 1.0 / 3.0);
     real h;
     if (x < 0.01) {

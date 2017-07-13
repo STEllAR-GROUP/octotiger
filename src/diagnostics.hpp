@@ -17,6 +17,7 @@
 
 struct diagnostics_t {
 	static constexpr integer nspec = 2;
+	real l1_phi;
 	real omega;
 	real m[nspec];
 	real gt[nspec];
@@ -31,6 +32,8 @@ struct diagnostics_t {
 	integer stage;
 	real tidal[nspec];
 	real a;
+	real roche_vol[nspec];
+	real stellar_vol[nspec];
 	real virial;
 	real virial_norm;
 	real z_moment[nspec];
@@ -47,6 +50,8 @@ struct diagnostics_t {
 		for( integer s = 0; s != nspec; ++s) {
 			phi_eff_min[s] = std::numeric_limits<real>::max();
 			m[s] = 0.0;
+			roche_vol[s] = 0.0;
+			stellar_vol[s] = 0.0;
 			com[s] = 0.0;
 			com_dot[s] = 0.0;
 			js[s] = 0.0;
@@ -61,6 +66,7 @@ struct diagnostics_t {
 		z_mom_orb = 0.0;
 		virial = 0.0;
 		a = 0.0;
+		l1_phi = 0.0;
 	}
 	static inline real RL_radius(real q ) {
 		const real q13 = std::pow(q,1.0/3.0);
@@ -75,12 +81,15 @@ struct diagnostics_t {
 			grid_sum[f] += other.grid_sum[f];
 		}
 		for( integer s = 0; s != nspec; ++s) {
+			z_moment[s] += other.z_moment[s];
 			for( integer d = 0; d != nspec; ++d) {
 				com[s][d] *= m[s];
 				com[s][d] += other.com[s][d] * other.m[s];
 				com_dot[s][d] *= m[s];
 				com_dot[s][d] += other.com_dot[s][d] * other.m[s];
 			}
+			roche_vol[s] += other.roche_vol[s];
+			stellar_vol[s] += other.stellar_vol[s];
 			virial += other.virial;
 			virial_norm += other.virial_norm;
 			m[s] += other.m[s];
@@ -106,6 +115,9 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
+		arc & l1_phi;
+		arc & roche_vol;
+		arc & stellar_vol;
 		arc & grid_sum;
 		arc & z_mom_orb;
 		arc & grid_com;

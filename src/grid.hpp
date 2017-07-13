@@ -125,26 +125,14 @@ struct gravity_boundary_type {
 };
 
 
-//using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
-struct line_of_centers_t {
-	 std::vector<std::pair<real,std::vector<real>>> line;
-	 space_vector core1_s, core2_s;
-	 real core1, core2;
-	 line_of_centers_t() : core1_s(0.0), core2_s(0.0), core1(0.0), core2(0.0){};
-	 template<class Arc>
-	 void serialize(Arc& arc, unsigned ) {
-		 arc & line;
-		 arc & core1_s;
-		 arc & core2_s;
-		 arc & core1;
-		 arc & core2;
-	 }
-};
+using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
-real line_of_centers_analyze(const line_of_centers_t& loc, std::pair<space_vector,space_vector> axis, std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
-	std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi, std::pair<real, real>& l3_phi, real&, real&);
+void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
+    std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
+    std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
+    std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi);
 
 typedef real xpoint_type;
 typedef int zone_int_type;

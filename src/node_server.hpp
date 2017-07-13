@@ -274,7 +274,7 @@ public:
     diagnostics_t diagnostics(const diagnostics_t&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
-    diagnostics_t diagnostics();
+    diagnostics_t diagnostics(real l1_phi=0.0);
 
     hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,
         std::string);
@@ -381,7 +381,9 @@ public:
 // HPX_ACTION_USES_LARGE_STACK(node_server::diagnostics_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::scf_params_action);
 // HPX_ACTION_USES_LARGE_STACK(node_server::velocity_inc_action);
+#ifdef FIND_AXIS_V2
 HPX_REGISTER_ACTION_DECLARATION(node_server::find_axis_tool_action);
+#endif
 HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::output_action);

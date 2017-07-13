@@ -118,12 +118,12 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		opts.refinement_floor = 1.0e-3;
 	}
 	int test_level = max_level;
-	if( opts.core_refine) {
+//	if( opts.core_refine) {
 //		printf( "!\n");
-		if(U[spc_ac_i] + U[spc_dc_i] < 0.5 * U[rho_i]) {
-			test_level--;
+		if(U[spc_de_i] + U[spc_dc_i] < 0.5 * U[rho_i]) {
+			test_level -= 1;
 		}
-	}
+//	}
 	real den_floor = opts.refinement_floor;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {

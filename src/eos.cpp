@@ -11,12 +11,11 @@
 #include "physcon.hpp"
 #include "options.hpp"
 
-#define ALPHA 0.01
 const real wdcons = (2.216281751e32 / 1.989e+33);
 
 extern options opts;
 
-constexpr real T0 = 1.0e+6;
+constexpr real T0 = 0.0;
 
 real poly_K(real rho0, real mu) {
 	const auto& c = physcon;
@@ -28,7 +27,6 @@ real poly_K(real rho0, real mu) {
 }
 
 real struct_eos::energy(real d) const {
-	const real eps = ALPHA;
 	const real b = B();
 	const real x = std::pow(d / b, 1.0 / 3.0);
 	const real mu = 4.0 / 3.0;
@@ -70,6 +68,7 @@ real struct_eos::enthalpy_to_density(real h) const {
 		} else {
 			x = (std::sqrt(eps * eps + 2 * f0 + f0 * f0) - eps * (1.0 + f0)) / (1.0 - eps * eps);
 		}
+		x = std::sqrt(2 * f0 + f0 * f0);
 		const real rho = b * x * x * x;
 		return rho;
 	} else {
@@ -203,6 +202,7 @@ void struct_eos::set_d0_using_struct_eos(real newd, const struct_eos& other) {
 			abort();
 		}
 	}
+
 }
 
 void normalize_constants();
@@ -324,15 +324,17 @@ struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, rea
 	f_E = interface_core_density / mu;
 	M0 *= M / m;
 	R0 *= R / r;
+	initialize(m, r, cm);
 //	printf( "--------------- %e\n", s0());
 }
 
 void struct_eos::initialize(real& mass, real& radius) {
+	real r;
 	if (opts.eos == WD) {
 
 		const real dr0 = (1.0 / B()) * sqrt(A / G) / 10.0;
 
-		real h, hdot, r, m;
+		real h, hdot,  m;
 		h = density_to_enthalpy(d0_);
 		hdot = 0.0;
 		r = 0.0;
@@ -368,7 +370,7 @@ void struct_eos::initialize(real& mass, real& radius) {
 	} else {
 		const real dr0 = R0 / 100.0;
 
-		real h, hdot, r, m;
+		real h, hdot, m;
 		h = h0();
 		hdot = 0.0;
 		r = 0.0;
@@ -402,6 +404,8 @@ void struct_eos::initialize(real& mass, real& radius) {
 		mass = m;
 		radius = r;
 	}
+//	printf( "R00 = %e\n", r);
+	R00 = r;
 }
 
 void struct_eos::initialize(real& mass, real& radius, real& core_mass) {
@@ -443,7 +447,8 @@ void struct_eos::initialize(real& mass, real& radius, real& core_mass) {
 		m += (dm1 + dm2) / 2.0;
 	} while (h > 0.0);
 	mass = m;
-	radius = r;
+	R00 = radius = r;
+//	printf( "R00 = %e\n", R00);
 }
 
 real struct_eos::d0() const {
@@ -476,6 +481,7 @@ void struct_eos::set_h0(real h) {
 		}
 	} else {
 		const real d = d0();
+	//	printf( "d = %e h = %e\n", d, h);
 		R0 = std::sqrt(h / (G * d));
 		M0 = h * R0 / G;
 	}
@@ -494,18 +500,14 @@ real struct_eos::B() const {
 	return std::sqrt(pow(A / G, 1.5) / wdcons);
 }
 
+
+namespace hpx {
+    using mutex = hpx::lcos::local::spinlock;
+}
+
+
 real struct_eos::get_R0() const {
-	if (opts.eos == WD) {
-		real m, r;
-		struct_eos tmp = *this;
-		tmp.initialize(m, r);
-		return r;
-	} else {
-		real m, r;
-		struct_eos tmp = *this;
-		tmp.initialize(m, r);
-		return r;
-	}
+	return R00;
 }
 
 real struct_eos::density_at(real R, real dr) const {
@@ -513,7 +515,7 @@ real struct_eos::density_at(real R, real dr) const {
 	real h, hdot, r;
 	h = h0();
 	hdot = 0.0;
-	const int N = std::max(int(R / dr + 1.0), 16);
+	const int N = std::max(int(R / dr + 1.0), 32);
 	dr = R / real(N);
 	for (integer i = 0; i < N; ++i) {
 		//	printf("%e %e %e\n", r, h, dr);

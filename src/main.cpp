@@ -118,7 +118,9 @@ void node_server::set_pivot() {
     space_vector pivot = grid_ptr->center_of_mass();
     hpx::lcos::broadcast<set_pivot_action>(options::all_localities, pivot).get();
 }
-
+namespace scf_options {
+void read_option_file();
+}
 int hpx_main(int argc, char* argv[]) {
     printf("###########################################################\n");
     #if defined(__AVX512F__)

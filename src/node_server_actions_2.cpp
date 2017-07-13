@@ -145,9 +145,9 @@ const diagnostics_t& diagnostics_t::compute() {
 		rL[0] = RL_radius(1.0 / q) * a;
 		rL[1] = RL_radius(q) * a;
 	}
-	printf( "%13e %13e %13e\n", mom[1](0,0), mom[1](0,1), mom[1](0,2));
-	printf( "%13e %13e %13e\n", mom[1](1,0), mom[1](1,1), mom[1](1,2));
-	printf( "%13e %13e %13e\n", mom[1](2,0), mom[1](2,1), mom[1](2,2));
+//	printf( "%13e %13e %13e\n", mom[1](0,0), mom[1](0,1), mom[1](0,2));
+//	printf( "%13e %13e %13e\n", mom[1](1,0), mom[1](1,1), mom[1](1,2));
+//	printf( "%13e %13e %13e\n", mom[1](2,0), mom[1](2,1), mom[1](2,2));
 	for( integer s = 0; s != nspec; ++s) {
 		space_vector RdotQ = 0.0;
 		for (integer d = 0; d != NDIM; ++d) {
@@ -159,18 +159,19 @@ const diagnostics_t& diagnostics_t::compute() {
 		tidal[s] /= std::pow(a,3.0);
 		tidal[s] *= m[1-s];
 	}
-	if( virial_norm > 0.0 ) {
+	if( virial_norm != 0.0 ) {
 		virial /= virial_norm;
 	}
 	z_mom_orb = mu * sep2;
 	return *this;
 }
 
-diagnostics_t node_server::diagnostics() {
+diagnostics_t node_server::diagnostics(real l1_phi) {
 	diagnostics_t diags;
-
 	for( integer i = 1; i != 10; ++i) {
+	//	printf( "!\n");
 		diags.stage = i;
+		diags.l1_phi = l1_phi;
 		diags = diagnostics(diags).compute();
 		diags.grid_com = grid_ptr->center_of_mass();
 	//	printf( "%e %e %e %e %e %e %e\n", diags.omega, diags.m[0], diags.m[1], diags.cop[0][XDIM], diags.com[0][XDIM], diags.cop[1][XDIM], diags.com[1][XDIM]);
@@ -221,7 +222,7 @@ diagnostics_t node_server::child_diagnostics(const diagnostics_t& diags) {
 }
 
 diagnostics_t node_server::local_diagnostics(const diagnostics_t& diags)  {
-	all_hydro_bounds();
+//	all_hydro_bounds();
 	return grid_ptr->diagnostics(diags);
 }
 

@@ -139,10 +139,10 @@ hpx::future<line_of_centers_t> node_client::line_of_centers(
 }
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc) {
-    for (integer i = 0; i != loc.line.size(); ++i) {
-        fprintf(fp, "%e ", loc.line[i].first);
+    for (integer i = 0; i != loc.size(); ++i) {
+        fprintf(fp, "%e ", loc[i].first);
         for (integer j = 0; j != NF + NGF; ++j) {
-            fprintf(fp, "%e ", loc.line[i].second[j]);
+            fprintf(fp, "%e ", loc[i].second[j]);
         }
         fprintf(fp, "\n");
     }
@@ -159,20 +159,14 @@ line_of_centers_t node_server::line_of_centers(
         std::map<real, std::vector<real>> map;
         for (auto&& fut : futs) {
             auto tmp = fut.get();
-            return_line.core1 += tmp.core1;
-            return_line.core2 += tmp.core2;
-            for( integer d = 0; d != NDIM; ++d) {
-                return_line.core1_s[d] += tmp.core1_s[d];
-                return_line.core2_s[d] += tmp.core2_s[d];
-            }
-             for (integer ii = 0; ii != tmp.line.size(); ++ii) {
-                if (map.find(tmp.line[ii].first) == map.end()) {
-                    map.emplace(std::move(tmp.line[ii]));
+             for (integer ii = 0; ii != tmp.size(); ++ii) {
+                if (map.find(tmp[ii].first) == map.end()) {
+                    map.emplace(std::move(tmp[ii]));
                 }
             }
         }
-        return_line.line.resize(map.size());
-        std::move(map.begin(), map.end(), return_line.line.begin());
+        return_line.resize(map.size());
+        std::move(map.begin(), map.end(), return_line.begin());
     } else {
         return_line = grid_ptr->line_of_centers(line);
     }
@@ -180,25 +174,12 @@ line_of_centers_t node_server::line_of_centers(
     return return_line;
 }
 
-real line_of_centers_analyze(const line_of_centers_t& loc, std::pair<space_vector,space_vector> axis,
+void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
     std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
     std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
     std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi) {
-	real omega;
-	const auto n = axis.first;
 
-/*
-	FILE* fp = fopen( "line.dat", "wt");
-    for (integer i = 0; i != loc.size(); ++i) {
-    	const real x = loc[i].first;
-        const real rho = loc[i].second[rho_i];
-        const real pot = loc[i].second[pot_i];
-        const real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
-    	fprintf( fp, "%e %e %e\n", x, rho, phi_eff);
-    }
-    fclose(fp);
-*/
-    for (auto& l : loc.line) {
+    for (auto& l : loc) {
         ASSERT_NONAN(l.first);
         for (integer f = 0; f != NF + NGF; ++f) {
             ASSERT_NONAN(l.second[f]);
@@ -207,78 +188,45 @@ real line_of_centers_analyze(const line_of_centers_t& loc, std::pair<space_vecto
 
     rho1_max.second = rho2_max.second = 0.0;
     integer rho1_maxi, rho2_maxi;
-    space_vector v1, v2;
-    ///	printf( "loc.lineSIZE %i\n", loc.line.size());
-    for (integer i = 0; i != loc.line.size(); ++i) {
-		const real x = loc.line[i].first;
-		const real rho = loc.line[i].second[rho_i];
-		const real pot = loc.line[i].second[pot_i];
-		const real core1 = loc.line[i].second[spc_ac_i] / rho;
-		const real core2 = loc.line[i].second[spc_dc_i] / rho;
-		if( std::max(core1,core2) > 0.5) {
-			if (core1 > core2) {
-				if (rho1_max.second < rho) {
-					rho1_max.second = rho;
-					rho1_max.first = x;
-					rho1_maxi = i;
-				}
-			} else {
-				if (rho2_max.second < rho) {
-					rho2_max.second = rho;
-					rho2_max.first = x;
-					rho2_maxi = i;
-				}
+    ///	printf( "LOCSIZE %i\n", loc.size());
+    for (integer i = 0; i != loc.size(); ++i) {
+        const real x = loc[i].first;
+        const real rho = loc[i].second[rho_i];
+        const real pot = loc[i].second[pot_i];
+        if( loc[i].second[spc_ac_i] + loc[i].second[spc_ae_i]  > 0.5 * loc[i].second[rho_i] ) {
+	//		printf("%e %e\n", x, rho);
+			if (rho1_max.second < rho) {
+				//	printf( "!\n");
+				rho1_max.second = rho;
+				rho1_max.first = x;
+				rho1_maxi = i;
+				real phi_eff = pot / ASSERT_POSITIVE(rho)
+						- 0.5 * x * x * omega * omega;
+				rho1_phi = phi_eff;
 			}
-		}
-	}
-
-    for( integer d = 0; d != NDIM; ++d) {
-		v1[d] = loc.core1_s[d] / loc.core1;
-		v2[d] = loc.core2_s[d] / loc.core2;
+        }
     }
-    v1[ZDIM] = v2[ZDIM] = 0.0;
-    real v1dn = 0.0, v2dn = 0.0;
-    for( integer d = 0; d != NDIM; ++d) {
-       	v1dn += n[d] * v1[d];
-       	v2dn += n[d] * v2[d];
+    for (integer i = 0; i != loc.size(); ++i) {
+        const real x = loc[i].first;
+        if( loc[i].second[spc_dc_i] + loc[i].second[spc_de_i]   > 0.5 * loc[i].second[rho_i] ) {
+            const real rho = loc[i].second[rho_i];
+            const real pot = loc[i].second[pot_i];
+            if (rho2_max.second < rho) {
+                rho2_max.second = rho;
+                rho2_max.first = x;
+                rho2_maxi = i;
+                real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
+                rho2_phi = phi_eff;
+            }
+       }
     }
-    for( integer d = 0; d != NDIM; ++d) {
-    	v1[d] -= n[d] * v1dn;
-    	v2[d] -= n[d] * v2dn;
-    	v1[d] -= v2[d];
-    }
-    real v1norm = 0.0;
-    for( integer d = 0; d != NDIM; ++d) {
-       	v1norm += v1[d] * v1[d];
-    }
-    v1norm = std::sqrt(v1norm);
-
-    omega = v1norm / std::abs(rho1_max.first - rho2_max.first);
-  //  omega = loc.jcores / loc.icores;
-   //
-    printf( "OMEGA = %e\n", omega);
-    real pot, phi, rho, phi_eff, x;
-    pot = loc.line[rho1_maxi].second[pot_i];
-    rho = loc.line[rho1_maxi].second[rho_i];
-    x = rho1_max.first;
-	phi_eff = pot / ASSERT_POSITIVE(rho)
-			- 0.5 * x * x * omega * omega;
-	rho2_phi = phi_eff;
-
-    pot = loc.line[rho2_maxi].second[pot_i];
-    rho = loc.line[rho2_maxi].second[rho_i];
-    x = rho2_max.first;
-	phi_eff = pot / ASSERT_POSITIVE(rho)
-			- 0.5 * x * x * omega * omega;
-	rho2_phi = phi_eff;
-
     l1_phi.second = -std::numeric_limits < real > ::max();
     l2_phi.second = -std::numeric_limits < real > ::max();
     l3_phi.second = -std::numeric_limits < real > ::max();
-    for (integer i = 0; i != loc.line.size(); ++i) {
-        const real x = loc.line[i].first;
-        const real rho = loc.line[i].second[rho_i];
-        const real pot = loc.line[i].second[pot_i];
+    for (integer i = 0; i != loc.size(); ++i) {
+        const real x = loc[i].first;
+        const real rho = loc[i].second[rho_i];
+        const real pot = loc[i].second[pot_i];
         real phi_eff = pot / ASSERT_POSITIVE(rho) - 0.5 * x * x * omega * omega;
         if (x > std::min(rho1_max.first, rho2_max.first)
             && x < std::max(rho1_max.first, rho2_max.first)) {
@@ -298,8 +246,8 @@ real line_of_centers_analyze(const line_of_centers_t& loc, std::pair<space_vecto
             }
         }
     }
-    return omega;
 }
+
 
 void node_server::start_run(bool scf, integer ngrids)
 {

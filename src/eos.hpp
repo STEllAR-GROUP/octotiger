@@ -46,7 +46,7 @@ public:
 
 //		class bipolytropic_struct_eos: public struct_eos {
 public:
-	real M0, R0;
+	real M0, R0, R00;
 private:
 	real n_C, n_E;
 	real f_C, f_E;

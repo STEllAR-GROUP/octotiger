@@ -79,11 +79,11 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 				return rc;
 			};
 
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				iii = hindex(i, j, k);
-				iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
+	for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+		for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+			for (integer l = H_BW; l != H_NX - H_BW; ++l) {
+				iii = hindex(j, k, l);
+				iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 				x = X[XDIM][iii];
 				y = X[YDIM][iii];
 				z = X[ZDIM][iii];
@@ -137,16 +137,23 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 							rc.mom[i](n, n) -= r * r * rho0 * dV;
 						}
 						rc.z_moment[i] += (dX[0] * dX[0] + dX[1] * dX[1]) * rho0 * dV;
+						if( phi_eff < diags.l1_phi) {
+							rc.roche_vol[i] += dV;
+						}
+						if( U[rho_i][iii] > 1.0e-10) {
+							rc.stellar_vol[i] += dV;
+						}
 					}
 					rc.rho_max[i] = std::max(rc.rho_max[i], rho0);
 			//		U[spc_vac_i][iii] = real(i+2);
-					const integer iii = hindex(i, j, k);
+					const integer iii = hindex(j, k, l);
 					real ek = ZERO;
 					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
 					ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
 					ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
 					real ei;
 					if (opts.eos == WD) {
+				//		printf( "%e %e %e - %e - %i %i %i\n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], U[rho_i][iii], i, j, k);
 						ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
 					} else {
 						ei = U[egas_i][iii] - ek;
@@ -159,8 +166,12 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					if( opts.eos == WD ) {
 						p += ztwd_pressure(U[rho_i][iii]);
 					}
-					rc.virial += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
-					rc.virial_norm += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
+					rc.virial += (2.0 * ek
+							+ 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p)
+							* (dx * dx * dx);
+					rc.virial_norm += (2.0 * ek
+							- 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p)
+							* (dx * dx * dx);
 					for( integer f = 0; f != NF; ++f) {
 						rc.grid_sum[f] += U[f][iii] * dV;
 					}
@@ -431,16 +442,16 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 						X[XDIM][iii] * X[XDIM][iii]
 								+ X[YDIM][iii] * X[YDIM][iii]);
 				const real dV = dx * dx * dx;
-				for (integer d = 0; d != NDIM; ++d) {
+		/*		for (integer d = 0; d != NDIM; ++d) {
 					loc.core1_s[d] += U[sx_i + d][iii] * U[spc_ac_i][iii]
 							/ U[rho_i][iii]* dV;
 					loc.core2_s[d] += U[sx_i + d][iii] * U[spc_dc_i][iii]
 							/ U[rho_i][iii]* dV;
 				}
 				loc.core1 += U[spc_ac_i][iii] * dV;
-				loc.core2 += U[spc_dc_i][iii] * dV;
+				loc.core2 += U[spc_dc_i][iii] * dV;*/
 				space_vector a = line.first;
-				const space_vector& o = line.second;
+				const space_vector& o = 0.0;
 				space_vector b;
 				real bb = 0.0;
 				real ab = 0.0;
@@ -462,9 +473,9 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 					for (integer gi = 0; gi != NGF; ++gi) {
 						data[NF + gi] = G[iiig][gi];
 					}
-					loc.line.resize(loc.line.size() + 1);
-					loc.line[loc.line.size() - 1].first = p;
-					loc.line[loc.line.size() - 1].second = std::move(data);
+					loc.resize(loc.size() + 1);
+					loc[loc.size() - 1].first = p;
+					loc[loc.size() - 1].second = std::move(data);
 				}
 			}
 		}
@@ -1244,14 +1255,16 @@ void grid::rho_move(real x) {
 	real w = x / dx;
 	const real rho_floor = 1.0e-15;
 
+	U0 = U;
+
 	w = std::max(-0.5, std::min(0.5, w));
 	for (integer i = 1; i != H_NX - 1; ++i) {
 		for (integer j = 1; j != H_NX - 1; ++j) {
 			for (integer k = 1; k != H_NX - 1; ++k) {
 				for (integer si = spc_i; si != NSPECIES + spc_i; ++si) {
-					U[si][hindex(i, j, k)] += w * U[si][hindex(i + 1, j, k)];
-					U[si][hindex(i, j, k)] -= w * U[si][hindex(i - 1, j, k)];
-					U[si][hindex(i, j, k)] = std::max(U[si][hindex(i, j, k)], 0.0);
+					U[si][hindex(i, j, k)] += w * U0[si][hindex(i + 1, j, k)];
+					U[si][hindex(i, j, k)] -= w * U0[si][hindex(i - 1, j, k)];
+					U[si][hindex(i, j, k)] = std::max(U0[si][hindex(i, j, k)], 0.0);
 				}
 				U[rho_i][hindex(i, j, k)] = 0.0;
 				for (integer si = 0; si != NSPECIES; ++si) {
