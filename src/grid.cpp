@@ -218,6 +218,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	for( integer f = 0; f != NF; ++f ) {
 		rc.grid_out[f] += U_out[f];
 	}
+	rc.grid_out[egas_i] += 0.5 * U_out[pot_i];
 	return rc;
 }
 
