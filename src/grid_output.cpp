@@ -90,7 +90,7 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 		l1.zones[zzz] = index_map[*i];
 		++zzz;
 	}
-	for (integer field = 0; field < NF + NRF + NGF + NPF; ++field) {
+	for (integer field = 0; field < OUTPUT_COUNT; ++field) {
 		const auto l1sz = l1.data[field].size();
 		l1.data[field].resize(l1sz + l2.data[field].size());
 		std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
@@ -112,10 +112,10 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
-	std::array<std::vector<real>, NF + NRF + NGF + NPF> &data = rc.data;
-	std::array<std::vector<real>, NF + NRF + NGF + NPF> &A = rc.analytic;
+	std::array<std::vector<real>, OUTPUT_COUNT> &data = rc.data;
+	std::array<std::vector<real>, OUTPUT_COUNT> &A = rc.analytic;
 
-	for (integer field = 0; field != NF + NRF + NGF + NPF; ++field) {
+	for (integer field = 0; field != OUTPUT_COUNT; ++field) {
 		data[field].reserve(INX * INX * INX);
 		if (analytic) {
 			A[field].reserve(INX * INX * INX);
@@ -178,6 +178,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 					data[NGF + NRF + NF + 3].push_back(V[egas_i][iii]);
 				}
 				data[NGF + NRF + NF + 4].push_back(V[zz_i][iii]);
+		//		data[NGF + NRF + NF + NPF].push_back(roche[h0index(i,j,k)]);
 			}
 		}
 	}

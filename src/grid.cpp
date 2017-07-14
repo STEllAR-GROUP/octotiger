@@ -144,6 +144,18 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 							rc.stellar_vol[i] += dV;
 						}
 					}
+				/*	auto& tmp = roche[h0index(j, k, l)];
+					switch (i) {
+					case -1:
+						tmp = 0;
+						break;
+					case 0:
+						tmp = 1;
+						break;
+					case 1:
+						tmp = 2;
+						break;
+					}*/
 					rc.rho_max[i] = std::max(rc.rho_max[i], rho0);
 			//		U[spc_vac_i][iii] = real(i+2);
 					const integer iii = hindex(j, k, l);
@@ -175,6 +187,10 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					for( integer f = 0; f != NF; ++f) {
 						rc.grid_sum[f] += U[f][iii] * dV;
 					}
+					rc.grid_sum[egas_i] += 0.5 * U[pot_i][iii] * dV;
+					rc.grid_sum[zx_i] += (X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii]) * dV;
+					rc.grid_sum[zy_i] -= (X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii]) * dV;
+					rc.grid_sum[zz_i] += (X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii]) * dV;
 				}
 
 				for (integer s = 0; s != nspec; ++s) {
@@ -263,7 +279,7 @@ char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot
 		"zzs" };
 #else
 char const* grid::field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
-	"secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint", "zzs"};
+	"secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint", "zzs", "roche"};
 #endif
 
 hpx::lcos::local::spinlock grid::omega_mtx;
@@ -1613,7 +1629,7 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+		U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3){
 //	allocate();
 }
 
