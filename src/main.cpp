@@ -70,31 +70,12 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
 	} else if (opts.problem == STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
-		set_refine_test(refine_test_bibi);
+		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == MOVING_STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
-		set_refine_test(refine_test_bibi);
-		/*} else if (opts.problem == OLD_SCF) {
-		 set_refine_test(refine_test_bibi);
-		 set_problem(init_func_type([=](real a, real b, real c, real dx) {
-		 return old_scf(a,b,c,opts.omega,opts.core_thresh_1,opts.core_thresh_2, dx);
-		 }));
-		 if (!opts.found_restart_file) {
-		 if (opts.omega < ZERO) {
-		 printf("Must specify omega for bibi polytrope\n");
-		 throw;
-		 }
-		 if (opts.core_thresh_1 < ZERO) {
-		 printf("Must specify core_thresh_1 for bibi polytrope\n");
-		 throw;
-		 }
-		 if (opts.core_thresh_2 < ZERO) {
-		 printf("Must specify core_thresh_2 for bibi polytrope\n");
-		 throw;
-		 }
-		 }*/
+		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == SOLID_SPHERE) {
 		hydro_on = false;
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
