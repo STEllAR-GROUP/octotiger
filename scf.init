@@ -1,0 +1,19 @@
+
+async1 = -0.0e-2;
+async2 = -0.0e-2;
+equal_struct_eos = 1; // If true, EOS of accretor will be set to that of donor
+M1 = 0.6;// Mass of primary
+M2 = 0.3;// Mass of sfecondaries
+nc1 = 2.5;// Primary core polytropic index
+nc2 = 1.5;// Secondary core polytropic index
+ne1 = 1.5;// Primary envelope polytropic index // Ignored if equal_struct_eos=true
+ne2 = 1.5;// Secondary envelope polytropic index
+mu1 = 1.0;// Primary ratio of molecular weights // Ignored if equal_struct_eos=true
+mu2 = 1.0;// Primary ratio of molecular weights
+a = 1.13;// approx. orbital sep
+core_frac1 = 0.9;// Desired core fraction of primary // Ignored if equal_struct_eos=true
+core_frac2 = 0.9;// Desired core fraction of secondary - IGNORED FOR CONTACT binaries
+fill1 = 1.0;// 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
+fill2 = 1.0;// 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
+
