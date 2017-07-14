@@ -40,12 +40,14 @@ struct diagnostics_t {
 	real z_mom_orb;
 	real rho_max[nspec];
 	std::array<real,NF> grid_sum;
+	std::array<real,NF> grid_out;
 	diagnostics_t() {
 		stage = 1;
 		omega = -1.0;
 		grid_com = 0.0;
 		for( integer f = 0; f != NF; ++f) {
 			grid_sum[f] = 0.0;
+			grid_out[f] = 0.0;
 		}
 		for( integer s = 0; s != nspec; ++s) {
 			phi_eff_min[s] = std::numeric_limits<real>::max();
@@ -79,6 +81,7 @@ struct diagnostics_t {
 	diagnostics_t& operator+=(const diagnostics_t& other) {
 		for( integer f = 0; f != NF; ++f) {
 			grid_sum[f] += other.grid_sum[f];
+			grid_out[f] += other.grid_out[f];
 		}
 		for( integer s = 0; s != nspec; ++s) {
 			z_moment[s] += other.z_moment[s];
@@ -118,6 +121,7 @@ struct diagnostics_t {
 		arc & l1_phi;
 		arc & roche_vol;
 		arc & stellar_vol;
+		arc & grid_out;
 		arc & grid_sum;
 		arc & z_mom_orb;
 		arc & grid_com;

@@ -169,15 +169,13 @@ const diagnostics_t& diagnostics_t::compute() {
 diagnostics_t node_server::diagnostics(real l1_phi) {
 	diagnostics_t diags;
 	for( integer i = 1; i != 10; ++i) {
-	//	printf( "!\n");
 		diags.stage = i;
 		diags.l1_phi = l1_phi;
 		diags = diagnostics(diags).compute();
 		diags.grid_com = grid_ptr->center_of_mass();
-	//	printf( "%e %e %e %e %e %e %e\n", diags.omega, diags.m[0], diags.m[1], diags.cop[0][XDIM], diags.com[0][XDIM], diags.cop[1][XDIM], diags.com[1][XDIM]);
 	}
 
-	FILE* fp = fopen( "new_binary.dat", "at");
+	FILE* fp = fopen( "binary.dat", "at");
 	fprintf( fp, "%13e ", current_time);
 	fprintf( fp, "%13e ", diags.a);
 	fprintf( fp, "%13e ", diags.omega);
@@ -188,6 +186,14 @@ diagnostics_t node_server::diagnostics(real l1_phi) {
 		fprintf( fp, "%13e ", diags.rL[s]);
 		fprintf( fp, "%13e ", diags.gt[s]);
 		fprintf( fp, "%13e ", diags.tidal[s]);
+	}
+	fprintf( fp, "\n");
+	fclose(fp);
+	fp = fopen( "sums.dat", "at");
+	fprintf( fp, "%.13e ", current_time);
+	for( integer i = 0; i != NF; ++i) {
+		fprintf( fp, "%.13e ", diags.grid_sum[i]);
+		fprintf( fp, "%.13e ", diags.grid_out[i]);
 	}
 	fprintf( fp, "\n");
 	fclose(fp);

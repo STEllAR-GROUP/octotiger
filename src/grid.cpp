@@ -199,6 +199,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 			rc.com_dot[s][ZDIM] /= rc.m[s];
 		}
 	}
+	for( integer f = 0; f != NF; ++f ) {
+		rc.grid_out[f] += U_out[f];
+	}
 	return rc;
 }
 

@@ -393,7 +393,7 @@ void node_server::start_run(bool scf, integer ngrids)
             {
                 FILE* fp = fopen( (opts.data_dir + "step.dat").c_str(), "at");
                 fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
-                    int(next_step - 1), double(t), double(dt), time_elapsed, rotational_time,
+                    int(next_step - 1), double(t), double(dt_), time_elapsed, rotational_time,
                     theta, theta_dot, omega, omega_dot, int(ngrids));
                 fclose(fp);
             });     // do not wait for it to finish
@@ -401,7 +401,7 @@ void node_server::start_run(bool scf, integer ngrids)
 
         hpx::threads::run_as_os_thread([=]()
         {
-            printf("%i %e %e %e %e %e %e %e %e\n", int(next_step - 1), double(t), double(dt),
+            printf("%i %e %e %e %e %e %e %e %e\n", int(next_step - 1), double(t), double(dt_),
                 time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
         });     // do not wait for output to finish
 
@@ -676,12 +676,10 @@ hpx::future<real> node_server::local_step(integer steps) {
 							}
 							++step_num;
 							next_dt.get();
+							return dt_;
 						});
 	}
-	return fut.then([this](hpx::future<void> f) {
-		f.get();
-		return dt_;
-	});
+	return fut;
 }
 
 hpx::future<real> node_server::step(integer steps) {
@@ -706,7 +704,7 @@ hpx::future<real> node_server::step(integer steps) {
                 for( auto& f : fi ) {
                 	f.get();
                 }
-                return dt_fut;
+                return dt_fut.get();
             },
             std::move(fut),
             hpx::when_all(std::move(child_futs))
