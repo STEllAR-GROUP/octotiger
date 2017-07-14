@@ -119,28 +119,31 @@ struct diagnostics_t {
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
 		arc & l1_phi;
-		arc & roche_vol;
-		arc & stellar_vol;
-		arc & grid_out;
-		arc & grid_sum;
-		arc & z_mom_orb;
-		arc & grid_com;
-		arc & virial_norm;
-		arc & z_moment;
-		arc & virial;
-		arc & tidal;
-		arc & a;
-		arc & rL;
-		arc & mom;
-		arc & jorb;
-		arc & js;
-		arc & stage;
 		arc & omega;
-		arc & phi_eff_min;
 		arc & m;
+		arc & gt;
+		arc & phi_eff_min;
+		arc & grid_com;
 		arc & com;
 		arc & com_dot;
-		arc & gt;
+		arc & js;
+		arc & jorb;
+		arc & rL;
+		arc & mom;
+		arc & stage;
+		arc & tidal;
+		arc & a;
+		arc & roche_vol;
+		arc & stellar_vol;
+		arc & virial;
+		arc & virial_norm;
+		arc & z_moment;
+		arc & z_mom_orb;
+		arc & rho_max;
+		arc & grid_sum;
+		arc & grid_out;
+
+
 	}
 
 };
