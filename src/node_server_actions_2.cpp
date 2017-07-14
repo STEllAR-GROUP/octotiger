@@ -167,6 +167,10 @@ const diagnostics_t& diagnostics_t::compute() {
 }
 
 diagnostics_t node_server::diagnostics(real l1_phi) {
+	if( opts.problem != DWD ) {
+		return diagnostics_t();
+
+	}
 	diagnostics_t diags;
 	for( integer i = 1; i != 10; ++i) {
 		diags.stage = i;
