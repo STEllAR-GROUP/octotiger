@@ -1282,7 +1282,7 @@ void grid::rho_move(real x) {
 				for (integer si = spc_i; si != NSPECIES + spc_i; ++si) {
 					U[si][hindex(i, j, k)] += w * U0[si][hindex(i + 1, j, k)];
 					U[si][hindex(i, j, k)] -= w * U0[si][hindex(i - 1, j, k)];
-					U[si][hindex(i, j, k)] = std::max(U0[si][hindex(i, j, k)], 0.0);
+					U[si][hindex(i, j, k)] = std::max(U[si][hindex(i, j, k)], 0.0);
 				}
 				U[rho_i][hindex(i, j, k)] = 0.0;
 				for (integer si = 0; si != NSPECIES; ++si) {
