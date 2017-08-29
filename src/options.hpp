@@ -34,6 +34,7 @@ class options {
 public:
 	bool core_refine;
 	integer donor_refine;
+	integer accretor_refine;
 	bool vomega;
 	real refinement_floor;
 	bool refinement_floor_specified;
@@ -84,6 +85,7 @@ public:
 		arc & theta;
 		arc & core_refine;
 		arc & donor_refine;
+		arc & accretor_refine;
 		int tmp = problem;
 		arc & tmp;
 		problem = (problem_type)tmp;

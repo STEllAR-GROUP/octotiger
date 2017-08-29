@@ -11,6 +11,7 @@
 #include "grid.hpp"
 
 #define CORE_REFINE_OPT "-CoreRefine"
+#define ACCRETOR_REFINE_OPT "-AccretorRefine"
 #define DONOR_REFINE_OPT "-DonorRefine"
 #define HELP_OPT "-Help"
 #define PROBLEM_OPT "-Problem"
@@ -135,6 +136,7 @@ bool options::process_options(int argc, char* argv[]) {
     bool vomega_found = false;
     core_refine = false;
     donor_refine = 0;
+    accretor_refine = 0;
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
             rc = false;
@@ -202,7 +204,10 @@ bool options::process_options(int argc, char* argv[]) {
 			core_refine = true;
 		} else if (cmp(argv[i], DONOR_REFINE_OPT)) {
 			printf( "Donor Refinement on\n");
-			donor_refine =  std::max(1,atoi(argv[i] + strlen(DONOR_REFINE_OPT) + 1));
+			donor_refine = std::max(1,atoi(argv[i] + strlen(DONOR_REFINE_OPT) + 1));
+		} else if (cmp(argv[i], ACCRETOR_REFINE_OPT)) {
+			printf( "Accretor Refinement on\n");
+			accretor_refine =  std::max(1,atoi(argv[i] + strlen(ACCRETOR_REFINE_OPT) + 1));
 		} else if (cmp(argv[i], MAX_LEVEL_OPT)) {
 			max_level = atoi(argv[i] + strlen(MAX_LEVEL_OPT) + 1);
 		} else if (cmp(argv[i], NGRIDS_OPT)) {

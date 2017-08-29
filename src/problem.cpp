@@ -119,14 +119,19 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	}
 	int test_level = max_level;
 	int penalty = 0;
+	bool majority_core = U[spc_ac_i] + U[spc_dc_i] > 0.5 * U[rho_i];
+	bool majority_accretor = U[spc_ae_i] + U[spc_ac_i] > 0.5 * U[rho_i];
+	bool majority_donor = U[spc_de_i] + U[spc_dc_i] > 0.5 * U[rho_i];
 	if( opts.core_refine) {
-//		printf( "!\n");
-		if(U[spc_ac_i] + U[spc_dc_i] < 0.5 * U[rho_i]) {
+		if(!majority_core) {
 			test_level -= 1;
 		}
 	}
-	if (U[spc_de_i] + U[spc_dc_i] < 0.5 * U[rho_i]) {
+	if (!majority_donor) {
 		test_level -= opts.donor_refine;
+	}
+	if (!majority_accretor) {
+		test_level -= opts.accretor_refine;
 	}
 	real den_floor = opts.refinement_floor;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
