@@ -5,6 +5,9 @@
  *      Author: dmarce1
  */
 
+// TODO: has to be included first, because of some problem with including Vc headers
+// #include "m2m_kernel/m2m_simd_types.hpp"
+
 #include "defs.hpp"
 #include "node_server.hpp"
 #include "problem.hpp"
@@ -25,6 +28,8 @@ extern options opts;
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
+
+// #include "m2m_kernel/m2m_interactions.hpp"
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
@@ -509,13 +514,12 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account) {
-	if (!gravity_on) {
+    if (!gravity_on) {
         return;
     }
 
     hpx::future<void> parent_fut;
     if (energy_account) {
-    //	printf( "!\n");
         grid_ptr->egas_to_etot();
     }
     multipole_pass_type m_out;
@@ -524,7 +528,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
     for (auto const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
-        	neighbor_signals[dir].wait();
+            neighbor_signals[dir].wait();
         }
     }
 
@@ -585,42 +589,113 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         }
     }
 
-    grid_ptr->compute_interactions(type);
-#ifdef USE_GRAV_PAR
-    std::array<hpx::future<void>, geo::direction::count()> boundary_futs;
-    integer index = 0;
-    for (auto const& dir : geo::direction::full_set()) {
-        if (!neighbors[dir].empty()) {
-            auto f = neighbor_gravity_channels[dir].get_future(gcycle);
-            boundary_futs[index++] = f.then(
-                hpx::util::annotated_function(
-                    [this, type](hpx::future<neighbor_gravity_type> fut)
-                    {
-                        auto && tmp = fut.get();
-                        grid_ptr->compute_boundary_interactions(type,
-                            tmp.direction, tmp.is_monopole, tmp.data);
-                    },
-                    "node_server::compute_fmm::compute_boundary_interactions"
-            ));
+    /****************************************************************************/
+    // data managemenet for old and new version of interaction computation
+    
+     // all neighbors and placeholder for yourself
+    std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
+    for (geo::direction const& dir : geo::direction::full_set()) {
+        if (!neighbors[dir].empty()) {    // TODO: check special case for empty dirs
+            all_neighbor_interaction_data.push_back(
+                                                    neighbor_gravity_channels[dir].get_future(gcycle).get());
+        } else {
+            all_neighbor_interaction_data.emplace_back();
         }
     }
-    while( index < geo::direction::count()) {
-    	boundary_futs[index++] = hpx::make_ready_future();
-    }
-    wait_all_and_propagate_exceptions(boundary_futs);
-#else
+
+    std::array<bool, geo::direction::count()> is_direction_empty;
+    for (geo::direction const& dir : geo::direction::full_set()) {
+        if (neighbors[dir].empty()) {
+            is_direction_empty[dir] = true;
+        } else {
+            is_direction_empty[dir] = false;
+        }
+    }    
+    
+     bool new_style_enabled = false;
+     /***************************************************************************/
+     // new-style interaction calculation (both cannot be active at the same time)
+     if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
+         
+        // std::vector<multipole>& M_ptr = grid_ptr->get_M();
+        // std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
+        // octotiger::fmm::m2m_interactions interactor(
+        //     M_ptr, com_ptr, all_neighbor_interaction_data, type);
+
+        // interactor.compute_interactions();    // includes boundary
+
+        // //TODO: do other interaction types, will be replaced
+        // {
+        //     std::vector<expansion>& L = grid_ptr->get_L();
+        //     std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+
+        //     // initialize to zero
+        //     std::fill(std::begin(L), std::end(L), ZERO);
+        //     if (opts.ang_con) {
+        //         std::fill(std::begin(L_c), std::end(L_c), ZERO);
+        //     }
+        //     for (const geo::direction& dir : geo::direction::full_set()) {
+        //         // TODO: does this ever trigger? no monopoles in neighbor cell maybe?
+        //         if (!neighbors[dir].empty()) {
+        //             neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
+        //             if (neighbor_data.is_monopole) {
+        //                 // this triggers "compute_boundary_interactions_monopole_multipole()"
+        //                 grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
+        //                     neighbor_data.is_monopole, neighbor_data.data);
+        //             }
+        //         }
+        //     }
+
+        //     interactor.add_to_potential_expansions(L);
+        //     interactor.add_to_center_of_masses(L_c);
+
+        //     // clear
+        //     std::fill(std::begin(L), std::end(L), ZERO);
+        //     if (opts.ang_con) {
+        //         std::fill(std::begin(L_c), std::end(L_c), ZERO);
+        //     }
+        // }
+
+        // std::vector<expansion>& L = grid_ptr->get_L();
+        // std::vector<expansion>& potential_expansions = interactor.get_potential_expansions();
+        // std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+        // std::vector<space_vector>& angular_corrections = interactor.get_angular_corrections();
+
+        // // write results obtained by new kernel back into grid object
+        // for (size_t i = 0; i < L.size(); i++) {
+        //     L[i] = potential_expansions[i];
+        // }
+        // for (size_t i = 0; i < L_c.size(); i++) {
+        //     L_c[i] = angular_corrections[i];
+        // }
+
+     } else {
+         // old-style interaction calculation
+         // computes inner interactions
+         grid_ptr->compute_interactions(type);
+         // waits for boundary data and then computes boundary interactions
+         for (auto const& dir : geo::direction::full_set()) {
+             if (!is_direction_empty[dir]) {
+                 neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
+                 grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole, neighbor_data.data);
+                 //TODO: add this code fragment to new style, whatever it actually does
+                 // if (neighbor_data.data.local_semaphore != nullptr) {
+                 //     neighbor_data.data.local_semaphore->signal();
+                 // }
+             }
+         }
+     }
+     
+     /**************************************************************************/
+     // now that all boundary information has been processed, signal all non-empty neighbors
+     // note that this was done before during boundary calculations
      for (auto const& dir : geo::direction::full_set()) {
-        if (!neighbors[dir].empty()) {
-            auto tmp = neighbor_gravity_channels[dir].get_future(gcycle).get();
-            auto signal = tmp.data.local_semaphore;
-            grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
-            if( signal != nullptr ) {
-            	signal->signal();
-            }
-        }
-    }
-#endif
-	/************************************************************************************************/
+         neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
+         if (neighbor_data.data.local_semaphore != nullptr) {
+             neighbor_data.data.local_semaphore->signal();
+         }
+     }
+     /***************************************************************************/
 
     expansion_pass_type l_in;
     if (my_location.level() != 0) {

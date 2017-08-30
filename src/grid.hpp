@@ -17,6 +17,7 @@
 #include "problem.hpp"
 #include "taylor.hpp"
 #include "scf_data.hpp"
+#include "interaction_types.hpp"
 
 #ifdef RADIATION
 class rad_grid;
@@ -74,56 +75,55 @@ public:
 
 HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
 
-struct interaction_type {
-	std::uint16_t first;
-	std::uint16_t second;
-	space_vector x;
-	v4sd four;
-};
+// struct interaction_type {
+// 	std::uint16_t first;
+// 	std::uint16_t second;
+// 	space_vector x;
+// 	v4sd four;
+// };
 
-struct boundary_interaction_type {
-	std::uint16_t second;
-	std::vector<std::uint16_t> first;
-	std::vector<v4sd> four;
-	space_vector x;
-};
+// struct boundary_interaction_type {
+// 	std::uint16_t second;
+// 	std::vector<std::uint16_t> first;
+// 	std::vector<v4sd> four;
+// 	space_vector x;
+// };
 
-typedef taylor<4, real> multipole;
-typedef taylor<4, real> expansion;
-typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
-typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
+// typedef taylor<4, real> multipole;
+// typedef taylor<4, real> expansion;
+// typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
+// typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
-#include <hpx/lcos/local/counting_semaphore.hpp>
-using semaphore = hpx::lcos::local::counting_semaphore;
+// #include <hpx/lcos/local/counting_semaphore.hpp>
+// using semaphore = hpx::lcos::local::counting_semaphore;
 
-struct gravity_boundary_type {
-	std::shared_ptr<std::vector<multipole>> M;
-	std::shared_ptr<std::vector<real>> m;
-	std::shared_ptr<std::vector<space_vector>> x;
-	semaphore* local_semaphore;
-	gravity_boundary_type() :
-		M(nullptr), m(nullptr), x(nullptr) {
-	}
-	void allocate() {
-		local_semaphore = nullptr;
-		if (M == nullptr) {
-			M = std::make_shared<std::vector<multipole> >();
-			m = std::make_shared<std::vector<real> >();
-			x = std::make_shared<std::vector<space_vector> >();
-		}
-	}
-	template<class Archive>
-	void serialize(Archive& arc, unsigned) {
-		allocate();
-		std::uintptr_t tmp = reinterpret_cast<std::uintptr_t>(local_semaphore);
-		arc & M;
-		arc & m;
-		arc & x;
-		arc & tmp;
-		local_semaphore = reinterpret_cast<decltype(local_semaphore)>(tmp);
-	}
-};
-
+// struct gravity_boundary_type {
+// 	std::shared_ptr<std::vector<multipole>> M;
+// 	std::shared_ptr<std::vector<real>> m;
+// 	std::shared_ptr<std::vector<space_vector>> x;
+// 	semaphore* local_semaphore;
+// 	gravity_boundary_type() :
+// 		M(nullptr), m(nullptr), x(nullptr) {
+// 	}
+// 	void allocate() {
+// 		local_semaphore = nullptr;
+// 		if (M == nullptr) {
+// 			M = std::make_shared<std::vector<multipole> >();
+// 			m = std::make_shared<std::vector<real> >();
+// 			x = std::make_shared<std::vector<space_vector> >();
+// 		}
+// 	}
+// 	template<class Archive>
+// 	void serialize(Archive& arc, unsigned) {
+// 		allocate();
+// 		std::uintptr_t tmp = reinterpret_cast<std::uintptr_t>(local_semaphore);
+// 		arc & M;
+// 		arc & m;
+// 		arc & x;
+// 		arc & tmp;
+// 		local_semaphore = reinterpret_cast<decltype(local_semaphore)>(tmp);
+// 	}
+// };
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
@@ -195,6 +195,34 @@ private:
 	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
 public:
+    std::vector<multipole>& get_M() {
+        return *M_ptr;
+    }
+
+    std::vector<real>& get_mon() {
+        return *mon_ptr;
+    }
+
+    std::vector<std::shared_ptr<std::vector<space_vector>>>& get_com_ptr() {
+        return com_ptr;
+    }
+
+    std::vector<expansion>& get_L() {
+        return L;
+    }
+
+    std::vector<space_vector>& get_L_c() {
+        return L_c;
+    }
+
+    std::array<real, NDIM> get_xmin() {
+        return xmin;
+    }
+
+    real get_dx() {
+        return dx;
+    }
+    
 #ifdef RADIATION
 	std::shared_ptr<rad_grid> get_rad_grid() {
 		return rad_grid_ptr;
@@ -235,6 +263,9 @@ public:
     }
 	void set_root(bool flag = true) {
 	    is_root = flag;
+    }
+    bool get_root() {
+        return is_root;
     }
 	void set_leaf(bool flag = true) {
 	    if (is_leaf != flag) {

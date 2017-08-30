@@ -535,4 +535,20 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     // PROF_END;
 }
 
+typedef taylor<4, real> multipole;
+typedef taylor<4, real> expansion;
+
+template <int N, class T = real>
+std::ostream& operator<<(std::ostream& os, const taylor<N, T>& t) {
+    std::cout << "(";
+    for (size_t i = 0; i < t.size(); i++) {
+        if (i > 0) {
+            std::cout << ", ";
+        }
+        std::cout << t[i];
+    }
+    std::cout << ")";
+    return os;
+}
+
 #endif /* TAYLOR_HPP_ */

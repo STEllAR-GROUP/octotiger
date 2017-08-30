@@ -111,6 +111,12 @@ set(source_files ${source_files}
     src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
+    src/compute_factor.cpp
+    src/m2m_kernel/m2m_interactions.cpp
+    src/m2m_kernel/calculate_stencil.cpp
+    src/m2m_kernel/m2m_kernel.cpp
+    src/m2m_kernel/interactions_iterators.cpp
+    src/m2m_kernel/m2m_kernel_blocked_interaction.cpp
 )
 
 set(header_files
@@ -142,6 +148,15 @@ set(header_files
     src/struct_eos.hpp
     src/taylor.hpp
     src/util.hpp
+    src/compute_factor.hpp
+    src/m2m_kernel/interaction_constants.hpp
+    src/m2m_kernel/m2m_interactions.hpp
+    src/m2m_kernel/multiindex.hpp
+    src/m2m_kernel/calculate_stencil.hpp
+    src/m2m_kernel/m2m_kernel.hpp
+    src/m2m_kernel/compare_interaction_lists.hpp
+    src/m2m_kernel/m2m_simd_types.hpp
+    src/m2m_kernel/m2m_taylor_set_basis.hpp
 )
 
 add_hpx_executable(

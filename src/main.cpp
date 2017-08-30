@@ -22,6 +22,8 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
+#include "compute_factor.hpp"
+
 options opts;
 
 bool gravity_on = true;
@@ -88,6 +90,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
 	node_server::set_gravity(gravity_on);
 	node_server::set_hydro(hydro_on);
 	compute_ilist();
+        compute_factor();
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

@@ -28,6 +28,8 @@
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
 
+#include "interaction_types.hpp"
+
 class node_server: public hpx::components::managed_component_base<node_server> {
 public:
     static void set_gravity(bool b) {
@@ -37,11 +39,11 @@ public:
         hydro_on = b;
 }
 private:
-    struct neighbor_gravity_type {
-        gravity_boundary_type data;
-        bool is_monopole;
-        geo::direction direction;
-    };
+    // struct neighbor_gravity_type {
+    //     gravity_boundary_type data;
+    //     bool is_monopole;
+    //     geo::direction direction;
+    // };
     struct sibling_hydro_type {
         std::vector<real> data;
         geo::direction direction;

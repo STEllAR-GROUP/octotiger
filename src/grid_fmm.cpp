@@ -13,6 +13,7 @@
 
 
 #include <hpx/include/parallel_for_loop.hpp>
+#include "grid_flattened_indices.hpp"
 
 #include <cstddef>
 #include <utility>
@@ -35,7 +36,7 @@ static std::vector<interaction_type> ilist_d;
 static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
-static taylor<4, real> factor;
+extern taylor<4, real> factor;
 extern options opts;
 
 template <class T>
@@ -194,41 +195,41 @@ void grid::solve_gravity(gsolve_type type) {
     compute_expansions(type);
 }
 
-constexpr int to_ab_idx_map3[3][3] = {
-    {  4,  5,  6  },
-    {  5,  7,  8  },
-    {  6,  8,  9  }
-};
+// constexpr int to_ab_idx_map3[3][3] = {
+//     {  4,  5,  6  },
+//     {  5,  7,  8  },
+//     {  6,  8,  9  }
+// };
 
-constexpr int cb_idx_map[6] = {
-     4,  5,  6,  7,  8,  9,
-};
+// constexpr int cb_idx_map[6] = {
+//      4,  5,  6,  7,  8,  9,
+// };
 
-constexpr int to_abc_idx_map3[3][6] = {
-    {  10, 11, 12, 13, 14, 15, },
-    {  11, 13, 14, 16, 17, 18, },
-    {  12, 14, 15, 17, 18, 19, }
-};
+// constexpr int to_abc_idx_map3[3][6] = {
+//     {  10, 11, 12, 13, 14, 15, },
+//     {  11, 13, 14, 16, 17, 18, },
+//     {  12, 14, 15, 17, 18, 19, }
+// };
 
-constexpr int to_abcd_idx_map3[3][10] = {
-    { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 },
-    { 21, 23, 24, 26, 27, 28, 30, 31, 32, 33 },
-    { 22, 24, 25, 27, 28, 29, 31, 32, 33, 34 }
-};
+// constexpr int to_abcd_idx_map3[3][10] = {
+//     { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 },
+//     { 21, 23, 24, 26, 27, 28, 30, 31, 32, 33 },
+//     { 22, 24, 25, 27, 28, 29, 31, 32, 33, 34 }
+// };
 
-constexpr int bcd_idx_map[10] = {
-    10, 11, 12, 13, 14, 15, 16, 17, 18, 19
-};
+// constexpr int bcd_idx_map[10] = {
+//     10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+// };
 
-constexpr int to_abc_idx_map6[6][3] = {
-    { 10, 11, 12 }, { 11, 13, 14 },
-    { 12, 14, 15 }, { 13, 16, 17 },
-    { 14, 17, 18 }, { 15, 18, 19 }
-};
+// constexpr int to_abc_idx_map6[6][3] = {
+//     { 10, 11, 12 }, { 11, 13, 14 },
+//     { 12, 14, 15 }, { 13, 16, 17 },
+//     { 14, 17, 18 }, { 15, 18, 19 }
+// };
 
-constexpr int ab_idx_map6[6] = {
-    4, 5, 6, 7, 8, 9
-};
+// constexpr int ab_idx_map6[6] = {
+//     4, 5, 6, 7, 8, 9
+// };
 
 void grid::compute_interactions(gsolve_type type) {
     PROF_BEGIN;
@@ -1061,17 +1062,17 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
 }
 
 void compute_ilist() {
-    factor = 0.0;
-    factor() += 1.0;
-    for (integer a = 0; a < NDIM; ++a) {
-        factor(a) += 1.0;
-        for (integer b = 0; b < NDIM; ++b) {
-            factor(a, b) += 1.0;
-            for (integer c = 0; c < NDIM; ++c) {
-                factor(a, b, c) += 1.0;
-            }
-        }
-    }
+    // factor = 0.0;
+    // factor() += 1.0;
+    // for (integer a = 0; a < NDIM; ++a) {
+    //     factor(a) += 1.0;
+    //     for (integer b = 0; b < NDIM; ++b) {
+    //         factor(a, b) += 1.0;
+    //         for (integer c = 0; c < NDIM; ++c) {
+    //             factor(a, b, c) += 1.0;
+    //         }
+    //     }
+    // }
 
     const integer inx = INX;
     const integer nx = inx;
