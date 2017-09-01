@@ -227,7 +227,11 @@ diagnostics_t node_server::child_diagnostics(const diagnostics_t& diags) {
 //	if( diags.stage == 1 ) {
 //		all_hydro_bounds();
 //	}
-	auto child_sums = hpx::util::unwrapped(futs);
+	// auto child_sums = hpx::util::unwrapping(futs);
+        std::array<diagnostics_t, NCHILD> child_sums;
+        for (size_t i = 0; i < NCHILD; i++) {
+            child_sums[i] = futs[i].get();
+        }
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
 }
 

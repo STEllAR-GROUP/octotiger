@@ -7,6 +7,7 @@
 
 // TODO: has to be included first, because of some problem with including Vc headers
 // #include "m2m_kernel/m2m_simd_types.hpp"
+#include <Vc/Vc>
 
 #include "defs.hpp"
 #include "node_server.hpp"

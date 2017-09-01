@@ -490,11 +490,6 @@ void grid::compute_interactions(gsolve_type type) {
                 }
             });
     } else {
-#if !defined(HPX_HAVE_DATAPAR)
-        const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-        const v4sd d1 = {1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
-#else
-
         // first compute potential and the the three components of the force
         // vectorizing across the dimensions, therefore 1 component for the potential + 3
         // components for the force
@@ -502,22 +497,12 @@ void grid::compute_interactions(gsolve_type type) {
         // Coefficients for potential evaluation? (David)
         const std::array<double, 4> di0 = {
             1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
-        const v4sd d0(di0.data());
-#else
-        const v4sd d0(di0.data(), Vc::flags::vector_aligned);
-#endif
+        const v4sd d0(di0.data(), Vc::flags::element_aligned);
 
         // negative of d0 because it's the force in the opposite direction
         const std::array<double, 4> di1 = {
             1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
-#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
-        const v4sd d1(di1.data());
-#else
-        const v4sd d1(di1.data(), Vc::flags::vector_aligned);
-#endif
-
-#endif
+        const v4sd d1(di1.data(), Vc::flags::element_aligned);
 
         // Number of body-body interactions current leaf cell, probably includes interactions with
         // bodies in neighboring cells  (David)
@@ -531,31 +516,11 @@ void grid::compute_interactions(gsolve_type type) {
             // Extract the indices of the two interacting bodies (David)
             const integer iii0 = ele.first;
             const integer iii1 = ele.second;
-#if !defined(HPX_HAVE_DATAPAR)
-            v4sd m0, m1;
-#pragma GCC ivdep
-            for (integer i = 0; i != 4; ++i) {
-                m0[i] = mon[iii1];
-            }
-#pragma GCC ivdep
-            for (integer i = 0; i != 4; ++i) {
-                m1[i] = mon[iii0];
-            }
-
-#ifdef USE_GRAV_PAR
-            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-#endif
-            L[iii0] += m0 * ele.four * d0;
-            L[iii1] += m1 * ele.four * d1;
-#else
-#ifdef USE_GRAV_PAR
-            std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
-#endif
             // fetch both interacting bodies (monopoles) (David)
             // broadcasts a single value
             L[iii0] += mon[iii1] * ele.four * d0;
             L[iii1] += mon[iii0] * ele.four * d1;
-#endif
+
         }
     }
     PROF_END;
@@ -1017,16 +982,10 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
-#if !defined(HPX_HAVE_DATAPAR)
-    const v4sd d0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-#else
+
     const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-#if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
-    const v4sd d0(di0.data());
-#else
-    const v4sd d0(di0.data(), Vc::flags::vector_aligned);
-#endif
-#endif
+    const v4sd d0(di0.data(), Vc::flags::element_aligned);
+
     hpx::parallel::for_loop(
         for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &ilist_n_bnd, &d0, this](std::size_t si) {
@@ -1436,6 +1395,7 @@ multipole_pass_type grid::compute_multipoles(
     if (!is_root) {
         mret.first.resize(INX * INX * INX / NCHILD);
         mret.second.resize(INX * INX * INX / NCHILD);
+    } else {
     }
     taylor<4, real> MM;
     integer index = 0;
@@ -1544,6 +1504,7 @@ multipole_pass_type grid::compute_multipoles(
         index = 0;
     }
     PROF_END;
+
     return mret;
 }
 
