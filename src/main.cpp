@@ -23,6 +23,8 @@
 #include <hpx/lcos/broadcast.hpp>
 
 #include "compute_factor.hpp"
+#include "m2m_kernel/calculate_stencil.hpp"
+#include "m2m_kernel/m2m_interactions.hpp"
 
 options opts;
 
@@ -91,6 +93,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
 	node_server::set_hydro(hydro_on);
 	compute_ilist();
         compute_factor();
+        octotiger::fmm::m2m_interactions::stencil = octotiger::fmm::calculate_stencil();
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

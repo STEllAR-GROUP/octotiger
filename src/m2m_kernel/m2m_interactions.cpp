@@ -122,6 +122,11 @@ namespace fmm {
                 space_vector& s = angular_corrections.at(flat_index_unpadded);
                 s = 0.0;
             });
+
+        // std::cout << "local_expansions:" << std::endl;
+        // this->print_local_expansions();
+        // std::cout << "center_of_masses:" << std::endl;
+        // this->print_center_of_masses();
     }
 
     void m2m_interactions::compute_interactions() {
@@ -184,11 +189,9 @@ namespace fmm {
     }
 
     void m2m_interactions::print_local_expansions() {
-        print_layered_inner_padded(
-            true, [this](const multiindex<>& i, const size_t flat_index,
-                      const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                std::cout << " " << this->local_expansions[flat_index];
-            });
+        print_layered_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
+            std::cout << " " << this->local_expansions[flat_index];
+        });
     }
 
     void m2m_interactions::print_center_of_masses() {
