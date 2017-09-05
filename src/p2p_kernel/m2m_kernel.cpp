@@ -14,6 +14,7 @@ extern options opts;
 
 namespace octotiger {
 namespace fmm {
+namespace p2p_kernel {
 
     m2m_kernel::m2m_kernel(
         // struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
@@ -23,7 +24,7 @@ namespace fmm {
         // struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
         // angular_corrections_SoA,
         std::vector<bool>& neighbor_empty,
-        gsolve_type type)
+        gsolve_type type, real dx)
       :    // local_expansions(local_expansions),
       // local_expansions_SoA(local_expansions_SoA)
       // , center_of_masses(center_of_masses),
@@ -34,7 +35,7 @@ namespace fmm {
       // , angular_corrections_SoA(angular_corrections_SoA),
       neighbor_empty(neighbor_empty)
       , type(type)
-      , theta_rec_squared(sqr(1.0 / opts.theta))
+      , theta_rec_squared(sqr(1.0 / opts.theta)), dx(dx)
     // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
     {
         for (size_t i = 0; i < m2m_int_vector::size(); i++) {
@@ -179,5 +180,6 @@ namespace fmm {
     //     }
     // }
 
+}    // namespace p2p_kernel
 }    // namespace fmm
 }    // namespace octotiger

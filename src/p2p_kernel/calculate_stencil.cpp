@@ -9,9 +9,11 @@ extern options opts;
 
 namespace octotiger {
 namespace fmm {
+namespace p2p_kernel {
 
     std::vector<multiindex<>> calculate_stencil() {
         std::array<std::vector<multiindex<>>, 8> stencils;
+        std::cerr << "Calculating new stencil" << std::endl;
 
         // used to check the radiuses of the outer and inner sphere
         const real theta0 = opts.theta;
@@ -47,7 +49,7 @@ namespace fmm {
                                     detail::reciprocal_distance(i0_c, i1_c, i2_c, j0_c, j1_c, j2_c);
 
                                 // not in inner sphere (theta_c > theta0), but in outer sphere
-                                if (theta_c > theta0 && theta_f <= theta0) {
+                                if (theta_c > theta0) {
                                     stencil.emplace_back(j0 - i0, j1 - i1, j2 - i2);
                                 }
                             }
@@ -161,9 +163,9 @@ namespace fmm {
         //     std::cout << std::endl;
         // }
 
-
         return superimposed_stencil;
     }
 
+}    // namespace p2p_kernel
 }    // namespace fmm
 }    // namespace octotiger

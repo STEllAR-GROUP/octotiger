@@ -46,7 +46,7 @@ namespace fmm {
                 cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
 
             const size_t interaction_partner_flat_index =
-                to_flat_index_padded(interaction_partner_index);
+                to_flat_index_padded(interaction_partner_index); // iii1n
 
             // check whether all vector elements are in empty border
             if (vector_is_empty[interaction_partner_flat_index]) {
@@ -107,6 +107,7 @@ namespace fmm {
             // expansion_v m_partner;
             std::array<m2m_vector, 20> m_partner;
 
+            // ONE expansion
             m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
             m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
             m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
@@ -226,6 +227,7 @@ namespace fmm {
             // struct_of_array_iterator<expansion, real, 20> current_potential_result(
             //     potential_expansions_SoA, cell_flat_index_unpadded);
 
+            // Potential Expansion = A0?
             m2m_vector tmp =
                 potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + cur_pot[0];
             Vc::where(mask, tmp).memstore(
@@ -358,6 +360,7 @@ namespace fmm {
             std::array<m2m_vector, 15> D_upper;
             // D_calculator.calculate_D_upper(D_upper);
 
+            //B0?
             m2m_vector current_angular_correction[NDIM];
             current_angular_correction[0] = 0.0;
             current_angular_correction[1] = 0.0;
@@ -377,6 +380,7 @@ namespace fmm {
                 m_partner[10] - local_expansions_SoA.value<10>(cell_flat_index) * n0_constant;
             // m_cell_iterator++; // 11
 
+            // B0?
             current_angular_correction[0] -= n0_tmp * (D_upper[0] * factor_sixth_v[10]);
             current_angular_correction[1] -= n0_tmp * (D_upper[1] * factor_sixth_v[10]);
             current_angular_correction[2] -= n0_tmp * (D_upper[2] * factor_sixth_v[10]);
@@ -472,6 +476,7 @@ namespace fmm {
             current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth_v[19]);
             current_angular_correction[2] -= n0_tmp * (D_upper[14] * factor_sixth_v[19]);
 
+            // L?
             tmp = angular_corrections_SoA.value<0>(cell_flat_index_unpadded) +
                 current_angular_correction[0];
             Vc::where(mask, tmp).memstore(
@@ -556,8 +561,7 @@ namespace fmm {
                 center_of_masses_SoA.value<2>(interaction_partner_flat_index);
 
             // expansion_v m_partner;
-            std::array<m2m_vector, 20> m_partner;
-
+            std::array<m2m_vector, 20> m_partner; //m0 from mpole from neighbors?
             m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
             m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
             m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
@@ -592,7 +596,7 @@ namespace fmm {
             D_calculator.calculate_D_lower(D_lower);
 
             // expansion_v current_potential;
-            std::array<m2m_vector, 10> cur_pot;
+            std::array<m2m_vector, 10> cur_pot; //current potential = cur_pot = A in the old style
 
             // 10-19 are not cached!
 

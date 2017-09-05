@@ -27,6 +27,7 @@ extern options opts;
 #include <hpx/include/util.hpp>
 
 #include "m2m_kernel/m2m_interactions.hpp"
+#include "p2p_kernel/m2m_interactions.hpp"
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
@@ -588,7 +589,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
     /****************************************************************************/
     // data managemenet for old and new version of interaction computation
-    
+
      // all neighbors and placeholder for yourself
     std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
     for (geo::direction const& dir : geo::direction::full_set()) {
@@ -607,14 +608,15 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         } else {
             is_direction_empty[dir] = false;
         }
-    }    
-    
+    }
+
      bool new_style_enabled = true;
      /***************************************************************************/
      // new-style interaction calculation (both cannot be active at the same time)
-     if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
+     //if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
+     if (new_style_enabled && !grid_ptr->get_root()) {
          std::cout << "in new kernel" << std::endl;
-         
+
         std::vector<multipole>& M_ptr = grid_ptr->get_M();
         std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
         octotiger::fmm::m2m_interactions interactor(
@@ -630,23 +632,28 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         if (opts.ang_con) {
             std::fill(std::begin(L_c), std::end(L_c), ZERO);
         }
-        
+
+        octotiger::fmm::p2p_kernel::m2m_interactions p2p_interactor(
+            M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
+        p2p_interactor.compute_interactions();
+
         //TODO: do other interaction types, will be replaced
         for (const geo::direction& dir : geo::direction::full_set()) {
             // TODO: does this ever trigger? no monopoles in neighbor cell maybe?
             if (!neighbors[dir].empty()) {
                 neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
-                if (neighbor_data.is_monopole) {
+                if ((neighbor_data.is_monopole && !grid_ptr->get_leaf()) ||
+                    (!neighbor_data.is_monopole && grid_ptr->get_leaf())) {
                     // this triggers "compute_boundary_interactions_monopole_multipole()"
                     grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
                                                             neighbor_data.is_monopole, neighbor_data.data);
                 }
             }
         }
-        
+
         interactor.add_to_potential_expansions(L);
         interactor.add_to_center_of_masses(L_c);
-        
+
         // clear
         std::fill(std::begin(L), std::end(L), ZERO);
         if (opts.ang_con) {
@@ -656,13 +663,15 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
         std::vector<expansion>& potential_expansions = interactor.get_potential_expansions();
         std::vector<space_vector>& angular_corrections = interactor.get_angular_corrections();
+        std::vector<expansion>& p2p_potential_expansions = p2p_interactor.get_potential_expansions();
+        std::vector<space_vector>& p2p_angular_corrections = p2p_interactor.get_angular_corrections();
 
         // write results obtained by new kernel back into grid object
         for (size_t i = 0; i < L.size(); i++) {
-            L[i] = potential_expansions[i];
+          L[i] = potential_expansions[i] + p2p_potential_expansions[i];
         }
         for (size_t i = 0; i < L_c.size(); i++) {
-            L_c[i] = angular_corrections[i];
+          L_c[i] = angular_corrections[i] + p2p_angular_corrections[i];
         }
 
      } else {
@@ -677,7 +686,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
              }
          }
      }
-     
+
      /**************************************************************************/
      // now that all boundary information has been processed, signal all non-empty neighbors
      // note that this was done before during boundary calculations
