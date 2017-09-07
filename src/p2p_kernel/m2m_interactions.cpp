@@ -15,9 +15,9 @@ namespace fmm {
         size_t total_neighbors = 0;
         size_t missing_neighbors = 0;
 
-        std::vector<multiindex<>> m2m_interactions::stencil;
+        std::vector<multiindex<>> p2p_interactions::stencil;
 
-        m2m_interactions::m2m_interactions(std::vector<real>& mons,
+        p2p_interactions::p2p_interactions(std::vector<real>& mons,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx)
           : neighbor_empty(27)
           , type(type)
@@ -88,11 +88,11 @@ namespace fmm {
                 });
         }
 
-        void m2m_interactions::compute_interactions() {
+        void p2p_interactions::compute_interactions() {
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
                 potential_expansions_SoA(potential_expansions);
 
-            m2m_kernel kernel(neighbor_empty, type, dx);
+            p2p_kernel kernel(neighbor_empty, type, dx);
 
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
@@ -108,21 +108,21 @@ namespace fmm {
             potential_expansions_SoA.to_non_SoA(potential_expansions);
         }
 
-        std::vector<real>& m2m_interactions::get_local_expansions() {
+        std::vector<real>& p2p_interactions::get_local_expansions() {
             return local_expansions;
         }
 
-        std::vector<expansion>& m2m_interactions::get_potential_expansions() {
+        std::vector<expansion>& p2p_interactions::get_potential_expansions() {
             return potential_expansions;
         }
 
-        void m2m_interactions::print_potential_expansions() {
+        void p2p_interactions::print_potential_expansions() {
             print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
                 std::cout << " (" << i << ") =[0] " << this->potential_expansions[flat_index][0];
             });
         }
 
-        void m2m_interactions::add_to_potential_expansions(std::vector<expansion>& L) {
+        void p2p_interactions::add_to_potential_expansions(std::vector<expansion>& L) {
             iterate_inner_cells_not_padded([this, &L](multiindex<>& i, size_t flat_index) {
                 potential_expansions[flat_index] += L[flat_index];
             });

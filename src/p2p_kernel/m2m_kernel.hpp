@@ -13,7 +13,7 @@ namespace octotiger {
 namespace fmm {
     namespace p2p_kernel {
 
-        class m2m_kernel
+        class p2p_kernel
         {
         private:
             std::vector<bool>& neighbor_empty;
@@ -79,13 +79,13 @@ namespace fmm {
             // void calculate_coarse_indices();
 
         public:
-            m2m_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dE);
+            p2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dE);
 
-            m2m_kernel(m2m_kernel& other) = delete;
+            p2p_kernel(p2p_kernel& other) = delete;
 
-            m2m_kernel(const m2m_kernel& other) = delete;
+            p2p_kernel(const p2p_kernel& other) = delete;
 
-            m2m_kernel operator=(const m2m_kernel& other) = delete;
+            p2p_kernel operator=(const p2p_kernel& other) = delete;
 
             void apply_stencil(std::vector<real>& mons,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&

@@ -16,7 +16,7 @@ namespace octotiger {
 namespace fmm {
     namespace p2p_kernel {
 
-        m2m_kernel::m2m_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx)
+        p2p_kernel::p2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx)
           : neighbor_empty(neighbor_empty)
           , type(type)
           , theta_rec_squared(sqr(1.0 / opts.theta))
@@ -30,7 +30,7 @@ namespace fmm {
             // calculate_coarse_indices();
         }
 
-        void m2m_kernel::apply_stencil(std::vector<real>& local_expansions,
+        void p2p_kernel::apply_stencil(std::vector<real>& local_expansions,
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                 potential_expansions_SoA,
             std::vector<multiindex<>>& stencil) {
@@ -85,19 +85,7 @@ namespace fmm {
             }
         }
 
-        // void m2m_kernel::apply_stencil_element(multiindex& stencil_element) {
-        //     // execute kernel for individual interactions for every inner cell
-        //     // use this object as a functor for the iteration
-        //     iterate_inner_cells_padded_stencil(stencil_element, *this);
-
-        //     // std::cout << "potential_expansions.size(): " <<
-        //     potential_expansions.size() <<
-        //     std::endl;
-        //     // std::cout << "potential_expansions[0]: " << potential_expansions[0];
-        //     // std::cout << std::endl;
-        // }
-
-        void m2m_kernel::vectors_check_empty() {
+        void p2p_kernel::vectors_check_empty() {
             vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
                 for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
@@ -145,30 +133,6 @@ namespace fmm {
                 }
             }
         }
-
-        // void m2m_kernel::calculate_coarse_indices() {
-        //     coarse_x = std::vector<int32_t>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
-        //     coarse_y = std::vector<int32_t>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
-        //     coarse_z = std::vector<int32_t>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
-
-        //     const int32_t patch_size = static_cast<int32_t>(INX);
-        //     const int32_t subtract = static_cast<int32_t>(INX / 2);
-        //     for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
-        //         for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
-        //             for (size_t i2 = 0; i2 < PADDED_STRIDE; i2 += 1) {
-        //                 const multiindex<> cell_index(i0, i1, i2);
-        //                 const int64_t cell_flat_index = to_flat_index_padded(cell_index);
-        //                 coarse_x[cell_flat_index] = ((cell_index.x + patch_size) >> 1) -
-        //                 subtract;
-        //                 coarse_y[cell_flat_index] = ((cell_index.y + patch_size) >> 1) -
-        //                 subtract;
-        //                 coarse_z[cell_flat_index] = ((cell_index.z + patch_size) >> 1) -
-        //                 subtract;
-        //             }
-        //         }
-        //     }
-        // }
-
     }    // namespace p2p_kernel
 }    // namespace fmm
 }    // namespace octotiger

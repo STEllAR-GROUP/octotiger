@@ -21,7 +21,7 @@ namespace fmm {
         // for both local and multipole expansion
         // typedef taylor<4, real> expansion;
 
-        class m2m_interactions
+        class p2p_interactions
         {
         private:
             /*
@@ -48,7 +48,7 @@ namespace fmm {
 
             // at this point, uses the old datamembers of the grid class as input
             // and converts them to the new data structure
-            m2m_interactions(std::vector<real>& mons, std::vector<neighbor_gravity_type>& neighbors,
+            p2p_interactions(std::vector<real>& mons, std::vector<neighbor_gravity_type>& neighbors,
                 gsolve_type type, real dx);
 
             void compute_interactions();

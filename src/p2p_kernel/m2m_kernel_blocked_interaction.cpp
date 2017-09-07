@@ -20,7 +20,7 @@ namespace fmm {
         // - remove all sqr()
         // - increase INX
 
-        void m2m_kernel::blocked_interaction_rho(
+        void p2p_kernel::blocked_interaction_rho(
             std::vector<real>& mons,
             struct_of_array_data<expansion, real, 20, ENTRIES,
                 SOA_PADDING>& __restrict__ potential_expansions_SoA,    // L
@@ -117,7 +117,7 @@ namespace fmm {
             }
         }
 
-        void m2m_kernel::blocked_interaction_non_rho(
+        void p2p_kernel::blocked_interaction_non_rho(
             std::vector<real>& mons,
             struct_of_array_data<expansion, real, 20, ENTRIES,
                 SOA_PADDING>& __restrict__ potential_expansions_SoA,    // L

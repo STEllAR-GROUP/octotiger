@@ -668,7 +668,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 L_c[i] = angular_corrections[i];
             }
         } else {
-            octotiger::fmm::p2p_kernel::m2m_interactions p2p_interactor(
+            octotiger::fmm::p2p_kernel::p2p_interactions p2p_interactor(
                 mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
             p2p_interactor.compute_interactions();
             p2p_interactor.add_to_potential_expansions(L);
