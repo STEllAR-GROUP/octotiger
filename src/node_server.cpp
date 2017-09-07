@@ -647,59 +647,37 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         std::vector<expansion> potential_expansions;
         std::vector<space_vector> angular_corrections;
         if (!grid_ptr->get_leaf()) {
-          octotiger::fmm::m2m_interactions interactor(
-              M_ptr, com_ptr, all_neighbor_interaction_data, type);
-          interactor.compute_interactions();    // includes boundary
-          interactor.add_to_potential_expansions(L);
-          interactor.add_to_center_of_masses(L_c);
-          potential_expansions = interactor.get_potential_expansions();
-          angular_corrections = interactor.get_angular_corrections();
-        // clear
-        std::fill(std::begin(L), std::end(L), ZERO);
-        if (opts.ang_con && !grid_ptr->get_leaf()) {
-            std::fill(std::begin(L_c), std::end(L_c), ZERO);
-        }
-        //TODO: end of region to be replaced
+            octotiger::fmm::m2m_interactions interactor(
+                M_ptr, com_ptr, all_neighbor_interaction_data, type);
+            interactor.compute_interactions();    // includes boundary
+            interactor.add_to_potential_expansions(L);
+            interactor.add_to_center_of_masses(L_c);
+            potential_expansions = interactor.get_potential_expansions();
+            angular_corrections = interactor.get_angular_corrections();
+            // clear
+            std::fill(std::begin(L), std::end(L), ZERO);
+            if (opts.ang_con && !grid_ptr->get_leaf()) {
+                std::fill(std::begin(L_c), std::end(L_c), ZERO);
+            }
 
-
-        // write results obtained by new kernel back into grid object
-        for (size_t i = 0; i < L.size(); i++) {
-          L[i] = potential_expansions[i];
-        }
-          for (size_t i = 0; i < L_c.size(); i++) {
-            L_c[i] = angular_corrections[i];
-          }
+            // write results obtained by new kernel back into grid object
+            for (size_t i = 0; i < L.size(); i++) {
+                L[i] = potential_expansions[i];
+            }
+            for (size_t i = 0; i < L_c.size(); i++) {
+                L_c[i] = angular_corrections[i];
+            }
         } else {
-          octotiger::fmm::p2p_kernel::m2m_interactions p2p_interactor(
-              mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
-          p2p_interactor.compute_interactions();
-          p2p_interactor.add_to_potential_expansions(L);
-          potential_expansions = p2p_interactor.get_potential_expansions();
+            octotiger::fmm::p2p_kernel::m2m_interactions p2p_interactor(
+                mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
+            p2p_interactor.compute_interactions();
+            p2p_interactor.add_to_potential_expansions(L);
+            potential_expansions = p2p_interactor.get_potential_expansions();
 
-
-        for (size_t i = 0; i < L.size(); i++) {
-          L[i] = potential_expansions[i];
+            for (size_t i = 0; i < L.size(); i++) {
+                L[i] = potential_expansions[i];
+            }
         }
-         // grid_ptr->compute_interactions(type);
-         // // waits for boundary data and then computes boundary interactions
-         // for (auto const& dir : geo::direction::full_set()) {
-         //     if (!is_direction_empty[dir]) {
-         //         neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
-         //         grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole, neighbor_data.data);
-         //     }
-
-         // }
-         //     for (auto i = 0; i < L.size();i++){
-         //       std::cout << potential_expansions[i] << std::endl << "::" << L[i] << std::endl;
-         //       std::cin.get();
-         //     }
-
-
-        }
-
-
-
-
      } else {
          // old-style interaction calculation
          // computes inner interactions
