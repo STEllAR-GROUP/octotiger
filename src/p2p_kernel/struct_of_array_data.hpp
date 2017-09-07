@@ -28,22 +28,11 @@ namespace p2p_kernel {
             return data + flat_index + component_array_offset;
         }
 
-      inline component_type* pointer(const size_t flat_index, size_t component_access) const {
-            constexpr size_t component_array_offset =
-                component_access * padded_entries_per_component;
-            // should result in single move instruction, indirect addressing: reg + reg + constant
-            return data + flat_index + component_array_offset;
-        }
-
         // careful, this returns a copy!
         template <size_t component_access>
         inline m2m_vector value(const size_t flat_index) const {
             return m2m_vector(
                 this->pointer<component_access>(flat_index), Vc::flags::element_aligned);
-        }
-      inline m2m_vector value(const size_t flat_index, size_t component_access) const {
-            return m2m_vector(
-                this->pointer(flat_index, component_access), Vc::flags::element_aligned);
         }
 
         // template <size_t component_access>

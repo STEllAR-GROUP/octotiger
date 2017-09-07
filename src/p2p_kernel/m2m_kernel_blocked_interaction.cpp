@@ -21,14 +21,9 @@ namespace p2p_kernel {
     // - increase INX
 
     void m2m_kernel::blocked_interaction_rho(
-        struct_of_array_data<expansion, real, 20, ENTRIES,
-        SOA_PADDING>& __restrict__ local_expansions_SoA, // M_ptr
-        struct_of_array_data<space_vector, real, 3, ENTRIES,
-        SOA_PADDING>& __restrict__ center_of_masses_SoA, // com0
+        std::vector<real> &mons,
         struct_of_array_data<expansion, real, 20, ENTRIES,
         SOA_PADDING>& __restrict__ potential_expansions_SoA, // L
-        struct_of_array_data<space_vector, real, 3, ENTRIES,
-        SOA_PADDING>& __restrict__ angular_corrections_SoA, // L_c
         const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index, ///iii0
         const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
         const multiindex<>& __restrict__ cell_index_unpadded, const size_t cell_flat_index_unpadded,
@@ -39,13 +34,13 @@ namespace p2p_kernel {
 
         std::array<m2m_vector, 4> d_components;
         d_components[0] = 1.0 / dx;
-        d_components[1] = 1.0 / sqr(dx);
-        d_components[2] = 1.0 / sqr(dx);
-        d_components[3] = 1.0 / sqr(dx);
+        d_components[1] = -1.0 / sqr(dx);
+        d_components[2] = -1.0 / sqr(dx);
+        d_components[3] = -1.0 / sqr(dx);
 
         for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
              outer_stencil_index + inner_stencil_index < stencil.size();
-             inner_stencil_index += 1) {
+             inner_stencil_index += 1) { // blocking is done by stepping in die outer_stencil index
             const multiindex<>& stencil_element =
                 stencil[outer_stencil_index + inner_stencil_index];
             const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
@@ -54,17 +49,25 @@ namespace p2p_kernel {
             const size_t interaction_partner_flat_index =
                 to_flat_index_padded(interaction_partner_index); // iii1n
 
-            // all relevant components (4)
-            std::array<m2m_vector, 20> m_partner; //m0 from mpole from neighbors?
-            m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
-            m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
-            m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
-            m_partner[3] = local_expansions_SoA.value<3>(interaction_partner_flat_index);
+            // implicitly broadcasts to vector
+            multiindex<m2m_int_vector> interaction_partner_index_coarse(interaction_partner_index);
+            interaction_partner_index_coarse.z += offset_vector;
+            // note that this is the same for groups of 2x2x2 elements
+            // -> maps to the same for some SIMD lanes
+            interaction_partner_index_coarse.transform_coarse();
 
-            m_partner[0] *= d_components[0];
-            m_partner[1] *= d_components[1];
-            m_partner[2] *= d_components[2];
-            m_partner[3] *= d_components[3];
+            m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
+                cell_index_coarse, interaction_partner_index_coarse);
+
+            m2m_vector theta_c_rec_squared =
+                // Vc::static_datapar_cast<double>(theta_c_rec_squared_int);
+                Vc::static_datapar_cast_double_to_int(theta_c_rec_squared_int);
+
+            m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
+
+            m2m_vector monopole(mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
+            // real monopole = mons[interaction_partner_flat_index];
+
 
             // do these values really map to i0 - i1, j0 - j1, k0 - k1?
             // gotta complain to david if they do not
@@ -72,55 +75,133 @@ namespace p2p_kernel {
             const real y = stencil_element.y;
             const real z = stencil_element.z;
             const real tmp = sqr(x) + sqr(y) + sqr(z);
-            const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
+            const real r = std::sqrt(tmp);
             const real r3 = r * r * r;
             std::array<m2m_vector, 4> four;
-            if (r > 0.0) {
               four[0] = -1.0 / r;
               four[1] = x / r3;
               four[2] = y / r3;
               four[3] = z / r3;
-            } else {
-              for (integer i = 0; i != 4; ++i) {
-                four[i] = 0.0;
-              }
-            }
 
-            m_partner[0] *= four[0];
-            m_partner[1] *= four[1];
-            m_partner[2] *= four[2];
-            m_partner[3] *= four[3];
+            four[0] *= monopole;
+            four[1] *= monopole;
+            four[2] *= monopole;
+            four[3] *= monopole;
+            four[0] *= d_components[0];
+            four[1] *= d_components[1];
+            four[2] *= d_components[2];
+            four[3] *= d_components[3];
 
 
-            m2m_vector tmpstore = potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + m_partner[0];
-            tmpstore.memstore(
+            m2m_vector tmpstore = potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + four[0];
+            Vc::where(mask, tmpstore).memstore(
                 potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
-            tmpstore = potential_expansions_SoA.value<1>(cell_flat_index_unpadded) + m_partner[1];
-            tmpstore.memstore(
+            tmpstore = potential_expansions_SoA.value<1>(cell_flat_index_unpadded) + four[1];
+            Vc::where(mask, tmpstore).memstore(
                 potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
-            tmpstore = potential_expansions_SoA.value<2>(cell_flat_index_unpadded) + m_partner[2];
-            tmpstore.memstore(
+            tmpstore = potential_expansions_SoA.value<2>(cell_flat_index_unpadded) + four[2];
+            Vc::where(mask, tmpstore).memstore(
                 potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
-            tmpstore = potential_expansions_SoA.value<3>(cell_flat_index_unpadded) + m_partner[3];
-            tmpstore.memstore(
+            tmpstore = potential_expansions_SoA.value<3>(cell_flat_index_unpadded) + four[3];
+            Vc::where(mask, tmpstore).memstore(
                 potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
         }
     }
 
     void m2m_kernel::blocked_interaction_non_rho(
-        struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
-        struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
-        struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& potential_expansions_SoA,
-        struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& angular_corrections_SoA,
-        const multiindex<>& cell_index, const size_t cell_flat_index,
-        const multiindex<m2m_int_vector>& cell_index_coarse,
-        const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-        const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index) {
-      std::cout << "Why are you here?" << std::endl;
+        std::vector<real> &mons,
+        struct_of_array_data<expansion, real, 20, ENTRIES,
+        SOA_PADDING>& __restrict__ potential_expansions_SoA, // L
+        const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index, ///iii0
+        const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
+        const multiindex<>& __restrict__ cell_index_unpadded, const size_t cell_flat_index_unpadded,
+        const std::vector<multiindex<>>& __restrict__ stencil, const size_t outer_stencil_index) {
+        // TODO: should change name to something better (not taylor, but space_vector)
+        // struct_of_array_taylor<space_vector, real, 3> X =
+        //     center_of_masses_SoA.get_view(cell_flat_index);
+
+        std::array<m2m_vector, 4> d_components;
+        d_components[0] = 1.0 / dx;
+        d_components[1] = -1.0 / sqr(dx);
+        d_components[2] = -1.0 / sqr(dx);
+        d_components[3] = -1.0 / sqr(dx);
+
+        for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
+             outer_stencil_index + inner_stencil_index < stencil.size();
+             inner_stencil_index += 1) { // blocking is done by stepping in die outer_stencil index
+            const multiindex<>& stencil_element =
+                stencil[outer_stencil_index + inner_stencil_index];
+            const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
+                cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
+
+            const size_t interaction_partner_flat_index =
+                to_flat_index_padded(interaction_partner_index); // iii1n
+
+
+            // implicitly broadcasts to vector
+            multiindex<m2m_int_vector> interaction_partner_index_coarse(interaction_partner_index);
+            interaction_partner_index_coarse.z += offset_vector;
+            // note that this is the same for groups of 2x2x2 elements
+            // -> maps to the same for some SIMD lanes
+            interaction_partner_index_coarse.transform_coarse();
+
+            m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
+                cell_index_coarse, interaction_partner_index_coarse);
+
+            m2m_vector theta_c_rec_squared =
+                // Vc::static_datapar_cast<double>(theta_c_rec_squared_int);
+                Vc::static_datapar_cast_double_to_int(theta_c_rec_squared_int);
+
+            m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
+
+            m2m_vector monopole(mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
+            // real monopole = mons[interaction_partner_flat_index];
+
+            // do these values really map to i0 - i1, j0 - j1, k0 - k1?
+            // gotta complain to david if they do not
+            const real x = stencil_element.x;
+            const real y = stencil_element.y;
+            const real z = stencil_element.z;
+            const real tmp = sqr(x) + sqr(y) + sqr(z);
+            const real r = std::sqrt(tmp);
+            const real r3 = r * r * r;
+            std::array<m2m_vector, 4> four;
+              four[0] = -1.0 / r;
+              four[1] = x / r3;
+              four[2] = y / r3;
+              four[3] = z / r3;
+
+            four[0] *= monopole;
+            four[1] *= monopole;
+            four[2] *= monopole;
+            four[3] *= monopole;
+            four[0] *= d_components[0];
+            four[1] *= d_components[1];
+            four[2] *= d_components[2];
+            four[3] *= d_components[3];
+
+
+            m2m_vector tmpstore = potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + four[0];
+            Vc::where(mask, tmpstore).memstore(
+                potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore = potential_expansions_SoA.value<1>(cell_flat_index_unpadded) + four[1];
+            Vc::where(mask, tmpstore).memstore(
+                potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore = potential_expansions_SoA.value<2>(cell_flat_index_unpadded) + four[2];
+            Vc::where(mask, tmpstore).memstore(
+                potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore = potential_expansions_SoA.value<3>(cell_flat_index_unpadded) + four[3];
+            Vc::where(mask, tmpstore).memstore(
+                potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+        }
     }
 }    // namespace p2p_kernel
 }    // namespace fmm

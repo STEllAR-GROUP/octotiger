@@ -995,7 +995,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
             integer index = (mpoles.local_semaphore != nullptr) ? bnd.second : si;
                 v4sd m0 = (*(mpoles).m)[index];
             m0 *= d0;
-            std::cout << dsize << std::endl;
+
             for (integer li = 0; li < dsize; ++li) {
                 const integer iii0 = bnd.first[li];
                 auto tmp1 = m0 * bnd.four[li];
