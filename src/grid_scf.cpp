@@ -44,13 +44,13 @@ static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT
 #define READ_LINE(s) 		\
 	else if( cmp(ptr,#s) ) { \
 		s = read_float(ptr); \
-		printf( #s "= %e\n", double(s)); \
+		if( hpx::get_locality_id() == 0 ) printf( #s "= %e\n", double(s)); \
 	}
 
 void read_option_file() {
 	FILE* fp = fopen("scf.init", "rt");
-	if (fp != NULL) {
-		printf( "SCF option file found\n" );
+	if (fp != NULL  ) {
+		if( hpx::get_locality_id() == 0 ) printf( "SCF option file found\n" );
 		const auto cmp = [](char* ptr, const char* str) {
 			return strncmp(ptr,str,strlen(str))==0;
 		};
@@ -93,13 +93,13 @@ void read_option_file() {
 				READ_LINE(M2)
 				READ_LINE(a)
 				else if( strlen(ptr) ){
-					printf( "unknown SCF option - %s\n", buffer);
+					if( hpx::get_locality_id() == 0 )  printf( "unknown SCF option - %s\n", buffer);
 				}
 			}
 		}
 		fclose(fp);
 	} else {
-		printf( "SCF option file \"scf.init\" not found - using defaults\n" );
+		if( hpx::get_locality_id() == 0 )  printf( "SCF option file \"scf.init\" not found - using defaults\n" );
 	}
 
 }
@@ -235,7 +235,7 @@ struct scf_parameters {
 				}
 			}
 		}
-		printf( "R1 R2 %e %e\n", R1, R2);
+	//	printf( "R1 R2 %e %e\n", R1, R2);
 	}
 };
 

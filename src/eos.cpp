@@ -104,6 +104,7 @@ real struct_eos::P0() const {
 	}
 	return h0() / den;
 }
+
 void struct_eos::set_frac(real f) {
 	if (f_C <= 0.0) {
 		abort_error()
