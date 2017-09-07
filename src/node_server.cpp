@@ -27,7 +27,7 @@ extern options opts;
 #include <hpx/include/util.hpp>
 
 #include "m2m_kernel/m2m_interactions.hpp"
-#include "p2p_kernel/m2m_interactions.hpp"
+#include "p2p_kernel/p2p_interactions.hpp"
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 

@@ -26,7 +26,7 @@
 #include "m2m_kernel/calculate_stencil.hpp"
 #include "m2m_kernel/m2m_interactions.hpp"
 #include "p2p_kernel/calculate_stencil.hpp"
-#include "p2p_kernel/m2m_interactions.hpp"
+#include "p2p_kernel/p2p_interactions.hpp"
 
 options opts;
 

@@ -1,4 +1,4 @@
-#include "m2m_kernel.hpp"
+#include "p2p_kernel.hpp"
 
 #include "grid_flattened_indices.hpp"
 #include "helper.hpp"

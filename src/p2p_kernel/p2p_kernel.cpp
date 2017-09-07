@@ -1,4 +1,4 @@
-#include "m2m_kernel.hpp"
+#include "p2p_kernel.hpp"
 
 #include "defs.hpp"
 #include "interaction_types.hpp"

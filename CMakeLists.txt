@@ -117,11 +117,11 @@ set(source_files ${source_files}
     src/m2m_kernel/m2m_kernel.cpp
     src/m2m_kernel/interactions_iterators.cpp
     src/m2m_kernel/m2m_kernel_blocked_interaction.cpp
-    src/p2p_kernel/m2m_interactions.cpp
+    src/p2p_kernel/p2p_interactions.cpp
     src/p2p_kernel/calculate_stencil.cpp
-    src/p2p_kernel/m2m_kernel.cpp
+    src/p2p_kernel/p2p_kernel.cpp
     src/p2p_kernel/interactions_iterators.cpp
-    src/p2p_kernel/m2m_kernel_blocked_interaction.cpp
+    src/p2p_kernel/p2p_kernel_blocked_interaction.cpp
 )
 
 set(header_files
