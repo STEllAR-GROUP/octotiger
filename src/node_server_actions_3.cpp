@@ -283,24 +283,17 @@ void node_server::start_run(bool scf, integer ngrids)
     	erad_init();
     }
 #endif
-
+    printf( "Starting run...\n" );
     auto fut_ptr = me.get_ptr();
     node_server* root_ptr = fut_ptr.get();
     if( opts.output_only ) {
-   // 	diagnostics(0.0);
     	diagnostics();
- //       printf("doing silo out...\n");
   	output_cnt = root_ptr->get_rotation_count() / opts.output_dt;
         std::string fname = "X." + std::to_string(int(output_cnt));
         output(opts.data_dir, fname, output_cnt, false);
-    //	for( real rhoc = 1.0e-10; rhoc < 1.0e+5; rhoc *= 10.0) {
-    //		printf( "%e\n", rhoc);
-    	//	diagnostics(rhoc);
-    //	}
     	return;
     }
 
-    printf("Starting...\n");
     solve_gravity(false);
     ngrids = regrid(me.get_gid(), grid::get_omega(), -1,  false);
 

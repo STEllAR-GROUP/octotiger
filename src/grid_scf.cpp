@@ -221,16 +221,12 @@ struct scf_parameters {
 			struct_eos1 = std::make_shared < struct_eos > (scf_options::M1, *struct_eos2);
 		} else {
 			if (scf_options::equal_struct_eos) {
-				printf( "!!\n");
 				struct_eos2 = std::make_shared < struct_eos > (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
 				struct_eos1 = std::make_shared < struct_eos > (scf_options::M1, scf_options::nc1, *struct_eos2);
 			} else {
 				struct_eos1 = std::make_shared < struct_eos > (scf_options::M1, R1, scf_options::nc1, scf_options::ne1, scf_options::core_frac1, scf_options::mu1);
 				if (contact > 0.0) {
-					printf( "!!!\n");
-				//	struct_eos2 = std::make_shared < struct_eos > (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::mu2, *struct_eos1);
 				} else {
-				//	printf( "!!!!\n");
 					struct_eos2 = std::make_shared < struct_eos > (scf_options::M2, R2, scf_options::nc2, scf_options::ne2, scf_options::core_frac2, scf_options::mu2);
 				}
 			}
@@ -417,7 +413,7 @@ void node_server::run_scf(std::string const& data_dir) {
 	grid::set_omega(omega);
 	printf( "Starting SCF\n");
 	real l1_phi = 0.0, l2_phi, l3_phi;
-	for (integer i = 0; i != 40; ++i) {
+	for (integer i = 0; i != 100; ++i) {
 //		profiler_output(stdout);
         char buffer[33];    // 21 bytes for int (max) + some leeway
         sprintf(buffer, "X.scf.%i.silo", int(i));
