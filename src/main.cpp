@@ -150,9 +150,9 @@ int hpx_main(int argc, char* argv[]) {
                 root->solve_gravity(false);
                 printf("...done\n");
             }
-            if( !opts.output_only ) {	
+        //    if( !opts.output_only ) {
                hpx::async(&node_server::start_run, root, opts.problem == DWD && !opts.found_restart_file, ngrids).get();
-            }
+         //   }
             root->report_timing();
         }
     } catch (...) {

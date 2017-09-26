@@ -195,7 +195,7 @@ hpx::future<grid::output_list_type> node_server::load(
 					grid::output(
 							my_list, opts.data_dir, this_fname, current_time, get_rotation_count() / opts.output_dt, false);
 				}
-				diagnostics();
+	//			diagnostics();
 			}
 			printf("Done...\n");
 

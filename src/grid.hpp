@@ -164,6 +164,7 @@ private:
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 #endif
 
+	std::vector<integer> roche_lobe;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> Ua;
 	std::vector<std::vector<real>> U0;
@@ -373,6 +374,7 @@ void scf_binary_init();
 
 template<class Archive>
 void grid::load(Archive& arc, const unsigned) {
+	arc >> roche_lobe;
 	arc >> is_leaf;
 	arc >> is_root;
 	arc >> dx;
@@ -397,6 +399,7 @@ void grid::load(Archive& arc, const unsigned) {
 }
 template<class Archive>
 void grid::save(Archive& arc, const unsigned) const {
+	arc << roche_lobe;
 	arc << is_leaf;
 	arc << is_root;
 	arc << dx;

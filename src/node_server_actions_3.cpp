@@ -288,9 +288,7 @@ void node_server::start_run(bool scf, integer ngrids)
     node_server* root_ptr = fut_ptr.get();
     if( opts.output_only ) {
     	diagnostics();
-  	output_cnt = root_ptr->get_rotation_count() / opts.output_dt;
-        std::string fname = "X." + std::to_string(int(output_cnt));
-        output(opts.data_dir, fname, output_cnt, false);
+        output(opts.data_dir, opts.output_filename, output_cnt, false);
     	return;
     }
 
@@ -303,24 +301,18 @@ void node_server::start_run(bool scf, integer ngrids)
     real& t = current_time;
     integer step_num = 0;
 
-    printf( "1\n");
-
     output_cnt = root_ptr->get_rotation_count() / output_dt;
 
     profiler_output(stdout);
 
     real bench_start, bench_stop;
 
-    printf( "2\n");
-
-    if( current_time == 0.0 ) {
+   // if( current_time == 0.0 ) {
     	diagnostics();
-    }
+   // }
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
             break;
-        printf( "3\n");
-
         auto time_start = std::chrono::high_resolution_clock::now();
         if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
             //	if (step_num != 0) {
@@ -337,13 +329,11 @@ void node_server::start_run(bool scf, integer ngrids)
             ++output_cnt;
 
         }
-        printf( "4\n");
         if (step_num == 0) {
             bench_start = hpx::util::high_resolution_clock::now() / 1e9;
         }
 
         real dt = 0;
-        printf( "5\n");
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 

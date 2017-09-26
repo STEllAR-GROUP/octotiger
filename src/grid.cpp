@@ -76,9 +76,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 						}
 					}
 				}
-				return rc;
-			};
-
+		return rc;
+	};
+	roche_lobe.resize(INX * INX * INX);
 	for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 		for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 			for (integer l = H_BW; l != H_NX - H_BW; ++l) {
@@ -144,20 +144,10 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 							rc.stellar_vol[i] += dV;
 						}
 					}
-				/*	auto& tmp = roche[h0index(j, k, l)];
-					switch (i) {
-					case -1:
-						tmp = 0;
-						break;
-					case 0:
-						tmp = 1;
-						break;
-					case 1:
-						tmp = 2;
-						break;
-					}*/
+
 					rc.rho_max[i] = std::max(rc.rho_max[i], rho0);
 			//		U[spc_vac_i][iii] = real(i+2);
+					roche_lobe[h0index(j - H_BW, k - H_BW, l - H_BW)] = i;
 					const integer iii = hindex(j, k, l);
 					real ek = ZERO;
 					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
