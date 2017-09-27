@@ -18,6 +18,8 @@
 struct diagnostics_t {
 	static constexpr integer nspec = 2;
 	real l1_phi;
+	real l2_phi;
+	real l3_phi;
 	real omega;
 	real m[nspec];
 	real gt[nspec];
@@ -68,7 +70,9 @@ struct diagnostics_t {
 		z_mom_orb = 0.0;
 		virial = 0.0;
 		a = 0.0;
-		l1_phi = 0.0;
+		l1_phi = -std::numeric_limits<real>::max();
+		l2_phi = -std::numeric_limits<real>::max();
+		l3_phi = -std::numeric_limits<real>::max();
 	}
 	static inline real RL_radius(real q ) {
 		const real q13 = std::pow(q,1.0/3.0);
@@ -79,6 +83,9 @@ struct diagnostics_t {
 	}
 	const diagnostics_t& compute();
 	diagnostics_t& operator+=(const diagnostics_t& other) {
+		l1_phi = std::max(l1_phi, other.l1_phi);
+		l2_phi = std::max(l2_phi, other.l2_phi);
+		l3_phi = std::max(l3_phi, other.l3_phi);
 		for( integer f = 0; f != NF; ++f) {
 			grid_sum[f] += other.grid_sum[f];
 			grid_out[f] += other.grid_out[f];
@@ -119,6 +126,8 @@ struct diagnostics_t {
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
 		arc & l1_phi;
+		arc & l2_phi;
+		arc & l3_phi;
 		arc & omega;
 		arc & m;
 		arc & gt;

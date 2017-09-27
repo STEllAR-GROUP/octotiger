@@ -166,18 +166,19 @@ const diagnostics_t& diagnostics_t::compute() {
 	return *this;
 }
 
-diagnostics_t node_server::diagnostics(real l1_phi) {
+diagnostics_t node_server::diagnostics() {
 	if( opts.problem != DWD ) {
 		return diagnostics_t();
-
 	}
 	diagnostics_t diags;
 	for( integer i = 1; i != 10; ++i) {
 		diags.stage = i;
-		diags.l1_phi = l1_phi;
 		diags = diagnostics(diags).compute();
 		diags.grid_com = grid_ptr->center_of_mass();
 	}
+	printf( "L1 = %e\n", diags.l1_phi);
+	printf( "L2 = %e\n", diags.l2_phi);
+	printf( "L3 = %e\n", diags.l3_phi);
 
 	FILE* fp = fopen( "binary.dat", "at");
 	fprintf( fp, "%13e ", current_time);
@@ -210,8 +211,13 @@ diagnostics_t node_server::root_diagnostics(const diagnostics_t & diags)  {
 
 diagnostics_t node_server::diagnostics(const diagnostics_t& diags)  {
 	if (is_refined) {
-		return child_diagnostics(diags);
+		auto rc = hpx::async([&]() {
+			return child_diagnostics(diags);
+		});
+		all_hydro_bounds();
+		return rc.get();
 	} else {
+		all_hydro_bounds();
 		return local_diagnostics(diags);
 	}
 }
@@ -224,9 +230,6 @@ diagnostics_t node_server::child_diagnostics(const diagnostics_t& diags) {
 	for (integer ci = 0; ci != NCHILD; ++ci) {
 		futs[index++] = children[ci].diagnostics(diags);
 	}
-//	if( diags.stage == 1 ) {
-//		all_hydro_bounds();
-//	}
 	auto child_sums = hpx::util::unwrapped(futs);
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
 }

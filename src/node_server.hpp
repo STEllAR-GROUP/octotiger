@@ -274,7 +274,7 @@ public:
     diagnostics_t diagnostics(const diagnostics_t&);
     HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
-    diagnostics_t diagnostics(real l1_phi=0.0);
+    diagnostics_t diagnostics();
 
     hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,
         std::string);

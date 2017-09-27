@@ -29,13 +29,47 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	const real dV = dx * dx * dx;
 	real x, y, z;
 	integer iii, iiig;
+
+	const auto is_loc = [this, diags](integer j, integer k, integer l) {
+		const integer iii = hindex(j,k,l);
+		const real ax = X[XDIM][iii] - diags.com[0][XDIM];
+		const real ay = X[YDIM][iii] - diags.com[0][YDIM];
+		const real az = X[ZDIM][iii] - diags.com[0][ZDIM];
+
+		const real bx = diags.com[1][XDIM] - diags.com[0][XDIM];
+		const real by = diags.com[1][YDIM] - diags.com[0][YDIM];
+		const real bz = diags.com[1][ZDIM] - diags.com[0][ZDIM];
+
+		const real aa = (ax*ax+ay*ay+az*az);
+		const real bb = (bx*bx+by*by+bz*bz);
+		const real ab = (ax*bx+ay*by+az*bz);
+
+		const real d2bb = aa * bb - ab * ab;
+		if( (d2bb < dx * dx * bb * 3.0 / 4.0) ) {
+			 if( (ab < bb) && (ab > 0.0) ) {
+				 return 2;
+			 } else if( ab <= 0.0 ) {
+				 return 1;
+			 } else {
+				 return 3;
+			 }
+		} else {
+			return 0;
+		}
+	};
+
 	const auto in_star =
-			[&]() {
-				integer rc = 0;
-				const real ax = G[iiig][gx_i] + x * diags.omega * diags.omega;
-				const real ay = G[iiig][gy_i] + y * diags.omega * diags.omega;
-				const real az = G[iiig][gz_i];
-				real nx, ny, nz;
+			[&](integer j, integer k, integer l) {
+        const integer iii = hindex(j,k,l);
+        const integer iiig = gindex(j-H_BW,k-H_BW,l-H_BW);
+		integer rc = 0;
+		const real x = X[XDIM][iii];
+		const real y = X[YDIM][iii];
+		const real z = X[ZDIM][iii];
+		real ax = G[iiig][gx_i] + x * diags.omega * diags.omega;
+		real ay = G[iiig][gy_i] + y * diags.omega * diags.omega;
+		real az = G[iiig][gz_i];
+		real nx, ny, nz;
 				const real a = std::sqrt(ax * ax + ay * ay + az * az);
 				if( a > 0.0 ) {
 					nx = ax / a;
@@ -55,7 +89,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					} else if(x0 >= 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3) {
 						rc = -1;
 					} else if(x0 < 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3){
-						rc = x0 < x1 ? +1 : -1;							
+						rc = x0 < x1 ? +1 : -1;
 					} else {
 						for( integer s = 0; s != nspec; ++s) {
 							const real this_x = s == 0 ? x0 : x1;
@@ -98,13 +132,11 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					rho =
 					{	U[spc_ac_i][iii], U[spc_dc_i][iii]};
 				} else {
-					star = in_star();
+					star = in_star(j,k,l);
 					if( star == +1 ) {
 						rho = {U[rho_i][iii], 0.0};
-				//		printf( "+1 %e\n", U[rho_i][iii]);
 					} else if( star == -1 ) {
 						rho = {0.0, U[rho_i][iii]};
-				//		printf( "-1 %e\n", U[rho_i][iii]);
 					} else {
 						rho = {0.0, 0.0};
 					}
@@ -123,6 +155,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					} else {
 						i = -1;
 					}
+					bool boundary = false;
 					if( i != -1 ) {
 						const real dX[NDIM] = {(x - diags.com[i][XDIM]),(y - diags.com[i][YDIM]),(z - diags.com[i][ZDIM])};
 						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
@@ -144,10 +177,42 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 							rc.stellar_vol[i] += dV;
 						}
 					}
+					if( boundary ) {
+						rc.l1_phi = std::min(rc.l1_phi, phi_eff);
+					}
 
 					rc.rho_max[i] = std::max(rc.rho_max[i], rho0);
-			//		U[spc_vac_i][iii] = real(i+2);
-					roche_lobe[h0index(j - H_BW, k - H_BW, l - H_BW)] = i;
+					auto& rl = roche_lobe[h0index(j - H_BW, k - H_BW, l - H_BW)];
+
+					auto lmin23 = std::min(diags.l2_phi, diags.l3_phi);
+					auto lmax23 = std::max(diags.l2_phi, diags.l3_phi);
+
+					if( i != -1 ) {
+						rl = i == 0 ? -1 : +1;
+						const integer s = rl / std::abs(rl);
+
+						if( phi_eff > diags.l1_phi) {
+							rl += s;
+						}
+						if( phi_eff > lmin23 ) {
+							rl += s;
+						}
+						if( phi_eff > lmax23 ) {
+							rl += s ;
+						}
+					} else {
+						rl = 0;
+					}
+
+
+					auto loc = is_loc(j, k, l);
+					if ( loc==2 ) {
+						rc.l1_phi = std::max(phi_eff, rc.l1_phi);
+					} else if( loc==1) {
+						rc.l2_phi = std::max(phi_eff, rc.l2_phi);
+					} else if( loc == 3 ) {
+						rc.l3_phi = std::max(phi_eff, rc.l3_phi);
+					}
 					const integer iii = hindex(j, k, l);
 					real ek = ZERO;
 					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
@@ -155,7 +220,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
 					real ei;
 					if (opts.eos == WD) {
-				//		printf( "%e %e %e - %e - %i %i %i\n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], U[rho_i][iii], i, j, k);
 						ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
 					} else {
 						ei = U[egas_i][iii] - ek;

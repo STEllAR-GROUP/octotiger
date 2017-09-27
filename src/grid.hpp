@@ -164,7 +164,7 @@ private:
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 #endif
 
-	std::vector<integer> roche_lobe;
+	std::vector<real> roche_lobe;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> Ua;
 	std::vector<std::vector<real>> U0;
