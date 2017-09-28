@@ -155,7 +155,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					} else {
 						i = -1;
 					}
-					bool boundary = false;
 					if( i != -1 ) {
 						const real dX[NDIM] = {(x - diags.com[i][XDIM]),(y - diags.com[i][YDIM]),(z - diags.com[i][ZDIM])};
 						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
@@ -177,9 +176,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 							rc.stellar_vol[i] += dV;
 						}
 					}
-					if( boundary ) {
-						rc.l1_phi = std::min(rc.l1_phi, phi_eff);
-					}
 
 					rc.rho_max[i] = std::max(rc.rho_max[i], rho0);
 					auto& rl = roche_lobe[h0index(j - H_BW, k - H_BW, l - H_BW)];
@@ -200,6 +196,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 						if( phi_eff > lmax23 ) {
 							rl += s ;
 						}
+						rl -= 0.5 * s;
 					} else {
 						rl = 0;
 					}

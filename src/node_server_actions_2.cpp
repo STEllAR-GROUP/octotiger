@@ -176,9 +176,9 @@ diagnostics_t node_server::diagnostics() {
 		diags = diagnostics(diags).compute();
 		diags.grid_com = grid_ptr->center_of_mass();
 	}
-	printf( "L1 = %e\n", diags.l1_phi);
-	printf( "L2 = %e\n", diags.l2_phi);
-	printf( "L3 = %e\n", diags.l3_phi);
+//	printf( "L1 = %e\n", diags.l1_phi);
+///	printf( "L2 = %e\n", diags.l2_phi);
+//	printf( "L3 = %e\n", diags.l3_phi);
 
 	FILE* fp = fopen( "binary.dat", "at");
 	fprintf( fp, "%13e ", current_time);
@@ -190,7 +190,7 @@ diagnostics_t node_server::diagnostics() {
 		fprintf( fp, "%13e ", diags.js[s]);
 		fprintf( fp, "%13e ", diags.rL[s]);
 		fprintf( fp, "%13e ", diags.gt[s]);
-		fprintf( fp, "%13e ", diags.tidal[s]);
+		fprintf( fp, "%13e ", diags.z_moment[s]);
 	}
 	fprintf( fp, "\n");
 	fclose(fp);
