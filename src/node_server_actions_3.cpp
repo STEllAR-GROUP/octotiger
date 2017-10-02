@@ -741,7 +741,7 @@ hpx::future<void> node_server::timestep_driver_descend() {
             hpx::util::annotated_function(
                 [this](std::array<hpx::future<real>, NCHILD+1> dts_fut)
                 {
-                    auto dts = hpx::util::unwrapped(dts_fut);
+                    auto dts = hpx::util::unwrap(dts_fut);
                     real dt = *std::min_element(dts.begin(), dts.end());
 
                     if (my_location.level() == 0)

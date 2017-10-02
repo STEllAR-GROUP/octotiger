@@ -9,7 +9,7 @@
 #define CHANNEL_HPP_
 
 #include "defs.hpp"
-
+#include <boost/atomic.hpp>
 #include <hpx/lcos/local/receive_buffer.hpp>
 
 
