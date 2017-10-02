@@ -2268,9 +2268,10 @@ void grid::compute_sources(real t, real rotational_time) {
 					src[egas_i][iii0] += omega * X[XDIM][iii] * rho * G[iiig][gy_i];
 				}
 				if (opts.driving_rate != 0.0) {
-					const real period = rotational_time / 2.0 / M_PI;
-					if (opts.driving_time > period) {
-						const real ff = -opts.driving_rate / period;
+					const real period_len = 2.0 * M_PI / grid::omega;
+					if (opts.driving_time > rotational_time / (2.0 * M_PI)) {
+						const real ff = -opts.driving_rate / period_len;
+					///	printf("%e %e %e\n", ff, opts.driving_rate, period_len);
 						const real rho = U[rho_i][iii];
 						const real sx = U[sx_i][iii];
 						const real sy = U[sy_i][iii];

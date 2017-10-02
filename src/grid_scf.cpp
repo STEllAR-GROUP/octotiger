@@ -196,7 +196,6 @@ struct scf_parameters {
 	real c1_x;
 	real c2_x;
 	scf_parameters() {
-		printf( "Initializing SCF Parameters\n");
 		if (scf_options::equal_struct_eos) {
 			scf_options::contact_fill = 0.0;
 		}
@@ -237,7 +236,6 @@ struct scf_parameters {
 			}
 		}
 	//	printf( "R1 R2 %e %e\n", R1, R2);
-		printf( "Done.\n");
 	}
 };
 
