@@ -23,6 +23,8 @@
 #define ANGCON_OPT "-Angcon"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
+#define DRIVING_RATE_OPT "-DrivingRate"
+#define DRIVING_TIME_OPT "-DrivingTime"
 #define VOMEGA_OPT "-VariableOmega"
 #define ODT_OPT "-Odt"
 #define DISABLEOUTPUT_OPT "-Disableoutput"
@@ -125,6 +127,8 @@ bool options::process_options(int argc, char* argv[]) {
     output_only = false;
     xscale = 2.0;
     omega = 0.0;
+    driving_rate = 0.0;
+    driving_time = 0.0;
     exe_name = std::string(argv[0]);
     contact_fill = 0.0;
     output_dt = -1;
@@ -218,6 +222,10 @@ bool options::process_options(int argc, char* argv[]) {
             xscale = atof(argv[i] + strlen(XSCALE_OPT) + 1);
         } else if (cmp(argv[i], OMEGA_OPT)) {
             omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
+        } else if (cmp(argv[i], DRIVING_RATE_OPT)) {
+            driving_rate = atof(argv[i] + strlen(DRIVING_RATE_OPT) + 1);
+        } else if (cmp(argv[i], DRIVING_TIME_OPT)) {
+            driving_time = atof(argv[i] + strlen(DRIVING_TIME_OPT) + 1);
         } else if (cmp(argv[i], ODT_OPT)) {
             output_dt = atof(argv[i] + strlen(ODT_OPT) + 1);
         } else if (cmp(argv[i], DISABLEOUTPUT_OPT)) {

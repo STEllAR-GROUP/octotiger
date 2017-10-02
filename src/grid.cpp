@@ -19,13 +19,12 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
-
 extern options opts;
-
 
 diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	diagnostics_t rc;
-	constexpr integer nspec = 2;
+	constexpr
+	integer nspec = 2;
 	const real dV = dx * dx * dx;
 	real x, y, z;
 	integer iii, iiig;
@@ -46,22 +45,21 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 
 		const real d2bb = aa * bb - ab * ab;
 		if( (d2bb < dx * dx * bb * 3.0 / 4.0) ) {
-			 if( (ab < bb) && (ab > 0.0) ) {
-				 return 2;
-			 } else if( ab <= 0.0 ) {
-				 return 1;
-			 } else {
-				 return 3;
-			 }
+			if( (ab < bb) && (ab > 0.0) ) {
+				return 2;
+			} else if( ab <= 0.0 ) {
+				return 1;
+			} else {
+				return 3;
+			}
 		} else {
 			return 0;
 		}
 	};
 
-	const auto in_star =
-			[&](integer j, integer k, integer l) {
-        const integer iii = hindex(j,k,l);
-        const integer iiig = gindex(j-H_BW,k-H_BW,l-H_BW);
+	const auto in_star = [&](integer j, integer k, integer l) {
+		const integer iii = hindex(j,k,l);
+		const integer iiig = gindex(j-H_BW,k-H_BW,l-H_BW);
 		integer rc = 0;
 		const real x = X[XDIM][iii];
 		const real y = X[YDIM][iii];
@@ -70,46 +68,46 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 		real ay = G[iiig][gy_i] + y * diags.omega * diags.omega;
 		real az = G[iiig][gz_i];
 		real nx, ny, nz;
-				const real a = std::sqrt(ax * ax + ay * ay + az * az);
-				if( a > 0.0 ) {
-					nx = ax / a;
-					ny = ay / a;
-					nz = az / a;
-					space_vector dX[nspec];
-					real g[nspec] = {0.0,0.0};
-					for( integer s = 0; s != nspec; ++s) {
-						dX[s][XDIM] = x - diags.com[s][XDIM];
-						dX[s][YDIM] = y - diags.com[s][YDIM];
-						dX[s][ZDIM] = z - diags.com[s][ZDIM];
-					}
-					const real x0 = std::pow(dX[0][XDIM],2)+std::pow(dX[0][YDIM],2)+std::pow(dX[0][ZDIM],2);
-					const real x1 = std::pow(dX[1][XDIM],2)+std::pow(dX[1][YDIM],2)+std::pow(dX[1][ZDIM],2);
-					if( x1 >= 0.25 * diags.rL[1] && x0 < 0.25 * diags.rL[0] && diags.stage > 3) {
+		const real a = std::sqrt(ax * ax + ay * ay + az * az);
+		if( a > 0.0 ) {
+			nx = ax / a;
+			ny = ay / a;
+			nz = az / a;
+			space_vector dX[nspec];
+			real g[nspec] = {0.0,0.0};
+			for( integer s = 0; s != nspec; ++s) {
+				dX[s][XDIM] = x - diags.com[s][XDIM];
+				dX[s][YDIM] = y - diags.com[s][YDIM];
+				dX[s][ZDIM] = z - diags.com[s][ZDIM];
+			}
+			const real x0 = std::pow(dX[0][XDIM],2)+std::pow(dX[0][YDIM],2)+std::pow(dX[0][ZDIM],2);
+			const real x1 = std::pow(dX[1][XDIM],2)+std::pow(dX[1][YDIM],2)+std::pow(dX[1][ZDIM],2);
+			if( x1 >= 0.25 * diags.rL[1] && x0 < 0.25 * diags.rL[0] && diags.stage > 3) {
+				rc = +1;
+			} else if(x0 >= 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3) {
+				rc = -1;
+			} else if(x0 < 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3) {
+				rc = x0 < x1 ? +1 : -1;
+			} else {
+				for( integer s = 0; s != nspec; ++s) {
+					const real this_x = s == 0 ? x0 : x1;
+					g[s] += ax * dX[s][XDIM] / this_x;
+					g[s] += ay * dX[s][YDIM] / this_x;
+					g[s] += az * dX[s][ZDIM] / this_x;
+				}
+				if( g[0] <= 0.0 && g[1] > 0.0) {
+					rc = +1;
+				} else if( g[0] > 0.0 && g[1] <= 0.0 ) {
+					rc = -1;
+				} else if( g[0] <= 0.0 && g[1] <= 0.0 ) {
+					if( std::abs(g[0]) > std::abs(g[1]) ) {
 						rc = +1;
-					} else if(x0 >= 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3) {
-						rc = -1;
-					} else if(x0 < 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3){
-						rc = x0 < x1 ? +1 : -1;
 					} else {
-						for( integer s = 0; s != nspec; ++s) {
-							const real this_x = s == 0 ? x0 : x1;
-							g[s] += ax * dX[s][XDIM] / this_x;
-							g[s] += ay * dX[s][YDIM] / this_x;
-							g[s] += az * dX[s][ZDIM] / this_x;
-						}
-						if( g[0] <= 0.0 && g[1] > 0.0) {
-							rc = +1;
-						} else if( g[0] > 0.0 && g[1] <= 0.0 ) {
-							rc = -1;
-						} else if( g[0] <= 0.0 && g[1] <= 0.0 ) {
-							if( std::abs(g[0]) > std::abs(g[1]) ) {
-								rc = +1;
-							} else {
-								rc = -1;
-							}
-						}
+						rc = -1;
 					}
 				}
+			}
+		}
 		return rc;
 	};
 	roche_lobe.resize(INX * INX * INX);
@@ -126,7 +124,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 				const real vx = U[sx_i][iii] / U[rho_i][iii];
 				const real vy = U[sy_i][iii] / U[rho_i][iii];
 				const real vz = U[sz_i][iii] / U[rho_i][iii];
-				std::array<real,nspec> rho;
+				std::array < real, nspec > rho;
 				integer star;
 				if (diags.stage <= 2) {
 					rho =
@@ -148,20 +146,20 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					const real phi_eff = phi_g + phi_r;
 					const real rho0 = U[rho_i][iii];
 					integer i;
-					if( rho[1] > 0.5 * rho0) {
+					if (rho[1] > 0.5 * rho0) {
 						i = 1;
-					} else if( rho[0] > 0.5 * rho0) {
+					} else if (rho[0] > 0.5 * rho0) {
 						i = 0;
 					} else {
 						i = -1;
 					}
-					if( i != -1 ) {
-						const real dX[NDIM] = {(x - diags.com[i][XDIM]),(y - diags.com[i][YDIM]),(z - diags.com[i][ZDIM])};
+					if (i != -1) {
+						const real dX[NDIM] = { (x - diags.com[i][XDIM]), (y - diags.com[i][YDIM]), (z - diags.com[i][ZDIM]) };
 						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
 						rc.js[i] -= dX[1] * U[sx_i][iii] * dV;
 						rc.gt[i] += dX[0] * G[iiig][gy_i] * dV * rho0;
 						rc.gt[i] -= dX[1] * G[iiig][gx_i] * dV * rho0;
-						const real r = std::sqrt(dX[0]*dX[0]+dX[1]*dX[1]+dX[2]*dX[2]);
+						const real r = std::sqrt(dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2]);
 						for (integer n = 0; n != NDIM; ++n) {
 							for (integer m = 0; m <= n; ++m) {
 								rc.mom[i](n, m) += 3.0 * dX[n] * dX[m] * rho0 * dV;
@@ -169,10 +167,10 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 							rc.mom[i](n, n) -= r * r * rho0 * dV;
 						}
 						rc.z_moment[i] += (dX[0] * dX[0] + dX[1] * dX[1]) * rho0 * dV;
-						if( phi_eff < diags.l1_phi) {
+						if (phi_eff < diags.l1_phi) {
 							rc.roche_vol[i] += dV;
 						}
-						if( U[rho_i][iii] > 10.0 * rho_floor) {
+						if (U[rho_i][iii] > 10.0 * rho_floor) {
 							rc.stellar_vol[i] += dV;
 						}
 					}
@@ -183,31 +181,30 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					auto lmin23 = std::min(diags.l2_phi, diags.l3_phi);
 					auto lmax23 = std::max(diags.l2_phi, diags.l3_phi);
 
-					if( i != -1 ) {
+					if (i != -1) {
 						rl = i == 0 ? -1 : +1;
 						const integer s = rl / std::abs(rl);
 
-						if( phi_eff > diags.l1_phi) {
+						if (phi_eff > diags.l1_phi) {
 							rl += s;
 						}
-						if( phi_eff > lmin23 ) {
+						if (phi_eff > lmin23) {
 							rl += s;
 						}
-						if( phi_eff > lmax23 ) {
-							rl += s ;
+						if (phi_eff > lmax23) {
+							rl += s;
 						}
 						rl -= 0.5 * s;
 					} else {
 						rl = 0;
 					}
 
-
 					auto loc = is_loc(j, k, l);
-					if ( loc==2 ) {
+					if (loc == 2) {
 						rc.l1_phi = std::max(phi_eff, rc.l1_phi);
-					} else if( loc==1) {
+					} else if (loc == 1) {
 						rc.l2_phi = std::max(phi_eff, rc.l2_phi);
-					} else if( loc == 3 ) {
+					} else if (loc == 3) {
 						rc.l3_phi = std::max(phi_eff, rc.l3_phi);
 					}
 					const integer iii = hindex(j, k, l);
@@ -225,17 +222,13 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					if (ei < de_switch2 * et) {
 						ei = std::pow(U[tau_i][iii], fgamma);
 					}
-					real p = (fgamma-1.0)*ei;
-					if( opts.eos == WD ) {
+					real p = (fgamma - 1.0) * ei;
+					if (opts.eos == WD) {
 						p += ztwd_pressure(U[rho_i][iii]);
 					}
-					rc.virial += (2.0 * ek
-							+ 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p)
-							* (dx * dx * dx);
-					rc.virial_norm += (2.0 * ek
-							- 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p)
-							* (dx * dx * dx);
-					for( integer f = 0; f != NF; ++f) {
+					rc.virial += (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+					rc.virial_norm += (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+					for (integer f = 0; f != NF; ++f) {
 						rc.grid_sum[f] += U[f][iii] * dV;
 					}
 					rc.grid_sum[egas_i] += 0.5 * U[pot_i][iii] * dV;
@@ -257,7 +250,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 		}
 	}
 	for (integer s = 0; s != nspec; ++s) {
-		if( rc.m[s] > 0.0 ) {
+		if (rc.m[s] > 0.0) {
 			rc.com[s][XDIM] /= rc.m[s];
 			rc.com[s][YDIM] /= rc.m[s];
 			rc.com[s][ZDIM] /= rc.m[s];
@@ -266,13 +259,12 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 			rc.com_dot[s][ZDIM] /= rc.m[s];
 		}
 	}
-	for( integer f = 0; f != NF; ++f ) {
+	for (integer f = 0; f != NF; ++f) {
 		rc.grid_out[f] += U_out[f];
 	}
 	rc.grid_out[egas_i] += 0.5 * U_out[pot_i];
 	return rc;
 }
-
 
 std::vector<real> grid::get_flux_check(const geo::face& f) {
 	std::vector<real> flux;
@@ -281,7 +273,7 @@ std::vector<real> grid::get_flux_check(const geo::face& f) {
 	int& i1 = dim == XDIM ? j : i;
 	int& i2 = dim == ZDIM ? j : k;
 	int& n = dim == XDIM ? i : (dim == YDIM ? j : k);
-	if( f.get_side() == geo::MINUS ) {
+	if (f.get_side() == geo::MINUS) {
 		n = 0;
 	} else {
 		n = INX;
@@ -316,7 +308,7 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 				++index;
 				if (a != b) {
 					printf("Flux error\n");
-			//		printf("%e %e %i\n", a, b, f);
+					//		printf("%e %e %i\n", a, b, f);
 //					abort();
 				}
 			}
@@ -324,14 +316,14 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 	}
 }
 
-
 #ifdef RADIATION
-char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
-		"secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
-		"zzs" };
-#else
 char const* grid::field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
-	"secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint", "zzs", "roche"};
+	"secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
+	"zzs"};
+#else
+char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core",
+		"primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
+		"zzs", "roche" };
 #endif
 
 hpx::lcos::local::spinlock grid::omega_mtx;
@@ -509,35 +501,33 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
-				const auto R2 = std::sqrt(
-						X[XDIM][iii] * X[XDIM][iii]
-								+ X[YDIM][iii] * X[YDIM][iii]);
+				const auto R2 = std::sqrt(X[XDIM][iii] * X[XDIM][iii] + X[YDIM][iii] * X[YDIM][iii]);
 				const real dV = dx * dx * dx;
-		/*		for (integer d = 0; d != NDIM; ++d) {
-					loc.core1_s[d] += U[sx_i + d][iii] * U[spc_ac_i][iii]
-							/ U[rho_i][iii]* dV;
-					loc.core2_s[d] += U[sx_i + d][iii] * U[spc_dc_i][iii]
-							/ U[rho_i][iii]* dV;
-				}
-				loc.core1 += U[spc_ac_i][iii] * dV;
-				loc.core2 += U[spc_dc_i][iii] * dV;*/
+				/*		for (integer d = 0; d != NDIM; ++d) {
+				 loc.core1_s[d] += U[sx_i + d][iii] * U[spc_ac_i][iii]
+				 / U[rho_i][iii]* dV;
+				 loc.core2_s[d] += U[sx_i + d][iii] * U[spc_dc_i][iii]
+				 / U[rho_i][iii]* dV;
+				 }
+				 loc.core1 += U[spc_ac_i][iii] * dV;
+				 loc.core2 += U[spc_dc_i][iii] * dV;*/
 				space_vector a = line.first;
 				const space_vector& o = 0.0;
 				space_vector b;
 				real bb = 0.0;
 				real ab = 0.0;
 				for (integer d = 0; d != NDIM; ++d) {
-			//		a[d] -= o[d];
+					//		a[d] -= o[d];
 					b[d] = X[d][iii] - o[d];
 				}
 				for (integer d = 0; d != NDIM; ++d) {
 					bb += b[d] * b[d];
 					ab += a[d] * b[d];
 				}
-				const real d = std::sqrt(std::max(bb - ab * ab,0.0));
+				const real d = std::sqrt(std::max(bb - ab * ab, 0.0));
 				real p = ab;
 				std::vector<real> data(NF + NGF);
-				if (d < std::sqrt(3.0) * dx / 2.0 ) {
+				if (d < std::sqrt(3.0) * dx / 2.0) {
 					for (integer ui = 0; ui != NF; ++ui) {
 						data[ui] = U[ui][iii];
 					}
@@ -556,7 +546,7 @@ line_of_centers_t grid::line_of_centers(const std::pair<space_vector, space_vect
 
 std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 	PROF_BEGIN;
-	std::pair<std::vector<real>, std::vector<real>> e;
+	std::pair < std::vector<real>, std::vector < real >> e;
 	const real dV = dx * dx * dx;
 	if (opts.problem == SOLID_SPHERE) {
 		e.first.resize(8, ZERO);
@@ -593,7 +583,6 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 	PROF_END;
 	return e;
 }
-
 
 analytic_func_type grid::analytic = nullptr;
 
@@ -649,7 +638,8 @@ OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real theta = 1.0) {
 	return minmod(theta * minmod(a, b), HALF * (a + b));
 }
 
-std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const {
+std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
+		const geo::dimension& dim) const {
 	PROF_BEGIN;
 	std::vector<real> data;
 	integer size = 1;
@@ -750,8 +740,8 @@ std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM>& lb, c
 	return data;
 }
 
-void grid::set_flux_restrict(const std::vector<real>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
-		const geo::dimension& dim) {
+void grid::set_flux_restrict(const std::vector<real>& data, const std::array<integer, NDIM>& lb,
+		const std::array<integer, NDIM>& ub, const geo::dimension& dim) {
 	PROF_BEGIN;
 	integer index = 0;
 	for (integer field = 0; field != NF; ++field) {
@@ -912,8 +902,7 @@ std::vector<real> grid::get_restrict() const {
 	}
 	for (integer field = 0; field != NF; ++field) {
 		data.push_back(U_out[field]);
-	}
-    PROF_END;
+	}PROF_END;
 	return data;
 }
 
@@ -981,8 +970,8 @@ void grid::change_units(real m, real l, real t, real k) {
 	xmin[YDIM] *= l;
 	xmin[ZDIM] *= l;
 	dx *= l;
-	if( dx > 1.0e+12)
-	printf( "++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx*l);
+	if (dx > 1.0e+12)
+		printf("++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx * l);
 	for (integer i = 0; i != H_N3; ++i) {
 		U[rho_i][i] *= m * l3inv;
 		for (integer si = 0; si != NSPECIES; ++si) {
@@ -1017,33 +1006,34 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
-	if( bcast ) {
-	   if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
-           std::vector<hpx::id_type> remotes;
-           remotes.reserve(options::all_localities.size()-1);
-           for (hpx::id_type const& id: options::all_localities) {
-               if(id != hpx::find_here()) {
-                  remotes.push_back(id);
-               }
-           }
-              if (remotes.size() > 0) {
-                 hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
-              }
-	   }
+	if (bcast) {
+		if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
+			std::vector<hpx::id_type> remotes;
+			remotes.reserve(options::all_localities.size() - 1);
+			for (hpx::id_type const& id : options::all_localities) {
+				if (id != hpx::find_here()) {
+					remotes.push_back(id);
+				}
+			}
+			if (remotes.size() > 0) {
+				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
+			}
+		}
 	}
-    std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
-    // if someone else has the lock, it's fine, we just return and have it set
-    // by the other thread
-    if (!l) return;
+	std::unique_lock < hpx::lcos::local::spinlock > l(grid::omega_mtx, std::try_to_lock);
+	// if someone else has the lock, it's fine, we just return and have it set
+	// by the other thread
+	if (!l)
+		return;
 	grid::omega = omega;
 }
 
-
-real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real cx, bool donor) const {
+real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real cx,
+		bool donor) const {
 	PROF_BEGIN;
 	const real dV = dx * dx * dx;
 	real V = 0.0;
@@ -1098,9 +1088,8 @@ std::vector<real> grid::frac_volumes() const {
 	return V;
 }
 
-bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis,
-		const std::pair<real, real>& l1, integer frac, integer iii,
-		real rho_cut) const {
+bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+		integer iii, real rho_cut) const {
 	bool use = false;
 	if (frac == 0) {
 		use = true;
@@ -1129,7 +1118,8 @@ bool grid::is_in_star(const std::pair<space_vector, space_vector>& axis,
 	return use;
 }
 
-real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, real rho_cut) const {
+real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+		real rho_cut) const {
 	PROF_BEGIN;
 	real mom = 0.0;
 	const real dV = dx * dx * dx;
@@ -1147,8 +1137,8 @@ real grid::z_moments(const std::pair<space_vector, space_vector>& axis, const st
 	return mom;
 }
 
-std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot, const std::pair<space_vector, space_vector>& axis,
-		const std::pair<real, real>& l1, integer frac, real rho_cut) const {
+std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot,
+		const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, real rho_cut) const {
 	PROF_BEGIN;
 	std::vector<real> sum(NF, ZERO);
 	com[0] = com[1] = com[2] = 0.0;
@@ -1257,8 +1247,8 @@ bool grid::refine_me(integer lev, integer last_ngrids) const {
 		return true;
 	}
 	bool rc = false;
-	std::vector<real> state(NF);
-	std::array<std::vector<real>, NDIM> dud;
+	std::vector < real > state(NF);
+	std::array < std::vector<real>, NDIM > dud;
 	std::vector<real>& dudx = dud[0];
 	std::vector<real>& dudy = dud[1];
 	std::vector<real>& dudz = dud[2];
@@ -1402,9 +1392,10 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[rho_i][iii] = U[rho_i][iii];
 					V[tau_i][iii] = U[tau_i][iii];
 					const real rho = V[rho_i][iii];
-					if( rho <= 0.0 ) {
-						printf( "%i %i %i %e\n", int(i), int(j), int(k), rho);
-						abort_error();
+					if (rho <= 0.0) {
+						printf("%i %i %i %e\n", int(i), int(j), int(k), rho);
+						abort_error()
+						;
 					}
 					const real rhoinv = 1.0 / rho;
 
@@ -1431,7 +1422,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
 //					if( opts.ang_con) {
-						V[zz_i][iii] -= sqr(dx) * omega / 6.0;
+					V[zz_i][iii] -= sqr(dx) * omega / 6.0;
 //					}
 				}
 			}
@@ -1454,13 +1445,13 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 						v = U[sx_i + d][iii] * rhoinv;
 						V[egas_i][iii] -= 0.5 * v * v;
 						//	if( opts.ang_con) {
-								V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
+						V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
 						//	}
 					}
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
 					//	if( opts.ang_con ) {
-							V[zz_i][iii] -= sqr(dx) * omega / 6.0;
+					V[zz_i][iii] -= sqr(dx) * omega / 6.0;
 					//	}
 				}
 			}
@@ -1468,7 +1459,8 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 	}PROF_END;
 }
 
-void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) {
+void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub,
+		bool etot_only) {
 	PROF_BEGIN;
 	auto& dVdx = TLS_dVdx();
 	auto& V = TLS_V();
@@ -1482,7 +1474,7 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 #pragma GCC ivdep
 				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 					const integer iii = hindex(i, j, k);
-					if( f != pot_i ) {
+					if (f != pot_i) {
 						const auto v0 = v[iii];
 						dVdx[XDIM][f][iii] = minmod_theta(v[iii + H_DNX] - v0, v0 - v[iii - H_DNX], theta);
 						dVdx[YDIM][f][iii] = minmod_theta(v[iii + H_DNY] - v0, v0 - v[iii - H_DNY], theta);
@@ -1571,7 +1563,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii] + dV[sx_i + d1][iii] * V[rho_i][iii];
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
 							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
-							dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];// + dV[zx_i + d1][iii] * V[rho_i][iii];
+							dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];	// + dV[zx_i + d1][iii] * V[rho_i][iii];
 						}
 						if (opts.eos == WD) {
 							dU[egas_i][iii] += ztwd_enthalpy(V[rho_i][iii]) * dV[rho_i][iii];
@@ -1615,7 +1607,7 @@ void grid::set_coordinates() {
 				X[XDIM][iii] = (real(i - H_BW) + HALF) * dx + xmin[XDIM] - pivot[XDIM];
 				X[YDIM][iii] = (real(j - H_BW) + HALF) * dx + xmin[YDIM] - pivot[YDIM];
 				X[ZDIM][iii] = (real(k - H_BW) + HALF) * dx + xmin[ZDIM] - pivot[ZDIM];
-		//		printf( "%e %e %e %e %e %e \n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], pivot[XDIM], pivot[YDIM], pivot[ZDIM]);
+				//		printf( "%e %e %e %e %e %e \n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], pivot[XDIM], pivot[YDIM], pivot[ZDIM]);
 //				printf( "mmmmmmmmmmmmmm %e %e\n", xmin[XDIM], pivot[XDIM]);
 			}
 		}
@@ -1681,12 +1673,14 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3){
+		U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(
+				H_N3) {
 //	allocate();
 }
 
 grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xmin) :
-		U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(H_N3) {
+		U(NF), U0(NF), dUdt(NF), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(
+				H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
 	xmin = _xmin;
@@ -1719,10 +1713,8 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 				G[i][field] = 0.0;
 			}
 		}
-	}
-	PROF_END;
+	}PROF_END;
 }
-
 
 #ifdef RADIATION
 void grid::rad_init() {
@@ -1748,20 +1740,20 @@ inline void limit_range_all(real am, real ap, real& bl, real& br) {
 ;
 
 inline void limit_slope(real& ql, real q0, real& qr) {
-    const real tmp1 = qr - ql;
-    const real tmp2 = qr + ql;
+	const real tmp1 = qr - ql;
+	const real tmp2 = qr + ql;
 
-    if (bool(qr < q0) != bool(q0 < ql)) {
-        qr = ql = q0;
-        return;
-    }
-    const real tmp3 = sqr(tmp1) * SIXTH;
-    const real tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-    if (tmp4 > tmp3) {
-        ql = 3.0 * q0 - 2.0 * qr;
-    } else if (-tmp3 > tmp4) {
-        qr = 3.0 * q0 - 2.0 * ql;
-    }
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		qr = ql = q0;
+		return;
+	}
+	const real tmp3 = sqr(tmp1) * SIXTH;
+	const real tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	if (tmp4 > tmp3) {
+		ql = 3.0 * q0 - 2.0 * qr;
+	} else if (-tmp3 > tmp4) {
+		qr = 3.0 * q0 - 2.0 * ql;
+	}
 }
 ;
 
@@ -1791,14 +1783,14 @@ void grid::reconstruct() {
 #pragma GCC ivdep
 		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 			// if (field == 1) {
-				//	printf("%i %i %i\n", int(iii / (H_NX * H_NX)), int((iii / H_NX) % H_NX), int(iii % H_NX));
-				//	printf("%e %e %e\n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
-				//	printf("%e %e %e\n", V[field][iii + H_DNX], V[field][iii], V[field][iii - H_DNX]);
-				//	printf("%e %e %e\n", V[field][iii + H_DNY], V[field][iii], V[field][iii - H_DNY]);
-				//	printf("%e %e %e\n", V[field][iii + H_DNZ], V[field][iii], V[field][iii - H_DNZ]);
-				//	printf("%e %e %e\n", V[rho_i][iii + H_DNX], V[rho_i][iii], V[rho_i][iii - H_DNX]);
-				// printf("%e %e %e\n", V[rho_i][iii + H_DNY], V[rho_i][iii], V[rho_i][iii - H_DNY]);
-				//	printf("%e %e %e\n", V[rho_i][iii + H_DNZ], V[rho_i][iii], V[rho_i][iii - H_DNZ]);
+			//	printf("%i %i %i\n", int(iii / (H_NX * H_NX)), int((iii / H_NX) % H_NX), int(iii % H_NX));
+			//	printf("%e %e %e\n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
+			//	printf("%e %e %e\n", V[field][iii + H_DNX], V[field][iii], V[field][iii - H_DNX]);
+			//	printf("%e %e %e\n", V[field][iii + H_DNY], V[field][iii], V[field][iii - H_DNY]);
+			//	printf("%e %e %e\n", V[field][iii + H_DNZ], V[field][iii], V[field][iii - H_DNZ]);
+			//	printf("%e %e %e\n", V[rho_i][iii + H_DNX], V[rho_i][iii], V[rho_i][iii - H_DNX]);
+			// printf("%e %e %e\n", V[rho_i][iii + H_DNY], V[rho_i][iii], V[rho_i][iii - H_DNY]);
+			//	printf("%e %e %e\n", V[rho_i][iii + H_DNZ], V[rho_i][iii], V[rho_i][iii - H_DNZ]);
 			// }
 			slpx[field][iii] = minmod_theta(Vfield[iii + H_DNX] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNX], theta_x);
 			slpy[field][iii] = minmod_theta(Vfield[iii + H_DNY] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNY], theta_y);
@@ -1808,8 +1800,8 @@ void grid::reconstruct() {
 
 	if (opts.ang_con) {
 //#pragma GCC ivdep
-		auto step1 = [&](real& lhs, real const& rhs) { lhs += 6.0 * rhs / dx; };
-		auto step2 = [&](real& lhs, real const& rhs) { lhs -= 6.0 * rhs / dx; };
+		auto step1 = [&](real& lhs, real const& rhs) {lhs += 6.0 * rhs / dx;};
+		auto step2 = [&](real& lhs, real const& rhs) {lhs -= 6.0 * rhs / dx;};
 		auto minmod_step = [](real& lhs, real const& r1, real const& r2, real const& r3)
 		{
 			lhs = minmod(lhs, 2.0 * minmod(r1 - r2, r2 - r3));
@@ -1889,7 +1881,7 @@ void grid::reconstruct() {
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 				const real& u0 = Vfield[iii];
-                const real slpxfield_half = slpxfield[iii] * HALF;
+				const real slpxfield_half = slpxfield[iii] * HALF;
 				UfFXPfield[iii] = u0 + slpxfield_half;
 				UfFXMfield[iii] = u0 - slpxfield_half;
 			}
@@ -1915,7 +1907,7 @@ void grid::reconstruct() {
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 				const real& u0 = Vfield[iii];
-                const real slpyfield_half = slpyfield[iii] * HALF;
+				const real slpyfield_half = slpyfield[iii] * HALF;
 				UfFYPfield[iii] = u0 + slpyfield_half;
 				UfFYMfield[iii] = u0 - slpyfield_half;
 			}
@@ -1941,7 +1933,7 @@ void grid::reconstruct() {
 #pragma GCC ivdep
 			for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
 				const real& u0 = Vfield[iii];
-                const real slpzfield_half = slpzfield[iii] * HALF;
+				const real slpzfield_half = slpzfield[iii] * HALF;
 				UfFZPfield[iii] = u0 + slpzfield_half;
 				UfFZMfield[iii] = u0 - slpzfield_half;
 			}
@@ -2126,7 +2118,6 @@ void grid::store() {
 	U_out0 = U_out;
 }
 
-
 void grid::restore() {
 	for (integer field = 0; field != NF; ++field) {
 #pragma GCC ivdep
@@ -2242,7 +2233,7 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 	}
 }
 
-void grid::compute_sources(real t) {
+void grid::compute_sources(real t, real rotational_time) {
 	PROF_BEGIN;
 	auto& src = dUdt;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -2258,9 +2249,12 @@ void grid::compute_sources(real t) {
 				}
 				const real rho = U[rho_i][iii];
 				//		if( opts.ang_con) {
-				src[zx_i][iii0] = (-(F[YDIM][sz_i][iiif + F_DNY] + F[YDIM][sz_i][iiif]) + (F[ZDIM][sy_i][iiif + F_DNZ] + F[ZDIM][sy_i][iiif])) * HALF;
-				src[zy_i][iii0] = (+(F[XDIM][sz_i][iiif + F_DNX] + F[XDIM][sz_i][iiif]) - (F[ZDIM][sx_i][iiif + F_DNZ] + F[ZDIM][sx_i][iiif])) * HALF;
-				src[zz_i][iii0] = (-(F[XDIM][sy_i][iiif + F_DNX] + F[XDIM][sy_i][iiif]) + (F[YDIM][sx_i][iiif + F_DNY] + F[YDIM][sx_i][iiif])) * HALF;
+				src[zx_i][iii0] = (-(F[YDIM][sz_i][iiif + F_DNY] + F[YDIM][sz_i][iiif])
+						+ (F[ZDIM][sy_i][iiif + F_DNZ] + F[ZDIM][sy_i][iiif])) * HALF;
+				src[zy_i][iii0] = (+(F[XDIM][sz_i][iiif + F_DNX] + F[XDIM][sz_i][iiif])
+						- (F[ZDIM][sx_i][iiif + F_DNZ] + F[ZDIM][sx_i][iiif])) * HALF;
+				src[zz_i][iii0] = (-(F[XDIM][sy_i][iiif + F_DNX] + F[XDIM][sy_i][iiif])
+						+ (F[YDIM][sx_i][iiif + F_DNY] + F[YDIM][sx_i][iiif])) * HALF;
 				//		}
 				if (node_server::is_gravity_on()) {
 					src[sx_i][iii0] += rho * G[iiig][gx_i];
@@ -2273,28 +2267,26 @@ void grid::compute_sources(real t) {
 					src[egas_i][iii0] -= omega * X[YDIM][iii] * rho * G[iiig][gx_i];
 					src[egas_i][iii0] += omega * X[XDIM][iii] * rho * G[iiig][gy_i];
 				}
-#ifdef USE_DRIVING
-				const real period = (2.0 * M_PI / grid::omega);
-				if (t < DRIVING_TIME * period) {
-					const real ff = -DRIVING_RATE / period;
-					const real rho = U[rho_i][iii];
-					const real sx = U[sx_i][iii];
-					const real sy = U[sy_i][iii];
-					const real zz = U[zz_i][iii];
-					const real x = X[XDIM][iii];
-					const real y = X[YDIM][iii];
-					const real R = std::sqrt(x * x + y * y);
-					const real lz = (x * sy - y * sx);
-					const real dsx = -y / R / R * lz * ff;
-					const real dsy = +x / R / R * lz * ff;
-					src[sx_i][iii0] += dsx;
-					src[sy_i][iii0] += dsy;
-					src[egas_i][iii0] += (sx * dsx + sy * dsy) / rho;
-					src[zz_i][iii0] += ff * zz;
-
+				if (opts.driving_rate != 0.0) {
+					const real period = rotational_time / 2.0 / M_PI;
+					if (opts.driving_time > period) {
+						const real ff = -opts.driving_rate / period;
+						const real rho = U[rho_i][iii];
+						const real sx = U[sx_i][iii];
+						const real sy = U[sy_i][iii];
+						const real zz = U[zz_i][iii];
+						const real x = X[XDIM][iii];
+						const real y = X[YDIM][iii];
+						const real R = std::sqrt(x * x + y * y);
+						const real lz = (x * sy - y * sx);
+						const real dsx = -y / R / R * lz * ff;
+						const real dsy = +x / R / R * lz * ff;
+						src[sx_i][iii0] += dsx;
+						src[sy_i][iii0] += dsy;
+						src[egas_i][iii0] += (sx * dsx + sy * dsy) / rho;
+						src[zz_i][iii0] += ff * zz;
+					}
 				}
-#endif
-
 			}
 		}
 	}PROF_END;
@@ -2520,10 +2512,10 @@ void grid::next_u(integer rk, real t, real dt) {
 //					U[zx_i][iii] = U[zy_i][iii] = U[zz_i][iii] = 0.0;
 //				}
 				/* The following commented out section is now enforced in fluxes */
-	/*			U[rho_i][iii] = ZERO;
-				for (integer si = 0; si != NSPECIES; ++si) {
-					U[rho_i][iii] += U[spc_i + si][iii];
-				}*/
+				/*			U[rho_i][iii] = ZERO;
+				 for (integer si = 0; si != NSPECIES; ++si) {
+				 U[rho_i][iii] += U[spc_i + si][iii];
+				 }*/
 
 				if (U[tau_i][iii] < ZERO) {
 					printf("Tau is negative- %e\n", double(U[tau_i][iii]));
@@ -2539,8 +2531,6 @@ void grid::next_u(integer rk, real t, real dt) {
 		}
 	}PROF_END;
 }
-
-
 
 void grid::dual_energy_update() {
 	PROF_BEGIN;
@@ -2575,12 +2565,10 @@ void grid::dual_energy_update() {
 	}PROF_END;
 }
 
-
-
-std::pair<real,real> grid::virial() const {
+std::pair<real, real> grid::virial() const {
 	PROF_BEGIN;
 //	bool in_bnd;
-	std::pair<real,real> v;
+	std::pair<real, real> v;
 	v.first = v.second = 0.0;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2601,12 +2589,12 @@ std::pair<real,real> grid::virial() const {
 				if (ei < de_switch2 * et) {
 					ei = std::pow(U[tau_i][iii], fgamma);
 				}
-				real p = (fgamma-1.0)*ei;
-				if( opts.eos == WD ) {
+				real p = (fgamma - 1.0) * ei;
+				if (opts.eos == WD) {
 					p += ztwd_pressure(U[rho_i][iii]);
 				}
-				v.first += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
-				v.second += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p)*(dx*dx*dx);
+				v.first += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
+				v.second += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
 			}
 		}
 	}PROF_END;

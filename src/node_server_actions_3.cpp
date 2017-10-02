@@ -575,7 +575,7 @@ hpx::future<void> node_server::nonrefined_step() {
                                 auto fcheck = check_flux_consistency();
 #endif
 
-                                grid_ptr->compute_sources(current_time);
+                                grid_ptr->compute_sources(current_time, rotational_time);
                                 grid_ptr->compute_dudt();
 
                                 compute_fmm(DRHODT, false);

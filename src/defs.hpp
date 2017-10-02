@@ -61,10 +61,6 @@
 
 #define USE_SIMD
 
-//#define USE_DRIVING
-#define DRIVING_RATE 0.01
-#define DRIVING_TIME 1.00
-
 #define ZCORRECT
 
 #define USE_PPM

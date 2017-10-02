@@ -60,9 +60,12 @@ public:
     bool parallel_silo;
     bool silo_planes_only;
     std::string data_dir;
-
+    real driving_rate;
+    real driving_time;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & driving_rate;
+		arc & driving_time;
 		arc & refinement_floor;
 		arc & refinement_floor_specified;
 		arc & ngrids;

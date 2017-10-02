@@ -315,7 +315,7 @@ public:
     void store();
     void restore();
     real compute_fluxes();
-    void compute_sources(real t);
+    void compute_sources(real t, real);
     void set_physical_boundaries(const geo::face&, real t);
     void next_u(integer rk, real t, real dt);
     static void output(const output_list_type&, std::string, std::string, real t, int cycle, bool a);
