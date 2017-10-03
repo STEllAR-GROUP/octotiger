@@ -349,6 +349,7 @@ std::size_t node_server::save_me(std::ostream& strm) const {
 
 void node_server::save_to_file(const std::string& fname, std::string const& data_dir) const {
     hpx::util::high_resolution_timer timer;
+    printf( "Saving to checkpoint %s\n", fname.c_str());
     save(0, data_dir + fname);
 //     file_copy((data_dir + fname).c_str(), (data_dir + "restart.chk").c_str());
 //	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");

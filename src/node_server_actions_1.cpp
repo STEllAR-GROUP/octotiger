@@ -523,6 +523,7 @@ hpx::future<void> node_client::save(integer i, std::string s) const {
 }
 
 std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std::string const& filename, hpx::future<void>& child_fut) const {
+ //   printf( "Saving grid on %i\n", hpx::get_locality_id());
 
     std::map<integer, std::vector<char> > result;
     char flag = is_refined ? '1' : '0';
@@ -539,14 +540,15 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
         integer i = cnt + 1;
         for (auto& ci : geo::octant::full_set())
         {
-            if (!children[ci].is_local())
-            {
+          //  if (!children[ci].is_local())
+           // {
                 child_futs[ci] = children[ci].save(i, filename);
-            }
-            else
-            {
-                local_children.emplace_back(ci, i, children[ci].get_ptr());
-            }
+           // }
+           // else
+           // {
+           //     local_children.emplace_back(ci, i, children[ci].get_ptr());
+           // }
+            child_futs[ci].wait();
             i += child_descendant_count[ci];
         }
     }
@@ -589,7 +591,7 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
 			}
 		}
     }
-
+ //   printf( "Saved grid on %i\n", hpx::get_locality_id());
     return result;
 }
 
@@ -611,7 +613,8 @@ void node_server::save(integer cnt, std::string const& filename) const
     // run output on separate thread
     auto fut = hpx::threads::run_as_os_thread([&]() {
         // write all of the buffers to file
-        integer record_size = 0;
+     //  	printf( "Writing results on %i\n", hpx::get_locality_id());
+            integer record_size = 0;
         FILE* fp = fopen(filename.c_str(), "rb+");
         for (auto const& d : result) {
             if (record_size == 0) {
@@ -622,6 +625,7 @@ void node_server::save(integer cnt, std::string const& filename) const
             }
             fseek(fp, record_size * d.first, SEEK_SET);
             fwrite(d.second.data(), sizeof(char), d.second.size(), fp);
+        //   	printf( "Done writing results on %i\n", hpx::get_locality_id());
         }
 
         if (my_location.level() == 0) {
