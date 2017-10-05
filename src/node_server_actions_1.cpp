@@ -124,6 +124,7 @@ hpx::future<grid::output_list_type> node_server::load(
                             return children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename);
                         }
                     );
+            futs[index-1].wait();
 
 //             children[ci] = hpx::new_<node_server>(options::all_localities[loc_id],
 //                 my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
@@ -204,7 +205,6 @@ hpx::future<grid::output_list_type> node_server::load(
 			printf("Loaded checkpoint file\n");
                 my_list = decltype(my_list)();
             }
-
             return my_list;
         },
         std::move(futs));
