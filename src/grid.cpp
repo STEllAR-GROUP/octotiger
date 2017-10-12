@@ -2271,7 +2271,7 @@ void grid::compute_sources(real t, real rotational_time) {
 					const real period_len = 2.0 * M_PI / grid::omega;
 					if (opts.driving_time > rotational_time / (2.0 * M_PI)) {
 						const real ff = -opts.driving_rate / period_len;
-					///	printf("%e %e %e\n", ff, opts.driving_rate, period_len);
+						///	printf("%e %e %e\n", ff, opts.driving_rate, period_len);
 						const real rho = U[rho_i][iii];
 						const real sx = U[sx_i][iii];
 						const real sy = U[sy_i][iii];
@@ -2286,6 +2286,35 @@ void grid::compute_sources(real t, real rotational_time) {
 						src[sy_i][iii0] += dsy;
 						src[egas_i][iii0] += (sx * dsx + sy * dsy) / rho;
 						src[zz_i][iii0] += ff * zz;
+					}
+				}
+				if (opts.entropy_driving_rate != 0.0) {
+					const real period_len = 2.0 * M_PI / grid::omega;
+					if (opts.entropy_driving_time > rotational_time / (2.0 * M_PI)) {
+						real ff = +opts.entropy_driving_rate / period_len;
+						ff *= (U[spc_ac_i][iii] + U[spc_ae_i][iii])/U[rho_i][iii];
+						real ek = ZERO;
+						ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
+						ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
+						ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
+						real ei;
+						if (opts.eos == WD) {
+							ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
+						} else {
+							ei = U[egas_i][iii] - ek;
+						}
+						real et = U[egas_i][iii];
+						real tau;
+						if (ei < de_switch2 * et) {
+							tau = U[tau_i][iii];
+						} else {
+							tau = std::pow(ei, 1.0 / fgamma);
+						}
+						ei = std::pow(tau,fgamma);
+						const real dtau = ff * tau;
+						const real dei = dtau * ei / tau * fgamma;
+						src[tau_i][iii0] += dtau;
+						src[egas_i][iii0] += dei;
 					}
 				}
 			}

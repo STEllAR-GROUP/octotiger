@@ -25,6 +25,8 @@
 #define OMEGA_OPT "-Omega"
 #define DRIVING_RATE_OPT "-DrivingRate"
 #define DRIVING_TIME_OPT "-DrivingTime"
+#define ENTROPY_DRIVING_RATE_OPT "-EntropyDrivingRate"
+#define ENTROPY_DRIVING_TIME_OPT "-EntropyDrivingTime"
 #define VOMEGA_OPT "-VariableOmega"
 #define ODT_OPT "-Odt"
 #define DISABLEOUTPUT_OPT "-Disableoutput"
@@ -129,6 +131,8 @@ bool options::process_options(int argc, char* argv[]) {
     omega = 0.0;
     driving_rate = 0.0;
     driving_time = 0.0;
+    entropy_driving_rate = 0.0;
+    entropy_driving_time = 0.0;
     exe_name = std::string(argv[0]);
     contact_fill = 0.0;
     output_dt = -1;
@@ -224,6 +228,10 @@ bool options::process_options(int argc, char* argv[]) {
             omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
         } else if (cmp(argv[i], DRIVING_RATE_OPT)) {
             driving_rate = atof(argv[i] + strlen(DRIVING_RATE_OPT) + 1);
+        } else if (cmp(argv[i], ENTROPY_DRIVING_RATE_OPT)) {
+            entropy_driving_rate = atof(argv[i] + strlen(ENTROPY_DRIVING_RATE_OPT) + 1);
+        } else if (cmp(argv[i], ENTROPY_DRIVING_TIME_OPT)) {
+            entropy_driving_time = atof(argv[i] + strlen(ENTROPY_DRIVING_TIME_OPT) + 1);
         } else if (cmp(argv[i], DRIVING_TIME_OPT)) {
             driving_time = atof(argv[i] + strlen(DRIVING_TIME_OPT) + 1);
         } else if (cmp(argv[i], ODT_OPT)) {
