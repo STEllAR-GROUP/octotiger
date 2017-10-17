@@ -110,7 +110,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 		}
 		return rc;
 	};
-	roche_lobe.resize(INX * INX * INX);
 	for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 		for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 			for (integer l = H_BW; l != H_NX - H_BW; ++l) {
@@ -318,8 +317,8 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 
 #ifdef RADIATION
 char const* grid::field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
-	"secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
-	"zzs"};
+	"secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "T",
+	"zzs", "roche"};
 #else
 char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core",
 		"primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
@@ -1668,7 +1667,7 @@ void grid::allocate() {
 #ifdef USE_GRAV_PAR
 	L_mtx.reset(new hpx::lcos::local::spinlock);
 #endif
-
+	roche_lobe.resize(INX * INX * INX);
 	PROF_END;
 }
 
@@ -2093,6 +2092,7 @@ real grid::compute_fluxes() {
 	const auto& sx = get_field(sx_i);
 	const auto& sy = get_field(sy_i);
 	const auto& sz = get_field(sz_i);
+	rad_grid_ptr->compute_mmw(U);
 	const real b = rad_grid_ptr->hydro_signal_speed(egas, tau, sx, sy, sz, rho);
 	max_lambda += b;
 #endif

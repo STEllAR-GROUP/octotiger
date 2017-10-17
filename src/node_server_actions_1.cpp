@@ -21,6 +21,7 @@
 #include <chrono>
 #include <fstream>
 #include <vector>
+#include <fcntl.h>
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
@@ -126,7 +127,10 @@ hpx::future<grid::output_list_type> node_server::load(integer cnt, integer total
 		{
 			read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
 		}
-		//  printf( "RECSIZE=%i\n", int(rec_size));
+		   // printf( "RECSIZE=%i ftell = %i\n", int(rec_size), int(ftell(fp)));
+
+
+
 			load_me(fp, rec_size==65739);
 			file_unlock(fp, lk);
 			fclose(fp);

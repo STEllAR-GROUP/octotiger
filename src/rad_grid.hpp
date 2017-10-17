@@ -49,19 +49,18 @@ private:
 	std::array<std::vector<rad_type>, NRF> U0;
 	std::array<std::array<std::vector<rad_type>, NRF>,NDIM> flux;
 	std::array<std::array<std::vector<rad_type>*, NDIM>, NDIM> P;
-	std::vector<std::vector<real>> X;
+//	std::vector<std::vector<real>> X;
 	std::vector<real> mmw;
 	static std::array<std::array<real,NDIM>,NDIM> compute_p( real E, real Fx, real Fy, real Fz);
 public:
-	void set_X( const std::vector<std::vector<real>>& x );
+//	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
 	void store();
-	std::size_t load(std::istream& strm);
+	std::size_t load(FILE* fp);
 	std::size_t save(std::ostream& strm) const;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
-		arc & dx;
 		arc & dx;
 		arc & U;
 	}
@@ -69,7 +68,7 @@ public:
 	void change_units(real m, real l, real t, real k);
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real dt);
 	void sanity_check();
-	void initialize_erad(const std::vector<real> rho, const std::vector<real> tau);
+	void initialize_erad(const std::vector<real>& rho, std::vector<real>& tau);
 	void set_dx(real dx);
 	//void compute_fEdd();
 	void compute_flux();
@@ -85,7 +84,7 @@ public:
 	std::vector<rad_type> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const;
 	std::vector<rad_type> get_intensity(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
 	void allocate();
-	void get_output(std::array<std::vector<real>, NF + NGF + NRF + NPF>& v, integer, integer, integer) const;
+	void get_output(std::array<std::vector<real>, OUTPUT_COUNT>& v, integer, integer, integer) const;
 	rad_grid(real dx);
 	rad_grid();
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);

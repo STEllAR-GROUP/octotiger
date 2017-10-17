@@ -13,7 +13,7 @@
 
 //#define OCTOTIGER_FLUX_CHECK
 
-#define rho_floor  (1.0e-15)
+#define rho_floor  (1.0e-10)
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 # define USE_GRAV_PAR

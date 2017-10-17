@@ -80,8 +80,10 @@ bool find_root(std::function<double(double)>& func, double xmin, double xmax,
 		} else {
 			xmax = xmid;
 		}
+	//	printf( "%e %e\n", xmin, xmax);
 	}
 	root = xmid;
+//	return true;
 	if( error(root,xmin0) < 10.0*toler || error(xmax0,root) < 10.0*toler ) {
 		return false;
 	} else {

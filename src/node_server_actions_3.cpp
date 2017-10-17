@@ -274,7 +274,8 @@ void node_server::start_run(bool scf, integer ngrids)
         this->velocity_inc(dv);
         if (!opts.disable_output) {
             save_to_file("scf.chk", opts.data_dir);
-        }
+            printf( "Scf done\n");
+       }
     }
 #ifdef RADIATION
     if( opts.eos == WD && opts.problem == STAR) {
@@ -282,6 +283,7 @@ void node_server::start_run(bool scf, integer ngrids)
     	set_cgs();
     	erad_init();
     }
+	//erad_init();
 #endif
     printf( "Starting run...\n" );
     auto fut_ptr = me.get_ptr();
@@ -361,7 +363,8 @@ void node_server::start_run(bool scf, integer ngrids)
             printf( "New Omega = %e\n", omega );
  //            omega_dot += theta_dot_dot*dt;
 //             grid::set_omega(omega);          // now done during check_for_refinement below
-        }
+            save_to_file("X.chk", opts.data_dir);
+         }
         else {
             printf("normal step...\n");
             dt = step(next_step - step_num).get();
@@ -480,6 +483,8 @@ void node_server::refined_step() {
 
     timings::scope ts(timings_, timings::time_computation);
     const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
+
+
     real cfl0 = cfl;
 
     real a = std::numeric_limits<real>::min();

@@ -13,7 +13,7 @@
 #include <hpx/lcos/broadcast.hpp>
 #include "util.hpp"
 
-physcon_t physcon = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
+physcon_t physcon = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, { 13.714285714, 13.714285714, 4.0, 4.0, 4.0 }, { 6.857142857, 6.857142857, 2.0, 2.0, 2.0 } };
 
 #include "node_server.hpp"
 
@@ -94,9 +94,6 @@ hpx::future<void> set_physcon(const physcon_t& p);
 
 HPX_PLAIN_ACTION(set_physcon, set_physcon_action);
 
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_physcon_action);
-HPX_REGISTER_BROADCAST_ACTION (set_physcon_action);
-
 hpx::future<void> set_physcon(const physcon_t& p) {
 	hpx::future<void> f;
 	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
@@ -114,8 +111,11 @@ hpx::future<void> set_physcon(const physcon_t& p) {
 	return f;
 }
 
-void node_server::set_cgs(bool change) {
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_physcon_action);
+HPX_REGISTER_BROADCAST_ACTION (set_physcon_action);
 
+void node_server::set_cgs(bool change) {
+	printf( "Setting cgs\n");
 	real m, l, t, k;
 	if (change) {
 		these_units(m, l, t, k);
@@ -130,7 +130,7 @@ void node_server::set_cgs(bool change) {
 	physcon.h = 6.6260755e-27;
 	auto f1 = set_physcon(physcon);
 	if (change) {
-		printf("%e %e %e %e\n", m, l, t, k);
+//		printf("%e %e %e %e\n", m, l, t, k);
 		change_units(m, l, t, k);
 		auto f3 = grid::static_change_units(m, l, t, k);
 		f3.get();
@@ -167,7 +167,7 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION (static_change_units_action);
 HPX_REGISTER_BROADCAST_ACTION (static_change_units_action);
 
 hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
-	printf("%e %e %e %e\n", m, l, t, k);
+//	printf("%e %e %e %e\n", m, l, t, k);
 	hpx::future<void> f;
 	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
 		std::vector<hpx::id_type> remotes;
@@ -321,6 +321,9 @@ real dkappa_p_de(real rho, real e, real mmw) {
 
 real B_p(real rho, real e, real mmw) {
 	const real T = temperature(rho, e, mmw);
+//	if( e != 1.0e-5 && rho < 1.0e-10) {
+//		printf( "%e %e %e %e\n", rho, e, mmw, T);
+//	}
 	return (physcon.sigma / M_PI) * std::pow(T, 4.0);
 }
 

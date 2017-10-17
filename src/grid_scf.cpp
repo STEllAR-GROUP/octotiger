@@ -26,7 +26,7 @@ namespace scf_options {
 static real async1 = -0.0e-2;
 static real async2 = -0.0e-2;
 static bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
-static real M1 = 0.6;// Mass of primary
+static real M1 = 1.0;// Mass of primary
 static real M2 = 0.3;// Mass of sfecondaries
 static real nc1 = 2.5;// Primary core polytropic index
 static real nc2 = 1.5;// Secondary core polytropic index
@@ -214,8 +214,8 @@ struct scf_parameters {
 		const real fill2 = scf_options::fill2;
 		const real V1 = find_V(M1 / M2) * cube(a);
 		const real V2 = find_V(M2 / M1) * cube(a);
-		R1 = std::pow(V1 / c, 1.0 / 3.0) * std::pow(fill1,5);
-		R2 = std::pow(V2 / c, 1.0 / 3.0) * std::pow(fill2,5);
+		R1 = std::pow(V1 / c, 1.0 / 3.0) * std::pow(fill1,3);
+		R2 = std::pow(V2 / c, 1.0 / 3.0) * std::pow(fill2,3);
 		if (opts.eos == WD) {
 		//	printf( "!\n");
 			struct_eos2 = std::make_shared < struct_eos > (scf_options::M2, R2);
@@ -355,7 +355,6 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 					if( opts.eos == WD) {
 						eint += ztwd_energy(rho);
 					}
-		//			eint = 0.0;
 				}
 				real etherm = eint;
 				if (opts.eos == WD) {
@@ -374,6 +373,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		}
 	}
 #ifdef RADIATION
+	rad_grid_ptr->compute_mmw(U);
 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 #endif
 	PROF_END;
@@ -594,8 +594,8 @@ void node_server::run_scf(std::string const& data_dir) {
 	}
 #ifdef RADIATION
 	if( opts.eos == WD) {
+		printf( "Fixing units\n");
 		set_cgs();
-		all_hydro_bounds();
 		erad_init();
 	}
 #endif
