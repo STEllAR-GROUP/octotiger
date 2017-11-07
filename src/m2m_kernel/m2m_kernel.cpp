@@ -3,7 +3,7 @@
 #include "defs.hpp"
 #include "interaction_types.hpp"
 #include "options.hpp"
-#include "struct_of_array_taylor.hpp"
+#include "../common_kernel/struct_of_array_data.hpp"
 
 #include <array>
 #include <functional>

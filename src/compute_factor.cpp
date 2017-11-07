@@ -1,4 +1,4 @@
-#include "m2m_kernel/m2m_simd_types.hpp"
+#include "common_kernel/kernel_simd_types.hpp"
 #include "taylor.hpp"
 
 taylor<4, real> factor;

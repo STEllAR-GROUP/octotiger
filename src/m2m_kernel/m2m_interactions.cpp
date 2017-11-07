@@ -1,7 +1,7 @@
 #include "m2m_interactions.hpp"
 
 #include "calculate_stencil.hpp"
-#include "interactions_iterators.hpp"
+#include "../common_kernel/interactions_iterators.hpp"
 #include "m2m_kernel.hpp"
 
 #include <algorithm>

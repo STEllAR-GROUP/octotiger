@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 
-#include "m2m_simd_types.hpp"
+#include "../common_kernel/kernel_simd_types.hpp"
 
 #include "geometry.hpp"
 // #include "grid.hpp"
@@ -11,8 +11,8 @@
 #include "interaction_types.hpp"
 #include "taylor.hpp"
 
-#include "interaction_constants.hpp"
-#include "multiindex.hpp"
+#include "../common_kernel/interaction_constants.hpp"
+#include "../common_kernel/multiindex.hpp"
 
 namespace octotiger {
 namespace fmm {

@@ -2,9 +2,6 @@
 
 namespace octotiger {
 namespace fmm {
-
-    namespace p2p_kernel {
-
         bool expansion_comparator(const expansion& ref, const expansion& mine) {
             if (ref.size() != mine.size()) {
                 std::cout << "size of expansion doesn't match" << std::endl;
@@ -37,6 +34,5 @@ namespace fmm {
             return true;
         }
 
-    }    // namespace p2p_kernel
 }    // namespace fmm
 }    // namespace octotiger

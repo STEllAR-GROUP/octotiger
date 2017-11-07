@@ -1,10 +1,9 @@
 #pragma once
 
-#include "m2m_simd_types.hpp"
+#include "kernel_simd_types.hpp"
 
 namespace octotiger {
 namespace fmm {
-    namespace p2p_kernel {
 
         // overload for kernel-specific simd type
         static inline void set_basis(
@@ -282,6 +281,5 @@ namespace fmm {
             // }
         };
 
-    }    // namespace p2p_kernel
 }    // namespace fmm
 }    // namespace octotiger

@@ -3,7 +3,7 @@
 #include "options.hpp"
 
 #include "calculate_stencil.hpp"
-#include "helper.hpp"
+#include "../common_kernel/helper.hpp"
 
 extern options opts;
 

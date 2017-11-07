@@ -7,8 +7,6 @@
 
 namespace octotiger {
 namespace fmm {
-    namespace p2p_kernel {
-
         // is template to allow for vectorization
         template <typename T = int32_t>
         class multiindex
@@ -61,12 +59,10 @@ namespace fmm {
                 z = ((z + patch_size) >> 1) - subtract;
             }
         };
-
-    }    // namespace p2p_kernel
 }    // namespace fmm
 }    // namespace octotiger
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const octotiger::fmm::p2p_kernel::multiindex<T>& m) {
+std::ostream& operator<<(std::ostream& os, const octotiger::fmm::multiindex<T>& m) {
     return os << m.x << ", " << m.y << ", " << m.z;
 }

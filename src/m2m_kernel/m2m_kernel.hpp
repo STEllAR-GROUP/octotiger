@@ -1,10 +1,10 @@
 #pragma once
 
-#include "interaction_constants.hpp"
-#include "interactions_iterators.hpp"
-#include "m2m_simd_types.hpp"
-#include "multiindex.hpp"
-#include "struct_of_array_data.hpp"
+#include "../common_kernel/interaction_constants.hpp"
+#include "../common_kernel/interactions_iterators.hpp"
+#include "../common_kernel/kernel_simd_types.hpp"
+#include "../common_kernel/multiindex.hpp"
+#include "../common_kernel/struct_of_array_data.hpp"
 #include "taylor.hpp"
 
 #include <vector>

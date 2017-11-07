@@ -115,12 +115,11 @@ set(source_files ${source_files}
     src/m2m_kernel/m2m_interactions.cpp
     src/m2m_kernel/calculate_stencil.cpp
     src/m2m_kernel/m2m_kernel.cpp
-    src/m2m_kernel/interactions_iterators.cpp
     src/m2m_kernel/m2m_kernel_blocked_interaction.cpp
     src/p2p_kernel/p2p_interactions.cpp
     src/p2p_kernel/calculate_stencil.cpp
     src/p2p_kernel/p2p_kernel.cpp
-    src/p2p_kernel/interactions_iterators.cpp
+    src/common_kernel/interactions_iterators.cpp
     src/p2p_kernel/p2p_kernel_blocked_interaction.cpp
 )
 
@@ -154,14 +153,14 @@ set(header_files
     src/taylor.hpp
     src/util.hpp
     src/compute_factor.hpp
-    src/m2m_kernel/interaction_constants.hpp
+    src/common_kernel/interaction_constants.hpp
     src/m2m_kernel/m2m_interactions.hpp
-    src/m2m_kernel/multiindex.hpp
+    src/common_kernel/multiindex.hpp
     src/m2m_kernel/calculate_stencil.hpp
     src/m2m_kernel/m2m_kernel.hpp
     src/m2m_kernel/compare_interaction_lists.hpp
-    src/m2m_kernel/m2m_simd_types.hpp
-    src/m2m_kernel/m2m_taylor_set_basis.hpp
+    src/common_kernel/kernel_simd_types.hpp
+    src/common_kernel/kernel_taylor_set_basis.hpp
 )
 
 add_hpx_executable(

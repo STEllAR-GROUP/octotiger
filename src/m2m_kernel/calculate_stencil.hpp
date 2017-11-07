@@ -1,6 +1,6 @@
 #pragma once
 
-#include "multiindex.hpp"
+#include "../common_kernel/multiindex.hpp"
 
 #include <vector>
 

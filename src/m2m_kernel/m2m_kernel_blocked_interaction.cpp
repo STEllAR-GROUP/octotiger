@@ -1,9 +1,9 @@
 #include "m2m_kernel.hpp"
 
 #include "grid_flattened_indices.hpp"
-#include "helper.hpp"
-#include "m2m_taylor_set_basis.hpp"
-#include "struct_of_array_taylor.hpp"
+#include "../common_kernel/helper.hpp"
+#include "../common_kernel/kernel_taylor_set_basis.hpp"
+#include "../common_kernel/struct_of_array_data.hpp"
 
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;

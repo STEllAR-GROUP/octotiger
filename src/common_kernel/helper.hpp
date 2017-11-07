@@ -1,10 +1,9 @@
 #pragma once
 
-#include "m2m_simd_types.hpp"
+#include "kernel_simd_types.hpp"
 
 namespace octotiger {
 namespace fmm {
-    namespace p2p_kernel {
         namespace detail {
 
             // calculates 1/distance between i and j
@@ -39,6 +38,5 @@ namespace fmm {
                 return check;
             }
         }    // namespace detail
-    }        // namespace detail
 }    // namespace fmm
 }    // namespace octotiger
