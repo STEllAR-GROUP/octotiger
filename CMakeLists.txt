@@ -119,8 +119,12 @@ set(source_files ${source_files}
     src/p2p_kernel/p2p_interactions.cpp
     src/p2p_kernel/calculate_stencil.cpp
     src/p2p_kernel/p2p_kernel.cpp
-    src/common_kernel/interactions_iterators.cpp
     src/p2p_kernel/p2p_kernel_blocked_interaction.cpp
+    src/p2m_kernel/p2m_interactions.cpp
+    src/p2m_kernel/calculate_stencil.cpp
+    src/p2m_kernel/p2m_kernel.cpp
+    src/p2m_kernel/p2m_kernel_blocked_interaction.cpp
+    src/common_kernel/interactions_iterators.cpp
 )
 
 set(header_files
@@ -154,11 +158,19 @@ set(header_files
     src/util.hpp
     src/compute_factor.hpp
     src/common_kernel/interaction_constants.hpp
-    src/m2m_kernel/m2m_interactions.hpp
     src/common_kernel/multiindex.hpp
+    src/m2m_kernel/m2m_interactions.hpp
     src/m2m_kernel/calculate_stencil.hpp
     src/m2m_kernel/m2m_kernel.hpp
     src/m2m_kernel/compare_interaction_lists.hpp
+    src/p2m_kernel/m2m_interactions.hpp
+    src/p2m_kernel/calculate_stencil.hpp
+    src/p2m_kernel/m2m_kernel.hpp
+    src/p2m_kernel/compare_interaction_lists.hpp
+    src/p2p_kernel/m2m_interactions.hpp
+    src/p2p_kernel/calculate_stencil.hpp
+    src/p2p_kernel/m2m_kernel.hpp
+    src/p2p_kernel/compare_interaction_lists.hpp
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
 )
