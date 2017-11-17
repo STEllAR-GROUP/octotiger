@@ -86,16 +86,117 @@ namespace fmm {
                 X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
                 X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
                 X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
-
-                // std::array<m2m_vector, NDIM> Y;
-                // Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-                // Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-                // Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
-
+                std::array<m2m_vector, NDIM> Y;
+                Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
+                Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
+                Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
                 std::array<m2m_vector, NDIM> dX;
                 dX[0] = X[0] - Y[0];
                 dX[1] = X[1] - Y[1];
                 dX[2] = X[2] - Y[2];
+
+                D_split D_calculator(dX);
+                std::array<m2m_vector, 20> D_lower;
+                D_calculator.calculate_D_lower(D_lower);
+
+                std::array<m2m_vector, 20> m_partner;
+                // ONE expansion
+                m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                m_partner[3] = local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                m_partner[4] = local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                m_partner[5] = local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                m_partner[6] = local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                m_partner[7] = local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                m_partner[8] = local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                m_partner[9] = local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                m_partner[10] = local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                m_partner[11] = local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                m_partner[12] = local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                m_partner[13] = local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                m_partner[14] = local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                m_partner[15] = local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                m_partner[16] = local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                m_partner[17] = local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                m_partner[18] = local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                m_partner[19] = local_expansions_SoA.value<19>(interaction_partner_flat_index);
+
+                // Array to store the temporary result - was called A in the old style
+                std::array<m2m_vector, 10> cur_pot;
+                cur_pot[0] = m_partner[0] * D_lower[0];
+                cur_pot[1] = m_partner[0] * D_lower[1];
+                cur_pot[2] = m_partner[0] * D_lower[2];
+                cur_pot[3] = m_partner[0] * D_lower[3];
+
+                cur_pot[0] += m_partner[4] * (D_lower[4] * factor_half_v[4]);
+                cur_pot[1] += m_partner[4] * (D_lower[10] * factor_half_v[4]);
+                cur_pot[2] += m_partner[4] * (D_lower[11] * factor_half_v[4]);
+                cur_pot[3] += m_partner[4] * (D_lower[12] * factor_half_v[4]);
+
+                cur_pot[0] += m_partner[5] * (D_lower[5] * factor_half_v[5]);
+                cur_pot[1] += m_partner[5] * (D_lower[11] * factor_half_v[5]);
+                cur_pot[2] += m_partner[5] * (D_lower[13] * factor_half_v[5]);
+                cur_pot[3] += m_partner[5] * (D_lower[14] * factor_half_v[5]);
+
+                cur_pot[0] += m_partner[6] * (D_lower[6] * factor_half_v[6]);
+                cur_pot[1] += m_partner[6] * (D_lower[12] * factor_half_v[6]);
+                cur_pot[2] += m_partner[6] * (D_lower[14] * factor_half_v[6]);
+                cur_pot[3] += m_partner[6] * (D_lower[15] * factor_half_v[6]);
+
+                cur_pot[0] += m_partner[7] * (D_lower[7] * factor_half_v[7]);
+                cur_pot[1] += m_partner[7] * (D_lower[13] * factor_half_v[7]);
+                cur_pot[2] += m_partner[7] * (D_lower[16] * factor_half_v[7]);
+                cur_pot[3] += m_partner[7] * (D_lower[17] * factor_half_v[7]);
+
+                cur_pot[0] += m_partner[8] * (D_lower[8] * factor_half_v[8]);
+                cur_pot[1] += m_partner[8] * (D_lower[14] * factor_half_v[8]);
+                cur_pot[2] += m_partner[8] * (D_lower[17] * factor_half_v[8]);
+                cur_pot[3] += m_partner[8] * (D_lower[18] * factor_half_v[8]);
+
+                cur_pot[0] += m_partner[9] * (D_lower[9] * factor_half_v[9]);
+                cur_pot[1] += m_partner[9] * (D_lower[15] * factor_half_v[9]);
+                cur_pot[2] += m_partner[9] * (D_lower[18] * factor_half_v[9]);
+                cur_pot[3] += m_partner[9] * (D_lower[19] * factor_half_v[9]);
+
+                cur_pot[0] -= m_partner[10] * (D_lower[10] * factor_sixth_v[10]);
+                cur_pot[0] -= m_partner[11] * (D_lower[11] * factor_sixth_v[11]);
+                cur_pot[0] -= m_partner[12] * (D_lower[12] * factor_sixth_v[12]);
+                cur_pot[0] -= m_partner[13] * (D_lower[13] * factor_sixth_v[13]);
+                cur_pot[0] -= m_partner[14] * (D_lower[14] * factor_sixth_v[14]);
+                cur_pot[0] -= m_partner[15] * (D_lower[15] * factor_sixth_v[15]);
+                cur_pot[0] -= m_partner[16] * (D_lower[16] * factor_sixth_v[16]);
+                cur_pot[0] -= m_partner[17] * (D_lower[17] * factor_sixth_v[17]);
+                cur_pot[0] -= m_partner[18] * (D_lower[18] * factor_sixth_v[18]);
+                cur_pot[0] -= m_partner[19] * (D_lower[19] * factor_sixth_v[19]);
+
+                m2m_vector tmp =
+                    potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + cur_pot[0];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = potential_expansions_SoA.value<1>(cell_flat_index_unpadded) + cur_pot[1];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = potential_expansions_SoA.value<2>(cell_flat_index_unpadded) + cur_pot[2];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = potential_expansions_SoA.value<3>(cell_flat_index_unpadded) + cur_pot[3];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                // Was B0 in old style, represents the angular corrections
+                m2m_vector current_angular_correction[NDIM];
+                current_angular_correction[0] = 0.0;
+                current_angular_correction[1] = 0.0;
+                current_angular_correction[2] = 0.0;
+                // n0 needs to be a whole m2m vector
             }
         }
 
@@ -123,8 +224,7 @@ namespace fmm {
 
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
-                 inner_stencil_index +=
-                 1) {    // blocking is done by stepping in die outer_stencil index
+                 inner_stencil_index += 1) {
                 const multiindex<>& stencil_element =
                     stencil[outer_stencil_index + inner_stencil_index];
                 const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
@@ -132,6 +232,11 @@ namespace fmm {
 
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
+
+                // check whether all vector elements are in empty border
+                if (vector_is_empty[interaction_partner_flat_index]) {
+                    continue;
+                }
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -150,8 +255,120 @@ namespace fmm {
 
                 m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
 
+                if (Vc::none_of(mask)) {
+                    continue;
+                }
+
+                std::array<m2m_vector, NDIM> X;
+                X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
+                X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
+                X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+                std::array<m2m_vector, NDIM> Y;
+                Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
+                Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
+                Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+                std::array<m2m_vector, NDIM> dX;
+                dX[0] = X[0] - Y[0];
+                dX[1] = X[1] - Y[1];
+                dX[2] = X[2] - Y[2];
+
+                D_split D_calculator(dX);
+                std::array<m2m_vector, 20> D_lower;
+                D_calculator.calculate_D_lower(D_lower);
+
+                std::array<m2m_vector, 20> m_partner;
+                // ONE expansion
+                m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                m_partner[3] = local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                m_partner[4] = local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                m_partner[5] = local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                m_partner[6] = local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                m_partner[7] = local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                m_partner[8] = local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                m_partner[9] = local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                m_partner[10] = local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                m_partner[11] = local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                m_partner[12] = local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                m_partner[13] = local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                m_partner[14] = local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                m_partner[15] = local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                m_partner[16] = local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                m_partner[17] = local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                m_partner[18] = local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                m_partner[19] = local_expansions_SoA.value<19>(interaction_partner_flat_index);
+
+                // Array to store the temporary result - was called A in the old style
+                std::array<m2m_vector, 10> cur_pot;
+                cur_pot[0] = m_partner[0] * D_lower[0];
+                cur_pot[1] = m_partner[0] * D_lower[1];
+                cur_pot[2] = m_partner[0] * D_lower[2];
+                cur_pot[3] = m_partner[0] * D_lower[3];
+
+                cur_pot[0] += m_partner[4] * (D_lower[4] * factor_half_v[4]);
+                cur_pot[1] += m_partner[4] * (D_lower[10] * factor_half_v[4]);
+                cur_pot[2] += m_partner[4] * (D_lower[11] * factor_half_v[4]);
+                cur_pot[3] += m_partner[4] * (D_lower[12] * factor_half_v[4]);
+
+                cur_pot[0] += m_partner[5] * (D_lower[5] * factor_half_v[5]);
+                cur_pot[1] += m_partner[5] * (D_lower[11] * factor_half_v[5]);
+                cur_pot[2] += m_partner[5] * (D_lower[13] * factor_half_v[5]);
+                cur_pot[3] += m_partner[5] * (D_lower[14] * factor_half_v[5]);
+
+                cur_pot[0] += m_partner[6] * (D_lower[6] * factor_half_v[6]);
+                cur_pot[1] += m_partner[6] * (D_lower[12] * factor_half_v[6]);
+                cur_pot[2] += m_partner[6] * (D_lower[14] * factor_half_v[6]);
+                cur_pot[3] += m_partner[6] * (D_lower[15] * factor_half_v[6]);
+
+                cur_pot[0] += m_partner[7] * (D_lower[7] * factor_half_v[7]);
+                cur_pot[1] += m_partner[7] * (D_lower[13] * factor_half_v[7]);
+                cur_pot[2] += m_partner[7] * (D_lower[16] * factor_half_v[7]);
+                cur_pot[3] += m_partner[7] * (D_lower[17] * factor_half_v[7]);
+
+                cur_pot[0] += m_partner[8] * (D_lower[8] * factor_half_v[8]);
+                cur_pot[1] += m_partner[8] * (D_lower[14] * factor_half_v[8]);
+                cur_pot[2] += m_partner[8] * (D_lower[17] * factor_half_v[8]);
+                cur_pot[3] += m_partner[8] * (D_lower[18] * factor_half_v[8]);
+
+                cur_pot[0] += m_partner[9] * (D_lower[9] * factor_half_v[9]);
+                cur_pot[1] += m_partner[9] * (D_lower[15] * factor_half_v[9]);
+                cur_pot[2] += m_partner[9] * (D_lower[18] * factor_half_v[9]);
+                cur_pot[3] += m_partner[9] * (D_lower[19] * factor_half_v[9]);
+
+                cur_pot[0] -= m_partner[10] * (D_lower[10] * factor_sixth_v[10]);
+                cur_pot[0] -= m_partner[11] * (D_lower[11] * factor_sixth_v[11]);
+                cur_pot[0] -= m_partner[12] * (D_lower[12] * factor_sixth_v[12]);
+                cur_pot[0] -= m_partner[13] * (D_lower[13] * factor_sixth_v[13]);
+                cur_pot[0] -= m_partner[14] * (D_lower[14] * factor_sixth_v[14]);
+                cur_pot[0] -= m_partner[15] * (D_lower[15] * factor_sixth_v[15]);
+                cur_pot[0] -= m_partner[16] * (D_lower[16] * factor_sixth_v[16]);
+                cur_pot[0] -= m_partner[17] * (D_lower[17] * factor_sixth_v[17]);
+                cur_pot[0] -= m_partner[18] * (D_lower[18] * factor_sixth_v[18]);
+                cur_pot[0] -= m_partner[19] * (D_lower[19] * factor_sixth_v[19]);
+
+                m2m_vector tmp =
+                    potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + cur_pot[0];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = potential_expansions_SoA.value<1>(cell_flat_index_unpadded) + cur_pot[1];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = potential_expansions_SoA.value<2>(cell_flat_index_unpadded) + cur_pot[2];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = potential_expansions_SoA.value<3>(cell_flat_index_unpadded) + cur_pot[3];
+                Vc::where(mask, tmp).memstore(
+                    potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
             }
         }
-    }    // namespace p2m_kernel
+    }        // namespace p2m_kernel
 }    // namespace fmm
 }    // namespace octotiger

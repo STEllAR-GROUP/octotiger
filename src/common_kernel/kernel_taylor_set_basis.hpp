@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../defs.hpp"
 #include "kernel_simd_types.hpp"
 
 namespace octotiger {

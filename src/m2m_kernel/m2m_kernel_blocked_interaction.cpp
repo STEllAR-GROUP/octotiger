@@ -1,9 +1,9 @@
 #include "m2m_kernel.hpp"
 
-#include "grid_flattened_indices.hpp"
 #include "../common_kernel/helper.hpp"
 #include "../common_kernel/kernel_taylor_set_basis.hpp"
 #include "../common_kernel/struct_of_array_data.hpp"
+#include "grid_flattened_indices.hpp"
 
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
@@ -46,7 +46,7 @@ namespace fmm {
                 cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
 
             const size_t interaction_partner_flat_index =
-                to_flat_index_padded(interaction_partner_index); // iii1n
+                to_flat_index_padded(interaction_partner_index);    // iii1n
 
             // check whether all vector elements are in empty border
             if (vector_is_empty[interaction_partner_flat_index]) {
@@ -196,6 +196,21 @@ namespace fmm {
             cur_pot[0] -= m_partner[18] * (D_lower[18] * factor_sixth_v[18]);
             cur_pot[0] -= m_partner[19] * (D_lower[19] * factor_sixth_v[19]);
 
+            /* Maps to:
+            for (integer i = 0; i != 6; ++i) {
+                int const* abc_idx_map6 = to_abc_idx_map6[i];
+
+                integer const ab_idx = ab_idx_map6[i];
+                A0[ab_idx] = m0() * D[ab_idx];
+                for (integer c = 0; c < NDIM; ++c) {
+                    A0[ab_idx] -= m0(c) * D[abc_idx_map6[c]];
+                }
+            }
+
+            for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+                A0[i] = m0[0] * D[i];
+            }
+            from the old style */
             cur_pot[4] = m_partner[0] * D_lower[4];
             cur_pot[5] = m_partner[0] * D_lower[5];
             cur_pot[6] = m_partner[0] * D_lower[6];
@@ -279,6 +294,11 @@ namespace fmm {
                 potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
 
+            /* Maps to
+            for (integer i = taylor_sizes[2]; i < taylor_sizes[3]; ++i) {
+                A0[i] = m0[0] * D[i];
+            }*/
+
             tmp = potential_expansions_SoA.value<10>(cell_flat_index_unpadded) +
                 m_partner[0] * D_lower[10];
             Vc::where(mask, tmp).memstore(
@@ -360,7 +380,7 @@ namespace fmm {
             std::array<m2m_vector, 15> D_upper;
             // D_calculator.calculate_D_upper(D_upper);
 
-            //B0?
+            // B0?
             m2m_vector current_angular_correction[NDIM];
             current_angular_correction[0] = 0.0;
             current_angular_correction[1] = 0.0;
@@ -561,7 +581,7 @@ namespace fmm {
                 center_of_masses_SoA.value<2>(interaction_partner_flat_index);
 
             // expansion_v m_partner;
-            std::array<m2m_vector, 20> m_partner; //m0 from mpole from neighbors?
+            std::array<m2m_vector, 20> m_partner;    // m0 from mpole from neighbors?
             m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
             m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
             m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
@@ -596,7 +616,8 @@ namespace fmm {
             D_calculator.calculate_D_lower(D_lower);
 
             // expansion_v current_potential;
-            std::array<m2m_vector, 10> cur_pot; //current potential = cur_pot = A in the old style
+            std::array<m2m_vector, 10>
+                cur_pot;    // current potential = cur_pot = A in the old style
 
             // 10-19 are not cached!
 
