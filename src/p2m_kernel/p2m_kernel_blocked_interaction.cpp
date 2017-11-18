@@ -196,7 +196,133 @@ namespace fmm {
                 current_angular_correction[0] = 0.0;
                 current_angular_correction[1] = 0.0;
                 current_angular_correction[2] = 0.0;
+                std::array<m2m_vector, 15> D_upper;
+                D_upper[0] =
+                    D_calculator.X[0] * D_calculator.X[0] * D_calculator.d3 + 2.0 * D_calculator.d2;
+                m2m_vector d3_X00 = D_calculator.d3 * D_calculator.X_00;
+                D_upper[0] += D_calculator.d2;
+                D_upper[0] += 5.0 * d3_X00;
+                m2m_vector d3_X01 = D_calculator.d3 * D_calculator.X[0] * D_calculator.X[1];
+                D_upper[1] = 3.0 * d3_X01;
+                m2m_vector X_02 = D_calculator.X[0] * D_calculator.X[2];
+                m2m_vector d3_X02 = D_calculator.d3 * X_02;
+                D_upper[2] = 3.0 * d3_X02;
                 // n0 needs to be a whole m2m vector
+                m2m_vector n0_tmp = m_partner[10];
+                // m_cell_iterator++; // 11
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[0] * factor_sixth_v[10]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[1] * factor_sixth_v[10]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[2] * factor_sixth_v[10]);
+
+                D_upper[3] = D_calculator.d2;
+                m2m_vector d3_X11 = D_calculator.d3 * D_calculator.X_11;
+                D_upper[3] += d3_X11;
+                D_upper[3] += D_calculator.d3 * D_calculator.X_00;
+                m2m_vector d3_X12 = D_calculator.d3 * D_calculator.X[1] * D_calculator.X[2];
+                D_upper[4] = d3_X12;
+
+                n0_tmp = m_partner[11];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[1] * factor_sixth_v[11]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[3] * factor_sixth_v[11]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[4] * factor_sixth_v[11]);
+
+                D_upper[5] = D_calculator.d2;
+                m2m_vector d3_X22 = D_calculator.d3 * D_calculator.X_22;
+                D_upper[5] += d3_X22;
+                D_upper[5] += d3_X00;
+
+                n0_tmp = m_partner[12];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[2] * factor_sixth_v[12]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[4] * factor_sixth_v[12]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[5] * factor_sixth_v[12]);
+
+                D_upper[6] = 3.0 * d3_X01;
+                D_upper[7] = D_calculator.d3 * X_02;
+
+                n0_tmp = m_partner[13];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[3] * factor_sixth_v[13]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[6] * factor_sixth_v[13]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[7] * factor_sixth_v[13]);
+
+                D_upper[8] = D_calculator.d3 * D_calculator.X[0] * D_calculator.X[1];
+
+                n0_tmp = m_partner[14];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[4] * factor_sixth_v[14]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[7] * factor_sixth_v[14]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[8] * factor_sixth_v[14]);
+
+                D_upper[9] = 3.0 * d3_X02;
+
+                n0_tmp = m_partner[15];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[5] * factor_sixth_v[15]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[8] * factor_sixth_v[15]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[9] * factor_sixth_v[15]);
+
+                D_upper[10] =
+                    D_calculator.X[1] * D_calculator.X[1] * D_calculator.d3 + 2.0 * D_calculator.d2;
+                D_upper[10] += D_calculator.d2;
+                D_upper[10] += 5.0 * d3_X11;
+
+                D_upper[11] = 3.0 * d3_X12;
+
+                n0_tmp = m_partner[16];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[6] * factor_sixth_v[16]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[10] * factor_sixth_v[16]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[11] * factor_sixth_v[16]);
+
+                D_upper[12] = D_calculator.d2;
+                D_upper[12] += d3_X22;
+                D_upper[12] += d3_X11;
+
+                n0_tmp = m_partner[17];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[7] * factor_sixth_v[17]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[11] * factor_sixth_v[17]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[12] * factor_sixth_v[17]);
+
+                D_upper[13] = 3.0 * d3_X12;
+
+                n0_tmp = m_partner[18];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[8] * factor_sixth_v[18]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[12] * factor_sixth_v[18]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[13] * factor_sixth_v[18]);
+
+                D_upper[14] =
+                    D_calculator.X[2] * D_calculator.X[2] * D_calculator.d3 + 2.0 * D_calculator.d2;
+                D_upper[14] += D_calculator.d2;
+                D_upper[14] += 5.0 * d3_X22;
+
+                n0_tmp = m_partner[19];
+
+                current_angular_correction[0] -= n0_tmp * (D_upper[9] * factor_sixth_v[19]);
+                current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth_v[19]);
+                current_angular_correction[2] -= n0_tmp * (D_upper[14] * factor_sixth_v[19]);
+                tmp = angular_corrections_SoA.value<0>(cell_flat_index_unpadded) +
+                    current_angular_correction[0];
+
+                Vc::where(mask, tmp).memstore(
+                    angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = angular_corrections_SoA.value<1>(cell_flat_index_unpadded) +
+                    current_angular_correction[1];
+                Vc::where(mask, tmp).memstore(
+                    angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+
+                tmp = angular_corrections_SoA.value<2>(cell_flat_index_unpadded) +
+                    current_angular_correction[2];
+                Vc::where(mask, tmp).memstore(
+                    angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
             }
         }
 
