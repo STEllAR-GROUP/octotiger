@@ -33,17 +33,10 @@ namespace fmm {
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& __restrict__ stencil, const size_t outer_stencil_index,
-            std::array<m2m_vector, NDIM> Y) {
+            const std::vector<multiindex<>>& __restrict__ stencil, const size_t outer_stencil_index) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
-
-            std::array<m2m_vector, 4> d_components;
-            d_components[0] = 1.0 / dx;
-            d_components[1] = -1.0 / sqr(dx);
-            d_components[2] = -1.0 / sqr(dx);
-            d_components[3] = -1.0 / sqr(dx);
 
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
@@ -336,17 +329,12 @@ namespace fmm {
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index,
-            std::array<m2m_vector, NDIM> Y) {
+            const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
 
             std::array<m2m_vector, 4> d_components;
-            d_components[0] = 1.0 / dx;
-            d_components[1] = -1.0 / sqr(dx);
-            d_components[2] = -1.0 / sqr(dx);
-            d_components[3] = -1.0 / sqr(dx);
 
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();

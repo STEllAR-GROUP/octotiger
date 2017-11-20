@@ -16,12 +16,10 @@ namespace octotiger {
 namespace fmm {
     namespace p2m_kernel {
 
-        p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx,
-            std::array<real, NDIM>& Xbase)
+        p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty, gsolve_type type)
           : neighbor_empty(neighbor_empty)
           , type(type)
           , theta_rec_squared(sqr(1.0 / opts.theta))
-          , dx(dx), Xbase(Xbase)
         // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
@@ -75,23 +73,19 @@ namespace fmm {
                             cell_index_coarse.transform_coarse();
 
                             // calculate position of the monopole
-                            std::array<m2m_vector, NDIM> Y;
-                            Y[0] = cell_index.x * dx + Xbase[0];
-                            Y[1] = cell_index.y * dx + Xbase[1];
-                            Y[2] = cell_index.z * dx + Xbase[2];
 
                             if (type == RHO) {
                                 this->blocked_interaction_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index, Y);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
                             } else {
                                 this->blocked_interaction_non_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index, Y);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
                             }
                         }
                     }

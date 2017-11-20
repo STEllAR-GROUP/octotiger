@@ -28,6 +28,7 @@ extern options opts;
 
 #include "m2m_kernel/m2m_interactions.hpp"
 #include "p2p_kernel/p2p_interactions.hpp"
+#include "p2m_kernel/p2m_interactions.hpp"
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
@@ -635,8 +636,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             // TODO: does this ever trigger? no monopoles in neighbor cell maybe?
             if (!neighbors[dir].empty()) {
                 neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
-                if ((neighbor_data.is_monopole && !grid_ptr->get_leaf()) ||
-                    (!neighbor_data.is_monopole && grid_ptr->get_leaf())) {
+                if ((neighbor_data.is_monopole && !grid_ptr->get_leaf())) {
                 // if ((neighbor_data.is_monopole) && !grid_ptr->get_leaf()) {
                     // this triggers "compute_boundary_interactions_monopole_multipole()"
                     grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
@@ -668,6 +668,20 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 L_c[i] = angular_corrections[i];
             }
         } else {
+            octotiger::fmm::p2m_kernel::p2m_interactions p2m_interactor(
+                M_ptr, com_ptr, all_neighbor_interaction_data, type);
+             p2m_interactor.compute_interactions();
+             p2m_interactor.add_to_potential_expansions(L);
+             p2m_interactor.add_to_center_of_masses(L_c);
+             potential_expansions = p2m_interactor.get_potential_expansions();
+             angular_corrections = p2m_interactor.get_angular_corrections();
+
+            for (size_t i = 0; i < L.size(); i++) {
+                L[i] = potential_expansions[i];
+            }
+            for (size_t i = 0; i < L_c.size(); i++) {
+                L_c[i] = angular_corrections[i];
+            }
             octotiger::fmm::p2p_kernel::p2p_interactions p2p_interactor(
                 mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
             p2p_interactor.compute_interactions();

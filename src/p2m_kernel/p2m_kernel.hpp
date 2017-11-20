@@ -28,9 +28,6 @@ namespace fmm {
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
 
-            real dx;
-            std::array<real, NDIM>& Xbase;
-
             /// Calculates the monopole multipole boundary interactions with solve type rho
             void blocked_interaction_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
                                              SOA_PADDING>& local_expansions_SoA,
@@ -43,8 +40,7 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index,
-                std::array<m2m_vector, NDIM> Y);
+                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
 
             /// Calculates the monopole multipole boundary interactions without the solve type rho
             void blocked_interaction_non_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
@@ -58,14 +54,12 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index,
-                std::array<m2m_vector, NDIM> Y);
+                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
 
             void vectors_check_empty();
 
         public:
-            p2m_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx,
-                std::array<real, NDIM>& Xbase);
+            p2m_kernel(std::vector<bool>& neighbor_empty, gsolve_type type);
 
             p2m_kernel(p2m_kernel& other) = delete;
             p2m_kernel(const p2m_kernel& other) = delete;

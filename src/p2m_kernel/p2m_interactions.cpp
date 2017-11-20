@@ -19,24 +19,21 @@ namespace fmm {
 
         p2m_interactions::p2m_interactions(std::vector<multipole>& multipoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<real, NDIM>& Xbase)
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type)
           : neighbor_empty(27)
-          , type(type)
-          , dx(dx)
-          , Xbase(Xbase) {
+          , type(type) {
             // Create our input structure for the compute kernel
             local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             // Fill input structure with data - CAREFUL, this should not be necessary, remove later
-            iterate_inner_cells_padded(
-                [this, multipoles, com0](const multiindex<>& i, const size_t flat_index,
-                    const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                    local_expansions.at(flat_index) = multipoles.at(flat_index_unpadded);
-                    center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
-                });
+            // iterate_inner_cells_padded(
+            //     [this, multipoles, com0](const multiindex<>& i, const size_t flat_index,
+            //         const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+            //         local_expansions.at(flat_index) = multipoles.at(flat_index_unpadded);
+            //         center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+            //     });
 
             total_neighbors += 27;
 
@@ -127,7 +124,7 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 angular_corrections_SoA(angular_corrections);
 
-            p2m_kernel kernel(neighbor_empty, type, dx, Xbase);
+            p2m_kernel kernel(neighbor_empty, type);
 
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
