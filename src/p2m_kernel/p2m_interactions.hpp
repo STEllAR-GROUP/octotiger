@@ -47,6 +47,8 @@ namespace fmm {
 
             gsolve_type type;
 
+            bool multipole_neighbors_exist;
+
 
         public:
             /// The stencil is used to identify the neighbors?

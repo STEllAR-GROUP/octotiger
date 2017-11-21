@@ -49,7 +49,7 @@ namespace fmm {
                                         i0_c, i1_c, i2_c, j0_c, j1_c, j2_c);
 
                                     // not in inner sphere (theta_c > theta0), but in outer sphere
-                                    if (theta_f <= theta0) {
+                                    if (theta_c > theta0) {
                                         stencil.emplace_back(j0 - i0, j1 - i1, j2 - i2);
                                     }
                                 }

@@ -152,7 +152,7 @@ namespace fmm {
         auto end = std::chrono::high_resolution_clock::now();
 
         std::chrono::duration<double, std::milli> duration = end - start;
-        std::cout << "new interaction kernel (apply only, ms): " << duration.count() << std::endl;
+        // std::cout << "new interaction kernel (apply only, ms): " << duration.count() << std::endl;
 
         // TODO: remove this after finalizing conversion
         // copy back SoA data into non-SoA result

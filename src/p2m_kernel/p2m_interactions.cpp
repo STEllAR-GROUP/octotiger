@@ -27,14 +27,13 @@ namespace fmm {
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
-            // Fill input structure with data - CAREFUL, this should not be necessary, remove later
-            // iterate_inner_cells_padded(
-            //     [this, multipoles, com0](const multiindex<>& i, const size_t flat_index,
-            //         const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-            //         local_expansions.at(flat_index) = multipoles.at(flat_index_unpadded);
-            //         center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
-            //     });
 
+        iterate_inner_cells_padded(
+            [this, multipoles, com0](const multiindex<>& i, const size_t flat_index,
+                const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+              local_expansions.at(flat_index) = 0.0;
+                center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+            });
             total_neighbors += 27;
 
             size_t current_missing = 0;
@@ -43,6 +42,8 @@ namespace fmm {
             for (size_t i = 0; i < neighbor_empty.size(); i++) {
                 neighbor_empty[i] = false;
             }
+
+            multipole_neighbors_exist = false;
 
             // Now look at neighboring data
             for (const geo::direction& dir : geo::direction::full_set()) {
@@ -77,6 +78,7 @@ namespace fmm {
                                 center_of_masses.at(flat_index) =
                                     neighbor_com0.at(flat_index_unpadded);
                             });
+                        multipole_neighbors_exist = true;
                     }
                 } else {
                     // in case of monopole, boundary becomes padding in that direction
@@ -114,6 +116,8 @@ namespace fmm {
         }
 
         void p2m_interactions::compute_interactions() {
+            if (!multipole_neighbors_exist)
+              return;
             // Convert input structure to new datastructure (SoA)
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA(
                 local_expansions);
@@ -123,6 +127,42 @@ namespace fmm {
                 potential_expansions_SoA(potential_expansions);
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 angular_corrections_SoA(angular_corrections);
+
+            // std::cout << "Expansions" << std::endl;
+            // for (auto i = 0; i < 100; ++i) {
+            //   for (auto x = 0; x < 20; ++x) {
+            //     std::cout <<  local_expansions[i][x] << " ";
+            //   }
+            //   std::cout << std::endl;
+            // }
+            // std::cout << "Centers" << std::endl;
+            // for (auto i = 0; i < 100; ++i) {
+            //   for (auto x = 0; x < 3; ++x) {
+            //     std::cout <<  center_of_masses[i][x] << " ";
+            //   }
+            //   std::cout << std::endl;
+            // }
+            // int count = 0;
+            // for (auto i = 0; i < local_expansions.size(); ++i) {
+            //   for (auto x = 0; x < 20; ++x) {
+            //     if (local_expansions[i][x] != 0)
+            //       count++;
+            //   }
+            // }
+            // std::cout << "There are " << count << " non-zero entries in the local expansions"
+            //           << std::endl;
+            // count = 0;
+            // for (auto i = 0; i < center_of_masses.size(); ++i) {
+            //   for (auto x = 0; x < 3; ++x) {
+            //     if (center_of_masses[i][x] != 0)
+            //       count++;
+            //   }
+            // }
+            // std::cout << "There are " << count << " non-zero entries in the center of masses"
+            //           << std::endl;
+
+
+            // std::cin.get();
 
             p2m_kernel kernel(neighbor_empty, type);
 
@@ -135,10 +175,42 @@ namespace fmm {
             auto end = std::chrono::high_resolution_clock::now();
 
             std::chrono::duration<double, std::milli> duration = end - start;
-
             // copy back SoA data into non-SoA result
             potential_expansions_SoA.to_non_SoA(potential_expansions);
             angular_corrections_SoA.to_non_SoA(angular_corrections);
+            // std::cout << "Potential Expansaions" << std::endl;
+            // for (auto i = 0; i < 100; ++i) {
+            //   for (auto x = 0; x < 20; ++x) {
+            //     std::cout <<  potential_expansions[i][x] << " ";
+            //   }
+            //   std::cout << std::endl;
+            // }
+            // std::cout << "Centers" << std::endl;
+            // for (auto i = 0; i < 100; ++i) {
+            //   for (auto x = 0; x < 3; ++x) {
+            //     std::cout <<  angular_corrections[i][x] << " ";
+            //   }
+            //   std::cout << std::endl;
+            // }
+            // count = 0;
+            // for (auto i = 0; i < potential_expansions.size(); ++i) {
+            //   for (auto x = 0; x < 20; ++x) {
+            //     if (potential_expansions[i][x] != 0)
+            //       count++;
+            //   }
+            // }
+            // std::cout << "There are " << count << " non-zero entries in the potential expansions"
+            //           << std::endl;
+            // count = 0;
+            // for (auto i = 0; i < angular_corrections.size(); ++i) {
+            //   for (auto x = 0; x < 3; ++x) {
+            //     if (angular_corrections[i][x] != 0)
+            //       count++;
+            //   }
+            // }
+            // std::cout << "There are " << count << " non-zero entries in the angular corrections"
+            //           << std::endl;
+            // std::cin.get();
         }
 
         std::vector<expansion>& p2m_interactions::get_local_expansions() {
@@ -182,12 +254,16 @@ namespace fmm {
         }
 
         void p2m_interactions::add_to_potential_expansions(std::vector<expansion>& L) {
+            if (!multipole_neighbors_exist)
+              return;
             iterate_inner_cells_not_padded([this, &L](multiindex<>& i, size_t flat_index) {
                 potential_expansions[flat_index] += L[flat_index];
             });
         }
 
         void p2m_interactions::add_to_center_of_masses(std::vector<space_vector>& L_c) {
+            if (!multipole_neighbors_exist)
+              return;
             iterate_inner_cells_not_padded([this, &L_c](multiindex<>& i, size_t flat_index) {
                 center_of_masses[flat_index] += L_c[flat_index];
             });

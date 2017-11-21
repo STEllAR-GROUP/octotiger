@@ -632,18 +632,18 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
 
         //TODO: do other interaction types, will be replaced
-        for (const geo::direction& dir : geo::direction::full_set()) {
-            // TODO: does this ever trigger? no monopoles in neighbor cell maybe?
-            if (!neighbors[dir].empty()) {
-                neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
-                if ((neighbor_data.is_monopole && !grid_ptr->get_leaf())) {
-                // if ((neighbor_data.is_monopole) && !grid_ptr->get_leaf()) {
-                    // this triggers "compute_boundary_interactions_monopole_multipole()"
-                    grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
-                                                            neighbor_data.is_monopole, neighbor_data.data);
-                }
-            }
-        }
+        // for (const geo::direction& dir : geo::direction::full_set()) {
+        //     // TODO: does this ever trigger? no monopoles in neighbor cell maybe?
+        //     if (!neighbors[dir].empty()) {
+        //         neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
+        //         if ((neighbor_data.is_monopole && !grid_ptr->get_leaf())) {
+        //         // if ((neighbor_data.is_monopole) && !grid_ptr->get_leaf()) {
+        //             // this triggers "compute_boundary_interactions_monopole_multipole()"
+        //             grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
+        //                                                     neighbor_data.is_monopole, neighbor_data.data);
+        //         }
+        //     }
+        // }
         std::vector<expansion> potential_expansions;
         std::vector<space_vector> angular_corrections;
         if (!grid_ptr->get_leaf()) {
@@ -695,7 +695,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
      } else {
          // old-style interaction calculation
          // computes inner interactions
-         grid_ptr->compute_interactions(type);
+         // grid_ptr->compute_interactions(type);
          // waits for boundary data and then computes boundary interactions
          for (auto const& dir : geo::direction::full_set()) {
              if (!is_direction_empty[dir]) {
