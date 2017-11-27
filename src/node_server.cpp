@@ -632,18 +632,18 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
 
 
         //TODO: do other interaction types, will be replaced
-        // for (const geo::direction& dir : geo::direction::full_set()) {
-        //     // TODO: does this ever trigger? no monopoles in neighbor cell maybe?
-        //     if (!neighbors[dir].empty()) {
-        //         neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
-        //         if ((neighbor_data.is_monopole && !grid_ptr->get_leaf())) {
-        //         // if ((neighbor_data.is_monopole) && !grid_ptr->get_leaf()) {
-        //             // this triggers "compute_boundary_interactions_monopole_multipole()"
-        //             grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
-        //                                                     neighbor_data.is_monopole, neighbor_data.data);
-        //         }
-        //     }
-        // }
+        for (const geo::direction& dir : geo::direction::full_set()) {
+            // TODO: does this ever trigger? no monopoles in neighbor cell maybe?
+            if (!neighbors[dir].empty()) {
+                neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
+                if ((neighbor_data.is_monopole && !grid_ptr->get_leaf())) {
+                // if ((neighbor_data.is_monopole) && !grid_ptr->get_leaf()) {
+                    // this triggers "compute_boundary_interactions_monopole_multipole()"
+                    grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
+                                                            neighbor_data.is_monopole, neighbor_data.data);
+                }
+            }
+        }
         std::vector<expansion> potential_expansions;
         std::vector<space_vector> angular_corrections;
         if (!grid_ptr->get_leaf()) {
@@ -656,7 +656,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             angular_corrections = interactor.get_angular_corrections();
             // clear
             std::fill(std::begin(L), std::end(L), ZERO);
-            if (opts.ang_con && !grid_ptr->get_leaf()) {
+            if (opts.ang_con) {
                 std::fill(std::begin(L_c), std::end(L_c), ZERO);
             }
 
@@ -676,6 +676,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
              potential_expansions = p2m_interactor.get_potential_expansions();
              angular_corrections = p2m_interactor.get_angular_corrections();
 
+            // clear
+            std::fill(std::begin(L), std::end(L), ZERO);
+            if (opts.ang_con) {
+                std::fill(std::begin(L_c), std::end(L_c), ZERO);
+            }
             for (size_t i = 0; i < L.size(); i++) {
                 L[i] = potential_expansions[i];
             }
@@ -688,6 +693,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             p2p_interactor.add_to_potential_expansions(L);
             potential_expansions = p2p_interactor.get_potential_expansions();
 
+            // clear
+            std::fill(std::begin(L), std::end(L), ZERO);
             for (size_t i = 0; i < L.size(); i++) {
                 L[i] = potential_expansions[i];
             }
@@ -695,7 +702,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
      } else {
          // old-style interaction calculation
          // computes inner interactions
-         // grid_ptr->compute_interactions(type);
+         grid_ptr->compute_interactions(type);
          // waits for boundary data and then computes boundary interactions
          for (auto const& dir : geo::direction::full_set()) {
              if (!is_direction_empty[dir]) {
