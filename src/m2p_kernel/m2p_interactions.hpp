@@ -33,12 +33,12 @@ namespace fmm {
              */
 
             /// Expansions for all the multipoles the current monopole is neighboring
-            std::vector<expansion> local_expansions;
+            std::vector<real> local_expansions;
 
             /// com_ptr - Center of masses, required for the angular corrections
             std::vector<space_vector> center_of_masses;
 
-            // multipole expansion on this cell (L)
+            // monopole expansions
             std::vector<expansion> potential_expansions;
             // angular momentum correction on this cell (L_c)
             std::vector<space_vector> angular_corrections;
@@ -47,7 +47,7 @@ namespace fmm {
 
             gsolve_type type;
 
-            bool multipole_neighbors_exist;
+            bool monopole_neighbors_exist;
 
 
         public:
@@ -55,7 +55,7 @@ namespace fmm {
             static std::vector<multiindex<>> stencil;
             /// Constructor for the boundary interactor between a monopole and its neighboring
             /// multipoles
-            m2p_interactions(std::vector<multipole>& multipoles,
+            m2p_interactions(std::vector<real>& multipoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type);
             /// Computes the boundary interaction between the current monopole and the multipoles
@@ -67,7 +67,7 @@ namespace fmm {
              */
             void compute_interactions();
             /// Get the local expansion input of the compute kernel
-            std::vector<expansion>& get_local_expansions();
+            std::vector<real>& get_local_expansions();
             /// Get the center of mass input of the compute kernel
             std::vector<space_vector>& get_center_of_masses();
             /// Returns compute kernel output regarding the potential expansions L

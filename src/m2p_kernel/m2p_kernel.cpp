@@ -30,7 +30,7 @@ namespace fmm {
         }
 
         void m2p_kernel::apply_stencil(
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
+            std::vector<real>& mons,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                 potential_expansions_SoA,
@@ -75,13 +75,13 @@ namespace fmm {
                             // calculate position of the monopole
 
                             if (type == RHO) {
-                                this->blocked_interaction_rho(local_expansions_SoA,
+                              this->blocked_interaction_rho(mons,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
                                     cell_flat_index_unpadded, stencil, outer_stencil_index);
                             } else {
-                                this->blocked_interaction_non_rho(local_expansions_SoA,
+                              this->blocked_interaction_non_rho(mons,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,

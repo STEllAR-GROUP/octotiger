@@ -17,19 +17,19 @@ namespace fmm {
 
         std::vector<multiindex<>> m2p_interactions::stencil;
 
-        m2p_interactions::m2p_interactions(std::vector<multipole>& multipoles,
+        m2p_interactions::m2p_interactions(std::vector<real>& mons,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type)
           : neighbor_empty(27)
           , type(type) {
             // Create our input structure for the compute kernel
-            local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
+            local_expansions = std::vector<real>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
 
         iterate_inner_cells_padded(
-            [this, multipoles, com0](const multiindex<>& i, const size_t flat_index,
+            [this, mons, com0](const multiindex<>& i, const size_t flat_index,
                 const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
               local_expansions.at(flat_index) = 0.0;
                 center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
@@ -43,17 +43,17 @@ namespace fmm {
                 neighbor_empty[i] = false;
             }
 
-            multipole_neighbors_exist = false;
+            monopole_neighbors_exist = false;
 
             // Now look at neighboring data
             for (const geo::direction& dir : geo::direction::full_set()) {
                 // don't use neighbor.direction, is always zero for empty cells!
                 neighbor_gravity_type& neighbor = neighbors[dir];
 
-                // this dir is setup as a multipole - and we only consider multipoles here
-                if (!neighbor.is_monopole) {
+                // this dir is setup as a monopole - and we only consider monopoles here
+                if (neighbor.is_monopole) {
                     // neighbor has no data - input structure just recevices zeros as padding
-                    if (!neighbor.data.M) {
+                    if (!neighbor.data.m) {
                         iterate_inner_cells_padding(
                             dir, [this](const multiindex<>& i, const size_t flat_index,
                                      const multiindex<>&, const size_t) {
@@ -67,18 +67,18 @@ namespace fmm {
                         neighbor_empty[dir.flat_index_with_center()] = true;
                     } else {
                         // Get multipole data into our input structure
-                        std::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
+                        std::vector<real>& neighbor_mons = *(neighbor.data.m);
                         std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
                         iterate_inner_cells_padding(
-                            dir, [this, neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
+                            dir, [this, neighbor_mons, neighbor_com0](const multiindex<>& i,
                                      const size_t flat_index, const multiindex<>& i_unpadded,
                                      const size_t flat_index_unpadded) {
                                 local_expansions.at(flat_index) =
-                                    neighbor_M_ptr.at(flat_index_unpadded);
+                                    neighbor_mons.at(flat_index_unpadded);
                                 center_of_masses.at(flat_index) =
                                     neighbor_com0.at(flat_index_unpadded);
                             });
-                        multipole_neighbors_exist = true;
+                        monopole_neighbors_exist = true;
                     }
                 } else {
                     // in case of monopole, boundary becomes padding in that direction
@@ -116,11 +116,9 @@ namespace fmm {
         }
 
         void m2p_interactions::compute_interactions() {
-            if (!multipole_neighbors_exist)
+            if (!monopole_neighbors_exist)
               return;
             // Convert input structure to new datastructure (SoA)
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA(
-                local_expansions);
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA(
                 center_of_masses);
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -128,49 +126,13 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 angular_corrections_SoA(angular_corrections);
 
-            // std::cout << "Expansions" << std::endl;
-            // for (auto i = 0; i < 100; ++i) {
-            //   for (auto x = 0; x < 20; ++x) {
-            //     std::cout <<  local_expansions[i][x] << " ";
-            //   }
-            //   std::cout << std::endl;
-            // }
-            // std::cout << "Centers" << std::endl;
-            // for (auto i = 0; i < 100; ++i) {
-            //   for (auto x = 0; x < 3; ++x) {
-            //     std::cout <<  center_of_masses[i][x] << " ";
-            //   }
-            //   std::cout << std::endl;
-            // }
-            // int count = 0;
-            // for (auto i = 0; i < local_expansions.size(); ++i) {
-            //   for (auto x = 0; x < 20; ++x) {
-            //     if (local_expansions[i][x] != 0)
-            //       count++;
-            //   }
-            // }
-            // std::cout << "There are " << count << " non-zero entries in the local expansions"
-            //           << std::endl;
-            // count = 0;
-            // for (auto i = 0; i < center_of_masses.size(); ++i) {
-            //   for (auto x = 0; x < 3; ++x) {
-            //     if (center_of_masses[i][x] != 0)
-            //       count++;
-            //   }
-            // }
-            // std::cout << "There are " << count << " non-zero entries in the center of masses"
-            //           << std::endl;
-
-
-            // std::cin.get();
-
             m2p_kernel kernel(neighbor_empty, type);
 
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             auto start = std::chrono::high_resolution_clock::now();
 
-            kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
+            kernel.apply_stencil(local_expansions, center_of_masses_SoA,
                 potential_expansions_SoA, angular_corrections_SoA, stencil);
             auto end = std::chrono::high_resolution_clock::now();
 
@@ -178,42 +140,9 @@ namespace fmm {
             // copy back SoA data into non-SoA result
             potential_expansions_SoA.to_non_SoA(potential_expansions);
             angular_corrections_SoA.to_non_SoA(angular_corrections);
-            // std::cout << "Potential Expansaions" << std::endl;
-            // for (auto i = 0; i < 100; ++i) {
-            //   for (auto x = 0; x < 20; ++x) {
-            //     std::cout <<  potential_expansions[i][x] << " ";
-            //   }
-            //   std::cout << std::endl;
-            // }
-            // std::cout << "Centers" << std::endl;
-            // for (auto i = 0; i < 100; ++i) {
-            //   for (auto x = 0; x < 3; ++x) {
-            //     std::cout <<  angular_corrections[i][x] << " ";
-            //   }
-            //   std::cout << std::endl;
-            // }
-            // count = 0;
-            // for (auto i = 0; i < potential_expansions.size(); ++i) {
-            //   for (auto x = 0; x < 20; ++x) {
-            //     if (potential_expansions[i][x] != 0)
-            //       count++;
-            //   }
-            // }
-            // std::cout << "There are " << count << " non-zero entries in the potential expansions"
-            //           << std::endl;
-            // count = 0;
-            // for (auto i = 0; i < angular_corrections.size(); ++i) {
-            //   for (auto x = 0; x < 3; ++x) {
-            //     if (angular_corrections[i][x] != 0)
-            //       count++;
-            //   }
-            // }
-            // std::cout << "There are " << count << " non-zero entries in the angular corrections"
-            //           << std::endl;
-            // std::cin.get();
         }
 
-        std::vector<expansion>& m2p_interactions::get_local_expansions() {
+        std::vector<real>& m2p_interactions::get_local_expansions() {
             return local_expansions;
         }
 
@@ -254,7 +183,7 @@ namespace fmm {
         }
 
         void m2p_interactions::add_to_potential_expansions(std::vector<expansion>& L) {
-            if (!multipole_neighbors_exist)
+            if (!monopole_neighbors_exist)
               return;
             iterate_inner_cells_not_padded([this, &L](multiindex<>& i, size_t flat_index) {
                 potential_expansions[flat_index] += L[flat_index];
@@ -262,7 +191,7 @@ namespace fmm {
         }
 
         void m2p_interactions::add_to_center_of_masses(std::vector<space_vector>& L_c) {
-            if (!multipole_neighbors_exist)
+            if (!monopole_neighbors_exist)
               return;
             iterate_inner_cells_not_padded([this, &L_c](multiindex<>& i, size_t flat_index) {
                 center_of_masses[flat_index] += L_c[flat_index];
