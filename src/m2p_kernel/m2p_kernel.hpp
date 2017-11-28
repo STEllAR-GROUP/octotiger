@@ -28,6 +28,9 @@ namespace fmm {
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
 
+            real dX;
+            std::array<real, NDIM> xBase;
+
             /// Calculates the monopole multipole boundary interactions with solve type rho
             void blocked_interaction_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
                                              SOA_PADDING>& __restrict__ local_expansions_SoA,
@@ -58,7 +61,8 @@ namespace fmm {
             void vectors_check_empty();
 
         public:
-            m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type);
+            m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dX,
+                std::array<real, NDIM> xbase);
 
             m2p_kernel(m2p_kernel& other) = delete;
             m2p_kernel(const m2p_kernel& other) = delete;

@@ -19,9 +19,10 @@ namespace fmm {
 
         m2p_interactions::m2p_interactions(std::vector<real>& mons, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type)
+                                           std::vector<neighbor_gravity_type>& neighbors,
+                                           gsolve_type type, real dx, std::array<real, NDIM> xbase)
           : neighbor_empty(27)
-          , type(type) {
+          , type(type),dX(dx), xBase(xbase) {
             // Create our input structure for the compute kernel
             cell_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             local_expansions = std::vector<real>(EXPANSION_COUNT_PADDED);
@@ -128,7 +129,7 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 angular_corrections_SoA(angular_corrections);
 
-            m2p_kernel kernel(neighbor_empty, type);
+            m2p_kernel kernel(neighbor_empty, type, dX, xBase);
 
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";

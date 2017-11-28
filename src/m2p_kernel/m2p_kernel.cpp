@@ -16,10 +16,12 @@ namespace octotiger {
 namespace fmm {
     namespace m2p_kernel {
 
-        m2p_kernel::m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type)
+    m2p_kernel::m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx,
+                           std::array<real, NDIM> xbase)
           : neighbor_empty(neighbor_empty)
           , type(type)
-          , theta_rec_squared(sqr(1.0 / opts.theta))
+          , theta_rec_squared(sqr(1.0 / opts.theta)),
+            dX(dx), xBase(xbase)
         // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {

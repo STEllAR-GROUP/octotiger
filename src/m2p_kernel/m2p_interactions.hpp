@@ -49,6 +49,8 @@ namespace fmm {
             gsolve_type type;
 
             bool monopole_neighbors_exist;
+            real dX;
+            std::array<real, NDIM> xBase;
 
         public:
             /// The stencil is used to identify the neighbors?
@@ -57,7 +59,8 @@ namespace fmm {
             /// multipoles
             m2p_interactions(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type);
+                             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+                             real dx, std::array<real, NDIM> xbase);
             /// Computes the boundary interaction between the current monopole and the multipoles
             /** This function first converts all of the kernel input and output into the
              * struct_of_array datastructure for cache effiency. Afterwards a m2p_kernel is

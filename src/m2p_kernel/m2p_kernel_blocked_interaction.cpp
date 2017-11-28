@@ -81,9 +81,12 @@ namespace fmm {
                 X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
 
                 std::array<m2m_vector, NDIM> Y;
-                Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-                Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-                Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+                Y[0] =
+                    center_of_masses_SoA.value<0>(interaction_partner_flat_index) * dX + xBase[0];
+                Y[1] =
+                    center_of_masses_SoA.value<1>(interaction_partner_flat_index) * dX + xBase[1];
+                Y[2] =
+                    center_of_masses_SoA.value<2>(interaction_partner_flat_index) * dX + xBase[2];
 
                 std::array<m2m_vector, NDIM> dX;
                 dX[0] = X[0] - Y[0];
@@ -240,8 +243,7 @@ namespace fmm {
                 m2m_vector X_02 = D_calculator.X[0] * D_calculator.X[2];
                 m2m_vector d3_X02 = D_calculator.d3 * X_02;
                 D_upper[2] = 3.0 * d3_X02;
-                m2m_vector n0_tmp =
-                    local_expansions_SoA.value<10>(cell_flat_index) * n0_constant;
+                m2m_vector n0_tmp = local_expansions_SoA.value<10>(cell_flat_index) * n0_constant;
                 // m_cell_iterator++; // 11
 
                 // B0?
@@ -256,8 +258,7 @@ namespace fmm {
                 m2m_vector d3_X12 = D_calculator.d3 * D_calculator.X[1] * D_calculator.X[2];
                 D_upper[4] = d3_X12;
 
-                n0_tmp =
-                    local_expansions_SoA.value<11>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<11>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[1] * factor_sixth_v[11]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[3] * factor_sixth_v[11]);
@@ -268,8 +269,7 @@ namespace fmm {
                 D_upper[5] += d3_X22;
                 D_upper[5] += d3_X00;
 
-                n0_tmp =
-                    local_expansions_SoA.value<12>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<12>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[2] * factor_sixth_v[12]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[4] * factor_sixth_v[12]);
@@ -278,8 +278,7 @@ namespace fmm {
                 D_upper[6] = 3.0 * d3_X01;
                 D_upper[7] = D_calculator.d3 * X_02;
 
-                n0_tmp =
-                    local_expansions_SoA.value<13>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<13>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[3] * factor_sixth_v[13]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[6] * factor_sixth_v[13]);
@@ -287,8 +286,7 @@ namespace fmm {
 
                 D_upper[8] = D_calculator.d3 * D_calculator.X[0] * D_calculator.X[1];
 
-                n0_tmp =
-                    local_expansions_SoA.value<14>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<14>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[4] * factor_sixth_v[14]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[7] * factor_sixth_v[14]);
@@ -296,8 +294,7 @@ namespace fmm {
 
                 D_upper[9] = 3.0 * d3_X02;
 
-                n0_tmp =
-                    local_expansions_SoA.value<15>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<15>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[5] * factor_sixth_v[15]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[8] * factor_sixth_v[15]);
@@ -310,8 +307,7 @@ namespace fmm {
 
                 D_upper[11] = 3.0 * d3_X12;
 
-                n0_tmp =
-                    local_expansions_SoA.value<16>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<16>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[6] * factor_sixth_v[16]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[10] * factor_sixth_v[16]);
@@ -321,8 +317,7 @@ namespace fmm {
                 D_upper[12] += d3_X22;
                 D_upper[12] += d3_X11;
 
-                n0_tmp =
-                    local_expansions_SoA.value<17>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<17>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[7] * factor_sixth_v[17]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[11] * factor_sixth_v[17]);
@@ -330,8 +325,7 @@ namespace fmm {
 
                 D_upper[13] = 3.0 * d3_X12;
 
-                n0_tmp =
-                    local_expansions_SoA.value<18>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<18>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[8] * factor_sixth_v[18]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[12] * factor_sixth_v[18]);
@@ -342,8 +336,7 @@ namespace fmm {
                 D_upper[14] += D_calculator.d2;
                 D_upper[14] += 5.0 * d3_X22;
 
-                n0_tmp =
-                    local_expansions_SoA.value<19>(cell_flat_index) * n0_constant;
+                n0_tmp = local_expansions_SoA.value<19>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[9] * factor_sixth_v[19]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth_v[19]);
@@ -429,9 +422,12 @@ namespace fmm {
                     X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
 
                     std::array<m2m_vector, NDIM> Y;
-                    Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-                    Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-                    Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+                    Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index) * dX +
+                        xBase[0];
+                    Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index) * dX +
+                        xBase[1];
+                    Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index) * dX +
+                        xBase[2];
 
                     std::array<m2m_vector, NDIM> dX;
                     dX[0] = X[0] - Y[0];
