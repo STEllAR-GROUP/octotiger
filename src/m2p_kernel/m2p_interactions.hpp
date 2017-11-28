@@ -34,6 +34,7 @@ namespace fmm {
 
             /// Expansions for all the multipoles the current monopole is neighboring
             std::vector<real> local_expansions;
+            std::vector<expansion> cell_expansions;
 
             /// com_ptr - Center of masses, required for the angular corrections
             std::vector<space_vector> center_of_masses;
@@ -49,13 +50,12 @@ namespace fmm {
 
             bool monopole_neighbors_exist;
 
-
         public:
             /// The stencil is used to identify the neighbors?
             static std::vector<multiindex<>> stencil;
             /// Constructor for the boundary interactor between a monopole and its neighboring
             /// multipoles
-            m2p_interactions(std::vector<real>& multipoles,
+            m2p_interactions(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type);
             /// Computes the boundary interaction between the current monopole and the multipoles

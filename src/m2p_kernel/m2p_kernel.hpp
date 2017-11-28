@@ -29,10 +29,10 @@ namespace fmm {
             m2m_int_vector offset_vector;
 
             /// Calculates the monopole multipole boundary interactions with solve type rho
-            void blocked_interaction_rho(
-                std::vector<real>& mons,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-                    center_of_masses_SoA,
+            void blocked_interaction_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
+                                             SOA_PADDING>& __restrict__ local_expansions_SoA,
+                std::vector<real>& mons, struct_of_array_data<space_vector, real, 3, ENTRIES,
+                                             SOA_PADDING>& center_of_masses_SoA,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
@@ -43,8 +43,7 @@ namespace fmm {
                 const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
 
             /// Calculates the monopole multipole boundary interactions without the solve type rho
-            void blocked_interaction_non_rho(
-                std::vector<real>& mons,
+            void blocked_interaction_non_rho(std::vector<real>& mons,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     center_of_masses_SoA,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
@@ -65,7 +64,9 @@ namespace fmm {
             m2p_kernel(const m2p_kernel& other) = delete;
             m2p_kernel operator=(const m2p_kernel& other) = delete;
 
-          void apply_stencil(std::vector<real> & local_expansions,
+            void apply_stencil(std::vector<real>& local_expansions,
+                struct_of_array_data<expansion, real, 20, ENTRIES,
+                                   SOA_PADDING>& __restrict__ local_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     center_of_masses_SoA,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&

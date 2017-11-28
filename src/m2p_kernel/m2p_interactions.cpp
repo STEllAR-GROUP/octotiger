@@ -17,23 +17,23 @@ namespace fmm {
 
         std::vector<multiindex<>> m2p_interactions::stencil;
 
-        m2p_interactions::m2p_interactions(std::vector<real>& mons,
+        m2p_interactions::m2p_interactions(std::vector<real>& mons, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type)
           : neighbor_empty(27)
           , type(type) {
             // Create our input structure for the compute kernel
+            cell_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             local_expansions = std::vector<real>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
-
-        iterate_inner_cells_padded(
-            [this, mons, com0](const multiindex<>& i, const size_t flat_index,
-                const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-              local_expansions.at(flat_index) = 0.0;
-                center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
-            });
+            iterate_inner_cells_padded(
+                [this, M_ptr, com0](const multiindex<>& i, const size_t flat_index,
+                    const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+                    cell_expansions.at(flat_index) = M_ptr.at(flat_index_unpadded);
+                    center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+                });
             total_neighbors += 27;
 
             size_t current_missing = 0;
@@ -117,8 +117,10 @@ namespace fmm {
 
         void m2p_interactions::compute_interactions() {
             if (!monopole_neighbors_exist)
-              return;
+                return;
             // Convert input structure to new datastructure (SoA)
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> cell_expansions_SoA(
+                cell_expansions);
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA(
                 center_of_masses);
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -132,8 +134,8 @@ namespace fmm {
             //   std::cout << local_expansions[i] << " ";
             auto start = std::chrono::high_resolution_clock::now();
 
-            kernel.apply_stencil(local_expansions, center_of_masses_SoA,
-                potential_expansions_SoA, angular_corrections_SoA, stencil);
+            kernel.apply_stencil(local_expansions, cell_expansions_SoA, center_of_masses_SoA, potential_expansions_SoA,
+                angular_corrections_SoA, stencil);
             auto end = std::chrono::high_resolution_clock::now();
 
             std::chrono::duration<double, std::milli> duration = end - start;
@@ -184,7 +186,7 @@ namespace fmm {
 
         void m2p_interactions::add_to_potential_expansions(std::vector<expansion>& L) {
             if (!monopole_neighbors_exist)
-              return;
+                return;
             iterate_inner_cells_not_padded([this, &L](multiindex<>& i, size_t flat_index) {
                 potential_expansions[flat_index] += L[flat_index];
             });
@@ -192,7 +194,7 @@ namespace fmm {
 
         void m2p_interactions::add_to_center_of_masses(std::vector<space_vector>& L_c) {
             if (!monopole_neighbors_exist)
-              return;
+                return;
             iterate_inner_cells_not_padded([this, &L_c](multiindex<>& i, size_t flat_index) {
                 center_of_masses[flat_index] += L_c[flat_index];
             });
