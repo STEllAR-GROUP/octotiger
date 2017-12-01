@@ -70,14 +70,21 @@ namespace fmm {
                         // Get multipole data into our input structure
                         std::vector<real>& neighbor_mons = *(neighbor.data.m);
                         std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
+                        // if(!neighbor.data.x)
+                        //   std::cout << "whhyyyyyy";
+                        // else {
+                        //   std::cout << "wait wat";
+                        //   std::cin.get();
+                        // }
+                        // cant for some reason be iterated
                         iterate_inner_cells_padding(
-                            dir, [this, neighbor_mons, neighbor_com0](const multiindex<>& i,
+                            dir, [this, neighbor_mons](const multiindex<>& i,
                                      const size_t flat_index, const multiindex<>& i_unpadded,
                                      const size_t flat_index_unpadded) {
                                 local_expansions.at(flat_index) =
                                     neighbor_mons.at(flat_index_unpadded);
-                                center_of_masses.at(flat_index) =
-                                    neighbor_com0.at(flat_index_unpadded);
+                                // center_of_masses.at(flat_index) = neighbor_com0.at(flat_index_unpadded);
+                                center_of_masses.at(flat_index) = 0.0;
                             });
                         monopole_neighbors_exist = true;
                     }
@@ -143,6 +150,11 @@ namespace fmm {
             // copy back SoA data into non-SoA result
             potential_expansions_SoA.to_non_SoA(potential_expansions);
             angular_corrections_SoA.to_non_SoA(angular_corrections);
+            // std::cout << "Interactions corrections:" << std::endl;
+            // for (auto i = 0; i < 10; ++i) {
+            //   std::cout << angular_corrections[i] << std::endl;
+            // }
+            // std::cin.get();
         }
 
         std::vector<real>& m2p_interactions::get_local_expansions() {

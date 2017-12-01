@@ -29,6 +29,8 @@
 #include "p2p_kernel/p2p_interactions.hpp"
 #include "p2m_kernel/calculate_stencil.hpp"
 #include "p2m_kernel/p2m_interactions.hpp"
+#include "m2p_kernel/calculate_stencil.hpp"
+#include "m2p_kernel/m2p_interactions.hpp"
 
 
 options opts;
@@ -101,6 +103,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
     octotiger::fmm::m2m_interactions::stencil = octotiger::fmm::calculate_stencil();
     octotiger::fmm::p2p_kernel::p2p_interactions::stencil = octotiger::fmm::p2p_kernel::calculate_stencil();
     octotiger::fmm::p2m_kernel::p2m_interactions::stencil = octotiger::fmm::p2m_kernel::calculate_stencil();
+    octotiger::fmm::m2p_kernel::m2p_interactions::stencil = octotiger::fmm::m2p_kernel::calculate_stencil();
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

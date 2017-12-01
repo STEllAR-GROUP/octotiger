@@ -27,6 +27,7 @@ extern options opts;
 #include <hpx/include/util.hpp>
 
 #include "m2m_kernel/m2m_interactions.hpp"
+#include "m2p_kernel/m2p_interactions.hpp"
 #include "p2p_kernel/p2p_interactions.hpp"
 #include "p2m_kernel/p2m_interactions.hpp"
 
@@ -316,6 +317,17 @@ void node_server::send_hydro_amr_boundaries(bool tau_only) {
 //			}
         }
     }
+}
+
+template<class T>
+typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type
+    almost_equal(T x, T y, int ulp)
+{
+    // the machine epsilon has to be scaled to the magnitude of the values used
+    // and multiplied by the desired precision in ULPs (units in the last place)
+    return std::abs(x-y) < std::numeric_limits<T>::epsilon() * std::abs(x+y) * ulp
+    // unless the result is subnormal
+           || std::abs(x-y) < std::numeric_limits<T>::min();
 }
 
 inline bool file_exists(const std::string& name) {
@@ -647,6 +659,83 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         std::vector<expansion> potential_expansions;
         std::vector<space_vector> angular_corrections;
         if (!grid_ptr->get_leaf()) {
+          std::vector<expansion> tmp_expansions;
+          std::vector<space_vector> tmp_corrections;
+            for (size_t i = 0; i < L.size(); i++) {
+              tmp_expansions.push_back(L[i]);
+            }
+            for (size_t i = 0; i < L_c.size(); i++) {
+              tmp_corrections.push_back(L_c[i]);
+            }
+          for (auto i = 0; i < 10; ++i) {
+            std::cout << L_c[i] << std::endl;
+          }
+            std::fill(std::begin(L), std::end(L), ZERO);
+            if (opts.ang_con) {
+                std::fill(std::begin(L_c), std::end(L_c), ZERO);
+            }
+
+            std::array<real, NDIM> Xbase = {grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
+                                          grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
+                                          grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
+            // for (auto x : Xbase)
+            //   std::cout << x << " ";
+            // std::cin.get();
+            octotiger::fmm::m2p_kernel::m2p_interactions m2p_interactor(
+                mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), Xbase);
+             m2p_interactor.compute_interactions();
+             m2p_interactor.add_to_potential_expansions(L);
+             m2p_interactor.add_to_center_of_masses(L_c);
+             potential_expansions = m2p_interactor.get_potential_expansions();
+             angular_corrections = m2p_interactor.get_angular_corrections();
+
+             for (size_t i = 0; i < L.size(); i++) {
+                     bool printed = false;
+                 for (int j = 0; j < 20; j++) {
+                     if (!almost_equal(static_cast<double>(tmp_expansions[i][j]),
+                             static_cast<double>(potential_expansions[i][j]), 10000)) {
+                         std::cout << "Error at " << i << "/" << j << "!" << std::endl;
+                         std::cout.precision(15);
+                         std::cout << static_cast<double>(tmp_expansions[i][j])
+                                   << " ::  " << static_cast<double>(potential_expansions[i][j])
+                                   << std::endl;
+                         printed = true;
+                     }
+                 }
+                 if (printed) {
+                         std::cout << "Expected expansion " << tmp_expansions[i] << " got "
+                                   << potential_expansions[i] << std::endl;
+                         std::cin.get();
+             }
+             }
+             for (size_t i = 0; i < L_c.size(); i++) {
+                 for (int j = 0; j < 4; j++) {
+                     double bla = static_cast<double>(angular_corrections[i][j]);
+                     if (!almost_equal(bla, static_cast<double>(tmp_corrections[i][j]), 10000)) {
+                         std::cout << "Error at " << i << "/" << j << "! Expected correction "
+                                   << tmp_corrections[i] << " got " << angular_corrections[i]
+                                   << std::endl;
+                         std::cin.get();
+                         break;
+                     }
+                 }
+             }
+             // clear
+             std::fill(std::begin(L), std::end(L), ZERO);
+             if (opts.ang_con) {
+                 std::fill(std::begin(L_c), std::end(L_c), ZERO);
+            }
+            for (size_t i = 0; i < L.size(); i++) {
+                L[i] = potential_expansions[i];
+            }
+            std::cout << " ------------------------" << std::endl;
+
+            for (size_t i = 0; i < L_c.size(); i++) {
+                L_c[i] = angular_corrections[i];
+            }
+            for (auto i = 0; i < 10; ++i) {
+              std::cout << L_c[i] << std::endl;
+            }
             octotiger::fmm::m2m_interactions interactor(
                 M_ptr, com_ptr, all_neighbor_interaction_data, type);
             interactor.compute_interactions();    // includes boundary

@@ -46,6 +46,8 @@ namespace fmm {
                     stencil[outer_stencil_index + inner_stencil_index];
                 const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
+                const multiindex<> interaction_partner_index_unpadded(cell_index_unpadded.x + stencil_element.x,
+                    cell_index_unpadded.y + stencil_element.y, cell_index_unpadded.z + stencil_element.z);
 
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
@@ -54,6 +56,8 @@ namespace fmm {
                 if (vector_is_empty[interaction_partner_flat_index]) {
                     continue;
                 }
+                // std::cout << cell_index << std::endl;
+                // std::cin.get();
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -81,12 +85,26 @@ namespace fmm {
                 X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
 
                 std::array<m2m_vector, NDIM> Y;
-                Y[0] =
-                    center_of_masses_SoA.value<0>(interaction_partner_flat_index) * dX + xBase[0];
-                Y[1] =
-                    center_of_masses_SoA.value<1>(interaction_partner_flat_index) * dX + xBase[1];
-                Y[2] =
-                    center_of_masses_SoA.value<2>(interaction_partner_flat_index) * dX + xBase[2];
+                for (auto i = 0; i < m2m_vector::size(); ++i) {
+                    Y[0][i] = (interaction_partner_index_unpadded.x) * dX + xBase[0];
+                    Y[1][i] = (interaction_partner_index_unpadded.y) * dX + xBase[1];
+                    Y[2][i] = (interaction_partner_index_unpadded.z + i) * dX + xBase[2];
+                }
+                //         for (auto x : xBase)
+                //           std::cout << x << " ";
+                // std::cout << dX;
+                        // std::cin.get();
+                        // std::cout << interaction_partner_index_unpadded.x << " " <<
+                        // interaction_partner_index_unpadded.y
+                        //            << " " << interaction_partner_index_unpadded.z << std::endl;
+                        //     std::cout << Y[0] << std::endl
+                        //               << Y[1] << std::endl
+                        //               << Y[2] << std::endl;
+                //             std::cin.get();
+                //             std::cout << X[0] << std::endl
+                //                       << X[1] << std::endl
+                //                       << X[2] << std::endl;
+                //             std::cin.get();
 
                 std::array<m2m_vector, NDIM> dX;
                 dX[0] = X[0] - Y[0];
@@ -99,6 +117,19 @@ namespace fmm {
                 D_split D_calculator(dX);
                 std::array<m2m_vector, 20> D_lower;
                 D_calculator.calculate_D_lower(D_lower);
+                if (cell_flat_index_unpadded == 0) {
+                  for (auto i = 0; i < 20; ++i) {
+                      std::cout << "D-new:" << D_lower[i] << std::endl;
+                  }
+                  std::cin.get();
+                }
+                taylor<5, simd_vector> D;
+                std::array<simd_vector, NDIM> B0 = {
+                    simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)};
+
+                std::array<simd_vector, NDIM> dX_old;
+
+                D.set_basis(dX_old);
 
                 std::array<m2m_vector, 20> cur_pot;
                 cur_pot[0] = monopole * D_lower[0];
@@ -225,6 +256,8 @@ namespace fmm {
 
                 m2m_vector const n0_constant =
                     monopole / local_expansions_SoA.value<0>(cell_flat_index);
+                // std::cout << n0_constant << std::endl;
+                // std::cin.get();
                 std::array<m2m_vector, 15> D_upper;
                 // D_calculator.calculate_D_upper(D_upper);
 
@@ -243,7 +276,7 @@ namespace fmm {
                 m2m_vector X_02 = D_calculator.X[0] * D_calculator.X[2];
                 m2m_vector d3_X02 = D_calculator.d3 * X_02;
                 D_upper[2] = 3.0 * d3_X02;
-                m2m_vector n0_tmp = local_expansions_SoA.value<10>(cell_flat_index) * n0_constant;
+                m2m_vector n0_tmp = - local_expansions_SoA.value<10>(cell_flat_index) * n0_constant;
                 // m_cell_iterator++; // 11
 
                 // B0?
@@ -258,7 +291,7 @@ namespace fmm {
                 m2m_vector d3_X12 = D_calculator.d3 * D_calculator.X[1] * D_calculator.X[2];
                 D_upper[4] = d3_X12;
 
-                n0_tmp = local_expansions_SoA.value<11>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<11>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[1] * factor_sixth_v[11]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[3] * factor_sixth_v[11]);
@@ -269,7 +302,7 @@ namespace fmm {
                 D_upper[5] += d3_X22;
                 D_upper[5] += d3_X00;
 
-                n0_tmp = local_expansions_SoA.value<12>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<12>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[2] * factor_sixth_v[12]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[4] * factor_sixth_v[12]);
@@ -278,7 +311,7 @@ namespace fmm {
                 D_upper[6] = 3.0 * d3_X01;
                 D_upper[7] = D_calculator.d3 * X_02;
 
-                n0_tmp = local_expansions_SoA.value<13>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<13>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[3] * factor_sixth_v[13]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[6] * factor_sixth_v[13]);
@@ -286,7 +319,7 @@ namespace fmm {
 
                 D_upper[8] = D_calculator.d3 * D_calculator.X[0] * D_calculator.X[1];
 
-                n0_tmp = local_expansions_SoA.value<14>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<14>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[4] * factor_sixth_v[14]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[7] * factor_sixth_v[14]);
@@ -294,7 +327,7 @@ namespace fmm {
 
                 D_upper[9] = 3.0 * d3_X02;
 
-                n0_tmp = local_expansions_SoA.value<15>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<15>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[5] * factor_sixth_v[15]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[8] * factor_sixth_v[15]);
@@ -307,7 +340,7 @@ namespace fmm {
 
                 D_upper[11] = 3.0 * d3_X12;
 
-                n0_tmp = local_expansions_SoA.value<16>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<16>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[6] * factor_sixth_v[16]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[10] * factor_sixth_v[16]);
@@ -317,7 +350,7 @@ namespace fmm {
                 D_upper[12] += d3_X22;
                 D_upper[12] += d3_X11;
 
-                n0_tmp = local_expansions_SoA.value<17>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<17>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[7] * factor_sixth_v[17]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[11] * factor_sixth_v[17]);
@@ -325,7 +358,7 @@ namespace fmm {
 
                 D_upper[13] = 3.0 * d3_X12;
 
-                n0_tmp = local_expansions_SoA.value<18>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<18>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[8] * factor_sixth_v[18]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[12] * factor_sixth_v[18]);
@@ -336,7 +369,7 @@ namespace fmm {
                 D_upper[14] += D_calculator.d2;
                 D_upper[14] += 5.0 * d3_X22;
 
-                n0_tmp = local_expansions_SoA.value<19>(cell_flat_index) * n0_constant;
+                n0_tmp = - local_expansions_SoA.value<19>(cell_flat_index) * n0_constant;
 
                 current_angular_correction[0] -= n0_tmp * (D_upper[9] * factor_sixth_v[19]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth_v[19]);
@@ -345,18 +378,22 @@ namespace fmm {
                 // L?
                 tmp = angular_corrections_SoA.value<0>(cell_flat_index_unpadded) +
                     current_angular_correction[0];
+                // std::cout << tmp << std::endl;
                 Vc::where(mask, tmp).memstore(
                     angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
 
                 tmp = angular_corrections_SoA.value<1>(cell_flat_index_unpadded) +
                     current_angular_correction[1];
+                // std::cout << tmp << std::endl;
                 Vc::where(mask, tmp).memstore(
                     angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
 
                 tmp = angular_corrections_SoA.value<2>(cell_flat_index_unpadded) +
                     current_angular_correction[2];
+                // std::cout << tmp << std::endl;
+                // std::cin.get();
                 Vc::where(mask, tmp).memstore(
                     angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);

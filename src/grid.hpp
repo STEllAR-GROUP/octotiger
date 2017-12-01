@@ -222,7 +222,11 @@ public:
     real get_dx() {
         return dx;
     }
-    
+    std::vector<std::vector<real>>& get_X() {
+      return X;
+    }
+
+
 #ifdef RADIATION
 	std::shared_ptr<rad_grid> get_rad_grid() {
 		return rad_grid_ptr;
