@@ -292,7 +292,7 @@ void node_server::start_run(bool scf, integer ngrids)
     	return;
     }
 
-    solve_gravity(false);
+    solve_gravity(false,false);
     ngrids = regrid(me.get_gid(), grid::get_omega(), -1,  false);
 
     real output_dt = opts.output_dt;

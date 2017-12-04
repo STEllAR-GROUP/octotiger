@@ -94,7 +94,7 @@ public:
 	void send_gravity_multipoles(multipole_pass_type&&, const geo::octant& ci) const;
 	void send_gravity_expansions(expansion_pass_type&&) const;
 	hpx::future<real> step(integer) const;
-	hpx::future<void> solve_gravity(bool ene) const;
+	hpx::future<void> solve_gravity(bool ene,bool aonly) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 	hpx::future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
 	void timestep_driver_ascend(real) const;

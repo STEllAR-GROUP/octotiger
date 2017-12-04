@@ -410,7 +410,7 @@ real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3, 
 }
 
 void node_server::run_scf(std::string const& data_dir) {
-	solve_gravity(false);
+	solve_gravity(false,false);
 	real omega = initial_params().omega;
 	real jorb0;
 //	printf( "Starting SCF\n");
@@ -452,7 +452,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		}
 		real spin_ratio = (j1 + j2) / (jorb);
 		real this_m = (diags.m[0] + diags.m[1]);
-		solve_gravity(false);
+		solve_gravity(false,false);
 
 #ifdef FIND_AXIS_V2
 		auto axis = find_axis();
@@ -534,7 +534,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		real core_frac_2 = diags.grid_sum[spc_dc_i] / M2;
 		const real virial = diags.virial;
 		real e1f;
-		if (opts.eos == WD) {
+		if (opts.eos != WD) {
 			if (!scf_options::equal_struct_eos) {
 				e1f = e1->get_frac();
 				if (core_frac_1 == 0.0) {
@@ -589,7 +589,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		const real dx = axis.second[0];
 	//	printf( "%e %e %e\n", rho1_max.first, rho2_max.first, l1_x);
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
-		solve_gravity(false);
+		solve_gravity(false,false);
 
 	}
 #ifdef RADIATION

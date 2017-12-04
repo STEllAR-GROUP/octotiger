@@ -171,10 +171,12 @@ diagnostics_t node_server::diagnostics() {
 		return diagnostics_t();
 	}
 	diagnostics_t diags;
-	for( integer i = 1; i != 10; ++i) {
+	for( integer i = 1; i != 6; ++i) {
+	//	printf( "!\n");
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
 		diags.grid_com = grid_ptr->center_of_mass();
+	//	printf( "%e\n", diags.m[0]);
 	}
 //	printf( "L1 = %e\n", diags.l1_phi);
 ///	printf( "L2 = %e\n", diags.l2_phi);

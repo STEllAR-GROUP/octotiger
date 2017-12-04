@@ -505,7 +505,7 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
     printf( "Formed tree in %f seconds\n", real(tstop - tstart));
     if (current_time > ZERO) {
         printf("solving gravity\n");
-        solve_gravity(true);
+        solve_gravity(true,opts.output_only);
     }
     double elapsed = timer.elapsed();
     printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
@@ -684,11 +684,11 @@ void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& ou
 typedef node_server::solve_gravity_action solve_gravity_action_type;
 HPX_REGISTER_ACTION(solve_gravity_action_type);
 
-hpx::future<void> node_client::solve_gravity(bool ene) const {
-    return hpx::async<typename node_server::solve_gravity_action>(get_unmanaged_gid(), ene);
+hpx::future<void> node_client::solve_gravity(bool ene, bool aonly) const {
+    return hpx::async<typename node_server::solve_gravity_action>(get_unmanaged_gid(), ene, aonly);
 }
 
-void node_server::solve_gravity(bool ene) {
+void node_server::solve_gravity(bool ene, bool aonly) {
     if (!gravity_on) {
         return;
     }
@@ -697,10 +697,10 @@ void node_server::solve_gravity(bool ene) {
     {
         integer index = 0;;
         for (auto& child : children) {
-            child_futs[index++] = child.solve_gravity(ene);
+            child_futs[index++] = child.solve_gravity(ene,aonly);
         }
     }
-    compute_fmm(RHO, ene);
+    compute_fmm(RHO, ene, aonly);
     if( is_refined ) {
     	wait_all_and_propagate_exceptions(child_futs);
     }
