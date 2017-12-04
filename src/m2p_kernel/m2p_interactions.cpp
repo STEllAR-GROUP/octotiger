@@ -138,7 +138,8 @@ namespace fmm {
 
             m2p_kernel kernel(neighbor_empty, type, dX, xBase);
 
-            // for(auto i = 0; i < local_expansions.size(); i++)
+            // std::cout << "Local expansions" << std::endl;
+            // for(auto i = 0; i < 10; i++)
             //   std::cout << local_expansions[i] << " ";
             auto start = std::chrono::high_resolution_clock::now();
 
@@ -150,9 +151,9 @@ namespace fmm {
             // copy back SoA data into non-SoA result
             potential_expansions_SoA.to_non_SoA(potential_expansions);
             angular_corrections_SoA.to_non_SoA(angular_corrections);
-            // std::cout << "Interactions corrections:" << std::endl;
+            // std::cout << std::endl << "Potential expansions" << std::endl;
             // for (auto i = 0; i < 10; ++i) {
-            //   std::cout << angular_corrections[i] << std::endl;
+            //   std::cout << potential_expansions[i] << std::endl;
             // }
             // std::cin.get();
         }
