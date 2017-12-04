@@ -58,8 +58,6 @@ namespace fmm {
                 if (vector_is_empty[interaction_partner_flat_index]) {
                     continue;
                 }
-                // std::cout << cell_index << std::endl;
-                // std::cin.get();
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -92,21 +90,6 @@ namespace fmm {
                     Y[1][i] = (interaction_partner_index_unpadded.y) * dX + xBase[1];
                     Y[2][i] = (interaction_partner_index_unpadded.z + i) * dX + xBase[2];
                 }
-                //         for (auto x : xBase)
-                //           std::cout << x << " ";
-                // std::cout << dX;
-                // std::cin.get();
-                // std::cout << interaction_partner_index_unpadded.x << " " <<
-                // interaction_partner_index_unpadded.y
-                //            << " " << interaction_partner_index_unpadded.z << std::endl;
-                //     std::cout << Y[0] << std::endl
-                //               << Y[1] << std::endl
-                //               << Y[2] << std::endl;
-                //             std::cin.get();
-                //             std::cout << X[0] << std::endl
-                //                       << X[1] << std::endl
-                //                       << X[2] << std::endl;
-                //             std::cin.get();
 
                 std::array<m2m_vector, NDIM> dX;
                 dX[0] = X[0] - Y[0];
@@ -118,35 +101,7 @@ namespace fmm {
 
                 D_split D_calculator(dX);
                 std::array<m2m_vector, 20> D_lower;
-                // D_calculator.calculate_D_lower(D_lower);
-                // if (cell_flat_index_unpadded == 0) {
-                //   for (auto i = 0; i < 20; ++i) {
-                //       std::cout << "D-new:" << D_lower[i] << std::endl;
-                //   }
-                //   std::cin.get();
-                // }
-                taylor<5, simd_vector> D;
-                std::array<simd_vector, NDIM> X_old;
-                std::array<simd_vector, NDIM> Y_old;
-                std::array<simd_vector, NDIM> dX_old;
-                for (auto j = 0; j < m2m_vector::size(); ++j) {
-                    for (auto i = 0; i < NDIM; ++i) {
-                        X_old[i][j] = X[i][j];
-                    }
-                    Y_old[2][j] = (interaction_partner_index_unpadded.z + j) * this->dX + xBase[2];
-                    Y_old[1][j] = (interaction_partner_index_unpadded.y) * this->dX + xBase[1];
-                    Y_old[0][j] = (interaction_partner_index_unpadded.x) * this->dX + xBase[0];
-                }
-                for (integer d = 0; d < NDIM; ++d) {
-                    dX_old[d] = X_old[d] - Y_old[d];
-                }
-
-                D.set_basis(dX_old);
-                for (integer i = 0; i < 20; ++i) {
-                    for (auto j = 0; j < m2m_vector::size(); ++j) {
-                        D_lower[i][j] = D[i][j];
-                    }
-                }
+                D_calculator.calculate_D_lower(D_lower);
 
                 std::array<m2m_vector, 20> cur_pot;
                 cur_pot[0] = monopole * D_lower[0];
@@ -449,11 +404,9 @@ namespace fmm {
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
                 // check whether all vector elements are in empty border
-                // if (vector_is_empty[interaction_partner_flat_index]) {
-                //     continue;
-                // }
-                // std::cout << cell_index << std::endl;
-                // std::cin.get();
+                if (vector_is_empty[interaction_partner_flat_index]) {
+                    continue;
+                }
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -472,9 +425,9 @@ namespace fmm {
 
                 m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
 
-                // if (Vc::none_of(mask)) {
-                //     continue;
-                // }
+                if (Vc::none_of(mask)) {
+                    continue;
+                }
                 std::array<m2m_vector, NDIM> X;
                 X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
                 X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
@@ -486,21 +439,6 @@ namespace fmm {
                     Y[1][i] = (interaction_partner_index_unpadded.y) * dX + xBase[1];
                     Y[2][i] = (interaction_partner_index_unpadded.z + i) * dX + xBase[2];
                 }
-                //         for (auto x : xBase)
-                //           std::cout << x << " ";
-                // std::cout << dX;
-                // std::cin.get();
-                // std::cout << interaction_partner_index_unpadded.x << " " <<
-                // interaction_partner_index_unpadded.y
-                //            << " " << interaction_partner_index_unpadded.z << std::endl;
-                //     std::cout << Y[0] << std::endl
-                //               << Y[1] << std::endl
-                //               << Y[2] << std::endl;
-                //             std::cin.get();
-                //             std::cout << X[0] << std::endl
-                //                       << X[1] << std::endl
-                //                       << X[2] << std::endl;
-                //             std::cin.get();
 
                 std::array<m2m_vector, NDIM> dX;
                 dX[0] = X[0] - Y[0];
@@ -512,35 +450,7 @@ namespace fmm {
 
                 D_split D_calculator(dX);
                 std::array<m2m_vector, 20> D_lower;
-                // D_calculator.calculate_D_lower(D_lower);
-                // if (cell_flat_index_unpadded == 0) {
-                //   for (auto i = 0; i < 20; ++i) {
-                //       std::cout << "D-new:" << D_lower[i] << std::endl;
-                //   }
-                //   std::cin.get();
-                // }
-                taylor<5, simd_vector> D;
-                std::array<simd_vector, NDIM> X_old;
-                std::array<simd_vector, NDIM> Y_old;
-                std::array<simd_vector, NDIM> dX_old;
-                for (auto j = 0; j < m2m_vector::size(); ++j) {
-                    for (auto i = 0; i < NDIM; ++i) {
-                        X_old[i][j] = X[i][j];
-                    }
-                    Y_old[2][j] = (interaction_partner_index_unpadded.z + j) * this->dX + xBase[2];
-                    Y_old[1][j] = (interaction_partner_index_unpadded.y) * this->dX + xBase[1];
-                    Y_old[0][j] = (interaction_partner_index_unpadded.x) * this->dX + xBase[0];
-                }
-                for (integer d = 0; d < NDIM; ++d) {
-                    dX_old[d] = X_old[d] - Y_old[d];
-                }
-
-                D.set_basis(dX_old);
-                for (integer i = 0; i < 20; ++i) {
-                    for (auto j = 0; j < m2m_vector::size(); ++j) {
-                        D_lower[i][j] = D[i][j];
-                    }
-                }
+                D_calculator.calculate_D_lower(D_lower);
 
                 std::array<m2m_vector, 20> cur_pot;
                 cur_pot[0] = monopole * D_lower[0];

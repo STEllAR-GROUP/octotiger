@@ -70,13 +70,6 @@ namespace fmm {
                         // Get multipole data into our input structure
                         std::vector<real>& neighbor_mons = *(neighbor.data.m);
                         std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
-                        // if(!neighbor.data.x)
-                        //   std::cout << "whhyyyyyy";
-                        // else {
-                        //   std::cout << "wait wat";
-                        //   std::cin.get();
-                        // }
-                        // cant for some reason be iterated
                         iterate_inner_cells_padding(
                             dir, [this, neighbor_mons](const multiindex<>& i,
                                      const size_t flat_index, const multiindex<>& i_unpadded,
@@ -138,9 +131,6 @@ namespace fmm {
 
             m2p_kernel kernel(neighbor_empty, type, dX, xBase);
 
-            // std::cout << "Local expansions" << std::endl;
-            // for(auto i = 0; i < 10; i++)
-            //   std::cout << local_expansions[i] << " ";
             auto start = std::chrono::high_resolution_clock::now();
 
             kernel.apply_stencil(local_expansions, cell_expansions_SoA, center_of_masses_SoA, potential_expansions_SoA,
@@ -151,11 +141,6 @@ namespace fmm {
             // copy back SoA data into non-SoA result
             potential_expansions_SoA.to_non_SoA(potential_expansions);
             angular_corrections_SoA.to_non_SoA(angular_corrections);
-            // std::cout << std::endl << "Potential expansions" << std::endl;
-            // for (auto i = 0; i < 10; ++i) {
-            //   std::cout << potential_expansions[i] << std::endl;
-            // }
-            // std::cin.get();
         }
 
         std::vector<real>& m2p_interactions::get_local_expansions() {
