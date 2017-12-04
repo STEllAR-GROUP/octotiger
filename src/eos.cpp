@@ -238,8 +238,8 @@ struct_eos::struct_eos(real M, const struct_eos& other) {
 		real m, r;
 		set_d0_using_struct_eos(newd, other);
 		initialize(m, r);
-	//	printf( "%e %e %e\n", M, m, r);
-		return M - m;
+//		printf("%e %e %e %e %e\n", M, m, d0, newd, other.d0);
+			return M - m;
 		};
 //	printf("!!!!!!!!!!!!!!!!!!!\n");
 	real new_d0;
@@ -333,7 +333,7 @@ void struct_eos::initialize(real& mass, real& radius) {
 	real r;
 	if (opts.eos == WD) {
 
-		const real dr0 = (1.0 / B()) * sqrt(A / G) / 100.0;
+		const real dr0 = (1.0 / B()) * sqrt(A / G) / 10.0;
 
 		real h, hdot,  m;
 		h = density_to_enthalpy(d0_);
@@ -472,10 +472,11 @@ void struct_eos::set_h0(real h) {
 	if (opts.eos == WD) {
 		std::function<double(double)> fff = [&](real a) {
 			A = a;
-			return h0() - h;
+			//	printf( "%e %e %e\n", h0(), h, A);
+				return h0() - h;
 			};
 		real new_a;
-		if (!find_root(fff, A * 1.0e-10, A * 1.0e+10, new_a)) {
+		if (!find_root(fff, A * 1.0e-6, A * 1.0e+6, new_a)) {
 			printf("Error in struct_eos line %i\n", __LINE__);
 			abort();
 		}

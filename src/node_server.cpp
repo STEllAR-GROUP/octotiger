@@ -363,7 +363,7 @@ void node_server::load_from_file(const std::string& fname, std::string const& da
     hpx::util::high_resolution_timer timer;
 #ifdef RADIATION
     if (opts.eos == WD) {
-       set_cgs(false);
+        set_cgs(false);
     }
 #endif
     real omega = 0;

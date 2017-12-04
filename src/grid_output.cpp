@@ -172,22 +172,11 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 				data[NGF + NRF + NF + 0].push_back(V[vx_i][iii]);
 				data[NGF + NRF + NF + 1].push_back(V[vy_i][iii]);
 				data[NGF + NRF + NF + 2].push_back(V[vz_i][iii]);
-#ifdef RADIATION
-				real ei = std::pow(V[tau_i][iii], fgamma) / V[rho_i][iii];
-				std::array<real,NSPECIES> spc;
-				for( integer s = 0; s != NSPECIES; ++s) {
-					spc[s] = U[spc_i + s][iii];
-				}
-				const real mmw = mean_ion_weight(spc);
-				const real T = temperature(V[rho_i][iii], ei * V[rho_i][iii], mmw);
-				data[NGF + NRF + NF + 3].push_back(T);
-#else
-//				if (V[egas_i][iii] * V[rho_i][iii] < de_switch2 * U[egas_i][iii]) {
+				if (V[egas_i][iii] * V[rho_i][iii] < de_switch2 * U[egas_i][iii]) {
 					data[NGF + NRF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma) / V[rho_i][iii]);
-//				} else {
-//					data[NGF + NRF + NF + 3].push_back(V[egas_i][iii]);
-//				}
-#endif
+				} else {
+					data[NGF + NRF + NF + 3].push_back(V[egas_i][iii]);
+				}
 				data[NGF + NRF + NF + 4].push_back(V[zz_i][iii]);
 				data[OUTPUT_COUNT - 1].push_back(roche_lobe[h0index(i - H_BW, j - H_BW, k - H_BW)]);
 			}
@@ -351,19 +340,11 @@ std::size_t grid::load(FILE* fp, bool old_format) {
 	cnt += std::fread(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
 	cnt += std::fread(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
 
-#ifdef RADIATION
-	cnt += std::fread(&dx, sizeof(real), 1, fp) * sizeof(real);
-	for (integer d = 0; d != NDIM; ++d) {
-		cnt += std::fread(&(xmin[d]), sizeof(real), 1, fp) * sizeof(real);
-	}
-#endif
-
 	allocate();
 
 	for (integer f = 0; f != NF; ++f) {
 		for (integer i = H_BW; i < H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
-	//			printf( "%i %i\n", int(f), int(ftell(fp)));
 				if( f < NF - 3 || !old_format) {
 					const integer iii = hindex(i, j, H_BW);
 					cnt += std::fread(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
@@ -394,11 +375,10 @@ std::size_t grid::load(FILE* fp, bool old_format) {
 		std::fill(U_out.begin(), U_out.end(), 0.0);
 		cnt += std::fread(U_out.data(), sizeof(real), U_out.size() - 3, fp) * sizeof(real);
 	}
-	set_coordinates();
 #ifdef RADIATION
 	cnt += rad_grid_ptr->load(fp);
-	rad_grid_ptr->compute_mmw(U);
 #endif
+	set_coordinates();
 	return cnt;
 }
 
@@ -412,13 +392,6 @@ std::size_t grid::save(std::ostream& strm) const {
 
     cnt += write(strm, is_leaf);
     cnt += write(strm, is_root);
-
-#ifdef RADIATION
-	cnt += write(strm, dx);
-    for( integer d = 0; d != NDIM; ++d) {
-    	cnt += write(strm, xmin[d]);
-    }
-#endif
 
     for (integer f = 0; f != NF; ++f) {
         for (integer i = H_BW; i < H_NX - H_BW; ++i) {

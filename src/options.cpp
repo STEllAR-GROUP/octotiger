@@ -260,7 +260,7 @@ bool options::process_options(int argc, char* argv[]) {
     theta = std::max(1.0 / 3.0, theta);
     theta = std::min(1.0 / 2.0, theta);
     if( !vomega_found ) {
-//    	vomega = (problem == DWD);
+    	vomega = (problem == DWD);
     }
     printf( "Variable omega is %s\n", vomega ? "on" : "off");
     return rc;
