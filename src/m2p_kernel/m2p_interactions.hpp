@@ -45,6 +45,7 @@ namespace fmm {
             std::vector<space_vector> angular_corrections;
 
             std::vector<bool> neighbor_empty;
+            std::vector<bool> interact;
 
             gsolve_type type;
 

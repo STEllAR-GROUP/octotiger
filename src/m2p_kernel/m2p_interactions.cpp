@@ -19,14 +19,17 @@ namespace fmm {
 
         m2p_interactions::m2p_interactions(std::vector<real>& mons, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                                           std::vector<neighbor_gravity_type>& neighbors,
-                                           gsolve_type type, real dx, std::array<real, NDIM> xbase)
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            std::array<real, NDIM> xbase)
           : neighbor_empty(27)
-          , type(type),dX(dx), xBase(xbase) {
+          , type(type)
+          , dX(dx)
+          , xBase(xbase) {
             // Create our input structure for the compute kernel
             cell_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             local_expansions = std::vector<real>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
+            interact = std::vector<bool>(EXPANSION_COUNT_PADDED);
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             iterate_inner_cells_padded(
@@ -34,6 +37,7 @@ namespace fmm {
                     const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                     cell_expansions.at(flat_index) = M_ptr.at(flat_index_unpadded);
                     center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+                    interact.at(flat_index) = false;
                 });
             total_neighbors += 27;
 
@@ -62,6 +66,7 @@ namespace fmm {
                                 local_expansions.at(flat_index) = 0.0;
                                 // initializes x,y,z vector
                                 center_of_masses.at(flat_index) = 0.0;
+                                interact.at(flat_index) = false;
                             });
                         missing_neighbors += 1;
                         current_missing += 1;
@@ -71,13 +76,15 @@ namespace fmm {
                         std::vector<real>& neighbor_mons = *(neighbor.data.m);
                         std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
                         iterate_inner_cells_padding(
-                            dir, [this, neighbor_mons](const multiindex<>& i,
-                                     const size_t flat_index, const multiindex<>& i_unpadded,
-                                     const size_t flat_index_unpadded) {
+                            dir,
+                            [this, neighbor_mons](const multiindex<>& i, const size_t flat_index,
+                                const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                                 local_expansions.at(flat_index) =
                                     neighbor_mons.at(flat_index_unpadded);
-                                // center_of_masses.at(flat_index) = neighbor_com0.at(flat_index_unpadded);
+                                // center_of_masses.at(flat_index) =
+                                // neighbor_com0.at(flat_index_unpadded);
                                 center_of_masses.at(flat_index) = 0.0;
+                                interact.at(flat_index) = true;
                             });
                         monopole_neighbors_exist = true;
                     }
@@ -92,6 +99,7 @@ namespace fmm {
                             local_expansions.at(flat_index) = 0.0;
                             // initializes x,y,z vector
                             center_of_masses.at(flat_index) = 0.0;
+                            interact.at(flat_index) = false;
                         });
                     missing_neighbors += 1;
                     current_monopole += 1;
@@ -133,8 +141,8 @@ namespace fmm {
 
             auto start = std::chrono::high_resolution_clock::now();
 
-            kernel.apply_stencil(local_expansions, cell_expansions_SoA, center_of_masses_SoA, potential_expansions_SoA,
-                angular_corrections_SoA, stencil);
+            kernel.apply_stencil(local_expansions, cell_expansions_SoA, center_of_masses_SoA,
+                potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
             auto end = std::chrono::high_resolution_clock::now();
 
             std::chrono::duration<double, std::milli> duration = end - start;

@@ -16,12 +16,13 @@ namespace octotiger {
 namespace fmm {
     namespace m2p_kernel {
 
-    m2p_kernel::m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx,
-                           std::array<real, NDIM> xbase)
+        m2p_kernel::m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx,
+            std::array<real, NDIM> xbase)
           : neighbor_empty(neighbor_empty)
           , type(type)
-          , theta_rec_squared(sqr(1.0 / opts.theta)),
-            dX(dx), xBase(xbase)
+          , theta_rec_squared(sqr(1.0 / opts.theta))
+          , dX(dx)
+          , xBase(xbase)
         // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
@@ -39,7 +40,7 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil) {
+            std::vector<multiindex<>>& stencil, std::vector<bool>& interact) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -82,12 +83,14 @@ namespace fmm {
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
+                                    interact);
                             } else {
                                 this->blocked_interaction_non_rho(mons, center_of_masses_SoA,
                                     potential_expansions_SoA, angular_corrections_SoA, cell_index,
                                     cell_flat_index, cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
+                                    interact);
                             }
                         }
                     }
