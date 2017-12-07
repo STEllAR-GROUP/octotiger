@@ -40,7 +40,8 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
+                                         const std::vector<multiindex<>>& stencil, const size_t
+                                         outer_stencil_index, std::vector<bool>& interact);
 
             /// Calculates the monopole multipole boundary interactions without the solve type rho
             void blocked_interaction_non_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
@@ -54,7 +55,8 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
+                                             const std::vector<multiindex<>>& stencil, const
+                                             size_t outer_stencil_index, std::vector<bool>& interact);
 
             void vectors_check_empty();
 
@@ -73,7 +75,7 @@ namespace fmm {
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     angular_corrections_SoA,
-                std::vector<multiindex<>>& stencil);
+                std::vector<multiindex<>>& stencil, std::vector<bool>& interact);
         };
 
     }    // namespace p2m_kernel

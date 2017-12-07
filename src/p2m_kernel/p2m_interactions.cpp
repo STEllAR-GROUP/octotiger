@@ -25,6 +25,7 @@ namespace fmm {
             // Create our input structure for the compute kernel
             local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
+            interact = std::vector<bool>(EXPANSION_COUNT_PADDED);
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
 
@@ -33,6 +34,7 @@ namespace fmm {
                 const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
               local_expansions.at(flat_index) = 0.0;
                 center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+                interact.at(flat_index) = false;
             });
             total_neighbors += 27;
 
@@ -61,6 +63,7 @@ namespace fmm {
                                 local_expansions.at(flat_index) = 0.0;
                                 // initializes x,y,z vector
                                 center_of_masses.at(flat_index) = 0.0;
+                                interact.at(flat_index) = false;
                             });
                         missing_neighbors += 1;
                         current_missing += 1;
@@ -77,6 +80,7 @@ namespace fmm {
                                     neighbor_M_ptr.at(flat_index_unpadded);
                                 center_of_masses.at(flat_index) =
                                     neighbor_com0.at(flat_index_unpadded);
+                                interact.at(flat_index) = true;
                             });
                         multipole_neighbors_exist = true;
                     }
@@ -91,6 +95,7 @@ namespace fmm {
                             local_expansions.at(flat_index) = 0.0;
                             // initializes x,y,z vector
                             center_of_masses.at(flat_index) = 0.0;
+                            interact.at(flat_index) = false;
                         });
                     missing_neighbors += 1;
                     current_monopole += 1;
@@ -118,6 +123,7 @@ namespace fmm {
         void p2m_interactions::compute_interactions() {
             if (!multipole_neighbors_exist)
               return;
+            auto start_complete = std::chrono::high_resolution_clock::now();
             // Convert input structure to new datastructure (SoA)
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA(
                 local_expansions);
@@ -171,13 +177,17 @@ namespace fmm {
             auto start = std::chrono::high_resolution_clock::now();
 
             kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                potential_expansions_SoA, angular_corrections_SoA, stencil);
+                                 potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
             auto end = std::chrono::high_resolution_clock::now();
-
             std::chrono::duration<double, std::milli> duration = end - start;
+            // std::cout << "Monopole-multipole" << duration.count() << std::endl;
+
             // copy back SoA data into non-SoA result
             potential_expansions_SoA.to_non_SoA(potential_expansions);
             angular_corrections_SoA.to_non_SoA(angular_corrections);
+            auto end_complete = std::chrono::high_resolution_clock::now();
+            duration = end_complete - start_complete;
+            // std::cout << "Monopole-multipole complete" << duration.count() << std::endl;
             // std::cout << "Potential Expansaions" << std::endl;
             // for (auto i = 0; i < 100; ++i) {
             //   for (auto x = 0; x < 20; ++x) {

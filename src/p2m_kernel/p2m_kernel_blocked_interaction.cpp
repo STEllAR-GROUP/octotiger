@@ -33,7 +33,8 @@ namespace fmm {
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& __restrict__ stencil, const size_t outer_stencil_index) {
+            const std::vector<multiindex<>>& __restrict__ stencil, const size_t outer_stencil_index,
+            std::vector<bool>& interact) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
@@ -48,6 +49,8 @@ namespace fmm {
 
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
+                if (!interact[interaction_partner_flat_index])
+                    continue;
 
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
@@ -329,7 +332,8 @@ namespace fmm {
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index) {
+            const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index,
+            std::vector<bool>& interact) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
@@ -347,6 +351,8 @@ namespace fmm {
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
+                if (!interact[interaction_partner_flat_index])
+                    continue;
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
                     continue;
@@ -483,6 +489,6 @@ namespace fmm {
                     Vc::flags::element_aligned);
             }
         }
-    }        // namespace p2m_kernel
+    }    // namespace p2m_kernel
 }    // namespace fmm
 }    // namespace octotiger

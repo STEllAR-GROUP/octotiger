@@ -36,7 +36,7 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil) {
+            std::vector<multiindex<>>& stencil, std::vector<bool>& interact) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -79,13 +79,15 @@ namespace fmm {
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
+                                    interact);
                             } else {
                                 this->blocked_interaction_non_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
+                                    interact);
                             }
                         }
                     }
