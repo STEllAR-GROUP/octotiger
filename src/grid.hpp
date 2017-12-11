@@ -319,6 +319,7 @@ public:
 	void rho_mult(real f0, real f1 );
 	void rho_move(real x);
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
+	expansion_pass_type compute_expansions_soa(gsolve_type, const expansion_pass_type* = nullptr);
 	integer get_step() const;
 	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1,integer frac, real rho_cut) const;
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;

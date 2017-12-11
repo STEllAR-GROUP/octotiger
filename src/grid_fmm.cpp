@@ -15,6 +15,11 @@
 #include <hpx/include/parallel_for_loop.hpp>
 #include "grid_flattened_indices.hpp"
 
+#include "m2m_kernel/m2m_interactions.hpp"
+#include "common_kernel/interactions_iterators.hpp"
+#include "common_kernel/interaction_constants.hpp"
+#include "common_kernel/struct_of_array_data.hpp"
+
 #include <cstddef>
 #include <utility>
 
@@ -1215,7 +1220,104 @@ void compute_ilist() {
         }
     }
 }
+expansion_pass_type grid::compute_expansions_soa(
+    gsolve_type type, const expansion_pass_type* parent_expansions) {
+    // Create return type expansion_pass_type
+    // which is typedef std::pair<std::vector<expansion>, std::vector<space_vector>>
+    // expansion_pass_type;
+    expansion_pass_type exp_ret;
+    // load data into soa arrays
+    std::vector<expansion>& local_expansions = this->get_L();
+    auto center_of_masses = std::vector<space_vector>(octotiger::fmm::INNER_CELLS);
+    std::vector<space_vector> const& com0 = *(com_ptr[0]);
+    octotiger::fmm::iterate_inner_cells_not_padded([this, &local_expansions, &center_of_masses,
+        com0](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+        local_expansions.at(flat_index_unpadded) = L.at(flat_index_unpadded);
+        center_of_masses.at(flat_index_unpadded) = com0.at(flat_index_unpadded);
+    });
+    octotiger::fmm::struct_of_array_data<expansion, real, 20, octotiger::fmm::ENTRIES,
+        octotiger::fmm::SOA_PADDING>
+        potential_expansions_SoA(local_expansions);
+    octotiger::fmm::struct_of_array_data<space_vector, real, 3, octotiger::fmm::ENTRIES,
+        octotiger::fmm::SOA_PADDING>
+        center_of_masses_SoA(center_of_masses);
+    // Get parents expansions as dummies
+    octotiger::fmm::struct_of_array_data<expansion, real, 20, octotiger::fmm::ENTRIES,
+        octotiger::fmm::SOA_PADDING>
+        parent_expansions_SoA(local_expansions);
+    octotiger::fmm::struct_of_array_data<space_vector, real, 3, octotiger::fmm::ENTRIES,
+        octotiger::fmm::SOA_PADDING>
+        parent_corrections_SoA(center_of_masses);
+    // get child indices
+    const integer inx = INX;
+    const integer nxp = (inx / 2);
+    auto child_index = [=](
+        integer ip, integer jp, integer kp, integer ci, integer bw = 0) -> integer {
+        const integer ic = (2 * (ip) + bw) + ((ci >> 0) & 1);
+        const integer jc = (2 * (jp) + bw) + ((ci >> 1) & 1);
+        const integer kc = (2 * (kp) + bw) + ((ci >> 2) & 1);
+        return (inx + 2 * bw) * (inx + 2 * bw) * ic + (inx + 2 * bw) * jc + kc;
+    };
+    // Iterate through all cells in this block
+    // TODO make version with stride for vectorization
+    octotiger::fmm::iterate_inner_cells_not_padded([this, &local_expansions, &center_of_masses_SoA,
+                                                    com0, &parent_expansions_SoA, &parent_corrections_SoA, &exp_ret, child_index,
+        type](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+        std::array<m2m_vector, 20> m_partner;
+        std::array<m2m_vector, NDIM> parent_corrections;
+        const integer index =
+            (INX * INX / 4) * (i_unpadded.x) + (INX / 2) * (i_unpadded.y) + (i_unpadded.z);
+        // Get position of all node
+        // TODO Get child positions right
+        std::array<m2m_vector, NDIM> X;
+        const integer iiic = child_index(i_unpadded.x, i_unpadded.y, i_unpadded.z, 0);
+        X[0] = center_of_masses_SoA.value<0>(iiic);
+        X[1] = center_of_masses_SoA.value<1>(iiic);
+        X[2] = center_of_masses_SoA.value<2>(iiic);
+        // Get expansions and angular corrections of parent node
+        // TODO parent expansions contain zeros if we are at the root node
+        m_partner[0] = parent_expansions_SoA.value<0>(index);
+        m_partner[1] = parent_expansions_SoA.value<1>(index);
+        m_partner[2] = parent_expansions_SoA.value<2>(index);
+        m_partner[3] = parent_expansions_SoA.value<3>(index);
+        m_partner[4] = parent_expansions_SoA.value<4>(index);
+        m_partner[5] = parent_expansions_SoA.value<5>(index);
+        m_partner[6] = parent_expansions_SoA.value<6>(index);
+        m_partner[7] = parent_expansions_SoA.value<7>(index);
+        m_partner[8] = parent_expansions_SoA.value<8>(index);
+        m_partner[9] = parent_expansions_SoA.value<9>(index);
+        m_partner[10] = parent_expansions_SoA.value<10>(index);
+        m_partner[11] = parent_expansions_SoA.value<11>(index);
+        m_partner[12] = parent_expansions_SoA.value<12>(index);
+        m_partner[13] = parent_expansions_SoA.value<13>(index);
+        m_partner[14] = parent_expansions_SoA.value<14>(index);
+        m_partner[15] = parent_expansions_SoA.value<15>(index);
+        m_partner[16] = parent_expansions_SoA.value<16>(index);
+        m_partner[17] = parent_expansions_SoA.value<17>(index);
+        m_partner[18] = parent_expansions_SoA.value<18>(index);
+        m_partner[19] = parent_expansions_SoA.value<19>(index);
 
+        if (type == RHO && opts.ang_con) {
+            parent_corrections[0] = parent_corrections_SoA.value<0>(index);
+            parent_corrections[1] = parent_corrections_SoA.value<1>(index);
+            parent_corrections[2] = parent_corrections_SoA.value<2>(index);
+        }
+
+        // TODO Get position of all interaction partners
+
+        // TODO Calculate distances
+
+        // TODO Calculate taylor expansions for this cell (<<=)
+
+        // TODO Hand down expansions to all childs
+
+        // TODO Create Multipole expansions which is going to handed down to the children
+
+    });
+    // If we are in a leaf: Calculate the actual expansions
+    // Return multipole expansions which are to be handed down to the children
+    return exp_ret;
+}
 expansion_pass_type grid::compute_expansions(
     gsolve_type type, const expansion_pass_type* parent_expansions) {
     PROF_BEGIN;
