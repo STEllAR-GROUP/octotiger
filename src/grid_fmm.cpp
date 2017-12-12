@@ -1267,13 +1267,52 @@ expansion_pass_type grid::compute_expansions_soa(
         std::array<m2m_vector, NDIM> parent_corrections;
         const integer index =
             (INX * INX / 4) * (i_unpadded.x) + (INX / 2) * (i_unpadded.y) + (i_unpadded.z);
-        // Get position of all node
-        // TODO Get child positions right
-        std::array<m2m_vector, NDIM> X;
-        const integer iiic = child_index(i_unpadded.x, i_unpadded.y, i_unpadded.z, 0);
-        X[0] = center_of_masses_SoA.value<0>(iiic);
-        X[1] = center_of_masses_SoA.value<1>(iiic);
-        X[2] = center_of_masses_SoA.value<2>(iiic);
+        const integer ic = (2 * (i_unpadded.x));
+        const integer jc = (2 * (i_unpadded.y));
+        const integer kc = (2 * (i_unpadded.z));
+
+        // Get position of child nodes
+        std::array<std::array<m2m_vector, NDIM>, NCHILD> X;
+        integer childindex = inx * inx * (ic + 0) + inx * (jc + 0) + (kc + 0);
+        X[0][0] = center_of_masses_SoA.value<0>(childindex);
+        X[0][1] = center_of_masses_SoA.value<1>(childindex);
+        X[0][2] = center_of_masses_SoA.value<2>(childindex);
+
+        childindex = inx * inx * (ic + 1) + inx * (jc + 0) + (kc + 0);
+        X[1][0] = center_of_masses_SoA.value<0>(childindex);
+        X[1][1] = center_of_masses_SoA.value<1>(childindex);
+        X[1][2] = center_of_masses_SoA.value<2>(childindex);
+
+        childindex = inx * inx * (ic + 0) + inx * (jc + 1) + (kc + 0);
+        X[2][0] = center_of_masses_SoA.value<0>(childindex);
+        X[2][1] = center_of_masses_SoA.value<1>(childindex);
+        X[2][2] = center_of_masses_SoA.value<2>(childindex);
+
+        childindex = inx * inx * (ic + 1) + inx * (jc + 1) + (kc + 0);
+        X[3][0] = center_of_masses_SoA.value<0>(childindex);
+        X[3][1] = center_of_masses_SoA.value<1>(childindex);
+        X[3][2] = center_of_masses_SoA.value<2>(childindex);
+
+        childindex = inx * inx * (ic + 0) + inx * (jc + 0) + (kc + 1);
+        X[4][0] = center_of_masses_SoA.value<0>(childindex);
+        X[4][1] = center_of_masses_SoA.value<1>(childindex);
+        X[4][2] = center_of_masses_SoA.value<2>(childindex);
+
+        childindex = inx * inx * (ic + 1) + inx * (jc + 0) + (kc + 1);
+        X[5][0] = center_of_masses_SoA.value<0>(childindex);
+        X[5][1] = center_of_masses_SoA.value<1>(childindex);
+        X[5][2] = center_of_masses_SoA.value<2>(childindex);
+
+        childindex = inx * inx * (ic + 0) + inx * (jc + 1) + (kc + 1);
+        X[6][0] = center_of_masses_SoA.value<0>(childindex);
+        X[6][1] = center_of_masses_SoA.value<1>(childindex);
+        X[6][2] = center_of_masses_SoA.value<2>(childindex);
+
+        childindex = inx * inx * (ic + 1) + inx * (jc + 1) + (kc + 1);
+        X[7][0] = center_of_masses_SoA.value<0>(childindex);
+        X[7][1] = center_of_masses_SoA.value<1>(childindex);
+        X[7][2] = center_of_masses_SoA.value<2>(childindex);
+
         // Get expansions and angular corrections of parent node
         // TODO parent expansions contain zeros if we are at the root node
         m_partner[0] = parent_expansions_SoA.value<0>(index);
