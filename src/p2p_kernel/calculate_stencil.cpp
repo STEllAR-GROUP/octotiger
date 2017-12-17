@@ -1,9 +1,11 @@
 #include "defs.hpp"
 #include "geometry.hpp"
 #include "options.hpp"
+#include "../common_kernel/multiindex.hpp"
 
-#include "calculate_stencil.hpp"
+
 #include "../common_kernel/helper.hpp"
+#include "calculate_stencil.hpp"
 
 extern options opts;
 
@@ -11,7 +13,7 @@ namespace octotiger {
 namespace fmm {
     namespace p2p_kernel {
 
-        std::vector<multiindex<>> calculate_stencil() {
+        std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>> calculate_stencil() {
             std::array<std::vector<multiindex<>>, 8> stencils;
             std::cerr << "Calculating new stencil" << std::endl;
 
@@ -165,7 +167,23 @@ namespace fmm {
             //     std::cout << std::endl;
             // }
 
-            return superimposed_stencil;
+            std::vector<std::array<real, 4>> four_constants;
+            for(auto stencil_element : superimposed_stencil) {
+                const real x = stencil_element.x;
+                const real y = stencil_element.y;
+                const real z = stencil_element.z;
+                const real tmp = sqr(x) + sqr(y) + sqr(z);
+                const real r = std::sqrt(tmp);
+                const real r3 = r * r * r;
+                std::array<real, 4> four;
+                four[0] = -1.0 / r;
+                four[1] = x / r3;
+                four[2] = y / r3;
+                four[3] = z / r3;
+                four_constants.push_back(four);
+            }
+            return std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>>(
+                superimposed_stencil, four_constants);
         }
 
     }    // namespace p2p_kernel

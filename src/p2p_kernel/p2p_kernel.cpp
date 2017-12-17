@@ -1,9 +1,9 @@
 #include "p2p_kernel.hpp"
 
+#include "../common_kernel/struct_of_array_data.hpp"
 #include "defs.hpp"
 #include "interaction_types.hpp"
 #include "options.hpp"
-#include "../common_kernel/struct_of_array_data.hpp"
 
 #include <array>
 #include <functional>
@@ -33,7 +33,7 @@ namespace fmm {
         void p2p_kernel::apply_stencil(std::vector<real>& local_expansions,
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                 potential_expansions_SoA,
-            std::vector<multiindex<>>& stencil) {
+            std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -72,12 +72,12 @@ namespace fmm {
                                 this->blocked_interaction_rho(local_expansions,
                                     potential_expansions_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, stencil, four, outer_stencil_index);
                             } else {
                                 this->blocked_interaction_non_rho(local_expansions,
                                     potential_expansions_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, stencil, four, outer_stencil_index);
                             }
                         }
                     }

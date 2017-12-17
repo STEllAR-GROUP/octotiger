@@ -45,6 +45,7 @@ namespace fmm {
 
         public:
             static std::vector<multiindex<>> stencil;
+            static std::vector<std::array<real, 4>> four;
 
             // at this point, uses the old datamembers of the grid class as input
             // and converts them to the new data structure

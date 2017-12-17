@@ -38,6 +38,7 @@ namespace fmm {
                 const multiindex<>& __restrict__ cell_index_unpadded,
                 const size_t cell_flat_index_unpadded,
                 const std::vector<multiindex<>>& __restrict__ stencil,
+                const std::vector<std::array<real, 4>>& __restrict__ four_constants,
                 const size_t outer_stencil_index);
             // void blocked_interaction_rho(
             //     struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
@@ -61,6 +62,7 @@ namespace fmm {
                 const multiindex<>& __restrict__ cell_index_unpadded,
                 const size_t cell_flat_index_unpadded,
                 const std::vector<multiindex<>>& __restrict__ stencil,
+                const std::vector<std::array<real, 4>>& __restrict__ four_constants,
                 const size_t outer_stencil_index);
             // void blocked_interaction_non_rho(
             //     struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
@@ -90,7 +92,7 @@ namespace fmm {
             void apply_stencil(std::vector<real>& mons,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                     potential_expansions_SoA,
-                std::vector<multiindex<>>& stencil);
+                std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four);
         };
 
     }    // namespace p2p_kernel

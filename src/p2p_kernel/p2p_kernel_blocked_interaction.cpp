@@ -30,6 +30,7 @@ namespace fmm {
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded,
             const std::vector<multiindex<>>& __restrict__ stencil,
+            const std::vector<std::array<real,4>>& __restrict__ four_constants,
             const size_t outer_stencil_index) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
@@ -74,19 +75,11 @@ namespace fmm {
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
                 // real monopole = mons[interaction_partner_flat_index];
 
-                // do these values really map to i0 - i1, j0 - j1, k0 - k1?
-                // gotta complain to david if they do not
-                const real x = stencil_element.x;
-                const real y = stencil_element.y;
-                const real z = stencil_element.z;
-                const real tmp = sqr(x) + sqr(y) + sqr(z);
-                const real r = std::sqrt(tmp);
-                const real r3 = r * r * r;
                 std::array<m2m_vector, 4> four;
-                four[0] = -1.0 / r;
-                four[1] = x / r3;
-                four[2] = y / r3;
-                four[3] = z / r3;
+                four[0] = four_constants[outer_stencil_index + inner_stencil_index][0];
+                four[1] = four_constants[outer_stencil_index + inner_stencil_index][1];
+                four[2] = four_constants[outer_stencil_index + inner_stencil_index][2];
+                four[3] = four_constants[outer_stencil_index + inner_stencil_index][3];
 
                 four[0] *= monopole;
                 four[1] *= monopole;
@@ -127,6 +120,7 @@ namespace fmm {
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded,
             const std::vector<multiindex<>>& __restrict__ stencil,
+            const std::vector<std::array<real, 4>>& __restrict__ four_constants,
             const size_t outer_stencil_index) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
@@ -171,19 +165,11 @@ namespace fmm {
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
                 // real monopole = mons[interaction_partner_flat_index];
 
-                // do these values really map to i0 - i1, j0 - j1, k0 - k1?
-                // gotta complain to david if they do not
-                const real x = stencil_element.x;
-                const real y = stencil_element.y;
-                const real z = stencil_element.z;
-                const real tmp = sqr(x) + sqr(y) + sqr(z);
-                const real r = std::sqrt(tmp);
-                const real r3 = r * r * r;
                 std::array<m2m_vector, 4> four;
-                four[0] = -1.0 / r;
-                four[1] = x / r3;
-                four[2] = y / r3;
-                four[3] = z / r3;
+                four[0] = four_constants[outer_stencil_index + inner_stencil_index][0];
+                four[1] = four_constants[outer_stencil_index + inner_stencil_index][1];
+                four[2] = four_constants[outer_stencil_index + inner_stencil_index][2];
+                four[3] = four_constants[outer_stencil_index + inner_stencil_index][3];
 
                 four[0] *= monopole;
                 four[1] *= monopole;

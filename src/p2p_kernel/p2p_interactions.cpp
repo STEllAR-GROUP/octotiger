@@ -16,6 +16,7 @@ namespace fmm {
         size_t missing_neighbors = 0;
 
         std::vector<multiindex<>> p2p_interactions::stencil;
+        std::vector<std::array<real, 4>> p2p_interactions::four;
 
         p2p_interactions::p2p_interactions(std::vector<real>& mons,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx)
@@ -98,7 +99,7 @@ namespace fmm {
             //   std::cout << local_expansions[i] << " ";
             auto start = std::chrono::high_resolution_clock::now();
 
-            kernel.apply_stencil(local_expansions, potential_expansions_SoA, stencil);
+            kernel.apply_stencil(local_expansions, potential_expansions_SoA, stencil, four);
             auto end = std::chrono::high_resolution_clock::now();
 
             std::chrono::duration<double, std::milli> duration = end - start;
