@@ -29,11 +29,9 @@ namespace fmm {
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
 
-            std::array<m2m_vector, 4> d_components;
+            std::array<m2m_vector, 2> d_components;
             d_components[0] = 1.0 / dx;
             d_components[1] = -1.0 / sqr(dx);
-            d_components[2] = -1.0 / sqr(dx);
-            d_components[3] = -1.0 / sqr(dx);
             std::array<m2m_vector, 8> tmpstore;
             tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
             tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
@@ -91,12 +89,12 @@ namespace fmm {
 
                 tmpstore[0] = tmpstore[0] + four[0] * monopole * d_components[0];
                 tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
-                tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[2];
-                tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[3];
+                tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
+                tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
                 tmpstore[4] = tmpstore[4] + four[0] * monopole_second * d_components[0];
                 tmpstore[5] = tmpstore[5] + four[1] * monopole_second * d_components[1];
-                tmpstore[6] = tmpstore[6] + four[2] * monopole_second * d_components[2];
-                tmpstore[7] = tmpstore[7] + four[3] * monopole_second * d_components[3];
+                tmpstore[6] = tmpstore[6] + four[2] * monopole_second * d_components[1];
+                tmpstore[7] = tmpstore[7] + four[3] * monopole_second * d_components[1];
             }
             tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
