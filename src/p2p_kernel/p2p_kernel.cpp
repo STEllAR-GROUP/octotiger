@@ -48,7 +48,7 @@ namespace fmm {
                     for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
-                             i2 += 2*m2m_vector::size()) {
+                             i2 += 2 * m2m_vector::size()) {
                             const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
                                 i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
                             // BUG: indexing has to be done with uint32_t because of Vc limitation
@@ -68,17 +68,9 @@ namespace fmm {
                             // -> maps to the same for some SIMD lanes
                             cell_index_coarse.transform_coarse();
 
-                            if (type == RHO) {
-                                this->blocked_interaction_rho(local_expansions,
-                                    potential_expansions_SoA, cell_index, cell_flat_index,
-                                    cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, four, outer_stencil_index);
-                            } else {
-                                this->blocked_interaction_non_rho(local_expansions,
-                                    potential_expansions_SoA, cell_index, cell_flat_index,
-                                    cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, four, outer_stencil_index);
-                            }
+                            this->blocked_interaction(local_expansions, potential_expansions_SoA,
+                                cell_index, cell_flat_index, cell_index_coarse, cell_index_unpadded,
+                                cell_flat_index_unpadded, stencil, four, outer_stencil_index);
                         }
                     }
                 }
