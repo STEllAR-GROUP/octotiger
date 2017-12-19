@@ -41,11 +41,15 @@ namespace fmm {
             d_components[1] = -1.0 / sqr(dx);
             d_components[2] = -1.0 / sqr(dx);
             d_components[3] = -1.0 / sqr(dx);
-            std::array<m2m_vector, 4> tmpstore;
+            std::array<m2m_vector, 8> tmpstore;
             tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
             tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
             tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
             tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            tmpstore[4] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded+4);
+            tmpstore[5] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded+4);
+            tmpstore[6] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded+4);
+            tmpstore[7] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded+4);
 
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2P_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
@@ -78,6 +82,8 @@ namespace fmm {
 
                 m2m_vector monopole(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
+                m2m_vector monopole_second(
+                    mons.data() + interaction_partner_flat_index + 4, Vc::flags::element_aligned);
                 // real monopole = mons[interaction_partner_flat_index];
 
                 std::array<m2m_vector, 4> four;
@@ -90,14 +96,14 @@ namespace fmm {
                 Vc::where(mask, four[3]) =
                     four_constants[outer_stencil_index + inner_stencil_index][3];
 
-                four[0] *= monopole;
-                four[1] *= monopole;
-                four[2] *= monopole;
-                four[3] *= monopole;
-                tmpstore[0] = tmpstore[0] + four[0] * d_components[0];
-                tmpstore[1] = tmpstore[1] + four[1] * d_components[1];
-                tmpstore[2] = tmpstore[2] + four[2] * d_components[2];
-                tmpstore[3] = tmpstore[3] + four[3] * d_components[3];
+                tmpstore[0] = tmpstore[0] + four[0] * monopole * d_components[0];
+                tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
+                tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[2];
+                tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[3];
+                tmpstore[4] = tmpstore[4] + four[0] * monopole_second * d_components[0];
+                tmpstore[5] = tmpstore[5] + four[1] * monopole_second * d_components[1];
+                tmpstore[6] = tmpstore[6] + four[2] * monopole_second * d_components[2];
+                tmpstore[7] = tmpstore[7] + four[3] * monopole_second * d_components[3];
             }
             tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
@@ -106,6 +112,14 @@ namespace fmm {
             tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
             tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[4].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded+4),
+                Vc::flags::element_aligned);
+            tmpstore[5].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded+4),
+                Vc::flags::element_aligned);
+            tmpstore[6].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded+4),
+                Vc::flags::element_aligned);
+            tmpstore[7].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded+4),
                 Vc::flags::element_aligned);
         }
 
@@ -130,11 +144,15 @@ namespace fmm {
             d_components[1] = -1.0 / sqr(dx);
             d_components[2] = -1.0 / sqr(dx);
             d_components[3] = -1.0 / sqr(dx);
-            std::array<m2m_vector, 4> tmpstore;
+            std::array<m2m_vector, 8> tmpstore;
             tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
             tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
             tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
             tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            tmpstore[4] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded+4);
+            tmpstore[5] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded+4);
+            tmpstore[6] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded+4);
+            tmpstore[7] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded+4);
 
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2P_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
@@ -167,6 +185,8 @@ namespace fmm {
 
                 m2m_vector monopole(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
+                m2m_vector monopole_second(
+                    mons.data() + interaction_partner_flat_index + 4, Vc::flags::element_aligned);
                 // real monopole = mons[interaction_partner_flat_index];
 
                 std::array<m2m_vector, 4> four;
@@ -179,14 +199,14 @@ namespace fmm {
                 Vc::where(mask, four[3]) =
                     four_constants[outer_stencil_index + inner_stencil_index][3];
 
-                four[0] *= monopole;
-                four[1] *= monopole;
-                four[2] *= monopole;
-                four[3] *= monopole;
-                tmpstore[0] = tmpstore[0] + four[0] * d_components[0];
-                tmpstore[1] = tmpstore[1] + four[1] * d_components[1];
-                tmpstore[2] = tmpstore[2] + four[2] * d_components[2];
-                tmpstore[3] = tmpstore[3] + four[3] * d_components[3];
+                tmpstore[0] = tmpstore[0] + four[0] * monopole * d_components[0];
+                tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
+                tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[2];
+                tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[3];
+                tmpstore[4] = tmpstore[4] + four[0] * monopole_second * d_components[0];
+                tmpstore[5] = tmpstore[5] + four[1] * monopole_second * d_components[1];
+                tmpstore[6] = tmpstore[6] + four[2] * monopole_second * d_components[2];
+                tmpstore[7] = tmpstore[7] + four[3] * monopole_second * d_components[3];
             }
             tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
@@ -195,6 +215,14 @@ namespace fmm {
             tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
             tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[4].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded+4),
+                Vc::flags::element_aligned);
+            tmpstore[5].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded+4),
+                Vc::flags::element_aligned);
+            tmpstore[6].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded+4),
+                Vc::flags::element_aligned);
+            tmpstore[7].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded+4),
                 Vc::flags::element_aligned);
         }
     }    // namespace p2p_kernel
