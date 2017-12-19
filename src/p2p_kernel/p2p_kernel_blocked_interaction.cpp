@@ -1,9 +1,9 @@
 #include "p2p_kernel.hpp"
 
-#include "grid_flattened_indices.hpp"
 #include "../common_kernel/helper.hpp"
 #include "../common_kernel/kernel_taylor_set_basis.hpp"
 #include "../common_kernel/struct_of_array_data.hpp"
+#include "grid_flattened_indices.hpp"
 
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
@@ -30,7 +30,7 @@ namespace fmm {
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded,
             const std::vector<multiindex<>>& __restrict__ stencil,
-            const std::vector<std::array<real,4>>& __restrict__ four_constants,
+            const std::vector<std::array<real, 4>>& __restrict__ four_constants,
             const size_t outer_stencil_index) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
@@ -41,6 +41,11 @@ namespace fmm {
             d_components[1] = -1.0 / sqr(dx);
             d_components[2] = -1.0 / sqr(dx);
             d_components[3] = -1.0 / sqr(dx);
+            std::array<m2m_vector, 4> tmpstore;
+            tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
 
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
@@ -76,38 +81,32 @@ namespace fmm {
                 // real monopole = mons[interaction_partner_flat_index];
 
                 std::array<m2m_vector, 4> four;
-                four[0] = four_constants[outer_stencil_index + inner_stencil_index][0];
-                four[1] = four_constants[outer_stencil_index + inner_stencil_index][1];
-                four[2] = four_constants[outer_stencil_index + inner_stencil_index][2];
-                four[3] = four_constants[outer_stencil_index + inner_stencil_index][3];
+                Vc::where(mask, four[0]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][0];
+                Vc::where(mask, four[1]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][1];
+                Vc::where(mask, four[2]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][2];
+                Vc::where(mask, four[3]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][3];
 
                 four[0] *= monopole;
                 four[1] *= monopole;
                 four[2] *= monopole;
                 four[3] *= monopole;
-                four[0] *= d_components[0];
-                four[1] *= d_components[1];
-                four[2] *= d_components[2];
-                four[3] *= d_components[3];
-
-                m2m_vector tmpstore =
-                    potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + four[0];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
-                tmpstore = potential_expansions_SoA.value<1>(cell_flat_index_unpadded) + four[1];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
-                tmpstore = potential_expansions_SoA.value<2>(cell_flat_index_unpadded) + four[2];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
-                tmpstore = potential_expansions_SoA.value<3>(cell_flat_index_unpadded) + four[3];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
+                tmpstore[0] = tmpstore[0] + four[0] * d_components[0];
+                tmpstore[1] = tmpstore[1] + four[1] * d_components[1];
+                tmpstore[2] = tmpstore[2] + four[2] * d_components[2];
+                tmpstore[3] = tmpstore[3] + four[3] * d_components[3];
             }
+            tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
         }
 
         void p2p_kernel::blocked_interaction_non_rho(
@@ -131,6 +130,11 @@ namespace fmm {
             d_components[1] = -1.0 / sqr(dx);
             d_components[2] = -1.0 / sqr(dx);
             d_components[3] = -1.0 / sqr(dx);
+            std::array<m2m_vector, 4> tmpstore;
+            tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
 
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
@@ -166,38 +170,32 @@ namespace fmm {
                 // real monopole = mons[interaction_partner_flat_index];
 
                 std::array<m2m_vector, 4> four;
-                four[0] = four_constants[outer_stencil_index + inner_stencil_index][0];
-                four[1] = four_constants[outer_stencil_index + inner_stencil_index][1];
-                four[2] = four_constants[outer_stencil_index + inner_stencil_index][2];
-                four[3] = four_constants[outer_stencil_index + inner_stencil_index][3];
+                Vc::where(mask, four[0]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][0];
+                Vc::where(mask, four[1]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][1];
+                Vc::where(mask, four[2]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][2];
+                Vc::where(mask, four[3]) =
+                    four_constants[outer_stencil_index + inner_stencil_index][3];
 
                 four[0] *= monopole;
                 four[1] *= monopole;
                 four[2] *= monopole;
                 four[3] *= monopole;
-                four[0] *= d_components[0];
-                four[1] *= d_components[1];
-                four[2] *= d_components[2];
-                four[3] *= d_components[3];
-
-                m2m_vector tmpstore =
-                    potential_expansions_SoA.value<0>(cell_flat_index_unpadded) + four[0];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
-                tmpstore = potential_expansions_SoA.value<1>(cell_flat_index_unpadded) + four[1];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
-                tmpstore = potential_expansions_SoA.value<2>(cell_flat_index_unpadded) + four[2];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
-                tmpstore = potential_expansions_SoA.value<3>(cell_flat_index_unpadded) + four[3];
-                Vc::where(mask, tmpstore)
-                    .memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                        Vc::flags::element_aligned);
+                tmpstore[0] = tmpstore[0] + four[0] * d_components[0];
+                tmpstore[1] = tmpstore[1] + four[1] * d_components[1];
+                tmpstore[2] = tmpstore[2] + four[2] * d_components[2];
+                tmpstore[3] = tmpstore[3] + four[3] * d_components[3];
             }
+            tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
+            tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                Vc::flags::element_aligned);
         }
     }    // namespace p2p_kernel
 }    // namespace fmm
