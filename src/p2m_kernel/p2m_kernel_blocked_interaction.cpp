@@ -178,9 +178,6 @@ namespace fmm {
 
                 // Was B0 in old style, represents the angular corrections
                 m2m_vector current_angular_correction[NDIM];
-                current_angular_correction[0] = 0.0;
-                current_angular_correction[1] = 0.0;
-                current_angular_correction[2] = 0.0;
                 std::array<m2m_vector, 15> D_upper;
                 D_upper[0] =
                     D_calculator.X[0] * D_calculator.X[0] * D_calculator.d3 + 2.0 * D_calculator.d2;
@@ -193,12 +190,12 @@ namespace fmm {
                 m2m_vector d3_X02 = D_calculator.d3 * X_02;
                 D_upper[2] = 3.0 * d3_X02;
                 // n0 needs to be a whole m2m vector
-                m2m_vector n0_tmp = m_partner[10];
+                m2m_vector n0_tmp = - m_partner[10];
                 // m_cell_iterator++; // 11
 
-                current_angular_correction[0] -= n0_tmp * (D_upper[0] * factor_sixth_v[10]);
-                current_angular_correction[1] -= n0_tmp * (D_upper[1] * factor_sixth_v[10]);
-                current_angular_correction[2] -= n0_tmp * (D_upper[2] * factor_sixth_v[10]);
+                current_angular_correction[0] = n0_tmp * (D_upper[0] * factor_sixth_v[10]);
+                current_angular_correction[1] = n0_tmp * (D_upper[1] * factor_sixth_v[10]);
+                current_angular_correction[2] = n0_tmp * (D_upper[2] * factor_sixth_v[10]);
 
                 D_upper[3] = D_calculator.d2;
                 m2m_vector d3_X11 = D_calculator.d3 * D_calculator.X_11;
