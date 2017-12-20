@@ -49,7 +49,7 @@ namespace fmm {
             tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
             tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
             tmp_corrections[3] = angular_corrections_SoA.value<3>(cell_flat_index_unpadded);
-            for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
+            for (size_t inner_stencil_index = 0; inner_stencil_index < P2M_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
                 const multiindex<>& stencil_element =
@@ -347,7 +347,7 @@ namespace fmm {
             tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
             tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
             tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
-            for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
+            for (size_t inner_stencil_index = 0; inner_stencil_index < P2M_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
                 const multiindex<>& stencil_element =

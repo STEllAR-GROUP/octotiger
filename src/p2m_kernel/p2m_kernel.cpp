@@ -41,7 +41,7 @@ namespace fmm {
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
-                 outer_stencil_index += STENCIL_BLOCKING) {
+                 outer_stencil_index += P2M_STENCIL_BLOCKING) {
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization
                 // multiindex<> se(stencil_element.x, stencil_element.y, stencil_element.z);

@@ -12,6 +12,7 @@
 namespace octotiger {
 namespace fmm {
     namespace p2m_kernel {
+        constexpr uint64_t P2M_STENCIL_BLOCKING = 16;
 
         class p2m_kernel
         {
