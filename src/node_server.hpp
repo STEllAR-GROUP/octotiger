@@ -31,6 +31,8 @@
 #include "interaction_types.hpp"
 #include "p2m_kernel/p2m_interactions.hpp"
 #include "p2p_kernel/p2p_interactions.hpp"
+#include "m2m_kernel/m2m_interactions.hpp"
+#include "m2p_kernel/m2p_interactions.hpp"
 
 class node_server: public hpx::components::managed_component_base<node_server> {
 public:
@@ -106,6 +108,8 @@ private:
 
     octotiger::fmm::p2m_kernel::p2m_interactions p2m_interactor;
     octotiger::fmm::p2p_kernel::p2p_interactions p2p_interactor;
+    octotiger::fmm::m2m_interactions m2m_interactor;
+    octotiger::fmm::m2p_kernel::m2p_interactions m2p_interactor;
 public:
     static bool is_gravity_on() {
         return gravity_on;

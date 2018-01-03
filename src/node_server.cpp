@@ -26,9 +26,6 @@ extern options opts;
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
 
-#include "m2m_kernel/m2m_interactions.hpp"
-#include "m2p_kernel/m2p_interactions.hpp"
-
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 
@@ -646,7 +643,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             std::array<real, NDIM> Xbase = {grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
                                           grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
                                           grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
-            octotiger::fmm::m2p_kernel::m2p_interactions m2p_interactor(
+            m2p_interactor.update_input(
                 mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), Xbase);
              m2p_interactor.compute_interactions();
              m2p_interactor.add_to_potential_expansions(L);
@@ -660,13 +657,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             for (size_t i = 0; i < L_c.size(); i++) {
                 L_c[i] = angular_corrections[i];
             }
-            octotiger::fmm::m2m_interactions interactor(
+            m2m_interactor.update_input(
                 M_ptr, com_ptr, all_neighbor_interaction_data, type);
-            interactor.compute_interactions();    // includes boundary
-            interactor.add_to_potential_expansions(L);
-            interactor.add_to_center_of_masses(L_c);
-            potential_expansions = interactor.get_potential_expansions();
-            angular_corrections = interactor.get_angular_corrections();
+            m2m_interactor.compute_interactions();    // includes boundary
+            m2m_interactor.add_to_potential_expansions(L);
+            m2m_interactor.add_to_center_of_masses(L_c);
+            potential_expansions = m2m_interactor.get_potential_expansions();
+            angular_corrections = m2m_interactor.get_angular_corrections();
 
             // write results obtained by new kernel back into grid object
             for (size_t i = 0; i < L.size(); i++) {

@@ -1,7 +1,7 @@
 #include "m2m_interactions.hpp"
 
-#include "calculate_stencil.hpp"
 #include "../common_kernel/interactions_iterators.hpp"
+#include "calculate_stencil.hpp"
 #include "m2m_kernel.hpp"
 
 #include <algorithm>
@@ -16,16 +16,17 @@ namespace octotiger {
 namespace fmm {
 
     std::vector<multiindex<>> m2m_interactions::stencil;
-
-    m2m_interactions::m2m_interactions(std::vector<multipole>& M_ptr,
-        std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-        // grid& g,
-        std::vector<neighbor_gravity_type>& neighbors, gsolve_type type)
-      : neighbor_empty(27)
-      , type(type) {
+    m2m_interactions::m2m_interactions(void)
+      : neighbor_empty(27) {
         local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
         center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
-
+        potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
+        angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
+    }
+    void m2m_interactions::update_input(std::vector<multipole>& M_ptr,
+        std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+        std::vector<neighbor_gravity_type>& neighbors, gsolve_type t) {
+        type = t;
         std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
         iterate_inner_cells_padded(
@@ -108,14 +109,12 @@ namespace fmm {
         // std::cout << std::endl;
 
         // allocate output variables without padding
-        potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
         // TODO/BUG: expansion don't initialize to zero by default
         iterate_inner_cells_not_padded(
             [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                 expansion& e = potential_expansions.at(flat_index_unpadded);
                 e = 0.0;
             });
-        angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
         // TODO/BUG: expansion don't initialize to zero by default
         iterate_inner_cells_not_padded(
             [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
@@ -152,7 +151,8 @@ namespace fmm {
         auto end = std::chrono::high_resolution_clock::now();
 
         std::chrono::duration<double, std::milli> duration = end - start;
-        // std::cout << "new interaction kernel (apply only, ms): " << duration.count() << std::endl;
+        // std::cout << "new interaction kernel (apply only, ms): " << duration.count() <<
+        // std::endl;
 
         // TODO: remove this after finalizing conversion
         // copy back SoA data into non-SoA result

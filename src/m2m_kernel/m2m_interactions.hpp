@@ -50,9 +50,9 @@ namespace fmm {
 
         // at this point, uses the old datamembers of the grid class as input
         // and converts them to the new data structure
-        m2m_interactions(std::vector<multipole>& M_ptr,
+        m2m_interactions(void);
+        void update_input(std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            // grid& g,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type);
 
         void compute_interactions();

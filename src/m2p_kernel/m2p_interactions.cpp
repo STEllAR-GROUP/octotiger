@@ -17,19 +17,24 @@ namespace fmm {
 
         std::vector<multiindex<>> m2p_interactions::stencil;
 
-        m2p_interactions::m2p_interactions(std::vector<real>& mons, std::vector<multipole>& M_ptr,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<real, NDIM> xbase)
-          : neighbor_empty(27)
-          , type(type)
-          , dX(dx)
-          , xBase(xbase) {
-            // Create our input structure for the compute kernel
+        m2p_interactions::m2p_interactions(void)
+          : neighbor_empty(27) {
             cell_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             local_expansions = std::vector<real>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             interact = std::vector<bool>(EXPANSION_COUNT_PADDED);
+            potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
+            angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
+        }
+
+        void m2p_interactions::update_input(std::vector<real>& mons, std::vector<multipole>& M_ptr,
+            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
+            std::array<real, NDIM> xbase) {
+            type = t;
+            dX = dx;
+            xBase = xbase;
+            // Create our input structure for the compute kernel
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             iterate_inner_cells_padded(
@@ -110,13 +115,11 @@ namespace fmm {
             neighbor_empty[13] = false;
 
             // Allocate our output structure and initialise it
-            potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
             iterate_inner_cells_not_padded(
                 [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                     expansion& e = potential_expansions.at(flat_index_unpadded);
                     e = 0.0;
                 });
-            angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
             iterate_inner_cells_not_padded(
                 [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                     space_vector& s = angular_corrections.at(flat_index_unpadded);

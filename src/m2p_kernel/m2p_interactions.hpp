@@ -58,7 +58,8 @@ namespace fmm {
             static std::vector<multiindex<>> stencil;
             /// Constructor for the boundary interactor between a monopole and its neighboring
             /// multipoles
-            m2p_interactions(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
+            m2p_interactions(void);
+            void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                              std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
                              real dx, std::array<real, NDIM> xbase);
