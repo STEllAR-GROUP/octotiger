@@ -23,6 +23,8 @@ namespace fmm {
             local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             interact = std::vector<bool>(EXPANSION_COUNT_PADDED);
+            potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
+            angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
         }
 
         void p2m_interactions::update_input(std::vector<multipole>& multipoles,
@@ -107,14 +109,11 @@ namespace fmm {
 
             neighbor_empty[13] = false;
 
-            // Allocate our output structure and initialise it
-            potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
             iterate_inner_cells_not_padded(
                 [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                     expansion& e = potential_expansions.at(flat_index_unpadded);
                     e = 0.0;
                 });
-            angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
             iterate_inner_cells_not_padded(
                 [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                     space_vector& s = angular_corrections.at(flat_index_unpadded);

@@ -21,6 +21,7 @@ namespace fmm {
         p2p_interactions::p2p_interactions(void)
           : neighbor_empty(27) {
             local_expansions = std::vector<real>(EXPANSION_COUNT_PADDED);
+            potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
         }
         void p2p_interactions::update_input(std::vector<real>& mons,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx_arg) {
@@ -81,8 +82,6 @@ namespace fmm {
 
             neighbor_empty[13] = false;
 
-            // allocate output variables without padding
-            potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
             // TODO/BUG: expansion don't initialize to zero by default
             iterate_inner_cells_not_padded(
                 [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
