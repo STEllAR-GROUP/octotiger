@@ -17,25 +17,27 @@ namespace fmm {
 
         std::vector<multiindex<>> p2m_interactions::stencil;
 
-        p2m_interactions::p2m_interactions(std::vector<multipole>& multipoles,
-            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type)
-          : neighbor_empty(27)
-          , type(type) {
+        p2m_interactions::p2m_interactions(void)
+          : neighbor_empty(27) {
             // Create our input structure for the compute kernel
             local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             interact = std::vector<bool>(EXPANSION_COUNT_PADDED);
+        }
+
+        void p2m_interactions::update_input(std::vector<multipole>& multipoles,
+            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type t) {
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
+            type = t;
 
-
-        iterate_inner_cells_padded(
-            [this, multipoles, com0](const multiindex<>& i, const size_t flat_index,
-                const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-              local_expansions.at(flat_index) = 0.0;
-                center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
-                interact.at(flat_index) = false;
-            });
+            iterate_inner_cells_padded(
+                [this, multipoles, com0](const multiindex<>& i, const size_t flat_index,
+                    const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+                    local_expansions.at(flat_index) = 0.0;
+                    center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+                    interact.at(flat_index) = false;
+                });
             total_neighbors += 27;
 
             size_t current_missing = 0;

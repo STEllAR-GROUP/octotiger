@@ -1,7 +1,7 @@
 #include "p2p_interactions.hpp"
 
-#include "calculate_stencil.hpp"
 #include "../common_kernel/interactions_iterators.hpp"
+#include "calculate_stencil.hpp"
 #include "p2p_kernel.hpp"
 
 #include <algorithm>
@@ -18,12 +18,14 @@ namespace fmm {
         std::vector<multiindex<>> p2p_interactions::stencil;
         std::vector<std::array<real, 4>> p2p_interactions::four;
 
-        p2p_interactions::p2p_interactions(std::vector<real>& mons,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx)
-          : neighbor_empty(27)
-          , type(type)
-          , dx(dx) {
+        p2p_interactions::p2p_interactions(void)
+          : neighbor_empty(27) {
             local_expansions = std::vector<real>(EXPANSION_COUNT_PADDED);
+        }
+        void p2p_interactions::update_input(std::vector<real>& mons,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx_arg) {
+            type = t;
+            dx = dx_arg;
 
             iterate_inner_cells_padded([this, mons](const multiindex<>& i, const size_t flat_index,
                 const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {

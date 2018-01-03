@@ -47,9 +47,10 @@ namespace fmm {
             static std::vector<multiindex<>> stencil;
             static std::vector<std::array<real, 4>> four;
 
+            p2p_interactions(void);
             // at this point, uses the old datamembers of the grid class as input
             // and converts them to the new data structure
-            p2p_interactions(std::vector<real>& mons, std::vector<neighbor_gravity_type>& neighbors,
+            void update_input(std::vector<real>& mons, std::vector<neighbor_gravity_type>& neighbors,
                 gsolve_type type, real dx);
 
             void compute_interactions();
