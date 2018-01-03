@@ -653,11 +653,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
              m2p_interactor.add_to_center_of_masses(L_c);
              potential_expansions = m2p_interactor.get_potential_expansions();
              angular_corrections = m2p_interactor.get_angular_corrections();
-             // clear
-             std::fill(std::begin(L), std::end(L), ZERO);
-             if (opts.ang_con) {
-                 std::fill(std::begin(L_c), std::end(L_c), ZERO);
-            }
+
             for (size_t i = 0; i < L.size(); i++) {
                 L[i] = potential_expansions[i];
             }
@@ -671,11 +667,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             interactor.add_to_center_of_masses(L_c);
             potential_expansions = interactor.get_potential_expansions();
             angular_corrections = interactor.get_angular_corrections();
-            // clear
-            std::fill(std::begin(L), std::end(L), ZERO);
-            if (opts.ang_con) {
-                std::fill(std::begin(L_c), std::end(L_c), ZERO);
-            }
+
             // write results obtained by new kernel back into grid object
             for (size_t i = 0; i < L.size(); i++) {
                 L[i] = potential_expansions[i];
@@ -691,11 +683,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
              potential_expansions = p2m_interactor.get_potential_expansions();
              angular_corrections = p2m_interactor.get_angular_corrections();
 
-            // clear
-            std::fill(std::begin(L), std::end(L), ZERO);
-            if (opts.ang_con) {
-                std::fill(std::begin(L_c), std::end(L_c), ZERO);
-            }
             for (size_t i = 0; i < L.size(); i++) {
                 L[i] = potential_expansions[i];
             }
@@ -707,8 +694,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             p2p_interactor.add_to_potential_expansions(L);
             potential_expansions = p2p_interactor.get_potential_expansions();
 
-            // clear
-            std::fill(std::begin(L), std::end(L), ZERO);
             for (size_t i = 0; i < L.size(); i++) {
                 L[i] = potential_expansions[i];
             }
