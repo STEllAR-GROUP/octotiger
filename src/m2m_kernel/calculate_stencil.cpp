@@ -2,15 +2,15 @@
 #include "geometry.hpp"
 #include "options.hpp"
 
-#include "calculate_stencil.hpp"
 #include "../common_kernel/helper.hpp"
+#include "calculate_stencil.hpp"
 
 extern options opts;
 
 namespace octotiger {
 namespace fmm {
 
-    std::vector<multiindex<>> calculate_stencil() {
+    std::vector<multiindex<>> calculate_stencil(bool multipole_interactions) {
         std::array<std::vector<multiindex<>>, 8> stencils;
 
         // used to check the radiuses of the outer and inner sphere
@@ -46,8 +46,12 @@ namespace fmm {
                                 const real theta_c =
                                     detail::reciprocal_distance(i0_c, i1_c, i2_c, j0_c, j1_c, j2_c);
 
-                                // not in inner sphere (theta_c > theta0), but in outer sphere
-                                if (theta_c > theta0 && theta_f <= theta0) {
+                                if (multipole_interactions) {
+                                    // not in inner sphere (theta_c > theta0), but in outer sphere
+                                    if (theta_c > theta0 && theta_f <= theta0) {
+                                        stencil.emplace_back(j0 - i0, j1 - i1, j2 - i2);
+                                    }
+                                } else if (theta_c > theta0) {
                                     stencil.emplace_back(j0 - i0, j1 - i1, j2 - i2);
                                 }
                             }
@@ -72,7 +76,7 @@ namespace fmm {
                     superimposed_stencil.push_back(stencil_element);
                 }
             }
-                std::cout << "Stencil size: " << stencils[i].size() << std::endl;
+            std::cout << "Stencil size: " << stencils[i].size() << std::endl;
         }
         // std::cout << "superimposed_stencil.size(): " << superimposed_stencil.size() << std::endl;
 
@@ -160,7 +164,6 @@ namespace fmm {
         //     }
         //     std::cout << std::endl;
         // }
-
 
         return superimposed_stencil;
     }

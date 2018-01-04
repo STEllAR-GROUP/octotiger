@@ -3,7 +3,7 @@
 #include "../common_kernel/interactions_iterators.hpp"
 #include "calculate_stencil.hpp"
 #include "m2m_kernel.hpp"
-#include "../m2p_kernel/m2p_kernel.hpp"
+#include "m2p_kernel.hpp"
 
 #include <algorithm>
 
