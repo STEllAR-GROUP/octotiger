@@ -658,7 +658,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                 L_c[i] = angular_corrections[i];
             }
         } else {
-             p2m_interactor.update_input(M_ptr, com_ptr, all_neighbor_interaction_data, type);
+            p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data,
+                type, grid_ptr->get_dx());
              p2m_interactor.compute_interactions();
              p2m_interactor.add_to_potential_expansions(L);
              p2m_interactor.add_to_center_of_masses(L_c);
@@ -670,14 +671,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
             }
             for (size_t i = 0; i < L_c.size(); i++) {
                 L_c[i] = angular_corrections[i];
-            }
-            p2p_interactor.update_input(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
-            p2p_interactor.compute_interactions();
-            p2p_interactor.add_to_potential_expansions(L);
-            potential_expansions = p2p_interactor.get_potential_expansions();
-
-            for (size_t i = 0; i < L.size(); i++) {
-                L[i] = potential_expansions[i];
             }
         }
      } else {

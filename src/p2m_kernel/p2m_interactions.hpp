@@ -34,6 +34,7 @@ namespace fmm {
 
             /// Expansions for all the multipoles the current monopole is neighboring
             std::vector<expansion> local_expansions;
+            std::vector<real> local_monopoles;
 
             /// com_ptr - Center of masses, required for the angular corrections
             std::vector<space_vector> center_of_masses;
@@ -43,23 +44,25 @@ namespace fmm {
             // angular momentum correction on this cell (L_c)
             std::vector<space_vector> angular_corrections;
 
-            std::vector<bool> neighbor_empty;
+            std::vector<bool> neighbor_empty_multipoles;
+            std::vector<bool> neighbor_empty_monopoles;
             std::vector<bool> interact;
 
             gsolve_type type;
 
             bool multipole_neighbors_exist;
-
+            real dx;
 
         public:
             /// The stencil is used to identify the neighbors?
             static std::vector<multiindex<>> stencil;
+            static std::vector<std::array<real, 4>> four;
             /// Constructor for the boundary interactor between a monopole and its neighboring
             /// multipoles
             p2m_interactions(void);
-            void update_input(std::vector<multipole>& multipoles,
+            void update_input(std::vector<real>& mons, std::vector<multipole>& multipoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type);
+                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx_arg);
             /// Computes the boundary interaction between the current monopole and the multipoles
             /** This function first converts all of the kernel input and output into the
              * struct_of_array datastructure for cache effiency. Afterwards a p2m_kernel is
