@@ -32,6 +32,7 @@ namespace fmm {
 
         // M_ptr
         std::vector<expansion> local_expansions;
+        std::vector<real> local_monopoles;
 
         // com0 = *(com_ptr[0])
         std::vector<space_vector> center_of_masses;
@@ -40,20 +41,28 @@ namespace fmm {
         std::vector<expansion> potential_expansions;
         // angular momentum correction on this cell (L_c)
         std::vector<space_vector> angular_corrections;
+        std::vector<bool> interact;
 
-        std::vector<bool> neighbor_empty;
+        std::vector<bool> neighbor_empty_multipole;
+        std::vector<bool> neighbor_empty_monopole;
 
         gsolve_type type;
 
+        bool monopole_neighbors_exist;
+        real dX;
+        std::array<real, NDIM> xBase;
+
     public:
-        static std::vector<multiindex<>> stencil;
+        static std::vector<multiindex<>> stencil_multipole_interactions;
+        static std::vector<multiindex<>> stencil_mixed_interactions;
 
         // at this point, uses the old datamembers of the grid class as input
         // and converts them to the new data structure
         m2m_interactions(void);
-        void update_input(std::vector<multipole>& M_ptr,
+        void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type);
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            std::array<real, NDIM> xbase);
 
         void compute_interactions();
 

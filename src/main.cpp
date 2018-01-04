@@ -100,7 +100,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
 	node_server::set_hydro(hydro_on);
 	compute_ilist();
     compute_factor();
-    octotiger::fmm::m2m_interactions::stencil = octotiger::fmm::calculate_stencil();
+    octotiger::fmm::m2m_interactions::stencil_multipole_interactions = octotiger::fmm::calculate_stencil();
+    octotiger::fmm::m2m_interactions::stencil_mixed_interactions = octotiger::fmm::m2p_kernel::calculate_stencil();
     octotiger::fmm::p2p_kernel::p2p_interactions::stencil = octotiger::fmm::p2p_kernel::calculate_stencil().first;
     octotiger::fmm::p2p_kernel::p2p_interactions::four = octotiger::fmm::p2p_kernel::calculate_stencil().second;
     octotiger::fmm::p2m_kernel::p2m_interactions::stencil = octotiger::fmm::p2m_kernel::calculate_stencil();
