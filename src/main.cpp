@@ -23,8 +23,8 @@
 #include <hpx/lcos/broadcast.hpp>
 
 #include "compute_factor.hpp"
-#include "m2m_kernel/calculate_stencil.hpp"
-#include "m2m_kernel/m2m_interactions.hpp"
+#include "multipole_interactions/calculate_stencil.hpp"
+#include "multipole_interactions/multipole_interaction_interface.hpp"
 #include "p2p_kernel/calculate_stencil.hpp"
 #include "p2p_kernel/p2p_interactions.hpp"
 #include "p2m_kernel/calculate_stencil.hpp"
@@ -98,8 +98,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
 	node_server::set_hydro(hydro_on);
 	compute_ilist();
     compute_factor();
-    octotiger::fmm::m2m_interactions::stencil_multipole_interactions = octotiger::fmm::calculate_stencil(true);
-    octotiger::fmm::m2m_interactions::stencil_mixed_interactions = octotiger::fmm::calculate_stencil(false);
+    octotiger::fmm::multipole_interaction_interface::stencil_multipole_interactions = octotiger::fmm::calculate_stencil(true);
+    octotiger::fmm::multipole_interaction_interface::stencil_mixed_interactions = octotiger::fmm::calculate_stencil(false);
     octotiger::fmm::p2p_kernel::p2p_interactions::stencil = octotiger::fmm::p2p_kernel::calculate_stencil().first;
     octotiger::fmm::p2p_kernel::p2p_interactions::four = octotiger::fmm::p2p_kernel::calculate_stencil().second;
     octotiger::fmm::p2m_kernel::p2m_interactions::stencil = octotiger::fmm::p2m_kernel::calculate_stencil();

@@ -1,4 +1,4 @@
-#include "m2m_interactions.hpp"
+#include "multipole_interaction_interface.hpp"
 
 #include "../common_kernel/interactions_iterators.hpp"
 #include "calculate_stencil.hpp"
@@ -13,9 +13,9 @@
 namespace octotiger {
 namespace fmm {
 
-    std::vector<multiindex<>> m2m_interactions::stencil_multipole_interactions;
-    std::vector<multiindex<>> m2m_interactions::stencil_mixed_interactions;
-    m2m_interactions::m2m_interactions(void)
+    std::vector<multiindex<>> multipole_interaction_interface::stencil_multipole_interactions;
+    std::vector<multiindex<>> multipole_interaction_interface::stencil_mixed_interactions;
+    multipole_interaction_interface::multipole_interaction_interface(void)
             : neighbor_empty_multipole(27), neighbor_empty_monopole(27) {
         local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
         center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
@@ -27,7 +27,7 @@ namespace fmm {
         angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
     }
 
-    void m2m_interactions::update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
+    void multipole_interaction_interface::update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
         std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
         std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
         std::array<real, NDIM> xbase) {
@@ -140,7 +140,7 @@ namespace fmm {
         // this->print_center_of_masses();
     }
 
-    void m2m_interactions::compute_interactions() {
+    void multipole_interaction_interface::compute_interactions() {
         struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA(
             local_expansions);
         struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA(
@@ -170,53 +170,53 @@ namespace fmm {
         angular_corrections_SoA.to_non_SoA(angular_corrections);
     }
 
-    std::vector<expansion>& m2m_interactions::get_local_expansions() {
+    std::vector<expansion>& multipole_interaction_interface::get_local_expansions() {
         return local_expansions;
     }
 
-    std::vector<space_vector>& m2m_interactions::get_center_of_masses() {
+    std::vector<space_vector>& multipole_interaction_interface::get_center_of_masses() {
         return center_of_masses;
     }
 
-    std::vector<expansion>& m2m_interactions::get_potential_expansions() {
+    std::vector<expansion>& multipole_interaction_interface::get_potential_expansions() {
         return potential_expansions;
     }
 
-    std::vector<space_vector>& m2m_interactions::get_angular_corrections() {
+    std::vector<space_vector>& multipole_interaction_interface::get_angular_corrections() {
         return angular_corrections;
     }
 
-    void m2m_interactions::print_potential_expansions() {
+    void multipole_interaction_interface::print_potential_expansions() {
         print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
             std::cout << " (" << i << ") =[0] " << this->potential_expansions[flat_index][0];
         });
     }
 
-    void m2m_interactions::print_angular_corrections() {
+    void multipole_interaction_interface::print_angular_corrections() {
         print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
             std::cout << " (" << i << ") =[0] " << this->angular_corrections[flat_index];
         });
     }
 
-    void m2m_interactions::print_local_expansions() {
+    void multipole_interaction_interface::print_local_expansions() {
         print_layered_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
             std::cout << " " << this->local_expansions[flat_index];
         });
     }
 
-    void m2m_interactions::print_center_of_masses() {
+    void multipole_interaction_interface::print_center_of_masses() {
         print_layered_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
             std::cout << this->center_of_masses[flat_index];
         });
     }
 
-    void m2m_interactions::add_to_potential_expansions(std::vector<expansion>& L) {
+    void multipole_interaction_interface::add_to_potential_expansions(std::vector<expansion>& L) {
         iterate_inner_cells_not_padded([this, &L](multiindex<>& i, size_t flat_index) {
             potential_expansions[flat_index] += L[flat_index];
         });
     }
 
-    void m2m_interactions::add_to_center_of_masses(std::vector<space_vector>& L_c) {
+    void multipole_interaction_interface::add_to_center_of_masses(std::vector<space_vector>& L_c) {
         iterate_inner_cells_not_padded([this, &L_c](multiindex<>& i, size_t flat_index) {
             center_of_masses[flat_index] += L_c[flat_index];
         });

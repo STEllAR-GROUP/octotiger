@@ -20,7 +20,7 @@ namespace fmm {
     // for both local and multipole expansion
     // typedef taylor<4, real> expansion;
 
-    class m2m_interactions
+    class multipole_interaction_interface
     {
     private:
         /*
@@ -58,7 +58,7 @@ namespace fmm {
 
         // at this point, uses the old datamembers of the grid class as input
         // and converts them to the new data structure
-        m2m_interactions(void);
+        multipole_interaction_interface(void);
         void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
