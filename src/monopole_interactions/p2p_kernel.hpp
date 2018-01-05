@@ -11,7 +11,7 @@
 
 namespace octotiger {
 namespace fmm {
-    namespace p2p_kernel {
+    namespace monopole_interactions {
 
         constexpr uint64_t P2P_STENCIL_BLOCKING = 24;
         class p2p_kernel
@@ -61,6 +61,6 @@ namespace fmm {
                 std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four);
         };
 
-    }    // namespace p2p_kernel
+    }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

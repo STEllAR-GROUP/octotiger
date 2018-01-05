@@ -9,7 +9,7 @@ extern options opts;
 
 namespace octotiger {
 namespace fmm {
-    namespace p2m_kernel {
+    namespace monopole_interactions {
 
         std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>> calculate_stencil() {
             std::array<std::vector<multiindex<>>, 8> stencils;
@@ -184,6 +184,6 @@ namespace fmm {
                 superimposed_stencil, four_constants);
         }
 
-    }    // namespace p2p_kernel
+    } // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

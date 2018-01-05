@@ -29,7 +29,7 @@
 #include <hpx/include/serialization.hpp>
 
 #include "interaction_types.hpp"
-#include "p2m_kernel/p2m_interactions.hpp"
+#include "monopole_interactions/monopole_interaction_interface.hpp"
 #include "multipole_interactions/multipole_interaction_interface.hpp"
 
 class node_server: public hpx::components::managed_component_base<node_server> {
@@ -104,7 +104,7 @@ private:
     timings timings_;
     real dt_;
 
-    octotiger::fmm::p2m_kernel::p2m_interactions p2m_interactor;
+    octotiger::fmm::monopole_interactions::monopole_interaction_interface p2m_interactor;
     octotiger::fmm::multipole_interaction_interface m2m_interactor;
 public:
     static bool is_gravity_on() {

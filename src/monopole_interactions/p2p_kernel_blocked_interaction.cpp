@@ -11,7 +11,7 @@ extern taylor<4, m2m_vector> factor_sixth_v;
 
 namespace octotiger {
 namespace fmm {
-    namespace p2p_kernel {
+    namespace monopole_interactions {
 
         void p2p_kernel::blocked_interaction(
             std::vector<real>& mons,
@@ -113,6 +113,6 @@ namespace fmm {
             tmpstore[7].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded + 4),
                 Vc::flags::element_aligned);
         }
-    }    // namespace p2p_kernel
+    }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

@@ -25,8 +25,8 @@
 #include "compute_factor.hpp"
 #include "multipole_interactions/calculate_stencil.hpp"
 #include "multipole_interactions/multipole_interaction_interface.hpp"
-#include "p2m_kernel/calculate_stencil.hpp"
-#include "p2m_kernel/p2m_interactions.hpp"
+#include "monopole_interactions/calculate_stencil.hpp"
+#include "monopole_interactions/monopole_interaction_interface.hpp"
 
 
 options opts;
@@ -98,8 +98,10 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
     compute_factor();
     octotiger::fmm::multipole_interaction_interface::stencil_multipole_interactions = octotiger::fmm::calculate_stencil(true);
     octotiger::fmm::multipole_interaction_interface::stencil_mixed_interactions = octotiger::fmm::calculate_stencil(false);
-    octotiger::fmm::p2m_kernel::p2m_interactions::stencil = octotiger::fmm::p2m_kernel::calculate_stencil().first;
-    octotiger::fmm::p2m_kernel::p2m_interactions::four = octotiger::fmm::p2m_kernel::calculate_stencil().second;
+    octotiger::fmm::monopole_interactions::monopole_interaction_interface::stencil =
+            octotiger::fmm::monopole_interactions::calculate_stencil().first;
+    octotiger::fmm::monopole_interactions::monopole_interaction_interface::four =
+            octotiger::fmm::monopole_interactions::calculate_stencil().second;
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

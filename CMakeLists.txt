@@ -118,12 +118,12 @@ set(source_files ${source_files}
     src/multipole_interactions/m2m_kernel_blocked_interaction.cpp
     src/multipole_interactions/m2p_kernel.cpp
     src/multipole_interactions/m2p_kernel_blocked_interaction.cpp
-    src/p2m_kernel/p2p_kernel.cpp
-    src/p2m_kernel/p2p_kernel_blocked_interaction.cpp
-    src/p2m_kernel/p2m_interactions.cpp
-    src/p2m_kernel/calculate_stencil.cpp
-    src/p2m_kernel/p2m_kernel.cpp
-    src/p2m_kernel/p2m_kernel_blocked_interaction.cpp
+    src/monopole_interactions/p2p_kernel.cpp
+    src/monopole_interactions/p2p_kernel_blocked_interaction.cpp
+    src/monopole_interactions/monopole_interaction_interface.cpp
+    src/monopole_interactions/calculate_stencil.cpp
+    src/monopole_interactions/p2m_kernel.cpp
+    src/monopole_interactions/p2m_kernel_blocked_interaction.cpp
     src/common_kernel/interactions_iterators.cpp
 )
 
@@ -163,11 +163,11 @@ set(header_files
     src/multipole_interactions/calculate_stencil.hpp
     src/multipole_interactions/m2m_kernel.hpp
     src/multipole_interactions/m2p_kernel.hpp
-    src/p2m_kernel/p2m_interactions.hpp
-    src/p2m_kernel/calculate_stencil.hpp
-    src/p2m_kernel/p2m_kernel.hpp
-    src/p2m_kernel/compare_interaction_lists.hpp
-    src/p2m_kernel/p2p_kernel.hpp
+    src/monopole_interactions/monopole_interaction_interface.hpp
+    src/monopole_interactions/calculate_stencil.hpp
+    src/monopole_interactions/p2m_kernel.hpp
+    src/monopole_interactions/compare_interaction_lists.hpp
+    src/monopole_interactions/p2p_kernel.hpp
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
 )

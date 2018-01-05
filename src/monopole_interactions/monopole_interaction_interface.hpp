@@ -16,13 +16,13 @@
 
 namespace octotiger {
 namespace fmm {
-    namespace p2m_kernel {
+    namespace monopole_interactions {
         /// Interface for the new monopole-multipole compute kernel
         /** Class takes an interaction partner m0 (should be a multipole out of the neighbor data /
          * mpoles) and
          * a monopole.
          */
-        class p2m_interactions
+        class monopole_interaction_interface
         {
         private:
             /*
@@ -59,7 +59,7 @@ namespace fmm {
             static std::vector<std::array<real, 4>> four;
             /// Constructor for the boundary interactor between a monopole and its neighboring
             /// multipoles
-            p2m_interactions(void);
+            monopole_interaction_interface(void);
             void update_input(std::vector<real>& mons, std::vector<multipole>& multipoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx_arg);
@@ -94,6 +94,6 @@ namespace fmm {
             /// Add more center of masses to the current kernel input masses
             void add_to_center_of_masses(std::vector<space_vector>& L_c);
         };
-    }    // namespace p2m_kernel
+    }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

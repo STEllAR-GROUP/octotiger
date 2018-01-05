@@ -1,4 +1,4 @@
-#include "p2m_interactions.hpp"
+#include "monopole_interaction_interface.hpp"
 
 #include "../common_kernel/interactions_iterators.hpp"
 #include "p2p_kernel.hpp"
@@ -12,14 +12,14 @@
 
 namespace octotiger {
 namespace fmm {
-    namespace p2m_kernel {
+    namespace monopole_interactions {
         size_t total_neighbors = 0;
         size_t missing_neighbors = 0;
 
-        std::vector<multiindex<>> p2m_interactions::stencil;
-        std::vector<std::array<real, 4>> p2m_interactions::four;
+        std::vector<multiindex<>> monopole_interaction_interface::stencil;
+        std::vector<std::array<real, 4>> monopole_interaction_interface::four;
 
-        p2m_interactions::p2m_interactions(void)
+        monopole_interaction_interface::monopole_interaction_interface(void)
           : neighbor_empty_multipoles(27)
           , neighbor_empty_monopoles(27) {
             // Create our input structure for the compute kernel
@@ -32,7 +32,7 @@ namespace fmm {
             local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
         }
 
-        void p2m_interactions::update_input(std::vector<real>& mons,
+        void monopole_interaction_interface::update_input(std::vector<real>& mons,
             std::vector<multipole>& multipoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx_arg) {
@@ -143,13 +143,13 @@ namespace fmm {
                 });
         }
 
-        void p2m_interactions::compute_interactions() {
+        void monopole_interaction_interface::compute_interactions() {
             auto start_complete = std::chrono::high_resolution_clock::now();
             // Convert input structure to new datastructure (SoA)
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
                 potential_expansions_SoA(potential_expansions);
 
-            p2p_kernel::p2p_kernel kernel_monopoles(neighbor_empty_monopoles, type, dx);
+            monopole_interactions::p2p_kernel kernel_monopoles(neighbor_empty_monopoles, type, dx);
 
             auto start = std::chrono::high_resolution_clock::now();
 
@@ -177,47 +177,47 @@ namespace fmm {
             duration = end_complete - start_complete;
         }
 
-        std::vector<expansion>& p2m_interactions::get_local_expansions() {
+        std::vector<expansion>& monopole_interaction_interface::get_local_expansions() {
             return local_expansions;
         }
 
-        std::vector<space_vector>& p2m_interactions::get_center_of_masses() {
+        std::vector<space_vector>& monopole_interaction_interface::get_center_of_masses() {
             return center_of_masses;
         }
 
-        std::vector<expansion>& p2m_interactions::get_potential_expansions() {
+        std::vector<expansion>& monopole_interaction_interface::get_potential_expansions() {
             return potential_expansions;
         }
 
-        std::vector<space_vector>& p2m_interactions::get_angular_corrections() {
+        std::vector<space_vector>& monopole_interaction_interface::get_angular_corrections() {
             return angular_corrections;
         }
 
-        void p2m_interactions::print_potential_expansions() {
+        void monopole_interaction_interface::print_potential_expansions() {
             print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
                 std::cout << " (" << i << ") =[0] " << this->potential_expansions[flat_index][0];
             });
         }
 
-        void p2m_interactions::print_angular_corrections() {
+        void monopole_interaction_interface::print_angular_corrections() {
             print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
                 std::cout << " (" << i << ") =[0] " << this->angular_corrections[flat_index];
             });
         }
 
-        void p2m_interactions::print_local_expansions() {
+        void monopole_interaction_interface::print_local_expansions() {
             print_layered_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
                 std::cout << " " << this->local_expansions[flat_index];
             });
         }
 
-        void p2m_interactions::print_center_of_masses() {
+        void monopole_interaction_interface::print_center_of_masses() {
             print_layered_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
                 std::cout << this->center_of_masses[flat_index];
             });
         }
 
-        void p2m_interactions::add_to_potential_expansions(std::vector<expansion>& L) {
+        void monopole_interaction_interface::add_to_potential_expansions(std::vector<expansion>& L) {
             if (!multipole_neighbors_exist)
                 return;
             iterate_inner_cells_not_padded([this, &L](multiindex<>& i, size_t flat_index) {
@@ -225,7 +225,7 @@ namespace fmm {
             });
         }
 
-        void p2m_interactions::add_to_center_of_masses(std::vector<space_vector>& L_c) {
+        void monopole_interaction_interface::add_to_center_of_masses(std::vector<space_vector>& L_c) {
             if (!multipole_neighbors_exist)
                 return;
             iterate_inner_cells_not_padded([this, &L_c](multiindex<>& i, size_t flat_index) {
@@ -233,6 +233,6 @@ namespace fmm {
             });
         }
 
-    }    // namespace p2m_kernel
+    }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
