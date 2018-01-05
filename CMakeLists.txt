@@ -118,10 +118,8 @@ set(source_files ${source_files}
     src/multipole_interactions/m2m_kernel_blocked_interaction.cpp
     src/multipole_interactions/m2p_kernel.cpp
     src/multipole_interactions/m2p_kernel_blocked_interaction.cpp
-    src/p2p_kernel/p2p_interactions.cpp
-    src/p2p_kernel/calculate_stencil.cpp
-    src/p2p_kernel/p2p_kernel.cpp
-    src/p2p_kernel/p2p_kernel_blocked_interaction.cpp
+    src/p2m_kernel/p2p_kernel.cpp
+    src/p2m_kernel/p2p_kernel_blocked_interaction.cpp
     src/p2m_kernel/p2m_interactions.cpp
     src/p2m_kernel/calculate_stencil.cpp
     src/p2m_kernel/p2m_kernel.cpp
@@ -169,10 +167,7 @@ set(header_files
     src/p2m_kernel/calculate_stencil.hpp
     src/p2m_kernel/p2m_kernel.hpp
     src/p2m_kernel/compare_interaction_lists.hpp
-    src/p2p_kernel/p2p_interactions.hpp
-    src/p2p_kernel/calculate_stencil.hpp
-    src/p2p_kernel/p2p_kernel.hpp
-    src/p2p_kernel/compare_interaction_lists.hpp
+    src/p2m_kernel/p2p_kernel.hpp
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
 )

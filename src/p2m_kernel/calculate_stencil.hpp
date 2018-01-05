@@ -8,7 +8,7 @@ namespace octotiger {
 namespace fmm {
     namespace p2m_kernel {
 
-        std::vector<multiindex<>> calculate_stencil();
+        std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>> calculate_stencil();
 
     }    // namespace p2p_kernel
 }    // namespace fmm

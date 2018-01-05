@@ -1,7 +1,7 @@
 #include "p2m_interactions.hpp"
 
 #include "../common_kernel/interactions_iterators.hpp"
-#include "../p2p_kernel/p2p_kernel.hpp"
+#include "p2p_kernel.hpp"
 #include "calculate_stencil.hpp"
 #include "p2m_kernel.hpp"
 

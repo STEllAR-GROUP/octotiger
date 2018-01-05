@@ -2,8 +2,8 @@
 #include "geometry.hpp"
 #include "options.hpp"
 
-#include "calculate_stencil.hpp"
 #include "../common_kernel/helper.hpp"
+#include "calculate_stencil.hpp"
 
 extern options opts;
 
@@ -11,7 +11,7 @@ namespace octotiger {
 namespace fmm {
     namespace p2m_kernel {
 
-        std::vector<multiindex<>> calculate_stencil() {
+        std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>> calculate_stencil() {
             std::array<std::vector<multiindex<>>, 8> stencils;
             std::cerr << "Calculating new stencil" << std::endl;
 
@@ -75,7 +75,113 @@ namespace fmm {
                 }
                 std::cout << "Stencil size: " << stencils[i].size() << std::endl;
             }
-            return superimposed_stencil;
+            // std::cout << "superimposed_stencil.size(): " << superimposed_stencil.size() <<
+            // std::endl;
+
+            // for (size_t i = 0; i < 8; i++) {
+            //     uint64_t common_elements = 0;
+            //     for (auto& element : stencils[i]) {
+            //         for (auto& super_element : superimposed_stencil) {
+            //             if (element.compare(super_element)) {
+            //                 common_elements += 1;
+            //                 break;
+            //             }
+            //         }
+            //     }
+            //     std::cout << "total_elements: " << stencils[i].size()
+            //               << " common_elements: " << common_elements
+            //               << " masked_elements: " << (superimposed_stencil.size() -
+            //               common_elements)
+            //               << std::endl;
+            // }
+
+            // for (size_t i = 0; i < 8; i++) {
+            //     std::cout << "-------------- " << i << " ---------------" << std::endl;
+            //     std::cout << "x, y, z" << std::endl;
+            //     std::vector<multiindex>& stencil = stencils[i];
+            //     for (multiindex& stencil_element : stencil) {
+            //         std::cout << stencil_element << std::endl;
+            //     }
+            //     std::cout << std::endl;
+            // }
+
+            // std::vector<multiindex> common_stencil;
+            // // use the first stencil to filter the elements that are in all other stencils
+            // std::vector<multiindex>& first_stencil = stencils[0];
+            // for (multiindex& first_element : first_stencil) {
+            //     bool all_found = true;
+            //     for (size_t i = 1; i < 8; i++) {
+            //         bool found = false;
+            //         for (multiindex& second_element : stencils[i]) {
+            //             if (first_element.compare(second_element)) {
+            //                 found = true;
+            //                 break;
+            //             }
+            //         }
+            //         if (!found) {
+            //             all_found = false;
+            //             break;
+            //         }
+            //     }
+            //     if (all_found) {
+            //         common_stencil.push_back(first_element);
+            //     }
+            // }
+
+            // std::cout << "-------------- common_stencil"
+            //           << " size: " << common_stencil.size() << " ---------------" << std::endl;
+            // std::cout << "x, y, z" << std::endl;
+            // for (multiindex& stencil_element : common_stencil) {
+            //     std::cout << stencil_element << std::endl;
+            // }
+            // std::cout << std::endl;
+
+            // std::array<std::vector<multiindex>, 8> diff_stencils;
+
+            // for (size_t i = 0; i < 8; i++) {
+            //     for (multiindex& element : stencils[i]) {
+            //         bool found = false;
+            //         for (multiindex& common_element : common_stencil) {
+            //             if (element.compare(common_element)) {
+            //                 found = true;
+            //                 break;
+            //             }
+            //         }
+            //         if (!found) {
+            //             diff_stencils[i].push_back(element);
+            //         }
+            //     }
+            // }
+
+            // for (size_t i = 0; i < 8; i++) {
+            //     std::cout << "-------------- diff_stencil: " << i
+            //               << " size: " << diff_stencils[i].size() << " ---------------" <<
+            //               std::endl;
+            //     std::cout << "x, y, z" << std::endl;
+            //     std::vector<multiindex>& stencil = diff_stencils[i];
+            //     for (multiindex& stencil_element : stencil) {
+            //         std::cout << stencil_element << std::endl;
+            //     }
+            //     std::cout << std::endl;
+            // }
+
+            std::vector<std::array<real, 4>> four_constants;
+            for (auto stencil_element : superimposed_stencil) {
+                const real x = stencil_element.x;
+                const real y = stencil_element.y;
+                const real z = stencil_element.z;
+                const real tmp = sqr(x) + sqr(y) + sqr(z);
+                const real r = std::sqrt(tmp);
+                const real r3 = r * r * r;
+                std::array<real, 4> four;
+                four[0] = -1.0 / r;
+                four[1] = x / r3;
+                four[2] = y / r3;
+                four[3] = z / r3;
+                four_constants.push_back(four);
+            }
+            return std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>>(
+                superimposed_stencil, four_constants);
         }
 
     }    // namespace p2p_kernel
