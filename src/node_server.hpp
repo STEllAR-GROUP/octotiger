@@ -105,7 +105,7 @@ private:
     real dt_;
 
     octotiger::fmm::monopole_interactions::monopole_interaction_interface p2m_interactor;
-    octotiger::fmm::multipole_interaction_interface m2m_interactor;
+    octotiger::fmm::multipole_interactions::multipole_interaction_interface m2m_interactor;
 public:
     static bool is_gravity_on() {
         return gravity_on;

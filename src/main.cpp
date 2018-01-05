@@ -96,12 +96,16 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
 	node_server::set_hydro(hydro_on);
 	compute_ilist();
     compute_factor();
-    octotiger::fmm::multipole_interaction_interface::stencil_multipole_interactions = octotiger::fmm::calculate_stencil(true);
-    octotiger::fmm::multipole_interaction_interface::stencil_mixed_interactions = octotiger::fmm::calculate_stencil(false);
+    octotiger::fmm::multipole_interactions::multipole_interaction_interface::
+        stencil_multipole_interactions =
+            octotiger::fmm::multipole_interactions::calculate_stencil(true);
+    octotiger::fmm::multipole_interactions::multipole_interaction_interface::
+        stencil_mixed_interactions =
+            octotiger::fmm::multipole_interactions::calculate_stencil(false);
     octotiger::fmm::monopole_interactions::monopole_interaction_interface::stencil =
-            octotiger::fmm::monopole_interactions::calculate_stencil().first;
+        octotiger::fmm::monopole_interactions::calculate_stencil().first;
     octotiger::fmm::monopole_interactions::monopole_interaction_interface::four =
-            octotiger::fmm::monopole_interactions::calculate_stencil().second;
+        octotiger::fmm::monopole_interactions::calculate_stencil().second;
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

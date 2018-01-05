@@ -11,7 +11,7 @@ extern taylor<4, m2m_vector> factor_sixth_v;
 
 namespace octotiger {
 namespace fmm {
-    namespace m2p_kernel {
+    namespace multipole_interactions {
 
         // TODO:
         // - check codegen and fix in Vc
@@ -556,6 +556,6 @@ namespace fmm {
             tmpstore[19].memstore(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
         }
-    }    // namespace m2p_kernel
+    }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger

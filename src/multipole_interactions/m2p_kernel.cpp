@@ -14,7 +14,7 @@ extern options opts;
 
 namespace octotiger {
 namespace fmm {
-    namespace m2p_kernel {
+    namespace multipole_interactions {
 
         m2p_kernel::m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx,
             std::array<real, NDIM> xbase)
@@ -131,6 +131,6 @@ namespace fmm {
                 }
             }
         }
-    }    // namespace m2p_kernel
+    }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger

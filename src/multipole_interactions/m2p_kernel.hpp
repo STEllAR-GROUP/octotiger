@@ -11,7 +11,7 @@
 
 namespace octotiger {
 namespace fmm {
-    namespace m2p_kernel {
+    namespace multipole_interactions {
 
         class m2p_kernel
         {
@@ -82,6 +82,6 @@ namespace fmm {
                 std::vector<multiindex<>>& stencil, std::vector<bool>& interact);
         };
 
-    }    // namespace m2p_kernel
+    }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger
