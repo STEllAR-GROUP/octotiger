@@ -210,19 +210,21 @@ namespace fmm {
                     L_c[i] += angular_corrections[i];
                 }
             } else if (p2m_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    local_expansions_SoA(local_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    center_of_masses_SoA(center_of_masses);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    angular_corrections_SoA(angular_corrections);
-                p2m_kernel kernel(neighbor_empty_multipoles, type);
-                kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                    potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
-                potential_expansions_SoA.to_non_SoA(potential_expansions);
-                angular_corrections_SoA.to_non_SoA(angular_corrections);
+                if (multipole_neighbors_exist) {
+                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                        potential_expansions_SoA(potential_expansions);
+                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                        local_expansions_SoA(local_expansions);
+                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                        center_of_masses_SoA(center_of_masses);
+                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                        angular_corrections_SoA(angular_corrections);
+                    p2m_kernel kernel(neighbor_empty_multipoles, type);
+                    kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
+                        potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
+                    potential_expansions_SoA.to_non_SoA(potential_expansions);
+                    angular_corrections_SoA.to_non_SoA(angular_corrections);
+                }
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::fill(std::begin(L), std::end(L), ZERO);

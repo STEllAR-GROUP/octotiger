@@ -52,6 +52,7 @@ namespace fmm {
                 neighbor_empty_monopole[i] = false;
             }
 
+            monopole_neighbors_exist = false;
             for (const geo::direction& dir : geo::direction::full_set()) {
                 // don't use neighbor.direction, is always zero for empty cells!
                 neighbor_gravity_type& neighbor = neighbors[dir];
@@ -163,11 +164,14 @@ namespace fmm {
                     angular_corrections_SoA(angular_corrections);
 
                 m2m_kernel kernel(neighbor_empty_multipole, type);
-                m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
 
-                mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
-                    center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                    stencil_mixed_interactions, interact);
+                if (monopole_neighbors_exist) {
+                    m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
+                    mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
+                        center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                        stencil_mixed_interactions, interact);
+                }
+
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
                     stencil_multipole_interactions);
@@ -222,20 +226,22 @@ namespace fmm {
                 }
 
             } else if (m2p_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    local_expansions_SoA(local_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    center_of_masses_SoA(center_of_masses);
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    angular_corrections_SoA(angular_corrections);
-                m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
-                mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
-                    center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                    stencil_mixed_interactions, interact);
-                potential_expansions_SoA.to_non_SoA(potential_expansions);
-                angular_corrections_SoA.to_non_SoA(angular_corrections);
+                if (monopole_neighbors_exist) {
+                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                        local_expansions_SoA(local_expansions);
+                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                        center_of_masses_SoA(center_of_masses);
+                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                        potential_expansions_SoA(potential_expansions);
+                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                        angular_corrections_SoA(angular_corrections);
+                    m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
+                    mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
+                        center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                        stencil_mixed_interactions, interact);
+                    potential_expansions_SoA.to_non_SoA(potential_expansions);
+                    angular_corrections_SoA.to_non_SoA(angular_corrections);
+                }
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();
