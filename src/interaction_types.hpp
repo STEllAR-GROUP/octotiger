@@ -147,3 +147,9 @@ struct boundary_interaction_type
     space_vector x;
 };
 Vc_DECLARE_ALLOCATOR(boundary_interaction_type)
+
+enum interaction_kernel_type {
+    OLD = 0,
+    SOA_CPU,
+    SOA_CUDA
+};

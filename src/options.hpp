@@ -12,6 +12,7 @@
 #include <vector>
 #include <hpx/hpx.hpp>
 #include "defs.hpp"
+#include "interaction_types.hpp"
 
 enum problem_type {
 	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR
@@ -60,6 +61,11 @@ public:
     bool parallel_silo;
     bool silo_planes_only;
     std::string data_dir;
+
+    interaction_kernel_type m2m_kernel_type;
+    interaction_kernel_type m2p_kernel_type;
+    interaction_kernel_type p2p_kernel_type;
+    interaction_kernel_type p2m_kernel_type;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {

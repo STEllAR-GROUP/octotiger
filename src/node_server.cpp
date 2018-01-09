@@ -660,10 +660,14 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
         } else {
             p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data,
                 type, grid_ptr->get_dx());
-             p2m_interactor.compute_interactions();
-             p2m_interactor.add_to_potential_expansions(L);
-             p2m_interactor.add_to_center_of_masses(L_c);
-             potential_expansions = p2m_interactor.get_potential_expansions();
+            p2m_interactor.set_grid_ptr(grid_ptr);
+            p2m_interactor.compute_interactions(opts.p2p_kernel_type,
+                                                opts.p2m_kernel_type,
+                                                is_direction_empty,
+                                                all_neighbor_interaction_data);
+            p2m_interactor.add_to_potential_expansions(L);
+            p2m_interactor.add_to_center_of_masses(L_c);
+            potential_expansions = p2m_interactor.get_potential_expansions();
              angular_corrections = p2m_interactor.get_angular_corrections();
 
             for (size_t i = 0; i < L.size(); i++) {

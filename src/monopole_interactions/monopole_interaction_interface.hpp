@@ -5,6 +5,7 @@
 
 #include "../common_kernel/kernel_simd_types.hpp"
 
+#include "grid.hpp"
 #include "geometry.hpp"
 // #include "grid.hpp"
 // #include "node_server.hpp"
@@ -17,6 +18,7 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+
         /// Interface for the new monopole-multipole compute kernel
         /** Class takes an interaction partner m0 (should be a multipole out of the neighbor data /
          * mpoles) and
@@ -53,10 +55,13 @@ namespace fmm {
             bool multipole_neighbors_exist;
             real dx;
 
+            std::shared_ptr<grid> grid_ptr;
+
         public:
             /// The stencil is used to identify the neighbors?
             static std::vector<multiindex<>> stencil;
             static std::vector<std::array<real, 4>> four;
+
             /// Constructor for the boundary interactor between a monopole and its neighboring
             /// multipoles
             monopole_interaction_interface(void);
@@ -70,7 +75,11 @@ namespace fmm {
              * is started with the apply_stencil method. The output can be obtained with the
              * methods get_potential_expansions and get_center_of_masses
              */
-            void compute_interactions();
+            void compute_interactions(interaction_kernel_type p2p_type,
+                                      interaction_kernel_type p2m_type,
+                                      std::array<bool, geo::direction::count()> &is_direction_empty,
+                                      std::vector<neighbor_gravity_type> &all_neighbor_interaction_data);
+
             /// Get the local expansion input of the compute kernel
             std::vector<expansion>& get_local_expansions();
             /// Get the center of mass input of the compute kernel
@@ -93,6 +102,8 @@ namespace fmm {
             void add_to_potential_expansions(std::vector<expansion>& L);
             /// Add more center of masses to the current kernel input masses
             void add_to_center_of_masses(std::vector<space_vector>& L_c);
+
+            void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
         };
     }    // namespace monopole_interactions
 }    // namespace fmm
