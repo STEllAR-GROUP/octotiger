@@ -167,10 +167,19 @@ namespace fmm {
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
                     angular_corrections_SoA.to_non_SoA(angular_corrections);
+                    std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                    for (size_t i = 0; i < L_c.size(); i++) {
+                        L_c[i] = angular_corrections[i];
+                    }
                 }
                 kernel_monopoles.apply_stencil(
                     local_monopoles, potential_expansions_SoA, stencil, four);
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
+
+                std::vector<expansion>& L = grid_ptr->get_L();
+                for (size_t i = 0; i < L.size(); i++) {
+                    L[i] = potential_expansions[i];
+                }
 
             } else if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -181,6 +190,10 @@ namespace fmm {
                     local_monopoles, potential_expansions_SoA, stencil, four);
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
 
+                std::vector<expansion>& L = grid_ptr->get_L();
+                std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                std::fill(std::begin(L), std::end(L), ZERO);
+                std::fill(std::begin(L_c), std::end(L_c), ZERO);
                 for (auto const& dir : geo::direction::full_set()) {
                     if (!is_direction_empty[dir]) {
                         neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
@@ -189,6 +202,12 @@ namespace fmm {
                                 neighbor_data.is_monopole, neighbor_data.data);
                         }
                     }
+                }
+                for (size_t i = 0; i < L.size(); i++) {
+                    L[i] += potential_expansions[i];
+                }
+                for (size_t i = 0; i < L_c.size(); i++) {
+                    L_c[i] += angular_corrections[i];
                 }
             } else if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -205,6 +224,8 @@ namespace fmm {
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
                 angular_corrections_SoA.to_non_SoA(angular_corrections);
 
+                std::vector<expansion>& L = grid_ptr->get_L();
+                std::fill(std::begin(L), std::end(L), ZERO);
                 grid_ptr->compute_interactions(type);
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {
@@ -215,6 +236,9 @@ namespace fmm {
                                 neighbor_data.is_monopole, neighbor_data.data);
                         }
                     }
+                }
+                for (size_t i = 0; i < L.size(); i++) {
+                    L[i] += potential_expansions[i];
                 }
             } else {
                 // old-style interaction calculation

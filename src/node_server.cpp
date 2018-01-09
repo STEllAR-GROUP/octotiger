@@ -658,17 +658,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account) {
                                                 opts.p2m_kernel_type,
                                                 is_direction_empty,
                                                 all_neighbor_interaction_data);
-            p2m_interactor.add_to_potential_expansions(L);
-            p2m_interactor.add_to_center_of_masses(L_c);
-            potential_expansions = p2m_interactor.get_potential_expansions();
-             angular_corrections = p2m_interactor.get_angular_corrections();
-
-            for (size_t i = 0; i < L.size(); i++) {
-                L[i] = potential_expansions[i];
-            }
-            for (size_t i = 0; i < L_c.size(); i++) {
-                L_c[i] = angular_corrections[i];
-            }
         }
      } else {
          // old-style interaction calculation
