@@ -5,8 +5,8 @@
 
 #include "../common_kernel/kernel_simd_types.hpp"
 
+#include "grid.hpp"
 #include "geometry.hpp"
-// #include "grid.hpp"
 // #include "node_server.hpp"
 #include "interaction_types.hpp"
 #include "taylor.hpp"
@@ -53,6 +53,7 @@ namespace fmm {
             real dX;
             std::array<real, NDIM> xBase;
 
+            std::shared_ptr<grid> grid_ptr;
         public:
             static std::vector<multiindex<>> stencil_multipole_interactions;
             static std::vector<multiindex<>> stencil_mixed_interactions;
@@ -65,7 +66,10 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<real, NDIM> xbase);
 
-            void compute_interactions();
+            void compute_interactions(interaction_kernel_type m2m_type,
+                                      interaction_kernel_type m2p_type,
+                                      std::array<bool, geo::direction::count()> &is_direction_empty,
+                                      std::vector<neighbor_gravity_type> &all_neighbor_interaction_data);
 
             // void get_converted_local_expansions(std::vector<multipole>& M_ptr);
 
@@ -95,6 +99,8 @@ namespace fmm {
             void add_to_potential_expansions(std::vector<expansion>& L);
 
             void add_to_center_of_masses(std::vector<space_vector>& L_c);
+
+            void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
         };
     }    // namespace multipole_interactions
 }    // namespace fmm

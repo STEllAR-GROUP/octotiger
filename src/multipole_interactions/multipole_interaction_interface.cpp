@@ -139,6 +139,7 @@ namespace fmm {
                     space_vector& s = angular_corrections.at(flat_index_unpadded);
                     s = 0.0;
                 });
+            // std::fill(std::begin(potential_expansions), std::end(potential_expansions), ZERO);
 
             // std::cout << "local_expansions:" << std::endl;
             // this->print_local_expansions();
@@ -146,34 +147,131 @@ namespace fmm {
             // this->print_center_of_masses();
         }
 
-        void multipole_interaction_interface::compute_interactions() {
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA(
-                local_expansions);
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA(
-                center_of_masses);
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                potential_expansions_SoA(potential_expansions);
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                angular_corrections_SoA(angular_corrections);
+        void multipole_interaction_interface::compute_interactions(interaction_kernel_type m2m_type,
+            interaction_kernel_type m2p_type,
+            std::array<bool, geo::direction::count()>& is_direction_empty,
+            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data) {
+            if (m2m_type == interaction_kernel_type::SOA_CPU &&
+                m2p_type == interaction_kernel_type::SOA_CPU) {
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    local_expansions_SoA(local_expansions);
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    center_of_masses_SoA(center_of_masses);
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    potential_expansions_SoA(potential_expansions);
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    angular_corrections_SoA(angular_corrections);
 
-            m2m_kernel kernel(neighbor_empty_multipole, type);
-            m2p_kernel mixed_interactions_kernel(
-                neighbor_empty_monopole, type, dX, xBase);
+                m2m_kernel kernel(neighbor_empty_multipole, type);
+                m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
 
-            auto start = std::chrono::high_resolution_clock::now();
+                mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
+                    center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                    stencil_mixed_interactions, interact);
+                kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
+                    potential_expansions_SoA, angular_corrections_SoA,
+                    stencil_multipole_interactions);
 
-            mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
-                center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                stencil_mixed_interactions, interact);
-            kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                potential_expansions_SoA, angular_corrections_SoA, stencil_multipole_interactions);
+                potential_expansions_SoA.to_non_SoA(potential_expansions);
+                angular_corrections_SoA.to_non_SoA(angular_corrections);
 
-            auto end = std::chrono::high_resolution_clock::now();
+                std::vector<expansion>& L = grid_ptr->get_L();
+                std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                for (size_t i = 0; i < L.size(); i++) {
+                    L[i] = potential_expansions[i];
+                }
+                for (size_t i = 0; i < L_c.size(); i++) {
+                    L_c[i] = angular_corrections[i];
+                }
 
-            std::chrono::duration<double, std::milli> duration = end - start;
+            } else if (m2m_type == interaction_kernel_type::SOA_CPU) {
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    local_expansions_SoA(local_expansions);
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    center_of_masses_SoA(center_of_masses);
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    potential_expansions_SoA(potential_expansions);
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    angular_corrections_SoA(angular_corrections);
+                m2m_kernel kernel(neighbor_empty_multipole, type);
+                kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
+                    potential_expansions_SoA, angular_corrections_SoA,
+                    stencil_multipole_interactions);
 
-            potential_expansions_SoA.to_non_SoA(potential_expansions);
-            angular_corrections_SoA.to_non_SoA(angular_corrections);
+                potential_expansions_SoA.to_non_SoA(potential_expansions);
+                angular_corrections_SoA.to_non_SoA(angular_corrections);
+
+                std::vector<expansion>& L = grid_ptr->get_L();
+                std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                std::fill(std::begin(L), std::end(L), ZERO);
+                std::fill(std::begin(L_c), std::end(L_c), ZERO);
+                for (auto const& dir : geo::direction::full_set()) {
+                    if (!is_direction_empty[dir]) {
+                        neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
+                        if (neighbor_data.is_monopole) {
+                            grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
+                                neighbor_data.is_monopole, neighbor_data.data);
+                        }
+                    }
+                }
+                for (size_t i = 0; i < L.size(); i++) {
+                    L[i] += potential_expansions[i];
+                }
+                for (size_t i = 0; i < L_c.size(); i++) {
+                    L_c[i] += angular_corrections[i];
+                }
+
+            } else if (m2p_type == interaction_kernel_type::SOA_CPU) {
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    local_expansions_SoA(local_expansions);
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    center_of_masses_SoA(center_of_masses);
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    potential_expansions_SoA(potential_expansions);
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    angular_corrections_SoA(angular_corrections);
+                m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
+                mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
+                    center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                    stencil_mixed_interactions, interact);
+                potential_expansions_SoA.to_non_SoA(potential_expansions);
+                angular_corrections_SoA.to_non_SoA(angular_corrections);
+
+                std::vector<expansion>& L = grid_ptr->get_L();
+                std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                std::fill(std::begin(L), std::end(L), ZERO);
+                std::fill(std::begin(L_c), std::end(L_c), ZERO);
+
+                grid_ptr->compute_interactions(type);
+                // waits for boundary data and then computes boundary interactions
+                for (auto const& dir : geo::direction::full_set()) {
+                    if (!is_direction_empty[dir]) {
+                        neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
+                        if (!neighbor_data.is_monopole) {
+                            grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
+                                neighbor_data.is_monopole, neighbor_data.data);
+                        }
+                    }
+                }
+                for (size_t i = 0; i < L.size(); i++) {
+                    L[i] += potential_expansions[i];
+                }
+                for (size_t i = 0; i < L_c.size(); i++) {
+                    L_c[i] += angular_corrections[i];
+                }
+            } else {
+                // old-style interaction calculation
+                // computes inner interactions
+                grid_ptr->compute_interactions(type);
+                // waits for boundary data and then computes boundary interactions
+                for (auto const& dir : geo::direction::full_set()) {
+                    if (!is_direction_empty[dir]) {
+                        neighbor_gravity_type& neighbor_data = all_neighbor_interaction_data[dir];
+                        grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
+                            neighbor_data.is_monopole, neighbor_data.data);
+                    }
+                }
+            }
         }
 
         std::vector<expansion>& multipole_interaction_interface::get_local_expansions() {
