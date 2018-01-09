@@ -177,15 +177,18 @@ namespace fmm {
                     stencil_multipole_interactions);
 
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
-                angular_corrections_SoA.to_non_SoA(angular_corrections);
+
+                if (type == RHO) {
+                    angular_corrections_SoA.to_non_SoA(angular_corrections);
+                    std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                    for (size_t i = 0; i < L_c.size(); i++) {
+                        L_c[i] = angular_corrections[i];
+                    }
+                }
 
                 std::vector<expansion>& L = grid_ptr->get_L();
-                std::vector<space_vector>& L_c = grid_ptr->get_L_c();
                 for (size_t i = 0; i < L.size(); i++) {
                     L[i] = potential_expansions[i];
-                }
-                for (size_t i = 0; i < L_c.size(); i++) {
-                    L_c[i] = angular_corrections[i];
                 }
 
             } else if (m2m_type == interaction_kernel_type::SOA_CPU) {
@@ -203,7 +206,8 @@ namespace fmm {
                     stencil_multipole_interactions);
 
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
-                angular_corrections_SoA.to_non_SoA(angular_corrections);
+                if (type == RHO)
+                    angular_corrections_SoA.to_non_SoA(angular_corrections);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();
@@ -240,7 +244,8 @@ namespace fmm {
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
                         stencil_mixed_interactions, interact);
                     potential_expansions_SoA.to_non_SoA(potential_expansions);
-                    angular_corrections_SoA.to_non_SoA(angular_corrections);
+                    if (type == RHO)
+                        angular_corrections_SoA.to_non_SoA(angular_corrections);
                 }
 
                 std::vector<expansion>& L = grid_ptr->get_L();

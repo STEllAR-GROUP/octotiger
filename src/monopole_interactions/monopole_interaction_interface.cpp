@@ -166,10 +166,12 @@ namespace fmm {
                     p2m_kernel kernel(neighbor_empty_multipoles, type);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
-                    angular_corrections_SoA.to_non_SoA(angular_corrections);
-                    std::vector<space_vector>& L_c = grid_ptr->get_L_c();
-                    for (size_t i = 0; i < L_c.size(); i++) {
-                        L_c[i] = angular_corrections[i];
+                    if (type == RHO) {
+                        angular_corrections_SoA.to_non_SoA(angular_corrections);
+                        std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                        for (size_t i = 0; i < L_c.size(); i++) {
+                            L_c[i] = angular_corrections[i];
+                        }
                     }
                 }
                 kernel_monopoles.apply_stencil(
@@ -223,7 +225,13 @@ namespace fmm {
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
                     potential_expansions_SoA.to_non_SoA(potential_expansions);
-                    angular_corrections_SoA.to_non_SoA(angular_corrections);
+                    if (type == RHO) {
+                        angular_corrections_SoA.to_non_SoA(angular_corrections);
+                        std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+                        for (size_t i = 0; i < L_c.size(); i++) {
+                            L_c[i] = angular_corrections[i];
+                        }
+                    }
                 }
 
                 std::vector<expansion>& L = grid_ptr->get_L();
