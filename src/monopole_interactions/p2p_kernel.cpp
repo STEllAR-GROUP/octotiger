@@ -45,7 +45,7 @@ namespace fmm {
                 // std::cout << "se: " << se << std::endl;
                 // iterate_inner_cells_padded_stencil(se, *this);
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-                    for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
+                    for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1+=2) {
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
