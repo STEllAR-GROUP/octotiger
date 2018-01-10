@@ -12,7 +12,6 @@
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        constexpr uint64_t M2P_STENCIL_BLOCKING = 1;
 
         class m2p_kernel
         {

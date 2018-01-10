@@ -69,7 +69,7 @@ namespace fmm {
             tmp_corrections[0] = angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
             tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
             tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
-            for (size_t inner_stencil_index = 0; inner_stencil_index < M2P_STENCIL_BLOCKING &&
+            for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
                 const multiindex<>& stencil_element =
@@ -84,11 +84,11 @@ namespace fmm {
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
-                // if (!interact[interaction_partner_flat_index] &&
-                //     !interact[interaction_partner_flat_index + 1] &&
-                //     !interact[interaction_partner_flat_index + 2] &&
-                //     !interact[interaction_partner_flat_index + 3])
-                //     continue;
+                if (!interact[interaction_partner_flat_index] &&
+                    !interact[interaction_partner_flat_index + 1] &&
+                    !interact[interaction_partner_flat_index + 2] &&
+                    !interact[interaction_partner_flat_index + 3])
+                    continue;
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
                     continue;
@@ -402,7 +402,7 @@ namespace fmm {
             tmpstore[17] = potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
             tmpstore[18] = potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
             tmpstore[19] = potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
-            for (size_t inner_stencil_index = 0; inner_stencil_index < M2P_STENCIL_BLOCKING &&
+            for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
                 const multiindex<>& stencil_element =
@@ -417,11 +417,11 @@ namespace fmm {
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
-                // if (!interact[interaction_partner_flat_index] &&
-                //     !interact[interaction_partner_flat_index + 1] &&
-                //     !interact[interaction_partner_flat_index + 2] &&
-                //     !interact[interaction_partner_flat_index + 3])
-                //     continue;
+                if (!interact[interaction_partner_flat_index] &&
+                    !interact[interaction_partner_flat_index + 1] &&
+                    !interact[interaction_partner_flat_index + 2] &&
+                    !interact[interaction_partner_flat_index + 3])
+                    continue;
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
                     continue;

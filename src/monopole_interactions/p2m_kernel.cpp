@@ -42,23 +42,13 @@ namespace fmm {
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
                  outer_stencil_index += P2M_STENCIL_BLOCKING) {
-                const multiindex<>& stencil_element = stencil[outer_stencil_index];
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization
                 // multiindex<> se(stencil_element.x, stencil_element.y, stencil_element.z);
                 // std::cout << "se: " << se << std::endl;
                 // iterate_inner_cells_padded_stencil(se, *this);
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-                    const size_t interaction_i0 =
-                        i0 + INNER_CELLS_PER_DIRECTION + stencil_element.x;
-                    if (interaction_i0 >= 8 || interaction_i0 < 16)
-                        continue;
-
                     for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
-                        const size_t interaction_i1 =
-                            i1 + INNER_CELLS_PER_DIRECTION + stencil_element.y;
-                        if (interaction_i1 >= 8 || interaction_i1 < 16)
-                            continue;
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
