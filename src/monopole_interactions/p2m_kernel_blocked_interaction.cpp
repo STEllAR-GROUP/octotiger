@@ -59,11 +59,11 @@ namespace fmm {
 
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
-                if (!interact[interaction_partner_flat_index] &&
-                    !interact[interaction_partner_flat_index + 1] &&
-                    !interact[interaction_partner_flat_index + 2] &&
-                    !interact[interaction_partner_flat_index + 3])
-                    continue;
+                // if (!interact[interaction_partner_flat_index] &&
+                //     !interact[interaction_partner_flat_index + 1] &&
+                //     !interact[interaction_partner_flat_index + 2] &&
+                //     !interact[interaction_partner_flat_index + 3])
+                //     continue;
 
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
@@ -333,11 +333,11 @@ namespace fmm {
 
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
-                if (!interact[interaction_partner_flat_index] &&
-                    !interact[interaction_partner_flat_index + 1] &&
-                    !interact[interaction_partner_flat_index + 2] &&
-                    !interact[interaction_partner_flat_index + 3])
-                    continue;
+                // if (!interact[interaction_partner_flat_index] &&
+                //     !interact[interaction_partner_flat_index + 1] &&
+                //     !interact[interaction_partner_flat_index + 2] &&
+                //     !interact[interaction_partner_flat_index + 3])
+                //     continue;
 
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
