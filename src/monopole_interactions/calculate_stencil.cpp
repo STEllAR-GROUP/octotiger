@@ -13,7 +13,6 @@ namespace fmm {
 
         std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>> calculate_stencil() {
             std::array<std::vector<multiindex<>>, 8> stencils;
-            std::cerr << "Calculating new stencil" << std::endl;
 
             // used to check the radiuses of the outer and inner sphere
             const real theta0 = opts.theta;

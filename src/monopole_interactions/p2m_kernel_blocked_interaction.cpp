@@ -107,7 +107,7 @@ namespace fmm {
                 std::array<m2m_vector, 17> m_partner;
 
                 // Array to store the temporary result - was called A in the old style
-                std::array<m2m_vector, 10> cur_pot;
+                std::array<m2m_vector, 4> cur_pot;
                 m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
                 cur_pot[0] = m_partner[0] * D_lower[0];
                 cur_pot[1] = m_partner[0] * D_lower[1];
@@ -273,8 +273,6 @@ namespace fmm {
                     tmp_corrections[1] + current_angular_correction[1];
                 Vc::where(mask, tmp_corrections[2]) =
                     tmp_corrections[2] + current_angular_correction[2];
-                Vc::where(mask, tmp_corrections[3]) =
-                    tmp_corrections[3] + current_angular_correction[3];
             }
             tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
@@ -292,9 +290,6 @@ namespace fmm {
                 Vc::flags::element_aligned);
             tmp_corrections[2].memstore(
                 angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmp_corrections[3].memstore(
-                angular_corrections_SoA.pointer<3>(cell_flat_index_unpadded),
                 Vc::flags::element_aligned);
         }
 
@@ -381,7 +376,7 @@ namespace fmm {
                 std::array<m2m_vector, 17> m_partner;
 
                 // Array to store the temporary result - was called A in the old style
-                std::array<m2m_vector, 10> cur_pot;
+                std::array<m2m_vector, 4> cur_pot;
                 m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
                 cur_pot[0] = m_partner[0] * D_lower[0];
                 cur_pot[1] = m_partner[0] * D_lower[1];
