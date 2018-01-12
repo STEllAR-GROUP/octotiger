@@ -128,7 +128,7 @@ namespace fmm {
                 }
             }
 
-            neighbor_empty_multipoles[13] = false;
+            neighbor_empty_multipoles[13] = true;
             neighbor_empty_monopoles[13] = false;
 
             iterate_inner_cells_not_padded(

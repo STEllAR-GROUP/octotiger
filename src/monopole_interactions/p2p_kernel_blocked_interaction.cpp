@@ -54,6 +54,9 @@ namespace fmm {
 
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
+                if (vector_is_empty[interaction_partner_flat_index]) {
+                    continue;
+                }
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -80,6 +83,9 @@ namespace fmm {
                 const m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
                 const m2m_vector::mask_type mask2 = theta_rec_squared > theta_c_rec_squared2;
 
+                if (Vc::none_of(mask) && Vc::none_of(mask2)) {
+                    continue;
+                }
                 m2m_vector monopole;
                 Vc::where(mask, monopole) = m2m_vector(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
