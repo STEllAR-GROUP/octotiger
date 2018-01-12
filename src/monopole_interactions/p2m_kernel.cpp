@@ -16,17 +16,14 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty, gsolve_type type)
+        p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty)
           : neighbor_empty(neighbor_empty)
-          , type(type)
           , theta_rec_squared(sqr(1.0 / opts.theta))
-        // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
             vectors_check_empty();
-            // calculate_coarse_indices();
         }
 
         void p2m_kernel::apply_stencil(
@@ -36,7 +33,7 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil, std::vector<bool>& interact) {
+            std::vector<multiindex<>>& stencil, std::vector<bool>& interact, gsolve_type type) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {

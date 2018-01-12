@@ -21,7 +21,9 @@ namespace fmm {
 
         monopole_interaction_interface::monopole_interaction_interface(void)
           : neighbor_empty_multipoles(27)
-          , neighbor_empty_monopoles(27) {
+          , neighbor_empty_monopoles(27)
+          , kernel(neighbor_empty_multipoles)
+          , kernel_monopoles(neighbor_empty_monopoles) {
             // Create our input structure for the compute kernel
             local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
@@ -153,8 +155,6 @@ namespace fmm {
                 p2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
                     potential_expansions_SoA(potential_expansions);
-                monopole_interactions::p2p_kernel kernel_monopoles(
-                    neighbor_empty_monopoles, type, dx);
                 // auto start = std::chrono::high_resolution_clock::now();
                 if (multipole_neighbors_exist) {
                     struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -163,9 +163,8 @@ namespace fmm {
                         center_of_masses_SoA(center_of_masses);
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
-                    p2m_kernel kernel(neighbor_empty_multipoles, type);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                        potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
+                        potential_expansions_SoA, angular_corrections_SoA, stencil, interact, type);
                     if (type == RHO) {
                         angular_corrections_SoA.to_non_SoA(angular_corrections);
                         std::vector<space_vector>& L_c = grid_ptr->get_L_c();
@@ -175,7 +174,7 @@ namespace fmm {
                     }
                 }
                 kernel_monopoles.apply_stencil(
-                    local_monopoles, potential_expansions_SoA, stencil, four);
+                    local_monopoles, potential_expansions_SoA, stencil, four, dx);
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
@@ -186,10 +185,8 @@ namespace fmm {
             } else if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
                     potential_expansions_SoA(potential_expansions);
-                monopole_interactions::p2p_kernel kernel_monopoles(
-                    neighbor_empty_monopoles, type, dx);
                 kernel_monopoles.apply_stencil(
-                    local_monopoles, potential_expansions_SoA, stencil, four);
+                    local_monopoles, potential_expansions_SoA, stencil, four, dx);
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
@@ -221,9 +218,8 @@ namespace fmm {
                         center_of_masses_SoA(center_of_masses);
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
-                    p2m_kernel kernel(neighbor_empty_multipoles, type);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                        potential_expansions_SoA, angular_corrections_SoA, stencil, interact);
+                        potential_expansions_SoA, angular_corrections_SoA, stencil, interact, type);
                     potential_expansions_SoA.to_non_SoA(potential_expansions);
                     if (type == RHO) {
                         angular_corrections_SoA.to_non_SoA(angular_corrections);

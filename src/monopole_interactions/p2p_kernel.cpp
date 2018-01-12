@@ -16,11 +16,9 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        p2p_kernel::p2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx)
+        p2p_kernel::p2p_kernel(std::vector<bool>& neighbor_empty)
           : neighbor_empty(neighbor_empty)
-          , type(type)
           , theta_rec_squared(sqr(1.0 / opts.theta))
-          , dx(dx)
         // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
@@ -33,7 +31,7 @@ namespace fmm {
         void p2p_kernel::apply_stencil(std::vector<real>& local_expansions,
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                 potential_expansions_SoA,
-            std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four) {
+            std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four, real dx) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -45,7 +43,7 @@ namespace fmm {
                 // std::cout << "se: " << se << std::endl;
                 // iterate_inner_cells_padded_stencil(se, *this);
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-                    for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1+=2) {
+                    for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1 += 2) {
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
@@ -70,7 +68,7 @@ namespace fmm {
 
                             this->blocked_interaction(local_expansions, potential_expansions_SoA,
                                 cell_index, cell_flat_index, cell_index_coarse, cell_index_unpadded,
-                                cell_flat_index_unpadded, stencil, four, outer_stencil_index);
+                                cell_flat_index_unpadded, stencil, four, outer_stencil_index, dx);
                         }
                     }
                 }

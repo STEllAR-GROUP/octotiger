@@ -14,6 +14,8 @@
 
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
+#include "p2p_kernel.hpp"
+#include "p2m_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -56,6 +58,9 @@ namespace fmm {
             real dx;
 
             std::shared_ptr<grid> grid_ptr;
+
+            p2m_kernel kernel;
+            p2p_kernel kernel_monopoles;
 
         public:
             /// The stencil is used to identify the neighbors?

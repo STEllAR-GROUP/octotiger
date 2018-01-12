@@ -22,12 +22,8 @@ namespace fmm {
             // so skip non-existing interaction partners faster, one entry per vector variable
             std::vector<bool> vector_is_empty;
 
-            gsolve_type type;
-
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
-
-            real dx;
 
             void blocked_interaction(
                 std::vector<real>& mons,
@@ -40,14 +36,14 @@ namespace fmm {
                 const size_t cell_flat_index_unpadded,
                 const std::vector<multiindex<>>& __restrict__ stencil,
                 const std::vector<std::array<real, 4>>& __restrict__ four_constants,
-                const size_t outer_stencil_index);
+                const size_t outer_stencil_index, real dx);
 
             void vectors_check_empty();
 
             // void calculate_coarse_indices();
 
         public:
-            p2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dE);
+            p2p_kernel(std::vector<bool>& neighbor_empty);
 
             p2p_kernel(p2p_kernel& other) = delete;
 
@@ -58,7 +54,8 @@ namespace fmm {
             void apply_stencil(std::vector<real>& mons,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                     potential_expansions_SoA,
-                std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four);
+                std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four,
+                real dx);
         };
 
     }    // namespace monopole_interactions

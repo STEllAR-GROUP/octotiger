@@ -24,7 +24,7 @@ namespace fmm {
             const size_t cell_flat_index_unpadded,
             const std::vector<multiindex<>>& __restrict__ stencil,
             const std::vector<std::array<real, 4>>& __restrict__ four_constants,
-            const size_t outer_stencil_index) {
+            const size_t outer_stencil_index, real dx) {
             multiindex<m2m_int_vector> cell_index_coarse2(cell_index_coarse);
             for (size_t j = 0; j < m2m_int_vector::size(); j++)
                 cell_index_coarse2.y[j] += 1;
