@@ -124,55 +124,34 @@ namespace fmm {
                 dX[1] = X[1] - Y[1];
                 dX[2] = X[2] - Y[2];
 
-                m2m_vector monopole(
+                m2m_vector monopole;
+                Vc::where(mask, monopole) = m2m_vector(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
 
                 D_split D_calculator(dX);
                 std::array<m2m_vector, 20> D_lower;
                 D_calculator.calculate_D_lower(D_lower);
 
-                std::array<m2m_vector, 20> cur_pot;
-                cur_pot[0] = monopole * D_lower[0];
-                cur_pot[1] = monopole * (D_lower[1]);
-                cur_pot[2] = monopole * (D_lower[2]);
-                cur_pot[3] = monopole * (D_lower[3]);
-                cur_pot[4] = monopole * (D_lower[4]);
-                cur_pot[5] = monopole * (D_lower[5]);
-                cur_pot[6] = monopole * (D_lower[6]);
-                cur_pot[7] = monopole * (D_lower[7]);
-                cur_pot[8] = monopole * (D_lower[8]);
-                cur_pot[9] = monopole * (D_lower[9]);
-                cur_pot[10] = monopole * (D_lower[10]);
-                cur_pot[11] = monopole * (D_lower[11]);
-                cur_pot[12] = monopole * (D_lower[12]);
-                cur_pot[13] = monopole * (D_lower[13]);
-                cur_pot[14] = monopole * (D_lower[14]);
-                cur_pot[15] = monopole * (D_lower[15]);
-                cur_pot[16] = monopole * (D_lower[16]);
-                cur_pot[17] = monopole * (D_lower[17]);
-                cur_pot[18] = monopole * (D_lower[18]);
-                cur_pot[19] = monopole * (D_lower[19]);
-
-                Vc::where(mask, tmpstore[0]) = tmpstore[0] + cur_pot[0];
-                Vc::where(mask, tmpstore[1]) = tmpstore[1] + cur_pot[1];
-                Vc::where(mask, tmpstore[2]) = tmpstore[2] + cur_pot[2];
-                Vc::where(mask, tmpstore[3]) = tmpstore[3] + cur_pot[3];
-                Vc::where(mask, tmpstore[4]) = tmpstore[4] + cur_pot[4];
-                Vc::where(mask, tmpstore[5]) = tmpstore[5] + cur_pot[5];
-                Vc::where(mask, tmpstore[6]) = tmpstore[6] + cur_pot[6];
-                Vc::where(mask, tmpstore[7]) = tmpstore[7] + cur_pot[7];
-                Vc::where(mask, tmpstore[8]) = tmpstore[8] + cur_pot[8];
-                Vc::where(mask, tmpstore[9]) = tmpstore[9] + cur_pot[9];
-                Vc::where(mask, tmpstore[10]) = tmpstore[10] + cur_pot[10];
-                Vc::where(mask, tmpstore[11]) = tmpstore[11] + cur_pot[11];
-                Vc::where(mask, tmpstore[12]) = tmpstore[12] + cur_pot[12];
-                Vc::where(mask, tmpstore[13]) = tmpstore[13] + cur_pot[13];
-                Vc::where(mask, tmpstore[14]) = tmpstore[14] + cur_pot[14];
-                Vc::where(mask, tmpstore[15]) = tmpstore[15] + cur_pot[15];
-                Vc::where(mask, tmpstore[16]) = tmpstore[16] + cur_pot[16];
-                Vc::where(mask, tmpstore[17]) = tmpstore[17] + cur_pot[17];
-                Vc::where(mask, tmpstore[18]) = tmpstore[18] + cur_pot[18];
-                Vc::where(mask, tmpstore[19]) = tmpstore[19] + cur_pot[19];
+                tmpstore[0] = tmpstore[0] + monopole * D_lower[0];
+                tmpstore[1] = tmpstore[1] + monopole * D_lower[1];
+                tmpstore[2] = tmpstore[2] + monopole * D_lower[2];
+                tmpstore[3] = tmpstore[3] + monopole * D_lower[3];
+                tmpstore[4] = tmpstore[4] + monopole * D_lower[4];
+                tmpstore[5] = tmpstore[5] + monopole * D_lower[5];
+                tmpstore[6] = tmpstore[6] + monopole * D_lower[6];
+                tmpstore[7] = tmpstore[7] + monopole * D_lower[7];
+                tmpstore[8] = tmpstore[8] + monopole * D_lower[8];
+                tmpstore[9] = tmpstore[9] + monopole * D_lower[9];
+                tmpstore[10] = tmpstore[10] + monopole * D_lower[10];
+                tmpstore[11] = tmpstore[11] + monopole * D_lower[11];
+                tmpstore[12] = tmpstore[12] + monopole * D_lower[12];
+                tmpstore[13] = tmpstore[13] + monopole * D_lower[13];
+                tmpstore[14] = tmpstore[14] + monopole * D_lower[14];
+                tmpstore[15] = tmpstore[15] + monopole * D_lower[15];
+                tmpstore[16] = tmpstore[16] + monopole * D_lower[16];
+                tmpstore[17] = tmpstore[17] + monopole * D_lower[17];
+                tmpstore[18] = tmpstore[18] + monopole * D_lower[18];
+                tmpstore[19] = tmpstore[19] + monopole * D_lower[19];
 
                 m2m_vector const n0_constant =
                     monopole / local_expansions_SoA.value<0>(cell_flat_index);
@@ -295,14 +274,10 @@ namespace fmm {
                 current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth_v[19]);
                 current_angular_correction[2] -= n0_tmp * (D_upper[14] * factor_sixth_v[19]);
 
-                Vc::where(mask, tmp_corrections[0]) =
-                    tmp_corrections[0] + current_angular_correction[0];
-                Vc::where(mask, tmp_corrections[1]) =
-                    tmp_corrections[1] + current_angular_correction[1];
-                Vc::where(mask, tmp_corrections[2]) =
-                    tmp_corrections[2] + current_angular_correction[2];
-                Vc::where(mask, tmp_corrections[3]) =
-                    tmp_corrections[3] + current_angular_correction[3];
+                tmp_corrections[0] = tmp_corrections[0] + current_angular_correction[0];
+                tmp_corrections[1] = tmp_corrections[1] + current_angular_correction[1];
+                tmp_corrections[2] = tmp_corrections[2] + current_angular_correction[2];
+                tmp_corrections[3] = tmp_corrections[3] + current_angular_correction[3];
             }
             if (changed_data) {
                 tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
@@ -471,55 +446,34 @@ namespace fmm {
                 dX[1] = X[1] - Y[1];
                 dX[2] = X[2] - Y[2];
 
-                m2m_vector monopole(
+                m2m_vector monopole;
+                Vc::where(mask, monopole) = m2m_vector(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
 
                 D_split D_calculator(dX);
                 std::array<m2m_vector, 20> D_lower;
                 D_calculator.calculate_D_lower(D_lower);
 
-                std::array<m2m_vector, 20> cur_pot;
-                cur_pot[0] = monopole * D_lower[0];
-                cur_pot[1] = monopole * (D_lower[1]);
-                cur_pot[2] = monopole * (D_lower[2]);
-                cur_pot[3] = monopole * (D_lower[3]);
-                cur_pot[4] = monopole * (D_lower[4]);
-                cur_pot[5] = monopole * (D_lower[5]);
-                cur_pot[6] = monopole * (D_lower[6]);
-                cur_pot[7] = monopole * (D_lower[7]);
-                cur_pot[8] = monopole * (D_lower[8]);
-                cur_pot[9] = monopole * (D_lower[9]);
-                cur_pot[10] = monopole * (D_lower[10]);
-                cur_pot[11] = monopole * (D_lower[11]);
-                cur_pot[12] = monopole * (D_lower[12]);
-                cur_pot[13] = monopole * (D_lower[13]);
-                cur_pot[14] = monopole * (D_lower[14]);
-                cur_pot[15] = monopole * (D_lower[15]);
-                cur_pot[16] = monopole * (D_lower[16]);
-                cur_pot[17] = monopole * (D_lower[17]);
-                cur_pot[18] = monopole * (D_lower[18]);
-                cur_pot[19] = monopole * (D_lower[19]);
-
-                Vc::where(mask, tmpstore[0]) = tmpstore[0] + cur_pot[0];
-                Vc::where(mask, tmpstore[1]) = tmpstore[1] + cur_pot[1];
-                Vc::where(mask, tmpstore[2]) = tmpstore[2] + cur_pot[2];
-                Vc::where(mask, tmpstore[3]) = tmpstore[3] + cur_pot[3];
-                Vc::where(mask, tmpstore[4]) = tmpstore[4] + cur_pot[4];
-                Vc::where(mask, tmpstore[5]) = tmpstore[5] + cur_pot[5];
-                Vc::where(mask, tmpstore[6]) = tmpstore[6] + cur_pot[6];
-                Vc::where(mask, tmpstore[7]) = tmpstore[7] + cur_pot[7];
-                Vc::where(mask, tmpstore[8]) = tmpstore[8] + cur_pot[8];
-                Vc::where(mask, tmpstore[9]) = tmpstore[9] + cur_pot[9];
-                Vc::where(mask, tmpstore[10]) = tmpstore[10] + cur_pot[10];
-                Vc::where(mask, tmpstore[11]) = tmpstore[11] + cur_pot[11];
-                Vc::where(mask, tmpstore[12]) = tmpstore[12] + cur_pot[12];
-                Vc::where(mask, tmpstore[13]) = tmpstore[13] + cur_pot[13];
-                Vc::where(mask, tmpstore[14]) = tmpstore[14] + cur_pot[14];
-                Vc::where(mask, tmpstore[15]) = tmpstore[15] + cur_pot[15];
-                Vc::where(mask, tmpstore[16]) = tmpstore[16] + cur_pot[16];
-                Vc::where(mask, tmpstore[17]) = tmpstore[17] + cur_pot[17];
-                Vc::where(mask, tmpstore[18]) = tmpstore[18] + cur_pot[18];
-                Vc::where(mask, tmpstore[19]) = tmpstore[19] + cur_pot[19];
+                tmpstore[0] = tmpstore[0] + monopole * D_lower[0];
+                tmpstore[1] = tmpstore[1] + monopole * D_lower[1];
+                tmpstore[2] = tmpstore[2] + monopole * D_lower[2];
+                tmpstore[3] = tmpstore[3] + monopole * D_lower[3];
+                tmpstore[4] = tmpstore[4] + monopole * D_lower[4];
+                tmpstore[5] = tmpstore[5] + monopole * D_lower[5];
+                tmpstore[6] = tmpstore[6] + monopole * D_lower[6];
+                tmpstore[7] = tmpstore[7] + monopole * D_lower[7];
+                tmpstore[8] = tmpstore[8] + monopole * D_lower[8];
+                tmpstore[9] = tmpstore[9] + monopole * D_lower[9];
+                tmpstore[10] = tmpstore[10] + monopole * D_lower[10];
+                tmpstore[11] = tmpstore[11] + monopole * D_lower[11];
+                tmpstore[12] = tmpstore[12] + monopole * D_lower[12];
+                tmpstore[13] = tmpstore[13] + monopole * D_lower[13];
+                tmpstore[14] = tmpstore[14] + monopole * D_lower[14];
+                tmpstore[15] = tmpstore[15] + monopole * D_lower[15];
+                tmpstore[16] = tmpstore[16] + monopole * D_lower[16];
+                tmpstore[17] = tmpstore[17] + monopole * D_lower[17];
+                tmpstore[18] = tmpstore[18] + monopole * D_lower[18];
+                tmpstore[19] = tmpstore[19] + monopole * D_lower[19];
             }
             if (changed_data) {
                 tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
