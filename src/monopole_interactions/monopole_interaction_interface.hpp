@@ -50,7 +50,6 @@ namespace fmm {
 
             std::vector<bool> neighbor_empty_multipoles;
             std::vector<bool> neighbor_empty_monopoles;
-            std::vector<bool> interact;
 
             gsolve_type type;
 

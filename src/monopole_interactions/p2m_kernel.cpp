@@ -23,7 +23,7 @@ namespace fmm {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
-            vectors_check_empty();
+            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
         }
 
         void p2m_kernel::apply_stencil(
@@ -33,7 +33,8 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil, std::vector<bool>& interact, gsolve_type type) {
+            std::vector<multiindex<>>& stencil, gsolve_type type) {
+            vectors_check_empty();
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -76,15 +77,13 @@ namespace fmm {
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
-                                    interact);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
                             } else {
                                 this->blocked_interaction_non_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
-                                    interact);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
                             }
                         }
                     }
@@ -93,7 +92,6 @@ namespace fmm {
         }
 
         void p2m_kernel::vectors_check_empty() {
-            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
                 for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
                     for (size_t i2 = 0; i2 < PADDED_STRIDE; i2 += 1) {
@@ -121,6 +119,8 @@ namespace fmm {
                         } else {
                             vector_is_empty[cell_flat_index] = false;
                         }
+                        if (i0 >= 8 && i0 < 16 && i1 >= 8 && i1 < 16 && i2 >= 8 && i2 < 16)
+                            vector_is_empty[cell_flat_index] = true;
                     }
                 }
             }

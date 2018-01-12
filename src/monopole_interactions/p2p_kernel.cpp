@@ -24,7 +24,7 @@ namespace fmm {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
-            vectors_check_empty();
+            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             // calculate_coarse_indices();
         }
 
@@ -32,6 +32,7 @@ namespace fmm {
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                 potential_expansions_SoA,
             std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four, real dx) {
+            vectors_check_empty();
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -76,7 +77,6 @@ namespace fmm {
         }
 
         void p2p_kernel::vectors_check_empty() {
-            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
                 for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
                     for (size_t i2 = 0; i2 < PADDED_STRIDE; i2 += 1) {

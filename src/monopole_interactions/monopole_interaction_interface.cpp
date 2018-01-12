@@ -27,7 +27,6 @@ namespace fmm {
             // Create our input structure for the compute kernel
             local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
-            interact = std::vector<bool>(EXPANSION_COUNT_PADDED);
             potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
             angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
 
@@ -47,7 +46,6 @@ namespace fmm {
                     const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                     local_expansions.at(flat_index) = 0.0;
                     center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
-                    interact.at(flat_index) = false;
 
                     local_monopoles.at(flat_index) = mons.at(flat_index_unpadded);
                 });
@@ -80,7 +78,6 @@ namespace fmm {
                                 local_expansions.at(flat_index) = 0.0;
                                 // initializes x,y,z vector
                                 center_of_masses.at(flat_index) = 0.0;
-                                interact.at(flat_index) = false;
 
                                 local_monopoles.at(flat_index) = 0.0;
                             });
@@ -97,7 +94,6 @@ namespace fmm {
                                     neighbor_M_ptr.at(flat_index_unpadded);
                                 center_of_masses.at(flat_index) =
                                     neighbor_com0.at(flat_index_unpadded);
-                                interact.at(flat_index) = true;
 
                                 local_monopoles.at(flat_index) = 0.0;
                             });
@@ -164,7 +160,7 @@ namespace fmm {
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                        potential_expansions_SoA, angular_corrections_SoA, stencil, interact, type);
+                        potential_expansions_SoA, angular_corrections_SoA, stencil, type);
                     if (type == RHO) {
                         angular_corrections_SoA.to_non_SoA(angular_corrections);
                         std::vector<space_vector>& L_c = grid_ptr->get_L_c();
@@ -219,7 +215,7 @@ namespace fmm {
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                        potential_expansions_SoA, angular_corrections_SoA, stencil, interact, type);
+                        potential_expansions_SoA, angular_corrections_SoA, stencil, type);
                     potential_expansions_SoA.to_non_SoA(potential_expansions);
                     if (type == RHO) {
                         angular_corrections_SoA.to_non_SoA(angular_corrections);
