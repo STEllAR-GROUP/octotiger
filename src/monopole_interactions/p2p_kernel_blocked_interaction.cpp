@@ -41,6 +41,7 @@ namespace fmm {
             tmpstore[6] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded + 8);
             tmpstore[7] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded + 8);
 
+            bool data_changed = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2P_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index +=
@@ -86,6 +87,7 @@ namespace fmm {
                 if (Vc::none_of(mask) && Vc::none_of(mask2)) {
                     continue;
                 }
+                data_changed = true;
                 m2m_vector monopole;
                 Vc::where(mask, monopole) = m2m_vector(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
@@ -108,22 +110,28 @@ namespace fmm {
                 tmpstore[6] = tmpstore[6] + four[2] * monopole2 * d_components[1];
                 tmpstore[7] = tmpstore[7] + four[3] * monopole2 * d_components[1];
             }
-            tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[4].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded + 8),
-                Vc::flags::element_aligned);
-            tmpstore[5].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded + 8),
-                Vc::flags::element_aligned);
-            tmpstore[6].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded + 8),
-                Vc::flags::element_aligned);
-            tmpstore[7].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded + 8),
-                Vc::flags::element_aligned);
+            if (data_changed) {
+                tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[4].memstore(
+                    potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded + 8),
+                    Vc::flags::element_aligned);
+                tmpstore[5].memstore(
+                    potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded + 8),
+                    Vc::flags::element_aligned);
+                tmpstore[6].memstore(
+                    potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded + 8),
+                    Vc::flags::element_aligned);
+                tmpstore[7].memstore(
+                    potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded + 8),
+                    Vc::flags::element_aligned);
+            }
         }
     }    // namespace monopole_interactions
 }    // namespace fmm

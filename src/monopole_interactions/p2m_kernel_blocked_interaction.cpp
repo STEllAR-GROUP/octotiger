@@ -33,7 +33,8 @@ namespace fmm {
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& __restrict__ stencil, const size_t outer_stencil_index) {
+            const std::vector<multiindex<>>& __restrict__ stencil,
+            const size_t outer_stencil_index) {
             std::array<m2m_vector, NDIM> X;
             X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
@@ -48,6 +49,7 @@ namespace fmm {
             tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
             tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
             tmp_corrections[3] = angular_corrections_SoA.value<3>(cell_flat_index_unpadded);
+            bool data_changed = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2M_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
@@ -84,6 +86,7 @@ namespace fmm {
                 if (Vc::none_of(mask)) {
                     continue;
                 }
+                data_changed = true;
 
                 std::array<m2m_vector, NDIM> Y;
                 Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
@@ -184,9 +187,9 @@ namespace fmm {
                 m2m_vector d3_X02 = D_calculator.d3 * X_02;
                 D_upper[2] = 3.0 * d3_X02;
 
-                current_angular_correction[0] = - m_partner[7] * (D_upper[0] * factor_sixth_v[10]);
-                current_angular_correction[1] = - m_partner[7] * (D_upper[1] * factor_sixth_v[10]);
-                current_angular_correction[2] = - m_partner[7] * (D_upper[2] * factor_sixth_v[10]);
+                current_angular_correction[0] = -m_partner[7] * (D_upper[0] * factor_sixth_v[10]);
+                current_angular_correction[1] = -m_partner[7] * (D_upper[1] * factor_sixth_v[10]);
+                current_angular_correction[2] = -m_partner[7] * (D_upper[2] * factor_sixth_v[10]);
 
                 D_upper[3] = D_calculator.d2;
                 m2m_vector d3_X11 = D_calculator.d3 * D_calculator.X_11;
@@ -268,23 +271,25 @@ namespace fmm {
                 Vc::where(mask, tmp_corrections[2]) =
                     tmp_corrections[2] + current_angular_correction[2];
             }
-            tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmp_corrections[0].memstore(
-                angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmp_corrections[1].memstore(
-                angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmp_corrections[2].memstore(
-                angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
+            if (data_changed) {
+                tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmp_corrections[0].memstore(
+                    angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmp_corrections[1].memstore(
+                    angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmp_corrections[2].memstore(
+                    angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+            }
         }
 
         void p2m_kernel::blocked_interaction_non_rho(
@@ -311,6 +316,7 @@ namespace fmm {
             tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
             tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
             tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            bool data_changed = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2M_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
@@ -347,6 +353,7 @@ namespace fmm {
                 if (Vc::none_of(mask)) {
                     continue;
                 }
+                data_changed = true;
 
                 std::array<m2m_vector, NDIM> Y;
                 Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
@@ -433,14 +440,16 @@ namespace fmm {
                 Vc::where(mask, tmpstore[2]) = tmpstore[2] + cur_pot[2];
                 Vc::where(mask, tmpstore[3]) = tmpstore[3] + cur_pot[3];
             }
-            tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
+            if (data_changed) {
+                tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+            }
         }
     }    // namespace monopole_interactions
 }    // namespace fmm
