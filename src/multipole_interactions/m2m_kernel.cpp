@@ -25,8 +25,7 @@ namespace fmm {
             // potential_expansions_SoA,
             // struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
             // angular_corrections_SoA,
-            std::vector<bool>& neighbor_empty,
-            gsolve_type type)
+            std::vector<bool>& neighbor_empty)
           :    // local_expansions(local_expansions),
           // local_expansions_SoA(local_expansions_SoA)
           // , center_of_masses(center_of_masses),
@@ -36,14 +35,13 @@ namespace fmm {
           // , angular_corrections(angular_corrections)
           // , angular_corrections_SoA(angular_corrections_SoA),
           neighbor_empty(neighbor_empty)
-          , type(type)
           , theta_rec_squared(sqr(1.0 / opts.theta))
         // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
-            vectors_check_empty();
+            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             // calculate_coarse_indices();
         }
 
@@ -54,7 +52,8 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil) {
+            std::vector<multiindex<>>& stencil, gsolve_type type) {
+            vectors_check_empty();
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
                  outer_stencil_index += STENCIL_BLOCKING) {
@@ -121,7 +120,6 @@ namespace fmm {
         // }
 
         void m2m_kernel::vectors_check_empty() {
-            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
                 for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
                     for (size_t i2 = 0; i2 < PADDED_STRIDE; i2 += 1) {

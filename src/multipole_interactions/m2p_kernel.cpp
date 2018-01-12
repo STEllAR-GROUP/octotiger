@@ -16,20 +16,16 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        m2p_kernel::m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dx,
-            std::array<real, NDIM> xbase)
+        m2p_kernel::m2p_kernel(std::vector<bool>& neighbor_empty)
           : neighbor_empty(neighbor_empty)
-          , type(type)
           , theta_rec_squared(sqr(1.0 / opts.theta))
-          , dX(dx)
-          , xBase(xbase)
         // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
-            vectors_check_empty();
             // calculate_coarse_indices();
+            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
         }
 
         void m2p_kernel::apply_stencil(std::vector<real>& mons,
@@ -40,7 +36,9 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil, std::vector<bool>& interact) {
+            std::vector<multiindex<>>& stencil, gsolve_type type, real dX,
+            std::array<real, NDIM>& xbase) {
+            vectors_check_empty();
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -83,14 +81,14 @@ namespace fmm {
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
-                                    interact);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index, dX,
+                                    xbase);
                             } else {
                                 this->blocked_interaction_non_rho(mons, center_of_masses_SoA,
                                     potential_expansions_SoA, angular_corrections_SoA, cell_index,
                                     cell_flat_index, cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index,
-                                    interact);
+                                    cell_flat_index_unpadded, stencil, outer_stencil_index, dX,
+                                    xbase);
                             }
                         }
                     }
@@ -99,7 +97,6 @@ namespace fmm {
         }
 
         void m2p_kernel::vectors_check_empty() {
-            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
                 for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
                     for (size_t i2 = 0; i2 < PADDED_STRIDE; i2 += 1) {
@@ -127,6 +124,8 @@ namespace fmm {
                         } else {
                             vector_is_empty[cell_flat_index] = false;
                         }
+                        if (i0 >= 8 && i0 < 16 && i1 >= 8 && i1 < 16 && i2 >= 8 && i2 < 16)
+                            vector_is_empty[cell_flat_index] = true;
                     }
                 }
             }

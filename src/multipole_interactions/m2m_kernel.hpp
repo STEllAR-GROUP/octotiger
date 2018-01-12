@@ -44,8 +44,6 @@ namespace fmm {
             // std::vector<int32_t> coarse_y;
             // std::vector<int32_t> coarse_z;
 
-            gsolve_type type;
-
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
 
@@ -161,7 +159,7 @@ namespace fmm {
                 //     potential_expansions_SoA,
                 // struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 //     angular_corrections_SoA,
-                std::vector<bool>& neighbor_empty, gsolve_type type);
+                std::vector<bool>& neighbor_empty);
 
             m2m_kernel(m2m_kernel& other) = delete;
 
@@ -177,7 +175,7 @@ namespace fmm {
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     angular_corrections_SoA,
-                std::vector<multiindex<>>& stencil);
+                               std::vector<multiindex<>>& stencil, gsolve_type type);
         };
 
     }    // namespace multipole_interactions

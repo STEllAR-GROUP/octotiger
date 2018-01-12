@@ -13,6 +13,8 @@
 
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
+#include "m2p_kernel.hpp"
+#include "m2m_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -42,7 +44,6 @@ namespace fmm {
             std::vector<expansion> potential_expansions;
             // angular momentum correction on this cell (L_c)
             std::vector<space_vector> angular_corrections;
-            std::vector<bool> interact;
 
             std::vector<bool> neighbor_empty_multipole;
             std::vector<bool> neighbor_empty_monopole;
@@ -54,6 +55,9 @@ namespace fmm {
             std::array<real, NDIM> xBase;
 
             std::shared_ptr<grid> grid_ptr;
+            m2m_kernel kernel;
+            m2p_kernel mixed_interactions_kernel;
+
         public:
             static std::vector<multiindex<>> stencil_multipole_interactions;
             static std::vector<multiindex<>> stencil_mixed_interactions;

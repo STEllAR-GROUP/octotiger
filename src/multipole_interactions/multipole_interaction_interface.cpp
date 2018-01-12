@@ -18,12 +18,13 @@ namespace fmm {
         std::vector<multiindex<>> multipole_interaction_interface::stencil_mixed_interactions;
         multipole_interaction_interface::multipole_interaction_interface(void)
           : neighbor_empty_multipole(27)
-          , neighbor_empty_monopole(27) {
+          , neighbor_empty_monopole(27)
+          , kernel(neighbor_empty_multipole)
+          , mixed_interactions_kernel(neighbor_empty_monopole) {
             local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
             center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
 
             local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
-            interact = std::vector<bool>(EXPANSION_COUNT_PADDED);
 
             potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
             angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
@@ -44,7 +45,6 @@ namespace fmm {
                     const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                     local_expansions.at(flat_index) = M_ptr.at(flat_index_unpadded);
                     center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
-                    interact.at(flat_index) = false;
                 });
 
             for (size_t i = 0; i < neighbor_empty_multipole.size(); i++) {
@@ -71,7 +71,6 @@ namespace fmm {
                                 center_of_masses.at(flat_index) = 0.0;
 
                                 local_monopoles.at(flat_index) = 0.0;
-                                interact.at(flat_index) = false;
                             });
                         neighbor_empty_multipole[dir.flat_index_with_center()] = true;
                     } else {
@@ -87,7 +86,6 @@ namespace fmm {
                                     neighbor_com0.at(flat_index_unpadded);
 
                                 local_monopoles.at(flat_index) = 0.0;
-                                interact.at(flat_index) = false;
                             });
                     }
                 } else {
@@ -102,7 +100,6 @@ namespace fmm {
                                 local_expansions.at(flat_index) = 0.0;
                                 // initializes x,y,z vector
                                 center_of_masses.at(flat_index) = 0.0;
-                                interact.at(flat_index) = false;
                             });
                         neighbor_empty_monopole[dir.flat_index_with_center()] = true;
                     } else {
@@ -118,7 +115,6 @@ namespace fmm {
 
                                 local_monopoles.at(flat_index) =
                                     neighbor_mons.at(flat_index_unpadded);
-                                interact.at(flat_index) = true;
                             });
                         monopole_neighbors_exist = true;
                     }
@@ -126,7 +122,7 @@ namespace fmm {
             }
 
             neighbor_empty_multipole[13] = false;
-            neighbor_empty_monopole[13] = false;
+            neighbor_empty_monopole[13] = true;
 
             // TODO/BUG: expansion don't initialize to zero by default
             iterate_inner_cells_not_padded(
@@ -163,18 +159,15 @@ namespace fmm {
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                     angular_corrections_SoA(angular_corrections);
 
-                m2m_kernel kernel(neighbor_empty_multipole, type);
-
                 if (monopole_neighbors_exist) {
-                    m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                        stencil_mixed_interactions, interact);
+                        stencil_mixed_interactions, type, dX, xBase);
                 }
 
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
-                    stencil_multipole_interactions);
+                    stencil_multipole_interactions, type);
 
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
 
@@ -200,10 +193,9 @@ namespace fmm {
                     potential_expansions_SoA(potential_expansions);
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                     angular_corrections_SoA(angular_corrections);
-                m2m_kernel kernel(neighbor_empty_multipole, type);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
-                    stencil_multipole_interactions);
+                    stencil_multipole_interactions, type);
 
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
                 if (type == RHO)
@@ -239,10 +231,9 @@ namespace fmm {
                         potential_expansions_SoA(potential_expansions);
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
-                    m2p_kernel mixed_interactions_kernel(neighbor_empty_monopole, type, dX, xBase);
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                        stencil_mixed_interactions, interact);
+                        stencil_mixed_interactions, type, dX, xBase);
                     potential_expansions_SoA.to_non_SoA(potential_expansions);
                     if (type == RHO)
                         angular_corrections_SoA.to_non_SoA(angular_corrections);

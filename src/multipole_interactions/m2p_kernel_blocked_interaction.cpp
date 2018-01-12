@@ -34,7 +34,7 @@ namespace fmm {
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded,
             const std::vector<multiindex<>>& __restrict__ stencil, const size_t outer_stencil_index,
-            std::vector<bool>& interact) {
+            real dX, std::array<real, NDIM>& xbase) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
@@ -69,6 +69,7 @@ namespace fmm {
             tmp_corrections[0] = angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
             tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
             tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
+            bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
@@ -84,11 +85,6 @@ namespace fmm {
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
-                if (!interact[interaction_partner_flat_index] &&
-                    !interact[interaction_partner_flat_index + 1] &&
-                    !interact[interaction_partner_flat_index + 2] &&
-                    !interact[interaction_partner_flat_index + 3])
-                    continue;
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
                     continue;
@@ -114,12 +110,13 @@ namespace fmm {
                 if (Vc::none_of(mask)) {
                     continue;
                 }
+                changed_data = true;
 
                 std::array<m2m_vector, NDIM> Y;
                 for (auto i = 0; i < m2m_vector::size(); ++i) {
-                    Y[0][i] = (interaction_partner_index_unpadded.x) * dX + xBase[0];
-                    Y[1][i] = (interaction_partner_index_unpadded.y) * dX + xBase[1];
-                    Y[2][i] = (interaction_partner_index_unpadded.z + i) * dX + xBase[2];
+                    Y[0][i] = (interaction_partner_index_unpadded.x) * dX + xbase[0];
+                    Y[1][i] = (interaction_partner_index_unpadded.y) * dX + xbase[1];
+                    Y[2][i] = (interaction_partner_index_unpadded.z + i) * dX + xbase[2];
                 }
 
                 std::array<m2m_vector, NDIM> dX;
@@ -307,59 +304,71 @@ namespace fmm {
                 Vc::where(mask, tmp_corrections[3]) =
                     tmp_corrections[3] + current_angular_correction[3];
             }
-            tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[4].memstore(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[5].memstore(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[6].memstore(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[7].memstore(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[8].memstore(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[9].memstore(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[10].memstore(potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[11].memstore(potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[12].memstore(potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[13].memstore(potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[14].memstore(potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[15].memstore(potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[16].memstore(potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[17].memstore(potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[18].memstore(potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[19].memstore(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
+            if (changed_data) {
+                tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[4].memstore(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[5].memstore(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[6].memstore(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[7].memstore(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[8].memstore(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[9].memstore(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[10].memstore(
+                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[11].memstore(
+                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[12].memstore(
+                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[13].memstore(
+                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[14].memstore(
+                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[15].memstore(
+                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[16].memstore(
+                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[17].memstore(
+                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[18].memstore(
+                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[19].memstore(
+                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
 
-            tmp_corrections[0].memstore(
-                angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmp_corrections[1].memstore(
-                angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmp_corrections[2].memstore(
-                angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmp_corrections[3].memstore(
-                angular_corrections_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
+                tmp_corrections[0].memstore(
+                    angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmp_corrections[1].memstore(
+                    angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmp_corrections[2].memstore(
+                    angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmp_corrections[3].memstore(
+                    angular_corrections_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+            }
         }
 
         void m2p_kernel::blocked_interaction_non_rho(std::vector<real>& mons,
@@ -371,8 +380,8 @@ namespace fmm {
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index,
-            std::vector<bool>& interact) {
+            const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index, real dX,
+            std::array<real, NDIM>& xbase) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
@@ -402,6 +411,7 @@ namespace fmm {
             tmpstore[17] = potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
             tmpstore[18] = potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
             tmpstore[19] = potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
+            bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
@@ -417,11 +427,6 @@ namespace fmm {
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
-                if (!interact[interaction_partner_flat_index] &&
-                    !interact[interaction_partner_flat_index + 1] &&
-                    !interact[interaction_partner_flat_index + 2] &&
-                    !interact[interaction_partner_flat_index + 3])
-                    continue;
                 // check whether all vector elements are in empty border
                 if (vector_is_empty[interaction_partner_flat_index]) {
                     continue;
@@ -447,6 +452,8 @@ namespace fmm {
                 if (Vc::none_of(mask)) {
                     continue;
                 }
+                changed_data = true;
+
                 std::array<m2m_vector, NDIM> X;
                 X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
                 X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
@@ -454,9 +461,9 @@ namespace fmm {
 
                 std::array<m2m_vector, NDIM> Y;
                 for (auto i = 0; i < m2m_vector::size(); ++i) {
-                    Y[0][i] = (interaction_partner_index_unpadded.x) * dX + xBase[0];
-                    Y[1][i] = (interaction_partner_index_unpadded.y) * dX + xBase[1];
-                    Y[2][i] = (interaction_partner_index_unpadded.z + i) * dX + xBase[2];
+                    Y[0][i] = (interaction_partner_index_unpadded.x) * dX + xbase[0];
+                    Y[1][i] = (interaction_partner_index_unpadded.y) * dX + xbase[1];
+                    Y[2][i] = (interaction_partner_index_unpadded.z + i) * dX + xbase[2];
                 }
 
                 std::array<m2m_vector, NDIM> dX;
@@ -513,48 +520,59 @@ namespace fmm {
                 Vc::where(mask, tmpstore[17]) = tmpstore[17] + cur_pot[17];
                 Vc::where(mask, tmpstore[18]) = tmpstore[18] + cur_pot[18];
                 Vc::where(mask, tmpstore[19]) = tmpstore[19] + cur_pot[19];
-
             }
-            tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[4].memstore(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[5].memstore(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[6].memstore(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[7].memstore(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[8].memstore(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[9].memstore(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[10].memstore(potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[11].memstore(potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[12].memstore(potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[13].memstore(potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[14].memstore(potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[15].memstore(potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[16].memstore(potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[17].memstore(potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[18].memstore(potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
-            tmpstore[19].memstore(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
-                Vc::flags::element_aligned);
+            if (changed_data) {
+                tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[4].memstore(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[5].memstore(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[6].memstore(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[7].memstore(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[8].memstore(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[9].memstore(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[10].memstore(
+                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[11].memstore(
+                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[12].memstore(
+                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[13].memstore(
+                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[14].memstore(
+                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[15].memstore(
+                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[16].memstore(
+                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[17].memstore(
+                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[18].memstore(
+                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+                tmpstore[19].memstore(
+                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
+                    Vc::flags::element_aligned);
+            }
         }
     }    // namespace multipole_interactions
 }    // namespace fmm

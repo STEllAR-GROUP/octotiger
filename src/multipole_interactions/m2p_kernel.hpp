@@ -22,14 +22,9 @@ namespace fmm {
             /// so skip non-existing interaction partners faster, one entry per vector variable
             std::vector<bool> vector_is_empty;
 
-            /// determines how the system is going to be solved: rho or non-rho
-            gsolve_type type;
 
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
-
-            real dX;
-            std::array<real, NDIM> xBase;
 
             /// Calculates the monopole multipole boundary interactions with solve type rho
             void blocked_interaction_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
@@ -44,7 +39,7 @@ namespace fmm {
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
                 const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index,
-                std::vector<bool>& interact);
+                real dX, std::array<real, NDIM> &xbase);
 
             /// Calculates the monopole multipole boundary interactions without the solve type rho
             void blocked_interaction_non_rho(std::vector<real>& mons,
@@ -58,13 +53,12 @@ namespace fmm {
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
                 const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index,
-                std::vector<bool>& interact);
+                real dX, std::array<real, NDIM> &xbase);
 
             void vectors_check_empty();
 
         public:
-            m2p_kernel(std::vector<bool>& neighbor_empty, gsolve_type type, real dX,
-                std::array<real, NDIM> xbase);
+            m2p_kernel(std::vector<bool>& neighbor_empty);
 
             m2p_kernel(m2p_kernel& other) = delete;
             m2p_kernel(const m2p_kernel& other) = delete;
@@ -79,7 +73,8 @@ namespace fmm {
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     angular_corrections_SoA,
-                std::vector<multiindex<>>& stencil, std::vector<bool>& interact);
+                std::vector<multiindex<>>& stencil, gsolve_type type, real dX,
+                std::array<real, NDIM> &xbase);
         };
 
     }    // namespace multipole_interactions
