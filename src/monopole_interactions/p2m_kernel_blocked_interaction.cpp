@@ -40,15 +40,15 @@ namespace fmm {
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
             X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
             std::array<m2m_vector, 4> tmpstore;
-            tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
-            std::array<m2m_vector, 4> tmp_corrections;
-            tmp_corrections[0] = angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
-            tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
-            tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
-            tmp_corrections[3] = angular_corrections_SoA.value<3>(cell_flat_index_unpadded);
+            // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            // tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            // tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            std::array<m2m_vector, 3> tmp_corrections;
+            // tmp_corrections[0] = angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
+            // tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
+            // tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
+            // tmp_corrections[3] = angular_corrections_SoA.value<3>(cell_flat_index_unpadded);
             bool data_changed = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2M_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
@@ -272,6 +272,14 @@ namespace fmm {
                     tmp_corrections[2] + current_angular_correction[2];
             }
             if (data_changed) {
+                tmpstore[0] =
+                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                tmpstore[1] =
+                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                tmpstore[2] =
+                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                tmpstore[3] =
+                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
                 tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
                 tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
@@ -280,6 +288,13 @@ namespace fmm {
                     Vc::flags::element_aligned);
                 tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
+
+                tmp_corrections[0] =
+                    tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
+                tmp_corrections[1] =
+                    tmp_corrections[1] + angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
+                tmp_corrections[2] =
+                    tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
                 tmp_corrections[0].memstore(
                     angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
@@ -312,10 +327,10 @@ namespace fmm {
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
             X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
             std::array<m2m_vector, 4> tmpstore;
-            tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            // tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            // tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
             bool data_changed = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2M_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
@@ -441,6 +456,14 @@ namespace fmm {
                 Vc::where(mask, tmpstore[3]) = tmpstore[3] + cur_pot[3];
             }
             if (data_changed) {
+                tmpstore[0] =
+                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                tmpstore[1] =
+                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                tmpstore[2] =
+                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                tmpstore[3] =
+                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
                 tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
                 tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
