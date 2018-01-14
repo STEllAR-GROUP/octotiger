@@ -44,31 +44,31 @@ namespace fmm {
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
             X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
             std::array<m2m_vector, 20> tmpstore;
-            tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
-            tmpstore[4] = potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
-            tmpstore[5] = potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
-            tmpstore[6] = potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
-            tmpstore[7] = potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
-            tmpstore[8] = potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
-            tmpstore[9] = potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
-            tmpstore[10] = potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
-            tmpstore[11] = potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
-            tmpstore[12] = potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
-            tmpstore[13] = potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
-            tmpstore[14] = potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
-            tmpstore[15] = potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
-            tmpstore[16] = potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
-            tmpstore[17] = potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
-            tmpstore[18] = potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
-            tmpstore[19] = potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
+            // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            // tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            // tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            // tmpstore[4] = potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+            // tmpstore[5] = potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+            // tmpstore[6] = potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+            // tmpstore[7] = potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+            // tmpstore[8] = potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+            // tmpstore[9] = potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+            // tmpstore[10] = potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+            // tmpstore[11] = potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+            // tmpstore[12] = potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+            // tmpstore[13] = potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+            // tmpstore[14] = potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+            // tmpstore[15] = potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+            // tmpstore[16] = potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+            // tmpstore[17] = potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+            // tmpstore[18] = potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+            // tmpstore[19] = potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
 
             std::array<m2m_vector, 3> tmp_corrections;
-            tmp_corrections[0] = angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
-            tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
-            tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
+            // tmp_corrections[0] = angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
+            // tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
+            // tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
             // struct_of_array_iterator<space_vector, real, 3> X(center_of_masses_SoA,
             // cell_flat_index);
             bool changed_data = false;
@@ -451,6 +451,46 @@ namespace fmm {
                     tmp_corrections[2] + current_angular_correction[2];
             }
             if (changed_data) {
+                tmpstore[0] =
+                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                tmpstore[1] =
+                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                tmpstore[2] =
+                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                tmpstore[3] =
+                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+                tmpstore[4] =
+                    tmpstore[4] + potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+                tmpstore[5] =
+                    tmpstore[5] + potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+                tmpstore[6] =
+                    tmpstore[6] + potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+                tmpstore[7] =
+                    tmpstore[7] + potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+                tmpstore[8] =
+                    tmpstore[8] + potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+                tmpstore[9] =
+                    tmpstore[9] + potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+                tmpstore[10] =
+                    tmpstore[10] + potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+                tmpstore[11] =
+                    tmpstore[11] + potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+                tmpstore[12] =
+                    tmpstore[12] + potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+                tmpstore[13] =
+                    tmpstore[13] + potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+                tmpstore[14] =
+                    tmpstore[14] + potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+                tmpstore[15] =
+                    tmpstore[15] + potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+                tmpstore[16] =
+                    tmpstore[16] + potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+                tmpstore[17] =
+                    tmpstore[17] + potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+                tmpstore[18] =
+                    tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+                tmpstore[19] =
+                    tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
                 tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
                 tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
@@ -502,6 +542,12 @@ namespace fmm {
                     potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
 
+                tmp_corrections[0] =
+                    tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
+                tmp_corrections[1] =
+                    tmp_corrections[1] + angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
+                tmp_corrections[2] =
+                    tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
                 tmp_corrections[0].memstore(
                     angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
@@ -530,26 +576,26 @@ namespace fmm {
             //     center_of_masses_SoA.get_view(cell_flat_index);
 
             std::array<m2m_vector, 20> tmpstore;
-            tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
-            tmpstore[4] = potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
-            tmpstore[5] = potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
-            tmpstore[6] = potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
-            tmpstore[7] = potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
-            tmpstore[8] = potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
-            tmpstore[9] = potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
-            tmpstore[10] = potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
-            tmpstore[11] = potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
-            tmpstore[12] = potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
-            tmpstore[13] = potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
-            tmpstore[14] = potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
-            tmpstore[15] = potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
-            tmpstore[16] = potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
-            tmpstore[17] = potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
-            tmpstore[18] = potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
-            tmpstore[19] = potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
+            // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            // tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            // tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            // tmpstore[4] = potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+            // tmpstore[5] = potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+            // tmpstore[6] = potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+            // tmpstore[7] = potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+            // tmpstore[8] = potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+            // tmpstore[9] = potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+            // tmpstore[10] = potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+            // tmpstore[11] = potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+            // tmpstore[12] = potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+            // tmpstore[13] = potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+            // tmpstore[14] = potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+            // tmpstore[15] = potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+            // tmpstore[16] = potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+            // tmpstore[17] = potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+            // tmpstore[18] = potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+            // tmpstore[19] = potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
             // struct_of_array_iterator<space_vector, real, 3> X(center_of_masses_SoA,
             // cell_flat_index);
             bool changed_data = false;
@@ -762,6 +808,46 @@ namespace fmm {
                 Vc::where(mask, tmpstore[19]) = tmpstore[19] + m_partner[0] * D_lower[19];
             }
             if (changed_data) {
+                tmpstore[0] =
+                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                tmpstore[1] =
+                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                tmpstore[2] =
+                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                tmpstore[3] =
+                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+                tmpstore[4] =
+                    tmpstore[4] + potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+                tmpstore[5] =
+                    tmpstore[5] + potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+                tmpstore[6] =
+                    tmpstore[6] + potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+                tmpstore[7] =
+                    tmpstore[7] + potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+                tmpstore[8] =
+                    tmpstore[8] + potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+                tmpstore[9] =
+                    tmpstore[9] + potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+                tmpstore[10] =
+                    tmpstore[10] + potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+                tmpstore[11] =
+                    tmpstore[11] + potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+                tmpstore[12] =
+                    tmpstore[12] + potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+                tmpstore[13] =
+                    tmpstore[13] + potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+                tmpstore[14] =
+                    tmpstore[14] + potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+                tmpstore[15] =
+                    tmpstore[15] + potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+                tmpstore[16] =
+                    tmpstore[16] + potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+                tmpstore[17] =
+                    tmpstore[17] + potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+                tmpstore[18] =
+                    tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+                tmpstore[19] =
+                    tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
                 tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
                 tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
