@@ -124,8 +124,8 @@ namespace fmm {
                         } else {
                             vector_is_empty[cell_flat_index] = false;
                         }
-                        if (i0 >= 8 && i0 < 16 && i1 >= 8 && i1 < 16 && i2 >= 8 && i2 < 15)
-                            vector_is_empty[cell_flat_index] = true;
+                        // if (i0 >= 8 && i0 < 16 && i1 >= 8 && i1 < 16 && i2 >= 8 && i2 < 16)
+                        //     vector_is_empty[cell_flat_index] = true;
                     }
                 }
             }
