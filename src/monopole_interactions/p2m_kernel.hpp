@@ -12,7 +12,7 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        constexpr uint64_t P2M_STENCIL_BLOCKING = 16;
+        constexpr uint64_t P2M_STENCIL_BLOCKING = 1;
 
         class p2m_kernel
         {
@@ -71,7 +71,8 @@ namespace fmm {
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     angular_corrections_SoA,
-                std::vector<multiindex<>>& stencil, gsolve_type type);
+                std::vector<multiindex<>>& stencil, gsolve_type type, bool (&x_skip)[3][3][3],
+                bool (&y_skip)[3][3], bool (&z_skip)[3]);
         };
 
     }    // namespace monopole_interactions

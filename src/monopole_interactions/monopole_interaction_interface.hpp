@@ -61,6 +61,10 @@ namespace fmm {
             p2m_kernel kernel;
             p2p_kernel kernel_monopoles;
 
+            bool z_skip[3];
+            bool y_skip[3][3];
+            bool x_skip[3][3][3];
+
         public:
             /// The stencil is used to identify the neighbors?
             static std::vector<multiindex<>> stencil;

@@ -65,6 +65,18 @@ namespace fmm {
             for (const geo::direction& dir : geo::direction::full_set()) {
                 // don't use neighbor.direction, is always zero for empty cells!
                 neighbor_gravity_type& neighbor = neighbors[dir];
+                auto x = dir.operator[](XDIM) + 1;
+                auto y = dir.operator[](YDIM) + 1;
+                auto z = dir.operator[](ZDIM) + 1;
+                // std::cout << dir.flat_index_with_center() << ":" << z << " " << y << " " << x <<
+                // std::endl;
+                // std::cout << dir.flat_index_with_center() << ":" << z + 1 << " " << y + 1 << " "
+                // << x+1 << std::endl;
+                // std::cout << dir.flat_index_with_center() << ":" << (z + 1) * 3 * 3 << " " << (y
+                // + 1) * 3 << " " << (x+1) << std::endl;
+                // std::cout << dir.flat_index_with_center() << ":" << (z + 1) * 3 * 3  + (y + 1) *
+                // 3  + (x+1) << std::endl;
+                // std::cin.get();
 
                 // this dir is setup as a multipole - and we only consider multipoles here
                 if (!neighbor.is_monopole) {
@@ -82,6 +94,7 @@ namespace fmm {
                                 local_monopoles.at(flat_index) = 0.0;
                             });
                         neighbor_empty_multipoles[dir.flat_index_with_center()] = true;
+                        x_skip[z][y][x] = true;
                     } else {
                         // Get multipole data into our input structure
                         std::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
@@ -98,9 +111,11 @@ namespace fmm {
                                 local_monopoles.at(flat_index) = 0.0;
                             });
                         multipole_neighbors_exist = true;
+                        x_skip[z][y][x] = false;
                     }
                 } else {
                     neighbor_empty_multipoles[dir.flat_index_with_center()] = true;
+                    x_skip[z][y][x] = true;
                     if (neighbor.is_monopole) {
                         if (!neighbor.data.m) {
                             // TODO: ask Dominic why !is_monopole and stuff still empty
@@ -125,6 +140,43 @@ namespace fmm {
                     }
                 }
             }
+            x_skip[1][1][1] = true;
+            for (auto zi = 0; zi < 3; ++zi) {
+                z_skip[zi] = true;
+                for (auto yi = 0; yi < 3; ++yi) {
+                    y_skip[zi][yi] = true;
+                    for (auto xi = 0; xi < 3; ++xi) {
+                        if (!x_skip[zi][yi][xi]) {
+                            y_skip[zi][yi] = false;
+                            break;
+                        }
+                    }
+                    if (!y_skip[zi][yi])
+                        z_skip[zi] = false;
+                }
+            }
+
+            // if (multipole_neighbors_exist) {
+            // for (auto zi = 0; zi < 3; ++zi) {
+            //     std::cout << z_skip[zi] << " ";
+            // }
+            // std::cout << "\n";
+            // for (auto zi = 0; zi < 3; ++zi) {
+            //     for (auto yi = 0; yi < 3; ++yi) {
+            //         std::cout << y_skip[zi][yi] << " ";
+            //     }
+            // }
+            // std::cout << "\n";
+            // for (auto zi = 0; zi < 3; ++zi) {
+            //     for (auto yi = 0; yi < 3; ++yi) {
+            //         for (auto xi = 0; xi < 3; ++xi) {
+            //             std::cout << x_skip[zi][yi][xi] << " ";
+            //         }
+            //     }
+            // }
+            // std::cout << "\n";
+            // std::cin.get();
+            // }
 
             neighbor_empty_multipoles[13] = true;
             neighbor_empty_monopoles[13] = false;
@@ -160,7 +212,8 @@ namespace fmm {
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                        potential_expansions_SoA, angular_corrections_SoA, stencil, type);
+                        potential_expansions_SoA, angular_corrections_SoA, stencil, type, x_skip,
+                        y_skip, z_skip);
                     if (type == RHO) {
                         angular_corrections_SoA.to_non_SoA(angular_corrections);
                         std::vector<space_vector>& L_c = grid_ptr->get_L_c();
@@ -215,7 +268,8 @@ namespace fmm {
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                        potential_expansions_SoA, angular_corrections_SoA, stencil, type);
+                        potential_expansions_SoA, angular_corrections_SoA, stencil, type, x_skip,
+                        y_skip, z_skip);
                     potential_expansions_SoA.to_non_SoA(potential_expansions);
                     if (type == RHO) {
                         angular_corrections_SoA.to_non_SoA(angular_corrections);

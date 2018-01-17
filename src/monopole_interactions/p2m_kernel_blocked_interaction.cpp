@@ -49,22 +49,18 @@ namespace fmm {
             // tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
             // tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
             // tmp_corrections[3] = angular_corrections_SoA.value<3>(cell_flat_index_unpadded);
-            bool data_changed = false;
+            // bool data_changed = false;
+
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2M_STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.size();
                  inner_stencil_index += 1) {
-                const multiindex<>& stencil_element =
-                    stencil[outer_stencil_index + inner_stencil_index];
+
+                const multiindex<>& stencil_element = stencil[outer_stencil_index];
                 const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
 
                 const size_t interaction_partner_flat_index =
                     to_flat_index_padded(interaction_partner_index);    // iii1n
-
-                // check whether all vector elements are in empty border
-                if (vector_is_empty[interaction_partner_flat_index]) {
-                    continue;
-                }
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -86,7 +82,7 @@ namespace fmm {
                 if (Vc::none_of(mask)) {
                     continue;
                 }
-                data_changed = true;
+                // data_changed = true;
 
                 std::array<m2m_vector, NDIM> Y;
                 Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
@@ -271,7 +267,7 @@ namespace fmm {
                 Vc::where(mask, tmp_corrections[2]) =
                     tmp_corrections[2] + current_angular_correction[2];
             }
-            if (data_changed) {
+            // if (data_changed) {
                 tmpstore[0] =
                     tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
                 tmpstore[1] =
@@ -304,7 +300,7 @@ namespace fmm {
                 tmp_corrections[2].memstore(
                     angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
-            }
+            // }
         }
 
         void p2m_kernel::blocked_interaction_non_rho(
@@ -344,9 +340,9 @@ namespace fmm {
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
                 // check whether all vector elements are in empty border
-                if (vector_is_empty[interaction_partner_flat_index]) {
-                    continue;
-                }
+                // if (vector_is_empty[interaction_partner_flat_index]) {
+                //     continue;
+                // }
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(

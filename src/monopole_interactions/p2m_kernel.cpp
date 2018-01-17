@@ -18,12 +18,10 @@ namespace fmm {
 
         p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty)
           : neighbor_empty(neighbor_empty)
-          , theta_rec_squared(sqr(1.0 / opts.theta))
-        {
+          , theta_rec_squared(sqr(1.0 / opts.theta)) {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
-            vectors_check_empty();
         }
 
         void p2m_kernel::apply_stencil(
@@ -33,24 +31,63 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil, gsolve_type type) {
+            std::vector<multiindex<>>& stencil, gsolve_type type, bool (&x_skip)[3][3][3],
+            bool (&y_skip)[3][3], bool (&z_skip)[3]) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
                  outer_stencil_index += P2M_STENCIL_BLOCKING) {
+                const multiindex<>& stencil_element = stencil[outer_stencil_index];
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization
                 // multiindex<> se(stencil_element.x, stencil_element.y, stencil_element.z);
                 // std::cout << "se: " << se << std::endl;
                 // iterate_inner_cells_padded_stencil(se, *this);
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
+
+                    const size_t z_interaction = i0 + stencil_element.z  + INNER_CELLS_PADDING_DEPTH;
+                    const size_t z_block = z_interaction / INNER_CELLS_PER_DIRECTION;
+                    if (z_skip[z_block])
+                        continue;
+
                     for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
+
+                        const size_t y_interaction = i1 + stencil_element.y + INNER_CELLS_PADDING_DEPTH;
+                        const size_t y_block = y_interaction / INNER_CELLS_PER_DIRECTION;
+                        if (y_skip[z_block][y_block])
+                            continue;
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
+
+                            const size_t x_interaction = i2 + stencil_element.x + INNER_CELLS_PADDING_DEPTH;
+                            const size_t x_block = x_interaction / INNER_CELLS_PER_DIRECTION;
+                            const size_t x_interaction2 =
+                                i2 + stencil_element.x + m2m_vector::size() - 1 + INNER_CELLS_PADDING_DEPTH;
+                            const size_t x_block2 = x_interaction2 / INNER_CELLS_PER_DIRECTION;
+                            if (x_skip[z_block][y_block][x_block] &&
+                                x_skip[z_block][y_block][x_block2])
+                                continue;
+
                             const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
                                 i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
+                            const multiindex<> interaction_index(
+                                z_interaction,
+                                y_interaction,
+                                x_interaction);
+                            const multiindex<> interaction_index_old(
+                                cell_index.x + stencil_element.z,
+                                cell_index.y + stencil_element.y,
+                                cell_index.z + stencil_element.x);
+
+                            const auto interaction_index_flat = to_flat_index_padded(interaction_index);
+                            const auto interaction_index_flat_old = to_flat_index_padded(interaction_index_old);
+
+                            if (interaction_index_flat  != interaction_index_flat_old) {
+                                std::cout << "Indicies missmatch!" << std::endl;
+                                std::cin.get();
+                            }
                             // BUG: indexing has to be done with uint32_t because of Vc
                             // limitation
                             const int64_t cell_flat_index =
