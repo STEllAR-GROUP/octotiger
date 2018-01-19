@@ -71,8 +71,8 @@ namespace fmm {
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     angular_corrections_SoA,
-                std::vector<multiindex<>>& stencil, gsolve_type type, bool (&x_skip)[3][3][3],
-                bool (&y_skip)[3][3], bool (&z_skip)[3]);
+                std::vector<multiindex<>>& stencil, gsolve_type type, bool (&z_skip)[3][3][3],
+                bool (&y_skip)[3][3], bool (&x_skip)[3]);
         };
 
     }    // namespace monopole_interactions
