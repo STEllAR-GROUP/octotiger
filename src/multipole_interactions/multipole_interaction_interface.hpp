@@ -5,16 +5,16 @@
 
 #include "../common_kernel/kernel_simd_types.hpp"
 
-#include "grid.hpp"
 #include "geometry.hpp"
+#include "grid.hpp"
 // #include "node_server.hpp"
 #include "interaction_types.hpp"
 #include "taylor.hpp"
 
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
-#include "m2p_kernel.hpp"
 #include "m2m_kernel.hpp"
+#include "m2p_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -58,6 +58,13 @@ namespace fmm {
             m2m_kernel kernel;
             m2p_kernel mixed_interactions_kernel;
 
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                potential_expansions_SoA;
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                angular_corrections_SoA;
+
         public:
             static std::vector<multiindex<>> stencil_multipole_interactions;
             static std::vector<multiindex<>> stencil_mixed_interactions;
@@ -71,9 +78,9 @@ namespace fmm {
                 std::array<real, NDIM> xbase);
 
             void compute_interactions(interaction_kernel_type m2m_type,
-                                      interaction_kernel_type m2p_type,
-                                      std::array<bool, geo::direction::count()> &is_direction_empty,
-                                      std::vector<neighbor_gravity_type> &all_neighbor_interaction_data);
+                interaction_kernel_type m2p_type,
+                std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
 
             // void get_converted_local_expansions(std::vector<multipole>& M_ptr);
 
@@ -104,7 +111,9 @@ namespace fmm {
 
             void add_to_center_of_masses(std::vector<space_vector>& L_c);
 
-            void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
+            void set_grid_ptr(std::shared_ptr<grid> ptr) {
+                grid_ptr = ptr;
+            }
         };
     }    // namespace multipole_interactions
 }    // namespace fmm

@@ -150,14 +150,10 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data) {
             if (m2m_type == interaction_kernel_type::SOA_CPU &&
                 m2p_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    local_expansions_SoA(local_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    center_of_masses_SoA(center_of_masses);
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    angular_corrections_SoA(angular_corrections);
+                local_expansions_SoA.update_data(local_expansions);
+                center_of_masses_SoA.update_data(center_of_masses);
+                potential_expansions_SoA.update_data(potential_expansions);
+                angular_corrections_SoA.update_data(angular_corrections);
 
                 if (monopole_neighbors_exist) {
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
@@ -185,14 +181,10 @@ namespace fmm {
                 }
 
             } else if (m2m_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    local_expansions_SoA(local_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    center_of_masses_SoA(center_of_masses);
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    angular_corrections_SoA(angular_corrections);
+                local_expansions_SoA.update_data(local_expansions);
+                center_of_masses_SoA.update_data(center_of_masses);
+                potential_expansions_SoA.update_data(potential_expansions);
+                angular_corrections_SoA.update_data(angular_corrections);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
                     stencil_multipole_interactions, type);
@@ -223,14 +215,10 @@ namespace fmm {
 
             } else if (m2p_type == interaction_kernel_type::SOA_CPU) {
                 if (monopole_neighbors_exist) {
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                        local_expansions_SoA(local_expansions);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        center_of_masses_SoA(center_of_masses);
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                        potential_expansions_SoA(potential_expansions);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        angular_corrections_SoA(angular_corrections);
+                    local_expansions_SoA.update_data(local_expansions);
+                    center_of_masses_SoA.update_data(center_of_masses);
+                    potential_expansions_SoA.update_data(potential_expansions);
+                    angular_corrections_SoA.update_data(angular_corrections);
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
                         stencil_mixed_interactions, type, dX, xBase);
