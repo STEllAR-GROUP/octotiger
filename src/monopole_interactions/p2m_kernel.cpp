@@ -46,40 +46,41 @@ namespace fmm {
                 // iterate_inner_cells_padded_stencil(se, *this);
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
 
-                    const size_t z_interaction = i0 + stencil_element.z  + INNER_CELLS_PADDING_DEPTH;
-                    const size_t z_block = z_interaction / INNER_CELLS_PER_DIRECTION;
-                    if (z_skip[z_block])
-                        continue;
+                    const size_t x_interaction = i0 + stencil_element.x  + INNER_CELLS_PADDING_DEPTH;
+                    const size_t x_block = x_interaction / INNER_CELLS_PER_DIRECTION;
+                    // if (x_skip[x_block])
+                    //     continue;
 
                     for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
 
                         const size_t y_interaction = i1 + stencil_element.y + INNER_CELLS_PADDING_DEPTH;
                         const size_t y_block = y_interaction / INNER_CELLS_PER_DIRECTION;
-                        if (y_skip[z_block][y_block])
-                            continue;
+                        // if (y_skip[x_block][y_block])
+                        //     continue;
+
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
 
-                            const size_t x_interaction = i2 + stencil_element.x + INNER_CELLS_PADDING_DEPTH;
-                            const size_t x_block = x_interaction / INNER_CELLS_PER_DIRECTION;
-                            const size_t x_interaction2 =
+                            const size_t z_interaction = i2 + stencil_element.z + INNER_CELLS_PADDING_DEPTH;
+                            const size_t z_block = z_interaction / INNER_CELLS_PER_DIRECTION;
+                            const size_t z_interaction2 =
                                 i2 + stencil_element.x + m2m_vector::size() - 1 + INNER_CELLS_PADDING_DEPTH;
-                            const size_t x_block2 = x_interaction2 / INNER_CELLS_PER_DIRECTION;
-                            if (x_skip[z_block][y_block][x_block] &&
-                                x_skip[z_block][y_block][x_block2])
+                            const size_t z_block2 = z_interaction2 / INNER_CELLS_PER_DIRECTION;
+                            if (x_skip[x_block][y_block][z_block] &&
+                                x_skip[x_block][y_block][z_block2])
                                 continue;
 
                             const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
                                 i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
                             const multiindex<> interaction_index(
-                                z_interaction,
+                                x_interaction,
                                 y_interaction,
-                                x_interaction);
+                                z_interaction);
                             const multiindex<> interaction_index_old(
-                                cell_index.x + stencil_element.z,
+                                cell_index.x + stencil_element.x,
                                 cell_index.y + stencil_element.y,
-                                cell_index.z + stencil_element.x);
+                                cell_index.z + stencil_element.z);
 
                             const auto interaction_index_flat = to_flat_index_padded(interaction_index);
                             const auto interaction_index_flat_old = to_flat_index_padded(interaction_index_old);

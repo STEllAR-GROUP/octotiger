@@ -65,9 +65,11 @@ namespace fmm {
             for (const geo::direction& dir : geo::direction::full_set()) {
                 // don't use neighbor.direction, is always zero for empty cells!
                 neighbor_gravity_type& neighbor = neighbors[dir];
-                auto x = dir.operator[](XDIM) + 1;
+                // Switch x and z dimension since the stencil code and the old octotiger code
+                // a different order for some reason
+                auto x = dir.operator[](ZDIM) + 1;
                 auto y = dir.operator[](YDIM) + 1;
-                auto z = dir.operator[](ZDIM) + 1;
+                auto z = dir.operator[](XDIM) + 1;
                 // std::cout << dir.flat_index_with_center() << ":" << z << " " << y << " " << x <<
                 // std::endl;
                 // std::cout << dir.flat_index_with_center() << ":" << z + 1 << " " << y + 1 << " "
