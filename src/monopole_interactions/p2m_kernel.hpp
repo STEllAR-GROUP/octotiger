@@ -38,7 +38,9 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
+                const multiindex<>& interaction_partner_index,
+                const size_t interaction_partner_flat_index,
+                multiindex<m2m_int_vector>& interaction_partner_index_coarse);
 
             /// Calculates the monopole multipole boundary interactions without the solve type rho
             void blocked_interaction_non_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
@@ -52,7 +54,9 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
+                const multiindex<>& interaction_partner_index,
+                const size_t interaction_partner_flat_index,
+                multiindex<m2m_int_vector>& interaction_partner_index_coarse);
 
             void vectors_check_empty();
 

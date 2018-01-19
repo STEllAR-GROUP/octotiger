@@ -37,7 +37,7 @@ namespace fmm {
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
-                 outer_stencil_index += P2M_STENCIL_BLOCKING) {
+                 outer_stencil_index += 1) {
                 const multiindex<>& stencil_element = stencil[outer_stencil_index];
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization
@@ -45,15 +45,14 @@ namespace fmm {
                 // std::cout << "se: " << se << std::endl;
                 // iterate_inner_cells_padded_stencil(se, *this);
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-
-                    const size_t x_interaction = i0 + stencil_element.x  + INNER_CELLS_PADDING_DEPTH;
+                    const size_t x_interaction = i0 + stencil_element.x + INNER_CELLS_PADDING_DEPTH;
                     const size_t x_block = x_interaction / INNER_CELLS_PER_DIRECTION;
                     if (x_skip[x_block])
                         continue;
 
                     for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
-
-                        const size_t y_interaction = i1 + stencil_element.y + INNER_CELLS_PADDING_DEPTH;
+                        const size_t y_interaction =
+                            i1 + stencil_element.y + INNER_CELLS_PADDING_DEPTH;
                         const size_t y_block = y_interaction / INNER_CELLS_PER_DIRECTION;
                         if (y_skip[x_block][y_block])
                             continue;
@@ -61,11 +60,11 @@ namespace fmm {
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
-
-                            const size_t z_interaction = i2 + stencil_element.z + INNER_CELLS_PADDING_DEPTH;
+                            const size_t z_interaction =
+                                i2 + stencil_element.z + INNER_CELLS_PADDING_DEPTH;
                             const size_t z_block = z_interaction / INNER_CELLS_PER_DIRECTION;
-                            const size_t z_interaction2 =
-                                i2 + stencil_element.z + m2m_vector::size() - 1 + INNER_CELLS_PADDING_DEPTH;
+                            const size_t z_interaction2 = i2 + stencil_element.z +
+                                m2m_vector::size() - 1 + INNER_CELLS_PADDING_DEPTH;
                             const size_t z_block2 = z_interaction2 / INNER_CELLS_PER_DIRECTION;
                             if (z_skip[x_block][y_block][z_block] &&
                                 z_skip[x_block][y_block][z_block2])
@@ -91,6 +90,21 @@ namespace fmm {
                             // -> maps to the same for some SIMD lanes
                             cell_index_coarse.transform_coarse();
 
+                            const multiindex<> interaction_partner_index(
+                                cell_index.x + stencil_element.x, cell_index.y + stencil_element.y,
+                                cell_index.z + stencil_element.z);
+
+                            const size_t interaction_partner_flat_index =
+                                to_flat_index_padded(interaction_partner_index);    // iii1n
+
+                            // implicitly broadcasts to vector
+                            multiindex<m2m_int_vector> interaction_partner_index_coarse(
+                                interaction_partner_index);
+                            interaction_partner_index_coarse.z += offset_vector;
+                            // note that this is the same for groups of 2x2x2 elements
+                            // -> maps to the same for some SIMD lanes
+                            interaction_partner_index_coarse.transform_coarse();
+
                             // calculate position of the monopole
 
                             if (type == RHO) {
@@ -98,13 +112,17 @@ namespace fmm {
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, interaction_partner_index,
+                                    interaction_partner_flat_index,
+                                    interaction_partner_index_coarse);
                             } else {
                                 this->blocked_interaction_non_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, outer_stencil_index);
+                                    cell_flat_index_unpadded, interaction_partner_index,
+                                    interaction_partner_flat_index,
+                                    interaction_partner_index_coarse);
                             }
                         }
                     }
