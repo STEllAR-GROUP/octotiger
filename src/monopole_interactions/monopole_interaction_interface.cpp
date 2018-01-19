@@ -203,16 +203,12 @@ namespace fmm {
             // Convert input structure to new datastructure (SoA)
             if (p2p_type == interaction_kernel_type::SOA_CPU &&
                 p2m_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
+                potential_expansions_SoA.update_data(potential_expansions);
                 // auto start = std::chrono::high_resolution_clock::now();
                 if (multipole_neighbors_exist) {
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                        local_expansions_SoA(local_expansions);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        center_of_masses_SoA(center_of_masses);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        angular_corrections_SoA(angular_corrections);
+                    local_expansions_SoA.update_data(local_expansions);
+                    center_of_masses_SoA.update_data(center_of_masses);
+                    angular_corrections_SoA.update_data(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, stencil, type, x_skip,
                         y_skip, z_skip);
@@ -234,8 +230,7 @@ namespace fmm {
                 }
 
             } else if (p2p_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
+                potential_expansions_SoA.update_data(potential_expansions);
                 kernel_monopoles.apply_stencil(
                     local_monopoles, potential_expansions_SoA, stencil, four, dx);
                 potential_expansions_SoA.to_non_SoA(potential_expansions);
@@ -261,14 +256,10 @@ namespace fmm {
                 }
             } else if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 if (multipole_neighbors_exist) {
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                        potential_expansions_SoA(potential_expansions);
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                        local_expansions_SoA(local_expansions);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        center_of_masses_SoA(center_of_masses);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        angular_corrections_SoA(angular_corrections);
+                    potential_expansions_SoA.to_non_SoA(potential_expansions);
+                    local_expansions_SoA.update_data(local_expansions);
+                    center_of_masses_SoA.update_data(center_of_masses);
+                    angular_corrections_SoA.update_data(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, stencil, type, x_skip,
                         y_skip, z_skip);
