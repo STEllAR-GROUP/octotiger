@@ -256,7 +256,7 @@ namespace fmm {
                 }
             } else if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 if (multipole_neighbors_exist) {
-                    potential_expansions_SoA.to_non_SoA(potential_expansions);
+                    potential_expansions_SoA.update_data(potential_expansions);
                     local_expansions_SoA.update_data(local_expansions);
                     center_of_masses_SoA.update_data(center_of_masses);
                     angular_corrections_SoA.update_data(angular_corrections);
