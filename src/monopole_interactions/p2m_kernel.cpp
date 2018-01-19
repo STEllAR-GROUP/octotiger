@@ -65,7 +65,7 @@ namespace fmm {
                             const size_t z_interaction = i2 + stencil_element.z + INNER_CELLS_PADDING_DEPTH;
                             const size_t z_block = z_interaction / INNER_CELLS_PER_DIRECTION;
                             const size_t z_interaction2 =
-                                i2 + stencil_element.x + m2m_vector::size() - 1 + INNER_CELLS_PADDING_DEPTH;
+                                i2 + stencil_element.z + m2m_vector::size() - 1 + INNER_CELLS_PADDING_DEPTH;
                             const size_t z_block2 = z_interaction2 / INNER_CELLS_PER_DIRECTION;
                             if (x_skip[x_block][y_block][z_block] &&
                                 x_skip[x_block][y_block][z_block2])
