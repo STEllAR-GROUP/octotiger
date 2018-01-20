@@ -27,10 +27,12 @@ namespace fmm {
             m2m_int_vector offset_vector;
 
             /// Calculates the monopole multipole boundary interactions with solve type rho
-            void blocked_interaction_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
+            void blocked_interaction_rho(struct_of_array_data<expansion, real, 20, INNER_CELLS,
                                              SOA_PADDING>& local_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     center_of_masses_SoA,
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS,
+                                             SOA_PADDING>& __restrict__ center_of_masses_cells_SoA,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
@@ -43,10 +45,13 @@ namespace fmm {
                 multiindex<m2m_int_vector>& interaction_partner_index_coarse);
 
             /// Calculates the monopole multipole boundary interactions without the solve type rho
-            void blocked_interaction_non_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
-                                                 SOA_PADDING>& local_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            void blocked_interaction_non_rho(
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
+                    local_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     center_of_masses_SoA,
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS,
+                    SOA_PADDING>& __restrict__ center_of_masses_cells_SoA,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
@@ -67,10 +72,11 @@ namespace fmm {
             p2m_kernel(const p2m_kernel& other) = delete;
             p2m_kernel operator=(const p2m_kernel& other) = delete;
 
-            void apply_stencil(struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
-                                   local_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-                    center_of_masses_SoA,
+            void apply_stencil(
+                std::array<struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>, 27>&
+                    local_expansions_SoA,
+                std::array<struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>,
+                    27>& center_of_masses_SoA,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&

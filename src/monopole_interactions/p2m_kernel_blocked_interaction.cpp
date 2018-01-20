@@ -21,10 +21,12 @@ namespace fmm {
         // - increase INX
 
         void p2m_kernel::blocked_interaction_rho(
-            struct_of_array_data<expansion, real, 20, ENTRIES,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS,
                 SOA_PADDING>& __restrict__ local_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS,
                 SOA_PADDING>& __restrict__ center_of_masses_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS,
+                SOA_PADDING>& __restrict__ center_of_masses_cells_SoA,
             struct_of_array_data<expansion, real, 20, ENTRIES,
                 SOA_PADDING>& __restrict__ potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES,
@@ -36,9 +38,9 @@ namespace fmm {
             const size_t interaction_partner_flat_index,
             multiindex<m2m_int_vector>& interaction_partner_index_coarse) {
             std::array<m2m_vector, NDIM> X;
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_cells_SoA.value<0>(cell_flat_index_unpadded);
+            X[1] = center_of_masses_cells_SoA.value<1>(cell_flat_index_unpadded);
+            X[2] = center_of_masses_cells_SoA.value<2>(cell_flat_index_unpadded);
             std::array<m2m_vector, 4> tmpstore;
             // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
             // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
@@ -280,8 +282,12 @@ namespace fmm {
         }
 
         void p2m_kernel::blocked_interaction_non_rho(
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
+                local_expansions_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
+                center_of_masses_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS,
+                SOA_PADDING>& __restrict__ center_of_masses_cells_SoA,
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
@@ -297,9 +303,9 @@ namespace fmm {
             //     center_of_masses_SoA.get_view(cell_flat_index);
 
             std::array<m2m_vector, NDIM> X;
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_cells_SoA.value<0>(cell_flat_index_unpadded);
+            X[1] = center_of_masses_cells_SoA.value<1>(cell_flat_index_unpadded);
+            X[2] = center_of_masses_cells_SoA.value<2>(cell_flat_index_unpadded);
             std::array<m2m_vector, 4> tmpstore;
             // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
             // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);

@@ -51,6 +51,10 @@ namespace fmm {
             }
             struct_of_array_data(void)
               : data(new component_type[num_components * padded_entries_per_component]) {
+                for (auto i = 0; i < num_components * padded_entries_per_component; ++i) {
+                    data[i] = 0;
+                }
+
             }
 
             struct_of_array_data(const size_t entries_per_component)
