@@ -25,10 +25,8 @@ namespace fmm {
         }
 
         void p2m_kernel::apply_stencil(
-            std::array<struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>, 27>&
-                local_expansions_SoA,
-            std::array<struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>, 27>&
-                center_of_masses_SoA,
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
@@ -72,7 +70,6 @@ namespace fmm {
                                 z_skip[x_block][y_block][z_block2])
                                 continue;
 
-                            auto flat = x_block * 3 * 3 + y_block * 3 + z_block;
                             const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
                                 i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
                             // BUG: indexing has to be done with uint32_t because of Vc
@@ -96,14 +93,9 @@ namespace fmm {
                             const multiindex<> interaction_partner_index(
                                 cell_index.x + stencil_element.x, cell_index.y + stencil_element.y,
                                 cell_index.z + stencil_element.z);
-                            const multiindex<> interaction_partner_index_local(
-                                x_interaction % INNER_CELLS_PER_DIRECTION,
-                                y_interaction % INNER_CELLS_PER_DIRECTION,
-                                z_interaction % INNER_CELLS_PER_DIRECTION);
 
                             const size_t interaction_partner_flat_index =
-                                to_inner_flat_index_not_padded(
-                                    interaction_partner_index_local);    // iii1n
+                                to_flat_index_padded(interaction_partner_index);    // iii1n
 
                             // implicitly broadcasts to vector
                             multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -116,19 +108,19 @@ namespace fmm {
                             // calculate position of the monopole
 
                             if (type == RHO) {
-                                this->blocked_interaction_rho(local_expansions_SoA[flat],
-                                    center_of_masses_SoA[flat], center_of_masses_SoA[13],
-                                    potential_expansions_SoA, angular_corrections_SoA, cell_index,
-                                    cell_flat_index, cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, interaction_partner_index_local,
+                                this->blocked_interaction_rho(local_expansions_SoA,
+                                    center_of_masses_SoA, potential_expansions_SoA,
+                                    angular_corrections_SoA, cell_index, cell_flat_index,
+                                    cell_index_coarse, cell_index_unpadded,
+                                    cell_flat_index_unpadded, interaction_partner_index,
                                     interaction_partner_flat_index,
                                     interaction_partner_index_coarse);
                             } else {
-                                this->blocked_interaction_non_rho(local_expansions_SoA[flat],
-                                    center_of_masses_SoA[flat], center_of_masses_SoA[13],
-                                    potential_expansions_SoA, angular_corrections_SoA, cell_index,
-                                    cell_flat_index, cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, interaction_partner_index_local,
+                                this->blocked_interaction_non_rho(local_expansions_SoA,
+                                    center_of_masses_SoA, potential_expansions_SoA,
+                                    angular_corrections_SoA, cell_index, cell_flat_index,
+                                    cell_index_coarse, cell_index_unpadded,
+                                    cell_flat_index_unpadded, interaction_partner_index,
                                     interaction_partner_flat_index,
                                     interaction_partner_index_coarse);
                             }
