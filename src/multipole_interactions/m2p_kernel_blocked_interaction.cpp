@@ -25,9 +25,9 @@ namespace fmm {
                 SOA_PADDING>& __restrict__ local_expansions_SoA,
             std::vector<real>& mons, struct_of_array_data<space_vector, real, 3, ENTRIES,
                                          SOA_PADDING>& __restrict__ center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, ENTRIES,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS,
                 SOA_PADDING>& __restrict__ potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS,
                 SOA_PADDING>& __restrict__ angular_corrections_SoA,
             const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
@@ -348,9 +348,9 @@ namespace fmm {
 
         void m2p_kernel::blocked_interaction_non_rho(std::vector<real>& mons,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                 potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,

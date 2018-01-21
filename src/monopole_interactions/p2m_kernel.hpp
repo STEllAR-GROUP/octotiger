@@ -31,9 +31,9 @@ namespace fmm {
                                              SOA_PADDING>& local_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                     potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     angular_corrections_SoA,
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
@@ -47,9 +47,9 @@ namespace fmm {
                                                  SOA_PADDING>& local_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                     potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     angular_corrections_SoA,
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
@@ -71,9 +71,9 @@ namespace fmm {
                                    local_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                     center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                     potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     angular_corrections_SoA,
                 std::vector<multiindex<>>& stencil, gsolve_type type, bool (&z_skip)[3][3][3],
                 bool (&y_skip)[3][3], bool (&x_skip)[3]);

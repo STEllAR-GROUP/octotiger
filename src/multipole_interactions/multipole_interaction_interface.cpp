@@ -154,9 +154,9 @@ namespace fmm {
                     local_expansions_SoA(local_expansions);
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                     center_of_masses_SoA(center_of_masses);
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA(potential_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                     angular_corrections_SoA(angular_corrections);
 
                 if (monopole_neighbors_exist) {
@@ -189,9 +189,9 @@ namespace fmm {
                     local_expansions_SoA(local_expansions);
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                     center_of_masses_SoA(center_of_masses);
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA(potential_expansions);
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                     angular_corrections_SoA(angular_corrections);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
@@ -227,9 +227,9 @@ namespace fmm {
                         local_expansions_SoA(local_expansions);
                     struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                         center_of_masses_SoA(center_of_masses);
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                         potential_expansions_SoA(potential_expansions);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,

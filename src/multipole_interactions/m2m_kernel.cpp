@@ -48,9 +48,9 @@ namespace fmm {
         void m2m_kernel::apply_stencil(
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                 potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
             std::vector<multiindex<>>& stencil, gsolve_type type) {
             vectors_check_empty();

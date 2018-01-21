@@ -15,7 +15,7 @@ namespace fmm {
 
         void p2p_kernel::blocked_interaction(
             std::vector<real>& mons,
-            struct_of_array_data<expansion, real, 20, ENTRIES,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS,
                 SOA_PADDING>& __restrict__ potential_expansions_SoA,    // L
             const multiindex<>& __restrict__ cell_index,
             const size_t cell_flat_index,    /// iii0

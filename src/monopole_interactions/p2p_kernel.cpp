@@ -29,7 +29,7 @@ namespace fmm {
         }
 
         void p2p_kernel::apply_stencil(std::vector<real>& local_expansions,
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                 potential_expansions_SoA,
             std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four, real dx) {
             // for(auto i = 0; i < local_expansions.size(); i++)
