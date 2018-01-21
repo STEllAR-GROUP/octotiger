@@ -68,24 +68,6 @@ namespace fmm {
                     }
                 }
             }
-            template <size_t blocksize>
-            void update_data_block(const std::vector<AoS_type>& org, const size_t x, const
-                                   size_t y, const size_t z) {
-                constexpr size_t next_block = blocksize * 2;
-                for (size_t component = 0; component < num_components; component++) {
-                    size_t entry = 0;
-                    for (size_t xi = x * blocksize; xi <  x * next_block; ++xi) {
-                        for (size_t yi = y * blocksize; yi < y * next_block; ++yi) {
-                            for (size_t zi = z * blocksize; zi < z * next_block; ++zi) {
-                                const size_t flat = xi * blocksize * blocksize + yi * blocksize + zi;
-                                data[component * padded_entries_per_component + flat] =
-                                    org[entry][component];
-                                entry++;
-                            }
-                        }
-                    }
-                }
-            }
 
             struct_of_array_data(const struct_of_array_data& other) = delete;
 

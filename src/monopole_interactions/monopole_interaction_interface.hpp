@@ -36,7 +36,12 @@ namespace fmm {
              * an additional 1-sized layer of cells around it for padding
              */
 
+            /// Expansions for all the multipoles the current monopole is neighboring
+            std::vector<expansion> local_expansions;
             std::vector<real> local_monopoles;
+
+            /// com_ptr - Center of masses, required for the angular corrections
+            std::vector<space_vector> center_of_masses;
 
             // multipole expansion on this cell (L)
             std::vector<expansion> potential_expansions;
@@ -59,9 +64,6 @@ namespace fmm {
             bool z_skip[3];
             bool y_skip[3][3];
             bool x_skip[3][3][3];
-
-            std::array<std::vector<expansion>, 27> local_expansions_blocks;
-            std::array<std::vector<space_vector>, 27> center_of_masses_blocks;
 
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
                 potential_expansions_SoA;
@@ -93,13 +95,28 @@ namespace fmm {
                 std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
 
+            /// Get the local expansion input of the compute kernel
+            std::vector<expansion>& get_local_expansions();
+            /// Get the center of mass input of the compute kernel
+            std::vector<space_vector>& get_center_of_masses();
+            /// Returns compute kernel output regarding the potential expansions L
             std::vector<expansion>& get_potential_expansions();
             /// Returns compute kernel output regarding angular corrections L_c
             std::vector<space_vector>& get_angular_corrections();
 
+            /// Prints expansion kernel input
+            void print_local_expansions();
+            /// Print center of mass kernel input
+            void print_center_of_masses();
+            /// Print kernel output regarding the potential expansion
             void print_potential_expansions();
             /// Print kernel output regarding the angular corrections
             void print_angular_corrections();
+
+            /// Add expansions onto the current kernel input expansions
+            void add_to_potential_expansions(std::vector<expansion>& L);
+            /// Add more center of masses to the current kernel input masses
+            void add_to_center_of_masses(std::vector<space_vector>& L_c);
 
             void set_grid_ptr(std::shared_ptr<grid> ptr) {
                 grid_ptr = ptr;
