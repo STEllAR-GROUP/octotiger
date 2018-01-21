@@ -84,6 +84,14 @@ namespace fmm {
                 }
             }
         }
+        void add_to_non_SoA(std::vector<AoS_type>& org) {
+            // constexpr size_t padded_entries_per_component = entries + padding;
+            for (size_t component = 0; component < num_components; component++) {
+                for (size_t entry = 0; entry < org.size(); entry++) {
+                    org[entry][component] += data[component * padded_entries_per_component + entry];
+                }
+            }
+        }
     };
 }    // namespace fmm
 }    // namespace octotiger
