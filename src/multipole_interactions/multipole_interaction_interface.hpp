@@ -39,11 +39,6 @@ namespace fmm {
             /// com_ptr - Center of masses, required for the angular corrections
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
 
-            // multipole expansion on this cell (L)
-            std::vector<expansion> potential_expansions;
-            // angular momentum correction on this cell (L_c)
-            std::vector<space_vector> angular_corrections;
-
             std::vector<bool> neighbor_empty_multipole;
             std::vector<bool> neighbor_empty_monopole;
 
@@ -73,18 +68,6 @@ namespace fmm {
                                       interaction_kernel_type m2p_type,
                                       std::array<bool, geo::direction::count()> &is_direction_empty,
                                       std::vector<neighbor_gravity_type> &all_neighbor_interaction_data);
-
-            // void get_converted_local_expansions(std::vector<multipole>& M_ptr);
-
-            std::vector<expansion>& get_potential_expansions();
-
-            // void get_converted_angular_corrections(std::vector<space_vector>& L_c);
-
-            std::vector<space_vector>& get_angular_corrections();
-
-            void print_potential_expansions();
-
-            void print_angular_corrections();
 
             void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
         };

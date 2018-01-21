@@ -22,9 +22,6 @@ namespace fmm {
           , kernel(neighbor_empty_multipole)
           , mixed_interactions_kernel(neighbor_empty_monopole) {
             local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
-
-            potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
-            angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
         }
 
         void multipole_interaction_interface::update_input(std::vector<real>& monopoles,
@@ -139,18 +136,6 @@ namespace fmm {
             neighbor_empty_multipole[13] = false;
             neighbor_empty_monopole[13] = true;
 
-            // TODO/BUG: expansion don't initialize to zero by default
-            iterate_inner_cells_not_padded(
-                [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                    expansion& e = potential_expansions.at(flat_index_unpadded);
-                    e = 0.0;
-                });
-            // TODO/BUG: expansion don't initialize to zero by default
-            iterate_inner_cells_not_padded(
-                [this](const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                    space_vector& s = angular_corrections.at(flat_index_unpadded);
-                    s = 0.0;
-                });
             // std::fill(std::begin(potential_expansions), std::end(potential_expansions), ZERO);
 
             // std::cout << "local_expansions:" << std::endl;
@@ -166,9 +151,9 @@ namespace fmm {
             if (m2m_type == interaction_kernel_type::SOA_CPU &&
                 m2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
+                    potential_expansions_SoA;
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                    angular_corrections_SoA(angular_corrections);
+                    angular_corrections_SoA;
 
                 if (monopole_neighbors_exist) {
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
@@ -180,33 +165,20 @@ namespace fmm {
                     potential_expansions_SoA, angular_corrections_SoA,
                     stencil_multipole_interactions, type);
 
-                potential_expansions_SoA.to_non_SoA(potential_expansions);
-
                 if (type == RHO) {
-                    angular_corrections_SoA.to_non_SoA(angular_corrections);
-                    std::vector<space_vector>& L_c = grid_ptr->get_L_c();
-                    for (size_t i = 0; i < L_c.size(); i++) {
-                        L_c[i] = angular_corrections[i];
-                    }
+                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
 
-                std::vector<expansion>& L = grid_ptr->get_L();
-                for (size_t i = 0; i < L.size(); i++) {
-                    L[i] = potential_expansions[i];
-                }
+                potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
 
             } else if (m2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA(potential_expansions);
+                    potential_expansions_SoA;
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                    angular_corrections_SoA(angular_corrections);
+                    angular_corrections_SoA;
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
                     stencil_multipole_interactions, type);
-
-                potential_expansions_SoA.to_non_SoA(potential_expansions);
-                if (type == RHO)
-                    angular_corrections_SoA.to_non_SoA(angular_corrections);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();
@@ -221,25 +193,18 @@ namespace fmm {
                         }
                     }
                 }
-                for (size_t i = 0; i < L.size(); i++) {
-                    L[i] += potential_expansions[i];
-                }
-                for (size_t i = 0; i < L_c.size(); i++) {
-                    L_c[i] += angular_corrections[i];
-                }
+                potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+                angular_corrections_SoA.add_to_non_SoA(grid_ptr->get_L_c());
 
             } else if (m2p_type == interaction_kernel_type::SOA_CPU) {
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+                    potential_expansions_SoA;
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                    angular_corrections_SoA;
                 if (monopole_neighbors_exist) {
-                    struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                        potential_expansions_SoA(potential_expansions);
-                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                        angular_corrections_SoA(angular_corrections);
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
                         stencil_mixed_interactions, type, dX, xBase);
-                    potential_expansions_SoA.to_non_SoA(potential_expansions);
-                    if (type == RHO)
-                        angular_corrections_SoA.to_non_SoA(angular_corrections);
                 }
 
                 std::vector<expansion>& L = grid_ptr->get_L();
@@ -258,12 +223,8 @@ namespace fmm {
                         }
                     }
                 }
-                for (size_t i = 0; i < L.size(); i++) {
-                    L[i] += potential_expansions[i];
-                }
-                for (size_t i = 0; i < L_c.size(); i++) {
-                    L_c[i] += angular_corrections[i];
-                }
+                potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+                angular_corrections_SoA.add_to_non_SoA(grid_ptr->get_L_c());
             } else {
                 // old-style interaction calculation
                 // computes inner interactions
@@ -277,26 +238,6 @@ namespace fmm {
                     }
                 }
             }
-        }
-
-        std::vector<expansion>& multipole_interaction_interface::get_potential_expansions() {
-            return potential_expansions;
-        }
-
-        std::vector<space_vector>& multipole_interaction_interface::get_angular_corrections() {
-            return angular_corrections;
-        }
-
-        void multipole_interaction_interface::print_potential_expansions() {
-            print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
-                std::cout << " (" << i << ") =[0] " << this->potential_expansions[flat_index][0];
-            });
-        }
-
-        void multipole_interaction_interface::print_angular_corrections() {
-            print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
-                std::cout << " (" << i << ") =[0] " << this->angular_corrections[flat_index];
-            });
         }
     }    // namespace multipole_interactions
 }    // namespace fmm
