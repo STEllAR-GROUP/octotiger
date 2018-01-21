@@ -45,7 +45,8 @@ namespace fmm {
                     // local_expansions.at(flat_index) = 0.0;
                     // center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
 
-                    center_of_masses_SoA.set_AoS_value(com0.at(flat_index_unpadded), flat_index);
+                    center_of_masses_SoA.set_AoS_value(
+                        std::move(com0.at(flat_index_unpadded)), flat_index);
 
                     local_monopoles.at(flat_index) = mons.at(flat_index_unpadded);
                 });
@@ -109,8 +110,10 @@ namespace fmm {
                                 //     neighbor_M_ptr.at(flat_index_unpadded);
                                 // center_of_masses.at(flat_index) =
                                 //     neighbor_com0.at(flat_index_unpadded);
-                    local_expansions_SoA.set_AoS_value(neighbor_M_ptr.at(flat_index_unpadded), flat_index);
-                    center_of_masses_SoA.set_AoS_value(neighbor_com0.at(flat_index_unpadded), flat_index);
+                                local_expansions_SoA.set_AoS_value(
+                                    std::move(neighbor_M_ptr.at(flat_index_unpadded)), flat_index);
+                                center_of_masses_SoA.set_AoS_value(
+                                    std::move(neighbor_com0.at(flat_index_unpadded)), flat_index);
 
                                 local_monopoles.at(flat_index) = 0.0;
                             });
@@ -306,7 +309,6 @@ namespace fmm {
                 }
             }
         }
-
 
         std::vector<expansion>& monopole_interaction_interface::get_potential_expansions() {
             return potential_expansions;
