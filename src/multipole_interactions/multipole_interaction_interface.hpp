@@ -34,11 +34,10 @@ namespace fmm {
              */
 
             // M_ptr
-            std::vector<expansion> local_expansions;
             std::vector<real> local_monopoles;
-
-            // com0 = *(com_ptr[0])
-            std::vector<space_vector> center_of_masses;
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
+            /// com_ptr - Center of masses, required for the angular corrections
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
 
             // multipole expansion on this cell (L)
             std::vector<expansion> potential_expansions;
@@ -77,15 +76,6 @@ namespace fmm {
 
             // void get_converted_local_expansions(std::vector<multipole>& M_ptr);
 
-            std::vector<expansion>& get_local_expansions();
-
-            // void get_converted_center_of_masses(
-            //     std::vector<std::shared_ptr<std::vector<space_vector>>> com_ptr);
-
-            std::vector<space_vector>& get_center_of_masses();
-
-            // void get_converted_potential_expansions(std::vector<expansion>& L);
-
             std::vector<expansion>& get_potential_expansions();
 
             // void get_converted_angular_corrections(std::vector<space_vector>& L_c);
@@ -95,14 +85,6 @@ namespace fmm {
             void print_potential_expansions();
 
             void print_angular_corrections();
-
-            void print_local_expansions();
-
-            void print_center_of_masses();
-
-            void add_to_potential_expansions(std::vector<expansion>& L);
-
-            void add_to_center_of_masses(std::vector<space_vector>& L_c);
 
             void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
         };
