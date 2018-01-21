@@ -5,8 +5,8 @@
 
 #include "../common_kernel/kernel_simd_types.hpp"
 
-#include "geometry.hpp"
 #include "grid.hpp"
+#include "geometry.hpp"
 // #include "grid.hpp"
 // #include "node_server.hpp"
 #include "interaction_types.hpp"
@@ -14,8 +14,8 @@
 
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
-#include "p2m_kernel.hpp"
 #include "p2p_kernel.hpp"
+#include "p2m_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -65,13 +65,6 @@ namespace fmm {
             bool y_skip[3][3];
             bool x_skip[3][3][3];
 
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                potential_expansions_SoA;
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                angular_corrections_SoA;
-
         public:
             /// The stencil is used to identify the neighbors?
             static std::vector<multiindex<>> stencil;
@@ -91,9 +84,9 @@ namespace fmm {
              * methods get_potential_expansions and get_center_of_masses
              */
             void compute_interactions(interaction_kernel_type p2p_type,
-                interaction_kernel_type p2m_type,
-                std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
+                                      interaction_kernel_type p2m_type,
+                                      std::array<bool, geo::direction::count()> &is_direction_empty,
+                                      std::vector<neighbor_gravity_type> &all_neighbor_interaction_data);
 
             /// Get the local expansion input of the compute kernel
             std::vector<expansion>& get_local_expansions();
@@ -118,9 +111,7 @@ namespace fmm {
             /// Add more center of masses to the current kernel input masses
             void add_to_center_of_masses(std::vector<space_vector>& L_c);
 
-            void set_grid_ptr(std::shared_ptr<grid> ptr) {
-                grid_ptr = ptr;
-            }
+            void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
         };
     }    // namespace monopole_interactions
 }    // namespace fmm

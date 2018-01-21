@@ -49,24 +49,12 @@ namespace fmm {
                     }
                 }
             }
-            struct_of_array_data(void)
-              : data(new component_type[num_components * padded_entries_per_component]) {
-            }
 
             struct_of_array_data(const size_t entries_per_component)
               : data(new component_type[num_components * padded_entries_per_component]) {}
 
             ~struct_of_array_data() {
                 delete[] data;
-            }
-
-            void update_data(const std::vector<AoS_type>& org) {
-                for (size_t component = 0; component < num_components; component++) {
-                    for (size_t entry = 0; entry < org.size(); entry++) {
-                        data[component * padded_entries_per_component + entry] =
-                            org[entry][component];
-                    }
-                }
             }
 
             struct_of_array_data(const struct_of_array_data& other) = delete;
