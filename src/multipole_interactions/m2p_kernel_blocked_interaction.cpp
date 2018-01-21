@@ -277,7 +277,6 @@ namespace fmm {
                 tmp_corrections[0] = tmp_corrections[0] + current_angular_correction[0];
                 tmp_corrections[1] = tmp_corrections[1] + current_angular_correction[1];
                 tmp_corrections[2] = tmp_corrections[2] + current_angular_correction[2];
-                tmp_corrections[3] = tmp_corrections[3] + current_angular_correction[3];
             }
             if (changed_data) {
                 tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
@@ -339,9 +338,6 @@ namespace fmm {
                     Vc::flags::element_aligned);
                 tmp_corrections[2].memstore(
                     angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::flags::element_aligned);
-                tmp_corrections[3].memstore(
-                    angular_corrections_SoA.pointer<3>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
             }
         }
