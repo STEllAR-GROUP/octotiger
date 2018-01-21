@@ -5,8 +5,8 @@
 
 #include "../common_kernel/kernel_simd_types.hpp"
 
-#include "grid.hpp"
 #include "geometry.hpp"
+#include "grid.hpp"
 // #include "grid.hpp"
 // #include "node_server.hpp"
 #include "interaction_types.hpp"
@@ -14,8 +14,8 @@
 
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
-#include "p2p_kernel.hpp"
 #include "p2m_kernel.hpp"
+#include "p2p_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -36,12 +36,14 @@ namespace fmm {
              * an additional 1-sized layer of cells around it for padding
              */
 
-            /// Expansions for all the multipoles the current monopole is neighboring
-            std::vector<expansion> local_expansions;
             std::vector<real> local_monopoles;
-
+            // TODO delete these 2
+            // std::vector<expansion> local_expansions;
+            // std::vector<space_vector> center_of_masses;
+            /// Expansions for all the multipoles the current monopole is neighboring
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
             /// com_ptr - Center of masses, required for the angular corrections
-            std::vector<space_vector> center_of_masses;
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
 
             // multipole expansion on this cell (L)
             std::vector<expansion> potential_expansions;
@@ -84,23 +86,15 @@ namespace fmm {
              * methods get_potential_expansions and get_center_of_masses
              */
             void compute_interactions(interaction_kernel_type p2p_type,
-                                      interaction_kernel_type p2m_type,
-                                      std::array<bool, geo::direction::count()> &is_direction_empty,
-                                      std::vector<neighbor_gravity_type> &all_neighbor_interaction_data);
+                interaction_kernel_type p2m_type,
+                std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
 
-            /// Get the local expansion input of the compute kernel
-            std::vector<expansion>& get_local_expansions();
-            /// Get the center of mass input of the compute kernel
-            std::vector<space_vector>& get_center_of_masses();
             /// Returns compute kernel output regarding the potential expansions L
             std::vector<expansion>& get_potential_expansions();
             /// Returns compute kernel output regarding angular corrections L_c
             std::vector<space_vector>& get_angular_corrections();
 
-            /// Prints expansion kernel input
-            void print_local_expansions();
-            /// Print center of mass kernel input
-            void print_center_of_masses();
             /// Print kernel output regarding the potential expansion
             void print_potential_expansions();
             /// Print kernel output regarding the angular corrections
@@ -111,7 +105,9 @@ namespace fmm {
             /// Add more center of masses to the current kernel input masses
             void add_to_center_of_masses(std::vector<space_vector>& L_c);
 
-            void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
+            void set_grid_ptr(std::shared_ptr<grid> ptr) {
+                grid_ptr = ptr;
+            }
         };
     }    // namespace monopole_interactions
 }    // namespace fmm

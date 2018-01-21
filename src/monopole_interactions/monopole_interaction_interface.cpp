@@ -25,8 +25,6 @@ namespace fmm {
           , kernel(neighbor_empty_multipoles)
           , kernel_monopoles(neighbor_empty_monopoles) {
             // Create our input structure for the compute kernel
-            local_expansions = std::vector<expansion>(EXPANSION_COUNT_PADDED);
-            center_of_masses = std::vector<space_vector>(EXPANSION_COUNT_PADDED);
             potential_expansions = std::vector<expansion>(EXPANSION_COUNT_NOT_PADDED);
             angular_corrections = std::vector<space_vector>(EXPANSION_COUNT_NOT_PADDED);
 
@@ -44,8 +42,10 @@ namespace fmm {
             iterate_inner_cells_padded(
                 [this, mons, multipoles, com0](const multiindex<>& i, const size_t flat_index,
                     const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                    local_expansions.at(flat_index) = 0.0;
-                    center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+                    // local_expansions.at(flat_index) = 0.0;
+                    // center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
+
+                    center_of_masses_SoA.set_AoS_value(com0.at(flat_index_unpadded), flat_index);
 
                     local_monopoles.at(flat_index) = mons.at(flat_index_unpadded);
                 });
@@ -88,10 +88,10 @@ namespace fmm {
                         iterate_inner_cells_padding(
                             dir, [this](const multiindex<>& i, const size_t flat_index,
                                      const multiindex<>&, const size_t) {
-                                // initializes whole expansion, relatively expansion
-                                local_expansions.at(flat_index) = 0.0;
-                                // initializes x,y,z vector
-                                center_of_masses.at(flat_index) = 0.0;
+                                // // initializes whole expansion, relatively expansion
+                                // local_expansions.at(flat_index) = 0.0;
+                                // // initializes x,y,z vector
+                                // center_of_masses.at(flat_index) = 0.0;
 
                                 local_monopoles.at(flat_index) = 0.0;
                             });
@@ -105,10 +105,12 @@ namespace fmm {
                             dir, [this, neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
                                      const size_t flat_index, const multiindex<>& i_unpadded,
                                      const size_t flat_index_unpadded) {
-                                local_expansions.at(flat_index) =
-                                    neighbor_M_ptr.at(flat_index_unpadded);
-                                center_of_masses.at(flat_index) =
-                                    neighbor_com0.at(flat_index_unpadded);
+                                // local_expansions.at(flat_index) =
+                                //     neighbor_M_ptr.at(flat_index_unpadded);
+                                // center_of_masses.at(flat_index) =
+                                //     neighbor_com0.at(flat_index_unpadded);
+                    local_expansions_SoA.set_AoS_value(neighbor_M_ptr.at(flat_index_unpadded), flat_index);
+                    center_of_masses_SoA.set_AoS_value(neighbor_com0.at(flat_index_unpadded), flat_index);
 
                                 local_monopoles.at(flat_index) = 0.0;
                             });
@@ -207,10 +209,6 @@ namespace fmm {
                     potential_expansions_SoA(potential_expansions);
                 // auto start = std::chrono::high_resolution_clock::now();
                 if (multipole_neighbors_exist) {
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                        local_expansions_SoA(local_expansions);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        center_of_masses_SoA(center_of_masses);
                     struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
@@ -263,10 +261,6 @@ namespace fmm {
                 if (multipole_neighbors_exist) {
                     struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                         potential_expansions_SoA(potential_expansions);
-                    struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                        local_expansions_SoA(local_expansions);
-                    struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                        center_of_masses_SoA(center_of_masses);
                     struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                         angular_corrections_SoA(angular_corrections);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
@@ -313,13 +307,6 @@ namespace fmm {
             }
         }
 
-        std::vector<expansion>& monopole_interaction_interface::get_local_expansions() {
-            return local_expansions;
-        }
-
-        std::vector<space_vector>& monopole_interaction_interface::get_center_of_masses() {
-            return center_of_masses;
-        }
 
         std::vector<expansion>& monopole_interaction_interface::get_potential_expansions() {
             return potential_expansions;
@@ -328,49 +315,6 @@ namespace fmm {
         std::vector<space_vector>& monopole_interaction_interface::get_angular_corrections() {
             return angular_corrections;
         }
-
-        void monopole_interaction_interface::print_potential_expansions() {
-            print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
-                std::cout << " (" << i << ") =[0] " << this->potential_expansions[flat_index][0];
-            });
-        }
-
-        void monopole_interaction_interface::print_angular_corrections() {
-            print_layered_not_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
-                std::cout << " (" << i << ") =[0] " << this->angular_corrections[flat_index];
-            });
-        }
-
-        void monopole_interaction_interface::print_local_expansions() {
-            print_layered_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
-                std::cout << " " << this->local_expansions[flat_index];
-            });
-        }
-
-        void monopole_interaction_interface::print_center_of_masses() {
-            print_layered_padded(true, [this](const multiindex<>& i, const size_t flat_index) {
-                std::cout << this->center_of_masses[flat_index];
-            });
-        }
-
-        void monopole_interaction_interface::add_to_potential_expansions(
-            std::vector<expansion>& L) {
-            // if (!multipole_neighbors_exist)
-            //     return;
-            iterate_inner_cells_not_padded([this, &L](multiindex<>& i, size_t flat_index) {
-                potential_expansions[flat_index] += L[flat_index];
-            });
-        }
-
-        void monopole_interaction_interface::add_to_center_of_masses(
-            std::vector<space_vector>& L_c) {
-            // if (!multipole_neighbors_exist)
-            //     return;
-            iterate_inner_cells_not_padded([this, &L_c](multiindex<>& i, size_t flat_index) {
-                center_of_masses[flat_index] += L_c[flat_index];
-            });
-        }
-
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
