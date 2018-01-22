@@ -74,7 +74,8 @@ namespace fmm {
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     angular_corrections_SoA,
                 std::vector<multiindex<>>& stencil, gsolve_type type, real dX,
-                std::array<real, NDIM> &xbase);
+                               std::array<real, NDIM> &xbase,bool (&z_skip)[3][3][3],
+                bool (&y_skip)[3][3], bool (&x_skip)[3]);
         };
 
     }    // namespace multipole_interactions

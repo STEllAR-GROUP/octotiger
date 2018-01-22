@@ -24,8 +24,6 @@ namespace fmm {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
-            vectors_check_empty();
-            // calculate_coarse_indices();
         }
 
         void m2p_kernel::apply_stencil(std::vector<real>& mons,
@@ -37,22 +35,42 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
             std::vector<multiindex<>>& stencil, gsolve_type type, real dX,
-            std::array<real, NDIM>& xbase) {
+                                       std::array<real, NDIM>& xbase, bool (&z_skip)[3][3][3],
+                bool (&y_skip)[3][3], bool (&x_skip)[3]) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
-                 outer_stencil_index += STENCIL_BLOCKING) {
+                 outer_stencil_index += 1) {
+                const multiindex<>& stencil_element = stencil[outer_stencil_index];
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization
                 // multiindex<> se(stencil_element.x, stencil_element.y, stencil_element.z);
                 // std::cout << "se: " << se << std::endl;
                 // iterate_inner_cells_padded_stencil(se, *this);
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
+                    const size_t x_interaction = i0 + stencil_element.x + INNER_CELLS_PADDING_DEPTH;
+                    const size_t x_block = x_interaction / INNER_CELLS_PER_DIRECTION;
+                    if (x_skip[x_block])
+                        continue;
                     for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
+                        const size_t y_interaction =
+                            i1 + stencil_element.y + INNER_CELLS_PADDING_DEPTH;
+                        const size_t y_block = y_interaction / INNER_CELLS_PER_DIRECTION;
+                        if (y_skip[x_block][y_block])
+                            continue;
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
+                            const size_t z_interaction =
+                                i2 + stencil_element.z + INNER_CELLS_PADDING_DEPTH;
+                            const size_t z_block = z_interaction / INNER_CELLS_PER_DIRECTION;
+                            const size_t z_interaction2 = i2 + stencil_element.z +
+                                m2m_vector::size() - 1 + INNER_CELLS_PADDING_DEPTH;
+                            const size_t z_block2 = z_interaction2 / INNER_CELLS_PER_DIRECTION;
+                            if (z_skip[x_block][y_block][z_block] &&
+                                z_skip[x_block][y_block][z_block2])
+                                continue;
                             const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
                                 i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
                             // BUG: indexing has to be done with uint32_t because of Vc

@@ -54,10 +54,16 @@ namespace fmm {
             for (const geo::direction& dir : geo::direction::full_set()) {
                 // don't use neighbor.direction, is always zero for empty cells!
                 neighbor_gravity_type& neighbor = neighbors[dir];
+                // Switch x and z dimension since the stencil code and the old octotiger code
+                // a different order for some reason
+                auto x = dir.operator[](ZDIM) + 1;
+                auto y = dir.operator[](YDIM) + 1;
+                auto z = dir.operator[](XDIM) + 1;
 
                 // this dir is setup as a multipole
                 if (!neighbor.is_monopole) {
                     neighbor_empty_monopole[dir.flat_index_with_center()] = true;
+                    x_skip[z][y][x] = true;
                     if (!neighbor.data.M) {
                         // TODO: ask Dominic why !is_monopole and stuff still empty
                         iterate_inner_cells_padding(dir, [this](const multiindex<>& i,
@@ -111,6 +117,7 @@ namespace fmm {
 
                         });
                         neighbor_empty_monopole[dir.flat_index_with_center()] = true;
+                        x_skip[z][y][x] = true;
                     } else {
                         // Get multipole data into our input structure
                         std::vector<real>& neighbor_mons = *(neighbor.data.m);
@@ -129,12 +136,29 @@ namespace fmm {
                             local_monopoles.at(flat_index) = neighbor_mons.at(flat_index_unpadded);
                         });
                         monopole_neighbors_exist = true;
+                        x_skip[z][y][x] = false;
                     }
                 }
             }
 
             neighbor_empty_multipole[13] = false;
             neighbor_empty_monopole[13] = true;
+
+            x_skip[1][1][1] = true;
+            for (auto zi = 0; zi < 3; ++zi) {
+                z_skip[zi] = true;
+                for (auto yi = 0; yi < 3; ++yi) {
+                    y_skip[zi][yi] = true;
+                    for (auto xi = 0; xi < 3; ++xi) {
+                        if (!x_skip[zi][yi][xi]) {
+                            y_skip[zi][yi] = false;
+                            break;
+                        }
+                    }
+                    if (!y_skip[zi][yi])
+                        z_skip[zi] = false;
+                }
+            }
 
             // std::fill(std::begin(potential_expansions), std::end(potential_expansions), ZERO);
 
@@ -158,7 +182,7 @@ namespace fmm {
                 if (monopole_neighbors_exist) {
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                        stencil_mixed_interactions, type, dX, xBase);
+                        stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
                 }
 
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
@@ -204,7 +228,7 @@ namespace fmm {
                 if (monopole_neighbors_exist) {
                     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
                         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                        stencil_mixed_interactions, type, dX, xBase);
+                        stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
                 }
 
                 std::vector<expansion>& L = grid_ptr->get_L();
