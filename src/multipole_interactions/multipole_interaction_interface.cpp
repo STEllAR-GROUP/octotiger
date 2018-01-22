@@ -20,9 +20,7 @@ namespace fmm {
           : neighbor_empty_multipole(27)
           , neighbor_empty_monopole(27)
           , kernel(neighbor_empty_multipole)
-          , mixed_interactions_kernel(neighbor_empty_monopole) {
-            local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
-        }
+          , mixed_interactions_kernel(neighbor_empty_monopole) {}
 
         void multipole_interaction_interface::update_input(std::vector<real>& monopoles,
             std::vector<multipole>& M_ptr,
@@ -76,8 +74,6 @@ namespace fmm {
                             local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
                             center_of_masses_SoA.set_AoS_value(
                                 std::move(space_vector()), flat_index);
-
-                            local_monopoles.at(flat_index) = 0.0;
                         });
                         neighbor_empty_multipole[dir.flat_index_with_center()] = true;
                     } else {
@@ -96,7 +92,6 @@ namespace fmm {
                                 center_of_masses_SoA.set_AoS_value(
                                     std::move(neighbor_com0.at(flat_index_unpadded)), flat_index);
 
-                                local_monopoles.at(flat_index) = 0.0;
                             });
                     }
                 } else {
@@ -107,7 +102,6 @@ namespace fmm {
                                                              const size_t flat_index,
                                                              const multiindex<>&, const size_t) {
                             // initializes whole expansion, relatively expansion
-                            local_monopoles.at(flat_index) = 0.0;
                             // local_expansions.at(flat_index) = 0.0;
                             // // initializes x,y,z vector
                             // center_of_masses.at(flat_index) = 0.0;
@@ -122,19 +116,24 @@ namespace fmm {
                         // Get multipole data into our input structure
                         std::vector<real>& neighbor_mons = *(neighbor.data.m);
                         std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
-                        iterate_inner_cells_padding(dir, [this, neighbor_mons](
-                                                             const multiindex<>& i,
-                                                             const size_t flat_index,
-                                                             const multiindex<>& i_unpadded,
-                                                             const size_t flat_index_unpadded) {
-                            // local_expansions.at(flat_index) = 0.0;
-                            // center_of_masses.at(flat_index) = 0.0;
-                            local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
-                            center_of_masses_SoA.set_AoS_value(
-                                std::move(space_vector()), flat_index);
+                        iterate_inner_cells_padding(
+                            dir, [this, neighbor_mons, xbase, dx](const multiindex<>& i,
+                                     const size_t flat_index, const multiindex<>& i_unpadded,
+                                     const size_t flat_index_unpadded) {
+                                // local_expansions.at(flat_index) = 0.0;
+                                // center_of_masses.at(flat_index) = 0.0;
 
-                            local_monopoles.at(flat_index) = neighbor_mons.at(flat_index_unpadded);
-                        });
+                                space_vector e;
+                                e[0] = (i_unpadded.x) * dx + xbase[0];
+                                e[1] = (i_unpadded.y) * dx + xbase[1];
+                                e[2] = (i_unpadded.z) * dx + xbase[2];
+                                center_of_masses_SoA.set_AoS_value(
+                                    std::move(e), flat_index);
+                                // local_monopoles.at(flat_index) =
+                                // neighbor_mons.at(flat_index_unpadded);
+                                local_expansions_SoA.set_value(
+                                    std::move(neighbor_mons.at(flat_index_unpadded)), flat_index);
+                            });
                         monopole_neighbors_exist = true;
                         x_skip[z][y][x] = false;
                     }
@@ -179,11 +178,12 @@ namespace fmm {
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                     angular_corrections_SoA;
 
-                if (monopole_neighbors_exist) {
-                    mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
-                        center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                        stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
-                }
+                // if (monopole_neighbors_exist) {
+                //     mixed_interactions_kernel.apply_stencil(local_monopoles,
+                //     local_expansions_SoA,
+                //         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                //         stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
+                // }
 
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
@@ -225,11 +225,11 @@ namespace fmm {
                     potential_expansions_SoA;
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                     angular_corrections_SoA;
-                if (monopole_neighbors_exist) {
-                    mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
-                        center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
-                        stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
-                }
+                // if (monopole_neighbors_exist) {
+                //     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
+                //         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                //         stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
+                // }
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();

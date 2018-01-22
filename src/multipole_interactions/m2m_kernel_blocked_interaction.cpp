@@ -84,9 +84,9 @@ namespace fmm {
                     to_flat_index_padded(interaction_partner_index);    // iii1n
 
                 // check whether all vector elements are in empty border
-                if (vector_is_empty[interaction_partner_flat_index]) {
-                    continue;
-                }
+                // if (vector_is_empty[interaction_partner_flat_index]) {
+                //     continue;
+                // }
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -611,9 +611,9 @@ namespace fmm {
                     to_flat_index_padded(interaction_partner_index);
 
                 // check whether all vector elements are in empty border
-                if (vector_is_empty[interaction_partner_flat_index]) {
-                    continue;
-                }
+                // if (vector_is_empty[interaction_partner_flat_index]) {
+                //     continue;
+                // }
 
                 // implicitly broadcasts to vector
                 multiindex<m2m_int_vector> interaction_partner_index_coarse(

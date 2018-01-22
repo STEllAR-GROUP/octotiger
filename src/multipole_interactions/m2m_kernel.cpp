@@ -53,7 +53,7 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
             std::vector<multiindex<>>& stencil, gsolve_type type) {
-            vectors_check_empty();
+            // vectors_check_empty();
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
                  outer_stencil_index += STENCIL_BLOCKING) {

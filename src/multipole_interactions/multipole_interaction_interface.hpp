@@ -34,7 +34,6 @@ namespace fmm {
              */
 
             // M_ptr
-            std::vector<real> local_monopoles;
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
             /// com_ptr - Center of masses, required for the angular corrections
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;

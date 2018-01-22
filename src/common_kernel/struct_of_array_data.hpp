@@ -45,6 +45,13 @@ namespace fmm {
                 data[component * padded_entries_per_component + flatindex] = value[component];
             }
         }
+        template <typename AoS_temp_type>
+        inline void set_value(AoS_temp_type&& value, size_t flatindex) {
+            data[flatindex] = value;
+            for (size_t component = 1; component < num_components; component++) {
+                data[component * padded_entries_per_component + flatindex] = 0.0;
+            }
+        }
 
         struct_of_array_data(const std::vector<AoS_type>& org)
           : data(new component_type[num_components * padded_entries_per_component]) {
