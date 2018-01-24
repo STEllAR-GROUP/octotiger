@@ -29,8 +29,8 @@ namespace fmm {
                 SOA_PADDING>& __restrict__ potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS,
                 SOA_PADDING>& __restrict__ angular_corrections_SoA,
-            std::vector<real> &mons,
-            const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index,
+            std::vector<real>& mons, const multiindex<>& __restrict__ cell_index,
+            const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded, const two_phase_stencil& __restrict__ stencil,
@@ -71,6 +71,10 @@ namespace fmm {
             // tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
             // struct_of_array_iterator<space_vector, real, 3> X(center_of_masses_SoA,
             // cell_flat_index);
+            std::array<m2m_vector, 15> D_upper;
+            std::array<m2m_vector, 20> D_lower;
+            std::array<m2m_vector, 10> cur_pot;
+
             bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.stencil_elements.size();
@@ -143,14 +147,14 @@ namespace fmm {
                 // expansion_v m_partner;
                 std::array<m2m_vector, 20> m_partner;
                 m2m_vector::mask_type mask_phase_one(phase_one);
-                // m2m_vector::mask_type mask_inside(vector_is_empty[interaction_partner_flat_index]);
+                // m2m_vector::mask_type
+                // mask_inside(vector_is_empty[interaction_partner_flat_index]);
 
                 // mask_inside = (mask & mask_phase_one) | (mask & mask_inside);
 
-
                 Vc::where(mask, m_partner[0]) = m2m_vector(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
-                mask = mask & mask_phase_one; // do not load multipoles outside the inner stencil
+                mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
                     m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[1]) =
@@ -202,12 +206,7 @@ namespace fmm {
                 // formula (6)-(9) and (19)
                 D_split D_calculator(dX);
                 // TODO: this translates to an initialization loop, bug!
-                std::array<m2m_vector, 20> D_lower;
                 D_calculator.calculate_D_lower(D_lower);
-
-                // expansion_v current_potential;
-                // TODO: this translates to an initialization loop, bug!
-                std::array<m2m_vector, 10> cur_pot;
 
                 // 10-19 are not cached!
 
@@ -347,14 +346,10 @@ namespace fmm {
                 // current_angular_correction_result(
                 //     angular_corrections_SoA, cell_flat_index_unpadded);
 
-                std::array<m2m_vector, 15> D_upper;
                 // D_calculator.calculate_D_upper(D_upper);
 
                 // B0?
-                m2m_vector current_angular_correction[NDIM];
-                current_angular_correction[0] = 0.0;
-                current_angular_correction[1] = 0.0;
-                current_angular_correction[2] = 0.0;
+                std::array<m2m_vector, NDIM> current_angular_correction;
 
                 D_upper[0] =
                     D_calculator.X[0] * D_calculator.X[0] * D_calculator.d3 + 2.0 * D_calculator.d2;
@@ -474,12 +469,9 @@ namespace fmm {
                 current_angular_correction[0] -= n0_tmp * (D_upper[9] * factor_sixth_v[19]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth_v[19]);
                 current_angular_correction[2] -= n0_tmp * (D_upper[14] * factor_sixth_v[19]);
-                tmp_corrections[0] =
-                    tmp_corrections[0] + current_angular_correction[0];
-                tmp_corrections[1] =
-                    tmp_corrections[1] + current_angular_correction[1];
-                tmp_corrections[2] =
-                    tmp_corrections[2] + current_angular_correction[2];
+                tmp_corrections[0] = tmp_corrections[0] + current_angular_correction[0];
+                tmp_corrections[1] = tmp_corrections[1] + current_angular_correction[1];
+                tmp_corrections[2] = tmp_corrections[2] + current_angular_correction[2];
             }
             if (changed_data) {
                 tmpstore[0] =
@@ -598,8 +590,7 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<real> &mons,
-            const multiindex<>& cell_index, const size_t cell_flat_index,
+            std::vector<real>& mons, const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const two_phase_stencil& stencil, const size_t outer_stencil_index) {
@@ -630,6 +621,9 @@ namespace fmm {
             // tmpstore[19] = potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
             // struct_of_array_iterator<space_vector, real, 3> X(center_of_masses_SoA,
             // cell_flat_index);
+            std::array<m2m_vector, 20> D_lower;
+            std::array<m2m_vector, 10>
+                cur_pot;    // current potential = cur_pot = A in the old style
             bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
                  outer_stencil_index + inner_stencil_index < stencil.stencil_elements.size();
@@ -690,7 +684,7 @@ namespace fmm {
 
                 Vc::where(mask, m_partner[0]) = m2m_vector(
                     mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
-                mask = mask & mask_phase_one; // do not load multipoles outside the inner stencil
+                mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
                     m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[1]) =
@@ -740,12 +734,7 @@ namespace fmm {
                 // potential),
                 // formula (6)-(9) and (19)
                 D_split D_calculator(dX);
-                std::array<m2m_vector, 20> D_lower;
                 D_calculator.calculate_D_lower(D_lower);
-
-                // expansion_v current_potential;
-                std::array<m2m_vector, 10>
-                    cur_pot;    // current potential = cur_pot = A in the old style
 
                 // 10-19 are not cached!
 
