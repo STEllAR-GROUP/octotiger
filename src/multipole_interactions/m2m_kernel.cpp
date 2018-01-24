@@ -52,10 +52,10 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil, gsolve_type type) {
-            // vectors_check_empty();
+            const two_phase_stencil& stencil, gsolve_type type) {
+            vectors_check_empty();
             // for (multiindex<>& stencil_element : stencil) {
-            for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
+            for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.stencil_elements.size();
                  outer_stencil_index += STENCIL_BLOCKING) {
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization

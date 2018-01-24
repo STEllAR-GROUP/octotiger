@@ -11,8 +11,8 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        std::vector<multiindex<>> calculate_stencil(bool multipole_interactions) {
-            std::array<std::vector<multiindex<>>, 8> stencils;
+        two_phase_stencil calculate_stencil(void) {
+            std::array<two_phase_stencil, 8> stencils;
 
             // used to check the radiuses of the outer and inner sphere
             const real theta0 = opts.theta;
@@ -24,7 +24,7 @@ namespace fmm {
             for (int64_t i0 = 0; i0 < 2; ++i0) {
                 for (int64_t i1 = 0; i1 < 2; ++i1) {
                     for (int64_t i2 = 0; i2 < 2; ++i2) {
-                        std::vector<multiindex<>> stencil;
+                        two_phase_stencil stencil;
                         for (int64_t j0 = i0 - INX; j0 < i0 + INX; ++j0) {
                             for (int64_t j1 = i1 - INX; j1 < i1 + INX; ++j1) {
                                 for (int64_t j2 = i2 - INX; j2 < i2 + INX; ++j2) {
@@ -47,14 +47,16 @@ namespace fmm {
                                     const real theta_c = detail::reciprocal_distance(
                                         i0_c, i1_c, i2_c, j0_c, j1_c, j2_c);
 
-                                    if (multipole_interactions) {
-                                        // not in inner sphere (theta_c > theta0), but in outer
-                                        // sphere
-                                        if (theta_c > theta0 && theta_f <= theta0) {
-                                            stencil.emplace_back(j0 - i0, j1 - i1, j2 - i2);
-                                        }
+                                    // not in inner sphere (theta_c > theta0), but in outer
+                                    // sphere
+                                    if (theta_c > theta0 && theta_f <= theta0) {
+                                        stencil.stencil_elements.emplace_back(
+                                            j0 - i0, j1 - i1, j2 - i2);
+                                        stencil.stencil_phase_indicator.emplace_back(true);
                                     } else if (theta_c > theta0) {
-                                        stencil.emplace_back(j0 - i0, j1 - i1, j2 - i2);
+                                        stencil.stencil_elements.emplace_back(
+                                            j0 - i0, j1 - i1, j2 - i2);
+                                        stencil.stencil_phase_indicator.emplace_back(false);
                                     }
                                 }
                             }
@@ -64,112 +66,26 @@ namespace fmm {
                 }
             }
 
-            std::vector<multiindex<>> superimposed_stencil;
+            two_phase_stencil superimposed_stencil;
             for (size_t i = 0; i < 8; i++) {
-                for (multiindex<>& stencil_element : stencils[i]) {
+                for (auto element_index = 0; element_index < stencils[i].stencil_elements.size();
+                     ++element_index) {
+                    multiindex<>& stencil_element = stencils[i].stencil_elements[element_index];
                     bool found = false;
-                    for (multiindex<>& super_element : superimposed_stencil) {
+                    for (multiindex<>& super_element : superimposed_stencil.stencil_elements) {
                         if (stencil_element.compare(super_element)) {
                             found = true;
                             break;
                         }
                     }
                     if (!found) {
-                        superimposed_stencil.push_back(stencil_element);
+                        superimposed_stencil.stencil_elements.push_back(stencil_element);
+                        superimposed_stencil.stencil_phase_indicator.push_back(
+                            stencils[i].stencil_phase_indicator[element_index]);
                     }
                 }
-                std::cout << "Stencil size: " << stencils[i].size() << std::endl;
+                std::cout << "Stencil size: " << stencils[i].stencil_elements.size() << std::endl;
             }
-            // std::cout << "superimposed_stencil.size(): " << superimposed_stencil.size() <<
-            // std::endl;
-
-            // for (size_t i = 0; i < 8; i++) {
-            //     uint64_t common_elements = 0;
-            //     for (auto& element : stencils[i]) {
-            //         for (auto& super_element : superimposed_stencil) {
-            //             if (element.compare(super_element)) {
-            //                 common_elements += 1;
-            //                 break;
-            //             }
-            //         }
-            //     }
-            //     std::cout << "total_elements: " << stencils[i].size()
-            //               << " common_elements: " << common_elements
-            //               << " masked_elements: " << (superimposed_stencil.size() -
-            //               common_elements)
-            //               << std::endl;
-            // }
-
-            // for (size_t i = 0; i < 8; i++) {
-            //     std::cout << "-------------- " << i << " ---------------" << std::endl;
-            //     std::cout << "x, y, z" << std::endl;
-            //     std::vector<multiindex>& stencil = stencils[i];
-            //     for (multiindex& stencil_element : stencil) {
-            //         std::cout << stencil_element << std::endl;
-            //     }
-            //     std::cout << std::endl;
-            // }
-
-            // std::vector<multiindex> common_stencil;
-            // // use the first stencil to filter the elements that are in all other stencils
-            // std::vector<multiindex>& first_stencil = stencils[0];
-            // for (multiindex& first_element : first_stencil) {
-            //     bool all_found = true;
-            //     for (size_t i = 1; i < 8; i++) {
-            //         bool found = false;
-            //         for (multiindex& second_element : stencils[i]) {
-            //             if (first_element.compare(second_element)) {
-            //                 found = true;
-            //                 break;
-            //             }
-            //         }
-            //         if (!found) {
-            //             all_found = false;
-            //             break;
-            //         }
-            //     }
-            //     if (all_found) {
-            //         common_stencil.push_back(first_element);
-            //     }
-            // }
-
-            // std::cout << "-------------- common_stencil"
-            //           << " size: " << common_stencil.size() << " ---------------" << std::endl;
-            // std::cout << "x, y, z" << std::endl;
-            // for (multiindex& stencil_element : common_stencil) {
-            //     std::cout << stencil_element << std::endl;
-            // }
-            // std::cout << std::endl;
-
-            // std::array<std::vector<multiindex>, 8> diff_stencils;
-
-            // for (size_t i = 0; i < 8; i++) {
-            //     for (multiindex& element : stencils[i]) {
-            //         bool found = false;
-            //         for (multiindex& common_element : common_stencil) {
-            //             if (element.compare(common_element)) {
-            //                 found = true;
-            //                 break;
-            //             }
-            //         }
-            //         if (!found) {
-            //             diff_stencils[i].push_back(element);
-            //         }
-            //     }
-            // }
-
-            // for (size_t i = 0; i < 8; i++) {
-            //     std::cout << "-------------- diff_stencil: " << i
-            //               << " size: " << diff_stencils[i].size() << " ---------------" <<
-            //               std::endl;
-            //     std::cout << "x, y, z" << std::endl;
-            //     std::vector<multiindex>& stencil = diff_stencils[i];
-            //     for (multiindex& stencil_element : stencil) {
-            //         std::cout << stencil_element << std::endl;
-            //     }
-            //     std::cout << std::endl;
-            // }
-
             return superimposed_stencil;
         }
 

@@ -14,12 +14,10 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        std::vector<multiindex<>> multipole_interaction_interface::stencil_multipole_interactions;
-        std::vector<multiindex<>> multipole_interaction_interface::stencil_mixed_interactions;
+    two_phase_stencil multipole_interaction_interface::stencil;
         multipole_interaction_interface::multipole_interaction_interface(void)
           : neighbor_empty_multipole(27)
           , neighbor_empty_monopole(27)
-          , kernel(neighbor_empty_multipole)
           , mixed_interactions_kernel(neighbor_empty_monopole) {}
 
         void multipole_interaction_interface::update_input(std::vector<real>& monopoles,
@@ -124,9 +122,12 @@ namespace fmm {
                                 // center_of_masses.at(flat_index) = 0.0;
 
                                 space_vector e;
-                                e[0] = (i_unpadded.x) * dx + xbase[0];
-                                e[1] = (i_unpadded.y) * dx + xbase[1];
-                                e[2] = (i_unpadded.z) * dx + xbase[2];
+                                e[0] = (i.x) * dx + xbase[0] -
+                                INNER_CELLS_PER_DIRECTION * dx;
+                                e[1] = (i.y) * dx + xbase[1] -
+                                INNER_CELLS_PER_DIRECTION * dx;
+                                e[2] = (i.z) * dx + xbase[2] -
+                                INNER_CELLS_PER_DIRECTION * dx;
                                 center_of_masses_SoA.set_AoS_value(
                                     std::move(e), flat_index);
                                 // local_monopoles.at(flat_index) =
@@ -184,10 +185,10 @@ namespace fmm {
                 //         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
                 //         stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
                 // }
-
+                m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
-                    stencil_multipole_interactions, type);
+                    stencil, type);
 
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
@@ -200,9 +201,10 @@ namespace fmm {
                     potential_expansions_SoA;
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                     angular_corrections_SoA;
+                m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA,
-                    stencil_multipole_interactions, type);
+                    stencil, type);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();
@@ -230,6 +232,10 @@ namespace fmm {
                 //         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
                 //         stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
                 // }
+                m2m_kernel kernel(neighbor_empty_multipole);
+                kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
+                    potential_expansions_SoA, angular_corrections_SoA,
+                    stencil, type);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();

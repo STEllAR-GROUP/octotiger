@@ -32,8 +32,7 @@ namespace fmm {
             const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
-            const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& __restrict__ stencil,
+            const size_t cell_flat_index_unpadded, const two_phase_stencil& __restrict__ stencil,
             const size_t outer_stencil_index) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
@@ -73,10 +72,12 @@ namespace fmm {
             // cell_flat_index);
             bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
-                 outer_stencil_index + inner_stencil_index < stencil.size();
+                 outer_stencil_index + inner_stencil_index < stencil.stencil_elements.size();
                  inner_stencil_index += 1) {
+                const bool phase_one =
+                    stencil.stencil_phase_indicator[outer_stencil_index + inner_stencil_index];
                 const multiindex<>& stencil_element =
-                    stencil[outer_stencil_index + inner_stencil_index];
+                    stencil.stencil_elements[outer_stencil_index + inner_stencil_index];
                 const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
 
@@ -104,6 +105,8 @@ namespace fmm {
                     Vc::static_datapar_cast_double_to_int(theta_c_rec_squared_int);
 
                 m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
+                // m2m_vector::mask_type phase2_mask =
+                //     stencil.stencil_phase_indicator[outer_stencil_index + inner_stencil_index];
 
                 if (Vc::none_of(mask)) {
                     continue;
@@ -138,28 +141,53 @@ namespace fmm {
                 // TODO: does this get initialized
                 // expansion_v m_partner;
                 std::array<m2m_vector, 20> m_partner;
+                m2m_vector::mask_type mask_phase_one(phase_one);
+                m2m_vector::mask_type mask_inside(vector_is_empty[interaction_partner_flat_index]);
+
+                mask_inside = (mask & mask_phase_one) | (mask & mask_inside);
 
                 // ONE expansion
-                m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
-                m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
-                m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
-                m_partner[3] = local_expansions_SoA.value<3>(interaction_partner_flat_index);
-                m_partner[4] = local_expansions_SoA.value<4>(interaction_partner_flat_index);
-                m_partner[5] = local_expansions_SoA.value<5>(interaction_partner_flat_index);
-                m_partner[6] = local_expansions_SoA.value<6>(interaction_partner_flat_index);
-                m_partner[7] = local_expansions_SoA.value<7>(interaction_partner_flat_index);
-                m_partner[8] = local_expansions_SoA.value<8>(interaction_partner_flat_index);
-                m_partner[9] = local_expansions_SoA.value<9>(interaction_partner_flat_index);
-                m_partner[10] = local_expansions_SoA.value<10>(interaction_partner_flat_index);
-                m_partner[11] = local_expansions_SoA.value<11>(interaction_partner_flat_index);
-                m_partner[12] = local_expansions_SoA.value<12>(interaction_partner_flat_index);
-                m_partner[13] = local_expansions_SoA.value<13>(interaction_partner_flat_index);
-                m_partner[14] = local_expansions_SoA.value<14>(interaction_partner_flat_index);
-                m_partner[15] = local_expansions_SoA.value<15>(interaction_partner_flat_index);
-                m_partner[16] = local_expansions_SoA.value<16>(interaction_partner_flat_index);
-                m_partner[17] = local_expansions_SoA.value<17>(interaction_partner_flat_index);
-                m_partner[18] = local_expansions_SoA.value<18>(interaction_partner_flat_index);
-                m_partner[19] = local_expansions_SoA.value<19>(interaction_partner_flat_index);
+                Vc::where(mask_inside, m_partner[0]) =
+                    local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                mask = mask & mask_phase_one;
+                Vc::where(mask, m_partner[1]) =
+                    local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[2]) =
+                    local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[3]) =
+                    local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[4]) =
+                    local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[5]) =
+                    local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[6]) =
+                    local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[7]) =
+                    local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[8]) =
+                    local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[9]) =
+                    local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[10]) =
+                    local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[11]) =
+                    local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[12]) =
+                    local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[13]) =
+                    local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[14]) =
+                    local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[15]) =
+                    local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[16]) =
+                    local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[17]) =
+                    local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[18]) =
+                    local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[19]) =
+                    local_expansions_SoA.value<19>(interaction_partner_flat_index);
 
                 // R_i in paper is the dX in the code
                 // D is taylor expansion value for a given X expansion of the gravitational
@@ -271,31 +299,31 @@ namespace fmm {
                 cur_pot[8] -= m_partner[3] * D_lower[18];
                 cur_pot[9] -= m_partner[3] * D_lower[19];
 
-                Vc::where(mask, tmpstore[0]) = tmpstore[0] + cur_pot[0];
-                Vc::where(mask, tmpstore[1]) = tmpstore[1] + cur_pot[1];
-                Vc::where(mask, tmpstore[2]) = tmpstore[2] + cur_pot[2];
-                Vc::where(mask, tmpstore[3]) = tmpstore[3] + cur_pot[3];
-                Vc::where(mask, tmpstore[4]) = tmpstore[4] + cur_pot[4];
-                Vc::where(mask, tmpstore[5]) = tmpstore[5] + cur_pot[5];
-                Vc::where(mask, tmpstore[6]) = tmpstore[6] + cur_pot[6];
-                Vc::where(mask, tmpstore[7]) = tmpstore[7] + cur_pot[7];
-                Vc::where(mask, tmpstore[8]) = tmpstore[8] + cur_pot[8];
-                Vc::where(mask, tmpstore[9]) = tmpstore[9] + cur_pot[9];
+                tmpstore[0] = tmpstore[0] + cur_pot[0];
+                tmpstore[1] = tmpstore[1] + cur_pot[1];
+                tmpstore[2] = tmpstore[2] + cur_pot[2];
+                tmpstore[3] = tmpstore[3] + cur_pot[3];
+                tmpstore[4] = tmpstore[4] + cur_pot[4];
+                tmpstore[5] = tmpstore[5] + cur_pot[5];
+                tmpstore[6] = tmpstore[6] + cur_pot[6];
+                tmpstore[7] = tmpstore[7] + cur_pot[7];
+                tmpstore[8] = tmpstore[8] + cur_pot[8];
+                tmpstore[9] = tmpstore[9] + cur_pot[9];
 
                 /* Maps to
                 for (integer i = taylor_sizes[2]; i < taylor_sizes[3]; ++i) {
                     A0[i] = m0[0] * D[i];
                 }*/
-                Vc::where(mask, tmpstore[10]) = tmpstore[10] + m_partner[0] * D_lower[10];
-                Vc::where(mask, tmpstore[11]) = tmpstore[11] + m_partner[0] * D_lower[11];
-                Vc::where(mask, tmpstore[12]) = tmpstore[12] + m_partner[0] * D_lower[12];
-                Vc::where(mask, tmpstore[13]) = tmpstore[13] + m_partner[0] * D_lower[13];
-                Vc::where(mask, tmpstore[14]) = tmpstore[14] + m_partner[0] * D_lower[14];
-                Vc::where(mask, tmpstore[15]) = tmpstore[15] + m_partner[0] * D_lower[15];
-                Vc::where(mask, tmpstore[16]) = tmpstore[16] + m_partner[0] * D_lower[16];
-                Vc::where(mask, tmpstore[17]) = tmpstore[17] + m_partner[0] * D_lower[17];
-                Vc::where(mask, tmpstore[18]) = tmpstore[18] + m_partner[0] * D_lower[18];
-                Vc::where(mask, tmpstore[19]) = tmpstore[19] + m_partner[0] * D_lower[19];
+                tmpstore[10] = tmpstore[10] + m_partner[0] * D_lower[10];
+                tmpstore[11] = tmpstore[11] + m_partner[0] * D_lower[11];
+                tmpstore[12] = tmpstore[12] + m_partner[0] * D_lower[12];
+                tmpstore[13] = tmpstore[13] + m_partner[0] * D_lower[13];
+                tmpstore[14] = tmpstore[14] + m_partner[0] * D_lower[14];
+                tmpstore[15] = tmpstore[15] + m_partner[0] * D_lower[15];
+                tmpstore[16] = tmpstore[16] + m_partner[0] * D_lower[16];
+                tmpstore[17] = tmpstore[17] + m_partner[0] * D_lower[17];
+                tmpstore[18] = tmpstore[18] + m_partner[0] * D_lower[18];
+                tmpstore[19] = tmpstore[19] + m_partner[0] * D_lower[19];
 
                 ////////////// angular momentum correction, if enabled /////////////////////////
 
@@ -443,11 +471,11 @@ namespace fmm {
                 current_angular_correction[0] -= n0_tmp * (D_upper[9] * factor_sixth_v[19]);
                 current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth_v[19]);
                 current_angular_correction[2] -= n0_tmp * (D_upper[14] * factor_sixth_v[19]);
-                Vc::where(mask, tmp_corrections[0]) =
+                tmp_corrections[0] =
                     tmp_corrections[0] + current_angular_correction[0];
-                Vc::where(mask, tmp_corrections[1]) =
+                tmp_corrections[1] =
                     tmp_corrections[1] + current_angular_correction[1];
-                Vc::where(mask, tmp_corrections[2]) =
+                tmp_corrections[2] =
                     tmp_corrections[2] + current_angular_correction[2];
             }
             if (changed_data) {
@@ -570,7 +598,7 @@ namespace fmm {
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index) {
+            const two_phase_stencil& stencil, const size_t outer_stencil_index) {
             // TODO: should change name to something better (not taylor, but space_vector)
             // struct_of_array_taylor<space_vector, real, 3> X =
             //     center_of_masses_SoA.get_view(cell_flat_index);
@@ -600,10 +628,12 @@ namespace fmm {
             // cell_flat_index);
             bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
-                 outer_stencil_index + inner_stencil_index < stencil.size();
+                 outer_stencil_index + inner_stencil_index < stencil.stencil_elements.size();
                  inner_stencil_index += 1) {
+                const bool phase_one =
+                    stencil.stencil_phase_indicator[outer_stencil_index + inner_stencil_index];
                 const multiindex<>& stencil_element =
-                    stencil[outer_stencil_index + inner_stencil_index];
+                    stencil.stencil_elements[outer_stencil_index + inner_stencil_index];
                 const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
 
@@ -651,28 +681,54 @@ namespace fmm {
                     center_of_masses_SoA.value<2>(interaction_partner_flat_index);
 
                 // expansion_v m_partner;
-                std::array<m2m_vector, 20> m_partner;    // m0 from mpole from neighbors?
-                m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
-                m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
-                m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
-                m_partner[3] = local_expansions_SoA.value<3>(interaction_partner_flat_index);
-                m_partner[4] = local_expansions_SoA.value<4>(interaction_partner_flat_index);
-                m_partner[5] = local_expansions_SoA.value<5>(interaction_partner_flat_index);
-                m_partner[6] = local_expansions_SoA.value<6>(interaction_partner_flat_index);
-                m_partner[7] = local_expansions_SoA.value<7>(interaction_partner_flat_index);
-                m_partner[8] = local_expansions_SoA.value<8>(interaction_partner_flat_index);
-                m_partner[9] = local_expansions_SoA.value<9>(interaction_partner_flat_index);
-                m_partner[10] = local_expansions_SoA.value<10>(interaction_partner_flat_index);
-                m_partner[11] = local_expansions_SoA.value<11>(interaction_partner_flat_index);
-                m_partner[12] = local_expansions_SoA.value<12>(interaction_partner_flat_index);
-                m_partner[13] = local_expansions_SoA.value<13>(interaction_partner_flat_index);
-                m_partner[14] = local_expansions_SoA.value<14>(interaction_partner_flat_index);
-                m_partner[15] = local_expansions_SoA.value<15>(interaction_partner_flat_index);
-                m_partner[16] = local_expansions_SoA.value<16>(interaction_partner_flat_index);
-                m_partner[17] = local_expansions_SoA.value<17>(interaction_partner_flat_index);
-                m_partner[18] = local_expansions_SoA.value<18>(interaction_partner_flat_index);
-                m_partner[19] = local_expansions_SoA.value<19>(interaction_partner_flat_index);
+                std::array<m2m_vector, 20> m_partner;
+                m2m_vector::mask_type mask_phase_one(phase_one);
+                m2m_vector::mask_type mask_inside(vector_is_empty[interaction_partner_flat_index]);
 
+                mask_inside = (mask & mask_phase_one) | (mask & mask_inside);
+
+                // ONE expansion
+                Vc::where(mask_inside, m_partner[0]) =
+                    local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                mask = mask & mask_phase_one;
+                Vc::where(mask, m_partner[1]) =
+                    local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[2]) =
+                    local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[3]) =
+                    local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[4]) =
+                    local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[5]) =
+                    local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[6]) =
+                    local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[7]) =
+                    local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[8]) =
+                    local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[9]) =
+                    local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[10]) =
+                    local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[11]) =
+                    local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[12]) =
+                    local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[13]) =
+                    local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[14]) =
+                    local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[15]) =
+                    local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[16]) =
+                    local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[17]) =
+                    local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[18]) =
+                    local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                Vc::where(mask, m_partner[19]) =
+                    local_expansions_SoA.value<19>(interaction_partner_flat_index);
                 // R_i in paper is the dX in the code
                 // D is taylor expansion value for a given X expansion of the gravitational
                 // potential
@@ -781,31 +837,31 @@ namespace fmm {
                 cur_pot[8] -= m_partner[3] * D_lower[18];
                 cur_pot[9] -= m_partner[3] * D_lower[19];
 
-                Vc::where(mask, tmpstore[0]) = tmpstore[0] + cur_pot[0];
-                Vc::where(mask, tmpstore[1]) = tmpstore[1] + cur_pot[1];
-                Vc::where(mask, tmpstore[2]) = tmpstore[2] + cur_pot[2];
-                Vc::where(mask, tmpstore[3]) = tmpstore[3] + cur_pot[3];
-                Vc::where(mask, tmpstore[4]) = tmpstore[4] + cur_pot[4];
-                Vc::where(mask, tmpstore[5]) = tmpstore[5] + cur_pot[5];
-                Vc::where(mask, tmpstore[6]) = tmpstore[6] + cur_pot[6];
-                Vc::where(mask, tmpstore[7]) = tmpstore[7] + cur_pot[7];
-                Vc::where(mask, tmpstore[8]) = tmpstore[8] + cur_pot[8];
-                Vc::where(mask, tmpstore[9]) = tmpstore[9] + cur_pot[9];
+                tmpstore[0] = tmpstore[0] + cur_pot[0];
+                tmpstore[1] = tmpstore[1] + cur_pot[1];
+                tmpstore[2] = tmpstore[2] + cur_pot[2];
+                tmpstore[3] = tmpstore[3] + cur_pot[3];
+                tmpstore[4] = tmpstore[4] + cur_pot[4];
+                tmpstore[5] = tmpstore[5] + cur_pot[5];
+                tmpstore[6] = tmpstore[6] + cur_pot[6];
+                tmpstore[7] = tmpstore[7] + cur_pot[7];
+                tmpstore[8] = tmpstore[8] + cur_pot[8];
+                tmpstore[9] = tmpstore[9] + cur_pot[9];
 
                 /* Maps to
                 for (integer i = taylor_sizes[2]; i < taylor_sizes[3]; ++i) {
                     A0[i] = m0[0] * D[i];
                 }*/
-                Vc::where(mask, tmpstore[10]) = tmpstore[10] + m_partner[0] * D_lower[10];
-                Vc::where(mask, tmpstore[11]) = tmpstore[11] + m_partner[0] * D_lower[11];
-                Vc::where(mask, tmpstore[12]) = tmpstore[12] + m_partner[0] * D_lower[12];
-                Vc::where(mask, tmpstore[13]) = tmpstore[13] + m_partner[0] * D_lower[13];
-                Vc::where(mask, tmpstore[14]) = tmpstore[14] + m_partner[0] * D_lower[14];
-                Vc::where(mask, tmpstore[15]) = tmpstore[15] + m_partner[0] * D_lower[15];
-                Vc::where(mask, tmpstore[16]) = tmpstore[16] + m_partner[0] * D_lower[16];
-                Vc::where(mask, tmpstore[17]) = tmpstore[17] + m_partner[0] * D_lower[17];
-                Vc::where(mask, tmpstore[18]) = tmpstore[18] + m_partner[0] * D_lower[18];
-                Vc::where(mask, tmpstore[19]) = tmpstore[19] + m_partner[0] * D_lower[19];
+                tmpstore[10] = tmpstore[10] + m_partner[0] * D_lower[10];
+                tmpstore[11] = tmpstore[11] + m_partner[0] * D_lower[11];
+                tmpstore[12] = tmpstore[12] + m_partner[0] * D_lower[12];
+                tmpstore[13] = tmpstore[13] + m_partner[0] * D_lower[13];
+                tmpstore[14] = tmpstore[14] + m_partner[0] * D_lower[14];
+                tmpstore[15] = tmpstore[15] + m_partner[0] * D_lower[15];
+                tmpstore[16] = tmpstore[16] + m_partner[0] * D_lower[16];
+                tmpstore[17] = tmpstore[17] + m_partner[0] * D_lower[17];
+                tmpstore[18] = tmpstore[18] + m_partner[0] * D_lower[18];
+                tmpstore[19] = tmpstore[19] + m_partner[0] * D_lower[19];
             }
             if (changed_data) {
                 tmpstore[0] =

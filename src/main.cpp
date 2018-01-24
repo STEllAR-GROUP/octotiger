@@ -97,11 +97,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities)
 	compute_ilist();
     compute_factor();
     octotiger::fmm::multipole_interactions::multipole_interaction_interface::
-        stencil_multipole_interactions =
-            octotiger::fmm::multipole_interactions::calculate_stencil(true);
-    octotiger::fmm::multipole_interactions::multipole_interaction_interface::
-        stencil_mixed_interactions =
-            octotiger::fmm::multipole_interactions::calculate_stencil(false);
+        stencil = octotiger::fmm::multipole_interactions::calculate_stencil();
     octotiger::fmm::monopole_interactions::monopole_interaction_interface::stencil =
         octotiger::fmm::monopole_interactions::calculate_stencil().first;
     octotiger::fmm::monopole_interactions::monopole_interaction_interface::four =

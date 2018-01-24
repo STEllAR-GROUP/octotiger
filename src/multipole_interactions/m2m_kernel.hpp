@@ -130,7 +130,7 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
+                const two_phase_stencil& stencil, const size_t outer_stencil_index);
 
             void blocked_interaction_non_rho(struct_of_array_data<expansion, real, 20, ENTRIES,
                                                  SOA_PADDING>& local_expansions_SoA,
@@ -143,7 +143,7 @@ namespace fmm {
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& stencil, const size_t outer_stencil_index);
+                const two_phase_stencil& stencil, const size_t outer_stencil_index);
 
             void vectors_check_empty();
 
@@ -175,7 +175,7 @@ namespace fmm {
                     potential_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     angular_corrections_SoA,
-                               std::vector<multiindex<>>& stencil, gsolve_type type);
+                               const two_phase_stencil& stencil, gsolve_type type);
         };
 
     }    // namespace multipole_interactions

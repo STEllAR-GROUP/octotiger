@@ -48,15 +48,13 @@ namespace fmm {
             std::array<real, NDIM> xBase;
 
             std::shared_ptr<grid> grid_ptr;
-            m2m_kernel kernel;
             m2p_kernel mixed_interactions_kernel;
 
             bool z_skip[3];
             bool y_skip[3][3];
             bool x_skip[3][3][3];
         public:
-            static std::vector<multiindex<>> stencil_multipole_interactions;
-            static std::vector<multiindex<>> stencil_mixed_interactions;
+            static two_phase_stencil stencil;
 
             // at this point, uses the old datamembers of the grid class as input
             // and converts them to the new data structure

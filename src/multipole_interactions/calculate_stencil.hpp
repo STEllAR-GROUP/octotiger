@@ -8,7 +8,7 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        std::vector<multiindex<>> calculate_stencil(bool multipole_interactions);
+        two_phase_stencil calculate_stencil(void);
 
     }    // namespace multipole_interactions
 }    // namespace fmm

@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 namespace octotiger {
 namespace fmm {
@@ -58,6 +59,12 @@ namespace fmm {
                 y = ((y + patch_size) >> 1) - subtract;
                 z = ((z + patch_size) >> 1) - subtract;
             }
+        };
+
+        struct two_phase_stencil
+        {
+            std::vector<multiindex<>> stencil_elements;
+            std::vector<bool> stencil_phase_indicator;
         };
 }    // namespace fmm
 }    // namespace octotiger
