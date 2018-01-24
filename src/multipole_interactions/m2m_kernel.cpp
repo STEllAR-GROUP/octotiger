@@ -41,7 +41,7 @@ namespace fmm {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
-            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
+            // vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
             // calculate_coarse_indices();
         }
 
@@ -52,10 +52,11 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
-            const two_phase_stencil& stencil, gsolve_type type) {
-            vectors_check_empty();
+            std::vector<real>& mons, const two_phase_stencil& stencil, gsolve_type type) {
+            // vectors_check_empty();
             // for (multiindex<>& stencil_element : stencil) {
-            for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.stencil_elements.size();
+            for (size_t outer_stencil_index = 0;
+                 outer_stencil_index < stencil.stencil_elements.size();
                  outer_stencil_index += STENCIL_BLOCKING) {
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization
@@ -89,15 +90,14 @@ namespace fmm {
                             if (type == RHO) {
                                 this->blocked_interaction_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
-                                    angular_corrections_SoA,
-
+                                    angular_corrections_SoA, mons,
                                     cell_index, cell_flat_index, cell_index_coarse,
                                     cell_index_unpadded, cell_flat_index_unpadded, stencil,
                                     outer_stencil_index);
                             } else {
                                 this->blocked_interaction_non_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
-                                    angular_corrections_SoA, cell_index, cell_flat_index,
+                                    angular_corrections_SoA, mons, cell_index, cell_flat_index,
                                     cell_index_coarse, cell_index_unpadded,
                                     cell_flat_index_unpadded, stencil, outer_stencil_index);
                             }

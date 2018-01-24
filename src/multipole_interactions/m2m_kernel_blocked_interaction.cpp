@@ -29,6 +29,7 @@ namespace fmm {
                 SOA_PADDING>& __restrict__ potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS,
                 SOA_PADDING>& __restrict__ angular_corrections_SoA,
+            std::vector<real> &mons,
             const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
@@ -142,14 +143,16 @@ namespace fmm {
                 // expansion_v m_partner;
                 std::array<m2m_vector, 20> m_partner;
                 m2m_vector::mask_type mask_phase_one(phase_one);
-                m2m_vector::mask_type mask_inside(vector_is_empty[interaction_partner_flat_index]);
+                // m2m_vector::mask_type mask_inside(vector_is_empty[interaction_partner_flat_index]);
 
-                mask_inside = (mask & mask_phase_one) | (mask & mask_inside);
+                // mask_inside = (mask & mask_phase_one) | (mask & mask_inside);
 
-                // ONE expansion
-                Vc::where(mask_inside, m_partner[0]) =
-                    local_expansions_SoA.value<0>(interaction_partner_flat_index);
-                mask = mask & mask_phase_one;
+
+                Vc::where(mask, m_partner[0]) = m2m_vector(
+                    mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
+                mask = mask & mask_phase_one; // do not load multipoles outside the inner stencil
+                Vc::where(mask, m_partner[0]) =
+                    m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[1]) =
                     local_expansions_SoA.value<1>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[2]) =
@@ -595,6 +598,7 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
+            std::vector<real> &mons,
             const multiindex<>& cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
@@ -683,14 +687,12 @@ namespace fmm {
                 // expansion_v m_partner;
                 std::array<m2m_vector, 20> m_partner;
                 m2m_vector::mask_type mask_phase_one(phase_one);
-                m2m_vector::mask_type mask_inside(vector_is_empty[interaction_partner_flat_index]);
 
-                mask_inside = (mask & mask_phase_one) | (mask & mask_inside);
-
-                // ONE expansion
-                Vc::where(mask_inside, m_partner[0]) =
-                    local_expansions_SoA.value<0>(interaction_partner_flat_index);
-                mask = mask & mask_phase_one;
+                Vc::where(mask, m_partner[0]) = m2m_vector(
+                    mons.data() + interaction_partner_flat_index, Vc::flags::element_aligned);
+                mask = mask & mask_phase_one; // do not load multipoles outside the inner stencil
+                Vc::where(mask, m_partner[0]) =
+                    m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[1]) =
                     local_expansions_SoA.value<1>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[2]) =

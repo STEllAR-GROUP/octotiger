@@ -18,7 +18,9 @@ namespace fmm {
         multipole_interaction_interface::multipole_interaction_interface(void)
           : neighbor_empty_multipole(27)
           , neighbor_empty_monopole(27)
-          , mixed_interactions_kernel(neighbor_empty_monopole) {}
+          , mixed_interactions_kernel(neighbor_empty_monopole) {
+            local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
+        }
 
         void multipole_interaction_interface::update_input(std::vector<real>& monopoles,
             std::vector<multipole>& M_ptr,
@@ -39,6 +41,7 @@ namespace fmm {
                         std::move(M_ptr.at(flat_index_unpadded)), flat_index);
                     center_of_masses_SoA.set_AoS_value(
                         std::move(com0.at(flat_index_unpadded)), flat_index);
+                    local_monopoles.at(flat_index) = 0.0;
                 });
 
             for (size_t i = 0; i < neighbor_empty_multipole.size(); i++) {
@@ -72,6 +75,7 @@ namespace fmm {
                             local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
                             center_of_masses_SoA.set_AoS_value(
                                 std::move(space_vector()), flat_index);
+                    local_monopoles.at(flat_index) = 0.0;
                         });
                         neighbor_empty_multipole[dir.flat_index_with_center()] = true;
                     } else {
@@ -89,6 +93,7 @@ namespace fmm {
                                     std::move(neighbor_M_ptr.at(flat_index_unpadded)), flat_index);
                                 center_of_masses_SoA.set_AoS_value(
                                     std::move(neighbor_com0.at(flat_index_unpadded)), flat_index);
+                    local_monopoles.at(flat_index) = 0.0;
 
                             });
                     }
@@ -106,6 +111,7 @@ namespace fmm {
                             local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
                             center_of_masses_SoA.set_AoS_value(
                                 std::move(space_vector()), flat_index);
+                    local_monopoles.at(flat_index) = 0.0;
 
                         });
                         neighbor_empty_monopole[dir.flat_index_with_center()] = true;
@@ -132,8 +138,10 @@ namespace fmm {
                                     std::move(e), flat_index);
                                 // local_monopoles.at(flat_index) =
                                 // neighbor_mons.at(flat_index_unpadded);
-                                local_expansions_SoA.set_value(
-                                    std::move(neighbor_mons.at(flat_index_unpadded)), flat_index);
+                            local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
+                                // local_expansions_SoA.set_value(
+                                //     std::move(neighbor_mons.at(flat_index_unpadded)), flat_index);
+                    local_monopoles.at(flat_index) = neighbor_mons.at(flat_index_unpadded);
                             });
                         monopole_neighbors_exist = true;
                         x_skip[z][y][x] = false;
@@ -187,7 +195,7 @@ namespace fmm {
                 // }
                 m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                    potential_expansions_SoA, angular_corrections_SoA,
+                                     potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
                     stencil, type);
 
                 if (type == RHO) {
@@ -203,7 +211,7 @@ namespace fmm {
                     angular_corrections_SoA;
                 m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                    potential_expansions_SoA, angular_corrections_SoA,
+                                     potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
                     stencil, type);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
@@ -234,7 +242,7 @@ namespace fmm {
                 // }
                 m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                    potential_expansions_SoA, angular_corrections_SoA,
+                                     potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
                     stencil, type);
 
                 std::vector<expansion>& L = grid_ptr->get_L();

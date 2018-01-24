@@ -37,9 +37,6 @@ namespace fmm {
              */
 
             std::vector<real> local_monopoles;
-            // TODO delete these 2
-            // std::vector<expansion> local_expansions;
-            // std::vector<space_vector> center_of_masses;
             /// Expansions for all the multipoles the current monopole is neighboring
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
             /// com_ptr - Center of masses, required for the angular corrections
