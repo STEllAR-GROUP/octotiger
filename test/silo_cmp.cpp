@@ -118,7 +118,35 @@ struct amr_data {
 		}
 
 	}
+	void grav_mom_con(FILE* fp) {
+		double sx, sy, sz, lx, ly, lz;
+		double snorm, lnorm;
+		sx = sy = sz = lx = ly = lz = 0.0;
+		snorm = lnorm = 0.0;
+		double dv;
+		for (int i = 0; i < x.size(); i++) {
+			const double dm = vars[rho_i][i] * std::pow(dx[i], 3);
+			sx += vars[gx_i][i] * dm;
+			sy += vars[gy_i][i] * dm;
+			sz += vars[gz_i][i] * dm;
+			lx += (y[i] * vars[gz_i][i] - z[i] * vars[gy_i][i]) * dm;
+			ly -= (x[i] * vars[gz_i][i] - z[i] * vars[gx_i][i]) * dm;
+			lz += (x[i] * vars[gy_i][i] - y[i] * vars[gx_i][i]) * dm;
+			snorm += sx * sx + sy * sy + sz * sz;
+			lnorm += lx * lx + ly * ly + lz * lz;
+		}
+		snorm = std::sqrt(snorm);
+		lnorm = std::sqrt(lnorm);
+		sx /= snorm;
+		sy /= snorm;
+		sz /= snorm;
+		lx /= lnorm;
+		ly /= lnorm;
+		lz /= lnorm;
+		fprintf(fp, "   Net Force  (x,y,z) = %13e %13e %13e\n", sx, sy, sz);
+		fprintf(fp, "   Net Torque (x,y,z) = %13e %13e %13e\n", lx, ly, lz);
 
+	}
 	void read_mesh(const char* filename) {
 		auto* db = DBOpen(filename, DB_PDB, DB_READ);
 		auto* mesh = DBGetUcdmesh(db, "mesh");
@@ -189,5 +217,9 @@ int main(int argc, char* argv[]) {
 	mesh1.read_mesh(filename1);
 	mesh2.read_mesh(filename2);
 	mesh1.compare(mesh2);
+	printf("Gravitational Conservation for %s\n", filename1);
+	mesh1.grav_mom_con(stdout);
+	printf("Gravitational Conservation for %s\n", filename2);
+	mesh2.grav_mom_con(stdout);
 	return 0;
 }
