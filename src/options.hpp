@@ -64,8 +64,10 @@ public:
     real driving_time;
     real entropy_driving_rate;
     real entropy_driving_time;
-	template<class Arc>
+    real angmom_theta;
+    template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & angmom_theta;
 		arc & entropy_driving_rate;
 		arc & entropy_driving_time;
 		arc & driving_rate;

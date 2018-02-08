@@ -21,6 +21,7 @@
 #define REFINEMENT_FLOOR_OPT "-RefinementFloor"
 #define DATA_DIR_OPT "-Datadir"
 #define ANGCON_OPT "-Angcon"
+#define ANGMOM_THETA_OPT "-Angmom_theta"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
 #define DRIVING_RATE_OPT "-DrivingRate"
@@ -138,6 +139,7 @@ bool options::process_options(int argc, char* argv[]) {
     output_dt = -1;
     bench = false;
     ang_con = true;
+    angmom_theta = 2.0;
     stop_time = std::numeric_limits<real>::max() - 1;
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
@@ -204,6 +206,8 @@ bool options::process_options(int argc, char* argv[]) {
 			refinement_floor_specified = true;
 		} else if (cmp(argv[i], ANGCON_OPT)) {
 			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
+		} else if (cmp(argv[i], ANGMOM_THETA_OPT)) {
+			angmom_theta = atof(argv[i] + strlen(ANGMOM_THETA_OPT) + 1);
 		} else if (cmp(argv[i], VOMEGA_OPT)) {
 			vomega_found = true;
 			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
@@ -251,7 +255,7 @@ bool options::process_options(int argc, char* argv[]) {
         if (omega > 0.0) {
             output_dt = (2.0 * M_PI / omega) / 100.0;
         } else {
-            output_dt = 1.0e-2;
+            output_dt = 1.0/25.0;
         }
     }
     if (!rc) {

@@ -287,8 +287,8 @@ void node_server::start_run(bool scf, integer ngrids)
     auto fut_ptr = me.get_ptr();
     node_server* root_ptr = fut_ptr.get();
     if( opts.output_only ) {
-    	solve_gravity(false,false);
     	diagnostics();
+    	solve_gravity(false,false);
         output(opts.data_dir, opts.output_filename, output_cnt, false);
     	return;
     }

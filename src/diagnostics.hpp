@@ -43,6 +43,7 @@ struct diagnostics_t {
 	real rho_max[nspec];
 	std::array<real,NF> grid_sum;
 	std::array<real,NF> grid_out;
+	std::array<real,NDIM> lsum;
 	diagnostics_t() {
 		stage = 1;
 		omega = -1.0;
@@ -66,6 +67,7 @@ struct diagnostics_t {
 			z_moment[s] = 0.0;
 			rho_max[s] = 0.0;
 			}
+		lsum[0] = lsum[1] = lsum[2] = 0.0;
 		virial_norm = 0.0;
 		z_mom_orb = 0.0;
 		virial = 0.0;
@@ -114,6 +116,9 @@ struct diagnostics_t {
 				}
 			}
 		}
+		lsum[0] += other.lsum[0];
+		lsum[1] += other.lsum[1];
+		lsum[2] += other.lsum[2];
 		return *this;
 	}
 	friend diagnostics_t operator+(const diagnostics_t& lhs, const diagnostics_t& rhs)
@@ -125,6 +130,7 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
+		arc & lsum;
 		arc & l1_phi;
 		arc & l2_phi;
 		arc & l3_phi;

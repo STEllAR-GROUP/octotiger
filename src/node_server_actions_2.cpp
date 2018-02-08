@@ -199,8 +199,11 @@ diagnostics_t node_server::diagnostics() {
 	fp = fopen( "sums.dat", "at");
 	fprintf( fp, "%.13e ", current_time);
 	for( integer i = 0; i != NF; ++i) {
-		fprintf( fp, "%.13e ", diags.grid_sum[i]+diags.grid_out[i]);
+		fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
 		fprintf( fp, "%.13e ", diags.grid_out[i]);
+	}
+	for( integer i = 0; i != 3; ++i) {
+		fprintf( fp, "%.13e ", diags.lsum[i]);
 	}
 	fprintf( fp, "\n");
 	fclose(fp);
