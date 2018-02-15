@@ -17,8 +17,8 @@ template<class T>
 class channel {
 private:
 	hpx::lcos::local::receive_buffer<T> buffer;
-	boost::atomic<std::size_t> store_step;
-	boost::atomic<std::size_t> recv_step;
+	std::atomic<std::size_t> store_step;
+	std::atomic<std::size_t> recv_step;
 public:
 	channel() :
 			store_step(0), recv_step(0)
