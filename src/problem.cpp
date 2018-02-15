@@ -112,10 +112,14 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 
 bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
+	real dx = (opts.xscale / INX) / real(1<<level);
 	if( opts.refinement_floor < 0.0 ) {
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);
 		opts.refinement_floor = 1.0e-3;
+	}
+	if( level < max_level / 2 ) {
+		return  std::sqrt(x*x+y*y+z*z) < 10.0*dx;
 	}
 	int test_level = max_level;
 	int penalty = 0;

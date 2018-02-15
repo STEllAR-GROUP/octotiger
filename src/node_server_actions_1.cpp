@@ -124,6 +124,7 @@ hpx::future<grid::output_list_type> node_server::load(
                             return children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename);
                         }
                     );
+  //          futs[index-1].wait();
 
 //             children[ci] = hpx::new_<node_server>(options::all_localities[loc_id],
 //                 my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle);
@@ -195,6 +196,7 @@ hpx::future<grid::output_list_type> node_server::load(
 					grid::output(
 							my_list, opts.data_dir, this_fname, current_time, get_rotation_count() / opts.output_dt, false);
 				}
+	//			diagnostics();
 			}
 			printf("Done...\n");
 
@@ -203,7 +205,6 @@ hpx::future<grid::output_list_type> node_server::load(
 			printf("Loaded checkpoint file\n");
                 my_list = decltype(my_list)();
             }
-
             return my_list;
         },
         std::move(futs));
@@ -504,7 +505,7 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
     printf( "Formed tree in %f seconds\n", real(tstop - tstart));
     if (current_time > ZERO) {
         printf("solving gravity\n");
-        solve_gravity(true);
+        solve_gravity(true,opts.output_only);
     }
     double elapsed = timer.elapsed();
     printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
@@ -522,6 +523,7 @@ hpx::future<void> node_client::save(integer i, std::string s) const {
 }
 
 std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std::string const& filename, hpx::future<void>& child_fut) const {
+ //   printf( "Saving grid on %i\n", hpx::get_locality_id());
 
     std::map<integer, std::vector<char> > result;
     char flag = is_refined ? '1' : '0';
@@ -538,14 +540,15 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
         integer i = cnt + 1;
         for (auto& ci : geo::octant::full_set())
         {
-            if (!children[ci].is_local())
-            {
+          //  if (!children[ci].is_local())
+           // {
                 child_futs[ci] = children[ci].save(i, filename);
-            }
-            else
-            {
-                local_children.emplace_back(ci, i, children[ci].get_ptr());
-            }
+           // }
+           // else
+           // {
+           //     local_children.emplace_back(ci, i, children[ci].get_ptr());
+           // }
+            child_futs[ci].wait();
             i += child_descendant_count[ci];
         }
     }
@@ -588,7 +591,7 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
 			}
 		}
     }
-
+ //   printf( "Saved grid on %i\n", hpx::get_locality_id());
     return result;
 }
 
@@ -610,7 +613,8 @@ void node_server::save(integer cnt, std::string const& filename) const
     // run output on separate thread
     auto fut = hpx::threads::run_as_os_thread([&]() {
         // write all of the buffers to file
-        integer record_size = 0;
+     //  	printf( "Writing results on %i\n", hpx::get_locality_id());
+            integer record_size = 0;
         FILE* fp = fopen(filename.c_str(), "rb+");
         for (auto const& d : result) {
             if (record_size == 0) {
@@ -621,6 +625,7 @@ void node_server::save(integer cnt, std::string const& filename) const
             }
             fseek(fp, record_size * d.first, SEEK_SET);
             fwrite(d.second.data(), sizeof(char), d.second.size(), fp);
+        //   	printf( "Done writing results on %i\n", hpx::get_locality_id());
         }
 
         if (my_location.level() == 0) {
@@ -679,11 +684,11 @@ void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& ou
 typedef node_server::solve_gravity_action solve_gravity_action_type;
 HPX_REGISTER_ACTION(solve_gravity_action_type);
 
-hpx::future<void> node_client::solve_gravity(bool ene) const {
-    return hpx::async<typename node_server::solve_gravity_action>(get_unmanaged_gid(), ene);
+hpx::future<void> node_client::solve_gravity(bool ene, bool aonly) const {
+    return hpx::async<typename node_server::solve_gravity_action>(get_unmanaged_gid(), ene, aonly);
 }
 
-void node_server::solve_gravity(bool ene) {
+void node_server::solve_gravity(bool ene, bool aonly) {
     if (!gravity_on) {
         return;
     }
@@ -692,10 +697,10 @@ void node_server::solve_gravity(bool ene) {
     {
         integer index = 0;;
         for (auto& child : children) {
-            child_futs[index++] = child.solve_gravity(ene);
+            child_futs[index++] = child.solve_gravity(ene,aonly);
         }
     }
-    compute_fmm(RHO, ene);
+    compute_fmm(RHO, ene, aonly);
     if( is_refined ) {
     	wait_all_and_propagate_exceptions(child_futs);
     }

@@ -61,10 +61,6 @@
 
 #define USE_SIMD
 
-//#define USE_DRIVING
-#define DRIVING_RATE 0.01
-#define DRIVING_TIME 1.00
-
 #define ZCORRECT
 
 #define USE_PPM
@@ -208,7 +204,7 @@ constexpr integer gz_i = 3;
 constexpr std::array<boundary_type, NFACE> boundary_types = { OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW };
 
 
-#define OUTPUT_COUNT (NF + NRF + NGF + NPF)
+#define OUTPUT_COUNT (NF + NRF + NGF + NPF + 1)
 
 // #define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
 constexpr inline integer h0index(integer i, integer j, integer k)

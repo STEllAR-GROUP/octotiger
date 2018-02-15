@@ -18,6 +18,8 @@
 struct diagnostics_t {
 	static constexpr integer nspec = 2;
 	real l1_phi;
+	real l2_phi;
+	real l3_phi;
 	real omega;
 	real m[nspec];
 	real gt[nspec];
@@ -41,6 +43,7 @@ struct diagnostics_t {
 	real rho_max[nspec];
 	std::array<real,NF> grid_sum;
 	std::array<real,NF> grid_out;
+	std::array<real,NDIM> lsum;
 	diagnostics_t() {
 		stage = 1;
 		omega = -1.0;
@@ -64,11 +67,14 @@ struct diagnostics_t {
 			z_moment[s] = 0.0;
 			rho_max[s] = 0.0;
 			}
+		lsum[0] = lsum[1] = lsum[2] = 0.0;
 		virial_norm = 0.0;
 		z_mom_orb = 0.0;
 		virial = 0.0;
 		a = 0.0;
-		l1_phi = 0.0;
+		l1_phi = -std::numeric_limits<real>::max();
+		l2_phi = -std::numeric_limits<real>::max();
+		l3_phi = -std::numeric_limits<real>::max();
 	}
 	static inline real RL_radius(real q ) {
 		const real q13 = std::pow(q,1.0/3.0);
@@ -79,6 +85,9 @@ struct diagnostics_t {
 	}
 	const diagnostics_t& compute();
 	diagnostics_t& operator+=(const diagnostics_t& other) {
+		l1_phi = std::max(l1_phi, other.l1_phi);
+		l2_phi = std::max(l2_phi, other.l2_phi);
+		l3_phi = std::max(l3_phi, other.l3_phi);
 		for( integer f = 0; f != NF; ++f) {
 			grid_sum[f] += other.grid_sum[f];
 			grid_out[f] += other.grid_out[f];
@@ -107,6 +116,9 @@ struct diagnostics_t {
 				}
 			}
 		}
+		lsum[0] += other.lsum[0];
+		lsum[1] += other.lsum[1];
+		lsum[2] += other.lsum[2];
 		return *this;
 	}
 	friend diagnostics_t operator+(const diagnostics_t& lhs, const diagnostics_t& rhs)
@@ -118,7 +130,10 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
+		arc & lsum;
 		arc & l1_phi;
+		arc & l2_phi;
+		arc & l3_phi;
 		arc & omega;
 		arc & m;
 		arc & gt;

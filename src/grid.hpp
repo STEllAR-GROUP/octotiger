@@ -164,6 +164,7 @@ private:
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 #endif
 
+	std::vector<real> roche_lobe;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> Ua;
 	std::vector<std::vector<real>> U0;
@@ -350,7 +351,7 @@ public:
     void store();
     void restore();
     real compute_fluxes();
-    void compute_sources(real t);
+    void compute_sources(real t, real);
     void set_physical_boundaries(const geo::face&, real t);
     void next_u(integer rk, real t, real dt);
     static void output(const output_list_type&, std::string, std::string, real t, int cycle, bool a);
@@ -409,6 +410,7 @@ void scf_binary_init();
 
 template<class Archive>
 void grid::load(Archive& arc, const unsigned) {
+	arc >> roche_lobe;
 	arc >> is_leaf;
 	arc >> is_root;
 	arc >> dx;
@@ -433,6 +435,7 @@ void grid::load(Archive& arc, const unsigned) {
 }
 template<class Archive>
 void grid::save(Archive& arc, const unsigned) const {
+	arc << roche_lobe;
 	arc << is_leaf;
 	arc << is_root;
 	arc << dx;

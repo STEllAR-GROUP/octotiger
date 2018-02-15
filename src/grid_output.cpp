@@ -178,7 +178,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 					data[NGF + NRF + NF + 3].push_back(V[egas_i][iii]);
 				}
 				data[NGF + NRF + NF + 4].push_back(V[zz_i][iii]);
-		//		data[NGF + NRF + NF + NPF].push_back(roche[h0index(i,j,k)]);
+				data[OUTPUT_COUNT - 1].push_back(roche_lobe[h0index(i - H_BW, j - H_BW, k - H_BW)]);
 			}
 		}
 	}
@@ -227,7 +227,7 @@ void grid::output_header(std::string dirname, std::string base, real t, int cycl
 		DBPutMultimesh(db, "mesh", procs, names.data(), types.data(), olist);
 		delete_names(names);
 		const char* analytic_names[] = {"rho_a", "egas_a", "sx_a", "sy_a", "sz_a", "tau_a"};
-		for (int field = 0; field != NF + NGF + NPF + NRF; ++field) {
+		for (int field = 0; field != OUTPUT_COUNT; ++field) {
 			make_names(names, types, dirname, base, field_names[field], DB_UCDVAR);
 			DBPutMultivar(db, field_names[field], procs, names.data(), types.data(), olist);
 			delete_names(names);
@@ -290,27 +290,16 @@ void grid::output(const output_list_type& olists,
 						olist);
 				const char* analytic_names[] = {"rho_a", "egas_a", "sx_a", "sy_a", "sz_a", "tau_a"};
 				DBFreeOptlist(olist);
-				for (int field = 0; field != NF + NGF + NPF + NRF; ++field) {
+				for (int field = 0; field != OUTPUT_COUNT; ++field) {
 					auto olist = DBMakeOptlist(1);
 					double time = double(t);
 					int istrue = 1;
 					int isfalse = 0;
-					//DBAddOption(olist, DBOPT_CYCLE, &cycle);
 					DBAddOption(olist, DBOPT_DTIME, &time);
-					//DBAddOption(olist, DBOPT_NSPACE, &ndim );
-					//if( field == rho_i || field == sx_i || field == sy_i || field == sz_i || field == spc_ac_i || field == spc_ae_i || field == spc_dc_i || field == spc_de_i || field == spc_vac_i ) {
-					//	DBAddOption(olist, DBOPT_CONSERVED, &istrue);
-					//} else {
-					//	DBAddOption(olist, DBOPT_CONSERVED, &isfalse );
-					//}
-					//if( field < NF ) {
-					//	DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
-					//} else {
-					//	DBAddOption(olist, DBOPT_EXTENSIVE, &isfalse);
-					//}
-					//DBAddOption(olist, DBOPT_EXTENSIVE, &istrue);
+				//	printf( "%lli\n", reinterpret_cast<long long int>(olists.data[field].data()));
 					DBPutUcdvar1(db, field_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.data[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 							olist);
+				//	printf( "%s\n", field_names[field]);
 					if( analytic && field < 6) {
 						DBPutUcdvar1(db, analytic_names[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.analytic[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 								olist);

@@ -21,8 +21,13 @@
 #define REFINEMENT_FLOOR_OPT "-RefinementFloor"
 #define DATA_DIR_OPT "-Datadir"
 #define ANGCON_OPT "-Angcon"
+#define ANGMOM_THETA_OPT "-Angmom_theta"
 #define XSCALE_OPT "-Xscale"
 #define OMEGA_OPT "-Omega"
+#define DRIVING_RATE_OPT "-DrivingRate"
+#define DRIVING_TIME_OPT "-DrivingTime"
+#define ENTROPY_DRIVING_RATE_OPT "-EntropyDrivingRate"
+#define ENTROPY_DRIVING_TIME_OPT "-EntropyDrivingTime"
 #define VOMEGA_OPT "-VariableOmega"
 #define ODT_OPT "-Odt"
 #define DISABLEOUTPUT_OPT "-Disableoutput"
@@ -120,24 +125,29 @@ bool options::process_options(int argc, char* argv[]) {
     bool rc;
     eos = IDEAL;
     rc = true;
-	theta = 0.35;
-	parallel_silo = false;
-	silo_planes_only = false;
-	ngrids = -1;
-	max_level = 5;
-	refinement_floor = -1.0;
-	refinement_floor_specified = false;
-	max_restart_level = 0;
+    theta = 0.35;
+    parallel_silo = false;
+    silo_planes_only = false;
+    ngrids = -1;
+    max_level = 5;
+    refinement_floor = -1.0;
+    refinement_floor_specified = false;
+    max_restart_level = 0;
     problem = NONE;
     found_restart_file = false;
     output_only = false;
     xscale = 2.0;
     omega = 0.0;
+    driving_rate = 0.0;
+    driving_time = 0.0;
+    entropy_driving_rate = 0.0;
+    entropy_driving_time = 0.0;
     exe_name = std::string(argv[0]);
     contact_fill = 0.0;
     output_dt = -1;
     bench = false;
     ang_con = true;
+    angmom_theta = 2.0;
     stop_time = std::numeric_limits<real>::max() - 1;
     stop_step = std::numeric_limits<integer>::max() / 10;
     disable_output = false;
@@ -209,6 +219,8 @@ bool options::process_options(int argc, char* argv[]) {
 			refinement_floor_specified = true;
 		} else if (cmp(argv[i], ANGCON_OPT)) {
 			ang_con = atoi(argv[i] + strlen(ANGCON_OPT) + 1) != 0;
+		} else if (cmp(argv[i], ANGMOM_THETA_OPT)) {
+			angmom_theta = atof(argv[i] + strlen(ANGMOM_THETA_OPT) + 1);
 		} else if (cmp(argv[i], VOMEGA_OPT)) {
 			vomega_found = true;
 			vomega = atoi(argv[i] + strlen(VOMEGA_OPT) + 1) != 0;
@@ -231,6 +243,14 @@ bool options::process_options(int argc, char* argv[]) {
             xscale = atof(argv[i] + strlen(XSCALE_OPT) + 1);
         } else if (cmp(argv[i], OMEGA_OPT)) {
             omega = atof(argv[i] + strlen(OMEGA_OPT) + 1);
+        } else if (cmp(argv[i], DRIVING_RATE_OPT)) {
+            driving_rate = atof(argv[i] + strlen(DRIVING_RATE_OPT) + 1);
+        } else if (cmp(argv[i], ENTROPY_DRIVING_RATE_OPT)) {
+            entropy_driving_rate = atof(argv[i] + strlen(ENTROPY_DRIVING_RATE_OPT) + 1);
+        } else if (cmp(argv[i], ENTROPY_DRIVING_TIME_OPT)) {
+            entropy_driving_time = atof(argv[i] + strlen(ENTROPY_DRIVING_TIME_OPT) + 1);
+        } else if (cmp(argv[i], DRIVING_TIME_OPT)) {
+            driving_time = atof(argv[i] + strlen(DRIVING_TIME_OPT) + 1);
         } else if (cmp(argv[i], ODT_OPT)) {
             output_dt = atof(argv[i] + strlen(ODT_OPT) + 1);
         } else if (cmp(argv[i], DISABLEOUTPUT_OPT)) {
@@ -307,7 +327,7 @@ bool options::process_options(int argc, char* argv[]) {
         if (omega > 0.0) {
             output_dt = (2.0 * M_PI / omega) / 100.0;
         } else {
-            output_dt = 1.0e-2;
+            output_dt = 1.0/25.0;
         }
     }
     if (!rc) {

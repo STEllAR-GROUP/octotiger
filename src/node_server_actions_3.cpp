@@ -283,25 +283,17 @@ void node_server::start_run(bool scf, integer ngrids)
     	erad_init();
     }
 #endif
-
+    printf( "Starting run...\n" );
     auto fut_ptr = me.get_ptr();
     node_server* root_ptr = fut_ptr.get();
     if( opts.output_only ) {
-   // 	diagnostics(0.0);
     	diagnostics();
- //       printf("doing silo out...\n");
-  	output_cnt = root_ptr->get_rotation_count() / opts.output_dt;
-        std::string fname = "X." + std::to_string(int(output_cnt));
-        output(opts.data_dir, fname, output_cnt, false);
-    //	for( real rhoc = 1.0e-10; rhoc < 1.0e+5; rhoc *= 10.0) {
-    //		printf( "%e\n", rhoc);
-    	//	diagnostics(rhoc);
-    //	}
+    	solve_gravity(false,false);
+        output(opts.data_dir, opts.output_filename, output_cnt, false);
     	return;
     }
 
-    printf("Starting...\n");
-    solve_gravity(false);
+    solve_gravity(false,false);
     ngrids = regrid(me.get_gid(), grid::get_omega(), -1,  false);
 
     real output_dt = opts.output_dt;
@@ -310,28 +302,21 @@ void node_server::start_run(bool scf, integer ngrids)
     real& t = current_time;
     integer step_num = 0;
 
-    printf( "1\n");
-
     output_cnt = root_ptr->get_rotation_count() / output_dt;
 
     profiler_output(stdout);
 
     real bench_start, bench_stop;
 
-    printf( "2\n");
-
-    if( current_time == 0.0 ) {
+   // if( current_time == 0.0 ) {
     	diagnostics();
-    }
+   // }
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)
             break;
-        printf( "3\n");
-
         auto time_start = std::chrono::high_resolution_clock::now();
         if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
-            //	if (step_num != 0) {
-
+        	diagnostics();
             std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
             save_to_file(fname, opts.data_dir);
             printf("doing silo out...\n");
@@ -344,13 +329,11 @@ void node_server::start_run(bool scf, integer ngrids)
             ++output_cnt;
 
         }
-        printf( "4\n");
         if (step_num == 0) {
             bench_start = hpx::util::high_resolution_clock::now() / 1e9;
         }
 
         real dt = 0;
-        printf( "5\n");
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
@@ -593,7 +576,7 @@ hpx::future<void> node_server::nonrefined_step() {
                                 auto fcheck = check_flux_consistency();
 #endif
 
-                                grid_ptr->compute_sources(current_time);
+                                grid_ptr->compute_sources(current_time, rotational_time);
                                 grid_ptr->compute_dudt();
 
                                 compute_fmm(DRHODT, false);
@@ -759,11 +742,8 @@ hpx::future<void> node_server::timestep_driver_descend() {
             hpx::util::annotated_function(
                 [this](std::array<hpx::future<real>, NCHILD+1> dts_fut)
                 {
-                    std::array<real, NCHILD+1> dts;
-                    for (size_t i = 0; i < NCHILD+1; i++) {
-                        dts[i] = dts_fut[i].get();
-                    }
-                    // auto dts = hpx::util::unwrapping(dts_fut);
+
+                    auto dts = hpx::util::unwrap(dts_fut);
                     real dt = *std::min_element(dts.begin(), dts.end());
 
                     if (my_location.level() == 0)

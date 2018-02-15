@@ -172,6 +172,13 @@ set(header_files
     src/common_kernel/kernel_taylor_set_basis.hpp
 )
 
+
+set(silo_cmp_dependencies ${Silo_LIBRARY})
+set(silo_cmp_source_files
+    test/silo_cmp.cpp
+)
+set(silo_cmp_header_files)
+
 add_hpx_executable(
   octotiger
   DEPENDENCIES
@@ -182,3 +189,18 @@ add_hpx_executable(
     ${header_files}
   FOLDER  "Octotiger"
 )
+
+
+
+add_hpx_executable(
+  silocmp
+  DEPENDENCIES
+    ${silo_cmp_dependencies}
+  SOURCES
+    ${silo_cmp_source_files}
+  HEADERS
+    ${silo_cmp_header_files}
+  FOLDER  "Octotiger"
+)
+
+

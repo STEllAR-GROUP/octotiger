@@ -61,14 +61,23 @@ public:
     bool parallel_silo;
     bool silo_planes_only;
     std::string data_dir;
-
     interaction_kernel_type m2m_kernel_type;
     interaction_kernel_type m2p_kernel_type;
     interaction_kernel_type p2p_kernel_type;
     interaction_kernel_type p2m_kernel_type;
 
-	template<class Arc>
+    real driving_rate;
+    real driving_time;
+    real entropy_driving_rate;
+    real entropy_driving_time;
+    real angmom_theta;
+    template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & angmom_theta;
+		arc & entropy_driving_rate;
+		arc & entropy_driving_time;
+		arc & driving_rate;
+		arc & driving_time;
 		arc & refinement_floor;
 		arc & refinement_floor_specified;
 		arc & ngrids;
