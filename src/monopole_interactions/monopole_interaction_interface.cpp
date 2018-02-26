@@ -6,7 +6,6 @@
 #include "p2p_kernel.hpp"
 
 #include <algorithm>
-#include <fstream>
 
 // Big picture questions:
 // - use any kind of tiling?
@@ -26,7 +25,6 @@ namespace fmm {
           , kernel(neighbor_empty_multipoles)
           , kernel_monopoles(neighbor_empty_monopoles) {
             local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
-            iteration=0;
         }
 
         void monopole_interaction_interface::update_input(std::vector<real>& mons,
@@ -217,43 +215,11 @@ namespace fmm {
             } else if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;
-
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    debug_expansions_SoA;
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                     debug_corrections_SoA;
-
                 kernel_monopoles.apply_stencil(
                     local_monopoles, potential_expansions_SoA, stencil, four, dx);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();
-                    kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                    debug_expansions_SoA, debug_corrections_SoA, stencil, type, x_skip,
-                        y_skip, z_skip);
-
-                std::fill(std::begin(L), std::end(L), ZERO);
-                std::fill(std::begin(L_c), std::end(L_c), ZERO);
-                debug_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
-                iteration++;
-                std::ofstream soa;
-                soa.open("kernel_soa.txt", std::ofstream::out | std::ofstream::app);
-                if (type == RHO) {
-                    soa << "-RHO-" << iteration << "------" << std::endl;
-                } else {
-                    soa << "-NON-RHO-" << iteration << "------" << std::endl;
-                }
-
-                for (expansion & l : grid_ptr->get_L()) {
-                    for (auto i = 0; i < 20; ++i) {
-                        // std::cout << l[i] << " ";
-                        soa << l[i] << " ";
-                    }
-                    // std::cout << std::endl;
-                    soa << std::endl;
-                }
-                soa.close();
-                // std::cout << "......................" << std::endl;
                 std::fill(std::begin(L), std::end(L), ZERO);
                 std::fill(std::begin(L_c), std::end(L_c), ZERO);
                 for (auto const& dir : geo::direction::full_set()) {
@@ -265,25 +231,6 @@ namespace fmm {
                         }
                     }
                 }
-                std::ofstream old;
-                old.open("kernel_old.txt", std::ofstream::out | std::ofstream::app);
-                if (type == RHO) {
-                    old << "-RHO-" << iteration << "------" << std::endl;
-                } else {
-                    old << "-NON-RHO-" << iteration << "------" << std::endl;
-                }
-                for (expansion & l : grid_ptr->get_L()) {
-                    for (auto i = 0; i < 20; ++i) {
-                        // std::cout << l[i] << " ";
-                        old << l[i] << " ";
-
-                    }
-                    // std::cout << std::endl;
-                    old << std::endl;
-                }
-                old.close();
-                // std::cout << "......................" << std::endl;
-                // std::cout << "......................" << std::endl;
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             } else if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>

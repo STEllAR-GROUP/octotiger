@@ -59,8 +59,6 @@ namespace fmm {
             bool y_skip[3][3];
             bool x_skip[3][3][3];
 
-            int iteration;
-
         public:
             /// The stencil is used to identify the neighbors?
             static std::vector<multiindex<>> stencil;
