@@ -1732,24 +1732,38 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
     auto& mon = *mon_ptr;
     if (!is_local) {
         data.allocate();
-        integer iter = 0;
-        const std::vector<boundary_interaction_type>& list = ilist_n_bnd[dir.flip()];
+        constexpr size_t blocksize = INX * INX * INX;
         if (is_leaf) {
-            data.m->reserve(list.size());
-            for (auto i : list) {
-                const integer iii = i.second;
-                data.m->push_back(mon[iii]);
+            data.m->reserve(blocksize);
+            for (auto i = 0; i < blocksize; ++i) {
+                data.m->push_back(mon[i]);
             }
         } else {
-            data.M->reserve(list.size());
-            data.x->reserve(list.size());
-            for (auto i : list) {
-                const integer iii = i.second;
-                const integer top = M[iii].size();
-                data.M->push_back(M[iii]);
-                data.x->push_back((*(com_ptr[0]))[iii]);
+            data.M->reserve(blocksize);
+            data.x->reserve(blocksize);
+            for (auto i = 0; i < blocksize; ++i) {
+                data.M->push_back(M[i]);
+                data.x->push_back((*(com_ptr[0]))[i]);
             }
         }
+        // integer iter = 0;
+        // const std::vector<boundary_interaction_type>& list = ilist_n_bnd[dir.flip()];
+        // if (is_leaf) {
+        //     data.m->reserve(list.size());
+        //     for (auto i : list) {
+        //         const integer iii = i.second;
+        //         data.m->push_back(mon[iii]);
+        //     }
+        // } else {
+        //     data.M->reserve(list.size());
+        //     data.x->reserve(list.size());
+        //     for (auto i : list) {
+        //         const integer iii = i.second;
+        //         const integer top = M[iii].size();
+        //         data.M->push_back(M[iii]);
+        //         data.x->push_back((*(com_ptr[0]))[iii]);
+        //     }
+        // }
     } else {
         if (is_leaf) {
             data.m = mon_ptr;
