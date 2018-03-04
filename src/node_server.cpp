@@ -661,10 +661,12 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
      // now that all boundary information has been processed, signal all non-empty neighbors
      // note that this was done before during boundary calculations
      for (auto const& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
          neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
          if (neighbor_data.data.local_semaphore != nullptr) {
              neighbor_data.data.local_semaphore->signal();
          }
+        }
      }
      /***************************************************************************/
 
