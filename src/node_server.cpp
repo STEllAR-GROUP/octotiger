@@ -589,9 +589,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
         if (!neighbors[dir].empty()) {
             const bool is_local = neighbors[dir].is_local();
             if (!is_local) {
-                auto raw_neighbor = neighbor_gravity_channels[dir].get_future(gcycle).get();
-                auto filled_array_neighbor =
-                        grid_ptr->fill_received_array(raw_neighbor);
+                const auto filled_array_neighbor =
+                        grid_ptr->fill_received_array(neighbor_gravity_channels[dir].get_future(gcycle).get());
                 all_neighbor_interaction_data.push_back(std::move(filled_array_neighbor));
             } else {
                 all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
