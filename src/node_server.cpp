@@ -586,9 +586,16 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
      // all neighbors and placeholder for yourself
     std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
     for (geo::direction const& dir : geo::direction::full_set()) {
-        if (!neighbors[dir].empty()) {    // TODO: check special case for empty dirs
-            all_neighbor_interaction_data.push_back(
-                                                    neighbor_gravity_channels[dir].get_future(gcycle).get());
+        if (!neighbors[dir].empty()) {
+            const bool is_local = neighbors[dir].is_local();
+            if (!is_local) {
+                auto raw_neighbor = neighbor_gravity_channels[dir].get_future(gcycle).get();
+                auto filled_array_neighbor =
+                        grid_ptr->fill_received_array(raw_neighbor);
+                all_neighbor_interaction_data.push_back(std::move(filled_array_neighbor));
+            } else {
+                all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
+            }
         } else {
             all_neighbor_interaction_data.emplace_back();
         }

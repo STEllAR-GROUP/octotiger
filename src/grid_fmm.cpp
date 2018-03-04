@@ -1732,38 +1732,38 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
     auto& mon = *mon_ptr;
     if (!is_local) {
         data.allocate();
-        constexpr size_t blocksize = INX * INX * INX;
-        if (is_leaf) {
-            data.m->reserve(blocksize);
-            for (auto i = 0; i < blocksize; ++i) {
-                data.m->push_back(mon[i]);
-            }
-        } else {
-            data.M->reserve(blocksize);
-            data.x->reserve(blocksize);
-            for (auto i = 0; i < blocksize; ++i) {
-                data.M->push_back(M[i]);
-                data.x->push_back((*(com_ptr[0]))[i]);
-            }
-        }
-        // integer iter = 0;
-        // const std::vector<boundary_interaction_type>& list = ilist_n_bnd[dir.flip()];
+        // constexpr size_t blocksize = INX * INX * INX;
         // if (is_leaf) {
-        //     data.m->reserve(list.size());
-        //     for (auto i : list) {
-        //         const integer iii = i.second;
-        //         data.m->push_back(mon[iii]);
+        //     data.m->reserve(blocksize);
+        //     for (auto i = 0; i < blocksize; ++i) {
+        //         data.m->push_back(mon[i]);
         //     }
         // } else {
-        //     data.M->reserve(list.size());
-        //     data.x->reserve(list.size());
-        //     for (auto i : list) {
-        //         const integer iii = i.second;
-        //         const integer top = M[iii].size();
-        //         data.M->push_back(M[iii]);
-        //         data.x->push_back((*(com_ptr[0]))[iii]);
+        //     data.M->reserve(blocksize);
+        //     data.x->reserve(blocksize);
+        //     for (auto i = 0; i < blocksize; ++i) {
+        //         data.M->push_back(M[i]);
+        //         data.x->push_back((*(com_ptr[0]))[i]);
         //     }
         // }
+        integer iter = 0;
+        const std::vector<boundary_interaction_type>& list = ilist_n_bnd[dir.flip()];
+        if (is_leaf) {
+            data.m->reserve(list.size());
+            for (auto i : list) {
+                const integer iii = i.second;
+                data.m->push_back(mon[iii]);
+            }
+        } else {
+            data.M->reserve(list.size());
+            data.x->reserve(list.size());
+            for (auto i : list) {
+                const integer iii = i.second;
+                const integer top = M[iii].size();
+                data.M->push_back(M[iii]);
+                data.x->push_back((*(com_ptr[0]))[iii]);
+            }
+        }
     } else {
         if (is_leaf) {
             data.m = mon_ptr;
@@ -1774,4 +1774,37 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
     }
     PROF_END;
     return data;
+}
+
+neighbor_gravity_type grid::fill_received_array(neighbor_gravity_type raw_input) {
+    const std::vector<boundary_interaction_type>& list = ilist_n_bnd[raw_input.direction];
+    neighbor_gravity_type filled_array;
+    filled_array.data.allocate();
+    constexpr size_t blocksize = INX * INX * INX;
+    filled_array.direction = raw_input.direction;
+    filled_array.is_monopole = raw_input.is_monopole;
+    if (raw_input.is_monopole) {
+        // fill with unimportant data
+        filled_array.data.m->resize(blocksize);
+        // Overwrite data that matters
+        int counter = 0;
+        for (auto i : list) {
+            const integer iii = i.second;
+            filled_array.data.m->at(iii) = raw_input.data.m->at(counter);
+            counter++;
+        }
+     } else {
+        // fill with unimportant data
+        filled_array.data.M->resize(blocksize);
+        filled_array.data.x->resize(blocksize);
+        // Overwrite data that matters
+        int counter = 0;
+        for (auto i : list) {
+            const integer iii = i.second;
+            filled_array.data.M->at(iii) = raw_input.data.M->at(counter);
+            filled_array.data.x->at(iii) = raw_input.data.x->at(counter);
+            counter++;
+        }
+    }
+    return filled_array;
 }

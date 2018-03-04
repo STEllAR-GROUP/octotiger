@@ -346,6 +346,7 @@ public:
 #endif
 	space_vector get_cell_center(integer i, integer j, integer k);
 	gravity_boundary_type get_gravity_boundary(const geo::direction& dir, bool is_local);
+	neighbor_gravity_type fill_received_array(neighbor_gravity_type raw_input);
     void allocate();
     void reconstruct();
     void store();
