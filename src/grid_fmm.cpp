@@ -1808,3 +1808,8 @@ neighbor_gravity_type grid::fill_received_array(neighbor_gravity_type raw_input)
     }
     return filled_array;
 }
+
+const std::vector<boundary_interaction_type>& grid::get_ilist_n_bnd(const geo::direction &dir)
+{
+    return ilist_n_bnd[dir];
+}

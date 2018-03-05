@@ -587,14 +587,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
     std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
     for (geo::direction const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
-            const bool is_local = neighbors[dir].is_local();
-            if (!is_local) {
-                const auto filled_array_neighbor =
-                        grid_ptr->fill_received_array(neighbor_gravity_channels[dir].get_future(gcycle).get());
-                all_neighbor_interaction_data.push_back(std::move(filled_array_neighbor));
-            } else {
-                all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
-            }
+            all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
         } else {
             all_neighbor_interaction_data.emplace_back();
         }
@@ -634,17 +627,17 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
             std::array<real, NDIM> Xbase = {grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
                                           grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
                                           grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
+            m2m_interactor.set_grid_ptr(grid_ptr);
             m2m_interactor.update_input(
                 mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), Xbase);
-            m2m_interactor.set_grid_ptr(grid_ptr);
             m2m_interactor.compute_interactions(opts.m2m_kernel_type,
                                                 opts.m2p_kernel_type,
                                                 is_direction_empty,
                                                 all_neighbor_interaction_data);
         } else {
+            p2m_interactor.set_grid_ptr(grid_ptr);
             p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data,
                 type, grid_ptr->get_dx());
-            p2m_interactor.set_grid_ptr(grid_ptr);
             p2m_interactor.compute_interactions(opts.p2p_kernel_type,
                                                 opts.p2m_kernel_type,
                                                 is_direction_empty,
