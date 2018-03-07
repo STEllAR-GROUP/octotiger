@@ -97,8 +97,9 @@ Vc_DECLARE_ALLOCATOR(neighbor_gravity_type)
 //     }
 // };
 
-struct interaction_type
+class interaction_type
 {
+ public:
     // linear index in cell of first interaction partner
     std::uint16_t first;
     // linear index in cell of second interaction partner
@@ -125,12 +126,19 @@ struct interaction_type
         four = other.four;
     }
 
-    interaction_type(const interaction_type &&other) {
-        first = other.first;
-        second = other.second;
-        x = other.x;
-        four = other.four;
-    }
+    // interaction_type& operator=(const interaction_type &other) {
+    //     first = other.first;
+    //     second = other.second;
+    //     x = other.x;
+    //     four = other.four;
+    // }
+
+    // interaction_type(const interaction_type &&other) {
+    //     first = other.first;
+    //     second = other.second;
+    //     x = other.x;
+    //     four = other.four;
+    // }
 };
 Vc_DECLARE_ALLOCATOR(interaction_type)
 
