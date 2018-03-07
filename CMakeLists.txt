@@ -25,6 +25,10 @@ if (OCTOTIGER_WITH_SILO)
   find_package(Silo REQUIRED)
 endif()
 
+find_package(CUDA  REQUIRED)
+include_directories("${CUDA_INCLUDE_DIRS}")
+link_directories(${CUDA_CUBLAS_LIBRARIES})
+
 include_directories(${HPX_INCLUDE_DIRS})
 link_directories(${HPX_LIBRARY_DIR})
 
@@ -190,6 +194,15 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
+add_hpx_executable(
+  matmul
+  DEPENDENCIES
+    ${dependencies}
+  SOURCES
+    src/cublas_matmul.cpp
+
+  FOLDER  "Octotiger"
+)
 
 
 add_hpx_executable(
@@ -202,5 +215,3 @@ add_hpx_executable(
     ${silo_cmp_header_files}
   FOLDER  "Octotiger"
 )
-
-
