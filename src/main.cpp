@@ -106,7 +106,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
         octotiger::fmm::monopole_interactions::calculate_stencil().second;
 
 #ifdef OCTOTIGER_CUDA_ENABLED
-    octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface::print_local_targets();
+    octotiger::util::cuda_helper::print_local_targets();
 #endif
 
 }

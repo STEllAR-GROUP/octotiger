@@ -27,21 +27,11 @@ namespace fmm {
                     m2m_type, m2p_type, is_direction_empty, all_neighbor_interaction_data);
             }
 
-            static void print_local_targets(void) {
-                auto targets = hpx::compute::cuda::target::get_local_targets();
-                for (auto target : targets) {
-                    std::cout << "GPU Device " << target.native_handle().get_device() << ": \""
-                              << target.native_handle().processor_name() << "\" "
-                              << "with compute capability "
-                              << target.native_handle().processor_family() << "\n";
-                }
-            }
-
         protected:
             void queue_multipole__kernel(void) {}
 
         protected:
-            cuda_helper gpu_interface;
+            util::cuda_helper gpu_interface;
         };
 
     }    // namespace multipole_interactions
