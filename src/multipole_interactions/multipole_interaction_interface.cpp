@@ -14,7 +14,7 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-    two_phase_stencil multipole_interaction_interface::stencil;
+        two_phase_stencil multipole_interaction_interface::stencil;
         multipole_interaction_interface::multipole_interaction_interface(void)
           : neighbor_empty_multipole(27)
           , neighbor_empty_monopole(27)
@@ -75,16 +75,20 @@ namespace fmm {
                             local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
                             center_of_masses_SoA.set_AoS_value(
                                 std::move(space_vector()), flat_index);
-                    local_monopoles.at(flat_index) = 0.0;
+                            local_monopoles.at(flat_index) = 0.0;
                         });
                         neighbor_empty_multipole[dir.flat_index_with_center()] = true;
                     } else {
                         std::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
                         std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
-                        iterate_inner_cells_padding(
-                            dir, [this, neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
-                                     const size_t flat_index, const multiindex<>& i_unpadded,
-                                     const size_t flat_index_unpadded) {
+                        const bool fullsizes = neighbor_M_ptr.size() == INNER_CELLS &&
+                            neighbor_com0.size() == INNER_CELLS;
+                        if (fullsizes) {
+                            iterate_inner_cells_padding(dir, [this, neighbor_M_ptr, neighbor_com0](
+                                                                 const multiindex<>& i,
+                                                                 const size_t flat_index,
+                                                                 const multiindex<>& i_unpadded,
+                                                                 const size_t flat_index_unpadded) {
                                 // local_expansions.at(flat_index) =
                                 //     neighbor_M_ptr.at(flat_index_unpadded);
                                 // center_of_masses.at(flat_index) =
@@ -93,9 +97,30 @@ namespace fmm {
                                     std::move(neighbor_M_ptr.at(flat_index_unpadded)), flat_index);
                                 center_of_masses_SoA.set_AoS_value(
                                     std::move(neighbor_com0.at(flat_index_unpadded)), flat_index);
-                    local_monopoles.at(flat_index) = 0.0;
+                                local_monopoles.at(flat_index) = 0.0;
 
                             });
+                        } else {
+                            auto list = grid_ptr->get_ilist_n_bnd(dir);
+                            size_t counter = 0;
+                            for (auto i : list) {
+                                const integer iii = i.second;
+                                const multiindex<> offset =
+                                    flat_index_to_multiindex_not_padded(iii);
+                                const multiindex<> m(offset.x + INNER_CELLS_PADDING_DEPTH +
+                                        dir[0] * INNER_CELLS_PADDING_DEPTH,
+                                    offset.y + INNER_CELLS_PADDING_DEPTH +
+                                        dir[1] * INNER_CELLS_PADDING_DEPTH,
+                                    offset.z + INNER_CELLS_PADDING_DEPTH +
+                                        dir[2] * INNER_CELLS_PADDING_DEPTH);
+                                const size_t flat_index = to_flat_index_padded(m);
+                                local_expansions_SoA.set_AoS_value(
+                                    std::move(neighbor_M_ptr.at(counter)), flat_index);
+                                center_of_masses_SoA.set_AoS_value(
+                                    std::move(neighbor_com0.at(counter)), flat_index);
+                                counter++;
+                            }
+                        }
                     }
                 } else {
                     neighbor_empty_multipole[dir.flat_index_with_center()] = true;
@@ -111,7 +136,7 @@ namespace fmm {
                             local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
                             center_of_masses_SoA.set_AoS_value(
                                 std::move(space_vector()), flat_index);
-                    local_monopoles.at(flat_index) = 0.0;
+                            local_monopoles.at(flat_index) = 0.0;
 
                         });
                         neighbor_empty_monopole[dir.flat_index_with_center()] = true;
@@ -119,30 +144,60 @@ namespace fmm {
                     } else {
                         // Get multipole data into our input structure
                         std::vector<real>& neighbor_mons = *(neighbor.data.m);
-                        std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
-                        iterate_inner_cells_padding(
-                            dir, [this, neighbor_mons, xbase, dx](const multiindex<>& i,
-                                     const size_t flat_index, const multiindex<>& i_unpadded,
-                                     const size_t flat_index_unpadded) {
-                                // local_expansions.at(flat_index) = 0.0;
-                                // center_of_masses.at(flat_index) = 0.0;
+                        const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
+                        if (fullsizes) {
+                            iterate_inner_cells_padding(
+                                dir, [this, neighbor_mons, xbase, dx](const multiindex<>& i,
+                                         const size_t flat_index, const multiindex<>& i_unpadded,
+                                         const size_t flat_index_unpadded) {
+                                    // local_expansions.at(flat_index) = 0.0;
+                                    // center_of_masses.at(flat_index) = 0.0;
 
-                                space_vector e;
-                                e[0] = (i.x) * dx + xbase[0] -
-                                INNER_CELLS_PER_DIRECTION * dx;
-                                e[1] = (i.y) * dx + xbase[1] -
-                                INNER_CELLS_PER_DIRECTION * dx;
-                                e[2] = (i.z) * dx + xbase[2] -
-                                INNER_CELLS_PER_DIRECTION * dx;
-                                center_of_masses_SoA.set_AoS_value(
-                                    std::move(e), flat_index);
-                                // local_monopoles.at(flat_index) =
-                                // neighbor_mons.at(flat_index_unpadded);
-                            local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
-                                // local_expansions_SoA.set_value(
-                                //     std::move(neighbor_mons.at(flat_index_unpadded)), flat_index);
-                    local_monopoles.at(flat_index) = neighbor_mons.at(flat_index_unpadded);
-                            });
+                                    space_vector e;
+                                    e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
+                                    e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
+                                    e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
+                                    center_of_masses_SoA.set_AoS_value(std::move(e), flat_index);
+                                    // local_monopoles.at(flat_index) =
+                                    // neighbor_mons.at(flat_index_unpadded);
+                                    local_expansions_SoA.set_AoS_value(
+                                        std::move(expansion()), flat_index);
+                                    // local_expansions_SoA.set_value(
+                                    //     std::move(neighbor_mons.at(flat_index_unpadded)),
+                                    //     flat_index);
+                                    local_monopoles.at(flat_index) =
+                                        neighbor_mons.at(flat_index_unpadded);
+                                });
+                        } else {
+                            auto list = grid_ptr->get_ilist_n_bnd(dir);
+                            size_t counter = 0;
+                            for (auto i : list) {
+                                const integer iii = i.second;
+                                const multiindex<> offset =
+                                    flat_index_to_multiindex_not_padded(iii);
+                                const multiindex<> m(offset.x + INNER_CELLS_PADDING_DEPTH +
+                                        dir[0] * INNER_CELLS_PADDING_DEPTH,
+                                    offset.y + INNER_CELLS_PADDING_DEPTH +
+                                        dir[1] * INNER_CELLS_PADDING_DEPTH,
+                                    offset.z + INNER_CELLS_PADDING_DEPTH +
+                                        dir[2] * INNER_CELLS_PADDING_DEPTH);
+                                const size_t flat_index = to_flat_index_padded(m);
+                                local_monopoles.at(flat_index) = neighbor_mons.at(counter);
+                                counter++;
+                            }
+                            iterate_inner_cells_padding(
+                                dir, [this, neighbor_mons, xbase, dx](const multiindex<>& i,
+                                         const size_t flat_index, const multiindex<>& i_unpadded,
+                                         const size_t flat_index_unpadded) {
+                                    space_vector e;
+                                    e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
+                                    e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
+                                    e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
+                                    center_of_masses_SoA.set_AoS_value(std::move(e), flat_index);
+                                    local_expansions_SoA.set_AoS_value(
+                                        std::move(expansion()), flat_index);
+                                });
+                        }
                         monopole_neighbors_exist = true;
                         x_skip[z][y][x] = false;
                     }
@@ -168,7 +223,8 @@ namespace fmm {
                 }
             }
 
-            // std::fill(std::begin(potential_expansions), std::end(potential_expansions), ZERO);
+            // std::fill(std::begin(potential_expansions), std::end(potential_expansions),
+            // ZERO);
 
             // std::cout << "local_expansions:" << std::endl;
             // this->print_local_expansions();
@@ -190,13 +246,14 @@ namespace fmm {
                 // if (monopole_neighbors_exist) {
                 //     mixed_interactions_kernel.apply_stencil(local_monopoles,
                 //     local_expansions_SoA,
-                //         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                //         center_of_masses_SoA, potential_expansions_SoA,
+                //         angular_corrections_SoA,
                 //         stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
                 // }
                 m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                                     potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
-                    stencil, type);
+                    potential_expansions_SoA, angular_corrections_SoA, local_monopoles, stencil,
+                    type);
 
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
@@ -211,8 +268,8 @@ namespace fmm {
                     angular_corrections_SoA;
                 m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                                     potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
-                    stencil, type);
+                    potential_expansions_SoA, angular_corrections_SoA, local_monopoles, stencil,
+                    type);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();
@@ -236,14 +293,16 @@ namespace fmm {
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                     angular_corrections_SoA;
                 // if (monopole_neighbors_exist) {
-                //     mixed_interactions_kernel.apply_stencil(local_monopoles, local_expansions_SoA,
-                //         center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                //     mixed_interactions_kernel.apply_stencil(local_monopoles,
+                //     local_expansions_SoA,
+                //         center_of_masses_SoA, potential_expansions_SoA,
+                //         angular_corrections_SoA,
                 //         stencil_mixed_interactions, type, dX, xBase, x_skip, y_skip, z_skip);
                 // }
                 m2m_kernel kernel(neighbor_empty_multipole);
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                                     potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
-                    stencil, type);
+                    potential_expansions_SoA, angular_corrections_SoA, local_monopoles, stencil,
+                    type);
 
                 std::vector<expansion>& L = grid_ptr->get_L();
                 std::vector<space_vector>& L_c = grid_ptr->get_L_c();

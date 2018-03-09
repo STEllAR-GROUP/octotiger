@@ -586,9 +586,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
      // all neighbors and placeholder for yourself
     std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
     for (geo::direction const& dir : geo::direction::full_set()) {
-        if (!neighbors[dir].empty()) {    // TODO: check special case for empty dirs
-            all_neighbor_interaction_data.push_back(
-                                                    neighbor_gravity_channels[dir].get_future(gcycle).get());
+        if (!neighbors[dir].empty()) {
+            all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
         } else {
             all_neighbor_interaction_data.emplace_back();
         }
@@ -628,17 +627,17 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
             std::array<real, NDIM> Xbase = {grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
                                           grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
                                           grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
+            m2m_interactor.set_grid_ptr(grid_ptr);
             m2m_interactor.update_input(
                 mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), Xbase);
-            m2m_interactor.set_grid_ptr(grid_ptr);
             m2m_interactor.compute_interactions(opts.m2m_kernel_type,
                                                 opts.m2p_kernel_type,
                                                 is_direction_empty,
                                                 all_neighbor_interaction_data);
         } else {
+            p2m_interactor.set_grid_ptr(grid_ptr);
             p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data,
                 type, grid_ptr->get_dx());
-            p2m_interactor.set_grid_ptr(grid_ptr);
             p2m_interactor.compute_interactions(opts.p2p_kernel_type,
                                                 opts.p2m_kernel_type,
                                                 is_direction_empty,
@@ -661,10 +660,12 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
      // now that all boundary information has been processed, signal all non-empty neighbors
      // note that this was done before during boundary calculations
      for (auto const& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
          neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
          if (neighbor_data.data.local_semaphore != nullptr) {
              neighbor_data.data.local_semaphore->signal();
          }
+        }
      }
      /***************************************************************************/
 

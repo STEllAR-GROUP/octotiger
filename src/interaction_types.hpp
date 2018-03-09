@@ -149,7 +149,7 @@ struct boundary_interaction_type
 Vc_DECLARE_ALLOCATOR(boundary_interaction_type)
 
 enum interaction_kernel_type {
-    OLD = 0,
-    SOA_CPU,
+    SOA_CPU = 0,
+    OLD,
     SOA_CUDA
 };

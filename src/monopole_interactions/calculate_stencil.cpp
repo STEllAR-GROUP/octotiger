@@ -72,7 +72,7 @@ namespace fmm {
                         superimposed_stencil.push_back(stencil_element);
                     }
                 }
-                std::cout << "Stencil size: " << stencils[i].size() << std::endl;
+                // std::cout << "Stencil size: " << stencils[i].size() << std::endl;
             }
             // std::cout << "superimposed_stencil.size(): " << superimposed_stencil.size() <<
             // std::endl;
