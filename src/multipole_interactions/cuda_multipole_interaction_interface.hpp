@@ -15,8 +15,30 @@ namespace fmm {
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<real, NDIM> xbase) {
+                // Move data into SoA arrays
                 multipole_interaction_interface::update_input(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase);
+                // Check where we want to run this:
+                // Allocate memory on device
+                constexpr size_t local_monopoles_size = 1 * (ENTRIES) * sizeof(real);
+                constexpr size_t local_expansions_size =
+                    20 * (ENTRIES + SOA_PADDING) * sizeof(real);
+                constexpr size_t center_of_masses_size = 3 * (ENTRIES + SOA_PADDING) * sizeof(real);
+                constexpr size_t potential_expansions_size =
+                    20 * (INNER_CELLS + SOA_PADDING) * sizeof(real);
+                constexpr size_t angular_corrections_size =
+                    3 * (INNER_CELLS + SOA_PADDING) * sizeof(real);
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &device_local_monopoles, local_monopoles_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &device_local_expansions, local_expansions_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &device_center_of_masses, center_of_masses_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &device_potential_expansions, potential_expansions_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &device_angular_corrections, angular_corrections_size));
+                // Queue asynchronous movement of data to device
             }
 
             void compute_interactions(interaction_kernel_type m2m_type,
@@ -32,6 +54,11 @@ namespace fmm {
 
         protected:
             util::cuda_helper gpu_interface;
+            real* device_local_monopoles;
+            real* device_local_expansions;
+            real* device_center_of_masses;
+            real* device_potential_expansions;
+            real* device_angular_corrections;
         };
 
     }    // namespace multipole_interactions
