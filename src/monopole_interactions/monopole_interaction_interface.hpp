@@ -36,11 +36,13 @@ namespace fmm {
              * an additional 1-sized layer of cells around it for padding
              */
 
-            std::vector<real> local_monopoles;
+            static thread_local std::vector<real> local_monopoles;
             /// Expansions for all the multipoles the current monopole is neighboring
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
+            static thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                local_expansions_SoA;
             /// com_ptr - Center of masses, required for the angular corrections
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
+            static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                center_of_masses_SoA;
 
             std::vector<bool> neighbor_empty_multipoles;
             std::vector<bool> neighbor_empty_monopoles;

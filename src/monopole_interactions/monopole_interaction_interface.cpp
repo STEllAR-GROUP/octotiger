@@ -18,13 +18,17 @@ namespace fmm {
 
         std::vector<multiindex<>> monopole_interaction_interface::stencil;
         std::vector<std::array<real, 4>> monopole_interaction_interface::four;
+        thread_local std::vector<real> monopole_interaction_interface::local_monopoles(EXPANSION_COUNT_PADDED);
+        thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+            monopole_interaction_interface::local_expansions_SoA;
+        thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+            monopole_interaction_interface::center_of_masses_SoA;
 
         monopole_interaction_interface::monopole_interaction_interface(void)
           : neighbor_empty_multipoles(27)
           , neighbor_empty_monopoles(27)
           , kernel(neighbor_empty_multipoles)
           , kernel_monopoles(neighbor_empty_monopoles) {
-            local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
         }
 
         void monopole_interaction_interface::update_input(std::vector<real>& mons,

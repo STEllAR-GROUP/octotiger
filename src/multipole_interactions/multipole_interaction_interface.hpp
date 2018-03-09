@@ -41,9 +41,9 @@ namespace fmm {
             bool x_skip[3][3][3];
 
         protected:
-            std::vector<real> local_monopoles;
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
+            static thread_local std::vector<real> local_monopoles;
+            static thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
+            static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
 
             std::vector<bool> neighbor_empty_multipole;
             std::vector<bool> neighbor_empty_monopole;

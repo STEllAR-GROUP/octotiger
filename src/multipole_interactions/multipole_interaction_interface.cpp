@@ -14,12 +14,17 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
+
         two_phase_stencil multipole_interaction_interface::stencil;
+        thread_local std::vector<real> multipole_interaction_interface::local_monopoles(EXPANSION_COUNT_PADDED);
+        thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+            multipole_interaction_interface::local_expansions_SoA;
+        thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+            multipole_interaction_interface::center_of_masses_SoA;
         multipole_interaction_interface::multipole_interaction_interface(void)
           : neighbor_empty_multipole(27)
           , neighbor_empty_monopole(27)
           , mixed_interactions_kernel(neighbor_empty_monopole) {
-            local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
         }
 
         void multipole_interaction_interface::update_input(std::vector<real>& monopoles,
