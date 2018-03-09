@@ -31,7 +31,7 @@ namespace fmm {
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
-            std::vector<multiindex<>>& stencil, gsolve_type type, bool (&z_skip)[3][3][3],
+            const std::vector<multiindex<>>& stencil, gsolve_type type, bool (&z_skip)[3][3][3],
             bool (&y_skip)[3][3], bool (&x_skip)[3]) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";

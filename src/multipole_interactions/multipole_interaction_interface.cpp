@@ -15,7 +15,7 @@ namespace fmm {
     namespace multipole_interactions {
 
 
-        two_phase_stencil multipole_interaction_interface::stencil;
+        thread_local const two_phase_stencil multipole_interaction_interface::stencil = calculate_stencil();
         thread_local std::vector<real> multipole_interaction_interface::local_monopoles(EXPANSION_COUNT_PADDED);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
             multipole_interaction_interface::local_expansions_SoA;

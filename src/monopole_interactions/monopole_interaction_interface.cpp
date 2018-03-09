@@ -16,8 +16,8 @@ namespace fmm {
         size_t total_neighbors = 0;
         size_t missing_neighbors = 0;
 
-        std::vector<multiindex<>> monopole_interaction_interface::stencil;
-        std::vector<std::array<real, 4>> monopole_interaction_interface::four;
+        const thread_local std::vector<multiindex<>> monopole_interaction_interface::stencil = calculate_stencil().first;
+        const thread_local std::vector<std::array<real, 4>> monopole_interaction_interface::four = calculate_stencil().second;
         thread_local std::vector<real> monopole_interaction_interface::local_monopoles(EXPANSION_COUNT_PADDED);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
             monopole_interaction_interface::local_expansions_SoA;

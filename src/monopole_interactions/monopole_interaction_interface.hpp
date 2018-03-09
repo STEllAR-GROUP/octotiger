@@ -63,8 +63,8 @@ namespace fmm {
 
         public:
             /// The stencil is used to identify the neighbors?
-            static std::vector<multiindex<>> stencil;
-            static std::vector<std::array<real, 4>> four;
+            static thread_local const std::vector<multiindex<>> stencil;
+            static thread_local const std::vector<std::array<real, 4>> four;
 
             /// Constructor for the boundary interactor between a monopole and its neighboring
             /// multipoles

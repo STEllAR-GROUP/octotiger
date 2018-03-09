@@ -23,10 +23,6 @@
 #include <hpx/lcos/broadcast.hpp>
 
 #include "compute_factor.hpp"
-#include "multipole_interactions/calculate_stencil.hpp"
-#include "multipole_interactions/multipole_interaction_interface.hpp"
-#include "monopole_interactions/calculate_stencil.hpp"
-#include "monopole_interactions/monopole_interaction_interface.hpp"
 
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "multipole_interactions/cuda_multipole_interaction_interface.hpp"
@@ -98,14 +94,9 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	node_server::set_hydro(hydro_on);
 	compute_ilist();
     compute_factor();
-    octotiger::fmm::multipole_interactions::multipole_interaction_interface::
-        stencil = octotiger::fmm::multipole_interactions::calculate_stencil();
-    octotiger::fmm::monopole_interactions::monopole_interaction_interface::stencil =
-        octotiger::fmm::monopole_interactions::calculate_stencil().first;
-    octotiger::fmm::monopole_interactions::monopole_interaction_interface::four =
-        octotiger::fmm::monopole_interactions::calculate_stencil().second;
 
 #ifdef OCTOTIGER_CUDA_ENABLED
+    std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
     octotiger::util::cuda_helper::print_local_targets();
 #endif
 

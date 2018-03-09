@@ -55,7 +55,7 @@ namespace fmm {
             std::array<real, NDIM> xBase;
 
         public:
-            static two_phase_stencil stencil;
+            static thread_local const two_phase_stencil stencil;
 
             // at this point, uses the old datamembers of the grid class as input
             // and converts them to the new data structure

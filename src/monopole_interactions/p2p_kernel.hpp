@@ -54,7 +54,8 @@ namespace fmm {
             void apply_stencil(std::vector<real>& mons,
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                     potential_expansions_SoA,
-                std::vector<multiindex<>>& stencil, std::vector<std::array<real, 4>>& four,
+                const std::vector<multiindex<>>& stencil, const
+                std::vector<std::array<real, 4>>& four,
                 real dx);
         };
 
