@@ -211,7 +211,7 @@ if (OCTOTIGER_WITH_CUDA)
 )
 endif()
 
-
+if (OCTOTIGER_WITH_SILO)
 add_hpx_executable(
   silocmp
   DEPENDENCIES
@@ -222,3 +222,4 @@ add_hpx_executable(
     ${silo_cmp_header_files}
   FOLDER  "Octotiger"
 )
+endif()
