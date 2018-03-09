@@ -1,3 +1,4 @@
+#ifdef OCTOTIGER_CUDA_ENABLED
 #define BOOST_NO_CXX11_ALLOCATOR
 //
 #include <hpx/hpx.hpp>
@@ -80,3 +81,4 @@ private:
     cudaStream_t               stream_;
     hpx::compute::cuda::target target_;
 };
+#endif

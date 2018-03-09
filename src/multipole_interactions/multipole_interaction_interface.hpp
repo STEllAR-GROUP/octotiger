@@ -5,16 +5,16 @@
 
 #include "../common_kernel/kernel_simd_types.hpp"
 
-#include "grid.hpp"
 #include "geometry.hpp"
+#include "grid.hpp"
 // #include "node_server.hpp"
 #include "interaction_types.hpp"
 #include "taylor.hpp"
 
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
-#include "m2p_kernel.hpp"
 #include "m2m_kernel.hpp"
+#include "m2p_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -33,10 +33,16 @@ namespace fmm {
              * an additional 1-sized layer of cells around it for padding
              */
 
-            // M_ptr
+            std::shared_ptr<grid> grid_ptr;
+            m2p_kernel mixed_interactions_kernel;
+
+            bool z_skip[3];
+            bool y_skip[3][3];
+            bool x_skip[3][3][3];
+
+        protected:
             std::vector<real> local_monopoles;
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
-            /// com_ptr - Center of masses, required for the angular corrections
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
 
             std::vector<bool> neighbor_empty_multipole;
@@ -48,12 +54,6 @@ namespace fmm {
             real dX;
             std::array<real, NDIM> xBase;
 
-            std::shared_ptr<grid> grid_ptr;
-            m2p_kernel mixed_interactions_kernel;
-
-            bool z_skip[3];
-            bool y_skip[3][3];
-            bool x_skip[3][3][3];
         public:
             static two_phase_stencil stencil;
 
@@ -66,11 +66,13 @@ namespace fmm {
                 std::array<real, NDIM> xbase);
 
             void compute_interactions(interaction_kernel_type m2m_type,
-                                      interaction_kernel_type m2p_type,
-                                      std::array<bool, geo::direction::count()> &is_direction_empty,
-                                      std::vector<neighbor_gravity_type> &all_neighbor_interaction_data);
+                interaction_kernel_type m2p_type,
+                std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
 
-            void set_grid_ptr(std::shared_ptr<grid> ptr) {grid_ptr = ptr;}
+            void set_grid_ptr(std::shared_ptr<grid> ptr) {
+                grid_ptr = ptr;
+            }
         };
     }    // namespace multipole_interactions
 }    // namespace fmm

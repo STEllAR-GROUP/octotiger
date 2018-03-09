@@ -28,6 +28,9 @@
 #include "monopole_interactions/calculate_stencil.hpp"
 #include "monopole_interactions/monopole_interaction_interface.hpp"
 
+#ifdef OCTOTIGER_CUDA_ENABLED
+#include "multipole_interactions/cuda_multipole_interaction_interface.hpp"
+#endif
 
 options opts;
 
@@ -101,6 +104,11 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
         octotiger::fmm::monopole_interactions::calculate_stencil().first;
     octotiger::fmm::monopole_interactions::monopole_interaction_interface::four =
         octotiger::fmm::monopole_interactions::calculate_stencil().second;
+
+#ifdef OCTOTIGER_CUDA_ENABLED
+    octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface::print_local_targets();
+#endif
+
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

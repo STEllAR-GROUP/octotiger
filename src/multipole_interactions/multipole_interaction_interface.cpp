@@ -7,8 +7,6 @@
 
 #include <algorithm>
 
-#include "../cuda_util/cuda_helper.hpp"
-
 // Big picture questions:
 // - use any kind of tiling?
 
@@ -22,14 +20,6 @@ namespace fmm {
           , neighbor_empty_monopole(27)
           , mixed_interactions_kernel(neighbor_empty_monopole) {
             local_monopoles = std::vector<real>(EXPANSION_COUNT_PADDED);
-
-            auto targets = hpx::compute::cuda::target::get_local_targets();
-            for (auto target : targets) {
-                std::cout << "GPU Device " << target.native_handle().get_device() << ": \""
-                          << target.native_handle().processor_name() << "\" "
-                          << "with compute capability " << target.native_handle().processor_family()
-                          << "\n";
-            }
         }
 
         void multipole_interaction_interface::update_input(std::vector<real>& monopoles,

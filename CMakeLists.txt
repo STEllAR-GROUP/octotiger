@@ -16,6 +16,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
+option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 
 ################################################################################
 # Find required packages
@@ -25,9 +26,12 @@ if (OCTOTIGER_WITH_SILO)
   find_package(Silo REQUIRED)
 endif()
 
-find_package(CUDA  REQUIRED)
-include_directories("${CUDA_INCLUDE_DIRS}")
-link_directories(${CUDA_CUBLAS_LIBRARIES})
+if (OCTOTIGER_WITH_CUDA)
+  add_definitions(-DOCTOTIGER_CUDA_ENABLED)
+  find_package(CUDA  REQUIRED)
+  include_directories("${CUDA_INCLUDE_DIRS}")
+  link_directories(${CUDA_CUBLAS_LIBRARIES})
+endif()
 
 include_directories(${HPX_INCLUDE_DIRS})
 link_directories(${HPX_LIBRARY_DIR})
@@ -117,6 +121,7 @@ set(source_files ${source_files}
     src/util.cpp
     src/compute_factor.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
     src/multipole_interactions/calculate_stencil.cpp
     src/multipole_interactions/m2m_kernel.cpp
     src/multipole_interactions/m2m_kernel_blocked_interaction.cpp
@@ -164,6 +169,7 @@ set(header_files
     src/common_kernel/interaction_constants.hpp
     src/common_kernel/multiindex.hpp
     src/multipole_interactions/multipole_interaction_interface.hpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.hpp
     src/multipole_interactions/calculate_stencil.hpp
     src/multipole_interactions/m2m_kernel.hpp
     src/multipole_interactions/m2p_kernel.hpp
@@ -194,15 +200,16 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
-add_hpx_executable(
-  matmul
-  DEPENDENCIES
-    ${dependencies}
-  SOURCES
-    src/cublas_matmul.cpp
-
-  FOLDER  "Octotiger"
+if (OCTOTIGER_WITH_CUDA)
+  add_hpx_executable(
+    matmul
+    DEPENDENCIES
+      ${dependencies}
+    SOURCES
+      src/cublas_matmul.cpp
+    FOLDER  "Octotiger"
 )
+endif()
 
 
 add_hpx_executable(
