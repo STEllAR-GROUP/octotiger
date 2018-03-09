@@ -84,7 +84,7 @@ namespace fmm {
                             stencils[i].stencil_phase_indicator[element_index]);
                     }
                 }
-                std::cout << "Stencil size: " << stencils[i].stencil_elements.size() << std::endl;
+                // std::cout << "Stencil size: " << stencils[i].stencil_elements.size() << std::endl;
             }
             return superimposed_stencil;
         }
