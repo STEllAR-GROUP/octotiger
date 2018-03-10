@@ -1,10 +1,12 @@
 #pragma once
 
+#include "../cuda_util/cuda_helper.hpp"
 #include "defs.hpp"
 
 #include <cmath>
 #include <iostream>
 #include <vector>
+
 
 namespace octotiger {
 namespace fmm {
@@ -17,7 +19,7 @@ namespace fmm {
             T y;
             T z;
 
-            multiindex(T x, T y, T z)
+            CUDA_CALLABLE_METHOD multiindex(T x, T y, T z)
               : x(x)
               , y(y)
               , z(z) {
@@ -26,7 +28,7 @@ namespace fmm {
             }
 
             template <typename U>
-            multiindex(const multiindex<U>& other) {
+            CUDA_CALLABLE_METHOD multiindex(const multiindex<U>& other) {
                 x = other.x;
                 y = other.y;
                 z = other.z;
@@ -38,11 +40,11 @@ namespace fmm {
             //   , y(y)
             //   , z(z) {}
 
-            inline double length() const {
+            CUDA_CALLABLE_METHOD inline double length() const {
                 return sqrt(static_cast<double>(x * x + y * y + z * z));
             }
 
-            inline bool compare(multiindex& other) {
+            CUDA_CALLABLE_METHOD inline bool compare(multiindex& other) {
                 if (this->x == other.x && this->y == other.y && this->z == other.z) {
                     return true;
                 } else {
@@ -51,7 +53,7 @@ namespace fmm {
             }
 
             // set this multiindex to the next coarser level index
-            void transform_coarse() {
+            CUDA_CALLABLE_METHOD void transform_coarse() {
                 const T patch_size = static_cast<typename T::value_type>(INX);
                 const T subtract = static_cast<typename T::value_type>(INX / 2);
 

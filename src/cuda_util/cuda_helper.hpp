@@ -1,21 +1,12 @@
+#pragma once
 #ifdef OCTOTIGER_CUDA_ENABLED
+#define CUDA_CALLABLE_METHOD __host__ __device__
+
 #define BOOST_NO_CXX11_ALLOCATOR
-//
-#include <hpx/hpx.hpp>
-#include <hpx/hpx_init.hpp>
-#include <hpx/include/parallel_copy.hpp>
-#include <hpx/include/parallel_executor_parameters.hpp>
-#include <hpx/include/parallel_executors.hpp>
-#include <hpx/include/parallel_for_each.hpp>
-#include <hpx/include/parallel_for_loop.hpp>
 //
 #include <hpx/compute/cuda/target.hpp>
 #include <hpx/include/compute.hpp>
-#ifdef HPX_CUBLAS_DEMO_WITH_ALLOCATOR
-#include <hpx/compute/cuda/allocator.hpp>
-#endif
 // CUDA runtime
-#include <cublas_v2.h>
 #include <cuda_runtime.h>
 //
 #include <algorithm>
@@ -96,4 +87,6 @@ namespace util {
     };
 }    // namespace util
 }    // namespace octotiger
+#else
+#define CUDA_CALLABLE_METHOD
 #endif
