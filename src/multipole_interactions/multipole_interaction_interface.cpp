@@ -14,9 +14,10 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-
-        thread_local const two_phase_stencil multipole_interaction_interface::stencil = calculate_stencil();
-        thread_local std::vector<real> multipole_interaction_interface::local_monopoles(EXPANSION_COUNT_PADDED);
+        thread_local const two_phase_stencil multipole_interaction_interface::stencil =
+            calculate_stencil();
+        thread_local std::vector<real> multipole_interaction_interface::local_monopoles(
+            EXPANSION_COUNT_PADDED);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
             multipole_interaction_interface::local_expansions_SoA;
         thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
@@ -24,8 +25,7 @@ namespace fmm {
         multipole_interaction_interface::multipole_interaction_interface(void)
           : neighbor_empty_multipole(27)
           , neighbor_empty_monopole(27)
-          , mixed_interactions_kernel(neighbor_empty_monopole) {
-        }
+          , mixed_interactions_kernel(neighbor_empty_monopole) {}
 
         void multipole_interaction_interface::update_input(std::vector<real>& monopoles,
             std::vector<multipole>& M_ptr,
@@ -341,6 +341,162 @@ namespace fmm {
                 }
             }
         }
+        // template <typename T>
+        // inline void interactions_kernel_non_rho(T* cell_com, T* tmpstore, T* m_partner, T* cur_pot,
+        //     T* X, T* Y, const T* factor_half_v, const T* factor_sixth_v) {
+        //     T dX[NDIM];
+        //     dX[0] = X[0] - Y[0];
+        //     dX[1] = X[1] - Y[1];
+        //     dX[2] = X[2] - Y[2];
+        //     double X_00;
+        //     double X_11;
+        //     double X_22;
+
+        //     double r2;
+        //     double r2inv;
+
+        //     double d0;
+        //     double d1;
+        //     double d2;
+        //     double d3;
+        //         X_00 = dX[0] * dX[0];
+        //         X_11 = dX[1] * dX[1];
+        //         X_22 = dX[2] * dX[2];
+
+        //         r2 = X_00 + X_11 + X_22;
+        //         r2inv = 1.0 / max(r2, 1.0e-20);
+
+        //         // parts of formula (6)
+        //         d0 = -sqrt(r2inv);
+        //         // parts of formula (7)
+        //         d1 = -d0 * r2inv;
+        //         // parts of formula (8)
+        //         d2 = -3.0 * d1 * r2inv;
+        //         // parts of  formula (9)
+        //         d3 = -5.0 * d2 * r2inv;
+        //     D_split D_calculator(dX);
+        //     // TODO: this translates to an initialization loop, bug!
+        //     D_calculator.calculate_D_lower(D_lower);
+
+        //     // 10-19 are not cached!
+
+        //     // the following loops calculate formula (10), potential from B->A
+
+        //     cur_pot[0] = m_partner[0] * D_lower[0];
+        //     cur_pot[1] = m_partner[0] * D_lower[1];
+        //     cur_pot[2] = m_partner[0] * D_lower[2];
+        //     cur_pot[3] = m_partner[0] * D_lower[3];
+
+        //     cur_pot[0] += m_partner[4] * (D_lower[4] * factor_half_v[4]);
+        //     cur_pot[1] += m_partner[4] * (D_lower[10] * factor_half_v[4]);
+        //     cur_pot[2] += m_partner[4] * (D_lower[11] * factor_half_v[4]);
+        //     cur_pot[3] += m_partner[4] * (D_lower[12] * factor_half_v[4]);
+
+        //     cur_pot[0] += m_partner[5] * (D_lower[5] * factor_half_v[5]);
+        //     cur_pot[1] += m_partner[5] * (D_lower[11] * factor_half_v[5]);
+        //     cur_pot[2] += m_partner[5] * (D_lower[13] * factor_half_v[5]);
+        //     cur_pot[3] += m_partner[5] * (D_lower[14] * factor_half_v[5]);
+
+        //     cur_pot[0] += m_partner[6] * (D_lower[6] * factor_half_v[6]);
+        //     cur_pot[1] += m_partner[6] * (D_lower[12] * factor_half_v[6]);
+        //     cur_pot[2] += m_partner[6] * (D_lower[14] * factor_half_v[6]);
+        //     cur_pot[3] += m_partner[6] * (D_lower[15] * factor_half_v[6]);
+
+        //     cur_pot[0] += m_partner[7] * (D_lower[7] * factor_half_v[7]);
+        //     cur_pot[1] += m_partner[7] * (D_lower[13] * factor_half_v[7]);
+        //     cur_pot[2] += m_partner[7] * (D_lower[16] * factor_half_v[7]);
+        //     cur_pot[3] += m_partner[7] * (D_lower[17] * factor_half_v[7]);
+
+        //     cur_pot[0] += m_partner[8] * (D_lower[8] * factor_half_v[8]);
+        //     cur_pot[1] += m_partner[8] * (D_lower[14] * factor_half_v[8]);
+        //     cur_pot[2] += m_partner[8] * (D_lower[17] * factor_half_v[8]);
+        //     cur_pot[3] += m_partner[8] * (D_lower[18] * factor_half_v[8]);
+
+        //     cur_pot[0] += m_partner[9] * (D_lower[9] * factor_half_v[9]);
+        //     cur_pot[1] += m_partner[9] * (D_lower[15] * factor_half_v[9]);
+        //     cur_pot[2] += m_partner[9] * (D_lower[18] * factor_half_v[9]);
+        //     cur_pot[3] += m_partner[9] * (D_lower[19] * factor_half_v[9]);
+
+        //     cur_pot[0] -= m_partner[10] * (D_lower[10] * factor_sixth_v[10]);
+        //     cur_pot[0] -= m_partner[11] * (D_lower[11] * factor_sixth_v[11]);
+        //     cur_pot[0] -= m_partner[12] * (D_lower[12] * factor_sixth_v[12]);
+        //     cur_pot[0] -= m_partner[13] * (D_lower[13] * factor_sixth_v[13]);
+        //     cur_pot[0] -= m_partner[14] * (D_lower[14] * factor_sixth_v[14]);
+        //     cur_pot[0] -= m_partner[15] * (D_lower[15] * factor_sixth_v[15]);
+        //     cur_pot[0] -= m_partner[16] * (D_lower[16] * factor_sixth_v[16]);
+        //     cur_pot[0] -= m_partner[17] * (D_lower[17] * factor_sixth_v[17]);
+        //     cur_pot[0] -= m_partner[18] * (D_lower[18] * factor_sixth_v[18]);
+        //     cur_pot[0] -= m_partner[19] * (D_lower[19] * factor_sixth_v[19]);
+
+        //     /* Maps to:
+        //     for (integer i = 0; i != 6; ++i) {
+        //         int const* abc_idx_map6 = to_abc_idx_map6[i];
+
+        //         integer const ab_idx = ab_idx_map6[i];
+        //         A0[ab_idx] = m0() * D[ab_idx];
+        //         for (integer c = 0; c < NDIM; ++c) {
+        //             A0[ab_idx] -= m0(c) * D[abc_idx_map6[c]];
+        //         }
+        //     }
+
+        //     for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+        //         A0[i] = m0[0] * D[i];
+        //     }
+        //     from the old style */
+        //     cur_pot[4] = m_partner[0] * D_lower[4];
+        //     cur_pot[5] = m_partner[0] * D_lower[5];
+        //     cur_pot[6] = m_partner[0] * D_lower[6];
+        //     cur_pot[7] = m_partner[0] * D_lower[7];
+        //     cur_pot[8] = m_partner[0] * D_lower[8];
+        //     cur_pot[9] = m_partner[0] * D_lower[9];
+
+        //     cur_pot[4] -= m_partner[1] * D_lower[10];
+        //     cur_pot[5] -= m_partner[1] * D_lower[11];
+        //     cur_pot[6] -= m_partner[1] * D_lower[12];
+        //     cur_pot[7] -= m_partner[1] * D_lower[13];
+        //     cur_pot[8] -= m_partner[1] * D_lower[14];
+        //     cur_pot[9] -= m_partner[1] * D_lower[15];
+
+        //     cur_pot[4] -= m_partner[2] * D_lower[11];
+        //     cur_pot[5] -= m_partner[2] * D_lower[13];
+        //     cur_pot[6] -= m_partner[2] * D_lower[14];
+        //     cur_pot[7] -= m_partner[2] * D_lower[16];
+        //     cur_pot[8] -= m_partner[2] * D_lower[17];
+        //     cur_pot[9] -= m_partner[2] * D_lower[18];
+
+        //     cur_pot[4] -= m_partner[3] * D_lower[12];
+        //     cur_pot[5] -= m_partner[3] * D_lower[14];
+        //     cur_pot[6] -= m_partner[3] * D_lower[15];
+        //     cur_pot[7] -= m_partner[3] * D_lower[17];
+        //     cur_pot[8] -= m_partner[3] * D_lower[18];
+        //     cur_pot[9] -= m_partner[3] * D_lower[19];
+
+        //     tmpstore[0] = tmpstore[0] + cur_pot[0];
+        //     tmpstore[1] = tmpstore[1] + cur_pot[1];
+        //     tmpstore[2] = tmpstore[2] + cur_pot[2];
+        //     tmpstore[3] = tmpstore[3] + cur_pot[3];
+        //     tmpstore[4] = tmpstore[4] + cur_pot[4];
+        //     tmpstore[5] = tmpstore[5] + cur_pot[5];
+        //     tmpstore[6] = tmpstore[6] + cur_pot[6];
+        //     tmpstore[7] = tmpstore[7] + cur_pot[7];
+        //     tmpstore[8] = tmpstore[8] + cur_pot[8];
+        //     tmpstore[9] = tmpstore[9] + cur_pot[9];
+
+        //     /* Maps to
+        //     for (integer i = taylor_sizes[2]; i < taylor_sizes[3]; ++i) {
+        //         A0[i] = m0[0] * D[i];
+        //     }*/
+        //     tmpstore[10] = tmpstore[10] + m_partner[0] * D_lower[10];
+        //     tmpstore[11] = tmpstore[11] + m_partner[0] * D_lower[11];
+        //     tmpstore[12] = tmpstore[12] + m_partner[0] * D_lower[12];
+        //     tmpstore[13] = tmpstore[13] + m_partner[0] * D_lower[13];
+        //     tmpstore[14] = tmpstore[14] + m_partner[0] * D_lower[14];
+        //     tmpstore[15] = tmpstore[15] + m_partner[0] * D_lower[15];
+        //     tmpstore[16] = tmpstore[16] + m_partner[0] * D_lower[16];
+        //     tmpstore[17] = tmpstore[17] + m_partner[0] * D_lower[17];
+        //     tmpstore[18] = tmpstore[18] + m_partner[0] * D_lower[18];
+        //     tmpstore[19] = tmpstore[19] + m_partner[0] * D_lower[19];
+        // }
     }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger
