@@ -42,6 +42,12 @@ namespace util {
             // insert the cublas handle in the arg list and call the cublas function
             cuda_error(cuda_function(std::forward<Args>(args)..., stream_));
         }
+        template <typename... Args>
+        void execute(Args&&... args) {
+            // make sure we run on the correct device
+            cuda_error(cudaSetDevice(target_.native_handle().get_device()));
+            cuda_error(cudaLaunchKernel(std::forward<Args>(args)..., stream_));
+        }
 
         template <typename... Args>
         void copy_async(Args&&... args) {

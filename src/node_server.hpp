@@ -30,7 +30,7 @@
 
 #include "interaction_types.hpp"
 #include "monopole_interactions/monopole_interaction_interface.hpp"
-#include "multipole_interactions/multipole_interaction_interface.hpp"
+#include "multipole_interactions/cuda_multipole_interaction_interface.hpp"
 
 class node_server: public hpx::components::managed_component_base<node_server> {
 public:
@@ -105,7 +105,11 @@ private:
     real dt_;
 
     octotiger::fmm::monopole_interactions::monopole_interaction_interface p2m_interactor;
+#ifdef OCTOTIGER_CUDA_ENABLED
+    octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface m2m_interactor;
+#else
     octotiger::fmm::multipole_interactions::multipole_interaction_interface m2m_interactor;
+#endif
 public:
     static bool is_gravity_on() {
         return gravity_on;

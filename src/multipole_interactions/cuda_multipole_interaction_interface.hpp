@@ -1,9 +1,9 @@
 #pragma once
 #include "multipole_interaction_interface.hpp"
 #ifdef OCTOTIGER_CUDA_ENABLED
+#include <functional>
 #include "../cuda_util/cuda_helper.hpp"
 #include "cuda_kernel_methods.hpp"
-#include <functional>
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -41,14 +41,6 @@ namespace fmm {
                 util::cuda_helper::cuda_error(
                     cudaMalloc((void**) &device_angular_corrections, angular_corrections_size));
                 // Queue asynchronous movement of data to device
-                // Launch kernel
-                // void* args[] = { &dev_c, &dev_a, &dev_b };
-                void* args[] = {};
-                const dim3 grid_spec(1, 1, 1);
-                const dim3 threads_per_block(1, 1, 1);
-                // std::function<cudaError_t(const void*,dim3,dim3,void**,size_t,cudaStream_t)> bla = std::bind(&cudaLaunchKernel);
-                  // gpu_interface(&cudaLaunchKernel,(void*) &cuda_multipole_interactions_kernel,
-                  //   grid_spec, threads_per_block, args);
             }
 
             void compute_interactions(interaction_kernel_type m2m_type,
@@ -57,13 +49,23 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data) {
                 multipole_interaction_interface::compute_interactions(
                     m2m_type, m2p_type, is_direction_empty, all_neighbor_interaction_data);
+                // Launch kernel
+                // void* args[] = { &dev_c, &dev_a, &dev_b };
+                void* args[] = {};
+                const dim3 grid_spec(1, 1, 1);
+                const dim3 threads_per_block(1, 1, 1);
+                gpu_interface.execute(
+                    &cuda_multipole_interactions_kernel, grid_spec, threads_per_block, args, 0);
+                std::cout << "Started Kernel!" << std::endl;
+                auto fut = gpu_interface.get_future();
+                fut.get();
             }
 
         protected:
             void queue_multipole_kernel(void) {}
 
         protected:
-            util::cuda_helper gpu_interface;
+            static thread_local util::cuda_helper gpu_interface;
             real* device_local_monopoles;
             real* device_local_expansions;
             real* device_center_of_masses;

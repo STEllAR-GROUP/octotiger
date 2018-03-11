@@ -25,7 +25,7 @@
 #include "compute_factor.hpp"
 
 #ifdef OCTOTIGER_CUDA_ENABLED
-#include "multipole_interactions/cuda_multipole_interaction_interface.hpp"
+#include "cuda_util/cuda_helper.hpp"
 #endif
 
 options opts;
