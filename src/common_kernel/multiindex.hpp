@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../cuda_util/cuda_helper.hpp"
+#include "../cuda_util/cuda_global_def.hpp"
 #include "interaction_constants.hpp"
 #include "defs.hpp"
 

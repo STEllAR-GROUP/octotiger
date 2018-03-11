@@ -1,7 +1,9 @@
 #pragma once
+#include "multipole_interaction_interface.hpp"
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "../cuda_util/cuda_helper.hpp"
-#include "multipole_interaction_interface.hpp"
+#include "cuda_kernel_methods.hpp"
+#include <functional>
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -39,6 +41,14 @@ namespace fmm {
                 util::cuda_helper::cuda_error(
                     cudaMalloc((void**) &device_angular_corrections, angular_corrections_size));
                 // Queue asynchronous movement of data to device
+                // Launch kernel
+                // void* args[] = { &dev_c, &dev_a, &dev_b };
+                void* args[] = {};
+                const dim3 grid_spec(1, 1, 1);
+                const dim3 threads_per_block(1, 1, 1);
+                // std::function<cudaError_t(const void*,dim3,dim3,void**,size_t,cudaStream_t)> bla = std::bind(&cudaLaunchKernel);
+                  // gpu_interface(&cudaLaunchKernel,(void*) &cuda_multipole_interactions_kernel,
+                  //   grid_spec, threads_per_block, args);
             }
 
             void compute_interactions(interaction_kernel_type m2m_type,
@@ -50,7 +60,7 @@ namespace fmm {
             }
 
         protected:
-            void queue_multipole__kernel(void) {}
+            void queue_multipole_kernel(void) {}
 
         protected:
             util::cuda_helper gpu_interface;

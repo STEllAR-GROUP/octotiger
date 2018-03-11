@@ -1,6 +1,5 @@
 #pragma once
 #ifdef OCTOTIGER_CUDA_ENABLED
-#define CUDA_CALLABLE_METHOD __host__ __device__
 
 #define BOOST_NO_CXX11_ALLOCATOR
 //
@@ -37,7 +36,7 @@ namespace util {
         // as the wrapper will supply that for you
         template <typename Func, typename... Args>
         void operator()(Func&& cuda_function, Args&&... args) {
-            // make sue we run on the correct device
+            // make sure we run on the correct device
             cuda_error(cudaSetDevice(target_.native_handle().get_device()));
 
             // insert the cublas handle in the arg list and call the cublas function
@@ -46,7 +45,7 @@ namespace util {
 
         template <typename... Args>
         void copy_async(Args&&... args) {
-            // make sue we run on the correct device
+            // make sure we run on the correct device
             cuda_error(cudaSetDevice(target_.native_handle().get_device()));
 
             // insert the uda stream in the arg list and call the cuda memcpy
@@ -88,5 +87,4 @@ namespace util {
 }    // namespace util
 }    // namespace octotiger
 #else
-#define CUDA_CALLABLE_METHOD
 #endif
