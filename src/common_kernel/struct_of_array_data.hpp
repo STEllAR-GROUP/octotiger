@@ -14,11 +14,14 @@ namespace fmm {
     {
     private:
         // data in SoA form
-        static constexpr size_t padded_entries_per_component = entries + padding;
 
         component_type* const data;
 
     public:
+        static constexpr size_t padded_entries_per_component = entries + padding;
+        inline component_type* const get_pod(void) {
+            return data;
+        }
         template <size_t component_access>
         inline component_type* pointer(const size_t flat_index) const {
             constexpr size_t component_array_offset =
@@ -66,7 +69,6 @@ namespace fmm {
             for (auto i = 0; i < num_components * padded_entries_per_component; ++i) {
                 data[i] = 0.0;
             }
-
         }
 
         struct_of_array_data(const size_t entries_per_component)
