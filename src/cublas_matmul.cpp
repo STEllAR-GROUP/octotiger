@@ -392,7 +392,7 @@ void matrixMultiply(sMatrixSize &matrix_size, std::size_t device, std::size_t it
         std::cout << "\nComputing result using host CPU...\n";
 #ifdef HPX_CUBLAS_DEMO_WITH_ALLOCATOR
         // copy result from device to host
-        hpx::parallel::copy(policy, d_C.begin(), d_C.end(), h_CUBLAS.begin());
+        hpx::parallel::copy(policy, d_vC.begin(), d_vC.end(), h_CUBLAS.begin());
 #else
         // just wait for the device->host copy to complete if it hasn't already
         copy_finished.get();

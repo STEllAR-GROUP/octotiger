@@ -82,9 +82,9 @@ namespace fmm {
             gpu_interface.memset_async(device_angular_corrections, 0, angular_corrections_size);
 
             // Launch kernel
-            void* args[] = {device_center_of_masses, device_local_expansions,
-                device_potential_expansions, device_angular_corrections, device_stencil,
-                device_phase_indicator, device_factor_half, device_factor_sixth};
+            void* args[] = {&device_center_of_masses, &device_local_expansions,
+                &device_potential_expansions, &device_angular_corrections, &device_stencil,
+                &device_phase_indicator, &device_factor_half, &device_factor_sixth};
             const dim3 grid_spec(1, 1, 1);
             const dim3 threads_per_block(1, 1, 1);
             gpu_interface.execute(
