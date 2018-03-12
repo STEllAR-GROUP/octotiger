@@ -4,11 +4,14 @@
 #include "calculate_stencil.hpp"
 #include "m2m_kernel.hpp"
 #include "m2p_kernel.hpp"
+#include "options.hpp"
 
 #include <algorithm>
 
 // Big picture questions:
 // - use any kind of tiling?
+
+extern options opts;
 
 namespace octotiger {
 namespace fmm {
@@ -25,13 +28,9 @@ namespace fmm {
         multipole_interaction_interface::multipole_interaction_interface(void)
           : neighbor_empty_multipole(27)
           , neighbor_empty_monopole(27)
-          , mixed_interactions_kernel(neighbor_empty_monopole)
-          , m2m_type(SOA_CPU)
-          , m2p_type(SOA_CPU) {}
-        void multipole_interaction_interface::set_computation_configuration(
-            interaction_kernel_type m2m_type, interaction_kernel_type m2p_type) {
-            this->m2m_type = m2m_type;
-            this->m2p_type = m2p_type;
+          , mixed_interactions_kernel(neighbor_empty_monopole) {
+            this->m2m_type = opts.m2m_kernel_type;
+            this->m2p_type = opts.m2p_kernel_type;
         }
 
         void multipole_interaction_interface::compute_multipole_interactions(

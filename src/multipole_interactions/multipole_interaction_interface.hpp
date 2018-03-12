@@ -27,8 +27,6 @@ namespace fmm {
         {
         public:
             multipole_interaction_interface(void);
-            void set_computation_configuration(
-                interaction_kernel_type m2m_type, interaction_kernel_type m2p_type);
             void compute_multipole_interactions(std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
@@ -54,8 +52,6 @@ namespace fmm {
             static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 center_of_masses_SoA;
             static thread_local const two_phase_stencil stencil;
-
-        protected:
             std::vector<bool> neighbor_empty_multipole;
             std::vector<bool> neighbor_empty_monopole;
             gsolve_type type;
