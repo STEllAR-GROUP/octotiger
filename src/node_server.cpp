@@ -628,12 +628,10 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
                                           grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
                                           grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
             m2m_interactor.set_grid_ptr(grid_ptr);
-            m2m_interactor.update_input(
-                mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), Xbase);
-            m2m_interactor.compute_interactions(opts.m2m_kernel_type,
-                                                opts.m2p_kernel_type,
-                                                is_direction_empty,
-                                                all_neighbor_interaction_data);
+            m2m_interactor.set_computation_configuration(opts.p2p_kernel_type, opts.p2m_kernel_type);
+            m2m_interactor.compute_multipole_interactions(
+                mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type,
+                grid_ptr->get_dx(), is_direction_empty, Xbase);
         } else {
             p2m_interactor.set_grid_ptr(grid_ptr);
             p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data,

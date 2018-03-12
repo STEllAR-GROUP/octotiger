@@ -25,54 +25,53 @@ namespace fmm {
 
         class multipole_interaction_interface
         {
-        private:
-            /*
-             * logical structure of all arrays:
-             * cube of 8x8x8 cells of configurable size,
-             * input variables (local_expansions, center_of_masses) have
-             * an additional 1-sized layer of cells around it for padding
-             */
+        public:
+            multipole_interaction_interface(void);
+            void set_computation_configuration(
+                interaction_kernel_type m2m_type, interaction_kernel_type m2p_type);
+            void compute_multipole_interactions(std::vector<real>& monopoles,
+                std::vector<multipole>& M_ptr,
+                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::array<real, NDIM> xbase);
+            void set_grid_ptr(std::shared_ptr<grid> ptr) {
+                grid_ptr = ptr;
+            }
 
+        protected:
+            void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
+                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+                std::array<real, NDIM> xbase);
+            void compute_interactions(std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
+
+        protected:
+            static thread_local std::vector<real> local_monopoles;
+            static thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                local_expansions_SoA;
+            static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                center_of_masses_SoA;
+            static thread_local const two_phase_stencil stencil;
+
+        protected:
+            std::vector<bool> neighbor_empty_multipole;
+            std::vector<bool> neighbor_empty_monopole;
+            gsolve_type type;
+            bool monopole_neighbors_exist;
+            real dX;
+            std::array<real, NDIM> xBase;
+            interaction_kernel_type m2m_type;
+            interaction_kernel_type m2p_type;
+
+        private:
             std::shared_ptr<grid> grid_ptr;
             m2p_kernel mixed_interactions_kernel;
 
             bool z_skip[3];
             bool y_skip[3][3];
             bool x_skip[3][3][3];
-
-        protected:
-            static thread_local std::vector<real> local_monopoles;
-            static thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_SoA;
-            static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_SoA;
-
-            std::vector<bool> neighbor_empty_multipole;
-            std::vector<bool> neighbor_empty_monopole;
-
-            gsolve_type type;
-
-            bool monopole_neighbors_exist;
-            real dX;
-            std::array<real, NDIM> xBase;
-
-        public:
-            static thread_local const two_phase_stencil stencil;
-
-            // at this point, uses the old datamembers of the grid class as input
-            // and converts them to the new data structure
-            multipole_interaction_interface(void);
-            void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
-                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<real, NDIM> xbase);
-
-            void compute_interactions(interaction_kernel_type m2m_type,
-                interaction_kernel_type m2p_type,
-                std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
-
-            void set_grid_ptr(std::shared_ptr<grid> ptr) {
-                grid_ptr = ptr;
-            }
         };
     }    // namespace multipole_interactions
 }    // namespace fmm
