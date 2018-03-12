@@ -15,8 +15,7 @@ namespace fmm {
         class cuda_multipole_interaction_interface : public multipole_interaction_interface
         {
         public:
-            cuda_multipole_interaction_interface(void)
-              : multipole_interaction_interface() {}
+            cuda_multipole_interaction_interface(void);
             void compute_multipole_interactions(std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
@@ -39,6 +38,9 @@ namespace fmm {
             real* device_factor_sixth;
             octotiger::fmm::multiindex<>* device_stencil;
             bool* device_phase_indicator;
+
+        private:
+            real theta;
         };
 
     }    // namespace multipole_interactions

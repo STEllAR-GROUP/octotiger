@@ -1,9 +1,16 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "cuda_multipole_interaction_interface.hpp"
+#include "options.hpp"
+
+extern options opts;
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
         thread_local util::cuda_helper cuda_multipole_interaction_interface::gpu_interface;
+
+        cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
+          : multipole_interaction_interface()
+          , theta(opts.theta) {}
 
         void cuda_multipole_interaction_interface::compute_multipole_interactions(
             std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
@@ -84,7 +91,7 @@ namespace fmm {
             // Launch kernel
             void* args[] = {&device_center_of_masses, &device_local_expansions,
                 &device_potential_expansions, &device_angular_corrections, &device_stencil,
-                &device_phase_indicator, &device_factor_half, &device_factor_sixth};
+                &device_phase_indicator, &device_factor_half, &device_factor_sixth, &theta};
             const dim3 grid_spec(1, 1, 1);
             const dim3 threads_per_block(1, 1, 1);
             gpu_interface.execute(

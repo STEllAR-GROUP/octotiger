@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../cuda_util/cuda_global_def.hpp"
-#include "interaction_constants.hpp"
 #include "defs.hpp"
+#include "interaction_constants.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -62,7 +62,9 @@ namespace fmm {
             z = ((z + patch_size) >> 1) - subtract;
         }
     };
-    CUDA_CALLABLE_METHOD inline multiindex<> flat_index_to_multiindex_not_padded(size_t flat_index) {
+
+    CUDA_CALLABLE_METHOD inline multiindex<> flat_index_to_multiindex_not_padded(
+        size_t flat_index) {
         size_t x = flat_index / (INNER_CELLS_PER_DIRECTION * INNER_CELLS_PER_DIRECTION);
         flat_index %= (INNER_CELLS_PER_DIRECTION * INNER_CELLS_PER_DIRECTION);
         size_t y = flat_index / INNER_CELLS_PER_DIRECTION;
