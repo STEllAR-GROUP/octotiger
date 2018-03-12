@@ -13,7 +13,7 @@ namespace fmm {
         template <typename T>
         CUDA_CALLABLE_METHOD void compute_kernel_rho(T (&X)[NDIM], T (&Y)[NDIM], T (&m_partner)[20],
             T (&tmpstore)[20], T (&tmp_corrections)[3], const T (&m_cell)[20],
-            const T (&factor_half)[20], const T (&factor_sixth)[20]) {
+            const T (&factor_half)[20], const T (&factor_sixth)[20]) noexcept {
             T dX[NDIM];
             dX[0] = X[0] - Y[0];
             dX[1] = X[1] - Y[1];
