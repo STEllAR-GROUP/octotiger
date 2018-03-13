@@ -29,6 +29,7 @@ namespace fmm {
         protected:
             static thread_local util::cuda_helper gpu_interface;
 
+            real* device_local_monopoles;
             real* device_local_expansions;
             real* device_center_of_masses;
             real* device_potential_expansions;

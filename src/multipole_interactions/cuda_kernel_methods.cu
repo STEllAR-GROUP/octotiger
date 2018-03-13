@@ -18,10 +18,11 @@ namespace fmm {
     }
 
     namespace multipole_interactions {
-        __global__ void cuda_multipole_interactions_kernel(double* center_of_masses,
-            double* multipoles, double* potential_expansions, double* angular_corrections,
-            octotiger::fmm::multiindex<>* stencil, bool* stencil_phases, double* factor_half,
-            double* factor_sixth, double theta) {
+        constexpr size_t padded_entries_per_component = ENTRIES + SOA_PADDING;
+        __global__ void cuda_multipole_interactions_kernel(double* local_monopoles,
+            double* center_of_masses, double* multipoles, double* potential_expansions,
+            double* angular_corrections, octotiger::fmm::multiindex<>* stencil,
+            bool* stencil_phases, double* factor_half, double* factor_sixth, double theta) {
             printf("yay %f", theta);
 
             // Set cell indices
@@ -64,6 +65,13 @@ namespace fmm {
                     cell_index_coarse, interaction_partner_index_coarse));
                 const bool mask_b = theta_rec_squared > theta_c_rec_squared;
                 const double mask = mask_b ? 1.0 : 0.0;
+
+                double Y[NDIM];
+                Y[0] = center_of_masses[interaction_partner_flat_index];
+                Y[1] =
+                    center_of_masses[padded_entries_per_component + interaction_partner_flat_index];
+                Y[2] = center_of_masses[2 * padded_entries_per_component +
+                    interaction_partner_flat_index];
             }
         }
     }    // namespace multipole_interactions

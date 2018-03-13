@@ -54,6 +54,8 @@ namespace fmm {
 
             // Allocate memory on device
             util::cuda_helper::cuda_error(
+                cudaMalloc((void**) &device_local_monopoles, local_monopoles_size));
+            util::cuda_helper::cuda_error(
                 cudaMalloc((void**) &device_local_expansions, local_expansions_size));
             util::cuda_helper::cuda_error(
                 cudaMalloc((void**) &device_center_of_masses, center_of_masses_size));
@@ -79,6 +81,8 @@ namespace fmm {
                 device_factor_sixth, factor_sixth.get(), factor_size, cudaMemcpyHostToDevice);
 
             // Move input data
+            gpu_interface.copy_async(device_local_monopoles, local_monopoles.data(),
+                local_monopoles_size, cudaMemcpyHostToDevice);
             gpu_interface.copy_async(device_local_expansions, local_expansions_SoA.get_pod(),
                 local_expansions_size, cudaMemcpyHostToDevice);
             gpu_interface.copy_async(device_center_of_masses, center_of_masses_SoA.get_pod(),
@@ -89,9 +93,10 @@ namespace fmm {
             gpu_interface.memset_async(device_angular_corrections, 0, angular_corrections_size);
 
             // Launch kernel
-            void* args[] = {&device_center_of_masses, &device_local_expansions,
-                &device_potential_expansions, &device_angular_corrections, &device_stencil,
-                &device_phase_indicator, &device_factor_half, &device_factor_sixth, &theta};
+            void* args[] = {&device_local_monopoles, &device_center_of_masses,
+                &device_local_expansions, &device_potential_expansions, &device_angular_corrections,
+                &device_stencil, &device_phase_indicator, &device_factor_half, &device_factor_sixth,
+                &theta};
             const dim3 grid_spec(1, 1, 1);
             const dim3 threads_per_block(1, 1, 1);
             gpu_interface.execute(
