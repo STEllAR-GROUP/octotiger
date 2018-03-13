@@ -96,9 +96,19 @@ namespace fmm {
             gpu_interface.execute(
                 &cuda_multipole_interactions_kernel, grid_spec, threads_per_block, args, 0);
             std::cout << "Started Kernel!" << std::endl;
-            std::cin.get();
+
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+                    potential_expansions_SoA;
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                    angular_corrections_SoA;
             auto fut = gpu_interface.get_future();
+            std::cin.get();
             fut.get();
+            std::cout << "Kernel finished - started copying!" << std::endl;
+            // gpu_interface.copy_async(device_potential_expansions, ,
+            //     local_monopoles_size, cudaMemcpyDeviceToHost);
+            // gpu_interface.copy_async(device_local_expansions, local_expansions_SoA.get_pod(),
+            //     local_expansions_size, cudaMemcpyDeviceToHost);
         }
 
     }    // namespace multipole_interactions

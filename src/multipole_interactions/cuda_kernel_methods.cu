@@ -20,6 +20,7 @@ namespace fmm {
 
     namespace multipole_interactions {
         constexpr size_t component_length = ENTRIES + SOA_PADDING;
+        constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
         __global__ void cuda_multipole_interactions_kernel(
             double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&center_of_masses)[NUMBER_MASS_VALUES],
@@ -127,11 +128,36 @@ namespace fmm {
                 m_partner[18] = multipoles[18 * component_length + partner_flat_index] * mask;
                 m_partner[19] = multipoles[19 * component_length + partner_flat_index] * mask;
 
-                // Do all of the numeric stuff
+                // Do the actual calculations
                 compute_kernel_rho<double>(
                     X, Y, m_partner, tmpstore, tmp_corrections, m_cell, factor_half,
                     factor_sixth);
             }
+            // Store results in output arrays
+            potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
+            potential_expansions[1 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[1];
+            potential_expansions[2 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[2];
+            potential_expansions[3 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[3];
+            potential_expansions[4 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[4];
+            potential_expansions[5 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[5];
+            potential_expansions[6 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[6];
+            potential_expansions[7 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[7];
+            potential_expansions[8 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[8];
+            potential_expansions[9 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[9];
+            potential_expansions[10 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[10];
+            potential_expansions[11 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[11];
+            potential_expansions[12 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[12];
+            potential_expansions[13 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[13];
+            potential_expansions[14 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[14];
+            potential_expansions[15 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[15];
+            potential_expansions[16 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[16];
+            potential_expansions[17 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[17];
+            potential_expansions[18 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[18];
+            potential_expansions[19 * component_length_unpadded * cell_flat_index_unpadded] = tmpstore[19];
+
+            angular_corrections[cell_flat_index_unpadded] = tmp_corrections[0];
+            angular_corrections[1 * component_length_unpadded * cell_flat_index_unpadded] = tmp_corrections[1];
+            angular_corrections[2 * component_length_unpadded * cell_flat_index_unpadded] = tmp_corrections[2];
         }
     }    // namespace multipole_interactions
 }    // namespace fmm
