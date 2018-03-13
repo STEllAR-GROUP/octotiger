@@ -26,20 +26,14 @@ namespace fmm {
             //     monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase);
             // Check where we want to run this:
             // Define sizes of buffers
-            constexpr size_t local_monopoles_size = 1 * (ENTRIES) * sizeof(real);
-            constexpr size_t local_expansions_size = 20 * (ENTRIES + SOA_PADDING) * sizeof(real);
-            constexpr size_t center_of_masses_size = 3 * (ENTRIES + SOA_PADDING) * sizeof(real);
-            constexpr size_t potential_expansions_size =
-                20 * (INNER_CELLS + SOA_PADDING) * sizeof(real);
-            constexpr size_t angular_corrections_size =
-                3 * (INNER_CELLS + SOA_PADDING) * sizeof(real);
-            constexpr size_t factor_size = 20 * sizeof(real);
-            const size_t stencil_size =
-                multipole_interaction_interface::stencil.stencil_elements.size() *
-                sizeof(octotiger::fmm::multiindex<>);
-            const size_t indicator_size =
-                multipole_interaction_interface::stencil.stencil_phase_indicator.size() *
-                sizeof(bool);
+            constexpr size_t local_monopoles_size = NUMBER_LOCAL_MONOPOLE_VALUES * sizeof(real);
+            constexpr size_t local_expansions_size = NUMBER_LOCAL_EXPANSION_VALUES * sizeof(real);
+            constexpr size_t center_of_masses_size = NUMBER_MASS_VALUES * sizeof(real);
+            constexpr size_t potential_expansions_size = NUMBER_POT_EXPANSIONS * sizeof(real);
+            constexpr size_t angular_corrections_size = NUMBER_ANG_CORRECTIONS * sizeof(real);
+            constexpr size_t factor_size = NUMBER_FACTORS * sizeof(real);
+            constexpr size_t stencil_size = STENCIL_SIZE * sizeof(octotiger::fmm::multiindex<>);
+            constexpr size_t indicator_size = STENCIL_SIZE * sizeof(bool);
 
             // Move data into easier movable data structures
             std::unique_ptr<bool[]> indicator = std::make_unique<bool[]>(indicator_size);

@@ -20,10 +20,15 @@ namespace fmm {
 
     namespace multipole_interactions {
         constexpr size_t component_length = ENTRIES + SOA_PADDING;
-        __global__ void cuda_multipole_interactions_kernel(double* local_monopoles,
-            double* center_of_masses, double* multipoles, double* potential_expansions,
-            double* angular_corrections, octotiger::fmm::multiindex<>* stencil,
-            bool* stencil_phases, double* factor_half, double* factor_sixth, double theta) {
+        __global__ void cuda_multipole_interactions_kernel(
+            double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
+            double (&center_of_masses)[NUMBER_MASS_VALUES],
+            double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
+            double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
+            double (&angular_corrections)[NUMBER_ANG_CORRECTIONS],
+            octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
+            bool (&stencil_phases)[STENCIL_SIZE], double (&factor_half)[20],
+            double (&factor_sixth)[20], double theta) {
             printf("yay %f", theta);
 
             // Set cell indices
@@ -74,7 +79,7 @@ namespace fmm {
             const double theta_rec_squared = sqr(1.0 / theta);
 
             // calculate interactions between this cell and each stencil element
-            for (size_t stencil_index = 0; stencil_index < 743; stencil_index++) {
+            for (size_t stencil_index = 0; stencil_index < STENCIL_SIZE; stencil_index++) {
                 // Get phase indicator (indicates whether multipole multipole interactions still
                 // needs to be done)
                 const double mask_phase_one = static_cast<double>(stencil_phases[stencil_index]);
@@ -123,8 +128,9 @@ namespace fmm {
                 m_partner[19] = multipoles[19 * component_length + partner_flat_index] * mask;
 
                 // Do all of the numeric stuff
-                // compute_kernel_rho<double>(
-                //     X, Y, m_partner, tmpstore, tmp_corrections, m_cell, factor_half, factor_sixth);
+                compute_kernel_rho<double>(
+                    X, Y, m_partner, tmpstore, tmp_corrections, m_cell, factor_half,
+                    factor_sixth);
             }
         }
     }    // namespace multipole_interactions

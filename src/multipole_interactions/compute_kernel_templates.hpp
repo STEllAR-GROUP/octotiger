@@ -185,7 +185,7 @@ namespace fmm {
             tmpstore[18] = tmpstore[18] + m_partner[0] * D_lower[18];
             tmpstore[19] = tmpstore[19] + m_partner[0] * D_lower[19];
 
-            T const n0_constant = m_partner[0] / m_cell(0);
+            const T n0_constant = m_partner[0] / m_cell[0];
 
             T D_upper[15];
             T current_angular_correction[NDIM];
@@ -201,7 +201,7 @@ namespace fmm {
             D_upper[1] = 3.0 * d3_X01;
             const T d3_X02 = d3 * X[0] * X[2];
             D_upper[2] = 3.0 * d3_X02;
-            const T n0_tmp = m_partner[10] - m_cell(10) * n0_constant;
+            T n0_tmp = m_partner[10] - m_cell[10] * n0_constant;
             // m_cell_iterator++; // 11
 
             current_angular_correction[0] -= n0_tmp * (D_upper[0] * factor_sixth[10]);
@@ -215,7 +215,7 @@ namespace fmm {
             const T d3_X12 = d3 * X[1] * X[2];
             D_upper[4] = d3_X12;
 
-            n0_tmp = m_partner[11] - m_cell(11) * n0_constant;
+            n0_tmp = m_partner[11] - m_cell[11] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[1] * factor_sixth[11]);
             current_angular_correction[1] -= n0_tmp * (D_upper[3] * factor_sixth[11]);
@@ -226,7 +226,7 @@ namespace fmm {
             D_upper[5] += d3_X22;
             D_upper[5] += d3_X00;
 
-            n0_tmp = m_partner[12] - m_cell(12) * n0_constant;
+            n0_tmp = m_partner[12] - m_cell[12] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[2] * factor_sixth[12]);
             current_angular_correction[1] -= n0_tmp * (D_upper[4] * factor_sixth[12]);
@@ -235,7 +235,7 @@ namespace fmm {
             D_upper[6] = 3.0 * d3_X01;
             D_upper[7] = d3 * X_02;
 
-            n0_tmp = m_partner[13] - m_cell(13) * n0_constant;
+            n0_tmp = m_partner[13] - m_cell[13] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[3] * factor_sixth[13]);
             current_angular_correction[1] -= n0_tmp * (D_upper[6] * factor_sixth[13]);
@@ -243,7 +243,7 @@ namespace fmm {
 
             D_upper[8] = d3 * X[0] * X[1];
 
-            n0_tmp = m_partner[14] - m_cell(14) * n0_constant;
+            n0_tmp = m_partner[14] - m_cell[14] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[4] * factor_sixth[14]);
             current_angular_correction[1] -= n0_tmp * (D_upper[7] * factor_sixth[14]);
@@ -251,7 +251,7 @@ namespace fmm {
 
             D_upper[9] = 3.0 * d3_X02;
 
-            n0_tmp = m_partner[15] - m_cell(15) * n0_constant;
+            n0_tmp = m_partner[15] - m_cell[15] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[5] * factor_sixth[15]);
             current_angular_correction[1] -= n0_tmp * (D_upper[8] * factor_sixth[15]);
@@ -263,7 +263,7 @@ namespace fmm {
 
             D_upper[11] = 3.0 * d3_X12;
 
-            n0_tmp = m_partner[16] - m_cell(16) * n0_constant;
+            n0_tmp = m_partner[16] - m_cell[16] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[6] * factor_sixth[16]);
             current_angular_correction[1] -= n0_tmp * (D_upper[10] * factor_sixth[16]);
@@ -273,7 +273,7 @@ namespace fmm {
             D_upper[12] += d3_X22;
             D_upper[12] += d3_X11;
 
-            n0_tmp = m_partner[17] - m_cell(17) * n0_constant;
+            n0_tmp = m_partner[17] - m_cell[17] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[7] * factor_sixth[17]);
             current_angular_correction[1] -= n0_tmp * (D_upper[11] * factor_sixth[17]);
@@ -281,7 +281,7 @@ namespace fmm {
 
             D_upper[13] = 3.0 * d3_X12;
 
-            n0_tmp = m_partner[18] - m_cell(18) * n0_constant;
+            n0_tmp = m_partner[18] - m_cell[18] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[8] * factor_sixth[18]);
             current_angular_correction[1] -= n0_tmp * (D_upper[12] * factor_sixth[18]);
@@ -291,7 +291,7 @@ namespace fmm {
             D_upper[14] += d2;
             D_upper[14] += 5.0 * d3_X22;
 
-            n0_tmp = m_partner[19] - m_cell(19) * n0_constant;
+            n0_tmp = m_partner[19] - m_cell[19] * n0_constant;
 
             current_angular_correction[0] -= n0_tmp * (D_upper[9] * factor_sixth[19]);
             current_angular_correction[1] -= n0_tmp * (D_upper[13] * factor_sixth[19]);
