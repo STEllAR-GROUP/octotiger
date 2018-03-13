@@ -49,7 +49,7 @@ namespace fmm {
             for (size_t stencil_index = 0; stencil_index < 743; stencil_index++) {
                 // Get phase indicator (indicates whether multipole multipole interactions still
                 // needs to be done)
-                const bool phase_one = stencil_phases[stencil_index];
+                const double mask_phase_one = static_cast<double>(stencil_phases[stencil_index]);
 
                 // Get interaction partner indices
                 const multiindex<>& stencil_element = stencil[stencil_index];
@@ -64,14 +64,76 @@ namespace fmm {
                 const double theta_c_rec_squared = static_cast<double>(distance_squared_reciprocal(
                     cell_index_coarse, interaction_partner_index_coarse));
                 const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                const double mask = mask_b ? 1.0 : 0.0;
+                double mask = mask_b ? 1.0 : 0.0;
 
                 double Y[NDIM];
                 Y[0] = center_of_masses[interaction_partner_flat_index];
-                Y[1] =
-                    center_of_masses[padded_entries_per_component + interaction_partner_flat_index];
+                Y[1] = center_of_masses[1 * padded_entries_per_component +
+                    interaction_partner_flat_index];
                 Y[2] = center_of_masses[2 * padded_entries_per_component +
                     interaction_partner_flat_index];
+
+                double m_partner[20];
+                m_partner[0] = local_monopoles[interaction_partner_flat_index] * mask;
+                mask = mask * mask_phase_one;    // do not load multipoles outside the inner stencil
+                m_partner[0] += multipoles[interaction_partner_flat_index] * mask;
+                m_partner[1] =
+                    multipoles[1 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[2] =
+                    multipoles[2 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[3] =
+                    multipoles[3 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[4] =
+                    multipoles[4 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[5] =
+                    multipoles[5 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[6] =
+                    multipoles[6 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[7] =
+                    multipoles[7 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[8] =
+                    multipoles[8 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[9] =
+                    multipoles[9 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[10] =
+                    multipoles[10 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[11] =
+                    multipoles[11 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[12] =
+                    multipoles[12 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[13] =
+                    multipoles[13 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[14] =
+                    multipoles[14 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[15] =
+                    multipoles[15 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[16] =
+                    multipoles[16 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[17] =
+                    multipoles[17 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[18] =
+                    multipoles[18 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
+                m_partner[19] =
+                    multipoles[19 * padded_entries_per_component + interaction_partner_flat_index] *
+                    mask;
             }
         }
     }    // namespace multipole_interactions
