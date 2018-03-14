@@ -33,14 +33,21 @@ namespace fmm {
             constexpr size_t angular_corrections_size = NUMBER_ANG_CORRECTIONS * sizeof(real);
             constexpr size_t factor_size = NUMBER_FACTORS * sizeof(real);
             constexpr size_t stencil_size = STENCIL_SIZE * sizeof(octotiger::fmm::multiindex<>);
-            constexpr size_t indicator_size = STENCIL_SIZE * sizeof(bool);
+            constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
 
             // Move data into easier movable data structures
-            std::unique_ptr<bool[]> indicator = std::make_unique<bool[]>(indicator_size);
-            for (auto i = 0; i < indicator_size; ++i)
-                indicator[i] = stencil.stencil_phase_indicator[i];
-            std::unique_ptr<real[]> factor_half = std::make_unique<real[]>(indicator_size);
-            std::unique_ptr<real[]> factor_sixth = std::make_unique<real[]>(indicator_size);
+            std::cout << sizeof(real) << " " << indicator_size << std::endl ;
+            std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
+            if (STENCIL_SIZE != stencil.stencil_elements.size())
+              std::cout << "what what" << stencil.stencil_elements.size();
+            for (auto i = 0; i < STENCIL_SIZE; ++i) {
+              if(stencil.stencil_phase_indicator[i])
+                indicator[i] = 1.0;
+              else
+                indicator[i] = 0.0;
+            }
+            std::unique_ptr<real[]> factor_half = std::make_unique<real[]>(NUMBER_FACTORS);
+            std::unique_ptr<real[]> factor_sixth = std::make_unique<real[]>(NUMBER_FACTORS);
             for (auto i = 0; i < 20; ++i) {
                 factor_half[i] = factor_half_v[i][0];
                 factor_sixth[i] = factor_sixth_v[i][0];
@@ -92,23 +99,41 @@ namespace fmm {
                 &device_stencil, &device_phase_indicator, &device_factor_half, &device_factor_sixth,
                 &theta};
             const dim3 grid_spec(1, 1, 1);
-            const dim3 threads_per_block(1, 1, 1);
+            const dim3 threads_per_block(8, 8, 8);
             gpu_interface.execute(
                 &cuda_multipole_interactions_kernel, grid_spec, threads_per_block, args, 0);
             std::cout << "Started Kernel!" << std::endl;
 
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA;
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                    angular_corrections_SoA;
-            auto fut = gpu_interface.get_future();
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+                potential_expansions_SoA;
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                angular_corrections_SoA;
+            util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            // auto fut = gpu_interface.get_future();
+            // fut.get();
+            util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            gpu_interface.copy_async(potential_expansions_SoA.get_pod(), device_potential_expansions,
+                 potential_expansions_size,
+                cudaMemcpyDeviceToHost);
+            gpu_interface.copy_async(angular_corrections_SoA.get_pod(), device_angular_corrections,
+                angular_corrections_size, cudaMemcpyDeviceToHost);
+            util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            // auto fut2 = gpu_interface.get_future();
+            // fut2.get();
+            std::cout << "Kernel finished!" << std::endl;
+
+            // if (type == RHO) {
+            //     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+            // }
+            std::ofstream out("gpuresults.txt");
+            potential_expansions_SoA.print(out);
+            out.close();
+            std::ofstream out2("gpuresults2.txt");
+            angular_corrections_SoA.print(out2);
+            out2.close();
             std::cin.get();
-            fut.get();
-            std::cout << "Kernel finished - started copying!" << std::endl;
-            // gpu_interface.copy_async(device_potential_expansions, ,
-            //     local_monopoles_size, cudaMemcpyDeviceToHost);
-            // gpu_interface.copy_async(device_local_expansions, local_expansions_SoA.get_pod(),
-            //     local_expansions_size, cudaMemcpyDeviceToHost);
+
+            // potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
         }
 
     }    // namespace multipole_interactions

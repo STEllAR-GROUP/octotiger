@@ -38,7 +38,7 @@ namespace fmm {
             real* device_factor_half;
             real* device_factor_sixth;
             octotiger::fmm::multiindex<>* device_stencil;
-            bool* device_phase_indicator;
+            real* device_phase_indicator;
 
         private:
             real theta;
