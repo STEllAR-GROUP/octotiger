@@ -101,6 +101,15 @@ namespace fmm {
                 }
             }
         }
+
+      void print(std::ofstream &out) {
+            for (size_t entry = 0; entry < padded_entries_per_component; entry++) {
+                for (size_t component = 0; component < num_components; component++) {
+                  out << data[component * padded_entries_per_component + entry] << std::endl;
+                }
+                out << std::endl;
+            }
+        }
     };
 }    // namespace fmm
 }    // namespace octotiger
