@@ -11,9 +11,9 @@ namespace fmm {
         }
 
         template <typename T>
-        CUDA_CALLABLE_METHOD void compute_kernel_rho(T (&X)[NDIM], T (&Y)[NDIM], T (&m_partner)[20],
+        CUDA_CALLABLE_METHOD inline void compute_kernel_rho(T (&X)[NDIM], T (&Y)[NDIM], T (&m_partner)[20],
             T (&tmpstore)[20], T (&tmp_corrections)[3], const T (&m_cell)[20],
-            const T (&factor_half)[20], const T (&factor_sixth)[20]) noexcept {
+            const T (&factor_half)[20], const T (&factor_sixth)[20]) {
             T dX[NDIM];
             dX[0] = X[0] - Y[0];
             dX[1] = X[1] - Y[1];
@@ -26,17 +26,20 @@ namespace fmm {
             X_22 = dX[2] * dX[2];
 
             r2 = X_00 + X_11 + X_22;
-            r2inv = 1.0 / max(r2, 1.0e-20);
+            r2inv = 1.0 / max(r2, T(1.0e-20));
+
             d0 = -sqrt(r2inv);
             d1 = -d0 * r2inv;
-            d2 = -3.0 * d1 * r2inv;
-            d3 = -5.0 * d2 * r2inv;
+            d2 = T(-3.0) * d1 * r2inv;
+            d3 = T(-5.0) * d2 * r2inv;
 
             T D_lower[20];
 
             D_lower[0] = d0;
+
             D_lower[1] = dX[0] * d1;
             D_lower[2] = dX[1] * d1;
+            D_lower[3] = dX[2] * d1;
 
             const T X_12 = dX[1] * dX[2];
             const T X_01 = dX[0] * dX[1];
@@ -193,13 +196,13 @@ namespace fmm {
             current_angular_correction[1] = 0.0;
             current_angular_correction[2] = 0.0;
 
-            D_upper[0] = X[0] * X[0] * d3 + 2.0 * d2;
+            D_upper[0] = dX[0] * dX[0] * d3 + 2.0 * d2;
             const T d3_X00 = d3 * X_00;
             D_upper[0] += d2;
             D_upper[0] += 5.0 * d3_X00;
-            const T d3_X01 = d3 * X[0] * X[1];
+            const T d3_X01 = d3 * dX[0] * dX[1];
             D_upper[1] = 3.0 * d3_X01;
-            const T d3_X02 = d3 * X[0] * X[2];
+            const T d3_X02 = d3 * dX[0] * dX[2];
             D_upper[2] = 3.0 * d3_X02;
             T n0_tmp = m_partner[10] - m_cell[10] * n0_constant;
             // m_cell_iterator++; // 11
@@ -212,7 +215,7 @@ namespace fmm {
             const T d3_X11 = d3 * X_11;
             D_upper[3] += d3_X11;
             D_upper[3] += d3 * X_00;
-            const T d3_X12 = d3 * X[1] * X[2];
+            const T d3_X12 = d3 * dX[1] * dX[2];
             D_upper[4] = d3_X12;
 
             n0_tmp = m_partner[11] - m_cell[11] * n0_constant;
@@ -241,7 +244,7 @@ namespace fmm {
             current_angular_correction[1] -= n0_tmp * (D_upper[6] * factor_sixth[13]);
             current_angular_correction[2] -= n0_tmp * (D_upper[7] * factor_sixth[13]);
 
-            D_upper[8] = d3 * X[0] * X[1];
+            D_upper[8] = d3 * dX[0] * dX[1];
 
             n0_tmp = m_partner[14] - m_cell[14] * n0_constant;
 
@@ -257,7 +260,7 @@ namespace fmm {
             current_angular_correction[1] -= n0_tmp * (D_upper[8] * factor_sixth[15]);
             current_angular_correction[2] -= n0_tmp * (D_upper[9] * factor_sixth[15]);
 
-            D_upper[10] = X[1] * X[1] * d3 + 2.0 * d2;
+            D_upper[10] = dX[1] * dX[1] * d3 + 2.0 * d2;
             D_upper[10] += d2;
             D_upper[10] += 5.0 * d3_X11;
 
@@ -287,7 +290,7 @@ namespace fmm {
             current_angular_correction[1] -= n0_tmp * (D_upper[12] * factor_sixth[18]);
             current_angular_correction[2] -= n0_tmp * (D_upper[13] * factor_sixth[18]);
 
-            D_upper[14] = X[2] * X[2] * d3 + 2.0 * d2;
+            D_upper[14] = dX[2] * dX[2] * d3 + 2.0 * d2;
             D_upper[14] += d2;
             D_upper[14] += 5.0 * d3_X22;
 
@@ -301,6 +304,7 @@ namespace fmm {
             tmp_corrections[1] = tmp_corrections[1] + current_angular_correction[1];
             tmp_corrections[2] = tmp_corrections[2] + current_angular_correction[2];
         }
+
 
         template <typename T>
         CUDA_CALLABLE_METHOD void compute_kernel_non_rho(T (&X)[NDIM], T (&Y)[NDIM], T (&m_partner)[20],
