@@ -3,6 +3,7 @@
 #include "../common_kernel/struct_of_array_data.hpp"
 #include "defs.hpp"
 #include "interaction_types.hpp"
+#include "../common_kernel/interaction_constants.hpp"
 #include "options.hpp"
 
 #include <array>

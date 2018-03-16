@@ -18,7 +18,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            if (type != RHO) {
+            if (true) {
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
             } else {

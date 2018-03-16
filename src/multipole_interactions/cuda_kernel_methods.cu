@@ -31,7 +31,6 @@ namespace fmm {
             octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
             double (&stencil_phases)[STENCIL_SIZE], double (&factor_half)[20],
             double (&factor_sixth)[20], double theta) {
-            // printf("yay %f", theta);
 
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,

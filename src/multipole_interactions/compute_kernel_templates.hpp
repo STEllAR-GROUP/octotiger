@@ -80,13 +80,7 @@ namespace fmm {
         template <typename T>
         CUDA_CALLABLE_METHOD inline void compute_interaction_multipole_non_rho(
             const T (&m_partner)[20], T (&tmpstore)[20], const T (&D_lower)[20],
-            const T (&factor_half)[20], const T (&factor_sixth)[20]) noexcept {
-            T cur_pot[10];
-
-            cur_pot[0] = m_partner[0] * D_lower[0];
-            cur_pot[1] = m_partner[0] * D_lower[1];
-            cur_pot[2] = m_partner[0] * D_lower[2];
-            cur_pot[3] = m_partner[0] * D_lower[3];
+            const T (&factor_half)[20], const T (&factor_sixth)[20], T (&cur_pot)[10]) noexcept {
 
             cur_pot[0] += m_partner[4] * (D_lower[4] * factor_half[4]);
             cur_pot[1] += m_partner[4] * (D_lower[10] * factor_half[4]);
@@ -312,13 +306,20 @@ namespace fmm {
             dX[0] = X[0] - Y[0];
             dX[1] = X[1] - Y[1];
             dX[2] = X[2] - Y[2];
+
             T X_00, X_11, X_22;
             T d2, d3;
             T D_lower[20];
+
             compute_d_factors(d2, d3, X_00, X_11, X_22, D_lower, dX, max);
 
+            T cur_pot[10];
+            cur_pot[0] = m_partner[0] * D_lower[0];
+            cur_pot[1] = m_partner[0] * D_lower[1];
+            cur_pot[2] = m_partner[0] * D_lower[2];
+            cur_pot[3] = m_partner[0] * D_lower[3];
             compute_interaction_multipole_non_rho(
-                m_partner, tmpstore, D_lower, factor_half, factor_sixth);
+                m_partner, tmpstore, D_lower, factor_half, factor_sixth, cur_pot);
 
             compute_interaction_multipole_rho(
                 d2, d3, X_00, X_11, X_22, m_partner, m_cell, dX, factor_sixth, tmp_corrections);
@@ -332,13 +333,31 @@ namespace fmm {
             dX[0] = X[0] - Y[0];
             dX[1] = X[1] - Y[1];
             dX[2] = X[2] - Y[2];
+
             T X_00, X_11, X_22;
             T d2, d3;
             T D_lower[20];
             compute_d_factors(d2, d3, X_00, X_11, X_22, D_lower, dX, max);
 
+            T cur_pot[10];
+            cur_pot[0] = m_partner[0] * D_lower[0];
+            cur_pot[1] = m_partner[0] * D_lower[1];
+            cur_pot[2] = m_partner[0] * D_lower[2];
+            cur_pot[3] = m_partner[0] * D_lower[3];
+            cur_pot[0] -= m_partner[1] * D_lower[1];
+            cur_pot[1] -= m_partner[1] * D_lower[4];
+            cur_pot[1] -= m_partner[1] * D_lower[5];
+            cur_pot[1] -= m_partner[1] * D_lower[6];
+            cur_pot[0] -= m_partner[2] * D_lower[2];
+            cur_pot[2] -= m_partner[2] * D_lower[5];
+            cur_pot[2] -= m_partner[2] * D_lower[7];
+            cur_pot[2] -= m_partner[2] * D_lower[8];
+            cur_pot[0] -= m_partner[3] * D_lower[3];
+            cur_pot[3] -= m_partner[3] * D_lower[6];
+            cur_pot[3] -= m_partner[3] * D_lower[8];
+            cur_pot[3] -= m_partner[3] * D_lower[9];
             compute_interaction_multipole_non_rho(
-                m_partner, tmpstore, D_lower, factor_half, factor_sixth);
+                m_partner, tmpstore, D_lower, factor_half, factor_sixth, cur_pot);
         }
     }    // namespace multipole_interactions
 }    // namespace fmm
