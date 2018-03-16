@@ -40,10 +40,11 @@ namespace fmm {
 
     // how many stencil elements are processed for one origin cell, before the next
     // cell is processed
-    constexpr uint64_t STENCIL_BLOCKING = 16;
     constexpr uint64_t SOA_PADDING = 19;    // to prevent some of the 4k aliasing
 
-    constexpr uint64_t STENCIL_SIZE = 743;
+    constexpr uint64_t STENCIL_SIZE = 1074;
+    constexpr uint64_t STENCIL_BLOCKING = STENCIL_SIZE;
+//constexpr uint64_t STENCIL_SIZE = 982;
     constexpr size_t NUMBER_LOCAL_MONOPOLE_VALUES = 1 * (ENTRIES);
     constexpr size_t NUMBER_LOCAL_EXPANSION_VALUES = 20 * (ENTRIES + SOA_PADDING);
     constexpr size_t NUMBER_MASS_VALUES = 3 * (ENTRIES + SOA_PADDING);

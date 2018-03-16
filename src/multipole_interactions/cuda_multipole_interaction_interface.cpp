@@ -6,7 +6,7 @@ extern options opts;
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        thread_local util::cuda_helper cuda_multipole_interaction_interface::gpu_interface;
+        // thread_local util::cuda_helper cuda_multipole_interaction_interface::gpu_interface;
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
@@ -18,12 +18,12 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            multipole_interaction_interface::compute_multipole_interactions(
-                monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
+            // multipole_interaction_interface::compute_multipole_interactions(
+            //     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
 
             // Move data into SoA arrays
-            // multipole_interaction_interface::update_input(
-            //     monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase);
+            multipole_interaction_interface::update_input(
+                monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase);
             // Check where we want to run this:
             // Define sizes of buffers
             constexpr size_t local_monopoles_size = NUMBER_LOCAL_MONOPOLE_VALUES * sizeof(real);
@@ -69,6 +69,7 @@ namespace fmm {
                 cudaMalloc((void**) &device_phase_indicator, indicator_size));
             util::cuda_helper::cuda_error(cudaMalloc((void**) &device_factor_half, factor_size));
             util::cuda_helper::cuda_error(cudaMalloc((void**) &device_factor_sixth, factor_size));
+            gpu_interface.memset_async(device_local_expansions, 0, local_expansions_size);
 
             // Move const data
             gpu_interface.copy_async(device_stencil,
@@ -111,29 +112,31 @@ namespace fmm {
             util::cuda_helper::cuda_error(cudaThreadSynchronize());
             // auto fut = gpu_interface.get_future();
             // fut.get();
-            util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            // util::cuda_helper::cuda_error(cudaThreadSynchronize());
             gpu_interface.copy_async(potential_expansions_SoA.get_pod(), device_potential_expansions,
                  potential_expansions_size,
                 cudaMemcpyDeviceToHost);
+            util::cuda_helper::cuda_error(cudaThreadSynchronize());
             gpu_interface.copy_async(angular_corrections_SoA.get_pod(), device_angular_corrections,
                 angular_corrections_size, cudaMemcpyDeviceToHost);
             util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            // util::cuda_helper::cuda_error(cudaThreadSynchronize());
             // auto fut2 = gpu_interface.get_future();
             // fut2.get();
             std::cout << "Kernel finished!" << std::endl;
 
-            // if (type == RHO) {
-            //     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
-            // }
-            std::ofstream out("gpuresults.txt");
-            potential_expansions_SoA.print(out);
-            out.close();
-            std::ofstream out2("gpuresults2.txt");
-            angular_corrections_SoA.print(out2);
-            out2.close();
-            std::cin.get();
+            // std::ofstream out("gpuresults.txt");
+            // potential_expansions_SoA.print(out);
+            // out.close();
+            // std::ofstream out2("gpuresults2.txt");
+            // angular_corrections_SoA.print(out2);
+            // out2.close();
+            // std::cin.get();
+            if (type == RHO) {
+             angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+            }
 
-            // potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+             potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
         }
 
     }    // namespace multipole_interactions

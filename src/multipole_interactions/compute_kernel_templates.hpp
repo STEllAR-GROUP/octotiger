@@ -19,19 +19,22 @@ namespace fmm {
             dX[1] = X[1] - Y[1];
             dX[2] = X[2] - Y[2];
             T X_00, X_11, X_22;
-            T r2, r2inv;
             T d0, d1, d2, d3;
             X_00 = dX[0] * dX[0];
             X_11 = dX[1] * dX[1];
             X_22 = dX[2] * dX[2];
 
-            r2 = X_00 + X_11 + X_22;
-            r2inv = 1.0 / max(r2, T(1.0e-20));
+            double r2 = X_00 + X_11 + X_22;
+            if (r2 < 1.0e-20) {
+              printf("ho");
+              r2 = 1.0e20;
+            }
+            double r2inv = 1.0 / r2;
 
             d0 = -sqrt(r2inv);
             d1 = -d0 * r2inv;
-            d2 = T(-3.0) * d1 * r2inv;
-            d3 = T(-5.0) * d2 * r2inv;
+            d2 = -3.0 * d1 * r2inv;
+            d3 = -5.0 * d2 * r2inv;
 
             T D_lower[20];
 
@@ -161,32 +164,57 @@ namespace fmm {
             cur_pot[7] -= m_partner[3] * D_lower[17];
             cur_pot[8] -= m_partner[3] * D_lower[18];
             cur_pot[9] -= m_partner[3] * D_lower[19];
+                tmpstore[0] = tmpstore[0] + cur_pot[0];
+                tmpstore[1] = tmpstore[1] + cur_pot[1];
+                tmpstore[2] = tmpstore[2] + cur_pot[2];
+                tmpstore[3] = tmpstore[3] + cur_pot[3];
+                tmpstore[4] = tmpstore[4] + cur_pot[4];
+                tmpstore[5] = tmpstore[5] + cur_pot[5];
+                tmpstore[6] = tmpstore[6] + cur_pot[6];
+                tmpstore[7] = tmpstore[7] + cur_pot[7];
+                tmpstore[8] = tmpstore[8] + cur_pot[8];
+                tmpstore[9] = tmpstore[9] + cur_pot[9];
 
-            tmpstore[0] = tmpstore[0] + cur_pot[0];
-            tmpstore[1] = tmpstore[1] + cur_pot[1];
-            tmpstore[2] = tmpstore[2] + cur_pot[2];
-            tmpstore[3] = tmpstore[3] + cur_pot[3];
-            tmpstore[4] = tmpstore[4] + cur_pot[4];
-            tmpstore[5] = tmpstore[5] + cur_pot[5];
-            tmpstore[6] = tmpstore[6] + cur_pot[6];
-            tmpstore[7] = tmpstore[7] + cur_pot[7];
-            tmpstore[8] = tmpstore[8] + cur_pot[8];
-            tmpstore[9] = tmpstore[9] + cur_pot[9];
+                /* Maps to
+                for (integer i = taylor_sizes[2]; i < taylor_sizes[3]; ++i) {
+                    A0[i] = m0[0] * D[i];
+                }*/
+                tmpstore[10] = tmpstore[10] + m_partner[0] * D_lower[10];
+                tmpstore[11] = tmpstore[11] + m_partner[0] * D_lower[11];
+                tmpstore[12] = tmpstore[12] + m_partner[0] * D_lower[12];
+                tmpstore[13] = tmpstore[13] + m_partner[0] * D_lower[13];
+                tmpstore[14] = tmpstore[14] + m_partner[0] * D_lower[14];
+                tmpstore[15] = tmpstore[15] + m_partner[0] * D_lower[15];
+                tmpstore[16] = tmpstore[16] + m_partner[0] * D_lower[16];
+                tmpstore[17] = tmpstore[17] + m_partner[0] * D_lower[17];
+                tmpstore[18] = tmpstore[18] + m_partner[0] * D_lower[18];
+                tmpstore[19] = tmpstore[19] + m_partner[0] * D_lower[19];
+
+            // tmpstore[0] = tmpstore[0] + D_lower[0];
+            // tmpstore[1] = tmpstore[1] + D_lower[1];
+            // tmpstore[2] = tmpstore[2] + D_lower[2];
+            // tmpstore[3] = tmpstore[3] + D_lower[3];
+            // tmpstore[4] = tmpstore[4] + r2;
+            // tmpstore[5] = tmpstore[5] + r2inv;
+            // tmpstore[6] = tmpstore[6] + dX[0];
+            // tmpstore[7] = tmpstore[7] + dX[1];
+            // tmpstore[8] = tmpstore[8] + dX[2];
+            // tmpstore[9] = tmpstore[9] + d0;
 
             /* Maps to
             for (integer i = taylor_sizes[2]; i < taylor_sizes[3]; ++i) {
                 A0[i] = m0[0] * D[i];
             }*/
-            tmpstore[10] = tmpstore[10] + m_partner[0] * D_lower[10];
-            tmpstore[11] = tmpstore[11] + m_partner[0] * D_lower[11];
-            tmpstore[12] = tmpstore[12] + m_partner[0] * D_lower[12];
-            tmpstore[13] = tmpstore[13] + m_partner[0] * D_lower[13];
-            tmpstore[14] = tmpstore[14] + m_partner[0] * D_lower[14];
-            tmpstore[15] = tmpstore[15] + m_partner[0] * D_lower[15];
-            tmpstore[16] = tmpstore[16] + m_partner[0] * D_lower[16];
-            tmpstore[17] = tmpstore[17] + m_partner[0] * D_lower[17];
-            tmpstore[18] = tmpstore[18] + m_partner[0] * D_lower[18];
-            tmpstore[19] = tmpstore[19] + m_partner[0] * D_lower[19];
+            // tmpstore[10] = tmpstore[10] + d1;
+            // tmpstore[11] = tmpstore[11] + d2;
+            // tmpstore[12] = tmpstore[12] + d3;
+            // tmpstore[13] = 0;
+            // tmpstore[14] = 0;
+            // tmpstore[15] = 0;
+            // tmpstore[16] = 0;
+            // tmpstore[17] = 0;
+            // tmpstore[18] = 0;
+            // tmpstore[19] = 0;
 
             const T n0_constant = m_partner[0] / m_cell[0];
 

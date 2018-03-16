@@ -55,9 +55,11 @@ namespace fmm {
             std::vector<real>& mons, const two_phase_stencil& stencil, gsolve_type type) {
             // vectors_check_empty();
             // for (multiindex<>& stencil_element : stencil) {
-            for (size_t outer_stencil_index = 0;
-                 outer_stencil_index < stencil.stencil_elements.size();
-                 outer_stencil_index += STENCIL_BLOCKING) {
+            // for (size_t outer_stencil_index = 0;
+            //      outer_stencil_index < stencil.stencil_elements.size();
+            //      outer_stencil_index += STENCIL_BLOCKING) {
+          {
+              size_t outer_stencil_index = 0;
                 // std::cout << "stencil_element: " << stencil_element << std::endl;
                 // TODO: remove after proper vectorization
                 // multiindex<> se(stencil_element.x, stencil_element.y, stencil_element.z);
@@ -77,7 +79,7 @@ namespace fmm {
                             const int64_t cell_flat_index_unpadded =
                                 to_inner_flat_index_not_padded(cell_index_unpadded);
 
-                            // indices on coarser level (for outer stencil boundary)
+                            // indices oncoarser level (for outer stencil boundary)
                             // implicitly broadcasts to vector
                             multiindex<m2m_int_vector> cell_index_coarse(cell_index);
                             for (size_t j = 0; j < m2m_int_vector::size(); j++) {
@@ -87,7 +89,7 @@ namespace fmm {
                             // -> maps to the same for some SIMD lanes
                             cell_index_coarse.transform_coarse();
 
-                            if (type == RHO) {
+                            if (true) {
                                 this->blocked_interaction_rho(local_expansions_SoA,
                                     center_of_masses_SoA, potential_expansions_SoA,
                                     angular_corrections_SoA, mons,

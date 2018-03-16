@@ -136,6 +136,7 @@ set(source_files ${source_files}
     src/monopole_interactions/p2m_kernel_blocked_interaction.cpp
     src/common_kernel/interactions_iterators.cpp
 )
+set_source_files_properties(cuda_kernel_methods.cu PROPERTIES COMPILE_FLAGS -O0)
 
 set(header_files
     src/channel.hpp

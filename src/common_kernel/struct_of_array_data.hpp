@@ -105,7 +105,7 @@ namespace fmm {
       void print(std::ostream &out, size_t number_entries=padded_entries_per_component) {
             for (size_t entry = 0; entry < number_entries; entry++) {
                 for (size_t component = 0; component < num_components; component++) {
-                  out << data[component * padded_entries_per_component + entry] << " ";
+                  out << component << ": " << data[component * padded_entries_per_component + entry] << " " << std::endl;
                 }
                 out << std::endl;
             }

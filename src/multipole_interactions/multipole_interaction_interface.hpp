@@ -46,10 +46,10 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
 
         protected:
-            static thread_local std::vector<real> local_monopoles;
-            static thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+            std::vector<real> local_monopoles;
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
                 local_expansions_SoA;
-            static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 center_of_masses_SoA;
             static thread_local const two_phase_stencil stencil;
             std::vector<bool> neighbor_empty_multipole;
@@ -60,9 +60,9 @@ namespace fmm {
             std::array<real, NDIM> xBase;
             interaction_kernel_type m2m_type;
             interaction_kernel_type m2p_type;
+            std::shared_ptr<grid> grid_ptr;
 
         private:
-            std::shared_ptr<grid> grid_ptr;
             m2p_kernel mixed_interactions_kernel;
 
             bool z_skip[3];

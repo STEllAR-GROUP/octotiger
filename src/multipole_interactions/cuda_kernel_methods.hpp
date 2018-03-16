@@ -13,7 +13,7 @@ namespace fmm {
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
             double (&angular_corrections)[NUMBER_ANG_CORRECTIONS],
             octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            bool (&stencil_phases)[STENCIL_SIZE], double (&factor_half)[20],
+            double (&stencil_phases)[STENCIL_SIZE], double (&factor_half)[20],
             double (&factor_sixth)[20], double theta);
     }    // namespace multipole_interactions
 }    // namespace fmm

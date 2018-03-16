@@ -27,7 +27,7 @@ namespace fmm {
             void queue_multipole_kernel(void) {}
 
         protected:
-            static thread_local util::cuda_helper gpu_interface;
+            util::cuda_helper gpu_interface;
 
             real* device_local_monopoles;
             real* device_local_expansions;
