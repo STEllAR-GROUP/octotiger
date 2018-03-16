@@ -4,6 +4,8 @@
 taylor<4, real> factor;
 taylor<4, m2m_vector> factor_half_v;
 taylor<4, m2m_vector> factor_sixth_v;
+// m2m_vector factor_half[20];
+// m2m_vector factor_sixth[20];
 
 void compute_factor() {
     factor = 0.0;
