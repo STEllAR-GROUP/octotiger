@@ -3,12 +3,11 @@
 #include "../common_kernel/helper.hpp"
 #include "../common_kernel/kernel_taylor_set_basis.hpp"
 #include "../common_kernel/struct_of_array_data.hpp"
-#include "grid_flattened_indices.hpp"
 #include "compute_kernel_templates.hpp"
+#include "grid_flattened_indices.hpp"
 
-extern taylor<4, real> factor;
-extern taylor<4, m2m_vector> factor_half_v;
-extern taylor<4, m2m_vector> factor_sixth_v;
+extern m2m_vector factor_half[20];
+extern m2m_vector factor_sixth[20];
 
 namespace octotiger {
 namespace fmm {
@@ -29,7 +28,6 @@ namespace fmm {
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded, const two_phase_stencil& __restrict__ stencil,
             const size_t outer_stencil_index) {
-
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
@@ -59,12 +57,7 @@ namespace fmm {
             m_cell[18] = local_expansions_SoA.value<18>(cell_flat_index);
             m_cell[19] = local_expansions_SoA.value<19>(cell_flat_index);
 
-            m2m_vector factor_half[20];
-            m2m_vector factor_sixth[20];
-            for (auto i = 0; i < 20; ++i) {
-                factor_half[i] = factor_half_v[i];
-                factor_sixth[i] = factor_sixth_v[i];
-            }
+            m2m_vector Y[3];
 
             bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
@@ -102,12 +95,11 @@ namespace fmm {
                 }
                 changed_data = true;
 
-                m2m_vector Y[3];
+                m2m_vector m_partner[20];
                 Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
                 Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
                 Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
 
-                m2m_vector m_partner[20];
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
                 Vc::where(mask, m_partner[0]) = m2m_vector(
@@ -280,19 +272,13 @@ namespace fmm {
             const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const two_phase_stencil& stencil, const size_t outer_stencil_index) {
-
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
             X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
             m2m_vector tmpstore[20];
 
-            m2m_vector factor_half[20];
-            m2m_vector factor_sixth[20];
-            for (auto i = 0; i < 20; ++i) {
-                factor_half[i] = factor_half_v[i];
-                factor_sixth[i] = factor_sixth_v[i];
-            }
+            m2m_vector Y[3];
 
             bool changed_data = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < STENCIL_BLOCKING &&
@@ -330,12 +316,11 @@ namespace fmm {
                 }
                 changed_data = true;
 
-                m2m_vector Y[3];
+                m2m_vector m_partner[20];
                 Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
                 Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
                 Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
 
-                m2m_vector m_partner[20];
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
                 Vc::where(mask, m_partner[0]) = m2m_vector(
@@ -382,8 +367,8 @@ namespace fmm {
                 Vc::where(mask, m_partner[19]) =
                     local_expansions_SoA.value<19>(interaction_partner_flat_index);
 
-                compute_kernel_non_rho(X, Y, m_partner, tmpstore, factor_half,
-                    factor_sixth, [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
+                compute_kernel_non_rho(X, Y, m_partner, tmpstore, factor_half, factor_sixth,
+                    [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
                         return Vc::max(one, two);
                     });
             }
