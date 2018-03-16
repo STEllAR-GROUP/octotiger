@@ -216,7 +216,9 @@ namespace fmm {
             // tmpstore[18] = 0;
             // tmpstore[19] = 0;
 
-            const T n0_constant = m_partner[0] / m_cell[0];
+            T n0_constant = 0.0;
+            if(m_cell[0] > 1e-22)
+              n0_constant = m_partner[0] / m_cell[0];
 
             T D_upper[15];
             T current_angular_correction[NDIM];
