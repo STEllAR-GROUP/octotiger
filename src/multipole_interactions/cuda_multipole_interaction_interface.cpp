@@ -18,7 +18,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            if (true) {
+            if (false) {
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
             } else {
@@ -100,38 +100,46 @@ namespace fmm {
                 gpu_interface.memset_async(device_angular_corrections, 0, angular_corrections_size);
 
                 // Launch kernel
-                void* args[] = {&device_local_monopoles, &device_center_of_masses,
-                    &device_local_expansions, &device_potential_expansions,
-                    &device_angular_corrections, &device_stencil, &device_phase_indicator,
-                    &device_factor_half, &device_factor_sixth, &theta};
                 const dim3 grid_spec(1, 1, 1);
                 const dim3 threads_per_block(8, 8, 8);
-                gpu_interface.execute(
-                    &cuda_multipole_interactions_kernel, grid_spec, threads_per_block, args, 0);
+                if (type == RHO) {
+                    void* args[] = {&device_local_monopoles, &device_center_of_masses,
+                        &device_local_expansions, &device_potential_expansions,
+                        &device_angular_corrections, &device_stencil, &device_phase_indicator,
+                        &device_factor_half, &device_factor_sixth, &theta};
+                    gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
+                        threads_per_block, args, 0);
+                } else {
+                    void* args[] = {&device_local_monopoles, &device_center_of_masses,
+                        &device_local_expansions, &device_potential_expansions, &device_stencil,
+                        &device_phase_indicator, &device_factor_half, &device_factor_sixth, &theta};
+                    gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
+                        threads_per_block, args, 0);
+                }
                 std::cout << "Started Kernel!" << std::endl;
-
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA;
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                    angular_corrections_SoA;
                 util::cuda_helper::cuda_error(cudaThreadSynchronize());
+                std::cout << "Finished Kernel!" << std::endl;
+
+                if (type == RHO) {
+                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                        angular_corrections_SoA;
+                    gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
+                        device_angular_corrections, angular_corrections_size,
+                        cudaMemcpyDeviceToHost);
+                    util::cuda_helper::cuda_error(cudaThreadSynchronize());
+                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                }
                 // auto fut = gpu_interface.get_future();
                 // fut.get();
                 // util::cuda_helper::cuda_error(cudaThreadSynchronize());
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+                    potential_expansions_SoA;
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     device_potential_expansions, potential_expansions_size, cudaMemcpyDeviceToHost);
-                util::cuda_helper::cuda_error(cudaThreadSynchronize());
-                gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
-                    device_angular_corrections, angular_corrections_size, cudaMemcpyDeviceToHost);
                 util::cuda_helper::cuda_error(cudaThreadSynchronize());
                 // util::cuda_helper::cuda_error(cudaThreadSynchronize());
                 // auto fut2 = gpu_interface.get_future();
                 // fut2.get();
-                std::cout << "Kernel finished!" << std::endl;
-
-                if (type == RHO) {
-                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
-                }
 
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             }
