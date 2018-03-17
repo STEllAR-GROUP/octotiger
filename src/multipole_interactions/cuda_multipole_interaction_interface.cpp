@@ -3,8 +3,8 @@
 #include "options.hpp"
 
 extern options opts;
-extern taylor<4, m2m_vector> factor_half_v;
-extern taylor<4, m2m_vector> factor_sixth_v;
+extern m2m_vector factor_half[20];
+extern m2m_vector factor_sixth[20];
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -41,11 +41,11 @@ namespace fmm {
 
                 // Move data into easier movable data structures
                 std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
-                std::unique_ptr<real[]> factor_half = std::make_unique<real[]>(NUMBER_FACTORS);
-                std::unique_ptr<real[]> factor_sixth = std::make_unique<real[]>(NUMBER_FACTORS);
+                std::unique_ptr<real[]> factor_half_local = std::make_unique<real[]>(NUMBER_FACTORS);
+                std::unique_ptr<real[]> factor_sixth_local = std::make_unique<real[]>(NUMBER_FACTORS);
                 for (auto i = 0; i < 20; ++i) {
-                    factor_half[i] = factor_half_v[i][0];
-                    factor_sixth[i] = factor_sixth_v[i][0];
+                    factor_half_local[i] = factor_half[i][0];
+                    factor_sixth_local[i] = factor_sixth[i][0];
                 }
                 // if (STENCIL_SIZE != stencil.stencil_elements.size())
                 //     std::cout << "what what" << stencil.stencil_elements.size();
@@ -83,9 +83,9 @@ namespace fmm {
                 gpu_interface.copy_async(device_phase_indicator, indicator.get(), indicator_size,
                     cudaMemcpyHostToDevice);
                 gpu_interface.copy_async(
-                    device_factor_half, factor_half.get(), factor_size, cudaMemcpyHostToDevice);
+                    device_factor_half, factor_half_local.get(), factor_size, cudaMemcpyHostToDevice);
                 gpu_interface.copy_async(
-                    device_factor_sixth, factor_sixth.get(), factor_size, cudaMemcpyHostToDevice);
+                    device_factor_sixth, factor_sixth_local.get(), factor_size, cudaMemcpyHostToDevice);
 
                 // Move input data
                 gpu_interface.copy_async(device_local_monopoles, local_monopoles.data(),
