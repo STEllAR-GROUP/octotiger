@@ -3,6 +3,8 @@
 #include "options.hpp"
 
 extern options opts;
+extern taylor<4, m2m_vector> factor_half_v;
+extern taylor<4, m2m_vector> factor_sixth_v;
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -38,21 +40,20 @@ namespace fmm {
                 constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
 
                 // Move data into easier movable data structures
-                std::cout << sizeof(real) << " " << indicator_size << std::endl;
                 std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
-                if (STENCIL_SIZE != stencil.stencil_elements.size())
-                    std::cout << "what what" << stencil.stencil_elements.size();
-                for (auto i = 0; i < STENCIL_SIZE; ++i) {
-                    if (stencil.stencil_phase_indicator[i])
-                        indicator[i] = 1.0;
-                    else
-                        indicator[i] = 0.0;
-                }
                 std::unique_ptr<real[]> factor_half = std::make_unique<real[]>(NUMBER_FACTORS);
                 std::unique_ptr<real[]> factor_sixth = std::make_unique<real[]>(NUMBER_FACTORS);
                 for (auto i = 0; i < 20; ++i) {
                     factor_half[i] = factor_half_v[i][0];
                     factor_sixth[i] = factor_sixth_v[i][0];
+                }
+                // if (STENCIL_SIZE != stencil.stencil_elements.size())
+                //     std::cout << "what what" << stencil.stencil_elements.size();
+                for (auto i = 0; i < STENCIL_SIZE; ++i) {
+                    if (stencil.stencil_phase_indicator[i])
+                        indicator[i] = 1.0;
+                    else
+                        indicator[i] = 0.0;
                 }
 
                 // Allocate memory on device
@@ -109,38 +110,38 @@ namespace fmm {
                         &device_factor_half, &device_factor_sixth, &theta};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
                         threads_per_block, args, 0);
+                    auto fut1 = gpu_interface.get_future();
+
+                    fut1.get();
+                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                        angular_corrections_SoA;
+                    gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
+                        device_angular_corrections, angular_corrections_size,
+                        cudaMemcpyDeviceToHost);
+                    fut1 = gpu_interface.get_future();
+
+                    fut1.get();
+                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+
                 } else {
                     void* args[] = {&device_local_monopoles, &device_center_of_masses,
                         &device_local_expansions, &device_potential_expansions, &device_stencil,
                         &device_phase_indicator, &device_factor_half, &device_factor_sixth, &theta};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
                         threads_per_block, args, 0);
-                }
-                std::cout << "Started Kernel!" << std::endl;
-                util::cuda_helper::cuda_error(cudaThreadSynchronize());
-                std::cout << "Finished Kernel!" << std::endl;
+                    auto fut1 = gpu_interface.get_future();
 
-                if (type == RHO) {
-                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                        angular_corrections_SoA;
-                    gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
-                        device_angular_corrections, angular_corrections_size,
-                        cudaMemcpyDeviceToHost);
-                    util::cuda_helper::cuda_error(cudaThreadSynchronize());
-                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                    fut1.get();
                 }
-                // auto fut = gpu_interface.get_future();
-                // fut.get();
+
                 // util::cuda_helper::cuda_error(cudaThreadSynchronize());
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     device_potential_expansions, potential_expansions_size, cudaMemcpyDeviceToHost);
-                util::cuda_helper::cuda_error(cudaThreadSynchronize());
-                // util::cuda_helper::cuda_error(cudaThreadSynchronize());
-                // auto fut2 = gpu_interface.get_future();
-                // fut2.get();
+                auto fut2 = gpu_interface.get_future();
 
+                fut2.get();
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             }
         }

@@ -46,7 +46,7 @@ namespace util {
         void execute(Args&&... args) {
             // make sure we run on the correct device
             cuda_error(cudaSetDevice(target_.native_handle().get_device()));
-            cuda_error(cudaLaunchKernel(std::forward<Args>(args)...));
+            cuda_error(cudaLaunchKernel(std::forward<Args>(args)..., stream_));
         }
 
         template <typename... Args>
@@ -55,7 +55,7 @@ namespace util {
             cuda_error(cudaSetDevice(target_.native_handle().get_device()));
 
             // insert the uda stream in the arg list and call the cuda memcpy
-            cuda_error(cudaMemcpy(std::forward<Args>(args)...));
+            cuda_error(cudaMemcpyAsync(std::forward<Args>(args)..., stream_));
         }
         template <typename... Args>
         void memset_async(Args&&... args) {
@@ -63,7 +63,7 @@ namespace util {
             cuda_error(cudaSetDevice(target_.native_handle().get_device()));
 
             // insert the uda stream in the arg list and call the cuda memcpy
-            cuda_error(cudaMemset(std::forward<Args>(args)...));
+            cuda_error(cudaMemsetAsync(std::forward<Args>(args)..., stream_));
         }
 
         // get the future to synchronize this cublas stream with
