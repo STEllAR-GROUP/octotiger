@@ -26,6 +26,7 @@ namespace fmm {
           , slots_per_cuda_stream(2)
           , number_slots(number_cuda_streams_managed * slots_per_cuda_stream)
           , stencil(calculate_stencil()) {
+            std::cout << "INIT" << std::endl;
             stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
 
             slot_guards = std::vector<cudaEvent_t>(number_slots);
@@ -103,6 +104,7 @@ namespace fmm {
 
         kernel_scheduler::~kernel_scheduler(void) {
             // Deallocate device buffers
+            std::cout << "DEL" << std::endl;
             for (kernel_device_enviroment& env : kernel_device_enviroments) {
                 util::cuda_helper::cuda_error(cudaFree((void*) (env.device_local_monopoles)));
                 util::cuda_helper::cuda_error(cudaFree((void*) (env.device_local_expansions)));
@@ -119,6 +121,28 @@ namespace fmm {
             for (cudaEvent_t& guard : slot_guards) {
                 util::cuda_helper::cuda_error(cudaEventDestroy(guard));
             }
+        }
+
+        int kernel_scheduler::get_launch_slot(void) {
+            for (size_t slot_id = 0; slot_id < number_slots; ++slot_id) {
+                const cudaError_t response = util::cuda_helper::cuda_error(
+                    cudaEventQuery(slot_guards[slot_id]));
+                if (response == cudaSuccess)
+                  return slot_id
+            }
+            // No slots available
+            return -1;
+        }
+
+        void kernel_scheduler::lock_slot_until_finished(size_t slot) {
+            // Determine interface
+            const size_t interface_id = slot / slots_per_cuda_stream;
+            // Record guard event
+            stream_interfaces[interface_id](
+                [](cudaEvent_t& event, cudaStream_t& stream) -> cudaError_t {
+                    return cudaEventRecord(event, stream);
+                },
+                slot_guards[slot]);
         }
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
