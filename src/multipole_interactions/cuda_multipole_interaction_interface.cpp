@@ -20,13 +20,17 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            if (false) {
-                multipole_interaction_interface::compute_multipole_interactions(
-                    monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
+            if (true) {
+            update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
+                local_monopoles_staging_area, local_expansions_staging_area,
+                center_of_masses_staging_area);
+            compute_interactions(is_direction_empty, neighbors, local_monopoles_staging_area,
+                local_expansions_staging_area, center_of_masses_staging_area);
             } else {
                 // Move data into SoA arrays
-                multipole_interaction_interface::update_input(
-                    monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase);
+            update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
+                local_monopoles_staging_area, local_expansions_staging_area,
+                center_of_masses_staging_area);
                 // Check where we want to run this:
                 // Define sizes of buffers
                 constexpr size_t local_monopoles_size = NUMBER_LOCAL_MONOPOLE_VALUES * sizeof(real);
@@ -88,11 +92,11 @@ namespace fmm {
                     device_factor_sixth, factor_sixth_local.get(), factor_size, cudaMemcpyHostToDevice);
 
                 // Move input data
-                gpu_interface.copy_async(device_local_monopoles, local_monopoles.data(),
+                gpu_interface.copy_async(device_local_monopoles, local_monopoles_staging_area.data(),
                     local_monopoles_size, cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(device_local_expansions, local_expansions_SoA.get_pod(),
+                gpu_interface.copy_async(device_local_expansions, local_expansions_staging_area.get_pod(),
                     local_expansions_size, cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(device_center_of_masses, center_of_masses_SoA.get_pod(),
+                gpu_interface.copy_async(device_center_of_masses, center_of_masses_staging_area.get_pod(),
                     center_of_masses_size, cudaMemcpyHostToDevice);
 
                 // Reset Output arrays

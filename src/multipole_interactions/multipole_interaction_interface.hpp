@@ -41,33 +41,29 @@ namespace fmm {
             void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<real, NDIM> xbase);
+                std::array<real, NDIM> xbase, std::vector<real> &local_monopoles,
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    &local_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    &center_of_masses_SoA);
             void compute_interactions(std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data);
+                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
+                const std::vector<real> &local_monopoles,
+                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                    &local_expansions_SoA,
+                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                    &center_of_masses_SoA);
 
         protected:
-            std::vector<real> local_monopoles;
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                local_expansions_SoA;
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                center_of_masses_SoA;
+            std::vector<real> local_monopoles_staging_area;
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_staging_area;
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_staging_area;
             static thread_local const two_phase_stencil stencil;
-            std::vector<bool> neighbor_empty_multipole;
-            std::vector<bool> neighbor_empty_monopole;
             gsolve_type type;
-            bool monopole_neighbors_exist;
             real dX;
             std::array<real, NDIM> xBase;
             interaction_kernel_type m2m_type;
-            interaction_kernel_type m2p_type;
             std::shared_ptr<grid> grid_ptr;
-
-        private:
-            m2p_kernel mixed_interactions_kernel;
-
-            bool z_skip[3];
-            bool y_skip[3][3];
-            bool x_skip[3][3][3];
         };
     }    // namespace multipole_interactions
 }    // namespace fmm
