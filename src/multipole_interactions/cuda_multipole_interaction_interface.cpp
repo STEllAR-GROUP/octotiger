@@ -1,5 +1,6 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "cuda_multipole_interaction_interface.hpp"
+#include "calculate_stencil.hpp"
 #include "options.hpp"
 
 extern options opts;
@@ -9,6 +10,116 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
         // thread_local util::cuda_helper cuda_multipole_interaction_interface::gpu_interface;
+        thread_local kernel_scheduler cuda_multipole_interaction_interface::scheduler;
+        // Define sizes of buffers
+        constexpr size_t local_monopoles_size = NUMBER_LOCAL_MONOPOLE_VALUES * sizeof(real);
+        constexpr size_t local_expansions_size = NUMBER_LOCAL_EXPANSION_VALUES * sizeof(real);
+        constexpr size_t center_of_masses_size = NUMBER_MASS_VALUES * sizeof(real);
+        constexpr size_t potential_expansions_size = NUMBER_POT_EXPANSIONS * sizeof(real);
+        constexpr size_t angular_corrections_size = NUMBER_ANG_CORRECTIONS * sizeof(real);
+        constexpr size_t factor_size = NUMBER_FACTORS * sizeof(real);
+        constexpr size_t stencil_size = STENCIL_SIZE * sizeof(octotiger::fmm::multiindex<>);
+        constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
+
+        kernel_scheduler::kernel_scheduler(void)
+          : number_cuda_streams_managed(1)
+          , slots_per_cuda_stream(2)
+          , number_slots(number_cuda_streams_managed * slots_per_cuda_stream)
+          , stencil(calculate_stencil()) {
+            stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
+
+            slot_guards = std::vector<cudaEvent_t>(number_slots);
+            for (cudaEvent_t& guard : slot_guards) {
+                util::cuda_helper::cuda_error(cudaEventCreate(&guard, cudaEventDisableTiming));
+            }
+
+            local_expansions_slots =
+                std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>>(
+                    number_slots);
+            center_of_masses_slots =
+                std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>>(
+                    number_slots);
+            local_monopole_slots = std::vector<std::vector<real>>(number_slots);
+
+            kernel_device_enviroments = std::vector<kernel_device_enviroment>(number_slots);
+            size_t cur_interface = 0;
+            size_t cur_slot = 0;
+            for (kernel_device_enviroment& env : kernel_device_enviroments) {
+                // Allocate memory on device
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &(env.device_local_monopoles), local_monopoles_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &(env.device_local_expansions), local_expansions_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &(env.device_center_of_masses), center_of_masses_size));
+                util::cuda_helper::cuda_error(cudaMalloc(
+                    (void**) &(env.device_potential_expansions), potential_expansions_size));
+                util::cuda_helper::cuda_error(cudaMalloc(
+                    (void**) &(env.device_angular_corrections), angular_corrections_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &(env.device_stencil), stencil_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &(env.device_phase_indicator), indicator_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &(env.device_factor_half), factor_size));
+                util::cuda_helper::cuda_error(
+                    cudaMalloc((void**) &(env.device_factor_sixth), factor_size));
+
+                // Create necessary data
+                std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
+                std::unique_ptr<real[]> factor_half_local =
+                    std::make_unique<real[]>(NUMBER_FACTORS);
+                std::unique_ptr<real[]> factor_sixth_local =
+                    std::make_unique<real[]>(NUMBER_FACTORS);
+                for (auto i = 0; i < 20; ++i) {
+                    factor_half_local[i] = factor_half[i][0];
+                    factor_sixth_local[i] = factor_sixth[i][0];
+                }
+                for (auto i = 0; i < STENCIL_SIZE; ++i) {
+                    if (stencil.stencil_phase_indicator[i])
+                        indicator[i] = 1.0;
+                    else
+                        indicator[i] = 0.0;
+                }
+
+                // Move data
+                stream_interfaces[cur_interface].copy_async(env.device_stencil,
+                    stencil.stencil_elements.data(), stencil_size, cudaMemcpyHostToDevice);
+                stream_interfaces[cur_interface].copy_async(env.device_phase_indicator,
+                    indicator.get(), indicator_size, cudaMemcpyHostToDevice);
+                stream_interfaces[cur_interface].copy_async(env.device_factor_half,
+                    factor_half_local.get(), factor_size, cudaMemcpyHostToDevice);
+                stream_interfaces[cur_interface].copy_async(env.device_factor_sixth,
+                    factor_sixth_local.get(), factor_size, cudaMemcpyHostToDevice);
+
+                // Change stream interface if necessary
+                cur_slot++;
+                if (cur_slot >= slots_per_cuda_stream) {
+                    cur_slot = 0;
+                    cur_interface++;
+                }
+            }
+        }
+
+        kernel_scheduler::~kernel_scheduler(void) {
+            // Deallocate device buffers
+            for (kernel_device_enviroment& env : kernel_device_enviroments) {
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_local_monopoles)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_local_expansions)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_center_of_masses)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_potential_expansions)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_angular_corrections)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_stencil)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_phase_indicator)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_factor_half)));
+                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_factor_sixth)));
+            }
+
+            // Destroy guards
+            for (cudaEvent_t& guard : slot_guards) {
+                util::cuda_helper::cuda_error(cudaEventDestroy(guard));
+            }
+        }
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
@@ -20,33 +131,25 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            if (true) {
-            update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
-                local_monopoles_staging_area, local_expansions_staging_area,
-                center_of_masses_staging_area);
-            compute_interactions(is_direction_empty, neighbors, local_monopoles_staging_area,
-                local_expansions_staging_area, center_of_masses_staging_area);
+            if (false) {
+                update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
+                    local_monopoles_staging_area, local_expansions_staging_area,
+                    center_of_masses_staging_area);
+                compute_interactions(is_direction_empty, neighbors, local_monopoles_staging_area,
+                    local_expansions_staging_area, center_of_masses_staging_area);
             } else {
                 // Move data into SoA arrays
-            update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
-                local_monopoles_staging_area, local_expansions_staging_area,
-                center_of_masses_staging_area);
+                update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
+                    local_monopoles_staging_area, local_expansions_staging_area,
+                    center_of_masses_staging_area);
                 // Check where we want to run this:
-                // Define sizes of buffers
-                constexpr size_t local_monopoles_size = NUMBER_LOCAL_MONOPOLE_VALUES * sizeof(real);
-                constexpr size_t local_expansions_size =
-                    NUMBER_LOCAL_EXPANSION_VALUES * sizeof(real);
-                constexpr size_t center_of_masses_size = NUMBER_MASS_VALUES * sizeof(real);
-                constexpr size_t potential_expansions_size = NUMBER_POT_EXPANSIONS * sizeof(real);
-                constexpr size_t angular_corrections_size = NUMBER_ANG_CORRECTIONS * sizeof(real);
-                constexpr size_t factor_size = NUMBER_FACTORS * sizeof(real);
-                constexpr size_t stencil_size = STENCIL_SIZE * sizeof(octotiger::fmm::multiindex<>);
-                constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
 
                 // Move data into easier movable data structures
                 std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
-                std::unique_ptr<real[]> factor_half_local = std::make_unique<real[]>(NUMBER_FACTORS);
-                std::unique_ptr<real[]> factor_sixth_local = std::make_unique<real[]>(NUMBER_FACTORS);
+                std::unique_ptr<real[]> factor_half_local =
+                    std::make_unique<real[]>(NUMBER_FACTORS);
+                std::unique_ptr<real[]> factor_sixth_local =
+                    std::make_unique<real[]>(NUMBER_FACTORS);
                 for (auto i = 0; i < 20; ++i) {
                     factor_half_local[i] = factor_half[i][0];
                     factor_sixth_local[i] = factor_sixth[i][0];
@@ -86,18 +189,21 @@ namespace fmm {
                     cudaMemcpyHostToDevice);
                 gpu_interface.copy_async(device_phase_indicator, indicator.get(), indicator_size,
                     cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(
-                    device_factor_half, factor_half_local.get(), factor_size, cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(
-                    device_factor_sixth, factor_sixth_local.get(), factor_size, cudaMemcpyHostToDevice);
+                gpu_interface.copy_async(device_factor_half, factor_half_local.get(), factor_size,
+                    cudaMemcpyHostToDevice);
+                gpu_interface.copy_async(device_factor_sixth, factor_sixth_local.get(), factor_size,
+                    cudaMemcpyHostToDevice);
 
                 // Move input data
-                gpu_interface.copy_async(device_local_monopoles, local_monopoles_staging_area.data(),
-                    local_monopoles_size, cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(device_local_expansions, local_expansions_staging_area.get_pod(),
-                    local_expansions_size, cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(device_center_of_masses, center_of_masses_staging_area.get_pod(),
-                    center_of_masses_size, cudaMemcpyHostToDevice);
+                gpu_interface.copy_async(device_local_monopoles,
+                    local_monopoles_staging_area.data(), local_monopoles_size,
+                    cudaMemcpyHostToDevice);
+                gpu_interface.copy_async(device_local_expansions,
+                    local_expansions_staging_area.get_pod(), local_expansions_size,
+                    cudaMemcpyHostToDevice);
+                gpu_interface.copy_async(device_center_of_masses,
+                    center_of_masses_staging_area.get_pod(), center_of_masses_size,
+                    cudaMemcpyHostToDevice);
 
                 // Reset Output arrays
                 gpu_interface.memset_async(
