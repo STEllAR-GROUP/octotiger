@@ -31,6 +31,10 @@ namespace util {
 
         ~cuda_helper() {}
 
+        cuda_helper(cuda_helper& other) = delete;
+        cuda_helper(const cuda_helper& other) = delete;
+        cuda_helper operator=(const cuda_helper& other) = delete;
+
         // This is a simple wrapper for any cublas call, pass in the same arguments
         // that you would use for a cublas call except the cublas handle which is omitted
         // as the wrapper will supply that for you
