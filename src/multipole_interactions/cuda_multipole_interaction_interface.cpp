@@ -125,13 +125,17 @@ namespace fmm {
 
         int kernel_scheduler::get_launch_slot(void) {
             for (size_t slot_id = 0; slot_id < number_slots; ++slot_id) {
-                const cudaError_t response = util::cuda_helper::cuda_error(
-                    cudaEventQuery(slot_guards[slot_id]));
-                if (response == cudaSuccess)
-                  return slot_id
+                const cudaError_t response = cudaEventQuery(slot_guards[slot_id]);
+                if (response == cudaSuccess) // slot is free
+                    return slot_id;
             }
             // No slots available
             return -1;
+        }
+
+        kernel_staging_area kernel_scheduler::get_staging_area(size_t slot) {
+            return kernel_staging_area(local_monopole_slots[slot], local_expansions_slots[slot],
+                center_of_masses_slots[slot]);
         }
 
         void kernel_scheduler::lock_slot_until_finished(size_t slot) {
