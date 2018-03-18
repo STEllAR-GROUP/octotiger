@@ -54,11 +54,11 @@ namespace fmm {
             /// ID
             int get_launch_slot(void);
             /// Get references to SoA memory for a slot
-            kernel_staging_area get_staging_area(size_t slot);
+            inline kernel_staging_area get_staging_area(size_t slot);
             /// Get references to SoA memory for a slot
-            kernel_device_enviroment get_device_enviroment(size_t slot);
+            inline kernel_device_enviroment& get_device_enviroment(size_t slot);
             /// Get the cuda interface for a slot - throws exception if a CPU slot (-1)is given
-            util::cuda_helper get_launch_interface(size_t slot);
+            inline util::cuda_helper& get_launch_interface(size_t slot);
             /// Mark this slot as occupied until the cuda kernel finishes - this ensures the memory
             /// does not get tainted. Assumes slot is not locked
             void lock_slot_until_finished(size_t slot);
