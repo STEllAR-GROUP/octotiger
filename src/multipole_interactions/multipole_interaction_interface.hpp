@@ -41,29 +41,33 @@ namespace fmm {
             void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<real, NDIM> xbase, std::vector<real> &local_monopoles,
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    &local_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    &center_of_masses_SoA);
+                std::array<real, NDIM> xbase, std::vector<real>& local_monopoles,
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                    local_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                    center_of_masses_SoA);
             void compute_interactions(std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
-                const std::vector<real> &local_monopoles,
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-                    &local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-                    &center_of_masses_SoA);
+                const std::vector<real>& local_monopoles,
+                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                    local_expansions_SoA,
+                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                    center_of_masses_SoA);
 
         protected:
-            std::vector<real> local_monopoles_staging_area;
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING> local_expansions_staging_area;
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING> center_of_masses_staging_area;
-            static thread_local const two_phase_stencil stencil;
             gsolve_type type;
             real dX;
             std::array<real, NDIM> xBase;
-            interaction_kernel_type m2m_type;
             std::shared_ptr<grid> grid_ptr;
+
+        private:
+            static thread_local std::vector<real> local_monopoles_staging_area;
+            static thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+                local_expansions_staging_area;
+            static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+                center_of_masses_staging_area;
+            static thread_local const two_phase_stencil stencil;
+            interaction_kernel_type m2m_type;
         };
     }    // namespace multipole_interactions
 }    // namespace fmm
