@@ -48,7 +48,7 @@ namespace fmm {
         public:
             /// Constructs number of streams indicated by the options
             kernel_scheduler(void);
-            /// Deallocates cuda memory and destroys guards
+            /// Deallocates cuda memory
             ~kernel_scheduler(void);
 
             /// Get a slot on any device to run a FMM kernel. Return -1 for CPU slot, else the slot
@@ -60,9 +60,7 @@ namespace fmm {
             inline kernel_device_enviroment& get_device_enviroment(size_t slot);
             /// Get the cuda interface for a slot - throws exception if a CPU slot (-1)is given
             inline util::cuda_helper& get_launch_interface(size_t slot);
-            /// Mark this slot as occupied until the cuda kernel finishes - this ensures the memory
-            /// does not get tainted. Assumes slot is not locked
-            void lock_slot_until_finished(size_t slot);
+            void release_slot(size_t slot);
 
             kernel_scheduler(kernel_scheduler& other) = delete;
             kernel_scheduler(const kernel_scheduler& other) = delete;
@@ -79,13 +77,13 @@ namespace fmm {
             // Contains number_cuda_streams_managed cuda interfaces
             std::vector<util::cuda_helper> stream_interfaces;
             // Slot guards to see whether a slot is currently occupied
-            std::vector<cudaEvent_t> slot_guards;
+            std::vector<bool> slot_guards;
+            // std::vector<cudaEvent_t> slot_guards;
             std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>>
                 local_expansions_slots;
             std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>>
                 center_of_masses_slots;
             std::vector<std::vector<real>> local_monopole_slots;
-            const two_phase_stencil stencil;
 
             std::vector<kernel_device_enviroment> kernel_device_enviroments;
         };
@@ -105,7 +103,7 @@ namespace fmm {
             void queue_multipole_kernel(void) {}
 
         protected:
-            kernel_scheduler scheduler;
+            static thread_local kernel_scheduler scheduler;
             util::cuda_helper gpu_interface;
             real theta;
         };

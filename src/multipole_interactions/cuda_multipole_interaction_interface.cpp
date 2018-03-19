@@ -10,7 +10,7 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
         // thread_local util::cuda_helper cuda_multipole_interaction_interface::gpu_interface;
-        // thread_local kernel_scheduler cuda_multipole_interaction_interface::scheduler;
+        thread_local kernel_scheduler cuda_multipole_interaction_interface::scheduler;
         // Define sizes of buffers
         constexpr size_t local_monopoles_size = NUMBER_LOCAL_MONOPOLE_VALUES * sizeof(real);
         constexpr size_t local_expansions_size = NUMBER_LOCAL_EXPANSION_VALUES * sizeof(real);
@@ -23,14 +23,17 @@ namespace fmm {
 
         kernel_scheduler::kernel_scheduler(void)
           : number_cuda_streams_managed(1)
-          , slots_per_cuda_stream(2)
-          , number_slots(number_cuda_streams_managed * slots_per_cuda_stream)
-          , stencil(calculate_stencil()) {
+          , slots_per_cuda_stream(1)
+          , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
             stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
 
-            slot_guards = std::vector<cudaEvent_t>(number_slots);
-            for (cudaEvent_t& guard : slot_guards) {
-                util::cuda_helper::cuda_error(cudaEventCreate(&guard, cudaEventDisableTiming));
+            // slot_guards = std::vector<cudaEvent_t>(number_slots);
+            // for (cudaEvent_t& guard : slot_guards) {
+            //     util::cuda_helper::cuda_error(cudaEventCreate(&guard, cudaEventDisableTiming));
+            // }
+            slot_guards = std::vector<bool>(number_slots);
+            for (auto i = 0; i < number_slots; ++i) {
+                slot_guards[i] = false;
             }
 
             local_expansions_slots =
@@ -47,6 +50,23 @@ namespace fmm {
             kernel_device_enviroments = std::vector<kernel_device_enviroment>(number_slots);
             size_t cur_interface = 0;
             size_t cur_slot = 0;
+
+            // Create necessary data
+            const two_phase_stencil stencil = calculate_stencil();
+            std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
+            std::unique_ptr<real[]> factor_half_local = std::make_unique<real[]>(NUMBER_FACTORS);
+            std::unique_ptr<real[]> factor_sixth_local = std::make_unique<real[]>(NUMBER_FACTORS);
+            for (auto i = 0; i < 20; ++i) {
+                factor_half_local[i] = factor_half[i][0];
+                factor_sixth_local[i] = factor_sixth[i][0];
+            }
+            for (auto i = 0; i < STENCIL_SIZE; ++i) {
+                if (stencil.stencil_phase_indicator[i])
+                    indicator[i] = 1.0;
+                else
+                    indicator[i] = 0.0;
+            }
+
             for (kernel_device_enviroment& env : kernel_device_enviroments) {
                 // Allocate memory on device
                 util::cuda_helper::cuda_error(
@@ -68,23 +88,6 @@ namespace fmm {
                 util::cuda_helper::cuda_error(
                     cudaMalloc((void**) &(env.device_factor_sixth), factor_size));
 
-                // Create necessary data
-                std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
-                std::unique_ptr<real[]> factor_half_local =
-                    std::make_unique<real[]>(NUMBER_FACTORS);
-                std::unique_ptr<real[]> factor_sixth_local =
-                    std::make_unique<real[]>(NUMBER_FACTORS);
-                for (auto i = 0; i < 20; ++i) {
-                    factor_half_local[i] = factor_half[i][0];
-                    factor_sixth_local[i] = factor_sixth[i][0];
-                }
-                for (auto i = 0; i < STENCIL_SIZE; ++i) {
-                    if (stencil.stencil_phase_indicator[i])
-                        indicator[i] = 1.0;
-                    else
-                        indicator[i] = 0.0;
-                }
-
                 // Move data
                 stream_interfaces[cur_interface].copy_async(env.device_stencil,
                     stencil.stencil_elements.data(), stencil_size, cudaMemcpyHostToDevice);
@@ -98,6 +101,8 @@ namespace fmm {
                 // Change stream interface if necessary
                 cur_slot++;
                 if (cur_slot >= slots_per_cuda_stream) {
+                    auto fut = stream_interfaces[cur_interface].get_future();
+                    fut.get();
                     cur_slot = 0;
                     cur_interface++;
                 }
@@ -118,17 +123,18 @@ namespace fmm {
                 util::cuda_helper::cuda_error(cudaFree((void*) (env.device_factor_sixth)));
             }
 
-            // Destroy guards
-            for (cudaEvent_t& guard : slot_guards) {
-                util::cuda_helper::cuda_error(cudaEventDestroy(guard));
-            }
+            // // Destroy guards
+            // for (cudaEvent_t& guard : slot_guards) {
+            //     util::cuda_helper::cuda_error(cudaEventDestroy(guard));
+            // }
         }
 
         int kernel_scheduler::get_launch_slot(void) {
             for (size_t slot_id = 0; slot_id < number_slots; ++slot_id) {
-                const cudaError_t response = cudaEventQuery(slot_guards[slot_id]);
-                if (response == cudaSuccess)    // slot is free
+                if (!slot_guards[slot_id]) {    // slot is free
+                    slot_guards[slot_id] = true;
                     return slot_id;
+                }
             }
             // No slots available
             return -1;
@@ -147,15 +153,8 @@ namespace fmm {
             return stream_interfaces[slot];
         }
 
-        void kernel_scheduler::lock_slot_until_finished(size_t slot) {
-            // Determine interface
-            const size_t interface_id = slot / slots_per_cuda_stream;
-            // Record guard event
-            stream_interfaces[interface_id](
-                [](cudaEvent_t& event, cudaStream_t& stream) -> cudaError_t {
-                    return cudaEventRecord(event, stream);
-                },
-                slot_guards[slot]);
+        void kernel_scheduler::release_slot(size_t slot) {
+            slot_guards[slot] = false;
         }
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
@@ -170,28 +169,18 @@ namespace fmm {
             std::array<real, NDIM> xbase) {
             // Check where we want to run this:
             int slot = scheduler.get_launch_slot();
-            slot = 0; // for debuggging
             if (slot == -1) {    // Run fallback cpu implementation
-                update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
-                    local_monopoles_staging_area, local_expansions_staging_area,
-                    center_of_masses_staging_area);
-                compute_interactions(is_direction_empty, neighbors, local_monopoles_staging_area,
-                    local_expansions_staging_area, center_of_masses_staging_area);
+                std::cout << "Running cpu fallback" << std::endl;
+                multipole_interaction_interface::compute_multipole_interactions(
+                    monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
             } else {    // run on cuda device
+                std::cout << "Running cuda " << std::endl;
                 // Move data into SoA arrays
                 auto staging_area = scheduler.get_staging_area(slot);
 
-                try {
-                    update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
-                        staging_area.local_monopoles, staging_area.local_expansions_SoA,
-                        staging_area.center_of_masses_SoA);
-                } catch (std::out_of_range& ex) {
-                    std::cout << "\nOut of range exception caught.\n" << ex.what() << std::endl;
-                } catch (const std::exception& e) {
-                    std::cerr << e.what() << '\n';    // or whatever
-                } catch (...) {
-                    std::cout << "Unknown exception" << std::endl;
-                }
+                update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
+                    staging_area.local_monopoles, staging_area.local_expansions_SoA,
+                    staging_area.center_of_masses_SoA);
 
                 // Move input data
                 util::cuda_helper& gpu_interface = scheduler.get_launch_interface(slot);
@@ -252,10 +241,12 @@ namespace fmm {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
-                    env.device_potential_expansions, potential_expansions_size, cudaMemcpyDeviceToHost);
+                    env.device_potential_expansions, potential_expansions_size,
+                    cudaMemcpyDeviceToHost);
                 auto fut2 = gpu_interface.get_future();
 
                 fut2.get();
+                scheduler.release_slot(slot);
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             }
         }
