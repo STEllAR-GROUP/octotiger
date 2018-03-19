@@ -26,8 +26,8 @@ namespace fmm {
              struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                  center_of_masses_SoA;
         };
-        /// Contains pointers to device buffers containing const data on device (stencil,
-        /// factors)
+
+        /// Contains pointers to device buffers
         struct kernel_device_enviroment
         {
             real* device_local_monopoles;
@@ -41,6 +41,7 @@ namespace fmm {
             octotiger::fmm::multiindex<>* device_stencil;
             real* device_phase_indicator;
         };
+
         /// Scheduler which decides on what device to launch kernel and what memory to use
         class kernel_scheduler
         {
@@ -62,6 +63,10 @@ namespace fmm {
             /// Mark this slot as occupied until the cuda kernel finishes - this ensures the memory
             /// does not get tainted. Assumes slot is not locked
             void lock_slot_until_finished(size_t slot);
+
+            kernel_scheduler(kernel_scheduler& other) = delete;
+            kernel_scheduler(const kernel_scheduler& other) = delete;
+            kernel_scheduler operator=(const kernel_scheduler& other) = delete;
 
         private:
             /// How many cuda streams does scheduler manage
@@ -100,21 +105,8 @@ namespace fmm {
             void queue_multipole_kernel(void) {}
 
         protected:
-            static thread_local kernel_scheduler scheduler;
+            kernel_scheduler scheduler;
             util::cuda_helper gpu_interface;
-
-            real* device_local_monopoles;
-            real* device_local_expansions;
-            real* device_center_of_masses;
-            real* device_potential_expansions;
-            real* device_angular_corrections;
-
-            real* device_factor_half;
-            real* device_factor_sixth;
-            octotiger::fmm::multiindex<>* device_stencil;
-            real* device_phase_indicator;
-
-        private:
             real theta;
         };
 
