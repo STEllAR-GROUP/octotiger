@@ -33,7 +33,7 @@ namespace fmm {
             // }
             slot_guards = std::vector<bool>(number_slots);
             for (auto i = 0; i < number_slots; ++i) {
-                slot_guards[i] = false;
+                slot_guards[i] = true;
             }
 
             local_expansions_slots =
@@ -105,7 +105,11 @@ namespace fmm {
                     fut.get();
                     cur_slot = 0;
                     cur_interface++;
+
                 }
+            }
+            for (auto i = 0; i < number_slots; ++i) {
+                slot_guards[i] = false;
             }
         }
 
@@ -150,6 +154,7 @@ namespace fmm {
         }
 
         util::cuda_helper& kernel_scheduler::get_launch_interface(size_t slot) {
+          size_t interface = slot / slots_per_cuda_stream;
             return stream_interfaces[slot];
         }
 
@@ -174,13 +179,14 @@ namespace fmm {
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
             } else {    // run on cuda device
-                std::cout << "Running cuda " << std::endl;
+                std::cerr << "Running cuda in slot " << slot << std::endl;
                 // Move data into SoA arrays
                 auto staging_area = scheduler.get_staging_area(slot);
 
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                     staging_area.local_monopoles, staging_area.local_expansions_SoA,
                     staging_area.center_of_masses_SoA);
+                std::cerr << "finished updating in slot " << slot << std::endl;
 
                 // Move input data
                 util::cuda_helper& gpu_interface = scheduler.get_launch_interface(slot);
@@ -194,16 +200,22 @@ namespace fmm {
                 gpu_interface.copy_async(env.device_center_of_masses,
                     staging_area.center_of_masses_SoA.get_pod(), center_of_masses_size,
                     cudaMemcpyHostToDevice);
+                std::cerr << "finished copying in slot " << slot << std::endl;
 
                 // Reset Output arrays
                 gpu_interface.memset_async(
                     env.device_potential_expansions, 0, potential_expansions_size);
                 gpu_interface.memset_async(
                     env.device_angular_corrections, 0, angular_corrections_size);
+                std::cerr << "finished memset in slot " << slot << std::endl;
+                    // auto fut1 = gpu_interface.get_future();
+
+                    // fut1.get();
 
                 // Launch kernel
                 const dim3 grid_spec(1, 1, 1);
                 const dim3 threads_per_block(8, 8, 8);
+                std::cerr << "started kernel in slot " << slot << std::endl;
                 if (type == RHO) {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
@@ -212,6 +224,7 @@ namespace fmm {
                         &(env.device_factor_sixth), &theta};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
                         threads_per_block, args, 0);
+
                     auto fut1 = gpu_interface.get_future();
 
                     fut1.get();
@@ -236,6 +249,7 @@ namespace fmm {
 
                     fut1.get();
                 }
+                std::cerr << "finished kernel in slot " << slot << std::endl;
 
                 // util::cuda_helper::cuda_error(cudaThreadSynchronize());
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
@@ -247,6 +261,7 @@ namespace fmm {
 
                 fut2.get();
                 scheduler.release_slot(slot);
+                std::cerr << "released slot " << slot << std::endl;
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             }
         }
