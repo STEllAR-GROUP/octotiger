@@ -97,7 +97,6 @@ namespace fmm {
 
         protected:
             static thread_local kernel_scheduler scheduler;
-            util::cuda_helper gpu_interface;
             real theta;
 
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
