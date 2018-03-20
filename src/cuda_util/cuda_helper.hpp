@@ -2,6 +2,7 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 
 #define BOOST_NO_CXX11_ALLOCATOR
+#define CUDA_API_PER_THREAD_DEFAULT_STREAM
 //
 #include <hpx/compute/cuda/target.hpp>
 #include <hpx/include/compute.hpp>
@@ -45,6 +46,14 @@ namespace util {
 
             // insert the cublas handle in the arg list and call the cublas function
             cuda_error(cuda_function(std::forward<Args>(args)..., stream_));
+        }
+        template <typename Func, typename... Args>
+        cudaError_t pass_through(Func&& cuda_function, Args&&... args) {
+            // make sure we run on the correct device
+            cuda_error(cudaSetDevice(target_.native_handle().get_device()));
+
+            // insert the cublas handle in the arg list and call the cublas function
+            return cuda_function(std::forward<Args>(args)..., stream_);
         }
         template <typename... Args>
         void execute(Args&&... args) {

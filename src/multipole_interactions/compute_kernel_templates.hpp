@@ -1,6 +1,6 @@
 #pragma once
-#include "../common_kernel/interaction_constants.hpp"
 #include "../cuda_util/cuda_global_def.hpp"
+#include "../common_kernel/interaction_constants.hpp"
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {

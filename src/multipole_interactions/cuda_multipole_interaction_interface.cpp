@@ -22,19 +22,10 @@ namespace fmm {
         constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
 
         kernel_scheduler::kernel_scheduler(void)
-          : number_cuda_streams_managed(1)
+          : number_cuda_streams_managed(32)
           , slots_per_cuda_stream(1)
           , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
             stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
-
-            // slot_guards = std::vector<cudaEvent_t>(number_slots);
-            // for (cudaEvent_t& guard : slot_guards) {
-            //     util::cuda_helper::cuda_error(cudaEventCreate(&guard, cudaEventDisableTiming));
-            // }
-            slot_guards = std::vector<bool>(number_slots);
-            for (auto i = 0; i < number_slots; ++i) {
-                slot_guards[i] = true;
-            }
 
             local_expansions_slots =
                 std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>>(
@@ -101,16 +92,16 @@ namespace fmm {
                 // Change stream interface if necessary
                 cur_slot++;
                 if (cur_slot >= slots_per_cuda_stream) {
-                    auto fut = stream_interfaces[cur_interface].get_future();
-                    fut.get();
+                  util::cuda_helper::cuda_error(cudaThreadSynchronize());
                     cur_slot = 0;
                     cur_interface++;
 
                 }
             }
-            for (auto i = 0; i < number_slots; ++i) {
-                slot_guards[i] = false;
-            }
+            util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            // for (auto i = 0; i < number_slots; ++i) {
+            //     slot_guards[i] = false;
+            // }
         }
 
         kernel_scheduler::~kernel_scheduler(void) {
@@ -127,18 +118,17 @@ namespace fmm {
                 util::cuda_helper::cuda_error(cudaFree((void*) (env.device_factor_sixth)));
             }
 
-            // // Destroy guards
-            // for (cudaEvent_t& guard : slot_guards) {
-            //     util::cuda_helper::cuda_error(cudaEventDestroy(guard));
-            // }
         }
 
         int kernel_scheduler::get_launch_slot(void) {
-            for (size_t slot_id = 0; slot_id < number_slots; ++slot_id) {
-                if (!slot_guards[slot_id]) {    // slot is free
-                    slot_guards[slot_id] = true;
+          for (size_t slot_id = 0; slot_id < number_cuda_streams_managed; ++slot_id) {
+                const cudaError_t response =
+                    stream_interfaces[slot_id].pass_through(
+                [](cudaStream_t& stream) -> cudaError_t {
+                    return cudaStreamQuery(stream);
+                });
+                if (response == cudaSuccess)    // slot is free
                     return slot_id;
-                }
             }
             // No slots available
             return -1;
@@ -156,10 +146,6 @@ namespace fmm {
         util::cuda_helper& kernel_scheduler::get_launch_interface(size_t slot) {
           size_t interface = slot / slots_per_cuda_stream;
             return stream_interfaces[slot];
-        }
-
-        void kernel_scheduler::release_slot(size_t slot) {
-            slot_guards[slot] = false;
         }
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
@@ -200,14 +186,12 @@ namespace fmm {
                 gpu_interface.copy_async(env.device_center_of_masses,
                     staging_area.center_of_masses_SoA.get_pod(), center_of_masses_size,
                     cudaMemcpyHostToDevice);
-                std::cerr << "finished copying in slot " << slot << std::endl;
 
                 // Reset Output arrays
-                gpu_interface.memset_async(
-                    env.device_potential_expansions, 0, potential_expansions_size);
-                gpu_interface.memset_async(
-                    env.device_angular_corrections, 0, angular_corrections_size);
-                std::cerr << "finished memset in slot " << slot << std::endl;
+                // gpu_interface.memset_async(
+                //     env.device_potential_expansions, 0, potential_expansions_size);
+                // gpu_interface.memset_async(
+                //     env.device_angular_corrections, 0, angular_corrections_size);
                     // auto fut1 = gpu_interface.get_future();
 
                     // fut1.get();
@@ -216,6 +200,8 @@ namespace fmm {
                 const dim3 grid_spec(1, 1, 1);
                 const dim3 threads_per_block(8, 8, 8);
                 std::cerr << "started kernel in slot " << slot << std::endl;
+                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                        angular_corrections_SoA;
                 if (type == RHO) {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
@@ -224,19 +210,9 @@ namespace fmm {
                         &(env.device_factor_sixth), &theta};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
                         threads_per_block, args, 0);
-
-                    auto fut1 = gpu_interface.get_future();
-
-                    fut1.get();
-                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                        angular_corrections_SoA;
                     gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
                         env.device_angular_corrections, angular_corrections_size,
                         cudaMemcpyDeviceToHost);
-                    fut1 = gpu_interface.get_future();
-
-                    fut1.get();
-                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
 
                 } else {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
@@ -245,11 +221,7 @@ namespace fmm {
                         &(env.device_factor_half), &(env.device_factor_sixth), &theta};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
                         threads_per_block, args, 0);
-                    auto fut1 = gpu_interface.get_future();
-
-                    fut1.get();
                 }
-                std::cerr << "finished kernel in slot " << slot << std::endl;
 
                 // util::cuda_helper::cuda_error(cudaThreadSynchronize());
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
@@ -260,9 +232,10 @@ namespace fmm {
                 auto fut2 = gpu_interface.get_future();
 
                 fut2.get();
-                scheduler.release_slot(slot);
-                std::cerr << "released slot " << slot << std::endl;
+                // scheduler.release_slot(slot);
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+                if (type == RHO)
+                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
             }
         }
 

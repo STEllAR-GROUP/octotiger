@@ -60,7 +60,6 @@ namespace fmm {
             inline kernel_device_enviroment& get_device_enviroment(size_t slot);
             /// Get the cuda interface for a slot - throws exception if a CPU slot (-1)is given
             inline util::cuda_helper& get_launch_interface(size_t slot);
-            void release_slot(size_t slot);
 
             kernel_scheduler(kernel_scheduler& other) = delete;
             kernel_scheduler(const kernel_scheduler& other) = delete;
@@ -76,9 +75,6 @@ namespace fmm {
 
             // Contains number_cuda_streams_managed cuda interfaces
             std::vector<util::cuda_helper> stream_interfaces;
-            // Slot guards to see whether a slot is currently occupied
-            std::vector<bool> slot_guards;
-            // std::vector<cudaEvent_t> slot_guards;
             std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>>
                 local_expansions_slots;
             std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>>
