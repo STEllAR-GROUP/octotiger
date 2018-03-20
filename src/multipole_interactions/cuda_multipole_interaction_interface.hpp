@@ -42,7 +42,7 @@ namespace fmm {
         class kernel_staging_area
         {
         public:
-            kernel_staging_area(std::vector<real>& local_monopoles,
+            kernel_staging_area(std::vector<real, cuda_pinned_allocator<real>>& local_monopoles,
                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
                     local_expansions_SoA,
                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
@@ -50,7 +50,7 @@ namespace fmm {
               : local_monopoles(local_monopoles)
               , local_expansions_SoA(local_expansions_SoA)
               , center_of_masses_SoA(center_of_masses_SoA) {}
-            std::vector<real>& local_monopoles;
+            std::vector<real, cuda_pinned_allocator<real>>& local_monopoles;
             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA;
             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA;
         };
@@ -105,7 +105,7 @@ namespace fmm {
                 local_expansions_slots;
             std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>>
                 center_of_masses_slots;
-            std::vector<std::vector<real>> local_monopole_slots;
+            std::vector<std::vector<real, cuda_pinned_allocator<real>>> local_monopole_slots;
 
             std::vector<kernel_device_enviroment> kernel_device_enviroments;
         };

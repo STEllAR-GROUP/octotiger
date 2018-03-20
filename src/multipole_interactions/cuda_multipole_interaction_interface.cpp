@@ -30,9 +30,9 @@ namespace fmm {
             center_of_masses_slots =
                 std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>>(
                     number_slots);
-            local_monopole_slots = std::vector<std::vector<real>>(number_slots);
-            for (std::vector<real>& mons : local_monopole_slots) {
-                mons = std::vector<real>(ENTRIES);
+            local_monopole_slots = std::vector<std::vector<real, cuda_pinned_allocator<real>>>(number_slots);
+            for (std::vector<real, cuda_pinned_allocator<real>>& mons : local_monopole_slots) {
+                mons = std::vector<real, cuda_pinned_allocator<real>>(ENTRIES);
             }
 
             kernel_device_enviroments = std::vector<kernel_device_enviroment>(number_slots);
@@ -48,7 +48,6 @@ namespace fmm {
                 else
                     indicator[i] = 0.0;
             }
-             std::vector<real, cuda_pinned_allocator<real>> test = std::vector<real, cuda_pinned_allocator<real>>(ENTRIES);
 
             for (kernel_device_enviroment& env : kernel_device_enviroments) {
                 // Allocate memory on device
