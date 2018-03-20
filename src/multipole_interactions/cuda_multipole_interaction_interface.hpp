@@ -12,19 +12,18 @@ namespace fmm {
         /// Contains references to all data needed for one FMM interaction kernel run
         class kernel_staging_area
         {
-         public:
-             kernel_staging_area(std::vector<real>& local_monopoles,
-                 struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
-                     local_expansions_SoA,
-                 struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-                     center_of_masses_SoA)
-               : local_monopoles(local_monopoles)
-               , local_expansions_SoA(local_expansions_SoA)
-               , center_of_masses_SoA(center_of_masses_SoA) {}
-             std::vector<real>& local_monopoles;
-             struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA;
-             struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-                 center_of_masses_SoA;
+        public:
+            kernel_staging_area(std::vector<real>& local_monopoles,
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                    local_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                    center_of_masses_SoA)
+              : local_monopoles(local_monopoles)
+              , local_expansions_SoA(local_expansions_SoA)
+              , center_of_masses_SoA(center_of_masses_SoA) {}
+            std::vector<real>& local_monopoles;
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA;
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA;
         };
 
         /// Contains pointers to device buffers
@@ -102,6 +101,11 @@ namespace fmm {
             static thread_local kernel_scheduler scheduler;
             util::cuda_helper gpu_interface;
             real theta;
+
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                angular_corrections_SoA;
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+                potential_expansions_SoA;
         };
 
     }    // namespace multipole_interactions

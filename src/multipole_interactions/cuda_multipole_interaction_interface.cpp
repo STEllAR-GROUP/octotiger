@@ -200,8 +200,6 @@ namespace fmm {
                 const dim3 grid_spec(1, 1, 1);
                 const dim3 threads_per_block(8, 8, 8);
                 std::cerr << "started kernel in slot " << slot << std::endl;
-                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                        angular_corrections_SoA;
                 if (type == RHO) {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
@@ -224,8 +222,6 @@ namespace fmm {
                 }
 
                 // util::cuda_helper::cuda_error(cudaThreadSynchronize());
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA;
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     env.device_potential_expansions, potential_expansions_size,
                     cudaMemcpyDeviceToHost);

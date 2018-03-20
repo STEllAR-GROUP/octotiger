@@ -20,9 +20,9 @@ namespace fmm {
         const thread_local std::vector<std::array<real, 4>> monopole_interaction_interface::four = calculate_stencil().second;
         thread_local std::vector<real> monopole_interaction_interface::local_monopoles(EXPANSION_COUNT_PADDED);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-            monopole_interaction_interface::local_expansions_SoA;
+        monopole_interaction_interface::local_expansions_SoA(true);
         thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-            monopole_interaction_interface::center_of_masses_SoA;
+        monopole_interaction_interface::center_of_masses_SoA(true);
 
         monopole_interaction_interface::monopole_interaction_interface(void)
           : neighbor_empty_multipoles(27)
@@ -241,11 +241,11 @@ namespace fmm {
             if (p2p_type == interaction_kernel_type::SOA_CPU &&
                 p2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA;
+                    potential_expansions_SoA(true);
                 // auto start = std::chrono::high_resolution_clock::now();
                 if (multipole_neighbors_exist) {
                     struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                        angular_corrections_SoA;
+                        angular_corrections_SoA(true);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, stencil, type, x_skip,
                         y_skip, z_skip);
@@ -263,7 +263,7 @@ namespace fmm {
 
             } else if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA;
+                    potential_expansions_SoA(true);
                 kernel_monopoles.apply_stencil(
                     local_monopoles, potential_expansions_SoA, stencil, four, dx);
 
@@ -283,10 +283,10 @@ namespace fmm {
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             } else if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA;
+                    potential_expansions_SoA(true);
                 if (multipole_neighbors_exist) {
                     struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                        angular_corrections_SoA;
+                        angular_corrections_SoA(true);
                     kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                         potential_expansions_SoA, angular_corrections_SoA, stencil, type, x_skip,
                         y_skip, z_skip);

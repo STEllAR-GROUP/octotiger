@@ -1,6 +1,9 @@
 #pragma once
 
 #include "kernel_simd_types.hpp"
+#ifdef OCTOTIGER_CUDA_ENABLED
+#include "../cuda_util/cuda_helper.hpp"
+#endif
 
 // #include "interaction_constants.hpp"
 
@@ -15,7 +18,8 @@ namespace fmm {
     private:
         // data in SoA form
 
-        component_type* const data;
+        component_type* data;
+        bool pageable;
 
     public:
         static constexpr size_t padded_entries_per_component = entries + padding;
@@ -57,7 +61,17 @@ namespace fmm {
         }
 
         struct_of_array_data(const std::vector<AoS_type>& org)
+#ifndef OCTOTIGER_WITH_CUDA
           : data(new component_type[num_components * padded_entries_per_component]) {
+            pageable = true;
+#else
+        {
+            pageable = false;
+            constexpr size_t size =
+                num_components * padded_entries_per_component * sizeof(component_type);
+            util::cuda_helper::cuda_error(cudaMallocHost((void**) &data, size));
+            pageable = false;
+#endif
             for (size_t component = 0; component < num_components; component++) {
                 for (size_t entry = 0; entry < org.size(); entry++) {
                     data[component * padded_entries_per_component + entry] = org[entry][component];
@@ -65,17 +79,62 @@ namespace fmm {
             }
         }
         struct_of_array_data(void)
+#ifndef OCTOTIGER_CUDA_ENABLED
           : data(new component_type[num_components * padded_entries_per_component]) {
+            pageable = true;
+#else
+        {
+            pageable = false;
+            constexpr size_t size =
+                num_components * padded_entries_per_component * sizeof(component_type);
+            util::cuda_helper::cuda_error(cudaMallocHost((void**) &data, size));
+#endif
+            for (auto i = 0; i < num_components * padded_entries_per_component; ++i) {
+                data[i] = 0.0;
+            }
+        }
+        struct_of_array_data(bool use_pageable)
+#ifndef OCTOTIGER_CUDA_ENABLED
+          : data(new component_type[num_components * padded_entries_per_component]) {
+            pageable = true;
+#else
+        {
+            pageable = false;
+            constexpr size_t size =
+                num_components * padded_entries_per_component * sizeof(component_type);
+            if (use_pageable) {
+                data = new component_type[num_components * padded_entries_per_component];
+                pageable = true;
+            } else
+                util::cuda_helper::cuda_error(cudaMallocHost((void**) &data, size));
+#endif
             for (auto i = 0; i < num_components * padded_entries_per_component; ++i) {
                 data[i] = 0.0;
             }
         }
 
         struct_of_array_data(const size_t entries_per_component)
-          : data(new component_type[num_components * padded_entries_per_component]) {}
+#ifndef OCTOTIGER_CUDA_ENABLED
+          : data(new component_type[num_components * padded_entries_per_component]) {
+            pageable = true;
+#else
+        {
+            pageable = false;
+            constexpr size_t size =
+                num_components * padded_entries_per_component * sizeof(component_type);
+            util::cuda_helper::cuda_error(cudaMallocHost((void**) &data, size));
+#endif
+        }
 
         ~struct_of_array_data() {
+#ifndef OCTOTIGER_CUDA_ENABLED
             delete[] data;
+#else
+            if (pageable)
+                delete[] data;
+            else
+                util::cuda_helper::cuda_error(cudaFreeHost(data));
+#endif
         }
 
         struct_of_array_data(const struct_of_array_data& other) = delete;
@@ -102,10 +161,12 @@ namespace fmm {
             }
         }
 
-      void print(std::ostream &out, size_t number_entries=padded_entries_per_component) {
+        void print(std::ostream& out, size_t number_entries = padded_entries_per_component) {
             for (size_t entry = 0; entry < number_entries; entry++) {
                 for (size_t component = 0; component < num_components; component++) {
-                  out << component << ": " << data[component * padded_entries_per_component + entry] << " " << std::endl;
+                    out << component << ": "
+                        << data[component * padded_entries_per_component + entry] << " "
+                        << std::endl;
                 }
                 out << std::endl;
             }
