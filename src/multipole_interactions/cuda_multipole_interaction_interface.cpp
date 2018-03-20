@@ -4,8 +4,6 @@
 #include "options.hpp"
 
 extern options opts;
-extern m2m_vector factor_half[20];
-extern m2m_vector factor_sixth[20];
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -17,7 +15,6 @@ namespace fmm {
         constexpr size_t center_of_masses_size = NUMBER_MASS_VALUES * sizeof(real);
         constexpr size_t potential_expansions_size = NUMBER_POT_EXPANSIONS * sizeof(real);
         constexpr size_t angular_corrections_size = NUMBER_ANG_CORRECTIONS * sizeof(real);
-        constexpr size_t factor_size = NUMBER_FACTORS * sizeof(real);
         constexpr size_t stencil_size = STENCIL_SIZE * sizeof(octotiger::fmm::multiindex<>);
         constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
 
@@ -45,12 +42,6 @@ namespace fmm {
             // Create necessary data
             const two_phase_stencil stencil = calculate_stencil();
             std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
-            std::unique_ptr<real[]> factor_half_local = std::make_unique<real[]>(NUMBER_FACTORS);
-            std::unique_ptr<real[]> factor_sixth_local = std::make_unique<real[]>(NUMBER_FACTORS);
-            for (auto i = 0; i < 20; ++i) {
-                factor_half_local[i] = factor_half[i][0];
-                factor_sixth_local[i] = factor_sixth[i][0];
-            }
             for (auto i = 0; i < STENCIL_SIZE; ++i) {
                 if (stencil.stencil_phase_indicator[i])
                     indicator[i] = 1.0;
@@ -74,28 +65,19 @@ namespace fmm {
                     cudaMalloc((void**) &(env.device_stencil), stencil_size));
                 util::cuda_helper::cuda_error(
                     cudaMalloc((void**) &(env.device_phase_indicator), indicator_size));
-                util::cuda_helper::cuda_error(
-                    cudaMalloc((void**) &(env.device_factor_half), factor_size));
-                util::cuda_helper::cuda_error(
-                    cudaMalloc((void**) &(env.device_factor_sixth), factor_size));
 
                 // Move data
                 stream_interfaces[cur_interface].copy_async(env.device_stencil,
                     stencil.stencil_elements.data(), stencil_size, cudaMemcpyHostToDevice);
                 stream_interfaces[cur_interface].copy_async(env.device_phase_indicator,
                     indicator.get(), indicator_size, cudaMemcpyHostToDevice);
-                stream_interfaces[cur_interface].copy_async(env.device_factor_half,
-                    factor_half_local.get(), factor_size, cudaMemcpyHostToDevice);
-                stream_interfaces[cur_interface].copy_async(env.device_factor_sixth,
-                    factor_sixth_local.get(), factor_size, cudaMemcpyHostToDevice);
 
                 // Change stream interface if necessary
                 cur_slot++;
                 if (cur_slot >= slots_per_cuda_stream) {
-                  util::cuda_helper::cuda_error(cudaThreadSynchronize());
+                    util::cuda_helper::cuda_error(cudaThreadSynchronize());
                     cur_slot = 0;
                     cur_interface++;
-
                 }
             }
             util::cuda_helper::cuda_error(cudaThreadSynchronize());
@@ -114,19 +96,13 @@ namespace fmm {
                 util::cuda_helper::cuda_error(cudaFree((void*) (env.device_angular_corrections)));
                 util::cuda_helper::cuda_error(cudaFree((void*) (env.device_stencil)));
                 util::cuda_helper::cuda_error(cudaFree((void*) (env.device_phase_indicator)));
-                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_factor_half)));
-                util::cuda_helper::cuda_error(cudaFree((void*) (env.device_factor_sixth)));
             }
-
         }
 
         int kernel_scheduler::get_launch_slot(void) {
-          for (size_t slot_id = 0; slot_id < number_cuda_streams_managed; ++slot_id) {
-                const cudaError_t response =
-                    stream_interfaces[slot_id].pass_through(
-                [](cudaStream_t& stream) -> cudaError_t {
-                    return cudaStreamQuery(stream);
-                });
+            for (size_t slot_id = 0; slot_id < number_cuda_streams_managed; ++slot_id) {
+                const cudaError_t response = stream_interfaces[slot_id].pass_through(
+                    [](cudaStream_t& stream) -> cudaError_t { return cudaStreamQuery(stream); });
                 if (response == cudaSuccess)    // slot is free
                     return slot_id;
             }
@@ -144,7 +120,7 @@ namespace fmm {
         }
 
         util::cuda_helper& kernel_scheduler::get_launch_interface(size_t slot) {
-          size_t interface = slot / slots_per_cuda_stream;
+            size_t interface = slot / slots_per_cuda_stream;
             return stream_interfaces[slot];
         }
 
@@ -192,9 +168,9 @@ namespace fmm {
                 //     env.device_potential_expansions, 0, potential_expansions_size);
                 // gpu_interface.memset_async(
                 //     env.device_angular_corrections, 0, angular_corrections_size);
-                    // auto fut1 = gpu_interface.get_future();
+                // auto fut1 = gpu_interface.get_future();
 
-                    // fut1.get();
+                // fut1.get();
 
                 // Launch kernel
                 const dim3 grid_spec(1, 1, 1);
@@ -204,8 +180,7 @@ namespace fmm {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
                         &(env.device_angular_corrections), &(env.device_stencil),
-                        &(env.device_phase_indicator), &(env.device_factor_half),
-                        &(env.device_factor_sixth), &theta};
+                        &(env.device_phase_indicator), &theta};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
                         threads_per_block, args, 0);
                     gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
@@ -215,8 +190,7 @@ namespace fmm {
                 } else {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
-                        &(env.device_stencil), &(env.device_phase_indicator),
-                        &(env.device_factor_half), &(env.device_factor_sixth), &theta};
+                        &(env.device_stencil), &(env.device_phase_indicator), &theta};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
                         threads_per_block, args, 0);
                 }

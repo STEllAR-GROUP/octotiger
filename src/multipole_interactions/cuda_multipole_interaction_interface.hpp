@@ -35,8 +35,6 @@ namespace fmm {
             real* device_potential_expansions;
             real* device_angular_corrections;
 
-            real* device_factor_half;
-            real* device_factor_sixth;
             octotiger::fmm::multiindex<>* device_stencil;
             real* device_phase_indicator;
         };
