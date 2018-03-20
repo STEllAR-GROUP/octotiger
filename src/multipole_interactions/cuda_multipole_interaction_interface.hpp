@@ -8,6 +8,35 @@
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
+        /// Custom allocator for host-side cuda vectors
+        template <class T>
+        struct cuda_pinned_allocator
+        {
+            typedef T value_type;
+            cuda_pinned_allocator() noexcept {}
+            template <class U>
+            cuda_pinned_allocator(const cuda_pinned_allocator<U>&) noexcept {}
+            T* allocate(std::size_t n) {
+                T* data;
+                util::cuda_helper::cuda_error(cudaMallocHost((void**) &data, n * sizeof(T)));
+                return data;
+            }
+            void deallocate(T* p, std::size_t n) {
+                util::cuda_helper::cuda_error(cudaFreeHost(p));
+            }
+        };
+
+        template <class T, class U>
+        constexpr bool operator==(
+            const cuda_pinned_allocator<T>&, const cuda_pinned_allocator<U>&) noexcept {
+            return true;
+        }
+
+        template <class T, class U>
+        constexpr bool operator!=(
+            const cuda_pinned_allocator<T>&, const cuda_pinned_allocator<U>&) noexcept {
+            return false;
+        }
 
         /// Contains references to all data needed for one FMM interaction kernel run
         class kernel_staging_area

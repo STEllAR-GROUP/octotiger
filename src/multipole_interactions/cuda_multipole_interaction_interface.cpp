@@ -48,6 +48,7 @@ namespace fmm {
                 else
                     indicator[i] = 0.0;
             }
+             std::vector<real, cuda_pinned_allocator<real>> test = std::vector<real, cuda_pinned_allocator<real>>(ENTRIES);
 
             for (kernel_device_enviroment& env : kernel_device_enviroments) {
                 // Allocate memory on device
@@ -144,13 +145,11 @@ namespace fmm {
                 std::cerr << "Running cuda in slot " << slot << std::endl;
                 // Move data into SoA arrays
                 auto staging_area = scheduler.get_staging_area(slot);
-
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                     staging_area.local_monopoles, staging_area.local_expansions_SoA,
                     staging_area.center_of_masses_SoA);
-                std::cerr << "finished updating in slot " << slot << std::endl;
 
-                // Move input data
+                // Queue moving of input data to device
                 util::cuda_helper& gpu_interface = scheduler.get_launch_interface(slot);
                 kernel_device_enviroment& env = scheduler.get_device_enviroment(slot);
                 gpu_interface.copy_async(env.device_local_monopoles,
@@ -163,19 +162,9 @@ namespace fmm {
                     staging_area.center_of_masses_SoA.get_pod(), center_of_masses_size,
                     cudaMemcpyHostToDevice);
 
-                // Reset Output arrays
-                // gpu_interface.memset_async(
-                //     env.device_potential_expansions, 0, potential_expansions_size);
-                // gpu_interface.memset_async(
-                //     env.device_angular_corrections, 0, angular_corrections_size);
-                // auto fut1 = gpu_interface.get_future();
-
-                // fut1.get();
-
-                // Launch kernel
+                // Launch kernel and queue copying of results
                 const dim3 grid_spec(1, 1, 1);
                 const dim3 threads_per_block(8, 8, 8);
-                std::cerr << "started kernel in slot " << slot << std::endl;
                 if (type == RHO) {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
@@ -194,15 +183,15 @@ namespace fmm {
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
                         threads_per_block, args, 0);
                 }
-
-                // util::cuda_helper::cuda_error(cudaThreadSynchronize());
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     env.device_potential_expansions, potential_expansions_size,
                     cudaMemcpyDeviceToHost);
-                auto fut2 = gpu_interface.get_future();
 
-                fut2.get();
-                // scheduler.release_slot(slot);
+                // Wait for stream to finish and allow thread to jump away in the meantime
+                auto fut = gpu_interface.get_future();
+                fut.get();
+
+                // Copy results back into non-SoA array
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
                 if (type == RHO)
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
