@@ -7,20 +7,20 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
         __global__ void cuda_multipole_interactions_kernel_rho(
-            double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&center_of_masses)[NUMBER_MASS_VALUES],
-            double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
+            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
+            const double (&center_of_masses)[NUMBER_MASS_VALUES],
+            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
             double (&angular_corrections)[NUMBER_ANG_CORRECTIONS],
-            octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            double (&stencil_phases)[STENCIL_SIZE], double theta);
+            const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
+            const double (&stencil_phases)[STENCIL_SIZE], const double theta);
         __global__ void cuda_multipole_interactions_kernel_non_rho(
-            double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&center_of_masses)[NUMBER_MASS_VALUES],
-            double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
+            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
+            const double (&center_of_masses)[NUMBER_MASS_VALUES],
+            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
-            octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            double (&stencil_phases)[STENCIL_SIZE], double theta);
+            const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
+            const double (&stencil_phases)[STENCIL_SIZE], const double theta);
     }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger

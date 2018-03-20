@@ -20,17 +20,17 @@ namespace fmm {
 
     namespace multipole_interactions {
 
-        constexpr size_t component_length = ENTRIES + SOA_PADDING;
-        constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+        __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
+        __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void cuda_multipole_interactions_kernel_rho(
-            double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&center_of_masses)[NUMBER_MASS_VALUES],
-            double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
+            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
+            const double (&center_of_masses)[NUMBER_MASS_VALUES],
+            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
             double (&angular_corrections)[NUMBER_ANG_CORRECTIONS],
-            octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            double (&stencil_phases)[STENCIL_SIZE], double theta) {
+            const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
+            const double (&stencil_phases)[STENCIL_SIZE], const double theta) {
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
@@ -182,12 +182,12 @@ namespace fmm {
         }
 
         __global__ void cuda_multipole_interactions_kernel_non_rho(
-            double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&center_of_masses)[NUMBER_MASS_VALUES],
-            double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
+            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
+            const double (&center_of_masses)[NUMBER_MASS_VALUES],
+            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
-            octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            double (&stencil_phases)[STENCIL_SIZE], double theta) {
+            const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
+            const double (&stencil_phases)[STENCIL_SIZE], const double theta) {
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
