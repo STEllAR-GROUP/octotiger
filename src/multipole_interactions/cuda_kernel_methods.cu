@@ -32,7 +32,6 @@ namespace fmm {
             octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
             double (&stencil_phases)[STENCIL_SIZE], double (&factor_half)[20],
             double (&factor_sixth)[20], double theta) {
-
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
@@ -42,13 +41,6 @@ namespace fmm {
             octotiger::fmm::multiindex<> cell_index_unpadded(threadIdx.x, threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
-
-            double factor_half_f[20];
-            double factor_sixth_f[20];
-            for (auto i = 0; i < 20; ++i) {
-                factor_half_f[i] = factor_half[i];
-                factor_sixth_f[i] = factor_sixth[i];
-            }
 
             // Load multipoles for this cell
             double m_cell[20];
@@ -138,8 +130,7 @@ namespace fmm {
 
                 // Do the actual calculations
                 compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
-                    factor_half_f, factor_sixth_f,
-                    [] __device__ (const double& one, const double& two) -> double {
+                    [] __device__(const double& one, const double& two) -> double {
                         return std::max(one, two);
                     });
             }
@@ -191,7 +182,6 @@ namespace fmm {
                 tmp_corrections[2];
         }
 
-
         __global__ void cuda_multipole_interactions_kernel_non_rho(
             double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&center_of_masses)[NUMBER_MASS_VALUES],
@@ -200,7 +190,6 @@ namespace fmm {
             octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
             double (&stencil_phases)[STENCIL_SIZE], double (&factor_half)[20],
             double (&factor_sixth)[20], double theta) {
-
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
@@ -210,13 +199,6 @@ namespace fmm {
             octotiger::fmm::multiindex<> cell_index_unpadded(threadIdx.x, threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
-
-            double factor_half_f[20];
-            double factor_sixth_f[20];
-            for (auto i = 0; i < 20; ++i) {
-                factor_half_f[i] = factor_half[i];
-                factor_sixth_f[i] = factor_sixth[i];
-            }
 
             double X[NDIM];
             X[0] = center_of_masses[cell_flat_index];
@@ -282,8 +264,7 @@ namespace fmm {
 
                 // Do the actual calculations
                 compute_kernel_non_rho(X, Y, m_partner, tmpstore,
-                    factor_half_f, factor_sixth_f,
-                    [] __device__ (const double& one, const double& two) -> double {
+                    [] __device__(const double& one, const double& two) -> double {
                         return std::max(one, two);
                     });
             }

@@ -6,9 +6,6 @@
 #include "compute_kernel_templates.hpp"
 #include "grid_flattened_indices.hpp"
 
-extern m2m_vector factor_half[20];
-extern m2m_vector factor_sixth[20];
-
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -146,8 +143,8 @@ namespace fmm {
                 Vc::where(mask, m_partner[19]) =
                     local_expansions_SoA.value<19>(interaction_partner_flat_index);
 
-                compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell, factor_half,
-                    factor_sixth, [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
+                compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
+                    [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
                         return Vc::max(one, two);
                     });
             }
@@ -262,14 +259,16 @@ namespace fmm {
         }
 
         void m2m_kernel::blocked_interaction_non_rho(
-            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                local_expansions_SoA,
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                 potential_expansions_SoA,
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                 angular_corrections_SoA,
-            const std::vector<real>& mons, const multiindex<>& cell_index, const size_t cell_flat_index,
-            const multiindex<m2m_int_vector>& cell_index_coarse,
+            const std::vector<real>& mons, const multiindex<>& cell_index,
+            const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const two_phase_stencil& stencil, const size_t outer_stencil_index) {
             m2m_vector X[3];
@@ -367,7 +366,7 @@ namespace fmm {
                 Vc::where(mask, m_partner[19]) =
                     local_expansions_SoA.value<19>(interaction_partner_flat_index);
 
-                compute_kernel_non_rho(X, Y, m_partner, tmpstore, factor_half, factor_sixth,
+                compute_kernel_non_rho(X, Y, m_partner, tmpstore,
                     [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
                         return Vc::max(one, two);
                     });
