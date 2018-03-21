@@ -69,15 +69,6 @@ namespace fmm {
                 auto x = dir.operator[](ZDIM) + 1;
                 auto y = dir.operator[](YDIM) + 1;
                 auto z = dir.operator[](XDIM) + 1;
-                // std::cout << dir.flat_index_with_center() << ":" << z << " " << y << " " << x <<
-                // std::endl;
-                // std::cout << dir.flat_index_with_center() << ":" << z + 1 << " " << y + 1 << " "
-                // << x+1 << std::endl;
-                // std::cout << dir.flat_index_with_center() << ":" << (z + 1) * 3 * 3 << " " << (y
-                // + 1) * 3 << " " << (x+1) << std::endl;
-                // std::cout << dir.flat_index_with_center() << ":" << (z + 1) * 3 * 3  + (y + 1) *
-                // 3  + (x+1) << std::endl;
-                // std::cin.get();
 
                 // this dir is setup as a multipole - and we only consider multipoles here
                 if (!neighbor.is_monopole) {
@@ -87,11 +78,6 @@ namespace fmm {
                         iterate_inner_cells_padding(
                             dir, [this](const multiindex<>& i, const size_t flat_index,
                                      const multiindex<>&, const size_t) {
-                                // // initializes whole expansion, relatively expansion
-                                // local_expansions.at(flat_index) = 0.0;
-                                // // initializes x,y,z vector
-                                // center_of_masses.at(flat_index) = 0.0;
-
                                 local_monopoles.at(flat_index) = 0.0;
                             });
                         neighbor_empty_multipoles[dir.flat_index_with_center()] = true;
@@ -108,10 +94,6 @@ namespace fmm {
                                                                  const size_t flat_index,
                                                                  const multiindex<>& i_unpadded,
                                                                  const size_t flat_index_unpadded) {
-                                // local_expansions.at(flat_index) =
-                                //     neighbor_M_ptr.at(flat_index_unpadded);
-                                // center_of_masses.at(flat_index) =
-                                //     neighbor_com0.at(flat_index_unpadded);
                                 local_expansions_SoA.set_AoS_value(
                                     std::move(neighbor_M_ptr.at(flat_index_unpadded)), flat_index);
                                 center_of_masses_SoA.set_AoS_value(
@@ -148,7 +130,6 @@ namespace fmm {
                     x_skip[z][y][x] = true;
                     if (neighbor.is_monopole) {
                         if (!neighbor.data.m) {
-                            // TODO: ask Dominic why !is_monopole and stuff still empty
                             iterate_inner_cells_padding(
                                 dir, [this](const multiindex<>& i, const size_t flat_index,
                                          const multiindex<>&, const size_t) {
@@ -206,28 +187,6 @@ namespace fmm {
                 }
             }
 
-            // if (multipole_neighbors_exist) {
-            // for (auto zi = 0; zi < 3; ++zi) {
-            //     std::cout << z_skip[zi] << " ";
-            // }
-            // std::cout << "\n";
-            // for (auto zi = 0; zi < 3; ++zi) {
-            //     for (auto yi = 0; yi < 3; ++yi) {
-            //         std::cout << y_skip[zi][yi] << " ";
-            //     }
-            // }
-            // std::cout << "\n";
-            // for (auto zi = 0; zi < 3; ++zi) {
-            //     for (auto yi = 0; yi < 3; ++yi) {
-            //         for (auto xi = 0; xi < 3; ++xi) {
-            //             std::cout << x_skip[zi][yi][xi] << " ";
-            //         }
-            //     }
-            // }
-            // std::cout << "\n";
-            // std::cin.get();
-            // }
-
             neighbor_empty_multipoles[13] = true;
             neighbor_empty_monopoles[13] = false;
         }
@@ -256,10 +215,6 @@ namespace fmm {
                 kernel_monopoles.apply_stencil(
                     local_monopoles, potential_expansions_SoA, stencil, four, dx);
                 potential_expansions_SoA.to_non_SoA(grid_ptr->get_L());
-
-                // for (size_t i = 0; i < L.size(); i++) {
-                //     L[i] = potential_expansions[i];
-                // }
 
             } else if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
