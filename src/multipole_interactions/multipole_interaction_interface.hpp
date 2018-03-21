@@ -37,7 +37,7 @@ namespace fmm {
             }
 
         protected:
-            /// Converts AoS data into SoA data
+            /// Converts AoS input data into SoA data
             template <typename monopole_container, typename expansion_soa_container,
                 typename masses_soa_container>
             void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
