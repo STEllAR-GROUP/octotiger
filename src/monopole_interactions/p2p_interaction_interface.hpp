@@ -5,12 +5,10 @@
 
 #include "../common_kernel/kernel_simd_types.hpp"
 
-#include "geometry.hpp"
-#include "grid.hpp"
-// #include "grid.hpp"
-// #include "node_server.hpp"
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
+#include "geometry.hpp"
+#include "grid.hpp"
 #include "interaction_types.hpp"
 #include "p2p_kernel.hpp"
 #include "taylor.hpp"
@@ -25,7 +23,7 @@ namespace fmm {
         public:
             p2p_interaction_interface(void);
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
-              * stores results in L, L_c */
+              * stores results in L */
             void compute_p2p_interactions(std::vector<real>& monopoles,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty);
@@ -47,7 +45,7 @@ namespace fmm {
             /// The stencil is used to identify the neighbors
             static thread_local const std::vector<multiindex<>> stencil;
             static thread_local const std::vector<std::array<real, 4>> four;
-            static thread_local std::vector<real> local_mons;
+            static thread_local std::vector<real> local_monopoles_staging_area;
             std::vector<bool> neighbor_empty_monopoles;
 
             std::shared_ptr<grid> grid_ptr;
