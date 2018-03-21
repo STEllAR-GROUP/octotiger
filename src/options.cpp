@@ -58,6 +58,7 @@
 #define KERNEL_TYPE_OLD_OPT "old"
 #define KERNEL_TYPE_SOA_CPU_OPT "soa_cpu"
 #define KERNEL_TYPE_SOA_CUDA_OPT "soa_cuda"
+#define CUDA_STREAMS_OPT "-Cuda_streams_per_thread"
 
 bool options::cmp(const char* str1, const char* str2) {
     return strncmp(str1, str2, strlen(str2)) == 0;
@@ -117,6 +118,7 @@ void options::show_help() {
             "-Theta                                - 'Opening criterion' for FMM (default 0.35). Must be between 1/3 and 1/2, inclusive. Larger values\n"
             "                                        mean faster FMM execution but a higher solution error.\n"
             "-Xscale=<xmax>                        - The domain of the coarsest grid is set to (-xmax,xmax) for each all three dimensions (default 1.0)\n"
+            "-Cuda_streams_per_thread=<int>        - Defines how many cuda streams per device each HPX thread will manage. 0 will turn cuda off, 2 is the default!\n"
             "\n"
             "");
 }
@@ -160,6 +162,7 @@ bool options::process_options(int argc, char* argv[]) {
     m2p_kernel_type = interaction_kernel_type::SOA_CPU;
     p2p_kernel_type = interaction_kernel_type::SOA_CPU;
     p2m_kernel_type = interaction_kernel_type::SOA_CPU;
+    cuda_streams_per_thread = 2;
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
             rc = false;
@@ -318,6 +321,8 @@ bool options::process_options(int argc, char* argv[]) {
             } else {
                 std::cout << " Unknown option - using default SoA Vc instead" << std::endl;
             }
+		} else if (cmp(argv[i], CUDA_STREAMS_OPT)) {
+			cuda_streams_per_thread = atoi(argv[i] + strlen(CUDA_STREAMS_OPT) + 1);
         } else {
             printf("Unknown option - %s\n", argv[i]);
             abort();

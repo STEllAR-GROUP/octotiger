@@ -102,7 +102,7 @@ namespace fmm {
             /// How many slots are there
             const size_t number_slots;
 
-            // Contains number_cuda_streams_managed cuda interfaces
+            /// Contains number_cuda_streams_managed cuda interfaces
             std::vector<util::cuda_helper> stream_interfaces;
             std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
                 std::vector<real, cuda_pinned_allocator<real>>>>

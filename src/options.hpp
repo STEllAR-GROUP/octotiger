@@ -61,10 +61,12 @@ public:
     bool parallel_silo;
     bool silo_planes_only;
     std::string data_dir;
+
     interaction_kernel_type m2m_kernel_type;
     interaction_kernel_type m2p_kernel_type;
     interaction_kernel_type p2p_kernel_type;
     interaction_kernel_type p2m_kernel_type;
+    size_t cuda_streams_per_thread;
 
     real driving_rate;
     real driving_time;

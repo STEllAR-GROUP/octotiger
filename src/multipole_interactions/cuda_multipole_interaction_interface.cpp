@@ -19,7 +19,7 @@ namespace fmm {
         constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
 
         kernel_scheduler::kernel_scheduler(void)
-          : number_cuda_streams_managed(2)
+          : number_cuda_streams_managed(opts.cuda_streams_per_thread)
           , slots_per_cuda_stream(1)
           , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
             stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
