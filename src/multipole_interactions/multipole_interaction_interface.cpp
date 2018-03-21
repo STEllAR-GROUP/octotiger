@@ -2,8 +2,7 @@
 
 #include "../common_kernel/interactions_iterators.hpp"
 #include "calculate_stencil.hpp"
-#include "m2m_kernel.hpp"
-#include "m2p_kernel.hpp"
+#include "multipole_cpu_kernel.hpp"
 #include "options.hpp"
 
 #include <algorithm>
@@ -57,7 +56,7 @@ namespace fmm {
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
                     angular_corrections_SoA;
 
-                m2m_kernel kernel;
+                multipole_cpu_kernel kernel;
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
                     potential_expansions_SoA, angular_corrections_SoA, local_monopoles, stencil,
                     type);
