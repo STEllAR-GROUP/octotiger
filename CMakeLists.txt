@@ -129,7 +129,6 @@ set(source_files ${source_files}
     src/monopole_interactions/p2p_interaction_interface.cpp
     src/monopole_interactions/p2p_kernel.cpp
     src/monopole_interactions/p2p_kernel_blocked_interaction.cpp
-    src/monopole_interactions/monopole_interaction_interface.cpp
     src/monopole_interactions/calculate_stencil.cpp
     src/monopole_interactions/p2m_interaction_interface.cpp
     src/monopole_interactions/p2m_kernel.cpp
@@ -176,7 +175,6 @@ set(header_files
     src/multipole_interactions/cuda_multipole_interaction_interface.hpp
     src/multipole_interactions/calculate_stencil.hpp
     src/multipole_interactions/multipole_cpu_kernel.hpp
-    src/monopole_interactions/monopole_interaction_interface.hpp
     src/monopole_interactions/p2p_interaction_interface.hpp
     src/monopole_interactions/p2p_kernel.hpp
     src/monopole_interactions/calculate_stencil.hpp
