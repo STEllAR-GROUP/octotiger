@@ -133,6 +133,7 @@ set(source_files ${source_files}
     src/monopole_interactions/p2m_kernel.cpp
     src/monopole_interactions/p2m_kernel_blocked_interaction.cpp
     src/common_kernel/interactions_iterators.cpp
+    src/cuda_util/cuda_scheduler.cpp
 )
 
 set(header_files
@@ -180,6 +181,7 @@ set(header_files
     src/monopole_interactions/p2p_kernel.hpp
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
+    src/cuda_util/cuda_scheduler.hpp
 )
 
 
