@@ -42,17 +42,20 @@ namespace fmm {
         class kernel_staging_area
         {
         public:
-            kernel_staging_area(std::vector<real, cuda_pinned_allocator<real>>& local_monopoles,
-                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
-                    local_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-                    center_of_masses_SoA)
+            kernel_staging_area(
+                std::vector<real, cuda_pinned_allocator<real>>& local_monopoles,
+                struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                    std::vector<real, cuda_pinned_allocator<real>>>& local_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                    std::vector<real, cuda_pinned_allocator<real>>>& center_of_masses_SoA)
               : local_monopoles(local_monopoles)
               , local_expansions_SoA(local_expansions_SoA)
               , center_of_masses_SoA(center_of_masses_SoA) {}
             std::vector<real, cuda_pinned_allocator<real>>& local_monopoles;
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA;
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA;
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, cuda_pinned_allocator<real>>>& local_expansions_SoA;
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, cuda_pinned_allocator<real>>>& center_of_masses_SoA;
         };
 
         /// Contains pointers to device buffers
@@ -101,9 +104,11 @@ namespace fmm {
 
             // Contains number_cuda_streams_managed cuda interfaces
             std::vector<util::cuda_helper> stream_interfaces;
-            std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>>
+            std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, cuda_pinned_allocator<real>>>>
                 local_expansions_slots;
-            std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>>
+            std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, cuda_pinned_allocator<real>>>>
                 center_of_masses_slots;
             std::vector<std::vector<real, cuda_pinned_allocator<real>>> local_monopole_slots;
 
@@ -128,9 +133,11 @@ namespace fmm {
             static thread_local kernel_scheduler scheduler;
             real theta;
 
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, cuda_pinned_allocator<real>>>
                 angular_corrections_SoA;
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real, cuda_pinned_allocator<real>>>
                 potential_expansions_SoA;
         };
 

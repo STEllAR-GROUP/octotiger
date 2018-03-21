@@ -25,10 +25,12 @@ namespace fmm {
             stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
 
             local_expansions_slots =
-                std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>>(
+                std::vector<struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                                std::vector<real, cuda_pinned_allocator<real>>>>(
                     number_slots);
             center_of_masses_slots =
-                std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>>(
+                std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                                std::vector<real, cuda_pinned_allocator<real>>>>(
                     number_slots);
             local_monopole_slots = std::vector<std::vector<real, cuda_pinned_allocator<real>>>(number_slots);
             for (std::vector<real, cuda_pinned_allocator<real>>& mons : local_monopole_slots) {

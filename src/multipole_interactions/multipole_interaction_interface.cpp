@@ -22,9 +22,9 @@ namespace fmm {
         thread_local std::vector<real>
             multipole_interaction_interface::local_monopoles_staging_area(EXPANSION_COUNT_PADDED);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-        multipole_interaction_interface::local_expansions_staging_area(true);
+        multipole_interaction_interface::local_expansions_staging_area;
         thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-        multipole_interaction_interface::center_of_masses_staging_area(true);
+        multipole_interaction_interface::center_of_masses_staging_area;
         multipole_interaction_interface::multipole_interaction_interface(void) {
             local_monopoles_staging_area = std::vector<real>(ENTRIES);
             this->m2m_type = opts.m2m_kernel_type;
@@ -53,9 +53,9 @@ namespace fmm {
                 center_of_masses_SoA) {
             if (m2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                    potential_expansions_SoA(true);
+                    potential_expansions_SoA;
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                    angular_corrections_SoA(true);
+                    angular_corrections_SoA;
 
                 m2m_kernel kernel;
                 kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
