@@ -122,7 +122,7 @@ set(source_files ${source_files}
     src/compute_factor.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
     src/multipole_interactions/cuda_multipole_interaction_interface.cpp
-    src/multipole_interactions/cuda_kernel_methods.cu
+    src/multipole_interactions/multipole_cuda_kernel.cu
     src/multipole_interactions/calculate_stencil.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/monopole_interactions/p2p_kernel.cpp
@@ -168,7 +168,7 @@ set(header_files
     src/common_kernel/multiindex.hpp
     src/multipole_interactions/multipole_interaction_interface.hpp
     src/multipole_interactions/compute_kernel_templates.hpp
-    src/multipole_interactions/cuda_kernel_methods.hpp
+    src/multipole_interactions/multipole_cuda_kernel.hpp
     src/multipole_interactions/cuda_multipole_interaction_interface.hpp
     src/multipole_interactions/calculate_stencil.hpp
     src/multipole_interactions/multipole_cpu_kernel.hpp

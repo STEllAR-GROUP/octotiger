@@ -3,7 +3,7 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include <functional>
 #include "../cuda_util/cuda_helper.hpp"
-#include "cuda_kernel_methods.hpp"
+#include "multipole_cuda_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {

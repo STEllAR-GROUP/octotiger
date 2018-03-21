@@ -1,6 +1,6 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "compute_kernel_templates.hpp"
-#include "cuda_kernel_methods.hpp"
+#include "multipole_cuda_kernel.hpp"
 namespace octotiger {
 namespace fmm {
     // This specialization is only required on cuda devices since T::value_type is not supported!
