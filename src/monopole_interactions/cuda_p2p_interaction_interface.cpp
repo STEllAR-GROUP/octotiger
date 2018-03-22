@@ -1,6 +1,6 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "cuda_p2p_interaction_interface.hpp"
-#include "calculate_stencil.hpp"
+#include "p2p_cuda_kernel.hpp"
 #include "options.hpp"
 
 extern options opts;
@@ -40,9 +40,9 @@ namespace fmm {
                 const dim3 grid_spec(1, 1, 1);
                 const dim3 threads_per_block(8, 8, 8);
                 void* args[] = {&(env.device_local_monopoles), &(env.device_potential_expansions),
-                    &(env.device_stencil), &theta};
-                // gpu_interface.execute(
-                //     &cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args, 0);
+                                &(env.device_stencil), &(env.device_four_constants),&theta, &dx};
+                gpu_interface.execute(
+                    &cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     env.device_potential_expansions, potential_expansions_size,
                     cudaMemcpyDeviceToHost);
