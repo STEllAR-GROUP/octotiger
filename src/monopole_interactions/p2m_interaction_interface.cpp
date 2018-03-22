@@ -55,9 +55,6 @@ namespace fmm {
                     }
                 }
             } else {
-                // old-style interaction calculation
-                // computes inner interactions
-                grid_ptr->compute_interactions(type);
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {
                     if (!is_direction_empty[dir]) {

@@ -23,11 +23,11 @@ namespace fmm {
             // Check where we want to run this:
             int slot = scheduler.get_launch_slot();
             if (slot == -1) {    // Run fallback cpu implementation
-                std::cout << "Running cpu fallback" << std::endl;
+                // std::cout << "Running cpu fallback" << std::endl;
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
             } else {    // run on cuda device
-                std::cerr << "Running cuda in slot " << slot << std::endl;
+                // std::cerr << "Running cuda in slot " << slot << std::endl;
                 // Move data into SoA arrays
                 auto staging_area = scheduler.get_staging_area(slot);
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
