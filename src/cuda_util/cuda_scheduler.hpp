@@ -12,6 +12,7 @@ namespace fmm {
     constexpr size_t local_expansions_size = NUMBER_LOCAL_EXPANSION_VALUES * sizeof(real);
     constexpr size_t center_of_masses_size = NUMBER_MASS_VALUES * sizeof(real);
     constexpr size_t potential_expansions_size = NUMBER_POT_EXPANSIONS * sizeof(real);
+    constexpr size_t potential_expansions_small_size = NUMBER_POT_EXPANSIONS_SMALL * sizeof(real);
     constexpr size_t angular_corrections_size = NUMBER_ANG_CORRECTIONS * sizeof(real);
     constexpr size_t stencil_size = STENCIL_SIZE * sizeof(octotiger::fmm::multiindex<>);
     constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);

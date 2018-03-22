@@ -44,7 +44,7 @@ namespace fmm {
                 gpu_interface.execute(
                     &cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
-                    env.device_potential_expansions, potential_expansions_size,
+                    env.device_potential_expansions, potential_expansions_small_size,
                     cudaMemcpyDeviceToHost);
 
                 // Wait for stream to finish and allow thread to jump away in the meantime

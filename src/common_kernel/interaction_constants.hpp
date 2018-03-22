@@ -49,6 +49,7 @@ namespace fmm {
     constexpr size_t NUMBER_LOCAL_EXPANSION_VALUES = 20 * (ENTRIES + SOA_PADDING);
     constexpr size_t NUMBER_MASS_VALUES = 3 * (ENTRIES + SOA_PADDING);
     constexpr size_t NUMBER_POT_EXPANSIONS = 20 * (INNER_CELLS + SOA_PADDING);
+    constexpr size_t NUMBER_POT_EXPANSIONS_SMALL = 4 * (INNER_CELLS + SOA_PADDING);
     constexpr size_t NUMBER_ANG_CORRECTIONS = 3 * (INNER_CELLS + SOA_PADDING);
     constexpr size_t NUMBER_FACTORS = 20;
 
