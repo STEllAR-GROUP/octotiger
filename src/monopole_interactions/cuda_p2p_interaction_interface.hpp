@@ -7,7 +7,7 @@
 
 namespace octotiger {
 namespace fmm {
-    namespace multipole_interactions {
+    namespace monopole_interactions {
         /** Interface to calculate monopole monopole FMM interactions on either a cuda device or on the
          * cpu! It takes AoS data, transforms it into SoA data, moves it to the cuda device,
          * launches cuda kernel on a slot given by the scheduler, gets results and stores them in
@@ -26,19 +26,14 @@ namespace fmm {
                 std::array<bool, geo::direction::count()>& is_direction_empty);
 
         protected:
-            /** Scheduler which controls cuda buffers, host-side pinned memory for the input and
-             * load-balancing
-             * between CPU/GPU */
-            static thread_local kernel_scheduler scheduler;
             real theta;
-
             /// Host-side pinned memory buffer for potential expansions results
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
                 std::vector<real, cuda_pinned_allocator<real>>>
                 potential_expansions_SoA;
         };
 
-    }    // namespace multipole_interactions
+    }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
 #endif

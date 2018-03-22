@@ -13,6 +13,6 @@ namespace fmm {
             tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
             tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
         }
-    }    // namespace multipole_interactions
+    }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
