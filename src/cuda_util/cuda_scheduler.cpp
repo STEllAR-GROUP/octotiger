@@ -1,6 +1,7 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
-#include "../multipole_interactions/calculate_stencil.hpp"
 #include "cuda_scheduler.hpp"
+#include "../multipole_interactions/calculate_stencil.hpp"
+#include "../monopole_interactions/calculate_stencil.hpp"
 #include "options.hpp"
 
 extern options opts;
@@ -29,12 +30,20 @@ namespace fmm {
 
         // Create necessary data
         const two_phase_stencil stencil = multipole_interactions::calculate_stencil();
+        const std::vector<std::array<real, 4>> four_constants =
+            monopole_interactions::calculate_stencil().second;
         std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
+        std::unique_ptr<real[]> four_tmp = std::make_unique<real[]>(4 * STENCIL_SIZE);
         for (auto i = 0; i < STENCIL_SIZE; ++i) {
             if (stencil.stencil_phase_indicator[i])
                 indicator[i] = 1.0;
             else
                 indicator[i] = 0.0;
+
+            four_tmp[i * 4 + 0] = four_constants[i][0];
+            four_tmp[i * 4 + 1] = four_constants[i][1];
+            four_tmp[i * 4 + 2] = four_constants[i][2];
+            four_tmp[i * 4 + 3] = four_constants[i][3];
         }
 
         for (kernel_device_enviroment& env : kernel_device_enviroments) {
@@ -52,12 +61,16 @@ namespace fmm {
             util::cuda_helper::cuda_error(cudaMalloc((void**) &(env.device_stencil), stencil_size));
             util::cuda_helper::cuda_error(
                 cudaMalloc((void**) &(env.device_phase_indicator), indicator_size));
+            util::cuda_helper::cuda_error(
+                cudaMalloc((void**) &(env.device_four_constants), four_constants_size));
 
             // Move data
             stream_interfaces[cur_interface].copy_async(env.device_stencil,
                 stencil.stencil_elements.data(), stencil_size, cudaMemcpyHostToDevice);
             stream_interfaces[cur_interface].copy_async(env.device_phase_indicator, indicator.get(),
                 indicator_size, cudaMemcpyHostToDevice);
+            stream_interfaces[cur_interface].copy_async(env.device_four_constants, four_tmp.get(),
+                four_constants_size, cudaMemcpyHostToDevice);
 
             // Change stream interface if necessary
             cur_slot++;
