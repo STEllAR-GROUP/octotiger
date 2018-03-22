@@ -4,6 +4,7 @@
 #include "../common_kernel/kernel_taylor_set_basis.hpp"
 #include "../common_kernel/struct_of_array_data.hpp"
 #include "grid_flattened_indices.hpp"
+#include "monopole_kernel_templates.hpp"
 
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
@@ -28,18 +29,17 @@ namespace fmm {
             multiindex<m2m_int_vector> cell_index_coarse2(cell_index_coarse);
             for (size_t j = 0; j < m2m_int_vector::size(); j++)
                 cell_index_coarse2.y[j] += 1;
-            std::array<m2m_vector, 2> d_components;
-            d_components[0] = 1.0 / dx;
-            d_components[1] = -1.0 / sqr(dx);
-            std::array<m2m_vector, 8> tmpstore;
-            tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
-            tmpstore[4] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded + 8);
-            tmpstore[5] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded + 8);
-            tmpstore[6] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded + 8);
-            tmpstore[7] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded + 8);
+            const m2m_vector d_components[2] = {1.0 / dx, -1.0 / sqr(dx)};
+            m2m_vector tmpstore1[4];
+            tmpstore1[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            tmpstore1[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            tmpstore1[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            tmpstore1[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            m2m_vector tmpstore2[4];
+            tmpstore2[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded + 8);
+            tmpstore2[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded + 8);
+            tmpstore2[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded + 8);
+            tmpstore2[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded + 8);
 
             bool data_changed = false;
             for (size_t inner_stencil_index = 0; inner_stencil_index < P2P_STENCIL_BLOCKING &&
@@ -95,40 +95,34 @@ namespace fmm {
                 Vc::where(mask2, monopole2) = m2m_vector(
                     mons.data() + interaction_partner_flat_index + 24, Vc::flags::element_aligned);
 
-                const std::array<m2m_vector, 4> four = {
+                const m2m_vector four[4] = {
                     four_constants[outer_stencil_index + inner_stencil_index][0],
                     four_constants[outer_stencil_index + inner_stencil_index][1],
                     four_constants[outer_stencil_index + inner_stencil_index][2],
                     four_constants[outer_stencil_index + inner_stencil_index][3]};
 
-                tmpstore[0] = tmpstore[0] + four[0] * monopole * d_components[0];
-                tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
-                tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
-                tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
-                tmpstore[4] = tmpstore[4] + four[0] * monopole2 * d_components[0];
-                tmpstore[5] = tmpstore[5] + four[1] * monopole2 * d_components[1];
-                tmpstore[6] = tmpstore[6] + four[2] * monopole2 * d_components[1];
-                tmpstore[7] = tmpstore[7] + four[3] * monopole2 * d_components[1];
+                compute_monopole_interaction<m2m_vector>(monopole, tmpstore1, four, d_components);
+                compute_monopole_interaction<m2m_vector>(monopole2, tmpstore2, four, d_components);
             }
             if (data_changed) {
-                tmpstore[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
+                tmpstore1[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
-                tmpstore[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
+                tmpstore1[1].memstore(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
-                tmpstore[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
+                tmpstore1[2].memstore(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
-                tmpstore[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
+                tmpstore1[3].memstore(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
                     Vc::flags::element_aligned);
-                tmpstore[4].memstore(
+                tmpstore2[0].memstore(
                     potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded + 8),
                     Vc::flags::element_aligned);
-                tmpstore[5].memstore(
+                tmpstore2[1].memstore(
                     potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded + 8),
                     Vc::flags::element_aligned);
-                tmpstore[6].memstore(
+                tmpstore2[2].memstore(
                     potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded + 8),
                     Vc::flags::element_aligned);
-                tmpstore[7].memstore(
+                tmpstore2[3].memstore(
                     potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded + 8),
                     Vc::flags::element_aligned);
             }
