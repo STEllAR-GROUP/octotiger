@@ -584,10 +584,13 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
     // data managemenet for old and new version of interaction computation
 
      // all neighbors and placeholder for yourself
+    bool contains_multipole = false;
     std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
     for (geo::direction const& dir : geo::direction::full_set()) {
         if (!neighbors[dir].empty()) {
             all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
+            if (!all_neighbor_interaction_data[dir].is_monopole)
+                contains_multipole = true;
         } else {
             all_neighbor_interaction_data.emplace_back();
         }
@@ -640,10 +643,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
             p2p_interactor.compute_p2p_interactions(
                 mon_ptr, all_neighbor_interaction_data, type,
                 grid_ptr->get_dx(), is_direction_empty);
-            p2m_interactor.set_grid_ptr(grid_ptr);
-            p2m_interactor.compute_p2m_interactions(
-                mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type,
-                is_direction_empty);
+            if (contains_multipole) {
+                p2m_interactor.set_grid_ptr(grid_ptr);
+                p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr,
+                    all_neighbor_interaction_data, type, is_direction_empty);
+            }
         }
      } else {
          // old-style interaction calculation
