@@ -83,11 +83,6 @@ namespace fmm {
     class kernel_scheduler
     {
     public:
-        /// Constructs number of streams indicated by the options
-        kernel_scheduler(void);
-        /// Deallocates cuda memory
-        ~kernel_scheduler(void);
-
         /// Get a slot on any device to run a FMM kernel. Return -1 for CPU slot, else the slot
         /// ID
         int get_launch_slot(void);
@@ -97,12 +92,20 @@ namespace fmm {
         kernel_device_enviroment& get_device_enviroment(size_t slot);
         /// Get the cuda interface for a slot - throws exception if a CPU slot (-1)is given
         util::cuda_helper& get_launch_interface(size_t slot);
+        /// Global scheduler instance for this HPX thread
+        static thread_local kernel_scheduler scheduler;
 
+    public:
         kernel_scheduler(kernel_scheduler& other) = delete;
         kernel_scheduler(const kernel_scheduler& other) = delete;
         kernel_scheduler operator=(const kernel_scheduler& other) = delete;
+        /// Deallocates cuda memory
+        ~kernel_scheduler(void);
 
     private:
+        /// Constructs number of streams indicated by the options
+        kernel_scheduler(void);
+
         /// How many cuda streams does scheduler manage
         const size_t number_cuda_streams_managed;
         /// How many slots are there per stram - basically the queue length per stream

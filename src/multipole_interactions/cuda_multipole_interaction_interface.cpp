@@ -8,7 +8,6 @@ extern options opts;
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        thread_local kernel_scheduler cuda_multipole_interaction_interface::scheduler;
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
@@ -21,22 +20,22 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
             // Check where we want to run this:
-            int slot = scheduler.get_launch_slot();
-            if (slot == -1) {    // Run fallback cpu implementation
+            int slot = kernel_scheduler::scheduler.get_launch_slot();
+            if (slot == -1) {    // Run fkernel_scheduler::allback cpu implementation
                 // std::cout << "Running cpu fallback" << std::endl;
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
             } else {    // run on cuda device
                 // std::cerr << "Running cuda in slot " << slot << std::endl;
                 // Move data into SoA arrays
-                auto staging_area = scheduler.get_staging_area(slot);
+                auto staging_area = kernel_scheduler::scheduler.get_staging_area(slot);
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                     staging_area.local_monopoles, staging_area.local_expansions_SoA,
                     staging_area.center_of_masses_SoA);
 
                 // Queue moving of input data to device
-                util::cuda_helper& gpu_interface = scheduler.get_launch_interface(slot);
-                kernel_device_enviroment& env = scheduler.get_device_enviroment(slot);
+                util::cuda_helper& gpu_interface = kernel_scheduler::scheduler.get_launch_interface(slot);
+                kernel_device_enviroment& env = kernel_scheduler::scheduler.get_device_enviroment(slot);
                 gpu_interface.copy_async(env.device_local_monopoles,
                     staging_area.local_monopoles.data(), local_monopoles_size,
                     cudaMemcpyHostToDevice);

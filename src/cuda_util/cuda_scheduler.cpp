@@ -6,6 +6,7 @@
 extern options opts;
 namespace octotiger {
 namespace fmm {
+    thread_local kernel_scheduler kernel_scheduler::scheduler;
     kernel_scheduler::kernel_scheduler(void)
       : number_cuda_streams_managed(opts.cuda_streams_per_thread)
       , slots_per_cuda_stream(1)

@@ -28,10 +28,6 @@ namespace fmm {
                 std::array<real, NDIM> xbase);
 
         protected:
-            /** Scheduler which controls cuda buffers, host-side pinned memory for the input and
-             * load-balancing
-             * between CPU/GPU */
-            static thread_local kernel_scheduler scheduler;
             real theta;
 
             /// Host-side pinned memory buffer for angular corrections results
