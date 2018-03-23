@@ -64,6 +64,9 @@ namespace fmm {
             util::cuda_helper::cuda_error(
                 cudaMalloc((void**) &(env.device_four_constants), four_constants_size));
 
+            util::cuda_helper::cuda_error(
+                cudaMalloc((void**) &(env.device_blocked_monopoles), 2*potential_expansions_small_size));
+
             // Move data
             stream_interfaces[cur_interface].copy_async(env.device_stencil,
                 stencil.stencil_elements.data(), stencil_size, cudaMemcpyHostToDevice);

@@ -25,7 +25,7 @@ namespace fmm {
 
         __global__ void cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
+            double (&potential_expansions)[2 * NUMBER_POT_EXPANSIONS_SMALL],
             const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
             const double (&four_constants)[4 * STENCIL_SIZE], const double theta, const double dx) {
             // Set cell indices
@@ -47,8 +47,13 @@ namespace fmm {
             tmpstore[2] = 0.0;
             tmpstore[3] = 0.0;
 
+            const size_t block_offset = blockIdx.x * NUMBER_POT_EXPANSIONS_SMALL;
+            const size_t block_start = blockIdx.x * 537;
+            const size_t block_end = 537 + blockIdx.x * 537;
+
             // calculate interactions between this cell and each stencil element
-            for (size_t stencil_index = 0; stencil_index < STENCIL_SIZE; stencil_index++) {
+            for (size_t stencil_index = block_start; stencil_index < block_end;
+                 stencil_index++) {
                 // Get interaction partner indices
                 const multiindex<>& stencil_element = stencil[stencil_index];
                 const multiindex<> partner_index(cell_index.x + stencil_element.x,
@@ -74,13 +79,27 @@ namespace fmm {
                 compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
             }
             // Store results in output arrays
-            potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
-            potential_expansions[1 * component_length_unpadded + cell_flat_index_unpadded] =
-                tmpstore[1];
-            potential_expansions[2 * component_length_unpadded + cell_flat_index_unpadded] =
-                tmpstore[2];
-            potential_expansions[3 * component_length_unpadded + cell_flat_index_unpadded] =
-                tmpstore[3];
+            potential_expansions[block_offset + cell_flat_index_unpadded] = tmpstore[0];
+            potential_expansions[block_offset + 1 * component_length_unpadded +
+                cell_flat_index_unpadded] = tmpstore[1];
+            potential_expansions[block_offset + 2 * component_length_unpadded +
+                cell_flat_index_unpadded] = tmpstore[2];
+            potential_expansions[block_offset + 3 * component_length_unpadded +
+                cell_flat_index_unpadded] = tmpstore[3];
+        }
+        __global__ void cuda_add_pot_blocks(
+            double (&potential_expansions)[2 * NUMBER_POT_EXPANSIONS_SMALL]) {
+            size_t id = threadIdx.x;
+            potential_expansions[id] += potential_expansions[NUMBER_POT_EXPANSIONS_SMALL + id];
+            potential_expansions[1 * component_length_unpadded + id] +=
+                potential_expansions[1 * component_length_unpadded + NUMBER_POT_EXPANSIONS_SMALL +
+                    id];
+            potential_expansions[2 * component_length_unpadded + id] +=
+                potential_expansions[2 * component_length_unpadded + NUMBER_POT_EXPANSIONS_SMALL +
+                    id];
+            potential_expansions[3 * component_length_unpadded + id] +=
+                potential_expansions[3 * component_length_unpadded + NUMBER_POT_EXPANSIONS_SMALL +
+                    id];
         }
     }    // namespace monopole_interactions
 }    // namespace fmm

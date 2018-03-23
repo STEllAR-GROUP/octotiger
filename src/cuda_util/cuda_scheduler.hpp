@@ -77,6 +77,8 @@ namespace fmm {
         real* device_potential_expansions;
         real* device_angular_corrections;
 
+        real* device_blocked_monopoles;
+
         octotiger::fmm::multiindex<>* device_stencil;
         real* device_four_constants;
         real* device_phase_indicator;
