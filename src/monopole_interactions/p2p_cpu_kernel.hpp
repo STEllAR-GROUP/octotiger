@@ -14,7 +14,7 @@ namespace fmm {
     namespace monopole_interactions {
 
         constexpr uint64_t P2P_STENCIL_BLOCKING = 24;
-        class p2p_kernel
+        class p2p_cpu_kernel
         {
         private:
             std::vector<bool>& neighbor_empty;
@@ -43,13 +43,13 @@ namespace fmm {
             // void calculate_coarse_indices();
 
         public:
-            p2p_kernel(std::vector<bool>& neighbor_empty);
+            p2p_cpu_kernel(std::vector<bool>& neighbor_empty);
 
-            p2p_kernel(p2p_kernel& other) = delete;
+            p2p_cpu_kernel(p2p_cpu_kernel& other) = delete;
 
-            p2p_kernel(const p2p_kernel& other) = delete;
+            p2p_cpu_kernel(const p2p_cpu_kernel& other) = delete;
 
-            p2p_kernel operator=(const p2p_kernel& other) = delete;
+            p2p_cpu_kernel operator=(const p2p_cpu_kernel& other) = delete;
 
             void apply_stencil(std::vector<real>& mons,
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&

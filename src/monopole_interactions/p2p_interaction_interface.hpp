@@ -10,7 +10,7 @@
 #include "geometry.hpp"
 #include "grid.hpp"
 #include "interaction_types.hpp"
-#include "p2p_kernel.hpp"
+#include "p2p_cpu_kernel.hpp"
 #include "taylor.hpp"
 
 namespace octotiger {
@@ -50,7 +50,7 @@ namespace fmm {
             std::vector<bool> neighbor_empty_monopoles;
 
             interaction_kernel_type p2p_type;
-            p2p_kernel kernel_monopoles;
+            p2p_cpu_kernel kernel_monopoles;
         };
 
         template <typename monopole_container>
