@@ -37,7 +37,7 @@ namespace fmm {
                     cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                const dim3 grid_spec(2, 1, 1);
+                const dim3 grid_spec(3, 1, 1);
                 const dim3 threads_per_block(8, 8, 8);
                 void* args[] = {&(env.device_local_monopoles), &(env.device_blocked_monopoles),
                                 &(env.device_stencil), &(env.device_four_constants),&theta, &dx};
