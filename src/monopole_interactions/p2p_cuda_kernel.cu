@@ -23,7 +23,9 @@ namespace fmm {
         __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
-        __global__ void cuda_p2p_interactions_kernel(
+        __global__ void
+        __launch_bounds__(512, 3)
+        cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[3 * NUMBER_POT_EXPANSIONS_SMALL],
             const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
