@@ -3,21 +3,6 @@
 #include "multipole_cuda_kernel.hpp"
 namespace octotiger {
 namespace fmm {
-    // This specialization is only required on cuda devices since T::value_type is not supported!
-    template <>
-    CUDA_CALLABLE_METHOD inline void multiindex<int32_t>::transform_coarse() {
-        const int32_t patch_size = static_cast<int32_t>(INX);
-        const int32_t subtract = static_cast<int32_t>(INX / 2);
-        x = ((x + patch_size) >> 1) - subtract;
-        y = ((y + patch_size) >> 1) - subtract;
-        z = ((z + patch_size) >> 1) - subtract;
-    }
-
-    CUDA_CALLABLE_METHOD inline int32_t distance_squared_reciprocal(
-        const multiindex<>& i, const multiindex<>& j) {
-        return (sqr(i.x - j.x) + sqr(i.y - j.y) + sqr(i.z - j.z));
-    }
-
     namespace multipole_interactions {
 
         __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;

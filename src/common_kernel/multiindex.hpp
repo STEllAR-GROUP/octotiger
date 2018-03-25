@@ -98,6 +98,21 @@ namespace fmm {
             m.y * INNER_CELLS_PER_DIRECTION + m.z;
     }
 
+    // This specialization is only required on cuda devices since T::value_type is not supported!
+    template <>
+    CUDA_CALLABLE_METHOD inline void multiindex<int32_t>::transform_coarse() {
+        const int32_t patch_size = static_cast<int32_t>(INX);
+        const int32_t subtract = static_cast<int32_t>(INX / 2);
+        x = ((x + patch_size) >> 1) - subtract;
+        y = ((y + patch_size) >> 1) - subtract;
+        z = ((z + patch_size) >> 1) - subtract;
+    }
+
+    CUDA_CALLABLE_METHOD inline int32_t distance_squared_reciprocal(
+        const multiindex<>& i, const multiindex<>& j) {
+        return (sqr(i.x - j.x) + sqr(i.y - j.y) + sqr(i.z - j.z));
+    }
+
     struct two_phase_stencil
     {
         std::vector<multiindex<>> stencil_elements;
