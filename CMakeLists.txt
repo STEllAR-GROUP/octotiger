@@ -207,17 +207,6 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
-if (OCTOTIGER_WITH_CUDA)
-  add_hpx_executable(
-    matmul
-    DEPENDENCIES
-      ${dependencies}
-    SOURCES
-      src/cublas_matmul.cpp
-    FOLDER  "Octotiger"
-)
-endif()
-
 if (OCTOTIGER_WITH_SILO)
 add_hpx_executable(
   silocmp
