@@ -51,13 +51,12 @@
 #define PROBLEM_OPT_MOVING_STAR "moving_star"
 #define PROBLEM_OPT_RADIATION_TEST "radiation_test"
 
-#define M2M_KERNEL_OPT "m2m_kernel_type"
-#define M2P_KERNEL_OPT "m2p_kernel_type"
-#define P2P_KERNEL_OPT "p2p_kernel_type"
-#define P2M_KERNEL_OPT "p2m_kernel_type"
-#define KERNEL_TYPE_OLD_OPT "old"
-#define KERNEL_TYPE_SOA_CPU_OPT "soa_cpu"
-#define KERNEL_TYPE_SOA_CUDA_OPT "soa_cuda"
+#define M2M_KERNEL_OPT "-Multipole_kernel_type"
+#define P2P_KERNEL_OPT "-P2P_kernel_type"
+#define P2M_KERNEL_OPT "-P2M_kernel_type"
+#define KERNEL_TYPE_OLD_OPT "OLD"
+#define KERNEL_TYPE_SOA_CPU_OPT "SOA_CPU"
+#define KERNEL_TYPE_SOA_CUDA_OPT "SOA_CUDA"
 #define CUDA_STREAMS_OPT "-Cuda_streams_per_thread"
 
 bool options::cmp(const char* str1, const char* str2) {
@@ -119,6 +118,12 @@ void options::show_help() {
             "                                        mean faster FMM execution but a higher solution error.\n"
             "-Xscale=<xmax>                        - The domain of the coarsest grid is set to (-xmax,xmax) for each all three dimensions (default 1.0)\n"
             "-Cuda_streams_per_thread=<int>        - Defines how many cuda streams per device each HPX thread will manage. 0 will turn cuda off, 2 is the default!\n"
+            "-Multipole_kernel_type=<type>        - Defines whether to old or the new interaction methods will be called for the multipole-multipole, multipole-monopole interactions\n"
+            "                                       Valid values: OLD, SOA_CPU (default)\n"
+            "-P2P_kernel_type=<type>        - Defines whether to old or the new interaction methods will be called for the monopole-monopole interactions\n"
+            "                                       Valid values: OLD, SOA_CPU (default)\n"
+            "-P2M_kernel_type=<type>        - Defines whether to old or the new interaction methods will be called for the monopole-multipole\n"
+            "                                       Valid values: OLD, SOA_CPU (default)\n"
             "\n"
             "");
 }
@@ -157,9 +162,11 @@ bool options::process_options(int argc, char* argv[]) {
     core_refine = false;
     donor_refine = 0;
     accretor_refine = 0;
+    std::cout << M2M_KERNEL_OPT << std::endl
+              <<P2P_KERNEL_OPT << std::endl
+              <<P2M_KERNEL_OPT << std::endl;
 
     m2m_kernel_type = interaction_kernel_type::SOA_CPU;
-    m2p_kernel_type = interaction_kernel_type::SOA_CPU;
     p2p_kernel_type = interaction_kernel_type::SOA_CPU;
     p2m_kernel_type = interaction_kernel_type::SOA_CPU;
     cuda_streams_per_thread = 2;
@@ -264,7 +271,7 @@ bool options::process_options(int argc, char* argv[]) {
             stop_step = atoi(argv[i] + strlen(STOPSTEP_OPT) + 1);
         } else if (cmp(argv[i], M2M_KERNEL_OPT)) {
             std::string prob(argv[i] + strlen(M2M_KERNEL_OPT) + 1);
-            std::cout << "Using multipole-multipole kernel type: ";
+            std::cout << "Using combined multipole kernel type: ";
             if (cmp(prob, KERNEL_TYPE_OLD_OPT)) {
                 m2m_kernel_type = interaction_kernel_type::OLD;
                 std::cout << "OLD" << std::endl;
@@ -273,21 +280,6 @@ bool options::process_options(int argc, char* argv[]) {
                 std::cout << "SoA Vc" << std::endl;
             } else if (cmp(prob, KERNEL_TYPE_SOA_CUDA_OPT)) {
                 m2m_kernel_type = interaction_kernel_type::SOA_CUDA;
-                std::cout << "SoA CUDA" << std::endl;
-            } else {
-                std::cout << " Unknown option - using default SoA Vc instead" << std::endl;
-            }
-        } else if (cmp(argv[i], M2P_KERNEL_OPT)) {
-            std::string prob(argv[i] + strlen(M2P_KERNEL_OPT) + 1);
-            std::cout << "Using multipole-monopole kernel type: ";
-            if (cmp(prob, KERNEL_TYPE_OLD_OPT)) {
-                m2p_kernel_type = interaction_kernel_type::OLD;
-                std::cout << "OLD" << std::endl;
-            } else if (cmp(prob, KERNEL_TYPE_SOA_CPU_OPT)) {
-                m2p_kernel_type = interaction_kernel_type::SOA_CPU;
-                std::cout << "SoA Vc" << std::endl;
-            } else if (cmp(prob, KERNEL_TYPE_SOA_CUDA_OPT)) {
-                m2p_kernel_type = interaction_kernel_type::SOA_CUDA;
                 std::cout << "SoA CUDA" << std::endl;
             } else {
                 std::cout << " Unknown option - using default SoA Vc instead" << std::endl;
