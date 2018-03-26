@@ -118,12 +118,12 @@ void options::show_help() {
             "                                        mean faster FMM execution but a higher solution error.\n"
             "-Xscale=<xmax>                        - The domain of the coarsest grid is set to (-xmax,xmax) for each all three dimensions (default 1.0)\n"
             "-Cuda_streams_per_thread=<int>        - Defines how many cuda streams per device each HPX thread will manage. 0 will turn cuda off, 2 is the default!\n"
-            "-Multipole_kernel_type=<type>        - Defines whether to old or the new interaction methods will be called for the multipole-multipole, multipole-monopole interactions\n"
-            "                                       Valid values: OLD, SOA_CPU (default)\n"
-            "-P2P_kernel_type=<type>        - Defines whether to old or the new interaction methods will be called for the monopole-monopole interactions\n"
-            "                                       Valid values: OLD, SOA_CPU (default)\n"
-            "-P2M_kernel_type=<type>        - Defines whether to old or the new interaction methods will be called for the monopole-multipole\n"
-            "                                       Valid values: OLD, SOA_CPU (default)\n"
+            "-Multipole_kernel_type=<type>         - Defines whether to old or the new interaction methods will be called for the multipole-multipole, multipole-monopole interactions\n"
+            "                                        Valid values: OLD, SOA_CPU (default)\n"
+            "-P2P_kernel_type=<type>               - Defines whether to old or the new interaction methods will be called for the monopole-monopole interactions\n"
+            "                                        Valid values: OLD, SOA_CPU (default)\n"
+            "-P2M_kernel_type=<type>               - Defines whether to old or the new interaction methods will be called for the monopole-multipole\n"
+            "                                        Valid values: OLD, SOA_CPU (default)\n"
             "\n"
             "");
 }
