@@ -12,7 +12,28 @@ namespace fmm {
       : number_cuda_streams_managed(opts.cuda_streams_per_thread)
       , slots_per_cuda_stream(1)
       , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
-        stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
+        // Determine what the scheduler has to manage
+        const int total_worker_count = hpx::get_os_thread_count();
+        const int worker_id = hpx::get_worker_thread_num();
+        const size_t streams_per_locality = 32;
+        const size_t streams_per_gpu = 16;
+        size_t gpu_count = streams_per_locality / streams_per_gpu;
+        if (streams_per_locality % streams_per_gpu != 0)
+            gpu_count++;
+        int number_of_streams_managed = streams_per_locality / total_worker_count;
+        const size_t remaining_streams = streams_per_locality % total_worker_count;
+        size_t offset = 0;
+        if (remaining_streams != 0) {
+            if (worker_id < remaining_streams)
+                offset = 1;
+        }
+
+        const int accumulated_offset = worker_id < remaining_streams ? worker_id : remaining_streams;
+        const int worker_stream_id = worker_id * number_of_streams_managed +
+        accumulated_offset;
+        const int gpu_id = (worker_stream_id + local_stream_id) / streams_per_gpu;
+        std::cout << "Worker " << worker_id << " uses gpu " << gpu_id << std::endl;
+        number_of_streams_managed += offset;
 
         local_expansions_slots = std::vector<struct_of_array_data<expansion, real, 20, ENTRIES,
             SOA_PADDING, std::vector<real, cuda_pinned_allocator<real>>>>(number_slots);
@@ -26,6 +47,7 @@ namespace fmm {
 
         kernel_device_enviroments = std::vector<kernel_device_enviroment>(number_slots);
         size_t cur_interface = 0;
+        // Todo: Remove slots
         size_t cur_slot = 0;
 
         // Create necessary data
@@ -46,7 +68,14 @@ namespace fmm {
             four_tmp[i * 4 + 3] = four_constants[i][3];
         }
 
+        size_t local_stream_id = 0;
+        //stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
+        stream_interfaces.reserve(number_cuda_streams_managed);
         for (kernel_device_enviroment& env : kernel_device_enviroments) {
+            const int worker_gpu_id = (worker_stream_id + local_stream_id) / streams_per_gpu;
+            util::cuda_helper::cuda_error(cudaSetDevice(worker_gpu_id));
+            stream_interfaces.emplace_back(worker_gpu_id);
+
             // Allocate memory on device
             util::cuda_helper::cuda_error(
                 cudaMalloc((void**) &(env.device_local_monopoles), local_monopoles_size));
@@ -76,6 +105,7 @@ namespace fmm {
                 four_constants_size, cudaMemcpyHostToDevice);
 
             // Change stream interface if necessary
+            local_stream_id++;
             cur_slot++;
             if (cur_slot >= slots_per_cuda_stream) {
                 util::cuda_helper::cuda_error(cudaThreadSynchronize());
