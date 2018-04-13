@@ -9,14 +9,14 @@ namespace octotiger {
 namespace fmm {
     thread_local kernel_scheduler kernel_scheduler::scheduler;
     kernel_scheduler::kernel_scheduler(void)
-      : number_cuda_streams_managed(opts.cuda_streams_per_thread)
-      , slots_per_cuda_stream(1)
+      : number_cuda_streams_managed(4)
+      , slots_per_cuda_stream(1) // Slots (queue per stream) is currently deactived
       , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
         // Determine what the scheduler has to manage
         const int total_worker_count = hpx::get_os_thread_count();
         const int worker_id = hpx::get_worker_thread_num();
-        const size_t streams_per_locality = 32;
-        const size_t streams_per_gpu = 16;
+        const size_t streams_per_locality = opts.cuda_streams_per_locality;
+        const size_t streams_per_gpu = opts.cuda_streams_per_gpu;
         size_t gpu_count = streams_per_locality / streams_per_gpu;
         if (streams_per_locality % streams_per_gpu != 0)
             gpu_count++;
@@ -35,6 +35,7 @@ namespace fmm {
         std::cout << "Worker " << worker_id << " uses gpu " << gpu_id << std::endl;
         number_of_streams_managed += offset;
         number_cuda_streams_managed = number_of_streams_managed;
+	number_slots = number_cuda_streams_managed * slots_per_cuda_stream; 
 
         local_expansions_slots = std::vector<struct_of_array_data<expansion, real, 20, ENTRIES,
             SOA_PADDING, std::vector<real, cuda_pinned_allocator<real>>>>(number_slots);
