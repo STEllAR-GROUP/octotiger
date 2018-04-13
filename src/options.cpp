@@ -57,7 +57,8 @@
 #define KERNEL_TYPE_OLD_OPT "OLD"
 #define KERNEL_TYPE_SOA_CPU_OPT "SOA_CPU"
 #define KERNEL_TYPE_SOA_CUDA_OPT "SOA_CUDA"
-#define CUDA_STREAMS_OPT "-Cuda_streams_per_thread"
+#define CUDA_STREAMS_LOCALITY_OPT "-Cuda_streams_per_locality"
+#define CUDA_STREAMS_GPU_OPT "-Cuda_streams_per_gpu"
 
 bool options::cmp(const char* str1, const char* str2) {
     return strncmp(str1, str2, strlen(str2)) == 0;
@@ -169,7 +170,8 @@ bool options::process_options(int argc, char* argv[]) {
     m2m_kernel_type = interaction_kernel_type::SOA_CPU;
     p2p_kernel_type = interaction_kernel_type::SOA_CPU;
     p2m_kernel_type = interaction_kernel_type::SOA_CPU;
-    cuda_streams_per_thread = 2;
+    cuda_streams_per_locality = 0;
+    cuda_streams_per_gpu = 0;
     for (integer i = 1; i < argc; ++i) {
         if (cmp(argv[i], HELP_OPT)) {
             rc = false;
@@ -313,8 +315,16 @@ bool options::process_options(int argc, char* argv[]) {
             } else {
                 std::cout << " Unknown option - using default SoA Vc instead" << std::endl;
             }
-		} else if (cmp(argv[i], CUDA_STREAMS_OPT)) {
-			cuda_streams_per_thread = atoi(argv[i] + strlen(CUDA_STREAMS_OPT) + 1);
+		} else if (cmp(argv[i], CUDA_STREAMS_LOCALITY_OPT)) {
+			cuda_streams_per_locality = atoi(argv[i] + strlen(CUDA_STREAMS_LOCALITY_OPT) + 1);
+            if (cuda_streams_per_gpu == 0)
+                cuda_streams_per_gpu = cuda_streams_per_locality;
+            std::cout << "Using " << cuda_streams_per_locality << " cuda streams per locality!" << std::endl;
+		} else if (cmp(argv[i], CUDA_STREAMS_GPU_OPT)) {
+			cuda_streams_per_gpu = atoi(argv[i] + strlen(CUDA_STREAMS_GPU_OPT) + 1);
+            if (cuda_streams_per_locality == 0)
+                cuda_streams_per_locality = cuda_streams_per_gpu;
+            std::cout << "Using " << cuda_streams_per_gpu << " cuda streams per gpu!" << std::endl;
         } else {
             printf("Unknown option - %s\n", argv[i]);
             abort();

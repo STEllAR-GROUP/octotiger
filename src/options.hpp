@@ -65,7 +65,8 @@ public:
     interaction_kernel_type m2m_kernel_type;
     interaction_kernel_type p2p_kernel_type;
     interaction_kernel_type p2m_kernel_type;
-    size_t cuda_streams_per_thread;
+    size_t cuda_streams_per_locality;
+    size_t cuda_streams_per_gpu;
 
     real driving_rate;
     real driving_time;
@@ -113,7 +114,8 @@ public:
         arc & m2m_kernel_type;
         arc & p2p_kernel_type;
         arc & p2m_kernel_type;
-        arc & cuda_streams_per_thread;
+        arc & cuda_streams_per_locality;
+        arc & cuda_streams_per_gpu;
     }
 
     bool process_options(int argc, char* argv[]);
