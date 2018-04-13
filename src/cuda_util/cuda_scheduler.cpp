@@ -10,7 +10,7 @@ namespace fmm {
     thread_local kernel_scheduler kernel_scheduler::scheduler;
     kernel_scheduler::kernel_scheduler(void)
       : number_cuda_streams_managed(0)
-      , slots_per_cuda_stream(0)    // Slots (queue per stream) is currently deactived
+      , slots_per_cuda_stream(1)    // Slots (queue per stream) is currently deactived
       , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
         // Determine what the scheduler has to manage
         const size_t total_worker_count = hpx::get_os_thread_count();
