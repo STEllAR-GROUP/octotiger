@@ -29,6 +29,48 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	real x, y, z;
 	integer iii, iiig;
 
+	if (opts.problem != DWD) {
+		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
+			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
+				for (integer l = H_BW; l != H_NX - H_BW; ++l) {
+
+					const integer iii = hindex(j, k, l);
+					real ek = ZERO;
+					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
+					ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
+					ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
+					real ei;
+					if (opts.eos == WD) {
+						ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
+					} else {
+						ei = U[egas_i][iii] - ek;
+					}
+					real et = U[egas_i][iii];
+					if (ei < de_switch2 * et) {
+						ei = std::pow(U[tau_i][iii], fgamma);
+					}
+					real p = (fgamma - 1.0) * ei;
+					if (opts.eos == WD) {
+						p += ztwd_pressure(U[rho_i][iii]);
+					}
+					rc.virial += (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+					rc.virial_norm += (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+					for (integer f = 0; f != NF; ++f) {
+						rc.grid_sum[f] += U[f][iii] * dV;
+					}
+					rc.grid_sum[egas_i] += 0.5 * U[pot_i][iii] * dV;
+					rc.grid_sum[zx_i] += (X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii]) * dV;
+					rc.grid_sum[zy_i] -= (X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii]) * dV;
+					rc.grid_sum[zz_i] += (X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii]) * dV;
+					rc.lsum[0] += (X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii]) * dV;
+					rc.lsum[1] -= (X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii]) * dV;
+					rc.lsum[2] += (X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii]) * dV;
+				}
+			}
+		}
+		return rc;
+	}
+
 	const auto is_loc = [this, diags](integer j, integer k, integer l) {
 		const integer iii = hindex(j,k,l);
 		const real ax = X[XDIM][iii] - diags.com[0][XDIM];
@@ -58,6 +100,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	};
 
 	const auto in_star = [&](integer j, integer k, integer l) {
+		if( opts.problem != DWD) {
+			return integer(0);
+		}
 		const integer iii = hindex(j,k,l);
 		const integer iiig = gindex(j-H_BW,k-H_BW,l-H_BW);
 		integer rc = 0;
@@ -1796,34 +1841,34 @@ void grid::reconstruct() {
 			continue;
 		}
 		real theta_x, theta_y, theta_z;
-	/*	if (opts.ang_con) {
-			theta_x = (field == sy_i || field == sz_i) ? opts.angmom_theta : 2.0;
-			theta_y = (field == sx_i || field == sz_i) ? opts.angmom_theta : 2.0;
-			theta_z = (field == sx_i || field == sy_i) ? opts.angmom_theta : 2.0;
-		} else {
-			theta_x = theta_y = theta_z = 2.0;
-		}
+		/*	if (opts.ang_con) {
+		 theta_x = (field == sy_i || field == sz_i) ? opts.angmom_theta : 2.0;
+		 theta_y = (field == sx_i || field == sz_i) ? opts.angmom_theta : 2.0;
+		 theta_z = (field == sx_i || field == sy_i) ? opts.angmom_theta : 2.0;
+		 } else {
+		 theta_x = theta_y = theta_z = 2.0;
+		 }
+		 std::vector<real> const& Vfield = V[field];
+		 #pragma GCC ivdep
+		 for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
+		 slpx[field][iii] = minmod_theta(Vfield[iii + H_DNX] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNX], theta_x);
+		 slpy[field][iii] = minmod_theta(Vfield[iii + H_DNY] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNY], theta_y);
+		 slpz[field][iii] = minmod_theta(Vfield[iii + H_DNZ] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNZ], theta_z);
+		 }*/
 		std::vector<real> const& Vfield = V[field];
 #pragma GCC ivdep
 		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-			slpx[field][iii] = minmod_theta(Vfield[iii + H_DNX] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNX], theta_x);
-			slpy[field][iii] = minmod_theta(Vfield[iii + H_DNY] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNY], theta_y);
-			slpz[field][iii] = minmod_theta(Vfield[iii + H_DNZ] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNZ], theta_z);
-		}*/
-		std::vector<real> const& Vfield = V[field];
-#pragma GCC ivdep
-		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
-			if( field == sy_i || field == sz_i ) {
+			if (field == sy_i || field == sz_i) {
 				slpx[field][iii] = vanleer(Vfield[iii + H_DNX] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNX]);
 			} else {
 				slpx[field][iii] = minmod_theta(Vfield[iii + H_DNX] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNX], 2.0);
 			}
-			if( field == sx_i || field == sz_i ) {
+			if (field == sx_i || field == sz_i) {
 				slpy[field][iii] = vanleer(Vfield[iii + H_DNY] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNY]);
 			} else {
 				slpy[field][iii] = minmod_theta(Vfield[iii + H_DNY] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNY], 2.0);
 			}
-			if( field == sx_i || field == sy_i ) {
+			if (field == sx_i || field == sy_i) {
 				slpz[field][iii] = vanleer(Vfield[iii + H_DNZ] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNZ]);
 			} else {
 				slpz[field][iii] = minmod_theta(Vfield[iii + H_DNZ] - Vfield[iii], Vfield[iii] - Vfield[iii - H_DNZ], 2.0);

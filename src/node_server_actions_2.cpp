@@ -130,6 +130,12 @@ analytic_t node_server::compare_analytic() {
 
 
 const diagnostics_t& diagnostics_t::compute() {
+	if( virial_norm != 0.0 ) {
+		virial /= virial_norm;
+	}
+	if( opts.problem != DWD ) {
+		return *this;
+	}
 	real dX[NDIM], V[NDIM];
 	for (integer d = 0; d != NDIM; ++d) {
 		dX[d] = com[1][d] - com[0][d];
@@ -159,53 +165,49 @@ const diagnostics_t& diagnostics_t::compute() {
 		tidal[s] /= std::pow(a,3.0);
 		tidal[s] *= m[1-s];
 	}
-	if( virial_norm != 0.0 ) {
-		virial /= virial_norm;
-	}
 	z_mom_orb = mu * sep2;
 	return *this;
 }
 
 diagnostics_t node_server::diagnostics() {
-	if( opts.problem != DWD ) {
-		return diagnostics_t();
-	}
+
 	diagnostics_t diags;
-	for( integer i = 1; i != 6; ++i) {
-	//	printf( "!\n");
+	for (integer i = 1; i != 6; ++i) {
+		//	printf( "!\n");
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
 		diags.grid_com = grid_ptr->center_of_mass();
-	//	printf( "%e\n", diags.m[0]);
+		//	printf( "%e\n", diags.m[0]);
 	}
 //	printf( "L1 = %e\n", diags.l1_phi);
 ///	printf( "L2 = %e\n", diags.l2_phi);
 //	printf( "L3 = %e\n", diags.l3_phi);
 
-	FILE* fp = fopen( "binary.dat", "at");
-	fprintf( fp, "%13e ", current_time);
-	fprintf( fp, "%13e ", diags.a);
-	fprintf( fp, "%13e ", diags.omega);
-	fprintf( fp, "%13e ", diags.jorb);
-	for( integer s = 0; s != 2; ++s) {
-		fprintf( fp, "%13e ", diags.m[s]);
-		fprintf( fp, "%13e ", diags.js[s]);
-		fprintf( fp, "%13e ", diags.rL[s]);
-		fprintf( fp, "%13e ", diags.gt[s]);
-		fprintf( fp, "%13e ", diags.z_moment[s]);
+	FILE* fp = fopen("binary.dat", "at");
+	fprintf(fp, "%13e ", current_time);
+	fprintf(fp, "%13e ", diags.a);
+	fprintf(fp, "%13e ", diags.omega);
+	fprintf(fp, "%13e ", diags.jorb);
+	for (integer s = 0; s != 2; ++s) {
+		fprintf(fp, "%13e ", diags.m[s]);
+		fprintf(fp, "%13e ", diags.js[s]);
+		fprintf(fp, "%13e ", diags.rL[s]);
+		fprintf(fp, "%13e ", diags.gt[s]);
+		fprintf(fp, "%13e ", diags.z_moment[s]);
 	}
-	fprintf( fp, "\n");
+	fprintf(fp, "\n");
 	fclose(fp);
-	fp = fopen( "sums.dat", "at");
-	fprintf( fp, "%.13e ", current_time);
-	for( integer i = 0; i != NF; ++i) {
-		fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
-		fprintf( fp, "%.13e ", diags.grid_out[i]);
+
+	fp = fopen("sums.dat", "at");
+	fprintf(fp, "%.13e ", current_time);
+	for (integer i = 0; i != NF; ++i) {
+		fprintf(fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
+		fprintf(fp, "%.13e ", diags.grid_out[i]);
 	}
-	for( integer i = 0; i != 3; ++i) {
-		fprintf( fp, "%.13e ", diags.lsum[i]);
+	for (integer i = 0; i != 3; ++i) {
+		fprintf(fp, "%.13e ", diags.lsum[i]);
 	}
-	fprintf( fp, "\n");
+	fprintf(fp, "\n");
 	fclose(fp);
 	return diags;
 }
