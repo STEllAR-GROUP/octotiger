@@ -114,12 +114,12 @@ namespace fmm {
                 local_stream_id++;
                 cur_slot++;
                 if (cur_slot >= slots_per_cuda_stream) {
-                    util::cuda_helper::cuda_error(cudaThreadSynchronize());
+                    //util::cuda_helper::cuda_error(cudaThreadSynchronize());
                     cur_slot = 0;
                     cur_interface++;
                 }
             }
-            util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            //util::cuda_helper::cuda_error(cudaThreadSynchronize());
         }
     }
 
