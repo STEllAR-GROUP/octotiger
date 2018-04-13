@@ -31,9 +31,10 @@ namespace fmm {
         const int accumulated_offset = worker_id < remaining_streams ? worker_id : remaining_streams;
         const int worker_stream_id = worker_id * number_of_streams_managed +
         accumulated_offset;
-        const int gpu_id = (worker_stream_id + local_stream_id) / streams_per_gpu;
+        const int gpu_id = (worker_stream_id) / streams_per_gpu;
         std::cout << "Worker " << worker_id << " uses gpu " << gpu_id << std::endl;
         number_of_streams_managed += offset;
+        number_cuda_streams_managed = number_of_streams_managed;
 
         local_expansions_slots = std::vector<struct_of_array_data<expansion, real, 20, ENTRIES,
             SOA_PADDING, std::vector<real, cuda_pinned_allocator<real>>>>(number_slots);
