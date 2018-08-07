@@ -32,9 +32,9 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 	}
 	bool rc = false;
 	std::array<hpx::future<void>, NCHILD + 1> futs;
-    for( integer i = 0; i != NCHILD + 1; ++i) {
-         futs[i] = hpx::make_ready_future();
-    }
+        for( integer i = 0; i != NCHILD + 1; ++i) {
+           futs[i] = hpx::make_ready_future();
+        }
 	integer index = 0;
 	if (is_refined) {
 		for (auto& child : children) {
@@ -183,30 +183,38 @@ diagnostics_t node_server::diagnostics() {
 //	printf( "L3 = %e\n", diags.l3_phi);
 
 	FILE* fp = fopen( "binary.dat", "at");
-	fprintf( fp, "%13e ", current_time);
-	fprintf( fp, "%13e ", diags.a);
-	fprintf( fp, "%13e ", diags.omega);
-	fprintf( fp, "%13e ", diags.jorb);
-	for( integer s = 0; s != 2; ++s) {
-		fprintf( fp, "%13e ", diags.m[s]);
-		fprintf( fp, "%13e ", diags.js[s]);
-		fprintf( fp, "%13e ", diags.rL[s]);
-		fprintf( fp, "%13e ", diags.gt[s]);
-		fprintf( fp, "%13e ", diags.z_moment[s]);
+	if( fp ) {
+		fprintf( fp, "%13e ", current_time);
+		fprintf( fp, "%13e ", diags.a);
+		fprintf( fp, "%13e ", diags.omega);
+		fprintf( fp, "%13e ", diags.jorb);
+		for( integer s = 0; s != 2; ++s) {
+			fprintf( fp, "%13e ", diags.m[s]);
+			fprintf( fp, "%13e ", diags.js[s]);
+			fprintf( fp, "%13e ", diags.rL[s]);
+			fprintf( fp, "%13e ", diags.gt[s]);
+			fprintf( fp, "%13e ", diags.z_moment[s]);
+		}
+		fprintf( fp, "\n");
+		fclose(fp);
+	} else {
+		printf( "Failed to write binary.dat\n");
 	}
-	fprintf( fp, "\n");
-	fclose(fp);
-	fp = fopen( "sums.dat", "at");
-	fprintf( fp, "%.13e ", current_time);
-	for( integer i = 0; i != NF; ++i) {
-		fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
-		fprintf( fp, "%.13e ", diags.grid_out[i]);
+	if( fp ) {
+		fp = fopen( "sums.dat", "at");
+		fprintf( fp, "%.13e ", current_time);
+		for( integer i = 0; i != NF; ++i) {
+			fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
+			fprintf( fp, "%.13e ", diags.grid_out[i]);
+		}
+		for( integer i = 0; i != 3; ++i) {
+			fprintf( fp, "%.13e ", diags.lsum[i]);
+		}
+		fprintf( fp, "\n");
+		fclose(fp);
+	} else {
+		printf( "Failed to write sums.dat\n");
 	}
-	for( integer i = 0; i != 3; ++i) {
-		fprintf( fp, "%.13e ", diags.lsum[i]);
-	}
-	fprintf( fp, "\n");
-	fclose(fp);
 	return diags;
 }
 

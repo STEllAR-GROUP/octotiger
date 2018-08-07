@@ -90,6 +90,21 @@ public:
 class direction: public geo_type {
 	static constexpr integer _count = 26;
 public:
+	operator std::string() const {
+		std::string str;
+		for( int d = 0; d < NDIM; d++ ) {
+			if( (*this)[d] == 0 ) {
+				str += std::string(" 0");
+			}
+			else if( (*this)[d] == +1 ) {
+				str += std::string("+1");
+			}
+			else if( (*this)[d] == -1 ) {
+				str += std::string("-1");
+			}
+		}
+		return str;
+	}
 	direction() = default;
 	constexpr direction(integer j) :
 			geo_type(j) {
@@ -109,10 +124,10 @@ public:
 		return 0;
 	}
 	bool is_vertex() const {
-		return std::abs((*this)[0]) + std::abs((*this)[1]) + std::abs((*this)[2]) == 3;
+		return (std::abs((*this)[0]) + std::abs((*this)[1]) + std::abs((*this)[2])) == 3;
 	}
 	bool is_face() const {
-		return std::abs((*this)[0]) + std::abs((*this)[1]) + std::abs((*this)[2]) == 1;
+		return (std::abs((*this)[0]) + std::abs((*this)[1]) + std::abs((*this)[2])) == 1;
 	}
 	face to_face() const {
 		if (!is_face()) {
