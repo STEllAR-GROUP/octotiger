@@ -340,6 +340,7 @@ void node_server::start_run(bool scf, integer ngrids)
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             printf("dwd step...\n");
             auto dt = step(next_step - step_num).get();
+            printf("diagnostics...\n");
             auto diags = diagnostics();
             omega = grid::get_omega();
 
@@ -351,6 +352,7 @@ void node_server::start_run(bool scf, integer ngrids)
                 - diags.com_dot[0][YDIM];
             theta = atan2(dy, dx);
             omega = grid::get_omega();
+
             printf( "Old Omega = %e\n", omega );
            if( opts.vomega ) {
             	theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;

@@ -26,6 +26,27 @@ extern options opts;
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
 
+node_list_type node_server::node_list;
+hpx::mutex node_server::node_list_mtx;
+
+void node_server::node_list_add(const node_location& loc, node_server* ptr) {
+	std::lock_guard<hpx::mutex> lock(node_list_mtx);
+	node_list.insert(std::make_pair(loc,ptr));
+}
+
+void node_server::node_list_remove(const node_location& loc) {
+	std::lock_guard<hpx::mutex> lock(node_list_mtx);
+	node_list.erase(loc);
+}
+
+void node_server::check_for_refinement2(real a,real b) {
+	std::lock_guard<hpx::mutex> lock(node_list_mtx);
+	for( auto&& ptr : node_list ) {
+		ptr.second->check_for_refinement(a,b);
+	}
+}
+
+
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 #ifdef FIND_AXIS_V2
@@ -442,6 +463,7 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
+//	node_list_add(my_location,this);
 	for (auto const& dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
@@ -472,6 +494,10 @@ void node_server::initialize(real t, real rt) {
 	if (my_location.level() == 0) {
 		grid_ptr->set_root();
 	}
+}
+
+node_server::~node_server() {
+//	node_list_remove(my_location);
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num,

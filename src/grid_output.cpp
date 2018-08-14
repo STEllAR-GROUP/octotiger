@@ -182,6 +182,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 					data[OUTPUT_COUNT - 1].push_back(roche_lobe[h0index(i - H_BW, j - H_BW, k - H_BW)]);
 				} else {
 					data[OUTPUT_COUNT - 1].push_back(0.0);
+
 				}
 			}
 		}

@@ -18,6 +18,7 @@
 //#include "struct_eos.hpp"
 #include "profiler.hpp"
 #include "rad_grid.hpp"
+#include <map>
 
 #include <array>
 #include <atomic>
@@ -31,8 +32,18 @@
 #include "interaction_types.hpp"
 #include "monopole_interactions/monopole_interaction_interface.hpp"
 #include "multipole_interactions/multipole_interaction_interface.hpp"
+using node_list_type = std::map<node_location, node_server*>;
 
 class node_server: public hpx::components::managed_component_base<node_server> {
+    
+    static node_list_type node_list;
+    static hpx::mutex node_list_mtx;
+
+    static void node_list_add(const node_location&, node_server*);
+    static void node_list_remove(const node_location&);
+
+    static void check_for_refinement2(real,real);
+
 public:
     static void set_gravity(bool b) {
         gravity_on = b;
@@ -66,7 +77,7 @@ private:
     std::shared_ptr<rad_grid> rad_grid_ptr; //
 #endif
     bool is_refined;
-   std::array<integer, NVERTEX> child_descendant_count;
+    std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
     real dx;
 
@@ -92,9 +103,9 @@ private:
     hpx::lcos::local::spinlock prolong_mtx;
     channel<expansion_pass_type> parent_gravity_channel;
     std::array<semaphore, geo::direction::count()> neighbor_signals;
-    std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
-    std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
-    std::array<channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
+    std::array<unordered_channel<std::vector<real>>, NCHILD> child_hydro_channels;
+    std::array<unordered_channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
+    std::array<unordered_channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
     std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
     std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
     channel<real> global_timestep_channel;
@@ -179,12 +190,12 @@ public:
    node_server() {
 	    initialize(ZERO, ZERO);
     }
-	~node_server() {}
-	node_server(const node_server& other);
+	~node_server();
+//	node_server(const node_server& other);
 	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
 			std::size_t);
-	node_server(node_server&& other) = default;
+//	node_server(node_server&& other) = default;
 
 
     void report_timing();
@@ -218,12 +229,12 @@ public:
     void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
-	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
-	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
+    void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
 
-	void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
-	void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
-	void recv_gravity_expansions(expansion_pass_type&&);
+    void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
+    void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
+    void recv_gravity_expansions(expansion_pass_type&&);
 
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
@@ -299,7 +310,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
 
     scf_data_t scf_params();
     HPX_DEFINE_COMPONENT_ACTION(node_server, scf_params, scf_params_action);
