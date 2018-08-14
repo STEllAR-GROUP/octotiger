@@ -312,7 +312,7 @@ struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, rea
 		f_C = icd;
 		f_E = icd / mu;
 		initialize(m, r, cm);
-//		printf( "%e %e %e\n", icd, cm/m, core_frac);
+		printf( "%e %e %e\n", icd, cm, core_frac*m);
 			return cm - core_frac*m;
 		};
 	auto _func = std::function < real(real) > (func);

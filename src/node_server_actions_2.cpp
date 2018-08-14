@@ -195,6 +195,8 @@ diagnostics_t node_server::diagnostics() {
 			fprintf( fp, "%13e ", diags.gt[s]);
 			fprintf( fp, "%13e ", diags.z_moment[s]);
 		}
+		fprintf( fp, "%13e ", diags.rho_max[0]);
+		fprintf( fp, "%13e ", diags.rho_max[1]);
 		fprintf( fp, "\n");
 		fclose(fp);
 	} else {
