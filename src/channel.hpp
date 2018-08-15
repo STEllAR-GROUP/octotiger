@@ -9,7 +9,7 @@
 #define CHANNEL_HPP_
 
 
-#define DEBUG_CHANNEL
+//#define DEBUG_CHANNEL
 
 
 #include "defs.hpp"
