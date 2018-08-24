@@ -22,6 +22,11 @@ hpx::future<void> node_client::check_for_refinement(real omega, real r) const {
 }
 
 void node_server::check_for_refinement(real omega, real new_floor) {
+    bool root = my_location.level() == 0;
+    int iii = 0;
+    if( root ) printf( "refinement - %i\n", iii++ );
+
+
 	static hpx::mutex mtx;
 	{
 		std::lock_guard<hpx::mutex> lock(mtx);
@@ -36,17 +41,29 @@ void node_server::check_for_refinement(real omega, real new_floor) {
            futs[i] = hpx::make_ready_future();
         }
 	integer index = 0;
+
+    if( root ) printf( "refinement - %i\n", iii++ );
+
 	if (is_refined) {
 		for (auto& child : children) {
 			futs[index++] = child.check_for_refinement(omega, new_floor);
 		}
 	}
+
+    if( root ) printf( "refinement - %i\n", iii++ );
+
 	if (hydro_on) {
 		all_hydro_bounds();
 	}
+
+    if( root ) printf( "refinement - %i\n", iii++ );
+
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
 	}
+
+    if( root ) printf( "refinement - %i\n", iii++ );
+
 	if (rc) {
 		if (refinement_flag++ == 0) {
 			if (!parent.empty()) {
@@ -54,9 +71,15 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			}
 		}
 	}
+
+    if( root ) printf( "refinement - %i\n", iii++ );
+
 	for( auto& f : futs ) {
 		f.get();
 	}
+
+    if( root ) printf( "refinement - %i\n", iii++ );
+
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
@@ -264,6 +287,7 @@ hpx::future<void> node_client::force_nodes_to_exist(std::vector<node_location>&&
 void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 	std::vector<hpx::future<void>> futs;
 	std::vector<node_location> parent_list;
+	std::array<std::vector<node_location>,geo::direction::count()> sibling_lists;
 	std::vector<std::vector<node_location>> child_lists(NCHILD);
 
 	futs.reserve(geo::octant::count() + 2);
@@ -289,12 +313,27 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 			}
 		} else {
 			assert(!parent.empty());
-			parent_list.push_back(loc);
+			bool found_match = false;
+			for( auto& di : geo::direction::full_set()) {
+				if( loc.is_child_of(my_location.get_neighbor(di)) && !neighbors[di].empty()) {
+					sibling_lists[di].push_back(loc);
+					found_match = true;
+					break;
+				}
+			}
+			if( !found_match ) {
+				parent_list.push_back(loc);
+			}
 		}
 	}
 	for (auto& ci : geo::octant::full_set()) {
 		if (is_refined && child_lists[ci].size()) {
 			futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));
+		}
+	}
+	for( auto& di : geo::direction::full_set()) {
+		if (sibling_lists[di].size()) {
+			futs.push_back(neighbors[di].force_nodes_to_exist(std::move(sibling_lists[di])));
 		}
 	}
 	if (parent_list.size()) {

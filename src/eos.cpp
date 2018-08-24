@@ -312,8 +312,8 @@ struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, rea
 		f_C = icd;
 		f_E = icd / mu;
 		initialize(m, r, cm);
-		printf( "%e %e %e\n", icd, cm, core_frac*m);
-			return cm - core_frac*m;
+//		printf( "%e %e %e\n", icd, cm, core_frac*m);
+		return cm - core_frac*m;
 		};
 	auto _func = std::function < real(real) > (func);
 	if (!find_root(_func, 0.0, 1.0, interface_core_density, 1.0e-3)) {
