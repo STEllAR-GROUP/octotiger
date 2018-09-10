@@ -31,7 +31,7 @@ hpx::mutex node_server::node_list_mtx;
 
 void node_server::node_list_add(const node_location& loc, node_server* ptr) {
 	std::lock_guard<hpx::mutex> lock(node_list_mtx);
-	node_list.insert(std::make_pair(loc,ptr));
+	node_list.insert(std::make_pair(loc, ptr));
 }
 
 void node_server::node_list_remove(const node_location& loc) {
@@ -39,13 +39,12 @@ void node_server::node_list_remove(const node_location& loc) {
 	node_list.erase(loc);
 }
 
-void node_server::check_for_refinement2(real a,real b) {
+void node_server::check_for_refinement2(real a, real b) {
 	std::lock_guard<hpx::mutex> lock(node_list_mtx);
-	for( auto&& ptr : node_list ) {
-		ptr.second->check_for_refinement(a,b);
+	for (auto&& ptr : node_list) {
+		ptr.second->check_for_refinement(a, b);
 	}
 }
-
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
@@ -54,7 +53,7 @@ std::array<std::pair<real,space_vector>,2> node_server::find_axis_tool() const {
 	std::array<std::pair<real,space_vector>,2> rc;
 	if( is_refined ) {
 		rc[0].first = rc[1].first = 0.0;
-		std::vector<hpx::future<std::array<std::pair<real,space_vector>,2>>> futs;
+		std::vector<future<std::array<std::pair<real,space_vector>,2>>> futs;
 		futs.reserve(NCHILD);
 		for( integer ci = 0; ci != NCHILD; ++ci) {
 			futs.push_back(children[ci].find_axis_tool());
@@ -78,7 +77,7 @@ std::array<std::pair<real,space_vector>,2> node_server::find_axis_tool() const {
 typedef node_server::find_axis_tool_action find_axis_tool_action_type;
 HPX_REGISTER_ACTION(find_axis_tool_action_type);
 
-hpx::future<std::array<std::pair<real,space_vector>,2>> node_client::find_axis_tool() const {
+future<std::array<std::pair<real,space_vector>,2>> node_client::find_axis_tool() const {
 	return hpx::async<typename node_server::find_axis_tool_action>(get_unmanaged_gid());
 }
 
@@ -107,7 +106,7 @@ std::atomic<integer> node_server::static_initializing(0);
 bool node_server::hydro_on = true;
 bool node_server::gravity_on = true;
 
-hpx::future<void> node_server::check_flux_consistency() {
+future<void> node_server::check_flux_consistency() {
 	const integer this_cycle = hcycle ^ 0xFFFFFFFF;
 	for (auto const& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty() && dir.is_face()) {
@@ -118,25 +117,24 @@ hpx::future<void> node_server::check_flux_consistency() {
 		}
 	}
 
-	std::vector<hpx::future<void>> results;
+	std::vector<future<void>> results;
 	integer index = 0;
 	for (auto const& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty() && dir.is_face()) {
 			if (!nieces[dir.to_face()]) {
 				results.push_back(
-						sibling_hydro_channels[dir].get_future(this_cycle).then(
-								[this](hpx::future<sibling_hydro_type> && f) -> void
-								{
-									auto&& tmp = f.get();
-									grid_ptr->set_flux_check(tmp.data, tmp.direction.to_face());
-								}));
+						sibling_hydro_channels[dir].get_future(this_cycle).then([this](future<sibling_hydro_type> && f) -> void
+						{
+							auto&& tmp = GET(f);
+							grid_ptr->set_flux_check(tmp.data, tmp.direction.to_face());
+						}));
 			}
 		}
 	}
-	return hpx::when_all(std::move(results)).then([this](hpx::future<std::vector<hpx::future<void>>> f) {
-		auto f2 = f.get();
+	return hpx::when_all(std::move(results)).then([this](future<std::vector<future<void>>> f) {
+		auto f2 = GET(f);
 		for( integer i = 0; i != f2.size(); ++i) {
-			f2[i].get();
+			GET(f2[i]);
 		}
 		//			++hcycle;
 		});
@@ -151,7 +149,7 @@ real node_server::get_rotation_count() const {
 	}
 }
 
-hpx::future<void> node_server::exchange_flux_corrections() {
+future<void> node_server::exchange_flux_corrections() {
 	const geo::octant ci = my_location.get_child_index();
 	constexpr auto full_set = geo::face::full_set();
 	for (auto& f : full_set) {
@@ -173,7 +171,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 	}
 
 	constexpr integer size = geo::face::count() * geo::quadrant::count();
-	std::array<hpx::future<void>, size> futs;
+	std::array<future<void>, size> futs;
 	for (auto& f : futs) {
 		f = hpx::make_ready_future();
 	}
@@ -182,7 +180,7 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 		if (this->nieces[f] == +1) {
 			for (auto const& quadrant : geo::quadrant::full_set()) {
 				futs[index++] = niece_hydro_channels[f][quadrant].get_future().then(
-						hpx::util::annotated_function([this, f, quadrant](hpx::future<std::vector<real> > && fdata) -> void
+						hpx::util::annotated_function([this, f, quadrant](future<std::vector<real> > && fdata) -> void
 						{
 							const auto face_dim = f.get_dimension();
 							std::array<integer, NDIM> lb, ub;
@@ -212,15 +210,15 @@ hpx::future<void> node_server::exchange_flux_corrections() {
 								ub[ZDIM] = lb[ZDIM] + 1;
 								break;
 							}
-							grid_ptr->set_flux_restrict(fdata.get(), lb, ub, face_dim);
+							grid_ptr->set_flux_restrict(GET(fdata), lb, ub, face_dim);
 						}, "node_server::exchange_flux_corrections::set_flux_restrict"));
 			}
 		}
 	}
-	return hpx::when_all(std::move(futs)).then([](hpx::future<decltype(futs)> fout) {
-		auto fin = fout.get();
+	return hpx::when_all(std::move(futs)).then([](future<decltype(futs)> fout) {
+		auto fin = GET(fout);
 		for( auto& f : fin ) {
-			f.get();
+			GET(f);
 		}
 	});
 }
@@ -232,12 +230,14 @@ void node_server::all_hydro_bounds(bool tau_only) {
 	++hcycle;
 }
 
+
 void node_server::exchange_interlevel_hydro_data() {
 
 	if (is_refined) {
 		std::vector<real> outflow(NF, ZERO);
 		for (auto const& ci : geo::octant::full_set()) {
-			auto data = child_hydro_channels[ci].get_future(hcycle).get();
+			//			auto data = child_hydro_channels[ci].get_future(hcycle).get();
+			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
 			grid_ptr->set_restrict(data, ci);
 			integer fi = 0;
 			for (auto i = data.end() - NF; i != data.end(); ++i) {
@@ -263,14 +263,15 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 		}
 	}
 
-	std::array<hpx::future<void>, geo::direction::count()> results;
+	std::array<future<void>, geo::direction::count()> results;
 	integer index = 0;
 	for (auto const& dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
-					hpx::util::annotated_function([this, tau_only](hpx::future<sibling_hydro_type> && f) -> void
+					hpx::util::annotated_function([this, tau_only](future<sibling_hydro_type> && f) -> void
 					{
-						auto&& tmp = f.get();
+//						auto&& tmp = f.get();
+						auto&& tmp = GET(f);
 						grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
 								H_BW, tau_only);
 					}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
@@ -279,7 +280,10 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 	while (index < geo::direction::count()) {
 		results[index++] = hpx::make_ready_future();
 	}
-	wait_all_and_propagate_exceptions(std::move(results));
+//	wait_all_and_propagate_exceptions(std::move(results));
+	for( auto& f : results ) {
+		GET(f);
+	}
 
 	for (auto& face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
@@ -472,9 +476,9 @@ void node_server::initialize(real t, real rt) {
 	}
 	if (current_time == ZERO) {
 		const auto p = get_problem();
-		grid_ptr = std::make_shared < grid > (p, dx, xmin);
+		grid_ptr = std::make_shared<grid>(p, dx, xmin);
 	} else {
-		grid_ptr = std::make_shared < grid > (dx, xmin);
+		grid_ptr = std::make_shared<grid>(dx, xmin);
 	}
 #ifdef RADIATION
 	rad_grid_ptr = grid_ptr->get_rad_grid();
@@ -510,7 +514,7 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 	current_time = _current_time;
 	rotational_time = _rotational_time;
 //     grid test;
-	grid_ptr = std::make_shared < grid > (std::move(_grid));
+	grid_ptr = std::make_shared<grid>(std::move(_grid));
 	if (is_refined) {
 		std::copy(_c.begin(), _c.end(), children.begin());
 	}
@@ -522,7 +526,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		return;
 	}
 
-	hpx::future<void> parent_fut;
+	future<void> parent_fut;
 	if (energy_account) {
 		//	printf( "!\n");
 		grid_ptr->egas_to_etot();
@@ -538,17 +542,17 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	}
 
 	if (is_refined) {
-		std::array<hpx::future<void>, geo::octant::count()> futs;
+		std::array<future<void>, geo::octant::count()> futs;
 		integer index = 0;
 		for (auto& ci : geo::octant::full_set()) {
-			hpx::future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
+			future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
 
-			futs[index++] = m_in_future.then(hpx::util::annotated_function([&m_out, ci](hpx::future<multipole_pass_type>&& fut)
+			futs[index++] = m_in_future.then(hpx::util::annotated_function([&m_out, ci](future<multipole_pass_type>&& fut)
 			{
 				const integer x0 = ci.get_side(XDIM) * INX / 2;
 				const integer y0 = ci.get_side(YDIM) * INX / 2;
 				const integer z0 = ci.get_side(ZDIM) * INX / 2;
-				auto m_in = fut.get();
+				auto m_in = GET(fut);
 				for (integer i = 0; i != INX / 2; ++i) {
 					for (integer j = 0; j != INX / 2; ++j) {
 						for (integer k = 0; k != INX / 2; ++k) {
@@ -561,7 +565,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 				}
 			}, "node_server::compute_fmm::gather_from::child_gravity_channels"));
 		}
-		wait_all_and_propagate_exceptions(std::move(futs));
+//		wait_all_and_propagate_exceptions(std::move(futs));
+	    for( auto& f : futs ) {
+	    	GET(f);
+	    }
+
 		m_out = grid_ptr->compute_multipoles(type, &m_out);
 	} else {
 		m_out = grid_ptr->compute_multipoles(type);
@@ -573,7 +581,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 	if (!aonly) {
 
-		std::vector<hpx::future<void>> send_futs;
+		std::vector<future<void>> send_futs;
 		for (auto const& dir : geo::direction::full_set()) {
 			if (!neighbors[dir].empty()) {
 				auto ndir = dir.flip();
@@ -593,14 +601,14 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 		grid_ptr->compute_interactions(type);
 #ifdef USE_GRAV_PAR
-		std::array<hpx::future<void>, geo::direction::count()> boundary_futs;
+		std::array<future<void>, geo::direction::count()> boundary_futs;
 		integer index = 0;
 		for (auto const& dir : geo::direction::full_set()) {
 			if (!neighbors[dir].empty()) {
 				auto f = neighbor_gravity_channels[dir].get_future(gcycle);
 				boundary_futs[index++] = f.then(
 						hpx::util::annotated_function(
-								[this, type](hpx::future<neighbor_gravity_type> fut)
+								[this, type](future<neighbor_gravity_type> fut)
 								{
 									auto && tmp = fut.get();
 									grid_ptr->compute_boundary_interactions(type,
@@ -614,10 +622,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			boundary_futs[index++] = hpx::make_ready_future();
 		}
 		wait_all_and_propagate_exceptions(boundary_futs);
+
 #else
 		for (auto const& dir : geo::direction::full_set()) {
 			if (!neighbors[dir].empty()) {
-				auto tmp = neighbor_gravity_channels[dir].get_future(gcycle).get();
+				auto tmp = GET(neighbor_gravity_channels[dir].get_future(gcycle));
 				auto signal = tmp.data.local_semaphore;
 				grid_ptr->compute_boundary_interactions(type, tmp.direction, tmp.is_monopole, tmp.data);
 				if (signal != nullptr) {
@@ -630,7 +639,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 		expansion_pass_type l_in;
 		if (my_location.level() != 0) {
-			l_in = parent_gravity_channel.get_future().get();
+			l_in = GET(parent_gravity_channel.get_future());
 		}
 		const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
 

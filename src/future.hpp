@@ -14,8 +14,13 @@
 #include <array>
 #include <vector>
 
+//template<class T>
+//using future = hpx::future<T>;
 
 
+
+template<class T>
+using future = hpx::future<T>;
 
 
 /*
@@ -63,23 +68,60 @@ inline void propagate_exceptions(std::array<hpx::future<T>, N> const& futs)
         propagate_exceptions(f);
 }*/
 
-template <typename Ts>
-inline void wait_all_and_propagate_exceptions(Ts&& futs)
-{
-    for( auto& f : futs ) {
-    	if( !f.valid()) {
-    		printf( "INVALID FUTURE\n");
-    		abort();
-    	}
-    }
-    hpx::wait_all(futs);
-    for( auto& f : futs ) {
-    	f.get();
-    }
+//template <typename Ts>
+//inline void wait_all_and_propagate_exceptions(Ts&& futs)
+//{
+ //   for( auto& f : futs ) {
+  //  	if( !f.valid()) {
+   // 		printf( "INVALID FUTURE\n");
+   // 		abort();
+   // 	}
+   // }
+    //hpx::wait_all(futs);
+   // for( auto& f : futs ) {
+  //  	f.get();
+  //  }
   /*  int const sequencer[] = {
         0, (propagate_exceptions(futs), 0) ...
     };
     (void)sequencer;*/
+//}
+
+
+
+template<class T>
+inline T debug_get(future<T> & f, const char* file, int line) {
+	constexpr int timeout = 60;
+	int count = 0;
+	while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
+		count++;
+		printf("future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
+	}
+	return f.get();
 }
+
+
+template<class T>
+inline T debug_get(future<T> && _f, const char* file, int line) {
+	future<T> f = std::move(_f);
+	return debug_get(f, file, line);
+}
+
+
+template<class T>
+inline T debug_get(const hpx::shared_future<T> & f, const char* file, int line) {
+	constexpr int timeout = 60;
+	int count = 0;
+	while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
+		count++;
+		printf("shared_future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
+	}
+	return f.get();
+}
+
+
+
+#define GET(fut) debug_get(fut,__FILE__,__LINE__)
+
 
 #endif /* FUTURE_HPP_ */

@@ -27,11 +27,6 @@ using used_cycles_t = std::unordered_set<std::size_t>;
 template<class T>
 class unordered_channel {
 private:
-#ifdef DEBUG_CHANNEL
-	used_cycles_t cycles_set;
-	used_cycles_t cycles_got;
-	hpx::mutex mtx;
-#endif
 	hpx::lcos::local::receive_buffer<T> buffer;
 
 public:
@@ -46,36 +41,10 @@ public:
 
 
 	void set_value(T value, std::size_t cycle) {
-#ifdef DEBUG_CHANNEL
-		{
-			std::lock_guard<hpx::mutex> lock(mtx);
-			if( cycles_set.find(cycle) == cycles_set.end() ) {			
-				cycles_set.insert(cycle);
-			} else {
-				printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-				printf( "Tried to set same channel<%s> twice on cycle %i\n", typeid(T).name(), int(cycle) );
-				printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-				abort();
-			}
-		}
-#endif
 		buffer.store_received(cycle, std::move(value));
 	}
 
 	hpx::future<T> get_future(std::size_t cycle) {
-#ifdef DEBUG_CHANNEL
-		{
-			std::lock_guard<hpx::mutex> lock(mtx);
-			if( cycles_got.find(cycle) == cycles_got.end() ) {			
-				cycles_got.insert(cycle);
-			} else {
-				printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-				printf( "Tried to get same channel<%s> twice on cycle %i\n", typeid(T).name(), int(cycle) );
-				printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-				abort();
-			}
-		}
-#endif
 		return buffer.receive(cycle);
 	}
 };
@@ -112,3 +81,4 @@ public:
 
 
 #endif /* CHANNEL_HPP_ */
+
