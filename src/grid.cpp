@@ -1451,9 +1451,9 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					const real rhoinv = 1.0 / rho;
 
 					if (opts.eos == WD) {
-						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii])) * rhoinv;
+						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii]));// * rhoinv;
 					} else {
-						V[egas_i][iii] = (U[egas_i][iii]) * rhoinv;
+						V[egas_i][iii] = (U[egas_i][iii]);// * rhoinv;
 					}
 					for (integer si = 0; si != NSPECIES; ++si) {
 						V[spc_i + si][iii] = U[spc_i + si][iii] * rhoinv;
@@ -1464,7 +1464,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					for (integer d = 0; d != NDIM; ++d) {
 						auto& v = V[sx_i + d][iii];
 						v = U[sx_i + d][iii] * rhoinv;
-						V[egas_i][iii] -= 0.5 * v * v;
+						V[egas_i][iii] -= 0.5 * v /** v;*/ * U[sx_i + d][iii];
 						if (opts.ang_con) {
 							V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
 						} else {
@@ -1489,14 +1489,14 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[rho_i][iii] = U[rho_i][iii];
 					const real rhoinv = 1.0 / V[rho_i][iii];
 					if (opts.eos == WD) {
-						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii])) * rhoinv;
+						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii]));// * rhoinv;
 					} else {
-						V[egas_i][iii] = (U[egas_i][iii]) * rhoinv;
+						V[egas_i][iii] = (U[egas_i][iii]);// * rhoinv;
 					}
 					for (integer d = 0; d != NDIM; ++d) {
 						auto& v = V[sx_i + d][iii];
 						v = U[sx_i + d][iii] * rhoinv;
-						V[egas_i][iii] -= 0.5 * v * v;
+						V[egas_i][iii] -= 0.5 * v /** v;*/ * U[sx_i + d][iii];
 						if (opts.ang_con) {
 							V[zx_i + d][iii] = U[zx_i + d][iii] * rhoinv;
 						}
@@ -1615,7 +1615,8 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 						if (node_server::is_gravity_on()) {
 							dU[pot_i][iii] = V[pot_i][iii] * dV[rho_i][iii] + dV[pot_i][iii] * V[rho_i][iii];
 						}
-						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
+						//						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
+   					    dU[egas_i][iii] = dV[egas_i][iii];
 						for (integer d1 = 0; d1 != NDIM; ++d1) {
 							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii] + dV[sx_i + d1][iii] * V[rho_i][iii];
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
@@ -1639,7 +1640,8 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 #pragma GCC ivdep
 					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 						const integer iii = hindex(i, j, k);
-						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
+						//						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
+						dU[egas_i][iii] = dV[egas_i][iii];
 						for (integer d1 = 0; d1 != NDIM; ++d1) {
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
 							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
@@ -2059,7 +2061,7 @@ void grid::reconstruct() {
 		}
 	}
 	for (integer field = 0; field != NF; ++field) {
-		if (field != rho_i && field != tau_i) {
+		if (field != rho_i && field != tau_i && field != egas_i) {
 #pragma GCC ivdep
 			for (integer face = 0; face != NFACE; ++face) {
 				std::vector<real>& Uffacefield = Uf[face][field];

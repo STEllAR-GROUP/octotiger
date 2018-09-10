@@ -181,6 +181,13 @@ set(silo_cmp_source_files
 )
 set(silo_cmp_header_files)
 
+
+set(analysis_dependencies ${Silo_LIBRARY})
+set(analysis_source_files
+    analysis/analysis_cmp.cpp
+)
+set(analysis_cmp_header_files)
+
 add_hpx_executable(
   octotiger
   DEPENDENCIES
@@ -202,6 +209,17 @@ add_hpx_executable(
     ${silo_cmp_source_files}
   HEADERS
     ${silo_cmp_header_files}
+  FOLDER  "Octotiger"
+)
+
+add_hpx_executable(
+  silocmp
+  DEPENDENCIES
+    ${analysis_cmp_dependencies}
+  SOURCES
+    ${analysis_source_files}
+  HEADERS
+    ${analysis_header_files}
   FOLDER  "Octotiger"
 )
 

@@ -292,4 +292,7 @@ std::size_t read(std::istream& strm, T* t, std::size_t size)
     return sizeof(T) * size;
 }
 
+#include "future.hpp"
+
+
 #endif /* TYPES_HPP_ */
