@@ -22,9 +22,9 @@ future<void> node_client::check_for_refinement(real omega, real r) const {
 }
 
 void node_server::check_for_refinement(real omega, real new_floor) {
-    bool root = my_location.level() == 0;
-    int iii = 0;
-    if( root ) printf( "refinement - %i\n", iii++ );
+  //  bool root = my_location.level() == 0;
+  //  int iii = 0;
+   // if( root ) printf( "refinement - %i\n", iii++ );
 
 
 	static hpx::mutex mtx;
@@ -42,7 +42,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
         }
 	integer index = 0;
 
-    if( root ) printf( "refinement - %i\n", iii++ );
+    // if(root ) printf( "refinement - %i\n", iii++ );
 
 	if (is_refined) {
 		for (auto& child : children) {
@@ -50,19 +50,19 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 		}
 	}
 
-    if( root ) printf( "refinement - %i\n", iii++ );
+    // if(root ) printf( "refinement - %i\n", iii++ );
 
 	if (hydro_on) {
 		all_hydro_bounds();
 	}
 
-    if( root ) printf( "refinement - %i\n", iii++ );
+    // if(root ) printf( "refinement - %i\n", iii++ );
 
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
 	}
 
-    if( root ) printf( "refinement - %i\n", iii++ );
+    // if(root ) printf( "refinement - %i\n", iii++ );
 
 	if (rc) {
 		if (refinement_flag++ == 0) {
@@ -72,13 +72,13 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 		}
 	}
 
-    if( root ) printf( "refinement - %i\n", iii++ );
+    // if(root ) printf( "refinement - %i\n", iii++ );
 
 	for( auto& f : futs ) {
 		GET(f);
 	}
 
-    if( root ) printf( "refinement - %i\n", iii++ );
+    // if(root ) printf( "refinement - %i\n", iii++ );
 
 }
 

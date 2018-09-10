@@ -486,9 +486,9 @@ future<real> node_client::step(integer steps) const {
 }
 
 void node_server::refined_step() {
-    bool root = my_location.level() == 0;
-    int iii = 0;
-    if( root ) printf( "%i\n", iii++ );
+ //   bool root = my_location.level() == 0;
+  // int iii = 0;
+//    if( root ) printf( "%i\n", iii++ );
 
 #if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
     static hpx::util::itt::string_handle sh("node_server::refined_step");
@@ -502,9 +502,9 @@ void node_server::refined_step() {
     real a = std::numeric_limits<real>::min();
 
     all_hydro_bounds();
-    if( root ) printf( "%i\n", iii++ );
+//    if( root ) printf( "%i\n", iii++ );
     local_timestep_channels[NCHILD].set_value(std::numeric_limits<real>::max());
-    if( root ) printf( "%i\n", iii++ );
+ //   if( root ) printf( "%i\n", iii++ );
     auto dt_fut = global_timestep_channel.get_future();
 
 #ifdef RADIATION
@@ -516,17 +516,17 @@ void node_server::refined_step() {
 
     for (integer rk = 0; rk < NRK; ++rk) {
 
-        if( root ) printf( "%i\n", iii++ );
+     //   if( root ) printf( "%i\n", iii++ );
         compute_fmm(DRHODT, false);
 
-        if( root ) printf( "%i\n", iii++ );
+      //  if( root ) printf( "%i\n", iii++ );
         compute_fmm(RHO, true);
 
-        if( root ) printf( "%i\n", iii++ );
+      //  if( root ) printf( "%i\n", iii++ );
         all_hydro_bounds();
 
     }
-    if( root ) printf( "%i\n", iii++ );
+  //  if( root ) printf( "%i\n", iii++ );
 
 #ifdef RADIATION
     compute_radiation(dt_/2.0);
