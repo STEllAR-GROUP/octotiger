@@ -16,6 +16,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
+option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 
 ################################################################################
 # Find required packages
@@ -23,6 +24,14 @@ option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 if (OCTOTIGER_WITH_SILO)
   find_package(Silo REQUIRED)
+endif()
+
+if (OCTOTIGER_WITH_CUDA)
+  add_definitions(-DOCTOTIGER_CUDA_ENABLED)
+  find_package(CUDA  REQUIRED)
+  include_directories("${CUDA_INCLUDE_DIRS}")
+  link_directories(${CUDA_CUBLAS_LIBRARIES})
+  string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
 endif()
 
 include_directories(${HPX_INCLUDE_DIRS})
@@ -114,18 +123,19 @@ set(source_files ${source_files}
     src/util.cpp
     src/compute_factor.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
+    src/multipole_interactions/multipole_cuda_kernel.cu
     src/multipole_interactions/calculate_stencil.cpp
-    src/multipole_interactions/m2m_kernel.cpp
-    src/multipole_interactions/m2m_kernel_blocked_interaction.cpp
-    src/multipole_interactions/m2p_kernel.cpp
-    src/multipole_interactions/m2p_kernel_blocked_interaction.cpp
-    src/monopole_interactions/p2p_kernel.cpp
-    src/monopole_interactions/p2p_kernel_blocked_interaction.cpp
-    src/monopole_interactions/monopole_interaction_interface.cpp
+    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/monopole_interactions/cuda_p2p_interaction_interface.cpp
+    src/monopole_interactions/p2p_cuda_kernel.cu
+    src/monopole_interactions/p2p_cpu_kernel.cpp
+    src/monopole_interactions/p2p_interaction_interface.cpp
     src/monopole_interactions/calculate_stencil.cpp
+    src/monopole_interactions/p2m_interaction_interface.cpp
     src/monopole_interactions/p2m_kernel.cpp
-    src/monopole_interactions/p2m_kernel_blocked_interaction.cpp
     src/common_kernel/interactions_iterators.cpp
+    src/cuda_util/cuda_scheduler.cpp
 )
 
 set(header_files
@@ -162,16 +172,22 @@ set(header_files
     src/common_kernel/interaction_constants.hpp
     src/common_kernel/multiindex.hpp
     src/multipole_interactions/multipole_interaction_interface.hpp
+    src/multipole_interactions/compute_kernel_templates.hpp
+    src/multipole_interactions/multipole_cuda_kernel.hpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.hpp
     src/multipole_interactions/calculate_stencil.hpp
-    src/multipole_interactions/m2m_kernel.hpp
-    src/multipole_interactions/m2p_kernel.hpp
-    src/monopole_interactions/monopole_interaction_interface.hpp
+    src/multipole_interactions/multipole_cpu_kernel.hpp
+    src/monopole_interactions/cuda_p2p_interaction_interface.hpp
+    src/monopole_interactions/p2p_interaction_interface.hpp
+    src/monopole_interactions/p2p_cuda_kernel.hpp
+    src/monopole_interactions/p2p_cpu_kernel.hpp
     src/monopole_interactions/calculate_stencil.hpp
+    src/monopole_interactions/p2m_interaction_interface.hpp
     src/monopole_interactions/p2m_kernel.hpp
     src/monopole_interactions/compare_interaction_lists.hpp
-    src/monopole_interactions/p2p_kernel.hpp
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
+    src/cuda_util/cuda_scheduler.hpp
 )
 
 
@@ -197,8 +213,7 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
-
-
+if (OCTOTIGER_WITH_SILO)
 add_hpx_executable(
   silocmp
   DEPENDENCIES
@@ -209,6 +224,8 @@ add_hpx_executable(
     ${silo_cmp_header_files}
   FOLDER  "Octotiger"
 )
+endif()
+=======
 
 
 add_executable( analysis ${analysis_source_files} )

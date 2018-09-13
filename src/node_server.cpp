@@ -602,80 +602,93 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		}
 	}
 
-	/****************************************************************************/
-	// data managemenet for old and new version of interaction computation
-	// all neighbors and placeholder for yourself
-	std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
-	for (geo::direction const& dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty()) {
-			all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
-		} else {
-			all_neighbor_interaction_data.emplace_back();
-		}
-	}
+    /****************************************************************************/
+    // data managemenet for old and new version of interaction computation
 
-	std::array<bool, geo::direction::count()> is_direction_empty;
-	for (geo::direction const& dir : geo::direction::full_set()) {
-		if (neighbors[dir].empty()) {
-			is_direction_empty[dir] = true;
-		} else {
-			is_direction_empty[dir] = false;
-		}
-	}
+     // all neighbors and placeholder for yourself
+    bool contains_multipole = false;
+    std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
+    for (geo::direction const& dir : geo::direction::full_set()) {
+        if (!neighbors[dir].empty()) {
+            all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
+            if (!all_neighbor_interaction_data[dir].is_monopole)
+                contains_multipole = true;
+        } else {
+            all_neighbor_interaction_data.emplace_back();
+        }
+    }
 
-	bool new_style_enabled = true;
-	/***************************************************************************/
-	// new-style interaction calculation (both cannot be active at the same time)
-	//if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
-	if (new_style_enabled && !grid_ptr->get_root()) {
+    std::array<bool, geo::direction::count()> is_direction_empty;
+    for (geo::direction const& dir : geo::direction::full_set()) {
+        if (neighbors[dir].empty()) {
+            is_direction_empty[dir] = true;
+        } else {
+            is_direction_empty[dir] = false;
+        }
+    }
 
-		std::vector<multipole>& M_ptr = grid_ptr->get_M();
-		std::vector<real>& mon_ptr = grid_ptr->get_mon();
-		std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
+     bool new_style_enabled = true;
+     /***************************************************************************/
+     // new-style interaction calculation (both cannot be active at the same time)
+     //if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
+     if (new_style_enabled && !grid_ptr->get_root()) {
 
-		std::vector<expansion>& L = grid_ptr->get_L();
-		std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+       // Get all input structures we need as input
+        std::vector<multipole>& M_ptr = grid_ptr->get_M();
+        std::vector<real>& mon_ptr = grid_ptr->get_mon();
+        std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
 
-		// initialize to zero
-		std::fill(std::begin(L), std::end(L), ZERO);
-		if (opts.ang_con) {
-			std::fill(std::begin(L_c), std::end(L_c), ZERO);
-		}
+        // initialize to zero
+        std::vector<expansion>& L = grid_ptr->get_L();
+        std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+        std::fill(std::begin(L), std::end(L), ZERO);
+        if (opts.ang_con) {
+            std::fill(std::begin(L_c), std::end(L_c), ZERO);
+        }
 
-		std::vector<expansion> potential_expansions;
-		std::vector<space_vector> angular_corrections;
-		if (!grid_ptr->get_leaf()) {
-			std::array<real, NDIM> Xbase = { grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)], grid_ptr->get_X()[1][hindex(H_BW,
-					H_BW, H_BW)], grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
-			m2m_interactor.set_grid_ptr(grid_ptr);
-			m2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
-					Xbase);
-			m2m_interactor.compute_interactions(opts.m2m_kernel_type, opts.m2p_kernel_type, is_direction_empty,
-					all_neighbor_interaction_data);
-		} else {
-			p2m_interactor.set_grid_ptr(grid_ptr);
-			p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
-			p2m_interactor.compute_interactions(opts.p2p_kernel_type, opts.p2m_kernel_type, is_direction_empty,
-					all_neighbor_interaction_data);
-		}
-	} else {
-		// old-style interaction calculation
-		// computes inner interactions
-		grid_ptr->compute_interactions(type);
-		// waits for boundary data and then computes boundary interactions
-		for (auto const& dir : geo::direction::full_set()) {
-			if (!is_direction_empty[dir]) {
-				neighbor_gravity_type & neighbor_data = all_neighbor_interaction_data[dir];
-				grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole,
-						neighbor_data.data);
-			}
-		}
-	}
+        // Check if we are a multipole
+        if (!grid_ptr->get_leaf()) {
+            // Input structure, needed for multipole-monopole interactions
+            std::array<real, NDIM> Xbase = {grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
+                                          grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
+                                          grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
+            // Make sure we have the right pointer
+            multipole_interactor.set_grid_ptr(grid_ptr);
+            // Run unified multipole-multipole multipole-monopole FMM interaction kernel
+            // This will be either run on a cuda device or the cpu (depending on build type and
+            // device load)
+            multipole_interactor.compute_multipole_interactions(
+                mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type,
+                grid_ptr->get_dx(), is_direction_empty, Xbase);
+        } else { // ... we are a monopole
+            p2p_interactor.set_grid_ptr(grid_ptr);
+            p2p_interactor.compute_p2p_interactions(
+                mon_ptr, all_neighbor_interaction_data, type,
+                grid_ptr->get_dx(), is_direction_empty);
+            if (contains_multipole) {
+                p2m_interactor.set_grid_ptr(grid_ptr);
+                p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr,
+                    all_neighbor_interaction_data, type, is_direction_empty);
+            }
+        }
+     } else {
+         // old-style interaction calculation
+         // computes inner interactions
+         grid_ptr->compute_interactions(type);
+         // waits for boundary data and then computes boundary interactions
+         for (auto const& dir : geo::direction::full_set()) {
+             if (!is_direction_empty[dir]) {
+                 neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
+                 grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole, neighbor_data.data);
+             }
+         }
+     }
 
-	/**************************************************************************/
-	// now that all boundary information has been processed, signal all non-empty neighbors
-	// note that this was done before during boundary calculations
-	for (auto const& dir : geo::direction::full_set()) {
+     /**************************************************************************/
+     // now that all boundary information has been processed, signal all non-empty neighbors
+     // note that this was done before during boundary calculations
+     for (auto const& dir : geo::direction::full_set()) {
+
 		if (!neighbors[dir].empty()) {
 			neighbor_gravity_type & neighbor_data = all_neighbor_interaction_data[dir];
 			if (neighbor_data.data.local_semaphore != nullptr) {

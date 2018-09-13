@@ -30,9 +30,9 @@
 #include <hpx/include/serialization.hpp>
 
 #include "interaction_types.hpp"
-#include "monopole_interactions/monopole_interaction_interface.hpp"
-#include "multipole_interactions/multipole_interaction_interface.hpp"
-using node_list_type = std::map<node_location, node_server*>;
+#include "monopole_interactions/cuda_p2p_interaction_interface.hpp"
+#include "monopole_interactions/p2m_interaction_interface.hpp"
+#include "multipole_interactions/cuda_multipole_interaction_interface.hpp"
 
 class node_server: public hpx::components::managed_component_base<node_server> {
     
@@ -115,8 +115,14 @@ private:
     timings timings_;
     real dt_;
 
-    octotiger::fmm::monopole_interactions::monopole_interaction_interface p2m_interactor;
-    octotiger::fmm::multipole_interactions::multipole_interaction_interface m2m_interactor;
+    octotiger::fmm::monopole_interactions::p2m_interaction_interface p2m_interactor;
+#ifdef OCTOTIGER_CUDA_ENABLED
+    octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface multipole_interactor;
+    octotiger::fmm::monopole_interactions::cuda_p2p_interaction_interface p2p_interactor;
+#else
+    octotiger::fmm::multipole_interactions::multipole_interaction_interface multipole_interactor;
+    octotiger::fmm::monopole_interactions::p2p_interaction_interface p2p_interactor;
+#endif
 public:
     static bool is_gravity_on() {
         return gravity_on;
