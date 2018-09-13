@@ -75,7 +75,6 @@ public:
     template<class Arc>
 	void serialize(Arc& arc, unsigned) {
         arc & m2m_kernel_type;
-        arc & m2p_kernel_type;
         arc & p2m_kernel_type;
         arc & p2p_kernel_type;
 		arc & angmom_theta;

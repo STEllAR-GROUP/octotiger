@@ -36,13 +36,13 @@
 
 class node_server: public hpx::components::managed_component_base<node_server> {
     
-    static node_list_type node_list;
+//    static node_list_type node_list;
     static hpx::mutex node_list_mtx;
 
-    static void node_list_add(const node_location&, node_server*);
-    static void node_list_remove(const node_location&);
+ //   static void node_list_add(const node_location&, node_server*);
+  //  static void node_list_remove(const node_location&);
 
-    static void check_for_refinement2(real,real);
+   // static void check_for_refinement2(real,real);
 
 public:
     static void set_gravity(bool b) {

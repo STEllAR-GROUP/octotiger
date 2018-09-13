@@ -25,7 +25,7 @@ extern options opts;
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
-
+/*
 node_list_type node_server::node_list;
 hpx::mutex node_server::node_list_mtx;
 
@@ -45,6 +45,7 @@ void node_server::check_for_refinement2(real a, real b) {
 		ptr.second->check_for_refinement(a, b);
 	}
 }
+*/
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
