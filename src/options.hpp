@@ -74,6 +74,10 @@ public:
     real angmom_theta;
     template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+        arc & m2m_kernel_type;
+        arc & m2p_kernel_type;
+        arc & p2m_kernel_type;
+        arc & p2p_kernel_type;
 		arc & angmom_theta;
 		arc & entropy_driving_rate;
 		arc & entropy_driving_time;

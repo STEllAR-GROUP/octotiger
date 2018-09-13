@@ -92,6 +92,7 @@ set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
+	#    src/mesa/mesa.cpp
     src/eos.cpp
     src/scf_data.cpp
     src/exact_sod.cpp
@@ -138,6 +139,7 @@ set(source_files ${source_files}
 )
 
 set(header_files
+    src/mesa/mesa.hpp
     src/channel.hpp
     src/container_device.hpp
     src/defs.hpp
@@ -195,6 +197,11 @@ set(silo_cmp_source_files
 )
 set(silo_cmp_header_files)
 
+
+set(analysis_source_files
+    analysis_src/analysis.cpp
+)
+
 add_hpx_executable(
   octotiger
   DEPENDENCIES
@@ -218,3 +225,9 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 endif()
+=======
+
+
+add_executable( analysis ${analysis_source_files} )
+
+

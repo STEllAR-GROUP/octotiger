@@ -11,7 +11,7 @@
 #include "physcon.hpp"
 #include "options.hpp"
 
-const real wdcons = (2.216281751e32 / 1.989e+33);
+const real wdcons = (2.216281751e32 / 1.989e+33);   // (G / A)^1.5  / (2*B)^2
 
 extern options opts;
 
@@ -215,7 +215,6 @@ struct_eos::struct_eos(real M, real R) {
 	A = M / R;
 	while (true) {
 		initialize(m, r);
-		//	printf("%e %e  %e  %e %e  %e \n", d0, A, m, M, r, R);
 		const real m0 = M / m;
 		const real r0 = R / r;
 		d0_ *= m0 / (r0 * r0 * r0);
@@ -312,8 +311,8 @@ struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, rea
 		f_C = icd;
 		f_E = icd / mu;
 		initialize(m, r, cm);
-//		printf( "%e %e %e\n", icd, cm/m, core_frac);
-			return cm - core_frac*m;
+//		printf( "%e %e %e\n", icd, cm, core_frac*m);
+		return cm - core_frac*m;
 		};
 	auto _func = std::function < real(real) > (func);
 	if (!find_root(_func, 0.0, 1.0, interface_core_density, 1.0e-3)) {
