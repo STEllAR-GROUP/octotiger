@@ -88,17 +88,18 @@ future<grid::output_list_type> node_server::load(
     // run output on separate thread
     std::size_t read_cnt = 0;
     hpx::threads::run_as_os_thread([&]() {
-        FILE* fp = fopen(filename.c_str(), "rb");
-        fseek(fp, cnt * rec_size, SEEK_SET);
-        read_cnt += fread(&flag, sizeof(char), 1, fp);
+    	std::ifstream strm;
+    	strm.open( filename, std::ios_base::binary );
+    	strm.seekg(cnt * rec_size);
+        read_cnt += read(strm, flag);
 
         for (auto& this_cnt : counts)
         {
-            read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
+            read_cnt += read(strm, this_cnt);
         }
       //  printf( "RECSIZE=%i\n", int(rec_size));
-        load_me(fp, rec_size==65739);
-        fclose(fp);
+        load_me(strm, rec_size==65739);
+        strm.close();
     }).get();
 
 #ifdef RADIATION

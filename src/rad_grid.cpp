@@ -301,7 +301,7 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
  child_rad_channels[ioct][oct]->set_value(std::move(bdata));
  }*/
 
-void rad_grid::get_output(std::array<std::vector<real>, NF + NGF + NRF + NPF>& v, integer i, integer j, integer k) const {
+void rad_grid::get_output(std::array<std::vector<real>, OUTPUT_COUNT>& v, integer i, integer j, integer k) const {
 	const integer iii = rindex(i, j, k);
 //	printf("%e\n", fEdd_xx[iii]);
 //	v[NF + 0].push_back(fEdd_xx[iii]);
@@ -555,12 +555,6 @@ std::size_t rad_grid::load(std::istream& strm) {
 			const integer iiir = rindex(i, j, R_BW);
 			for (integer f = 0; f != NRF; ++f) {
                 cnt += read(strm, &U[f][iiir], INX);
-				for (integer k = R_BW; k < R_NX - R_BW; ++k) {
-					const integer iiir = rindex(i, j, k);
-					if (U[er_i][iiir] <= 0.0) {
-						printf("!!!!!!!!!! %e %i %i %i\n", U[er_i][iiir], int(i), int(j), int(k));
-					}
-				}
 			}
 		}
 	}
@@ -831,7 +825,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 		std::array<hpx::future<void>, size> futs;
 		integer index = 0;
 		for (auto const& f : geo::face::full_set()) {
-			if (this->nieces[f].size()) {
+			if (this->nieces[f] == +1) {
 				for (auto const& quadrant : geo::quadrant::full_set()) {
 					futs[index++] =
 					niece_rad_channels[f][quadrant].get_future().then(
@@ -872,7 +866,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 				}
 			}
 		}
-		return hpx::when_all(std::move(futs));
+		return hpx::future<void>(hpx::when_all(std::move(futs)));
 	}, "node_server::set_rad_flux_restrict"));
 }
 

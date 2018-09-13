@@ -85,7 +85,7 @@ public:
 	std::vector<rad_type> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const;
 	std::vector<rad_type> get_intensity(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
 	void allocate();
-	void get_output(std::array<std::vector<real>, NF + NGF + NRF + NPF>& v, integer, integer, integer) const;
+	void get_output(std::array<std::vector<real>, OUTPUT_COUNT>& v, integer, integer, integer) const;
 	rad_grid(real dx);
 	rad_grid();
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);

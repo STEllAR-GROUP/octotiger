@@ -230,7 +230,6 @@ void node_server::all_hydro_bounds(bool tau_only) {
 	++hcycle;
 }
 
-
 void node_server::exchange_interlevel_hydro_data() {
 
 	if (is_refined) {
@@ -271,17 +270,17 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 					hpx::util::annotated_function([this, tau_only](future<sibling_hydro_type> && f) -> void
 					{
 //						auto&& tmp = f.get();
-						auto&& tmp = GET(f);
-						grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
-								H_BW, tau_only);
-					}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
+							auto&& tmp = GET(f);
+							grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
+									H_BW, tau_only);
+						}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
 		}
 	}
 	while (index < geo::direction::count()) {
 		results[index++] = hpx::make_ready_future();
 	}
 //	wait_all_and_propagate_exceptions(std::move(results));
-	for( auto& f : results ) {
+	for (auto& f : results) {
 		GET(f);
 	}
 
@@ -323,14 +322,12 @@ void node_server::send_hydro_amr_boundaries(bool tau_only) {
 }
 
 template<class T>
-typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type
-    almost_equal(T x, T y, int ulp)
-{
-    // the machine epsilon has to be scaled to the magnitude of the values used
-    // and multiplied by the desired precision in ULPs (units in the last place)
-    return std::abs(x-y) < std::numeric_limits<T>::epsilon() * std::abs(x+y) * ulp
-    // unless the result is subnormal
-           || std::abs(x-y) < std::numeric_limits<T>::min();
+typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type almost_equal(T x, T y, int ulp) {
+	// the machine epsilon has to be scaled to the magnitude of the values used
+	// and multiplied by the desired precision in ULPs (units in the last place)
+	return std::abs(x - y) < std::numeric_limits<T>::epsilon() * std::abs(x + y) * ulp
+	// unless the result is subnormal
+			|| std::abs(x - y) < std::numeric_limits<T>::min();
 }
 
 inline bool file_exists(const std::string& name) {
@@ -341,14 +338,14 @@ inline bool file_exists(const std::string& name) {
 //HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
 //HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
 
-std::size_t node_server::load_me(FILE *fp, bool old_format) {
+std::size_t node_server::load_me(std::istream& strm, bool old_format) {
 	std::size_t cnt = 0;
 	auto foo = std::fread;
 	refinement_flag = 0;
-	cnt += foo(&step_num, sizeof(integer), 1, fp) * sizeof(integer);
-	cnt += foo(&current_time, sizeof(real), 1, fp) * sizeof(real);
-	cnt += foo(&rotational_time, sizeof(real), 1, fp) * sizeof(real);
-	cnt += grid_ptr->load(fp, old_format);
+	cnt += read(strm, &step_num, 1);
+	cnt += read(strm, &current_time, 1);
+	cnt += read(strm, &rotational_time, 1);
+	cnt += grid_ptr->load(strm, old_format);
 	return cnt;
 }
 
@@ -421,7 +418,7 @@ void node_server::load_from_file(const std::string& fname, std::string const& da
 	printf("Loading %d nodes\n", total_nodes);
 
 //     auto meta_read =
-	hpx::lcos::broadcast < set_locality_data_action > (options::all_localities, omega, pivot).get();
+	hpx::lcos::broadcast<set_locality_data_action>(options::all_localities, omega, pivot).get();
 
 	load(0, total_nodes, rec_size, /*opts.output_only*/false, data_dir + fname).get();
 //     meta_read.get();
@@ -533,62 +530,57 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {
-    if (!gravity_on) {
-        return;
-    }
+	if (!gravity_on) {
+		return;
+	}
 
-    future<void> parent_fut;
-    if (energy_account) {
-        grid_ptr->egas_to_etot();
-    }
-    multipole_pass_type m_out;
-    m_out.first.resize(INX * INX * INX);
-    m_out.second.resize(INX * INX * INX);
+	future<void> parent_fut;
+	if (energy_account) {
+		grid_ptr->egas_to_etot();
+	}
+	multipole_pass_type m_out;
+	m_out.first.resize(INX * INX * INX);
+	m_out.second.resize(INX * INX * INX);
 
-    for (auto const& dir : geo::direction::full_set()) {
-        if (!neighbors[dir].empty()) {
-            neighbor_signals[dir].wait();
-        }
-    }
+	for (auto const& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			neighbor_signals[dir].wait();
+		}
+	}
 
-    if (is_refined) {
-        std::array<future<void>, geo::octant::count()> futs;
-        integer index = 0;
-        for (auto& ci : geo::octant::full_set()) {
-            future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
+	if (is_refined) {
+		std::array<future<void>, geo::octant::count()> futs;
+		integer index = 0;
+		for (auto& ci : geo::octant::full_set()) {
+			future<multipole_pass_type> m_in_future = child_gravity_channels[ci].get_future();
 
-            futs[index++] =
-                m_in_future.then(hpx::util::annotated_function(
-                    [&m_out, ci](future<multipole_pass_type>&& fut)
-                    {
-                        const integer x0 = ci.get_side(XDIM) * INX / 2;
-                        const integer y0 = ci.get_side(YDIM) * INX / 2;
-                        const integer z0 = ci.get_side(ZDIM) * INX / 2;
-                        auto m_in = fut.get();
-                        for (integer i = 0; i != INX / 2; ++i) {
-                            for (integer j = 0; j != INX / 2; ++j) {
-                                for (integer k = 0; k != INX / 2; ++k) {
-                                    const integer ii = i * INX * INX / 4 + j * INX / 2 + k;
-                                    const integer io = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
-                                    m_out.first[io] = m_in.first[ii];
-                                    m_out.second[io] = m_in.second[ii];
-                                }
-                            }
-                        }
-                    },
-                    "node_server::compute_fmm::gather_from::child_gravity_channels"
-                )
-            );
-        }
-        wait_all_and_propagate_exceptions(std::move(futs));
-        m_out = grid_ptr->compute_multipoles(type, &m_out);
-    } else {
-        m_out = grid_ptr->compute_multipoles(type);
-    }
+			futs[index++] = m_in_future.then(hpx::util::annotated_function([&m_out, ci](future<multipole_pass_type>&& fut)
+			{
+				const integer x0 = ci.get_side(XDIM) * INX / 2;
+				const integer y0 = ci.get_side(YDIM) * INX / 2;
+				const integer z0 = ci.get_side(ZDIM) * INX / 2;
+				auto m_in = fut.get();
+				for (integer i = 0; i != INX / 2; ++i) {
+					for (integer j = 0; j != INX / 2; ++j) {
+						for (integer k = 0; k != INX / 2; ++k) {
+							const integer ii = i * INX * INX / 4 + j * INX / 2 + k;
+							const integer io = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
+							m_out.first[io] = m_in.first[ii];
+							m_out.second[io] = m_in.second[ii];
+						}
+					}
+				}
+			}, "node_server::compute_fmm::gather_from::child_gravity_channels"));
+		}
+		wait_all_and_propagate_exceptions(std::move(futs));
+		m_out = grid_ptr->compute_multipoles(type, &m_out);
+	} else {
+		m_out = grid_ptr->compute_multipoles(type);
+	}
 
-    if (my_location.level() != 0) {
-        parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index());
-    }
+	if (my_location.level() != 0) {
+		parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index());
+	}
 
 	if (!aonly) {
 		std::vector<future<void>> send_futs;
@@ -610,131 +602,125 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		}
 	}
 
-    /****************************************************************************/
-    // data managemenet for old and new version of interaction computation
-
-     // all neighbors and placeholder for yourself
-    std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
-    for (geo::direction const& dir : geo::direction::full_set()) {
-        if (!neighbors[dir].empty()) {
-            all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
-        } else {
-            all_neighbor_interaction_data.emplace_back();
-        }
-    }
-
-    std::array<bool, geo::direction::count()> is_direction_empty;
-    for (geo::direction const& dir : geo::direction::full_set()) {
-        if (neighbors[dir].empty()) {
-            is_direction_empty[dir] = true;
-        } else {
-            is_direction_empty[dir] = false;
-        }
-    }
-
-     bool new_style_enabled = true;
-     /***************************************************************************/
-     // new-style interaction calculation (both cannot be active at the same time)
-     //if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
-     if (new_style_enabled && !grid_ptr->get_root()) {
-
-        std::vector<multipole>& M_ptr = grid_ptr->get_M();
-        std::vector<real>& mon_ptr = grid_ptr->get_mon();
-        std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
-
-        std::vector<expansion>& L = grid_ptr->get_L();
-        std::vector<space_vector>& L_c = grid_ptr->get_L_c();
-
-        // initialize to zero
-        std::fill(std::begin(L), std::end(L), ZERO);
-        if (opts.ang_con) {
-            std::fill(std::begin(L_c), std::end(L_c), ZERO);
-        }
-
-        std::vector<expansion> potential_expansions;
-        std::vector<space_vector> angular_corrections;
-        if (!grid_ptr->get_leaf()) {
-            std::array<real, NDIM> Xbase = {grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
-                                          grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
-                                          grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
-            m2m_interactor.set_grid_ptr(grid_ptr);
-            m2m_interactor.update_input(
-                mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), Xbase);
-            m2m_interactor.compute_interactions(opts.m2m_kernel_type,
-                                                opts.m2p_kernel_type,
-                                                is_direction_empty,
-                                                all_neighbor_interaction_data);
-        } else {
-            p2m_interactor.set_grid_ptr(grid_ptr);
-            p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data,
-                type, grid_ptr->get_dx());
-            p2m_interactor.compute_interactions(opts.p2p_kernel_type,
-                                                opts.p2m_kernel_type,
-                                                is_direction_empty,
-                                                all_neighbor_interaction_data);
-        }
-     } else {
-         // old-style interaction calculation
-         // computes inner interactions
-         grid_ptr->compute_interactions(type);
-         // waits for boundary data and then computes boundary interactions
-         for (auto const& dir : geo::direction::full_set()) {
-             if (!is_direction_empty[dir]) {
-                 neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
-                 grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole, neighbor_data.data);
-             }
-         }
-     }
-
-     /**************************************************************************/
-     // now that all boundary information has been processed, signal all non-empty neighbors
-     // note that this was done before during boundary calculations
-     for (auto const& dir : geo::direction::full_set()) {
+	/****************************************************************************/
+	// data managemenet for old and new version of interaction computation
+	// all neighbors and placeholder for yourself
+	std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
+	for (geo::direction const& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
-         neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
-         if (neighbor_data.data.local_semaphore != nullptr) {
-             neighbor_data.data.local_semaphore->signal();
-         }
-        }
-     }
-     /***************************************************************************/
+			all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
+		} else {
+			all_neighbor_interaction_data.emplace_back();
+		}
+	}
 
-    expansion_pass_type l_in;
-    if (my_location.level() != 0) {
-        l_in = parent_gravity_channel.get_future().get();
-    }
-    const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
+	std::array<bool, geo::direction::count()> is_direction_empty;
+	for (geo::direction const& dir : geo::direction::full_set()) {
+		if (neighbors[dir].empty()) {
+			is_direction_empty[dir] = true;
+		} else {
+			is_direction_empty[dir] = false;
+		}
+	}
 
-    if (is_refined) {
-        for (auto const& ci : geo::octant::full_set()) {
-            expansion_pass_type l_out;
-            l_out.first.resize(INX * INX * INX / NCHILD);
-            if (type == RHO) {
-                l_out.second.resize(INX * INX * INX / NCHILD);
-            }
-            const integer x0 = ci.get_side(XDIM) * INX / 2;
-            const integer y0 = ci.get_side(YDIM) * INX / 2;
-            const integer z0 = ci.get_side(ZDIM) * INX / 2;
-            for (integer i = 0; i != INX / 2; ++i) {
-                for (integer j = 0; j != INX / 2; ++j) {
-                    for (integer k = 0; k != INX / 2; ++k) {
-                        const integer io = i * INX * INX / 4 + j * INX / 2 + k;
-                        const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
-                        l_out.first[io] = ltmp.first[ii];
-                        if (type == RHO) {
-                            l_out.second[io] = ltmp.second[ii];
-                        }
-                    }
-                }
-            }
-            children[ci].send_gravity_expansions(std::move(l_out));
-        }
-    }
+	bool new_style_enabled = true;
+	/***************************************************************************/
+	// new-style interaction calculation (both cannot be active at the same time)
+	//if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
+	if (new_style_enabled && !grid_ptr->get_root()) {
 
-    if (energy_account) {
-        grid_ptr->etot_to_egas();
-    }
-    ++gcycle;
+		std::vector<multipole>& M_ptr = grid_ptr->get_M();
+		std::vector<real>& mon_ptr = grid_ptr->get_mon();
+		std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
+
+		std::vector<expansion>& L = grid_ptr->get_L();
+		std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+
+		// initialize to zero
+		std::fill(std::begin(L), std::end(L), ZERO);
+		if (opts.ang_con) {
+			std::fill(std::begin(L_c), std::end(L_c), ZERO);
+		}
+
+		std::vector<expansion> potential_expansions;
+		std::vector<space_vector> angular_corrections;
+		if (!grid_ptr->get_leaf()) {
+			std::array<real, NDIM> Xbase = { grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)], grid_ptr->get_X()[1][hindex(H_BW,
+					H_BW, H_BW)], grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
+			m2m_interactor.set_grid_ptr(grid_ptr);
+			m2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
+					Xbase);
+			m2m_interactor.compute_interactions(opts.m2m_kernel_type, opts.m2p_kernel_type, is_direction_empty,
+					all_neighbor_interaction_data);
+		} else {
+			p2m_interactor.set_grid_ptr(grid_ptr);
+			p2m_interactor.update_input(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx());
+			p2m_interactor.compute_interactions(opts.p2p_kernel_type, opts.p2m_kernel_type, is_direction_empty,
+					all_neighbor_interaction_data);
+		}
+	} else {
+		// old-style interaction calculation
+		// computes inner interactions
+		grid_ptr->compute_interactions(type);
+		// waits for boundary data and then computes boundary interactions
+		for (auto const& dir : geo::direction::full_set()) {
+			if (!is_direction_empty[dir]) {
+				neighbor_gravity_type & neighbor_data = all_neighbor_interaction_data[dir];
+				grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole,
+						neighbor_data.data);
+			}
+		}
+	}
+
+	/**************************************************************************/
+	// now that all boundary information has been processed, signal all non-empty neighbors
+	// note that this was done before during boundary calculations
+	for (auto const& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			neighbor_gravity_type & neighbor_data = all_neighbor_interaction_data[dir];
+			if (neighbor_data.data.local_semaphore != nullptr) {
+				neighbor_data.data.local_semaphore->signal();
+			}
+		}
+	}
+	/***************************************************************************/
+
+	expansion_pass_type l_in;
+	if (my_location.level() != 0) {
+		l_in = parent_gravity_channel.get_future().get();
+	}
+	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
+
+	if (is_refined) {
+		for (auto const& ci : geo::octant::full_set()) {
+			expansion_pass_type l_out;
+			l_out.first.resize(INX * INX * INX / NCHILD);
+			if (type == RHO) {
+				l_out.second.resize(INX * INX * INX / NCHILD);
+			}
+			const integer x0 = ci.get_side(XDIM) * INX / 2;
+			const integer y0 = ci.get_side(YDIM) * INX / 2;
+			const integer z0 = ci.get_side(ZDIM) * INX / 2;
+			for (integer i = 0; i != INX / 2; ++i) {
+				for (integer j = 0; j != INX / 2; ++j) {
+					for (integer k = 0; k != INX / 2; ++k) {
+						const integer io = i * INX * INX / 4 + j * INX / 2 + k;
+						const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
+						l_out.first[io] = ltmp.first[ii];
+						if (type == RHO) {
+							l_out.second[io] = ltmp.second[ii];
+						}
+					}
+				}
+			}
+			children[ci].send_gravity_expansions(std::move(l_out));
+		}
+	}
+
+	if (energy_account) {
+		grid_ptr->etot_to_egas();
+	}
+	++gcycle;
 }
 
 void node_server::report_timing() {

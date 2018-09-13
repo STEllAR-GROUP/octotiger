@@ -156,7 +156,7 @@ public:
         gcycle = _gb;
     }
 
-    std::size_t load_me(FILE *fp, bool old_format);
+    std::size_t load_me(std::istream&, bool old_format);
     std::size_t save_me(std::ostream& strm) const;
 private:
 
@@ -344,9 +344,9 @@ private:
 	std::array<channel<std::vector<real>>, NCHILD> child_rad_channels;
 	channel<expansion_pass_type> parent_rad_channel;
 public:
-	void exchange_rad_flux_corrections();
+	hpx::future<void> exchange_rad_flux_corrections();
 	void compute_radiation(real dt);
-	void exchange_interlevel_rad_data();
+	hpx::future<void> exchange_interlevel_rad_data();
 	void all_rad_bounds();
 
 	void collect_radiation_bounds();

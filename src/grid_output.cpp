@@ -4,6 +4,7 @@
 #include <silo.h>
 #endif
 #include <atomic>
+#include <ios>
 #include <fstream>
 #include <thread>
 #include <cmath>
@@ -316,34 +317,34 @@ void grid::output(const output_list_type& olists,
 #endif
 }
 
-std::size_t grid::load(FILE* fp, bool old_format) {
+std::size_t grid::load(std::istream& strm, bool old_format) {
 	static hpx::mutex mtx;
 	std::size_t cnt = 0;
 	{
 		static std::atomic<bool> statics_loaded(false);
         bool expected = false;
 		if(statics_loaded.compare_exchange_strong(expected, true)) {
-			cnt += std::fread(&scaling_factor, sizeof(real), 1, fp) * sizeof(real);
+			cnt += read(strm, &scaling_factor, 1);
 			if( opts.ngrids > -1 && !opts.refinement_floor_specified) {
-				cnt += std::fread(&opts.refinement_floor, sizeof(real), 1, fp) * sizeof(real);
+				cnt += read( strm, &opts.refinement_floor, 1);
 			} else {
 				real dummy;
-				cnt += std::fread(&dummy, sizeof(real), 1, fp) * sizeof(real);
+				cnt += read( strm, &dummy, sizeof(real));
 			}
 			if( !old_format ) {
-				cnt += std::fread(&physcon.A, sizeof(real), 1, fp) * sizeof(real);
-				cnt += std::fread(&physcon.B, sizeof(real), 1, fp) * sizeof(real);
+				cnt += read( strm, &physcon.A, 1);
+				cnt += read( strm, &physcon.B, 1);
 			}
 			statics_loaded = true;
 		} else {
-			std::size_t offset = (old_format ? 2 : 4) * sizeof(real);
-            std::fseek(fp, offset, SEEK_CUR);
+			std::size_t offset = (old_format ? 2 : 4);
+            strm.seekg(offset, std::ios_base::cur);
 			cnt += offset;
 		}
 	}
 
-	cnt += std::fread(&is_leaf, sizeof(bool), 1, fp) * sizeof(bool);
-	cnt += std::fread(&is_root, sizeof(bool), 1, fp) * sizeof(bool);
+	cnt += read( strm, &is_leaf, sizeof(bool)) * sizeof(bool);
+	cnt += read( strm, &is_root, sizeof(bool)) * sizeof(bool);
 
 	allocate();
 
@@ -352,7 +353,7 @@ std::size_t grid::load(FILE* fp, bool old_format) {
 			for (integer j = H_BW; j < H_NX - H_BW; ++j) {
 				if( f < NF - 3 || !old_format) {
 					const integer iii = hindex(i, j, H_BW);
-					cnt += std::fread(&(U[f][iii]), sizeof(real), INX, fp) * sizeof(real);
+					cnt += read( strm, &(U[f][iii]), INX);
 				} else {
 					for( integer k = H_BW; k != H_NX - H_BW; ++k) {
 						const integer iii = hindex(i, j, k);
@@ -368,20 +369,20 @@ std::size_t grid::load(FILE* fp, bool old_format) {
 				const integer iii = gindex(i, j, k);
 				for( integer f = 0; f != NGF; ++f ) {
 					real tmp;
-					cnt += std::fread(&tmp, sizeof(real), 1, fp) * sizeof(real);
+					cnt += read( strm, &tmp, sizeof(real));
 					G[iii][f] = tmp;
 				}
 			}
 		}
 	}
 	if (!old_format) {
-		cnt += std::fread(U_out.data(), sizeof(real), U_out.size(), fp) * sizeof(real);
+		cnt += read( strm, U_out.data(), U_out.size());
 	} else {
 		std::fill(U_out.begin(), U_out.end(), 0.0);
-		cnt += std::fread(U_out.data(), sizeof(real), U_out.size() - 3, fp) * sizeof(real);
+		cnt += read( strm, U_out.data(), U_out.size() - 3);
 	}
 #ifdef RADIATION
-	cnt += rad_grid_ptr->load(fp);
+	cnt += rad_grid_ptr->load(strm);
 #endif
 	set_coordinates();
 	return cnt;
