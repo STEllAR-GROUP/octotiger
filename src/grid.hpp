@@ -8,6 +8,8 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
+
+#include "radiation/rad_grid.hpp"
 #include "simd.hpp"
 #include "diagnostics.hpp"
 #include "defs.hpp"
@@ -18,10 +20,6 @@
 #include "taylor.hpp"
 #include "scf_data.hpp"
 #include "interaction_types.hpp"
-
-#ifdef RADIATION
-class rad_grid;
-#endif
 
 #include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/runtime/serialization/set.hpp>
@@ -75,56 +73,6 @@ public:
 
 HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
 
-// struct interaction_type {
-// 	std::uint16_t first;
-// 	std::uint16_t second;
-// 	space_vector x;
-// 	v4sd four;
-// };
-
-// struct boundary_interaction_type {
-// 	std::uint16_t second;
-// 	std::vector<std::uint16_t> first;
-// 	std::vector<v4sd> four;
-// 	space_vector x;
-// };
-
-// typedef taylor<4, real> multipole;
-// typedef taylor<4, real> expansion;
-// typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
-// typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
-
-// #include <hpx/lcos/local/counting_semaphore.hpp>
-// using semaphore = hpx::lcos::local::counting_semaphore;
-
-// struct gravity_boundary_type {
-// 	std::shared_ptr<std::vector<multipole>> M;
-// 	std::shared_ptr<std::vector<real>> m;
-// 	std::shared_ptr<std::vector<space_vector>> x;
-// 	semaphore* local_semaphore;
-// 	gravity_boundary_type() :
-// 		M(nullptr), m(nullptr), x(nullptr) {
-// 	}
-// 	void allocate() {
-// 		local_semaphore = nullptr;
-// 		if (M == nullptr) {
-// 			M = std::make_shared<std::vector<multipole> >();
-// 			m = std::make_shared<std::vector<real> >();
-// 			x = std::make_shared<std::vector<space_vector> >();
-// 		}
-// 	}
-// 	template<class Archive>
-// 	void serialize(Archive& arc, unsigned) {
-// 		allocate();
-// 		std::uintptr_t tmp = reinterpret_cast<std::uintptr_t>(local_semaphore);
-// 		arc & M;
-// 		arc & m;
-// 		arc & x;
-// 		arc & tmp;
-// 		local_semaphore = reinterpret_cast<decltype(local_semaphore)>(tmp);
-// 	}
-// };
-
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
@@ -140,7 +88,6 @@ typedef int zone_int_type;
 
 class grid {
 public:
-	static char const* field_names[];
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
 	static void set_max_level(integer l);
@@ -159,10 +106,7 @@ private:
 	static real omega;
 	static space_vector pivot;
 	static real scaling_factor;
-
-#ifdef RADIATION
 	std::shared_ptr<rad_grid> rad_grid_ptr;
-#endif
 
 	std::vector<real> roche_lobe;
 	std::vector<std::vector<real>> U;
@@ -227,13 +171,10 @@ public:
       return X;
     }
 
-
-#ifdef RADIATION
 	std::shared_ptr<rad_grid> get_rad_grid() {
 		return rad_grid_ptr;
 	}
 	void rad_init();
-#endif
 	void change_units( real mass, real length, real time, real temp);
 	static hpx::future<void> static_change_units( real mass, real length, real time, real temp);
 	real get_dx() const { return dx; }
@@ -407,10 +348,6 @@ struct grid::output_list_type {
 
 void scf_binary_init();
 
-#ifdef RADIATION
-#include "rad_grid.hpp"
-#endif
-
 template<class Archive>
 void grid::load(Archive& arc, const unsigned) {
 	arc >> roche_lobe;
@@ -420,10 +357,10 @@ void grid::load(Archive& arc, const unsigned) {
 	arc >> xmin;
 	allocate();
 	arc >> U;
-#ifdef RADIATION
-	arc >> *rad_grid_ptr;
-	rad_grid_ptr->set_dx(dx);
-#endif
+	if( rad_grid_ptr != nullptr ) {
+		arc >> *rad_grid_ptr;
+		rad_grid_ptr->set_dx(dx);
+	}
 	for( integer i = 0; i != INX*INX*INX; ++i ) {
 #if defined(HPX_HAVE_DATAPAR)
      arc >> G[i];
@@ -436,6 +373,8 @@ void grid::load(Archive& arc, const unsigned) {
 	}
 	arc >> U_out;
 }
+
+
 template<class Archive>
 void grid::save(Archive& arc, const unsigned) const {
 	arc << roche_lobe;
@@ -444,9 +383,9 @@ void grid::save(Archive& arc, const unsigned) const {
 	arc << dx;
 	arc << xmin;
 	arc << U;
-#ifdef RADIATION
-	arc << *rad_grid_ptr;
-#endif
+	if( rad_grid_ptr != nullptr ) {
+		arc << *rad_grid_ptr;
+	}
 	for( integer i = 0; i != INX*INX*INX; ++i ) {
 #if defined(HPX_HAVE_DATAPAR)
      arc << G[i];

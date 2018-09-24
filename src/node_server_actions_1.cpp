@@ -101,12 +101,10 @@ future<grid::output_list_type> node_server::load(
         load_me(strm, rec_size==65739);
         strm.close();
     }).get();
-
-#ifdef RADIATION
-    rad_grid_ptr = grid_ptr->get_rad_grid();
-    rad_grid_ptr->sanity_check();
-#endif
-
+    if( opts.radiation ) {
+    	rad_grid_ptr = grid_ptr->get_rad_grid();
+    	rad_grid_ptr->sanity_check();
+    }
     std::array<future<grid::output_list_type>, NCHILD> futs;
     // printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
     if (flag == '1') {
@@ -392,8 +390,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, int
                     GET(child.set_grid(std::move(prolong), std::move(outflows)));
                 }
             }
-#ifdef RADIATION
-            {
+            if( opts.radiation ) {
                 std::array<integer, NDIM> lb = { 2 * R_BW, 2 * R_BW, 2 * R_BW };
                 std::array<integer, NDIM> ub;
                 lb[XDIM] += (1 & (ci >> 0)) * (INX);
@@ -415,7 +412,6 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, int
                     child.set_rad_grid(std::move(prolong)/*, std::move(outflows)*/).get();
                 }
             }
-#endif
             return child_id;
         });
 }

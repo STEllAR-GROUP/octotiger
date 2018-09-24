@@ -380,9 +380,9 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 			}
 		}
 	}
-#ifdef RADIATION
-	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
-#endif
+	if( opts.radiation) {
+		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+	}
 	PROF_END;
 	return 0.0;
 }
@@ -599,13 +599,13 @@ void node_server::run_scf(std::string const& data_dir) {
 		solve_gravity(false,false);
 
 	}
-#ifdef RADIATION
-	if( opts.eos == WD) {
-		set_cgs();
-		all_hydro_bounds();
-		erad_init();
+	if (opts.radiation) {
+		if (opts.eos == WD) {
+			set_cgs();
+			all_hydro_bounds();
+			grid_ptr->rad_init();
+		}
 	}
-#endif
 }
 
 std::vector<real> scf_binary(real x, real y, real z, real dx) {

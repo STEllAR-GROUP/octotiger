@@ -5,10 +5,7 @@
 #include "profiler.hpp"
 #include "taylor.hpp"
 #include "diagnostics.hpp"
-#ifdef RADIATION
-#include "rad_grid.hpp"
-#endif
-//#include "helmholtz.hpp"
+#include "radiation/rad_grid.hpp"
 #include "node_server.hpp"
 #include "exact_sod.hpp"
 
@@ -369,16 +366,6 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 		}
 	}
 }
-
-#ifdef RADIATION
-char const* grid::field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
-	"secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
-	"zzs"};
-#else
-char const* grid::field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core",
-		"primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
-		"zzs", "roche" };
-#endif
 
 hpx::lcos::local::spinlock grid::omega_mtx;
 real grid::omega = ZERO;
@@ -1053,10 +1040,9 @@ void grid::change_units(real m, real l, real t, real k) {
 		G[i][gy_i] *= l2 * tinv;
 		G[i][gz_i] *= l2 * tinv;
 	}
-#ifdef RADIATION
-	rad_grid_ptr->change_units(m, l, t, k);
-#endif
-
+	if( opts.radiation ) {
+		rad_grid_ptr->change_units(m, l, t, k);
+	}
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
@@ -1701,10 +1687,10 @@ analytic_t grid::compute_analytic(real t) {
 
 void grid::allocate() {
 	PROF_BEGIN;
-#ifdef RADIATION
-	rad_grid_ptr = std::make_shared<rad_grid>();
-	rad_grid_ptr->set_dx(dx);
-#endif
+	if( opts.radiation) {
+		rad_grid_ptr = std::make_shared<rad_grid>();
+		rad_grid_ptr->set_dx(dx);
+	}
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
 	dphi_dt = std::vector<real>(INX * INX * INX);
@@ -1765,11 +1751,11 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 			}
 		}
 	}
-#ifdef RADIATION
-	if (init_func != nullptr) {
-		rad_init();
+	if (opts.radiation) {
+		if (init_func != nullptr) {
+			rad_init();
+		}
 	}
-#endif
 	if (node_server::is_gravity_on()) {
 		for (integer i = 0; i != G_N3; ++i) {
 			for (integer field = 0; field != NGF; ++field) {
@@ -1779,13 +1765,11 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 	}PROF_END;
 }
 
-#ifdef RADIATION
 void grid::rad_init() {
 	rad_grid_ptr->set_dx(dx);
 	rad_grid_ptr->compute_mmw(U);
 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 }
-#endif
 
 inline real limit_range(real a, real b, real& c) {
 	const real max = std::max(a, b);
@@ -2118,9 +2102,9 @@ void grid::reconstruct() {
 }
 
 real grid::compute_fluxes() {
-#ifdef RADIATION
-	rad_grid_ptr->set_dx(dx);
-#endif
+	if (opts.radiation) {
+		rad_grid_ptr->set_dx(dx);
+	}
 	PROF_BEGIN;
 	const auto& Uf = TLS_Uf();
 	real max_lambda = ZERO;
@@ -2176,17 +2160,16 @@ real grid::compute_fluxes() {
 		}
 	}
 
-#ifdef RADIATION
-	const auto& egas = get_field(egas_i);
-	const auto& rho = get_field(rho_i);
-	const auto& tau = get_field(tau_i);
-	const auto& sx = get_field(sx_i);
-	const auto& sy = get_field(sy_i);
-	const auto& sz = get_field(sz_i);
-	const real b = rad_grid_ptr->hydro_signal_speed(egas, tau, sx, sy, sz, rho);
-	max_lambda += b;
-#endif
-	PROF_END;
+	if (opts.radiation) {
+		const auto& egas = get_field(egas_i);
+		const auto& rho = get_field(rho_i);
+		const auto& tau = get_field(tau_i);
+		const auto& sx = get_field(sx_i);
+		const auto& sy = get_field(sy_i);
+		const auto& sz = get_field(sz_i);
+		const real b = rad_grid_ptr->hydro_signal_speed(egas, tau, sx, sy, sz, rho);
+		max_lambda += b;
+	}	PROF_END;
 	return max_lambda;
 }
 

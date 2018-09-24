@@ -114,7 +114,8 @@ set(source_files ${source_files}
     src/physcon.cpp
     src/problem.cpp
     src/profiler.cpp
-    src/rad_grid.cpp
+    src/radiation/rad_grid.cpp
+    src/radiation/implicit.cpp
     src/real.cpp
     src/roe.cpp
     src/scf_data.cpp
@@ -157,7 +158,7 @@ set(header_files
     src/physcon.hpp
     src/problem.hpp
     src/profiler.hpp
-    src/rad_grid.hpp
+    src/radiation/rad_grid.hpp
     src/real.hpp
     src/roe.hpp
     src/scf_data.hpp

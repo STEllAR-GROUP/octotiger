@@ -31,27 +31,33 @@ public:
 	}
 };
 
+inline real dot( const space_vector& a, space_vector& b) {
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
 void implicit_radiation_step(real& E0, real& e0, space_vector& F0, space_vector& u0, real rho, real mmw, real kp, real kr,
 		real dt) {
 
-	const real c = physcon::c;
+	const real c = physcon.c;
 	const real cinv = 1.0 / c;
 	const real c2 = c * c;
 
 	space_vector F1, u1;
 	real e1;
 
+
+
 	const auto f = [&](real this_E) {
 		F1 = (3*c*F0*rho + 4*this_E*dt*kr*(F0 + c2*rho*u0))/(4*this_E*dt*kr + 3*c*(1 + c*dt*kr)*rho);
 		u1 = u0 + (F0 - F1)/(rho*c2);
-		e1 = std::max(e0 - ((this_E - E0) + 0.5 * rho * (u1.dot(u1) - u0.dot(u0))),0.0);
+		e1 = std::max(e0 - ((this_E - E0) + 0.5 * rho * (dot(u1,u1) - dot(u0,u0))),0.0);
 		constexpr real gm1 = 2.0 / 3.0;
 		const real B = B_p(rho,e1,mmw);
-		const real f = this_E - E0 + dt * (c * kp * (this_E - B) - (2 * kp - kr) * u1.dot(F1) * cinv);
+		const real f = this_E - E0 + dt * (c * kp * (this_E - B) - (2 * kp - kr) * dot(u1,F1) * cinv);
 		return f;
 	};
 
-	const real ke = 0.5 * rho * u0.dot(u0);
+	const real ke = 0.5 * rho * dot(u0,u0);
 	real minE = 0.0;
 	real maxE = E0 + e0 + ke;
 	real error;
@@ -95,7 +101,7 @@ void implicit_radiation_step_2nd_order(real& E0, real& e0, space_vector& F0, spa
 	const real B[N] = { 1 - gam, gam };
 	real kdE[N];
 	space_vector kdF[N];
-	const real c2 = con::c * con::c;
+	const real c2 = physcon.c * physcon.c;
 	real E, e;
 	space_vector F, u;
 	for (int i = 0; i < N; i++) {
@@ -110,7 +116,7 @@ void implicit_radiation_step_2nd_order(real& E0, real& e0, space_vector& F0, spa
 			F += dF;
 		}
 		u -= (F - F0) / (rho * c2);
-		e -= (E - E0) + 0.5 * rho * (u.dot(u) - u0.dot(u0));
+		e -= (E - E0) + 0.5 * rho * (dot(u,u) - dot(u0,u0));
 		const auto tmp = step(E, e, F, u, A[i][i] * dt);
 		kdE[i] = tmp.first;
 		kdF[i] = tmp.second;
@@ -123,7 +129,7 @@ void implicit_radiation_step_2nd_order(real& E0, real& e0, space_vector& F0, spa
 		F0 += B[i] * kdF[i] * dt;
 	}
 	u0 -= (F0 - F) / (rho * c2);
-	e0 -= (E0 - E) + 0.5 * rho * (u0.dot(u0) - u.dot(u));
+	e0 -= (E0 - E) + 0.5 * rho * (dot(u0,u0) - dot(u,u));
 }
 
 void implicit_radiation_step_2nd_order(real& E0, real& e0, space_vector& F0, space_vector& u0, real rho, real mmw, real dt) {
@@ -133,11 +139,11 @@ void implicit_radiation_step_2nd_order(real& E0, real& e0, space_vector& F0, spa
 	real e1 = e0;
 	space_vector F1 = F0;
 	space_vector u1 = u0;
-	real kp = physcon::kappa_p(rho, e0, mmw);
-	real kr = physcon::kappa_r(rho, e0, mmw);
+	real kp = kappa_p(rho, e0, mmw);
+	real kr = kappa_R(rho, e0, mmw);
 	implicit_radiation_step(E1, e1, F1, u1, rho, mmw, kp, kr, dt);
-	kp += 0.5 * (physcon::kappa_p(rho, e1, mmw) - kp);
-	kr += 0.5 * (physcon::kappa_r(rho, e1, mmw) - kr);
+	kp += 0.5 * (kappa_p(rho, e1, mmw) - kp);
+	kr += 0.5 * (kappa_R(rho, e1, mmw) - kr);
 
 	//Now take 2nd order step
 

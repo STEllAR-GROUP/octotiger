@@ -52,13 +52,12 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #endif
 	grid::set_scaling_factor(opts.xscale);
 	grid::set_max_level(opts.max_level);
-#ifdef RADIATION
 	if (opts.problem == RADIATION_TEST) {
+		assert(opts.radiation);
 		gravity_on = false;
 		set_problem(radiation_test_problem);
 		set_refine_test(radiation_test_refine);
 	} else
-#endif
 	if (opts.problem == DWD) {
 		set_problem(scf_binary);
 		set_refine_test(refine_test);

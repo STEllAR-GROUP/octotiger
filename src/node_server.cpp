@@ -379,11 +379,11 @@ void node_server::save_to_file(const std::string& fname, std::string const& data
 
 void node_server::load_from_file(const std::string& fname, std::string const& data_dir) {
 	hpx::util::high_resolution_timer timer;
-#ifdef RADIATION
-	if (opts.eos == WD) {
-		set_cgs(false);
+	if (opts.radiation) {
+		if (opts.eos == WD) {
+			set_cgs(false);
+		}
 	}
-#endif
 	real omega = 0;
 	space_vector pivot;
 
@@ -490,10 +490,10 @@ void node_server::initialize(real t, real rt) {
 	} else {
 		grid_ptr = std::make_shared<grid>(dx, xmin);
 	}
-#ifdef RADIATION
-	rad_grid_ptr = grid_ptr->get_rad_grid();
-	rad_grid_ptr->set_dx(dx);
-#endif
+	if (opts.radiation) {
+		rad_grid_ptr = grid_ptr->get_rad_grid();
+		rad_grid_ptr->set_dx(dx);
+	}
 	if (my_location.level() == 0) {
 		grid_ptr->set_root();
 	}

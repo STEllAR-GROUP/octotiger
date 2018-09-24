@@ -14,7 +14,7 @@
 #include "geometry.hpp"
 #include "eos.hpp"
 #include "diagnostics.hpp"
-#include "rad_grid.hpp"
+#include "radiation/rad_grid.hpp"
 
 //#include <boost/mpi/packed_iarchive.hpp>
 
@@ -112,12 +112,10 @@ public:
 
     future<void> change_units(real,real,real,real) const;
 
-#ifdef RADIATION
     future<void> erad_init() const ;
     future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci) const;
 	future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&) const;
 	future<void> set_rad_grid(std::vector<real>&&) const;
-#endif
 #ifdef OCTOTIGER_USE_NODE_CACHE
     struct node_loc_hash_t {
     	std::size_t operator()( const node_location& loc) const {

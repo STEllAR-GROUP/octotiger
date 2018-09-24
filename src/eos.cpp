@@ -19,11 +19,12 @@ constexpr real T0 = 0.0;
 
 real poly_K(real rho0, real mu) {
 	const auto& c = physcon;
-#ifdef RADIATION
-	return std::pow(rho0, -1.0 / 3.0) * ((c.kb * T0) / (mu * c.mh) + (4.0 * c.sigma * std::pow(T0, 4.0)) / (3.0 * rho0 * c.c));
-#else
-	return std::pow(rho0, -1.0 / 3.0) * ((c.kb * T0) / (mu * c.mh));
-#endif
+	if (opts.radiation) {
+		return std::pow(rho0, -1.0 / 3.0)
+				* ((c.kb * T0) / (mu * c.mh) + (4.0 * c.sigma * std::pow(T0, 4.0)) / (3.0 * rho0 * c.c));
+	} else {
+		return std::pow(rho0, -1.0 / 3.0) * ((c.kb * T0) / (mu * c.mh));
+	}
 }
 
 real struct_eos::energy(real d) const {

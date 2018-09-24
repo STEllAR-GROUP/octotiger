@@ -4,6 +4,7 @@
 #include "options.hpp"
 #include "node_server.hpp"
 #include "physcon.hpp"
+#include "../roe.hpp"
 
 #include <iostream>
 
@@ -93,22 +94,29 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				if (opts.eos == WD) {
 					e0 -= ztwd_energy(den);
 				}
-				if (e0 < egas[iiih] * dw_switch2) {
+				if (e0 < egas[iiih] * de_switch2) {
 					e0 = std::pow(tau[iiih], fgamma);
 				}
 				real E0 = U[er_i][iiir];
-				space_vector F0 = {{U[fx_i][iiir],U[fy_i][iiir],U[fz_i][iiir]}};
-				space_vector v0 = {{vx,vy,vz}};
+				space_vector F0;
+				space_vector u0;
+				F0[0] = U[fx_i][iiir];
+				F0[1] = U[fy_i][iiir];
+				F0[2] = U[fz_i][iiir];
+				u0[0] = vx;
+				u0[1] = vy;
+				u0[2] = vz;
 				real E1 = E0;
 				space_vector F1 = F0;
-				space_vector v1 = v0;
+				space_vector u1 = u0;
+				real e1 = e0;
 
 
-				implicit_radiation_step_2nd_order(E1, e1, F1, u1, den, mmw, dt);
+				implicit_radiation_step_2nd_order(E1, e1, F1, u1, den, mmw[iiir], dt);
 				const real dE_dt = (E1-E0)*dtinv;
-				const real dFx_ft = (F1[0] - F0[0] ) * dtinv;
-				const real dFy_ft = (F1[1] - F0[1] ) * dtinv;
-				const real dFz_ft = (F1[2] - F0[2] ) * dtinv;
+				const real dFx_dt = (F1[0] - F0[0] ) * dtinv;
+				const real dFy_dt = (F1[1] - F0[1] ) * dtinv;
+				const real dFz_dt = (F1[2] - F0[2] ) * dtinv;
 
 				/* Accumulate derivatives */
 				U[er_i][iiir] = dE_dt * dt;
@@ -133,7 +141,7 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 					e = e1;
 				}
 				if (U[er_i][iiir] < 0.0) {
-					printf("%e %e %e %e %e %e  %e !!!!!4!!!!!\n", U[er_i][iiir], E0, dE0_dt * dt, dE_dt * dt, dE1 * dt, dE2 * dt, e);
+					printf("Er < 0.0\n");
 					abort();
 				}
 				tau[iiih] = std::pow(e, 1.0 / fgamma);
@@ -338,12 +346,6 @@ std::array<std::array<real, NDIM>, NDIM> rad_grid::compute_p(real E, real Fx, re
 		}
 	}
 	return P;
-}
-void rad_grid::initialize() {
-}
-
-rad_grid_init::rad_grid_init() {
-	rad_grid::initialize();
 }
 
 void rad_grid::allocate() {

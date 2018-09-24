@@ -282,13 +282,13 @@ void node_server::start_run(bool scf, integer ngrids)
             save_to_file("scf.chk", opts.data_dir);
         }
     }
-#ifdef RADIATION
-    if( opts.eos == WD && opts.problem == STAR) {
-    	printf( "Initialized radiation and cgs\n");
-    	set_cgs();
-    	erad_init();
+    if( opts.radiation ) {
+    	if( opts.eos == WD && opts.problem == STAR) {
+    		printf( "Initialized radiation and cgs\n");
+    		set_cgs();
+    		erad_init();
+    	}
     }
-#endif
     printf( "Starting run...\n" );
     auto fut_ptr = me.get_ptr();
     node_server* root_ptr = GET(fut_ptr);
@@ -507,11 +507,11 @@ void node_server::refined_step() {
  //   if( root ) printf( "%i\n", iii++ );
     auto dt_fut = global_timestep_channel.get_future();
 
-#ifdef RADIATION
-    dt_ = GET(dt_fut);
-    compute_radiation(dt_/2.0);
-    all_hydro_bounds();
-#endif
+    if( opts.radiation ) {
+        dt_ = GET(dt_fut);
+        compute_radiation(dt_/2.0);
+        all_hydro_bounds();
+    }
 
 
     for (integer rk = 0; rk < NRK; ++rk) {
@@ -528,115 +528,110 @@ void node_server::refined_step() {
     }
   //  if( root ) printf( "%i\n", iii++ );
 
-#ifdef RADIATION
-    compute_radiation(dt_/2.0);
-    all_hydro_bounds();
-#else
-    dt_ = GET(dt_fut);
-#endif
+	if (opts.radiation) {
+		compute_radiation(dt_ / 2.0);
+		all_hydro_bounds();
+	} else {
+		dt_ = GET(dt_fut);
+	}
 
     update();
 }
 
 future<void> node_server::nonrefined_step() {
 #if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
-    static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
-    hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+	static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
+	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
 #endif
 
-    timings::scope ts(timings_, timings::time_computation);
+	timings::scope ts(timings_, timings::time_computation);
 
-    real cfl0 = cfl;
-    dt_ = ZERO;
+	real cfl0 = cfl;
+	dt_ = ZERO;
 
-    all_hydro_bounds();
+	all_hydro_bounds();
 
-    grid_ptr->store();
-    future<void> fut = hpx::make_ready_future();
+	grid_ptr->store();
+	future<void> fut = hpx::make_ready_future();
 
-    hpx::shared_future<real> dt_fut = global_timestep_channel.get_future();
+	hpx::shared_future<real> dt_fut = global_timestep_channel.get_future();
 
-    for (integer rk = 0; rk < NRK; ++rk) {
+	for (integer rk = 0; rk < NRK; ++rk) {
 
-        fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
-            hpx::util::annotated_function(
-                [rk, cfl0, this, dt_fut](future<void> f)
-                {
-                    GET(f);        // propagate exceptions
+		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
+				hpx::util::annotated_function([rk, cfl0, this, dt_fut](future<void> f)
+				{
+					GET(f);        // propagate exceptions
+					future<void> fut_flux;
+						grid_ptr->reconstruct();
+						real a = grid_ptr->compute_fluxes();
+						if( opts.radiation ) {
+							if( rk == 0 ) {
+								const real dx = TWO * grid::get_scaling_factor() /
+								real(INX << my_location.level());
+								dt_ = cfl0 * dx / a;
+								local_timestep_channels[NCHILD].set_value(dt_);
+								dt_ = dt_fut.get();
+								compute_radiation(dt_/2.0);
+								all_hydro_bounds();
+								grid_ptr->reconstruct();
+								grid_ptr->compute_fluxes();
+							}
 
-                    grid_ptr->reconstruct();
-                    real a = grid_ptr->compute_fluxes();
-#ifdef RADIATION
-                    if( rk == 0 ) {
-                        const real dx = TWO * grid::get_scaling_factor() /
-                            real(INX << my_location.level());
-                        dt_ = cfl0 * dx / a;
-                        local_timestep_channels[NCHILD].set_value(dt_);
-                        dt_ = dt_fut.get();
-                        compute_radiation(dt_/2.0);
-                        all_hydro_bounds();
-                        grid_ptr->reconstruct();
-                        grid_ptr->compute_fluxes();
-                    }
+							fut_flux = exchange_flux_corrections();
+						} else {
+							fut_flux = exchange_flux_corrections();
 
-                    future<void> fut_flux = exchange_flux_corrections();
-#else
-                    future<void> fut_flux = exchange_flux_corrections();
+							if (rk == 0) {
+								const real dx = TWO * grid::get_scaling_factor() /
+								real(INX << my_location.level());
+								dt_ = cfl0 * dx / a;
+								local_timestep_channels[NCHILD].set_value(dt_);
+							}
+						}
 
-                    if (rk == 0) {
-                        const real dx = TWO * grid::get_scaling_factor() /
-                            real(INX << my_location.level());
-                        dt_ = cfl0 * dx / a;
-                        local_timestep_channels[NCHILD].set_value(dt_);
-                    }
-#endif
-
-                    GET(fut_flux.then(
-                        hpx::launch::async(hpx::threads::thread_priority_boost),
-                        hpx::util::annotated_function(
-                            [rk, this, dt_fut](future<void> f)
-                            {
-                                GET(f);        // propagate exceptions
+						GET(fut_flux.then(
+										hpx::launch::async(hpx::threads::thread_priority_boost),
+										hpx::util::annotated_function(
+												[rk, this, dt_fut](future<void> f)
+												{
+													GET(f);        // propagate exceptions
 #ifdef OCTOTIGER_FLUX_CHECK
-                                auto fcheck = check_flux_consistency();
+						auto fcheck = check_flux_consistency();
 #endif
 
-                                grid_ptr->compute_sources(current_time, rotational_time);
-                                grid_ptr->compute_dudt();
+						grid_ptr->compute_sources(current_time, rotational_time);
+						grid_ptr->compute_dudt();
 
-                                compute_fmm(DRHODT, false);
+						compute_fmm(DRHODT, false);
 
-                                if (rk == 0) {
-                                    dt_ = GET(dt_fut);
-                                }
-                                grid_ptr->next_u(rk, current_time, dt_);
+						if (rk == 0) {
+							dt_ = GET(dt_fut);
+						}
+						grid_ptr->next_u(rk, current_time, dt_);
 
-                                compute_fmm(RHO, true);
+						compute_fmm(RHO, true);
 #ifdef OCTOTIGER_FLUX_CHECK
-                                fcheck.get();
+						fcheck.get();
 #endif
-                                all_hydro_bounds();
-#ifdef RADIATION
-                                if(rk == NRK - 1) {
-                      //          	all_hydro_bounds();
-                                	compute_radiation(dt_/2.0);
-                                	all_hydro_bounds();
-                                }
-#endif
-                            }, "node_server::nonrefined_step::compute_fmm"
-                        )));
-                }, "node_server::nonrefined_step::compute_fluxes"
-            )
-        );
-    }
+						all_hydro_bounds();
+						if( opts.radiation) {
+							if(rk == NRK - 1) {
+								//          	all_hydro_bounds();
+								compute_radiation(dt_/2.0);
+								all_hydro_bounds();
+							}
+						}
+					}, "node_server::nonrefined_step::compute_fmm"
+			)));
+}, "node_server::nonrefined_step::compute_fluxes"));
+	}
 
-    return fut.then(hpx::launch::sync,
-        [this](future<void>&& f)
-        {
-            GET(f); // propagate exceptions...
-            update();
-        }
-    );
+	return fut.then(hpx::launch::sync, [this](future<void>&& f)
+	{
+		GET(f); // propagate exceptions...
+			update();
+		});
 }
 
 void node_server::update()
