@@ -329,7 +329,7 @@ std::size_t grid::load(std::istream& strm, bool old_format) {
 				cnt += read( strm, &opts.refinement_floor, 1);
 			} else {
 				real dummy;
-				cnt += read( strm, &dummy, sizeof(real));
+				cnt += read( strm, &dummy, 1);
 			}
 			if( !old_format ) {
 				cnt += read( strm, &physcon.A, 1);
@@ -369,7 +369,7 @@ std::size_t grid::load(std::istream& strm, bool old_format) {
 				const integer iii = gindex(i, j, k);
 				for( integer f = 0; f != NGF; ++f ) {
 					real tmp;
-					cnt += read( strm, &tmp, sizeof(real));
+					cnt += read( strm, &tmp, 1);
 					G[iii][f] = tmp;
 				}
 			}
