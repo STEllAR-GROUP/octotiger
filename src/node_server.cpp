@@ -54,6 +54,7 @@ std::array<std::pair<real,space_vector>,2> node_server::find_axis_tool() const {
 	std::array<std::pair<real,space_vector>,2> rc;
 	if( is_refined ) {
 		rc[0].first = rc[1].first = 0.0;
+de
 		std::vector<future<std::array<std::pair<real,space_vector>,2>>> futs;
 		futs.reserve(NCHILD);
 		for( integer ci = 0; ci != NCHILD; ++ci) {
@@ -499,7 +500,6 @@ void node_server::initialize(real t, real rt) {
 }
 
 node_server::~node_server() {
-//	node_list_remove(my_location);
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num,

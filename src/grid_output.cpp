@@ -337,8 +337,8 @@ std::size_t grid::load(std::istream& strm, bool old_format) {
 			}
 			statics_loaded = true;
 		} else {
-			std::size_t offset = (old_format ? 2 : 4);
-            strm.seekg(offset, std::ios_base::cur);
+			std::size_t offset = (old_format ? 2 : 4) * sizeof(real);
+                        strm.seekg(offset, std::ios_base::cur);
 			cnt += offset;
 		}
 	}
