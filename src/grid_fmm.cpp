@@ -1786,6 +1786,7 @@ neighbor_gravity_type grid::fill_received_array(neighbor_gravity_type raw_input)
     if (raw_input.is_monopole) {
         // fill with unimportant data
         filled_array.data.m->resize(blocksize);
+        fill(filled_array.data.m->begin(), filled_array.data.m->end(), 0.0);
         // Overwrite data that matters
         int counter = 0;
         for (auto i : list) {
@@ -1795,8 +1796,18 @@ neighbor_gravity_type grid::fill_received_array(neighbor_gravity_type raw_input)
         }
      } else {
         // fill with unimportant data
+        multipole default_multipole;
+        for (auto i = 0; i < 20; i++) {
+          default_multipole[i] = 0.0;
+        }
+        space_vector default_spacevector;
+        for (auto i = 0; i < 3; i++) {
+          default_spacevector[i] = 0.0;
+        }
         filled_array.data.M->resize(blocksize);
         filled_array.data.x->resize(blocksize);
+        fill(filled_array.data.M->begin(), filled_array.data.M->end(), default_multipole);
+        fill(filled_array.data.x->begin(), filled_array.data.x->end(), default_spacevector);
         // Overwrite data that matters
         int counter = 0;
         for (auto i : list) {
