@@ -140,13 +140,23 @@ analytic_t node_server::compare_analytic() {
 			a += GET(futs[i]);
 		}
 	}
+	static std::array<const char*,OUTPUT_COUNT> field_names;
+	if( opts.radiation) {
+      field_names = {{"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
+                      "secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
+                      "zzs", "roche"}};
+	} else {
+      field_names = {{"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core",
+                      "primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
+                      "zzs", "roche"}};
+	}
 	if (my_location.level() == 0) {
-		printf("L1, L2\n");
-		for (integer field = 0; field != NF; ++field) {
-			if (a.l1a[field] > 0.0) {
-//				printf("%16s %e %e\n", grid::field_names[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
-			}
-		}
+      printf("L1, L2\n");
+      for (integer field = 0; field != NF; ++field) {
+        if (a.l1a[field] > 0.0) {
+          printf("%16s %e %e\n", field_names[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
+        }
+      }
 	}
 	return a;
 }
