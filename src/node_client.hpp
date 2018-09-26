@@ -9,6 +9,7 @@
 #define NODE_CLIENT_HPP_
 
 #include "defs.hpp"
+#include "future.hpp"
 #include "node_location.hpp"
 #include "grid.hpp"
 #include "geometry.hpp"
