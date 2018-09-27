@@ -315,7 +315,7 @@ void node_server::start_run(bool scf, integer ngrids)
     real bench_start, bench_stop;
 
    // if( current_time == 0.0 ) {
-    	diagnostics();
+   // 	diagnostics();
    // }
     while (current_time < opts.stop_time) {
         if (step_num > opts.stop_step)

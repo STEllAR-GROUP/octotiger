@@ -88,7 +88,7 @@ endif()
 set(source_files)
 set(dependencies)
 
-set(dependencies ${Silo_LIBRARY})
+set(dependencies ${Silo_LIBRARY} libquadmath.a)
 
 # Octotiger executable
 set(source_files ${source_files}
@@ -192,7 +192,7 @@ set(header_files
 )
 
 
-set(silo_cmp_dependencies ${Silo_LIBRARY})
+set(silo_cmp_dependencies ${Silo_LIBRARY} )
 set(silo_cmp_source_files
     test/silo_cmp.cpp
 )
