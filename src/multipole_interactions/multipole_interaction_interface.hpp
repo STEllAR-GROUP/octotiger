@@ -156,6 +156,18 @@ namespace fmm {
 
                                 });
                         } else {
+                            // Reset to default values
+                            iterate_inner_cells_padding(
+                                dir, [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
+                                    const multiindex<>& i, const size_t flat_index,
+                                    const multiindex<>&, const size_t) {
+                                    local_expansions_SoA.set_AoS_value(
+                                        std::move(expansion()), flat_index);
+                                    center_of_masses_SoA.set_AoS_value(
+                                        std::move(space_vector()), flat_index);
+                                    local_monopoles.at(flat_index) = 0.0;
+
+                                });
                             auto list = grid_ptr->get_ilist_n_bnd(dir);
                             size_t counter = 0;
                             for (auto i : list) {
@@ -184,10 +196,6 @@ namespace fmm {
                             dir, [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
                                      const multiindex<>& i, const size_t flat_index,
                                      const multiindex<>&, const size_t) {
-                                // initializes whole expansion, relatively expansion
-                                // local_expansions.at(flat_index) = 0.0;
-                                // // initializes x,y,z vector
-                                // center_of_masses.at(flat_index) = 0.0;
                                 local_expansions_SoA.set_AoS_value(
                                     std::move(expansion()), flat_index);
                                 center_of_masses_SoA.set_AoS_value(
@@ -225,6 +233,23 @@ namespace fmm {
                                         neighbor_mons.at(flat_index_unpadded);
                                 });
                         } else {
+                            // Reset to default values
+                            iterate_inner_cells_padding(
+                                dir, [&local_expansions_SoA, &center_of_masses_SoA,
+                                      &local_monopoles, dx, xbase](
+                                    const multiindex<>& i, const size_t flat_index,
+                                    const multiindex<>&, const size_t) {
+                                    space_vector e;
+                                    e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
+                                    e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
+                                    e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
+                                    center_of_masses_SoA.set_AoS_value(std::move(e), flat_index);
+                                    local_expansions_SoA.set_AoS_value(
+                                        std::move(expansion()), flat_index);
+                                    local_monopoles.at(flat_index) = 0.0;
+
+                                });
+                            // Load relevant values
                             auto list = grid_ptr->get_ilist_n_bnd(dir);
                             size_t counter = 0;
                             for (auto i : list) {
@@ -241,20 +266,6 @@ namespace fmm {
                                 local_monopoles.at(flat_index) = neighbor_mons.at(counter);
                                 counter++;
                             }
-                            iterate_inner_cells_padding(
-                                dir,
-                                [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles,
-                                    neighbor_mons, xbase, dx](const multiindex<>& i,
-                                    const size_t flat_index, const multiindex<>& i_unpadded,
-                                    const size_t flat_index_unpadded) {
-                                    space_vector e;
-                                    e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
-                                    e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
-                                    e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
-                                    center_of_masses_SoA.set_AoS_value(std::move(e), flat_index);
-                                    local_expansions_SoA.set_AoS_value(
-                                        std::move(expansion()), flat_index);
-                                });
                         }
                     }
                 }
