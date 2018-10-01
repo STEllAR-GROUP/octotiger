@@ -321,18 +321,20 @@ void node_server::start_run(bool scf, integer ngrids)
         if (step_num > opts.stop_step)
             break;
         auto time_start = std::chrono::high_resolution_clock::now();
-        if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
+        if (root_ptr->get_rotation_count() / output_dt >= output_cnt) {
         	diagnostics();
-            std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
-            save_to_file(fname, opts.data_dir);
-            printf("doing silo out...\n");
+            if (!opts.disable_output) {
+                std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
+                save_to_file(fname, opts.data_dir);
+                printf("doing silo out...\n");
 
-            fname = "X." + std::to_string(int(output_cnt));
-            output(opts.data_dir, fname, output_cnt, false);
+                fname = "X." + std::to_string(int(output_cnt));
+                output(opts.data_dir, fname, output_cnt, false);
 
-            //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
-            //	}
-            ++output_cnt;
+                //	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
+                //	}
+                ++output_cnt;
+            }
 
         }
         if (step_num == 0) {
