@@ -25,13 +25,6 @@
 
 //#define FIND_AXIS_V2
 
-#define REGRID_CHECK
-#define CHANNEL_CHECK
-//#define OCTOTIGER_HAVE_RADIATION
-
-#ifdef OCTOTIGER_HAVE_RADIATION
-#define RADIATION
-#endif
 
 #ifndef TYPES444_HPP_
 
@@ -45,12 +38,7 @@
 
 
 #define EXPERIMENT
-#ifdef RADIATION
 #define NRF 4
-#else
-#define NRF 0
-#define NRADF 0
-#endif
 
 #define NPF 5
 
@@ -291,5 +279,8 @@ std::size_t read(std::istream& strm, T* t, std::size_t size)
     strm.read(reinterpret_cast<char*>(t), sizeof(T) * size);
     return sizeof(T) * size;
 }
+
+// #include "future.hpp"
+
 
 #endif /* TYPES_HPP_ */

@@ -25,23 +25,6 @@ extern options opts;
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
 
-#ifdef RADIATION
-bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> U) {
-	bool rc = false;
-	real den_floor = 1.0e-4;
-	integer test_level = max_level;
-	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
-		if (U[rho_i] > den_floor) {
-			rc = rc || (level < this_test_level);
-		}
-		if (rc) {
-			break;
-		}
-		den_floor /= 8.0;
-	}
-	return rc;
-
-}
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> const& dudx) {
 	return refine_blast(level,max_level,x,y,z,U,dudx);
@@ -62,7 +45,6 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 	return rc;
 
 }
-#endif
 
 
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
@@ -397,8 +379,21 @@ std::vector<real> star(real x, real y, real z, real) {
 			u[egas_i] *= real(100);
 		}
 		u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+
+/*		const real r = std::sqrt(x * x + y * y + z * z);
+		static struct_eos eos(0.0040083, 0.33593, 3.0, 1.5, 0.1808, 2.0);
+		const real rho = std::max(eos.density_at(r,0.01),1.0e-10);
+		const real ei = eos.pressure(rho) / (fgamma - 1.0);
+		u[rho_i] = rho;
+		u[egas_i] = ei;
+		u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+		if( rho > eos.dC() ) {
+			u[spc_i+0] = rho;
+		} else  {
+			u[spc_i+1] = rho;
+		}*/
+		return u;
 	}
-	return u;
 }
 
 std::vector<real> moving_star(real x, real y, real z, real dx) {

@@ -69,12 +69,12 @@ void node_server::parallel_output_complete(std::string dirname, std::string fnam
 
 }
 
-hpx::future<grid::output_list_type> node_client::load(
+future<grid::output_list_type> node_client::load(
     integer i, integer total, integer rec_size, bool do_o, std::string s) const {
     return hpx::async<typename node_server::load_action>(get_unmanaged_gid(), i, total, rec_size, do_o, s);
 }
 
-hpx::future<grid::output_list_type> node_server::load(
+future<grid::output_list_type> node_server::load(
     integer cnt, integer total_nodes, integer rec_size, bool do_output, std::string filename)
 {
     if (my_location.level() == 0)
@@ -88,25 +88,24 @@ hpx::future<grid::output_list_type> node_server::load(
     // run output on separate thread
     std::size_t read_cnt = 0;
     hpx::threads::run_as_os_thread([&]() {
-        FILE* fp = fopen(filename.c_str(), "rb");
-        fseek(fp, cnt * rec_size, SEEK_SET);
-        read_cnt += fread(&flag, sizeof(char), 1, fp);
+    	std::ifstream strm;
+    	strm.open( filename, std::ios_base::binary );
+    	strm.seekg(cnt * rec_size);
+        read_cnt += read(strm, flag);
 
         for (auto& this_cnt : counts)
         {
-            read_cnt += fread(&this_cnt, sizeof(integer), 1, fp);
+            read_cnt += read(strm, this_cnt);
         }
       //  printf( "RECSIZE=%i\n", int(rec_size));
-        load_me(fp, rec_size==65739);
-        fclose(fp);
+        load_me(strm, rec_size==65739);
+        strm.close();
     }).get();
-
-#ifdef RADIATION
-    rad_grid_ptr = grid_ptr->get_rad_grid();
-    rad_grid_ptr->sanity_check();
-#endif
-
-    std::array<hpx::future<grid::output_list_type>, NCHILD> futs;
+    if( opts.radiation ) {
+    	rad_grid_ptr = grid_ptr->get_rad_grid();
+    	rad_grid_ptr->sanity_check();
+    }
+    std::array<future<grid::output_list_type>, NCHILD> futs;
     // printf( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n" );
     if (flag == '1') {
         is_refined = true;
@@ -118,7 +117,7 @@ hpx::future<grid::output_list_type> node_server::load(
             futs[index++] =
                 hpx::new_<node_server>(options::all_localities[loc_id],
                     my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle).then(
-                        [this, ci, counts, do_output, total_nodes, rec_size, filename](hpx::future<hpx::id_type>&& fut)
+                        [this, ci, counts, do_output, total_nodes, rec_size, filename](future<hpx::id_type>&& fut)
                         {
                             children[ci] = fut.get();
                             return children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename);
@@ -156,7 +155,7 @@ hpx::future<grid::output_list_type> node_server::load(
 
 
     return hpx::dataflow(
-        [this, do_output, filename](std::array<hpx::future<grid::output_list_type>, NCHILD>&& futs)
+        [this, do_output, filename](std::array<future<grid::output_list_type>, NCHILD>&& futs)
         {
             grid::output_list_type my_list;
             for (auto&& fut : futs) {
@@ -184,7 +183,7 @@ hpx::future<grid::output_list_type> node_server::load(
 					}
 					const auto cycle = get_rotation_count();
 					const auto sz = opts.all_localities.size();
-					std::vector<hpx::future<void>> futs(sz);
+					std::vector<future<void>> futs(sz);
 					for (integer i = 0; i != sz; ++i) {
 						this_fname = dir_name + std::string("/") + silo_name + std::string(".") + std::to_string(i) + std::string(".silo");
 						futs[i] = hpx::async < parallel_output_complete_action > (opts.all_localities[i], opts.data_dir, this_fname, get_time(), cycle, false);
@@ -243,14 +242,14 @@ hpx::future<grid::output_list_type> node_server::load(
 typedef node_server::output_action output_action_type;
 HPX_REGISTER_ACTION(output_action_type);
 
-hpx::future<grid::output_list_type> node_client::output(std::string dname,
+future<grid::output_list_type> node_client::output(std::string dname,
     std::string fname, int cycle, bool flag) const {
     return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), dname, fname, cycle, flag);
 }
 
 grid::output_list_type node_server::output(std::string dname, std::string fname, int cycle, bool analytic) const {
     if (is_refined) {
-        std::array<hpx::future<grid::output_list_type>, NCHILD> futs;
+        std::array<future<grid::output_list_type>, NCHILD> futs;
         integer index = 0;
         for (auto i = children.begin(); i != children.end(); ++i) {
             futs[index++] = i->output(dname, fname, cycle, analytic);
@@ -278,7 +277,7 @@ grid::output_list_type node_server::output(std::string dname, std::string fname,
 					abort_error();
 				}
 				const auto sz = opts.all_localities.size();
-				std::vector<hpx::future<void>> futs(sz);
+				std::vector<future<void>> futs(sz);
 				for (integer i = 0; i != sz; ++i) {
 					this_fname = fname + std::string(".") + std::to_string(i) + std::string(".silo");
 					futs[i] = hpx::async<parallel_output_complete_action>(opts.all_localities[i], this_dname, this_fname, get_time(), cycle, analytic);
@@ -304,7 +303,7 @@ grid::output_list_type node_server::output(std::string dname, std::string fname,
 typedef node_server::regrid_gather_action regrid_gather_action_type;
 HPX_REGISTER_ACTION(regrid_gather_action_type);
 
-hpx::future<integer> node_client::regrid_gather(bool rb) const {
+future<integer> node_client::regrid_gather(bool rb) const {
     return hpx::async<typename node_server::regrid_gather_action>(get_unmanaged_gid(), rb);
 }
 
@@ -322,7 +321,7 @@ integer node_server::regrid_gather(bool rebalance_only) {
         }
 
         if (is_refined) {
-            std::array<hpx::future<integer>, NCHILD> futs;
+            std::array<future<integer>, NCHILD> futs;
             integer index = 0;
             for (auto& child : children) {
                 futs[index++] = child.regrid_gather(rebalance_only);
@@ -360,11 +359,11 @@ integer node_server::regrid_gather(bool rebalance_only) {
     return count;
 }
 
-hpx::future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, integer ci)
+future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, integer ci)
 {
     return hpx::new_ < node_server
             > (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle).then(
-        [this, ci](hpx::future<hpx::id_type>&& child_idf)
+        [this, ci](future<hpx::id_type>&& child_idf)
         {
             hpx::id_type child_id = child_idf.get();
             node_client child = child_id;
@@ -388,11 +387,10 @@ hpx::future<hpx::id_type> node_server::create_child(hpx::id_type const& locality
                         std::unique_lock<hpx::lcos::local::spinlock> lk(prolong_mtx);
                         prolong = grid_ptr->get_prolong(lb, ub);
                     }
-                    child.set_grid(std::move(prolong), std::move(outflows)).get();
+                    GET(child.set_grid(std::move(prolong), std::move(outflows)));
                 }
             }
-#ifdef RADIATION
-            {
+            if( opts.radiation ) {
                 std::array<integer, NDIM> lb = { 2 * R_BW, 2 * R_BW, 2 * R_BW };
                 std::array<integer, NDIM> ub;
                 lb[XDIM] += (1 & (ci >> 0)) * (INX);
@@ -414,7 +412,6 @@ hpx::future<hpx::id_type> node_server::create_child(hpx::id_type const& locality
                     child.set_rad_grid(std::move(prolong)/*, std::move(outflows)*/).get();
                 }
             }
-#endif
             return child_id;
         });
 }
@@ -422,13 +419,13 @@ hpx::future<hpx::id_type> node_server::create_child(hpx::id_type const& locality
 typedef node_server::regrid_scatter_action regrid_scatter_action_type;
 HPX_REGISTER_ACTION(regrid_scatter_action_type);
 
-hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
+future<void> node_client::regrid_scatter(integer a, integer b) const {
     return hpx::async<typename node_server::regrid_scatter_action>(get_unmanaged_gid(), a, b);
 }
 
 void node_server::regrid_scatter(integer a_, integer total) {
     refinement_flag = 0;
-    std::array<hpx::future<void>, geo::octant::count()> futs;
+    std::array<future<void>, geo::octant::count()> futs;
     if (is_refined) {
         integer a = a_;
         ++a;
@@ -439,10 +436,10 @@ void node_server::regrid_scatter(integer a_, integer total) {
             if (children[ci].empty())
             {
                 futs[index++] = create_child(child_loc, ci).then(
-                    [this, ci, a, total](hpx::future<hpx::id_type>&& child)
+                    [this, ci, a, total](future<hpx::id_type>&& child)
                     {
-                        children[ci] = child.get();
-                        children[ci].regrid_scatter(a, total).get();
+                        children[ci] = GET(child);
+                        GET(children[ci].regrid_scatter(a, total));
                     }
                 );
             }
@@ -454,10 +451,10 @@ void node_server::regrid_scatter(integer a_, integer total) {
                 if (child_loc != current_child_loc)
                 {
                     futs[index++] = children[ci].copy_to_locality(child_loc).then(
-                        [this, ci, a, total](hpx::future<hpx::id_type>&& child)
+                        [this, ci, a, total](future<hpx::id_type>&& child)
                         {
-                            children[ci] = child.get();
-                            children[ci].regrid_scatter(a, total).get();
+                            children[ci] = GET(child);
+                            GET(children[ci].regrid_scatter(a, total));
                         }
                     );
                 }
@@ -472,7 +469,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
     clear_family();
     if( is_refined ) {
     	for( auto& f : futs ) {
-    		f.get();
+    		GET(f);
     	}
     }
 }
@@ -518,11 +515,11 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 typedef node_server::save_action save_action_type;
 HPX_REGISTER_ACTION(save_action_type);
 
-hpx::future<void> node_client::save(integer i, std::string s) const {
+future<void> node_client::save(integer i, std::string s) const {
     return hpx::async<typename node_server::save_action>(get_unmanaged_gid(), i, s);
 }
 
-std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std::string const& filename, hpx::future<void>& child_fut) const {
+std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std::string const& filename, future<void>& child_fut) const {
  //   printf( "Saving grid on %i\n", hpx::get_locality_id());
 
     std::map<integer, std::vector<char> > result;
@@ -531,8 +528,8 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
 
     // Call save on children that are non local, for all
     // locals, get the pointer
-    std::vector<hpx::future<void>> child_futs;
-    std::vector<hpx::util::tuple<integer, integer, hpx::future<node_server*>>> local_children;
+    std::vector<future<void>> child_futs;
+    std::vector<hpx::util::tuple<integer, integer, future<node_server*>>> local_children;
     if (is_refined)
     {
         child_futs.resize(NCHILD);
@@ -579,7 +576,7 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
         {
             auto ci = hpx::util::get<0>(child);
             auto cnt = hpx::util::get<1>(child);
-            auto cc = hpx::util::get<2>(child).get();
+            auto cc = GET(hpx::util::get<2>(child));
             auto child_result = cc->save_local(cnt, filename, child_futs[ci]);
             for (auto && d : child_result) {
                 result.emplace(std::move(d));
@@ -587,7 +584,7 @@ std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std:
         }
         for( auto& f : child_futs ) {
 			if (f.valid()) {
-				f.get();
+				GET(f);
 			}
 		}
     }
@@ -607,7 +604,7 @@ void node_server::save(integer cnt, std::string const& filename) const
         }).get();
     }
 
-    hpx::future<void> child_fut;
+    future<void> child_fut;
     std::map<integer, std::vector<char> > result = save_local(cnt, filename, child_fut);
 
     // run output on separate thread
@@ -658,7 +655,7 @@ void node_server::save(integer cnt, std::string const& filename) const
 typedef node_server::set_aunt_action set_aunt_action_type;
 HPX_REGISTER_ACTION(set_aunt_action_type);
 
-hpx::future<void> node_client::set_aunt(const hpx::id_type& aunt, const geo::face& f) const {
+future<void> node_client::set_aunt(const hpx::id_type& aunt, const geo::face& f) const {
     return hpx::async<typename node_server::set_aunt_action>(get_unmanaged_gid(), aunt, f);
 }
 
@@ -673,7 +670,7 @@ void node_server::set_aunt(const hpx::id_type& aunt, const geo::face& face) {
 typedef node_server::set_grid_action set_grid_action_type;
 HPX_REGISTER_ACTION(set_grid_action_type);
 
-hpx::future<void> node_client::set_grid(std::vector<real>&& g, std::vector<real>&& o) const {
+future<void> node_client::set_grid(std::vector<real>&& g, std::vector<real>&& o) const {
     return hpx::async<typename node_server::set_grid_action>(get_unmanaged_gid(), std::move(g), std::move(o));
 }
 
@@ -684,7 +681,7 @@ void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& ou
 typedef node_server::solve_gravity_action solve_gravity_action_type;
 HPX_REGISTER_ACTION(solve_gravity_action_type);
 
-hpx::future<void> node_client::solve_gravity(bool ene, bool aonly) const {
+future<void> node_client::solve_gravity(bool ene, bool aonly) const {
     return hpx::async<typename node_server::solve_gravity_action>(get_unmanaged_gid(), ene, aonly);
 }
 
@@ -692,7 +689,7 @@ void node_server::solve_gravity(bool ene, bool aonly) {
     if (!gravity_on) {
         return;
     }
-    std::array<hpx::future<void>, NCHILD> child_futs;
+    std::array<future<void>, NCHILD> child_futs;
     if (is_refined)
     {
         integer index = 0;;
@@ -702,6 +699,9 @@ void node_server::solve_gravity(bool ene, bool aonly) {
     }
     compute_fmm(RHO, ene, aonly);
     if( is_refined ) {
-    	wait_all_and_propagate_exceptions(child_futs);
+    //	wait_all_and_propagate_exceptions(child_futs);
+    	for( auto& f : child_futs ) {
+    		GET(f);
+    	}
     }
 }

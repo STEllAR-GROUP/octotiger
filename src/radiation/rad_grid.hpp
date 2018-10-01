@@ -10,7 +10,6 @@
 
 #include "defs.hpp"
 
-#ifdef RADIATION
 
 #define R_BW 2
 #define R_NX (INX+2*R_BW)
@@ -25,14 +24,9 @@
 
 typedef real rad_type;
 
-class rad_grid_init {
-public:
-	rad_grid_init();
-};
 
 
-
-class rad_grid: public rad_grid_init {
+class rad_grid {
 private:
 	static constexpr integer er_i = 0;
 	static constexpr integer fx_i = 1;
@@ -42,7 +36,6 @@ private:
 	static constexpr integer DY = R_NX;
 	static constexpr integer DZ = 1;
 
-	friend class rad_grid_init;
 	static void initialize();
 	real dx;
 	std::array<std::vector<rad_type>, NRF> U;
@@ -61,7 +54,6 @@ public:
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
-		arc & dx;
 		arc & dx;
 		arc & U;
 	}
@@ -102,4 +94,3 @@ public:
 
 #endif /* RAD_GRID_HPP_ */
 
-#endif

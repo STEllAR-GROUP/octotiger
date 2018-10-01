@@ -4,6 +4,7 @@
  *  Created on: Jun 3, 2015
  *      Author: dmarce1
  */
+
 #include "grid.hpp"
 #include "options.hpp"
 #include "profiler.hpp"
@@ -1564,23 +1565,11 @@ expansion_pass_type grid::compute_expansions(
 
 multipole_pass_type grid::compute_multipoles(
     gsolve_type type, const multipole_pass_type* child_poles) {
-    //	if( int(*Muse_counter) > 0)
-    //	printf( "%i\n", int(*Muse_counter));
-//	printf( "%\n", scaling_factor);
-	//if( dx  > 1.0e+12)
-//	printf( "+-00000--------++++++++++++++++++++++++++++ %e \n", dx);
-
     PROF_BEGIN;
     integer lev = 0;
     const real dx3 = dx * dx * dx;
     M_ptr = std::make_shared<std::vector<multipole>>();
     mon_ptr = std::make_shared<std::vector<real>>();
-    if (com_ptr[1] == nullptr) {
-        com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
-    }
-    if (type == RHO) {
-        com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
-    }
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
     if (is_leaf) {
@@ -1590,7 +1579,11 @@ multipole_pass_type grid::compute_multipoles(
         M.resize(G_N3);
         mon.resize(0);
     }
+    if (com_ptr[1] == nullptr) {
+        com_ptr[1] = std::make_shared<std::vector<space_vector>>(G_N3 / 8);
+    }
     if (type == RHO) {
+        com_ptr[0] = std::make_shared<std::vector<space_vector>>(G_N3);
         const integer iii0 = hindex(H_BW, H_BW, H_BW);
         const std::array<real, NDIM> x0 = {X[XDIM][iii0], X[YDIM][iii0], X[ZDIM][iii0]};
         for (integer i = 0; i != G_NX; ++i) {
@@ -1600,8 +1593,6 @@ multipole_pass_type grid::compute_multipoles(
                     com0iii[0] = x0[0] + i * dx;
                     com0iii[1] = x0[1] + j * dx;
                     com0iii[2] = x0[2] + k * dx;
-               //     if( std::abs(com0iii[0]) > 1.0e+12)
-              //      printf( "!!!!!!!!!!!!!  %e  %i %e %e  !!!!!!!!!!!!1111 \n", x0[0], int(i), dx, com0iii[0]);
                 }
             }
         }
@@ -1680,8 +1671,6 @@ multipole_pass_type grid::compute_multipoles(
                         const space_vector& Y = (*(com_ptr[lev]))[iiip];
                         for (integer d = 0; d < NDIM; ++d) {
                             dx[d] = x[d] - simd_vector(Y[d]);
-                 //           if( std::abs(x[d][0]) > 5.0 )
-                   //         printf( "%e %e ---\n", x[d][0], Y[d]);
                         }
                         mp = mc >> dx;
                         for (integer j = 0; j != 20; ++j) {
