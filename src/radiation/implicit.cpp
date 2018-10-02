@@ -15,12 +15,6 @@
 using quad = long double;
 using function_type = std::function<quad(quad)>;
 
-namespace std {
-__float128 abs(__float128 a) {
-	return fabsq(a);
-}
-}
-
 class quad_space_vector: public std::array<quad, NDIM> {
 public:
 	quad_space_vector() = default;

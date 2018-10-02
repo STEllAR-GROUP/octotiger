@@ -250,10 +250,6 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
 
 
 
-std::atomic<clock_t> channel_get_entry = 0;
-std::atomic<clock_t> channel_receive = 0;
-std::atomic<clock_t> channel_store = 0;
-
 
 void node_server::start_run(bool scf, integer ngrids)
 {
@@ -343,7 +339,6 @@ void node_server::start_run(bool scf, integer ngrids)
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
-        channel_get_entry = channel_store = channel_receive = 0;
 
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             printf("dwd step...\n");
@@ -360,9 +355,6 @@ void node_server::start_run(bool scf, integer ngrids)
                 - diags.com_dot[0][YDIM];
             theta = atan2(dy, dx);
             omega = grid::get_omega();
-            FILE* fp3 = fopen( "channel.dat", "at" );
-            fprintf( fp3, "channels: %lli %lli %lli\n", (long long) channel_get_entry, (long long) channel_store, (long long) channel_receive);
-            fclose(fp3);
             printf( "Old Omega = %e\n", omega );
            if( opts.vomega ) {
             	theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
