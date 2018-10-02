@@ -13,7 +13,9 @@
 #include <hpx/lcos/broadcast.hpp>
 #include "util.hpp"
 
-physcon_t physcon = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
+#include "safe_math.hpp"
+
+physcon_t physcon = { 6.00228e+22, 6.67259e-8, 2 * 9.81011e+5, 1.380658e-16, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
 
 #include "node_server.hpp"
 
@@ -67,18 +69,18 @@ void normalize_constants() {
 	m = 1.0 / m;
 	l = 1.0 / l;
 	t = 1.0 / t;
-//	k = 1.0 / k;
+	k = 1.0 / k;
 	//k = 1.0 / 1000000.0;
-	k = 1.0;
+//	k = 1.0;
 	physcon.kb = 1.380658e-16 * (m * l * l) / (t*t) / k;
 	physcon.c = 2.99792458e+10 * (l / t);
 	physcon.mh = 1.6733e-24 * m;
 	physcon.sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon.h = 6.6260755e-27 * m * l * l / t;
-	//printf("Noralized constants\n");
-//	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
-//	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon.A, physcon.B, physcon.G, physcon.kb, physcon.c, physcon.mh,
-///			physcon.sigma, physcon.h);
+	printf("Normalized constants\n");
+	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
+	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon.A, physcon.B, physcon.G, physcon.kb, physcon.c, physcon.mh,
+			physcon.sigma, physcon.h);
 }
 
 struct call_normalize_constants
@@ -282,49 +284,5 @@ void rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dk
 	dkpde = -3.5 * kp * einv;
 	bp = physcon.sigma * pi_inv * std::pow(T, 4.0);
 	dbde = 4.0 * bp * einv;
-}
-
-
-
-real kappa_R(real rho, real e, real mmw) {
-	const real Z = 0.0;
-	const real zbar = 2.0; //GENERALIZE
-	const real T = temperature(rho, e, mmw);
-	const real f1 = (T * T + 2.7e+11 * rho);
-	const real f2 = (1.0 + std::pow(T / (4.5e+8), 0.86));
-	const real k_ff_bf = 4.0e+25 * (Z + 0.0001) * rho * std::pow(T, -3.5);
-	const real k_T = 0.2 * T * T / (f1 * f2);
-	const real k_cond = 2.6e-7 * zbar * (T * T) / (rho * rho) * (1.0 + std::pow(rho / 2.0e+6, 2.0 / 3.0));
-	const real k_rad = (k_ff_bf + k_T);
-	const real k_tot = k_rad * k_cond / (k_rad + k_cond);
-	//const real k_tot = k_rad;;
-	return rho * k_tot;
-}
-
-
-real temperature(real rho, real e, real mmw) {
-	const real gm1 = 2.0 / 3.0;
-	return (gm1 * mmw * physcon.mh / physcon.kb) * (e / rho);
-}
-
-real kappa_p(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	const real Z = 0.0;
-	const real k = 30.262 * 4.0e+25 * (Z + 0.0001) * rho * std::pow(T, -3.5);
-	return rho * k;
-}
-
-real dkappa_p_de(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	return -3.5 * kappa_p(rho, e, mmw) / e;
-}
-
-real B_p(real rho, real e, real mmw) {
-	const real T = temperature(rho, e, mmw);
-	return (physcon.sigma / M_PI) * std::pow(T, 4.0);
-}
-
-real dB_p_de(real rho, real e, real mmw) {
-	return 4.0 * B_p(rho, e, mmw) / e;
 }
 

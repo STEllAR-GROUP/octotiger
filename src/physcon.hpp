@@ -10,6 +10,7 @@
 
 #include "defs.hpp"
 #include <hpx/traits/is_bitwise_serializable.hpp>
+#include "safe_math.hpp"
 
 struct physcon_t {
 	real A;
@@ -49,12 +50,6 @@ void set_AB(real, real);
 real stellar_temp_from_rho_mu_s(real rho, real mu, real s);
 real stellar_enthalpy_from_rho_mu_s(real rho, real mu, real s);
 real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s);
-real temperature(real rho, real e, real mmw);
-real kappa_p(real rho, real e, real mmw);
-real dkappa_p_de(real rho, real e, real mmw);
-real kappa_R(real rho, real e, real mmw);
-real B_p(real rho, real e, real mmw);
-real dB_p_de(real rho, real e, real mmw);
 real find_T_rad_gas(real p, real rho, real mu);
 
 void rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde);

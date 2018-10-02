@@ -209,7 +209,12 @@ diagnostics_t node_server::diagnostics() {
 		//	printf( "!\n");
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
-		diags.grid_com = grid_ptr->center_of_mass();
+		if (gravity_on) {
+			diags.grid_com = grid_ptr->center_of_mass();
+
+		} else {
+			//TODO center of mass for non gravity runs
+		}
 		//	printf( "%e\n", diags.m[0]);
 	}
 //	printf( "L1 = %e\n", diags.l1_phi);

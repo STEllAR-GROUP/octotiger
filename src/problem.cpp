@@ -27,8 +27,8 @@ refine_test_type refine_test_function = refine_test;
 
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> const& dudx) {
+	return level < max_level;
 	return refine_blast(level,max_level,x,y,z,U,dudx);
-	//return level < max_level;
 
 	bool rc = false;
 	real den_floor = 1.0e-1;
@@ -48,25 +48,29 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 
 
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
-	return blast_wave(x,y,z,dx);
+//	return blast_wave(x,y,z,dx);
+
 	std::vector<real> u(NF + NRF, real(0));
 	x -= 0.0;
 	y -= 0.0;
 	z -= 0.0;
 	real r = std::max(dx, 0.50);
-	const real eint = 1.0e-4;
+	real eint;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
+		eint = 2.0e+16;
 	} else {
-		u[rho_i] = 1.0e-10;
+		u[rho_i] = 1.0e-20;
+	    eint = 2.0e+15;
 	}
-	u[tau_i] = std::pow( eint * u[rho_i], 1.0 / grid::get_fgamma() );
+	u[tau_i] = POWER( eint * u[rho_i], 1.0 / grid::get_fgamma() );
 //	u[sx_i] = 0.0; //u[rho_i] / 10.0;
 	const real fgamma = grid::get_fgamma();
-	u[egas_i] = std::pow(u[tau_i], fgamma);
-	u[egas_i] += u[sx_i] * u[sx_i] / u[rho_i] / 2.0;
-	u[egas_i] += u[sy_i] * u[sy_i] / u[rho_i] / 2.0;
-	u[egas_i] += u[sz_i] * u[sz_i] / u[rho_i] / 2.0;
+	u[egas_i] = POWER(u[tau_i], fgamma);
+	const real rhoinv = INVERSE(u[rho_i]);
+	u[egas_i] += u[sx_i] * u[sx_i] * rhoinv / 2.0;
+	u[egas_i] += u[sy_i] * u[sy_i] * rhoinv / 2.0;
+	u[egas_i] += u[sz_i] * u[sz_i] * rhoinv / 2.0;
 	u[spc_ac_i] = u[rho_i];
 	return u;
 }

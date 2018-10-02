@@ -50,8 +50,12 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					if (opts.eos == WD) {
 						p += ztwd_pressure(U[rho_i][iii]);
 					}
-					rc.virial += (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
-					rc.virial_norm += (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+					if( node_server::is_gravity_on() ) {
+						rc.virial += (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+						rc.virial_norm += (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
+					} else {
+						rc.virial_norm = 1.0;
+					}
 					for (integer f = 0; f != NF; ++f) {
 						rc.grid_sum[f] += U[f][iii] * dV;
 					}
@@ -1804,7 +1808,7 @@ inline void limit_slope(real& ql, real q0, real& qr) {
 }
 ;
 
-inline real vanleer(real a, real b) {
+static inline real vanleer(real a, real b) {
 	if (a == 0.0 || b == 0.0) {
 		return 0.0;
 	} else {
@@ -2160,7 +2164,7 @@ real grid::compute_fluxes() {
 		}
 	}
 
-	if (opts.radiation) {
+	if (false && opts.radiation) {
 		const auto& egas = get_field(egas_i);
 		const auto& rho = get_field(rho_i);
 		const auto& tau = get_field(tau_i);

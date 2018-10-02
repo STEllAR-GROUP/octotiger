@@ -192,7 +192,7 @@ set(header_files
 )
 
 
-set(silo_cmp_dependencies ${Silo_LIBRARY})
+set(silo_cmp_dependencies ${Silo_LIBRARY} )
 set(silo_cmp_source_files
     test/silo_cmp.cpp
 )
