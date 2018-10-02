@@ -14,7 +14,7 @@
 using function_type = std::function<real(real)>;
 
 using mat_function_type = std::function<real(real, real, real)>;
-#include <Vc/Vc>
+#include "/home/dmarce1/local/vc/include/Vc/Vc"
 
 template<class T, int N>
 class vectorN: public std::valarray<T> {
@@ -150,3 +150,4 @@ void implicit_radiation_step_2nd_order(real& E0, real& e0, space_vector& F0, spa
 	implicit_radiation_step(E0, e0, F0, u0, rho, mmw, kp, kr, dt);
 
 }
+
