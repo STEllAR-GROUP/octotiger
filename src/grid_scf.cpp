@@ -110,12 +110,12 @@ void read_option_file() {
 //0.5=.313
 //0.6 .305
 
-hpx::future<void> node_client::rho_move(real x) const {
+future<void> node_client::rho_move(real x) const {
 	return hpx::async<typename node_server::rho_move_action>(get_unmanaged_gid(), x);
 }
 
 void node_server::rho_move(real x) {
-	std::array<hpx::future<void>, NCHILD> futs;
+	std::array<future<void>, NCHILD> futs;
 	if (is_refined) {
         integer index = 0;
 		for (auto& child : children) {
@@ -125,7 +125,10 @@ void node_server::rho_move(real x) {
 	grid_ptr->rho_move(x);
 	all_hydro_bounds();
 	if( is_refined ) {
-		wait_all_and_propagate_exceptions(futs);
+		for( auto& f : futs ) {
+			GET(f);
+		}
+//		wait_all_and_propagate_exceptions(futs);
 	}
 }
 
@@ -135,16 +138,16 @@ HPX_REGISTER_ACTION (scf_update_action_type);
 typedef typename node_server::rho_mult_action rho_mult_action_type;
 HPX_REGISTER_ACTION (rho_mult_action_type);
 
-hpx::future<void> node_client::rho_mult(real f0, real f1) const {
+future<void> node_client::rho_mult(real f0, real f1) const {
 	return hpx::async<typename node_server::rho_mult_action>(get_unmanaged_gid(), f0, f1);
 }
 
-hpx::future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) const {
+future<real> node_client::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) const {
 	return hpx::async<typename node_server::scf_update_action>(get_unmanaged_gid(), com, omega, c1, c2, c1_x, c2_x, l1_x, e1, e2);
 }
 
 void node_server::rho_mult(real f0, real f1) {
-	std::array<hpx::future<void>, NCHILD> futs;
+	std::array<future<void>, NCHILD> futs;
 	if (is_refined) {
         integer index = 0;
 		for (auto& child : children) {
@@ -154,13 +157,17 @@ void node_server::rho_mult(real f0, real f1) {
 	grid_ptr->rho_mult(f0, f1);
 	all_hydro_bounds();
 	if( is_refined ) {
-		wait_all_and_propagate_exceptions(futs);
+		for( auto& f : futs ) {
+			GET(f);
+		}
+
+//		wait_all_and_propagate_exceptions(futs);
 	}
 }
 
 real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos e1, struct_eos e2) {
 	grid::set_omega(omega);
-	std::array<hpx::future<real>, NCHILD> futs;
+	std::array<future<real>, NCHILD> futs;
 	real res;
 	if (is_refined) {
 		integer index = 0;
@@ -175,7 +182,7 @@ real node_server::scf_update(real com, real omega, real c1, real c2, real c1_x, 
 	if (is_refined) {
         res = std::accumulate(
             futs.begin(), futs.end(), res,
-            [](real res, hpx::future<real> & f)
+            [](real res, future<real> & f)
             {
                 return res + f.get();
             });
@@ -373,9 +380,9 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 			}
 		}
 	}
-#ifdef RADIATION
-	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
-#endif
+	if( opts.radiation) {
+		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
+	}
 	PROF_END;
 	return 0.0;
 }
@@ -592,13 +599,13 @@ void node_server::run_scf(std::string const& data_dir) {
 		solve_gravity(false,false);
 
 	}
-#ifdef RADIATION
-	if( opts.eos == WD) {
-		set_cgs();
-		all_hydro_bounds();
-		erad_init();
+	if (opts.radiation) {
+		if (opts.eos == WD) {
+			set_cgs();
+			all_hydro_bounds();
+			grid_ptr->rad_init();
+		}
 	}
-#endif
 }
 
 std::vector<real> scf_binary(real x, real y, real z, real dx) {

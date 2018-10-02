@@ -4,12 +4,16 @@
 #include "options.hpp"
 #include "node_server.hpp"
 #include "physcon.hpp"
+#include "../roe.hpp"
 
 #include <iostream>
 
-extern options opts;
 
-#ifdef RADIATION
+
+void implicit_radiation_step_2nd_order(real& E0, real& e0, space_vector& F0, space_vector& u0, real rho, real mmw, real dt);
+
+
+extern options opts;
 
 integer rindex(integer x, integer y, integer z) {
 	return z + R_NX * (y + R_NX * x);
@@ -63,61 +67,11 @@ hpx::future<void> node_client::send_rad_children(std::vector<real>&& data, const
 	return hpx::async<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci);
 }
 
-real rad_grid::rad_imp_comoving(real& E, real& e, real rho, real mmw, real dt) {
-//	const real gam = 1.0 - std::sqrt(2.0)/2.0;
-//	printf("%e %e\n", e, E);
-	const integer max_iter = 100;
-	const real E0 = E;
-	const real e0 = e;
-	real E1 = E0;
-	real e1 = e0;
-	real f = 1.0;
-	real dE;
-	integer i = 0;
-	const auto clight = physcon.c;
-	real err;
-	/*if( E < 0.0  ){
-	 //		printf( "EFEF\n");
-	 printf( "Error in %s on line %i\n", __FILE__, __LINE__);
-	 abort();
-	 //		abort();
-	 * c=
-	 }*/
-	const real con1 = 4.0 * M_PI / clight;
-	const real con2 = dt * clight;
-	const real con3 = 4.0 * M_PI * dt;
-	do {
-		real dkp_de, dB_de, kp, B;
-		rad_coupling_vars(rho, e, mmw, B, kp, dkp_de, dB_de);
-		f = (E - E0) + con2 * kp * (E - con1 * B);
-		const real den = 1.0 + kp * (con3 * dB_de + con2) - con2 * dkp_de * (E - con1 * B);
-		dE = -f / den;
-		const real dE0 = dE;
-		err = std::abs(dE / E);
-		dE = std::min(std::max(dE, -E * 0.9), +e * 0.9);
-		E += dE;
-		e -= dE;
-		E1 = E;
-		e1 = e;
-		++i;
-		if (i > max_iter || E < 0.0) {
-			printf("%i E0 = %e E = %e e0 = %e e = %e dE = %e\n", int(i),  E0, E, e0, e, dE);
-			if (i > max_iter + 100)
-				abort();
-		}
-	} while (std::abs(err) > 1.0e-13);
-	dE = E - E0;
-	const real gam = 1.0 - 1.0 / std::sqrt(2.0);
-	if (dE > 0.0) {
-		dE = std::min(dE, e0 * gam);
-	} else {
-		dE = std::max(dE, -E0 * gam);
-	}
-	return dE / dt;
-}
-
 void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 		const std::vector<real>& rho, real dt) {
+
+	const real dtinv = 1.0 / dt;
+
 	const integer d = H_BW - R_BW;
 	const real clight = physcon.c;
 	const real clightinv = 1.0 / clight;
@@ -140,126 +94,32 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				if (opts.eos == WD) {
 					e0 -= ztwd_energy(den);
 				}
-				if (e0 < egas[iiih] * 0.001) {
+				if (e0 < egas[iiih] * de_switch2) {
 					e0 = std::pow(tau[iiih], fgamma);
 				}
+				real E0 = U[er_i][iiir];
+				space_vector F0;
+				space_vector u0;
+				F0[0] = U[fx_i][iiir];
+				F0[1] = U[fy_i][iiir];
+				F0[2] = U[fz_i][iiir];
+				u0[0] = vx;
+				u0[1] = vy;
+				u0[2] = vz;
+				real E1 = E0;
+				space_vector F1 = F0;
+				space_vector u1 = u0;
+				real e1 = e0;
 
-				/* Compute transformation parameters */
-				const real v2 = vx * vx + vy * vy + vz * vz;
-				const real kr = kappa_R(den, e0, mmw[iiir]);
-				real coeff = kr * dt * clight;
-				coeff = coeff / (1.0 + coeff);
-				vx += 0.5 * coeff * U[fx_i][iiir] / den * clightinv * clightinv;
-				vy += 0.5 * coeff * U[fy_i][iiir] / den * clightinv * clightinv;
-				vz += 0.5 * coeff * U[fz_i][iiir] / den * clightinv * clightinv;
-				real beta_x = vx * clightinv;
-				real beta_y = vy * clightinv;
-				real beta_z = vz * clightinv;
-				real beta_2 = beta_x * beta_x + beta_y * beta_y + beta_z * beta_z;
-				//real beta = std::sqrt(beta_2);
-				//	const real f = 1.0 / std::sqrt(1.0 + beta*beta);
-				//	beta_x *= f;
-				//	beta_y *= f;
-				//	beta_z *= f;
-				//	beta_2 *= f * f;
-				if (beta_x > 1.0) {
-					printf("BETA = %e %e %e %e %e\n", std::sqrt(beta_2), coeff, kr, den, U[fx_i][iiir]);
-				}
-				//	beta_x = beta_y = beta_z = beta_2 = 0.0;
-				/* Transform E and F from lab frame to comoving frame */
 
-				real E0 = U[er_i][iiir]; // * (1.0 + beta_2);
-				real tmp1 = 0.0, tmp2 = 0.0;
-				tmp1 -= 2.0 * beta_x * clightinv * U[fx_i][iiir];
-				tmp1 -= 2.0 * beta_y * clightinv * U[fy_i][iiir];
-				tmp1 -= 2.0 * beta_z * clightinv * U[fz_i][iiir];
-				const auto P = compute_p(U[er_i][iiir], U[fx_i][iiir], U[fy_i][iiir], U[fz_i][iiir]);
-				tmp2 += 2.0 * beta_x * P[XDIM][XDIM] * beta_x;
-				tmp2 += 2.0 * beta_y * P[YDIM][YDIM] * beta_y;
-				tmp2 += 2.0 * beta_z * P[ZDIM][ZDIM] * beta_z;
-				tmp2 += 4.0 * beta_x * P[XDIM][YDIM] * beta_y;
-				tmp2 += 4.0 * beta_x * P[XDIM][ZDIM] * beta_z;
-				tmp2 += 4.0 * beta_y * P[YDIM][ZDIM] * beta_z;
-				E0 += tmp1 + tmp2;
-				E0 = std::max(E0, 0.0);
-				///	if( U[er_i][iiir] < 0.0 ) {
-				//		printf( "1 %e %e %e %e %e %e %e %e \n", E0,  U[er_i][iiir] , tmp1, tmp2, beta_2, fEdd_xx[iiir], fEdd_yy[iiir], fEdd_zz[iiir]);
-				//		abort();
-				//	}
-				real Fx0, Fy0, Fz0;
-				Fx0 = U[fx_i][iiir];			// * (1.0 + 2.0 * beta_2);
-				Fy0 = U[fy_i][iiir]; // * (1.0 + 2.0 * beta_2);
-				Fz0 = U[fz_i][iiir]; // * (1.0 + 2.0 * beta_2);
-
-				Fx0 -= beta_x * clight * U[er_i][iiir];
-				Fx0 -= beta_y * clight * P[XDIM][YDIM];
-				Fx0 -= beta_z * clight * P[XDIM][ZDIM];
-				Fx0 -= beta_x * clight * P[XDIM][XDIM];
-
-				Fy0 -= beta_y * clight * U[er_i][iiir];
-				Fy0 -= beta_x * clight * P[YDIM][XDIM];
-				Fy0 -= beta_y * clight * P[YDIM][YDIM];
-				Fy0 -= beta_z * clight * P[YDIM][ZDIM];
-
-				Fz0 -= beta_z * clight * U[er_i][iiir];
-				Fz0 -= beta_x * clight * P[ZDIM][XDIM];
-				Fz0 -= beta_y * clight * P[ZDIM][YDIM];
-				Fz0 -= beta_z * clight * P[ZDIM][ZDIM];
-
-				real En, Fxn, Fyn, Fzn, en;
-				real Enp1, Fxnp1, Fynp1, Fznp1, enp1;
-				real E1, Fx1, Fy1, Fz1, e1;
-				real E2, Fx2, Fy2, Fz2, e2;
-				real de1, dE1, dFx1, dFy1, dFz1;
-				real de2, dE2, dFx2, dFy2, dFz2;
-				en = e0;
-				En = E0;
-				Fxn = Fx0;
-				Fyn = Fy0;
-				Fzn = Fz0;
-
-				const real gam = 1.0 - std::sqrt(2.0) / 2.0;
-
-				real this_E = En;
-				real this_e = en;
-				dE1 = rad_imp_comoving(this_E, this_e, den, mmw[iiir], gam * dt);
-				de1 = -dE1;
-				real kR = kappa_R(den, this_e, mmw[iiir]);
-				dFx1 = -(Fx0 * clight * kR) / (1.0 + clight * gam * dt * kR);
-				dFy1 = -(Fy0 * clight * kR) / (1.0 + clight * gam * dt * kR);
-				dFz1 = -(Fz0 * clight * kR) / (1.0 + clight * gam * dt * kR);
-
-				this_E = En + (1.0 - 2.0 * gam) * dE1 * dt;
-				this_e = en + (1.0 - 2.0 * gam) * de1 * dt;
-				//if( this_E < 0.0 ) {
-				//	printf( "this_E %e %e %e\n", this_E, En, (1.0 - 2.0 * gam) * dE1 * dt);
-				//	}
-				dE2 = rad_imp_comoving(this_E, this_e, den, mmw[iiir], gam * dt);
-				de2 = -dE2;
-				kR = kappa_R(den, this_e, mmw[iiir]);
-				dFx2 = -(Fx0 + (1.0 - 2.0 * gam) * dFx1 * dt) * (clight * kR) / (1.0 + clight * dt * gam * kR);
-				dFy2 = -(Fy0 + (1.0 - 2.0 * gam) * dFy1 * dt) * (clight * kR) / (1.0 + clight * dt * gam * kR);
-				dFz2 = -(Fz0 + (1.0 - 2.0 * gam) * dFz1 * dt) * (clight * kR) / (1.0 + clight * dt * gam * kR);
-
-				const real dE0_dt = (dE1 + dE2) * 0.5;
-				const real de0_dt = (de1 + de2) * 0.5;
-				const real dFx0_dt = (dFx1 + dFx2) * 0.5;
-				const real dFy0_dt = (dFy1 + dFy2) * 0.5;
-				const real dFz0_dt = (dFz1 + dFz2) * 0.5;
-				e1 = e0 + de0_dt * dt;
-				if (e1 < 0.0) {
-					abort_error()
-					;
-				}
-
-				/* Transform time derivatives to lab frame */
-				const real dE_dt = dE0_dt + (beta_x * dFx0_dt + beta_y * dFy0_dt + beta_z * dFz0_dt) * clightinv;
-				const real dFx_dt = dFx0_dt;				// + beta_x * clight * dE0_dt;
-				const real dFy_dt = dFy0_dt;				// + beta_y * clight * dE0_dt;
-				const real dFz_dt = dFz0_dt;				// + beta_z * clight * dE0_dt;
+				implicit_radiation_step_2nd_order(E1, e1, F1, u1, den, mmw[iiir], dt);
+				const real dE_dt = (E1-E0)*dtinv;
+				const real dFx_dt = (F1[0] - F0[0] ) * dtinv;
+				const real dFy_dt = (F1[1] - F0[1] ) * dtinv;
+				const real dFz_dt = (F1[2] - F0[2] ) * dtinv;
 
 				/* Accumulate derivatives */
-				U[er_i][iiir] += dE_dt * dt;
+				U[er_i][iiir] = dE_dt * dt;
 				U[fx_i][iiir] += dFx_dt * dt;
 				U[fy_i][iiir] += dFy_dt * dt;
 				U[fz_i][iiir] += dFz_dt * dt;
@@ -277,11 +137,11 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				if (opts.eos == WD) {
 					e -= ztwd_energy(den);
 				}
-				if (e < 0.1 * egas[iiih]) {
+				if (e < de_switch2 * egas[iiih]) {
 					e = e1;
 				}
 				if (U[er_i][iiir] < 0.0) {
-					printf("%e %e %e %e %e %e  %e !!!!!4!!!!!\n", U[er_i][iiir], E0, dE0_dt * dt, dE_dt * dt, dE1 * dt, dE2 * dt, e);
+					printf("Er < 0.0\n");
 					abort();
 				}
 				tau[iiih] = std::pow(e, 1.0 / fgamma);
@@ -486,12 +346,6 @@ std::array<std::array<real, NDIM>, NDIM> rad_grid::compute_p(real E, real Fx, re
 		}
 	}
 	return P;
-}
-void rad_grid::initialize() {
-}
-
-rad_grid_init::rad_grid_init() {
-	rad_grid::initialize();
 }
 
 void rad_grid::allocate() {
@@ -1294,5 +1148,3 @@ void node_server::erad_init() {
 		hpx::wait_all(futs);
 	}
 }
-#endif
-
