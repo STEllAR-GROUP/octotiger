@@ -250,9 +250,9 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
 
 
 
-std::atomic<clock_t> channel_get_entry(0);
-std::atomic<clock_t> channel_receive(0);
-std::atomic<clock_t> channel_store(0);
+std::atomic<clock_t> channel_get_entry = 0;
+std::atomic<clock_t> channel_receive = 0;
+std::atomic<clock_t> channel_store = 0;
 
 
 void node_server::start_run(bool scf, integer ngrids)
@@ -814,3 +814,4 @@ void node_server::velocity_inc(const space_vector& dv) {
         grid_ptr->velocity_inc(dv);
     }
 }
+
