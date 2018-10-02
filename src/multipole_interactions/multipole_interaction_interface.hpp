@@ -94,8 +94,6 @@ namespace fmm {
             iterate_inner_cells_padded([M_ptr, com0, &local_expansions_SoA, &center_of_masses_SoA,
                 &local_monopoles](const multiindex<>& i, const size_t flat_index,
                 const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                // local_expansions.at(flat_index) = M_ptr.at(flat_index_unpadded);
-                // center_of_masses.at(flat_index) = com0.at(flat_index_unpadded);
                 local_expansions_SoA.set_AoS_value(
                     std::move(M_ptr.at(flat_index_unpadded)), flat_index);
                 center_of_masses_SoA.set_AoS_value(
@@ -106,24 +104,14 @@ namespace fmm {
             for (const geo::direction& dir : geo::direction::full_set()) {
                 // don't use neighbor.direction, is always zero for empty cells!
                 neighbor_gravity_type& neighbor = neighbors[dir];
-                // Switch x and z dimension since the stencil code and the old octotiger code
-                // a different order for some reason
-                auto x = dir.operator[](ZDIM) + 1;
-                auto y = dir.operator[](YDIM) + 1;
-                auto z = dir.operator[](XDIM) + 1;
 
                 // this dir is setup as a multipole
                 if (!neighbor.is_monopole) {
                     if (!neighbor.data.M) {
-                        // TODO: ask Dominic why !is_monopole and stuff still empty
                         iterate_inner_cells_padding(
                             dir, [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
                                      const multiindex<>& i, const size_t flat_index,
                                      const multiindex<>&, const size_t) {
-                                // // initializes whole expansion, relatively expansion
-                                // local_expansions.at(flat_index) = 0.0;
-                                // // initializes x,y,z vector
-                                // center_of_masses.at(flat_index) = 0.0;
                                 local_expansions_SoA.set_AoS_value(
                                     std::move(expansion()), flat_index);
                                 center_of_masses_SoA.set_AoS_value(
@@ -142,10 +130,6 @@ namespace fmm {
                                     neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
                                     const size_t flat_index, const multiindex<>& i_unpadded,
                                     const size_t flat_index_unpadded) {
-                                    // local_expansions.at(flat_index) =
-                                    //     neighbor_M_ptr.at(flat_index_unpadded);
-                                    // center_of_masses.at(flat_index) =
-                                    //     neighbor_com0.at(flat_index_unpadded);
                                     local_expansions_SoA.set_AoS_value(
                                         std::move(neighbor_M_ptr.at(flat_index_unpadded)),
                                         flat_index);
@@ -194,14 +178,13 @@ namespace fmm {
                     if (!neighbor.data.m) {
                         iterate_inner_cells_padding(
                             dir, [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
-                                     const multiindex<>& i, const size_t flat_index,
-                                     const multiindex<>&, const size_t) {
+                                const multiindex<>& i, const size_t flat_index,
+                                const multiindex<>&, const size_t) {
                                 local_expansions_SoA.set_AoS_value(
                                     std::move(expansion()), flat_index);
                                 center_of_masses_SoA.set_AoS_value(
                                     std::move(space_vector()), flat_index);
                                 local_monopoles.at(flat_index) = 0.0;
-
                             });
                     } else {
                         // Get multipole data into our input structure
@@ -211,24 +194,16 @@ namespace fmm {
                             iterate_inner_cells_padding(
                                 dir,
                                 [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles,
-                                    neighbor_mons, xbase, dx](const multiindex<>& i,
-                                    const size_t flat_index, const multiindex<>& i_unpadded,
-                                    const size_t flat_index_unpadded) {
-                                    // local_expansions.at(flat_index) = 0.0;
-                                    // center_of_masses.at(flat_index) = 0.0;
-
+                                 neighbor_mons, xbase, dx](const multiindex<>& i,
+                                                           const size_t flat_index, const multiindex<>& i_unpadded,
+                                                           const size_t flat_index_unpadded) {
                                     space_vector e;
                                     e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
                                     e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
                                     e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
                                     center_of_masses_SoA.set_AoS_value(std::move(e), flat_index);
-                                    // local_monopoles.at(flat_index) =
-                                    // neighbor_mons.at(flat_index_unpadded);
                                     local_expansions_SoA.set_AoS_value(
                                         std::move(expansion()), flat_index);
-                                    // local_expansions_SoA.set_value(
-                                    //     std::move(neighbor_mons.at(flat_index_unpadded)),
-                                    //     flat_index);
                                     local_monopoles.at(flat_index) =
                                         neighbor_mons.at(flat_index_unpadded);
                                 });
