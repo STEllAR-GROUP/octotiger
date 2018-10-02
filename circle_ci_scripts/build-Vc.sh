@@ -11,6 +11,6 @@ fi
 
 mkdir -p Vc/build
 cd Vc/build
-cmake -DCMAKE_INSTALL_PREFIX="$Vc_ROOT" -DCMAKE_BUILD_TYPE=release ../
+cmake -DCMAKE_INSTALL_PREFIX=/home/circleci/Vc_install -DCMAKE_BUILD_TYPE=release ../
 make -j2 VERBOSE=1 install
 cd ../..
