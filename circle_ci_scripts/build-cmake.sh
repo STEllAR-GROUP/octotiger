@@ -8,7 +8,7 @@ if [ ! -d "cmake-3.8.0/" ]; then
 	tar -xvzf cmake-3.8.0.tar.gz
 	cd cmake-3.8.0/
 	mkdir -p build && cd build
-    cmake -DCMAKE_INSTALL_PREFIX=$CMAKE_ROOT ..
+    cmake -DCMAKE_INSTALL_PREFIX=/home/circleci/cmake_install ..
 	make -j 4
     make install
 	cd ../..

@@ -33,6 +33,7 @@ jobs:
                                         - "/home/circleci/octotiger/hpx"
                                         - "/home/circleci/hpx_install"
                                         - "/home/circleci/boost_1_63_0_install"
+                                        - "/home/circleci/cmake_install"
                         - save_cache:
                                 key: build-{{ .Branch }}-{{ .Revision }}
                                 paths:
