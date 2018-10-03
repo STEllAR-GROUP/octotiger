@@ -2,7 +2,7 @@
 set -x
 
 if [ ! -d "Vc/" ]; then
-    git clone https://github.com/VcDevel/Vc.git
+    git clone https://github.com/STEllAR-GROUP/Vc
 else
     cd Vc
     git pull
