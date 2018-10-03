@@ -12,6 +12,3 @@ if [ ! -d "boost_1_63_0_install/" ]; then
     ./b2 -j4 install
     cd ..
 fi
-
-
-
