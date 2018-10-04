@@ -340,8 +340,6 @@ void node_server::start_run(bool scf, integer ngrids)
         integer next_step = (std::min)(step_num + refinement_freq(), opts.stop_step + 1);
         real omega_dot = 0.0, omega = 0.0, theta = 0.0, theta_dot = 0.0;
 
-        channel_get_entry = channel_store = channel_receive = 0;
-
         if ((opts.problem == DWD) && (step_num % refinement_freq() == 0)) {
             printf("dwd step...\n");
             auto dt = GET(step(next_step - step_num));
