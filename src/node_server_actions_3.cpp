@@ -250,9 +250,6 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
 
 
 
-std::atomic<clock_t> channel_get_entry = 0;
-std::atomic<clock_t> channel_receive = 0;
-std::atomic<clock_t> channel_store = 0;
 
 
 void node_server::start_run(bool scf, integer ngrids)
