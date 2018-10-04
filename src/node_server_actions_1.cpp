@@ -116,7 +116,7 @@ future<grid::output_list_type> node_server::load(
 
             futs[index++] =
                 hpx::new_<node_server>(options::all_localities[loc_id],
-                    my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle).then(
+                    my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, rcycle, gcycle).then(
                         [this, ci, counts, do_output, total_nodes, rec_size, filename](future<hpx::id_type>&& fut)
                         {
                             children[ci] = fut.get();
@@ -362,7 +362,7 @@ integer node_server::regrid_gather(bool rebalance_only) {
 future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, integer ci)
 {
     return hpx::new_ < node_server
-            > (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle).then(
+            > (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then(
         [this, ci](future<hpx::id_type>&& child_idf)
         {
             hpx::id_type child_id = child_idf.get();

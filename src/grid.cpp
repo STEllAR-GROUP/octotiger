@@ -2163,7 +2163,7 @@ real grid::compute_fluxes() {
 			}
 		}
 	}
-
+/*
 	if (false && opts.radiation) {
 		const auto& egas = get_field(egas_i);
 		const auto& rho = get_field(rho_i);
@@ -2174,6 +2174,10 @@ real grid::compute_fluxes() {
 		const real b = rad_grid_ptr->hydro_signal_speed(egas, tau, sx, sy, sz, rho);
 		max_lambda += b;
 	}	PROF_END;
+*/
+
+//	return physcon.c;
+
 	return max_lambda;
 }
 
@@ -2468,6 +2472,8 @@ void grid::etot_to_egas() {
 }
 
 void grid::next_u(integer rk, real t, real dt) {
+//	return;
+
 	PROF_BEGIN;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2625,7 +2631,7 @@ void grid::next_u(integer rk, real t, real dt) {
 				 }*/
 
 				if (U[tau_i][iii] < ZERO) {
-					printf("Tau is negative- %e\n", double(U[tau_i][iii]));
+					printf("Tau is negative- %e %i %i %i  %e %e %e\n", double(U[tau_i][iii]), i, j, k, X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
 					//	abort();
 				} else if (U[rho_i][iii] <= ZERO) {
 					printf("Rho is non-positive - %e %i %i %i\n", double(U[rho_i][iii]), int(i), int(j), int(k));
