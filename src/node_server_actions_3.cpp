@@ -356,8 +356,6 @@ void node_server::start_run(bool scf, integer ngrids)
             theta = atan2(dy, dx);
             omega = grid::get_omega();
             FILE* fp3 = fopen( "channel.dat", "at" );
-            fprintf( fp3, "channels: %lli %lli %lli\n", (long long) channel_get_entry, (long long) channel_store, (long long) channel_receive);
-            fclose(fp3);
             printf( "Old Omega = %e\n", omega );
            if( opts.vomega ) {
             	theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
