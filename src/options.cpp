@@ -60,6 +60,8 @@
 #define CUDA_STREAMS_LOCALITY_OPT "-Cuda_streams_per_locality"
 #define CUDA_STREAMS_GPU_OPT "-Cuda_streams_per_gpu"
 
+#define RADIATION_OPT "-Radiation"
+
 bool options::cmp(const char* str1, const char* str2) {
     return strncmp(str1, str2, strlen(str2)) == 0;
 }
@@ -156,6 +158,7 @@ bool options::process_options(int argc, char* argv[]) {
     contact_fill = 0.0;
     output_dt = -1;
     bench = false;
+    radiation = false;
     ang_con = true;
     angmom_theta = 2.0;
     stop_time = std::numeric_limits<real>::max() - 1;
@@ -189,10 +192,8 @@ bool options::process_options(int argc, char* argv[]) {
                 problem = STAR;
             } else if (cmp(prob, PROBLEM_OPT_MOVING_STAR)) {
                 problem = MOVING_STAR;
-#ifdef RADIATION
             } else if (cmp(prob, PROBLEM_OPT_RADIATION_TEST)) {
                 problem = RADIATION_TEST;
-#endif
             } else if (cmp(prob, PROBLEM_OPT_SOD)) {
                 problem = SOD;
             } else if (cmp(prob, PROBLEM_OPT_BLAST)) {
@@ -201,6 +202,8 @@ bool options::process_options(int argc, char* argv[]) {
                 printf("The user specified an invalid problem type, \"%s\"\n", prob.c_str());
                 rc = false;
             }
+        } else if (cmp(argv[i], RADIATION_OPT)) {
+            radiation = true;
         } else if (cmp(argv[i], BENCH_OPT)) {
             bench = true;
         } else if (cmp(argv[i], EOS_OPT)) {

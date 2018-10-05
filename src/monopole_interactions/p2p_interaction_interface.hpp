@@ -101,6 +101,7 @@ namespace fmm {
                                             neighbor_mons.at(flat_index_unpadded);
                                     });
                             } else {
+                                // Reset to default
                                 iterate_inner_cells_padding(
                                     dir, [&local_monopoles](const multiindex<>& i,
                                              const size_t flat_index, const multiindex<>&,
@@ -110,6 +111,7 @@ namespace fmm {
                                     });
                                 auto list = grid_ptr->get_ilist_n_bnd(dir);
                                 size_t counter = 0;
+                                // Load relevant stuff
                                 for (auto i : list) {
                                     const integer iii = i.second;
                                     const multiindex<> offset =

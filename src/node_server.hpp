@@ -17,7 +17,8 @@
 #include "future.hpp"
 //#include "struct_eos.hpp"
 #include "profiler.hpp"
-#include "rad_grid.hpp"
+#include "radiation/rad_grid.hpp"
+#include <map>
 
 #include <array>
 #include <atomic>
@@ -34,6 +35,15 @@
 #include "multipole_interactions/cuda_multipole_interaction_interface.hpp"
 
 class node_server: public hpx::components::managed_component_base<node_server> {
+    
+//    static node_list_type node_list;
+    static hpx::mutex node_list_mtx;
+
+ //   static void node_list_add(const node_location&, node_server*);
+  //  static void node_list_remove(const node_location&);
+
+   // static void check_for_refinement2(real,real);
+
 public:
     static void set_gravity(bool b) {
         gravity_on = b;
@@ -63,11 +73,9 @@ private:
     real current_time;
     real rotational_time;
     std::shared_ptr<grid> grid_ptr; //
-#ifdef RADIATION
     std::shared_ptr<rad_grid> rad_grid_ptr; //
-#endif
     bool is_refined;
-   std::array<integer, NVERTEX> child_descendant_count;
+    std::array<integer, NVERTEX> child_descendant_count;
     std::array<real, NDIM> xmin;
     real dx;
 
@@ -93,9 +101,9 @@ private:
     hpx::lcos::local::spinlock prolong_mtx;
     channel<expansion_pass_type> parent_gravity_channel;
     std::array<semaphore, geo::direction::count()> neighbor_signals;
-    std::array<channel<std::vector<real>>, NCHILD> child_hydro_channels;
-    std::array<channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
-    std::array<channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
+    std::array<unordered_channel<std::vector<real>>, NCHILD> child_hydro_channels;
+    std::array<unordered_channel<neighbor_gravity_type>, geo::direction::count()> neighbor_gravity_channels;
+    std::array<unordered_channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
     std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
     std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
     channel<real> global_timestep_channel;
@@ -152,7 +160,7 @@ public:
         gcycle = _gb;
     }
 
-    std::size_t load_me(FILE *fp, bool old_format);
+    std::size_t load_me(std::istream&, bool old_format);
     std::size_t save_me(std::ostream& strm) const;
 private:
 
@@ -186,12 +194,12 @@ public:
    node_server() {
 	    initialize(ZERO, ZERO);
     }
-	~node_server() {}
-	node_server(const node_server& other);
+	~node_server();
+//	node_server(const node_server& other);
 	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
 			std::size_t);
-	node_server(node_server&& other) = default;
+//	node_server(node_server&& other) = default;
 
 
     void report_timing();
@@ -225,12 +233,12 @@ public:
     void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
-	void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
-	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
+    void recv_hydro_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_flux_correct, send_hydro_flux_correct_action);
 
-	void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
-	void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
-	void recv_gravity_expansions(expansion_pass_type&&);
+    void recv_gravity_boundary(gravity_boundary_type&&, const geo::direction&, bool monopole, std::size_t cycle);
+    void recv_gravity_multipoles(multipole_pass_type&&, const geo::octant&);
+    void recv_gravity_expansions(expansion_pass_type&&);
 
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
@@ -306,7 +314,7 @@ public:
     HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
     void force_nodes_to_exist(std::vector<node_location>&& loc);
-    HPX_DEFINE_COMPONENT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
+    HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
 
     scf_data_t scf_params();
     HPX_DEFINE_COMPONENT_ACTION(node_server, scf_params, scf_params_action);
@@ -329,7 +337,6 @@ public:
 
     void run_scf(std::string const& data_dir);
 
-#ifdef RADIATION
 private:
     struct sibling_rad_type {
         std::vector<rad_type> data;
@@ -340,9 +347,9 @@ private:
 	std::array<channel<std::vector<real>>, NCHILD> child_rad_channels;
 	channel<expansion_pass_type> parent_rad_channel;
 public:
-	void exchange_rad_flux_corrections();
+	hpx::future<void> exchange_rad_flux_corrections();
 	void compute_radiation(real dt);
-	void exchange_interlevel_rad_data();
+	hpx::future<void> exchange_interlevel_rad_data();
 	void all_rad_bounds();
 
 	void collect_radiation_bounds();
@@ -367,8 +374,6 @@ public:
     void erad_init();
     HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);
 
-#endif
-
     void change_units(real m, real l, real t, real k);
     HPX_DEFINE_COMPONENT_ACTION(node_server, change_units, change_units_action);
 
@@ -376,23 +381,6 @@ public:
 
 
 };
-
-// HPX_ACTION_USES_LARGE_STACK(node_server::rho_mult_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::output_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::line_of_centers_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::scf_update_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::set_aunt_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::set_child_aunt_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::load_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::save_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::step_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::solve_gravity_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::copy_to_locality_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::get_child_client_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::get_ptr_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::diagnostics_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::scf_params_action);
-// HPX_ACTION_USES_LARGE_STACK(node_server::velocity_inc_action);
 #ifdef FIND_AXIS_V2
 HPX_REGISTER_ACTION_DECLARATION(node_server::find_axis_tool_action);
 #endif
@@ -427,13 +415,10 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::diagnostics_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::timestep_driver_ascend_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_params_action);
-
-#ifdef RADIATION
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
-#endif
 
 #endif /* NODE_SERVER_HPP_ */

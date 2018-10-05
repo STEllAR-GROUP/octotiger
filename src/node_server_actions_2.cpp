@@ -17,11 +17,16 @@ extern options opts;
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 HPX_REGISTER_ACTION (check_for_refinement_action_type);
 
-hpx::future<void> node_client::check_for_refinement(real omega, real r) const {
+future<void> node_client::check_for_refinement(real omega, real r) const {
 	return hpx::async<typename node_server::check_for_refinement_action>(get_unmanaged_gid(), omega, r);
 }
 
 void node_server::check_for_refinement(real omega, real new_floor) {
+  //  bool root = my_location.level() == 0;
+  //  int iii = 0;
+   // if( root ) printf( "refinement - %i\n", iii++ );
+
+
 	static hpx::mutex mtx;
 	{
 		std::lock_guard<hpx::mutex> lock(mtx);
@@ -31,22 +36,34 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 		}
 	}
 	bool rc = false;
-	std::array<hpx::future<void>, NCHILD + 1> futs;
-    for( integer i = 0; i != NCHILD + 1; ++i) {
-         futs[i] = hpx::make_ready_future();
-    }
+	std::array<future<void>, NCHILD + 1> futs;
+        for( integer i = 0; i != NCHILD + 1; ++i) {
+           futs[i] = hpx::make_ready_future();
+        }
 	integer index = 0;
+
+    // if(root ) printf( "refinement - %i\n", iii++ );
+
 	if (is_refined) {
 		for (auto& child : children) {
 			futs[index++] = child.check_for_refinement(omega, new_floor);
 		}
 	}
+
+    // if(root ) printf( "refinement - %i\n", iii++ );
+
 	if (hydro_on) {
 		all_hydro_bounds();
 	}
+
+    // if(root ) printf( "refinement - %i\n", iii++ );
+
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
 	}
+
+    // if(root ) printf( "refinement - %i\n", iii++ );
+
 	if (rc) {
 		if (refinement_flag++ == 0) {
 			if (!parent.empty()) {
@@ -54,19 +71,25 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			}
 		}
 	}
+
+    // if(root ) printf( "refinement - %i\n", iii++ );
+
 	for( auto& f : futs ) {
-		f.get();
+		GET(f);
 	}
+
+    // if(root ) printf( "refinement - %i\n", iii++ );
+
 }
 
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
 HPX_REGISTER_ACTION (copy_to_locality_action_type);
 
-hpx::future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const {
+future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const {
 	return hpx::async<typename node_server::copy_to_locality_action>(get_gid(), id);
 }
 
-hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
+future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 
 	std::vector<hpx::id_type> cids;
 	if (is_refined) {
@@ -91,7 +114,7 @@ extern options opts;
 typedef node_server::diagnostics_action diagnostics_action_type;
 HPX_REGISTER_ACTION (diagnostics_action_type);
 
-hpx::future<diagnostics_t> node_client::diagnostics(const diagnostics_t& d) const {
+future<diagnostics_t> node_client::diagnostics(const diagnostics_t& d) const {
 	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), d);
 }
 
@@ -99,7 +122,7 @@ hpx::future<diagnostics_t> node_client::diagnostics(const diagnostics_t& d) cons
 typedef node_server::compare_analytic_action compare_analytic_action_type;
 HPX_REGISTER_ACTION (compare_analytic_action_type);
 
-hpx::future<analytic_t> node_client::compare_analytic() const {
+future<analytic_t> node_client::compare_analytic() const {
 	return hpx::async<typename node_server::compare_analytic_action>(get_unmanaged_gid());
 }
 
@@ -108,28 +131,44 @@ analytic_t node_server::compare_analytic() {
 	if (!is_refined) {
 		a = grid_ptr->compute_analytic(current_time);
 	} else {
-		std::array<hpx::future<analytic_t>, NCHILD> futs;
+		std::array<future<analytic_t>, NCHILD> futs;
 		integer index = 0;
 		for (integer i = 0; i != NCHILD; ++i) {
 			futs[index++] = children[i].compare_analytic();
 		}
 		for (integer i = 0; i != NCHILD; ++i) {
-			a += futs[i].get();
+			a += GET(futs[i]);
 		}
 	}
+	static std::array<const char*,OUTPUT_COUNT> field_names;
+	if( opts.radiation) {
+      field_names = {{"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
+                      "secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
+                      "zzs", "roche"}};
+	} else {
+      field_names = {{"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core",
+                      "primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
+                      "zzs", "roche"}};
+	}
 	if (my_location.level() == 0) {
-		printf("L1, L2\n");
-		for (integer field = 0; field != NF; ++field) {
-			if (a.l1a[field] > 0.0) {
-				printf("%16s %e %e\n", grid::field_names[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
-			}
-		}
+      printf("L1, L2\n");
+      for (integer field = 0; field != NF; ++field) {
+        if (a.l1a[field] > 0.0) {
+          printf("%16s %e %e\n", field_names[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
+        }
+      }
 	}
 	return a;
 }
 
 
 const diagnostics_t& diagnostics_t::compute() {
+	if( virial_norm != 0.0 ) {
+		virial /= virial_norm;
+	}
+	if( opts.problem != DWD ) {
+		return *this;
+	}
 	real dX[NDIM], V[NDIM];
 	for (integer d = 0; d != NDIM; ++d) {
 		dX[d] = com[1][d] - com[0][d];
@@ -159,54 +198,65 @@ const diagnostics_t& diagnostics_t::compute() {
 		tidal[s] /= std::pow(a,3.0);
 		tidal[s] *= m[1-s];
 	}
-	if( virial_norm != 0.0 ) {
-		virial /= virial_norm;
-	}
 	z_mom_orb = mu * sep2;
 	return *this;
 }
 
 diagnostics_t node_server::diagnostics() {
-	if( opts.problem != DWD ) {
-		return diagnostics_t();
-	}
+
 	diagnostics_t diags;
-	for( integer i = 1; i != 6; ++i) {
-	//	printf( "!\n");
+	for (integer i = 1; i != 6; ++i) {
+		//	printf( "!\n");
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
-		diags.grid_com = grid_ptr->center_of_mass();
-	//	printf( "%e\n", diags.m[0]);
+		if (gravity_on) {
+			diags.grid_com = grid_ptr->center_of_mass();
+
+		} else {
+			//TODO center of mass for non gravity runs
+		}
+		//	printf( "%e\n", diags.m[0]);
 	}
 //	printf( "L1 = %e\n", diags.l1_phi);
 ///	printf( "L2 = %e\n", diags.l2_phi);
 //	printf( "L3 = %e\n", diags.l3_phi);
 
+
 	FILE* fp = fopen( "binary.dat", "at");
-	fprintf( fp, "%13e ", current_time);
-	fprintf( fp, "%13e ", diags.a);
-	fprintf( fp, "%13e ", diags.omega);
-	fprintf( fp, "%13e ", diags.jorb);
-	for( integer s = 0; s != 2; ++s) {
-		fprintf( fp, "%13e ", diags.m[s]);
-		fprintf( fp, "%13e ", diags.js[s]);
-		fprintf( fp, "%13e ", diags.rL[s]);
-		fprintf( fp, "%13e ", diags.gt[s]);
-		fprintf( fp, "%13e ", diags.z_moment[s]);
+	if( fp ) {
+		fprintf( fp, "%13e ", current_time);
+		fprintf( fp, "%13e ", diags.a);
+		fprintf( fp, "%13e ", diags.omega);
+		fprintf( fp, "%13e ", diags.jorb);
+		for( integer s = 0; s != 2; ++s) {
+			fprintf( fp, "%13e ", diags.m[s]);
+			fprintf( fp, "%13e ", diags.js[s]);
+			fprintf( fp, "%13e ", diags.rL[s]);
+			fprintf( fp, "%13e ", diags.gt[s]);
+			fprintf( fp, "%13e ", diags.z_moment[s]);
+		}
+		fprintf( fp, "%13e ", diags.rho_max[0]);
+		fprintf( fp, "%13e ", diags.rho_max[1]);
+		fprintf( fp, "\n");
+		fclose(fp);
+	} else {
+		printf( "Failed to write binary.dat\n");
 	}
-	fprintf( fp, "\n");
-	fclose(fp);
-	fp = fopen( "sums.dat", "at");
-	fprintf( fp, "%.13e ", current_time);
-	for( integer i = 0; i != NF; ++i) {
-		fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
-		fprintf( fp, "%.13e ", diags.grid_out[i]);
+	if( fp ) {
+		fp = fopen( "sums.dat", "at");
+		fprintf( fp, "%.13e ", current_time);
+		for( integer i = 0; i != NF; ++i) {
+			fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
+			fprintf( fp, "%.13e ", diags.grid_out[i]);
+		}
+		for( integer i = 0; i != 3; ++i) {
+			fprintf( fp, "%.13e ", diags.lsum[i]);
+		}
+		fprintf( fp, "\n");
+		fclose(fp);
+	} else {
+		printf( "Failed to write sums.dat\n");
 	}
-	for( integer i = 0; i != 3; ++i) {
-		fprintf( fp, "%.13e ", diags.lsum[i]);
-	}
-	fprintf( fp, "\n");
-	fclose(fp);
 	return diags;
 }
 
@@ -230,7 +280,7 @@ diagnostics_t node_server::diagnostics(const diagnostics_t& diags)  {
 
 diagnostics_t node_server::child_diagnostics(const diagnostics_t& diags) {
 	diagnostics_t sums;
-	std::array<hpx::future<diagnostics_t>, NCHILD> futs;
+	std::array<future<diagnostics_t>, NCHILD> futs;
 	integer index = 0;
 	for (integer ci = 0; ci != NCHILD; ++ci) {
 		futs[index++] = children[ci].diagnostics(diags);
@@ -248,13 +298,14 @@ diagnostics_t node_server::local_diagnostics(const diagnostics_t& diags)  {
 typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;
 HPX_REGISTER_ACTION (force_nodes_to_exist_action_type);
 
-hpx::future<void> node_client::force_nodes_to_exist(std::vector<node_location>&& locs) const {
+future<void> node_client::force_nodes_to_exist(std::vector<node_location>&& locs) const {
 	return hpx::async<typename node_server::force_nodes_to_exist_action>(get_unmanaged_gid(), std::move(locs));
 }
 
 void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
-	std::vector<hpx::future<void>> futs;
+	std::vector<future<void>> futs;
 	std::vector<node_location> parent_list;
+	std::array<std::vector<node_location>,geo::direction::count()> sibling_lists;
 	std::vector<std::vector<node_location>> child_lists(NCHILD);
 
 	futs.reserve(geo::octant::count() + 2);
@@ -280,7 +331,17 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 			}
 		} else {
 			assert(!parent.empty());
-			parent_list.push_back(loc);
+			bool found_match = false;
+			for( auto& di : geo::direction::full_set()) {
+				if( loc.is_child_of(my_location.get_neighbor(di)) && !neighbors[di].empty()) {
+					sibling_lists[di].push_back(loc);
+					found_match = true;
+					break;
+				}
+			}
+			if( !found_match ) {
+				parent_list.push_back(loc);
+			}
 		}
 	}
 	for (auto& ci : geo::octant::full_set()) {
@@ -288,17 +349,25 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 			futs.push_back(children[ci].force_nodes_to_exist(std::move(child_lists[ci])));
 		}
 	}
+	for( auto& di : geo::direction::full_set()) {
+		if (sibling_lists[di].size()) {
+			futs.push_back(neighbors[di].force_nodes_to_exist(std::move(sibling_lists[di])));
+		}
+	}
 	if (parent_list.size()) {
 		futs.push_back(parent.force_nodes_to_exist(std::move(parent_list)));
 	}
 
-	wait_all_and_propagate_exceptions(futs);
+//	wait_all_and_propagate_exceptions(futs);
+	for( auto& f : futs ) {
+		GET(f);
+	}
 }
 
 typedef node_server::form_tree_action form_tree_action_type;
 HPX_REGISTER_ACTION (form_tree_action_type);
 
-hpx::future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2, std::vector<hpx::id_type>&& ids) {
+future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2, std::vector<hpx::id_type>&& ids) {
 	return hpx::async<typename node_server::form_tree_action>(get_unmanaged_gid(), std::move(id1), std::move(id2), std::move(ids));
 }
 
@@ -315,13 +384,13 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 	me = std::move(self_gid);
 	parent = std::move(parent_gid);
 	if (is_refined) {
-		std::array<hpx::future<void>, NCHILD> cfuts;
+		std::array<future<void>, NCHILD> cfuts;
 		integer index = 0;
 		amr_flags.resize(NCHILD);
 		for (integer cx = 0; cx != 2; ++cx) {
 			for (integer cy = 0; cy != 2; ++cy) {
 				for (integer cz = 0; cz != 2; ++cz) {
-					std::array<hpx::future<hpx::id_type>, geo::direction::count()> child_neighbors_f;
+					std::array<future<hpx::id_type>, geo::direction::count()> child_neighbors_f;
 					const integer ci = cx + 2 * cy + 4 * cz;
 					for (integer dx = -1; dx != 2; ++dx) {
 						for (integer dy = -1; dy != 2; ++dy) {
@@ -346,33 +415,33 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 						}
 					}
                     cfuts[index++] = hpx::dataflow(hpx::launch::sync,
-					    [this, ci](std::array<hpx::future<hpx::id_type>, geo::direction::count()>&& cns) {
+					    [this, ci](std::array<future<hpx::id_type>, geo::direction::count()>&& cns) {
                             std::vector<hpx::id_type> child_neighbors(geo::direction::count());
                             for (auto& dir : geo::direction::full_set()) {
-                                child_neighbors[dir] = cns[dir].get();
+                                child_neighbors[dir] = GET(cns[dir]);
                                 amr_flags[ci][dir] = bool(child_neighbors[dir] == hpx::invalid_id);
                             }
-                            children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
-                                    me.get_gid(), std::move(child_neighbors)).get();
+                            GET(children[ci].form_tree(hpx::unmanaged(children[ci].get_gid()),
+                                    me.get_gid(), std::move(child_neighbors)));
                         },
                         std::move(child_neighbors_f));
 				}
 			}
 		}
 		for( auto& f : cfuts ) {
-			f.get();
+			GET(f);
 		}
 	} else {
-		std::vector<hpx::future<void>> nfuts;
+		std::vector<future<void>> nfuts;
 		nfuts.reserve(NFACE);
 		for (auto& f : geo::face::full_set()) {
 			const auto& neighbor = neighbors[f.to_direction()];
 			if (!neighbor.empty()) {
 				nfuts.push_back(
 						neighbor.set_child_aunt(me.get_gid(), f ^ 1).then(
-								[this, f](hpx::future<set_child_aunt_type>&& n)
+								[this, f](future<set_child_aunt_type>&& n)
 								{
-									nieces[f] = n.get();
+									nieces[f] = GET(n);
 								}));
 			} else {
 #ifdef USE_NIECE_BOOL
@@ -383,7 +452,7 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 			}
 		}
 		for (auto& f : nfuts) {
-			f.get();
+			GET(f);
 		}
 	}
 
@@ -392,8 +461,8 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 typedef node_server::get_child_client_action get_child_client_action_type;
 HPX_REGISTER_ACTION (get_child_client_action_type);
 
-hpx::future<hpx::id_type> node_client::get_child_client(const node_location& parent_loc, const geo::octant& ci) {
-	hpx::future < hpx::id_type > rfut;
+future<hpx::id_type> node_client::get_child_client(const node_location& parent_loc, const geo::octant& ci) {
+	future < hpx::id_type > rfut;
 #ifdef OCTOTIGER_USE_NODE_CACHE
 	hpx::shared_future < hpx::id_type > sfut;
 	bool found;
@@ -450,18 +519,21 @@ hpx::id_type node_server::get_child_client(const geo::octant& ci) {
 typedef node_server::set_child_aunt_action set_child_aunt_action_type;
 HPX_REGISTER_ACTION (set_child_aunt_action_type);
 
-hpx::future<set_child_aunt_type> node_client::set_child_aunt(const hpx::id_type& aunt, const geo::face& f) const {
+future<set_child_aunt_type> node_client::set_child_aunt(const hpx::id_type& aunt, const geo::face& f) const {
 	return hpx::async<typename node_server::set_child_aunt_action>(get_unmanaged_gid(), aunt, f);
 }
 
 set_child_aunt_type node_server::set_child_aunt(const hpx::id_type& aunt, const geo::face& face) const {
 	if (is_refined) {
-		std::array<hpx::future<void>, geo::octant::count() / 2> futs;
+		std::array<future<void>, geo::octant::count() / 2> futs;
 		integer index = 0;
 		for (auto const& ci : geo::octant::face_subset(face)) {
 			futs[index++] = children[ci].set_aunt(aunt, face);
 		}
-        wait_all_and_propagate_exceptions(futs);
+//        wait_all_and_propagate_exceptions(futs);
+		for( auto& f : futs ) {
+			GET(f);
+		}
 	} else {
 		for (auto const& ci : geo::octant::face_subset(face)) {
 			if( children[ci].get_gid() != hpx::invalid_id ) {
@@ -484,8 +556,8 @@ std::uintptr_t node_server::get_ptr() {
 	return reinterpret_cast<std::uintptr_t>(this);
 }
 
-hpx::future<node_server*> node_client::get_ptr() const {
-	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([](hpx::future<std::uintptr_t>&& fut) {
-		return reinterpret_cast<node_server*>(fut.get());
+future<node_server*> node_client::get_ptr() const {
+	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([](future<std::uintptr_t>&& fut) {
+		return reinterpret_cast<node_server*>(GET(fut));
 	});
 }

@@ -15,10 +15,7 @@
 #include "interaction_types.hpp"
 
 enum problem_type {
-	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR
-#ifdef RADIATION
-	, RADIATION_TEST
-#endif
+	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST
 };
 
 enum eos_type {
@@ -55,6 +52,7 @@ public:
 	real contact_fill;
 	integer ngrids;
 	bool bench;
+	bool radiation;
 	real theta;
 	bool ang_con;
     bool disable_output;
@@ -75,6 +73,11 @@ public:
     real angmom_theta;
     template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+    	arc & bench;
+    	arc & radiation;
+        arc & m2m_kernel_type;
+        arc & p2m_kernel_type;
+        arc & p2p_kernel_type;
 		arc & angmom_theta;
 		arc & entropy_driving_rate;
 		arc & entropy_driving_time;
