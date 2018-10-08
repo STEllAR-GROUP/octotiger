@@ -68,8 +68,9 @@ private:
     static std::stack<grid::output_list_type> pending_output;
     node_location my_location;
     integer step_num;
+    std::size_t rcycle;
     std::size_t hcycle;
-    std::size_t gcycle;
+     std::size_t gcycle;
     real current_time;
     real rotational_time;
     std::shared_ptr<grid> grid_ptr; //
@@ -133,8 +134,10 @@ public:
 
     template<class Archive>
     void serialize(Archive& arc, unsigned) {
-    	std::size_t _hb = hcycle;
-    	std::size_t _gb = gcycle;
+       	std::size_t _rb = rcycle;
+       	std::size_t _hb = hcycle;
+        std::size_t _gb = gcycle;
+    	arc & _rb;
     	arc & _hb;
     	arc & _gb;
         arc & my_location;
@@ -196,9 +199,9 @@ public:
     }
 	~node_server();
 //	node_server(const node_server& other);
-	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t);
+	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t, std::size_t);
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid, const std::vector<hpx::id_type>&, std::size_t,
-			std::size_t);
+			std::size_t, std::size_t);
 //	node_server(node_server&& other) = default;
 
 
@@ -343,9 +346,9 @@ private:
         geo::direction direction;
     };
 
-	std::array<channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
-	std::array<channel<std::vector<real>>, NCHILD> child_rad_channels;
-	channel<expansion_pass_type> parent_rad_channel;
+	std::array<unordered_channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
+	std::array<unordered_channel<std::vector<real>>, NCHILD> child_rad_channels;
+	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
 	void compute_radiation(real dt);
@@ -360,10 +363,10 @@ public:
     HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_flux_correct, send_rad_flux_correct_action);
 
 
-	void recv_rad_boundary(std::vector<rad_type>&&, const geo::direction&);
+	void recv_rad_boundary(std::vector<rad_type>&&, const geo::direction&,std::size_t cycle);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_boundary, send_rad_boundary_action);
 
-	void recv_rad_children(std::vector<real>&&, const geo::octant& ci);
+	void recv_rad_children(std::vector<real>&&, const geo::octant& ci,std::size_t cycle);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_children, send_rad_children_action);
 
     std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_rad_channels;

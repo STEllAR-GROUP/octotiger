@@ -51,10 +51,10 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
 
 	std::vector<real> u(NF + NRF, real(0));
-	x -= 0.0;
-	y -= 0.0;
-	z -= 0.0;
-	real r = std::max(dx, 0.50);
+	x -= 0.0e11;
+	y -= 0.0e11;
+	z -= 0.0e11;
+	real r = std::max(2.0*dx, 0.50);
 	real eint;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;

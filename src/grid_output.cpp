@@ -162,8 +162,8 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 				data[NGF + NRF + NF + 0].push_back(V[vx_i][iii]);
 				data[NGF + NRF + NF + 1].push_back(V[vy_i][iii]);
 				data[NGF + NRF + NF + 2].push_back(V[vz_i][iii]);
-				if (V[egas_i][iii] * V[rho_i][iii] < de_switch2 * U[egas_i][iii]) {
-					data[NGF + NRF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma) / V[rho_i][iii]);
+				if (V[egas_i][iii] < de_switch2 * U[egas_i][iii]) {
+					data[NGF + NRF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma));
 				} else {
 					data[NGF + NRF + NF + 3].push_back(V[egas_i][iii]);
 				}
