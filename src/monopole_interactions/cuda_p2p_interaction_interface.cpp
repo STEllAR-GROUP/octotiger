@@ -40,7 +40,7 @@ namespace fmm {
                 const dim3 grid_spec(3);
                 const dim3 threads_per_block(8, 8, 8);
                 void* args[] = {&(env.device_local_monopoles), &(env.device_blocked_monopoles),
-                                &(env.device_stencil), &(env.device_four_constants),&theta, &dx};
+                                &theta, &dx};
                 gpu_interface.execute(
                     &cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 void* sum_args[] = {&(env.device_blocked_monopoles)};

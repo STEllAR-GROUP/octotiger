@@ -21,8 +21,7 @@ namespace fmm {
             const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
             double (&angular_corrections)[NUMBER_ANG_CORRECTIONS],
-            const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            const double (&stencil_phases)[STENCIL_SIZE], const double theta) {
+            const double theta) {
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
@@ -180,8 +179,7 @@ namespace fmm {
             const double (&center_of_masses)[NUMBER_MASS_VALUES],
             const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
-            const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            const double (&stencil_phases)[STENCIL_SIZE], const double theta) {
+            const double theta) {
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);

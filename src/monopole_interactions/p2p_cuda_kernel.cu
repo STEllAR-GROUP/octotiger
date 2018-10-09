@@ -18,8 +18,7 @@ namespace fmm {
         cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[3 * NUMBER_POT_EXPANSIONS_SMALL],
-            const octotiger::fmm::multiindex<> (&stencil)[STENCIL_SIZE],
-            const double (&four_constants)[4 * STENCIL_SIZE], const double theta, const double dx) {
+            const double theta, const double dx) {
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
