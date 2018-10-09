@@ -7,6 +7,7 @@ namespace octotiger {
 namespace fmm {
     void copy_indicator_to_constant_memory(const double *indicator, const size_t indicator_size);
     void copy_stencil_to_constant_memory(const multiindex<> *stencil, const size_t stencil_size);
+    void copy_constants_to_constant_memory(const double *constants, const size_t constants_size);
 }    // namespace fmm
 }    // namespace octotiger
 #endif

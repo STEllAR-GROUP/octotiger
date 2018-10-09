@@ -6,11 +6,15 @@ namespace fmm {
     // that is used by octotiger.
     __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
     __constant__ double device_stencil_indicator_const[STENCIL_SIZE];
+    __constant__ double device_four_constants[STENCIL_SIZE * 4];
     void copy_indicator_to_constant_memory(const double *indicator, const size_t indicator_size) {
         cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
     }
     void copy_stencil_to_constant_memory(const multiindex<> *stencil, const size_t stencil_size) {
         cudaMemcpyToSymbol(device_stencil_const, stencil, stencil_size);
+    }
+    void copy_constants_to_constant_memory(const double *constants, const size_t constants_size) {
+        cudaMemcpyToSymbol(device_four_constants, constants, constants_size);
     }
 }    // namespace fmm
 }    // namespace octotiger

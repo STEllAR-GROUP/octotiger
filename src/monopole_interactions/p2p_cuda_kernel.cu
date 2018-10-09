@@ -8,6 +8,7 @@ namespace fmm {
         // Both arrays are defined in cuda_constant_memory.hpp.
         // They exist once per GPU in the constant memory.
         extern __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
+        extern __constant__ double device_four_constants[STENCIL_SIZE * 4];
 
         __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
@@ -62,9 +63,9 @@ namespace fmm {
                 // Load data of interaction partner
                 double monopole = local_monopoles[partner_flat_index] * mask;
 
-                const double four[4] = {four_constants[stencil_index * 4 + 0],
-                    four_constants[stencil_index * 4 + 1], four_constants[stencil_index * 4 + 2],
-                    four_constants[stencil_index * 4 + 3]};
+                const double four[4] = {device_four_constants[stencil_index * 4 + 0],
+                    device_four_constants[stencil_index * 4 + 1], device_four_constants[stencil_index * 4 + 2],
+                    device_four_constants[stencil_index * 4 + 3]};
 
                 // Do the actual calculations
                 compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
