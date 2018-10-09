@@ -8,19 +8,41 @@
 #ifndef OPTIONS_HPP_
 #define OPTIONS_HPP_
 
+
 #include <string>
 #include <vector>
 #include <hpx/hpx.hpp>
 #include "defs.hpp"
 #include "interaction_types.hpp"
+#include <boost/algorithm/string.hpp>
 
-enum problem_type {
-	DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST
-};
+#define COMMAND_LINE_ENUM( enum_name, option_name, args... )               \
+	enum enum_name {                                                       \
+		args                                                               \
+	};                                                                     \
+	static inline std::istream& operator>>(std::istream& in, enum_name& e) \
+	{                                                                      \
+		std::vector<std::string> strings;                                  \
+		boost::split(strings, #args, boost::is_any_of(" ,"));              \
+		enum_name enums[] = {args};                                        \
+		bool success = false;                                              \
+		std::string token;                                                 \
+	    in >> token;                                                       \
+		for( std::size_t i = 0; i < strings.size(); i++ ) {                \
+			if( boost::iequals(strings[i], token)) {                       \
+				success = true;                                            \
+				e = enums[i];                                              \
+			}                                                              \
+		}                                                                  \
+	   if( !success ) {                                                    \
+	        in.setstate(std::ios_base::failbit);                           \
+		}                                                                  \
+	    return in;                                                         \
+	}
 
-enum eos_type {
-	IDEAL, WD
-};
+
+COMMAND_LINE_ENUM( problem_type, "problem", DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST);
+COMMAND_LINE_ENUM( eos_type, "eos", IDEAL, WD);
 
 class options {
 
@@ -54,8 +76,7 @@ public:
 	bool bench;
 	bool radiation;
 	real theta;
-	bool ang_con;
-    bool disable_output;
+	bool disable_output;
     bool parallel_silo;
     bool silo_planes_only;
     std::string data_dir;
@@ -69,7 +90,6 @@ public:
     real driving_time;
     real entropy_driving_rate;
     real entropy_driving_time;
-    real angmom_theta;
     template<class Arc>
 	void serialize(Arc& arc, unsigned) {
     	arc & bench;
@@ -77,7 +97,6 @@ public:
         arc & m2m_kernel_type;
         arc & p2m_kernel_type;
         arc & p2p_kernel_type;
-		arc & angmom_theta;
 		arc & entropy_driving_rate;
 		arc & entropy_driving_time;
 		arc & driving_rate;
@@ -88,7 +107,6 @@ public:
 		arc & vomega;
 		arc & parallel_silo;
 		arc & silo_planes_only;
-		arc & ang_con;
 		arc & stop_time;
 		arc & max_level;
 		arc & max_restart_level;
