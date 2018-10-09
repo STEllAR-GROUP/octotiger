@@ -5,6 +5,10 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
+        // Both arrays are defined in cuda_constant_memory.hpp.
+        // They exist once per GPU in the constant memory.
+        extern __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
+
         __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
@@ -42,7 +46,7 @@ namespace fmm {
             for (size_t stencil_index = block_start; stencil_index < block_end;
                  stencil_index++) {
                 // Get interaction partner indices
-                const multiindex<>& stencil_element = stencil[stencil_index];
+                const multiindex<>& stencil_element = device_stencil_const[stencil_index];
                 const multiindex<> partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
                 const size_t partner_flat_index = to_flat_index_padded(partner_index);

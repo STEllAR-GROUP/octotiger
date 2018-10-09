@@ -2,6 +2,7 @@
 #include "cuda_scheduler.hpp"
 #include "../monopole_interactions/calculate_stencil.hpp"
 #include "../multipole_interactions/calculate_stencil.hpp"
+#include "cuda_constant_memory.hpp"
 #include "options.hpp"
 
 extern options opts;
@@ -72,6 +73,10 @@ namespace fmm {
                 four_tmp[i * 4 + 2] = four_constants[i][2];
                 four_tmp[i * 4 + 3] = four_constants[i][3];
             }
+
+            // Move data to constant memory
+            copy_indicator_to_constant_memory(indicator.get(), indicator_size);
+            copy_stencil_to_constant_memory(stencil.stencil_elements.data(), stencil_size);
 
             size_t local_stream_id = 0;
             // stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);

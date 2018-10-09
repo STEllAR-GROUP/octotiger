@@ -137,6 +137,7 @@ set(source_files ${source_files}
     src/monopole_interactions/p2m_kernel.cpp
     src/common_kernel/interactions_iterators.cpp
     src/cuda_util/cuda_scheduler.cpp
+    src/cuda_util/cuda_constant_memory.cu
 )
 
 set(header_files
@@ -189,6 +190,7 @@ set(header_files
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
     src/cuda_util/cuda_scheduler.hpp
+    src/cuda_util/cuda_constant_memory.hpp
 )
 
 
@@ -229,5 +231,3 @@ endif()
 
 
 add_executable( analysis ${analysis_source_files} )
-
-

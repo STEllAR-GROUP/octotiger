@@ -33,6 +33,10 @@ namespace fmm {
             y = other.y;
             z = other.z;
         }
+        CUDA_CALLABLE_METHOD multiindex(void) {
+            /* do not initialise anything in here! If a value is touched in the default
+            constructor, we cannot use the class within cuda constant memory (and we want to) */
+        }
 
         // // remove when vectorization is fully enabled
         // multiindex(size_t x, size_t y, size_t z)
