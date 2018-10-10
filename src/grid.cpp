@@ -50,7 +50,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					if (opts.eos == WD) {
 						p += ztwd_pressure(U[rho_i][iii]);
 					}
-					if (node_server::is_gravity_on()) {
+					if (opts.gravity) {
 						rc.virial += (2.0 * ek + 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
 						rc.virial_norm += (2.0 * ek - 0.5 * U[rho_i][iii] * G[iiig][phi_i] + 3.0 * p) * (dx * dx * dx);
 					} else {
@@ -1198,7 +1198,7 @@ std::vector<real> grid::conserved_sums(space_vector& com, space_vector& com_dot,
 					for (integer field = 0; field != NF; ++field) {
 						sum[field] += U[field][iii] * dV;
 					}
-					if (node_server::is_gravity_on()) {
+					if (opts.gravity) {
 						sum[egas_i] += U[pot_i][iii] * HALF * dV;
 					}
 					sum[zx_i] += X[YDIM][iii] * U[sz_i][iii] * dV;
@@ -1445,7 +1445,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					for (integer si = 0; si != NSPECIES; ++si) {
 						V[spc_i + si][iii] = U[spc_i + si][iii] * rhoinv;
 					}
-					if (node_server::is_gravity_on()) {
+					if (opts.gravity) {
 						V[pot_i][iii] = U[pot_i][iii] * rhoinv;
 					}
 					for (integer d = 0; d != NDIM; ++d) {
@@ -1583,7 +1583,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
 							dU[rho_i][iii] += dU[spc_i + si][iii];
 						}
-						if (node_server::is_gravity_on()) {
+						if (opts.gravity) {
 							dU[pot_i][iii] = V[pot_i][iii] * dV[rho_i][iii] + dV[pot_i][iii] * V[rho_i][iii];
 						}
 						//						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
@@ -1737,7 +1737,7 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 			rad_init();
 		}
 	}
-	if (node_server::is_gravity_on()) {
+	if (opts.gravity) {
 		for (integer i = 0; i != G_N3; ++i) {
 			for (integer field = 0; field != NGF; ++field) {
 				G[i][field] = 0.0;
@@ -1978,7 +1978,7 @@ void grid::reconstruct() {
 		}
 	}
 
-	if (node_server::is_gravity_on()) {
+	if (opts.gravity) {
 //#pragma GCC ivdep
 		std::vector<real>& UfFXMpot_i = Uf[FXM][pot_i];
 		std::vector<real>& UfFYMpot_i = Uf[FYM][pot_i];
@@ -2272,14 +2272,14 @@ void grid::compute_sources(real t, real rotational_time) {
 						- (F[ZDIM][sx_i][iiif + F_DNZ] + F[ZDIM][sx_i][iiif])) * HALF;
 				src[zz_i][iii0] = (-(F[XDIM][sy_i][iiif + F_DNX] + F[XDIM][sy_i][iiif])
 						+ (F[YDIM][sx_i][iiif + F_DNY] + F[YDIM][sx_i][iiif])) * HALF;
-				if (node_server::is_gravity_on()) {
+				if (opts.gravity) {
 					src[sx_i][iii0] += rho * G[iiig][gx_i];
 					src[sy_i][iii0] += rho * G[iiig][gy_i];
 					src[sz_i][iii0] += rho * G[iiig][gz_i];
 				}
 				src[sx_i][iii0] += omega * U[sy_i][iii];
 				src[sy_i][iii0] -= omega * U[sx_i][iii];
-				if (node_server::is_gravity_on()) {
+				if (opts.gravity) {
 					src[egas_i][iii0] -= omega * X[YDIM][iii] * rho * G[iiig][gx_i];
 					src[egas_i][iii0] += omega * X[XDIM][iii] * rho * G[iiig][gy_i];
 				}
@@ -2352,7 +2352,7 @@ void grid::compute_dudt() {
 					dUdt[field][iii0] -= (F[ZDIM][field][iiif + F_DNZ] - F[ZDIM][field][iiif]) / dx;
 				}
 			}
-			if (node_server::is_gravity_on()) {
+			if (opts.gravity) {
 
 #pragma GCC ivdep
 				for (integer k = H_BW; k != H_NX - H_BW; ++k) {
@@ -2365,7 +2365,7 @@ void grid::compute_dudt() {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				const integer iiig = gindex(i - H_BW, j - H_BW, k - H_BW);
-				if (node_server::is_gravity_on()) {
+				if (opts.gravity) {
 					dUdt[egas_i][iii0] -= (dUdt[rho_i][iii0] * G[iiig][phi_i]) * HALF;
 				}
 			}
@@ -2376,7 +2376,7 @@ void grid::compute_dudt() {
 
 void grid::egas_to_etot() {
 	PROF_BEGIN;
-	if (node_server::is_gravity_on()) {
+	if (opts.gravity) {
 
 		for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2392,7 +2392,7 @@ void grid::egas_to_etot() {
 
 void grid::etot_to_egas() {
 	PROF_BEGIN;
-	if (node_server::is_gravity_on()) {
+	if (opts.gravity) {
 
 		for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 			for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2556,7 +2556,7 @@ void grid::next_u(integer rk, real t, real dt) {
 				const integer iii = hindex(i, j, k);
 
 				if (U[tau_i][iii] < ZERO) {
-					printf("Tau is negative- %e %i %i %i  %e %e %e\n", double(U[tau_i][iii]), i, j, k, X[XDIM][iii],
+					printf("Tau is negative- %e %i %i %i  %e %e %e\n", double(U[tau_i][iii]), int(i), int(j), int(k), X[XDIM][iii],
 							X[YDIM][iii], X[ZDIM][iii]);
 					//	abort();
 				} else if (U[rho_i][iii] <= ZERO) {
@@ -2639,7 +2639,7 @@ std::pair<real, real> grid::virial() const {
 
 std::vector<real> grid::conserved_outflows() const {
 	auto Uret = U_out;
-	if (node_server::is_gravity_on()) {
+	if (opts.gravity) {
 		Uret[egas_i] += Uret[pot_i];
 	}
 	return Uret;

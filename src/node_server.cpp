@@ -105,9 +105,6 @@ std::pair<space_vector,space_vector> node_server::find_axis() const {
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
 
-bool node_server::hydro_on = true;
-bool node_server::gravity_on = true;
-
 future<void> node_server::check_flux_consistency() {
 	const integer this_cycle = hcycle ^ 0xFFFFFFFF;
 	for (auto const& dir : geo::direction::full_set()) {
@@ -532,7 +529,7 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {
-	if (!gravity_on) {
+	if (!opts.gravity) {
 		return;
 	}
 
