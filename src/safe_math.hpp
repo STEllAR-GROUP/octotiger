@@ -9,18 +9,6 @@
 #define SRC_RADIATION_SAFE_MATH_HPP_
 
 
-#include <quadmath.h>
-
-namespace std {
-
-inline __float128 pow( __float128 a, __float128 b) {
-	return powq(a,b);
-}
-
-inline __float128 sqrt(__float128 a) {
-	return sqrtq(a);
-}
-}
 
 
 template<class T, class U>

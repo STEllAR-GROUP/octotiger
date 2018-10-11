@@ -88,7 +88,7 @@ endif()
 set(source_files)
 set(dependencies)
 
-set(dependencies ${Silo_LIBRARY} libquadmath.a)
+set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
