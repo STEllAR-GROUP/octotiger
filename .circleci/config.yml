@@ -54,6 +54,7 @@ jobs:
                         - run: sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-6 20
                         - restore_cache:
                                 key: dependencies-{{ .Branch }}
+                        - restore_cahe:
                                 key: build-{{ .Branch }}-{{ .Revision }}
                         - run: cd build && ./octotiger -Disableoutput -Problem=moving_star -Max_level=2 -Xscale=32 -Odt=0.5 -Stopstep=0 --hpx:threads=1 --hpx:bind=none
                         - run: cd test1 && ./test1.sh > output.txt
