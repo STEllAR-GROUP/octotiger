@@ -25,8 +25,8 @@ namespace fmm {
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
-            octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
-            cell_index_coarse.transform_coarse();
+            // octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
+            // cell_index_coarse.transform_coarse();
             const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
             octotiger::fmm::multiindex<> cell_index_unpadded(threadIdx.x, threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
@@ -82,8 +82,8 @@ namespace fmm {
                 const multiindex<> partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
                 const size_t partner_flat_index = to_flat_index_padded(partner_index);
-                multiindex<> partner_index_coarse(partner_index);
-                partner_index_coarse.transform_coarse();
+                // multiindex<> partner_index_coarse(partner_index);
+                // partner_index_coarse.transform_coarse();
 
                 // Create mask - TODO is this really necessay in the non-vectorized code..?
                 // const double theta_c_rec_squared = static_cast<double>(
@@ -183,8 +183,8 @@ namespace fmm {
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
-            octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
-            cell_index_coarse.transform_coarse();
+            // octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
+            // cell_index_coarse.transform_coarse();
             const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
             octotiger::fmm::multiindex<> cell_index_unpadded(threadIdx.x, threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
@@ -215,8 +215,8 @@ namespace fmm {
                 const multiindex<> partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
                 const size_t partner_flat_index = to_flat_index_padded(partner_index);
-                multiindex<> partner_index_coarse(partner_index);
-                partner_index_coarse.transform_coarse();
+                // multiindex<> partner_index_coarse(partner_index);
+                // partner_index_coarse.transform_coarse();
 
                 // Create mask - TODO is this really necessay in the non-vectorized code..?
                 // const double theta_c_rec_squared = static_cast<double>(
