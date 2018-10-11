@@ -67,7 +67,7 @@ namespace fmm {
             for (size_t i = 0; i < 3; ++i)
                 tmp_corrections[i] = 0.0;
             // Required for mask
-            const double theta_rec_squared = sqr(1.0 / theta);
+            // const double theta_rec_squared = sqr(1.0 / theta);
             double m_partner[20];
             double Y[NDIM];
 
@@ -86,17 +86,17 @@ namespace fmm {
                 partner_index_coarse.transform_coarse();
 
                 // Create mask - TODO is this really necessay in the non-vectorized code..?
-                const double theta_c_rec_squared = static_cast<double>(
-                    distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
-                const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                double mask = mask_b ? 1.0 : 0.0;
+                // const double theta_c_rec_squared = static_cast<double>(
+                //     distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                // const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                // double mask = mask_b ? 1.0 : 0.0;
 
                 // Load data of interaction partner
                 Y[0] = center_of_masses[partner_flat_index];
                 Y[1] = center_of_masses[1 * component_length + partner_flat_index];
                 Y[2] = center_of_masses[2 * component_length + partner_flat_index];
-                m_partner[0] = local_monopoles[partner_flat_index] * mask;
-                mask = mask * mask_phase_one;    // do not load multipoles outside the inner stencil
+                m_partner[0] = local_monopoles[partner_flat_index];
+                const double mask = mask_phase_one;    // do not load multipoles outside the inner stencil
                 m_partner[0] += multipoles[partner_flat_index] * mask;
                 m_partner[1] = multipoles[1 * component_length + partner_flat_index] * mask;
                 m_partner[2] = multipoles[2 * component_length + partner_flat_index] * mask;
@@ -200,7 +200,7 @@ namespace fmm {
             for (size_t i = 0; i < 20; ++i)
                 tmpstore[i] = 0.0;
             // Required for mask
-            const double theta_rec_squared = sqr(1.0 / theta);
+            // const double theta_rec_squared = sqr(1.0 / theta);
             double m_partner[20];
             double Y[NDIM];
 
@@ -219,18 +219,18 @@ namespace fmm {
                 partner_index_coarse.transform_coarse();
 
                 // Create mask - TODO is this really necessay in the non-vectorized code..?
-                const double theta_c_rec_squared = static_cast<double>(
-                    distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
-                const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                double mask = mask_b ? 1.0 : 0.0;
+                // const double theta_c_rec_squared = static_cast<double>(
+                //     distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                // const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                // double mask = mask_b ? 1.0 : 0.0;
 
                 // Load data of interaction partner
                 Y[0] = center_of_masses[partner_flat_index];
                 Y[1] = center_of_masses[1 * component_length + partner_flat_index];
                 Y[2] = center_of_masses[2 * component_length + partner_flat_index];
 
-                m_partner[0] = local_monopoles[partner_flat_index] * mask;
-                mask = mask * mask_phase_one;    // do not load multipoles outside the inner stencil
+                m_partner[0] = local_monopoles[partner_flat_index];
+                double mask = mask_phase_one;    // do not load multipoles outside the inner stencil
                 m_partner[0] += multipoles[partner_flat_index] * mask;
                 m_partner[1] = multipoles[1 * component_length + partner_flat_index] * mask;
                 m_partner[2] = multipoles[2 * component_length + partner_flat_index] * mask;

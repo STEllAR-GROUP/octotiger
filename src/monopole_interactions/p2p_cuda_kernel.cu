@@ -54,13 +54,14 @@ namespace fmm {
                 partner_index_coarse.transform_coarse();
 
                 // Create mask - TODO is this really necessay in the non-vectorized code..?
-                const double theta_c_rec_squared = static_cast<double>(
-                    distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
-                const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                double mask = mask_b ? 1.0 : 0.0;
+                // const double theta_c_rec_squared = static_cast<double>(
+                //     distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                // const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                // double mask = mask_b ? 1.0 : 0.0;
+                // double monopole = local_monopoles[partner_flat_index] * mask;
 
                 // Load data of interaction partner
-                double monopole = local_monopoles[partner_flat_index] * mask;
+                double monopole = local_monopoles[partner_flat_index];
 
                 const double four[4] = {device_four_constants[stencil_index * 4 + 0],
                     device_four_constants[stencil_index * 4 + 1], device_four_constants[stencil_index * 4 + 2],
