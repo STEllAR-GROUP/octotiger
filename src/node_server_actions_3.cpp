@@ -270,6 +270,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		return;
 	}
 
+	printf( "Solving gravity\n");
 	solve_gravity(false, false);
 	ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
 
@@ -466,9 +467,6 @@ void node_server::refined_step() {
 
 	for (integer rk = 0; rk < NRK; ++rk) {
 
-		if (my_location.level() == 0) {
-			printf("1\n");
-		}
 		compute_fmm(DRHODT, false);
 		compute_fmm(RHO, true);
 		all_hydro_bounds();
