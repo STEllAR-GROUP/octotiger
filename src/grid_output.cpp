@@ -292,7 +292,7 @@ std::size_t grid::load(std::istream& strm, bool old_format) {
         bool expected = false;
 		if(statics_loaded.compare_exchange_strong(expected, true)) {
 			cnt += read(strm, &scaling_factor, 1);
-			if( opts.ngrids > -1 && !opts.refinement_floor_specified) {
+			if( opts.ngrids > -1 && opts.refinement_floor < 0.0) {
 				cnt += read( strm, &opts.refinement_floor, 1);
 			} else {
 				real dummy;

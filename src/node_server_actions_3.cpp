@@ -232,11 +232,11 @@ void node_server::start_run(bool scf, integer ngrids) {
 	timings::scope ts(timings_, timings::time_total);
 	integer output_cnt;
 
-	if (!hydro_on) {
+	if (!opts.hydro) {
 		if (!opts.disable_output) {
 			save_to_file("X.chk", opts.data_dir);
 		}
-		diagnostics();
+//		diagnostics();
 		return;
 	}
 	if (scf) {
@@ -263,7 +263,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 	printf("Starting run...\n");
 	auto fut_ptr = me.get_ptr();
 	node_server* root_ptr = GET(fut_ptr);
-	if (opts.output_only) {
+	if (!opts.output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
 		output(opts.data_dir, opts.output_filename, output_cnt, false);
@@ -328,7 +328,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 			theta = atan2(dy, dx);
 			omega = grid::get_omega();
 			printf("Old Omega = %e\n", omega);
-			if (opts.vomega) {
+			if (opts.variable_omega) {
 				theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
 				const real w0 = grid::get_omega() * 10.0;
 				const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);

@@ -252,9 +252,7 @@ void grid::compute_interactions(gsolve_type type) {
     // L_c stores the correction for angular momentum
     // L_c, (20) in the paper (Dominic)
     std::fill(std::begin(L), std::end(L), ZERO);
-//    if (opts.ang_con) {
-        std::fill(std::begin(L_c), std::end(L_c), ZERO);
-//    }
+    std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
     // Non-leaf nodes use taylor expansion
     // For leaf node, calculates the gravitational potential between two particles
@@ -488,7 +486,7 @@ void grid::compute_interactions(gsolve_type type) {
                     L[iii0] += tmp1;
                     L[iii1] += tmp2;
 
-                    if (type == RHO /*&& opts.ang_con*/) {
+                    if (type == RHO) {
                         space_vector& L_ciii0 = L_c[iii0];
                         space_vector& L_ciii1 = L_c[iii1];
                         for (integer j = 0; j != NDIM; ++j) {
@@ -711,7 +709,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
                     }
                     Liii0 += tmp;
 
-                    if (type == RHO /*&& opts.ang_con*/) {
+                    if (type == RHO) {
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
@@ -850,7 +848,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
                     for (integer j = 0; j != 4; ++j) {
                         Liii0[j] += A0[j][i];
                     }
-                    if (type == RHO /*&& opts.ang_con*/) {
+                    if (type == RHO) {
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
@@ -971,7 +969,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                     }
                     L[iii0] += tmp;
 
-                    if (type == RHO/* && opts.ang_con*/) {
+                    if (type == RHO) {
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
@@ -1347,7 +1345,7 @@ expansion_pass_type grid::compute_expansions_soa(
             m_partner[i][19] = parent_expansions_SoA.value<19>(index);
         }
 
-        if (type == RHO && opts.ang_con) {
+        if (type == RHO) {
             parent_corrections[0] = parent_corrections_SoA.value<0>(index);
             parent_corrections[1] = parent_corrections_SoA.value<1>(index);
             parent_corrections[2] = parent_corrections_SoA.value<2>(index);
@@ -1478,7 +1476,7 @@ expansion_pass_type grid::compute_expansions(
                     for (integer j = 0; j != 20; ++j) {
                         l[j] = parent_expansions->first[index][j];
                     }
-                    if (type == RHO/* && opts.ang_con*/) {
+                    if (type == RHO ) {
                         for (integer j = 0; j != NDIM; ++j) {
                             lc[j] = parent_expansions->second[index][j];
                         }
@@ -1487,11 +1485,9 @@ expansion_pass_type grid::compute_expansions(
                     for (integer j = 0; j != 20; ++j) {
                         l[j] = 0.0;
                     }
- //                   if (opts.ang_con) {
-                        for (integer j = 0; j != NDIM; ++j) {
-                            lc[j] = 0.0;
-                        }
-   //                 }
+					for (integer j = 0; j != NDIM; ++j) {
+						lc[j] = 0.0;
+					}
                 }
                 for (integer ci = 0; ci != NCHILD; ++ci) {
                     const integer iiic = child_index(ip, jp, kp, ci);
@@ -1511,14 +1507,12 @@ expansion_pass_type grid::compute_expansions(
                         Liiic[j] += l[j][ci];
                     }
 
-                    space_vector& L_ciiic = L_c[iiic];
-    //                if (opts.ang_con) {
-                        if (type == RHO /*&& opts.ang_con*/) {
-                            for (integer j = 0; j != NDIM; ++j) {
-                                L_ciiic[j] += lc[j][ci];
-                            }
-                        }
-      //              }
+					space_vector& L_ciiic = L_c[iiic];
+					if (type == RHO ) {
+						for (integer j = 0; j != NDIM; ++j) {
+							L_ciiic[j] += lc[j][ci];
+						}
+					}
 
                     if (!is_leaf) {
                         integer index = child_index(ip, jp, kp, ci, 0);
@@ -1526,7 +1520,7 @@ expansion_pass_type grid::compute_expansions(
                             exp_ret.first[index][j] = Liiic[j];
                         }
 
-                        if (type == RHO /*&& opts.ang_con*/) {
+                        if (type == RHO ) {
                             for (integer j = 0; j != 3; ++j) {
                                 exp_ret.second[index][j] = L_ciiic[j];
                             }
@@ -1548,9 +1542,7 @@ expansion_pass_type grid::compute_expansions(
 						G[iii][phi_i] = physcon.G * L[iii]();
 						for (integer d = 0; d < NDIM; ++d) {
 							G[iii][gx_i + d] = -physcon.G * L[iii](d);
-	//						if (opts.ang_con == true) {
-								G[iii][gx_i + d] -= physcon.G * L_c[iii][d];
-		//					}
+							G[iii][gx_i + d] -= physcon.G * L_c[iii][d];
 						}
 						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
 					} else {

@@ -36,35 +36,15 @@
 
 class node_server: public hpx::components::managed_component_base<node_server> {
     
-//    static node_list_type node_list;
-    static hpx::mutex node_list_mtx;
 
- //   static void node_list_add(const node_location&, node_server*);
-  //  static void node_list_remove(const node_location&);
 
-   // static void check_for_refinement2(real,real);
-
-public:
-    static void set_gravity(bool b) {
-        gravity_on = b;
-    }
-    static void set_hydro(bool b) {
-        hydro_on = b;
-}
 private:
-    // struct neighbor_gravity_type {
-    //     gravity_boundary_type data;
-    //     bool is_monopole;
-    //     geo::direction direction;
-    // };
     struct sibling_hydro_type {
         std::vector<real> data;
         geo::direction direction;
     };
     void set_pivot();
     std::atomic<integer> refinement_flag;
-    static bool hydro_on;
-    static bool gravity_on;
     static std::stack<grid::output_list_type> pending_output;
     node_location my_location;
     integer step_num;
@@ -123,9 +103,6 @@ private:
     octotiger::fmm::monopole_interactions::p2p_interaction_interface p2p_interactor;
 #endif
 public:
-    static bool is_gravity_on() {
-        return gravity_on;
-    }
     real get_time() const {
         return current_time;
     }

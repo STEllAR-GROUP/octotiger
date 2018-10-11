@@ -52,7 +52,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 
     // if(root ) printf( "refinement - %i\n", iii++ );
 
-	if (hydro_on) {
+	if (opts.hydro) {
 		all_hydro_bounds();
 	}
 
@@ -193,13 +193,14 @@ const diagnostics_t& diagnostics_t::compute() {
 }
 
 diagnostics_t node_server::diagnostics() {
+	return diagnostics_t();
 
 	diagnostics_t diags;
 	for (integer i = 1; i != 6; ++i) {
 		//	printf( "!\n");
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
-		if (gravity_on) {
+		if (opts.gravity) {
 			diags.grid_com = grid_ptr->center_of_mass();
 
 		} else {
