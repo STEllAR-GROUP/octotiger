@@ -41,10 +41,9 @@ bool options::process_options(int argc, char* argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
-	("help", "display help")    //
 	("xscale", po::value<real>(&(opts.xscale))->default_value(1.0), "grid scale")                   //
 	("omega", po::value<real>(&(opts.omega))->default_value(0.0), "(initial) angular frequency")                              //
-	("variable_omega", po::value<bool>(&(opts.vomega))->default_value(false), "use variable omega")                           //
+	("variable_omega", po::value<bool>(&(opts.variable_omega))->default_value(false), "use variable omega")                           //
 	("driving_rate", po::value<real>(&(opts.driving_rate))->default_value(0.0), "angular momentum loss driving rate")         //
 	("driving_time", po::value<real>(&(opts.driving_time))->default_value(0.0), "A.M. driving rate time")                     //
 	("entropy_driving_rate", po::value<real>(&(opts.driving_rate))->default_value(0.0), "entropy loss driving rate")          //
@@ -85,9 +84,9 @@ bool options::process_options(int argc, char* argv[]) {
 
 	boost::program_options::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, command_opts), vm);
-
+	po::notify(vm);
 	if (!config_file.empty()) {
-		std::ifstream ifs { vm["config"].as<std::string>().c_str() };
+		std::ifstream ifs { vm["config_file"].as<std::string>().c_str() };
 		if (ifs) {
 			store(parse_config_file(ifs, command_opts), vm);
 		} else {
@@ -106,7 +105,7 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(hydro);
 		SHOW(radiation);
 		SHOW(silo_planes_only);
-		SHOW(vomega);
+		SHOW(variable_omega);
 		SHOW(accretor_refine);
 		SHOW(donor_refine);
 		SHOW(max_level);

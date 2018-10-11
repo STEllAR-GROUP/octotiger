@@ -236,7 +236,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		if (!opts.disable_output) {
 			save_to_file("X.chk", opts.data_dir);
 		}
-		diagnostics();
+//		diagnostics();
 		return;
 	}
 	if (scf) {
@@ -328,7 +328,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 			theta = atan2(dy, dx);
 			omega = grid::get_omega();
 			printf("Old Omega = %e\n", omega);
-			if (opts.vomega) {
+			if (opts.variable_omega) {
 				theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
 				const real w0 = grid::get_omega() * 10.0;
 				const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);

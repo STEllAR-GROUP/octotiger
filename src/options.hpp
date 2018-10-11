@@ -31,7 +31,7 @@ public:
 	bool hydro;
 	bool radiation;
 	bool silo_planes_only;
-	bool vomega;
+	bool variable_omega;
 
 	integer accretor_refine;
 	integer donor_refine;
@@ -81,7 +81,7 @@ public:
 		arc & driving_time;
 		arc & refinement_floor;
 		arc & ngrids;
-		arc & vomega;
+		arc & variable_omega;
 		arc & silo_planes_only;
 		arc & stop_time;
 		arc & max_level;
