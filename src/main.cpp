@@ -74,6 +74,10 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
 		set_refine_test(refine_test_moving_star);
+	} else if (opts.problem == ROTATING_STAR) {
+		grid::set_fgamma(5.0 / 3.0);
+		set_problem(rotating_star);
+		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == MOVING_STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		grid::set_analytic_func(moving_star_analytic);

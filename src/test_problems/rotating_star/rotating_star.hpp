@@ -8,10 +8,9 @@
 #ifndef ROTATING_STAR_ROTATING_STAR_HPP_
 #define ROTATING_STAR_ROTATING_STAR_HPP_
 
-#include "../../defs.hpp"
 
 
-std::vector<real> star(real x, real y, real z, real);
+std::vector<real> rotating_star(real x, real y, real z, real);
 
 
 
