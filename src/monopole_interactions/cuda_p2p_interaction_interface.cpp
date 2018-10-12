@@ -52,6 +52,7 @@ namespace fmm {
                     env.device_blocked_monopoles, potential_expansions_small_size,
                     cudaMemcpyDeviceToHost);
 
+                std::cin.get();
                 // Wait for stream to finish and allow thread to jump away in the meantime
                 auto fut = gpu_interface.get_future();
                 fut.get();

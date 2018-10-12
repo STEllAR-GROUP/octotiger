@@ -1,8 +1,9 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "cuda_scheduler.hpp"
 #include "../monopole_interactions/calculate_stencil.hpp"
+#include "../monopole_interactions/p2p_cuda_kernel.hpp"
+#include "../multipole_interactions/multipole_cuda_kernel.hpp"
 #include "../multipole_interactions/calculate_stencil.hpp"
-#include "cuda_constant_memory.hpp"
 #include "options.hpp"
 
 extern options opts;
@@ -90,9 +91,10 @@ namespace fmm {
             // Move data to constant memory, once per gpu
             for (size_t gpu_id = 0; gpu_id < gpu_count; gpu_id++) {
                 util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
-                copy_indicator_to_constant_memory(indicator.get(), indicator_size);
-                copy_stencil_to_constant_memory(stencil.stencil_elements.data(), stencil_size);
-                copy_constants_to_constant_memory(four_tmp.get(), four_constants_size);
+                monopole_interactions::copy_stencil_to_p2p_constant_memory(stencil.stencil_elements.data(), stencil_size);
+                monopole_interactions::copy_constants_to_p2p_constant_memory(four_tmp.get(), four_constants_size);
+                multipole_interactions::copy_stencil_to_m2m_constant_memory(stencil.stencil_elements.data(), stencil_size);
+                multipole_interactions::copy_indicator_to_m2m_constant_memory(indicator.get(), indicator_size);
             }
 
             // Allocate buffers on the gpus - once per stream

@@ -1,14 +1,29 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
+#include <sstream>
 #include "compute_kernel_templates.hpp"
 #include "multipole_cuda_kernel.hpp"
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        // Both arrays are defined in cuda_constant_memory.hpp.
-        // They exist once per GPU in the constant memory.
-        extern __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
-        extern __constant__ double device_stencil_indicator_const[STENCIL_SIZE];
+        __constant__ double device_stencil_indicator_const[STENCIL_SIZE];
+        __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
+        void copy_stencil_to_m2m_constant_memory(const multiindex<> *stencil, const size_t stencil_size) {
+            cudaError_t err = cudaMemcpyToSymbol(device_stencil_const, stencil, stencil_size);
+            if (err != cudaSuccess) {
+                std::stringstream temp;
+                temp << "Copy stencil to constant memory returned error code " << cudaGetErrorString(err);
+                throw std::runtime_error(temp.str());
+            }
+        }
+        void copy_indicator_to_m2m_constant_memory(const double *indicator, const size_t indicator_size) {
+            cudaError_t err = cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
+            if (err != cudaSuccess) {
+                std::stringstream temp;
+                temp << "Copy stencil indicator to constant memory returned error code " << cudaGetErrorString(err);
+                throw std::runtime_error(temp.str());
+            }
+        }
 
         __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;

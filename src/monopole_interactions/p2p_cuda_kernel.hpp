@@ -6,6 +6,8 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+        __host__ void copy_stencil_to_p2p_constant_memory(const multiindex<> *stencil, const size_t stencil_size);
+        __host__ void copy_constants_to_p2p_constant_memory(const double *constants, const size_t constants_size);
         __global__ void cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[3 * NUMBER_POT_EXPANSIONS_SMALL],

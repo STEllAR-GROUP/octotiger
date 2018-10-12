@@ -1,14 +1,29 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
+#include <sstream>
 #include "monopole_kernel_templates.hpp"
 #include "p2p_cuda_kernel.hpp"
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+        __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
+        __constant__ double device_four_constants[STENCIL_SIZE * 4];
+        void copy_stencil_to_p2p_constant_memory(const multiindex<> *stencil, const size_t stencil_size) {
+            cudaError_t err = cudaMemcpyToSymbol(device_stencil_const, stencil, stencil_size);
+            if (err != cudaSuccess) {
+                std::stringstream temp;
+                temp << "Copy stencil to constant memory returned error code " << cudaGetErrorString(err);
+                throw std::runtime_error(temp.str());
+            }
+        }
+        void copy_constants_to_p2p_constant_memory(const double *constants, const size_t constants_size) {
+            cudaError_t err = cudaMemcpyToSymbol(device_four_constants, constants, constants_size);
+            if (err != cudaSuccess) {
+                std::stringstream temp;
+                temp << "Copy four-constants to constant memory returned error code " << cudaGetErrorString(err);
+                throw std::runtime_error(temp.str());
+            }
+        }
 
-        // Both arrays are defined in cuda_constant_memory.hpp.
-        // They exist once per GPU in the constant memory.
-        extern __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
-        extern __constant__ double device_four_constants[STENCIL_SIZE * 4];
 
         __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
@@ -19,6 +34,9 @@ namespace fmm {
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[3 * NUMBER_POT_EXPANSIONS_SMALL],
             const double theta, const double dx) {
+            int idx = blockIdx.x * blockDim.x + threadIdx.x;
+            bool first_thread = (threadIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0)
+                                && (blockIdx.x == 2);
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
@@ -32,21 +50,23 @@ namespace fmm {
             // Required for mask
             const double theta_rec_squared = sqr(1.0 / theta);
             const double d_components[2] = {1.0 / dx, -1.0 / sqr(dx)};
-            double tmpstore[4];
-            tmpstore[0] = 0.0;
-            tmpstore[1] = 0.0;
-            tmpstore[2] = 0.0;
-            tmpstore[3] = 0.0;
+            double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
 
             const size_t block_offset = blockIdx.x * NUMBER_POT_EXPANSIONS_SMALL;
             const size_t block_start = blockIdx.x * 358;
             const size_t block_end = 358 + blockIdx.x * 358;
+            if (first_thread) {
+                  printf("Begin stencil dump:\n");
+                  printf("%i %i %i", threadIdx.x, threadIdx.y, threadIdx.y);
+            }
 
             // calculate interactions between this cell and each stencil element
             for (size_t stencil_index = block_start; stencil_index < block_end;
                  stencil_index++) {
                 // Get interaction partner indices
                 const multiindex<>& stencil_element = device_stencil_const[stencil_index];
+                if (first_thread)
+                  printf("%i %i %i\n", stencil_element.x, stencil_element.y, stencil_element.z);
                 const multiindex<> partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
                 const size_t partner_flat_index = to_flat_index_padded(partner_index);
@@ -60,15 +80,23 @@ namespace fmm {
                 // double mask = mask_b ? 1.0 : 0.0;
                 // double monopole = local_monopoles[partner_flat_index] * mask;
 
-                // Load data of interaction partner
-                double monopole = local_monopoles[partner_flat_index];
 
+                // 1. Load monopoles - either from global or if given from local memory
+                double monopole = local_monopoles[partner_flat_index]; //from global
+                // 2. Load constants
                 const double four[4] = {device_four_constants[stencil_index * 4 + 0],
                     device_four_constants[stencil_index * 4 + 1], device_four_constants[stencil_index * 4 + 2],
                     device_four_constants[stencil_index * 4 + 3]};
-
-                // Do the actual calculations
+                if (first_thread)
+                  printf("%f %f %f %f\n", (float)(four[0]), (float)(four[1]), (float)(four[2]), (float)(four[3]));
+                // 3. Do calculations
                 compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
+                // 4. Move local memory like the stencil
+            }
+            if (first_thread){
+                  printf("end stencil dump:\n");
+                  printf("%i %i %i ... %i %i %i \n", threadIdx.x, threadIdx.y, threadIdx.z,
+                blockIdx.x, blockIdx.y, blockIdx.z);
             }
             // Store results in output arrays
             potential_expansions[block_offset + cell_flat_index_unpadded] = tmpstore[0];

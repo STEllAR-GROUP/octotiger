@@ -17,6 +17,12 @@ namespace fmm {
         }
     }
     void copy_stencil_to_constant_memory(const multiindex<> *stencil, const size_t stencil_size) {
+        std::cout << "putting stencil onto gpu" << std::endl;
+        std::cin.get();
+        for(int i = 0; i < 1074; i++) {
+            std::cout << stencil[i] << std::endl;
+        }
+        std::cin.get();
         cudaError_t err = cudaMemcpyToSymbol(device_stencil_const, stencil, stencil_size);
         if (err != cudaSuccess) {
             std::stringstream temp;
@@ -25,6 +31,13 @@ namespace fmm {
         }
     }
     void copy_constants_to_constant_memory(const double *constants, const size_t constants_size) {
+        // std::cout << "putting fours onto gpu" << std::endl;
+        // std::cin.get();
+        // for(int i = 0; i < 1043; i++) {
+        //     std::cout << constants[i*4 + 0] << " " << constants[i*4 + 1] << " " << constants[i*4 + 2] << "  "
+        //               << constants[i*4 + 3] << std::endl;
+        // }
+        // std::cin.get();
         cudaError_t err = cudaMemcpyToSymbol(device_four_constants, constants, constants_size);
         if (err != cudaSuccess) {
             std::stringstream temp;
