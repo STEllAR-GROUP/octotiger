@@ -270,6 +270,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		return;
 	}
 
+	printf( "Solving gravity\n");
 	solve_gravity(false, false);
 	ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
 
@@ -381,11 +382,11 @@ void node_server::start_run(bool scf, integer ngrids) {
 			// run output on separate thread
 			auto need_break = hpx::threads::run_as_os_thread([&]()
 			{
-				if (!opts.disable_output) {
-					FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
-					profiler_output(fp);
-					fclose(fp);
-				}
+//				if (!opts.disable_output) {
+//					FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
+//					profiler_output(fp);
+//					fclose(fp);
+//				}
 
 				//		set_omega_and_pivot();
 					bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
@@ -466,9 +467,6 @@ void node_server::refined_step() {
 
 	for (integer rk = 0; rk < NRK; ++rk) {
 
-		if (my_location.level() == 0) {
-			printf("1\n");
-		}
 		compute_fmm(DRHODT, false);
 		compute_fmm(RHO, true);
 		all_hydro_bounds();

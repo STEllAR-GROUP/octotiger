@@ -60,17 +60,17 @@ bool options::process_options(int argc, char* argv[]) {
 	("radiation", po::value<bool>(&(opts.radiation))->default_value(false), "radiation on/off")    //
 	("gravity", po::value<bool>(&(opts.gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts.bench))->default_value(false), "run benchmark") //
-	("datadir", po::value<std::string>(&(opts.data_dir))->default_value("."), "directory for output") //
+	("datadir", po::value<std::string>(&(opts.data_dir))->default_value("./"), "directory for output") //
 	("output", po::value<std::string>(&(opts.output_filename))->default_value(""), "filename for output") //
 	("odt", po::value<real>(&(opts.output_dt))->default_value(1.0), "output frequency") //
 	("disableoutput", po::value<bool>(&(opts.disable_output)), "disable silo output") //
 	("siloplanesonly", po::value<bool>(&(opts.silo_planes_only)), "disable silo output") //
 	("problem", po::value<problem_type>(&(opts.problem))->default_value(NONE), "problem type")                                //
-	("restart", po::value<std::string>(&(opts.restart_filename))->default_value(""), "restart filename")                      //
-	("stoptime", po::value<real>(&(opts.stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
-	("stopstep", po::value<integer>(&(opts.stop_step))->default_value(std::numeric_limits<integer>::max()),
+	("restart_filename", po::value<std::string>(&(opts.restart_filename))->default_value(""), "restart filename")                      //
+	("stop_time", po::value<real>(&(opts.stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
+	("stop_step", po::value<integer>(&(opts.stop_step))->default_value(std::numeric_limits<integer>::max()-1),
 			"number of timesteps to run")                                //
-	("maxlevel", po::value<integer>(&(opts.max_level))->default_value(1), "maximum number of refinement levels")              //
+	("max_level", po::value<integer>(&(opts.max_level))->default_value(1), "maximum number of refinement levels")              //
 	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts.m2m_kernel_type))->default_value(OLD),
 			"boundary multipole-multipole kernel type") //
 	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts.p2p_kernel_type))->default_value(OLD),
@@ -79,7 +79,8 @@ bool options::process_options(int argc, char* argv[]) {
 			"boundary particle-multipole kernel type")  //
 	("cuda_streams_per_thread", po::value<size_t>(&(opts.cuda_streams_per_thread))->default_value(size_t(2)),
 			"cuda streams per thread") //
-	("config_file", po::value<std::string>(&(opts.config_file))->default_value(""), "configuration file") //
+			("input_file", po::value<std::string>(&(opts.input_file))->default_value(""), "input file for test problems") //
+			("config_file", po::value<std::string>(&(opts.config_file))->default_value(""), "configuration file") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -124,6 +125,7 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(cuda_streams_per_thread);
 		SHOW(config_file);
 		SHOW(data_dir);
+		SHOW(input_file);
 		SHOW(output_filename);
 		SHOW(restart_filename);
 		SHOW(problem);

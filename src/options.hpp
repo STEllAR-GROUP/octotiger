@@ -17,7 +17,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 
-COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST);
+COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR);
 
 COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
 
@@ -52,6 +52,7 @@ public:
 
 	size_t cuda_streams_per_thread;
 
+	std::string input_file;
 	std::string config_file;
 	std::string data_dir;
 	std::string output_filename;
@@ -67,6 +68,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & input_file;
 		arc & config_file;
 		arc & hydro;
 		arc & gravity;

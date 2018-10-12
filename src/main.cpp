@@ -1,5 +1,5 @@
 #include "defs.hpp"
-
+#include "./test_problems/rotating_star/rotating_star.hpp"
 
 #include "node_server.hpp"
 #include "node_client.hpp"
