@@ -34,9 +34,6 @@ namespace fmm {
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[3 * NUMBER_POT_EXPANSIONS_SMALL],
             const double theta, const double dx) {
-            int idx = blockIdx.x * blockDim.x + threadIdx.x;
-            bool first_thread = (threadIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0)
-                                && (blockIdx.x == 2);
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
@@ -55,18 +52,12 @@ namespace fmm {
             const size_t block_offset = blockIdx.x * NUMBER_POT_EXPANSIONS_SMALL;
             const size_t block_start = blockIdx.x * 358;
             const size_t block_end = 358 + blockIdx.x * 358;
-            if (first_thread) {
-                  printf("Begin stencil dump:\n");
-                  printf("%i %i %i", threadIdx.x, threadIdx.y, threadIdx.y);
-            }
 
             // calculate interactions between this cell and each stencil element
             for (size_t stencil_index = block_start; stencil_index < block_end;
                  stencil_index++) {
                 // Get interaction partner indices
                 const multiindex<>& stencil_element = device_stencil_const[stencil_index];
-                if (first_thread)
-                  printf("%i %i %i\n", stencil_element.x, stencil_element.y, stencil_element.z);
                 const multiindex<> partner_index(cell_index.x + stencil_element.x,
                     cell_index.y + stencil_element.y, cell_index.z + stencil_element.z);
                 const size_t partner_flat_index = to_flat_index_padded(partner_index);
@@ -87,16 +78,9 @@ namespace fmm {
                 const double four[4] = {device_four_constants[stencil_index * 4 + 0],
                     device_four_constants[stencil_index * 4 + 1], device_four_constants[stencil_index * 4 + 2],
                     device_four_constants[stencil_index * 4 + 3]};
-                if (first_thread)
-                  printf("%f %f %f %f\n", (float)(four[0]), (float)(four[1]), (float)(four[2]), (float)(four[3]));
                 // 3. Do calculations
                 compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
                 // 4. Move local memory like the stencil
-            }
-            if (first_thread){
-                  printf("end stencil dump:\n");
-                  printf("%i %i %i ... %i %i %i \n", threadIdx.x, threadIdx.y, threadIdx.z,
-                blockIdx.x, blockIdx.y, blockIdx.z);
             }
             // Store results in output arrays
             potential_expansions[block_offset + cell_flat_index_unpadded] = tmpstore[0];
