@@ -92,7 +92,7 @@ set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
-	#    src/mesa/mesa.cpp
+    src/test_problems/rotating_star/rotating_star.cpp
     src/eos.cpp
     src/scf_data.cpp
     src/exact_sod.cpp

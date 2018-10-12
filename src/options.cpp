@@ -79,7 +79,8 @@ bool options::process_options(int argc, char* argv[]) {
 			"boundary particle-multipole kernel type")  //
 	("cuda_streams_per_thread", po::value<size_t>(&(opts.cuda_streams_per_thread))->default_value(size_t(2)),
 			"cuda streams per thread") //
-	("config_file", po::value<std::string>(&(opts.config_file))->default_value(""), "configuration file") //
+			("input_file", po::value<std::string>(&(opts.input_file))->default_value(""), "input file for test problems") //
+			("config_file", po::value<std::string>(&(opts.config_file))->default_value(""), "configuration file") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -124,6 +125,7 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(cuda_streams_per_thread);
 		SHOW(config_file);
 		SHOW(data_dir);
+		SHOW(input_file);
 		SHOW(output_filename);
 		SHOW(restart_filename);
 		SHOW(problem);

@@ -382,11 +382,11 @@ void node_server::start_run(bool scf, integer ngrids) {
 			// run output on separate thread
 			auto need_break = hpx::threads::run_as_os_thread([&]()
 			{
-				if (!opts.disable_output) {
-					FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
-					profiler_output(fp);
-					fclose(fp);
-				}
+//				if (!opts.disable_output) {
+//					FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
+//					profiler_output(fp);
+//					fclose(fp);
+//				}
 
 				//		set_omega_and_pivot();
 					bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
