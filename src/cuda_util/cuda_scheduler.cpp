@@ -75,9 +75,12 @@ namespace fmm {
             }
 
             // Move data to constant memory
-            copy_indicator_to_constant_memory(indicator.get(), indicator_size);
-            copy_stencil_to_constant_memory(stencil.stencil_elements.data(), stencil_size);
-            copy_constants_to_constant_memory(four_tmp.get(), four_constants_size);
+            for (size_t gpu_id = 0; gpu_id < gpu_count; gpu_id++) {
+                util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
+                copy_indicator_to_constant_memory(indicator.get(), indicator_size);
+                copy_stencil_to_constant_memory(stencil.stencil_elements.data(), stencil_size);
+                copy_constants_to_constant_memory(four_tmp.get(), four_constants_size);
+            }
 
             size_t local_stream_id = 0;
             // stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);
