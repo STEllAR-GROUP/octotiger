@@ -93,17 +93,12 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 		l1.data[field].resize(l1sz + l2.data[field].size());
 		std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
 	}
-	if (l1.analytic.size()) {
-		for (integer field = 0; field < NF; ++field) {
-			const auto l1sz = l1.analytic[field].size();
-			l1.analytic[field].resize(l1sz + l2.analytic[field].size());
-			std::move(l2.analytic[field].begin(), l2.analytic[field].end(), l1.analytic[field].begin() + l1sz);
-		}
-	}
 }
 
-grid::output_list_type grid::get_output_list(bool analytic) const {
+grid::output_list_type grid::get_output_list() const {
 	auto& V = TLS_V();
+
+
 	compute_primitives( { { H_BW+1, H_BW+1, H_BW+1 } }, { { H_NX - H_BW-1, H_NX - H_BW-1, H_NX - H_BW-1 } });
 	output_list_type rc;
 	const integer vertex_order[8] = { 0, 1, 3, 2, 4, 5, 7, 6 };
@@ -111,7 +106,6 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
 	std::array<std::vector<real>, OUTPUT_COUNT> &data = rc.data;
-	std::array<std::vector<real>, OUTPUT_COUNT> &A = rc.analytic;
 
 	for (integer field = 0; field != OUTPUT_COUNT; ++field) {
 		data[field].reserve(INX * INX * INX);
@@ -156,12 +150,13 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 					const integer d = H_BW - R_BW;
 					rad_grid_ptr->get_output(data, i - d, j - d, k - d);
 				}
+				const int nrf = opts.radiation ? NRF : 0;
 				for (integer field = 0; field != NGF; ++field) {
-					data[field + NRF + NF].push_back(G[iiig][field]);
+					data[field + nrf + NF].push_back(G[iiig][field]);
 				}
-				data[NGF + NRF + NF + 0].push_back(V[vx_i][iii]);
-				data[NGF + NRF + NF + 1].push_back(V[vy_i][iii]);
-				data[NGF + NRF + NF + 2].push_back(V[vz_i][iii]);
+				data[NGF + nrf + NF + 0].push_back(V[vx_i][iii]);
+				data[NGF + nrf + NF + 1].push_back(V[vy_i][iii]);
+				data[NGF + nrf + NF + 2].push_back(V[vz_i][iii]);
 				if (V[egas_i][iii] < de_switch2 * U[egas_i][iii]) {
 					data[NGF + NRF + NF + 3].push_back(std::pow(V[tau_i][iii], fgamma));
 				} else {
@@ -182,7 +177,7 @@ grid::output_list_type grid::get_output_list(bool analytic) const {
 }
 
 
-static const std::array<const char*,OUTPUT_COUNT>& field_names(  ) {
+const std::array<const char*,OUTPUT_COUNT>& grid::field_names(  ) {
 	static std::array<const char*,OUTPUT_COUNT> field_names;
 	if( opts.radiation) {
 		field_names = {{"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
@@ -196,34 +191,9 @@ static const std::array<const char*,OUTPUT_COUNT>& field_names(  ) {
 	return field_names;
 }
 
-void grid::output_header(std::string dirname, std::string base, real t, int cycle, bool a, int procs) {
-#ifdef DO_OUTPUT
-	std::thread([&]() {
-
-				auto olist = DBMakeOptlist(1);
-				double time = double(t);
-				int ndim = 3;
-				DBAddOption(olist, DBOPT_DTIME, &time);
-				std::string filename = dirname + base + std::string(".silo");
-//		printf("grid::output_header: filename('%s') dirname('%s') base('%s')\n",
-//            filename.c_str(), dirname.c_str(), base.c_str());
-				DBfile *db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
-				assert(db);
-				std::vector<int> types(procs);
-				DBPutMultimesh(db, "mesh", procs, field_names().data(), types.data(), olist);
-				for (int field = 0; field != OUTPUT_COUNT; ++field) {
-					DBPutMultivar(db, field_names()[field], procs, field_names().data(), types.data(), olist);
-				}
-				DBFreeOptlist(olist);
-				DBClose(db);
-			}).join();
-#endif
-}
-
 void grid::output(const output_list_type& olists,
     std::string _dirname, std::string _base,
-    real _t, int cycle, bool analytic) {
-	assert(!analytic);
+    real _t, int cycle) {
 #ifdef DO_OUTPUT
 	std::thread(
 			[&](const std::string& dirname, const std::string& base, real t) {
@@ -273,10 +243,8 @@ void grid::output(const output_list_type& olists,
 					int istrue = 1;
 					int isfalse = 0;
 					DBAddOption(olist, DBOPT_DTIME, &time);
-				//	printf( "%lli\n", reinterpret_cast<long long int>(olists.data[field].data()));
 					DBPutUcdvar1(db, field_names()[field], "mesh", const_cast<void*>(reinterpret_cast<const void*>(olists.data[field].data())), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 							olist);
-				//	printf( "%s\n", field_names()[field]);
 					DBFreeOptlist(olist);
 				}
 				DBClose(db);

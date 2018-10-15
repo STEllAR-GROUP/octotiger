@@ -78,7 +78,7 @@ public:
 	future<grid::output_list_type> load(integer, integer, integer, bool do_output,std::string) const;
 	future<diagnostics_t> diagnostics(const diagnostics_t&) const;
 	future<analytic_t> compare_analytic() const;
-	future<grid::output_list_type> output(std::string dname, std::string fname, int, bool) const;
+	future<grid::output_list_type> output(std::string dname, std::string fname, int cycle) const;
 	node_client();
 	future<set_child_aunt_type> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
@@ -104,31 +104,12 @@ public:
     future<void> save(integer,std::string) const;
 	future<void> check_for_refinement(real omega, real) const;
 	future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
-#ifdef FIND_AXIS_V2
-    future<std::array<std::pair<real,space_vector>,2>> find_axis_tool() const;
-#endif
-
     void report_timing() const;
-
     future<void> change_units(real,real,real,real) const;
-
     future<void> erad_init() const ;
     future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
 	future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&, std::size_t cycle) const;
 	future<void> set_rad_grid(std::vector<real>&&) const;
-#ifdef OCTOTIGER_USE_NODE_CACHE
-    struct node_loc_hash_t {
-    	std::size_t operator()( const node_location& loc) const {
-    		return loc.unique_id();
-    	}
-    };
- 	using table_type = std::unordered_map<node_location, hpx::shared_future<hpx::id_type>, node_loc_hash_t>;
-	static table_type node_cache;
-	static hpx::mutex node_cache_mutex;
-	static std::atomic<integer> hits;
-	static std::atomic<integer> misses;
-	static void cycle_node_cache();
-#endif
 
 	};
 #endif /* NODE_CLIENT_HPP_ */

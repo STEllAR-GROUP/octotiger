@@ -138,3 +138,10 @@ std::vector<real> rotating_star(real x, real y, real z, real) {
 	return u;
 }
 
+
+
+
+std::vector<real> rotating_star_a(real x, real y, real z, real) {
+	return rotating_star(x,y,z,0);
+}
+

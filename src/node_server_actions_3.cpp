@@ -3,6 +3,7 @@
 #include "future.hpp"
 #include "options.hpp"
 #include "util.hpp"
+#include "problem.hpp"
 
 #include <hpx/include/run_as.hpp>
 #include <hpx/include/lcos.hpp>
@@ -12,7 +13,7 @@
 extern options opts;
 
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
-HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
+HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 
 void node_client::send_gravity_boundary(gravity_boundary_type&& data, const geo::direction& dir, bool monopole,
 		std::size_t cycle) const {
@@ -29,7 +30,7 @@ void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata, const geo
 }
 
 typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;
-HPX_REGISTER_ACTION (send_gravity_expansions_action_type);
+HPX_REGISTER_ACTION(send_gravity_expansions_action_type);
 
 void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
 	parent_gravity_channel.set_value(std::move(v));
@@ -40,7 +41,7 @@ void node_client::send_gravity_expansions(expansion_pass_type&& data) const {
 }
 
 typedef node_server::send_gravity_multipoles_action send_gravity_multipoles_action_type;
-HPX_REGISTER_ACTION (send_gravity_multipoles_action_type);
+HPX_REGISTER_ACTION(send_gravity_multipoles_action_type);
 
 void node_client::send_gravity_multipoles(multipole_pass_type&& data, const geo::octant& ci) const {
 	hpx::apply<typename node_server::send_gravity_multipoles_action>(get_unmanaged_gid(), std::move(data), ci);
@@ -51,7 +52,7 @@ void node_server::recv_gravity_multipoles(multipole_pass_type&& v, const geo::oc
 }
 
 typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
-HPX_REGISTER_ACTION (send_hydro_boundary_action_type);
+HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
 void node_client::send_hydro_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_hydro_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
@@ -65,7 +66,7 @@ void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::dire
 }
 
 typedef node_server::send_flux_check_action send_flux_check_action_type;
-HPX_REGISTER_ACTION (send_flux_check_action_type);
+HPX_REGISTER_ACTION(send_flux_check_action_type);
 
 void node_client::send_flux_check(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_flux_check_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
@@ -79,7 +80,7 @@ void node_server::recv_flux_check(std::vector<real>&& bdata, const geo::directio
 }
 
 typedef node_server::send_hydro_children_action send_hydro_children_action_type;
-HPX_REGISTER_ACTION (send_hydro_children_action_type);
+HPX_REGISTER_ACTION(send_hydro_children_action_type);
 
 void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci, std::size_t cycle) {
 	child_hydro_channels[ci].set_value(std::move(data), cycle);
@@ -90,7 +91,7 @@ void node_client::send_hydro_children(std::vector<real>&& data, const geo::octan
 }
 
 typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
-HPX_REGISTER_ACTION (send_hydro_flux_correct_action_type);
+HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 
 void node_client::send_hydro_flux_correct(std::vector<real>&& data, const geo::face& face, const geo::octant& ci) const {
 	hpx::apply<typename node_server::send_hydro_flux_correct_action>(get_unmanaged_gid(), std::move(data), face, ci);
@@ -115,7 +116,7 @@ void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::f
 }
 
 typedef node_server::line_of_centers_action line_of_centers_action_type;
-HPX_REGISTER_ACTION (line_of_centers_action_type);
+HPX_REGISTER_ACTION(line_of_centers_action_type);
 
 future<line_of_centers_t> node_client::line_of_centers(const std::pair<space_vector, space_vector>& line) const {
 	return hpx::async<typename node_server::line_of_centers_action>(get_unmanaged_gid(), line);
@@ -236,7 +237,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		if (!opts.disable_output) {
 			save_to_file("X.chk", opts.data_dir);
 		}
-//		diagnostics();
+		diagnostics();
 		return;
 	}
 	if (scf) {
@@ -266,11 +267,11 @@ void node_server::start_run(bool scf, integer ngrids) {
 	if (!opts.output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
-		output(opts.data_dir, opts.output_filename, output_cnt, false);
+		output(opts.data_dir, opts.output_filename, output_cnt);
 		return;
 	}
 
-	printf( "Solving gravity\n");
+	printf("Solving gravity\n");
 	solve_gravity(false, false);
 	ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
 
@@ -285,10 +286,6 @@ void node_server::start_run(bool scf, integer ngrids) {
 	profiler_output(stdout);
 
 	real bench_start, bench_stop;
-
-	// if( current_time == 0.0 ) {
-	// 	diagnostics();
-	// }
 	while (current_time < opts.stop_time) {
 		if (step_num > opts.stop_step)
 			break;
@@ -298,12 +295,8 @@ void node_server::start_run(bool scf, integer ngrids) {
 			std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
 			save_to_file(fname, opts.data_dir);
 			printf("doing silo out...\n");
-
 			fname = "X." + std::to_string(int(output_cnt));
-			output(opts.data_dir, fname, output_cnt, false);
-
-			//	SYSTEM(std::string("cp *.dat ./dat_back/\n"));
-			//	}
+			output(opts.data_dir, fname, output_cnt);
 			++output_cnt;
 
 		}
@@ -337,8 +330,6 @@ void node_server::start_run(bool scf, integer ngrids) {
 				omega += omega_dot * dt;
 			}
 			printf("New Omega = %e\n", omega);
-			//            omega_dot += theta_dot_dot*dt;
-//             grid::set_omega(omega);          // now done during check_for_refinement below
 		} else {
 			printf("normal step...\n");
 			dt = GET(step(next_step - step_num));
@@ -366,7 +357,6 @@ void node_server::start_run(bool scf, integer ngrids) {
 					time_elapsed, rotational_time, theta, theta_dot, omega, omega_dot);
 		});     // do not wait for output to finish
 
-//		t += dt;
 		step_num = next_step;
 
 		if (step_num % refinement_freq() == 0) {
@@ -382,12 +372,6 @@ void node_server::start_run(bool scf, integer ngrids) {
 			// run output on separate thread
 			auto need_break = hpx::threads::run_as_os_thread([&]()
 			{
-//				if (!opts.disable_output) {
-//					FILE* fp = fopen((opts.data_dir + "profile.txt").c_str(), "wt");
-//					profiler_output(fp);
-//					fclose(fp);
-//				}
-
 				//		set_omega_and_pivot();
 					bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
 					if (scf || opts.bench) {
@@ -405,22 +389,31 @@ void node_server::start_run(bool scf, integer ngrids) {
 			if (GET(need_break))
 				break;
 		}
-		//		set_omega_and_pivot();
 		if (scf) {
 			bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
 			printf("Total time = %e s\n", double(bench_stop - bench_start));
-			//	FILE* fp = fopen( "bench.dat", "at" );
-			//	fprintf( fp, "%i %e\n", int(options::all_localities.size()), double(bench_stop - bench_start));
-			//	fclose(fp);
 			break;
 		}
 	}
+
 	bench_stop = hpx::util::high_resolution_clock::now() / 1e9;
 	{
 		timings::scope ts(timings_, timings::time_compare_analytic);
-		compare_analytic();
-		if (!opts.disable_output)
-			output(opts.data_dir, "final", output_cnt, true);
+
+		if (!opts.disable_output) {
+			printf("doing silo out...\n");
+			output(opts.data_dir, "final", output_cnt);
+			const auto cmd = std::string("cp final.silo X.") + std::to_string(int(output_cnt)) + std::string("\n");
+			system(cmd.c_str());
+		}
+
+		if (get_analytic() != nullptr) {
+			compare_analytic();
+			solve_gravity(true,false);
+			if (!opts.disable_output) {
+				output(opts.data_dir, "analytic", output_cnt);
+			}
+		}
 	}
 
 	if (opts.bench && !opts.disable_output) {
@@ -442,7 +435,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 }
 
 typedef node_server::step_action step_action_type;
-HPX_REGISTER_ACTION (step_action_type);
+HPX_REGISTER_ACTION(step_action_type);
 
 future<real> node_client::step(integer steps) const {
 	return hpx::async<typename node_server::step_action>(get_unmanaged_gid(), steps);
@@ -514,6 +507,10 @@ future<void> node_server::nonrefined_step() {
 						const real dx = TWO * grid::get_scaling_factor() /
 						real(INX << my_location.level());
 						dt_ = cfl0 * dx / a;
+						if( opts.stop_time > 0.0 ) {
+							const real maxdt = (opts.stop_time - current_time) / (refinement_freq()-(step_num % refinement_freq()));
+							dt_ = std::min(dt_, maxdt);
+						}
 						local_timestep_channels[NCHILD].set_value(dt_);
 					}
 					GET(fut_flux.then(
@@ -534,7 +531,7 @@ future<void> node_server::nonrefined_step() {
 						all_hydro_bounds();
 					}, "node_server::nonrefined_step::compute_fmm"
 			)));
-			}, "node_server::nonrefined_step::compute_fluxes"));
+}, "node_server::nonrefined_step::compute_fluxes"));
 	}
 
 	return fut.then(hpx::launch::sync, [this](future<void>&& f)
@@ -624,7 +621,7 @@ future<real> node_server::step(integer steps) {
 }
 
 typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
-HPX_REGISTER_ACTION (timestep_driver_ascend_action_type);
+HPX_REGISTER_ACTION(timestep_driver_ascend_action_type);
 
 void node_client::timestep_driver_ascend(real dt) const {
 	hpx::apply<typename node_server::timestep_driver_ascend_action>(get_unmanaged_gid(), dt);
@@ -640,7 +637,7 @@ void node_server::timestep_driver_ascend(real dt) {
 }
 
 typedef node_server::set_local_timestep_action set_local_timestep_action_type;
-HPX_REGISTER_ACTION (set_local_timestep_action_type);
+HPX_REGISTER_ACTION(set_local_timestep_action_type);
 
 void node_client::set_local_timestep(integer idx, real dt) const {
 	hpx::apply<typename node_server::set_local_timestep_action>(get_unmanaged_gid(), idx, dt);
@@ -686,7 +683,7 @@ future<void> node_server::timestep_driver_descend() {
 }
 
 typedef node_server::velocity_inc_action velocity_inc_action_type;
-HPX_REGISTER_ACTION (velocity_inc_action_type);
+HPX_REGISTER_ACTION(velocity_inc_action_type);
 
 future<void> node_client::velocity_inc(const space_vector& dv) const {
 	return hpx::async<typename node_server::velocity_inc_action>(get_gid(), dv);

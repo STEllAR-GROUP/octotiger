@@ -433,7 +433,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		auto diags = diagnostics();
 		if (i % 10 == 0 ) {
             if (!opts.disable_output) {
-			    output(opts.data_dir, buffer, i, false);
+			    output(opts.data_dir, buffer, i);
 			    save_to_file("scf.chk", data_dir);
             }
 		}

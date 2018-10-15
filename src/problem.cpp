@@ -22,6 +22,7 @@ using mutex = hpx::lcos::local::spinlock;
 extern options opts;
 
 init_func_type problem = nullptr;
+analytic_func_type analytic = nullptr;
 refine_test_type refine_test_function = refine_test;
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U,
@@ -174,6 +175,14 @@ void set_problem(const init_func_type& p) {
 
 init_func_type get_problem() {
 	return problem;
+}
+
+void set_analytic(const init_func_type& p) {
+	analytic = p;
+}
+
+init_func_type get_analytic() {
+	return analytic;
 }
 
 /*

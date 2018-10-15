@@ -64,7 +64,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		gravity_on = false;
 		set_problem(sod_shock_tube_init);
 		set_refine_test(refine_sod);
-		grid::set_analytic_func(sod_shock_tube_analytic);
+//		grid::set_analytic_func(sod_shock_tube_analytic);
 	} else if (opts.problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
 		gravity_on = false;
@@ -77,10 +77,11 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	} else if (opts.problem == ROTATING_STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(rotating_star);
+		set_analytic(rotating_star_a);
 		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == MOVING_STAR) {
 		grid::set_fgamma(5.0 / 3.0);
-		grid::set_analytic_func(moving_star_analytic);
+//		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
 		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == SOLID_SPHERE) {

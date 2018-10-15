@@ -12,6 +12,8 @@
 
 std::vector<real> rotating_star(real x, real y, real z, real);
 
+std::vector<real> rotating_star_a(real x, real y, real z, real);
+
 
 
 #endif /* ROTATING_STAR_ROTATING_STAR_HPP_ */

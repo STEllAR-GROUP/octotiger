@@ -91,15 +91,14 @@ public:
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
 	static void set_max_level(integer l);
+	static const std::array<const char*,OUTPUT_COUNT>& field_names();
 	static void set_fgamma(real fg) {
 	    fgamma = fg;
     }
 	static real get_fgamma() {
 	    return fgamma;
     }
-	static void set_analytic_func(const analytic_func_type& func);
 private:
-	static analytic_func_type analytic;
 	static real fgamma;
 	static integer max_level;
     static hpx::lcos::local::spinlock omega_mtx;
@@ -110,7 +109,6 @@ private:
 
 	std::vector<real> roche_lobe;
 	std::vector<std::vector<real>> U;
-	std::vector<std::vector<real>> Ua;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
 	std::vector<std::array<std::vector<real>, NF>> F;
@@ -298,9 +296,8 @@ public:
     void compute_sources(real t, real);
     void set_physical_boundaries(const geo::face&, real t);
     void next_u(integer rk, real t, real dt);
-    static void output(const output_list_type&, std::string, std::string, real t, int cycle, bool a);
-    static void output_header(std::string, std::string, real t, int cycle, bool a, int procs);
-    output_list_type get_output_list(bool analytic) const;
+    static void output(const output_list_type&, std::string, std::string, real t, int cycle);
+    output_list_type get_output_list() const;
     template<class Archive>
     void load(Archive& arc, const unsigned);
     template<class Archive>
@@ -336,7 +333,6 @@ struct grid::output_list_type {
 	std::set<node_point> nodes;
 	std::vector<zone_int_type> zones;
 	std::array<std::vector<real>, OUTPUT_COUNT> data;
-	std::array<std::vector<real>, OUTPUT_COUNT> analytic;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned int) {
 		arc & nodes;

@@ -143,9 +143,7 @@ analytic_t node_server::compare_analytic() {
 	if (my_location.level() == 0) {
 		printf("L1, L2\n");
 		for (integer field = 0; field != NF; ++field) {
-			if (a.l1a[field] > 0.0) {
-//				printf("%16s %e %e\n", grid::field_names[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
-			}
+			printf("%16s %e %e\n", grid::field_names()[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
 		}
 	}
 	return a;
@@ -174,9 +172,6 @@ const diagnostics_t& diagnostics_t::compute() {
 		rL[0] = RL_radius(1.0 / q) * a;
 		rL[1] = RL_radius(q) * a;
 	}
-//	printf( "%13e %13e %13e\n", mom[1](0,0), mom[1](0,1), mom[1](0,2));
-//	printf( "%13e %13e %13e\n", mom[1](1,0), mom[1](1,1), mom[1](1,2));
-//	printf( "%13e %13e %13e\n", mom[1](2,0), mom[1](2,1), mom[1](2,2));
 	for( integer s = 0; s != nspec; ++s) {
 		space_vector RdotQ = 0.0;
 		for (integer d = 0; d != NDIM; ++d) {
@@ -193,11 +188,8 @@ const diagnostics_t& diagnostics_t::compute() {
 }
 
 diagnostics_t node_server::diagnostics() {
-	return diagnostics_t();
-
 	diagnostics_t diags;
-	for (integer i = 1; i != 6; ++i) {
-		//	printf( "!\n");
+	for (integer i = 1; i != (opts.problem == DWD ? 6 : 2); ++i) {
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
 		if (opts.gravity) {
@@ -206,12 +198,7 @@ diagnostics_t node_server::diagnostics() {
 		} else {
 			//TODO center of mass for non gravity runs
 		}
-		//	printf( "%e\n", diags.m[0]);
 	}
-//	printf( "L1 = %e\n", diags.l1_phi);
-///	printf( "L2 = %e\n", diags.l2_phi);
-//	printf( "L3 = %e\n", diags.l3_phi);
-
 
 	FILE* fp = fopen( "binary.dat", "at");
 	if( fp ) {
@@ -261,7 +248,8 @@ diagnostics_t node_server::diagnostics(const diagnostics_t& diags)  {
 			return child_diagnostics(diags);
 		});
 		all_hydro_bounds();
-		return GET(rc);
+		auto diags = GET(rc);
+		return diags;
 	} else {
 		all_hydro_bounds();
 		return local_diagnostics(diags);
@@ -276,7 +264,6 @@ diagnostics_t node_server::child_diagnostics(const diagnostics_t& diags) {
 	for (integer ci = 0; ci != NCHILD; ++ci) {
 		futs[index++] = children[ci].diagnostics(diags);
 	}
-
 	auto child_sums = hpx::util::unwrap(futs);
 	return std::accumulate(child_sums.begin(), child_sums.end(), sums);
 }
