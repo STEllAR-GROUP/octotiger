@@ -34,6 +34,7 @@ public:
 	integer operator[](integer i) const {
 		return xloc[i];
 	}
+	std::size_t hash() const;
 	bool operator==(const node_location& other) const;
 	bool operator!=(const node_location& other) const;
 	bool operator<(const node_location& other) const;

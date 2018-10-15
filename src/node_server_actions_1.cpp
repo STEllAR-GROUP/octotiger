@@ -137,6 +137,8 @@ future<grid::output_list_type> node_server::load(integer cnt, integer total_node
 
 }
 
+
+
 typedef node_server::output_action output_action_type;
 HPX_REGISTER_ACTION(output_action_type);
 

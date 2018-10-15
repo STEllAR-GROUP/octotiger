@@ -5,6 +5,7 @@
  *      Author: dmarce1
  */
 
+#include "node_registry.hpp"
 #include "defs.hpp"
 #include "node_server.hpp"
 #include "problem.hpp"
@@ -493,9 +494,14 @@ void node_server::initialize(real t, real rt) {
 	if (my_location.level() == 0) {
 		grid_ptr->set_root();
 	}
+
+	node_registry::add(my_location,this);
 }
 
 node_server::~node_server() {
+
+	node_registry::delete_(my_location);
+
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num,
