@@ -52,7 +52,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 
     // if(root ) printf( "refinement - %i\n", iii++ );
 
-	if (hydro_on) {
+	if (opts.hydro) {
 		all_hydro_bounds();
 	}
 
@@ -101,7 +101,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 	auto rc =
 			hpx::new_ < node_server
 					> (id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
-							hcycle), std::size_t(gcycle));
+							hcycle), std::size_t(rcycle), std::size_t(gcycle));
 	clear_family();
     parent = hpx::invalid_id;
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
@@ -203,13 +203,14 @@ const diagnostics_t& diagnostics_t::compute() {
 }
 
 diagnostics_t node_server::diagnostics() {
+	return diagnostics_t();
 
 	diagnostics_t diags;
 	for (integer i = 1; i != 6; ++i) {
 		//	printf( "!\n");
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
-		if (gravity_on) {
+		if (opts.gravity) {
 			diags.grid_com = grid_ptr->center_of_mass();
 
 		} else {
@@ -270,7 +271,7 @@ diagnostics_t node_server::diagnostics(const diagnostics_t& diags)  {
 			return child_diagnostics(diags);
 		});
 		all_hydro_bounds();
-		return rc.get();
+		return GET(rc);
 	} else {
 		all_hydro_bounds();
 		return local_diagnostics(diags);

@@ -11,7 +11,7 @@
 #include "defs.hpp"
 
 
-#define R_BW 2
+#define R_BW 1
 #define R_NX (INX+2*R_BW)
 #define R_N3 (R_NX*R_NX*R_NX)
 

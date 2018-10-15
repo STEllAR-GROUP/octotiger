@@ -1,3 +1,3 @@
-../build/octotiger -t2 -Problem=moving_star -Max_level=3 -Odt=0.3 -Stoptime=0.2 -Xscale=20.0 -Omega=0.1 --hpx:bind=none  -Stopstep=9
+$OCTOTIGER_EXE -t2 --problem=moving_star --maxlevel=3 --odt=0.3 --stoptime=0.2 --xscale=20.0 --omega=0.1 --hpx:bind=none  --stopstep=9
 
 

@@ -1,3 +1,3 @@
-./octotiger -t8 -Problem=sod -Angcon=0 -Max_level=3 -Odt=0.1 -Stoptime=0.05 -Xscale=1.0
+$OCTOTIGER_EXE -t8 --problem=sod --maxlevel=3 --odt=0.1 --stoptime=0.05 --xscale=1.0
 
 

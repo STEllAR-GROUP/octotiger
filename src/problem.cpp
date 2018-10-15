@@ -15,7 +15,6 @@
 #include "eos.hpp"
 #include <hpx/include/lcos.hpp>
 
-
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
 }
@@ -25,10 +24,10 @@ extern options opts;
 init_func_type problem = nullptr;
 refine_test_type refine_test_function = refine_test;
 
-
-bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> const& dudx) {
+bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U,
+		std::array<std::vector<real>, NDIM> const& dudx) {
 	return level < max_level;
-	return refine_blast(level,max_level,x,y,z,U,dudx);
+	return refine_blast(level, max_level, x, y, z, U, dudx);
 
 	bool rc = false;
 	real den_floor = 1.0e-1;
@@ -46,24 +45,23 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 
 }
 
-
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
 
 	std::vector<real> u(NF + NRF, real(0));
-	x -= 0.0;
-	y -= 0.0;
-	z -= 0.0;
-	real r = std::max(dx, 0.50);
+	x -= 0.0e11;
+	y -= 0.0e11;
+	z -= 0.0e11;
+	real r = std::max(2.0 * dx, 0.50);
 	real eint;
 	if (std::sqrt(x * x + y * y + z * z) < r) {
 		u[rho_i] = 1.0;
 		eint = 2.0e+16;
 	} else {
 		u[rho_i] = 1.0e-20;
-	    eint = 2.0e+15;
+		eint = 2.0e+15;
 	}
-	u[tau_i] = POWER( eint * u[rho_i], 1.0 / grid::get_fgamma() );
+	u[tau_i] = POWER(eint * u[rho_i], 1.0 / grid::get_fgamma());
 //	u[sx_i] = 0.0; //u[rho_i] / 10.0;
 	const real fgamma = grid::get_fgamma();
 	u[egas_i] = POWER(u[tau_i], fgamma);
@@ -75,7 +73,8 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	return u;
 }
 
-bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
+		std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
 			return level < max_level;
@@ -84,7 +83,8 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 	return false;
 }
 
-bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
+		std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.01) {
 			return level < max_level;
@@ -96,24 +96,25 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 	return false;
 }
 
-bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
+		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
-	real dx = (opts.xscale / INX) / real(1<<level);
-	if( opts.refinement_floor < 0.0 ) {
+	real dx = (opts.xscale / INX) / real(1 << level);
+	if (opts.refinement_floor < 0.0) {
 		static hpx::mutex mtx;
 		std::lock_guard<hpx::mutex> lock(mtx);
 		opts.refinement_floor = 1.0e-3;
 	}
-	if( level < max_level / 2 ) {
-		return  std::sqrt(x*x+y*y+z*z) < 10.0*dx;
+	if (level < max_level / 2) {
+		return std::sqrt(x * x + y * y + z * z) < 10.0 * dx;
 	}
 	int test_level = max_level;
 	int penalty = 0;
 	bool majority_core = U[spc_ac_i] + U[spc_dc_i] > 0.5 * U[rho_i];
 	bool majority_accretor = U[spc_ae_i] + U[spc_ac_i] > 0.5 * U[rho_i];
 	bool majority_donor = U[spc_de_i] + U[spc_dc_i] > 0.5 * U[rho_i];
-	if( opts.core_refine) {
-		if(!majority_core) {
+	if (opts.core_refine) {
+		if (!majority_core) {
 			test_level -= 1;
 		}
 	}
@@ -136,8 +137,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	return rc;
 }
 
-bool refine_test_moving_star(integer level, integer max_level, real x, real y,
-		real z, std::vector<real> const& U,
+bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
 	if (opts.refinement_floor < 0.0) {
@@ -146,11 +146,8 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y,
 		opts.refinement_floor = 1.0e-2;
 	}
 	real den_floor = opts.refinement_floor;
-	integer test_level = (
-			(U[spc_ae_i] + U[spc_de_i] + U[spc_vac_i]) > 0.5 * U[rho_i] ?
-					max_level - 1 : max_level);
-	for (integer this_test_level = test_level; this_test_level >= 1;
-			--this_test_level) {
+	integer test_level = ((U[spc_ae_i] + U[spc_de_i] + U[spc_vac_i]) > 0.5 * U[rho_i] ? max_level - 1 : max_level);
+	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);
 		}
@@ -180,10 +177,10 @@ init_func_type get_problem() {
 }
 
 /*
-std::vector<real> null_problem(real x, real y, real z, real dx) {
-	std::vector<real> u(NF, real(0));
-	return u;
-}*/
+ std::vector<real> null_problem(real x, real y, real z, real dx) {
+ std::vector<real> u(NF, real(0));
+ return u;
+ }*/
 
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
@@ -191,9 +188,9 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	//y -= 0.043;
 	std::vector<real> u(NF, real(0));
 	u[spc_dc_i] = u[rho_i] = 1.0e-3;
-	const real a = std::sqrt(10.0) * std::min(dx,0.1);
+	const real a = std::sqrt(10.0) * std::min(dx, 0.1);
 	real r = std::sqrt(x * x + y * y + z * z);
-	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a))/100.0;
+	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a)) / 100.0;
 	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
 	return u;
 }
@@ -342,20 +339,21 @@ const real alpha = 1.0;
 
 void normalize_constants();
 
+
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
 	std::vector<real> u(NF, real(0));
-	if( opts.eos == WD ){
-		const real r = std::sqrt(x*x+y*y+z*z);
+	if (opts.eos == WD) {
+		const real r = std::sqrt(x * x + y * y + z * z);
 		static struct_eos eos(1.0, 1.0);
 		physcon.A = eos.A;
 		physcon.B = eos.B();
 		normalize_constants();
-		const real rho = std::max(eos.density_at(r,0.01),1.0e-10);
+		const real rho = std::max(eos.density_at(r, 0.01), 1.0e-10);
 		const real ei = eos.energy(rho);
 		u[rho_i] = rho;
 		u[egas_i] = ei;
-		u[tau_i] = std::pow(std::max(ei-ztwd_energy(rho),0.0),1.0/fgamma);
+		u[tau_i] = std::pow(std::max(ei - ztwd_energy(rho), 0.0), 1.0 / fgamma);
 		u[spc_i] = rho;
 		return u;
 	} else {
@@ -384,18 +382,18 @@ std::vector<real> star(real x, real y, real z, real) {
 		}
 		u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
 
-/*		const real r = std::sqrt(x * x + y * y + z * z);
-		static struct_eos eos(0.0040083, 0.33593, 3.0, 1.5, 0.1808, 2.0);
-		const real rho = std::max(eos.density_at(r,0.01),1.0e-10);
-		const real ei = eos.pressure(rho) / (fgamma - 1.0);
-		u[rho_i] = rho;
-		u[egas_i] = ei;
-		u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
-		if( rho > eos.dC() ) {
-			u[spc_i+0] = rho;
-		} else  {
-			u[spc_i+1] = rho;
-		}*/
+		/*		const real r = std::sqrt(x * x + y * y + z * z);
+		 static struct_eos eos(0.0040083, 0.33593, 3.0, 1.5, 0.1808, 2.0);
+		 const real rho = std::max(eos.density_at(r,0.01),1.0e-10);
+		 const real ei = eos.pressure(rho) / (fgamma - 1.0);
+		 u[rho_i] = rho;
+		 u[egas_i] = ei;
+		 u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+		 if( rho > eos.dC() ) {
+		 u[spc_i+0] = rho;
+		 } else  {
+		 u[spc_i+1] = rho;
+		 }*/
 		return u;
 	}
 }
