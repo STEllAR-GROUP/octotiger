@@ -41,6 +41,7 @@ bool options::process_options(int argc, char* argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
+    ("help", "produce help message")
 	("xscale", po::value<real>(&(opts.xscale))->default_value(1.0), "grid scale")                   //
 	("omega", po::value<real>(&(opts.omega))->default_value(0.0), "(initial) angular frequency")                              //
 	("variable_omega", po::value<bool>(&(opts.variable_omega))->default_value(false), "use variable omega")                           //
@@ -53,7 +54,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("donor_refine", po::value<integer>(&(opts.donor_refine))->default_value(0), "number of extra levels for donor")          //
 	("ngrids", po::value<integer>(&(opts.ngrids))->default_value(-1), "fix numbger of grids")                                 //
 	("refinement_floor", po::value<real>(&(opts.refinement_floor))->default_value(-1.0), "density refinement floor")          //
-	("theta", po::value<real>(&(opts.theta))->default_value(0.5),
+	("theta", po::value<real>(&(opts.theta))->default_value(0.35),
 			"controls nearness determination for FMM, must be between 1/3 and 1/2")                                           //
 	("eos", po::value<eos_type>(&(opts.eos))->default_value(IDEAL), "gas equation of state")                                  //
 	("hydro", po::value<bool>(&(opts.hydro))->default_value(true), "hydro on/off")    //
@@ -88,6 +89,10 @@ bool options::process_options(int argc, char* argv[]) {
 	boost::program_options::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, command_opts), vm);
 	po::notify(vm);
+    if (vm.count("help")) {
+        std::cout << command_opts << "\n";
+        return 1;
+    }
 	if (!config_file.empty()) {
 		std::ifstream ifs { vm["config_file"].as<std::string>().c_str() };
 		if (ifs) {
