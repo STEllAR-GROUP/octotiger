@@ -16,8 +16,10 @@ namespace fmm {
         const size_t total_worker_count = hpx::get_os_thread_count();
         const size_t worker_id = hpx::get_worker_thread_num();
         const size_t streams_per_locality = opts.cuda_streams_per_locality;
-        const size_t streams_per_gpu = opts.cuda_streams_per_gpu;
-        if (streams_per_gpu > 0 && streams_per_locality > 0) { // is cuda activated?
+        size_t streams_per_gpu = opts.cuda_streams_per_gpu;
+        if (streams_per_gpu == 0)
+          streams_per_gpu = streams_per_locality;
+        if (streams_per_locality > 0) { // is cuda activated?
             size_t gpu_count = streams_per_locality / streams_per_gpu;
             if (streams_per_locality % streams_per_gpu != 0)
                 gpu_count++;
@@ -119,7 +121,7 @@ namespace fmm {
                     cur_interface++;
                 }
             }
-            //util::cuda_helper::cuda_error(cudaThreadSynchronize());
+            // util::cuda_helper::cuda_error(cudaThreadSynchronize());
         }
     }
 
