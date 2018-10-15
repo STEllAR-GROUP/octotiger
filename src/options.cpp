@@ -77,8 +77,10 @@ bool options::process_options(int argc, char* argv[]) {
 			"boundary particle-particle kernel type")   //
 	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts.p2m_kernel_type))->default_value(OLD),
 			"boundary particle-multipole kernel type")  //
-	("cuda_streams_per_thread", po::value<size_t>(&(opts.cuda_streams_per_thread))->default_value(size_t(2)),
-			"cuda streams per thread") //
+	("cuda_streams_per_locality", po::value<size_t>(&(opts.cuda_streams_per_locality))->default_value(size_t(0)),
+			"cuda streams per HPX locality") //
+	("cuda_streams_per_gpu", po::value<size_t>(&(opts.cuda_streams_per_locality))->default_value(size_t(0)),
+			"cuda streams per GPU (per locality)") //
 			("input_file", po::value<std::string>(&(opts.input_file))->default_value(""), "input file for test problems") //
 			("config_file", po::value<std::string>(&(opts.config_file))->default_value(""), "configuration file") //
 			;
@@ -122,7 +124,8 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(stop_time);
 		SHOW(theta);
 		SHOW(xscale);
-		SHOW(cuda_streams_per_thread);
+		SHOW(cuda_streams_per_locality);
+		SHOW(cuda_streams_per_gpu);
 		SHOW(config_file);
 		SHOW(data_dir);
 		SHOW(input_file);
