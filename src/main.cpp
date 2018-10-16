@@ -1,5 +1,5 @@
 #include "defs.hpp"
-
+#include "./test_problems/rotating_star/rotating_star.hpp"
 
 #include "node_server.hpp"
 #include "node_client.hpp"
@@ -28,8 +28,6 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
 #include "cuda_util/cuda_helper.hpp"
 #endif
-
-options opts;
 
 bool gravity_on = true;
 bool hydro_on = true;
@@ -76,6 +74,10 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
 		set_refine_test(refine_test_moving_star);
+	} else if (opts.problem == ROTATING_STAR) {
+		grid::set_fgamma(5.0 / 3.0);
+		set_problem(rotating_star);
+		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == MOVING_STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		grid::set_analytic_func(moving_star_analytic);
@@ -90,8 +92,6 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		printf("No problem specified\n");
 		throw;
 	}
-	node_server::set_gravity(gravity_on);
-	node_server::set_hydro(hydro_on);
 	compute_ilist();
     compute_factor();
 
@@ -142,7 +142,7 @@ int hpx_main(int argc, char* argv[]) {
 
 			int ngrids = 0;
 	//		printf("1\n");
-			if (opts.found_restart_file) {
+			if (!opts.restart_filename.empty()) {
 				set_problem(null_problem);
 				const std::string fname = opts.restart_filename;
 				printf("Loading from %s...\n", fname.c_str());
@@ -157,16 +157,12 @@ int hpx_main(int argc, char* argv[]) {
 				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
 				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
-		//	printf("2\n");
-			if (gravity_on && !opts.output_only) {
+			if (gravity_on && opts.output_filename.empty()) {
 				printf("solving gravity------------\n");
 				root->solve_gravity(false,false);
 				printf("...done\n");
 			}
-		//	printf("3\n");
-			//    if( !opts.output_only ) {
-			hpx::async(&node_server::start_run, root, opts.problem == DWD && !opts.found_restart_file, ngrids).get();
-			//   }
+			hpx::async(&node_server::start_run, root, opts.problem == DWD && opts.restart_filename.empty(), ngrids).get();
 			root->report_timing();
 		}
 	} catch (...) {

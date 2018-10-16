@@ -18,10 +18,10 @@ namespace fmm {
         const size_t total_worker_count = hpx::get_os_thread_count();
         const size_t worker_id = hpx::get_worker_thread_num();
         const size_t streams_per_locality = opts.cuda_streams_per_locality;
-        const size_t streams_per_gpu = opts.cuda_streams_per_gpu;
-        if (streams_per_gpu > 0 && streams_per_locality > 0) { // is cuda activated?
-            // Number of GPUs is determined by number of total streams and the number of
-            // streams per gpu. Note: it is expected that there are enough gpus available
+        size_t streams_per_gpu = opts.cuda_streams_per_gpu;
+        if (streams_per_gpu == 0)
+          streams_per_gpu = streams_per_locality;
+        if (streams_per_locality > 0) { // is cuda activated?
             size_t gpu_count = streams_per_locality / streams_per_gpu;
             // handle remaining streams by putting it on the next gpu
             if (streams_per_locality % streams_per_gpu != 0)

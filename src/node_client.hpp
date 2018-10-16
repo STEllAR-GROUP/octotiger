@@ -114,8 +114,8 @@ public:
     future<void> change_units(real,real,real,real) const;
 
     future<void> erad_init() const ;
-    future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci) const;
-	future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&) const;
+    future<void> send_rad_children( std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
+	future<void> send_rad_boundary(std::vector<rad_type>&&, const geo::direction&, std::size_t cycle) const;
 	future<void> set_rad_grid(std::vector<real>&&) const;
 #ifdef OCTOTIGER_USE_NODE_CACHE
     struct node_loc_hash_t {
