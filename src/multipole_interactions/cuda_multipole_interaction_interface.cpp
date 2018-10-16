@@ -21,7 +21,7 @@ namespace fmm {
             std::array<real, NDIM> xbase) {
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
-            if (slot == -1) {    // Run fkernel_scheduler::allback cpu implementation
+            if (slot == -1 || m2m_type == interaction_kernel_type::OLD) {    // Run fkernel_scheduler::allback cpu implementation
                 // std::cout << "Running cpu fallback" << std::endl;
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);

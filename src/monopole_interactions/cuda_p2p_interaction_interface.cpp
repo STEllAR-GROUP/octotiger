@@ -17,7 +17,7 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
-            if (slot == -1) {    // Run fkernel_scheduler::allback cpu implementation
+            if (slot == -1 || p2p_type == interaction_kernel_type::OLD) {    // Run fkernel_scheduler::allback cpu implementation
                 // std::cout << "Running cpu fallback" << std::endl;
                 p2p_interaction_interface::compute_p2p_interactions(
                     monopoles, neighbors, type, dx, is_direction_empty);

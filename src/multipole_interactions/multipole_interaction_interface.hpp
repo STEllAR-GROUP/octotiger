@@ -61,6 +61,8 @@ namespace fmm {
             /// Needed for the center of masses calculation for multipole-monopole interactions
             std::array<real, NDIM> xBase;
             std::shared_ptr<grid> grid_ptr;
+            /// Option whether SoA Kernels should be called or the old AoS methods
+            interaction_kernel_type m2m_type;
 
         private:
             /// SoA conversion area - used as input for compute_interactions
@@ -73,8 +75,6 @@ namespace fmm {
                 center_of_masses_staging_area;
             /// Stencil for stencil based FMM kernels
             static thread_local const two_phase_stencil stencil;
-            /// Option whether SoA Kernels should be called or the old AoS methods
-            interaction_kernel_type m2m_type;
         };
 
         template <typename monopole_container, typename expansion_soa_container,

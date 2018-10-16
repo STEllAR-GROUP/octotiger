@@ -42,6 +42,7 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx);
 
             std::shared_ptr<grid> grid_ptr;
+            interaction_kernel_type p2p_type;
         private:
             /// The stencil is used to identify the neighbors
             static thread_local const std::vector<multiindex<>> stencil;
@@ -49,7 +50,6 @@ namespace fmm {
             static thread_local std::vector<real> local_monopoles_staging_area;
             std::vector<bool> neighbor_empty_monopoles;
 
-            interaction_kernel_type p2p_type;
             p2p_cpu_kernel kernel_monopoles;
         };
 
