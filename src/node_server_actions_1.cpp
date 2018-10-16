@@ -146,7 +146,16 @@ future<grid::output_list_type> node_client::output(std::string dname, std::strin
 	return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), dname, fname, cycle);
 }
 
+
+void output_all(std::string, int);
+
+
 grid::output_list_type node_server::output(std::string dname, std::string fname, int cycle) const {
+	output_all( fname, cycle);
+	return grid::output_list_type();
+
+
+
 	if (is_refined) {
 		std::array<future<grid::output_list_type>, NCHILD> futs;
 		integer index = 0;

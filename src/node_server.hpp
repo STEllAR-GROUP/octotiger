@@ -149,7 +149,6 @@ private:
     void initialize(real, real);
     void send_hydro_amr_boundaries(bool tau_only = false);
     void collect_hydro_boundaries(bool tau_only = false);
-    hpx::future<void> check_flux_consistency();
     void exchange_interlevel_hydro_data();
     static void static_initialize();
     void all_hydro_bounds(bool tau_only = false);
@@ -170,7 +169,9 @@ public:
      static bool child_is_on_face(integer ci, integer face) {
         return (((ci >> (face / 2)) & 1) == (face & 1));
     }
-
+    bool refined() const {
+    	return is_refined;
+    }
    node_server() {
 	    initialize(ZERO, ZERO);
     }
