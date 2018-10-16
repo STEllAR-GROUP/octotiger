@@ -12,11 +12,94 @@
 #include <array>
 #include <cmath>
 #include <cassert>
+#include "silo.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
 extern options opts;
+
+std::vector<std::string> grid::get_field_names() {
+	std::vector<std::string> rc;
+	if (opts.hydro) {
+		rc.push_back("rho");
+		rc.push_back("egas");
+		rc.push_back("tau");
+		rc.push_back("spc_1");
+		rc.push_back("spc_2");
+		rc.push_back("spc_3");
+		rc.push_back("spc_4");
+		rc.push_back("spc_5");
+		rc.push_back("sx");
+		rc.push_back("sy");
+		rc.push_back("sz");
+		rc.push_back("zx");
+		rc.push_back("zy");
+		rc.push_back("zz");
+	}
+	if (opts.gravity) {
+		rc.push_back("phi");
+		rc.push_back("gx");
+		rc.push_back("gy");
+		rc.push_back("gz");
+	}
+	return rc;
+}
+
+std::vector<silo_var_t> grid::scalar_output_data(const std::string suffix) const {
+	std::vector<silo_var_t> s;
+	if (opts.hydro) {
+		constexpr int N = 14;
+		const std::string names[] = { "rho", "egas", "tau", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5", "sx", "sy", "sz", "zx",
+				"zy", "zz" };
+		constexpr int indices[] = { rho_i, egas_i, tau_i, spc_i + 0, spc_i + 1, spc_i + 2, spc_i + 3, spc_i + 4, sx_i, sy_i,
+				sz_i, zx_i, zy_i, zz_i };
+		for (int l = 0; l < N; l++) {
+			const int f = indices[l];
+			std::string this_name = names[l];
+			if (suffix.size()) {
+				this_name += std::string("_") + suffix;
+			}
+			int jjj = 0;
+			silo_var_t this_s(this_name);
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						const int iii = hindex(i + H_BW, j + H_BW, k + H_BW);
+						this_s(jjj) = U[f][iii];
+						jjj++;
+					}
+				}
+			}
+			s.push_back(std::move(this_s));
+		}
+	}
+	if (opts.gravity) {
+		constexpr int N = 4;
+		const std::string names[] = { "phi", "gx", "gy", "gz" };
+		constexpr int indices[] = { phi_i, gx_i, gy_i, gz_i };
+		for (int l = 0; l < N; l++) {
+			const int f = indices[l];
+			std::string this_name = names[l];
+			if (suffix.size()) {
+				this_name += std::string("_") + suffix;
+			}
+			int jjj = 0;
+			silo_var_t this_s(this_name);
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						const int iii = hindex(i + H_BW, j + H_BW, k + H_BW);
+						this_s(jjj) = U[f][iii];
+						jjj++;
+					}
+				}
+			}
+			s.push_back(std::move(this_s));
+		}
+	}
+	return std::move(s);
+}
 
 diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	diagnostics_t rc;
@@ -31,7 +114,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				for (integer l = H_BW; l != H_NX - H_BW; ++l) {
 					const integer iii = hindex(j, k, l);
-					const integer iiig = gindex(j-H_BW,k-H_BW,l-H_BW);
+					const integer iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 					real ek = ZERO;
 					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
 					ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
@@ -1059,8 +1142,8 @@ void grid::set_omega(real omega, bool bcast) {
 		}
 	}
 	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
-	// if someone else has the lock, it's fine, we just return and have it set
-	// by the other thread
+// if someone else has the lock, it's fine, we just return and have it set
+// by the other thread
 	if (!l)
 		return;
 	grid::omega = omega;
@@ -1717,7 +1800,7 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 						U[field][iii] = this_u[field];
 					}
 				} else {
-					printf( "No problem specified\n" );
+					printf("No problem specified\n");
 					abort();
 				}
 			}

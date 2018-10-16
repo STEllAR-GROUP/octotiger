@@ -106,6 +106,9 @@ public:
     real get_time() const {
         return current_time;
     }
+    const grid& get_hydro_grid() const {
+    	return *grid_ptr;
+    }
     real get_rotation_count() const;
     node_server& operator=(node_server&&) = default;
 
