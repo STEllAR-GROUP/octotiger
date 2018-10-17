@@ -97,10 +97,10 @@ public:
 		return fgamma;
 	}
 private:
+	static real omega;
 	static real fgamma;
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
-	static real omega;
 	static space_vector pivot;
 	static real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;

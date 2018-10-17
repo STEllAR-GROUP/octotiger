@@ -17,13 +17,14 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 
+#include <silo.h>
+
 COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR);
 
 COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
 
 class options {
 public:
-
 	bool bench;
 	bool disable_output;
 	bool core_refine;
@@ -105,7 +106,6 @@ public:
 		arc & tmp;
 		eos = (eos_type) tmp;
 		arc & data_dir;
-
 		arc & m2m_kernel_type;
 		arc & p2p_kernel_type;
 		arc & p2m_kernel_type;

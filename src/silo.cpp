@@ -18,6 +18,42 @@ HPX_PLAIN_ACTION(output_stage2, output2_action);
 #include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
 
+template<class T>
+struct db_type {
+	static constexpr int d = DB_UNKNOWN;
+};
+
+template<>
+struct db_type<integer> {
+	static constexpr int d = DB_LONG_LONG;
+};
+
+template<>
+struct db_type<real> {
+	static constexpr int d = DB_DOUBLE;
+};
+
+template<>
+struct db_type<char> {
+	static constexpr int d = DB_CHAR;
+};
+
+template<class T>
+struct write_silo_var {
+	void operator()(DBfile* db, const char* name, T var) {
+		int one = 1;
+		DBWrite(db, name, &var, &one, 1, db_type<T>::d);
+	}
+};
+
+template<>
+struct write_silo_var<std::string> {
+	void operator()(DBfile* db, const char* name, const std::string var) {
+		int sz = var.size();
+		DBWrite(db, name, var.c_str(), &sz, 1, DB_CHAR);
+	}
+};
+
 struct mesh_vars_t {
 	std::vector<silo_var_t> vars;
 	std::vector<std::string> var_names;
@@ -45,7 +81,7 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 				}
 				mesh_vars_t rc;
 				const std::string suffix = loc.to_str();
-				rc.mesh_name = std::string( "mesh_") + suffix;
+				rc.mesh_name = /*std::string( "mesh_") +*/ suffix;
 				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
 				rc.X = std::move(X);
 				return std::move(rc);
@@ -58,7 +94,12 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 
 void output_stage2(std::string fname, int cycle) {
 	std::string this_fname = fname + std::string(".silo");
-	DBfile *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
+	DBfile *db;
+	if (hpx::get_locality_id() == 0) {
+		db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
+	} else {
+		db = DBOpen(this_fname.c_str(), DB_PDB, DB_APPEND);
+	}
 	int nfields = 0;
 	if (opts.hydro) {
 		nfields += 14;
@@ -66,36 +107,48 @@ void output_stage2(std::string fname, int cycle) {
 	if (opts.gravity) {
 		nfields += 4;
 	}
-	auto optlist = DBMakeOptlist(1);
-	int one = 1;
-	DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
+	if (node_registry::begin() != node_registry::end()) {
+		double dtime = node_registry::begin()->second->get_time();
+		float ftime = dtime;
+		auto optlist = DBMakeOptlist(5);
+		int one = 1;
+		int opt1 = DB_CARTESIAN;
+		DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
+		DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
+		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+		DBAddOption(optlist, DBOPT_DTIME, &dtime);
+		DBAddOption(optlist, DBOPT_TIME, &ftime);
+		const char* coord_names[] = { "x", "y", "z" };
+		constexpr int dims[] = { INX + 1, INX + 1, INX + 1 };
+		constexpr int dims2[] = { INX, INX, INX };
+		constexpr int data_type = DB_DOUBLE;
+		constexpr int ndim = NDIM;
+		constexpr int coord_type = DB_COLLINEAR;
 
-	const char* coord_names[] = { "x", "y", "z" };
-	constexpr int dims[] = { INX + 1, INX + 1, INX + 1 };
-	constexpr int dims2[] = { INX, INX, INX };
-	constexpr int data_type = DB_DOUBLE;
-	constexpr int ndim = NDIM;
-	constexpr int coord_type = DB_COLLINEAR;
-
-	for (auto& this_fut : futs_) {
-		auto mesh_vars = this_fut.get();
-		const auto& X = mesh_vars.X;
-		const real* coords[] = { X[0].data(), X[1].data(), X[2].data() };
-		DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, dims, ndim, data_type, coord_type, optlist);
-
-		for (const auto& o : mesh_vars.vars) {
-			DBPutQuadvar1(db, o.name_, mesh_vars.mesh_name.c_str(), o.data_, dims2, ndim, (const void*) NULL, 0, DB_DOUBLE,
-					DB_ZONECENT, optlist);
+		for (auto& this_fut : futs_) {
+			auto mesh_vars = this_fut.get();
+			const auto& X = mesh_vars.X;
+			const real* coords[] = { X[0].data(), X[1].data(), X[2].data() };
+			DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, dims, ndim, data_type, coord_type, optlist);
+			for (const auto& o : mesh_vars.vars) {
+				DBPutQuadvar1(db, o.name_, mesh_vars.mesh_name.c_str(), o.data_, dims2, ndim, (const void*) NULL, 0, DB_DOUBLE,
+						DB_ZONECENT, optlist);
+			}
 		}
+		DBFreeOptlist(optlist);
 	}
-	DBFreeOptlist(optlist);
+
 	static const auto ids = hpx::find_all_localities();
 	static const auto this_id = hpx::get_locality_id();
 	if (this_id < ids.size() - 1) {
 		output2_action func;
 		func(ids[this_id + 1], fname, cycle);
 	}
+
 	if (this_id == 0) {
+		double dtime = node_registry::begin()->second->get_time();
+		float ftime = dtime;
+		double rtime = node_registry::begin()->second->get_rotation_count();
 		std::vector<node_location> node_locs;
 		std::vector<char*> mesh_names;
 		std::vector<std::vector<char*>> field_names(nfields);
@@ -107,7 +160,7 @@ void output_stage2(std::string fname, int cycle) {
 		const auto top_field_names = grid::get_field_names();
 		for (int i = 0; i < node_locs.size(); i++) {
 			const auto suffix = node_locs[i].to_str();
-			const auto str = std::string("mesh_") + suffix;
+			const auto str = /*std::string("mesh_") + */suffix;
 			char* ptr = new char[str.size() + 1];
 			std::strcpy(ptr, str.c_str());
 			mesh_names.push_back(ptr);
@@ -122,11 +175,19 @@ void output_stage2(std::string fname, int cycle) {
 		const int n_total_domains = mesh_names.size();
 		static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
 		static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
-		DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), (decltype(optlist)) NULL);
+
+		auto optlist = DBMakeOptlist(4);
+		int opt1 = DB_CARTESIAN;
+		DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
+		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+		DBAddOption(optlist, DBOPT_DTIME, &dtime);
+		DBAddOption(optlist, DBOPT_TIME, &ftime);
+		DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), optlist);
 		for (int f = 0; f < nfields; f++) {
-			DBPutMultivar(db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(),
-					(decltype(optlist)) NULL);
+			DBPutMultivar(db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(), optlist);
+
 		}
+		DBFreeOptlist(optlist);
 		for (auto ptr : mesh_names) {
 			delete[] ptr;
 		}
@@ -135,9 +196,23 @@ void output_stage2(std::string fname, int cycle) {
 				delete[] s;
 			}
 		}
+
+		write_silo_var<integer> fi;
+		write_silo_var<real> fr;
+
+		fi(db,"eos", integer(opts.eos));
+		fi(db,"gravity", integer(opts.gravity));
+		fi(db,"hydro", integer(opts.hydro));
+		fr(db,"omega", grid::get_omega());
+		fr(db,"output_frequency", opts.output_dt);
+		fi(db,"problem", integer(opts.problem));
+		fi(db,"radiation", integer(opts.radiation));
+		fr(db,"refinement_floor", opts.refinement_floor);
+		fr(db,"rotational_time", rtime);
+		fr(db,"xscale", opts.xscale);
+
 		DBClose(db);
 	}
-
 }
 
 void output_all(std::string fname, int cycle) {
