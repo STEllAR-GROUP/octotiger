@@ -8,10 +8,7 @@ fi
 
 if [ ! -d "boost_1_63_0_install/" ]; then
     cd boost_1_63_0
-    ./bootstrap.sh --prefix="$Boost_ROOT"
-    ./b2 -j4 install
+    ./bootstrap.sh --prefix=/home/circleci/boost_1_63_0_install
+    ./b2 -j4 install --with-atomic --with-filesystem --with-program_options --with-regex --with-system --with-chrono --with-date_time --with-thread
     cd ..
 fi
-
-
-
