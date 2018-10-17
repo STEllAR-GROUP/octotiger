@@ -145,3 +145,6 @@ std::vector<real> rotating_star_a(real x, real y, real z, real) {
 	return rotating_star(x,y,z,0);
 }
 
+
+
+constexpr real rotating_star_analytic::coeff[16][16];
