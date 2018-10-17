@@ -31,4 +31,22 @@ iterator_type end();
 
 }
 
+namespace load_registry {
+
+struct hash {
+	std::size_t operator()(const node_location::node_id id) const;
+};
+
+using table_type = std::unordered_map<node_location::node_id,hpx::id_type,hash>;
+using iterator_type = table_type::iterator;
+
+void put(node_location::node_id id, const hpx::id_type& component);
+hpx::id_type get(node_location::node_id id);
+
+
+}
+
+
+
+
 #endif
