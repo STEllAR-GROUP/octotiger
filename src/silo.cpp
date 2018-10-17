@@ -57,7 +57,7 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 }
 
 void output_stage2(std::string fname, int cycle) {
-	std::string this_fname = fname + std::string(".") + std::to_string(cycle) + std::string(".silo");
+	std::string this_fname = fname + std::string(".silo");
 	DBfile *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
 	int nfields = 0;
 	if (opts.hydro) {

@@ -22,8 +22,8 @@ node_location::node_id node_location::to_id() const {
 	node_id id = 1;
 	for (int l = 0; l < lev; l++) {
 		for (int d = 0; d < NDIM; d++) {
-			id |= ((xloc[d] >> l) & 1);
 			id <<= 1;
+			id |= ((xloc[d] >> l) & 1);
 		}
 	}
 	return id;
