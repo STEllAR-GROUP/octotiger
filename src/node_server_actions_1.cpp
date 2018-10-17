@@ -41,14 +41,11 @@ void set_locality_data(real omega, space_vector pivot) {
 HPX_REGISTER_ACTION(set_locality_data_action, set_locality_data_action);
 HPX_REGISTER_BROADCAST_ACTION (set_locality_data_action)
 
-std::stack<grid::output_list_type> node_server::pending_output;
-
-future<grid::output_list_type> node_client::load(integer i, integer total, integer rec_size, bool do_o, std::string s) const {
-	return hpx::async<typename node_server::load_action>(get_unmanaged_gid(), i, total, rec_size, do_o, s);
+future<void> node_client::load(integer i, integer total, integer rec_size, std::string s) const {
+	return hpx::async<typename node_server::load_action>(get_unmanaged_gid(), i, total, rec_size, s);
 }
 
-future<grid::output_list_type> node_server::load(integer cnt, integer total_nodes, integer rec_size, bool do_output,
-		std::string filename) {
+void node_server::load(integer cnt, integer total_nodes, integer rec_size, std::string filename) {
 	if (my_location.level() == 0)
 		me = hpx::invalid_id;
 	else
@@ -77,7 +74,7 @@ future<grid::output_list_type> node_server::load(integer cnt, integer total_node
 		rad_grid_ptr = grid_ptr->get_rad_grid();
 		rad_grid_ptr->sanity_check();
 	}
-	std::array<future<grid::output_list_type>, NCHILD> futs;
+	std::array<future<void>, NCHILD> futs;
 	if (flag == '1') {
 		is_refined = true;
 
@@ -87,10 +84,10 @@ future<grid::output_list_type> node_server::load(integer cnt, integer total_node
 
 			futs[index++] = hpx::new_<node_server>(options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(),
 					ZERO, ZERO, step_num, hcycle, rcycle, gcycle).then(
-					[this, ci, counts, do_output, total_nodes, rec_size, filename](future<hpx::id_type>&& fut)
+					[this, ci, counts, total_nodes, rec_size, filename](future<hpx::id_type>&& fut)
 					{
 						children[ci] = fut.get();
-						return children[ci].load(counts[ci], total_nodes, rec_size, do_output, filename);
+						return children[ci].load(counts[ci], total_nodes, rec_size, filename);
 					});
 		}
 	} else if (flag == '0') {
@@ -102,85 +99,10 @@ future<grid::output_list_type> node_server::load(integer cnt, integer total_node
 		abort();
 	}
 
-	if (!is_refined && do_output) {
-		auto l = grid_ptr->get_output_list();
-		return hpx::make_ready_future(l);
-	}
-
-	return hpx::dataflow([this, do_output, filename](std::array<future<grid::output_list_type>, NCHILD>&& futs)
-	{
-		grid::output_list_type my_list;
-		for (auto&& fut : futs) {
-			if (fut.valid()) {
-				if (do_output) {
-					grid::merge_output_lists(my_list, fut.get());
-				} else {
-					fut.get();
-				}
-			}
-		}
-		if (my_location.level() == 0) {
-			if (do_output) {
-				auto silo_name = opts.output_filename;
-				std::string this_fname;
-				printf("Outputing...\n");
-				this_fname = silo_name + std::string(".silo");
-				grid::output(
-						my_list, opts.data_dir, this_fname, current_time, get_rotation_count() / opts.output_dt);
-			}
-			printf("Done...\n");
-			printf("Loaded checkpoint file\n");
-			my_list = decltype(my_list)();
-		}
-		return my_list;
-	}, std::move(futs));
-
+	hpx::when_all(std::move(futs)).get();
 }
-
-
-
-typedef node_server::output_action output_action_type;
-HPX_REGISTER_ACTION(output_action_type);
-
-future<grid::output_list_type> node_client::output(std::string dname, std::string fname, int cycle) const {
-	return hpx::async<typename node_server::output_action>(get_unmanaged_gid(), dname, fname, cycle);
-}
-
 
 void output_all(std::string, int);
-
-
-grid::output_list_type node_server::output(std::string dname, std::string fname, int cycle) const {
-	output_all( fname, cycle);
-	return grid::output_list_type();
-
-
-
-	if (is_refined) {
-		std::array<future<grid::output_list_type>, NCHILD> futs;
-		integer index = 0;
-		for (auto i = children.begin(); i != children.end(); ++i) {
-			futs[index++] = i->output(dname, fname, cycle);
-		}
-
-		auto i = futs.begin();
-		grid::output_list_type my_list = i->get();
-		for (++i; i != futs.end(); ++i) {
-			grid::merge_output_lists(my_list, i->get());
-		}
-		if (my_location.level() == 0) {
-			std::string this_fname;
-			printf("Outputing...\n");
-			this_fname = fname + std::string(".silo");
-			grid::output(my_list, dname, this_fname, get_time(), cycle);
-			printf("Done...\n");
-		}
-		return my_list;
-	} else {
-		auto l = grid_ptr->get_output_list();
-		return l;
-	}
-}
 
 typedef node_server::regrid_gather_action regrid_gather_action_type;
 HPX_REGISTER_ACTION(regrid_gather_action_type);

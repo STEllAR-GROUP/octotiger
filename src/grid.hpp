@@ -246,8 +246,6 @@ public:
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
-	struct output_list_type;
-	static void merge_output_lists(output_list_type& l1, output_list_type&& l2);
 	void velocity_inc(const space_vector& dv);
 	void set_outflows(std::vector<real>&& u) {
 		U_out = std::move(u);
@@ -315,8 +313,6 @@ public:
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
 	void next_u(integer rk, real t, real dt);
-	static void output(const output_list_type&, std::string, std::string, real t, int cycle);
-	output_list_type get_output_list() const;
 	template<class Archive>
 	void load(Archive& arc, const unsigned);
 	template<class Archive>
@@ -327,7 +323,7 @@ public:
 	std::pair<real, real> virial() const;
 
 
-	std::vector<silo_var_t> scalar_output_data(const std::string suffix = std::string()) const;
+	std::vector<silo_var_t> var_data(const std::string suffix = std::string()) const;
 	friend class node_server;
 };
 
@@ -350,19 +346,6 @@ struct is_bitwise_serializable<grid::node_point> : std::true_type {
 };
 }
 }
-
-struct grid::output_list_type {
-	std::set<node_point> nodes;
-	std::vector<zone_int_type> zones;
-	std::array<std::vector<real>, OUTPUT_COUNT> data;
-	template<class Arc>
-	void serialize(Arc& arc, unsigned int) {
-		arc & nodes;
-		arc & zones;
-		arc & data;
-	}
-}
-;
 
 void scf_binary_init();
 

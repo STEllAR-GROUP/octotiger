@@ -21,6 +21,9 @@ private:
 	std::array<integer, NDIM> xloc;
 	integer lev;
 public:
+	using node_id = std::uint64_t;
+	node_id to_id() const;
+	void from_id(const node_id&);
 	node_location();
 	node_location(const node_location& other);
 	node_location& operator=(const node_location& other);

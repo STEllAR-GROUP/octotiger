@@ -267,7 +267,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 	if (!opts.output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
-		output(opts.data_dir, opts.output_filename, output_cnt);
+		output_all(opts.output_filename, output_cnt);
 		return;
 	}
 
@@ -296,7 +296,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 			save_to_file(fname, opts.data_dir);
 			printf("doing silo out...\n");
 			fname = "X." + std::to_string(int(output_cnt));
-			output(opts.data_dir, fname, output_cnt);
+			output_all(fname, output_cnt);
 			++output_cnt;
 
 		}
@@ -402,7 +402,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 
 		if (!opts.disable_output) {
 			printf("doing silo out...\n");
-			output(opts.data_dir, "final", output_cnt);
+			output_all("final", output_cnt);
 			const auto cmd = std::string("cp final.silo X.") + std::to_string(int(output_cnt)) + std::string("\n");
 			system(cmd.c_str());
 		}
@@ -411,7 +411,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 			compare_analytic();
 			solve_gravity(true,false);
 			if (!opts.disable_output) {
-				output(opts.data_dir, "analytic", output_cnt);
+				output_all("analytic", output_cnt);
 			}
 		}
 	}

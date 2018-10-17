@@ -35,7 +35,7 @@
 #include "multipole_interactions/cuda_multipole_interaction_interface.hpp"
 
 class node_server: public hpx::components::managed_component_base<node_server> {
-    
+
 
 
 private:
@@ -45,7 +45,6 @@ private:
     };
     void set_pivot();
     std::atomic<integer> refinement_flag;
-    static std::stack<grid::output_list_type> pending_output;
     node_location my_location;
     integer step_num;
     std::size_t rcycle;
@@ -194,9 +193,6 @@ public:
     void load_from_file_and_output(const std::string&, const std::string&, std::string const& data_dir);
 
 
-    grid::output_list_type output(std::string dname, std::string fname, int cycle) const;
-    HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
-
     integer regrid_gather(bool rebalance_only);
     HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
 
@@ -277,7 +273,7 @@ public:
 
     diagnostics_t diagnostics();
 
-    hpx::future<grid::output_list_type> load(integer, integer, integer, bool do_output,
+    void load(integer, integer, integer,
         std::string);
     HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
 
@@ -362,12 +358,8 @@ public:
 
 
 };
-#ifdef FIND_AXIS_V2
-HPX_REGISTER_ACTION_DECLARATION(node_server::find_axis_tool_action);
-#endif
 HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::output_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::velocity_inc_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::scf_update_action);

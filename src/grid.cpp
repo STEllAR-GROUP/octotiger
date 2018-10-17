@@ -46,7 +46,7 @@ std::vector<std::string> grid::get_field_names() {
 	return rc;
 }
 
-std::vector<silo_var_t> grid::scalar_output_data(const std::string suffix) const {
+std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
 	if (opts.hydro) {
 		constexpr int N = 14;

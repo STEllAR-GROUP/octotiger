@@ -18,6 +18,31 @@
 #include "node_location.hpp"
 #include "node_client.hpp"
 
+node_location::node_id node_location::to_id() const {
+	node_id id = 1;
+	for (int l = 0; l < lev; l++) {
+		for (int d = 0; d < NDIM; d++) {
+			id |= ((xloc[d] >> l) & 1);
+			id <<= 1;
+		}
+	}
+	return id;
+}
+
+void node_location::from_id(const node_id& id_) {
+	node_id id = id_;
+	for (int d = 0; d < NDIM; d++) {
+		xloc[d] = 0;
+	}
+	for (lev = 0; id != 1; lev++) {
+		for (int d = NDIM - 1; d >= 0; d--) {
+			xloc[d] <<= 1;
+			xloc[d] |= (id & 1);
+			id >>= 1;
+		}
+	}
+}
+
 std::size_t node_location::hash() const {
 	std::size_t key = lev;
 	for (int d = 0; d < NDIM; d++) {
