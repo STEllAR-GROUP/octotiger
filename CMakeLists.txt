@@ -92,6 +92,8 @@ set(dependencies ${Silo_LIBRARY})
 
 # Octotiger executable
 set(source_files ${source_files}
+    src/silo.cpp
+    src/node_registry.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/eos.cpp
     src/scf_data.cpp
