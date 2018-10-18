@@ -9,36 +9,6 @@
 
 #include <vector>
 
-// typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
-// typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
-
-// struct gravity_boundary_type
-// {
-//     std::shared_ptr<std::vector<multipole>> M;
-//     std::shared_ptr<std::vector<real>> m;
-//     std::shared_ptr<std::vector<space_vector>> x;
-//     bool is_local;
-//     gravity_boundary_type()
-//       : M(nullptr)
-//       , m(nullptr)
-//       , x(nullptr) {}
-//     void allocate() {
-//         if (M == nullptr) {
-//             M = std::make_shared<std::vector<multipole>>();
-//             m = std::make_shared<std::vector<real>>();
-//             x = std::make_shared<std::vector<space_vector>>();
-//         }
-//     }
-//     template <class Archive>
-//     void serialize(Archive& arc, unsigned) {
-//         allocate();
-//         arc& M;
-//         arc& m;
-//         arc& x;
-//         arc& is_local;
-//     }
-// };
-
 typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
 typedef std::pair<std::vector<expansion>, std::vector<space_vector>> expansion_pass_type;
 
@@ -156,8 +126,9 @@ struct boundary_interaction_type
 };
 Vc_DECLARE_ALLOCATOR(boundary_interaction_type)
 
-enum interaction_kernel_type : uint32_t {
-    SOA_CPU = 0,
-    OLD,
-    SOA_CUDA
-};
+
+#include "options_enum.hpp"
+#include <boost/algorithm/string.hpp>
+
+COMMAND_LINE_ENUM(interaction_kernel_type,SOA_CPU,OLD,SOA_CUDA);
+

@@ -105,9 +105,6 @@ std::pair<space_vector,space_vector> node_server::find_axis() const {
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
 
-bool node_server::hydro_on = true;
-bool node_server::gravity_on = true;
-
 future<void> node_server::check_flux_consistency() {
 	const integer this_cycle = hcycle ^ 0xFFFFFFFF;
 	for (auto const& dir : geo::direction::full_set()) {
@@ -342,7 +339,6 @@ inline bool file_exists(const std::string& name) {
 
 std::size_t node_server::load_me(std::istream& strm, bool old_format) {
 	std::size_t cnt = 0;
-	auto foo = std::fread;
 	refinement_flag = 0;
 	cnt += read(strm, &step_num, 1);
 	cnt += read(strm, &current_time, 1);
@@ -470,7 +466,7 @@ void node_server::initialize(real t, real rt) {
 	for (auto const& dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
-	gcycle = hcycle = 0;
+	gcycle = hcycle = rcycle = 0;
 	step_num = 0;
 	refinement_flag = 0;
 	static_initialize();
@@ -503,21 +499,23 @@ node_server::~node_server() {
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num,
-		std::size_t _hcycle, std::size_t _gcycle) :
+		std::size_t _hcycle, std::size_t _rcycle, std::size_t _gcycle) :
 		my_location(loc), parent(parent_id) {
 	initialize(t, rt);
 	step_num = _step_num;
 	gcycle = _gcycle;
 	hcycle = _hcycle;
+	rcycle = _rcycle;
 }
 
 node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
 		real _rotational_time, const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c,
-		std::size_t _hcycle, std::size_t _gcycle) {
+		std::size_t _hcycle, std::size_t _rcycle, std::size_t _gcycle) {
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
 	hcycle = _hcycle;
 	gcycle = _gcycle;
+	rcycle = _rcycle;
 	is_refined = _is_refined;
 	step_num = _step_num;
 	current_time = _current_time;
@@ -531,7 +529,7 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {
-	if (!gravity_on) {
+	if (!opts.gravity) {
 		return;
 	}
 
@@ -643,9 +641,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
         std::vector<expansion>& L = grid_ptr->get_L();
         std::vector<space_vector>& L_c = grid_ptr->get_L_c();
         std::fill(std::begin(L), std::end(L), ZERO);
-        if (opts.ang_con) {
-            std::fill(std::begin(L_c), std::end(L_c), ZERO);
-        }
+        std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
         // Check if we are a multipole
         if (!grid_ptr->get_leaf()) {

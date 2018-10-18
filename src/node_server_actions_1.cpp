@@ -116,7 +116,7 @@ future<grid::output_list_type> node_server::load(
 
             futs[index++] =
                 hpx::new_<node_server>(options::all_localities[loc_id],
-                    my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, gcycle).then(
+                    my_location.get_child(ci), me.get_gid(), ZERO, ZERO, step_num, hcycle, rcycle, gcycle).then(
                         [this, ci, counts, do_output, total_nodes, rec_size, filename](future<hpx::id_type>&& fut)
                         {
                             children[ci] = fut.get();
@@ -147,9 +147,9 @@ future<grid::output_list_type> node_server::load(
     if (!is_refined && do_output)
     {
     	auto l = grid_ptr->get_output_list(false);
-    	if( opts.parallel_silo ) {
-    		parallel_output_gather(std::move(l));
-    	}
+    //	if( opts.parallel_silo ) {
+    //		parallel_output_gather(std::move(l));
+    //	}
         return hpx::make_ready_future(l);
     }
 
@@ -176,7 +176,7 @@ future<grid::output_list_type> node_server::load(
 			//	}
 				std::string this_fname;
 				printf("Outputing...\n");
-				if (opts.parallel_silo) {
+	/*			if (opts.parallel_silo) {
 					std::string dir_name = silo_name + std::string(".silo.data");
 					if (system((std::string("mkdir -p ") + dir_name + std::string("\n")).c_str()) != 0) {
 						abort_error();
@@ -190,17 +190,17 @@ future<grid::output_list_type> node_server::load(
 					}
 					hpx::wait_all(futs);
 					grid::output_header(opts.data_dir, silo_name, get_time(), cycle, false, opts.all_localities.size());
-				} else {
+				} else {*/
 					this_fname = silo_name + std::string(".silo");
 					grid::output(
 							my_list, opts.data_dir, this_fname, current_time, get_rotation_count() / opts.output_dt, false);
-				}
+	//			}
 	//			diagnostics();
 			}
 			printf("Done...\n");
 
-			if( !opts.parallel_silo) {
-			}
+	//		if( !opts.parallel_silo) {
+//			}
 			printf("Loaded checkpoint file\n");
                 my_list = decltype(my_list)();
             }
@@ -257,45 +257,45 @@ grid::output_list_type node_server::output(std::string dname, std::string fname,
 
         auto i = futs.begin();
         grid::output_list_type my_list = i->get();
-		if (opts.parallel_silo) {
-			parallel_output_gather(std::move(my_list));
-			for (++i; i != futs.end(); ++i) {
-				i->get();
-			}
-		} else {
+//		if (opts.parallel_silo) {
+	//		parallel_output_gather(std::move(my_list));
+	//		for (++i; i != futs.end(); ++i) {
+	//			i->get();
+	//		}
+	//	} else {
 			for (++i; i != futs.end(); ++i) {
 				grid::merge_output_lists(my_list, i->get());
 			}
-		}
+	//	}
 		if (my_location.level() == 0) {
 			std::string this_fname;
 			printf("Outputing...\n");
-			if (opts.parallel_silo) {
-				std::string this_dname = dname + fname + std::string(".silo.data/");
+	//		if (opts.parallel_silo) {
+	//			std::string this_dname = dname + fname + std::string(".silo.data/");
                 //printf("node_server::output (mkdir): this_dname('%s')\n", this_dname.c_str());
-				if (system((std::string("mkdir -p ") + this_dname + std::string("\n")).c_str()) != 0) {
-					abort_error();
-				}
-				const auto sz = opts.all_localities.size();
-				std::vector<future<void>> futs(sz);
-				for (integer i = 0; i != sz; ++i) {
-					this_fname = fname + std::string(".") + std::to_string(i) + std::string(".silo");
-					futs[i] = hpx::async<parallel_output_complete_action>(opts.all_localities[i], this_dname, this_fname, get_time(), cycle, analytic);
-				}
-				hpx::wait_all(futs);
-				grid::output_header(this_dname, fname, get_time(), cycle, analytic, opts.all_localities.size());
-			} else {
+//				if (system((std::string("mkdir -p ") + this_dname + std::string("\n")).c_str()) != 0) {
+//					abort_error();
+//				}
+//				const auto sz = opts.all_localities.size();
+//				std::vector<future<void>> futs(sz);
+//				for (integer i = 0; i != sz; ++i) {
+//					this_fname = fname + std::string(".") + std::to_string(i) + std::string(".silo");
+//					futs[i] = hpx::async<parallel_output_complete_action>(opts.all_localities[i], this_dname, this_fname, get_time(), cycle, analytic);
+//				}
+//				hpx::wait_all(futs);
+//				grid::output_header(this_dname, fname, get_time(), cycle, analytic, opts.all_localities.size());
+//			} else {
 				this_fname = fname + std::string(".silo");
 				grid::output(my_list, dname, this_fname, get_time(), cycle, analytic);
-			}
+//			}
 			printf("Done...\n");
 		}
         return my_list;
     } else {
     	auto l = grid_ptr->get_output_list(analytic);
-		if (opts.parallel_silo) {
-			parallel_output_gather(std::move(l));
-		}
+	//	if (opts.parallel_silo) {
+//			parallel_output_gather(std::move(l));
+//		}
 		return l;
     }
 }
@@ -362,7 +362,7 @@ integer node_server::regrid_gather(bool rebalance_only) {
 future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, integer ci)
 {
     return hpx::new_ < node_server
-            > (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, gcycle).then(
+            > (hpx::find_here(), my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then(
         [this, ci](future<hpx::id_type>&& child_idf)
         {
             hpx::id_type child_id = child_idf.get();
@@ -502,7 +502,7 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
     printf( "Formed tree in %f seconds\n", real(tstop - tstart));
     if (current_time > ZERO) {
         printf("solving gravity\n");
-        solve_gravity(true,opts.output_only);
+        solve_gravity(true,!opts.output_filename.empty());
     }
     double elapsed = timer.elapsed();
     printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
@@ -686,7 +686,7 @@ future<void> node_client::solve_gravity(bool ene, bool aonly) const {
 }
 
 void node_server::solve_gravity(bool ene, bool aonly) {
-    if (!gravity_on) {
+    if (!opts.gravity) {
         return;
     }
     std::array<future<void>, NCHILD> child_futs;
