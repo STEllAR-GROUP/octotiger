@@ -78,6 +78,8 @@ public:
 	future<void> load(integer, integer, integer,std::string) const;
 	future<diagnostics_t> diagnostics(const diagnostics_t&) const;
 	future<analytic_t> compare_analytic() const;
+	hpx::future<void> set_parent(hpx::id_type);
+	hpx::future<void> notify_parent(node_location location, hpx::id_type id );
 	node_client();
 	future<set_child_aunt_type> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	future<void> set_aunt(const hpx::id_type&, const geo::face&) const;

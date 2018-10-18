@@ -43,6 +43,8 @@ using iterator_type = table_type::iterator;
 void put(node_location::node_id id, const hpx::id_type& component);
 hpx::id_type get(node_location::node_id id);
 
+void destroy();
+
 
 }
 

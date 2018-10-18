@@ -12,6 +12,31 @@
 
 extern options opts;
 
+HPX_REGISTER_ACTION(node_server::set_parent_action);
+
+hpx::future<void> node_client::set_parent(hpx::id_type id) {
+	return hpx::async<node_server::set_parent_action>(get_unmanaged_gid(), std::move(id));
+}
+
+void node_server::set_parent(hpx::id_type id) {
+	parent = node_client(id);
+}
+
+
+HPX_REGISTER_ACTION(node_server::notify_parent_action);
+
+
+hpx::future<void> node_client::notify_parent(node_location location, hpx::id_type id ) {
+		return hpx::async<node_server::notify_parent_action>(get_unmanaged_gid(), std::move(location), std::move(id));
+}
+
+void node_server::notify_parent( const node_location& location, hpx::id_type id) {
+	children[location.get_child_index()] = std::move(id);
+
+}
+
+
+
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
 HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 

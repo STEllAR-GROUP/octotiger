@@ -25,4 +25,8 @@ struct silo_var_t {
 
 void output_all(std::string fname, int cycle);
 
+void load_from_silo(std::string fname);
+
+void load_from_silo(std::string fname);
+
 #endif /* SRC_SILO_HPP_ */

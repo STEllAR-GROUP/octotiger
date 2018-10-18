@@ -80,8 +80,8 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 					}
 				}
 				mesh_vars_t rc;
-				const std::string suffix = loc.to_str();
-				rc.mesh_name = /*std::string( "mesh_") +*/ suffix;
+				const std::string suffix = std::to_string(loc.to_id());
+				rc.mesh_name = /*std::string( "mesh_") +*/suffix;
 				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
 				rc.X = std::move(X);
 				return std::move(rc);
@@ -132,7 +132,7 @@ void output_stage2(std::string fname, int cycle) {
 			DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, dims, ndim, data_type, coord_type, optlist);
 			for (const auto& o : mesh_vars.vars) {
 				DBPutQuadvar1(db, o.name_, mesh_vars.mesh_name.c_str(), o.data_, dims2, ndim, (const void*) NULL, 0, DB_DOUBLE,
-						DB_ZONECENT, optlist);
+				DB_ZONECENT, optlist);
 			}
 		}
 		DBFreeOptlist(optlist);
@@ -159,7 +159,7 @@ void output_stage2(std::string fname, int cycle) {
 		}
 		const auto top_field_names = grid::get_field_names();
 		for (int i = 0; i < node_locs.size(); i++) {
-			const auto suffix = node_locs[i].to_str();
+			const auto suffix = std::to_string(node_locs[i].to_id());
 			const auto str = /*std::string("mesh_") + */suffix;
 			char* ptr = new char[str.size() + 1];
 			std::strcpy(ptr, str.c_str());
@@ -200,16 +200,16 @@ void output_stage2(std::string fname, int cycle) {
 		write_silo_var<integer> fi;
 		write_silo_var<real> fr;
 
-		fi(db,"eos", integer(opts.eos));
-		fi(db,"gravity", integer(opts.gravity));
-		fi(db,"hydro", integer(opts.hydro));
-		fr(db,"omega", grid::get_omega());
-		fr(db,"output_frequency", opts.output_dt);
-		fi(db,"problem", integer(opts.problem));
-		fi(db,"radiation", integer(opts.radiation));
-		fr(db,"refinement_floor", opts.refinement_floor);
-		fr(db,"rotational_time", rtime);
-		fr(db,"xscale", opts.xscale);
+		fi(db, "eos", integer(opts.eos));
+		fi(db, "gravity", integer(opts.gravity));
+		fi(db, "hydro", integer(opts.hydro));
+		fr(db, "omega", grid::get_omega());
+		fr(db, "output_frequency", opts.output_dt);
+		fi(db, "problem", integer(opts.problem));
+		fi(db, "radiation", integer(opts.radiation));
+		fr(db, "refinement_floor", opts.refinement_floor);
+		fr(db, "rotational_time", rtime);
+		fr(db, "xscale", opts.xscale);
 
 		DBClose(db);
 	}
@@ -230,6 +230,52 @@ void output_all(std::string fname, int cycle) {
 	}
 	output2_action func;
 	func(ids[0], fname, cycle);
+}
+
+void create_leaf_nodes(const std::vector<node_location::node_id>& node_ids);
+
+HPX_PLAIN_ACTION (create_leaf_nodes);
+
+void create_leaf_nodes(const std::vector<node_location::node_id>& node_ids) {
+	std::vector<hpx::future<void>> futs;
+	const auto me = hpx::find_here();
+	for (const auto& i : node_ids) {
+		node_location l;
+		l.from_id(i);
+		futs.push_back(hpx::new_ < node_server > (me, l).then([&me,l](hpx::future<hpx::id_type>&& f) {
+			const auto id = f.get();
+			load_registry::put(l.to_id(), id);
+			const auto pid = load_registry::get(l.get_parent().to_id());
+			node_client(me).set_parent(pid).get();
+			return node_client(pid).notify_parent(l,id);
+		}));
+	}
+	for (auto& f : futs) {
+		f.get();
+	}
+}
+
+void load_from_silo(std::string fname) {
+	static auto localities = hpx::find_all_localities();
+	static int sz = localities.size();
+	DBfile* db = DBOpen(fname.c_str(), DB_PDB, DB_READ);
+	DBmultimesh* master_mesh = DBGetMultimesh(db, "mesh");
+	std::vector<node_location::node_id> work;
+	std::vector<hpx::future<void>> futs;
+	for (int i = 0; i < master_mesh->nblocks; i++) {
+		work.push_back(std::stoi(master_mesh->meshnames[i]));
+		const int this_id = i / sz;
+		const int next_id = (i + 1) / sz;
+		if (this_id != next_id) {
+			futs.push_back(hpx::async<create_leaf_nodes_action>(localities[this_id], work));
+			work.clear();
+		}
+	}
+	DBFreeMultimesh(master_mesh);
+	DBClose(db);
+	for (auto& f : futs) {
+		f.get();
+	}
 }
 
 silo_var_t::silo_var_t(const std::string& name) {
@@ -255,7 +301,7 @@ silo_var_t::~silo_var_t() {
 	}
 }
 
-silo_var_t::silo_var_t(silo_var_t&& other) {
+silo_var_t::silo_var_t(silo_var_t && other) {
 	name_ = other.name_;
 	data_ = other.data_;
 	other.name_ = NULL;
