@@ -12,30 +12,32 @@
 
 extern options opts;
 
-HPX_REGISTER_ACTION(node_server::set_parent_action);
+typedef node_server::set_parent_action set_parent_action_type;
+HPX_REGISTER_ACTION(set_parent_action_type);
 
-hpx::future<void> node_client::set_parent(hpx::id_type id) {
-	return hpx::async<node_server::set_parent_action>(get_unmanaged_gid(), std::move(id));
+hpx::future<void> node_client::set_parent(hpx::id_type this_id) {
+	assert( get_unmanaged_gid() != hpx::invalid_id);
+	assert( this_id != hpx::invalid_id);
+	auto f = hpx::async<node_server::set_parent_action>(get_unmanaged_gid(), std::move(this_id));
+	return std::move(f);
 }
 
 void node_server::set_parent(hpx::id_type id) {
-	parent = node_client(id);
+	parent = id;
 }
 
+typedef node_server::notify_parent_action notify_parent_action_type;
+HPX_REGISTER_ACTION(notify_parent_action_type);
 
-HPX_REGISTER_ACTION(node_server::notify_parent_action);
-
-
-hpx::future<void> node_client::notify_parent(node_location location, hpx::id_type id ) {
-		return hpx::async<node_server::notify_parent_action>(get_unmanaged_gid(), std::move(location), std::move(id));
+hpx::future<void> node_client::notify_parent(node_location location, hpx::id_type this_id) {
+	assert( get_unmanaged_gid() != hpx::invalid_id);
+	assert( this_id != hpx::invalid_id);
+	return hpx::async<node_server::notify_parent_action>(id, std::move(location), std::move(this_id));
 }
 
-void node_server::notify_parent( const node_location& location, hpx::id_type id) {
+void node_server::notify_parent(const node_location& location, hpx::id_type id) {
 	children[location.get_child_index()] = std::move(id);
-
 }
-
-
 
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
 HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
@@ -434,7 +436,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 
 		if (get_analytic() != nullptr) {
 			compare_analytic();
-			solve_gravity(true,false);
+			solve_gravity(true, false);
 			if (!opts.disable_output) {
 				output_all("analytic", output_cnt);
 			}
@@ -520,43 +522,45 @@ future<void> node_server::nonrefined_step() {
 
 	for (integer rk = 0; rk < NRK; ++rk) {
 
-		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
-				hpx::util::annotated_function([rk, cfl0, this, dt_fut](future<void> f)
-				{
-					GET(f);
-					future<void> fut_flux;
-					grid_ptr->reconstruct();
-					real a = grid_ptr->compute_fluxes();
-					fut_flux = exchange_flux_corrections();
-					if (rk == 0) {
-						const real dx = TWO * grid::get_scaling_factor() /
-						real(INX << my_location.level());
-						dt_ = cfl0 * dx / a;
-						if( opts.stop_time > 0.0 ) {
-							const real maxdt = (opts.stop_time - current_time) / (refinement_freq()-(step_num % refinement_freq()));
-							dt_ = std::min(dt_, maxdt);
-						}
-						local_timestep_channels[NCHILD].set_value(dt_);
-					}
-					GET(fut_flux.then(
-									hpx::launch::async(hpx::threads::thread_priority_boost),
-									hpx::util::annotated_function(
-											[rk, this, dt_fut](future<void> f)
-											{
-												GET(f);        // propagate exceptions
+		fut =
+				fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
+						hpx::util::annotated_function(
+								[rk, cfl0, this, dt_fut](future<void> f)
+								{
+									GET(f);
+									future<void> fut_flux;
+									grid_ptr->reconstruct();
+									real a = grid_ptr->compute_fluxes();
+									fut_flux = exchange_flux_corrections();
+									if (rk == 0) {
+										const real dx = TWO * grid::get_scaling_factor() /
+										real(INX << my_location.level());
+										dt_ = cfl0 * dx / a;
+										if( opts.stop_time > 0.0 ) {
+											const real maxdt = (opts.stop_time - current_time) / (refinement_freq()-(step_num % refinement_freq()));
+											dt_ = std::min(dt_, maxdt);
+										}
+										local_timestep_channels[NCHILD].set_value(dt_);
+									}
+									GET(fut_flux.then(
+													hpx::launch::async(hpx::threads::thread_priority_boost),
+													hpx::util::annotated_function(
+															[rk, this, dt_fut](future<void> f)
+															{
+																GET(f);        // propagate exceptions
 
-						grid_ptr->compute_sources(current_time, rotational_time);
-						grid_ptr->compute_dudt();
-						compute_fmm(DRHODT, false);
-						if (rk == 0) {
-							dt_ = GET(dt_fut);
-						}
-						grid_ptr->next_u(rk, current_time, dt_);
-						compute_fmm(RHO, true);
-						all_hydro_bounds();
-					}, "node_server::nonrefined_step::compute_fmm"
-			)));
-}, "node_server::nonrefined_step::compute_fluxes"));
+																grid_ptr->compute_sources(current_time, rotational_time);
+																grid_ptr->compute_dudt();
+																compute_fmm(DRHODT, false);
+																if (rk == 0) {
+																	dt_ = GET(dt_fut);
+																}
+																grid_ptr->next_u(rk, current_time, dt_);
+																compute_fmm(RHO, true);
+																all_hydro_bounds();
+															}, "node_server::nonrefined_step::compute_fmm"
+													)));
+								}, "node_server::nonrefined_step::compute_fluxes"));
 	}
 
 	return fut.then(hpx::launch::sync, [this](future<void>&& f)

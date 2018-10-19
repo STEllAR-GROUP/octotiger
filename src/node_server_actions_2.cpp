@@ -350,12 +350,7 @@ future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2, std:
 }
 
 void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
-#ifdef NIECE_BOOL
-	std::fill(nieces.begin(), nieces.end(), false);
-#else
 	std::fill(nieces.begin(), nieces.end(), 0);
-#endif
-
 	for (auto& dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
@@ -422,11 +417,7 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 									nieces[f] = GET(n);
 								}));
 			} else {
-#ifdef USE_NIECE_BOOL
-				nieces[f] = false;
-#else
 				nieces[f] = -2;
-#endif
 			}
 		}
 		for (auto& f : nfuts) {

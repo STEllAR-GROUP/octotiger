@@ -141,8 +141,8 @@ void output_stage2(std::string fname, int cycle) {
 	}
 
 	static const auto ids = hpx::find_all_localities();
-	static const auto this_id = hpx::get_locality_id();
-	if (this_id < ids.size() - 1) {
+	static const integer this_id = hpx::get_locality_id();
+	if (this_id < integer(ids.size()) - 1) {
 		output2_action func;
 		func(ids[this_id + 1], fname, cycle);
 	}
@@ -235,14 +235,59 @@ void output_all(std::string fname, int cycle) {
 	func(ids[0], fname, cycle);
 }
 
-void local_load(const std::string&, const std::vector<node_location::node_id>& node_ids);
+void local_load(const std::string&, std::vector<node_location::node_id> node_ids);
 
-HPX_PLAIN_ACTION (local_load);
+HPX_PLAIN_ACTION (local_load, local_load_action);
 
-void local_load(const std::string& fname, const std::vector<node_location::node_id>& node_ids) {
+void local_load(const std::string& fname, std::vector<node_location::node_id> node_ids) {
+
+	load_options_from_silo(fname);
 
 	DBfile* db = DBOpen(fname.c_str(), DB_PDB, DB_READ);
+	assert(db);
+	read_silo_var<real> rr;
 
+	const real dtime = rr(db, "time");
+	const real rtime = rr(db, "rotational_time");
+
+	std::vector<hpx::future<void>> futs;
+	const auto me = hpx::find_here();
+	static const auto names = grid::get_field_names();
+	for (const auto& i : node_ids) {
+		node_location l;
+		l.from_id(i);
+		futs.push_back(hpx::new_ < node_server > (me, l).then([&me,l,db](hpx::future<hpx::id_type>&& f) {
+			const auto id = f.get();
+			auto client = node_client(id);
+			load_registry::put(l.to_id(), id);
+			const auto pid = load_registry::get(l.get_parent().to_id());
+			auto f2 = client.set_parent(pid);
+			node_server* node_ptr = node_registry::get(l);
+			grid& g = node_ptr->get_hydro_grid();
+			const auto suffix = std::to_string(l.to_id());
+			for( auto n : names ) {
+				const auto name = n + std::string( "_") + suffix;
+				const auto quadvar = DBGetQuadvar(db,name.c_str());
+				g.set(quadvar->name, static_cast<real*>(*(quadvar->vals)));
+				DBFreeQuadvar(quadvar);
+			}
+			f2.get();
+			node_client p(pid);
+			p.notify_parent(l,id).get();
+		}));
+	}
+	for (auto& f : futs) {
+		f.get();
+	}
+	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
+		i->second->set_time(dtime, rtime);
+	}
+	DBClose(db);
+}
+
+void load_options_from_silo(std::string fname) {
+	DBfile* db = DBOpen(fname.c_str(), DB_PDB, DB_READ);
+	assert(db);
 	read_silo_var<integer> ri;
 	read_silo_var<real> rr;
 
@@ -258,65 +303,41 @@ void local_load(const std::string& fname, const std::vector<node_location::node_
 	opts.refinement_floor = rr(db, "refinement_floor");
 	opts.xscale = rr(db, "xscale");
 
-	const real dtime = rr(db, "time");
-	const real rtime = rr(db, "rotational_time");
+	if (db != NULL) {
+		DBClose(db);
+	} else {
+		std::cout << "Could not load " << fname;
+		throw;
+	}
 
-	std::vector<hpx::future<void>> futs;
-	const auto me = hpx::find_here();
-	static const auto names = grid::get_field_names();
-	for (const auto& i : node_ids) {
-		node_location l;
-		l.from_id(i);
-		futs.push_back(hpx::new_ < node_server > (me, l).then([&me,l,db](hpx::future<hpx::id_type>&& f) {
-			const auto id = f.get();
-			auto client = node_client(me);
-			load_registry::put(l.to_id(), id);
-			const auto pid = load_registry::get(l.get_parent().to_id());
-			auto f2 = client.set_parent(pid);
-			node_server* node_ptr = node_registry::get(l);
-			grid& g = node_ptr->get_hydro_grid();
-			const auto suffix = std::to_string(l.to_id());
-			for( auto n : names ) {
-				const auto name = n + std::string( "_") + suffix;
-				const auto quadvar = DBGetQuadvar(db,name.c_str());
-				g.set(quadvar->name, static_cast<real*>(*(quadvar->vals)));
-				DBFreeQuadvar(quadvar);
-			}
-			f2.get();
-			return node_client(pid).notify_parent(l,id);
-		}));
-	}
-	for (auto& f : futs) {
-		f.get();
-	}
-	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
-		i->second->set_time(dtime, rtime);
-	}
-	DBClose(db);
 }
 
-hpx::id_type load_from_silo(std::string fname, hpx::id_type root) {
+hpx::id_type load_data_from_silo(std::string fname, hpx::id_type root) {
+	load_registry::put(1, root);
 	static auto localities = hpx::find_all_localities();
 	static int sz = localities.size();
 	DBfile* db = DBOpen(fname.c_str(), DB_PDB, DB_READ);
-	if( db != NULL ) {
-	DBmultimesh* master_mesh = DBGetMultimesh(db, "mesh");
-	std::vector<node_location::node_id> work;
-	std::vector<hpx::future<void>> futs;
-	for (int i = 0; i < master_mesh->nblocks; i++) {
-		work.push_back(std::stoi(master_mesh->meshnames[i]));
-		const int this_id = i / sz;
-		const int next_id = (i + 1) / sz;
-		if (this_id != next_id) {
-			futs.push_back(hpx::async<local_load_action>(localities[this_id], fname, work));
-			work.clear();
+	if (db != NULL) {
+		DBmultimesh* master_mesh = DBGetMultimesh(db, "mesh");
+		std::vector<node_location::node_id> work;
+		std::vector<hpx::future<void>> futs;
+		const int chunk_size = master_mesh->nblocks / sz;
+		for (int i = 0; i < master_mesh->nblocks; i++) {
+			work.push_back(std::stoi(master_mesh->meshnames[i]));
+			const int this_id = i / chunk_size;
+			const int next_id = (i + 1) / chunk_size;
+			assert(this_id < localities.size());
+			if (this_id != next_id) {
+				futs.push_back(hpx::async<local_load_action>(localities[this_id], fname, work));
+				work.clear();
+			}
 		}
-	}
-	DBFreeMultimesh(master_mesh);
-	DBClose(db);
-	for (auto& f : futs) {
-		f.get();
-	}} else {
+		DBFreeMultimesh(master_mesh);
+		DBClose(db);
+		for (auto& f : futs) {
+			f.get();
+		}
+	} else {
 		std::cout << "Could not load " << fname;
 		throw;
 	}

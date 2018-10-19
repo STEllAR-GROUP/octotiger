@@ -17,9 +17,6 @@
 
 options opts;
 
-
-
-
 inline std::string to_string(const std::string& str) {
 	return str;
 }
@@ -105,7 +102,9 @@ bool options::process_options(int argc, char* argv[]) {
 		}
 	}
 	po::notify(vm);
-
+	if (!opts.restart_filename.empty()) {
+		load_options_from_silo(opts.restart_filename);
+	}
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		SHOW(bench);

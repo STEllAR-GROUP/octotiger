@@ -142,8 +142,9 @@ int hpx_main(int argc, char* argv[]) {
 			//		printf("1\n");
 			if (!opts.restart_filename.empty()) {
 				std::cout << "Loading from " << opts.restart_filename << " ...\n";
-				load_from_silo(opts.restart_filename, root_client.get_gid());
-				ngrids = root->regrid(root_client.get_gid(), ZERO, -1, true);
+				load_data_from_silo(opts.restart_filename, root_client.get_unmanaged_gid());
+				printf( "Regrid\n");
+				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true);
 				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {

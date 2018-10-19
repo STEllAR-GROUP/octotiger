@@ -26,6 +26,11 @@ node_location::node_id node_location::to_id() const {
 			id |= ((xloc[d] >> l) & 1);
 		}
 	}
+#ifdef DEBUG
+	node_location test;
+	test.from_id(id);
+	assert(test == *this);
+#endif
 	return id;
 }
 

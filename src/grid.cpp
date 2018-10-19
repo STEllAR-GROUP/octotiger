@@ -1396,7 +1396,7 @@ std::vector<real> grid::l_sums() const {
 bool grid::refine_me(integer lev, integer last_ngrids) const {
 	PROF_BEGIN;
 	auto test = get_refine_test();
-	if (lev < 2) {
+	if (lev < 1) {
 		PROF_END;
 		return true;
 	}

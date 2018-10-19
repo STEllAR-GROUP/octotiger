@@ -126,7 +126,6 @@ void node_server::exchange_interlevel_hydro_data() {
 	if (is_refined) {
 		std::vector<real> outflow(NF, ZERO);
 		for (auto const& ci : geo::octant::full_set()) {
-			//			auto data = child_hydro_channels[ci].get_future(hcycle).get();
 			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
 			grid_ptr->set_restrict(data, ci);
 			integer fi = 0;
