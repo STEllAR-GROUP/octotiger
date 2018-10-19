@@ -21,6 +21,8 @@ using iterator_type = std::unordered_map<node_location,node_ptr,hash>::iterator;
 
 void add(const node_location&, node_ptr);
 
+node_ptr get(const node_location& loc );
+
 void delete_(const node_location&);
 
 iterator_type begin();

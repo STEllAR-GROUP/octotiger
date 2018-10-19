@@ -106,6 +106,9 @@ public:
 	const grid& get_hydro_grid() const {
 		return *grid_ptr;
 	}
+	grid& get_hydro_grid() {
+		return *grid_ptr;
+	}
 	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
 
@@ -172,6 +175,10 @@ public:
 	}
 	bool refined() const {
 		return is_refined;
+	}
+	void set_time( real t, real r ) {
+		current_time = t;
+		rotational_time = r;
 	}
 	node_server() {
 		initialize(ZERO, ZERO);

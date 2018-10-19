@@ -19,44 +19,86 @@
 
 extern options opts;
 
+static std::unordered_map<std::string,int> str_to_index_hydro;
+static std::unordered_map<std::string,int> str_to_index_gravity;
+static std::unordered_map<int,std::string> index_to_str_hydro;
+static std::unordered_map<int,std::string> index_to_str_gravity;
+
+struct initialize_names {
+	initialize_names() {
+		str_to_index_hydro["rho"] = rho_i;
+		str_to_index_hydro["egas"] = egas_i;
+		str_to_index_hydro["tau"] = tau_i;
+		str_to_index_hydro["spc_1"] = spc_i + 0;
+		str_to_index_hydro["spc_2"] = spc_i + 1;
+		str_to_index_hydro["spc_3"] = spc_i + 2;
+		str_to_index_hydro["spc_4"] = spc_i + 3;
+		str_to_index_hydro["spc_5"] = spc_i + 4;
+		str_to_index_hydro["sx"] = sx_i;
+		str_to_index_hydro["sy"] = sy_i;
+		str_to_index_hydro["sz"] = sz_i;
+		str_to_index_hydro["zx"] = zx_i;
+		str_to_index_hydro["zy"] = zy_i;
+		str_to_index_hydro["zz"] = zz_i;
+		str_to_index_gravity["phi"] = phi_i;
+		str_to_index_gravity["gx"] = gx_i;
+		str_to_index_gravity["gy"] = gy_i;
+		str_to_index_gravity["gz"] = gz_i;
+		for( const auto& s : str_to_index_hydro ) {
+			index_to_str_hydro[s.second] = s.first;
+		}
+		for( const auto& s : str_to_index_gravity ) {
+			index_to_str_gravity[s.second] = s.first;
+		}
+	}
+};
+
+static initialize_names initialize_names_;
+
+
 std::vector<std::string> grid::get_field_names() {
 	std::vector<std::string> rc;
 	if (opts.hydro) {
-		rc.push_back("rho");
-		rc.push_back("egas");
-		rc.push_back("tau");
-		rc.push_back("spc_1");
-		rc.push_back("spc_2");
-		rc.push_back("spc_3");
-		rc.push_back("spc_4");
-		rc.push_back("spc_5");
-		rc.push_back("sx");
-		rc.push_back("sy");
-		rc.push_back("sz");
-		rc.push_back("zx");
-		rc.push_back("zy");
-		rc.push_back("zz");
+		for( auto i : index_to_str_hydro ) {
+			rc.push_back(i.second);
+		}
 	}
 	if (opts.gravity) {
-		rc.push_back("phi");
-		rc.push_back("gx");
-		rc.push_back("gy");
-		rc.push_back("gz");
+		for( auto i : index_to_str_gravity ) {
+			rc.push_back(i.second);
+		}
 	}
 	return rc;
 }
+
+
+
+void grid::set(const std::string name, real* data) {
+	auto iter = str_to_index_hydro.find(name);
+	if( iter != str_to_index_hydro.end()) {
+		int f = iter->second;
+		int jjj = 0;
+		for (int i = 0; i < INX; i++) {
+			for (int j = 0; j < INX; j++) {
+				for (int k = 0; k < INX; k++) {
+					const int iii = hindex(i + H_BW, j + H_BW, k + H_BW);
+					U[f][iii] = data[jjj];
+					jjj++;
+				}
+			}
+		}
+	}
+
+}
+
 
 std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
 	if (opts.hydro) {
 		constexpr int N = 14;
-		const std::string names[] = { "rho", "egas", "tau", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5", "sx", "sy", "sz", "zx",
-				"zy", "zz" };
-		constexpr int indices[] = { rho_i, egas_i, tau_i, spc_i + 0, spc_i + 1, spc_i + 2, spc_i + 3, spc_i + 4, sx_i, sy_i,
-				sz_i, zx_i, zy_i, zz_i };
-		for (int l = 0; l < N; l++) {
-			const int f = indices[l];
-			std::string this_name = names[l];
+		for (auto l : str_to_index_hydro) {
+			const int f = l.second;
+			std::string this_name = l.first;
 			if (suffix.size()) {
 				this_name += std::string("_") + suffix;
 			}
@@ -76,11 +118,9 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	}
 	if (opts.gravity) {
 		constexpr int N = 4;
-		const std::string names[] = { "phi", "gx", "gy", "gz" };
-		constexpr int indices[] = { phi_i, gx_i, gy_i, gz_i };
-		for (int l = 0; l < N; l++) {
-			const int f = indices[l];
-			std::string this_name = names[l];
+		for (auto l : str_to_index_gravity) {
+			const int f = l.second;
+			std::string this_name = l.first;
 			if (suffix.size()) {
 				this_name += std::string("_") + suffix;
 			}

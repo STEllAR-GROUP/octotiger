@@ -7,6 +7,11 @@ namespace node_registry {
 table_type table_;
 hpx::lcos::local::mutex mtx_;
 
+node_ptr get(const node_location& loc ) {
+	return table_[loc];
+}
+
+
 void add(const node_location& loc, node_ptr id) {
 	std::lock_guard<hpx::lcos::local::mutex> lock(mtx_);
 	table_.insert(std::make_pair(loc, id));
@@ -85,7 +90,7 @@ hpx::id_type get(node_location::node_id id) {
 			if( full_loc.level() != 0 ) {
 				auto this_parent = get(full_loc.get_parent().to_id());
 				node_client(rc).set_parent(this_parent).get();
-				node_client(this_parent).notify_parent(full_loc,rc);
+				node_client(this_parent).notify_parent(full_loc,rc).get();
 			}
 		}
 	}

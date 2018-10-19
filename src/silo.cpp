@@ -46,11 +46,13 @@ struct write_silo_var {
 	}
 };
 
-template<>
-struct write_silo_var<std::string> {
-	void operator()(DBfile* db, const char* name, const std::string var) {
-		int sz = var.size();
-		DBWrite(db, name, var.c_str(), &sz, 1, DB_CHAR);
+template<class T>
+struct read_silo_var {
+	T operator()(DBfile* db, const char* name) {
+		int one = 1;
+		T var;
+		DBReadVar(db, name, &var);
+		return var;
 	}
 };
 
@@ -208,6 +210,7 @@ void output_stage2(std::string fname, int cycle) {
 		fi(db, "problem", integer(opts.problem));
 		fi(db, "radiation", integer(opts.radiation));
 		fr(db, "refinement_floor", opts.refinement_floor);
+		fr(db, "time", dtime);
 		fr(db, "rotational_time", rtime);
 		fr(db, "xscale", opts.xscale);
 
@@ -232,33 +235,71 @@ void output_all(std::string fname, int cycle) {
 	func(ids[0], fname, cycle);
 }
 
-void create_leaf_nodes(const std::vector<node_location::node_id>& node_ids);
+void local_load(const std::string&, const std::vector<node_location::node_id>& node_ids);
 
-HPX_PLAIN_ACTION (create_leaf_nodes);
+HPX_PLAIN_ACTION (local_load);
 
-void create_leaf_nodes(const std::vector<node_location::node_id>& node_ids) {
+void local_load(const std::string& fname, const std::vector<node_location::node_id>& node_ids) {
+
+	DBfile* db = DBOpen(fname.c_str(), DB_PDB, DB_READ);
+
+	read_silo_var<integer> ri;
+	read_silo_var<real> rr;
+
+	opts.eos = eos_type(ri(db, "eos"));
+	opts.gravity = ri(db, "gravity");
+	opts.hydro = ri(db, "hydro");
+	if (hpx::get_locality_id() == 0) {
+		grid::set_omega(rr(db, "omega"));
+	}
+	opts.output_dt = rr(db, "output_frequency");
+	opts.problem = problem_type(ri(db, "problem"));
+	opts.radiation = ri(db, "radiation");
+	opts.refinement_floor = rr(db, "refinement_floor");
+	opts.xscale = rr(db, "xscale");
+
+	const real dtime = rr(db, "time");
+	const real rtime = rr(db, "rotational_time");
+
 	std::vector<hpx::future<void>> futs;
 	const auto me = hpx::find_here();
+	static const auto names = grid::get_field_names();
 	for (const auto& i : node_ids) {
 		node_location l;
 		l.from_id(i);
-		futs.push_back(hpx::new_ < node_server > (me, l).then([&me,l](hpx::future<hpx::id_type>&& f) {
+		futs.push_back(hpx::new_ < node_server > (me, l).then([&me,l,db](hpx::future<hpx::id_type>&& f) {
 			const auto id = f.get();
+			auto client = node_client(me);
 			load_registry::put(l.to_id(), id);
 			const auto pid = load_registry::get(l.get_parent().to_id());
-			node_client(me).set_parent(pid).get();
+			auto f2 = client.set_parent(pid);
+			node_server* node_ptr = node_registry::get(l);
+			grid& g = node_ptr->get_hydro_grid();
+			const auto suffix = std::to_string(l.to_id());
+			for( auto n : names ) {
+				const auto name = n + std::string( "_") + suffix;
+				const auto quadvar = DBGetQuadvar(db,name.c_str());
+				g.set(quadvar->name, static_cast<real*>(*(quadvar->vals)));
+				DBFreeQuadvar(quadvar);
+			}
+			f2.get();
 			return node_client(pid).notify_parent(l,id);
 		}));
 	}
 	for (auto& f : futs) {
 		f.get();
 	}
+	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
+		i->second->set_time(dtime, rtime);
+	}
+	DBClose(db);
 }
 
-void load_from_silo(std::string fname) {
+hpx::id_type load_from_silo(std::string fname, hpx::id_type root) {
 	static auto localities = hpx::find_all_localities();
 	static int sz = localities.size();
 	DBfile* db = DBOpen(fname.c_str(), DB_PDB, DB_READ);
+	if( db != NULL ) {
 	DBmultimesh* master_mesh = DBGetMultimesh(db, "mesh");
 	std::vector<node_location::node_id> work;
 	std::vector<hpx::future<void>> futs;
@@ -267,7 +308,7 @@ void load_from_silo(std::string fname) {
 		const int this_id = i / sz;
 		const int next_id = (i + 1) / sz;
 		if (this_id != next_id) {
-			futs.push_back(hpx::async<create_leaf_nodes_action>(localities[this_id], work));
+			futs.push_back(hpx::async<local_load_action>(localities[this_id], fname, work));
 			work.clear();
 		}
 	}
@@ -275,7 +316,13 @@ void load_from_silo(std::string fname) {
 	DBClose(db);
 	for (auto& f : futs) {
 		f.get();
+	}} else {
+		std::cout << "Could not load " << fname;
+		throw;
 	}
+	hpx::id_type rc = load_registry::get(1);
+	load_registry::destroy();
+	return std::move(rc);
 }
 
 silo_var_t::silo_var_t(const std::string& name) {

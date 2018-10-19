@@ -324,6 +324,7 @@ public:
 
 
 	std::vector<silo_var_t> var_data(const std::string suffix = std::string()) const;
+	void set(const std::string name, real* data);
 	friend class node_server;
 };
 
