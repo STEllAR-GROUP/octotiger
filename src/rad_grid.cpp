@@ -9,8 +9,6 @@
 
 extern options opts;
 
-#ifdef RADIATION
-
 integer rindex(integer x, integer y, integer z) {
 	return z + R_NX * (y + R_NX * x);
 }
@@ -1294,5 +1292,6 @@ void node_server::erad_init() {
 		hpx::wait_all(futs);
 	}
 }
-#endif
+
+
 

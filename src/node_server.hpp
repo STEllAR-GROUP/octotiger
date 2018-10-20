@@ -52,7 +52,7 @@ private:
 	real rotational_time;
 	std::shared_ptr<grid> grid_ptr; //
 	std::shared_ptr<rad_grid> rad_grid_ptr; //
-	bool is_refined;
+	std::atomic<bool> is_refined;
 	std::array<integer, NVERTEX> child_descendant_count;
 	std::array<real, NDIM> xmin;
 	real dx;
@@ -86,7 +86,6 @@ private:
 	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
 	channel<real> global_timestep_channel;
 	std::array<channel<real>, NCHILD + 1> local_timestep_channels;
-	hpx::mutex load_mutex;
 
 	timings timings_;
 	real dt_;
@@ -117,12 +116,13 @@ public:
 		std::size_t _rb = rcycle;
 		std::size_t _hb = hcycle;
 		std::size_t _gb = gcycle;
+		bool ir = is_refined;
+		arc & ir;
 		arc & _rb;
 		arc & _hb;
 		arc & _gb;
 		arc & my_location;
 		arc & step_num;
-		arc & is_refined;
 		arc & children;
 		arc & parent;
 		arc & neighbors;
@@ -141,10 +141,8 @@ public:
 		arc & timings_;
 		hcycle = _hb;
 		gcycle = _gb;
+		is_refined = ir;
 	}
-
-	std::size_t load_me(std::istream&, bool old_format);
-	std::size_t save_me(std::ostream& strm) const;
 private:
 
 	static bool static_initialized;
@@ -152,9 +150,7 @@ private:
 	void initialize(real, real);
 	void send_hydro_amr_boundaries(bool tau_only = false);
 	void collect_hydro_boundaries(bool tau_only = false);
-	void exchange_interlevel_hydro_data();
 	static void static_initialize();
-	void all_hydro_bounds(bool tau_only = false);
 	void clear_family();
 	hpx::future<void> exchange_flux_corrections();
 
@@ -166,10 +162,9 @@ private:
 	diagnostics_t local_diagnostics(const diagnostics_t& diags);
 	hpx::future<real> local_step(integer steps);
 
-	std::map<integer, std::vector<char> > save_local(integer& cnt, std::string const& filename,
-			hpx::future<void>& child_fut) const;
-
 public:
+	void exchange_interlevel_hydro_data();
+	void all_hydro_bounds(bool tau_only = false);
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
 	}
@@ -192,10 +187,6 @@ public:
 
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
-
-	void save_to_file(const std::string&, std::string const& data_dir) const;
-	void load_from_file(const std::string&, std::string const& data_dir);
-	void load_from_file_and_output(const std::string&, const std::string&, std::string const& data_dir);
 
 	void notify_parent(const node_location& location, hpx::id_type id);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, notify_parent);
@@ -259,7 +250,7 @@ public:
 	hpx::id_type get_child_client(const geo::octant&);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-	void form_tree(hpx::id_type, hpx::id_type, std::vector<hpx::id_type>);/**/
+	void form_tree(hpx::id_type, hpx::id_type=hpx::invalid_id, std::vector<hpx::id_type> = std::vector<hpx::id_type>(geo::direction::count()));/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
 	std::uintptr_t get_ptr();/**/
@@ -272,13 +263,6 @@ public:
 	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
 	diagnostics_t diagnostics();
-
-	void load(integer, integer, integer, std::string);/**/
-
-	HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
-
-	void save(integer, std::string const&) const;/**/
-	HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
 
 	void set_aunt(const hpx::id_type&, const geo::face& face);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_aunt, set_aunt_action);
@@ -362,8 +346,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::check_for_refinement_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_child_aunt_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::load_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::save_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_gather_action);

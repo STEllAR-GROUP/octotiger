@@ -8,6 +8,7 @@
 #ifndef SRC_SILO_HPP_
 #define SRC_SILO_HPP_
 
+class node_server;
 #include <silo.h>
 
 struct silo_var_t {
@@ -27,6 +28,6 @@ void output_all(std::string fname, int cycle);
 
 void load_options_from_silo(std::string fname);
 
-hpx::id_type load_data_from_silo(std::string fname, hpx::id_type);
+hpx::id_type load_data_from_silo(std::string fname, node_server*, hpx::id_type);
 
 #endif /* SRC_SILO_HPP_ */

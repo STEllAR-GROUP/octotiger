@@ -71,7 +71,6 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			}
 		}
 	}
-
     // if(root ) printf( "refinement - %i\n", iii++ );
 
 	for( auto& f : futs ) {
@@ -100,7 +99,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 	}
 	auto rc =
 			hpx::new_ < node_server
-					> (id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
+					> (id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
 							hcycle), std::size_t(rcycle), std::size_t(gcycle));
 	clear_family();
     parent = hpx::invalid_id;

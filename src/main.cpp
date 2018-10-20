@@ -134,7 +134,7 @@ int hpx_main(int argc, char* argv[]) {
 			auto all_locs = hpx::find_all_localities();
 			hpx::lcos::broadcast<initialize_action>(all_locs, opts, all_locs).get();
 
-			node_client root_id = hpx::new_<node_server>(hpx::find_here());
+			hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
 			node_client root_client(root_id);
 			node_server* root = root_client.get_ptr().get();
 
@@ -142,9 +142,10 @@ int hpx_main(int argc, char* argv[]) {
 			//		printf("1\n");
 			if (!opts.restart_filename.empty()) {
 				std::cout << "Loading from " << opts.restart_filename << " ...\n";
-				load_data_from_silo(opts.restart_filename, root_client.get_unmanaged_gid());
+				load_data_from_silo(opts.restart_filename, root, root_client.get_unmanaged_gid());
 				printf( "Regrid\n");
-				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true);
+				root->form_tree(hpx::unmanaged(root_id));
+					ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true);
 				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {

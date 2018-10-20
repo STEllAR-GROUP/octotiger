@@ -75,7 +75,6 @@ public:
 	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
-	future<void> load(integer, integer, integer,std::string) const;
 	future<diagnostics_t> diagnostics(const diagnostics_t&) const;
 	future<analytic_t> compare_analytic() const;
 	hpx::future<void> set_parent(hpx::id_type);
@@ -101,8 +100,7 @@ public:
 	void timestep_driver_ascend(real) const;
     void set_local_timestep(integer, real) const;
 	future<void> velocity_inc(const space_vector&) const;
-    future<void> save(integer,std::string) const;
-	future<void> check_for_refinement(real omega, real) const;
+    future<void> check_for_refinement(real omega, real) const;
 	future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
     void report_timing() const;
     future<void> change_units(real,real,real,real) const;

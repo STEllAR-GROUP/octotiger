@@ -84,12 +84,10 @@ hpx::id_type get(node_location::node_id id) {
 		if (i != table_.end()) {
 			rc = i->second;
 		} else {
-			lock.unlock();
 			node_location full_loc;
 			full_loc.from_id(id);
 			auto f = hpx::new_ < node_server > (hpx::find_here(), full_loc);
 			auto component = f.get();
-			lock.lock();
 			table_.insert(std::make_pair(id, component));
 			lock.unlock();
 			rc = std::move(component);

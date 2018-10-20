@@ -8,6 +8,8 @@
 #include "node_registry.hpp"
 #include "silo.hpp"
 #include "options.hpp"
+#include <hpx/lcos/broadcast.hpp>
+
 
 std::vector<node_location::node_id> output_stage1(std::string fname, int cycle);
 void output_stage2(std::string fname, int cycle);
@@ -236,8 +238,20 @@ void output_all(std::string fname, int cycle) {
 }
 
 void local_load(const std::string&, std::vector<node_location::node_id> node_ids);
+void all_boundaries();
 
 HPX_PLAIN_ACTION (local_load, local_load_action);
+HPX_PLAIN_ACTION (all_boundaries, all_boundaries_action);
+
+void all_boundaries() {
+	std::vector<hpx::future<void>> futs;
+	for( auto i = node_registry::begin(); i != node_registry::end(); i++) {
+		futs.push_back(hpx::async([i](){
+			i->second->all_hydro_bounds();
+		}));
+	}
+	hpx::when_all(std::move(futs)).get();
+}
 
 void local_load(const std::string& fname, std::vector<node_location::node_id> node_ids) {
 
@@ -279,10 +293,10 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 	for (auto& f : futs) {
 		f.get();
 	}
+	DBClose(db);
 	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
 		i->second->set_time(dtime, rtime);
 	}
-	DBClose(db);
 }
 
 void load_options_from_silo(std::string fname) {
@@ -312,7 +326,7 @@ void load_options_from_silo(std::string fname) {
 
 }
 
-hpx::id_type load_data_from_silo(std::string fname, hpx::id_type root) {
+hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
 	load_registry::put(1, root);
 	static auto localities = hpx::find_all_localities();
 	static int sz = localities.size();
@@ -343,6 +357,8 @@ hpx::id_type load_data_from_silo(std::string fname, hpx::id_type root) {
 	}
 	hpx::id_type rc = load_registry::get(1);
 	load_registry::destroy();
+	root_ptr->form_tree(root);
+	hpx::lcos::broadcast<all_boundaries_action>(localities).get();
 	return std::move(rc);
 }
 

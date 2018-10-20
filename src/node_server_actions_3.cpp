@@ -36,6 +36,7 @@ hpx::future<void> node_client::notify_parent(node_location location, hpx::id_typ
 }
 
 void node_server::notify_parent(const node_location& location, hpx::id_type id) {
+	is_refined = true;
 	children[location.get_child_index()] = std::move(id);
 }
 
@@ -261,9 +262,6 @@ void node_server::start_run(bool scf, integer ngrids) {
 	integer output_cnt;
 
 	if (!opts.hydro) {
-		if (!opts.disable_output) {
-			save_to_file("X.chk", opts.data_dir);
-		}
 		diagnostics();
 		return;
 	}
@@ -278,7 +276,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
 		this->velocity_inc(dv);
 		if (!opts.disable_output) {
-			save_to_file("scf.chk", opts.data_dir);
+			output_all("scf.chk", 0);
 		}
 	}
 	if (opts.radiation) {
@@ -320,7 +318,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			diagnostics();
 			std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
-			save_to_file(fname, opts.data_dir);
+			output_all(fname,output_cnt);
 			printf("doing silo out...\n");
 			fname = "X." + std::to_string(int(output_cnt));
 			output_all(fname, output_cnt);

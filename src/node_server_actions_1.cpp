@@ -30,9 +30,6 @@
 
 extern options opts;
 
-typedef node_server::load_action load_action_type;
-HPX_REGISTER_ACTION(load_action_type);
-
 void set_locality_data(real omega, space_vector pivot) {
 	grid::set_omega(omega, false);
 	grid::set_pivot(pivot);
@@ -40,67 +37,6 @@ void set_locality_data(real omega, space_vector pivot) {
 
 HPX_REGISTER_ACTION(set_locality_data_action, set_locality_data_action);
 HPX_REGISTER_BROADCAST_ACTION (set_locality_data_action)
-
-future<void> node_client::load(integer i, integer total, integer rec_size, std::string s) const {
-	return hpx::async<typename node_server::load_action>(get_unmanaged_gid(), i, total, rec_size, s);
-}
-
-void node_server::load(integer cnt, integer total_nodes, integer rec_size, std::string filename) {
-	if (my_location.level() == 0)
-		me = hpx::invalid_id;
-	else
-		me = this->get_unmanaged_id();
-
-	char flag = '0';
-	std::vector<integer> counts(NCHILD);
-
-	// run output on separate thread
-	std::size_t read_cnt = 0;
-	hpx::threads::run_as_os_thread([&]() {
-		std::ifstream strm;
-		strm.open( filename, std::ios_base::binary );
-		strm.seekg(cnt * rec_size);
-		read_cnt += read(strm, flag);
-
-		for (auto& this_cnt : counts)
-		{
-			read_cnt += read(strm, this_cnt);
-		}
-		//  printf( "RECSIZE=%i\n", int(rec_size));
-			load_me(strm, rec_size==65739);
-			strm.close();
-		}).get();
-	if (opts.radiation) {
-		rad_grid_ptr = grid_ptr->get_rad_grid();
-		rad_grid_ptr->sanity_check();
-	}
-	std::array<future<void>, NCHILD> futs;
-	if (flag == '1') {
-		is_refined = true;
-
-		integer index = 0;
-		for (auto const& ci : geo::octant::full_set()) {
-			integer loc_id = ((cnt * options::all_localities.size()) / (total_nodes + 1));
-
-			futs[index++] = hpx::new_<node_server>(options::all_localities[loc_id], my_location.get_child(ci), me.get_gid(),
-					ZERO, ZERO, step_num, hcycle, rcycle, gcycle).then(
-					[this, ci, counts, total_nodes, rec_size, filename](future<hpx::id_type>&& fut)
-					{
-						children[ci] = fut.get();
-						return children[ci].load(counts[ci], total_nodes, rec_size, filename);
-					});
-		}
-	} else if (flag == '0') {
-		is_refined = false;
-		std::fill_n(children.begin(), NCHILD, node_client());
-	} else {
-		printf("Corrupt checkpoint file\n");
-		hpx::this_thread::sleep_for(std::chrono::seconds(10));
-		abort();
-	}
-
-	hpx::when_all(std::move(futs)).get();
-}
 
 void output_all(std::string, int);
 
@@ -287,10 +223,9 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	tstop = timer.elapsed();
 	printf("Rebalanced tree in %f seconds\n", real(tstop - tstart));
 	assert(grid_ptr != nullptr);
-	std::vector<hpx::id_type> null_neighbors(geo::direction::count());
 	tstart = timer.elapsed();
 	printf("forming tree connections\n");
-	form_tree(hpx::unmanaged(root_gid), hpx::invalid_id, null_neighbors);
+	form_tree(hpx::unmanaged(root_gid));
 	tstop = timer.elapsed();
 	printf("Formed tree in %f seconds\n", real(tstop - tstart));
 	if (current_time > ZERO) {
@@ -303,142 +238,6 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	node_client::cycle_node_cache();
 #endif
 	return a;
-}
-
-typedef node_server::save_action save_action_type;
-HPX_REGISTER_ACTION(save_action_type);
-
-future<void> node_client::save(integer i, std::string s) const {
-	return hpx::async<typename node_server::save_action>(get_unmanaged_gid(), i, s);
-}
-
-std::map<integer, std::vector<char> > node_server::save_local(integer& cnt, std::string const& filename,
-		future<void>& child_fut) const {
-	//   printf( "Saving grid on %i\n", hpx::get_locality_id());
-
-	std::map<integer, std::vector<char> > result;
-	char flag = is_refined ? '1' : '0';
-	integer my_cnt = cnt;
-
-	// Call save on children that are non local, for all
-	// locals, get the pointer
-	std::vector<future<void>> child_futs;
-	std::vector<hpx::util::tuple<integer, integer, future<node_server*>>> local_children;
-	if (is_refined) {
-		child_futs.resize(NCHILD);
-		local_children.reserve(NCHILD);
-		integer i = cnt + 1;
-		for (auto& ci : geo::octant::full_set()) {
-			//  if (!children[ci].is_local())
-			// {
-			child_futs[ci] = children[ci].save(i, filename);
-			// }
-			// else
-			// {
-			//     local_children.emplace_back(ci, i, children[ci].get_ptr());
-			// }
-			child_futs[ci].wait();
-			i += child_descendant_count[ci];
-		}
-	}
-
-	std::vector<char> out_buffer;
-	out_buffer.reserve(4096 * 5);
-	{
-		typedef hpx::util::container_device<std::vector<char> > io_device_type;
-		boost::iostreams::stream<io_device_type> strm(out_buffer);
-
-		// determine record size
-		write(strm, flag);
-		integer value = ++cnt;
-		std::array<integer, NCHILD> values;
-		for (auto const& ci : geo::octant::full_set()) {
-			if (ci != 0 && is_refined) {
-				value += child_descendant_count[ci - 1];
-			}
-			values[ci] = value;
-			write(strm, value);
-		}
-		save_me(strm);
-	}
-	result.emplace(my_cnt, std::move(out_buffer));
-
-	if (is_refined) {
-		for (auto& child : local_children) {
-			auto ci = hpx::util::get<0>(child);
-			auto cnt = hpx::util::get<1>(child);
-			auto cc = GET(hpx::util::get<2>(child));
-			auto child_result = cc->save_local(cnt, filename, child_futs[ci]);
-			for (auto && d : child_result) {
-				result.emplace(std::move(d));
-			}
-		}
-		for (auto& f : child_futs) {
-			if (f.valid()) {
-				GET(f);
-			}
-		}
-	}
-	//   printf( "Saved grid on %i\n", hpx::get_locality_id());
-	return result;
-}
-
-void node_server::save(integer cnt, std::string const& filename) const {
-	// Create file and save metadata if location == 0
-	if (my_location.level() == 0) {
-		// run output on separate thread
-		hpx::threads::run_as_os_thread([&]() {
-			FILE *fp = fopen(filename.c_str(), "wb");
-			fclose(fp);
-		}).get();
-	}
-
-	future<void> child_fut;
-	std::map<integer, std::vector<char> > result = save_local(cnt, filename, child_fut);
-
-	// run output on separate thread
-	auto fut = hpx::threads::run_as_os_thread([&]() {
-		// write all of the buffers to file
-		//  	printf( "Writing results on %i\n", hpx::get_locality_id());
-			integer record_size = 0;
-			FILE* fp = fopen(filename.c_str(), "rb+");
-			for (auto const& d : result) {
-				if (record_size == 0) {
-					record_size = d.second.size();
-				}
-				else {
-					assert(record_size == d.second.size());
-				}
-				fseek(fp, record_size * d.first, SEEK_SET);
-				fwrite(d.second.data(), sizeof(char), d.second.size(), fp);
-				//   	printf( "Done writing results on %i\n", hpx::get_locality_id());
-			}
-
-			if (my_location.level() == 0) {
-				std::size_t total = 1;
-				for (auto& ci: geo::octant::full_set())
-				{
-					total += child_descendant_count[ci];
-				}
-				fseek(fp, record_size * total, SEEK_SET);
-				real omega = grid::get_omega();
-				fwrite(&omega, sizeof(real), 1, fp);
-				space_vector pivot = grid::get_pivot();
-				for (auto const& d : geo::dimension::full_set()) {
-					real tmp = pivot[d];
-					fwrite(&tmp, sizeof(real), 1, fp);
-				}
-				fwrite(&record_size, sizeof(integer), 1, fp);
-				printf("Saved %li grids to checkpoint file\n", (long int) total);
-			}
-			fclose(fp);
-		});
-	if (fut.valid()) {
-		fut.get();
-	}
-	if (child_fut.valid()) {
-		child_fut.get();
-	}
 }
 
 typedef node_server::set_aunt_action set_aunt_action_type;

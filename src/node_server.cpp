@@ -159,7 +159,6 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
 					hpx::util::annotated_function([this, tau_only](future<sibling_hydro_type> && f) -> void
 					{
-//						auto&& tmp = f.get();
 							auto&& tmp = GET(f);
 							grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
 									H_BW, tau_only);
@@ -228,101 +227,13 @@ inline bool file_exists(const std::string& name) {
 //HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
 //HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
 
-std::size_t node_server::load_me(std::istream& strm, bool old_format) {
-	std::size_t cnt = 0;
-	refinement_flag = 0;
-	cnt += read(strm, &step_num, 1);
-	cnt += read(strm, &current_time, 1);
-	cnt += read(strm, &rotational_time, 1);
-	cnt += grid_ptr->load(strm, old_format);
-	return cnt;
-}
-
-std::size_t node_server::save_me(std::ostream& strm) const {
-	std::size_t cnt = 0;
-
-	cnt += write(strm, step_num);
-	cnt += write(strm, current_time);
-	cnt += write(strm, rotational_time);
-
-	assert(grid_ptr != nullptr);
-	cnt += grid_ptr->save(strm);
-	return cnt;
-}
-
 #include "util.hpp"
 
-void node_server::save_to_file(const std::string& fname, std::string const& data_dir) const {
-	hpx::util::high_resolution_timer timer;
-	printf("Saving to checkpoint %s\n", fname.c_str());
-	save(0, data_dir + fname);
-//     file_copy((data_dir + fname).c_str(), (data_dir + "restart.chk").c_str());
-//	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
-//	SYSTEM(command);
-
-	double elapsed = timer.elapsed();
-	printf("Saving took %f seconds\n", elapsed);
-}
-
-void node_server::load_from_file(const std::string& fname, std::string const& data_dir) {
-	hpx::util::high_resolution_timer timer;
-	if (opts.radiation) {
-		if (opts.eos == WD) {
-			set_cgs(false);
-		}
-	}
-	real omega = 0;
-	space_vector pivot;
-
-	// run output on separate thread
-	integer rec_size = 0;
-	int total_nodes;
-	hpx::threads::run_as_os_thread([&]() {
-		FILE* fp = fopen((data_dir + fname).c_str(), "rb");
-		if (fp == NULL) {
-			printf("Failed to open file\n");
-			abort();
-		}
-		fseek(fp, -sizeof(integer), SEEK_END);
-		std::size_t read_cnt = fread(&rec_size, sizeof(integer), 1, fp);
-		if( rec_size == 65739) {
-			printf( "Old checkpoint format detected\n");
-		}
-		fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
-		read_cnt += fread(&omega, sizeof(real), 1, fp);
-		for (auto const& d : geo::dimension::full_set()) {
-			real temp_pivot;
-			read_cnt += fread(&temp_pivot, sizeof(real), 1, fp);
-			pivot[d] = temp_pivot;
-		}
-		fclose(fp);
-
-		// work around limitation of ftell returning 32bit offset
-			std::ifstream in((data_dir + fname).c_str(), std::ifstream::ate | std::ifstream::binary);
-			std::size_t end_pos = in.tellg();
-
-			total_nodes = end_pos / rec_size;
-		}).get();
-
-	printf("Loading %d nodes\n", total_nodes);
-
-//     auto meta_read =
-	hpx::lcos::broadcast<set_locality_data_action>(options::all_localities, omega, pivot).get();
-
-	load(0, total_nodes, rec_size, data_dir + fname);
-//     meta_read.get();
-	double elapsed = timer.elapsed();
-	printf("Loading took %f seconds\n", elapsed);
-}
-
-void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname, std::string const& data_dir) {
-	load_from_file(fname, data_dir);
-}
-
 void node_server::clear_family() {
-	me = hpx::invalid_id;
+	parent = me = hpx::invalid_id;
 	std::fill(aunts.begin(), aunts.end(), hpx::invalid_id);
 	std::fill(nieces.begin(), nieces.end(), 0);
+	std::fill(neighbors.begin(), neighbors.end(),hpx::invalid_id);
 }
 
 integer child_index_to_quadrant_index(integer ci, integer dim) {
@@ -350,7 +261,7 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
-//	node_list_add(my_location,this);
+	printf( "Create\n");
 	for (auto const& dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
@@ -386,9 +297,8 @@ void node_server::initialize(real t, real rt) {
 }
 
 node_server::~node_server() {
-
+	printf( "Deleted\n");
 	node_registry::delete_(my_location);
-
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num,

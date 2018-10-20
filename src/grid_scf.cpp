@@ -434,8 +434,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		if (i % 10 == 0 ) {
             if (!opts.disable_output) {
 			    output_all(buffer, i);
-			    save_to_file("scf.chk", data_dir);
-            }
+			}
 		}
 		real f0 = scf_options::M1 / (diags.m[0]);
 		real f1 = scf_options::M2 / (diags.m[1]);

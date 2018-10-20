@@ -318,8 +318,6 @@ public:
 	template<class Archive>
 	void save(Archive& arc, const unsigned) const;HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
-	std::size_t load(std::istream&, bool old_format);
-	std::size_t save(std::ostream& strm) const;
 	std::pair<real, real> virial() const;
 
 
