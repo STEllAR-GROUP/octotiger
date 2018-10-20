@@ -96,9 +96,9 @@ hpx::id_type get(node_location::node_id id) {
 				node_client c(rc);
 				assert( this_parent != hpx::invalid_id);
 				node_client p(this_parent);
-				auto f1 = c.set_parent(this_parent);
+//				auto f1 = c.set_parent(this_parent);
 				p.notify_parent(full_loc,rc).get();
-				f1.get();
+	//			f1.get();
 			}
 		}
 	}

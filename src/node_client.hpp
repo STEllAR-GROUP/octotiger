@@ -77,7 +77,7 @@ public:
 	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	future<diagnostics_t> diagnostics(const diagnostics_t&) const;
 	future<analytic_t> compare_analytic() const;
-	hpx::future<void> set_parent(hpx::id_type);
+//	hpx::future<void> set_parent(hpx::id_type);
 	hpx::future<void> notify_parent(node_location location, hpx::id_type id );
 	node_client();
 	future<set_child_aunt_type> set_child_aunt(const hpx::id_type&, const geo::face&) const;

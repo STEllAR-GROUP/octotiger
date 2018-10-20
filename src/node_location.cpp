@@ -118,7 +118,6 @@ bool node_location::is_child_of(const node_location& other) const {
 				break;
 			}
 		}
-
 	} else {
 		rc = false;
 	}

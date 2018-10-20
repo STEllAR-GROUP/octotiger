@@ -275,7 +275,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
 			const auto pid = load_registry::get(l.get_parent().to_id());
-			auto f2 = client.set_parent(pid);
+		//	auto f2 = client.set_parent(pid);
 			node_server* node_ptr = node_registry::get(l);
 			grid& g = node_ptr->get_hydro_grid();
 			const auto suffix = std::to_string(l.to_id());
@@ -285,7 +285,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 				g.set(quadvar->name, static_cast<real*>(*(quadvar->vals)));
 				DBFreeQuadvar(quadvar);
 			}
-			f2.get();
+	//		f2.get();
 			node_client p(pid);
 			p.notify_parent(l,id).get();
 		}));

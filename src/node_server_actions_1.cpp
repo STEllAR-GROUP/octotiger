@@ -79,7 +79,6 @@ integer node_server::regrid_gather(bool rebalance_only) {
 			}
 		}
 	} else if (!rebalance_only) {
-		//		if (grid_ptr->refine_me(my_location.level())) {
 		if (refinement_flag != 0) {
 			refinement_flag = 0;
 			count += NCHILD;
@@ -90,8 +89,6 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
 			for (auto& ci : geo::octant::full_set()) {
 				child_descendant_count[ci] = 1;
-
-//                 children[ci] = create_child(hpx::find_here(), ci);
 
 			}
 		}

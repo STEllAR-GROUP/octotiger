@@ -261,7 +261,6 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
-	printf( "Create\n");
 	for (auto const& dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
@@ -297,7 +296,6 @@ void node_server::initialize(real t, real rt) {
 }
 
 node_server::~node_server() {
-	printf( "Deleted\n");
 	node_registry::delete_(my_location);
 }
 

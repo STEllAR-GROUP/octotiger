@@ -225,8 +225,8 @@ public:
 
 	void compute_fmm(gsolve_type gs, bool energy_account, bool allocate_only = false);
 
-	void set_parent(hpx::id_type id);/**/
-	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_parent, set_parent_action);
+//	void set_parent(hpx::id_type id);/**/
+//	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_parent, set_parent_action);
 
 	void solve_gravity(bool ene, bool skip_solve);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
@@ -369,6 +369,6 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
-HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
+//HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
 
 #endif /* NODE_SERVER_HPP_ */

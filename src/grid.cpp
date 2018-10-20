@@ -72,7 +72,6 @@ std::vector<std::string> grid::get_field_names() {
 }
 
 
-
 void grid::set(const std::string name, real* data) {
 	auto iter = str_to_index_hydro.find(name);
 	if( iter != str_to_index_hydro.end()) {
@@ -81,7 +80,7 @@ void grid::set(const std::string name, real* data) {
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
-					const int iii = hindex(i + H_BW, j + H_BW, k + H_BW);
+					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
 					U[f][iii] = data[jjj];
 					jjj++;
 				}
@@ -107,7 +106,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 			for (int i = 0; i < INX; i++) {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
-						const int iii = hindex(i + H_BW, j + H_BW, k + H_BW);
+						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
 						this_s(jjj) = U[f][iii];
 						jjj++;
 					}
@@ -129,7 +128,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 			for (int i = 0; i < INX; i++) {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
-						const int iii = hindex(i + H_BW, j + H_BW, k + H_BW);
+						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
 						this_s(jjj) = U[f][iii];
 						jjj++;
 					}
@@ -2282,7 +2281,7 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 	const integer jlb = 0;
 	const integer jub = H_NX;
 
-	if (opts.problem == SOD) {
+/*	if (opts.problem == SOD) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = jlb; j != jub; ++j) {
 				for (integer i = ilb; i != iub; ++i) {
@@ -2305,7 +2304,7 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 				}
 			}
 		}
-	} else {
+	} else {*/
 		for (integer field = 0; field != NF; ++field) {
 			for (integer k = klb; k != kub; ++k) {
 				for (integer j = jlb; j != jub; ++j) {
@@ -2362,7 +2361,7 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 				}
 			}
 		}
-	}
+//	}
 }
 
 void grid::compute_sources(real t, real rotational_time) {

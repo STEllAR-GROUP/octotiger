@@ -11,7 +11,7 @@
 #include <hpx/lcos/broadcast.hpp>
 
 extern options opts;
-
+/*
 typedef node_server::set_parent_action set_parent_action_type;
 HPX_REGISTER_ACTION(set_parent_action_type);
 
@@ -25,7 +25,7 @@ hpx::future<void> node_client::set_parent(hpx::id_type this_id) {
 void node_server::set_parent(hpx::id_type id) {
 	parent = id;
 }
-
+*/
 typedef node_server::notify_parent_action notify_parent_action_type;
 HPX_REGISTER_ACTION(notify_parent_action_type);
 

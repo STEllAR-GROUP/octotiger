@@ -440,14 +440,12 @@ void node_server::run_scf(std::string const& data_dir) {
 		real f1 = scf_options::M2 / (diags.m[1]);
 		real f = (scf_options::M1 + scf_options::M2) / (diags.m[0] + diags.m[1]);
 		f = (f + 1.0)/2.0;
-	///	printf( "%e %e \n", f0, f1);
 		rho_mult(f0, f1);
 		diags = diagnostics();
 		rho_move(diags.grid_com[0] / 2.0);
 		real iorb = diags.z_mom_orb;
 		real is1 = diags.z_moment[0];
 		real is2 = diags.z_moment[1];
-	//	iorb -= is1 + is2;
 		real M1 = diags.m[0];
 		real M2 = diags.m[1];
 		real j1 = is1 * omega * (1.0 + scf_options::async1);

@@ -77,7 +77,7 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
-		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.1) {
+		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.01) {
 			return level < max_level;
 		}
 	}
@@ -208,7 +208,8 @@ std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
 	std::vector<real> U(NF, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
-	real x = (x0 + y + z) / std::sqrt(3.0);
+//	real x = (x0 + y + z) / std::sqrt(3.0);
+	real x = x0 - 0.375;
 	exact_sod(&s, &sod_init, x, 0.0);
 	U[rho_i] = s.rho;
 	U[egas_i] = s.p / (fgamma - 1.0);
