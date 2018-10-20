@@ -144,8 +144,8 @@ int hpx_main(int argc, char* argv[]) {
 				std::cout << "Loading from " << opts.restart_filename << " ...\n";
 				load_data_from_silo(opts.restart_filename, root, root_client.get_unmanaged_gid());
 				printf( "Regrid\n");
-				root->form_tree(hpx::unmanaged(root_id));
-					ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true);
+	//			root->form_tree(hpx::unmanaged(root_id));
+				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true);
 				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {
