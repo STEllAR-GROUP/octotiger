@@ -11,6 +11,17 @@
 #include <hpx/lcos/broadcast.hpp>
 
 
+static hpx::lcos::local::mutex silo_mtx_;
+
+
+template<class R, class...Args1, class...Args2>
+R call_silo(R(*f)(Args1...), Args2...args) {
+	std::lock_guard<hpx::lcos::local::mutex> lock(silo_mtx_);
+	return f(args...);
+}
+
+
+
 std::vector<node_location::node_id> output_stage1(std::string fname, int cycle);
 void output_stage2(std::string fname, int cycle);
 
@@ -44,7 +55,7 @@ template<class T>
 struct write_silo_var {
 	void operator()(DBfile* db, const char* name, T var) {
 		int one = 1;
-		DBWrite(db, name, &var, &one, 1, db_type<T>::d);
+		call_silo(DBWrite,db, name, &var, &one, 1, db_type<T>::d);
 	}
 };
 
@@ -53,7 +64,7 @@ struct read_silo_var {
 	T operator()(DBfile* db, const char* name) {
 		int one = 1;
 		T var;
-		DBReadVar(db, name, &var);
+		call_silo(DBReadVar,db, name, &var);
 		return var;
 	}
 };
@@ -100,7 +111,7 @@ void output_stage2(std::string fname, int cycle) {
 	std::string this_fname = fname + std::string(".silo");
 	DBfile *db;
 	if (hpx::get_locality_id() == 0) {
-		db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
+		db = call_silo(DBCreateReal,this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
 	} else {
 		db = DBOpen(this_fname.c_str(), DB_PDB, DB_APPEND);
 	}
@@ -114,14 +125,14 @@ void output_stage2(std::string fname, int cycle) {
 	if (node_registry::begin() != node_registry::end()) {
 		double dtime = node_registry::begin()->second->get_time();
 		float ftime = dtime;
-		auto optlist = DBMakeOptlist(5);
+		auto optlist = call_silo(DBMakeOptlist,5);
 		int one = 1;
 		int opt1 = DB_CARTESIAN;
-		DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
-		DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
-		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-		DBAddOption(optlist, DBOPT_DTIME, &dtime);
-		DBAddOption(optlist, DBOPT_TIME, &ftime);
+		call_silo(DBAddOption,optlist, DBOPT_HIDE_FROM_GUI, &one);
+		call_silo(DBAddOption,optlist, DBOPT_COORDSYS, &opt1);
+		call_silo(DBAddOption,optlist, DBOPT_CYCLE, &cycle);
+		call_silo(DBAddOption,optlist, DBOPT_DTIME, &dtime);
+		call_silo(DBAddOption,optlist, DBOPT_TIME, &ftime);
 		const char* coord_names[] = { "x", "y", "z" };
 		constexpr int dims[] = { INX + 1, INX + 1, INX + 1 };
 		constexpr int dims2[] = { INX, INX, INX };
@@ -133,13 +144,13 @@ void output_stage2(std::string fname, int cycle) {
 			auto mesh_vars = this_fut.get();
 			const auto& X = mesh_vars.X;
 			const real* coords[] = { X[0].data(), X[1].data(), X[2].data() };
-			DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, dims, ndim, data_type, coord_type, optlist);
+			call_silo(DBPutQuadmesh,db, mesh_vars.mesh_name.c_str(), coord_names, coords, dims, ndim, data_type, coord_type, optlist);
 			for (const auto& o : mesh_vars.vars) {
-				DBPutQuadvar1(db, o.name_, mesh_vars.mesh_name.c_str(), o.data_, dims2, ndim, (const void*) NULL, 0, DB_DOUBLE,
+				call_silo(DBPutQuadvar1,db, o.name_, mesh_vars.mesh_name.c_str(), o.data_, dims2, ndim, (const void*) NULL, 0, DB_DOUBLE,
 				DB_ZONECENT, optlist);
 			}
 		}
-		DBFreeOptlist(optlist);
+		call_silo(DBFreeOptlist,optlist);
 	}
 
 	static const auto ids = hpx::find_all_localities();
@@ -180,18 +191,18 @@ void output_stage2(std::string fname, int cycle) {
 		static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
 		static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
 
-		auto optlist = DBMakeOptlist(4);
+		auto optlist = call_silo(DBMakeOptlist,4);
 		int opt1 = DB_CARTESIAN;
-		DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
-		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-		DBAddOption(optlist, DBOPT_DTIME, &dtime);
-		DBAddOption(optlist, DBOPT_TIME, &ftime);
-		DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), optlist);
+		call_silo(DBAddOption,optlist, DBOPT_COORDSYS, &opt1);
+		call_silo(DBAddOption,optlist, DBOPT_CYCLE, &cycle);
+		call_silo(DBAddOption,optlist, DBOPT_DTIME, &dtime);
+		call_silo(DBAddOption,optlist, DBOPT_TIME, &ftime);
+		call_silo(DBPutMultimesh,db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), optlist);
 		for (int f = 0; f < nfields; f++) {
-			DBPutMultivar(db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(), optlist);
+			call_silo(DBPutMultivar,db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(), optlist);
 
 		}
-		DBFreeOptlist(optlist);
+		call_silo(DBFreeOptlist,optlist);
 		for (auto ptr : mesh_names) {
 			delete[] ptr;
 		}
@@ -216,7 +227,7 @@ void output_stage2(std::string fname, int cycle) {
 		fr(db, "rotational_time", rtime);
 		fr(db, "xscale", opts.xscale);
 
-		DBClose(db);
+		call_silo(DBClose,db);
 	}
 }
 
@@ -281,9 +292,9 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			const auto suffix = std::to_string(l.to_id());
 			for( auto n : names ) {
 				const auto name = n + std::string( "_") + suffix;
-				const auto quadvar = DBGetQuadvar(db,name.c_str());
+				const auto quadvar = call_silo(DBGetQuadvar,db,name.c_str());
 				g.set(quadvar->name, static_cast<real*>(*(quadvar->vals)));
-				DBFreeQuadvar(quadvar);
+				call_silo(DBFreeQuadvar,quadvar);
 			}
 	//		f2.get();
 			node_client p(pid);
@@ -293,7 +304,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 	for (auto& f : futs) {
 		f.get();
 	}
-	DBClose(db);
+	call_silo(DBClose,db);
 	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
 		i->second->set_time(dtime, rtime);
 	}
@@ -318,7 +329,7 @@ void load_options_from_silo(std::string fname) {
 	opts.xscale = rr(db, "xscale");
 
 	if (db != NULL) {
-		DBClose(db);
+		call_silo(DBClose,db);
 	} else {
 		std::cout << "Could not load " << fname;
 		throw;
@@ -332,7 +343,7 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 	static int sz = localities.size();
 	DBfile* db = DBOpen(fname.c_str(), DB_PDB, DB_READ);
 	if (db != NULL) {
-		DBmultimesh* master_mesh = DBGetMultimesh(db, "mesh");
+		DBmultimesh* master_mesh = call_silo(DBGetMultimesh,db, "mesh");
 		std::vector<node_location::node_id> work;
 		std::vector<hpx::future<void>> futs;
 		const int chunk_size = master_mesh->nblocks / sz;
@@ -346,8 +357,8 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 				work.clear();
 			}
 		}
-		DBFreeMultimesh(master_mesh);
-		DBClose(db);
+		call_silo(DBFreeMultimesh,master_mesh);
+		call_silo(DBClose,db);
 		for (auto& f : futs) {
 			f.get();
 		}
