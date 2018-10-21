@@ -26,7 +26,7 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle);
 void output_stage2(std::string fname, int cycle);
 
 HPX_PLAIN_ACTION(output_stage1, output1_action);
-HPX_PLAIN_ACTION(output_stage2, output2_action);
+HPX_PLAIN_ACTION(output_stage2, output_stage2_action);
 
 #include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
@@ -151,16 +151,18 @@ void output_stage2(std::string fname, int cycle) {
 			}
 		}
 		call_silo(DBFreeOptlist,optlist);
+		call_silo(DBClose,db);
 	}
 
 	static const auto ids = hpx::find_all_localities();
 	static const integer this_id = hpx::get_locality_id();
 	if (this_id < integer(ids.size()) - 1) {
-		output2_action func;
+		output_stage2_action func;
 		func(ids[this_id + 1], fname, cycle);
 	}
 
 	if (this_id == 0) {
+		db = DBOpen(this_fname.c_str(), DB_PDB, DB_APPEND);
 		double dtime = node_registry::begin()->second->get_time();
 		float ftime = dtime;
 		double rtime = node_registry::begin()->second->get_rotation_count();
@@ -226,7 +228,6 @@ void output_stage2(std::string fname, int cycle) {
 		fr(db, "time", dtime);
 		fr(db, "rotational_time", rtime);
 		fr(db, "xscale", opts.xscale);
-
 		call_silo(DBClose,db);
 	}
 }
@@ -244,7 +245,7 @@ void output_all(std::string fname, int cycle) {
 			loc_ids.push_back(i);
 		}
 	}
-	output2_action func;
+	output_stage2_action func;
 	func(ids[0], fname, cycle);
 }
 
