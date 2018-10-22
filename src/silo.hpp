@@ -12,8 +12,19 @@ class node_server;
 #include <silo.h>
 
 struct silo_var_t {
-	char* name_;
-	void* data_;
+private:
+	std::string name_;
+	std::vector<real> data_;
+public:
+	const char* name() const{
+		return name_.c_str();
+	}
+	void* data() {
+		return data_.data();
+	}
+	const void* data() const {
+		return data_.data();
+	}
 	silo_var_t(const std::string& name);
 	~silo_var_t();
 	silo_var_t(silo_var_t&&);

@@ -115,6 +115,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 			s.push_back(std::move(this_s));
 		}
 	}
+
 	if (opts.gravity) {
 		constexpr int N = 4;
 		for (auto l : str_to_index_gravity) {

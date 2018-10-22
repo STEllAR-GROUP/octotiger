@@ -17,7 +17,7 @@ struct hash {
 
 using node_ptr = node_server*;
 using table_type = std::unordered_map<node_location,node_ptr,hash>;
-using iterator_type = std::unordered_map<node_location,node_ptr,hash>::iterator;
+using iterator_type = table_type::iterator;
 
 void add(const node_location&, node_ptr);
 
@@ -39,7 +39,7 @@ struct hash {
 	std::size_t operator()(const node_location::node_id id) const;
 };
 
-using table_type = std::unordered_map<node_location::node_id,hpx::id_type,hash>;
+using table_type = std::unordered_map<node_location::node_id,hpx::shared_future<hpx::id_type>,hash>;
 using iterator_type = table_type::iterator;
 
 void put(node_location::node_id id, const hpx::id_type& component);

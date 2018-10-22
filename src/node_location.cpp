@@ -49,11 +49,7 @@ void node_location::from_id(const node_id& id_) {
 }
 
 std::size_t node_location::hash() const {
-	std::size_t key = lev;
-	for (int d = 0; d < NDIM; d++) {
-		key <<= 4;
-		key |= xloc[d];
-	}
+	return std::size_t(this->to_id());
 }
 
 std::vector<node_location> node_location::get_neighbors() const {

@@ -317,10 +317,8 @@ void node_server::start_run(bool scf, integer ngrids) {
 		auto time_start = std::chrono::high_resolution_clock::now();
 		if (!opts.disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			diagnostics();
-			std::string fname = "X." + std::to_string(int(output_cnt)) + ".chk";
-			output_all(fname,output_cnt);
 			printf("doing silo out...\n");
-			fname = "X." + std::to_string(int(output_cnt));
+			std::string fname = "X." + std::to_string(int(output_cnt));
 			output_all(fname, output_cnt);
 			++output_cnt;
 
