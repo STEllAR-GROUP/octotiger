@@ -29,9 +29,6 @@
 #include "cuda_util/cuda_helper.hpp"
 #endif
 
-HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_pivot_action)
-HPX_REGISTER_BROADCAST_ACTION(set_pivot_action)
 
 void compute_ilist();
 
@@ -105,10 +102,6 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action)
 HPX_REGISTER_BROADCAST_ACTION(initialize_action)
 
 real OMEGA;
-void node_server::set_pivot() {
-	space_vector pivot = grid_ptr->center_of_mass();
-	hpx::lcos::broadcast<set_pivot_action>(options::all_localities, pivot).get();
-}
 namespace scf_options {
 void read_option_file();
 }

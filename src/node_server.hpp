@@ -41,7 +41,6 @@ private:
 		std::vector<real> data;
 		geo::direction direction;
 	};
-	void set_pivot();
 	std::atomic<integer> refinement_flag;
 	node_location my_location;
 	integer step_num;

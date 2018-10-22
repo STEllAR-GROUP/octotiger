@@ -185,7 +185,6 @@ hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 		f = hpx::make_ready_future();
 	}
 	grid::omega /= t;
-	pivot *= l;
 	scaling_factor *= l;
 	return f;
 }

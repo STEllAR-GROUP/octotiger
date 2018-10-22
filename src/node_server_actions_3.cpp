@@ -267,7 +267,6 @@ void node_server::start_run(bool scf, integer ngrids) {
 	}
 	if (scf) {
 		run_scf(opts.data_dir);
-		set_pivot();
 		printf("Adjusting velocities:\n");
 		auto diag = diagnostics();
 		space_vector dv;

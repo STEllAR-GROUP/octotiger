@@ -12,7 +12,6 @@
 #include "future.hpp"
 #include "options.hpp"
 #include "taylor.hpp"
-#include "set_locality_data.hpp"
 
 #include <array>
 #include <streambuf>

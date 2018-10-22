@@ -14,7 +14,6 @@
 #include "options.hpp"
 #include "profiler.hpp"
 #include "taylor.hpp"
-#include "set_locality_data.hpp"
 
 #include <algorithm>
 #include <array>
@@ -29,14 +28,6 @@
 #include <boost/iostreams/stream.hpp>
 
 extern options opts;
-
-void set_locality_data(real omega, space_vector pivot) {
-	grid::set_omega(omega, false);
-	grid::set_pivot(pivot);
-}
-
-HPX_REGISTER_ACTION(set_locality_data_action, set_locality_data_action);
-HPX_REGISTER_BROADCAST_ACTION (set_locality_data_action)
 
 void output_all(std::string, int);
 

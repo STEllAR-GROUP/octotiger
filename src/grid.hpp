@@ -101,7 +101,6 @@ private:
 	static real fgamma;
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
-	static space_vector pivot;
 	static real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 
@@ -206,9 +205,6 @@ public:
 	bool get_leaf() const {
 		return is_leaf;
 	}
-	static space_vector get_pivot() {
-		return pivot;
-	}
 	real get_source(integer i, integer j, integer k) const {
 		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
@@ -230,7 +226,6 @@ public:
 			integer index, real rho_cut) const;
 	static void set_omega(real, bool bcast = true);
 	static real& get_omega();
-	static void set_pivot(const space_vector& p);
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
 	void compute_conserved_slopes(const std::array<integer, NDIM> lb = { 1, 1, 1 },
 			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);

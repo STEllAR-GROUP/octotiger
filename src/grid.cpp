@@ -19,10 +19,10 @@
 
 extern options opts;
 
-static std::unordered_map<std::string,int> str_to_index_hydro;
-static std::unordered_map<std::string,int> str_to_index_gravity;
-static std::unordered_map<int,std::string> index_to_str_hydro;
-static std::unordered_map<int,std::string> index_to_str_gravity;
+static std::unordered_map<std::string, int> str_to_index_hydro;
+static std::unordered_map<std::string, int> str_to_index_gravity;
+static std::unordered_map<int, std::string> index_to_str_hydro;
+static std::unordered_map<int, std::string> index_to_str_gravity;
 
 struct initialize_names {
 	initialize_names() {
@@ -44,10 +44,10 @@ struct initialize_names {
 		str_to_index_gravity["gx"] = gx_i;
 		str_to_index_gravity["gy"] = gy_i;
 		str_to_index_gravity["gz"] = gz_i;
-		for( const auto& s : str_to_index_hydro ) {
+		for (const auto& s : str_to_index_hydro) {
 			index_to_str_hydro[s.second] = s.first;
 		}
-		for( const auto& s : str_to_index_gravity ) {
+		for (const auto& s : str_to_index_gravity) {
 			index_to_str_gravity[s.second] = s.first;
 		}
 	}
@@ -55,26 +55,24 @@ struct initialize_names {
 
 static initialize_names initialize_names_;
 
-
 std::vector<std::string> grid::get_field_names() {
 	std::vector<std::string> rc;
 	if (opts.hydro) {
-		for( auto i : index_to_str_hydro ) {
+		for (auto i : index_to_str_hydro) {
 			rc.push_back(i.second);
 		}
 	}
 	if (opts.gravity) {
-		for( auto i : index_to_str_gravity ) {
+		for (auto i : index_to_str_gravity) {
 			rc.push_back(i.second);
 		}
 	}
 	return rc;
 }
 
-
 void grid::set(const std::string name, real* data) {
 	auto iter = str_to_index_hydro.find(name);
-	if( iter != str_to_index_hydro.end()) {
+	if (iter != str_to_index_hydro.end()) {
 		int f = iter->second;
 		int jjj = 0;
 		for (int i = 0; i < INX; i++) {
@@ -89,7 +87,6 @@ void grid::set(const std::string name, real* data) {
 	}
 
 }
-
 
 std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
@@ -496,7 +493,6 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 
 hpx::lcos::local::spinlock grid::omega_mtx;
 real grid::omega = ZERO;
-space_vector grid::pivot(ZERO);
 real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
@@ -774,11 +770,6 @@ void grid::velocity_inc(const space_vector& dv) {
 		}
 	}
 
-}
-
-void grid::set_pivot(const space_vector& p) {
-	pivot = p;
-//	pivot[0] = pivot[1] = pivot[2] = 0.0;
 }
 
 OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
@@ -1163,8 +1154,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1751,11 +1742,9 @@ void grid::set_coordinates() {
 		for (integer j = 0; j != H_NX; ++j) {
 			for (integer k = 0; k != H_NX; ++k) {
 				const integer iii = hindex(i, j, k);
-				X[XDIM][iii] = (real(i - H_BW) + HALF) * dx + xmin[XDIM] - pivot[XDIM];
-				X[YDIM][iii] = (real(j - H_BW) + HALF) * dx + xmin[YDIM] - pivot[YDIM];
-				X[ZDIM][iii] = (real(k - H_BW) + HALF) * dx + xmin[ZDIM] - pivot[ZDIM];
-				//		printf( "%e %e %e %e %e %e \n", X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], pivot[XDIM], pivot[YDIM], pivot[ZDIM]);
-//				printf( "mmmmmmmmmmmmmm %e %e\n", xmin[XDIM], pivot[XDIM]);
+				X[XDIM][iii] = (real(i - H_BW) + HALF) * dx + xmin[XDIM];
+				X[YDIM][iii] = (real(j - H_BW) + HALF) * dx + xmin[YDIM];
+				X[ZDIM][iii] = (real(k - H_BW) + HALF) * dx + xmin[ZDIM];
 			}
 		}
 	}PROF_END;
@@ -2282,86 +2271,86 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 	const integer jlb = 0;
 	const integer jub = H_NX;
 
-/*	if (opts.problem == SOD) {
+	/*	if (opts.problem == SOD) {
+	 for (integer k = klb; k != kub; ++k) {
+	 for (integer j = jlb; j != jub; ++j) {
+	 for (integer i = ilb; i != iub; ++i) {
+	 const integer iii = i * dni + j * dnj + k * dnk;
+	 for (integer f = 0; f != NF; ++f) {
+	 U[f][iii] = 0.0;
+	 }
+	 sod_state_t s;
+	 real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
+	 exact_sod(&s, &sod_init, x, t);
+	 U[rho_i][iii] = s.rho;
+	 U[egas_i][iii] = s.p / (fgamma - 1.0);
+	 U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
+	 U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
+	 U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
+	 U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
+	 U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
+	 U[spc_ac_i][iii] = s.rho;
+	 integer k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
+	 }
+	 }
+	 }
+	 } else {*/
+	for (integer field = 0; field != NF; ++field) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = jlb; j != jub; ++j) {
 				for (integer i = ilb; i != iub; ++i) {
-					const integer iii = i * dni + j * dnj + k * dnk;
-					for (integer f = 0; f != NF; ++f) {
-						U[f][iii] = 0.0;
+					integer k0;
+					switch (boundary_types[face]) {
+					case REFLECT:
+						k0 = side == geo::MINUS ? (2 * H_BW - k - 1) : (2 * (H_NX - H_BW) - k - 1);
+						break;
+					case OUTFLOW:
+						k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
+						break;
+					default:
+						k0 = -1;
+						assert(false);
+						abort();
 					}
-					sod_state_t s;
-					real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
-					exact_sod(&s, &sod_init, x, t);
-					U[rho_i][iii] = s.rho;
-					U[egas_i][iii] = s.p / (fgamma - 1.0);
-					U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
-					U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
-					U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
-					U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
-					U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
-					U[spc_ac_i][iii] = s.rho;
-					integer k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
-				}
-			}
-		}
-	} else {*/
-		for (integer field = 0; field != NF; ++field) {
-			for (integer k = klb; k != kub; ++k) {
-				for (integer j = jlb; j != jub; ++j) {
-					for (integer i = ilb; i != iub; ++i) {
-						integer k0;
+					const real value = U[field][i * dni + j * dnj + k0 * dnk];
+					const integer iii = i * dni + j * dnj + k * dnk;
+					real& ref = U[field][iii];
+					if (field == sx_i + dim) {
+						real s0;
+						if (field == sx_i) {
+							s0 = -omega * X[YDIM][iii] * U[rho_i][iii];
+						} else if (field == sy_i) {
+							s0 = +omega * X[XDIM][iii] * U[rho_i][iii];
+						} else {
+							s0 = ZERO;
+						}
 						switch (boundary_types[face]) {
 						case REFLECT:
-							k0 = side == geo::MINUS ? (2 * H_BW - k - 1) : (2 * (H_NX - H_BW) - k - 1);
+							ref = -value;
 							break;
 						case OUTFLOW:
-							k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
-							break;
-						default:
-							k0 = -1;
-							assert(false);
-							abort();
-						}
-						const real value = U[field][i * dni + j * dnj + k0 * dnk];
-						const integer iii = i * dni + j * dnj + k * dnk;
-						real& ref = U[field][iii];
-						if (field == sx_i + dim) {
-							real s0;
-							if (field == sx_i) {
-								s0 = -omega * X[YDIM][iii] * U[rho_i][iii];
-							} else if (field == sy_i) {
-								s0 = +omega * X[XDIM][iii] * U[rho_i][iii];
+							const real before = value;
+							if (side == geo::MINUS) {
+								ref = s0 + std::min(value - s0, ZERO);
 							} else {
-								s0 = ZERO;
+								ref = s0 + std::max(value - s0, ZERO);
 							}
-							switch (boundary_types[face]) {
-							case REFLECT:
-								ref = -value;
-								break;
-							case OUTFLOW:
-								const real before = value;
-								if (side == geo::MINUS) {
-									ref = s0 + std::min(value - s0, ZERO);
-								} else {
-									ref = s0 + std::max(value - s0, ZERO);
-								}
-								const real after = ref;
-								assert(rho_i < field);
-								assert(egas_i < field);
-								real this_rho = U[rho_i][iii];
-								if (this_rho != ZERO) {
-									U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
-								}
-								break;
+							const real after = ref;
+							assert(rho_i < field);
+							assert(egas_i < field);
+							real this_rho = U[rho_i][iii];
+							if (this_rho != ZERO) {
+								U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
 							}
-						} else {
-							ref = +value;
+							break;
 						}
+					} else {
+						ref = +value;
 					}
 				}
 			}
 		}
+	}
 //	}
 }
 
@@ -2578,26 +2567,26 @@ void grid::next_u(integer rk, real t, real dt) {
 			std::vector<real> du(NF);
 			for (integer field = 0; field != NF; ++field) {
 				du[field] = ZERO;
-				if (X[XDIM][iii_p] + pivot[XDIM] > scaling_factor) {
+				if (X[XDIM][iii_p] > scaling_factor) {
 					du[field] += (F[XDIM][field][iii_p0]) * dx2;
 				}
-				if (X[YDIM][jjj_p] + pivot[YDIM] > scaling_factor) {
+				if (X[YDIM][jjj_p] > scaling_factor) {
 					du[field] += (F[YDIM][field][jjj_p0]) * dx2;
 				}
-				if (X[ZDIM][kkk_p] + pivot[ZDIM] > scaling_factor) {
+				if (X[ZDIM][kkk_p] > scaling_factor) {
 					du[field] += (F[ZDIM][field][kkk_p0]) * dx2;
 				}
-				if (X[XDIM][iii_m] + pivot[XDIM] < -scaling_factor + dx) {
+				if (X[XDIM][iii_m] < -scaling_factor + dx) {
 					du[field] += (-F[XDIM][field][iii_m0]) * dx2;
 				}
-				if (X[YDIM][jjj_m] + pivot[YDIM] < -scaling_factor + dx) {
+				if (X[YDIM][jjj_m] < -scaling_factor + dx) {
 					du[field] += (-F[YDIM][field][jjj_m0]) * dx2;
 				}
-				if (X[ZDIM][kkk_m] + pivot[ZDIM] < -scaling_factor + dx) {
+				if (X[ZDIM][kkk_m] < -scaling_factor + dx) {
 					du[field] += (-F[ZDIM][field][kkk_m0]) * dx2;
 				}
 			}
-			if (X[XDIM][iii_p] + pivot[XDIM] > scaling_factor) {
+			if (X[XDIM][iii_p] > scaling_factor) {
 				const real xp = X[XDIM][iii_p] - HALF * dx;
 				du[zx_i] += (X[YDIM][iii_p] * F[XDIM][sz_i][iii_p0]) * dx2;
 				du[zx_i] -= (X[ZDIM][iii_p] * F[XDIM][sy_i][iii_p0]) * dx2;
@@ -2606,7 +2595,7 @@ void grid::next_u(integer rk, real t, real dt) {
 				du[zz_i] += (xp * F[XDIM][sy_i][iii_p0]) * dx2;
 				du[zz_i] -= (X[YDIM][iii_p] * F[XDIM][sx_i][iii_p0]) * dx2;
 			}
-			if (X[YDIM][jjj_p] + pivot[YDIM] > scaling_factor) {
+			if (X[YDIM][jjj_p] > scaling_factor) {
 				const real yp = X[YDIM][jjj_p] - HALF * dx;
 				du[zx_i] += (yp * F[YDIM][sz_i][jjj_p0]) * dx2;
 				du[zx_i] -= (X[ZDIM][jjj_p] * F[YDIM][sy_i][jjj_p0]) * dx2;
@@ -2615,7 +2604,7 @@ void grid::next_u(integer rk, real t, real dt) {
 				du[zz_i] += (X[XDIM][jjj_p] * F[YDIM][sy_i][jjj_p0]) * dx2;
 				du[zz_i] -= (yp * F[YDIM][sx_i][jjj_p0]) * dx2;
 			}
-			if (X[ZDIM][kkk_p] + pivot[ZDIM] > scaling_factor) {
+			if (X[ZDIM][kkk_p] > scaling_factor) {
 				const real zp = X[ZDIM][kkk_p] - HALF * dx;
 				du[zx_i] -= (zp * F[ZDIM][sy_i][kkk_p0]) * dx2;
 				du[zx_i] += (X[YDIM][kkk_p] * F[ZDIM][sz_i][kkk_p0]) * dx2;
@@ -2625,7 +2614,7 @@ void grid::next_u(integer rk, real t, real dt) {
 				du[zz_i] -= (X[YDIM][kkk_p] * F[ZDIM][sx_i][kkk_p0]) * dx2;
 			}
 
-			if (X[XDIM][iii_m] + pivot[XDIM] < -scaling_factor + dx) {
+			if (X[XDIM][iii_m] < -scaling_factor + dx) {
 				const real xm = X[XDIM][iii_m] - HALF * dx;
 				du[zx_i] += (-X[YDIM][iii_m] * F[XDIM][sz_i][iii_m0]) * dx2;
 				du[zx_i] -= (-X[ZDIM][iii_m] * F[XDIM][sy_i][iii_m0]) * dx2;
@@ -2634,7 +2623,7 @@ void grid::next_u(integer rk, real t, real dt) {
 				du[zz_i] += (-xm * F[XDIM][sy_i][iii_m0]) * dx2;
 				du[zz_i] -= (-X[YDIM][iii_m] * F[XDIM][sx_i][iii_m0]) * dx2;
 			}
-			if (X[YDIM][jjj_m] + pivot[YDIM] < -scaling_factor + dx) {
+			if (X[YDIM][jjj_m] < -scaling_factor + dx) {
 				const real ym = X[YDIM][jjj_m] - HALF * dx;
 				du[zx_i] -= (-X[ZDIM][jjj_m] * F[YDIM][sy_i][jjj_m0]) * dx2;
 				du[zx_i] += (-ym * F[YDIM][sz_i][jjj_m0]) * dx2;
@@ -2643,7 +2632,7 @@ void grid::next_u(integer rk, real t, real dt) {
 				du[zz_i] += (-X[XDIM][jjj_m] * F[YDIM][sy_i][jjj_m0]) * dx2;
 				du[zz_i] -= (-ym * F[YDIM][sx_i][jjj_m0]) * dx2;
 			}
-			if (X[ZDIM][kkk_m] + pivot[ZDIM] < -scaling_factor + dx) {
+			if (X[ZDIM][kkk_m] < -scaling_factor + dx) {
 				const real zm = X[ZDIM][kkk_m] - HALF * dx;
 				du[zx_i] -= (-zm * F[ZDIM][sy_i][kkk_m0]) * dx2;
 				du[zx_i] += (-X[YDIM][kkk_m] * F[ZDIM][sz_i][kkk_m0]) * dx2;

@@ -163,7 +163,6 @@ set(header_files
     src/real.hpp
     src/roe.hpp
     src/scf_data.hpp
-    src/set_locality_data.hpp
     src/simd.hpp
     src/space_vector.hpp
     src/state.hpp
