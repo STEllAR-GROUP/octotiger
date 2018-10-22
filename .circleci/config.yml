@@ -1,0 +1,75 @@
+version: 2
+jobs:
+        build:
+                machine:
+                        enabled: true
+                environement:
+                        Vc_ROOT: /home/circleci/Vc_install
+                        Boost_ROOT: /home/circleci/boost_1_63_0_install
+                        HPX_ROOT: /home/circleci/hpx_install
+                        LD_LIBRARY_PATH: /home/circleci/boost_1_63_0_install/lib:/home/circleci/hpx_install/lib:/home/circleci/Vc_install/lib
+                steps:
+                        - checkout
+                        - run: sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+                        - run: sudo apt-get update
+                        - run: sudo apt-get install -y gcc-6 g++-6 gfortran-6 libgoogle-perftools-dev libhwloc-dev
+                        - run: sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 20
+                        - run: sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 20
+                        - run: sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-6 20
+                        - restore_cache:
+                                key: dependencies-{{ .Branch }}
+                        - run: ./circle_ci_scripts/build-cmake.sh 
+                        - run: ./circle_ci_scripts/build-boost.sh
+                        - run: ./circle_ci_scripts/build-Vc.sh
+                        - run: ./circle_ci_scripts/build-hpx.sh
+                        - run: ./circle_ci_scripts/build-octotiger.sh
+                        - save_cache:
+                                key: dependencies-{{ .Branch }}
+                                paths:
+                                        - "/home/circleci/octotiger/boost_1_63_0"
+                                        - "/home/circleci/boost_1_63_0_install"
+                                        - "/home/circleci/octotiger/Vc"
+                                        - "/home/circleci/Vc_install"
+                                        - "/home/circleci/octotiger/hpx"
+                                        - "/home/circleci/hpx_install"
+                                        - "/home/circleci/boost_1_63_0_install"
+                                        - "/home/circleci/cmake_install"
+                        - save_cache:
+                                key: build-{{ .Branch }}-{{ .Revision }}
+                                paths:
+                                        - "/home/circleci/project/build"
+
+        test:
+                machine:
+                        enabled: true
+                environment:
+                        LD_LIBRARY_PATH: /home/circleci/boost_1_63_0_install/lib:/home/circleci/hpx_install/lib:/home/circleci/Vc_install/lib
+                steps:
+                        - checkout
+                        - run: sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+                        - run: sudo apt-get update
+                        - run: sudo apt-get install -y gcc-6 g++-6 gfortran-6 libgoogle-perftools-dev libhwloc-dev
+                        - run: sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 20
+                        - run: sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 20
+                        - run: sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-6 20
+                        - restore_cache:
+                                key: dependencies-{{ .Branch }}
+                        - restore_cache:
+                                key: build-{{ .Branch }}-{{ .Revision }}
+                        - run: cd build && ./octotiger --problem=moving_star --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 --hpx:threads=1 --hpx:bind=none
+                        - run: cd test1 && ./test1.sh > output.txt
+                        - run: cd test1 &&  python validate.py output.txt test1.txt
+                        - run: cd tools && tar xf restart7.chk.tar.gz
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore:
+                   - gh-pages
