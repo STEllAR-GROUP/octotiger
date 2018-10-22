@@ -10,8 +10,6 @@
 
 #include "defs.hpp"
 
-#ifdef RADIATION
-
 #define R_BW 2
 #define R_NX (INX+2*R_BW)
 #define R_N3 (R_NX*R_NX*R_NX)
@@ -56,8 +54,6 @@ public:
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
 	void store();
-	std::size_t load(std::istream& strm);
-	std::size_t save(std::ostream& strm) const;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -101,5 +97,3 @@ public:
 };
 
 #endif /* RAD_GRID_HPP_ */
-
-#endif

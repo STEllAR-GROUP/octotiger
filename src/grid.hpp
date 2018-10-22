@@ -8,7 +8,6 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
-
 #include "radiation/rad_grid.hpp"
 #include "simd.hpp"
 #include "diagnostics.hpp"
@@ -20,6 +19,7 @@
 #include "taylor.hpp"
 #include "scf_data.hpp"
 #include "interaction_types.hpp"
+#include "silo.hpp"
 
 #include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/runtime/serialization/set.hpp>
@@ -37,8 +37,8 @@ class struct_eos;
 
 class analytic_t {
 public:
-	std::array<real,NF> l1, l2, linf;
-	std::array<real,NF> l1a, l2a, linfa;
+	std::array<real, NF> l1, l2, linf;
+	std::array<real, NF> l1a, l2a, linfa;
 	template<class Arc>
 	void serialize(Arc& a, unsigned) {
 		a & l1;
@@ -49,7 +49,7 @@ public:
 		a & linfa;
 	}
 	analytic_t() {
-		for( integer field = 0; field != NF; ++field) {
+		for (integer field = 0; field != NF; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
 			l1a[field] = 0.0;
@@ -59,7 +59,7 @@ public:
 		}
 	}
 	analytic_t& operator+=(const analytic_t& other) {
-		for( integer field = 0; field != NF; ++field) {
+		for (integer field = 0; field != NF; ++field) {
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
 			l1a[field] += other.l1a[field];
@@ -71,38 +71,36 @@ public:
 	}
 };
 
-HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
+HPX_IS_BITWISE_SERIALIZABLE (analytic_t);
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc);
 
-void line_of_centers_analyze(const line_of_centers_t& loc, real omega,
-    std::pair<real, real>& rho1_max, std::pair<real, real>& rho2_max,
-    std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
-    std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi);
+void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair<real, real>& rho1_max,
+		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
+		std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi);
 
 typedef real xpoint_type;
 typedef int zone_int_type;
-
 
 class grid {
 public:
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
 	static void set_max_level(integer l);
-	static const std::array<const char*,OUTPUT_COUNT>& field_names();
+	static const std::array<const char*, OUTPUT_COUNT>& field_names();
 	static void set_fgamma(real fg) {
-	    fgamma = fg;
-    }
+		fgamma = fg;
+	}
 	static real get_fgamma() {
-	    return fgamma;
-    }
+		return fgamma;
+	}
 private:
+	static real omega;
 	static real fgamma;
 	static integer max_level;
-    static hpx::lcos::local::spinlock omega_mtx;
-	static real omega;
+	static hpx::lcos::local::spinlock omega_mtx;
 	static space_vector pivot;
 	static real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
@@ -120,7 +118,7 @@ private:
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
 #ifdef USE_GRAV_PAR
-    std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
+	std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 #endif
 
 //    std::shared_ptr<std::atomic<integer>> Muse_counter;
@@ -133,120 +131,134 @@ private:
 	std::vector<real> U_out0;
 	std::vector<std::shared_ptr<std::vector<space_vector>>> com_ptr;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
-	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
-	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
-	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
-	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&, const gravity_boundary_type&);
+	void compute_boundary_interactions_multipole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&,
+			const gravity_boundary_type&);
+	void compute_boundary_interactions_monopole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
+			const gravity_boundary_type&);
+	void compute_boundary_interactions_monopole_multipole(gsolve_type type, const std::vector<boundary_interaction_type>&,
+			const gravity_boundary_type&);
+	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
+			const gravity_boundary_type&);
 public:
-    std::vector<multipole>& get_M() {
-        return *M_ptr;
-    }
+	static std::vector<std::string> get_field_names();
 
-    std::vector<real>& get_mon() {
-        return *mon_ptr;
-    }
+	std::vector<multipole>& get_M() {
+		return *M_ptr;
+	}
 
-    std::vector<std::shared_ptr<std::vector<space_vector>>>& get_com_ptr() {
-        return com_ptr;
-    }
+	std::vector<real>& get_mon() {
+		return *mon_ptr;
+	}
 
-    std::vector<expansion>& get_L() {
-        return L;
-    }
+	std::vector<std::shared_ptr<std::vector<space_vector>>>& get_com_ptr() {
+		return com_ptr;
+	}
 
-    std::vector<space_vector>& get_L_c() {
-        return L_c;
-    }
+	std::vector<expansion>& get_L() {
+		return L;
+	}
 
-    std::array<real, NDIM> get_xmin() {
-        return xmin;
-    }
+	std::vector<space_vector>& get_L_c() {
+		return L_c;
+	}
 
-    real get_dx() {
-        return dx;
-    }
-    std::vector<std::vector<real>>& get_X() {
-      return X;
-    }
+	std::array<real, NDIM> get_xmin() {
+		return xmin;
+	}
+
+	real get_dx() {
+		return dx;
+	}
+	std::vector<std::vector<real>>& get_X() {
+		return X;
+	}
 
 	std::shared_ptr<rad_grid> get_rad_grid() {
 		return rad_grid_ptr;
 	}
 	void rad_init();
-	void change_units( real mass, real length, real time, real temp);
-	static hpx::future<void> static_change_units( real mass, real length, real time, real temp);
-	real get_dx() const { return dx; }
-	std::vector<real>& get_field( integer f ) { return U[f]; }
-	const std::vector<real>& get_field( integer f ) const { return U[f]; }
-	void set_field( std::vector<real>&& data, integer f ) {
-	    U[f] = std::move(data);
-    }
-	void set_field( const std::vector<real>& data, integer f ) {
-	    U[f] = data;
-    }
+	void change_units(real mass, real length, real time, real temp);
+	static hpx::future<void> static_change_units(real mass, real length, real time, real temp);
+	real get_dx() const {
+		return dx;
+	}
+	std::vector<real>& get_field(integer f) {
+		return U[f];
+	}
+	const std::vector<real>& get_field(integer f) const {
+		return U[f];
+	}
+	void set_field(std::vector<real>&& data, integer f) {
+		U[f] = std::move(data);
+	}
+	void set_field(const std::vector<real>& data, integer f) {
+		U[f] = data;
+	}
 	analytic_t compute_analytic(real);
 	void compute_boundary_interactions(gsolve_type, const geo::direction&, bool is_monopole, const gravity_boundary_type&);
 	static void set_scaling_factor(real f) {
-	    scaling_factor = f;
-    }
-	diagnostics_t diagnostics( const diagnostics_t& diags);
+		scaling_factor = f;
+	}
+	diagnostics_t diagnostics(const diagnostics_t& diags);
 	static real get_scaling_factor() {
-	    return scaling_factor;
-    }
+		return scaling_factor;
+	}
 	bool get_leaf() const {
-	    return is_leaf;
-    }
+		return is_leaf;
+	}
 	static space_vector get_pivot() {
-	    return pivot;
-    }
+		return pivot;
+	}
 	real get_source(integer i, integer j, integer k) const {
-	    return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
-    }
+		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
+	}
 	std::vector<real> const& get_outflows() const {
-	    return U_out;
-    }
+		return U_out;
+	}
 	void set_root(bool flag = true) {
-	    is_root = flag;
-    }
-    bool get_root() {
-        return is_root;
-    }
+		is_root = flag;
+	}
+	bool get_root() {
+		return is_root;
+	}
 	void set_leaf(bool flag = true) {
-	    if (is_leaf != flag) {
-		    is_leaf = flag;
-	    }
-    }
-	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac, integer index, real rho_cut) const;
-	static void set_omega(real, bool bcast=true);
+		if (is_leaf != flag) {
+			is_leaf = flag;
+		}
+	}
+	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+			integer index, real rho_cut) const;
+	static void set_omega(real, bool bcast = true);
 	static real& get_omega();
 	static void set_pivot(const space_vector& p);
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
-	void compute_conserved_slopes(const std::array<integer, NDIM> lb = { 1, 1, 1 }, const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 },
-		bool tau_only = false);
+	void compute_conserved_slopes(const std::array<integer, NDIM> lb = { 1, 1, 1 },
+			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
 	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = { 1, 1, 1 },
-		const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
-	void compute_primitives(const std::array<integer, NDIM> lb = { 1, 1, 1 }, const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 },
-		bool tau_only = false) const;
+			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
+	void compute_primitives(const std::array<integer, NDIM> lb = { 1, 1, 1 },
+			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false) const;
 	void set_coordinates();
-	std::vector<real> get_flux_check( const geo::face&);
-	void set_flux_check( const std::vector<real>&, const geo::face&);
+	std::vector<real> get_flux_check(const geo::face&);
+	void set_flux_check(const std::vector<real>&, const geo::face&);
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
 	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
-	struct output_list_type;
-	static void merge_output_lists(output_list_type& l1, output_list_type&& l2);
 	void velocity_inc(const space_vector& dv);
 	void set_outflows(std::vector<real>&& u) {
-	    U_out = std::move(u);
-    }
+		U_out = std::move(u);
+	}
 	std::vector<real> get_restrict() const;
-	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension&) const;
-	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only=false);
+	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
+			const geo::dimension&) const;
+	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only =
+			false);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
-	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension&);
+	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
+			const geo::dimension&);
 	space_vector center_of_mass() const;
 	bool refine_me(integer lev, integer last_ngrids) const;
 	void compute_dudt();
@@ -256,24 +268,29 @@ public:
 	void solve_gravity(gsolve_type = RHO);
 	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
 	void compute_interactions(gsolve_type);
-	void rho_mult(real f0, real f1 );
+	void rho_mult(real f0, real f1);
 	void rho_move(real x);
 	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
 	expansion_pass_type compute_expansions_soa(gsolve_type, const expansion_pass_type* = nullptr);
 	integer get_step() const;
-	std::vector<real> conserved_sums(space_vector& com,space_vector& com_dot, const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1,integer frac, real rho_cut) const;
+	std::vector<real> conserved_sums(space_vector& com, space_vector& com_dot,
+			const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+			real rho_cut) const;
 	std::pair<std::vector<real>, std::vector<real>> diagnostic_error() const;
 	void diagnostics();
-	real z_moments( const std::pair<space_vector,space_vector>& axis, const std::pair<real,real>& l1, integer frac, real rho_cut) const;
+	real z_moments(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
+			real rho_cut) const;
 	std::vector<real> frac_volumes() const;
-	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real, bool donor) const;
+	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real,
+			bool donor) const;
 	std::vector<real> l_sums() const;
 	std::vector<real> gforce_sum(bool torque) const;
 	std::vector<real> conserved_outflows() const;
 	grid(const init_func_type&, real dx, std::array<real, NDIM> xmin);
 	grid(real dx, std::array<real, NDIM>);
 	grid();
-	~grid() {}
+	~grid() {
+	}
 	grid(const grid&) = delete;
 	grid(grid&&) = default;
 	grid& operator=(const grid&) = delete;
@@ -281,32 +298,32 @@ public:
 #ifdef FIND_AXIS_V2
 	std::array<std::pair<real, space_vector>,2> find_core_max() const;
 #else
-	std::pair<space_vector,space_vector> find_axis() const;
+	std::pair<space_vector, space_vector> find_axis() const;
 #endif
 	space_vector get_cell_center(integer i, integer j, integer k);
 	gravity_boundary_type get_gravity_boundary(const geo::direction& dir, bool is_local);
 	neighbor_gravity_type fill_received_array(neighbor_gravity_type raw_input);
 
-    const std::vector<boundary_interaction_type>& get_ilist_n_bnd(const geo::direction &dir);
-    void allocate();
-    void reconstruct();
-    void store();
-    void restore();
-    real compute_fluxes();
-    void compute_sources(real t, real);
-    void set_physical_boundaries(const geo::face&, real t);
-    void next_u(integer rk, real t, real dt);
-    static void output(const output_list_type&, std::string, std::string, real t, int cycle);
-    output_list_type get_output_list() const;
-    template<class Archive>
-    void load(Archive& arc, const unsigned);
-    template<class Archive>
-    void save(Archive& arc, const unsigned) const;
-    HPX_SERIALIZATION_SPLIT_MEMBER();
-    std::size_t load(std::istream&, bool old_format);
-    std::size_t save(std::ostream& strm) const;
-    std::pair<real,real> virial() const;
-    friend class node_server;
+	const std::vector<boundary_interaction_type>& get_ilist_n_bnd(const geo::direction &dir);
+	void allocate();
+	void reconstruct();
+	void store();
+	void restore();
+	real compute_fluxes();
+	void compute_sources(real t, real);
+	void set_physical_boundaries(const geo::face&, real t);
+	void next_u(integer rk, real t, real dt);
+	template<class Archive>
+	void load(Archive& arc, const unsigned);
+	template<class Archive>
+	void save(Archive& arc, const unsigned) const;HPX_SERIALIZATION_SPLIT_MEMBER()
+	;
+	std::pair<real, real> virial() const;
+
+
+	std::vector<silo_var_t> var_data(const std::string suffix = std::string()) const;
+	void set(const std::string name, real* data);
+	friend class node_server;
 };
 
 struct grid::node_point {
@@ -321,26 +338,13 @@ struct grid::node_point {
 	bool operator<(const grid::node_point& other) const;
 };
 
-namespace hpx { namespace traits
-{
-    template <>
-    struct is_bitwise_serializable<grid::node_point>
-      : std::true_type
-    {};
-}}
-
-struct grid::output_list_type {
-	std::set<node_point> nodes;
-	std::vector<zone_int_type> zones;
-	std::array<std::vector<real>, OUTPUT_COUNT> data;
-	template<class Arc>
-	void serialize(Arc& arc, unsigned int) {
-		arc & nodes;
-		arc & zones;
-        arc & data;
-	}
+namespace hpx {
+namespace traits {
+template<>
+struct is_bitwise_serializable<grid::node_point> : std::true_type {
+};
 }
-;
+}
 
 void scf_binary_init();
 
@@ -353,13 +357,13 @@ void grid::load(Archive& arc, const unsigned) {
 	arc >> xmin;
 	allocate();
 	arc >> U;
-	if( rad_grid_ptr != nullptr ) {
+	if (rad_grid_ptr != nullptr) {
 		arc >> *rad_grid_ptr;
 		rad_grid_ptr->set_dx(dx);
 	}
-	for( integer i = 0; i != INX*INX*INX; ++i ) {
+	for (integer i = 0; i != INX * INX * INX; ++i) {
 #if defined(HPX_HAVE_DATAPAR)
-     arc >> G[i];
+		arc >> G[i];
 #else
 		arc >> G[i][0];
 		arc >> G[i][1];
@@ -370,7 +374,6 @@ void grid::load(Archive& arc, const unsigned) {
 	arc >> U_out;
 }
 
-
 template<class Archive>
 void grid::save(Archive& arc, const unsigned) const {
 	arc << roche_lobe;
@@ -379,12 +382,12 @@ void grid::save(Archive& arc, const unsigned) const {
 	arc << dx;
 	arc << xmin;
 	arc << U;
-	if( rad_grid_ptr != nullptr ) {
+	if (rad_grid_ptr != nullptr) {
 		arc << *rad_grid_ptr;
 	}
-	for( integer i = 0; i != INX*INX*INX; ++i ) {
+	for (integer i = 0; i != INX * INX * INX; ++i) {
 #if defined(HPX_HAVE_DATAPAR)
-     arc << G[i];
+		arc << G[i];
 #else
 		arc << G[i][0];
 		arc << G[i][1];
@@ -394,6 +397,5 @@ void grid::save(Archive& arc, const unsigned) const {
 	}
 	arc << U_out;
 }
-
 
 #endif /* GRID_HPP_ */

@@ -9,6 +9,10 @@
 #include "options.hpp"
 #include <math.h>
 #include "grid.hpp"
+
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+
 #define IN_OPTIONS_CPP
 
 options opts;
@@ -41,46 +45,48 @@ bool options::process_options(int argc, char* argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
-	("xscale", po::value<real>(&(opts.xscale))->default_value(1.0), "grid scale")                   //
-	("omega", po::value<real>(&(opts.omega))->default_value(0.0), "(initial) angular frequency")                              //
-	("variable_omega", po::value<bool>(&(opts.variable_omega))->default_value(false), "use variable omega")                           //
-	("driving_rate", po::value<real>(&(opts.driving_rate))->default_value(0.0), "angular momentum loss driving rate")         //
-	("driving_time", po::value<real>(&(opts.driving_time))->default_value(0.0), "A.M. driving rate time")                     //
-	("entropy_driving_rate", po::value<real>(&(opts.driving_rate))->default_value(0.0), "entropy loss driving rate")          //
-	("entropy_driving_time", po::value<real>(&(opts.driving_time))->default_value(0.0), "entropy driving rate time")          //
+	("xscale", po::value < real > (&(opts.xscale))->default_value(1.0), "grid scale")                   //
+	("omega", po::value < real > (&(opts.omega))->default_value(0.0), "(initial) angular frequency")                          //
+	("variable_omega", po::value<bool>(&(opts.variable_omega))->default_value(false), "use variable omega")                   //
+	("driving_rate", po::value < real > (&(opts.driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
+	("driving_time", po::value < real > (&(opts.driving_time))->default_value(0.0), "A.M. driving rate time")                 //
+	("entropy_driving_rate", po::value < real > (&(opts.driving_rate))->default_value(0.0), "entropy loss driving rate")      //
+	("entropy_driving_time", po::value < real > (&(opts.driving_time))->default_value(0.0), "entropy driving rate time")      //
 	("core_refine", po::value<bool>(&(opts.core_refine))->default_value(false), "refine cores by one more level")             //
-	("accretor_refine", po::value<integer>(&(opts.accretor_refine))->default_value(0), "number of extra levels for accretor") //
-	("donor_refine", po::value<integer>(&(opts.donor_refine))->default_value(0), "number of extra levels for donor")          //
-	("ngrids", po::value<integer>(&(opts.ngrids))->default_value(-1), "fix numbger of grids")                                 //
-	("refinement_floor", po::value<real>(&(opts.refinement_floor))->default_value(-1.0), "density refinement floor")          //
-	("theta", po::value<real>(&(opts.theta))->default_value(0.5),
+	("accretor_refine", po::value < integer > (&(opts.accretor_refine))->default_value(0),
+			"number of extra levels for accretor") //
+	("donor_refine", po::value < integer > (&(opts.donor_refine))->default_value(0), "number of extra levels for donor")      //
+	("ngrids", po::value < integer > (&(opts.ngrids))->default_value(-1), "fix numbger of grids")                             //
+	("refinement_floor", po::value < real > (&(opts.refinement_floor))->default_value(-1.0), "density refinement floor")      //
+	("theta", po::value < real > (&(opts.theta))->default_value(0.5),
 			"controls nearness determination for FMM, must be between 1/3 and 1/2")                                           //
-	("eos", po::value<eos_type>(&(opts.eos))->default_value(IDEAL), "gas equation of state")                                  //
+	("eos", po::value < eos_type > (&(opts.eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts.hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts.radiation))->default_value(false), "radiation on/off")    //
 	("gravity", po::value<bool>(&(opts.gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts.bench))->default_value(false), "run benchmark") //
-	("datadir", po::value<std::string>(&(opts.data_dir))->default_value("./"), "directory for output") //
-	("output", po::value<std::string>(&(opts.output_filename))->default_value(""), "filename for output") //
-	("odt", po::value<real>(&(opts.output_dt))->default_value(1.0), "output frequency") //
-	("disableoutput", po::value<bool>(&(opts.disable_output)), "disable silo output") //
-	("siloplanesonly", po::value<bool>(&(opts.silo_planes_only)), "disable silo output") //
-	("problem", po::value<problem_type>(&(opts.problem))->default_value(NONE), "problem type")                                //
-	("restart_filename", po::value<std::string>(&(opts.restart_filename))->default_value(""), "restart filename")                      //
-	("stop_time", po::value<real>(&(opts.stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
-	("stop_step", po::value<integer>(&(opts.stop_step))->default_value(std::numeric_limits<integer>::max()-1),
+	("datadir", po::value < std::string > (&(opts.data_dir))->default_value("./"), "directory for output") //
+	("output", po::value < std::string > (&(opts.output_filename))->default_value(""), "filename for output") //
+	("odt", po::value < real > (&(opts.output_dt))->default_value(1.0), "output frequency") //
+	("disable_output", po::value<bool>(&(opts.disable_output)), "disable silo output") //
+	("silo_planes_only", po::value<bool>(&(opts.silo_planes_only)), "disable silo output") //
+	("problem", po::value < problem_type > (&(opts.problem))->default_value(NONE), "problem type")                            //
+	("restart_filename", po::value < std::string > (&(opts.restart_filename))->default_value(""), "restart filename")         //
+	("stop_time", po::value < real > (&(opts.stop_time))->default_value(std::numeric_limits<real>::max()),
+			"time to end simulation") //
+	("stop_step", po::value < integer > (&(opts.stop_step))->default_value(std::numeric_limits<integer>::max() - 1),
 			"number of timesteps to run")                                //
-	("max_level", po::value<integer>(&(opts.max_level))->default_value(1), "maximum number of refinement levels")              //
-	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts.m2m_kernel_type))->default_value(OLD),
+	("max_level", po::value < integer > (&(opts.max_level))->default_value(1), "maximum number of refinement levels")         //
+	("multipole_kernel_type", po::value < interaction_kernel_type > (&(opts.m2m_kernel_type))->default_value(OLD),
 			"boundary multipole-multipole kernel type") //
-	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts.p2p_kernel_type))->default_value(OLD),
+	("p2p_kernel_type", po::value < interaction_kernel_type > (&(opts.p2p_kernel_type))->default_value(OLD),
 			"boundary particle-particle kernel type")   //
-	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts.p2m_kernel_type))->default_value(OLD),
+	("p2m_kernel_type", po::value < interaction_kernel_type > (&(opts.p2m_kernel_type))->default_value(OLD),
 			"boundary particle-multipole kernel type")  //
-	("cuda_streams_per_thread", po::value<size_t>(&(opts.cuda_streams_per_thread))->default_value(size_t(2)),
+	("cuda_streams_per_thread", po::value < size_t > (&(opts.cuda_streams_per_thread))->default_value(size_t(2)),
 			"cuda streams per thread") //
-			("input_file", po::value<std::string>(&(opts.input_file))->default_value(""), "input file for test problems") //
-			("config_file", po::value<std::string>(&(opts.config_file))->default_value(""), "configuration file") //
+	("input_file", po::value < std::string > (&(opts.input_file))->default_value(""), "input file for test problems") //
+	("config_file", po::value < std::string > (&(opts.config_file))->default_value(""), "configuration file") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -96,7 +102,9 @@ bool options::process_options(int argc, char* argv[]) {
 		}
 	}
 	po::notify(vm);
-
+	if (!opts.restart_filename.empty()) {
+		load_options_from_silo(opts.restart_filename);
+	}
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		SHOW(bench);

@@ -5,6 +5,7 @@
  *      Author: dmarce1
  */
 
+#include "node_registry.hpp"
 #include "defs.hpp"
 #include "node_server.hpp"
 #include "problem.hpp"
@@ -25,120 +26,11 @@ extern options opts;
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
-/*
-node_list_type node_server::node_list;
-hpx::mutex node_server::node_list_mtx;
-
-void node_server::node_list_add(const node_location& loc, node_server* ptr) {
-	std::lock_guard<hpx::mutex> lock(node_list_mtx);
-	node_list.insert(std::make_pair(loc, ptr));
-}
-
-void node_server::node_list_remove(const node_location& loc) {
-	std::lock_guard<hpx::mutex> lock(node_list_mtx);
-	node_list.erase(loc);
-}
-
-void node_server::check_for_refinement2(real a, real b) {
-	std::lock_guard<hpx::mutex> lock(node_list_mtx);
-	for (auto&& ptr : node_list) {
-		ptr.second->check_for_refinement(a, b);
-	}
-}
-*/
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
-#ifdef FIND_AXIS_V2
-std::array<std::pair<real,space_vector>,2> node_server::find_axis_tool() const {
-	std::array<std::pair<real,space_vector>,2> rc;
-	if( is_refined ) {
-		rc[0].first = rc[1].first = 0.0;
-de
-		std::vector<future<std::array<std::pair<real,space_vector>,2>>> futs;
-		futs.reserve(NCHILD);
-		for( integer ci = 0; ci != NCHILD; ++ci) {
-			futs.push_back(children[ci].find_axis_tool());
-		}
-		hpx::wait_all(futs);
-		for( auto& fut : futs) {
-			auto c = fut.get();
-			for( integer i = 0; i != 2; ++i) {
-				if( rc[i].first < c[i].first) {
-					rc[i].first = c[i].first;
-					rc[i].second = c[i].second;
-				}
-			}
-		}
-	} else {
-		rc = grid_ptr->find_core_max();
-	}
-	return rc;
-}
-
-typedef node_server::find_axis_tool_action find_axis_tool_action_type;
-HPX_REGISTER_ACTION(find_axis_tool_action_type);
-
-future<std::array<std::pair<real,space_vector>,2>> node_client::find_axis_tool() const {
-	return hpx::async<typename node_server::find_axis_tool_action>(get_unmanaged_gid());
-}
-
-std::pair<space_vector,space_vector> node_server::find_axis() const {
-	auto c = find_axis_tool();
-	std::pair<space_vector,space_vector> rc;
-	real norm = 0.0;
-	for( integer d = 0; d != NDIM;++d) {
-		rc.first[d] = c[1].second[d] - c[0].second[d];
-		rc.second[d] = c[0].second[d];
-		norm += rc.first[d] * rc.first[d];
-	}
-	norm = std::sqrt(norm);
-	for( integer d = 0; d != NDIM;++d) {
-		rc.first[d] /= norm;
-	}
-	printf( "%e %e %e %e %e %e\n", rc.first[0], rc.first[1], rc.first[2], rc.second[0], rc.second[1], rc.second[2]);
-	return rc;
-}
-
-#endif
-
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
-
-future<void> node_server::check_flux_consistency() {
-	const integer this_cycle = hcycle ^ 0xFFFFFFFF;
-	for (auto const& dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty() && dir.is_face()) {
-			if (!nieces[dir.to_face()]) {
-				auto bdata = grid_ptr->get_flux_check(dir.to_face());
-				neighbors[dir].send_flux_check(std::move(bdata), dir.flip(), this_cycle);
-			}
-		}
-	}
-
-	std::vector<future<void>> results;
-	integer index = 0;
-	for (auto const& dir : geo::direction::full_set()) {
-		if (!neighbors[dir].empty() && dir.is_face()) {
-			if (!nieces[dir.to_face()]) {
-				results.push_back(
-						sibling_hydro_channels[dir].get_future(this_cycle).then([this](future<sibling_hydro_type> && f) -> void
-						{
-							auto&& tmp = GET(f);
-							grid_ptr->set_flux_check(tmp.data, tmp.direction.to_face());
-						}));
-			}
-		}
-	}
-	return hpx::when_all(std::move(results)).then([this](future<std::vector<future<void>>> f) {
-		auto f2 = GET(f);
-		for( integer i = 0; i != f2.size(); ++i) {
-			GET(f2[i]);
-		}
-		//			++hcycle;
-		});
-
-}
 
 real node_server::get_rotation_count() const {
 	if (opts.problem == DWD) {
@@ -234,7 +126,6 @@ void node_server::exchange_interlevel_hydro_data() {
 	if (is_refined) {
 		std::vector<real> outflow(NF, ZERO);
 		for (auto const& ci : geo::octant::full_set()) {
-			//			auto data = child_hydro_channels[ci].get_future(hcycle).get();
 			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
 			grid_ptr->set_restrict(data, ci);
 			integer fi = 0;
@@ -268,7 +159,6 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
 					hpx::util::annotated_function([this, tau_only](future<sibling_hydro_type> && f) -> void
 					{
-//						auto&& tmp = f.get();
 							auto&& tmp = GET(f);
 							grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
 									H_BW, tau_only);
@@ -337,104 +227,13 @@ inline bool file_exists(const std::string& name) {
 //HPX_PLAIN_ACTION(grid::set_omega, set_omega_action2);
 //HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action2);
 
-std::size_t node_server::load_me(std::istream& strm, bool old_format) {
-	std::size_t cnt = 0;
-	refinement_flag = 0;
-	cnt += read(strm, &step_num, 1);
-	cnt += read(strm, &current_time, 1);
-	cnt += read(strm, &rotational_time, 1);
-	cnt += grid_ptr->load(strm, old_format);
-	return cnt;
-}
-
-std::size_t node_server::save_me(std::ostream& strm) const {
-	std::size_t cnt = 0;
-
-	cnt += write(strm, step_num);
-	cnt += write(strm, current_time);
-	cnt += write(strm, rotational_time);
-
-	assert(grid_ptr != nullptr);
-	cnt += grid_ptr->save(strm);
-	return cnt;
-}
-
 #include "util.hpp"
 
-void node_server::save_to_file(const std::string& fname, std::string const& data_dir) const {
-	hpx::util::high_resolution_timer timer;
-	printf("Saving to checkpoint %s\n", fname.c_str());
-	save(0, data_dir + fname);
-//     file_copy((data_dir + fname).c_str(), (data_dir + "restart.chk").c_str());
-//	std::string command = std::string("cp ") + fname + std::string(" restart.chk\n");
-//	SYSTEM(command);
-
-	double elapsed = timer.elapsed();
-	printf("Saving took %f seconds\n", elapsed);
-}
-
-void node_server::load_from_file(const std::string& fname, std::string const& data_dir) {
-	hpx::util::high_resolution_timer timer;
-	if (opts.radiation) {
-		if (opts.eos == WD) {
-			set_cgs(false);
-		}
-	}
-	real omega = 0;
-	space_vector pivot;
-
-	// run output on separate thread
-	integer rec_size = 0;
-	int total_nodes;
-	hpx::threads::run_as_os_thread([&]() {
-		FILE* fp = fopen((data_dir + fname).c_str(), "rb");
-		if (fp == NULL) {
-			printf("Failed to open file\n");
-			abort();
-		}
-		fseek(fp, -sizeof(integer), SEEK_END);
-		std::size_t read_cnt = fread(&rec_size, sizeof(integer), 1, fp);
-		if( rec_size == 65739) {
-			printf( "Old checkpoint format detected\n");
-		}
-		fseek(fp, -4 * sizeof(real) - sizeof(integer), SEEK_END);
-		read_cnt += fread(&omega, sizeof(real), 1, fp);
-		for (auto const& d : geo::dimension::full_set()) {
-			real temp_pivot;
-			read_cnt += fread(&temp_pivot, sizeof(real), 1, fp);
-			pivot[d] = temp_pivot;
-		}
-		fclose(fp);
-
-		// work around limitation of ftell returning 32bit offset
-			std::ifstream in((data_dir + fname).c_str(), std::ifstream::ate | std::ifstream::binary);
-			std::size_t end_pos = in.tellg();
-
-			total_nodes = end_pos / rec_size;
-		}).get();
-
-	printf("Loading %d nodes\n", total_nodes);
-
-//     auto meta_read =
-	hpx::lcos::broadcast<set_locality_data_action>(options::all_localities, omega, pivot).get();
-
-	load(0, total_nodes, rec_size, /*opts.output_only*/false, data_dir + fname).get();
-//     meta_read.get();
-	double elapsed = timer.elapsed();
-	printf("Loading took %f seconds\n", elapsed);
-}
-
-void node_server::load_from_file_and_output(const std::string& fname, const std::string& outname, std::string const& data_dir) {
-	load_from_file(fname, data_dir);
-//    file_copy((data_dir + "data.silo").c_str(), (data_dir + outname).c_str());
-//	std::string command = std::string("mv data.silo ") + outname + std::string("\n");
-//	SYSTEM(command);
-}
-
 void node_server::clear_family() {
-	me = hpx::invalid_id;
+	parent = me = hpx::invalid_id;
 	std::fill(aunts.begin(), aunts.end(), hpx::invalid_id);
 	std::fill(nieces.begin(), nieces.end(), 0);
+	std::fill(neighbors.begin(), neighbors.end(),hpx::invalid_id);
 }
 
 integer child_index_to_quadrant_index(integer ci, integer dim) {
@@ -462,7 +261,6 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
-//	node_list_add(my_location,this);
 	for (auto const& dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
@@ -493,9 +291,12 @@ void node_server::initialize(real t, real rt) {
 	if (my_location.level() == 0) {
 		grid_ptr->set_root();
 	}
+
+	node_registry::add(my_location, this);
 }
 
 node_server::~node_server() {
+	node_registry::delete_(my_location);
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num,
@@ -506,6 +307,15 @@ node_server::node_server(const node_location& loc, const node_client& parent_id,
 	gcycle = _gcycle;
 	hcycle = _hcycle;
 	rcycle = _rcycle;
+}
+
+node_server::node_server(const node_location& loc) :
+		my_location(loc) {
+	initialize(0.0, 0.0);
+	step_num = 0;
+	gcycle = 0;
+	hcycle = 0;
+	rcycle = 0;
 }
 
 node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
@@ -601,90 +411,87 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		}
 	}
 
-    /****************************************************************************/
-    // data managemenet for old and new version of interaction computation
+	/****************************************************************************/
+	// data managemenet for old and new version of interaction computation
+	// all neighbors and placeholder for yourself
+	bool contains_multipole = false;
+	std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
+	for (geo::direction const& dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
+			if (!all_neighbor_interaction_data[dir].is_monopole)
+				contains_multipole = true;
+		} else {
+			all_neighbor_interaction_data.emplace_back();
+		}
+	}
 
-     // all neighbors and placeholder for yourself
-    bool contains_multipole = false;
-    std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
-    for (geo::direction const& dir : geo::direction::full_set()) {
-        if (!neighbors[dir].empty()) {
-            all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
-            if (!all_neighbor_interaction_data[dir].is_monopole)
-                contains_multipole = true;
-        } else {
-            all_neighbor_interaction_data.emplace_back();
-        }
-    }
+	std::array<bool, geo::direction::count()> is_direction_empty;
+	for (geo::direction const& dir : geo::direction::full_set()) {
+		if (neighbors[dir].empty()) {
+			is_direction_empty[dir] = true;
+		} else {
+			is_direction_empty[dir] = false;
+		}
+	}
 
-    std::array<bool, geo::direction::count()> is_direction_empty;
-    for (geo::direction const& dir : geo::direction::full_set()) {
-        if (neighbors[dir].empty()) {
-            is_direction_empty[dir] = true;
-        } else {
-            is_direction_empty[dir] = false;
-        }
-    }
+	bool new_style_enabled = true;
+	/***************************************************************************/
+	// new-style interaction calculation (both cannot be active at the same time)
+	//if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
+	if (new_style_enabled && !grid_ptr->get_root()) {
 
-     bool new_style_enabled = true;
-     /***************************************************************************/
-     // new-style interaction calculation (both cannot be active at the same time)
-     //if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
-     if (new_style_enabled && !grid_ptr->get_root()) {
+		// Get all input structures we need as input
+		std::vector<multipole>& M_ptr = grid_ptr->get_M();
+		std::vector<real>& mon_ptr = grid_ptr->get_mon();
+		std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
 
-       // Get all input structures we need as input
-        std::vector<multipole>& M_ptr = grid_ptr->get_M();
-        std::vector<real>& mon_ptr = grid_ptr->get_mon();
-        std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr = grid_ptr->get_com_ptr();
+		// initialize to zero
+		std::vector<expansion>& L = grid_ptr->get_L();
+		std::vector<space_vector>& L_c = grid_ptr->get_L_c();
+		std::fill(std::begin(L), std::end(L), ZERO);
+		std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
-        // initialize to zero
-        std::vector<expansion>& L = grid_ptr->get_L();
-        std::vector<space_vector>& L_c = grid_ptr->get_L_c();
-        std::fill(std::begin(L), std::end(L), ZERO);
-        std::fill(std::begin(L_c), std::end(L_c), ZERO);
+		// Check if we are a multipole
+		if (!grid_ptr->get_leaf()) {
+			// Input structure, needed for multipole-monopole interactions
+			std::array<real, NDIM> Xbase = { grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)], grid_ptr->get_X()[1][hindex(H_BW,
+					H_BW, H_BW)], grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
+			// Make sure we have the right pointer
+			multipole_interactor.set_grid_ptr(grid_ptr);
+			// Run unified multipole-multipole multipole-monopole FMM interaction kernel
+			// This will be either run on a cuda device or the cpu (depending on build type and
+			// device load)
+			multipole_interactor.compute_multipole_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type,
+					grid_ptr->get_dx(), is_direction_empty, Xbase);
+		} else { // ... we are a monopole
+			p2p_interactor.set_grid_ptr(grid_ptr);
+			p2p_interactor.compute_p2p_interactions(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
+					is_direction_empty);
+			if (contains_multipole) {
+				p2m_interactor.set_grid_ptr(grid_ptr);
+				p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type,
+						is_direction_empty);
+			}
+		}
+	} else {
+		// old-style interaction calculation
+		// computes inner interactions
+		grid_ptr->compute_interactions(type);
+		// waits for boundary data and then computes boundary interactions
+		for (auto const& dir : geo::direction::full_set()) {
+			if (!is_direction_empty[dir]) {
+				neighbor_gravity_type & neighbor_data = all_neighbor_interaction_data[dir];
+				grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole,
+						neighbor_data.data);
+			}
+		}
+	}
 
-        // Check if we are a multipole
-        if (!grid_ptr->get_leaf()) {
-            // Input structure, needed for multipole-monopole interactions
-            std::array<real, NDIM> Xbase = {grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
-                                          grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
-                                          grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)]};
-            // Make sure we have the right pointer
-            multipole_interactor.set_grid_ptr(grid_ptr);
-            // Run unified multipole-multipole multipole-monopole FMM interaction kernel
-            // This will be either run on a cuda device or the cpu (depending on build type and
-            // device load)
-            multipole_interactor.compute_multipole_interactions(
-                mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type,
-                grid_ptr->get_dx(), is_direction_empty, Xbase);
-        } else { // ... we are a monopole
-            p2p_interactor.set_grid_ptr(grid_ptr);
-            p2p_interactor.compute_p2p_interactions(
-                mon_ptr, all_neighbor_interaction_data, type,
-                grid_ptr->get_dx(), is_direction_empty);
-            if (contains_multipole) {
-                p2m_interactor.set_grid_ptr(grid_ptr);
-                p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr,
-                    all_neighbor_interaction_data, type, is_direction_empty);
-            }
-        }
-     } else {
-         // old-style interaction calculation
-         // computes inner interactions
-         grid_ptr->compute_interactions(type);
-         // waits for boundary data and then computes boundary interactions
-         for (auto const& dir : geo::direction::full_set()) {
-             if (!is_direction_empty[dir]) {
-                 neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
-                 grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole, neighbor_data.data);
-             }
-         }
-     }
-
-     /**************************************************************************/
-     // now that all boundary information has been processed, signal all non-empty neighbors
-     // note that this was done before during boundary calculations
-     for (auto const& dir : geo::direction::full_set()) {
+	/**************************************************************************/
+	// now that all boundary information has been processed, signal all non-empty neighbors
+	// note that this was done before during boundary calculations
+	for (auto const& dir : geo::direction::full_set()) {
 
 		if (!neighbors[dir].empty()) {
 			neighbor_gravity_type & neighbor_data = all_neighbor_interaction_data[dir];

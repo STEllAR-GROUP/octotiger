@@ -22,11 +22,6 @@ future<void> node_client::check_for_refinement(real omega, real r) const {
 }
 
 void node_server::check_for_refinement(real omega, real new_floor) {
-  //  bool root = my_location.level() == 0;
-  //  int iii = 0;
-   // if( root ) printf( "refinement - %i\n", iii++ );
-
-
 	static hpx::mutex mtx;
 	{
 		std::lock_guard<hpx::mutex> lock(mtx);
@@ -41,29 +36,17 @@ void node_server::check_for_refinement(real omega, real new_floor) {
            futs[i] = hpx::make_ready_future();
         }
 	integer index = 0;
-
-    // if(root ) printf( "refinement - %i\n", iii++ );
-
 	if (is_refined) {
 		for (auto& child : children) {
 			futs[index++] = child.check_for_refinement(omega, new_floor);
 		}
 	}
-
-    // if(root ) printf( "refinement - %i\n", iii++ );
-
 	if (opts.hydro) {
 		all_hydro_bounds();
 	}
-
-    // if(root ) printf( "refinement - %i\n", iii++ );
-
 	if (!rc) {
 		rc = grid_ptr->refine_me(my_location.level(), new_floor);
 	}
-
-    // if(root ) printf( "refinement - %i\n", iii++ );
-
 	if (rc) {
 		if (refinement_flag++ == 0) {
 			if (!parent.empty()) {
@@ -71,14 +54,10 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			}
 		}
 	}
-
-    // if(root ) printf( "refinement - %i\n", iii++ );
-
 	for( auto& f : futs ) {
 		GET(f);
 	}
-
-    // if(root ) printf( "refinement - %i\n", iii++ );
+	clear_family();
 
 }
 
@@ -100,7 +79,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 	}
 	auto rc =
 			hpx::new_ < node_server
-					> (id, my_location, step_num, is_refined, current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
+					> (id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
 							hcycle), std::size_t(rcycle), std::size_t(gcycle));
 	clear_family();
     parent = hpx::invalid_id;
@@ -350,12 +329,7 @@ future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2, std:
 }
 
 void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
-#ifdef NIECE_BOOL
-	std::fill(nieces.begin(), nieces.end(), false);
-#else
 	std::fill(nieces.begin(), nieces.end(), 0);
-#endif
-
 	for (auto& dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
@@ -422,11 +396,7 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 									nieces[f] = GET(n);
 								}));
 			} else {
-#ifdef USE_NIECE_BOOL
-				nieces[f] = false;
-#else
 				nieces[f] = -2;
-#endif
 			}
 		}
 		for (auto& f : nfuts) {

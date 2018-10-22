@@ -18,6 +18,40 @@
 #include "node_location.hpp"
 #include "node_client.hpp"
 
+node_location::node_id node_location::to_id() const {
+	node_id id = 1;
+	for (int l = 0; l < lev; l++) {
+		for (int d = 0; d < NDIM; d++) {
+			id <<= 1;
+			id |= ((xloc[d] >> l) & 1);
+		}
+	}
+#ifdef DEBUG
+	node_location test;
+	test.from_id(id);
+	assert(test == *this);
+#endif
+	return id;
+}
+
+void node_location::from_id(const node_id& id_) {
+	node_id id = id_;
+	for (int d = 0; d < NDIM; d++) {
+		xloc[d] = 0;
+	}
+	for (lev = 0; id != 1; lev++) {
+		for (int d = NDIM - 1; d >= 0; d--) {
+			xloc[d] <<= 1;
+			xloc[d] |= (id & 1);
+			id >>= 1;
+		}
+	}
+}
+
+std::size_t node_location::hash() const {
+	return std::size_t(this->to_id());
+}
+
 std::vector<node_location> node_location::get_neighbors() const {
 	std::vector<node_location> locs;
 	locs.reserve(NDIM * NDIM * NDIM - 1);
@@ -67,8 +101,7 @@ geo::side node_location::get_child_side(const geo::dimension& d) const {
 }
 
 geo::octant node_location::get_child_index() const {
-	return geo::octant(std::array<geo::side, NDIM>( {
-			{ get_child_side(XDIM), get_child_side(YDIM), get_child_side(ZDIM) } }));
+	return geo::octant(std::array<geo::side, NDIM>( { { get_child_side(XDIM), get_child_side(YDIM), get_child_side(ZDIM) } }));
 }
 
 bool node_location::is_child_of(const node_location& other) const {
@@ -81,7 +114,6 @@ bool node_location::is_child_of(const node_location& other) const {
 				break;
 			}
 		}
-
 	} else {
 		rc = false;
 	}
@@ -126,9 +158,9 @@ node_location node_location::get_child(integer c) const {
 }
 
 std::string node_location::to_str() const {
-    char buffer[100];    // 21 bytes for int (max) + some leeway
-    sprintf(buffer, "lev = %i x = %i y = %i z = %i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]));
-    return std::string(buffer);
+	char buffer[100];    // 21 bytes for int (max) + some leeway
+	sprintf(buffer, "%i_%i_%i_%i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]));
+	return std::string(buffer);
 }
 
 node_location node_location::get_parent() const {
@@ -205,7 +237,7 @@ bool node_location::operator <=(const node_location& other) const {
 
 std::size_t node_location::unique_id() const {
 	std::size_t id = 1;
-	std::array < std::size_t, NDIM > x;
+	std::array<std::size_t, NDIM> x;
 	for (integer d = 0; d != NDIM; ++d) {
 		x[d] = std::size_t(xloc[d]);
 	}
@@ -234,24 +266,23 @@ std::size_t node_location::unique_id() const {
 node_location node_location::get_neighbor(const geo::direction dir) const {
 	node_location nloc;
 	nloc = *this;
-	for( auto d : geo::dimension::full_set()) {
+	for (auto d : geo::dimension::full_set()) {
 		nloc.xloc[d] += dir[d];
 	}
 	return nloc;
 }
 
-
 bool node_location::has_neighbor(const geo::direction dir) const {
-	bool rc = true;;
-	for( auto d : geo::dimension::full_set()) {
-		if( dir[d] == -1 ) {
-			if( xloc[d] == 0 ) {
+	bool rc = true;
+	;
+	for (auto d : geo::dimension::full_set()) {
+		if (dir[d] == -1) {
+			if (xloc[d] == 0) {
 				rc = false;
 				break;
 			}
-		}
-		else if( dir[d] == +1 ) {
-			if( xloc[d] == ((1 << level()) - 1) ) {
+		} else if (dir[d] == +1) {
+			if (xloc[d] == ((1 << level()) - 1)) {
 				rc = false;
 				break;
 			}

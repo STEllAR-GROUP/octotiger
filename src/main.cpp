@@ -29,11 +29,9 @@
 #include "cuda_util/cuda_helper.hpp"
 #endif
 
-bool gravity_on = true;
-bool hydro_on = true;
 HPX_PLAIN_ACTION(grid::set_pivot, set_pivot_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_pivot_action)
-HPX_REGISTER_BROADCAST_ACTION (set_pivot_action)
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_pivot_action)
+HPX_REGISTER_BROADCAST_ACTION(set_pivot_action)
 
 void compute_ilist();
 
@@ -52,22 +50,21 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	grid::set_max_level(opts.max_level);
 	if (opts.problem == RADIATION_TEST) {
 		assert(opts.radiation);
-		gravity_on = false;
+		opts.gravity = false;
 		set_problem(radiation_test_problem);
 		set_refine_test(radiation_test_refine);
-	} else
-	if (opts.problem == DWD) {
+	} else if (opts.problem == DWD) {
 		set_problem(scf_binary);
 		set_refine_test(refine_test);
 	} else if (opts.problem == SOD) {
 		grid::set_fgamma(7.0 / 5.0);
-		gravity_on = false;
+		opts.gravity = false;
 		set_problem(sod_shock_tube_init);
 		set_refine_test(refine_sod);
 //		grid::set_analytic_func(sod_shock_tube_analytic);
 	} else if (opts.problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
-		gravity_on = false;
+		opts.gravity = false;
 		set_problem(blast_wave);
 		set_refine_test(refine_blast);
 	} else if (opts.problem == STAR) {
@@ -85,7 +82,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_problem(moving_star);
 		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == SOLID_SPHERE) {
-		hydro_on = false;
+		opts.hydro = false;
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
 			return solid_sphere(x,y,z,dx,0.25);
 		}));
@@ -94,23 +91,23 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		throw;
 	}
 	compute_ilist();
-    compute_factor();
+	compute_factor();
 
 #ifdef OCTOTIGER_CUDA_ENABLED
-    std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
-    octotiger::util::cuda_helper::print_local_targets();
+	std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
+	octotiger::util::cuda_helper::print_local_targets();
 #endif
 
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (initialize_action)
-HPX_REGISTER_BROADCAST_ACTION (initialize_action)
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action)
+HPX_REGISTER_BROADCAST_ACTION(initialize_action)
 
 real OMEGA;
 void node_server::set_pivot() {
 	space_vector pivot = grid_ptr->center_of_mass();
-	hpx::lcos::broadcast < set_pivot_action > (options::all_localities, pivot).get();
+	hpx::lcos::broadcast<set_pivot_action>(options::all_localities, pivot).get();
 }
 namespace scf_options {
 void read_option_file();
@@ -135,20 +132,19 @@ int hpx_main(int argc, char* argv[]) {
 	try {
 		if (opts.process_options(argc, argv)) {
 			auto all_locs = hpx::find_all_localities();
-			hpx::lcos::broadcast < initialize_action > (all_locs, opts, all_locs).get();
+			hpx::lcos::broadcast<initialize_action>(all_locs, opts, all_locs).get();
 
-			node_client root_id = hpx::new_ < node_server > (hpx::find_here());
+			hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
 			node_client root_client(root_id);
 			node_server* root = root_client.get_ptr().get();
 
 			int ngrids = 0;
-	//		printf("1\n");
+			//		printf("1\n");
 			if (!opts.restart_filename.empty()) {
-				set_problem(null_problem);
-				const std::string fname = opts.restart_filename;
-				printf("Loading from %s...\n", fname.c_str());
-				root->load_from_file(fname, opts.data_dir);
-				ngrids = root->regrid(root_client.get_gid(), ZERO, -1, true);
+				std::cout << "Loading from " << opts.restart_filename << " ...\n";
+				load_data_from_silo(opts.restart_filename, root, root_client.get_unmanaged_gid());
+				printf( "Regrid\n");
+				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true);
 				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts.max_level; ++l) {
@@ -158,9 +154,9 @@ int hpx_main(int argc, char* argv[]) {
 				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
 				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
 			}
-			if (gravity_on && opts.output_filename.empty()) {
+			if (opts.gravity) {
 				printf("solving gravity------------\n");
-				root->solve_gravity(false,false);
+				root->solve_gravity(false, false);
 				printf("...done\n");
 			}
 			hpx::async(&node_server::start_run, root, opts.problem == DWD && opts.restart_filename.empty(), ngrids).get();

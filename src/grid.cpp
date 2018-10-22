@@ -12,11 +12,134 @@
 #include <array>
 #include <cmath>
 #include <cassert>
+#include "silo.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
 extern options opts;
+
+static std::unordered_map<std::string,int> str_to_index_hydro;
+static std::unordered_map<std::string,int> str_to_index_gravity;
+static std::unordered_map<int,std::string> index_to_str_hydro;
+static std::unordered_map<int,std::string> index_to_str_gravity;
+
+struct initialize_names {
+	initialize_names() {
+		str_to_index_hydro["rho"] = rho_i;
+		str_to_index_hydro["egas"] = egas_i;
+		str_to_index_hydro["tau"] = tau_i;
+		str_to_index_hydro["spc_1"] = spc_i + 0;
+		str_to_index_hydro["spc_2"] = spc_i + 1;
+		str_to_index_hydro["spc_3"] = spc_i + 2;
+		str_to_index_hydro["spc_4"] = spc_i + 3;
+		str_to_index_hydro["spc_5"] = spc_i + 4;
+		str_to_index_hydro["sx"] = sx_i;
+		str_to_index_hydro["sy"] = sy_i;
+		str_to_index_hydro["sz"] = sz_i;
+		str_to_index_hydro["zx"] = zx_i;
+		str_to_index_hydro["zy"] = zy_i;
+		str_to_index_hydro["zz"] = zz_i;
+		str_to_index_gravity["phi"] = phi_i;
+		str_to_index_gravity["gx"] = gx_i;
+		str_to_index_gravity["gy"] = gy_i;
+		str_to_index_gravity["gz"] = gz_i;
+		for( const auto& s : str_to_index_hydro ) {
+			index_to_str_hydro[s.second] = s.first;
+		}
+		for( const auto& s : str_to_index_gravity ) {
+			index_to_str_gravity[s.second] = s.first;
+		}
+	}
+};
+
+static initialize_names initialize_names_;
+
+
+std::vector<std::string> grid::get_field_names() {
+	std::vector<std::string> rc;
+	if (opts.hydro) {
+		for( auto i : index_to_str_hydro ) {
+			rc.push_back(i.second);
+		}
+	}
+	if (opts.gravity) {
+		for( auto i : index_to_str_gravity ) {
+			rc.push_back(i.second);
+		}
+	}
+	return rc;
+}
+
+
+void grid::set(const std::string name, real* data) {
+	auto iter = str_to_index_hydro.find(name);
+	if( iter != str_to_index_hydro.end()) {
+		int f = iter->second;
+		int jjj = 0;
+		for (int i = 0; i < INX; i++) {
+			for (int j = 0; j < INX; j++) {
+				for (int k = 0; k < INX; k++) {
+					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
+					U[f][iii] = data[jjj];
+					jjj++;
+				}
+			}
+		}
+	}
+
+}
+
+
+std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
+	std::vector<silo_var_t> s;
+	if (opts.hydro) {
+		constexpr int N = 14;
+		for (auto l : str_to_index_hydro) {
+			const int f = l.second;
+			std::string this_name = l.first;
+			if (suffix.size()) {
+				this_name += std::string("_") + suffix;
+			}
+			int jjj = 0;
+			silo_var_t this_s(this_name);
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
+						this_s(jjj) = U[f][iii];
+						jjj++;
+					}
+				}
+			}
+			s.push_back(std::move(this_s));
+		}
+	}
+
+	if (opts.gravity) {
+		constexpr int N = 4;
+		for (auto l : str_to_index_gravity) {
+			const int f = l.second;
+			std::string this_name = l.first;
+			if (suffix.size()) {
+				this_name += std::string("_") + suffix;
+			}
+			int jjj = 0;
+			silo_var_t this_s(this_name);
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
+						this_s(jjj) = U[f][iii];
+						jjj++;
+					}
+				}
+			}
+			s.push_back(std::move(this_s));
+		}
+	}
+	return std::move(s);
+}
 
 diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	diagnostics_t rc;
@@ -31,7 +154,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				for (integer l = H_BW; l != H_NX - H_BW; ++l) {
 					const integer iii = hindex(j, k, l);
-					const integer iiig = gindex(j-H_BW,k-H_BW,l-H_BW);
+					const integer iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 					real ek = ZERO;
 					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
 					ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
@@ -1059,8 +1182,8 @@ void grid::set_omega(real omega, bool bcast) {
 		}
 	}
 	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
-	// if someone else has the lock, it's fine, we just return and have it set
-	// by the other thread
+// if someone else has the lock, it's fine, we just return and have it set
+// by the other thread
 	if (!l)
 		return;
 	grid::omega = omega;
@@ -1273,7 +1396,7 @@ std::vector<real> grid::l_sums() const {
 bool grid::refine_me(integer lev, integer last_ngrids) const {
 	PROF_BEGIN;
 	auto test = get_refine_test();
-	if (lev < 2) {
+	if (lev < 1) {
 		PROF_END;
 		return true;
 	}
@@ -1717,7 +1840,7 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 						U[field][iii] = this_u[field];
 					}
 				} else {
-					printf( "No problem specified\n" );
+					printf("No problem specified\n");
 					abort();
 				}
 			}
@@ -2159,7 +2282,7 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 	const integer jlb = 0;
 	const integer jub = H_NX;
 
-	if (opts.problem == SOD) {
+/*	if (opts.problem == SOD) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = jlb; j != jub; ++j) {
 				for (integer i = ilb; i != iub; ++i) {
@@ -2182,7 +2305,7 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 				}
 			}
 		}
-	} else {
+	} else {*/
 		for (integer field = 0; field != NF; ++field) {
 			for (integer k = klb; k != kub; ++k) {
 				for (integer j = jlb; j != jub; ++j) {
@@ -2239,7 +2362,7 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 				}
 			}
 		}
-	}
+//	}
 }
 
 void grid::compute_sources(real t, real rotational_time) {

@@ -75,10 +75,10 @@ public:
 	void send_hydro_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_read_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
 	void send_rad_flux_correct( std::vector<real>&&, const geo::face& face, const geo::octant& ci) const;
-	future<grid::output_list_type> load(integer, integer, integer, bool do_output,std::string) const;
 	future<diagnostics_t> diagnostics(const diagnostics_t&) const;
 	future<analytic_t> compare_analytic() const;
-	future<grid::output_list_type> output(std::string dname, std::string fname, int cycle) const;
+//	hpx::future<void> set_parent(hpx::id_type);
+	hpx::future<void> notify_parent(node_location location, hpx::id_type id );
 	node_client();
 	future<set_child_aunt_type> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
@@ -99,10 +99,8 @@ public:
 	future<void> set_grid(std::vector<real>&&,std::vector<real>&&) const;
 	void timestep_driver_ascend(real) const;
     void set_local_timestep(integer, real) const;
-	future<grid::output_list_type> output() const;
 	future<void> velocity_inc(const space_vector&) const;
-    future<void> save(integer,std::string) const;
-	future<void> check_for_refinement(real omega, real) const;
+    future<void> check_for_refinement(real omega, real) const;
 	future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
     void report_timing() const;
     future<void> change_units(real,real,real,real) const;
