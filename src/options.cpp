@@ -87,6 +87,7 @@ bool options::process_options(int argc, char* argv[]) {
 			"cuda streams per thread") //
 	("input_file", po::value < std::string > (&(opts.input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value < std::string > (&(opts.config_file))->default_value(""), "configuration file") //
+	("n_species", po::value <integer > (&(opts.n_species))->default_value(1), "number of mass species") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -102,6 +103,7 @@ bool options::process_options(int argc, char* argv[]) {
 		}
 	}
 	po::notify(vm);
+	n_fields = n_species + 10;
 	if (!opts.restart_filename.empty()) {
 		load_options_from_silo(opts.restart_filename);
 	}
@@ -141,6 +143,7 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(m2m_kernel_type);
 		SHOW(p2m_kernel_type);
 		SHOW(p2p_kernel_type);
+		SHOW(n_species);
 
 	}
 	return true;

@@ -153,7 +153,7 @@ future<line_of_centers_t> node_client::line_of_centers(const std::pair<space_vec
 void output_line_of_centers(FILE* fp, const line_of_centers_t& loc) {
 	for (integer i = 0; i != loc.size(); ++i) {
 		fprintf(fp, "%e ", loc[i].first);
-		for (integer j = 0; j != NF + NGF; ++j) {
+		for (integer j = 0; j != opts.n_fields + NGF; ++j) {
 			fprintf(fp, "%e ", loc[i].second[j]);
 		}
 		fprintf(fp, "\n");
@@ -189,9 +189,16 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
 		std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi) {
 
+
+	constexpr integer spc_ac_i = spc_i;
+	constexpr integer spc_ae_i = spc_i + 1;
+	constexpr integer spc_dc_i = spc_i + 2;
+	constexpr integer spc_de_i = spc_i + 3;
+	constexpr integer spc_vac_i = spc_i + 4;
+
 	for (auto& l : loc) {
 		ASSERT_NONAN(l.first);
-		for (integer f = 0; f != NF + NGF; ++f) {
+		for (integer f = 0; f != opts.n_fields + NGF; ++f) {
 			ASSERT_NONAN(l.second[f]);
 		}
 	}

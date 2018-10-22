@@ -166,18 +166,7 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 		}
 	}
 }
-/*void node_server::recv_rad_children(std::vector<rad_type>&& bdata, const geo::octant& oct, const geo::octant& ioct) {
- child_rad_channels[ioct][oct]->set_value(std::move(bdata));
- }*/
 
-void rad_grid::get_output(std::array<std::vector<real>, OUTPUT_COUNT>& v, integer i, integer j, integer k) const {
-	const integer iii = rindex(i, j, k);
-	v[NF + 0].push_back(real(U[er_i][iii]));
-	v[NF + 1].push_back(real(U[fx_i][iii]));
-	v[NF + 2].push_back(real(U[fy_i][iii]));
-	v[NF + 3].push_back(real(U[fz_i][iii]));
-
-}
 
 void rad_grid::set_dx(real _dx) {
 	dx = _dx;

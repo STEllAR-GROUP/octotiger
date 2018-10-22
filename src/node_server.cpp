@@ -123,12 +123,12 @@ void node_server::all_hydro_bounds(bool tau_only) {
 void node_server::exchange_interlevel_hydro_data() {
 
 	if (is_refined) {
-		std::vector<real> outflow(NF, ZERO);
+		std::vector<real> outflow(opts.n_fields, ZERO);
 		for (auto const& ci : geo::octant::full_set()) {
 			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
 			grid_ptr->set_restrict(data, ci);
 			integer fi = 0;
-			for (auto i = data.end() - NF; i != data.end(); ++i) {
+			for (auto i = data.end() - opts.n_fields; i != data.end(); ++i) {
 				outflow[fi] += *i;
 				++fi;
 			}

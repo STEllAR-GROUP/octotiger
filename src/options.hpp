@@ -58,6 +58,8 @@ public:
 	std::string data_dir;
 	std::string output_filename;
 	std::string restart_filename;
+	integer n_species;
+	integer n_fields;
 
 	eos_type eos;
 
@@ -69,6 +71,8 @@ public:
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & n_fields;
+		arc & n_species;
 		arc & input_file;
 		arc & config_file;
 		arc & hydro;
@@ -120,5 +124,14 @@ public:
 #ifndef IN_OPTIONS_CPP
 extern options opts;
 #endif
+
+
+template<class T = real>
+struct hydro_state_t: public std::vector<T> {
+	hydro_state_t() :
+			std::vector<T>(opts.n_fields) {
+	}
+};
+
 
 #endif /* OPTIONS_HPP_ */

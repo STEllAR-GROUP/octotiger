@@ -121,8 +121,9 @@ analytic_t node_server::compare_analytic() {
 	}
 	if (my_location.level() == 0) {
 		printf("L1, L2\n");
-		for (integer field = 0; field != NF; ++field) {
-			printf("%16s %e %e\n", grid::field_names()[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
+		for (integer field = 0; field != opts.n_fields; ++field) {
+//TODO
+			//printf("%16s %e %e\n", grid::field_names()[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
 		}
 	}
 	return a;
@@ -202,7 +203,7 @@ diagnostics_t node_server::diagnostics() {
 	if( fp ) {
 		fp = fopen( "sums.dat", "at");
 		fprintf( fp, "%.13e ", current_time);
-		for( integer i = 0; i != NF; ++i) {
+		for( integer i = 0; i != opts.n_fields; ++i) {
 			fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
 			fprintf( fp, "%.13e ", diags.grid_out[i]);
 		}

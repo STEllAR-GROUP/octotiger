@@ -15,6 +15,12 @@
 #include "eos.hpp"
 #include <hpx/include/lcos.hpp>
 
+constexpr integer spc_ac_i = spc_i;
+constexpr integer spc_ae_i = spc_i + 1;
+constexpr integer spc_dc_i = spc_i + 2;
+constexpr integer spc_de_i = spc_i + 3;
+constexpr integer spc_vac_i = spc_i + 4;
+
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
 }
@@ -49,7 +55,7 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
 
-	std::vector<real> u(NF + NRF, real(0));
+	std::vector<real> u(opts.n_fields + NRF, real(0));
 	x -= 0.0e11;
 	y -= 0.0e11;
 	z -= 0.0e11;
@@ -187,7 +193,7 @@ init_func_type get_analytic() {
 
 /*
  std::vector<real> null_problem(real x, real y, real z, real dx) {
- std::vector<real> u(NF, real(0));
+ std::vector<real> u(opts.n_fields, real(0));
  return u;
  }*/
 
@@ -195,7 +201,7 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
 	//x -= 0.453;
 	//y -= 0.043;
-	std::vector<real> u(NF, real(0));
+	std::vector<real> u(opts.n_fields, real(0));
 	u[spc_dc_i] = u[rho_i] = 1.0e-3;
 	const real a = std::sqrt(10.0) * std::min(dx, 0.1);
 	real r = std::sqrt(x * x + y * y + z * z);
@@ -205,7 +211,7 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 }
 
 std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
-	std::vector<real> U(NF, 0.0);
+	std::vector<real> U(opts.n_fields, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
 //	real x = (x0 + y + z) / std::sqrt(3.0);
@@ -224,7 +230,7 @@ std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
 }
 
 std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
-	std::vector<real> U(NF, 0.0);
+	std::vector<real> U(opts.n_fields, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
 	real x = (x0 + y + z) / std::sqrt(3.0);
@@ -277,10 +283,10 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 }
 
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
-	std::vector<real> u(NF, real(0));
+	std::vector<real> u(opts.n_fields, real(0));
 	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);
 	auto u2 = solid_sphere(x0, y0, z0, dx, dys);
-	for (integer f = 0; f != NF; ++f) {
+	for (integer f = 0; f != opts.n_fields; ++f) {
 		u[f] = u1[f] + u2[f];
 	}
 	return u;
@@ -291,7 +297,7 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	const real r0 = ssr0;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
 	const real drho = 1.0 / real(N * N * N) / V;
-	std::vector<real> u(NF, real(0));
+	std::vector<real> u(opts.n_fields, real(0));
 	x0 -= xshift;
 //	x0 -= -0.0444;
 //	y0 -= +0.345;
@@ -349,10 +355,9 @@ const real alpha = 1.0;
 
 void normalize_constants();
 
-
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
-	std::vector<real> u(NF, real(0));
+	std::vector<real> u(opts.n_fields, real(0));
 	if (opts.eos == WD) {
 		const real r = std::sqrt(x * x + y * y + z * z);
 		static struct_eos eos(1.0, 1.0);
@@ -444,6 +449,7 @@ std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
 }
 
 std::vector<real> equal_mass_binary(real x, real y, real z, real) {
+
 	const integer don_i = spc_ac_i;
 	const integer acc_i = spc_dc_i;
 	const real fgamma = grid::get_fgamma();
@@ -452,7 +458,7 @@ std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 	real alpha = 1.0 / 15.0;
 	const real n = real(1) / (fgamma - real(1));
 	const real rho_min = 1.0e-12;
-	std::vector<real> u(NF, real(0));
+	std::vector<real> u(opts.n_fields, real(0));
 	const real d = 1.0 / 2.0;
 	real x1 = x - d;
 	real x2 = x + d;
