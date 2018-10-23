@@ -133,7 +133,7 @@ void output_stage2(std::string fname, int cycle) {
 	}
 	int nfields = 0;
 	if (opts.hydro) {
-		nfields += 14;
+		nfields += 9 + opts.n_species;
 	}
 	if (opts.gravity) {
 		nfields += 4;
@@ -188,6 +188,7 @@ void output_stage2(std::string fname, int cycle) {
 			node_location nloc;
 			nloc.from_id(i);
 			node_locs.push_back(nloc);
+
 		}
 		const auto top_field_names = grid::get_field_names();
 		for (int i = 0; i < node_locs.size(); i++) {
@@ -221,11 +222,6 @@ void output_stage2(std::string fname, int cycle) {
 					optlist);
 
 		}
-		//	for( int f = 0; f < nfields; f++) {
-		//		for( int i = 0; i < field_names[f].size(); i++) {
-		//			std::cout << field_names[f][i] << "\n";
-		//		}
-		//	}
 		CALL_SILO(DBFreeOptlist, optlist);
 		for (auto ptr : mesh_names) {
 			delete[] ptr;
@@ -304,16 +300,11 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 		node_location l;
 		l.from_id(i);
 		futs.push_back(hpx::new_ < node_server > (me, l).then([&me,l,&fname](hpx::future<hpx::id_type>&& f) {
-			printf( "1\n");
 			const auto id = f.get();
-			printf( "2\n");
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
-			printf( "3\n");
 			const auto pid = load_registry::get(l.get_parent().to_id());
-			printf( "4\n");
 			node_server* node_ptr = node_registry::get(l);
-			printf( "5\n");
 			grid& g = node_ptr->get_hydro_grid();
 			const auto suffix = std::to_string(l.to_id());
 			DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);

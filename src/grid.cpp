@@ -19,39 +19,37 @@
 
 extern options opts;
 
-static std::unordered_map<std::string, int> str_to_index_hydro;
-static std::unordered_map<std::string, int> str_to_index_gravity;
-static std::unordered_map<int, std::string> index_to_str_hydro;
-static std::unordered_map<int, std::string> index_to_str_gravity;
+std::unordered_map<std::string, int> grid::str_to_index_hydro;
+std::unordered_map<std::string, int> grid::str_to_index_gravity;
+std::unordered_map<int, std::string> grid::index_to_str_hydro;
+std::unordered_map<int, std::string> grid::index_to_str_gravity;
 
-struct initialize_names {
-	initialize_names() {
-		str_to_index_hydro["rho"] = rho_i;
-		str_to_index_hydro["egas"] = egas_i;
-		str_to_index_hydro["tau"] = tau_i;
-		for (integer s = 0; s < opts.n_species; s++) {
-			str_to_index_hydro[std::string("spc_") + std::to_string(s + 1)] = spc_i + s;
-		}
-		str_to_index_hydro["sx"] = sx_i;
-		str_to_index_hydro["sy"] = sy_i;
-		str_to_index_hydro["sz"] = sz_i;
-		str_to_index_hydro["zx"] = zx_i;
-		str_to_index_hydro["zy"] = zy_i;
-		str_to_index_hydro["zz"] = zz_i;
-		str_to_index_gravity["phi"] = phi_i;
-		str_to_index_gravity["gx"] = gx_i;
-		str_to_index_gravity["gy"] = gy_i;
-		str_to_index_gravity["gz"] = gz_i;
-		for (const auto& s : str_to_index_hydro) {
-			index_to_str_hydro[s.second] = s.first;
-		}
-		for (const auto& s : str_to_index_gravity) {
-			index_to_str_gravity[s.second] = s.first;
-		}
+
+void grid::static_init() {
+	str_to_index_hydro["rho"] = rho_i;
+	str_to_index_hydro["egas"] = egas_i;
+	str_to_index_hydro["tau"] = tau_i;
+	for (integer s = 0; s < opts.n_species; s++) {
+		str_to_index_hydro[std::string("spc_") + std::to_string(s + 1)] = spc_i + s;
 	}
-};
+	str_to_index_hydro["sx"] = sx_i;
+	str_to_index_hydro["sy"] = sy_i;
+	str_to_index_hydro["sz"] = sz_i;
+	str_to_index_hydro["zx"] = zx_i;
+	str_to_index_hydro["zy"] = zy_i;
+	str_to_index_hydro["zz"] = zz_i;
+	str_to_index_gravity["phi"] = phi_i;
+	str_to_index_gravity["gx"] = gx_i;
+	str_to_index_gravity["gy"] = gy_i;
+	str_to_index_gravity["gz"] = gz_i;
+	for (const auto& s : str_to_index_hydro) {
+		index_to_str_hydro[s.second] = s.first;
+	}
+	for (const auto& s : str_to_index_gravity) {
+		index_to_str_gravity[s.second] = s.first;
+	}
+}
 
-static initialize_names initialize_names_;
 
 std::vector<std::string> grid::get_field_names() {
 	std::vector<std::string> rc;
@@ -89,7 +87,6 @@ void grid::set(const std::string name, real* data) {
 std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
 	if (opts.hydro) {
-		constexpr int N = 14;
 		for (auto l : str_to_index_hydro) {
 			const int f = l.second;
 			std::string this_name = l.first;
@@ -112,7 +109,6 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	}
 
 	if (opts.gravity) {
-		constexpr int N = 4;
 		for (auto l : str_to_index_gravity) {
 			const int f = l.second;
 			std::string this_name = l.first;

@@ -91,10 +91,15 @@ public:
 	static void set_fgamma(real fg) {
 		fgamma = fg;
 	}
+	static void static_init();
 	static real get_fgamma() {
 		return fgamma;
 	}
 private:
+	static std::unordered_map<std::string, int> str_to_index_hydro;
+	static std::unordered_map<std::string, int> str_to_index_gravity;
+	static std::unordered_map<int, std::string> index_to_str_hydro;
+	static std::unordered_map<int, std::string> index_to_str_gravity;
 	static real omega;
 	static real fgamma;
 	static integer max_level;
