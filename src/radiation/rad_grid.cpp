@@ -236,8 +236,8 @@ void rad_grid::compute_mmw(const std::vector<std::vector<real>>& U) {
 				const integer d = H_BW - R_BW;
 				const integer iiir = rindex(i, j, k);
 				const integer iiih = hindex(i + d, j + d, k + d);
-				std::array<real, NSPECIES> spc;
-				for (integer si = 0; si != NSPECIES; ++si) {
+				specie_state_t<real> spc;
+				for (integer si = 0; si != opts.n_species; ++si) {
 					spc[si] = U[spc_i + si][iiih];
 					mmw[iiir] = mean_ion_weight(spc);
 				}
