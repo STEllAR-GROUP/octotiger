@@ -1,20 +1,21 @@
 #!/bin/bash -e
 set -x
 
-if [ ! -d "Vc/" ]; then
-    git clone https://github.com/STEllAR-GROUP/Vc
+if [ ! -d "silo/" ]; then
+    mkdir silo
+    cd silo
+    wget https://wci.llnl.gov/content/assets/docs/simulation/computer-codes/silo/silo-4.10.2/silo-4.10.2.tar.gz
+    tar -xvf silo-4.10.2.tar.gz
+    cd ..
 else
-    cd Vc
+    cd silo
     git pull
     cd ..
 fi
 
-cd Vc
-git checkout pfandedd_inlining_AVX512
-cd ..
-
-mkdir -p Vc/build
-cd Vc/build
-/home/circleci/cmake_install/bin/cmake -DCMAKE_INSTALL_PREFIX=/home/circleci/Vc_install -DCMAKE_BUILD_TYPE=release -DBUILD_TESTING=OFF ../
+cd silo
+cd silo-4.10.2
+./configure --prefix=/home/circleci/silo_install --without-zlib
 make -j2 VERBOSE=1 install
-cd ../..
+
+
