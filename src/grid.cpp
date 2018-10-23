@@ -1126,7 +1126,7 @@ void grid::change_units(real m, real l, real t, real k) {
 		printf("++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx * l);
 	for (integer i = 0; i != H_N3; ++i) {
 		U[rho_i][i] *= m * l3inv;
-		for (integer si = 0; si != NSPECIES; ++si) {
+		for (integer si = 0; si != opts.n_species; ++si) {
 			U[spc_i + si][i] *= m * l3inv;
 		}
 		U[egas_i][i] *= (m * l2 * t2inv) * l3inv;
@@ -1220,13 +1220,13 @@ real grid::roche_volume(const std::pair<space_vector, space_vector>& axis, const
 
 std::vector<real> grid::frac_volumes() const {
 	PROF_BEGIN;
-	std::vector<real> V(NSPECIES, 0.0);
+	std::vector<real> V(opts.n_species, 0.0);
 	const real dV = dx * dx * dx;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				for (integer si = 0; si != NSPECIES; ++si) {
+				for (integer si = 0; si != opts.n_species; ++si) {
 					if (U[spc_i + si][iii] > 1.0e-5) {
 						V[si] += (U[spc_i + si][iii] / U[rho_i][iii]) * dV;
 					}
@@ -1458,7 +1458,7 @@ void grid::rho_mult(real f0, real f1) {
 				U[spc_ae_i][hindex(i, j, k)] *= f0;
 				U[spc_de_i][hindex(i, j, k)] *= f1;
 				U[rho_i][hindex(i, j, k)] = 0.0;
-				for (integer si = 0; si != NSPECIES; ++si) {
+				for (integer si = 0; si != opts.n_species; ++si) {
 					U[rho_i][hindex(i, j, k)] += U[spc_i + si][hindex(i, j, k)];
 				}
 			}
@@ -1475,13 +1475,13 @@ void grid::rho_move(real x) {
 	for (integer i = 1; i != H_NX - 1; ++i) {
 		for (integer j = 1; j != H_NX - 1; ++j) {
 			for (integer k = 1; k != H_NX - 1; ++k) {
-				for (integer si = spc_i; si != NSPECIES + spc_i; ++si) {
+				for (integer si = spc_i; si != opts.n_species + spc_i; ++si) {
 					U[si][hindex(i, j, k)] += w * U0[si][hindex(i + 1, j, k)];
 					U[si][hindex(i, j, k)] -= w * U0[si][hindex(i - 1, j, k)];
 					U[si][hindex(i, j, k)] = std::max(U[si][hindex(i, j, k)], 0.0);
 				}
 				U[rho_i][hindex(i, j, k)] = 0.0;
-				for (integer si = 0; si != NSPECIES; ++si) {
+				for (integer si = 0; si != opts.n_species; ++si) {
 					U[rho_i][hindex(i, j, k)] += U[spc_i + si][hindex(i, j, k)];
 				}
 				U[rho_i][hindex(i, j, k)] = std::max(U[rho_i][hindex(i, j, k)], rho_floor);
@@ -1559,7 +1559,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					} else {
 						V[egas_i][iii] = (U[egas_i][iii]);	// * rhoinv;
 					}
-					for (integer si = 0; si != NSPECIES; ++si) {
+					for (integer si = 0; si != opts.n_species; ++si) {
 						V[spc_i + si][iii] = U[spc_i + si][iii] * rhoinv;
 					}
 					if (opts.gravity) {
@@ -1612,7 +1612,7 @@ void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> 
 	auto& dVdx = TLS_dVdx();
 	auto& V = TLS_V();
 	for (integer f = 0; f != opts.n_fields; ++f) {
-		if (etot_only && (f == tau_i || f == pot_i || (f >= spc_i && f < spc_i + NSPECIES))) {
+		if (etot_only && (f == tau_i || f == pot_i || (f >= spc_i && f < spc_i + opts.n_species))) {
 			continue;
 		}
 		const auto& v = V[f];
@@ -1696,7 +1696,7 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
 						const integer iii = hindex(i, j, k);
 						dU[rho_i][iii] = 0.0;
-						for (integer si = 0; si != NSPECIES; ++si) {
+						for (integer si = 0; si != opts.n_species; ++si) {
 							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
 							dU[rho_i][iii] += dU[spc_i + si][iii];
 						}
@@ -2079,11 +2079,11 @@ void grid::reconstruct() {
 		for (integer face = 0; face != NFACE; ++face) {
 			real w = 0.0;
 			std::vector<std::vector<real> >& Ufface = Uf[face];
-			for (integer si = 0; si != NSPECIES; ++si) {
+			for (integer si = 0; si != opts.n_species; ++si) {
 				w += Ufface[spc_i + si][iii];
 			}
 			if (w > ZERO) {
-				for (integer si = 0; si != NSPECIES; ++si) {
+				for (integer si = 0; si != opts.n_species; ++si) {
 					Ufface[spc_i + si][iii] /= w;
 				}
 			}
@@ -2210,7 +2210,7 @@ real grid::compute_fluxes() {
 				for (integer i = H_BW; i != H_NX - H_BW + 1; ++i) {
 					real rho_tot = 0.0;
 					const integer i0 = F_DN[dx_i] * (i - H_BW) + F_DN[dy_i] * (j - H_BW) + F_DN[dz_i] * (k - H_BW);
-					for (integer field = spc_i; field != spc_i + NSPECIES; ++field) {
+					for (integer field = spc_i; field != spc_i + opts.n_species; ++field) {
 						rho_tot += F[dim][field][i0];
 					}
 					F[dim][rho_i][i0] = rho_tot;

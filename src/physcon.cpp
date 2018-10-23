@@ -189,11 +189,11 @@ hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 	return f;
 }
 
-real mean_ion_weight(const std::array<real, NSPECIES> species) {
+real mean_ion_weight(const specie_state_t<> species) {
 //	real N;
 	real mtot = 0.0;
 	real ntot = 0.0;
-	for (integer i = 0; i != NSPECIES; ++i) {
+	for (integer i = 0; i != opts.n_species; ++i) {
 		const real m = species[i];
 		ntot += m * (physcon._Z[i] + 1.0) / physcon._A[i];
 		mtot += m;
