@@ -9,7 +9,6 @@
 #include "node_server.hpp"
 #include "exact_sod.hpp"
 
-
 #include <array>
 #include <cmath>
 #include <cassert>
@@ -24,6 +23,20 @@ std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
 std::unordered_map<int, std::string> grid::index_to_str_gravity;
+
+std::vector<std::pair<std::string, real>> grid::get_outflows() const {
+	std::vector<std::pair<std::string, real>> rc;
+	for (auto i = str_to_index_hydro.begin(); i != str_to_index_hydro.end(); i++) {
+		rc.push_back(std::make_pair(i->first, U_out[i->second]));
+	}
+	return std::move(rc);
+}
+
+void grid::set_outflows(std::vector<std::pair<std::string, real>>&& u) {
+	for (const auto& p : u) {
+		U_out[str_to_index_hydro[p.first]] = p.second;
+	}
+}
 
 void grid::static_init() {
 	str_to_index_hydro["rho"] = rho_i;

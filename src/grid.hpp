@@ -211,7 +211,15 @@ public:
 	real get_source(integer i, integer j, integer k) const {
 		return U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)] * dx * dx * dx;
 	}
-	std::vector<real> const& get_outflows() const {
+	//std::vector<real> const& get_outflows() const {
+//		return U_out;
+//	}
+	std::vector<std::pair<std::string,real>> get_outflows() const;
+	void set_outflows(std::vector<std::pair<std::string,real>>&& u);
+	void set_outflows(std::vector<real>&& u) {
+		U_out = std::move(u);
+	}
+	std::vector<real> get_outflows_raw() {
 		return U_out;
 	}
 	void set_root(bool flag = true) {
@@ -245,9 +253,6 @@ public:
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
 	void velocity_inc(const space_vector& dv);
-	void set_outflows(std::vector<real>&& u) {
-		U_out = std::move(u);
-	}
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&) const;

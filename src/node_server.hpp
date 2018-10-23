@@ -162,6 +162,9 @@ private:
 	hpx::future<real> local_step(integer steps);
 
 public:
+	integer get_step_num() const {
+		return step_num;
+	}
 	void exchange_interlevel_hydro_data();
 	void all_hydro_bounds(bool tau_only = false);
 	static bool child_is_on_face(integer ci, integer face) {

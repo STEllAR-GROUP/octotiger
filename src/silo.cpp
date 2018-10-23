@@ -67,6 +67,10 @@ struct db_type<char> {
 	static constexpr int d = DB_CHAR;
 };
 
+constexpr int db_type<integer>::d;
+constexpr int db_type<char>::d;
+constexpr int db_type<real>::d;
+
 template<class T>
 struct write_silo_var {
 	void operator()(DBfile* db, const char* name, T var) {
@@ -88,6 +92,7 @@ struct read_silo_var {
 struct mesh_vars_t {
 	std::vector<silo_var_t> vars;
 	std::vector<std::string> var_names;
+	std::vector<std::pair<std::string, real>> outflow;
 	std::string mesh_name;
 	std::vector<std::array<real, INX + 1>> X;
 };
@@ -114,6 +119,7 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 				rc.mesh_name = /*std::string( "mesh_") +*/suffix;
 				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
 				rc.X = std::move(X);
+				rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
 				return std::move(rc);
 			}, i->first, i->second));
 			ids.push_back(i->first.to_id());
@@ -122,6 +128,9 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 
 	return ids;
 }
+
+static const int HOST_NAME_LEN = 100;
+static int epoch = 0;
 
 void output_stage2(std::string fname, int cycle) {
 	std::string this_fname = fname + std::string(".silo");
@@ -165,6 +174,10 @@ void output_stage2(std::string fname, int cycle) {
 			for (const auto& o : mesh_vars.vars) {
 				CALL_SILO(DBPutQuadvar1, db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), dims2, ndim, (const void*) NULL,
 						0, DB_DOUBLE, DB_ZONECENT, optlist);
+			}
+			for (const auto& p : mesh_vars.outflow) {
+				const std::string name = p.first + std::string("_outflow_") + mesh_vars.mesh_name;
+				write_silo_var<real>()(db, name.c_str(), p.second);
 			}
 		}
 		CALL_SILO(DBFreeOptlist, optlist);
@@ -246,7 +259,16 @@ void output_stage2(std::string fname, int cycle) {
 		fr(db, "time", dtime);
 		fr(db, "rotational_time", rtime);
 		fr(db, "xscale", opts.xscale);
+		char hostname[HOST_NAME_LEN];
+		gethostname(hostname, HOST_NAME_LEN);
+		CALL_SILO(DBWrite, db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
+		int timestamp = time(NULL);
+		write_silo_var<int>()(db, "timestamp", timestamp);
+		write_silo_var<int>()(db, "epoch", epoch);
+		write_silo_var<int>()(db, "N_localities", localities.size());
+		write_silo_var<int>()(db, "step_count", node_registry::begin()->second->get_step_num());
 		CALL_SILO(DBClose, db);
+
 	}
 }
 
@@ -299,7 +321,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 	for (const auto& i : node_ids) {
 		node_location l;
 		l.from_id(i);
-		futs.push_back(hpx::new_ < node_server > (me, l).then([&me,l,&fname](hpx::future<hpx::id_type>&& f) {
+		futs.push_back(hpx::new_<node_server>(me, l).then([&me,l,&fname](hpx::future<hpx::id_type>&& f) {
 			const auto id = f.get();
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
@@ -309,12 +331,17 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			const auto suffix = std::to_string(l.to_id());
 			DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
 			assert(db);
+			std::vector<std::pair<std::string,real>> outflow;
 			for( auto n : names ) {
 				const auto name = n + std::string( "_") + suffix;
 				const auto quadvar = CALL_SILO(DBGetQuadvar,db,name.c_str());
 				g.set(quadvar->name, static_cast<real*>(*(quadvar->vals)));
 				CALL_SILO(DBFreeQuadvar,quadvar);
+				std::string name_outflow = n + std::string("_outflow_") + suffix;
+				const real o = read_silo_var<real>()(db, name_outflow.c_str());
+				outflow.push_back(std::make_pair(std::move(name_outflow), o));
 			}
+			g.set_outflows(std::move(outflow));
 			CALL_SILO(DBClose, db);
 			node_client p(pid);
 			p.notify_parent(l,id).get();
@@ -359,6 +386,8 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 	load_registry::put(1, root);
 	static int sz = localities.size();
 	DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
+	epoch = read_silo_var<int>()(db, "epoch");
+	epoch++;
 	if (db != NULL) {
 		DBmultimesh* master_mesh = CALL_SILO(DBGetMultimesh, db, "mesh");
 		CALL_SILO(DBClose, db);

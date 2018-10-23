@@ -104,7 +104,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, int
 			}
 			std::vector<real> outflows(opts.n_fields, ZERO);
 			if (ci == 0) {
-				outflows = grid_ptr->get_outflows();
+				outflows = grid_ptr->get_outflows_raw();
 			}
 			if (current_time > ZERO)
 			{
