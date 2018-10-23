@@ -9,6 +9,7 @@
 #include "node_server.hpp"
 #include "exact_sod.hpp"
 
+
 #include <array>
 #include <cmath>
 #include <cassert>
@@ -23,7 +24,6 @@ std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
 std::unordered_map<int, std::string> grid::index_to_str_gravity;
-
 
 void grid::static_init() {
 	str_to_index_hydro["rho"] = rho_i;
@@ -48,8 +48,10 @@ void grid::static_init() {
 	for (const auto& s : str_to_index_gravity) {
 		index_to_str_gravity[s.second] = s.first;
 	}
+	if (opts.radiation) {
+		rad_grid::static_init();
+	}
 }
-
 
 std::vector<std::string> grid::get_field_names() {
 	std::vector<std::string> rc;
@@ -62,6 +64,10 @@ std::vector<std::string> grid::get_field_names() {
 		for (auto i : index_to_str_gravity) {
 			rc.push_back(i.second);
 		}
+	}
+	if (opts.radiation) {
+		const auto rnames = rad_grid::get_field_names();
+		std::copy(rnames.begin(), rnames.end(), rc.end());
 	}
 	return rc;
 }
@@ -80,6 +86,8 @@ void grid::set(const std::string name, real* data) {
 				}
 			}
 		}
+	} else if (opts.radiation) {
+		rad_grid_ptr->set(name, data);
 	}
 
 }
@@ -128,6 +136,10 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 			}
 			s.push_back(std::move(this_s));
 		}
+	}
+	if (opts.radiation) {
+		auto rad = rad_grid_ptr->var_data(suffix);
+		std::move(rad.begin(), rad.end(), s.end());
 	}
 	return std::move(s);
 }

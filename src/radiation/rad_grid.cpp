@@ -11,9 +11,78 @@
 #include <iostream>
 #include "implicit.hpp"
 
+
+integer rindex(integer x, integer y, integer z) {
+	return z + R_NX * (y + R_NX * x);
+}
+
 extern options opts;
 
 using hiprec = double;
+
+std::unordered_map<std::string, int> rad_grid::str_to_index;
+std::unordered_map<int,std::string> rad_grid::index_to_str;
+
+void rad_grid::static_init() {
+	str_to_index["er"] = er_i;
+	str_to_index["fx"] = fx_i;
+	str_to_index["fy"] = fy_i;
+	str_to_index["fz"] = fz_i;
+	for (const auto& s : str_to_index) {
+		index_to_str[s.second] = s.first;
+	}
+}
+
+std::vector<std::string> rad_grid::get_field_names() {
+	std::vector<std::string> rc;
+	for (auto i : index_to_str) {
+		rc.push_back(i.second);
+	}
+	return rc;
+}
+
+void rad_grid::set(const std::string name, real* data) {
+	auto iter = str_to_index.find(name);
+	if (iter != str_to_index.end()) {
+		int f = iter->second;
+		int jjj = 0;
+		for (int i = 0; i < INX; i++) {
+			for (int j = 0; j < INX; j++) {
+				for (int k = 0; k < INX; k++) {
+					const int iii = rindex(k + R_BW, j + R_BW, i + R_BW);
+					U[f][iii] = data[jjj];
+					jjj++;
+				}
+			}
+		}
+	}
+
+}
+
+std::vector<silo_var_t> rad_grid::var_data(const std::string suffix) const {
+	std::vector<silo_var_t> s;
+	for (auto l : str_to_index) {
+		const int f = l.second;
+		std::string this_name = l.first;
+		if (suffix.size()) {
+			this_name += std::string("_") + suffix;
+		}
+		int jjj = 0;
+		silo_var_t this_s(this_name);
+		for (int i = 0; i < INX; i++) {
+			for (int j = 0; j < INX; j++) {
+				for (int k = 0; k < INX; k++) {
+					const int iii = hindex(k + R_BW, j + R_BW, i + R_BW);
+					this_s(jjj) = U[f][iii];
+					jjj++;
+				}
+			}
+		}
+		s.push_back(std::move(this_s));
+	}
+	return std::move(s);
+}
+
 
 constexpr auto _0 = hiprec(0);
 constexpr auto _1 = hiprec(1);
@@ -21,10 +90,6 @@ constexpr auto _2 = hiprec(2);
 constexpr auto _3 = hiprec(3);
 constexpr auto _4 = hiprec(4);
 constexpr auto _5 = hiprec(5);
-
-integer rindex(integer x, integer y, integer z) {
-	return z + R_NX * (y + R_NX * x);
-}
 
 typedef node_server::set_rad_grid_action set_rad_grid_action_type;
 HPX_REGISTER_ACTION (set_rad_grid_action_type);

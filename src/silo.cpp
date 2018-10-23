@@ -401,11 +401,3 @@ double& silo_var_t::operator()(int i) {
 double silo_var_t::operator()(int i) const {
 	return data_[i];
 }
-
-silo_var_t::~silo_var_t() {
-}
-
-silo_var_t::silo_var_t(silo_var_t && other) {
-	name_ = std::move(other.name_);
-	data_ = std::move(other.data_);
-}
