@@ -22,6 +22,7 @@ jobs:
                         - run: ./circle_ci_scripts/build-boost.sh
                         - run: ./circle_ci_scripts/build-Vc.sh
                         - run: ./circle_ci_scripts/build-hpx.sh
+                        - run: ./circle_ci_scripts/build-silo.sh
                         - run: ./circle_ci_scripts/build-octotiger.sh
                         - save_cache:
                                 key: dependencies-{{ .Branch }}
