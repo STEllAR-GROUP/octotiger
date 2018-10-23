@@ -102,7 +102,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, int
 			for (integer d = 0; d != NDIM; ++d) {
 				ub[d] = lb[d] + (INX);
 			}
-			std::vector<real> outflows(NF, ZERO);
+			std::vector<real> outflows(opts.n_fields, ZERO);
 			if (ci == 0) {
 				outflows = grid_ptr->get_outflows();
 			}

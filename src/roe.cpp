@@ -33,7 +33,7 @@ real ztwd_sound_speed(real d, real ei) {
     return sqrt(cs2);
 }
 
-real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL, std::array<std::vector<real>, NF>& UR,
+real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<real>>& UL, hydro_state_t<std::vector<real>>& UR,
 	const std::vector<space_vector>& X, real omega, integer dimension, real dx) {
 
 	const real fgamma = grid::get_fgamma();
@@ -45,12 +45,12 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 	integer this_simd_len;
 
 	for (std::size_t iii = 0; iii < sz; iii += simd_len) {
-		std::array<simd_vector, NF> ur;
-		std::array<simd_vector, NF> ul;
+		hydro_state_t<simd_vector> ur;
+		hydro_state_t<simd_vector> ul;
 		std::array<simd_vector, NDIM> vf;
 		for (integer jjj = 0; jjj != simd_len; ++jjj) {
 			const integer index = std::min(integer(iii + jjj), integer(sz - 1));
-			for (integer field = 0; field != NF; ++field) {
+			for (integer field = 0; field != opts.n_fields; ++field) {
 				ur[field][jjj] = UR[field][index];
 				ul[field][jjj] = UL[field][index];
 			}
@@ -113,14 +113,14 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 
 		const simd_vector a = max(abs(v_r) + c_r, abs(v_l) + c_l);
 
-		std::array<simd_vector, NF> f;
-		for (integer field = 0; field != NF; ++field) {
+		hydro_state_t<simd_vector> f;
+		for (integer field = 0; field != opts.n_fields; ++field) {
 			f[field] = HALF * (ur[field] * v_r + ul[field] * v_l - a * (ur[field] - ul[field]));
 		}
 		f[u_i] += HALF * (p_r + p_l);
 		f[egas_i] += HALF * (p_r * v_r0 + p_l * v_l0);
 
-		for (integer field = 0; field != NF; ++field) {
+		for (integer field = 0; field != opts.n_fields; ++field) {
 			for (integer j = 0; j != simd_len && iii + j < sz; ++j) {
 				F[field][iii + j] = f[field][j];
 			}

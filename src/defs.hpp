@@ -101,8 +101,6 @@ enum boundary_type {
 
 constexpr integer NDIM = 3;
 
-constexpr integer NSPECIES = 5;
-
 constexpr integer INX = 8;
 constexpr integer H_BW = 3;
 constexpr integer R_BW = 2;
@@ -118,7 +116,6 @@ constexpr integer F_DNZ = 1;
 constexpr integer F_DNY = (INX+1);
 
 
-constexpr integer NF = 15;
 constexpr integer NDIR = 27;
 constexpr integer H_DNX = H_NX * H_NX;
 constexpr integer H_DNY = H_NX;
@@ -141,11 +138,6 @@ constexpr integer zx_i = 7;
 constexpr integer zy_i = 8;
 constexpr integer zz_i = 9;
 constexpr integer spc_i = 10;
-constexpr integer spc_ac_i = 10;
-constexpr integer spc_ae_i = 11;
-constexpr integer spc_dc_i = 12;
-constexpr integer spc_de_i = 13;
-constexpr integer spc_vac_i = 14;
 
 
 constexpr integer vx_i = sx_i;
@@ -191,8 +183,6 @@ constexpr integer gz_i = 3;
 
 constexpr std::array<boundary_type, NFACE> boundary_types = { OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW };
 
-
-#define OUTPUT_COUNT (NF + NRF + NGF + NPF + 1)
 
 // #define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
 constexpr inline integer h0index(integer i, integer j, integer k)

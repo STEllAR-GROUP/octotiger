@@ -16,7 +16,7 @@ private:
 	std::string name_;
 	std::vector<real> data_;
 public:
-	const char* name() const{
+	const char* name() const {
 		return name_.c_str();
 	}
 	void* data() {
@@ -26,9 +26,9 @@ public:
 		return data_.data();
 	}
 	silo_var_t(const std::string& name);
-	~silo_var_t();
-	silo_var_t(silo_var_t&&);
-	silo_var_t& operator=(silo_var_t&&);
+	~silo_var_t() = default;
+	silo_var_t(silo_var_t&&) = default;
+	silo_var_t& operator=(silo_var_t&&) = default;
 	silo_var_t(const silo_var_t&) = delete;
 	silo_var_t& operator=(const silo_var_t&) = delete;
 	double& operator()(int i);

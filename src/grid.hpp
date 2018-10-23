@@ -32,13 +32,12 @@
 #include <list>
 #include <memory>
 #include <set>
-
 class struct_eos;
 
 class analytic_t {
 public:
-	std::array<real, NF> l1, l2, linf;
-	std::array<real, NF> l1a, l2a, linfa;
+	hydro_state_t<> l1, l2, linf;
+	hydro_state_t<> l1a, l2a, linfa;
 	template<class Arc>
 	void serialize(Arc& a, unsigned) {
 		a & l1;
@@ -49,7 +48,7 @@ public:
 		a & linfa;
 	}
 	analytic_t() {
-		for (integer field = 0; field != NF; ++field) {
+		for (integer field = 0; field != opts.n_fields; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
 			l1a[field] = 0.0;
@@ -59,7 +58,7 @@ public:
 		}
 	}
 	analytic_t& operator+=(const analytic_t& other) {
-		for (integer field = 0; field != NF; ++field) {
+		for (integer field = 0; field != opts.n_fields; ++field) {
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
 			l1a[field] += other.l1a[field];
@@ -71,7 +70,7 @@ public:
 	}
 };
 
-HPX_IS_BITWISE_SERIALIZABLE (analytic_t);
+HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
@@ -89,14 +88,18 @@ public:
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
 	static void set_max_level(integer l);
-	static const std::array<const char*, OUTPUT_COUNT>& field_names();
 	static void set_fgamma(real fg) {
 		fgamma = fg;
 	}
+	static void static_init();
 	static real get_fgamma() {
 		return fgamma;
 	}
 private:
+	static std::unordered_map<std::string, int> str_to_index_hydro;
+	static std::unordered_map<int, std::string> index_to_str_hydro;
+	static std::unordered_map<std::string, int> str_to_index_gravity;
+	static std::unordered_map<int, std::string> index_to_str_gravity;
 	static real omega;
 	static real fgamma;
 	static integer max_level;
@@ -108,7 +111,7 @@ private:
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
-	std::vector<std::array<std::vector<real>, NF>> F;
+	std::vector<hydro_state_t<std::vector<real>>> F;
 	std::vector<std::vector<real>> X;
 	std::vector<v4sd> G;
 	std::shared_ptr<std::vector<multipole>> M_ptr;
@@ -314,7 +317,6 @@ public:
 	void save(Archive& arc, const unsigned) const;HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
 	std::pair<real, real> virial() const;
-
 
 	std::vector<silo_var_t> var_data(const std::string suffix = std::string()) const;
 	void set(const std::string name, real* data);

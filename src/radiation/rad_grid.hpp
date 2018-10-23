@@ -21,6 +21,7 @@
 #include <vector>
 #include "physcon.hpp"
 #include <hpx/lcos/local/mutex.hpp>
+#include "silo.hpp"
 
 typedef real rad_type;
 
@@ -35,8 +36,8 @@ private:
 	static constexpr integer DX = R_NX * R_NX;
 	static constexpr integer DY = R_NX;
 	static constexpr integer DZ = 1;
-
-	static void initialize();
+	static std::unordered_map<std::string, int> str_to_index;
+	static std::unordered_map<int, std::string> index_to_str;
 	real dx;
 	std::array<std::vector<rad_type>, NRF> U;
 	std::array<std::vector<rad_type>, NRF> U0;
@@ -46,6 +47,10 @@ private:
 	std::vector<real> mmw;
 	static std::array<std::array<real,NDIM>,NDIM> compute_p( real E, real Fx, real Fy, real Fz);
 public:
+	static void static_init();
+	static std::vector<std::string> get_field_names();
+	void set(const std::string name, real* data);
+	std::vector<silo_var_t> var_data(const std::string suffix) const;
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
 	void store();
@@ -77,7 +82,6 @@ public:
 	std::vector<rad_type> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const;
 	std::vector<rad_type> get_intensity(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
 	void allocate();
-	void get_output(std::array<std::vector<real>, OUTPUT_COUNT>& v, integer, integer, integer) const;
 	rad_grid(real dx);
 	rad_grid();
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);

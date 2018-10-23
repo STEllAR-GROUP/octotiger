@@ -94,7 +94,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
 	octotiger::util::cuda_helper::print_local_targets();
 #endif
-
+	grid::static_init();
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

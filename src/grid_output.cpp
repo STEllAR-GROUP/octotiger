@@ -58,17 +58,3 @@ bool grid::node_point::operator<(const node_point& other) const {
 	}
 	return rc;
 }
-
-const std::array<const char*,OUTPUT_COUNT>& grid::field_names(  ) {
-	static std::array<const char*,OUTPUT_COUNT> field_names;
-	if( opts.radiation) {
-		field_names = {{"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core", "primary_envelope", "secondary_core",
-			"secondary_envelope", "vacuum", "er", "fx", "fy", "fz", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
-			"zzs", "roche"}};
-	} else {
-		field_names = {{"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "primary_core",
-			"primary_envelope", "secondary_core", "secondary_envelope", "vacuum", "phi", "gx", "gy", "gz", "vx", "vy", "vz", "eint",
-			"zzs", "roche"}};
-	}
-	return field_names;
-}
