@@ -142,7 +142,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
 						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-						this_s(jjj) = U[f][iii];
+						this_s(jjj) = G[iii][f];
 						jjj++;
 					}
 				}

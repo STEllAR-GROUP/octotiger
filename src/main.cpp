@@ -47,7 +47,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	grid::set_max_level(opts.max_level);
 	if (opts.problem == RADIATION_TEST) {
 		assert(opts.radiation);
-		opts.gravity = false;
+//		opts.gravity = false;
 		set_problem(radiation_test_problem);
 		set_refine_test(radiation_test_refine);
 	} else if (opts.problem == DWD) {
@@ -55,13 +55,13 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_refine_test(refine_test);
 	} else if (opts.problem == SOD) {
 		grid::set_fgamma(7.0 / 5.0);
-		opts.gravity = false;
+//		opts.gravity = false;
 		set_problem(sod_shock_tube_init);
 		set_refine_test(refine_sod);
 //		grid::set_analytic_func(sod_shock_tube_analytic);
 	} else if (opts.problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
-		opts.gravity = false;
+//		opts.gravity = false;
 		set_problem(blast_wave);
 		set_refine_test(refine_blast);
 	} else if (opts.problem == STAR) {
@@ -79,7 +79,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_problem(moving_star);
 		set_refine_test(refine_test_moving_star);
 	} else if (opts.problem == SOLID_SPHERE) {
-		opts.hydro = false;
+	//	opts.hydro = false;
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
 			return solid_sphere(x,y,z,dx,0.25);
 		}));

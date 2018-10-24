@@ -248,6 +248,7 @@ void output_stage2(std::string fname, int cycle) {
 		write_silo_var<integer> fi;
 		write_silo_var<real> fr;
 
+		fi(db, "n_species", opts.n_species);
 		fi(db, "eos", integer(opts.eos));
 		fi(db, "gravity", integer(opts.gravity));
 		fi(db, "hydro", integer(opts.hydro));
@@ -369,6 +370,7 @@ void load_options_from_silo(std::string fname) {
 	read_silo_var<integer> ri;
 	read_silo_var<real> rr;
 
+	opts.n_species = ri(db, "n_species");
 	opts.eos = eos_type(ri(db, "eos"));
 	opts.gravity = ri(db, "gravity");
 	opts.hydro = ri(db, "hydro");
