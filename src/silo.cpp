@@ -219,8 +219,8 @@ void output_stage2(std::string fname, int cycle) {
 		}
 
 		const int n_total_domains = mesh_names.size();
-		static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
-		static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
+		static const std::vector<integer> meshtypes(n_total_domains, DB_QUAD_RECT);
+		static const std::vector<integer> datatypes(n_total_domains, DB_QUADVAR);
 
 		auto optlist = CALL_SILO(DBMakeOptlist, 4);
 		int opt1 = DB_CARTESIAN;
@@ -263,10 +263,10 @@ void output_stage2(std::string fname, int cycle) {
 		gethostname(hostname, HOST_NAME_LEN);
 		CALL_SILO(DBWrite, db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
 		int timestamp = time(NULL);
-		write_silo_var<int>()(db, "timestamp", timestamp);
-		write_silo_var<int>()(db, "epoch", epoch);
-		write_silo_var<int>()(db, "N_localities", localities.size());
-		write_silo_var<int>()(db, "step_count", node_registry::begin()->second->get_step_num());
+		write_silo_var<integer>()(db, "timestamp", timestamp);
+		write_silo_var<integer>()(db, "epoch", epoch);
+		write_silo_var<integer>()(db, "N_localities", localities.size());
+		write_silo_var<integer>()(db, "step_count", node_registry::begin()->second->get_step_num());
 		CALL_SILO(DBClose, db);
 
 	}
@@ -386,7 +386,7 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 	load_registry::put(1, root);
 	static int sz = localities.size();
 	DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
-	epoch = read_silo_var<int>()(db, "epoch");
+	epoch = read_silo_var<integer>()(db, "epoch");
 	epoch++;
 	if (db != NULL) {
 		DBmultimesh* master_mesh = CALL_SILO(DBGetMultimesh, db, "mesh");
