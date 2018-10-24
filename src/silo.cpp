@@ -131,6 +131,12 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 
 static const int HOST_NAME_LEN = 100;
 static int epoch = 0;
+static time_t start_time = time(NULL);
+static integer start_step = 0;
+static int timestamp;
+static int nsteps;
+static int time_elapsed;
+static int steps_elapsed;
 
 void output_stage2(std::string fname, int cycle) {
 	std::string this_fname = fname + std::string(".silo");
@@ -140,13 +146,7 @@ void output_stage2(std::string fname, int cycle) {
 	} else {
 		db = CALL_SILO(DBOpenReal, this_fname.c_str(), DB_PDB, DB_APPEND);
 	}
-	int nfields = 0;
-	if (opts.hydro) {
-		nfields += 9 + opts.n_species;
-	}
-	if (opts.gravity) {
-		nfields += 4;
-	}
+	const int nfields = grid::get_field_names().size();
 	if (node_registry::begin() != node_registry::end()) {
 		double dtime = node_registry::begin()->second->get_time();
 		float ftime = dtime;
@@ -219,8 +219,8 @@ void output_stage2(std::string fname, int cycle) {
 		}
 
 		const int n_total_domains = mesh_names.size();
-		static const std::vector<integer> meshtypes(n_total_domains, DB_QUAD_RECT);
-		static const std::vector<integer> datatypes(n_total_domains, DB_QUADVAR);
+		static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
+		static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
 
 		auto optlist = CALL_SILO(DBMakeOptlist, 4);
 		int opt1 = DB_CARTESIAN;
@@ -262,17 +262,26 @@ void output_stage2(std::string fname, int cycle) {
 		char hostname[HOST_NAME_LEN];
 		gethostname(hostname, HOST_NAME_LEN);
 		CALL_SILO(DBWrite, db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
-		int timestamp = time(NULL);
 		write_silo_var<integer>()(db, "timestamp", timestamp);
 		write_silo_var<integer>()(db, "epoch", epoch);
 		write_silo_var<integer>()(db, "N_localities", localities.size());
-		write_silo_var<integer>()(db, "step_count", node_registry::begin()->second->get_step_num());
+		write_silo_var<integer>()(db, "step_count", nsteps);
+		write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
+		write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
 		CALL_SILO(DBClose, db);
 
 	}
 }
 
 void output_all(std::string fname, int cycle) {
+	static hpx::future<void> barrier(hpx::make_ready_future<void>());
+	barrier.get();
+	nsteps = node_registry::begin()->second->get_step_num();
+	timestamp = time(NULL);
+	steps_elapsed = nsteps - start_step;
+	time_elapsed = time(NULL) - start_time;
+	start_time = timestamp;
+	start_step = nsteps;
 	std::vector<hpx::future<std::vector<node_location::node_id>>> id_futs;
 	for (auto& id : localities) {
 		id_futs.push_back(hpx::async<output1_action>(id, fname, cycle));
@@ -284,8 +293,7 @@ void output_all(std::string fname, int cycle) {
 			loc_ids.push_back(i);
 		}
 	}
-	output_stage2_action func;
-	func(localities[0], fname, cycle);
+	barrier = hpx::async<output_stage2_action>(localities[0], fname, cycle);
 }
 
 void local_load(const std::string&, std::vector<node_location::node_id> node_ids);
