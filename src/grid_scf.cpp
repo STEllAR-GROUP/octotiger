@@ -640,7 +640,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	}
 	rho = 0;
 	const real R0 = this_struct_eos->get_R0();
-	int M = 4;
+	int M = 1;
 //	printf( "%e %e %i\n", dx, R0, M);
 	int nsamp = 0;
 	for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx / 2.0; x0 += dx / M) {

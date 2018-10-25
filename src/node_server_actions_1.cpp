@@ -222,9 +222,6 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	}
 	double elapsed = timer.elapsed();
 	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
-#ifdef OCTOTIGER_USE_NODE_CACHE
-	node_client::cycle_node_cache();
-#endif
 	return a;
 }
 

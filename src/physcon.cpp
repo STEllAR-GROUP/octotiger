@@ -37,7 +37,7 @@ real find_T_rad_gas(real p, real rho, real mu) {
 	return T;
 }
 
-static void these_units(real& m, real& l, real& t, real& k) {
+void these_units(real& m, real& l, real& t, real& k) {
 	real A = physcon.A;
 	real B = physcon.B;
 	real G = physcon.G;

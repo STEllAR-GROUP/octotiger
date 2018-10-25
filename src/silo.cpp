@@ -8,6 +8,7 @@
 #include "node_registry.hpp"
 #include "silo.hpp"
 #include "options.hpp"
+#include "physcon.hpp"
 #include <hpx/lcos/broadcast.hpp>
 #include <future>
 #include "util.hpp"
@@ -247,7 +248,8 @@ void output_stage2(std::string fname, int cycle) {
 
 		write_silo_var<integer> fi;
 		write_silo_var<real> fr;
-
+		real g, cm, s, K;
+		these_units(g, cm, s, K);
 		fi(db, "n_species", opts.n_species);
 		fi(db, "eos", integer(opts.eos));
 		fi(db, "gravity", integer(opts.gravity));
@@ -260,6 +262,10 @@ void output_stage2(std::string fname, int cycle) {
 		fr(db, "time", dtime);
 		fr(db, "rotational_time", rtime);
 		fr(db, "xscale", opts.xscale);
+		fr(db, "g", g);
+		fr(db, "cm", cm);
+		fr(db, "s", s);
+		fr(db, "K", K);
 		char hostname[HOST_NAME_LEN];
 		gethostname(hostname, HOST_NAME_LEN);
 		CALL_SILO(DBWrite, db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
@@ -322,6 +328,11 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 	DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
 	const real dtime = rr(db, "time");
 	const real rtime = rr(db, "rotational_time");
+	const real g = rr(db, "g");
+	const real cm = rr(db, "cm");
+	const real s = rr(db, "s");
+	const real K = rr(db, "K");
+
 	CALL_SILO(DBClose, db);
 
 	std::vector<hpx::future<void>> futs;
@@ -330,12 +341,13 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 	for (const auto& i : node_ids) {
 		node_location l;
 		l.from_id(i);
-		futs.push_back(hpx::new_<node_server>(me, l).then([&me,l,&fname](hpx::future<hpx::id_type>&& f) {
+		futs.push_back(hpx::new_<node_server>(me, l).then([&me,l,&fname,g,cm,s,K](hpx::future<hpx::id_type>&& f) {
 			const auto id = f.get();
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
 			const auto pid = load_registry::get(l.get_parent().to_id());
 			node_server* node_ptr = node_registry::get(l);
+			node_ptr->change_units(g,cm,s,K);
 			grid& g = node_ptr->get_hydro_grid();
 			const auto suffix = std::to_string(l.to_id());
 			DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);

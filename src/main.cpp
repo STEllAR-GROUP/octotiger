@@ -51,6 +51,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_problem(radiation_test_problem);
 		set_refine_test(radiation_test_refine);
 	} else if (opts.problem == DWD) {
+		opts.n_species=5;
 		set_problem(scf_binary);
 		set_refine_test(refine_test);
 	} else if (opts.problem == SOD) {

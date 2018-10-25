@@ -68,7 +68,7 @@ FIND_PATH( Silo_INCLUDE_DIR silo.h
   ${Silo_ROOT}/include
 )
 
-FIND_LIBRARY( Silo_LIBRARY NAMES silo
+FIND_LIBRARY( Silo_LIBRARY NAMES h5 silo
   PATHS /usr/lib
   /usr/lib64
   /usr/local/lib

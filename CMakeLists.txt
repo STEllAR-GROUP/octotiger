@@ -200,7 +200,7 @@ set(silo_cmp_header_files)
 
 
 set(silo_reader_source_files
-    silo_reader_src/silo_reader.cpp
+    ./src/silo_reader/silo_reader.cpp
 )
 
 set(analysis_source_files
@@ -234,11 +234,11 @@ endif()
 
 
 
+add_library( eos ./src/libeos/libeos.cpp )
 add_executable( analysis ${analysis_source_files} )
 add_executable( silo_reader ${silo_reader_source_files} )
 
 
-
-target_link_libraries(silo_reader ${Silo_LIBRARY})
+target_link_libraries(silo_reader ${Silo_LIBRARY} libeos.a )
 
 
