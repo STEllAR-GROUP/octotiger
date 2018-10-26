@@ -236,9 +236,8 @@ endif()
 
 add_library( eos ./src/libeos/libeos.cpp )
 add_executable( analysis ${analysis_source_files} )
-add_executable( silo_reader ${silo_reader_source_files} )
+add_executable( silo_reader ${silo_reader_source_files} ./src/libeos/libeos.cpp )
 
-
-target_link_libraries(silo_reader ${Silo_LIBRARY} libeos.a )
+target_link_libraries( silo_reader ${Silo_LIBRARY} )
 
 
