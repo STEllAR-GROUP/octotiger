@@ -443,7 +443,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		auto diags = diagnostics();
 		if (i % 10 == 0) {
 			if (!opts.disable_output) {
-				output_all(buffer, i);
+				output_all(buffer, i,false);
 			}
 		}
 		real f0 = scf_options::M1 / (diags.m[0]);

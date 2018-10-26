@@ -268,7 +268,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
 		this->velocity_inc(dv);
 		if (!opts.disable_output) {
-			output_all("scf.chk", 0);
+			output_all("scf.chk", 0, false);
 		}
 	}
 	if (opts.radiation) {
@@ -284,7 +284,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 	if (!opts.output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
-		output_all(opts.output_filename, output_cnt);
+		output_all(opts.output_filename, output_cnt, false);
 		return;
 	}
 
@@ -311,7 +311,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 			diagnostics();
 			printf("doing silo out...\n");
 			std::string fname = "X." + std::to_string(int(output_cnt));
-			output_all(fname, output_cnt);
+			output_all(fname, output_cnt, false);
 			++output_cnt;
 
 		}
@@ -417,16 +417,14 @@ void node_server::start_run(bool scf, integer ngrids) {
 
 		if (!opts.disable_output) {
 			printf("doing silo out...\n");
-			output_all("final", output_cnt);
-			const auto cmd = std::string("cp final.silo X.") + std::to_string(int(output_cnt)) + std::string("\n");
-			system(cmd.c_str());
+			output_all("final", output_cnt, true);
 		}
 
 		if (get_analytic() != nullptr) {
 			compare_analytic();
 			solve_gravity(true, false);
 			if (!opts.disable_output) {
-				output_all("analytic", output_cnt);
+				output_all("analytic", output_cnt, true);
 			}
 		}
 	}

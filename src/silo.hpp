@@ -35,7 +35,7 @@ public:
 	double operator()(int i) const;
 };
 
-void output_all(std::string fname, int cycle);
+void output_all(std::string fname, int cycle, bool);
 
 void load_options_from_silo(std::string fname, DBfile* = NULL);
 

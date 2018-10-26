@@ -29,8 +29,6 @@
 
 extern options opts;
 
-void output_all(std::string, int);
-
 typedef node_server::regrid_gather_action regrid_gather_action_type;
 HPX_REGISTER_ACTION(regrid_gather_action_type);
 

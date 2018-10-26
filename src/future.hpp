@@ -72,6 +72,9 @@ inline void wait_all_and_propagate_exceptions(Ts&& futs) {
 
 template<class T>
 inline T debug_get(future<T> & f, const char* file, int line) {
+	if( f.valid() == false ) {
+		printf( "get on invalid future file %s line %i\n", file, line);
+	}
 	constexpr int timeout = 60;
 	int count = 0;
 	while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
@@ -89,6 +92,9 @@ inline T debug_get(future<T> && _f, const char* file, int line) {
 
 template<class T>
 inline T debug_get(const hpx::shared_future<T> & f, const char* file, int line) {
+	if( f.valid() == false ) {
+		printf( "get on invalid future file %s line %i\n", file, line);
+	}
 	constexpr int timeout = 60;
 	int count = 0;
 	while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {

@@ -100,7 +100,7 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 				rc.mesh_name = /*std::string( "mesh_") +*/suffix;
 				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
 				rc.X = std::move(X);
-	///			rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
+				rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
 				return std::move(rc);
 			}, i->first, i->second));
 			ids.push_back(i->first.to_id());
@@ -127,10 +127,10 @@ void output_stage2(std::string fname, int cycle) {
 	double dtime = node_registry::begin()->second->get_time();
 
 	for (auto& this_fut : futs_) {
-		all_mesh_vars.push_back(std::move(this_fut.get()));
+		all_mesh_vars.push_back(std::move(GET(this_fut)));
 	}
 
-	hpx::threads::run_as_os_thread([&this_fname,this_id,&all_mesh_vars,&dtime](integer cycle) {
+	GET(hpx::threads::run_as_os_thread([&this_fname,this_id,&all_mesh_vars,&dtime](integer cycle) {
 		DBfile *db;
 		if (this_id == 0) {
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
@@ -169,7 +169,7 @@ void output_stage2(std::string fname, int cycle) {
 		}
 		DBFreeOptlist( optlist);
 		DBClose( db);
-	}, cycle).get();
+	}, cycle));
 	if (this_id < integer(localities.size()) - 1) {
 		output_stage2_action func;
 		func(localities[this_id + 1], fname, cycle);
@@ -177,7 +177,7 @@ void output_stage2(std::string fname, int cycle) {
 
 	double rtime = node_registry::begin()->second->get_rotation_count();
 	if (this_id == 0) {
-		hpx::threads::run_as_os_thread([&this_fname,nfields,&rtime](int cycle) {
+		GET(hpx::threads::run_as_os_thread([&this_fname,nfields,&rtime](int cycle) {
 			auto* db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
 			double dtime = node_registry::begin()->second->get_time();
 			float ftime = dtime;
@@ -262,13 +262,16 @@ void output_stage2(std::string fname, int cycle) {
 			write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
 			DBClose( db);
 
-		}, cycle).get();
+		}, cycle));
 	}
 }
 
-void output_all(std::string fname, int cycle) {
+void output_all(std::string fname, int cycle, bool block) {
+	static hpx::lcos::local::spinlock mtx;
+	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
+
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
-	barrier.get();
+	GET(barrier);
 	nsteps = node_registry::begin()->second->get_step_num();
 	timestamp = time(NULL);
 	steps_elapsed = nsteps - start_step;
@@ -281,13 +284,16 @@ void output_all(std::string fname, int cycle) {
 	}
 	loc_ids.clear();
 	for (auto& f : id_futs) {
-		std::vector<node_location::node_id> these_ids = f.get();
+		std::vector<node_location::node_id> these_ids = GET(f);
 		for (auto& i : these_ids) {
 			loc_ids.push_back(i);
 		}
 	}
 	barrier = hpx::async<output_stage2_action>(localities[0], fname, cycle);
-	barrier.get();
+	if( block ) {
+		GET(barrier);
+		barrier = hpx::make_ready_future<void>();
+	}
 }
 
 void local_load(const std::string&, std::vector<node_location::node_id> node_ids);
@@ -303,7 +309,7 @@ void all_boundaries() {
 			i->second->all_hydro_bounds();
 		}));
 	}
-	hpx::when_all(std::move(futs)).get();
+	GET(hpx::when_all(std::move(futs)));
 }
 
 void local_load(const std::string& fname, std::vector<node_location::node_id> node_ids) {
@@ -316,20 +322,20 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 		node_location l;
 		l.from_id(i);
 		futs.push_back(hpx::new_<node_server>(me, l).then([&me,l](hpx::future<hpx::id_type>&& f) {
-			const auto id = f.get();
+			const auto id = GET(f);
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
 			const auto pid = load_registry::get(l.get_parent().to_id());
 			node_client p(pid);
-			p.notify_parent(l,id).get();
+			GET(p.notify_parent(l,id));
 		}));
 	}
 
 	for (int i = 0; i < futs.size(); i++) {
-		futs[i].get();
+		GET(futs[i]);
 	}
 
-	hpx::threads::run_as_os_thread([&fname]() {
+	GET(hpx::threads::run_as_os_thread([&fname]() {
 		read_silo_var<integer> ri;
 		read_silo_var<real> rr;
 		DBfile* db = DBOpenReal( fname.c_str(), DB_PDB, DB_READ);
@@ -368,7 +374,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			node_ptr->set_time(dtime, rtime);
 		}
 		DBClose( db);
-	}).get();
+	}));
 
 	if (hpx::get_locality_id() == 0) {
 		grid::set_omega(opts.omega);
@@ -407,7 +413,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 		}
 	};
 	if (db == NULL) {
-		hpx::threads::run_as_os_thread(func).get();
+		GET(hpx::threads::run_as_os_thread(func));
 	} else {
 		func();
 	}
@@ -417,14 +423,14 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
 	load_registry::put(1, root);
 	static int sz = localities.size();
-	DBfile* db = hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_PDB, DB_READ).get();
-	epoch = hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch").get();
+	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_PDB, DB_READ));
+	epoch = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
 	epoch++;
 	if (db != NULL) {
-		DBmultimesh* master_mesh = hpx::threads::run_as_os_thread([&]() {
+		DBmultimesh* master_mesh = GET( hpx::threads::run_as_os_thread([&]() {
 			return DBGetMultimesh( db, "mesh");
-		}).get();
-		hpx::threads::run_as_os_thread(DBClose, db).get();
+		}));
+		GET(hpx::threads::run_as_os_thread(DBClose, db));
 		std::vector<node_location::node_id> work;
 		std::vector<hpx::future<void>> futs;
 		const int chunk_size = master_mesh->nblocks / sz;
@@ -438,9 +444,9 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 				work.clear();
 			}
 		}
-		hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh).get();
+		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));
 		for (auto& f : futs) {
-			f.get();
+			GET(f);
 		}
 	} else {
 		std::cout << "Could not load " << fname;
@@ -449,7 +455,7 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 	hpx::id_type rc = load_registry::get(1);
 	load_registry::destroy();
 	root_ptr->form_tree(root);
-	hpx::lcos::broadcast<all_boundaries_action>(localities).get();
+	GET(hpx::lcos::broadcast<all_boundaries_action>(localities));
 	return std::move(rc);
 }
 
