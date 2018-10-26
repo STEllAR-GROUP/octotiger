@@ -468,7 +468,6 @@ void node_server::refined_step() {
 	real cfl0 = cfl;
 
 	real a = std::numeric_limits<real>::min();
-
 	all_hydro_bounds();
 	local_timestep_channels[NCHILD].set_value(std::numeric_limits<real>::max());
 	auto dt_fut = global_timestep_channel.get_future();

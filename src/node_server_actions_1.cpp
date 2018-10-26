@@ -47,7 +47,6 @@ integer node_server::regrid_gather(bool rebalance_only) {
 			if (refinement_flag == 0) {
 				std::fill_n(children.begin(), NCHILD, node_client());
 				is_refined = false;
-				grid_ptr->set_leaf(true);
 			}
 		}
 
@@ -76,7 +75,6 @@ integer node_server::regrid_gather(bool rebalance_only) {
 
 			/* Turning refinement on*/
 			is_refined = true;
-			grid_ptr->set_leaf(false);
 
 			for (auto& ci : geo::octant::full_set()) {
 				child_descendant_count[ci] = 1;
@@ -84,6 +82,7 @@ integer node_server::regrid_gather(bool rebalance_only) {
 			}
 		}
 	}
+	grid_ptr->set_leaf(!is_refined);
 	return count;
 }
 

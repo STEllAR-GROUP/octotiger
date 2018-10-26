@@ -59,6 +59,7 @@ extern physcon_t physcon;
 real mean_ion_weight(const specie_state_t<> species);
 void set_AB(real, real);
 
+void set_units(real m, real l, real t, real k);
 real stellar_temp_from_rho_mu_s(real rho, real mu, real s);
 real stellar_enthalpy_from_rho_mu_s(real rho, real mu, real s);
 real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s);

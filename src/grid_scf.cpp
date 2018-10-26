@@ -437,7 +437,7 @@ void node_server::run_scf(std::string const& data_dir) {
 	for (integer i = 0; i != 100; ++i) {
 //		profiler_output(stdout);
 		char buffer[33];    // 21 bytes for int (max) + some leeway
-		sprintf(buffer, "X.scf.%i.silo", int(i));
+		sprintf(buffer, "X.scf.%i", int(i));
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
 		auto diags = diagnostics();

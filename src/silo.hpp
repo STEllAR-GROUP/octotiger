@@ -37,7 +37,7 @@ public:
 
 void output_all(std::string fname, int cycle);
 
-void load_options_from_silo(std::string fname);
+void load_options_from_silo(std::string fname, DBfile* = NULL);
 
 hpx::id_type load_data_from_silo(std::string fname, node_server*, hpx::id_type);
 

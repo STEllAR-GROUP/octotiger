@@ -17,28 +17,6 @@ static const auto& localities = options::all_localities;
 
 static std::mutex silo_mtx_;
 
-template<class R, class ...Args1, class ...Args2>
-R call_silo(R (*f)(Args1...), int, Args2&& ...args) {
-	return std::async(std::launch::async, [&]() {
-		std::lock_guard<std::mutex> lock(silo_mtx_);
-		return f(args...);
-	}).get();
-}
-
-template<class ...Args1, class ...Args2>
-int call_silo(int (*f)(Args1...), int line, Args2&& ...args) {
-	return std::async(std::launch::async, [&]() {
-		std::lock_guard<std::mutex> lock(silo_mtx_);
-		int rc = f(args...);
-		if( rc != 0 ) {
-			std::cout << "silo error at " << std::to_string(line) << "\n";
-		}
-		return rc;
-	}).get();
-}
-
-#define CALL_SILO( func, args... ) call_silo(func, __LINE__, args)
-
 std::vector<node_location::node_id> output_stage1(std::string fname, int cycle);
 void output_stage2(std::string fname, int cycle);
 
@@ -76,7 +54,7 @@ template<class T>
 struct write_silo_var {
 	void operator()(DBfile* db, const char* name, T var) {
 		int one = 1;
-		CALL_SILO(DBWrite, db, name, &var, &one, 1, db_type<T>::d);
+		DBWrite(db, name, &var, &one, 1, db_type<T>::d);
 	}
 };
 
@@ -85,7 +63,9 @@ struct read_silo_var {
 	T operator()(DBfile* db, const char* name) {
 		int one = 1;
 		T var;
-		CALL_SILO(DBReadVar, db, name, &var);
+		if (DBReadVar(db, name, &var) != 0) {
+			std::cout << "Unable to read " << name << " \n";
+		}
 		return var;
 	}
 };
@@ -106,7 +86,7 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 	futs_.clear();
 	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
 		if (!i->second->refined()) {
-			futs_.push_back(hpx::async([&ids](node_location loc, node_server* this_ptr) {
+			futs_.push_back(hpx::async([](node_location loc, node_server* this_ptr) {
 				std::vector<std::array<real, INX+1>> X(NDIM);
 				const real dx = TWO / real(1 << loc.level()) / real(INX);
 				for( int d = 0; d < NDIM; d++) {
@@ -120,7 +100,7 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 				rc.mesh_name = /*std::string( "mesh_") +*/suffix;
 				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
 				rc.X = std::move(X);
-				rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
+	///			rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
 				return std::move(rc);
 			}, i->first, i->second));
 			ids.push_back(i->first.to_id());
@@ -140,143 +120,149 @@ static int time_elapsed;
 static int steps_elapsed;
 
 void output_stage2(std::string fname, int cycle) {
-	std::string this_fname = fname + std::string(".silo");
-	DBfile *db;
-	if (hpx::get_locality_id() == 0) {
-		db = CALL_SILO(DBCreateReal, this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
-	} else {
-		db = CALL_SILO(DBOpenReal, this_fname.c_str(), DB_PDB, DB_APPEND);
-	}
+	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
-	if (node_registry::begin() != node_registry::end()) {
-		double dtime = node_registry::begin()->second->get_time();
+	std::string this_fname = fname + std::string(".silo");
+	std::vector<mesh_vars_t> all_mesh_vars;
+	double dtime = node_registry::begin()->second->get_time();
+
+	for (auto& this_fut : futs_) {
+		all_mesh_vars.push_back(std::move(this_fut.get()));
+	}
+
+	hpx::threads::run_as_os_thread([&this_fname,this_id,&all_mesh_vars,&dtime](integer cycle) {
+		DBfile *db;
+		if (this_id == 0) {
+			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
+		} else {
+			db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
+		}
 		float ftime = dtime;
-		auto optlist = CALL_SILO(DBMakeOptlist, 5);
+		auto optlist = DBMakeOptlist(5);
 		int one = 1;
 		int opt1 = DB_CARTESIAN;
-		CALL_SILO(DBAddOption, optlist, DBOPT_HIDE_FROM_GUI, &one);
-		CALL_SILO(DBAddOption, optlist, DBOPT_COORDSYS, &opt1);
-		CALL_SILO(DBAddOption, optlist, DBOPT_CYCLE, &cycle);
-		CALL_SILO(DBAddOption, optlist, DBOPT_DTIME, &dtime);
-		CALL_SILO(DBAddOption, optlist, DBOPT_TIME, &ftime);
-		const char* coord_names[] = { "x", "y", "z" };
-		constexpr int dims[] = { INX + 1, INX + 1, INX + 1 };
-		constexpr int dims2[] = { INX, INX, INX };
+		DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
+		DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
+		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+		DBAddOption(optlist, DBOPT_DTIME, &dtime);
+		DBAddOption(optlist, DBOPT_TIME, &ftime);
+		const char* coord_names[] = {"x", "y", "z"};
+		constexpr int dims[] = {INX + 1, INX + 1, INX + 1};
+		constexpr int dims2[] = {INX, INX, INX};
 		constexpr int data_type = DB_DOUBLE;
 		constexpr int ndim = NDIM;
 		constexpr int coord_type = DB_COLLINEAR;
 
-		for (auto& this_fut : futs_) {
-			auto mesh_vars = this_fut.get();
+		for( const auto& mesh_vars : all_mesh_vars) {
 			const auto& X = mesh_vars.X;
-			const real* coords[] = { X[0].data(), X[1].data(), X[2].data() };
-			CALL_SILO(DBPutQuadmesh, db, mesh_vars.mesh_name.c_str(), coord_names, coords, dims, ndim, data_type, coord_type,
-					optlist);
+			const real* coords[] = {X[0].data(), X[1].data(), X[2].data()};
+		//	printf( "Saving %s\n", (mesh_vars.mesh_name.c_str()));
+			DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, dims, ndim, data_type, coord_type, optlist);
 			for (const auto& o : mesh_vars.vars) {
-				CALL_SILO(DBPutQuadvar1, db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), dims2, ndim, (const void*) NULL,
-						0, DB_DOUBLE, DB_ZONECENT, optlist);
+				DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), dims2, ndim, (const void*) NULL, 0,
+						DB_DOUBLE, DB_ZONECENT, optlist);
 			}
 			for (const auto& p : mesh_vars.outflow) {
 				const std::string name = p.first + std::string("_outflow_") + mesh_vars.mesh_name;
 				write_silo_var<real>()(db, name.c_str(), p.second);
 			}
 		}
-		CALL_SILO(DBFreeOptlist, optlist);
-		CALL_SILO(DBClose, db);
-	}
-	static const integer this_id = hpx::get_locality_id();
+		DBFreeOptlist( optlist);
+		DBClose( db);
+	}, cycle).get();
 	if (this_id < integer(localities.size()) - 1) {
 		output_stage2_action func;
 		func(localities[this_id + 1], fname, cycle);
 	}
 
+	double rtime = node_registry::begin()->second->get_rotation_count();
 	if (this_id == 0) {
-		db = CALL_SILO(DBOpenReal, this_fname.c_str(), DB_PDB, DB_APPEND);
-		double dtime = node_registry::begin()->second->get_time();
-		float ftime = dtime;
-		double rtime = node_registry::begin()->second->get_rotation_count();
-		std::vector<node_location> node_locs;
-		std::vector<char*> mesh_names;
-		std::vector<std::vector<char*>> field_names(nfields);
-		for (auto& i : loc_ids) {
-			node_location nloc;
-			nloc.from_id(i);
-			node_locs.push_back(nloc);
+		hpx::threads::run_as_os_thread([&this_fname,nfields,&rtime](int cycle) {
+			auto* db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
+			double dtime = node_registry::begin()->second->get_time();
+			float ftime = dtime;
+			std::vector<node_location> node_locs;
+			std::vector<char*> mesh_names;
+			std::vector<std::vector<char*>> field_names(nfields);
+			for (auto& i : loc_ids) {
+				node_location nloc;
+				nloc.from_id(i);
+				node_locs.push_back(nloc);
 
-		}
-		const auto top_field_names = grid::get_field_names();
-		for (int i = 0; i < node_locs.size(); i++) {
-			const auto suffix = std::to_string(node_locs[i].to_id());
-			const auto str = /*std::string("mesh_") + */suffix;
-			char* ptr = new char[str.size() + 1];
-			std::strcpy(ptr, str.c_str());
-			mesh_names.push_back(ptr);
-			for (int f = 0; f < nfields; f++) {
-				const auto str = top_field_names[f] + std::string("_") + suffix;
+			}
+			const auto top_field_names = grid::get_field_names();
+			for (int i = 0; i < node_locs.size(); i++) {
+				const auto suffix = std::to_string(node_locs[i].to_id());
+				const auto str = /*std::string("mesh_") + */suffix;
 				char* ptr = new char[str.size() + 1];
-				strcpy(ptr, str.c_str());
-				field_names[f].push_back(ptr);
+				std::strcpy(ptr, str.c_str());
+				mesh_names.push_back(ptr);
+				for (int f = 0; f < nfields; f++) {
+					const auto str = top_field_names[f] + std::string("_") + suffix;
+					char* ptr = new char[str.size() + 1];
+					strcpy(ptr, str.c_str());
+					field_names[f].push_back(ptr);
+				}
 			}
-		}
 
-		const int n_total_domains = mesh_names.size();
-		static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
-		static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
+			const int n_total_domains = mesh_names.size();
+			static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
+			static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
 
-		auto optlist = CALL_SILO(DBMakeOptlist, 4);
-		int opt1 = DB_CARTESIAN;
-		CALL_SILO(DBAddOption, optlist, DBOPT_COORDSYS, &opt1);
-		CALL_SILO(DBAddOption, optlist, DBOPT_CYCLE, &cycle);
-		CALL_SILO(DBAddOption, optlist, DBOPT_DTIME, &dtime);
-		CALL_SILO(DBAddOption, optlist, DBOPT_TIME, &ftime);
-		CALL_SILO(DBPutMultimesh, db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), optlist);
-		for (int f = 0; f < nfields; f++) {
+			auto optlist = DBMakeOptlist(4);
+			int opt1 = DB_CARTESIAN;
+			DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
+			DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+			DBAddOption(optlist, DBOPT_DTIME, &dtime);
+			DBAddOption(optlist, DBOPT_TIME, &ftime);
+			DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), optlist);
+			for (int f = 0; f < nfields; f++) {
 
-			CALL_SILO(DBPutMultivar, db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(),
-					optlist);
+				DBPutMultivar( db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(),
+						optlist);
 
-		}
-		CALL_SILO(DBFreeOptlist, optlist);
-		for (auto ptr : mesh_names) {
-			delete[] ptr;
-		}
-		for (int f = 0; f < nfields; f++) {
-			for (auto& s : field_names[f]) {
-				delete[] s;
 			}
-		}
+			DBFreeOptlist( optlist);
+			for (auto ptr : mesh_names) {
+				delete[] ptr;
+			}
+			for (int f = 0; f < nfields; f++) {
+				for (auto& s : field_names[f]) {
+					delete[] s;
+				}
+			}
+			write_silo_var<integer> fi;
+			write_silo_var<real> fr;
 
-		write_silo_var<integer> fi;
-		write_silo_var<real> fr;
-		real g, cm, s, K;
-		these_units(g, cm, s, K);
-		fi(db, "n_species", opts.n_species);
-		fi(db, "eos", integer(opts.eos));
-		fi(db, "gravity", integer(opts.gravity));
-		fi(db, "hydro", integer(opts.hydro));
-		fr(db, "omega", grid::get_omega());
-		fr(db, "output_frequency", opts.output_dt);
-		fi(db, "problem", integer(opts.problem));
-		fi(db, "radiation", integer(opts.radiation));
-		fr(db, "refinement_floor", opts.refinement_floor);
-		fr(db, "time", dtime);
-		fr(db, "rotational_time", rtime);
-		fr(db, "xscale", opts.xscale);
-		fr(db, "g", g);
-		fr(db, "cm", cm);
-		fr(db, "s", s);
-		fr(db, "K", K);
-		char hostname[HOST_NAME_LEN];
-		gethostname(hostname, HOST_NAME_LEN);
-		CALL_SILO(DBWrite, db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
-		write_silo_var<integer>()(db, "timestamp", timestamp);
-		write_silo_var<integer>()(db, "epoch", epoch);
-		write_silo_var<integer>()(db, "N_localities", localities.size());
-		write_silo_var<integer>()(db, "step_count", nsteps);
-		write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
-		write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
-		CALL_SILO(DBClose, db);
+			fi(db, "n_species", integer(opts.n_species));
+			fi(db, "eos", integer(opts.eos));
+			fi(db, "gravity", integer(opts.gravity));
+			fi(db, "hydro", integer(opts.hydro));
+			fr(db, "omega", grid::get_omega());
+			fr(db, "output_frequency", opts.output_dt);
+			fi(db, "problem", integer(opts.problem));
+			fi(db, "radiation", integer(opts.radiation));
+			fr(db, "refinement_floor", opts.refinement_floor);
+			fr(db, "time", dtime);
+			fr(db, "rotational_time", rtime);
+			fr(db, "xscale", opts.xscale); char hostname[HOST_NAME_LEN];
+			real g, cm, s, K;
+			these_units(g,cm,s,K);
+			fr(db, "g", g);
+			fr(db, "cm", cm);
+			fr(db, "s", s);
+			fr(db, "K", K);
+			gethostname(hostname, HOST_NAME_LEN);
+			DBWrite( db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
+			write_silo_var<integer>()(db, "timestamp", timestamp);
+			write_silo_var<integer>()(db, "epoch", epoch);
+			write_silo_var<integer>()(db, "N_localities", localities.size());
+			write_silo_var<integer>()(db, "step_count", nsteps);
+			write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
+			write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
+			DBClose( db);
 
+		}, cycle).get();
 	}
 }
 
@@ -301,6 +287,7 @@ void output_all(std::string fname, int cycle) {
 		}
 	}
 	barrier = hpx::async<output_stage2_action>(localities[0], fname, cycle);
+	barrier.get();
 }
 
 void local_load(const std::string&, std::vector<node_location::node_id> node_ids);
@@ -321,85 +308,108 @@ void all_boundaries() {
 
 void local_load(const std::string& fname, std::vector<node_location::node_id> node_ids) {
 
-	load_options_from_silo(fname);
-
-	read_silo_var<real> rr;
-
-	DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
-	const real dtime = rr(db, "time");
-	const real rtime = rr(db, "rotational_time");
-	const real g = rr(db, "g");
-	const real cm = rr(db, "cm");
-	const real s = rr(db, "s");
-	const real K = rr(db, "K");
-
-	CALL_SILO(DBClose, db);
-
 	std::vector<hpx::future<void>> futs;
 	const auto me = hpx::find_here();
 	static const auto names = grid::get_field_names();
+	static const auto hydro_names = grid::get_hydro_field_names();
 	for (const auto& i : node_ids) {
 		node_location l;
 		l.from_id(i);
-		futs.push_back(hpx::new_<node_server>(me, l).then([&me,l,&fname,g,cm,s,K](hpx::future<hpx::id_type>&& f) {
+		futs.push_back(hpx::new_<node_server>(me, l).then([&me,l](hpx::future<hpx::id_type>&& f) {
 			const auto id = f.get();
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
 			const auto pid = load_registry::get(l.get_parent().to_id());
-			node_server* node_ptr = node_registry::get(l);
-			node_ptr->change_units(g,cm,s,K);
-			grid& g = node_ptr->get_hydro_grid();
-			const auto suffix = std::to_string(l.to_id());
-			DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
-			assert(db);
-			std::vector<std::pair<std::string,real>> outflow;
-			for( auto n : names ) {
-				const auto name = n + std::string( "_") + suffix;
-				const auto quadvar = CALL_SILO(DBGetQuadvar,db,name.c_str());
-				g.set(quadvar->name, static_cast<real*>(*(quadvar->vals)));
-				CALL_SILO(DBFreeQuadvar,quadvar);
-				std::string name_outflow = n + std::string("_outflow_") + suffix;
-				const real o = read_silo_var<real>()(db, name_outflow.c_str());
-				outflow.push_back(std::make_pair(std::move(name_outflow), o));
-			}
-			g.set_outflows(std::move(outflow));
-			CALL_SILO(DBClose, db);
 			node_client p(pid);
 			p.notify_parent(l,id).get();
 		}));
 	}
-	for (auto& f : futs) {
-		f.get();
-	}
-	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
-		i->second->set_time(dtime, rtime);
-	}
-}
 
-void load_options_from_silo(std::string fname) {
-	DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
-	assert(db);
-	read_silo_var<integer> ri;
-	read_silo_var<real> rr;
-
-	opts.n_species = ri(db, "n_species");
-	opts.eos = eos_type(ri(db, "eos"));
-	opts.gravity = ri(db, "gravity");
-	opts.hydro = ri(db, "hydro");
-	opts.omega = rr(db, "omega");
-	opts.output_dt = rr(db, "output_frequency");
-	opts.problem = problem_type(ri(db, "problem"));
-	opts.radiation = ri(db, "radiation");
-	opts.refinement_floor = rr(db, "refinement_floor");
-	opts.xscale = rr(db, "xscale");
-	if (db != NULL) {
-		CALL_SILO(DBClose, db);
-	} else {
-		std::cout << "Could not load " << fname;
-		throw;
+	for (int i = 0; i < futs.size(); i++) {
+		futs[i].get();
 	}
+
+	hpx::threads::run_as_os_thread([&fname]() {
+		read_silo_var<integer> ri;
+		read_silo_var<real> rr;
+		DBfile* db = DBOpenReal( fname.c_str(), DB_PDB, DB_READ);
+//		printf( "Options loads\n");
+		load_options_from_silo(fname,db);
+		const real dtime = rr(db, "time");
+		const real rtime = rr(db, "rotational_time");
+		const real grams = rr(db, "g");
+		const real cm = rr(db, "cm");
+		const real s = rr(db, "s");
+		const real K = rr(db, "K");
+		set_units(grams,cm,s,K);
+		for( auto iter = node_registry::begin(); iter != node_registry::end(); iter++ ) {
+			auto* node_ptr = iter->second;
+			if( !node_ptr->refined() ) {
+				const auto l = iter->first;
+				grid& g = node_ptr->get_hydro_grid();
+				const auto suffix = std::to_string(l.to_id());
+				assert(db);
+				std::vector<std::pair<std::string,real>> outflow;
+		//		printf( "Loading %i\n", int(l.to_id()));
+				for( auto n : names ) {
+					const auto name = n + std::string( "_") + suffix;
+					const auto quadvar = DBGetQuadvar(db,name.c_str());
+					g.set(n, static_cast<real*>(*(quadvar->vals)));
+					DBFreeQuadvar(quadvar);
+				}
+				for( auto n : hydro_names ) {
+					const auto name = n + std::string( "_") + suffix;
+					std::string name_outflow = n + std::string("_outflow_") + suffix;
+					const real o = read_silo_var<real>()(db, name_outflow.c_str());
+					outflow.push_back(std::make_pair(n, o));
+				}
+				g.set_outflows(std::move(outflow));
+			}
+			node_ptr->set_time(dtime, rtime);
+		}
+		DBClose( db);
+	}).get();
+
 	if (hpx::get_locality_id() == 0) {
 		grid::set_omega(opts.omega);
+	}
+
+}
+
+void load_options_from_silo(std::string fname, DBfile* db) {
+	const auto func = [&fname,&db]() {
+		bool leaveopen;
+		if( db == NULL ) {
+			db = DBOpenReal( fname.c_str(), DB_PDB, DB_READ);
+			leaveopen = false;
+		} else {
+			leaveopen = true;
+		}
+		if (db != NULL) {
+			read_silo_var<integer> ri;
+			read_silo_var<real> rr;
+			opts.n_species = ri(db, "n_species");
+			opts.eos = eos_type(ri(db, "eos"));
+			opts.gravity = ri(db, "gravity");
+			opts.hydro = ri(db, "hydro");
+			opts.omega = rr(db, "omega");
+			opts.output_dt = rr(db, "output_frequency");
+			opts.problem = problem_type(ri(db, "problem"));
+			opts.radiation = ri(db, "radiation");
+			opts.refinement_floor = rr(db, "refinement_floor");
+			opts.xscale = rr(db, "xscale");
+			if( !leaveopen) {
+				DBClose(db);
+			}
+		} else {
+			std::cout << "Could not load " << fname;
+			throw;
+		}
+	};
+	if (db == NULL) {
+		hpx::threads::run_as_os_thread(func).get();
+	} else {
+		func();
 	}
 
 }
@@ -407,12 +417,14 @@ void load_options_from_silo(std::string fname) {
 hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
 	load_registry::put(1, root);
 	static int sz = localities.size();
-	DBfile* db = CALL_SILO(DBOpenReal, fname.c_str(), DB_PDB, DB_READ);
-	epoch = read_silo_var<integer>()(db, "epoch");
+	DBfile* db = hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_PDB, DB_READ).get();
+	epoch = hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch").get();
 	epoch++;
 	if (db != NULL) {
-		DBmultimesh* master_mesh = CALL_SILO(DBGetMultimesh, db, "mesh");
-		CALL_SILO(DBClose, db);
+		DBmultimesh* master_mesh = hpx::threads::run_as_os_thread([&]() {
+			return DBGetMultimesh( db, "mesh");
+		}).get();
+		hpx::threads::run_as_os_thread(DBClose, db).get();
 		std::vector<node_location::node_id> work;
 		std::vector<hpx::future<void>> futs;
 		const int chunk_size = master_mesh->nblocks / sz;
@@ -426,7 +438,7 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 				work.clear();
 			}
 		}
-		CALL_SILO(DBFreeMultimesh, master_mesh);
+		hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh).get();
 		for (auto& f : futs) {
 			f.get();
 		}

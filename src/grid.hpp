@@ -143,6 +143,7 @@ private:
 			const gravity_boundary_type&);
 public:
 	static std::vector<std::string> get_field_names();
+	static std::vector<std::string> get_hydro_field_names();
 
 	std::vector<multipole>& get_M() {
 		return *M_ptr;

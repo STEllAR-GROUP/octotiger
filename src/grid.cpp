@@ -67,12 +67,7 @@ void grid::static_init() {
 }
 
 std::vector<std::string> grid::get_field_names() {
-	std::vector<std::string> rc;
-	if (opts.hydro) {
-		for (auto i : index_to_str_hydro) {
-			rc.push_back(i.second);
-		}
-	}
+	std::vector<std::string> rc = get_hydro_field_names();
 	if (opts.gravity) {
 		for (auto i : index_to_str_gravity) {
 			rc.push_back(i.second);
@@ -81,6 +76,17 @@ std::vector<std::string> grid::get_field_names() {
 	if (opts.radiation) {
 		const auto rnames = rad_grid::get_field_names();
 		std::copy(rnames.begin(), rnames.end(), rc.end());
+	}
+	return rc;
+}
+
+
+std::vector<std::string> grid::get_hydro_field_names() {
+	std::vector<std::string> rc;
+	if (opts.hydro) {
+		for (auto i : index_to_str_hydro) {
+			rc.push_back(i.second);
+		}
 	}
 	return rc;
 }

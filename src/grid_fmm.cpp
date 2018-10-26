@@ -1682,6 +1682,7 @@ multipole_pass_type grid::compute_multipoles(
                                 mon[iiip] = dUdt[rho_i][iii0] * dx3;
                             }
                         } else {
+                        	assert( M.size() );
                             M[iiip] = child_poles->first[index];
                             if (type == RHO) {
                                 (*(com_ptr)[lev])[iiip] = child_poles->second[index];

@@ -85,6 +85,22 @@ void normalize_constants() {
 			physcon.sigma, physcon.h);
 }
 
+void set_units(real m, real l, real t, real k) {
+	m = 1.0 / m;
+	l = 1.0 / l;
+	t = 1.0 / t;
+	k = 1.0 / k;
+	physcon.kb = 1.380658e-16 * (m * l * l) / (t*t) / k;
+	physcon.c = 2.99792458e+10 * (l / t);
+	physcon.mh = 1.6733e-24 * m;
+	physcon.sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
+	physcon.h = 6.6260755e-27 * m * l * l / t;
+	printf("Normalized constants\n");
+	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
+	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon.A, physcon.B, physcon.G, physcon.kb, physcon.c, physcon.mh,
+			physcon.sigma, physcon.h);
+}
+
 struct call_normalize_constants
 {
     call_normalize_constants()

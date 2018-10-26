@@ -105,7 +105,9 @@ bool options::process_options(int argc, char* argv[]) {
 	po::notify(vm);
 	n_fields = n_species + 10;
 	if (!opts.restart_filename.empty()) {
+		printf( "1\n");
 		load_options_from_silo(opts.restart_filename);
+		printf( "1\n");
 	}
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
