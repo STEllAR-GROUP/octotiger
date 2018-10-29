@@ -33,12 +33,14 @@ public:
 	bool radiation;
 	bool silo_planes_only;
 	bool variable_omega;
+	bool compress_silo;
 
 	integer accretor_refine;
 	integer donor_refine;
 	integer max_level;
 	integer ngrids;
 	integer stop_step;
+
 
 	real driving_rate;
 	real driving_time;
@@ -88,6 +90,7 @@ public:
 		arc & driving_time;
 		arc & refinement_floor;
 		arc & ngrids;
+		arc & compress_silo;
 		arc & variable_omega;
 		arc & silo_planes_only;
 		arc & stop_time;
