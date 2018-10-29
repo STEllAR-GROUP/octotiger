@@ -34,6 +34,10 @@ node_location::node_id node_location::to_id() const {
 	return id;
 }
 
+node_location::node_location(node_location::node_id id) {
+	this->from_id(id);
+}
+
 void node_location::from_id(const node_id& id_) {
 	node_id id = id_;
 	for (int d = 0; d < NDIM; d++) {

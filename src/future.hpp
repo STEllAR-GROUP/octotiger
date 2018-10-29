@@ -9,6 +9,7 @@
 #define FUTURE3_HPP_
 
 #include "defs.hpp"
+
 #include <hpx/include/lcos.hpp>
 
 #include <array>

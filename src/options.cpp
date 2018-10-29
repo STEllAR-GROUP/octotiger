@@ -47,6 +47,7 @@ bool options::process_options(int argc, char* argv[]) {
 	command_opts.add_options() //
 	("xscale", po::value < real > (&(opts.xscale))->default_value(1.0), "grid scale")                   //
 	("omega", po::value < real > (&(opts.omega))->default_value(0.0), "(initial) angular frequency")                          //
+	("compress_silo", po::value<bool>(&(opts.compress_silo))->default_value(true), "compress SILO files to fewer grids")                   //
 	("variable_omega", po::value<bool>(&(opts.variable_omega))->default_value(false), "use variable omega")                   //
 	("driving_rate", po::value < real > (&(opts.driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value < real > (&(opts.driving_time))->default_value(0.0), "A.M. driving rate time")                 //
@@ -113,6 +114,7 @@ bool options::process_options(int argc, char* argv[]) {
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		SHOW(bench);
 		SHOW(disable_output);
+		SHOW(compress_silo);
 		SHOW(core_refine);
 		SHOW(gravity);
 		SHOW(hydro);

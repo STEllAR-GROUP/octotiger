@@ -26,6 +26,7 @@ public:
 	void from_id(const node_id&);
 	node_location();
 	node_location(const node_location& other);
+	node_location(node_location::node_id id);
 	node_location& operator=(const node_location& other);
 	integer level() const;
 	node_location get_child(integer x, integer y, integer z) const;
