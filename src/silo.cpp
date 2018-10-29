@@ -17,13 +17,13 @@ static const auto& localities = options::all_localities;
 
 static std::mutex silo_mtx_;
 
-std::vector<node_location::node_id>
-output_stage1(std::string fname, int cycle);
-void
-output_stage2(std::string fname, int cycle);
+void output_stage1(std::string fname, int cycle);
+std::vector<node_location::node_id> output_stage2(std::string fname, int cycle);
+void output_stage3(std::string fname, int cycle);
 
-HPX_PLAIN_ACTION(output_stage1, output1_action);
+HPX_PLAIN_ACTION(output_stage1, output_stage1_action);
 HPX_PLAIN_ACTION(output_stage2, output_stage2_action);
+HPX_PLAIN_ACTION(output_stage3, output_stage3_action);
 
 #include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
@@ -110,7 +110,7 @@ struct mesh_vars_t {
 static std::vector<hpx::future<mesh_vars_t>> futs_;
 static std::vector<node_location::node_id> loc_ids;
 
-std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) {
+void output_stage1(std::string fname, int cycle) {
 
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
@@ -125,11 +125,8 @@ std::vector<node_location::node_id> output_stage1(std::string fname, int cycle) 
 				rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
 				return std::move(rc);
 			}, i->first, i->second));
-			ids.push_back(i->first.to_id());
 		}
 	}
-
-	return ids;
 }
 
 static const int HOST_NAME_LEN = 100;
@@ -144,7 +141,6 @@ static int steps_elapsed;
 std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 	using table_type = std::unordered_map<node_location::node_id, std::shared_ptr<mesh_vars_t>>;
 	table_type table;
-	printf( "in  %i\n", mesh_vars.size());
 	std::vector<mesh_vars_t> done;
 	for (auto& mv : mesh_vars) {
 		table.insert(std::make_pair(mv.location.to_id(), std::make_shared<mesh_vars_t>(std::move(mv))));
@@ -153,21 +149,23 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 	std::vector<table_type::iterator> iters;
 	while (table.size()) {
 		auto i = table.begin();
-		auto loc_bits = i->first & ~0x7;
-		printf("%i %i %x\n", ll++, table.size(), loc_bits);
+		auto loc_bits = i->first & node_location::node_id(~0x7);
 		for (int j = 0; j < NCHILD; j++) {
 			auto this_iter = table.find(loc_bits | j);
 			if (this_iter != table.end()) {
 				iters.push_back(this_iter);
 			}
 		}
+		const auto field_names = grid::get_field_names();
+		const int nfields = field_names.size();
 		if (iters.size() == NCHILD) {
-			printf("Compressing\n");
+			printf( "Compress\n");
 			node_location ploc;
 			ploc.from_id(loc_bits);
 			ploc = ploc.get_parent();
 			auto new_mesh_ptr = std::make_shared<mesh_vars_t>(ploc, iters[0]->second->compression_level() + 1);
-			for (int f = 0; f < new_mesh_ptr->vars.size(); f++) {
+			for (int f = 0; f < nfields; f++) {
+				silo_var_t new_var(field_names[f] + "_" + std::to_string(ploc.to_id()), new_mesh_ptr->var_dims[0]);
 				for (integer ci = 0; ci != NCHILD; ci++) {
 					const int nx = new_mesh_ptr->var_dims[0] / 2;
 					const int ib = ((ci >> 0) & 1) * nx;
@@ -179,47 +177,59 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 					for (int i = ib; i < ie; i++) {
 						for (int j = jb; j < je; j++) {
 							for (int k = kb; k < ke; k++) {
-								const int iiip = k * (4 * nx * nx) + j * 2 * nx + i;
-								const int iiic = (k - kb) * (nx * nx) + (j - jb) * nx + (i - ib);
-								new_mesh_ptr->vars[f](iiip) = iters[ci]->second->vars[f](iiic);
+								const int iiip = i * (4 * nx * nx) + j * 2 * nx + k;
+								const int iiic = (i - ib) * (nx * nx) + (j - jb) * nx + (k - kb);
+								new_var(iiip) = iters[ci]->second->vars[f](iiic);
 							}
 						}
 					}
 				}
+				new_mesh_ptr->vars.push_back(std::move(new_var));
 			}
-			printf("Compressed\n");
 			for (auto this_iter : iters) {
-				printf("Compressed---\n");
 				table.erase(this_iter);
 			}
-			printf("Compressed\n");
 			table.insert(std::make_pair(ploc.to_id(), new_mesh_ptr));
-			printf("Compressed\n");
 		} else {
-			printf("Not Compressed\n");
+			printf( "------------------\n", iters.size());
 			for (auto this_iter : iters) {
+				node_location loc;
+				loc.from_id(this_iter->first);
+				printf("%s %o\n", loc.to_str().c_str(), this_iter->first);
 				done.push_back(std::move(*this_iter->second));
 				table.erase(this_iter);
 			}
 		}
 		iters.clear();
 	}
-	printf("out  %i\n", done.size());
 	return std::move(done);
 }
 
-void output_stage2(std::string fname, int cycle) {
+static std::vector<mesh_vars_t> all_mesh_vars;
+
+std::vector<node_location::node_id>  output_stage2(std::string fname, int cycle) {
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".silo");
-	std::vector<mesh_vars_t> all_mesh_vars;
 	double dtime = node_registry::begin()->second->get_time();
-
+	all_mesh_vars.clear();
 	for (auto& this_fut : futs_) {
 		all_mesh_vars.push_back(std::move(GET(this_fut)));
 	}
-
+	std::vector<node_location::node_id> ids;
 	all_mesh_vars = compress(std::move(all_mesh_vars));
+	for (const auto& mv : all_mesh_vars) {
+		ids.push_back(mv.location.to_id());
+	}
+
+	return ids;
+}
+
+void output_stage3(std::string fname, int cycle) {
+	const int this_id = hpx::get_locality_id();
+	const int nfields = grid::get_field_names().size();
+	std::string this_fname = fname + std::string(".silo");
+	double dtime = node_registry::begin()->second->get_time();
 	GET( hpx::threads::run_as_os_thread( [&this_fname,this_id,&all_mesh_vars,&dtime](integer cycle) {
 		DBfile *db;
 		if (this_id == 0) {
@@ -255,7 +265,7 @@ void output_stage2(std::string fname, int cycle) {
 		DBFreeOptlist( optlist); DBClose( db);
 	}, cycle));
 	if (this_id < integer(localities.size()) - 1) {
-		output_stage2_action func;
+		output_stage3_action func;
 		func(localities[this_id + 1], fname, cycle);
 	}
 
@@ -300,6 +310,7 @@ void output_stage2(std::string fname, int cycle) {
 				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 				DBAddOption(optlist, DBOPT_DTIME, &dtime);
 				DBAddOption(optlist, DBOPT_TIME, &ftime);
+				assert( n_total_domains > 0 );
 				DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), optlist);
 				for (int f = 0; f < nfields; f++) {
 					DBPutMultivar( db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(), optlist);
@@ -360,18 +371,27 @@ void output_all(std::string fname, int cycle, bool block) {
 	time_elapsed = time(NULL) - start_time;
 	start_time = timestamp;
 	start_step = nsteps;
-	std::vector<hpx::future<std::vector<node_location::node_id>>> id_futs;
+	std::vector<hpx::future<void>> futs1;
 	for (auto& id : localities) {
-		id_futs.push_back(hpx::async<output1_action>(id, fname, cycle));
+		futs1.push_back(hpx::async<output_stage1_action>(id, fname, cycle));
 	}
-	loc_ids.clear();
-	for (auto& f : id_futs) {
-		std::vector<node_location::node_id> these_ids = GET(f);
-		for (auto& i : these_ids) {
-			loc_ids.push_back(i);
+	GET(hpx::when_all(futs1));
+
+	barrier = hpx::async([cycle,&fname]() {
+		std::vector<hpx::future<std::vector<node_location::node_id>>> id_futs;
+		for (auto& id : localities) {
+			id_futs.push_back(hpx::async<output_stage2_action>(id, fname, cycle));
 		}
-	}
-	barrier = hpx::async<output_stage2_action>(localities[0], fname, cycle);
+		loc_ids.clear();
+		for (auto& f : id_futs) {
+			std::vector<node_location::node_id> these_ids = GET(f);
+			for (auto& i : these_ids) {
+				loc_ids.push_back(i);
+			}
+		}
+		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
+	});
+
 	if (block) {
 		GET(barrier);
 		barrier = hpx::make_ready_future<void>();
@@ -551,8 +571,8 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 	return std::move(rc);
 }
 
-silo_var_t::silo_var_t(const std::string& name) :
-		name_(name), data_(INX * INX * INX) {
+silo_var_t::silo_var_t(const std::string& name, std::size_t nx) :
+		name_(name), data_(nx*nx*nx) {
 }
 
 double&

@@ -35,8 +35,8 @@ void rad_grid::static_init() {
 
 std::vector<std::string> rad_grid::get_field_names() {
 	std::vector<std::string> rc;
-	for (auto i : index_to_str) {
-		rc.push_back(i.second);
+	for (auto i : str_to_index) {
+		rc.push_back(i.first);
 	}
 	return rc;
 }

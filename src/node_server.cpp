@@ -270,7 +270,6 @@ void node_server::initialize(real t, real rt) {
 	is_refined = false;
 	neighbors.resize(geo::direction::count());
 	nieces.resize(NFACE);
-	aunts.resize(NFACE);
 	current_time = t;
 	rotational_time = rt;
 	dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
@@ -290,7 +289,7 @@ void node_server::initialize(real t, real rt) {
 	if (my_location.level() == 0) {
 		grid_ptr->set_root();
 	}
-
+	aunts.resize(NFACE);
 	node_registry::add(my_location, this);
 }
 

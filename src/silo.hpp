@@ -25,7 +25,7 @@ public:
 	const void* data() const {
 		return data_.data();
 	}
-	silo_var_t(const std::string& name);
+	silo_var_t(const std::string& name, std::size_t = INX);
 	~silo_var_t() = default;
 	silo_var_t(silo_var_t&&) = default;
 	silo_var_t& operator=(silo_var_t&&) = default;
