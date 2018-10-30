@@ -141,7 +141,7 @@ static int steps_elapsed;
 
 std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 
-	printf( "Compressing %i grids...\n", int(mesh_vars.size()));
+	printf("Compressing %i grids...\n", int(mesh_vars.size()));
 
 	using table_type = std::unordered_map<node_location::node_id, std::shared_ptr<mesh_vars_t>>;
 	table_type table;
@@ -219,8 +219,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 		}
 	}
 
-
-	printf( "Compressed to %i grids...\n", int(done.size()));
+	printf("Compressed to %i grids...\n", int(done.size()));
 
 	return std::move(done);
 }
@@ -252,40 +251,41 @@ void output_stage3(std::string fname, int cycle) {
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".silo");
 	double dtime = node_registry::begin()->second->get_time();
-			hpx::threads::run_as_os_thread( [&this_fname,this_id,&dtime](integer cycle) {
-		DBfile *db;
-		if (this_id == 0) {
-			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
-		} else {
-			db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
-		}
-		float ftime = dtime;
-		auto optlist = DBMakeOptlist(5);
-		int one = 1;
-		int opt1 = DB_CARTESIAN;
-		DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
-		DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
-		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-		DBAddOption(optlist, DBOPT_DTIME, &dtime);
-		DBAddOption(optlist, DBOPT_TIME, &ftime);
-		const char* coord_names[] = {"x", "y", "z"};
-		constexpr int data_type = DB_DOUBLE;
-		constexpr int ndim = NDIM;
-		constexpr int coord_type = DB_COLLINEAR;
-		for( const auto& mesh_vars : all_mesh_vars) {
-			const auto& X = mesh_vars.X;
-			const real* coords[] = {X[0].data(), X[1].data(), X[2].data()
-		};
-			DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
-			for (const auto& o : mesh_vars.vars) {
-				DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0, DB_DOUBLE, DB_ZONECENT, optlist);
-			}
-			for (const auto& p : mesh_vars.outflow) {
-				const std::string name = p.first + std::string("_outflow_") + mesh_vars.mesh_name;
-				write_silo_var<real>()(db, name.c_str(), p.second);
-			}
-		}
-		DBFreeOptlist( optlist); DBClose( db); }, cycle).get();
+	hpx::threads::run_as_os_thread(
+			[&this_fname,this_id,&dtime](integer cycle) {
+				DBfile *db;
+				if (this_id == 0) {
+					db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
+				} else {
+					db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
+				}
+				float ftime = dtime;
+				auto optlist = DBMakeOptlist(5);
+				int one = 1;
+				int opt1 = DB_CARTESIAN;
+				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
+				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
+				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+				DBAddOption(optlist, DBOPT_DTIME, &dtime);
+				DBAddOption(optlist, DBOPT_TIME, &ftime);
+				const char* coord_names[] = {"x", "y", "z"};
+				constexpr int data_type = DB_DOUBLE;
+				constexpr int ndim = NDIM;
+				constexpr int coord_type = DB_COLLINEAR;
+				for( const auto& mesh_vars : all_mesh_vars) {
+					const auto& X = mesh_vars.X;
+					const real* coords[] = {X[0].data(), X[1].data(), X[2].data()
+					};
+					DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
+					for (const auto& o : mesh_vars.vars) {
+						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0, DB_DOUBLE, DB_ZONECENT, optlist);
+					}
+					for (const auto& p : mesh_vars.outflow) {
+						const std::string name = p.first + std::string("_outflow_") + mesh_vars.mesh_name;
+						write_silo_var<real>()(db, name.c_str(), p.second);
+					}
+				}
+				DBFreeOptlist( optlist); DBClose( db);}, cycle).get();
 	if (this_id < integer(localities.size()) - 1) {
 		output_stage3_action func;
 		func(localities[this_id + 1], fname, cycle);
@@ -296,29 +296,29 @@ void output_stage3(std::string fname, int cycle) {
 
 		hpx::threads::run_as_os_thread(
 				[&this_fname,nfields,&rtime](int cycle) {
-				auto* db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
-				double dtime = node_registry::begin()->second->get_time();
-				float ftime = dtime;
-				std::vector<node_location> node_locs;
-				std::vector<char*> mesh_names;
-				std::vector<std::vector<char*>> field_names(nfields);
-				for (auto& i : loc_ids) {
-					node_location nloc;
-					nloc.from_id(i);
-					node_locs.push_back(nloc);
+					auto* db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
+					double dtime = node_registry::begin()->second->get_time();
+					float ftime = dtime;
+					std::vector<node_location> node_locs;
+					std::vector<char*> mesh_names;
+					std::vector<std::vector<char*>> field_names(nfields);
+					for (auto& i : loc_ids) {
+						node_location nloc;
+						nloc.from_id(i);
+						node_locs.push_back(nloc);
 					}
-				const auto top_field_names = grid::get_field_names();
-				for (int i = 0; i < node_locs.size(); i++) {
-					const auto suffix = std::to_string(node_locs[i].to_id());
-					const auto str = suffix; char* ptr = new char[str.size() + 1];
-					std::strcpy(ptr, str.c_str()); mesh_names.push_back(ptr);
-					for (int f = 0; f < nfields; f++) {
-						const auto str = top_field_names[f] + std::string("_") + suffix;
-						char* ptr = new char[str.size() + 1];
-						strcpy(ptr, str.c_str());
-						field_names[f].push_back(ptr);
+					const auto top_field_names = grid::get_field_names();
+					for (int i = 0; i < node_locs.size(); i++) {
+						const auto suffix = std::to_string(node_locs[i].to_id());
+						const auto str = suffix; char* ptr = new char[str.size() + 1];
+						std::strcpy(ptr, str.c_str()); mesh_names.push_back(ptr);
+						for (int f = 0; f < nfields; f++) {
+							const auto str = top_field_names[f] + std::string("_") + suffix;
+							char* ptr = new char[str.size() + 1];
+							strcpy(ptr, str.c_str());
+							field_names[f].push_back(ptr);
+						}
 					}
-				}
 
 					const int n_total_domains = mesh_names.size();
 					static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
@@ -369,7 +369,7 @@ void output_stage3(std::string fname, int cycle) {
 					write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
 					write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
 					DBClose( db);
-		}, cycle).get();
+				}, cycle).get();
 	}
 }
 
@@ -408,8 +408,8 @@ void output_all(std::string fname, int cycle, bool block) {
 	});
 
 //	if (block) {
-		GET(barrier);
-		barrier = hpx::make_ready_future<void>();
+	GET(barrier);
+	barrier = hpx::make_ready_future<void>();
 //	}
 }
 
@@ -446,7 +446,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			const auto id = GET(f);
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
-			const auto pid = load_registry::get(l.get_parent().to_id());
+			const auto pid = load_registry::make_at(l.get_parent().to_id(), hpx::find_here());
 			node_client p(pid);
 			GET(p.notify_parent(l,id));
 		}));
@@ -457,7 +457,69 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 	}
 
 	GET(
-			hpx::threads::run_as_os_thread([&fname]() { read_silo_var<integer> ri; read_silo_var<real> rr; DBfile* db = DBOpenReal( fname.c_str(), DB_PDB, DB_READ); load_options_from_silo(fname,db); const real dtime = rr(db, "time"); const real rtime = rr(db, "rotational_time"); const real grams = rr(db, "g"); const real cm = rr(db, "cm"); const real s = rr(db, "s"); const real K = rr(db, "K"); set_units(grams,cm,s,K); for( auto iter = node_registry::begin(); iter != node_registry::end(); iter++ ) { auto* node_ptr = iter->second; if( !node_ptr->refined() ) { const auto l = iter->first; grid& g = node_ptr->get_hydro_grid(); const auto suffix = std::to_string(l.to_id()); assert(db); std::vector<std::pair<std::string,real>> outflow; for( auto n : names ) { const auto name = n + std::string( "_") + suffix; const auto quadvar = DBGetQuadvar(db,name.c_str()); g.set(n, static_cast<real*>(*(quadvar->vals))); DBFreeQuadvar(quadvar); } for( auto n : hydro_names ) { const auto name = n + std::string( "_") + suffix; std::string name_outflow = n + std::string("_outflow_") + suffix; const real o = read_silo_var<real>()(db, name_outflow.c_str()); outflow.push_back(std::make_pair(n, o)); } g.set_outflows(std::move(outflow)); } node_ptr->set_time(dtime, rtime); } DBClose( db); }));
+			hpx::threads::run_as_os_thread([&fname]() { read_silo_var<integer> ri; /**/
+			read_silo_var<real> rr; /**/
+			DBfile* db = DBOpenReal( fname.c_str(), DB_PDB, DB_READ); /**/
+			load_options_from_silo(fname,db); /**/
+			const real dtime = rr(db, "time"); /**/
+			const real rtime = rr(db, "rotational_time"); /**/
+			const real grams = rr(db, "g"); /**/
+			const real cm = rr(db, "cm"); /**/
+			const real s = rr(db, "s"); /**/
+			const real K = rr(db, "K"); /**/
+			set_units(grams,cm,s,K); /**/
+			for( auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++ ) {
+				auto* node_ptr = iter->second; /**/
+				if( !node_ptr->refined() ) {
+					const auto l = iter->first; /**/
+					grid& g = node_ptr->get_hydro_grid(); /**/
+					const auto suffix = std::to_string(l.to_id()); /**/
+					assert(db); /**/
+					std::vector<std::pair<std::string,real>> outflow; /**/
+					for( auto n : names ) {
+						const auto name = n + std::string( "_") + suffix; /**/
+						const auto quadvar = DBGetQuadvar(db,name.c_str()); /**/
+						const integer nx = quadvar->dims[0];
+
+						std::function<void(real* data, integer nx, node_location, real)> decompress_and_make
+								= [&decompress_and_make,n](real* data, integer nx, node_location loc, real outflow)  {
+							if( nx > INX ) {
+								real* this_data = new real[nx*nx*nx/NCHILD];
+								for( int ci = 0; ci < NCHILD; ci++) {
+									for( int i = 0; i < nx; i++) {
+										integer pi = ((ci >> 0) & 1) * nx + i;
+										for( int j = 0; j < nx; j++) {
+											integer pj = ((ci >> 1) & 1) * nx + j;
+											for( int k = 0; k < nx; k++) {
+												integer pk = ((ci >> 2) & 1) * nx + k;
+												const int iiip = pi * (4 * nx * nx) + pj * 2 * nx + pk;
+												const int iiic = i * (nx * nx) + j * nx + k;
+												this_data[iiic] = data[iiip];
+												decompress_and_make(this_data,nx/2,loc.get_child(ci), outflow/NCHILD);
+											}
+										}
+									}
+								}
+								delete [] this_data;
+							} else {
+								hpx::id_type node = load_registry::make_at(loc.to_id(),hpx::find_here());
+								auto* ptr = node_client(node).get_ptr().get();
+								grid& g = ptr->get_hydro_grid();
+								g.set(n,data);
+								g.set_outflow(std::make_pair(n,outflow));
+							}
+
+						};
+						std::string name_outflow = n + std::string("_outflow_") + suffix;
+						const real outflow = read_silo_var<real>()(db, name_outflow.c_str());
+						decompress_and_make((real*) quadvar->vals[0], quadvar->dims[0], node_location(iter->first), outflow);
+						DBFreeQuadvar(quadvar);
+					}
+				}
+				node_ptr->set_time(dtime, rtime); /**/
+			}
+			DBClose( db); /**/
+		}));
 	if (hpx::get_locality_id() == 0) {
 		grid::set_omega(opts.omega);
 	}

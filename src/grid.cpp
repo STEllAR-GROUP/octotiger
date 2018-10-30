@@ -38,6 +38,10 @@ void grid::set_outflows(std::vector<std::pair<std::string, real>>&& u) {
 	}
 }
 
+void grid::set_outflow(std::pair<std::string, real>&& p) {
+		U_out[str_to_index_hydro[p.first]] = p.second;
+}
+
 void grid::static_init() {
 	str_to_index_hydro["rho"] = rho_i;
 	str_to_index_hydro["egas"] = egas_i;

@@ -3,7 +3,6 @@
 
 static const auto& localities = options::all_localities;
 
-
 namespace node_registry {
 
 static table_type table_;
@@ -51,14 +50,12 @@ namespace load_registry {
 
 static table_type table_;
 static hpx::lcos::local::spinlock mtx_;
-
-void put(node_location::node_id id, const hpx::id_type& component);
-hpx::id_type get(node_location::node_id id);
 }
 
-HPX_PLAIN_ACTION(load_registry::put,put_action);
-HPX_PLAIN_ACTION(load_registry::get,get_action);
-HPX_PLAIN_ACTION(load_registry::destroy,destroy_action);
+HPX_PLAIN_ACTION(load_registry::make_at, make_at_action);
+HPX_PLAIN_ACTION(load_registry::put, put_action);
+HPX_PLAIN_ACTION(load_registry::get, get_action);
+HPX_PLAIN_ACTION(load_registry::destroy, destroy_action);
 
 namespace load_registry {
 
@@ -98,7 +95,8 @@ hpx::id_type get(node_location::node_id id) {
 		} else {
 			node_location full_loc;
 			full_loc.from_id(id);
-			hpx::shared_future<hpx::id_type> f(hpx::new_ < node_server > (hpx::find_here(), full_loc));
+			hpx::shared_future<hpx::id_type> f(hpx::new_<node_server>(hpx::find_here(), full_loc));
+
 			table_.insert(std::make_pair(id, f));
 			lock.unlock();
 			rc = f.get();
@@ -109,6 +107,32 @@ hpx::id_type get(node_location::node_id id) {
 				node_client p(this_parent);
 				p.notify_parent(full_loc, rc).get();
 			}
+		}
+	}
+	return rc;
+}
+
+hpx::id_type make_at(node_location::node_id id, hpx::id_type locality) {
+	hpx::id_type rc;
+	if (locality != hpx::find_here()) {
+		get_action f;
+		rc = f(locality, id);
+	} else {
+		std::unique_lock<hpx::lcos::local::spinlock> lock(mtx_);
+
+		node_location full_loc;
+		full_loc.from_id(id);
+		hpx::shared_future<hpx::id_type> f(hpx::new_<node_server>(hpx::find_here(), full_loc));
+
+		table_.insert(std::make_pair(id, f));
+		lock.unlock();
+		rc = f.get();
+		if (full_loc.level() != 0) {
+			auto this_parent = get(full_loc.get_parent().to_id());
+			node_client c(rc);
+			assert(this_parent != hpx::invalid_id);
+			node_client p(this_parent);
+			p.notify_parent(full_loc, rc).get();
 		}
 	}
 	return rc;

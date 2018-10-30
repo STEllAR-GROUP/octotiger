@@ -217,6 +217,7 @@ public:
 //	}
 	std::vector<std::pair<std::string,real>> get_outflows() const;
 	void set_outflows(std::vector<std::pair<std::string,real>>&& u);
+	void set_outflow(std::pair<std::string,real>&& u);
 	void set_outflows(std::vector<real>&& u) {
 		U_out = std::move(u);
 	}
