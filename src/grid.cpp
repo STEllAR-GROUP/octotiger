@@ -38,12 +38,15 @@ void grid::set_outflows(std::vector<std::pair<std::string, real>>&& u) {
 	}
 }
 
+void grid::set_outflow(std::pair<std::string, real>&& p) {
+		U_out[str_to_index_hydro[p.first]] = p.second;
+}
+
 void grid::static_init() {
-	str_to_index_hydro["rho"] = rho_i;
 	str_to_index_hydro["egas"] = egas_i;
 	str_to_index_hydro["tau"] = tau_i;
 	for (integer s = 0; s < opts.n_species; s++) {
-		str_to_index_hydro[std::string("spc_") + std::to_string(s + 1)] = spc_i + s;
+		str_to_index_hydro[std::string("rho_") + std::to_string(s + 1)] = spc_i + s;
 	}
 	str_to_index_hydro["sx"] = sx_i;
 	str_to_index_hydro["sy"] = sy_i;
@@ -109,6 +112,15 @@ void grid::set(const std::string name, real* data) {
 		rad_grid_ptr->set(name, data);
 	}
 
+}
+
+void grid::rho_from_species() {
+	for( integer iii = 0; iii < H_N3; iii++) {
+		U[rho_i][iii] = 0.0;
+		for (integer s = 0; s < opts.n_species; s++) {
+			U[rho_i][iii] += U[spc_i + s][iii];
+		}
+	}
 }
 
 std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
