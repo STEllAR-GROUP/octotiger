@@ -285,7 +285,8 @@ void output_stage3(std::string fname, int cycle) {
 						write_silo_var<real>()(db, name.c_str(), p.second);
 					}
 				}
-				DBFreeOptlist( optlist); DBClose( db);}, cycle).get();
+				DBFreeOptlist( optlist); DBClose( db);
+	}, cycle).get();
 	if (this_id < integer(localities.size()) - 1) {
 		output_stage3_action func;
 		func(localities[this_id + 1], fname, cycle);
@@ -324,15 +325,17 @@ void output_stage3(std::string fname, int cycle) {
 					static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
 					static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
 
-					auto optlist = DBMakeOptlist(4);
+					auto optlist = DBMakeOptlist(5);
 					int opt1 = DB_CARTESIAN;
+					int mesh_type = DB_QUAD_RECT;
 					DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
+					DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
 					assert( n_total_domains > 0 );
 					printf( "Putting %i\n", n_total_domains );
-					DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), meshtypes.data(), optlist);
+					DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), NULL, optlist);
 					for (int f = 0; f < nfields; f++) {
 						DBPutMultivar( db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), datatypes.data(), optlist);
 					}
@@ -446,7 +449,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			const auto id = GET(f);
 			auto client = node_client(id);
 			load_registry::put(l.to_id(), id);
-			const auto pid = load_registry::make_at(l.get_parent().to_id(), hpx::find_here());
+			const auto pid = load_registry::get(l.get_parent().to_id());
 			node_client p(pid);
 			GET(p.notify_parent(l,id));
 		}));
@@ -468,54 +471,72 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			const real s = rr(db, "s"); /**/
 			const real K = rr(db, "K"); /**/
 			set_units(grams,cm,s,K); /**/
+			std::vector<std::pair<node_location,node_server*>> node_ptrs;
 			for( auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++ ) {
-				auto* node_ptr = iter->second; /**/
+				node_ptrs.push_back(*iter);
+			}
+			for( auto pair : node_ptrs ) {
+				auto node_ptr = pair.second;
 				if( !node_ptr->refined() ) {
-					const auto l = iter->first; /**/
+					const auto l = node_location(pair.first); /**/
 					grid& g = node_ptr->get_hydro_grid(); /**/
 					const auto suffix = std::to_string(l.to_id()); /**/
 					assert(db); /**/
 					std::vector<std::pair<std::string,real>> outflow; /**/
+					bool first_pass = true;
 					for( auto n : names ) {
 						const auto name = n + std::string( "_") + suffix; /**/
 						const auto quadvar = DBGetQuadvar(db,name.c_str()); /**/
 						const integer nx = quadvar->dims[0];
 
-						std::function<void(real* data, integer nx, node_location, real)> decompress_and_make
-								= [&decompress_and_make,n](real* data, integer nx, node_location loc, real outflow)  {
+
+						std::function<void(real* data, integer nx, node_location, real, integer)> decompress_and_make
+								= [&decompress_and_make,n,first_pass](real* data, integer nx, node_location loc, real outflow, integer level)  {
 							if( nx > INX ) {
 								real* this_data = new real[nx*nx*nx/NCHILD];
 								for( int ci = 0; ci < NCHILD; ci++) {
-									for( int i = 0; i < nx; i++) {
-										integer pi = ((ci >> 0) & 1) * nx + i;
-										for( int j = 0; j < nx; j++) {
-											integer pj = ((ci >> 1) & 1) * nx + j;
-											for( int k = 0; k < nx; k++) {
-												integer pk = ((ci >> 2) & 1) * nx + k;
-												const int iiip = pi * (4 * nx * nx) + pj * 2 * nx + pk;
-												const int iiic = i * (nx * nx) + j * nx + k;
+									for( int i = 0; i < nx/2; i++) {
+										integer pi = ((ci >> 0) & 1) * nx/2 + i;
+										for( int j = 0; j < nx/2; j++) {
+											integer pj = ((ci >> 1) & 1) * nx/2 + j;
+											for( int k = 0; k < nx/2; k++) {
+												integer pk = ((ci >> 2) & 1) * nx/2 + k;
+												const int iiip = pi * nx * nx + pj * nx + pk;
+												const int iiic = i * (nx * nx/4) + j * nx/2 + k;
+												assert(iiic < nx*nx*nx/NCHILD);
+												assert(iiip < nx*nx*nx );
+												assert( iiic >= 0);
+												assert( iiip >= 0);
 												this_data[iiic] = data[iiip];
-												decompress_and_make(this_data,nx/2,loc.get_child(ci), outflow/NCHILD);
 											}
 										}
 									}
+							//		std::cout << loc.to_str() << ' ' << loc.get_child(ci).to_str() << ' ' << std::to_string(ci) << '\n';
+									decompress_and_make(this_data,nx/2,loc.get_child(ci), outflow/NCHILD, level+1);
 								}
 								delete [] this_data;
 							} else {
-								hpx::id_type node = load_registry::make_at(loc.to_id(),hpx::find_here());
-								auto* ptr = node_client(node).get_ptr().get();
-								grid& g = ptr->get_hydro_grid();
-								g.set(n,data);
-								g.set_outflow(std::make_pair(n,outflow));
+						//		std::cout << loc.to_str() << '\n';
+								hpx::threads::run_as_hpx_thread([loc,data,n,outflow,first_pass,level]() {
+									hpx::id_type node = (first_pass && (level > 0)) ?
+											load_registry::make_at(loc.to_id(),hpx::find_here()) :
+											load_registry::get(loc.to_id());
+									auto* ptr = node_client(node).get_ptr().get();
+									grid& g = ptr->get_hydro_grid();
+									g.set(n,data);
+									g.set_outflow(std::make_pair(n,outflow));
+								});
 							}
 
 						};
 						std::string name_outflow = n + std::string("_outflow_") + suffix;
 						const real outflow = read_silo_var<real>()(db, name_outflow.c_str());
-						decompress_and_make((real*) quadvar->vals[0], quadvar->dims[0], node_location(iter->first), outflow);
+						decompress_and_make((real*) quadvar->vals[0], quadvar->dims[0], node_location(pair.first), outflow, 0);
 						DBFreeQuadvar(quadvar);
+						first_pass = false;
 					}
 				}
+		//		printf( "Done\n");
 				node_ptr->set_time(dtime, rtime); /**/
 			}
 			DBClose( db); /**/
