@@ -142,6 +142,7 @@ private:
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
 			const gravity_boundary_type&);
 public:
+	void rho_from_species();
 	static std::vector<std::string> get_field_names();
 	static std::vector<std::string> get_hydro_field_names();
 

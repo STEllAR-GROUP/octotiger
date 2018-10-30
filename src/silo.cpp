@@ -266,8 +266,7 @@ void output_stage3(std::string fname, int cycle) {
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
 				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-				DBAddOption(optlist, DBOPT_DTIME, &dtime);
-				DBAddOption(optlist, DBOPT_TIME, &ftime);
+				bool first_pass = true;
 				const char* coord_names[] = {"x", "y", "z"};
 				constexpr int data_type = DB_DOUBLE;
 				constexpr int ndim = NDIM;
@@ -277,12 +276,16 @@ void output_stage3(std::string fname, int cycle) {
 					const real* coords[] = {X[0].data(), X[1].data(), X[2].data()
 					};
 					DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
-					for (const auto& o : mesh_vars.vars) {
+					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
+						const auto& o = mesh_vars.vars[m];
+						real outflow = mesh_vars.outflow[m].second;
+						if( first_pass )  {
+							first_pass = false;
+						} else {
+							DBClearOption(optlist, DBOPT_DTIME);
+						}
+						DBAddOption(optlist, DBOPT_DTIME, &outflow);
 						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0, DB_DOUBLE, DB_ZONECENT, optlist);
-					}
-					for (const auto& p : mesh_vars.outflow) {
-						const std::string name = p.first + std::string("_outflow_") + mesh_vars.mesh_name;
-						write_silo_var<real>()(db, name.c_str(), p.second);
 					}
 				}
 				DBFreeOptlist( optlist); DBClose( db);
@@ -482,14 +485,11 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 					grid& g = node_ptr->get_hydro_grid(); /**/
 					const auto suffix = std::to_string(l.to_id()); /**/
 					assert(db); /**/
-					std::vector<std::pair<std::string,real>> outflow; /**/
 					bool first_pass = true;
 					for( auto n : names ) {
 						const auto name = n + std::string( "_") + suffix; /**/
 						const auto quadvar = DBGetQuadvar(db,name.c_str()); /**/
 						const integer nx = quadvar->dims[0];
-
-
 						std::function<void(real* data, integer nx, node_location, real, integer)> decompress_and_make
 								= [&decompress_and_make,n,first_pass](real* data, integer nx, node_location loc, real outflow, integer level)  {
 							if( nx > INX ) {
@@ -511,12 +511,10 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 											}
 										}
 									}
-							//		std::cout << loc.to_str() << ' ' << loc.get_child(ci).to_str() << ' ' << std::to_string(ci) << '\n';
 									decompress_and_make(this_data,nx/2,loc.get_child(ci), outflow/NCHILD, level+1);
 								}
 								delete [] this_data;
 							} else {
-						//		std::cout << loc.to_str() << '\n';
 								hpx::threads::run_as_hpx_thread([loc,data,n,outflow,first_pass,level]() {
 									hpx::id_type node = (first_pass && (level > 0)) ?
 											load_registry::make_at(loc.to_id(),hpx::find_here()) :
@@ -529,8 +527,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 							}
 
 						};
-						std::string name_outflow = n + std::string("_outflow_") + suffix;
-						const real outflow = read_silo_var<real>()(db, name_outflow.c_str());
+						const real outflow = quadvar->dtime;
 						decompress_and_make((real*) quadvar->vals[0], quadvar->dims[0], node_location(pair.first), outflow, 0);
 						DBFreeQuadvar(quadvar);
 						first_pass = false;
@@ -541,6 +538,11 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			}
 			DBClose( db); /**/
 		}));
+	for( auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++ ) {
+		if( iter->second->refined()) {
+			iter->second->get_hydro_grid().rho_from_species();
+		}
+	}
 	if (hpx::get_locality_id() == 0) {
 		grid::set_omega(opts.omega);
 	}
