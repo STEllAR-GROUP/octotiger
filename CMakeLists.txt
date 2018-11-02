@@ -24,6 +24,7 @@ option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 if (OCTOTIGER_WITH_SILO)
   find_package(Silo REQUIRED)
+  find_package(HDF5 REQUIRED)
 endif()
 
 if (OCTOTIGER_WITH_CUDA)
@@ -88,7 +89,7 @@ endif()
 set(source_files)
 set(dependencies)
 
-set(dependencies ${Silo_LIBRARY})
+set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z)
 
 # Octotiger executable
 set(source_files ${source_files}
@@ -167,7 +168,7 @@ set(header_files
     src/space_vector.hpp
     src/state.hpp
     src/struct_eos.hpp
-    src/taylor.hpp
+    src/taylor.hpphdf
     src/util.hpp
     src/compute_factor.hpp
     src/common_kernel/interaction_constants.hpp
@@ -192,7 +193,7 @@ set(header_files
 )
 
 
-set(silo_cmp_dependencies ${Silo_LIBRARY} )
+set(silo_cmp_dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z)
 set(silo_cmp_source_files
     test/silo_cmp.cpp
 )
@@ -206,6 +207,10 @@ set(silo_reader_source_files
 set(analysis_source_files
     analysis_src/analysis.cpp
 )
+
+add_library( eos ./src/libeos/libeos.cpp )
+add_executable( analysis ${analysis_source_files} )
+add_executable( silo_reader ${silo_reader_source_files} ./src/libeos/libeos.cpp  )
 
 add_hpx_executable(
   octotiger
@@ -234,10 +239,7 @@ endif()
 
 
 
-add_library( eos ./src/libeos/libeos.cpp )
-add_executable( analysis ${analysis_source_files} )
-add_executable( silo_reader ${silo_reader_source_files} ./src/libeos/libeos.cpp )
-
-target_link_libraries( silo_reader ${Silo_LIBRARY} )
+target_link_libraries( silo_reader ${Silo_LIBRARY} ${HDF5_LIBRARY} pthread  dl z)
+target_link_libraries( analysis ${HDF5_LIBRARY} )
 
 

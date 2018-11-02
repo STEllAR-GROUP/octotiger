@@ -49,53 +49,53 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ========================================================================
 #
-# Try to find Silo library and headers. Define Silo_ROOT if Silo is
+# Try to find HDF5 library and headers. Define HDF5_ROOT if HDF5 is
 # installed in a non-standard directory.
 #
 # This file sets the following variables:
 #
-# Silo_INCLUDE_DIR, where to find silo.h, etc.
-# Silo_LIBRARIES, the libraries to link against
-# Silo_FOUND, If false, do not try to use Silo.
+# HDF5_INCLUDE_DIR, where to find HDF5.h, etc.
+# HDF5_LIBRARIES, the libraries to link against
+# HDF5_FOUND, If false, do not try to use HDF5.
 #
 # Also defined, but not for general use are:
-# Silo_LIBRARY, the full path to the silo library.
-# Silo_INCLUDE_PATH, for CMake backward compatibility
+# HDF5_LIBRARY, the full path to the HDF5 library.
+# HDF5_INCLUDE_PATH, for CMake backward compatibility
 
-FIND_PATH( Silo_INCLUDE_DIR silo.h
+FIND_PATH( HDF5_INCLUDE_DIR HDF5.h
   PATHS /usr/local/include
   /usr/include
-  ${Silo_ROOT}/include
+  ${HDF5_ROOT}/include
 )
 
-FIND_LIBRARY( Silo_LIBRARY NAMES siloh5
+FIND_LIBRARY( HDF5_LIBRARY NAMES hdf5
   PATHS /usr/lib
   /usr/lib64
   /usr/local/lib
-  ${Silo_ROOT}/lib
-  ${Silo_ROOT}/lib64
+  ${HDF5_ROOT}/lib
+  ${HDF5_ROOT}/lib64
 )
 
-SET(Silo_FOUND "NO" )
-IF(Silo_INCLUDE_DIR)
-  IF(Silo_LIBRARY)
+SET(HDF5_FOUND "NO" )
+IF(HDF5_INCLUDE_DIR)
+  IF(HDF5_LIBRARY)
 
-    SET(Silo_LIBRARIES ${Silo_LIBRARY})
-    SET(Silo_FOUND "YES" )
+    SET(HDF5_LIBRARIES ${HDF5_LIBRARY})
+    SET(HDF5_FOUND "YES" )
 
-  ELSE(Silo_LIBRARY)
-    IF(Silo_FIND_REQURIED)
-      message(SEND_ERROR "Unable to find the requested Silo libraries.")
-    ENDIF(Silo_FIND_REQURIED)
-  ENDIF(Silo_LIBRARY)
-ENDIF(Silo_INCLUDE_DIR)
+  ELSE(HDF5_LIBRARY)
+    IF(HDF5_FIND_REQURIED)
+      message(SEND_ERROR "Unable to find the requested HDF5 libraries.")
+    ENDIF(HDF5_FIND_REQURIED)
+  ENDIF(HDF5_LIBRARY)
+ENDIF(HDF5_INCLUDE_DIR)
 
-# handle the QUIETLY and REQUIRED arguments and set Silo_FOUND to TRUE if
+# handle the QUIETLY and REQUIRED arguments and set HDF5_FOUND to TRUE if
 # all listed variables are TRUE
 INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Silo DEFAULT_MSG Silo_LIBRARY Silo_INCLUDE_DIR)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(HDF5 DEFAULT_MSG HDF5_LIBRARY HDF5_INCLUDE_DIR)
 
 MARK_AS_ADVANCED(
-  Silo_INCLUDE_DIR
-  Silo_LIBRARY
+  HDF5_INCLUDE_DIR
+  HDF5_LIBRARY
 )
