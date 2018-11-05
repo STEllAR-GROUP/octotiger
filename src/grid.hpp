@@ -143,6 +143,7 @@ private:
 			const gravity_boundary_type&);
 public:
 	void rho_from_species();
+	static bool is_hydro_field(const std::string&);
 	static std::vector<std::string> get_field_names();
 	static std::vector<std::string> get_hydro_field_names();
 

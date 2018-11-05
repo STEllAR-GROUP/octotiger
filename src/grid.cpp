@@ -24,6 +24,11 @@ std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
 std::unordered_map<int, std::string> grid::index_to_str_gravity;
 
+bool grid::is_hydro_field(const std::string& str) {
+	return str_to_index_hydro.find(str) != str_to_index_hydro.end();
+}
+
+
 std::vector<std::pair<std::string, real>> grid::get_outflows() const {
 	std::vector<std::pair<std::string, real>> rc;
 	for (auto i = str_to_index_hydro.begin(); i != str_to_index_hydro.end(); i++) {

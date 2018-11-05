@@ -5,6 +5,8 @@
  *      Author: dmarce1
  */
 
+#define SILO_DRIVER DB_PDB
+
 #include "node_registry.hpp"
 #include "silo.hpp"
 #include "options.hpp"
@@ -255,17 +257,25 @@ void output_stage3(std::string fname, int cycle) {
 			[&this_fname,this_id,&dtime](integer cycle) {
 				DBfile *db;
 				if (this_id == 0) {
-					db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", DB_PDB);
+					db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 				} else {
-					db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
+					db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 				}
 				float ftime = dtime;
-				auto optlist = DBMakeOptlist(5);
 				int one = 1;
 				int opt1 = DB_CARTESIAN;
+				std::string cgs("cgs");
+				auto optlist = DBMakeOptlist(9);
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
 				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+				DBAddOption(optlist, DBOPT_XUNITS, cgs.data());
+				char xstr[2] = {'x', '\0'};
+				char ystr[2] = {'y', '\0'};
+				char zstr[2] = {'z', '\0'};
+				DBAddOption(optlist, DBOPT_XLABEL, xstr );
+				DBAddOption(optlist, DBOPT_YLABEL, ystr );
+				DBAddOption(optlist, DBOPT_ZLABEL, zstr );
 				bool first_pass = true;
 				const char* coord_names[] = {"x", "y", "z"};
 				constexpr int data_type = DB_DOUBLE;
@@ -284,8 +294,15 @@ void output_stage3(std::string fname, int cycle) {
 						} else {
 							DBClearOption(optlist, DBOPT_DTIME);
 						}
+						const bool is_hydro = grid::is_hydro_field(o.name());
 						DBAddOption(optlist, DBOPT_DTIME, &outflow);
+						if( is_hydro ) {
+							DBAddOption(optlist, DBOPT_CONSERVED, &one);
+						}
 						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0, DB_DOUBLE, DB_ZONECENT, optlist);
+						if( is_hydro ) {
+							DBClearOption(optlist, DBOPT_CONSERVED);
+						}
 					}
 				}
 				DBFreeOptlist( optlist); DBClose( db);
@@ -300,7 +317,7 @@ void output_stage3(std::string fname, int cycle) {
 
 		hpx::threads::run_as_os_thread(
 				[&this_fname,nfields,&rtime](int cycle) {
-					auto* db = DBOpenReal(this_fname.c_str(), DB_PDB, DB_APPEND);
+					auto* db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 					double dtime = node_registry::begin()->second->get_time();
 					float ftime = dtime;
 					std::vector<node_location> node_locs;
@@ -328,14 +345,22 @@ void output_stage3(std::string fname, int cycle) {
 					static const std::vector<int> meshtypes(n_total_domains, DB_QUAD_RECT);
 					static const std::vector<int> datatypes(n_total_domains, DB_QUADVAR);
 
-					auto optlist = DBMakeOptlist(5);
+					auto optlist = DBMakeOptlist(9);
 					int opt1 = DB_CARTESIAN;
 					int mesh_type = DB_QUAD_RECT;
+					std::string cgs("cgs");
 					DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
 					DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
+					DBAddOption(optlist, DBOPT_XUNITS, cgs.data());
+					char xstr[2] = {'x', '\0'};
+					char ystr[2] = {'y', '\0'};
+					char zstr[2] = {'z', '\0'};
+					DBAddOption(optlist, DBOPT_XLABEL, xstr );
+					DBAddOption(optlist, DBOPT_YLABEL, ystr );
+					DBAddOption(optlist, DBOPT_ZLABEL, zstr );
 					assert( n_total_domains > 0 );
 					printf( "Putting %i\n", n_total_domains );
 					DBPutMultimesh(db, "mesh", n_total_domains, mesh_names.data(), NULL, optlist);
@@ -465,7 +490,7 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 	GET(
 			hpx::threads::run_as_os_thread([&fname]() { read_silo_var<integer> ri; /**/
 			read_silo_var<real> rr; /**/
-			DBfile* db = DBOpenReal( fname.c_str(), DB_PDB, DB_READ); /**/
+			DBfile* db = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ); /**/
 			load_options_from_silo(fname,db); /**/
 			const real dtime = rr(db, "time"); /**/
 			const real rtime = rr(db, "rotational_time"); /**/
@@ -555,7 +580,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 		bool leaveopen;
 		if( db == NULL )
 		{
-			db = DBOpenReal( fname.c_str(), DB_PDB, DB_READ);
+			db = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ);
 			leaveopen = false;
 		}
 		else
@@ -598,7 +623,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
 	load_registry::put(1, root);
 	static int sz = localities.size();
-	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_PDB, DB_READ));
+	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), SILO_DRIVER, DB_READ));
 	epoch = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
 	epoch++;
 	if (db != NULL) {
