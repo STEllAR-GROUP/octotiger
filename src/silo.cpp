@@ -104,7 +104,7 @@ struct mesh_vars_t {
 		const real dx = 2.0 * opts.xscale / nx / (1 << loc.level());
 		for (int d = 0; d < NDIM; d++) {
 			X[d].resize(X_dims[d]);
-			const real o = loc.x_location(d);
+			const real o = loc.x_location(d) * opts.xscale;
 			for (int i = 0; i < X_dims[d]; i++) {
 				X[d][i] = o + i * dx;
 			}
