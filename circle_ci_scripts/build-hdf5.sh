@@ -15,7 +15,7 @@ cd ..
 
 mkdir hdf5_build
 cd hdf5_build
-cmake \
+/home/circleci/cmake_install/bin/cmake \
       -DCMAKE_C_COMPILER=gcc \
       -DCMAKE_CXX_COMPILER=g++ \
       -DBUILD_TESTING=OFF \                                                                                                                               \
@@ -23,6 +23,6 @@ cmake \
       -DCMAKE_INSTALL_PREFIX="/home/circleci/hdf5_install"                               \
        ../hdf5
 
-/home/circleci/cmake_install/bin/cmake -j2 VERBOSE=1 install
+make -j2 VERBOSE=1 install
 
 cd ../..
