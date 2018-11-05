@@ -23,6 +23,6 @@ cmake \
       -DCMAKE_INSTALL_PREFIX="/home/circleci/hdf5_install"                               \
        ../hdf5
 
-make -j2 VERBOSE=1 install
+/home/circleci/cmake_install/bin/cmake -j2 VERBOSE=1 install
 
 cd ../..
