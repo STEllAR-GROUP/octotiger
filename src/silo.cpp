@@ -113,25 +113,6 @@ struct mesh_vars_t {
 	}
 };
 
-void output_stage1(std::string fname, int cycle) {
-
-	std::vector<node_location::node_id> ids;
-	futs_.clear();
-	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
-		if (!i->second->refined()) {
-			futs_.push_back(hpx::async([](node_location loc, node_server* this_ptr)
-			{
-				const real dx = TWO / real(1 << loc.level()) / real(INX);
-				mesh_vars_t rc(loc);
-				const std::string suffix = std::to_string(loc.to_id());
-				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
-				rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
-				return std::move(rc);
-			}, i->first, i->second));
-		}
-	}
-}
-
 static const int HOST_NAME_LEN = 100;
 static int epoch = 0;
 static time_t start_time = time(NULL);
@@ -233,6 +214,27 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 
 static std::vector<mesh_vars_t> all_mesh_vars;
 
+
+void output_stage1(std::string fname, int cycle) {
+
+	std::vector<node_location::node_id> ids;
+	futs_.clear();
+	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
+		if (!i->second->refined()) {
+			futs_.push_back(hpx::async([](node_location loc, node_server* this_ptr)
+			{
+				const real dx = TWO / real(1 << loc.level()) / real(INX);
+				mesh_vars_t rc(loc);
+				const std::string suffix = std::to_string(loc.to_id());
+				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
+				rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
+				return std::move(rc);
+			}, i->first, i->second));
+		}
+	}
+}
+
+
 std::vector<node_location::node_id> output_stage2(std::string fname, int cycle) {
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
@@ -269,7 +271,7 @@ void output_stage3(std::string fname, int cycle) {
 				float ftime = dtime;
 				int one = 1;
 				int opt1 = DB_CARTESIAN;
-				std::string cgs("cgs");
+				std::string cgs("code");
 				auto optlist = DBMakeOptlist(9);
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
 				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
@@ -394,8 +396,10 @@ void output_stage3(std::string fname, int cycle) {
 					fr(db, "refinement_floor", opts.refinement_floor);
 					fr(db, "time", dtime); fr(db, "rotational_time", rtime);
 					fr(db, "xscale", opts.xscale); char hostname[HOST_NAME_LEN];
-					real g, cm, s, K; these_units(g,cm,s,K); fr(db, "g", g);
-					fr(db, "cm", cm); fr(db, "s", s); fr(db, "K", K);
+					real g, cm, s, K;
+					these_units(g,cm,s,K); fr(db, "g", g);
+					fr(db, "cm", cm);
+					fr(db, "s", s); fr(db, "K", K);
 					gethostname(hostname, HOST_NAME_LEN);
 					DBWrite( db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
 					write_silo_var<integer>()(db, "timestamp", timestamp);
@@ -410,7 +414,6 @@ void output_stage3(std::string fname, int cycle) {
 }
 
 void output_all(std::string fname, int cycle, bool block) {
-	block = true;
 //	static hpx::lcos::local::spinlock mtx;
 //	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
 
@@ -443,16 +446,15 @@ void output_all(std::string fname, int cycle, bool block) {
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
 	});
 
-//	if (block) {
-	GET(barrier);
-	barrier = hpx::make_ready_future<void>();
-//	}
+	if (block) {
+		GET(barrier);
+		barrier = hpx::make_ready_future<void>();
+	}
 }
 
-void
-local_load(const std::string&, std::vector<node_location::node_id> node_ids);
-void
-all_boundaries();
+void local_load(const std::string&, std::vector<node_location::node_id> node_ids);
+
+void all_boundaries();
 
 HPX_PLAIN_ACTION(local_load, local_load_action);
 HPX_PLAIN_ACTION(all_boundaries, all_boundaries_action);

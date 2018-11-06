@@ -230,7 +230,7 @@ public:
 //	void set_parent(hpx::id_type id);/**/
 //	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_parent, set_parent_action);
 
-	void solve_gravity(bool ene, bool skip_solve);/**/
+	void solve_gravity(bool ene, bool skip_solve=false);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
 
 	void start_run(bool scf, integer);
