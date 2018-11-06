@@ -143,7 +143,7 @@ static int steps_elapsed;
 
 std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 
-	printf("Compressing %i grids...\n", int(mesh_vars.size()));
+//	printf("Compressing %i grids...\n", int(mesh_vars.size()));
 
 	using table_type = std::unordered_map<node_location::node_id, std::shared_ptr<mesh_vars_t>>;
 	table_type table;
@@ -226,7 +226,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 		}
 	}
 
-	printf("Compressed to %i grids...\n", int(done.size()));
+//	printf("Compressed to %i grids...\n", int(done.size()));
 
 	return std::move(done);
 }
@@ -412,7 +412,7 @@ void output_stage3(std::string fname, int cycle) {
 }
 
 void output_all(std::string fname, int cycle, bool block) {
-	block = true;
+//	block = true;
 //	static hpx::lcos::local::spinlock mtx;
 //	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
 
@@ -445,10 +445,10 @@ void output_all(std::string fname, int cycle, bool block) {
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
 	});
 
-//	if (block) {
-	GET(barrier);
-	barrier = hpx::make_ready_future<void>();
-//	}
+	if (block) {
+		GET(barrier);
+		barrier = hpx::make_ready_future<void>();
+	}
 }
 
 void

@@ -1908,21 +1908,6 @@ void grid::rad_init() {
 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 }
 
-inline real limit_range(real a, real b, real& c) {
-	const real max = std::max(a, b);
-	const real min = std::min(a, b);
-	c = std::min(max, std::max(min, c));
-}
-;
-
-inline void limit_range_all(real am, real ap, real& bl, real& br) {
-	real avg = (br + bl) / 2.0;
-	limit_range(am, ap, avg);
-	limit_range(am, avg, bl);
-	limit_range(ap, avg, br);
-}
-;
-
 inline void limit_slope(real& ql, real q0, real& qr) {
 	const real tmp1 = qr - ql;
 	const real tmp2 = qr + ql;
