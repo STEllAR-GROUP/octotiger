@@ -18,6 +18,7 @@ T read_var(DBfile* db, const std::string& name) {
 		std::cout << "Unable to read variable " << name << "\n";
 		abort();
 	}
+	return var;
 }
 ;
 
