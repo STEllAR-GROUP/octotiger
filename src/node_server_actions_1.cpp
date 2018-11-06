@@ -167,7 +167,6 @@ void node_server::regrid_scatter(integer a_, integer total) {
 				integer current_child_id = hpx::naming::get_locality_id_from_gid(id.get_gid());
 				auto current_child_loc = options::all_localities[current_child_id];
 				if (child_loc != current_child_loc) {
-					printf( "relocating\n");
 					futs[index++] = children[ci].copy_to_locality(child_loc).then(
 							[this, ci, a, total](future<hpx::id_type>&& child)
 							{
