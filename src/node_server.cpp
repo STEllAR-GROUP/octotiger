@@ -26,6 +26,10 @@ extern options opts;
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
 
+void node_server::delist() {
+	listed = false;
+}
+
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
 bool node_server::static_initialized(false);
@@ -290,11 +294,15 @@ void node_server::initialize(real t, real rt) {
 		grid_ptr->set_root();
 	}
 	aunts.resize(NFACE);
+	listed = true;
 	node_registry::add(my_location, this);
 }
 
 node_server::~node_server() {
-	node_registry::delete_(my_location);
+	if (!listed) {
+		node_registry::delete_(my_location);
+	}
+	listed = false;
 }
 
 node_server::node_server(const node_location& loc, const node_client& parent_id, real t, real rt, std::size_t _step_num,

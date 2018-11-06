@@ -41,6 +41,7 @@ private:
 		std::vector<real> data;
 		geo::direction direction;
 	};
+	bool listed;
 	std::atomic<integer> refinement_flag;
 	node_location my_location;
 	integer step_num;
@@ -107,6 +108,7 @@ public:
 	grid& get_hydro_grid() {
 		return *grid_ptr;
 	}
+	void delist();
 	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
 

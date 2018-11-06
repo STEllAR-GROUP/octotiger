@@ -70,6 +70,8 @@ future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const
 
 future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 
+	delist();
+
 	std::vector<hpx::id_type> cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
