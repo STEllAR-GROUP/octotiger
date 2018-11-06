@@ -27,25 +27,47 @@ constexpr integer spc_vac_i = spc_i + 4;
 // w0 = speed of convergence. Adjust lower if nan
 const real w0 = 1.0 / 4.0;
 
+
 namespace scf_options {
 
+/********** V1309 SCO ****************/
 static real async1 = -0.0e-2;
 static real async2 = -0.0e-2;
-static bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
-static real M1 = 0.6; // Mass of primary
-static real M2 = 0.3; // Mass of sfecondaries
-static real nc1 = 2.5; // Primary core polytropic index
-static real nc2 = 1.5; // Secondary core polytropic index
-static real ne1 = 1.5; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
+static bool equal_struct_eos = false; // If true, EOS of accretor will be set to that of donor
+static real M1 = 1.54; // Mass of primary
+static real M2 = 0.17; // Mass of secondaries
+static real nc1 = 5.0; // Primary core polytropic index
+static real nc2 = 5.0; // Secondary core polytropic index
+static real ne1 = 3.0; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
 static real ne2 = 1.5; // Secondary envelope polytropic index
-static real mu1 = 1.0; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
-static real mu2 = 1.0; // Primary ratio of molecular weights
-static real a = 1.00; // approx. orbital sep
-static real core_frac1 = 0.9; // Desired core fraction of primary // Ignored if equal_struct_eos=true
-static real core_frac2 = 0.9; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
-static real fill1 = 1.0; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
-static real fill2 = 1.0; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
-static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
+static real mu1 = 2.2; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
+static real mu2 = 2.2; // Primary ratio of molecular weights
+static real a = 6.36; // approx. orbital sep
+static real core_frac1 = 1.0 / 10.0; // Desired core fraction of primary // Ignored if equal_struct_eos=true
+static real core_frac2 = 2.0 / 3.0; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
+static real fill1 = 0.99; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
+static real fill2 = 0.99; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+static real contact_fill = 0.01; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
+
+
+//namespace scf_options {
+//static real async1 = -0.0e-2;
+//static real async2 = -0.0e-2;
+//static bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
+//static real M1 = 0.6; // Mass of primary
+//static real M2 = 0.3; // Mass of sfecondaries
+//static real nc1 = 2.5; // Primary core polytropic index
+//static real nc2 = 1.5; // Secondary core polytropic index
+//static real ne1 = 1.5; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
+//static real ne2 = 1.5; // Secondary envelope polytropic index
+//static real mu1 = 1.0; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
+//static real mu2 = 1.0; // Primary ratio of molecular weights
+//static real a = 1.00; // approx. orbital sep
+//static real core_frac1 = 0.9; // Desired core fraction of primary // Ignored if equal_struct_eos=true
+//static real core_frac2 = 0.9; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
+//static real fill1 = 1.0; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
+//static real fill2 = 1.0; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+//static real contact_fill = 0.00; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
 
 #define READ_LINE(s) 		\
 	else if( cmp(ptr,#s) ) { \
@@ -242,10 +264,10 @@ struct scf_parameters {
 			} else {
 				struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, R1, scf_options::nc1, scf_options::ne1,
 						scf_options::core_frac1, scf_options::mu1);
-				if (contact > 0.0) {
 
-					/* TODO: Something is missing here */
-
+				if (contact > 0.0 && !opts.v1309) {
+					struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2, scf_options::nc2, scf_options::ne2,
+							scf_options::mu2, *struct_eos1);
 				} else {
 					struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2, scf_options::nc2, scf_options::ne2,
 							scf_options::core_frac2, scf_options::mu2);
@@ -357,6 +379,12 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				}
 				real sx, sy;
 				U[spc_vac_i][iiih] = rho_floor;
+				if (opts.v1309) {
+					if (rho0 < this_struct_eos.get_cutoff_density()) {
+						U[spc_de_i][iiih] = U[spc_ae_i][iiih] = U[spc_dc_i][iiih] = U[spc_ac_i][iiih] = 0.0;
+						U[spc_vac_i][iiih] += rho0;
+					}
+				}
 				sx = -omega * y * rho;
 				sy = +omega * (x - com) * rho;
 				sx += -ti_omega * y * rho;
@@ -467,12 +495,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		real spin_ratio = (j1 + j2) / (jorb);
 		real this_m = (diags.m[0] + diags.m[1]);
 		solve_gravity(false, false);
-
-#ifdef FIND_AXIS_V2
-		auto axis = find_axis();
-#else
 		auto axis = grid_ptr->find_axis();
-#endif
 		auto loc = line_of_centers(axis);
 
 		real l1_x, c1_x, c2_x; //, l2_x, l3_x;
@@ -510,6 +533,14 @@ void node_server::run_scf(std::string const& data_dir) {
 		} else {
 			params.struct_eos1->set_d0(rho1 * f0);
 		}
+		static real rhoc1 = 1.0e-3 * rho1;
+		if (opts.v1309) {
+			const real rho_min = 0.5 * std::min(rhoc1, params.struct_eos2->dE());
+			rhoc1 /= std::pow(spin_ratio * 3.0, w0);
+			printf("%e\n", rhoc1 / rho1);
+			params.struct_eos1->set_cutoff_density(rhoc1);
+			params.struct_eos2->set_cutoff_density(rho2 * 1.0e-10);
+		}
 
 		real h_1 = params.struct_eos1->h0();
 		real h_2 = params.struct_eos2->h0();
@@ -534,8 +565,10 @@ void node_server::run_scf(std::string const& data_dir) {
 				c_2 = phi_2 * alo2 + ahi2 * l1_phi;
 			}
 		}
-//		printf( "%e %e %e %e %e %e %e\n", l1_phi, l2_phi, l3_phi, rho1_max.first, rho1_max.second, rho2_max.first, rho2_max.second);
-//		printf( "c_2, phi_2, %e %e\n", c_1, phi_1);
+		if( opts.v1309 ) {
+			c_1 += params.struct_eos1->hfloor();
+			c_2 += params.struct_eos2->hfloor();
+		}
 		if (!scf_options::equal_struct_eos) {
 			params.struct_eos1->set_h0(c_1 - phi_1);
 		}
@@ -559,6 +592,9 @@ void node_server::run_scf(std::string const& data_dir) {
 				e1->set_frac(e1f);
 			}
 			real e2f = e2->get_frac();
+
+
+
 			if (scf_options::contact_fill <= 0.0) {
 				if (core_frac_2 == 0.0) {
 					e2f = 0.5 + 0.5 * e2f;
@@ -569,7 +605,17 @@ void node_server::run_scf(std::string const& data_dir) {
 					e2->set_frac(e2f);
 				}
 			} else {
-				e2->set_entropy(e1->s0());
+				if (opts.v1309) {
+					const real ne = scf_options::ne1;
+					const real gamma = grid::get_fgamma();
+					const real p0 = params.struct_eos1->P0();
+					const real de = params.struct_eos1->dE();
+					const real s1 = std::pow(p0 * std::pow(rhoc1 / de, 1.0 + 1.0 / ne) / (gamma - 1.0), 1.0 / gamma) / rhoc1;
+					printf("S = %e\n", s1);
+					e2->set_entropy(s1);
+				} else {
+					e2->set_entropy(e1->s0());
+				}
 			}
 			e1f = e1->get_frac();
 			e2f = e2->get_frac();
