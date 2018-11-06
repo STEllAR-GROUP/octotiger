@@ -178,10 +178,15 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 				ploc = ploc.get_parent();
 				auto new_mesh_ptr = std::make_shared<mesh_vars_t>(ploc, iters[0]->second->compression_level() + 1);
 				for (int f = 0; f < nfields; f++) {
-					new_mesh_ptr->outflow.push_back(std::make_pair(field_names[f], 0.0));
+					const bool is_hydro = grid::is_hydro_field(field_names[f]);
+					if (is_hydro) {
+						new_mesh_ptr->outflow.push_back(std::make_pair(field_names[f], 0.0));
+					}
 					silo_var_t new_var(field_names[f] + "_" + std::to_string(ploc.to_id()), new_mesh_ptr->var_dims[0]);
 					for (integer ci = 0; ci != NCHILD; ci++) {
-						new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
+						if (is_hydro) {
+							new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
+						}
 						const int nx = new_mesh_ptr->var_dims[0] / 2;
 						const int ib = ((ci >> 0) & 1) * nx;
 						const int jb = ((ci >> 1) & 1) * nx;
@@ -289,7 +294,7 @@ void output_stage3(std::string fname, int cycle) {
 					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
 						const auto& o = mesh_vars.vars[m];
 						real outflow = mesh_vars.outflow[m].second;
-						if( first_pass )  {
+						if( first_pass ) {
 							first_pass = false;
 						} else {
 							DBClearOption(optlist, DBOPT_DTIME);
@@ -306,7 +311,7 @@ void output_stage3(std::string fname, int cycle) {
 					}
 				}
 				DBFreeOptlist( optlist); DBClose( db);
-	}, cycle).get();
+			}, cycle).get();
 	if (this_id < integer(localities.size()) - 1) {
 		output_stage3_action func;
 		func(localities[this_id + 1], fname, cycle);
@@ -499,72 +504,21 @@ void local_load(const std::string& fname, std::vector<node_location::node_id> no
 			const real s = rr(db, "s"); /**/
 			const real K = rr(db, "K"); /**/
 			set_units(grams,cm,s,K); /**/
-			std::vector<std::pair<node_location,node_server*>> node_ptrs;
-			for( auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++ ) {
-				node_ptrs.push_back(*iter);
-			}
-			for( auto pair : node_ptrs ) {
-				auto node_ptr = pair.second;
-				if( !node_ptr->refined() ) {
-					const auto l = node_location(pair.first); /**/
-					grid& g = node_ptr->get_hydro_grid(); /**/
-					const auto suffix = std::to_string(l.to_id()); /**/
-					assert(db); /**/
-					bool first_pass = true;
-					for( auto n : names ) {
-						const auto name = n + std::string( "_") + suffix; /**/
-						const auto quadvar = DBGetQuadvar(db,name.c_str()); /**/
-						const integer nx = quadvar->dims[0];
-						std::function<void(real* data, integer nx, node_location, real, integer)> decompress_and_make
-								= [&decompress_and_make,n,first_pass](real* data, integer nx, node_location loc, real outflow, integer level)  {
-							if( nx > INX ) {
-								real* this_data = new real[nx*nx*nx/NCHILD];
-								for( int ci = 0; ci < NCHILD; ci++) {
-									for( int i = 0; i < nx/2; i++) {
-										integer pi = ((ci >> 0) & 1) * nx/2 + i;
-										for( int j = 0; j < nx/2; j++) {
-											integer pj = ((ci >> 1) & 1) * nx/2 + j;
-											for( int k = 0; k < nx/2; k++) {
-												integer pk = ((ci >> 2) & 1) * nx/2 + k;
-												const int iiip = pi * nx * nx + pj * nx + pk;
-												const int iiic = i * (nx * nx/4) + j * nx/2 + k;
-												assert(iiic < nx*nx*nx/NCHILD);
-												assert(iiip < nx*nx*nx );
-												assert( iiic >= 0);
-												assert( iiip >= 0);
-												this_data[iiic] = data[iiip];
-											}
-										}
-									}
-									decompress_and_make(this_data,nx/2,loc.get_child(ci), outflow/NCHILD, level+1);
-								}
-								delete [] this_data;
-							} else {
-								hpx::threads::run_as_hpx_thread([loc,data,n,outflow,first_pass,level]() {
-									hpx::id_type node = (first_pass && (level > 0)) ?
-											load_registry::make_at(loc.to_id(),hpx::find_here()) :
-											load_registry::get(loc.to_id());
-									auto* ptr = node_client(node).get_ptr().get();
-									grid& g = ptr->get_hydro_grid();
-									g.set(n,data);
-									g.set_outflow(std::make_pair(n,outflow));
-								});
-							}
+			std::vector<std::pair<node_location,node_server*>> node_ptrs; for( auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++ ) { node_ptrs.push_back(*iter); } for( auto pair : node_ptrs ) { auto node_ptr = pair.second; if( !node_ptr->refined() ) { const auto l = node_location(pair.first); /**/
+			grid& g = node_ptr->get_hydro_grid(); /**/
+			const auto suffix = std::to_string(l.to_id()); /**/
+			assert(db); /**/
+			bool first_pass = true; for( auto n : names ) { const auto name = n + std::string( "_") + suffix; /**/
+			const auto quadvar = DBGetQuadvar(db,name.c_str()); /**/
+			const integer nx = quadvar->dims[0]; std::function<void(real* data, integer nx, node_location, real, integer)> decompress_and_make = [&decompress_and_make,n,first_pass](real* data, integer nx, node_location loc, real outflow, integer level) { if( nx > INX ) { real* this_data = new real[nx*nx*nx/NCHILD]; for( int ci = 0; ci < NCHILD; ci++) { for( int i = 0; i < nx/2; i++) { integer pi = ((ci >> 0) & 1) * nx/2 + i; for( int j = 0; j < nx/2; j++) { integer pj = ((ci >> 1) & 1) * nx/2 + j; for( int k = 0; k < nx/2; k++) { integer pk = ((ci >> 2) & 1) * nx/2 + k; const int iiip = pi * nx * nx + pj * nx + pk; const int iiic = i * (nx * nx/4) + j * nx/2 + k; assert(iiic < nx*nx*nx/NCHILD); assert(iiip < nx*nx*nx ); assert( iiic >= 0); assert( iiip >= 0); this_data[iiic] = data[iiip]; } } } decompress_and_make(this_data,nx/2,loc.get_child(ci), outflow/NCHILD, level+1); } delete [] this_data; } else { hpx::threads::run_as_hpx_thread([loc,data,n,outflow,first_pass,level]() { hpx::id_type node = (first_pass && (level > 0)) ? load_registry::make_at(loc.to_id(),hpx::find_here()) : load_registry::get(loc.to_id()); auto* ptr = node_client(node).get_ptr().get(); grid& g = ptr->get_hydro_grid(); g.set(n,data); g.set_outflow(std::make_pair(n,outflow)); }); }
 
-						};
-						const real outflow = quadvar->dtime;
-						decompress_and_make((real*) quadvar->vals[0], quadvar->dims[0], node_location(pair.first), outflow, 0);
-						DBFreeQuadvar(quadvar);
-						first_pass = false;
-					}
-				}
-		//		printf( "Done\n");
-				node_ptr->set_time(dtime, rtime); /**/
-			}
-			DBClose( db); /**/
-		}));
-	for( auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++ ) {
-		if( iter->second->refined()) {
+			}; const real outflow = quadvar->dtime; decompress_and_make((real*) quadvar->vals[0], quadvar->dims[0], node_location(pair.first), outflow, 0); DBFreeQuadvar(quadvar); first_pass = false; } }
+			//		printf( "Done\n");
+			node_ptr->set_time(dtime, rtime); /**/
+			} DBClose( db); /**/
+			}));
+	for (auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++) {
+		if (iter->second->refined()) {
 			iter->second->get_hydro_grid().rho_from_species();
 		}
 	}
