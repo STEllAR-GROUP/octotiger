@@ -20,11 +20,12 @@ constexpr real T0 = 1.0e+6;
 
 real poly_K(real rho0, real mu) {
 	const auto& c = physcon;
-#ifdef RADIATION
-	return std::pow(rho0, -1.0 / 3.0) * ((c.kb * T0) / (mu * c.mh) + (4.0 * c.sigma * std::pow(T0, 4.0)) / (3.0 * rho0 * c.c));
-#else
-	return std::pow(rho0, -1.0 / 3.0) * ((c.kb * T0) / (mu * c.mh));
-#endif
+	if (opts.radiation) {
+		return std::pow(rho0, -1.0 / 3.0)
+				* ((c.kb * T0) / (mu * c.mh) + (4.0 * c.sigma * std::pow(T0, 4.0)) / (3.0 * rho0 * c.c));
+	} else {
+		return std::pow(rho0, -1.0 / 3.0) * ((c.kb * T0) / (mu * c.mh));
+	}
 }
 
 real struct_eos::energy(real d) const {
@@ -80,8 +81,8 @@ real struct_eos::enthalpy_to_density(real h) const {
 		ASSERT_NONAN(HC());
 		const real _h0 = density_to_enthalpy(rho_cut);
 		//	const real _h1 = h0() * std::pow(rho_cut / d0(), 1.0 / 1.5);
-	//	h += hfloor();
-		if (h > _h0) {
+		//	h += hfloor();
+		if (h > _h0 || !opts.v1309) {
 			if (h < HE()) {
 				res = dE() * std::pow(h / HE(), n_E);
 			} else {
@@ -182,12 +183,12 @@ real struct_eos::pressure(real d) const {
 			ASSERT_POSITIVE(d);
 			ASSERT_POSITIVE(dE());
 			//	printf( "n_E %e %e\n", n_E, P0());
-#ifdef V1309
-			if (d < rho_cut) {
-				const real h0 = density_to_enthalpy(rho_cut);
-				return rho_cut * h0 / (1.0 + n_E) * std::pow(d / rho_cut, 5. / 3.);
+			if (opts.v1309) {
+				if (d < rho_cut) {
+					const real h0 = density_to_enthalpy(rho_cut);
+					return rho_cut * h0 / (1.0 + n_E) * std::pow(d / rho_cut, 5. / 3.);
+				}
 			}
-#endif
 			return P0() * std::pow(d / dE(), 1.0 + 1.0 / n_E);
 		} else if (d > 0.0) {
 			return P0();
@@ -333,7 +334,7 @@ struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, rea
 //		printf( "%e %e %e\n", icd, cm/m, core_frac);
 			return cm - core_frac*m;
 		};
-	auto _func = std::function < real(real) > (func);
+	auto _func = std::function<real(real)>(func);
 	if (!find_root(_func, 0.0, 1.0, interface_core_density, 1.0e-3)) {
 		printf("UNable to produce core_Frac\n");
 		abort();
@@ -533,7 +534,7 @@ real struct_eos::get_R0() const {
 	}
 }
 
-real struct_eos::density_at(real R, real dr)  {
+real struct_eos::density_at(real R, real dr) {
 
 	real h, hdot, r;
 	h = h0();

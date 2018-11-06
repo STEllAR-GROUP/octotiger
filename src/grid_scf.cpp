@@ -350,7 +350,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				if (g <= 0.0) {
 					ASSERT_NONAN(phi_eff);
 					ASSERT_NONAN(C);
-					new_rho = std::max(this_struct_eos.enthalpy_to_density(std::max(C - phi_eff, 0.0)), rho_floor);
+					new_rho = std::max(this_struct_eos.enthalpy_to_density(std::max(C - phi_eff, this_struct_eos.hfloor())), rho_floor);
 				} else {
 					new_rho = rho_floor;
 				}
@@ -663,31 +663,26 @@ void node_server::run_scf(std::string const& data_dir) {
 		}
 	}
 }
-
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
-
-	{
-		static std::once_flag flag;
-		std::call_once(flag, []() {
-			scf_options::read_option_file();
-		});
-	}
-	//printf( "!\n");
-
 	const real fgamma = grid::get_fgamma();
 	std::vector<real> u(opts.n_fields, real(0));
 	static auto& params = initial_params();
 	std::shared_ptr<struct_eos> this_struct_eos;
 	real rho, r, ei;
+	static real R01 = params.struct_eos1->get_R0();
+	static real R02 = params.struct_eos2->get_R0();
+	real R0;
 	if (x < params.l1_x) {
 		this_struct_eos = params.struct_eos1;
+		R0 = R01;
 	} else {
 		this_struct_eos = params.struct_eos2;
+		R0 = R02;
 	}
+//	printf( "%e %e\n", R01, R02);
 	rho = 0;
-	const real R0 = this_struct_eos->get_R0();
-	int M = 1;
-//	printf( "%e %e %i\n", dx, R0, M);
+//	const real R0 = this_struct_eos->get_R0();
+	int M = std::max(std::min(int(10.0 * dx), 2), 1);
 	int nsamp = 0;
 	for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx / 2.0; x0 += dx / M) {
 		for (double y0 = y - dx / 2.0 + dx / 2.0 / M; y0 < y + dx / 2.0; y0 += dx / M) {
@@ -723,7 +718,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		u[spc_ae_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
 		u[spc_de_i] = rho <= this_struct_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
 	}
-	u[egas_i] = ei + 0.5 * rho * (x * x + y * y) * params.omega * params.omega;
+	u[egas_i] = ei + 0.5 * (x * x + y * y) * params.omega * params.omega;
 	u[sx_i] = -y * params.omega * rho;
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
