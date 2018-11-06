@@ -27,7 +27,7 @@ extern options opts;
 #include <hpx/include/util.hpp>
 
 void node_server::delist() {
-	if (!listed) {
+	if (listed) {
 		node_registry::delete_(my_location);
 	}
 	listed = false;
