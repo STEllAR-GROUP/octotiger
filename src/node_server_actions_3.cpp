@@ -268,7 +268,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
 		this->velocity_inc(dv);
 		if (!opts.disable_output) {
-			output_all("scf.chk", 0, false);
+			output_all("X.0", 0, true);
 		}
 	}
 	if (opts.radiation) {

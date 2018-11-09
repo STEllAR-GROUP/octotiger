@@ -14,6 +14,7 @@
 #include "options.hpp"
 #include "profiler.hpp"
 #include "taylor.hpp"
+#include "node_registry.hpp"
 
 #include <algorithm>
 #include <array>
@@ -38,6 +39,8 @@ future<integer> node_client::regrid_gather(bool rb) const {
 
 integer node_server::regrid_gather(bool rebalance_only) {
 	integer count = integer(1);
+
+	node_registry::delete_(my_location);
 
 	if (is_refined) {
 		if (!rebalance_only) {
@@ -196,6 +199,8 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	if (!rb) {
 		printf("checking for refinement\n");
 		check_for_refinement(omega, new_floor);
+	} else {
+		node_registry::clear();
 	}
 	printf("regridding\n");
 	real tstart = timer.elapsed();

@@ -5,6 +5,7 @@
 #include "taylor.hpp"
 #include "profiler.hpp"
 
+#include "node_registry.hpp"
 #include <hpx/include/lcos.hpp>
 #include <hpx/runtime/serialization/list.hpp>
 #include <hpx/include/run_as.hpp>
@@ -30,6 +31,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			opts.refinement_floor = new_floor;
 		}
 	}
+	node_registry::delete_(my_location);
 	bool rc = false;
 	std::array<future<void>, NCHILD + 1> futs;
         for( integer i = 0; i != NCHILD + 1; ++i) {
@@ -69,8 +71,6 @@ future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const
 }
 
 future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
-
-	delist();
 
 	std::vector<hpx::id_type> cids;
 	if (is_refined) {
@@ -332,6 +332,9 @@ future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2, std:
 }
 
 void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
+
+	node_registry::add(my_location,this);
+
 	std::fill(nieces.begin(), nieces.end(), 0);
 	for (auto& dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);

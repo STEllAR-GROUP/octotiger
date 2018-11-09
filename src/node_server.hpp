@@ -41,7 +41,6 @@ private:
 		std::vector<real> data;
 		geo::direction direction;
 	};
-	bool listed;
 	std::atomic<integer> refinement_flag;
 	node_location my_location;
 	integer step_num;
@@ -108,42 +107,8 @@ public:
 	grid& get_hydro_grid() {
 		return *grid_ptr;
 	}
-	void delist();
 	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
-
-	template<class Archive>
-	void serialize(Archive& arc, unsigned) {
-		std::size_t _rb = rcycle;
-		std::size_t _hb = hcycle;
-		std::size_t _gb = gcycle;
-		bool ir = is_refined;
-		arc & ir;
-		arc & _rb;
-		arc & _hb;
-		arc & _gb;
-		arc & my_location;
-		arc & step_num;
-		arc & children;
-		arc & parent;
-		arc & neighbors;
-		arc & nieces;
-		arc & aunts;
-		arc & child_descendant_count;
-		arc & current_time;
-		arc & rotational_time;
-		arc & xmin;
-		arc & dx;
-		arc & amr_flags;
-		arc & grid_ptr;
-		integer rf = refinement_flag;
-		arc & rf;
-		refinement_flag = rf;
-		arc & timings_;
-		hcycle = _hb;
-		gcycle = _gb;
-		is_refined = ir;
-	}
 private:
 
 	static bool static_initialized;

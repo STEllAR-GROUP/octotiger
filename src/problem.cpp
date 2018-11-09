@@ -107,11 +107,6 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
 	real dx = (opts.xscale / INX) / real(1 << level);
-	if (opts.refinement_floor < 0.0) {
-		static hpx::mutex mtx;
-		std::lock_guard<hpx::mutex> lock(mtx);
-		opts.refinement_floor = 1.0e-3;
-	}
 	if (level < max_level / 2) {
 		return std::sqrt(x * x + y * y + z * z) < 10.0 * dx;
 	}
@@ -147,11 +142,6 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
-	if (opts.refinement_floor < 0.0) {
-		static hpx::mutex mtx;
-		std::lock_guard<hpx::mutex> lock(mtx);
-		opts.refinement_floor = 1.0e-2;
-	}
 	real den_floor = opts.refinement_floor;
 	integer test_level = ((U[spc_ae_i] + U[spc_de_i] + U[spc_vac_i]) > 0.5 * U[rho_i] ? max_level - 1 : max_level);
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {

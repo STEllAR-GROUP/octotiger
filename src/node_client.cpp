@@ -66,11 +66,12 @@ node_client::node_client() {
 	local = true;
 }
 
+
 bool node_client::empty() const {
 	return get_gid() == hpx::invalid_id;
 }
 
 void node_client::report_timing() const {
-    hpx::async<typename node_server::report_timing_action>(get_gid()).get();
-}
+	   hpx::async<typename node_server::report_timing_action>(get_gid()).get();
+	}
 

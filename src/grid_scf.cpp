@@ -469,7 +469,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
 		auto diags = diagnostics();
-		if (i % 10 == 0) {
+		if (i % 25 == 0) {
 			if (!opts.disable_output) {
 				output_all(buffer, i,false);
 			}

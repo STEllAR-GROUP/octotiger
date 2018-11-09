@@ -20,20 +20,14 @@ node_ptr get(const node_location& loc) {
 
 void add(const node_location& loc, node_ptr id) {
 	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx_);
-	if (table_.find(loc) != table_.end()) {
-		printf("Error in node_registry::add %s\n", loc.to_str().c_str());
-		abort();
-	}
-	table_.insert(std::make_pair(loc, id));
+	table_[loc] = id;
 }
 
 void delete_(const node_location& loc) {
 	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx_);
-	if (table_.find(loc) == table_.end()) {
-		printf("Error in node_registry::delete_ %s\n", loc.to_str().c_str());
-		abort();
+	if (table_.find(loc) != table_.end()) {
+		table_.erase(loc);
 	}
-	table_.erase(loc);
 }
 
 iterator_type begin() {
@@ -44,6 +38,30 @@ iterator_type end() {
 	return table_.end();
 }
 
+void clear_();
+
+}
+
+HPX_PLAIN_ACTION(node_registry::clear_, node_registry_clear_action);
+
+namespace node_registry {
+void clear_() {
+	std::vector<hpx::future<void>> futs;
+	if (hpx::get_locality_id() == 0) {
+		for (int i = 1; i < localities.size(); i++) {
+			futs.push_back(hpx::async<node_registry_clear_action>(localities[i]));
+		}
+		table_.clear();
+		hpx::wait_all(std::move(futs));
+	} else {
+		table_.clear();
+	}
+}
+
+void clear() {
+	clear_();
+}
+
 }
 
 namespace load_registry {
@@ -51,8 +69,6 @@ namespace load_registry {
 static table_type table_;
 static hpx::lcos::local::spinlock mtx_;
 }
-
-HPX_PLAIN_ACTION(load_registry::make_at, make_at_action);
 HPX_PLAIN_ACTION(load_registry::put, put_action);
 HPX_PLAIN_ACTION(load_registry::get, get_action);
 HPX_PLAIN_ACTION(load_registry::destroy, destroy_action);
@@ -77,7 +93,7 @@ void put(node_location::node_id id, const hpx::id_type& component) {
 		std::lock_guard<hpx::lcos::local::spinlock> lock(mtx_);
 		auto iter = table_.find(id);
 		assert(iter == table_.end());
-		table_.insert(std::make_pair(id, hpx::make_ready_future(component)));
+		table_.insert(std::make_pair(id, std::make_shared<hpx::shared_future<hpx::id_type>>(hpx::make_ready_future(component))));
 	}
 }
 
@@ -91,15 +107,23 @@ hpx::id_type get(node_location::node_id id) {
 		std::unique_lock<hpx::lcos::local::spinlock> lock(mtx_);
 		auto i = table_.find(id);
 		if (i != table_.end()) {
-			rc = i->second.get();
+			auto tmp = i->second;
+			lock.unlock();
+			rc = tmp->get();
 		} else {
 			node_location full_loc;
 			full_loc.from_id(id);
-			hpx::shared_future<hpx::id_type> f(hpx::new_<node_server>(hpx::find_here(), full_loc));
-
-			table_.insert(std::make_pair(id, f));
+			// Done this way to avoid swapping threads while lock is held
+			auto prms = std::make_shared<hpx::lcos::local::promise<hpx::id_type>>();
+			auto entry = std::make_pair(id, std::make_shared<hpx::shared_future<hpx::id_type>>(prms->get_future()));
+			auto f = entry.second;
+			table_.insert(std::move(entry));
 			lock.unlock();
-			rc = f.get();
+			hpx::apply([prms,full_loc]() {
+				auto tmp = hpx::new_<node_server>(hpx::find_here(), full_loc);
+				prms->set_value(tmp.get());
+			});
+			rc = f->get();
 			if (full_loc.level() != 0) {
 				auto this_parent = get(full_loc.get_parent().to_id());
 				node_client c(rc);
@@ -111,35 +135,8 @@ hpx::id_type get(node_location::node_id id) {
 	}
 	return rc;
 }
-
-hpx::id_type make_at(node_location::node_id id, hpx::id_type locality) {
-	hpx::id_type rc;
-	if (locality != hpx::find_here()) {
-		get_action f;
-		rc = f(locality, id);
-	} else {
-		std::unique_lock<hpx::lcos::local::spinlock> lock(mtx_);
-
-		node_location full_loc;
-		full_loc.from_id(id);
-		hpx::shared_future<hpx::id_type> f(hpx::new_<node_server>(hpx::find_here(), full_loc));
-
-		table_.insert(std::make_pair(id, f));
-		lock.unlock();
-		rc = f.get();
-		if (full_loc.level() != 0) {
-			auto this_parent = get(full_loc.get_parent().to_id());
-			node_client c(rc);
-			assert(this_parent != hpx::invalid_id);
-			node_client p(this_parent);
-			p.notify_parent(full_loc, rc).get();
-		}
-	}
-	return rc;
-}
-
 std::size_t hash::operator()(const node_location::node_id id) const {
-	return id / localities.size();
+	return id;
 }
 
 }
