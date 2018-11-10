@@ -257,6 +257,7 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
+	position = 9999999999;
 	for (auto const& dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}
@@ -305,9 +306,9 @@ node_server::node_server(const node_location& loc, const node_client& parent_id,
 node_server::node_server(const node_location& _my_location, integer _step_num, bool _is_refined, real _current_time,
 		real _rotational_time, const std::array<integer, NCHILD>& _child_d, grid _grid, const std::vector<hpx::id_type>& _c,
 		std::size_t _hcycle, std::size_t _rcycle, std::size_t _gcycle, integer position_) {
-	position = position_;
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
+	position = position_;
 	hcycle = _hcycle;
 	gcycle = _gcycle;
 	rcycle = _rcycle;

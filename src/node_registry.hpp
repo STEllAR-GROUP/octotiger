@@ -23,8 +23,6 @@ void add(const node_location&, node_ptr);
 
 node_ptr get(const node_location& loc );
 
-node_ptr make_here(const node_location& loc );
-
 void delete_(const node_location&);
 
 iterator_type begin();

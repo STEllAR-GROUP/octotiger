@@ -26,6 +26,7 @@ struct node_list_t {
 	void serialize(Arc& arc,unsigned) {
 		arc & silo_leaves;
 		arc & all;
+		arc & positions;
 	}
 };
 
@@ -276,7 +277,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	nl.silo_leaves = std::move(ids);
 	nl.all = std::move(all);
 	nl.positions = std::move(positions);
-	return nl;
+	return std::move(nl);
 }
 
 void output_stage3(std::string fname, int cycle) {
@@ -467,6 +468,7 @@ void output_all(std::string fname, int cycle, bool block) {
 		}
 		node_list_.silo_leaves.clear();
 		node_list_.all.clear();
+		node_list_.positions.clear();
 		for (auto& f : id_futs) {
 			node_list_t this_list = GET(f);
 			for (auto& i : this_list.silo_leaves) {
@@ -579,7 +581,7 @@ HPX_PLAIN_ACTION(load_open, load_open_action);
 
 node_server::node_server(const node_location& loc) :
 		my_location(loc) {
-	printf( "Creating %s\n", loc.to_str().c_str());
+	printf( "Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto& localities = opts.all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
@@ -605,6 +607,8 @@ node_server::node_server(const node_location& loc) :
 		load.vars.resize(hydro_names.size());
 		load.outflows.resize(hydro_names.size());
 		hpx::threads::run_as_os_thread([&]() {
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lock(mtx);
 			for( int f = 0; f != hydro_names.size(); f++) {
 				const std::string suffix = std::to_string(loc.to_id());
 				const auto this_name = hydro_names[f] + std::string( "_") + suffix; /**/
@@ -626,10 +630,8 @@ node_server::node_server(const node_location& loc) :
 				grid_ptr->rho_from_species();
 			}
 		} else {
-			printf( "4\n");
 			is_refined = true;
 			auto child_loads = load.decompress();
-			printf( "6\n");
 			for( integer ci = 0; ci < NCHILD; ci++) {
 				auto cloc = loc.get_child(ci);
 				auto iter = node_dir_.find(cloc.to_id());
@@ -641,7 +643,7 @@ node_server::node_server(const node_location& loc) :
 
 node_server::node_server(const node_location& loc, silo_load_t load_vars) :
 		my_location(loc) {
-	printf( "Loading %s\n", loc.to_str().c_str());
+	printf( "Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto& localities = opts.all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
