@@ -291,7 +291,10 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 				}
 			}
 		} else {
+
+			/** BUG HERE ***/
 			assert(!parent.empty());
+
 			bool found_match = false;
 			for( auto& di : geo::direction::full_set()) {
 				if( loc.is_child_of(my_location.get_neighbor(di)) && !neighbors[di].empty()) {
