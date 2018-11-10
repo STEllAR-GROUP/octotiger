@@ -12,20 +12,6 @@
 
 extern options opts;
 
-typedef node_server::notify_parent_action notify_parent_action_type;
-HPX_REGISTER_ACTION(notify_parent_action_type);
-
-hpx::future<void> node_client::notify_parent(node_location location, hpx::id_type this_id) {
-	assert( get_unmanaged_gid() != hpx::invalid_id);
-	assert( this_id != hpx::invalid_id);
-	return hpx::async<node_server::notify_parent_action>(id, std::move(location), std::move(this_id));
-}
-
-void node_server::notify_parent(const node_location& location, hpx::id_type id) {
-	is_refined = true;
-	children[location.get_child_index()] = std::move(id);
-}
-
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
 HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 

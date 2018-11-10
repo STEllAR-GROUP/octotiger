@@ -143,7 +143,7 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y, r
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
 	real den_floor = opts.refinement_floor;
-	integer test_level = ((U[spc_ae_i] + U[spc_de_i] + U[spc_vac_i]) > 0.5 * U[rho_i] ? max_level - 1 : max_level);
+	integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);

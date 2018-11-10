@@ -35,10 +35,26 @@ public:
 	double operator()(int i) const;
 };
 
+
+struct  silo_load_t {
+	integer nx;
+	std::vector<std::pair<std::string,std::vector<real>>> vars;
+	std::vector<std::pair<std::string,real>> outflows;
+	template<class Arc>
+	void serialize(Arc& arc, unsigned) {
+		arc & nx;
+		arc & vars;
+		arc & outflows;
+	}
+	std::vector<silo_load_t> decompress();
+};
+
+
+
 void output_all(std::string fname, int cycle, bool);
 
 void load_options_from_silo(std::string fname, DBfile* = NULL);
 
-hpx::id_type load_data_from_silo(std::string fname, node_server*, hpx::id_type);
+void load_data_from_silo(std::string fname, node_server*, hpx::id_type);
 
 #endif /* SRC_SILO_HPP_ */

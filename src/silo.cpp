@@ -9,22 +9,36 @@
 
 #include "node_registry.hpp"
 #include "silo.hpp"
+#include "node_server.hpp"
 #include "options.hpp"
+#include <set>
 #include "physcon.hpp"
 #include <hpx/lcos/broadcast.hpp>
 #include <future>
 #include "util.hpp"
 
+
+struct node_list_t {
+	std::vector<node_location::node_id> silo_leaves;
+	std::vector<node_location::node_id> all;
+	std::vector<integer> positions;
+	template<class Arc>
+	void serialize(Arc& arc,unsigned) {
+		arc & silo_leaves;
+		arc & all;
+	}
+};
+
 struct mesh_vars_t;
 static std::vector<hpx::future<mesh_vars_t>> futs_;
-static std::vector<node_location::node_id> loc_ids;
+static node_list_t node_list_;
 
 static const auto& localities = options::all_localities;
 
 static std::mutex silo_mtx_;
 
 void output_stage1(std::string fname, int cycle);
-std::vector<node_location::node_id> output_stage2(std::string fname, int cycle);
+node_list_t output_stage2(std::string fname, int cycle);
 void output_stage3(std::string fname, int cycle);
 
 HPX_PLAIN_ACTION(output_stage1, output_stage1_action);
@@ -60,7 +74,7 @@ constexpr int db_type<real>::d;
 
 template<class T>
 struct write_silo_var {
-	void operator()(DBfile* db, const char* name, T var) {
+	void operator()(DBfile* db, const char* name, T var) const {
 		int one = 1;
 		DBWrite(db, name, &var, &one, 1, db_type<T>::d);
 	}
@@ -68,7 +82,7 @@ struct write_silo_var {
 
 template<class T>
 struct read_silo_var {
-	T operator()(DBfile* db, const char* name) {
+	T operator()(DBfile* db, const char* name) const {
 		int one = 1;
 		T var;
 		if (DBReadVar(db, name, &var) != 0) {
@@ -164,7 +178,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 		tmp.from_id(i->first);
 		int first_nx = i->second->X_dims[0];
 		const integer shift = (tmp.level() - 1) * NDIM;
-		if (shift >= 0) {
+		if (shift > 0) {
 			auto loc_bits = i->first & node_location::node_id(~(0x7 << shift));
 			bool levels_match = true;
 			for (int j = 0; j < NCHILD; j++) {
@@ -237,7 +251,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 
 static std::vector<mesh_vars_t> all_mesh_vars;
 
-std::vector<node_location::node_id> output_stage2(std::string fname, int cycle) {
+node_list_t output_stage2(std::string fname, int cycle) {
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".silo");
@@ -252,8 +266,17 @@ std::vector<node_location::node_id> output_stage2(std::string fname, int cycle) 
 	for (const auto& mv : all_mesh_vars) {
 		ids.push_back(mv.location.to_id());
 	}
-
-	return ids;
+	std::vector<node_location::node_id> all;
+	std::vector<integer> positions;
+	for( auto i = node_registry::begin(); i != node_registry::end(); i++) {
+			all.push_back(i->first.to_id());
+			positions.push_back(i->second->get_position());
+	}
+	node_list_t nl;
+	nl.silo_leaves = std::move(ids);
+	nl.all = std::move(all);
+	nl.positions = std::move(positions);
+	return nl;
 }
 
 void output_stage3(std::string fname, int cycle) {
@@ -332,7 +355,7 @@ void output_stage3(std::string fname, int cycle) {
 					std::vector<node_location> node_locs;
 					std::vector<char*> mesh_names;
 					std::vector<std::vector<char*>> field_names(nfields);
-					for (auto& i : loc_ids) {
+					for (auto& i : node_list_.silo_leaves) {
 						node_location nloc;
 						nloc.from_id(i);
 						node_locs.push_back(nloc);
@@ -403,6 +426,10 @@ void output_stage3(std::string fname, int cycle) {
 					fr(db, "cm", cm); fr(db, "s", s); fr(db, "K", K);
 					gethostname(hostname, HOST_NAME_LEN);
 					DBWrite( db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
+					int nnodes = node_list_.all.size();
+					DBWrite( db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG);
+					DBWrite( db, "node_positions", node_list_.positions.data(), &nnodes, 1, db_type<integer>::d);
+					fi(db, "node_count", integer(nnodes));
 					write_silo_var<integer>()(db, "timestamp", timestamp);
 					write_silo_var<integer>()(db, "epoch", epoch);
 					write_silo_var<integer>()(db, "N_localities", localities.size());
@@ -434,15 +461,22 @@ void output_all(std::string fname, int cycle, bool block) {
 	GET(hpx::when_all(futs1));
 
 	barrier = hpx::async([cycle,&fname]() {
-		std::vector<hpx::future<std::vector<node_location::node_id>>> id_futs;
+		std::vector<hpx::future<node_list_t>> id_futs;
 		for (auto& id : localities) {
 			id_futs.push_back(hpx::async<output_stage2_action>(id, fname, cycle));
 		}
-		loc_ids.clear();
+		node_list_.silo_leaves.clear();
+		node_list_.all.clear();
 		for (auto& f : id_futs) {
-			std::vector<node_location::node_id> these_ids = GET(f);
-			for (auto& i : these_ids) {
-				loc_ids.push_back(i);
+			node_list_t this_list = GET(f);
+			for (auto& i : this_list.silo_leaves) {
+				node_list_.silo_leaves.push_back(i);
+			}
+			for (auto& i : this_list.all) {
+				node_list_.all.push_back(i);
+			}
+			for (auto& i : this_list.positions) {
+				node_list_.positions.push_back(i);
 			}
 		}
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
@@ -454,128 +488,25 @@ void output_all(std::string fname, int cycle, bool block) {
 	}
 }
 
-void
-local_load(const std::string&, std::vector<node_location::node_id> node_ids);
-void
-all_boundaries();
 
-HPX_PLAIN_ACTION(local_load, local_load_action);
-HPX_PLAIN_ACTION(all_boundaries, all_boundaries_action);
 
-void all_boundaries() {
-	std::vector<hpx::future<void>> futs;
-	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
-		futs.push_back(hpx::async([i]()
-		{
-			i->second->all_hydro_bounds();
-		}));
+struct node_entry_t {
+	bool load;
+	integer position;
+	integer locality_id;
+	template<class Arc>
+	void serialize( Arc& arc, unsigned ) {
+		arc & load;
+		arc & position;
+		arc & locality_id;
 	}
-	GET(hpx::when_all(std::move(futs)));
-}
+};
 
-void local_load(const std::string& fname, std::vector<node_location::node_id> node_ids) {
+using dir_map_type = std::unordered_map<node_location::node_id, node_entry_t>;
 
-	std::vector<hpx::future<void>> futs;
-	const auto me = hpx::find_here();
-	static const auto names = grid::get_field_names();
-	static const auto hydro_names = grid::get_hydro_field_names();
-	for (const auto& i : node_ids) {
-		node_location l;
-		l.from_id(i);
-		futs.push_back(hpx::new_<node_server>(me, l).then([&me,l](hpx::future<hpx::id_type>&& f)
-		{
-			const auto id = GET(f);
-			auto client = node_client(id);
-			load_registry::put(l.to_id(), id);
-			const auto pid = load_registry::get(l.get_parent().to_id());
-			node_client p(pid);
-			GET(p.notify_parent(l,id));
-		}));
-	}
+dir_map_type node_dir_;
+DBfile* db_;
 
-	for (int i = 0; i < futs.size(); i++) {
-		GET(futs[i]);
-	}
-
-	hpx::threads::run_as_os_thread(
-			[&fname]() {read_silo_var<integer> ri; /**/
-				read_silo_var<real> rr; /**/
-				DBfile* db = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ); /**/
-				load_options_from_silo(fname,db); /**/
-				const real dtime = rr(db, "time"); /**/
-				const real rtime = rr(db, "rotational_time"); /**/
-				const real grams = rr(db, "g"); /**/
-				const real cm = rr(db, "cm"); /**/
-				const real s = rr(db, "s"); /**/
-				const real K = rr(db, "K"); /**/
-				set_units(grams,cm,s,K); /**/
-				std::vector<std::pair<node_location,node_server*>> node_ptrs;
-				for( auto iter = node_registry::begin(); iter != node_registry::end(); iter++ ) {
-					node_ptrs.push_back(*iter);
-				}
-				for( auto pair : node_ptrs ) {
-					auto node_ptr = pair.second;
-					if( !node_ptr->refined() ) {
-						const auto l = node_location(pair.first); /**/
-						grid& g = node_ptr->get_hydro_grid(); /**/
-						const auto suffix = std::to_string(l.to_id()); /**/
-						assert(db); /**/
-						bool first_pass = true;
-						for( auto n : names ) {
-							const auto name = n + std::string( "_") + suffix; /**/
-							const auto quadvar = DBGetQuadvar(db,name.c_str()); /**/
-							const integer nx = quadvar->dims[0];
-							std::function<void(real* data, integer nx, node_location, real, integer)> decompress_and_make =
-							[&decompress_and_make,n,first_pass](real* data, integer nx, node_location loc, real outflow, integer level) {
-								if( nx > INX ) {
-									real* this_data = new real[nx*nx*nx/NCHILD];
-									for( int ci = 0; ci < NCHILD; ci++) {
-										for( int i = 0; i < nx/2; i++) {
-											integer pi = ((ci >> 0) & 1) * nx/2 + i;
-											for( int j = 0; j < nx/2; j++) {
-												integer pj = ((ci >> 1) & 1) * nx/2 + j;
-												for( int k = 0; k < nx/2; k++) {
-													integer pk = ((ci >> 2) & 1) * nx/2 + k;
-													const int iiip = pi * nx * nx + pj * nx + pk;
-													const int iiic = i * (nx * nx/4) + j * nx/2 + k;
-													assert(iiic < nx*nx*nx/NCHILD);
-													assert(iiip < nx*nx*nx );
-													assert( iiic >= 0);
-													assert( iiip >= 0);
-													this_data[iiic] = data[iiip];
-												}
-											}
-										}
-										decompress_and_make(this_data,nx/2,loc.get_child(ci), outflow/NCHILD, level+1);
-									}
-									delete [] this_data;
-								} else {
-									hpx::threads::run_as_hpx_thread([loc,data,n,outflow,first_pass,level]() {
-												hpx::id_type node = load_registry::get(loc.to_id());
-												auto* ptr = node_client(node).get_ptr().get(); grid& g = ptr->get_hydro_grid(); g.set(n,data); g.set_outflow(std::make_pair(n,outflow));
-											});
-								}
-							};
-							const real outflow = quadvar->dtime;
-							decompress_and_make((real*) quadvar->vals[0], quadvar->dims[0], node_location(pair.first), outflow, 0);
-							DBFreeQuadvar(quadvar);
-							first_pass = false;
-						}
-					}
-					node_ptr->set_time(dtime, rtime); /**/
-				}
-				DBClose( db); /**/
-			}).get();
-	for (auto iter = node_registry::begin(); /**/iter != node_registry::end(); /**/iter++) {
-		if (iter->second->refined()) {
-			iter->second->get_hydro_grid().rho_from_species();
-		}
-	}
-	if (hpx::get_locality_id() == 0) {
-		grid::set_omega(opts.omega);
-	}
-
-}
 
 void load_options_from_silo(std::string fname, DBfile* db) {
 	const auto func = [&fname,&db]()
@@ -623,31 +554,153 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 
 }
 
-hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
-	load_registry::put(1, root);
+void load_open(std::string fname, dir_map_type map) {
+	hpx::threads::run_as_os_thread([&]() {
+		db_ = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ);
+	}).get();
+	read_silo_var<real> rr;
+	output_time = rr(db_, "time"); /**/
+	output_rotation_count = rr(db_, "rotational_time"); /**/
+	const real grams = rr(db_, "g"); /**/
+	const real cm = rr(db_, "cm"); /**/
+	const real s = rr(db_, "s"); /**/
+	const real K = rr(db_, "K"); /**/
+	set_units(grams,cm,s,K); /**/
+	load_options_from_silo(fname,db_); /**/
+	node_dir_ = std::move(map);
+}
+
+void load_close() {
+	DBClose(db_);
+}
+
+HPX_PLAIN_ACTION(load_close, load_close_action);
+HPX_PLAIN_ACTION(load_open, load_open_action);
+
+node_server::node_server(const node_location& loc) :
+		my_location(loc) {
+	printf( "Creating %s\n", loc.to_str().c_str());
+	const auto& localities = opts.all_localities;
+	initialize(0.0, 0.0);
+	step_num = gcycle = hcycle = rcycle = 0;
+
+	auto iter = node_dir_.find(loc.to_id());
+	assert( iter != node_dir_.end());
+
+	if( !iter->second.load) {
+		int nc = 0;
+		for (int ci = 0; ci < NCHILD; ci++) {
+			auto cloc = loc.get_child(ci);
+			auto iter = node_dir_.find(cloc.to_id());
+			if (iter != node_dir_.end()) {
+				is_refined = true;
+				children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc).get();
+				nc++;
+			}
+		}
+		assert(nc == 0 || nc == NCHILD);
+	} else {
+		silo_load_t load;
+		static const auto hydro_names = grid::get_hydro_field_names();
+		load.vars.resize(hydro_names.size());
+		load.outflows.resize(hydro_names.size());
+		hpx::threads::run_as_os_thread([&]() {
+			for( int f = 0; f != hydro_names.size(); f++) {
+				const std::string suffix = std::to_string(loc.to_id());
+				const auto this_name = hydro_names[f] + std::string( "_") + suffix; /**/
+				auto var = DBGetQuadvar(db_,this_name.c_str());
+				load.nx = var->dims[0];
+				const int nvar = load.nx * load.nx * load.nx;
+				load.outflows[f].first = load.vars[f].first = hydro_names[f];
+				load.vars[f].second.resize(nvar);
+				load.outflows[f].second = var->dtime;
+				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real)*nvar);
+				DBFreeQuadvar(var);
+		}}).get();
+		if( load.nx == INX ) {
+			for( integer f = 0; f < hydro_names.size(); f++) {
+				grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
+				grid_ptr->set_outflow(std:: move(load.outflows[f]));
+				current_time = output_time;
+				rotational_time = output_rotation_count;
+				grid_ptr->rho_from_species();
+			}
+		} else {
+			printf( "4\n");
+			is_refined = true;
+			auto child_loads = load.decompress();
+			printf( "6\n");
+			for( integer ci = 0; ci < NCHILD; ci++) {
+				auto cloc = loc.get_child(ci);
+				auto iter = node_dir_.find(cloc.to_id());
+				children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc, child_loads[ci]);
+			}
+		}
+	}
+}
+
+node_server::node_server(const node_location& loc, silo_load_t load_vars) :
+		my_location(loc) {
+	printf( "Loading %s\n", loc.to_str().c_str());
+	const auto& localities = opts.all_localities;
+	initialize(0.0, 0.0);
+	step_num = gcycle = hcycle = rcycle = 0;
+	int nc = 0;
+	for (int ci = 0; ci < NCHILD; ci++) {
+		auto cloc = loc.get_child(ci);
+		auto iter = node_dir_.find(cloc.to_id());
+		if (iter != node_dir_.end()) {
+			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
+			nc++;
+		}
+	}
+	assert(nc == 0 || nc == NCHILD);
+}
+
+
+void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
+	const integer nprocs = opts.all_localities.size();
 	static int sz = localities.size();
 	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), SILO_DRIVER, DB_READ));
 	epoch = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
 	epoch++;
+	std::vector<node_location::node_id> node_list;
+	std::vector<integer> positions;
+	std::vector<hpx::future<void>> futs;
+	int node_count;
 	if (db != NULL) {
 		DBmultimesh* master_mesh = GET(hpx::threads::run_as_os_thread([&]()
 		{
 			return DBGetMultimesh( db, "mesh");
 		}));
-		GET(hpx::threads::run_as_os_thread(DBClose, db));
-		std::vector<node_location::node_id> work;
-		std::vector<hpx::future<void>> futs;
 		const int chunk_size = std::ceil(real(master_mesh->nblocks) / real(sz));
+		hpx::threads::run_as_os_thread([&]() {
+			const read_silo_var<integer> ri;
+			node_count = ri(db,"node_count");
+			node_list.resize(node_count);
+			positions.resize(node_count);
+			DBReadVar(db, "node_list", node_list.data());
+			DBReadVar(db, "node_positions", positions.data());
+		}).get();
+		GET(hpx::threads::run_as_os_thread(DBClose, db));
+		std::set<node_location::node_id> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
-			work.push_back(std::stoi(master_mesh->meshnames[i]));
-			const int this_id = i / chunk_size;
-			const int next_id = (i + 1) / chunk_size;
-			assert(this_id < localities.size());
-			if (this_id != next_id) {
-				futs.push_back(hpx::async<local_load_action>(localities[this_id], fname, work));
-				work.clear();
-			}
+			load_locs.insert(std::stoi(master_mesh->meshnames[i]));
 		}
+		for (int i = 0; i < node_list.size(); i++) {
+			node_entry_t entry;
+			entry.position = positions[i];
+			entry.load = bool(load_locs.find(node_list[i]) != load_locs.end());
+			entry.locality_id = positions[i] * nprocs / positions.size();
+			node_dir_[node_list[i]] = entry;
+		}
+		for( int i = 0; i < nprocs; i++) {
+			futs.push_back(hpx::async<load_open_action>(opts.all_localities[i],fname,node_dir_));
+		}
+		for( const auto& entry : node_dir_) {
+			printf( "%s %i %i %i\n", node_location(entry.first).to_str().c_str(), entry.second.position, entry.second.locality_id, entry.second.load );
+		}
+
 		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));
 		for (auto& f : futs) {
 			GET(f);
@@ -656,11 +709,28 @@ hpx::id_type load_data_from_silo(std::string fname, node_server* root_ptr, hpx::
 		std::cout << "Could not load " << fname;
 		throw;
 	}
-	hpx::id_type rc = load_registry::get(1);
-	load_registry::destroy();
+	root_ptr->reconstruct_tree();
 	root_ptr->form_tree(root);
-	GET(hpx::lcos::broadcast<all_boundaries_action>(localities));
-	return std::move(rc);
+	node_registry::clear();
+	futs.clear();
+	for( int i = 0; i < nprocs; i++) {
+		futs.push_back(hpx::async<load_close_action>(opts.all_localities[i]));
+	}
+	if (hpx::get_locality_id() == 0) {
+		grid::set_omega(opts.omega);
+	}
+	for (auto& f : futs) {
+		GET(f);
+	}
+}
+
+void node_server::reconstruct_tree() {
+	for( integer ci = 0; ci < NCHILD; ci++) {
+		is_refined = true;
+		auto cloc = my_location.get_child(ci);
+		auto iter = node_dir_.find(cloc.to_id());
+		children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc).get();
+	}
 }
 
 silo_var_t::silo_var_t(const std::string& name, std::size_t nx) :
@@ -675,3 +745,39 @@ silo_var_t::operator()(int i) {
 double silo_var_t::operator()(int i) const {
 	return data_[i];
 }
+
+
+
+std::vector<silo_load_t> silo_load_t::decompress() {
+	std::vector<silo_load_t> children;
+	assert( nx > INX );
+	for( int ci = 0; ci < NCHILD; ci++) {
+		silo_load_t child;
+		child.nx = nx / 2;
+		child.vars.resize(vars.size());
+		child.outflows.resize(vars.size());
+		const integer xo = (ci & (1 << XDIM)) ? child.nx : 0;
+		const integer yo = (ci & (1 << YDIM)) ? child.nx : 0;
+		const integer zo = (ci & (1 << ZDIM)) ? child.nx : 0;
+		for (int f = 0; f < vars.size(); f++) {
+			child.vars[f].second.resize(child.nx * child.nx * child.nx);
+			child.outflows[f].first = child.vars[f].first = vars[f].first;
+			child.outflows[f].second = outflows[f].second / NCHILD;
+			for( integer cx = 0; cx < child.nx; cx++) {
+				for (integer cy = 0; cy < child.nx; cy++) {
+					for (integer cz = 0; cz < child.nx; cz++) {
+						const integer child_index = cz + child.nx * (cy + child.nx * cx);
+						const integer parent_index = (cz + zo) + nx * ((cy + yo) + nx * (cx + xo));
+						child.vars[f].second[child_index] = vars[f].second[parent_index];
+					}
+				}
+			}
+		}
+
+		children.push_back(std::move(child));
+	}
+	vars.clear();
+	outflows.clear();
+	return std::move(children);
+}
+

@@ -150,6 +150,7 @@ future<void> node_client::regrid_scatter(integer a, integer b) const {
 }
 
 void node_server::regrid_scatter(integer a_, integer total) {
+	position = a_;
 	refinement_flag = 0;
 	std::array<future<void>, geo::octant::count()> futs;
 	if (is_refined) {

@@ -23,6 +23,8 @@ void add(const node_location&, node_ptr);
 
 node_ptr get(const node_location& loc );
 
+node_ptr make_here(const node_location& loc );
+
 void delete_(const node_location&);
 
 iterator_type begin();
@@ -34,23 +36,4 @@ void clear();
 
 
 }
-
-namespace load_registry {
-
-struct hash {
-	std::size_t operator()(const node_location::node_id id) const;
-};
-
-using table_type = std::unordered_map<node_location::node_id,std::shared_ptr<hpx::shared_future<hpx::id_type>>,hash>;
-using iterator_type = table_type::iterator;
-
-void put(node_location::node_id id, const hpx::id_type& component);
-hpx::id_type get(node_location::node_id id);
-
-void destroy();
-
-
-}
-
-
 #endif

@@ -9,6 +9,8 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/runtime/serialization/list.hpp>
 #include <hpx/include/run_as.hpp>
+#include <hpx/runtime/get_colocation_id.hpp>
+
 
 #include "options.hpp"
 
@@ -62,7 +64,6 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 	clear_family();
 
 }
-
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
 HPX_REGISTER_ACTION (copy_to_locality_action_type);
 
@@ -82,7 +83,7 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 	auto rc =
 			hpx::new_ < node_server
 					> (id, my_location, step_num, bool(is_refined), current_time, rotational_time, child_descendant_count, std::move(*grid_ptr), cids, std::size_t(
-							hcycle), std::size_t(rcycle), std::size_t(gcycle));
+							hcycle), std::size_t(rcycle), std::size_t(gcycle), position);
 	clear_family();
     parent = hpx::invalid_id;
 	std::fill(neighbors.begin(), neighbors.end(), hpx::invalid_id);
@@ -331,6 +332,12 @@ future<void> node_client::form_tree(hpx::id_type&& id1, hpx::id_type&& id2, std:
 	return hpx::async<typename node_server::form_tree_action>(get_unmanaged_gid(), std::move(id1), std::move(id2), std::move(ids));
 }
 
+
+bool operator!=( const node_client& nc, const hpx::id_type& id) {
+	return nc.get_gid() != id;
+}
+
+
 void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
 
 	node_registry::add(my_location,this);
@@ -411,6 +418,7 @@ void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std:
 	}
 
 }
+
 
 typedef node_server::get_child_client_action get_child_client_action_type;
 HPX_REGISTER_ACTION (get_child_client_action_type);
@@ -511,7 +519,11 @@ std::uintptr_t node_server::get_ptr() {
 }
 
 future<node_server*> node_client::get_ptr() const {
-	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([](future<std::uintptr_t>&& fut) {
+	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([this](future<std::uintptr_t>&& fut) {
+		if(hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
+			printf( "get_ptr called non-locally\n");
+			abort();
+		}
 		return reinterpret_cast<node_server*>(GET(fut));
 	});
 }

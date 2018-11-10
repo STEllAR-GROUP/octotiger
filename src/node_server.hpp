@@ -28,6 +28,7 @@
 
 #include <hpx/include/components.hpp>
 #include <hpx/include/serialization.hpp>
+#include "silo.hpp"
 
 #include "interaction_types.hpp"
 #include "monopole_interactions/cuda_p2p_interaction_interface.hpp"
@@ -41,6 +42,7 @@ private:
 		std::vector<real> data;
 		geo::direction direction;
 	};
+	integer position;
 	std::atomic<integer> refinement_flag;
 	node_location my_location;
 	integer step_num;
@@ -149,16 +151,22 @@ public:
 	}
 	~node_server();
 	node_server(const node_location&);
+	node_server(const node_location&, silo_load_t load_vars);
 	node_server(const node_location&, const node_client& parent_id, real, real, std::size_t, std::size_t, std::size_t,
 			std::size_t);
+
+	integer get_position() const {
+		return position;
+	}
+
+	void reconstruct_tree();
+
+	/*TODO move radiation to*/
 	node_server(const node_location&, integer, bool, real, real, const std::array<integer, NCHILD>&, grid,
-			const std::vector<hpx::id_type>&, std::size_t, std::size_t, std::size_t);
+			const std::vector<hpx::id_type>&, std::size_t, std::size_t, std::size_t, integer position);
 
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
-
-	void notify_parent(const node_location& location, hpx::id_type id);/**/
-	HPX_DEFINE_COMPONENT_ACTION(node_server, notify_parent);
 
 	integer regrid_gather(bool rebalance_only);/**/HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
 
@@ -193,9 +201,6 @@ public:
 	integer regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb);
 
 	void compute_fmm(gsolve_type gs, bool energy_account, bool allocate_only = false);
-
-//	void set_parent(hpx::id_type id);/**/
-//	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_parent, set_parent_action);
 
 	void solve_gravity(bool ene, bool skip_solve);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
@@ -254,7 +259,8 @@ public:
 	void velocity_inc(const space_vector& dv);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, velocity_inc, velocity_inc_action);
 
-	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line) const;HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
+	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line) const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, line_of_centers, line_of_centers_action);
 
 	void rho_mult(real factor, real);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server,rho_mult, rho_mult_action);
@@ -304,7 +310,7 @@ public:
 	void set_cgs(bool change = true);
 
 };
-HPX_REGISTER_ACTION_DECLARATION(node_server::notify_parent_action);
+
 HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
