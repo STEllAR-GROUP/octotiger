@@ -59,9 +59,21 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 	for( auto& f : futs ) {
 		GET(f);
 	}
+
+}
+
+typedef node_server::kill_action kill_action_type;
+HPX_REGISTER_ACTION(kill_action_type);
+
+hpx::future<void> node_client::kill() const {
+	return hpx::async<typename node_server::kill_action>(get_gid());
+}
+
+void node_server::kill() {
 	clear_family();
 
 }
+
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
 HPX_REGISTER_ACTION (copy_to_locality_action_type);
 

@@ -154,7 +154,12 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
 	if (opts().hydro) {
 		for (auto l : str_to_index_hydro) {
-			const real unit = str_to_unit_hydro[l.first];
+			const auto tmp = str_to_unit_hydro.find(l.first);
+			if( tmp != str_to_unit_hydro.end()) {
+				printf( "missing unit conversion factors\n");
+				abort();
+			}
+			real unit = tmp->second;
 			const int f = l.second;
 			std::string this_name = l.first;
 			if (suffix.size()) {

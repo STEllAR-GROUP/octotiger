@@ -37,11 +37,14 @@ future<integer> node_client::regrid_gather(bool rb) const {
 
 integer node_server::regrid_gather(bool rebalance_only) {
 	integer count = integer(1);
-
+	std::vector<hpx::future<void>> kfuts;
 	if (is_refined) {
 		if (!rebalance_only) {
 			/* Turning refinement off */
 			if (refinement_flag == 0) {
+				for( int i = 0; i < NCHILD; i++ ) {
+					kfuts.push_back(children[i].kill());
+				}
 				std::fill_n(children.begin(), NCHILD, node_client());
 				is_refined = false;
 			}
@@ -80,6 +83,7 @@ integer node_server::regrid_gather(bool rebalance_only) {
 		}
 	}
 	grid_ptr->set_leaf(!is_refined);
+	hpx::wait_all(kfuts);
 	return count;
 }
 

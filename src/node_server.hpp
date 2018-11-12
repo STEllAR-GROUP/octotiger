@@ -304,6 +304,9 @@ public:
 
 	void erad_init();/**/HPX_DEFINE_COMPONENT_ACTION(node_server, erad_init, erad_init_action);
 
+	void kill();
+	HPX_DEFINE_COMPONENT_ACTION(node_server,kill);
+
 	void change_units(real m, real l, real t, real k);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, change_units, change_units_action);
 
@@ -311,6 +314,7 @@ public:
 
 };
 
+HPX_REGISTER_ACTION_DECLARATION(node_server::kill_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::change_units_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::rho_mult_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::line_of_centers_action);
