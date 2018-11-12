@@ -282,9 +282,6 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 			if (is_refined) {
 				for (auto& ci : geo::octant::full_set()) {
 					if (loc.is_child_of(my_location.get_child(ci))) {
-						if (child_lists[ci].empty()) {
-							child_lists[ci].reserve(locs.size());
-						}
 						child_lists[ci].push_back(loc);
 						break;
 					}
@@ -293,6 +290,9 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 		} else {
 
 			/** BUG HERE ***/
+			if( parent.empty() ) {
+				printf( "parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
+			}
 			assert(!parent.empty());
 
 			bool found_match = false;

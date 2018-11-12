@@ -653,6 +653,7 @@ node_server::node_server(const node_location& loc, silo_load_t load_vars) :
 		auto cloc = loc.get_child(ci);
 		auto iter = node_dir_.find(cloc.to_id());
 		if (iter != node_dir_.end()) {
+			is_refined = true;
 			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
 			nc++;
 		}
@@ -713,7 +714,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		throw;
 	}
 	root_ptr->reconstruct_tree();
-	root_ptr->form_tree(root);
+//	root_ptr->form_tree(root);
 	node_registry::clear();
 	futs.clear();
 	for( int i = 0; i < nprocs; i++) {

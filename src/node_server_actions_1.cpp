@@ -40,8 +40,6 @@ future<integer> node_client::regrid_gather(bool rb) const {
 integer node_server::regrid_gather(bool rebalance_only) {
 	integer count = integer(1);
 
-	node_registry::delete_(my_location);
-
 	if (is_refined) {
 		if (!rebalance_only) {
 			/* Turning refinement off */
