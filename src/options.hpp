@@ -53,6 +53,9 @@ public:
 	real stop_time;
 	real theta;
 	real xscale;
+	real code_to_g;
+	real code_to_s;
+	real code_to_cm;
 
 	size_t cuda_streams_per_thread;
 
@@ -74,6 +77,8 @@ public:
 
 	std::vector<real> atomic_mass;
 	std::vector<real> atomic_number;
+	std::vector<real> X;
+	std::vector<real> Z;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -124,6 +129,11 @@ public:
 		arc & cuda_streams_per_thread;
 		arc & atomic_mass;
 		arc & atomic_number;
+		arc & X;
+		arc & Z;
+		arc & code_to_g;
+		arc & code_to_s;
+		arc & code_to_cm;
 	}
 
 	bool process_options(int argc, char* argv[]);

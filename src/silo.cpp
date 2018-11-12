@@ -430,6 +430,11 @@ void output_stage3(std::string fname, int cycle) {
 					int nnodes = node_list_.all.size();
 					DBWrite( db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG);
 					DBWrite( db, "node_positions", node_list_.positions.data(), &nnodes, 1, db_type<integer>::d);
+					int nspc = opts.n_species;
+					DBWrite( db, "X", opts.X.data(), &nspc, 1, db_type<real>::d);
+					DBWrite( db, "Z", opts.Z.data(), &nspc, 1, db_type<real>::d);
+					DBWrite( db, "atomic_mass", opts.atomic_mass.data(), &nspc, 1, db_type<real>::d);
+					DBWrite( db, "atomic_number", opts.atomic_number.data(), &nspc, 1, db_type<real>::d);
 					fi(db, "node_count", integer(nnodes));
 					write_silo_var<integer>()(db, "timestamp", timestamp);
 					write_silo_var<integer>()(db, "epoch", epoch);
@@ -541,6 +546,14 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 			{
 				DBClose(db);
 			}
+			opts.atomic_number.resize(opts.n_species);
+			opts.atomic_mass.resize(opts.n_species);
+			opts.X.resize(opts.n_species);
+			opts.Z.resize(opts.n_species);
+			DBReadVar(db, "atomic_number", opts.atomic_number.data());
+			DBReadVar(db, "atomic_mass", opts.atomic_mass.data());
+			DBReadVar(db, "X", opts.X.data());
+			DBReadVar(db, "Z", opts.Z.data());
 		}
 		else
 		{

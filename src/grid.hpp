@@ -96,6 +96,8 @@ public:
 		return fgamma;
 	}
 private:
+	static std::unordered_map<std::string, real> str_to_unit_hydro;
+	static std::unordered_map<std::string, real> str_to_unit_gravity;
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;
 	static std::unordered_map<std::string, int> str_to_index_gravity;
@@ -124,7 +126,6 @@ private:
 #endif
 
 //    std::shared_ptr<std::atomic<integer>> Muse_counter;
-
 	bool is_root;
 	bool is_leaf;
 	real dx;
@@ -142,6 +143,7 @@ private:
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
 			const gravity_boundary_type&);
 public:
+	static void set_unit_conversions();
 	void rho_from_species();
 	static bool is_hydro_field(const std::string&);
 	static std::vector<std::string> get_field_names();

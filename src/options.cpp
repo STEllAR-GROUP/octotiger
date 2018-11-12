@@ -10,10 +10,18 @@
 #include <math.h>
 #include "grid.hpp"
 
+void normalize_constants();
+
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 
 #define IN_OPTIONS_CPP
+
+constexpr real mass_solar = 1.08144220986243;
+constexpr real number_solar = 1.09847876422801;
+constexpr real X_solar = 0.70682;
+constexpr real Z_solar = 0.01809;
+
 
 options opts;
 
@@ -92,6 +100,11 @@ bool options::process_options(int argc, char* argv[]) {
 	("n_species", po::value <integer > (&(opts.n_species))->default_value(1), "number of mass species") //
 	("atomic_mass", po::value <std::vector<real>> (&(opts.atomic_mass))->multitoken(), "atomic masses") //
 	("atomic_number", po::value <std::vector<real>> (&(opts.atomic_number))->multitoken(), "atomic numbers") //
+	("X", po::value <std::vector<real>> (&(opts.X))->multitoken(), "X - hydrogen mass fraction") //
+	("Z", po::value <std::vector<real>> (&(opts.Z))->multitoken(), "Z - metallicity") //
+	("code_to_g", po::value <real> (&(opts.code_to_g))->default_value(1), "code units to grams") //
+	("code_to_cm", po::value <real> (&(opts.code_to_g))->default_value(1), "code units to centimeters") //
+	("code_to_s", po::value <real> (&(opts.code_to_g))->default_value(1), "code units to seconds") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -117,6 +130,18 @@ bool options::process_options(int argc, char* argv[]) {
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
 		std::cout << "atomic_number=";
 		for( auto r : atomic_number ) {
+			std::cout << std::to_string(r) << ',';
+		}
+		std::cout << "atomic_mass=";
+		for( auto r : atomic_mass ) {
+			std::cout << std::to_string(r) << ',';
+		}
+		std::cout << "X=";
+		for( auto r : X ) {
+			std::cout << std::to_string(r) << ',';
+		}
+		std::cout << "Z=";
+		for( auto r : Z ) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
@@ -157,14 +182,24 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(p2m_kernel_type);
 		SHOW(p2p_kernel_type);
 		SHOW(n_species);
+		SHOW(code_to_g);
+		SHOW(code_to_s);
+		SHOW(code_to_cm);
 
 	}
 	while( atomic_number.size() < opts.n_species) {
-		atomic_number.push_back(2);
+		atomic_number.push_back(number_solar);
 	}
 	while( atomic_mass.size() < opts.n_species) {
-		atomic_mass.push_back(4);
+		atomic_mass.push_back(mass_solar);
 	}
+	while( X.size() < opts.n_species) {
+		X.push_back(X_solar);
+	}
+	while( Z.size() < opts.n_species) {
+		Z.push_back(Z_solar);
+	}
+	normalize_constants();
 	return true;
 }
 

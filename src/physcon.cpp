@@ -15,9 +15,10 @@
 
 #include "safe_math.hpp"
 
-//physcon_t physcon = { 6.00228e+22, 6.67259e-8, 2 * 9.81011e+5, 1.380658e-16, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
-
 physcon_t physcon = { 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
+#include "grid.hpp"
+
+//physcon_t physcon = { 6.00228e+22, 6.67259e-8, 2 * 9.81011e+5, 1.380658e-16, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
 
 #include "node_server.hpp"
 
@@ -38,23 +39,40 @@ real find_T_rad_gas(real p, real rho, real mu) {
 }
 
 void these_units(real& m, real& l, real& t, real& k) {
-	real A = physcon.A;
-	real B = physcon.B;
-	real G = physcon.G;
-	real kb = physcon.kb;
-	real m1 = std::pow(A / G, 1.5) / (B * B);
-	real l1 = std::sqrt(A / G) / B;
-	real t1 = 1.0 / std::sqrt(B * G);
-	real k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
-	A = 6.00228e+22;
-	B = 2 * 9.81011e+5;
-	G = 6.67259e-8;
-	kb = 1.380658e-16;
+	const real Acgs = 6.00228e+22;
+	const real Bcgs = 2 * 9.81011e+5;
+	const real Gcgs = 6.67259e-8;
+	const real kbcgs = 1.380658e-16;
+	real m1, l1, t1, k1;
+	real kb = kbcgs;
+	real A, B, G;
+	if( (opts.radiation || opts.eos == WD) && opts.gravity) {
+		G = 1.0;
+		m1 = opts.code_to_g;
+		l1 = opts.code_to_cm;
+		t1 = l1 * l1 * l1 / m1 / m1 / std::sqrt(G);
+		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
+	} else if (!opts.radiation && !opts.gravity) {
+		m1 = opts.code_to_g;
+		l1 = opts.code_to_cm;
+		t1 = opts.code_to_s;
+		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
+	} else {
+		A = physcon.A;
+		B = physcon.B;
+		G = physcon.G;
+		m1 = std::pow(A / G, 1.5) / (B * B);
+		l1 = std::sqrt(A / G) / B;
+		t1 = 1.0 / std::sqrt(B * G);
+		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
+	}
+	A = Acgs;
+	B = Bcgs;
+	G = Gcgs;
 	real m2 = std::pow(A / G, 1.5) / (B * B);
 	real l2 = std::sqrt(A / G) / B;
 	real t2 = 1.0 / std::sqrt(B * G);
 	real k2 = (m2 * l2 * l2) / (t2 * t2) / kb;
-//	printf("%e %e %e %e\n", m2, l2, t2, k2);
 	m = m2 / m1;
 	l = l2 / l1;
 	t = t2 / t1;
@@ -63,26 +81,21 @@ void these_units(real& m, real& l, real& t, real& k) {
 
 void normalize_constants() {
 	real m, l, t, k;
-//	physcon.A = 6.00228e+22;
-//	physcon.B = 2 * 9.81011e+5;
-//	physcon.G = 6.67259e-8;
-//	physcon.kb = 1.380658e-16;
 	these_units(m, l, t, k);
 	m = 1.0 / m;
 	l = 1.0 / l;
 	t = 1.0 / t;
 	k = 1.0 / k;
-	//k = 1.0 / 1000000.0;
-//	k = 1.0;
 	physcon.kb = 1.380658e-16 * (m * l * l) / (t*t) / k;
 	physcon.c = 2.99792458e+10 * (l / t);
 	physcon.mh = 1.6733e-24 * m;
 	physcon.sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon.h = 6.6260755e-27 * m * l * l / t;
-//	printf("Normalized constants\n");
-//	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
-//	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon.A, physcon.B, physcon.G, physcon.kb, physcon.c, physcon.mh,
-//			physcon.sigma, physcon.h);
+	printf("Normalized constants\n");
+	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
+	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon.A, physcon.B, physcon.G, physcon.kb, physcon.c, physcon.mh,
+		physcon.sigma, physcon.h);
+	grid::set_unit_conversions();
 }
 
 void set_units(real m, real l, real t, real k) {

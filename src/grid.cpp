@@ -23,11 +23,12 @@ std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
 std::unordered_map<int, std::string> grid::index_to_str_gravity;
+std::unordered_map<std::string, real> grid::str_to_unit_hydro;
+std::unordered_map<std::string, real> grid::str_to_unit_gravity;
 
 bool grid::is_hydro_field(const std::string& str) {
 	return str_to_index_hydro.find(str) != str_to_index_hydro.end();
 }
-
 
 std::vector<std::pair<std::string, real>> grid::get_outflows() const {
 	std::vector<std::pair<std::string, real>> rc;
@@ -44,9 +45,32 @@ void grid::set_outflows(std::vector<std::pair<std::string, real>>&& u) {
 }
 
 void grid::set_outflow(std::pair<std::string, real>&& p) {
-		U_out[str_to_index_hydro[p.first]] = p.second;
+	U_out[str_to_index_hydro[p.first]] = p.second;
 }
 
+void grid::set_unit_conversions() {
+	const real g = opts.code_to_g;
+	const real cm = opts.code_to_cm;
+	const real s = opts.code_to_s;
+
+	for (integer s = 0; s < opts.n_species; s++) {
+		str_to_unit_hydro[std::string("rho_") + std::to_string(s + 1)] = g / (cm * cm * cm);
+	}
+	str_to_unit_hydro[std::string("egas")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
+	str_to_unit_hydro[std::string("tau")] = std::pow((g * (cm * cm) / (s * s)) / (cm * cm * cm),
+			1.0 / fgamma);
+	str_to_unit_hydro[std::string("sx")] = (g * (cm) / (s * s)) / (cm * cm * cm);
+	str_to_unit_hydro[std::string("sy")] = (g * (cm) / (s * s)) / (cm * cm * cm);
+	str_to_unit_hydro[std::string("sz")] = (g * (cm) / (s * s)) / (cm * cm * cm);
+	str_to_unit_hydro[std::string("zx")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
+	str_to_unit_hydro[std::string("zy")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
+	str_to_unit_hydro[std::string("zz")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
+	str_to_unit_gravity[std::string("phi")] = (cm * cm) / (s * s);
+	str_to_unit_gravity[std::string("gx")] = (cm) / (s * s);
+	str_to_unit_gravity[std::string("gy")] = (cm) / (s * s);
+	str_to_unit_gravity[std::string("gz")] = (cm) / (s * s);
+
+}
 void grid::static_init() {
 	str_to_index_hydro["egas"] = egas_i;
 	str_to_index_hydro["tau"] = tau_i;
@@ -88,7 +112,6 @@ std::vector<std::string> grid::get_field_names() {
 	return rc;
 }
 
-
 std::vector<std::string> grid::get_hydro_field_names() {
 	std::vector<std::string> rc;
 	if (opts.hydro) {
@@ -101,6 +124,7 @@ std::vector<std::string> grid::get_hydro_field_names() {
 
 void grid::set(const std::string name, real* data) {
 	auto iter = str_to_index_hydro.find(name);
+	const real unit = str_to_unit_hydro[name];
 	if (iter != str_to_index_hydro.end()) {
 		int f = iter->second;
 		int jjj = 0;
@@ -108,7 +132,7 @@ void grid::set(const std::string name, real* data) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
 					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-					U[f][iii] = data[jjj];
+					U[f][iii] = data[jjj] / unit;
 					jjj++;
 				}
 			}
@@ -120,7 +144,7 @@ void grid::set(const std::string name, real* data) {
 }
 
 void grid::rho_from_species() {
-	for( integer iii = 0; iii < H_N3; iii++) {
+	for (integer iii = 0; iii < H_N3; iii++) {
 		U[rho_i][iii] = 0.0;
 		for (integer s = 0; s < opts.n_species; s++) {
 			U[rho_i][iii] += U[spc_i + s][iii];
@@ -132,6 +156,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
 	if (opts.hydro) {
 		for (auto l : str_to_index_hydro) {
+			const real unit = str_to_unit_hydro[l.first];
 			const int f = l.second;
 			std::string this_name = l.first;
 			if (suffix.size()) {
@@ -143,7 +168,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
 						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-						this_s(jjj) = U[f][iii];
+						this_s(jjj) = U[f][iii] * unit;
 						jjj++;
 					}
 				}
@@ -154,6 +179,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 
 	if (opts.gravity) {
 		for (auto l : str_to_index_gravity) {
+			const real unit = str_to_unit_gravity[l.first];
 			const int f = l.second;
 			std::string this_name = l.first;
 			if (suffix.size()) {
@@ -165,7 +191,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
 						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-						this_s(jjj) = G[iii][f];
+						this_s(jjj) = G[iii][f] * unit;
 						jjj++;
 					}
 				}

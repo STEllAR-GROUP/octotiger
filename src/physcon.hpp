@@ -5,8 +5,8 @@
  *      Author: dminacore
  */
 
-#ifndef SRC_PHYSCON_HPP_
-#define SRC_PHYSCON_HPP_
+#ifndef SRC_PHYSCON444_HPP_
+#define SRC_PHYSCON444_HPP_
 
 #include "defs.hpp"
 #include <hpx/traits/is_bitwise_serializable.hpp>
