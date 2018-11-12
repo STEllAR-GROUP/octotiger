@@ -159,11 +159,11 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(n_species);
 
 	}
-	while( atomic_number.size() != opts.n_species) {
+	while( atomic_number.size() < opts.n_species) {
 		atomic_number.push_back(2);
 	}
-	while( atomic_mass.size() != opts.n_species) {
-		atomic_number.push_back(4);
+	while( atomic_mass.size() < opts.n_species) {
+		atomic_mass.push_back(4);
 	}
 	return true;
 }
