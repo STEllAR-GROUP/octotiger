@@ -72,6 +72,9 @@ public:
 	interaction_kernel_type p2m_kernel_type;
 	interaction_kernel_type p2p_kernel_type;
 
+	std::vector<real> atomic_mass;
+	std::vector<real> atomic_number;
+
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & n_fields;
@@ -119,6 +122,8 @@ public:
 		arc & p2p_kernel_type;
 		arc & p2m_kernel_type;
 		arc & cuda_streams_per_thread;
+		arc & atomic_mass;
+		arc & atomic_number;
 	}
 
 	bool process_options(int argc, char* argv[]);

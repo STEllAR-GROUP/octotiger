@@ -90,6 +90,8 @@ bool options::process_options(int argc, char* argv[]) {
 	("input_file", po::value < std::string > (&(opts.input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value < std::string > (&(opts.config_file))->default_value(""), "configuration file") //
 	("n_species", po::value <integer > (&(opts.n_species))->default_value(1), "number of mass species") //
+	("atomic_mass", po::value <std::vector<real>> (&(opts.atomic_mass))->multitoken(), "atomic masses") //
+	("atomic_number", po::value <std::vector<real>> (&(opts.atomic_number))->multitoken(), "atomic numbers") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -113,6 +115,11 @@ bool options::process_options(int argc, char* argv[]) {
 	}
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
+		std::cout << "atomic_number=";
+		for( auto r : atomic_number ) {
+			std::cout << std::to_string(r) << ',';
+		}
+		std::cout << '\n';
 		SHOW(bench);
 		SHOW(disable_output);
 		SHOW(v1309);
@@ -151,6 +158,12 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(p2p_kernel_type);
 		SHOW(n_species);
 
+	}
+	while( atomic_number.size() != opts.n_species) {
+		atomic_number.push_back(2);
+	}
+	while( atomic_mass.size() != opts.n_species) {
+		atomic_number.push_back(4);
 	}
 	return true;
 }
