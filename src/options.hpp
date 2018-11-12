@@ -141,15 +141,14 @@ public:
 	static std::vector<hpx::id_type> all_localities;
 };
 
-#ifndef IN_OPTIONS_CPP
-extern options opts;
-#endif
+
+options& opts();
 
 
 template<class T = real>
 struct hydro_state_t: public std::vector<T> {
 	hydro_state_t() :
-			std::vector<T>(opts.n_fields) {
+			std::vector<T>(opts().n_fields) {
 	}
 };
 

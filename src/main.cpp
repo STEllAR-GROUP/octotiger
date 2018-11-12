@@ -30,12 +30,14 @@
 #endif
 
 
+void normalize_constants();
+
 void compute_ilist();
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	options::all_localities = localities;
-	opts = _opts;
-	grid::get_omega() = opts.omega;
+	opts() = _opts;
+	grid::get_omega() = opts().omega;
 #if !defined(_MSC_VER)
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
@@ -43,44 +45,44 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #else
 	_controlfp(_EM_INEXACT | _EM_DENORMAL | _EM_INVALID, _MCW_EM);
 #endif
-	grid::set_scaling_factor(opts.xscale);
-	grid::set_max_level(opts.max_level);
-	if (opts.problem == RADIATION_TEST) {
-		assert(opts.radiation);
-//		opts.gravity = false;
+	grid::set_scaling_factor(opts().xscale);
+	grid::set_max_level(opts().max_level);
+	if (opts().problem == RADIATION_TEST) {
+		assert(opts().radiation);
+//		opts().gravity = false;
 		set_problem(radiation_test_problem);
 		set_refine_test(radiation_test_refine);
-	} else if (opts.problem == DWD) {
-		opts.n_species=5;
+	} else if (opts().problem == DWD) {
+		opts().n_species=5;
 		set_problem(scf_binary);
 		set_refine_test(refine_test);
-	} else if (opts.problem == SOD) {
+	} else if (opts().problem == SOD) {
 		grid::set_fgamma(7.0 / 5.0);
-//		opts.gravity = false;
+//		opts().gravity = false;
 		set_problem(sod_shock_tube_init);
 		set_refine_test(refine_sod);
 //		grid::set_analytic_func(sod_shock_tube_analytic);
-	} else if (opts.problem == BLAST) {
+	} else if (opts().problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
-//		opts.gravity = false;
+//		opts().gravity = false;
 		set_problem(blast_wave);
 		set_refine_test(refine_blast);
-	} else if (opts.problem == STAR) {
+	} else if (opts().problem == STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
 		set_refine_test(refine_test_moving_star);
-	} else if (opts.problem == ROTATING_STAR) {
+	} else if (opts().problem == ROTATING_STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(rotating_star);
 		set_analytic(rotating_star_a);
 		set_refine_test(refine_test_moving_star);
-	} else if (opts.problem == MOVING_STAR) {
+	} else if (opts().problem == MOVING_STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 //		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
 		set_refine_test(refine_test_moving_star);
-	} else if (opts.problem == SOLID_SPHERE) {
-	//	opts.hydro = false;
+	} else if (opts().problem == SOLID_SPHERE) {
+	//	opts().hydro = false;
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
 			return solid_sphere(x,y,z,dx,0.25);
 		}));
@@ -96,6 +98,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	octotiger::util::cuda_helper::print_local_targets();
 #endif
 	grid::static_init();
+	normalize_constants();
+	grid::set_unit_conversions();
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);
@@ -124,9 +128,9 @@ int hpx_main(int argc, char* argv[]) {
 	printf("Running\n");
 
 	try {
-		if (opts.process_options(argc, argv)) {
+		if (opts().process_options(argc, argv)) {
 			auto all_locs = hpx::find_all_localities();
-			hpx::lcos::broadcast<initialize_action>(all_locs, opts, all_locs).get();
+			hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
 
 			hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
 			node_client root_client(root_id);
@@ -134,26 +138,26 @@ int hpx_main(int argc, char* argv[]) {
 
 			int ngrids = 0;
 			//		printf("1\n");
-			if (!opts.restart_filename.empty()) {
-				std::cout << "Loading from " << opts.restart_filename << " ...\n";
-				load_data_from_silo(opts.restart_filename, root, root_client.get_unmanaged_gid());
+			if (!opts().restart_filename.empty()) {
+				std::cout << "Loading from " << opts().restart_filename << " ...\n";
+				load_data_from_silo(opts().restart_filename, root, root_client.get_unmanaged_gid());
 				printf( "Regrid\n");
 				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true);
 				printf("Done. \n");
 			} else {
-				for (integer l = 0; l < opts.max_level; ++l) {
+				for (integer l = 0; l < opts().max_level; ++l) {
 					ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
 					printf("---------------Created Level %i---------------\n\n", int(l + 1));
 				}
 				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
-				printf("---------------Regridded Level %i---------------\n\n", int(opts.max_level));
+				printf("---------------Regridded Level %i---------------\n\n", int(opts().max_level));
 			}
-			if (opts.gravity) {
+			if (opts().gravity) {
 				printf("solving gravity------------\n");
 				root->solve_gravity(false, false);
 				printf("...done\n");
 			}
-			hpx::async(&node_server::start_run, root, opts.problem == DWD && opts.restart_filename.empty(), ngrids).get();
+			hpx::async(&node_server::start_run, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
 			root->report_timing();
 		}
 	} catch (...) {

@@ -25,8 +25,6 @@ namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
 }
 
-extern options opts;
-
 init_func_type problem = nullptr;
 analytic_func_type analytic = nullptr;
 refine_test_type refine_test_function = refine_test;
@@ -55,7 +53,7 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
 
-	std::vector<real> u(opts.n_fields + NRF, real(0));
+	std::vector<real> u(opts().n_fields + NRF, real(0));
 	x -= 0.0e11;
 	y -= 0.0e11;
 	z -= 0.0e11;
@@ -106,7 +104,7 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
-	real dx = (opts.xscale / INX) / real(1 << level);
+	real dx = (opts().xscale / INX) / real(1 << level);
 	if (level < max_level / 2) {
 		return std::sqrt(x * x + y * y + z * z) < 10.0 * dx;
 	}
@@ -115,18 +113,18 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	bool majority_core = U[spc_ac_i] + U[spc_dc_i] > 0.5 * U[rho_i];
 	bool majority_accretor = U[spc_ae_i] + U[spc_ac_i] > 0.5 * U[rho_i];
 	bool majority_donor = U[spc_de_i] + U[spc_dc_i] > 0.5 * U[rho_i];
-	if (opts.core_refine) {
+	if (opts().core_refine) {
 		if (!majority_core) {
 			test_level -= 1;
 		}
 	}
 	if (!majority_donor) {
-		test_level -= opts.donor_refine;
+		test_level -= opts().donor_refine;
 	}
 	if (!majority_accretor) {
-		test_level -= opts.accretor_refine;
+		test_level -= opts().accretor_refine;
 	}
-	real den_floor = opts.refinement_floor;
+	real den_floor = opts().refinement_floor;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);
@@ -142,7 +140,7 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
-	real den_floor = opts.refinement_floor;
+	real den_floor = opts().refinement_floor;
 	integer test_level = max_level;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
@@ -183,7 +181,7 @@ init_func_type get_analytic() {
 
 /*
  std::vector<real> null_problem(real x, real y, real z, real dx) {
- std::vector<real> u(opts.n_fields, real(0));
+ std::vector<real> u(opts().n_fields, real(0));
  return u;
  }*/
 
@@ -191,7 +189,7 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
 	//x -= 0.453;
 	//y -= 0.043;
-	std::vector<real> u(opts.n_fields, real(0));
+	std::vector<real> u(opts().n_fields, real(0));
 	u[spc_dc_i] = u[rho_i] = 1.0e-3;
 	const real a = std::sqrt(10.0) * std::min(dx, 0.1);
 	real r = std::sqrt(x * x + y * y + z * z);
@@ -201,7 +199,7 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 }
 
 std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
-	std::vector<real> U(opts.n_fields, 0.0);
+	std::vector<real> U(opts().n_fields, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
 //	real x = (x0 + y + z) / std::sqrt(3.0);
@@ -220,7 +218,7 @@ std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
 }
 
 std::vector<real> sod_shock_tube_analytic(real x0, real y, real z, real t) {
-	std::vector<real> U(opts.n_fields, 0.0);
+	std::vector<real> U(opts().n_fields, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
 	real x = (x0 + y + z) / std::sqrt(3.0);
@@ -273,10 +271,10 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 }
 
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
-	std::vector<real> u(opts.n_fields, real(0));
+	std::vector<real> u(opts().n_fields, real(0));
 	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);
 	auto u2 = solid_sphere(x0, y0, z0, dx, dys);
-	for (integer f = 0; f != opts.n_fields; ++f) {
+	for (integer f = 0; f != opts().n_fields; ++f) {
 		u[f] = u1[f] + u2[f];
 	}
 	return u;
@@ -287,7 +285,7 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	const real r0 = ssr0;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
 	const real drho = 1.0 / real(N * N * N) / V;
-	std::vector<real> u(opts.n_fields, real(0));
+	std::vector<real> u(opts().n_fields, real(0));
 	x0 -= xshift;
 //	x0 -= -0.0444;
 //	y0 -= +0.345;
@@ -347,12 +345,12 @@ void normalize_constants();
 
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
-	std::vector<real> u(opts.n_fields, real(0));
-	if (opts.eos == WD) {
+	std::vector<real> u(opts().n_fields, real(0));
+	if (opts().eos == WD) {
 		const real r = std::sqrt(x * x + y * y + z * z);
 		static struct_eos eos(1.0, 1.0);
-		physcon.A = eos.A;
-		physcon.B = eos.B();
+		physcon().A = eos.A;
+		physcon().B = eos.B();
 		normalize_constants();
 		const real rho = std::max(eos.density_at(r, 0.01), 1.0e-10);
 		const real ei = eos.energy(rho);
@@ -448,7 +446,7 @@ std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 	real alpha = 1.0 / 15.0;
 	const real n = real(1) / (fgamma - real(1));
 	const real rho_min = 1.0e-12;
-	std::vector<real> u(opts.n_fields, real(0));
+	std::vector<real> u(opts().n_fields, real(0));
 	const real d = 1.0 / 2.0;
 	real x1 = x - d;
 	real x2 = x + d;

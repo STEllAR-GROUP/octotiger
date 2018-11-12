@@ -21,7 +21,6 @@
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
-extern options opts;
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
@@ -32,7 +31,7 @@ bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
 
 real node_server::get_rotation_count() const {
-	if (opts.problem == DWD) {
+	if (opts().problem == DWD) {
 		return rotational_time / (2.0 * M_PI);
 	} else {
 		return current_time;
@@ -123,12 +122,12 @@ void node_server::all_hydro_bounds(bool tau_only) {
 void node_server::exchange_interlevel_hydro_data() {
 
 	if (is_refined) {
-		std::vector<real> outflow(opts.n_fields, ZERO);
+		std::vector<real> outflow(opts().n_fields, ZERO);
 		for (auto const& ci : geo::octant::full_set()) {
 			auto data = GET(child_hydro_channels[ci].get_future(hcycle));
 			grid_ptr->set_restrict(data, ci);
 			integer fi = 0;
-			for (auto i = data.end() - opts.n_fields; i != data.end(); ++i) {
+			for (auto i = data.end() - opts().n_fields; i != data.end(); ++i) {
 				outflow[fi] += *i;
 				++fi;
 			}
@@ -280,7 +279,7 @@ void node_server::initialize(real t, real rt) {
 	} else {
 		grid_ptr = std::make_shared<grid>(dx, xmin);
 	}
-	if (opts.radiation) {
+	if (opts().radiation) {
 		rad_grid_ptr = grid_ptr->get_rad_grid();
 		rad_grid_ptr->set_dx(dx);
 	}
@@ -325,7 +324,7 @@ node_server::node_server(const node_location& _my_location, integer _step_num, b
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {
-	if (!opts.gravity) {
+	if (!opts().gravity) {
 		return;
 	}
 

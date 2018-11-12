@@ -14,13 +14,11 @@
 #define ALPHA 0.01
 const real wdcons = (2.216281751e32 / 1.989e+33);
 
-extern options opts;
-
 constexpr real T0 = 1.0e+6;
 
 real poly_K(real rho0, real mu) {
-	const auto& c = physcon;
-	if (opts.radiation) {
+	const auto& c = physcon();
+	if (opts().radiation) {
 		return std::pow(rho0, -1.0 / 3.0)
 				* ((c.kb * T0) / (mu * c.mh) + (4.0 * c.sigma * std::pow(T0, 4.0)) / (3.0 * rho0 * c.c));
 	} else {
@@ -35,7 +33,7 @@ real struct_eos::energy(real d) const {
 	const real mu = 4.0 / 3.0;
 	const real kappa = poly_K(d0(), mu);
 	const real T = T0 * std::pow(d / d0(), 1.0 / 3.0);
-	real eg = 1.5 * (physcon.kb / (mu * physcon.mh)) * d * T;
+	real eg = 1.5 * (physcon().kb / (mu * physcon().mh)) * d * T;
 	return ztwd_energy(d, A, b) + eg;
 //	return std::max(d * density_to_enthalpy(d) - pressure(d), 0.0);
 }
@@ -53,7 +51,7 @@ void struct_eos::conversion_factors(real& m, real& l, real& t) const {
 }
 
 real struct_eos::enthalpy_to_density(real h) const {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		//		const real c = 8.0 * A / B();
 		//	 const real x = sqrt(pow((h / c) + 1.0, 2) - 1.0);
 		//	 return B() * x * x * x;
@@ -82,7 +80,7 @@ real struct_eos::enthalpy_to_density(real h) const {
 		const real _h0 = density_to_enthalpy(rho_cut);
 		//	const real _h1 = h0() * std::pow(rho_cut / d0(), 1.0 / 1.5);
 		//	h += hfloor();
-		if (h > _h0 || !opts.v1309) {
+		if (h > _h0 || !opts().v1309) {
 			if (h < HE()) {
 				res = dE() * std::pow(h / HE(), n_E);
 			} else {
@@ -135,7 +133,7 @@ real struct_eos::HE() const {
 	return P0() / dE() * (1.0 + n_E);
 }
 real struct_eos::density_to_enthalpy(real d) const {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		//	return stellar_enthalpy_from_rho_mu_s(d, 4.0 / 3.0, 1.0);
 		const real mu = 4.0 / 3.0;
 		//		printf( "%e %e\n", d0(), A);
@@ -162,7 +160,7 @@ real struct_eos::density_to_enthalpy(real d) const {
 }
 
 real struct_eos::pressure(real d) const {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		const real b = B();
 		const real mu = 4.0 / 3.0;
 		const real kappa = poly_K(d0(), mu);
@@ -183,7 +181,7 @@ real struct_eos::pressure(real d) const {
 			ASSERT_POSITIVE(d);
 			ASSERT_POSITIVE(dE());
 			//	printf( "n_E %e %e\n", n_E, P0());
-			if (opts.v1309) {
+			if (opts().v1309) {
 				if (d < rho_cut) {
 					const real h0 = density_to_enthalpy(rho_cut);
 					return rho_cut * h0 / (1.0 + n_E) * std::pow(d / rho_cut, 5. / 3.);
@@ -203,7 +201,7 @@ real struct_eos::dC() const {
 }
 
 void struct_eos::set_d0_using_struct_eos(real newd, const struct_eos& other) {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		d0_ = newd;
 		A = other.A;
 	} else {
@@ -237,8 +235,8 @@ struct_eos::struct_eos(real M, real R) :
 		const real r0 = R / r;
 		d0_ *= m0 / (r0 * r0 * r0);
 		A /= m0 / r0;
-		physcon.A = A;
-		physcon.B = B();
+		physcon().A = A;
+		physcon().B = B();
 		normalize_constants();
 		if (std::abs(1.0 - M / m) < 1.0e-10) {
 			break;
@@ -277,7 +275,7 @@ struct_eos::struct_eos(real M, real _n_C, const struct_eos& other) :
 		return s0() - other.s0();
 	};
 	real new_radius;
-	find_root(fff, 1.0e-10, opts.xscale / 2.0, new_radius);
+	find_root(fff, 1.0e-10, opts().xscale / 2.0, new_radius);
 }
 
 struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real mu, const struct_eos& other) :
@@ -348,7 +346,7 @@ struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, rea
 }
 
 void struct_eos::initialize(real& mass, real& radius) {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 
 		const real dr0 = (1.0 / B()) * sqrt(A / G) / 100.0;
 
@@ -472,7 +470,7 @@ void struct_eos::initialize(real& mass, real& radius, real& core_mass) {
 }
 
 real struct_eos::d0() const {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		return d0_;
 	} else {
 		return M0 / (R0 * R0 * R0);
@@ -480,7 +478,7 @@ real struct_eos::d0() const {
 }
 
 real struct_eos::h0() const {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		return density_to_enthalpy(d0_);
 	} else {
 		return G * M0 / R0;
@@ -488,7 +486,7 @@ real struct_eos::h0() const {
 }
 
 void struct_eos::set_h0(real h) {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		std::function<double(double)> fff = [&](real a) {
 			A = a;
 			//	printf( "%e %e %e\n", h0(), h, A);
@@ -507,7 +505,7 @@ void struct_eos::set_h0(real h) {
 }
 
 void struct_eos::set_d0(real d) {
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		d0_ = d;
 	} else {
 		R0 = std::sqrt(h0() / d / G);
@@ -521,7 +519,7 @@ real struct_eos::B() const {
 
 real struct_eos::get_R0() const {
 //	return my_radius;
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		real m, r;
 		struct_eos tmp = *this;
 		tmp.initialize(m, r);

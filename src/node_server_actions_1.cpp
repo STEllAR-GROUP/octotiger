@@ -28,8 +28,6 @@
 
 #include <boost/iostreams/stream.hpp>
 
-extern options opts;
-
 typedef node_server::regrid_gather_action regrid_gather_action_type;
 HPX_REGISTER_ACTION(regrid_gather_action_type);
 
@@ -100,7 +98,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, int
 			for (integer d = 0; d != NDIM; ++d) {
 				ub[d] = lb[d] + (INX);
 			}
-			std::vector<real> outflows(opts.n_fields, ZERO);
+			std::vector<real> outflows(opts().n_fields, ZERO);
 			if (ci == 0) {
 				outflows = grid_ptr->get_outflows_raw();
 			}
@@ -114,7 +112,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, int
 				GET(child.set_grid(std::move(prolong), std::move(outflows)));
 			}
 		}
-		if( opts.radiation ) {
+		if( opts().radiation ) {
 			std::array<integer, NDIM> lb = {2 * R_BW, 2 * R_BW, 2 * R_BW};
 			std::array<integer, NDIM> ub;
 			lb[XDIM] += (1 & (ci >> 0)) * (INX);
@@ -219,7 +217,7 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	printf("Formed tree in %f seconds\n", real(tstop - tstart));
 	if (current_time > ZERO) {
 		printf("solving gravity\n");
-		solve_gravity(true, !opts.output_filename.empty());
+		solve_gravity(true, !opts().output_filename.empty());
 	}
 	double elapsed = timer.elapsed();
 	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
@@ -260,7 +258,7 @@ future<void> node_client::solve_gravity(bool ene, bool aonly) const {
 }
 
 void node_server::solve_gravity(bool ene, bool aonly) {
-	if (!opts.gravity) {
+	if (!opts().gravity) {
 		return;
 	}
 	std::array<future<void>, NCHILD> child_futs;

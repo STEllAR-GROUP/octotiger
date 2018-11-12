@@ -13,7 +13,6 @@
 #include "options.hpp"
 #include "physcon.hpp"
 
-extern options opts;
 
 const integer con_i = rho_i;
 const integer acl_i = sx_i;
@@ -22,8 +21,8 @@ const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
 real ztwd_sound_speed(real d, real ei) {
-    const real A = physcon.A;
-    const real B = physcon.B;
+    const real A = physcon().A;
+    const real B = physcon().B;
     real x, dp_depsilon, dp_drho, cs2;
     const real fgamma = grid::get_fgamma();
     x = pow(d / B, 1.0 / 3.0);
@@ -50,7 +49,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 		std::array<simd_vector, NDIM> vf;
 		for (integer jjj = 0; jjj != simd_len; ++jjj) {
 			const integer index = std::min(integer(iii + jjj), integer(sz - 1));
-			for (integer field = 0; field != opts.n_fields; ++field) {
+			for (integer field = 0; field != opts().n_fields; ++field) {
 				ur[field][jjj] = UR[field][index];
 				ul[field][jjj] = UL[field][index];
 			}
@@ -64,7 +63,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 		simd_vector ei_r = ur[egas_i] - HALF * (ur[u_i] * ur[u_i] + ur[v_i] * ur[v_i] + ur[w_i] * ur[w_i]) / ur[rho_i];
 
 		for (integer j = 0; j != this_simd_len; ++j) {
-			if( opts.eos == WD) {
+			if( opts().eos == WD) {
 				ei_r[j] -= ztwd_energy(ur[rho_i][j]);
 			}
 			if (ei_r[j] < de_switch2 * ur[egas_i][j]) {
@@ -74,7 +73,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 
 		simd_vector p_r = (fgamma - ONE) * ei_r;
 		simd_vector c_r;
-		if (opts.eos == WD) {
+		if (opts().eos == WD) {
 			for (integer j = 0; j != this_simd_len; ++j) {
 				p_r[j] += ztwd_pressure(ur[rho_i][j]);
 			}
@@ -90,7 +89,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 		simd_vector ei_l = ul[egas_i] - HALF * (ul[u_i] * ul[u_i] + ul[v_i] * ul[v_i] + ul[w_i] * ul[w_i]) / ul[rho_i];
 
 		for (integer j = 0; j != this_simd_len; ++j) {
-			if (opts.eos == WD) {
+			if (opts().eos == WD) {
 				ei_l[j] -= ztwd_energy(ul[rho_i][j]);
 			}
 			if (ei_l[j] < de_switch2 * ul[egas_i][j]) {
@@ -100,7 +99,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 
 		simd_vector p_l = (fgamma - ONE) * ei_l;
 		simd_vector c_l;
-		if (opts.eos == WD) {
+		if (opts().eos == WD) {
 			for (integer j = 0; j != this_simd_len; ++j) {
 				p_l[j] += ztwd_pressure(ul[rho_i][j]);
 			}
@@ -114,13 +113,13 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 		const simd_vector a = max(abs(v_r) + c_r, abs(v_l) + c_l);
 
 		hydro_state_t<simd_vector> f;
-		for (integer field = 0; field != opts.n_fields; ++field) {
+		for (integer field = 0; field != opts().n_fields; ++field) {
 			f[field] = HALF * (ur[field] * v_r + ul[field] * v_l - a * (ur[field] - ul[field]));
 		}
 		f[u_i] += HALF * (p_r + p_l);
 		f[egas_i] += HALF * (p_r * v_r0 + p_l * v_l0);
 
-		for (integer field = 0; field != opts.n_fields; ++field) {
+		for (integer field = 0; field != opts().n_fields; ++field) {
 			for (integer j = 0; j != simd_len && iii + j < sz; ++j) {
 				F[field][iii + j] = f[field][j];
 			}

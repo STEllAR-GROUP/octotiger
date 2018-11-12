@@ -24,7 +24,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 		hydro_state_t<std::vector<real>>& UR,  const std::vector<space_vector>& X, real omega, integer dimension, real dx);
 
 
-inline real ztwd_pressure(real d, real A = physcon.A, real B = physcon.B) {
+inline real ztwd_pressure(real d, real A = physcon().A, real B = physcon().B) {
     const real x = pow(d / B, 1.0 / 3.0);
     real p;
     if (x < 0.01) {
@@ -35,7 +35,7 @@ inline real ztwd_pressure(real d, real A = physcon.A, real B = physcon.B) {
     return p;
 }
 
-inline real ztwd_enthalpy(real d, real A = physcon.A, real B = physcon.B) {
+inline real ztwd_enthalpy(real d, real A = physcon().A, real B = physcon().B) {
 #ifndef NDEBUG
 	if( d < 0.0 ) {
 		printf( "d = %e in ztwd_enthalpy\n", d);
@@ -52,7 +52,7 @@ inline real ztwd_enthalpy(real d, real A = physcon.A, real B = physcon.B) {
     return h;
 }
 
-OCTOTIGER_FORCEINLINE real ztwd_energy(real d, real A = physcon.A, real B = physcon.B) {
+OCTOTIGER_FORCEINLINE real ztwd_energy(real d, real A = physcon().A, real B = physcon().B) {
     return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), real(0));
 }
 

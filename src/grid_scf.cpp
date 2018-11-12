@@ -16,7 +16,6 @@
 #include <mutex>
 #include "profiler.hpp"
 #include <stdio.h>
-extern options opts;
 
 constexpr integer spc_ac_i = spc_i;
 constexpr integer spc_ae_i = spc_i + 1;
@@ -252,7 +251,7 @@ struct scf_parameters {
 		const real V2 = find_V(M2 / M1) * cube(a);
 		R1 = std::pow(V1 / c, 1.0 / 3.0) * std::pow(fill1, 5);
 		R2 = std::pow(V2 / c, 1.0 / 3.0) * std::pow(fill2, 5);
-		if (opts.eos == WD) {
+		if (opts().eos == WD) {
 			//	printf( "!\n");
 			struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2);
 			struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, *struct_eos2);
@@ -265,7 +264,7 @@ struct scf_parameters {
 				struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, R1, scf_options::nc1, scf_options::ne1,
 						scf_options::core_frac1, scf_options::mu1);
 
-				if (contact > 0.0 && !opts.v1309) {
+				if (contact > 0.0 && !opts().v1309) {
 					struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2, scf_options::nc2, scf_options::ne2,
 							scf_options::mu2, *struct_eos1);
 				} else {
@@ -356,7 +355,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				}
 				ASSERT_NONAN(new_rho);
 				rho = std::max((1.0 - w0) * rho + w0 * new_rho, rho_floor);
-				if (opts.eos == WD) {
+				if (opts().eos == WD) {
 					eint = ztwd_energy(rho);
 				} else {
 					eint = std::max(0.0, this_struct_eos.pressure(rho) / (fgamma - 1.0));
@@ -366,7 +365,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				}
 				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
-				if (opts.eos == WD) {
+				if (opts().eos == WD) {
 					U[spc_ac_i][iiih] = (is_donor_side ? 0.0 : rho0);
 					U[spc_dc_i][iiih] = (is_donor_side ? rho0 : 0.0);
 					U[spc_ae_i][iiih] = 0.0;
@@ -379,7 +378,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				}
 				real sx, sy;
 				U[spc_vac_i][iiih] = rho_floor;
-				if (opts.v1309) {
+				if (opts().v1309) {
 					if (rho0 < this_struct_eos.get_cutoff_density()) {
 						U[spc_de_i][iiih] = U[spc_ae_i][iiih] = U[spc_dc_i][iiih] = U[spc_ac_i][iiih] = 0.0;
 						U[spc_vac_i][iiih] += rho0;
@@ -393,18 +392,18 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				if (rho == rho_floor) {
 					sx = sy = 0.0;
 					eint = -0.5 * rho_floor * G[iiig][phi_i];
-					if (opts.eos == WD) {
+					if (opts().eos == WD) {
 						eint -= 3.0 * ztwd_pressure(rho);
 					}
 					eint = std::max(eint, 0.0);
 					eint /= 3.0 * (fgamma - 1.0);
-					if (opts.eos == WD) {
+					if (opts().eos == WD) {
 						eint += ztwd_energy(rho);
 					}
 					//			eint = 0.0;
 				}
 				real etherm = eint;
-				if (opts.eos == WD) {
+				if (opts().eos == WD) {
 					etherm -= ztwd_energy(rho);
 					etherm = std::max(0.0, etherm);
 				}
@@ -419,7 +418,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 			}
 		}
 	}
-	if (opts.radiation) {
+	if (opts().radiation) {
 		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 	} PROF_END;
 	return 0.0;
@@ -470,7 +469,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		//	set_omega_and_pivot();
 		auto diags = diagnostics();
 		if (i % 25 == 0) {
-			if (!opts.disable_output) {
+			if (!opts().disable_output) {
 				output_all(buffer, i,false);
 			}
 		}
@@ -534,7 +533,7 @@ void node_server::run_scf(std::string const& data_dir) {
 			params.struct_eos1->set_d0(rho1 * f0);
 		}
 		static real rhoc1 = 1.0e-3 * rho1;
-		if (opts.v1309) {
+		if (opts().v1309) {
 			const real rho_min = 0.5 * std::min(rhoc1, params.struct_eos2->dE());
 			rhoc1 /= std::pow(spin_ratio * 3.0, w0);
 			printf("%e\n", rhoc1 / rho1);
@@ -565,7 +564,7 @@ void node_server::run_scf(std::string const& data_dir) {
 				c_2 = phi_2 * alo2 + ahi2 * l1_phi;
 			}
 		}
-		if( opts.v1309 ) {
+		if( opts().v1309 ) {
 			c_1 += params.struct_eos1->hfloor();
 			c_2 += params.struct_eos2->hfloor();
 		}
@@ -581,7 +580,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		real core_frac_2 = diags.grid_sum[spc_dc_i] / M2;
 		const real virial = diags.virial;
 		real e1f;
-		if (opts.eos != WD) {
+		if (opts().eos != WD) {
 			if (!scf_options::equal_struct_eos) {
 				e1f = e1->get_frac();
 				if (core_frac_1 == 0.0) {
@@ -605,7 +604,7 @@ void node_server::run_scf(std::string const& data_dir) {
 					e2->set_frac(e2f);
 				}
 			} else {
-				if (opts.v1309) {
+				if (opts().v1309) {
 					const real ne = scf_options::ne1;
 					const real gamma = grid::get_fgamma();
 					const real p0 = params.struct_eos1->P0();
@@ -636,7 +635,7 @@ void node_server::run_scf(std::string const& data_dir) {
 					"rho1", "rho2", "M1", "M2", "is1", "is2", "omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin",
 					"amin", "jtot", "com", "spin_ratio", "iorb", "R1", "R2", "fill1", "fill2");
 		}
-		lprintf((opts.data_dir + "log.txt").c_str(),
+		lprintf((opts().data_dir + "log.txt").c_str(),
 				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e\n",
 				i, rho1, rho2, M1, M2, is1, is2, omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com,
 				spin_ratio, iorb, r0, r1, fi0, fi1);
@@ -645,7 +644,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		} else {
 			grid::set_omega(omega);
 		}
-		if (opts.eos == WD) {
+		if (opts().eos == WD) {
 			set_AB(e2->A, e2->B());
 		}
 //		printf( "%e %e\n", grid::get_A(), grid::get_B());
@@ -655,8 +654,8 @@ void node_server::run_scf(std::string const& data_dir) {
 		solve_gravity(false, false);
 
 	}
-	if (opts.radiation) {
-		if (opts.eos == WD) {
+	if (opts().radiation) {
+		if (opts().eos == WD) {
 			set_cgs();
 			all_hydro_bounds();
 			grid_ptr->rad_init();
@@ -665,7 +664,7 @@ void node_server::run_scf(std::string const& data_dir) {
 }
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
-	std::vector<real> u(opts.n_fields, real(0));
+	std::vector<real> u(opts().n_fields, real(0));
 	static auto& params = initial_params();
 	std::shared_ptr<struct_eos> this_struct_eos;
 	real rho, r, ei;
@@ -701,13 +700,13 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	}
 //	grid::set_AB(this_struct_eos->A, this_struct_eos->B());
 	rho = std::max(rho / nsamp, rho_floor);
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		ei = this_struct_eos->energy(rho);
 	} else {
 		ei = this_struct_eos->pressure(rho) / (fgamma - 1.0);
 	}
 	u[rho_i] = rho;
-	if (opts.eos == WD) {
+	if (opts().eos == WD) {
 		u[spc_ac_i] = x > params.l1_x ? 0.0 : rho;
 		u[spc_dc_i] = x > params.l1_x ? rho : 0.0;
 		u[spc_ae_i] = 0.0;
@@ -722,7 +721,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[sx_i] = -y * params.omega * rho;
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
-	if (opts.eos != WD) {
+	if (opts().eos != WD) {
 		u[tau_i] = std::pow(ei, 1.0 / fgamma);
 	} else {
 		u[tau_i] = std::pow(1.0e-15, 1.0 / fgamma);

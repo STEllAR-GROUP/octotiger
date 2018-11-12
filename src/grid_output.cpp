@@ -10,8 +10,6 @@
 #include <cmath>
 #include "physcon.hpp"
 #include "options.hpp"
-
-extern options opts;
 #include "radiation/rad_grid.hpp"
 
 #include <hpx/include/lcos.hpp>

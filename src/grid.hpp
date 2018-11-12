@@ -48,7 +48,7 @@ public:
 		a & linfa;
 	}
 	analytic_t() {
-		for (integer field = 0; field != opts.n_fields; ++field) {
+		for (integer field = 0; field != opts().n_fields; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
 			l1a[field] = 0.0;
@@ -58,7 +58,7 @@ public:
 		}
 	}
 	analytic_t& operator+=(const analytic_t& other) {
-		for (integer field = 0; field != opts.n_fields; ++field) {
+		for (integer field = 0; field != opts().n_fields; ++field) {
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
 			l1a[field] += other.l1a[field];

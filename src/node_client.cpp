@@ -8,8 +8,6 @@
 #include "node_server.hpp"
 #include "options.hpp"
 
-extern options opts;
-
 #include <hpx/lcos/broadcast.hpp>
 
 bool node_client::is_local() const {

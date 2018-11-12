@@ -127,10 +127,10 @@ struct mesh_vars_t {
 		const int nx = (INX << compression);
 		X_dims[0] = X_dims[1] = X_dims[2] = nx + 1;
 		var_dims[0] = var_dims[1] = var_dims[2] = nx;
-		const real dx = 2.0 * opts.xscale / nx / (1 << loc.level());
+		const real dx = 2.0 * opts().xscale / nx / (1 << loc.level());
 		for (int d = 0; d < NDIM; d++) {
 			X[d].resize(X_dims[d]);
-			const real o = loc.x_location(d) * opts.xscale;
+			const real o = loc.x_location(d) * opts().xscale;
 			for (int i = 0; i < X_dims[d]; i++) {
 				X[d][i] = o + i * dx;
 			}
@@ -261,7 +261,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		all_mesh_vars.push_back(std::move(GET(this_fut)));
 	}
 	std::vector<node_location::node_id> ids;
-	if (opts.compress_silo) {
+	if (opts().compress_silo) {
 		all_mesh_vars = compress(std::move(all_mesh_vars));
 	}
 	for (const auto& mv : all_mesh_vars) {
@@ -412,29 +412,27 @@ void output_stage3(std::string fname, int cycle) {
 					}
 					write_silo_var<integer> fi;
 					write_silo_var<real> fr;
-					fi(db, "n_species", integer(opts.n_species));
-					fi(db, "eos", integer(opts.eos));
-					fi(db, "gravity", integer(opts.gravity));
-					fi(db, "hydro", integer(opts.hydro));
+					fi(db, "n_species", integer(opts().n_species));
+					fi(db, "eos", integer(opts().eos));
+					fi(db, "gravity", integer(opts().gravity));
+					fi(db, "hydro", integer(opts().hydro));
 					fr(db, "omega", grid::get_omega());
-					fr(db, "output_frequency", opts.output_dt);
-					fi(db, "problem", integer(opts.problem));
-					fi(db, "radiation", integer(opts.radiation));
-					fr(db, "refinement_floor", opts.refinement_floor);
+					fr(db, "output_frequency", opts().output_dt);
+					fi(db, "problem", integer(opts().problem));
+					fi(db, "radiation", integer(opts().radiation));
+					fr(db, "refinement_floor", opts().refinement_floor);
 					fr(db, "time", dtime); fr(db, "rotational_time", rtime);
-					fr(db, "xscale", opts.xscale); char hostname[HOST_NAME_LEN];
-					real g, cm, s, K; these_units(g,cm,s,K); fr(db, "g", g);
-					fr(db, "cm", cm); fr(db, "s", s); fr(db, "K", K);
+					fr(db, "xscale", opts().xscale); char hostname[HOST_NAME_LEN];
 					gethostname(hostname, HOST_NAME_LEN);
 					DBWrite( db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
 					int nnodes = node_list_.all.size();
 					DBWrite( db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG);
 					DBWrite( db, "node_positions", node_list_.positions.data(), &nnodes, 1, db_type<integer>::d);
-					int nspc = opts.n_species;
-					DBWrite( db, "X", opts.X.data(), &nspc, 1, db_type<real>::d);
-					DBWrite( db, "Z", opts.Z.data(), &nspc, 1, db_type<real>::d);
-					DBWrite( db, "atomic_mass", opts.atomic_mass.data(), &nspc, 1, db_type<real>::d);
-					DBWrite( db, "atomic_number", opts.atomic_number.data(), &nspc, 1, db_type<real>::d);
+					int nspc = opts().n_species;
+					DBWrite( db, "X", opts().X.data(), &nspc, 1, db_type<real>::d);
+					DBWrite( db, "Z", opts().Z.data(), &nspc, 1, db_type<real>::d);
+					DBWrite( db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<real>::d);
+					DBWrite( db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
 					fi(db, "node_count", integer(nnodes));
 					write_silo_var<integer>()(db, "timestamp", timestamp);
 					write_silo_var<integer>()(db, "epoch", epoch);
@@ -532,28 +530,28 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 		{
 			read_silo_var<integer> ri;
 			read_silo_var<real> rr;
-			opts.n_species = ri(db, "n_species");
-			opts.eos = eos_type(ri(db, "eos"));
-			opts.gravity = ri(db, "gravity");
-			opts.hydro = ri(db, "hydro");
-			opts.omega = rr(db, "omega");
-			opts.output_dt = rr(db, "output_frequency");
-			opts.problem = problem_type(ri(db, "problem"));
-			opts.radiation = ri(db, "radiation");
-			opts.refinement_floor = rr(db, "refinement_floor");
-			opts.xscale = rr(db, "xscale");
+			opts().n_species = ri(db, "n_species");
+			opts().eos = eos_type(ri(db, "eos"));
+			opts().gravity = ri(db, "gravity");
+			opts().hydro = ri(db, "hydro");
+			opts().omega = rr(db, "omega");
+			opts().output_dt = rr(db, "output_frequency");
+			opts().problem = problem_type(ri(db, "problem"));
+			opts().radiation = ri(db, "radiation");
+			opts().refinement_floor = rr(db, "refinement_floor");
+			opts().xscale = rr(db, "xscale");
 			if( !leaveopen)
 			{
 				DBClose(db);
 			}
-			opts.atomic_number.resize(opts.n_species);
-			opts.atomic_mass.resize(opts.n_species);
-			opts.X.resize(opts.n_species);
-			opts.Z.resize(opts.n_species);
-			DBReadVar(db, "atomic_number", opts.atomic_number.data());
-			DBReadVar(db, "atomic_mass", opts.atomic_mass.data());
-			DBReadVar(db, "X", opts.X.data());
-			DBReadVar(db, "Z", opts.Z.data());
+			opts().atomic_number.resize(opts().n_species);
+			opts().atomic_mass.resize(opts().n_species);
+			opts().X.resize(opts().n_species);
+			opts().Z.resize(opts().n_species);
+			DBReadVar(db, "atomic_number", opts().atomic_number.data());
+			DBReadVar(db, "atomic_mass", opts().atomic_mass.data());
+			DBReadVar(db, "X", opts().X.data());
+			DBReadVar(db, "Z", opts().Z.data());
 		}
 		else
 		{
@@ -566,6 +564,8 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 	} else {
 		func();
 	}
+	set_units(opts().code_to_g,opts().code_to_cm,opts().code_to_s,1); /**/
+
 
 }
 
@@ -576,11 +576,6 @@ void load_open(std::string fname, dir_map_type map) {
 	read_silo_var<real> rr;
 	output_time = rr(db_, "time"); /**/
 	output_rotation_count = rr(db_, "rotational_time"); /**/
-	const real grams = rr(db_, "g"); /**/
-	const real cm = rr(db_, "cm"); /**/
-	const real s = rr(db_, "s"); /**/
-	const real K = rr(db_, "K"); /**/
-	set_units(grams,cm,s,K); /**/
 	load_options_from_silo(fname,db_); /**/
 	node_dir_ = std::move(map);
 }
@@ -594,7 +589,7 @@ HPX_PLAIN_ACTION(load_open, load_open_action);
 
 node_server::node_server(const node_location& loc) :
 		my_location(loc) {
-	const auto& localities = opts.all_localities;
+	const auto& localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
 
@@ -658,7 +653,7 @@ node_server::node_server(const node_location& loc) :
 node_server::node_server(const node_location& loc, silo_load_t load_vars) :
 		my_location(loc) {
 	printf( "Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
-	const auto& localities = opts.all_localities;
+	const auto& localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
 	int nc = 0;
@@ -676,7 +671,7 @@ node_server::node_server(const node_location& loc, silo_load_t load_vars) :
 
 
 void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
-	const integer nprocs = opts.all_localities.size();
+	const integer nprocs = opts().all_localities.size();
 	static int sz = localities.size();
 	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), SILO_DRIVER, DB_READ));
 	epoch = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
@@ -712,7 +707,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 			node_dir_[node_list[i]] = entry;
 		}
 		for( int i = 0; i < nprocs; i++) {
-			futs.push_back(hpx::async<load_open_action>(opts.all_localities[i],fname,node_dir_));
+			futs.push_back(hpx::async<load_open_action>(opts().all_localities[i],fname,node_dir_));
 		}
 		for( const auto& entry : node_dir_) {
 			printf( "%s %i %i %i\n", node_location(entry.first).to_str().c_str(), entry.second.position, entry.second.locality_id, entry.second.load );
@@ -731,10 +726,10 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 	node_registry::clear();
 	futs.clear();
 	for( int i = 0; i < nprocs; i++) {
-		futs.push_back(hpx::async<load_close_action>(opts.all_localities[i]));
+		futs.push_back(hpx::async<load_close_action>(opts().all_localities[i]));
 	}
 	if (hpx::get_locality_id() == 0) {
-		grid::set_omega(opts.omega);
+		grid::set_omega(opts().omega);
 	}
 	for (auto& f : futs) {
 		GET(f);

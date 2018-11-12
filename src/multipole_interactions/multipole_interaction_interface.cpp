@@ -10,8 +10,6 @@
 // Big picture questions:
 // - use any kind of tiling?
 
-extern options opts;
-
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
@@ -26,7 +24,7 @@ namespace fmm {
         multipole_interaction_interface::center_of_masses_staging_area;
         multipole_interaction_interface::multipole_interaction_interface(void) {
             local_monopoles_staging_area = std::vector<real>(ENTRIES);
-            this->m2m_type = opts.m2m_kernel_type;
+            this->m2m_type = opts().m2m_kernel_type;
         }
 
         void multipole_interaction_interface::compute_multipole_interactions(

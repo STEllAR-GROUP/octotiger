@@ -17,7 +17,7 @@
 template<class T = real>
 struct specie_state_t: public std::vector<T> {
 	specie_state_t() :
-			std::vector<T>(opts.n_species) {
+			std::vector<T>(opts().n_species) {
 	}
 	specie_state_t(std::initializer_list<T> list ) : std::vector<T>(list) {
 
@@ -52,9 +52,7 @@ struct physcon_t {
 
 HPX_IS_BITWISE_SERIALIZABLE(physcon_t);
 
-#ifndef __NPHYSCON__
-extern physcon_t physcon;
-#endif
+physcon_t& physcon();
 
 real mean_ion_weight(const specie_state_t<> species);
 void set_AB(real, real);

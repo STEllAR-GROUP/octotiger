@@ -14,7 +14,7 @@
 template<class U>
 U temperature(U rho, U e, U mmw) {
 	constexpr U gm1 = U(2.0) / U(3.0);
-	return (U(gm1) * U(mmw) * U(physcon.mh) / U(physcon.kb)) * (e * INVERSE(rho));
+	return (U(gm1) * U(mmw) * U(physcon().mh) / U(physcon().kb)) * (e * INVERSE(rho));
 }
 
 template<class U>
@@ -81,7 +81,7 @@ U kappa_p(U rho, U e, U mmw) {
 template<class U>
 U B_p(U rho, U e, U mmw) {
 	const U T = temperature(rho, e, mmw);
-	return (U(physcon.sigma) / U(M_PI)) * T * T * T * T;
+	return (U(physcon().sigma) / U(M_PI)) * T * T * T * T;
 }
 
 template<class U>

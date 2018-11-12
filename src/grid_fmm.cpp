@@ -46,7 +46,6 @@ static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
 extern taylor<4, real> factor;
-extern options opts;
 
 template <class T>
 void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_type& data,
@@ -1037,7 +1036,7 @@ void compute_ilist() {
     std::vector<interaction_type> ilist_d0;
     std::array<std::vector<interaction_type>, geo::direction::count()> ilist_n0_bnd;
     std::array<std::vector<interaction_type>, geo::direction::count()> ilist_d0_bnd;
-    const real theta0 = opts.theta;
+    const real theta0 = opts().theta;
     const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
         real tmp = (sqr(i0 - i1) + sqr(j0 - j1) + sqr(k0 - k1));
         // protect against sqrt(0)
@@ -1539,14 +1538,14 @@ expansion_pass_type grid::compute_expansions(
 					const integer iii0 = h0index(i, j, k);
 					const integer iiih = hindex(i + H_BW, j + H_BW, k + H_BW);
 					if (type == RHO) {
-						G[iii][phi_i] = physcon.G * L[iii]();
+						G[iii][phi_i] = physcon().G * L[iii]();
 						for (integer d = 0; d < NDIM; ++d) {
-							G[iii][gx_i + d] = -physcon.G * L[iii](d);
-							G[iii][gx_i + d] -= physcon.G * L_c[iii][d];
+							G[iii][gx_i + d] = -physcon().G * L[iii](d);
+							G[iii][gx_i + d] -= physcon().G * L_c[iii][d];
 						}
 						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
 					} else {
-						dphi_dt[iii0] = physcon.G * L[iii]();
+						dphi_dt[iii0] = physcon().G * L[iii]();
 					}
 				}
 			}

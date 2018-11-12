@@ -13,7 +13,6 @@
 
 // std::vector<interaction_type> ilist_debugging;
 
-extern options opts;
 
 namespace octotiger {
 namespace fmm {
@@ -21,8 +20,8 @@ namespace fmm {
 
         p2p_cpu_kernel::p2p_cpu_kernel(std::vector<bool>& neighbor_empty)
           : neighbor_empty(neighbor_empty)
-          , theta_rec_squared(sqr(1.0 / opts.theta))
-        // , theta_rec_squared_scalar(sqr(1.0 / opts.theta))
+          , theta_rec_squared(sqr(1.0 / opts().theta))
+        // , theta_rec_squared_scalar(sqr(1.0 / opts().theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;

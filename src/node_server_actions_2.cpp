@@ -14,8 +14,6 @@
 
 #include "options.hpp"
 
-extern options opts;
-
 
 typedef node_server::check_for_refinement_action check_for_refinement_action_type;
 HPX_REGISTER_ACTION (check_for_refinement_action_type);
@@ -30,7 +28,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 		std::lock_guard<hpx::mutex> lock(mtx);
 		grid::omega = omega;
 		if (new_floor > 0) {
-			opts.refinement_floor = new_floor;
+			opts().refinement_floor = new_floor;
 		}
 	}
 	node_registry::delete_(my_location);
@@ -45,7 +43,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			futs[index++] = child.check_for_refinement(omega, new_floor);
 		}
 	}
-	if (opts.hydro) {
+	if (opts().hydro) {
 		all_hydro_bounds();
 	}
 	if (!rc) {
@@ -91,8 +89,6 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 	return rc;
 }
 
-extern options opts;
-
 typedef node_server::diagnostics_action diagnostics_action_type;
 HPX_REGISTER_ACTION (diagnostics_action_type);
 
@@ -124,7 +120,7 @@ analytic_t node_server::compare_analytic() {
 	}
 	if (my_location.level() == 0) {
 		printf("L1, L2\n");
-		for (integer field = 0; field != opts.n_fields; ++field) {
+		for (integer field = 0; field != opts().n_fields; ++field) {
 //TODO
 			//printf("%16s %e %e\n", grid::field_names()[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
 		}
@@ -137,7 +133,7 @@ const diagnostics_t& diagnostics_t::compute() {
 	if( virial_norm != 0.0 ) {
 		virial /= virial_norm;
 	}
-	if( opts.problem != DWD ) {
+	if( opts().problem != DWD ) {
 		return *this;
 	}
 	real dX[NDIM], V[NDIM];
@@ -172,10 +168,10 @@ const diagnostics_t& diagnostics_t::compute() {
 
 diagnostics_t node_server::diagnostics() {
 	diagnostics_t diags;
-	for (integer i = 1; i != (opts.problem == DWD ? 6 : 2); ++i) {
+	for (integer i = 1; i != (opts().problem == DWD ? 6 : 2); ++i) {
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
-		if (opts.gravity) {
+		if (opts().gravity) {
 			diags.grid_com = grid_ptr->center_of_mass();
 
 		} else {
@@ -206,7 +202,7 @@ diagnostics_t node_server::diagnostics() {
 	if( fp ) {
 		fp = fopen( "sums.dat", "at");
 		fprintf( fp, "%.13e ", current_time);
-		for( integer i = 0; i != opts.n_fields; ++i) {
+		for( integer i = 0; i != opts().n_fields; ++i) {
 			fprintf( fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
 			fprintf( fp, "%.13e ", diags.grid_out[i]);
 		}
@@ -292,6 +288,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 			/** BUG HERE ***/
 			if( parent.empty() ) {
 				printf( "parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
+				abort();
 			}
 			assert(!parent.empty());
 
