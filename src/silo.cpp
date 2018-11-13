@@ -140,15 +140,18 @@ struct mesh_vars_t {
 };
 
 void output_stage1(std::string fname, int cycle) {
-
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
-	output_time = node_registry::begin()->second->get_time();
-	output_rotation_count = node_registry::begin()->second->get_rotation_count();
+	const auto* node_ptr_ = node_registry::begin()->second.get_ptr().get();
+	output_time = node_ptr_->get_time() / opts().code_to_s;
+	output_rotation_count = node_ptr_->get_rotation_count();
 	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
-		if (!i->second->refined()) {
-			futs_.push_back(hpx::async([](node_location loc, node_server* this_ptr)
+		const auto* node_ptr_ = i->second.get_ptr().get();
+		if (!node_ptr_->refined()) {
+			futs_.push_back(hpx::async([](node_location loc, node_registry::node_ptr ptr)
 			{
+				const auto* this_ptr = ptr.get_ptr().get();
+				assert(this_ptr);
 				const real dx = TWO / real(1 << loc.level()) / real(INX);
 				mesh_vars_t rc(loc);
 				const std::string suffix = std::to_string(loc.to_id());
@@ -271,7 +274,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	std::vector<integer> positions;
 	for( auto i = node_registry::begin(); i != node_registry::end(); i++) {
 			all.push_back(i->first.to_id());
-			positions.push_back(i->second->get_position());
+			positions.push_back(i->second.get_ptr().get()->get_position());
 	}
 	node_list_t nl;
 	nl.silo_leaves = std::move(ids);
@@ -450,9 +453,11 @@ void output_all(std::string fname, int cycle, bool block) {
 //	static hpx::lcos::local::spinlock mtx;
 //	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
 
+	block = true;
+
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
-	nsteps = node_registry::begin()->second->get_step_num();
+	nsteps = node_registry::begin()->second.get_ptr().get()->get_step_num();
 	timestamp = time(NULL);
 	steps_elapsed = nsteps - start_step;
 	time_elapsed = time(NULL) - start_time;
@@ -464,26 +469,26 @@ void output_all(std::string fname, int cycle, bool block) {
 	}
 	GET(hpx::when_all(futs1));
 
+	std::vector<hpx::future<node_list_t>> id_futs;
+	for (auto& id : localities) {
+		id_futs.push_back(hpx::async<output_stage2_action>(id, fname, cycle));
+	}
+	node_list_.silo_leaves.clear();
+	node_list_.all.clear();
+	node_list_.positions.clear();
+	for (auto& f : id_futs) {
+		node_list_t this_list = GET(f);
+		for (auto& i : this_list.silo_leaves) {
+			node_list_.silo_leaves.push_back(i);
+		}
+		for (auto& i : this_list.all) {
+			node_list_.all.push_back(i);
+		}
+		for (auto& i : this_list.positions) {
+			node_list_.positions.push_back(i);
+		}
+	}
 	barrier = hpx::async([cycle,&fname]() {
-		std::vector<hpx::future<node_list_t>> id_futs;
-		for (auto& id : localities) {
-			id_futs.push_back(hpx::async<output_stage2_action>(id, fname, cycle));
-		}
-		node_list_.silo_leaves.clear();
-		node_list_.all.clear();
-		node_list_.positions.clear();
-		for (auto& f : id_futs) {
-			node_list_t this_list = GET(f);
-			for (auto& i : this_list.silo_leaves) {
-				node_list_.silo_leaves.push_back(i);
-			}
-			for (auto& i : this_list.all) {
-				node_list_.all.push_back(i);
-			}
-			for (auto& i : this_list.positions) {
-				node_list_.positions.push_back(i);
-			}
-		}
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
 	});
 
@@ -577,6 +582,7 @@ void load_open(std::string fname, dir_map_type map) {
 	output_time = rr(db_, "time"); /**/
 	output_rotation_count = rr(db_, "rotational_time"); /**/
 	load_options_from_silo(fname,db_); /**/
+	output_time *= opts().code_to_s;
 	node_dir_ = std::move(map);
 }
 

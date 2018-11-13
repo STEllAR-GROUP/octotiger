@@ -100,7 +100,9 @@ void normalize_constants() {
 	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
 	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb, physcon().c, physcon().mh,
 		physcon().sigma, physcon().h);
-	grid::set_unit_conversions();
+	opts().code_to_g = m;
+	opts().code_to_s = t;
+	opts().code_to_cm = l;
 }
 
 void set_units(real m, real l, real t, real k) {

@@ -17,12 +17,11 @@
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
+
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
 std::unordered_map<int, std::string> grid::index_to_str_gravity;
-std::unordered_map<std::string, real> grid::str_to_unit_hydro;
-std::unordered_map<std::string, real> grid::str_to_unit_gravity;
 
 bool grid::is_hydro_field(const std::string& str) {
 	return str_to_index_hydro.find(str) != str_to_index_hydro.end();
@@ -46,45 +45,22 @@ void grid::set_outflow(std::pair<std::string, real>&& p) {
 	U_out[str_to_index_hydro[p.first]] = p.second;
 }
 
-void grid::set_unit_conversions() {
-	const real g = opts().code_to_g;
-	const real cm = opts().code_to_cm;
-	const real s = opts().code_to_s;
-
-	for (integer s = 0; s < opts().n_species; s++) {
-		str_to_unit_hydro[std::string("rho_") + std::to_string(s + 1)] = g / (cm * cm * cm);
-	}
-	str_to_unit_hydro[std::string("egas")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
-	str_to_unit_hydro[std::string("tau")] = std::pow((g * (cm * cm) / (s * s)) / (cm * cm * cm),
-			1.0 / fgamma);
-	str_to_unit_hydro[std::string("sx")] = (g * (cm) / (s * s)) / (cm * cm * cm);
-	str_to_unit_hydro[std::string("sy")] = (g * (cm) / (s * s)) / (cm * cm * cm);
-	str_to_unit_hydro[std::string("sz")] = (g * (cm) / (s * s)) / (cm * cm * cm);
-	str_to_unit_hydro[std::string("zx")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
-	str_to_unit_hydro[std::string("zy")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
-	str_to_unit_hydro[std::string("zz")] = (g * (cm * cm) / (s * s)) / (cm * cm * cm);
-	str_to_unit_gravity[std::string("phi")] = (cm * cm) / (s * s);
-	str_to_unit_gravity[std::string("gx")] = (cm) / (s * s);
-	str_to_unit_gravity[std::string("gy")] = (cm) / (s * s);
-	str_to_unit_gravity[std::string("gz")] = (cm) / (s * s);
-
-}
 void grid::static_init() {
-	str_to_index_hydro["egas"] = egas_i;
-	str_to_index_hydro["tau"] = tau_i;
+	str_to_index_hydro[std::string("egas")] = egas_i;
+	str_to_index_hydro[std::string("tau")] = tau_i;
 	for (integer s = 0; s < opts().n_species; s++) {
 		str_to_index_hydro[std::string("rho_") + std::to_string(s + 1)] = spc_i + s;
 	}
-	str_to_index_hydro["sx"] = sx_i;
-	str_to_index_hydro["sy"] = sy_i;
-	str_to_index_hydro["sz"] = sz_i;
-	str_to_index_hydro["zx"] = zx_i;
-	str_to_index_hydro["zy"] = zy_i;
-	str_to_index_hydro["zz"] = zz_i;
-	str_to_index_gravity["phi"] = phi_i;
-	str_to_index_gravity["gx"] = gx_i;
-	str_to_index_gravity["gy"] = gy_i;
-	str_to_index_gravity["gz"] = gz_i;
+	str_to_index_hydro[std::string("sx")] = sx_i;
+	str_to_index_hydro[std::string("sy")] = sy_i;
+	str_to_index_hydro[std::string("sz")] = sz_i;
+	str_to_index_hydro[std::string("zx")] = zx_i;
+	str_to_index_hydro[std::string("zy")] = zy_i;
+	str_to_index_hydro[std::string("zz")] = zz_i;
+	str_to_index_gravity[std::string("phi")] = phi_i;
+	str_to_index_gravity[std::string("gx")] = gx_i;
+	str_to_index_gravity[std::string("gy")] = gy_i;
+	str_to_index_gravity[std::string("gz")] = gz_i;
 	for (const auto& s : str_to_index_hydro) {
 		index_to_str_hydro[s.second] = s.first;
 	}
@@ -122,7 +98,7 @@ std::vector<std::string> grid::get_hydro_field_names() {
 
 void grid::set(const std::string name, real* data) {
 	auto iter = str_to_index_hydro.find(name);
-	const real unit = str_to_unit_hydro[name];
+	const real unit = convert_hydro_units(iter->second);
 	if (iter != str_to_index_hydro.end()) {
 		int f = iter->second;
 		int jjj = 0;
@@ -130,7 +106,7 @@ void grid::set(const std::string name, real* data) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
 					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-					U[f][iii] = data[jjj] / unit;
+					U[f][iii] = data[jjj] * unit;
 					jjj++;
 				}
 			}
@@ -150,16 +126,42 @@ void grid::rho_from_species() {
 	}
 }
 
+real grid::convert_hydro_units(int i) {
+	real val = 1.0;
+	const real cm = opts().code_to_cm;
+	const real s = opts().code_to_s;
+	const real g = opts().code_to_g;
+	if( i >= rho_i && i <rho_i+opts().n_species) {
+		val *= g / (cm*cm*cm);
+	} else if( i>= sx_i && i <= sz_i) {
+		val *= g / (s*s*cm*cm);
+	} else if( i == egas_i || (i >= zx_i && i <= zz_i) ) {
+		val *= g / (s*s*cm);
+	} else if( i == tau_i ) {
+		val *= POWER(g / (s*s*cm),1.0/fgamma);
+	}
+	return val;
+}
+
+real grid::convert_gravity_units(int i) {
+	real val = 1.0;
+	const real cm = opts().code_to_cm;
+	const real s = opts().code_to_s;
+	const real g = opts().code_to_g;
+	if( i == phi_i ) {
+		val *= cm * cm / s / s;
+	} else {
+		val *= cm / s / s;
+	}
+	return val;
+}
+
 std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
+	real unit;
 	if (opts().hydro) {
 		for (auto l : str_to_index_hydro) {
-			const auto tmp = str_to_unit_hydro.find(l.first);
-			if( tmp != str_to_unit_hydro.end()) {
-				printf( "missing unit conversion factors\n");
-				abort();
-			}
-			real unit = tmp->second;
+			unit = convert_hydro_units(l.second);
 			const int f = l.second;
 			std::string this_name = l.first;
 			if (suffix.size()) {
@@ -171,7 +173,12 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
 						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-						this_s(jjj) = U[f][iii] * unit;
+			//			printf( "%e\n", unit, U[f][iii]);
+			//			printf( "%e %e\n", U[f][iii], unit );
+						assert(!std::isnan(U[f][iii]));
+						assert(!std::isnan(unit));
+						assert(unit != 0.0);
+						this_s(jjj) = U[f][iii] / unit;
 						jjj++;
 					}
 				}
@@ -182,7 +189,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 
 	if (opts().gravity) {
 		for (auto l : str_to_index_gravity) {
-			const real unit = str_to_unit_gravity[l.first];
+			unit = convert_gravity_units(l.second);
 			const int f = l.second;
 			std::string this_name = l.first;
 			if (suffix.size()) {
@@ -193,8 +200,13 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 			for (int i = 0; i < INX; i++) {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
-						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-						this_s(jjj) = G[iii][f] * unit;
+						const int iii = gindex(k, j, i);
+			//			printf( "%e\n", unit, G[f][iii]);
+						assert(!std::isnan(G[f][iii]));
+						assert(!std::isnan(unit));
+						assert(unit != 0.0);
+						this_s(jjj) = G[iii][f] / unit;
+		//				auto tmp = G[f][iii] / unit;
 						jjj++;
 					}
 				}
@@ -224,9 +236,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					const integer iii = hindex(j, k, l);
 					const integer iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 					real ek = ZERO;
-					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
-					ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
-					ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
+					ek += HALF * pow(U[sx_i][iii], 2) * INVERSE(U[rho_i][iii]);
+					ek += HALF * pow(U[sy_i][iii], 2) * INVERSE(U[rho_i][iii]);
+					ek += HALF * pow(U[sz_i][iii], 2) * INVERSE(U[rho_i][iii]);
 					real ei;
 					if (opts().eos == WD) {
 						ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
@@ -235,7 +247,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					}
 					real et = U[egas_i][iii];
 					if (ei < de_switch2 * et) {
-						ei = std::pow(U[tau_i][iii], fgamma);
+						ei = POWER(U[tau_i][iii],fgamma);
 					}
 					real p = (fgamma - 1.0) * ei;
 					if (opts().eos == WD) {
@@ -315,7 +327,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 		real ay = G[iiig][gy_i] + y * diags.omega * diags.omega;
 		real az = G[iiig][gz_i];
 		real nx, ny, nz;
-		const real a = std::sqrt(ax * ax + ay * ay + az * az);
+		const real a = SQRT(ax * ax + ay * ay + az * az);
 		if( a > 0.0 ) {
 			nx = ax / a;
 			ny = ay / a;
@@ -338,9 +350,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 			} else {
 				for( integer s = 0; s != nspec; ++s) {
 					const real this_x = s == 0 ? x0 : x1;
-					g[s] += ax * dX[s][XDIM] / this_x;
-					g[s] += ay * dX[s][YDIM] / this_x;
-					g[s] += az * dX[s][ZDIM] / this_x;
+					g[s] += ax * dX[s][XDIM] *INVERSE( this_x);
+					g[s] += ay * dX[s][YDIM] *INVERSE( this_x);
+					g[s] += az * dX[s][ZDIM] *INVERSE( this_x);
 				}
 				if( g[0] <= 0.0 && g[1] > 0.0) {
 					rc = +1;
@@ -367,10 +379,10 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 				y = X[YDIM][iii];
 				z = X[ZDIM][iii];
 				const real o2 = diags.omega * diags.omega;
-				const real rhoinv = 1.0 / U[rho_i][iii];
-				const real vx = U[sx_i][iii] / U[rho_i][iii];
-				const real vy = U[sy_i][iii] / U[rho_i][iii];
-				const real vz = U[sz_i][iii] / U[rho_i][iii];
+				const real rhoinv = 1.0 * INVERSE(U[rho_i][iii]);
+				const real vx = U[sx_i][iii] * INVERSE(U[rho_i][iii]);
+				const real vy = U[sy_i][iii] * INVERSE(U[rho_i][iii]);
+				const real vz = U[sz_i][iii] * INVERSE(U[rho_i][iii]);
 				std::array<real, nspec> rho;
 				integer star;
 				if (diags.stage <= 2) {
@@ -389,7 +401,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 				if (diags.stage > 1) {
 					const real R2 = x * x + y * y;
 					const real phi_g = G[iiig][phi_i];
-					const real phi_r = -0.5 * std::pow(diags.omega, 2) * R2;
+					const real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
 					const real phi_eff = phi_g + phi_r;
 					const real rho0 = U[rho_i][iii];
 					integer i;
@@ -406,7 +418,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 						rc.js[i] -= dX[1] * U[sx_i][iii] * dV;
 						rc.gt[i] += dX[0] * G[iiig][gy_i] * dV * rho0;
 						rc.gt[i] -= dX[1] * G[iiig][gx_i] * dV * rho0;
-						const real r = std::sqrt(dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2]);
+						const real r = SQRT(dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2]);
 						for (integer n = 0; n != NDIM; ++n) {
 							for (integer m = 0; m <= n; ++m) {
 								rc.mom[i](n, m) += 3.0 * dX[n] * dX[m] * rho0 * dV;
@@ -430,7 +442,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 
 					if (i != -1) {
 						rl = i == 0 ? -1 : +1;
-						const integer s = rl / std::abs(rl);
+						const integer s = rl *INVERSE( std::abs(rl));
 
 						if (phi_eff > diags.l1_phi) {
 							rl += s;
@@ -456,9 +468,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					}
 					const integer iii = hindex(j, k, l);
 					real ek = ZERO;
-					ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
-					ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
-					ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
+					ek += HALF * pow(U[sx_i][iii], 2) * INVERSE(U[rho_i][iii]);
+					ek += HALF * pow(U[sy_i][iii], 2) * INVERSE(U[rho_i][iii]);
+					ek += HALF * pow(U[sz_i][iii], 2) * INVERSE(U[rho_i][iii]);
 					real ei;
 					if (opts().eos == WD) {
 						ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
@@ -467,7 +479,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					}
 					real et = U[egas_i][iii];
 					if (ei < de_switch2 * et) {
-						ei = std::pow(U[tau_i][iii], fgamma);
+						ei = POWER(U[tau_i][iii],fgamma);
 					}
 					real p = (fgamma - 1.0) * ei;
 					if (opts().eos == WD) {
@@ -503,12 +515,13 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	}
 	for (integer s = 0; s != nspec; ++s) {
 		if (rc.m[s] > 0.0) {
-			rc.com[s][XDIM] /= rc.m[s];
-			rc.com[s][YDIM] /= rc.m[s];
-			rc.com[s][ZDIM] /= rc.m[s];
-			rc.com_dot[s][XDIM] /= rc.m[s];
-			rc.com_dot[s][YDIM] /= rc.m[s];
-			rc.com_dot[s][ZDIM] /= rc.m[s];
+			const auto tmp = INVERSE(rc.m[s]);
+			rc.com[s][XDIM] *= tmp;
+			rc.com[s][YDIM] *= tmp;
+			rc.com[s][ZDIM] *= tmp;
+			rc.com_dot[s][XDIM] *= tmp;
+			rc.com_dot[s][YDIM] *= tmp;
+			rc.com_dot[s][ZDIM] *= tmp;
 		}
 	}
 	for (integer f = 0; f != opts().n_fields; ++f) {

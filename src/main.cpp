@@ -99,7 +99,9 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #endif
 	grid::static_init();
 	normalize_constants();
-	grid::set_unit_conversions();
+#ifdef SILO_UNITS
+//	grid::set_unit_conversions();
+#endif
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);

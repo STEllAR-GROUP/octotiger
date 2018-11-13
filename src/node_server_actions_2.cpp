@@ -83,6 +83,8 @@ future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const
 
 future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 
+	node_registry::delete_(my_location);
+
 	std::vector<hpx::id_type> cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
@@ -154,7 +156,7 @@ const diagnostics_t& diagnostics_t::compute() {
 		V[d] = com_dot[1][d] - com_dot[0][d];
 	}
 	real sep2 = dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2];
-	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) / sep2);
+	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) * INVERSE( sep2));
 	a = std::sqrt(sep2);
 	real mu = m[0] * m[1] / (m[1] + m[0]);
 	jorb = mu * omega * sep2;
@@ -352,13 +354,13 @@ bool operator!=( const node_client& nc, const hpx::id_type& id) {
 
 void node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::vector<hpx::id_type> neighbor_gids) {
 
-	node_registry::add(my_location,this);
 
 	std::fill(nieces.begin(), nieces.end(), 0);
 	for (auto& dir : geo::direction::full_set()) {
 		neighbors[dir] = std::move(neighbor_gids[dir]);
 	}
 	me = std::move(self_gid);
+	node_registry::add(my_location,me);
 	parent = std::move(parent_gid);
 	if (is_refined) {
 		std::array<future<void>, NCHILD> cfuts;

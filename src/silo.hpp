@@ -16,6 +16,9 @@ private:
 	std::string name_;
 	std::vector<real> data_;
 public:
+	std::size_t size() const {
+		return data_.size();
+	}
 	const char* name() const {
 		return name_.c_str();
 	}

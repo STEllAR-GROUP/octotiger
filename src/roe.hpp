@@ -25,12 +25,12 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 
 
 inline real ztwd_pressure(real d, real A = physcon().A, real B = physcon().B) {
-    const real x = pow(d / B, 1.0 / 3.0);
+    const real x = POWER(d / B, 1.0 / 3.0);
     real p;
     if (x < 0.01) {
-        p = 1.6 * A * sqr(x) * cube(x);
+        p = 1.6 * A * SQRT(x) * cube(x);
     } else {
-        p = A * (x * (2.0 * sqr(x) - 3.0) * sqrt(sqr(x) + 1.0) + 3.0 * asinh(x));
+        p = A * (x * (2.0 * SQRT(x) - 3.0) * SQRT(SQRT(x) + 1.0) + 3.0 * asinh(x));
     }
     return p;
 }

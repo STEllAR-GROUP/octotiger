@@ -15,7 +15,7 @@ struct hash {
 };
 
 
-using node_ptr = node_server*;
+using node_ptr = node_client;
 using table_type = std::unordered_map<node_location,node_ptr,hash>;
 using iterator_type = table_type::iterator;
 

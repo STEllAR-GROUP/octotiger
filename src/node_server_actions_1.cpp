@@ -36,6 +36,7 @@ future<integer> node_client::regrid_gather(bool rb) const {
 }
 
 integer node_server::regrid_gather(bool rebalance_only) {
+	node_registry::delete_(my_location);
 	integer count = integer(1);
 	std::vector<hpx::future<void>> kfuts;
 	if (is_refined) {

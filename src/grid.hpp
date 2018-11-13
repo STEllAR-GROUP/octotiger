@@ -8,6 +8,8 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
+#define SILO_UNITS
+
 #include "radiation/rad_grid.hpp"
 #include "simd.hpp"
 #include "diagnostics.hpp"
@@ -96,8 +98,6 @@ public:
 		return fgamma;
 	}
 private:
-	static std::unordered_map<std::string, real> str_to_unit_hydro;
-	static std::unordered_map<std::string, real> str_to_unit_gravity;
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;
 	static std::unordered_map<std::string, int> str_to_index_gravity;
@@ -143,7 +143,6 @@ private:
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
 			const gravity_boundary_type&);
 public:
-	static void set_unit_conversions();
 	void rho_from_species();
 	static bool is_hydro_field(const std::string&);
 	static std::vector<std::string> get_field_names();
@@ -324,6 +323,9 @@ public:
 	void next_u(integer rk, real t, real dt);
 	template<class Archive>
 	void load(Archive& arc, const unsigned);
+	static real convert_gravity_units(int);
+	static real convert_hydro_units(int);
+
 	template<class Archive>
 	void save(Archive& arc, const unsigned) const;HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
