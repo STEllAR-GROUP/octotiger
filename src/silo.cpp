@@ -132,7 +132,7 @@ struct mesh_vars_t {
 			X[d].resize(X_dims[d]);
 			const real o = loc.x_location(d) * opts().xscale;
 			for (int i = 0; i < X_dims[d]; i++) {
-				X[d][i] = o + i * dx;
+				X[d][i] = (o + i * dx) / opts().code_to_cm;
 			}
 		}
 		mesh_name = std::to_string(loc.to_id());
@@ -300,7 +300,7 @@ void output_stage3(std::string fname, int cycle) {
 				int one = 1;
 				int opt1 = DB_CARTESIAN;
 				char cgs[5];
-				std::strcpy(cgs,"code");
+				std::strcpy(cgs,"cgs");
 				auto optlist = DBMakeOptlist(9);
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
 				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
@@ -385,7 +385,7 @@ void output_stage3(std::string fname, int cycle) {
 					int opt1 = DB_CARTESIAN;
 					int mesh_type = DB_QUAD_RECT;
 					char cgs[5];
-					std::strcpy(cgs,"code");
+					std::strcpy(cgs,"cgs");
 					DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
@@ -453,7 +453,7 @@ void output_all(std::string fname, int cycle, bool block) {
 //	static hpx::lcos::local::spinlock mtx;
 //	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
 
-	block = true;
+//	block = true;
 
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
@@ -517,6 +517,8 @@ using dir_map_type = std::unordered_map<node_location::node_id, node_entry_t>;
 dir_map_type node_dir_;
 DBfile* db_;
 
+#define SILO_TEST(i) \
+	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
 void load_options_from_silo(std::string fname, DBfile* db) {
 	const auto func = [&fname,&db]()
@@ -545,18 +547,18 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 			opts().radiation = ri(db, "radiation");
 			opts().refinement_floor = rr(db, "refinement_floor");
 			opts().xscale = rr(db, "xscale");
-			if( !leaveopen)
-			{
-				DBClose(db);
-			}
 			opts().atomic_number.resize(opts().n_species);
 			opts().atomic_mass.resize(opts().n_species);
 			opts().X.resize(opts().n_species);
 			opts().Z.resize(opts().n_species);
-			DBReadVar(db, "atomic_number", opts().atomic_number.data());
-			DBReadVar(db, "atomic_mass", opts().atomic_mass.data());
-			DBReadVar(db, "X", opts().X.data());
-			DBReadVar(db, "Z", opts().Z.data());
+			SILO_TEST(DBReadVar(db, "atomic_number", opts().atomic_number.data()));
+			SILO_TEST(DBReadVar(db, "atomic_mass", opts().atomic_mass.data()));
+			SILO_TEST(DBReadVar(db, "X", opts().X.data()));
+			SILO_TEST(DBReadVar(db, "Z", opts().Z.data()));
+			if( !leaveopen)
+			{
+				DBClose(db);
+			}
 		}
 		else
 		{

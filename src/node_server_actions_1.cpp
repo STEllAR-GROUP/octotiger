@@ -220,10 +220,10 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	form_tree(hpx::unmanaged(root_gid));
 	tstop = timer.elapsed();
 	printf("Formed tree in %f seconds\n", real(tstop - tstart));
-	if (current_time > ZERO) {
+//	if (current_time > ZERO) {
 		printf("solving gravity\n");
 		solve_gravity(true, !opts().output_filename.empty());
-	}
+//	}
 	double elapsed = timer.elapsed();
 	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
 	return a;

@@ -254,6 +254,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		if (!opts().disable_output) {
 			output_all("X.0", 0, true);
 		}
+		return;
 	}
 	if (opts().radiation) {
 		if (opts().eos == WD && opts().problem == STAR) {

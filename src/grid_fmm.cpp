@@ -1643,26 +1643,34 @@ multipole_pass_type grid::compute_multipoles(
                         taylor<4, simd_vector> mc, mp;
                         std::array<simd_vector, NDIM> x, y, dx;
                         for (integer ci = 0; ci != NCHILD; ++ci) {
+
                             const integer iiic = child_index(ip, jp, kp, ci);
                             const space_vector& X = (*(com_ptr[lev - 1]))[iiic];
                             if (is_leaf) {
+
                                 mc()[ci] = mon[iiic];
                                 for (integer j = 1; j != 20; ++j) {
                                     mc.ptr()[j][ci] = 0.0;
                                 }
+
                             } else {
+
                                 for (integer j = 0; j != 20; ++j) {
                                     mc.ptr()[j][ci] = M[iiic].ptr()[j];
                                 }
+
                             }
                             for (integer d = 0; d < NDIM; ++d) {
+
                                 x[d][ci] = X[d];
+
                             }
                         }
                         const space_vector& Y = (*(com_ptr[lev]))[iiip];
                         for (integer d = 0; d < NDIM; ++d) {
                             dx[d] = x[d] - simd_vector(Y[d]);
                         }
+
                         mp = mc >> dx;
                         for (integer j = 0; j != 20; ++j) {
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
@@ -1671,7 +1679,9 @@ multipole_pass_type grid::compute_multipoles(
                             MM[j] = Vc::reduce(mp[j]);
 #endif
                         }
+
                     } else {
+
                         if (child_poles == nullptr) {
                             const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
                             const integer iii0 = h0index(ip, jp, kp);
@@ -1688,11 +1698,14 @@ multipole_pass_type grid::compute_multipoles(
                             }
                             ++index;
                         }
+
                     }
                     if (!is_root && (lev == 1)) {
+
                         mret.first[index] = MM;
                         mret.second[index] = (*(com_ptr[lev]))[iiip];
                         ++index;
+
                     }
                 }
             }
@@ -1701,6 +1714,7 @@ multipole_pass_type grid::compute_multipoles(
         index = 0;
     }
     PROF_END;
+
 
     return mret;
 }
