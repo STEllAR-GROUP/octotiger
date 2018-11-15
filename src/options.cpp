@@ -136,14 +136,17 @@ bool options::process_options(int argc, char* argv[]) {
 		for( auto r : atomic_number ) {
 			std::cout << std::to_string(r) << ',';
 		}
+		std::cout << '\n';
 		std::cout << "atomic_mass=";
 		for( auto r : atomic_mass ) {
 			std::cout << std::to_string(r) << ',';
 		}
+		std::cout << '\n';
 		std::cout << "X=";
 		for( auto r : X ) {
 			std::cout << std::to_string(r) << ',';
 		}
+		std::cout << '\n';
 		std::cout << "Z=";
 		for( auto r : Z ) {
 			std::cout << std::to_string(r) << ',';

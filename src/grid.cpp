@@ -133,7 +133,7 @@ real grid::convert_hydro_units(int i) {
 	const real cm = opts().code_to_cm;
 	const real s = opts().code_to_s;
 	const real g = opts().code_to_g;
-	if( i >= rho_i && i <rho_i+opts().n_species) {
+	if( i >= spc_i && i <= spc_i + opts().n_species) {
 		val *= g / (cm*cm*cm);
 	} else if( i>= sx_i && i <= sz_i) {
 		val *= g / (s*s*cm*cm);
@@ -141,6 +141,9 @@ real grid::convert_hydro_units(int i) {
 		val *= g / (s*s*cm);
 	} else if( i == tau_i ) {
 		val *= POWER(g / (s*s*cm),1.0/fgamma);
+	} else {
+		printf( "Asked to convert units for unknown field %i\n", i );
+		abort();
 	}
 	return val;
 }
@@ -1263,11 +1266,11 @@ void grid::set_omega(real omega, bool bcast) {
 			}
 		}
 	}
-//	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
+	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
 // if someone else has the lock, it's fine, we just return and have it set
 // by the other thread
-//	if (!l)
-//		return;
+	if (!l)
+		return;
 	grid::omega = omega;
 }
 
@@ -2258,7 +2261,6 @@ real grid::compute_fluxes() {
 		const integer dz_i = (dim == ZDIM ? YDIM : ZDIM);
 		const integer face_p = 2 * dim + 1;
 		const integer face_m = 2 * dim;
-
 		for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 			for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 				for (integer i = H_BW; i != H_NX - H_BW + 1; ++i) {
@@ -2305,6 +2307,7 @@ real grid::compute_fluxes() {
 	 */
 
 //	return physcon.c;
+//	printf( "%e %e %e\n", omega, dx, (2./15.) / max_lambda);
 	return max_lambda;
 }
 

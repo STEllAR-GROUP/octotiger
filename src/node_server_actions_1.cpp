@@ -193,7 +193,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
 	}
 }
 
-integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb) {
+integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb,bool grav_energy_comp) {
 	timings::scope ts(timings_, timings::time_regrid);
 	hpx::util::high_resolution_timer timer;
 	assert(grid_ptr != nullptr);
@@ -220,10 +220,8 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	form_tree(hpx::unmanaged(root_gid));
 	tstop = timer.elapsed();
 	printf("Formed tree in %f seconds\n", real(tstop - tstart));
-//	if (current_time > ZERO) {
-		printf("solving gravity\n");
-		solve_gravity(true, !opts().output_filename.empty());
-//	}
+	printf("solving gravity\n");
+	solve_gravity(grav_energy_comp, !opts().output_filename.empty());
 	double elapsed = timer.elapsed();
 	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
 	return a;

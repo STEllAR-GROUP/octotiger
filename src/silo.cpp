@@ -5,7 +5,7 @@
  *      Author: dmarce1
  */
 
-#define SILO_DRIVER DB_HDF5
+#define SILO_DRIVER DB_PDB
 #define SILO_VERSION 100
 
 #include "node_registry.hpp"
@@ -30,9 +30,27 @@ struct node_list_t {
 	}
 };
 
+
+struct node_entry_t {
+	bool load;
+	integer position;
+	integer locality_id;
+	template<class Arc>
+	void serialize(Arc& arc, unsigned) {
+		arc & load;
+		arc & position;
+		arc & locality_id;
+	}
+};
+
+
+using dir_map_type = std::unordered_map<node_location::node_id, node_entry_t>;
 struct mesh_vars_t;
 static std::vector<hpx::future<mesh_vars_t>> futs_;
 static node_list_t node_list_;
+dir_map_type node_dir_;
+DBfile* db_;
+
 
 static const auto& localities = options::all_localities;
 
@@ -129,10 +147,11 @@ struct mesh_vars_t {
 		var_dims[0] = var_dims[1] = var_dims[2] = nx;
 		const real dx = 2.0 * opts().xscale / nx / (1 << loc.level());
 		for (int d = 0; d < NDIM; d++) {
-			X[d].resize(X_dims[d]);
+			const int d0 = d;
+			X[d0].resize(X_dims[d0]);
 			const real o = loc.x_location(d) * opts().xscale;
-			for (int i = 0; i < X_dims[d]; i++) {
-				X[d][i] = (o + i * dx) * opts().code_to_cm;
+			for (int i = 0; i < X_dims[d0]; i++) {
+				X[d0][i] = (o + i * dx) * opts().code_to_cm;
 			}
 		}
 		mesh_name = std::to_string(loc.to_id());
@@ -210,9 +229,9 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 							new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
 						}
 						const int nx = new_mesh_ptr->var_dims[0] / 2;
-						const int ib = ((ci >> 0) & 1) * nx;
+						const int ib = ((ci >> 2) & 1) * nx;
 						const int jb = ((ci >> 1) & 1) * nx;
-						const int kb = ((ci >> 2) & 1) * nx;
+						const int kb = ((ci >> 0) & 1) * nx;
 						const int ie = ib + nx;
 						const int je = jb + nx;
 						const int ke = kb + nx;
@@ -421,6 +440,9 @@ void output_stage3(std::string fname, int cycle) {
 					write_silo_var<integer> fi;
 					write_silo_var<real> fr;
 					fi(db, "version", SILO_VERSION);
+					fr(db, "code_to_g", opts().code_to_g);
+					fr(db, "code_to_s", opts().code_to_s);
+					fr(db, "code_to_cm", opts().code_to_cm);
 					fi(db, "n_species", integer(opts().n_species));
 					fi(db, "eos", integer(opts().eos));
 					fi(db, "gravity", integer(opts().gravity));
@@ -455,7 +477,7 @@ void output_stage3(std::string fname, int cycle) {
 }
 
 void output_all(std::string fname, int cycle, bool block) {
-//	block = true;
+	block = true;
 //	static hpx::lcos::local::spinlock mtx;
 //	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
 
@@ -504,23 +526,6 @@ void output_all(std::string fname, int cycle, bool block) {
 	}
 }
 
-struct node_entry_t {
-	bool load;
-	integer position;
-	integer locality_id;
-	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
-		arc & load;
-		arc & position;
-		arc & locality_id;
-	}
-};
-
-using dir_map_type = std::unordered_map<node_location::node_id, node_entry_t>;
-
-dir_map_type node_dir_;
-DBfile* db_;
-
 #define SILO_TEST(i) \
 	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
@@ -547,11 +552,14 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 					if( version > SILO_VERSION) {
 						printf( "Warning !!!!!!!!!!! Attempted to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", version, SILO_VERSION);
 					}
+					opts().code_to_g = rr(db, "code_to_g");
+					opts().code_to_s = rr(db, "code_to_s");
+					opts().code_to_cm = rr(db, "code_to_cm");
 					opts().n_species = ri(db, "n_species");
 					opts().eos = eos_type(ri(db, "eos"));
 					opts().gravity = ri(db, "gravity");
 					opts().hydro = ri(db, "hydro");
-					opts().omega = rr(db, "omega") / opts().code_to_s;
+					opts().omega = rr(db, "omega") * opts().code_to_s;
 					opts().output_dt = rr(db, "output_frequency");
 					opts().problem = problem_type(ri(db, "problem"));
 					opts().radiation = ri(db, "radiation");
@@ -659,13 +667,14 @@ node_server::node_server(const node_location& loc) :
 				DBFreeQuadvar(var);
 			}}).get();
 		if (load.nx == INX) {
+			is_refined = false;
 			for (integer f = 0; f < hydro_names.size(); f++) {
 				grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
 				grid_ptr->set_outflow(std::move(load.outflows[f]));
-				current_time = output_time;
-				rotational_time = output_rotation_count;
-				grid_ptr->rho_from_species();
 			}
+			current_time = output_time;
+			rotational_time = output_rotation_count;
+			grid_ptr->rho_from_species();
 		} else {
 			is_refined = true;
 			auto child_loads = load.decompress();
@@ -678,20 +687,30 @@ node_server::node_server(const node_location& loc) :
 	}
 }
 
-node_server::node_server(const node_location& loc, silo_load_t load_vars) :
+node_server::node_server(const node_location& loc, silo_load_t load) :
 		my_location(loc) {
 	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto& localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
 	int nc = 0;
-	for (int ci = 0; ci < NCHILD; ci++) {
-		auto cloc = loc.get_child(ci);
-		auto iter = node_dir_.find(cloc.to_id());
-		if (iter != node_dir_.end()) {
-			is_refined = true;
-			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
-			nc++;
+	static const auto hydro_names = grid::get_hydro_field_names();
+	if (load.nx == INX) {
+		is_refined = false;
+		for (integer f = 0; f < hydro_names.size(); f++) {
+			grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
+			grid_ptr->set_outflow(std::move(load.outflows[f]));
+		}
+		current_time = output_time;
+		rotational_time = output_rotation_count;
+		grid_ptr->rho_from_species();
+	} else {
+		is_refined = true;
+		auto child_loads = load.decompress();
+		for (integer ci = 0; ci < NCHILD; ci++) {
+			auto cloc = loc.get_child(ci);
+			auto iter = node_dir_.find(cloc.to_id());
+			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc, child_loads[ci]);
 		}
 	}
 	assert(nc == 0 || nc == NCHILD);
@@ -733,12 +752,13 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 			entry.locality_id = positions[i] * nprocs / positions.size();
 			node_dir_[node_list[i]] = entry;
 		}
-		auto tmp = std::move(node_dir_);
+		auto this_dir = std::move(node_dir_);
 		for (int i = 0; i < nprocs; i++) {
 			printf( "Sending LOAD OPEN to %i\n", i);
-			futs.push_back(hpx::async<load_open_action>(opts().all_localities[i], fname, tmp));
+			futs.push_back(hpx::async<load_open_action>(opts().all_localities[i], fname, this_dir));
 		}
-		for (const auto& entry : node_dir_) {
+
+		for (const auto& entry : this_dir) {
 			printf("%s %i %i %i\n", node_location(entry.first).to_str().c_str(), entry.second.position,
 					entry.second.locality_id, entry.second.load);
 		}
@@ -803,8 +823,8 @@ std::vector<silo_load_t> silo_load_t::decompress() {
 			for (integer cx = 0; cx < child.nx; cx++) {
 				for (integer cy = 0; cy < child.nx; cy++) {
 					for (integer cz = 0; cz < child.nx; cz++) {
-						const integer child_index = cz + child.nx * (cy + child.nx * cx);
-						const integer parent_index = (cz + zo) + nx * ((cy + yo) + nx * (cx + xo));
+						const integer child_index = cx + child.nx * (cy + child.nx * cz);
+						const integer parent_index = (cx + xo) + nx * ((cy + yo) + nx * (cz + zo));
 						child.vars[f].second[child_index] = vars[f].second[parent_index];
 					}
 				}

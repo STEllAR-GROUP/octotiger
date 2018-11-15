@@ -198,7 +198,7 @@ public:
 
 	void update();
 
-	integer regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb);
+	integer regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp=true);
 
 	void compute_fmm(gsolve_type gs, bool energy_account, bool allocate_only = false);
 

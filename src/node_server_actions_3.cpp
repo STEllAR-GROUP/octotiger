@@ -251,9 +251,6 @@ void node_server::start_run(bool scf, integer ngrids) {
 		dv[YDIM] = -diag.grid_sum[sy_i] / diag.grid_sum[rho_i];
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
 		this->velocity_inc(dv);
-		if (!opts().disable_output) {
-			output_all("X.initial", 0, true);
-		}
 	}
 	if (opts().radiation) {
 		if (opts().eos == WD && opts().problem == STAR) {

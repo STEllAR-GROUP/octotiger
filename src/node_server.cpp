@@ -256,7 +256,6 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t, real rt) {
-	position = 9999999999;
 	for (auto const& dir : geo::direction::full_set()) {
 		neighbor_signals[dir].signal();
 	}

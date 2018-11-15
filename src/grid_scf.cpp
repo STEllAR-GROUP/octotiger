@@ -461,7 +461,7 @@ void node_server::run_scf(std::string const& data_dir) {
 	grid::set_omega(omega);
 	printf("Starting SCF\n");
 	real l1_phi = 0.0, l2_phi, l3_phi;
-	for (integer i = 0; i != 100; ++i) {
+	for (integer i = 0; i != 5; ++i) {
 //		profiler_output(stdout);
 		char buffer[33];    // 21 bytes for int (max) + some leeway
 		sprintf(buffer, "X.scf.%i", int(i));
@@ -662,13 +662,15 @@ void node_server::run_scf(std::string const& data_dir) {
 		}
 	}
 }
+
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
+
 	const real fgamma = grid::get_fgamma();
 	std::vector<real> u(opts().n_fields, real(0));
-	if( opts().restart_filename.empty() ) {
+	static auto& params = initial_params();
+	if( !opts().restart_filename.empty() ) {
 		return u;
 	}
-	static auto& params = initial_params();
 	std::shared_ptr<struct_eos> this_struct_eos;
 	real rho, r, ei;
 	static real R01 = params.struct_eos1->get_R0();
@@ -709,6 +711,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		ei = this_struct_eos->pressure(rho) / (fgamma - 1.0);
 	}
 	u[rho_i] = rho;
+
 	if (opts().eos == WD) {
 		u[spc_ac_i] = x > params.l1_x ? 0.0 : rho;
 		u[spc_dc_i] = x > params.l1_x ? rho : 0.0;

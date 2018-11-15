@@ -1588,7 +1588,10 @@ multipole_pass_type grid::compute_multipoles(
             }
         }
     }
-
+    if( com_ptr[0] == nullptr ) {
+    	printf( "Failed to call RHO before DRHODT\n");
+    	abort();
+    }
     multipole_pass_type mret;
     if (!is_root) {
         mret.first.resize(INX * INX * INX / NCHILD);
