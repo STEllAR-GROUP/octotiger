@@ -229,9 +229,9 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 							new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
 						}
 						const int nx = new_mesh_ptr->var_dims[0] / 2;
-						const int ib = ((ci >> 2) & 1) * nx;
+						const int ib = ((ci >> 0) & 1) * nx;
 						const int jb = ((ci >> 1) & 1) * nx;
-						const int kb = ((ci >> 0) & 1) * nx;
+						const int kb = ((ci >> 2) & 1) * nx;
 						const int ie = ib + nx;
 						const int je = jb + nx;
 						const int ke = kb + nx;
