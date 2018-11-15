@@ -108,7 +108,7 @@ void grid::set(const std::string name, real* data) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
 					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-					U[f][iii] = data[jjj] * unit;
+					U[f][iii] = data[jjj] / unit;
 					jjj++;
 				}
 			}
@@ -180,7 +180,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 						assert(!std::isnan(U[f][iii]));
 						assert(!std::isnan(unit));
 						assert(unit != 0.0);
-						this_s(jjj) = U[f][iii] / unit;
+						this_s(jjj) = U[f][iii] * unit;
 						jjj++;
 					}
 				}
@@ -207,7 +207,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 						assert(!std::isnan(G[f][iii]));
 						assert(!std::isnan(unit));
 						assert(unit != 0.0);
-						this_s(jjj) = G[iii][f] / unit;
+						this_s(jjj) = G[iii][f] * unit;
 		//				auto tmp = G[f][iii] / unit;
 						jjj++;
 					}
@@ -1263,11 +1263,11 @@ void grid::set_omega(real omega, bool bcast) {
 			}
 		}
 	}
-	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
+//	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
 // if someone else has the lock, it's fine, we just return and have it set
 // by the other thread
-	if (!l)
-		return;
+//	if (!l)
+//		return;
 	grid::omega = omega;
 }
 

@@ -245,12 +245,12 @@ struct scf_parameters {
 		c1_x = -a * M2 / (M1 + M2);
 		c2_x = +a * M1 / (M1 + M2);
 		l1_x = a * (0.5 - 0.227 * log10(q)) + c1_x;
-		omega = std::sqrt((G * (M1 + M2)) / (a * a * a));
+		omega = SQRT((G * (M1 + M2)) / (a * a * a));
 		const real fill2 = scf_options::fill2;
 		const real V1 = find_V(M1 / M2) * cube(a);
 		const real V2 = find_V(M2 / M1) * cube(a);
-		R1 = std::pow(V1 / c, 1.0 / 3.0) * std::pow(fill1, 5);
-		R2 = std::pow(V2 / c, 1.0 / 3.0) * std::pow(fill2, 5);
+		R1 = POWER(V1 / c, 1.0 / 3.0) * POWER(fill1, 5);
+		R2 = POWER(V2 / c, 1.0 / 3.0) * POWER(fill2, 5);
 		if (opts().eos == WD) {
 			//	printf( "!\n");
 			struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2);
@@ -293,7 +293,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		abort();
 	}
 	real rho_int = 10.0 * rho_floor;
-	rho_int = std::sqrt(rho_int * rho_floor);
+	rho_int = SQRT(rho_int * rho_floor);
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
@@ -303,7 +303,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				const real x = X[XDIM][iiih];
 				const real y = X[YDIM][iiih];
 				const real z = X[ZDIM][iiih];
-				const real R = std::sqrt(std::pow(x - com, 2) + y * y);
+				const real R = SQRT(std::pow(x - com, 2) + y * y);
 				real rho = U[rho_i][iiih];
 				real phi_eff = G[iiig][phi_i] - 0.5 * std::pow(omega * R, 2);
 				const real fx = G[iiig][gx_i] + (x - com) * std::pow(omega, 2);
@@ -340,7 +340,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 					cx = c2_x;
 					ti_omega = scf_options::async2 * omega;
 				}
-				//	Rc = std::sqrt( x*x + cx*cx - 2.0*x*cx + y*y );
+				//	Rc = SQRT( x*x + cx*cx - 2.0*x*cx + y*y );
 				phi_eff -= 0.5 * ti_omega * ti_omega * R * R;
 				phi_eff -= omega * ti_omega * R * R;
 				phi_eff += (omega + ti_omega) * ti_omega * cx * x;
@@ -410,7 +410,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 
 				U[sx_i][iiih] = sx;
 				U[sy_i][iiih] = sy;
-				U[tau_i][iiih] = std::pow(etherm, 1.0 / fgamma);
+				U[tau_i][iiih] = POWER(etherm, 1.0 / fgamma);
 				U[egas_i][iiih] = eint + (sx * sx + sy * sy) / 2.0 / rho;
 				U[zx_i][iiih] = 0.0;
 				U[zy_i][iiih] = 0.0;
@@ -535,7 +535,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		static real rhoc1 = 1.0e-3 * rho1;
 		if (opts().v1309) {
 			const real rho_min = 0.5 * std::min(rhoc1, params.struct_eos2->dE());
-			rhoc1 /= std::pow(spin_ratio * 3.0, w0);
+			rhoc1 /= POWER(spin_ratio * 3.0, w0);
 			printf("%e\n", rhoc1 / rho1);
 			params.struct_eos1->set_cutoff_density(rhoc1);
 			params.struct_eos2->set_cutoff_density(rho2 * 1.0e-10);
@@ -586,7 +586,7 @@ void node_server::run_scf(std::string const& data_dir) {
 				if (core_frac_1 == 0.0) {
 					e1f = 0.5 + 0.5 * e1f;
 				} else {
-					e1f = (1.0 - w0) * e1f + w0 * std::pow(e1f, scf_options::core_frac1 / core_frac_1);
+					e1f = (1.0 - w0) * e1f + w0 * POWER(e1f, scf_options::core_frac1 / core_frac_1);
 				}
 				e1->set_frac(e1f);
 			}
@@ -598,7 +598,7 @@ void node_server::run_scf(std::string const& data_dir) {
 				if (core_frac_2 == 0.0) {
 					e2f = 0.5 + 0.5 * e2f;
 				} else {
-					e2f = (1.0 - w0) * e2f + w0 * std::pow(e2f, scf_options::core_frac2 / core_frac_2);
+					e2f = (1.0 - w0) * e2f + w0 * POWER(e2f, scf_options::core_frac2 / core_frac_2);
 				}
 				if (!scf_options::equal_struct_eos) {
 					e2->set_frac(e2f);
@@ -609,7 +609,7 @@ void node_server::run_scf(std::string const& data_dir) {
 					const real gamma = grid::get_fgamma();
 					const real p0 = params.struct_eos1->P0();
 					const real de = params.struct_eos1->dE();
-					const real s1 = std::pow(p0 * std::pow(rhoc1 / de, 1.0 + 1.0 / ne) / (gamma - 1.0), 1.0 / gamma) / rhoc1;
+					const real s1 = POWER(p0 * POWER(rhoc1 / de, 1.0 + 1.0 / ne) / (gamma - 1.0), 1.0 / gamma) / rhoc1;
 					printf("S = %e\n", s1);
 					e2->set_entropy(s1);
 				} else {
@@ -621,14 +621,14 @@ void node_server::run_scf(std::string const& data_dir) {
 		}
 		real amin, jmin, mu;
 		mu = M1 * M2 / (M1 + M2);
-		amin = std::sqrt(3.0 * (is1 + is2) / mu);
+		amin = SQRT(3.0 * (is1 + is2) / mu);
 
-		const real r0 = std::pow(diags.stellar_vol[0] / (1.3333333333 * 3.14159), 1.0 / 3.0);
-		const real r1 = std::pow(diags.stellar_vol[1] / (1.3333333333 * 3.14159), 1.0 / 3.0);
+		const real r0 = POWER(diags.stellar_vol[0] / (1.3333333333 * 3.14159), 1.0 / 3.0);
+		const real r1 = POWER(diags.stellar_vol[1] / (1.3333333333 * 3.14159), 1.0 / 3.0);
 		const real fi0 = diags.stellar_vol[0] / diags.roche_vol[0];
 		const real fi1 = diags.stellar_vol[1] / diags.roche_vol[1];
 
-		jmin = std::sqrt((M1 + M2)) * (mu * std::pow(amin, 0.5) + (is1 + is2) * std::pow(amin, -1.5));
+		jmin = SQRT((M1 + M2)) * (mu * POWER(amin, 0.5) + (is1 + is2) * POWER(amin, -1.5));
 		if (i % 5 == 0) {
 			printf(
 					"   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n",
@@ -665,6 +665,9 @@ void node_server::run_scf(std::string const& data_dir) {
 std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
 	std::vector<real> u(opts().n_fields, real(0));
+	if( opts().restart_filename.empty() ) {
+		return u;
+	}
 	static auto& params = initial_params();
 	std::shared_ptr<struct_eos> this_struct_eos;
 	real rho, r, ei;
@@ -688,9 +691,9 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 			for (double z0 = z - dx / 2.0 + dx / 2.0 / M; z0 < z + dx / 2.0; z0 += dx / M) {
 				++nsamp;
 				if (x < params.l1_x) {
-					r = std::sqrt(std::pow(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
+					r = SQRT(std::pow(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
 				} else {
-					r = std::sqrt(std::pow(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
+					r = SQRT(std::pow(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
 				}
 				if (r <= R0) {
 					rho += this_struct_eos->density_at(r, dx);
@@ -722,9 +725,9 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
 	if (opts().eos != WD) {
-		u[tau_i] = std::pow(ei, 1.0 / fgamma);
+		u[tau_i] = POWER(ei, 1.0 / fgamma);
 	} else {
-		u[tau_i] = std::pow(1.0e-15, 1.0 / fgamma);
+		u[tau_i] = POWER(1.0e-15, 1.0 / fgamma);
 	}
 	return u;
 }

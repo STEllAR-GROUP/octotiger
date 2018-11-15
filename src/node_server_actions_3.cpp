@@ -252,9 +252,8 @@ void node_server::start_run(bool scf, integer ngrids) {
 		dv[ZDIM] = -diag.grid_sum[sz_i] / diag.grid_sum[rho_i];
 		this->velocity_inc(dv);
 		if (!opts().disable_output) {
-			output_all("X.0", 0, true);
+			output_all("X.initial", 0, true);
 		}
-		return;
 	}
 	if (opts().radiation) {
 		if (opts().eos == WD && opts().problem == STAR) {
@@ -417,13 +416,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 	if (opts().bench && !opts().disable_output) {
 		hpx::threads::run_as_os_thread([&]()
 		{
-			std::string fname;
-			if (output_cnt > 0)
-			fname = opts().data_dir + "X." + std::to_string(int(output_cnt) - 1) + ".chk";
-			else
-			fname = opts().data_dir + "X.0.chk";
 
-			file_copy(fname.c_str(), (opts().data_dir + "restart.chk").c_str());
 			FILE* fp = fopen( (opts().data_dir + "scaling.dat").c_str(), "at");
 			const auto nproc = options::all_localities.size();
 			fprintf( fp, "%i %e\n", int(nproc), float(bench_stop - bench_start));

@@ -53,14 +53,14 @@ void these_units(real& m, real& l, real& t, real& k) {
 	real A, B, G;
 	if( (opts().radiation || opts().eos == WD) && opts().gravity) {
 		G = 1.0;
-		m1 = opts().code_to_g;
-		l1 = opts().code_to_cm;
+		m1 = 1./opts().code_to_g;
+		l1 = 1./opts().code_to_cm;
 		t1 = l1 * l1 * l1 / m1 / m1 / std::sqrt(G);
 		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
 	} else if (!opts().radiation && !opts().gravity) {
-		m1 = opts().code_to_g;
-		l1 = opts().code_to_cm;
-		t1 = opts().code_to_s;
+		m1 = 1./opts().code_to_g;
+		l1 = 1./opts().code_to_cm;
+		t1 = 1./opts().code_to_s;
 		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
 	} else {
 		A = physcon().A;
@@ -100,16 +100,16 @@ void normalize_constants() {
 	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
 	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb, physcon().c, physcon().mh,
 		physcon().sigma, physcon().h);
-	opts().code_to_g = m;
-	opts().code_to_s = t;
-	opts().code_to_cm = l;
+	opts().code_to_g = 1.0/m;
+	opts().code_to_s = 1.0/t;
+	opts().code_to_cm = 1.0/l;
 }
 
 void set_units(real m, real l, real t, real k) {
-	m = 1.0 / m;
-	l = 1.0 / l;
-	t = 1.0 / t;
-	k = 1.0 / k;
+//	m = 1.0 / m;
+//	l = 1.0 / l;
+//	t = 1.0 / t;
+//	k = 1.0 / k;
 	physcon().kb = 1.380658e-16 * (m * l * l) / (t*t) / k;
 	physcon().c = 2.99792458e+10 * (l / t);
 	physcon().mh = 1.6733e-24 * m;
