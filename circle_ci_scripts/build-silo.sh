@@ -4,12 +4,10 @@ set -x
 if [ ! -d "silo/" ]; then
     mkdir silo
     cd silo
-    wget https://wci.llnl.gov/content/assets/docs/simulation/computer-codes/silo/silo-4.10.2/silo-4.10.2.tar.gz
-    tar -xvf silo-4.10.2.tar.gz
-    cd ..
-else
-    cd silo
-    git pull
+    if [ ! -d "silo-4.10.2" ]; then
+       wget https://wci.llnl.gov/content/assets/docs/simulation/computer-codes/silo/silo-4.10.2/silo-4.10.2.tar.gz
+    fi
+       tar -xvf silo-4.10.2.tar.gz
     cd ..
 fi
 
