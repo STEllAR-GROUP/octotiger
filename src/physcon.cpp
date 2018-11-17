@@ -52,17 +52,6 @@ void these_units(real& m, real& l, real& t, real& k) {
 	real kb = kbcgs;
 	real A, B, G;
 	if( (opts().radiation || opts().eos == WD) && opts().gravity) {
-		G = 1.0;
-		m1 = 1./opts().code_to_g;
-		l1 = 1./opts().code_to_cm;
-		t1 = l1 * l1 * l1 / m1 / m1 / std::sqrt(G);
-		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
-	} else if (!opts().radiation && !opts().gravity) {
-		m1 = 1./opts().code_to_g;
-		l1 = 1./opts().code_to_cm;
-		t1 = 1./opts().code_to_s;
-		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
-	} else {
 		A = physcon().A;
 		B = physcon().B;
 		G = physcon().G;
@@ -70,18 +59,35 @@ void these_units(real& m, real& l, real& t, real& k) {
 		l1 = std::sqrt(A / G) / B;
 		t1 = 1.0 / std::sqrt(B * G);
 		k1 = (m1 * l1 * l1) / (t1 * t1) / kb;
+		A = Acgs;
+		B = Bcgs;
+		G = Gcgs;
+		real m2 = std::pow(A / G, 1.5) / (B * B);
+		real l2 = std::sqrt(A / G) / B;
+		real t2 = 1.0 / std::sqrt(B * G);
+		real k2 = (m2 * l2 * l2) / (t2 * t2) / kb;
+		m = m2 / m1;
+		l = l2 / l1;
+		t = t2 / t1;
+		k = k2 / k1;
+	} else if (!opts().radiation && !opts().gravity) {
+		m = opts().code_to_g;
+		l = opts().code_to_cm;
+		t = opts().code_to_s;
+		k = 1.0;
+	} else {
+		G = 1.0;
+		m = opts().code_to_g;
+		l = opts().code_to_cm;
+		t = std::sqrt(l * l * l / m) / std::sqrt(Gcgs/G);
+		k = 1.0;
 	}
-	A = Acgs;
-	B = Bcgs;
-	G = Gcgs;
-	real m2 = std::pow(A / G, 1.5) / (B * B);
-	real l2 = std::sqrt(A / G) / B;
-	real t2 = 1.0 / std::sqrt(B * G);
-	real k2 = (m2 * l2 * l2) / (t2 * t2) / kb;
-	m = m2 / m1;
-	l = l2 / l1;
-	t = t2 / t1;
-	k = k2 / k1;
+
+	printf( "%e %e %e %e\n", l, m, t, k);
+	opts().code_to_cm = l;
+	opts().code_to_g = m;
+	opts().code_to_s = t;
+
 }
 
 void normalize_constants() {

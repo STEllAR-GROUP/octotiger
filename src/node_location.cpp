@@ -18,6 +18,79 @@
 #include "node_location.hpp"
 #include "node_client.hpp"
 
+
+
+range_type intersection(const range_type& r1, const range_type& r2) {
+	range_type ri;
+	for (int d = 0; d < NDIM; d++) {
+		ri[d].first = std::max(r1[d].first, r2[d].first);
+		ri[d].second = std::min(r1[d].second, r2[d].second);
+		if (ri[d].first > ri[d].second) {
+			for (int d1 = 0; d1 < NDIM; d1++) {
+				ri[d1].first = ri[d1].second = -1;
+				break;
+			}
+		}
+	}
+	return ri;
+}
+
+
+range_type node_location::abs_range() const {
+	range_type range;
+	integer shift = opts().max_level - level();
+	for( int d = 0; d < NDIM; d++) {
+		range[d].first = INX*xloc[d];
+		range[d].second = (INX*(xloc[d]+1)) << shift;
+	}
+	return std::move(range);
+}
+
+
+
+bool node_location::neighbors_with( const node_location& n ) const {
+	node_location n1, n2;
+	if( level() > n.level()) {
+		n1 = *this;
+		n2 = n;
+	} else {
+		n2 = *this;
+		n1 = n;
+	}
+	integer max1[NDIM], min1[NDIM];
+	integer max2[NDIM], min2[NDIM];
+	for( int d = 0; d < NDIM; d++) {
+		min1[d] = n1.xloc[d];
+		max1[d] = n1.xloc[d];
+	}
+	integer span = 1;
+	while( n1.level() > n2.level()) {
+		n2.lev++;
+		for( int d = 0; d < NDIM; d++ ) {
+			n2.xloc[d] *= 2;
+		}
+		span *= 2;
+	}
+	for (int d = 0; d < NDIM; d++) {
+		min2[d] = n2.xloc[d];
+		max2[d] = n2.xloc[d] + span - 1;
+	}
+	bool rc = false;
+	for (int d = 0; d < NDIM; d++) {
+		if (std::abs(max2[d] - min1[d]) == 1) {
+			rc = true;
+		} else if (std::abs(min2[d] - max1[d]) == 1) {
+			rc = true;
+		}
+		if (rc) {
+			break;
+		}
+	}
+	return rc;
+}
+
+
+
 node_location::node_id node_location::to_id() const {
 	node_id id = 1;
 	for (int l = 0; l < lev; l++) {

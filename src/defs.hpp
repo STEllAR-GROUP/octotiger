@@ -175,6 +175,8 @@ constexpr real ei_floor = 1.0e-15;
 constexpr integer NRK = 2;
 constexpr real rk_beta[2] = { ONE, HALF };
 
+constexpr integer MAX_LEVEL = 21;
+
 constexpr integer NGF = 4;
 constexpr integer phi_i = 0;
 constexpr integer gx_i = 1;
