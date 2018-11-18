@@ -169,6 +169,44 @@ real grid::convert_gravity_units(int i) {
 	return val;
 }
 
+std::vector<std::int8_t> grid::get_roche_lobe() const {
+	int jjj = 0;
+	std::vector<std::int8_t> this_s(INX*INX*INX);
+	for (int i = 0; i < INX; i++) {
+		for (int j = 0; j < INX; j++) {
+			for (int k = 0; k < INX; k++) {
+				const int iii0 = h0index(k, j, i);
+				this_s[jjj] = roche_lobe[iii0];
+				jjj++;
+			}
+		}
+	}
+	return std::move(this_s);
+}
+
+std::string grid::hydro_units_name(const std::string& nm) {
+	int f = str_to_index_hydro[nm];
+	if( f >= spc_i && f <= spc_i + opts().n_species) {
+		return "g / cm^3";
+	} else if( f >= sx_i && f <= sz_i) {
+		return "g / (cm s)^2 ";
+	} else if( f == egas_i || (f >= zx_i && f <= zz_i)) {
+		return "g / (cm s^2)";
+	} else if( f == tau_i) {
+		return "(g / cm)^(3/5) / s^(6/5)";
+	}
+}
+
+
+std::string grid::gravity_units_name(const std::string& nm) {
+	int f = str_to_index_gravity[nm];
+	if( f == phi_i ) {
+		return "cm^2 / s^2";
+	} else {
+		return "cm / s^2";
+	}
+}
+
 std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 	std::vector<silo_var_t> s;
 	real unit;
@@ -186,8 +224,6 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
 						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-			//			printf( "%e\n", unit, U[f][iii]);
-			//			printf( "%e %e\n", U[f][iii], unit );
 						assert(!std::isnan(U[f][iii]));
 						assert(!std::isnan(unit));
 						assert(unit != 0.0);
@@ -455,7 +491,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 
 					if (i != -1) {
 						rl = i == 0 ? -1 : +1;
-						const integer s = rl *INVERSE( std::abs(rl));
+						const integer s = rl * INVERSE( std::abs(rl));
 
 						if (phi_eff > diags.l1_phi) {
 							rl += s;
@@ -466,7 +502,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 						if (phi_eff > lmax23) {
 							rl += s;
 						}
-						rl -= 0.5 * s;
 					} else {
 						rl = 0;
 					}

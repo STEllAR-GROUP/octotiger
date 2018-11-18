@@ -81,7 +81,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value < std::string > (&(opts().data_dir))->default_value("./"), "directory for output") //
 	("output", po::value < std::string > (&(opts().output_filename))->default_value(""), "filename for output") //
-	("odt", po::value < real > (&(opts().output_dt))->default_value(1.0), "output frequency") //
+	("odt", po::value < real > (&(opts().output_dt))->default_value(1.0/25.0), "output frequency") //
 	("disable_output", po::value<bool>(&(opts().disable_output)), "disable silo output") //
 	("silo_planes_only", po::value<bool>(&(opts().silo_planes_only)), "disable silo output") //
 	("problem", po::value < problem_type > (&(opts().problem))->default_value(NONE), "problem type")                            //

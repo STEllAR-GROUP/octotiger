@@ -128,6 +128,8 @@ struct mesh_vars_t {
 	std::vector<std::string> var_names;
 	std::vector<std::pair<std::string, real>> outflow;
 	std::string mesh_name;
+	std::vector<std::int8_t> roche;
+	std::string roche_name;
 	std::vector<std::vector<real>> X;
 	std::array<int, NDIM> X_dims;
 	std::array<int, NDIM> var_dims;
@@ -156,6 +158,9 @@ struct mesh_vars_t {
 			}
 		}
 		mesh_name = std::to_string(loc.to_id());
+		if( opts().problem == DWD) {
+			roche.resize(var_dims[0] * var_dims[1] * var_dims[2]);
+		}
 	}
 };
 
@@ -175,8 +180,13 @@ void output_stage1(std::string fname, int cycle) {
 				const real dx = TWO / real(1 << loc.level()) / real(INX);
 				mesh_vars_t rc(loc);
 				const std::string suffix = std::to_string(loc.to_id());
-				rc.vars = std::move(this_ptr->get_hydro_grid().var_data(suffix));
-				rc.outflow = std::move(this_ptr->get_hydro_grid().get_outflows());
+				const grid& gridref = this_ptr->get_hydro_grid();
+				rc.vars = gridref.var_data(suffix);
+				rc.outflow = gridref.get_outflows();
+				if( opts().problem==DWD ) {
+					rc.roche = gridref.get_roche_lobe();
+					rc.roche_name = std::string("roche_geometry_") + suffix;
+				}
 				return std::move(rc);
 			}, i->first, i->second));
 		}
@@ -245,10 +255,31 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 								}
 							}
 						}
-						node_location nl;
-						nl.from_id(iters[ci]->first);
 					}
 					new_mesh_ptr->vars.push_back(std::move(new_var));
+				}
+				if (opts().problem == DWD) {
+					const int nx = new_mesh_ptr->var_dims[0] / 2;
+					std::vector<std::int8_t> roche(8*nx*nx*nx);
+					for (integer ci = 0; ci != NCHILD; ci++) {
+						const int ib = ((ci >> 0) & 1) * nx;
+						const int jb = ((ci >> 1) & 1) * nx;
+						const int kb = ((ci >> 2) & 1) * nx;
+						const int ie = ib + nx;
+						const int je = jb + nx;
+						const int ke = kb + nx;
+						for (int i = ib; i < ie; i++) {
+							for (int j = jb; j < je; j++) {
+								for (int k = kb; k < ke; k++) {
+									const int iiip = i * (4 * nx * nx) + j * 2 * nx + k;
+									const int iiic = (i - ib) * (nx * nx) + (j - jb) * nx + (k - kb);
+									roche[iiip] = iters[ci]->second->roche[iiic];
+								}
+							}
+						}
+					}
+					new_mesh_ptr->roche_name = std::string("roche_geometry_") + std::to_string(new_mesh_ptr->location.to_id());
+					new_mesh_ptr->roche = std::move(roche);
 				}
 				for (auto this_iter : iters) {
 					table.erase(this_iter);
@@ -325,7 +356,6 @@ void output_stage3(std::string fname, int cycle) {
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
 				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-				DBAddOption(optlist, DBOPT_XUNITS, cgs);
 				char xstr[2] = {'x', '\0'};
 				char ystr[2] = {'y', '\0'};
 				char zstr[2] = {'z', '\0'};
@@ -354,16 +384,29 @@ void output_stage3(std::string fname, int cycle) {
 							DBClearOption(optlist, DBOPT_DTIME);
 						}
 						const bool is_hydro = grid::is_hydro_field(o.name());
-						DBAddOption(optlist, DBOPT_DTIME, &outflow);
-						if( is_hydro ) {
-							DBAddOption(optlist, DBOPT_CONSERVED, &one);
-						}
+				//		DBAddOption(optlist, DBOPT_DTIME, &outflow);
+				//		std::string units;
+				//		if( is_hydro ) {
+				//			DBAddOption(optlist, DBOPT_CONSERVED, &one);
+				//			units = grid::hydro_units_name(o.name());
+				//		} else {
+				//			units = grid::gravity_units_name(o.name());
+				//		}
+				//		char tmp[64];
+				//		std::strcpy(tmp,units.c_str());
+				//		DBAddOption(optlist, DBOPT_XUNITS, tmp);
 						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_DOUBLE, DB_ZONECENT, optlist);
+//						DBClearOption(optlist, DBOPT_XUNITS);
 						count++;
 						if( is_hydro ) {
 							DBClearOption(optlist, DBOPT_CONSERVED);
 						}
+					}
+					if( opts().problem==DWD) {
+						auto this_name = mesh_vars.roche_name;
+						DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+								DB_CHAR, DB_ZONECENT, optlist);
 					}
 				}
 				DBFreeOptlist( optlist);
@@ -385,6 +428,9 @@ void output_stage3(std::string fname, int cycle) {
 					std::vector<node_location> node_locs;
 					std::vector<char*> mesh_names;
 					std::vector<std::vector<char*>> field_names(nfields);
+
+					std::vector<char*> roche_names;
+
 					for (auto& i : node_list_.silo_leaves) {
 						node_location nloc;
 						nloc.from_id(i);
@@ -393,7 +439,8 @@ void output_stage3(std::string fname, int cycle) {
 					const auto top_field_names = grid::get_field_names();
 					for (int i = 0; i < node_locs.size(); i++) {
 						const auto suffix = std::to_string(node_locs[i].to_id());
-						const auto str = suffix; char* ptr = new char[str.size() + 1];
+						const auto str = suffix;
+						char* ptr = new char[str.size() + 1];
 						std::strcpy(ptr, str.c_str());
 						mesh_names.push_back(ptr);
 						for (int f = 0; f < nfields; f++) {
@@ -402,11 +449,18 @@ void output_stage3(std::string fname, int cycle) {
 							strcpy(ptr, str.c_str());
 							field_names[f].push_back(ptr);
 						}
+						if( opts().problem == DWD ) {
+							const auto str = std::string("roche_geometry_") + suffix;
+							char* ptr = new char[str.size() + 1];
+							strcpy(ptr, str.c_str());
+							roche_names.push_back(ptr);
+						}
+
 					}
 
 					const int n_total_domains = mesh_names.size();
 
-					auto optlist = DBMakeOptlist(8);
+					auto optlist = DBMakeOptlist(9);
 					int opt1 = DB_CARTESIAN;
 					int mesh_type = DB_QUADMESH;
 					char cgs[5];
@@ -415,7 +469,7 @@ void output_stage3(std::string fname, int cycle) {
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
-			//		DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
+					DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
 					DBAddOption(optlist, DBOPT_XUNITS, cgs);
 					char xstr[2] = {'x', '\0'};
 					char ystr[2] = {'y', '\0'};
@@ -425,12 +479,12 @@ void output_stage3(std::string fname, int cycle) {
 					DBAddOption(optlist, DBOPT_ZLABEL, zstr );
 					assert( n_total_domains > 0 );
 					printf( "Putting %i\n", n_total_domains );
-					DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), std::vector<int>(n_total_domains,mesh_type).data(), optlist);
+					DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
 					for (int f = 0; f < nfields; f++) {
 						DBPutMultivar( db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
-					//	for( int i = 0; i < field_names[f].size(); i++) {
-					//		printf( "%s\n", field_names[f][i]);
-					//	}
+					}
+					if( opts().problem == DWD ) {
+						DBPutMultivar( db, "roche_geometry", n_total_domains, roche_names.data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
 					}
 					write_silo_var<integer> fi;
 					write_silo_var<real> fr;
@@ -541,6 +595,11 @@ void output_stage3(std::string fname, int cycle) {
 					DBClose( db);
 					for (auto ptr : mesh_names) {
 						delete[] ptr;
+					}
+					if( opts().problem == DWD ) {
+						for (auto ptr : roche_names) {
+							delete[] ptr;
+						}
 					}
 					for (int f = 0; f < nfields; f++) {
 						for (auto& s : field_names[f]) {

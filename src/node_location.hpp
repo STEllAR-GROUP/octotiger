@@ -67,8 +67,8 @@ public:
 	bool has_neighbor(const geo::direction dir) const;
 	node_location get_neighbor(const geo::direction dir) const;
 	bool is_child_of(const node_location& other) const;
-	bool neighbors_with( const node_location& ) const;
-	range_type abs_range() const;
+//	bool neighbors_with( const node_location& ) const;
+//	range_type abs_range() const;
 };
 
 namespace hpx { namespace traits

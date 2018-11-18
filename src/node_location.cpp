@@ -19,7 +19,7 @@
 #include "node_client.hpp"
 
 
-
+/*
 range_type intersection(const range_type& r1, const range_type& r2) {
 	range_type ri;
 	for (int d = 0; d < NDIM; d++) {
@@ -89,7 +89,7 @@ bool node_location::neighbors_with( const node_location& n ) const {
 	return rc;
 }
 
-
+*/
 
 node_location::node_id node_location::to_id() const {
 	node_id id = 1;

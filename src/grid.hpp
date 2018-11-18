@@ -109,7 +109,7 @@ private:
 	static real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 
-	std::vector<real> roche_lobe;
+	std::vector<std::int8_t> roche_lobe;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
@@ -143,6 +143,9 @@ private:
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
 			const gravity_boundary_type&);
 public:
+	static std::string hydro_units_name(const std::string&);
+	static std::string gravity_units_name(const std::string&);
+	std::vector<std::int8_t> get_roche_lobe() const;
 	void rho_from_species();
 	static bool is_hydro_field(const std::string&);
 	static std::vector<std::string> get_field_names();
