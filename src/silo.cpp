@@ -168,7 +168,7 @@ void output_stage1(std::string fname, int cycle) {
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
 	const auto* node_ptr_ = node_registry::begin()->second.get_ptr().get();
-	output_time = node_ptr_->get_time() / opts().code_to_s;
+	output_time = node_ptr_->get_time() * opts().code_to_s;
 	output_rotation_count = node_ptr_->get_rotation_count();
 	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
 		const auto* node_ptr_ = i->second.get_ptr().get();
