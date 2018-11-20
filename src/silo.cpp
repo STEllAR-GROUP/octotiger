@@ -419,7 +419,7 @@ void output_stage3(std::string fname, int cycle) {
 
 	double rtime = output_rotation_count;
 	if (this_id == 0) {
-
+        return;
 		hpx::threads::run_as_os_thread(
 				[&this_fname,nfields,&rtime](int cycle) {
 					auto* db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
@@ -617,7 +617,7 @@ void output_all(std::string fname, int cycle, bool block) {
 
 //	block = true;
 
-	/*static*/ hpx::future<void> barrier(hpx::make_ready_future<void>());
+	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
 	nsteps = node_registry::begin()->second.get_ptr().get()->get_step_num();
 	timestamp = time(NULL);
@@ -650,8 +650,7 @@ void output_all(std::string fname, int cycle, bool block) {
 			node_list_.positions.push_back(i);
 		}
 	}
-    return;
-	barrier = hpx::async([cycle,&fname]() {
+    barrier = hpx::async([cycle,&fname]() {
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
 	});
 
