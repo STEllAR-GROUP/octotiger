@@ -611,6 +611,7 @@ void output_stage3(std::string fname, int cycle) {
 }
 
 void output_all(std::string fname, int cycle, bool block) {
+    return;
 //	block = true;
 //	static hpx::lcos::local::spinlock mtx;
 //	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
