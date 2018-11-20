@@ -617,7 +617,7 @@ void output_all(std::string fname, int cycle, bool block) {
 
 //	block = true;
 
-	static hpx::future<void> barrier(hpx::make_ready_future<void>());
+	/*static*/ hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
 	nsteps = node_registry::begin()->second.get_ptr().get()->get_step_num();
 	timestamp = time(NULL);
