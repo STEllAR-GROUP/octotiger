@@ -384,17 +384,10 @@ void output_stage3(std::string fname, int cycle) {
 							DBClearOption(optlist, DBOPT_DTIME);
 						}
 						const bool is_hydro = grid::is_hydro_field(o.name());
-				//		DBAddOption(optlist, DBOPT_DTIME, &outflow);
-				//		std::string units;
-				//		if( is_hydro ) {
-				//			DBAddOption(optlist, DBOPT_CONSERVED, &one);
-				//			units = grid::hydro_units_name(o.name());
-				//		} else {
-				//			units = grid::gravity_units_name(o.name());
-				//		}
-				//		char tmp[64];
-				//		std::strcpy(tmp,units.c_str());
-				//		DBAddOption(optlist, DBOPT_XUNITS, tmp);
+						DBAddOption(optlist, DBOPT_DTIME, &outflow);
+						if( is_hydro ) {
+							DBAddOption(optlist, DBOPT_CONSERVED, &one);
+						}
 						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_DOUBLE, DB_ZONECENT, optlist);
 //						DBClearOption(optlist, DBOPT_XUNITS);
