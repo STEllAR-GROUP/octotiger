@@ -611,7 +611,6 @@ void output_stage3(std::string fname, int cycle) {
 }
 
 void output_all(std::string fname, int cycle, bool block) {
-    return;
 //	block = true;
 //	static hpx::lcos::local::spinlock mtx;
 //	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
@@ -631,6 +630,7 @@ void output_all(std::string fname, int cycle, bool block) {
 		futs1.push_back(hpx::async<output_stage1_action>(id, fname, cycle));
 	}
 	GET(hpx::when_all(futs1));
+    return;
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto& id : localities) {
