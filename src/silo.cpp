@@ -630,7 +630,6 @@ void output_all(std::string fname, int cycle, bool block) {
 		futs1.push_back(hpx::async<output_stage1_action>(id, fname, cycle));
 	}
 	GET(hpx::when_all(futs1));
-    return;
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto& id : localities) {
@@ -651,6 +650,7 @@ void output_all(std::string fname, int cycle, bool block) {
 			node_list_.positions.push_back(i);
 		}
 	}
+    return;
 	barrier = hpx::async([cycle,&fname]() {
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
 	});
