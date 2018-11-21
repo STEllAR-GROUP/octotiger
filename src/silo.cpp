@@ -362,7 +362,6 @@ void output_stage3(std::string fname, int cycle) {
 				DBAddOption(optlist, DBOPT_XLABEL, xstr );
 				DBAddOption(optlist, DBOPT_YLABEL, ystr );
 				DBAddOption(optlist, DBOPT_ZLABEL, zstr );
-				bool first_pass = true;
 				const char* coord_names[] = {"x", "y", "z"};
 				constexpr int data_type = DB_DOUBLE;
 				constexpr int ndim = NDIM;
@@ -377,30 +376,18 @@ void output_stage3(std::string fname, int cycle) {
 					DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
 					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
 						const auto& o = mesh_vars.vars[m];
-						real outflow = mesh_vars.outflow[m].second;
-						if( first_pass ) {
-							first_pass = false;
-						} else {
-							DBClearOption(optlist, DBOPT_DTIME);
-						}
 						const bool is_hydro = grid::is_hydro_field(o.name());
-				//		DBAddOption(optlist, DBOPT_DTIME, &outflow);
-				//		std::string units;
-				//		if( is_hydro ) {
-				//			DBAddOption(optlist, DBOPT_CONSERVED, &one);
-				//			units = grid::hydro_units_name(o.name());
-				//		} else {
-				//			units = grid::gravity_units_name(o.name());
-				//		}
-				//		char tmp[64];
-				//		std::strcpy(tmp,units.c_str());
-				//		DBAddOption(optlist, DBOPT_XUNITS, tmp);
+						if( is_hydro ) {
+							real outflow = mesh_vars.outflow[m].second;
+							DBAddOption(optlist, DBOPT_DTIME, &outflow);
+							DBAddOption(optlist, DBOPT_CONSERVED, &one);
+						}
 						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_DOUBLE, DB_ZONECENT, optlist);
-//						DBClearOption(optlist, DBOPT_XUNITS);
 						count++;
 						if( is_hydro ) {
 							DBClearOption(optlist, DBOPT_CONSERVED);
+							DBClearOption(optlist, DBOPT_DTIME);
 						}
 					}
 					if( opts().problem==DWD) {
@@ -419,7 +406,6 @@ void output_stage3(std::string fname, int cycle) {
 
 	double rtime = output_rotation_count;
 	if (this_id == 0) {
-        return;
 		hpx::threads::run_as_os_thread(
 				[&this_fname,nfields,&rtime](int cycle) {
 					auto* db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
