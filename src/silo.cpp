@@ -335,196 +335,378 @@ node_list_t output_stage2(std::string fname, int cycle) {
 }
 
 void output_stage3(std::string fname, int cycle) {
+	printf( "%i\n", __LINE__ );
 	const int this_id = hpx::get_locality_id();
+	printf( "%i\n", __LINE__ );
 	const int nfields = grid::get_field_names().size();
+	printf( "%i\n", __LINE__ );
 	std::string this_fname = fname + std::string(".silo");
+	printf( "%i\n", __LINE__ );
 	double dtime = output_time;
+	printf( "%i\n", __LINE__ );
 	hpx::threads::run_as_os_thread(
 			[&this_fname,this_id,&dtime](integer cycle) {
+		printf( "%i\n", __LINE__ );
 				DBfile *db;
+				printf( "%i\n", __LINE__ );
 				if (this_id == 0) {
+					printf( "%i\n", __LINE__ );
 					db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
+					printf( "%i\n", __LINE__ );
 				} else {
+					printf( "%i\n", __LINE__ );
 					db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
+					printf( "%i\n", __LINE__ );
 				}
+				printf( "%i\n", __LINE__ );
 				float ftime = dtime;
+				printf( "%i\n", __LINE__ );
 				int one = 1;
+				printf( "%i\n", __LINE__ );
 				int opt1 = DB_CARTESIAN;
+				printf( "%i\n", __LINE__ );
 				char cgs[5];
+				printf( "%i\n", __LINE__ );
 				std::strcpy(cgs,"cgs");
+				printf( "%i\n", __LINE__ );
 				auto optlist = DBMakeOptlist(9);
+				printf( "%i\n", __LINE__ );
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
+				printf( "%i\n", __LINE__ );
 				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
+				printf( "%i\n", __LINE__ );
 				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+				printf( "%i\n", __LINE__ );
 				char xstr[2] = {'x', '\0'};
+				printf( "%i\n", __LINE__ );
 				char ystr[2] = {'y', '\0'};
+				printf( "%i\n", __LINE__ );
 				char zstr[2] = {'z', '\0'};
+				printf( "%i\n", __LINE__ );
 				DBAddOption(optlist, DBOPT_XLABEL, xstr );
+				printf( "%i\n", __LINE__ );
 				DBAddOption(optlist, DBOPT_YLABEL, ystr );
+				printf( "%i\n", __LINE__ );
 				DBAddOption(optlist, DBOPT_ZLABEL, zstr );
+				printf( "%i\n", __LINE__ );
 				const char* coord_names[] = {"x", "y", "z"};
+				printf( "%i\n", __LINE__ );
 				constexpr int data_type = DB_DOUBLE;
+				printf( "%i\n", __LINE__ );
 				constexpr int ndim = NDIM;
+				printf( "%i\n", __LINE__ );
 				constexpr int coord_type = DB_COLLINEAR;
+				printf( "%i\n", __LINE__ );
 				int count = 0;
+				printf( "%i\n", __LINE__ );
 				for( const auto& mesh_vars : all_mesh_vars) {
+					printf( "%i\n", __LINE__ );
 					const auto& X = mesh_vars.X;
+					printf( "%i\n", __LINE__ );
 					const real* coords[NDIM];
+					printf( "%i\n", __LINE__ );
 					for( int d = 0; d < NDIM; d++) {
+						printf( "%i\n", __LINE__ );
 						coords[d] = X[d].data();
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 					DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
+					printf( "%i\n", __LINE__ );
 					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
+						printf( "%i\n", __LINE__ );
 						const auto& o = mesh_vars.vars[m];
+						printf( "%i\n", __LINE__ );
 						const bool is_hydro = grid::is_hydro_field(o.name());
+						printf( "%i\n", __LINE__ );
 						if( is_hydro ) {
+							printf( "%i\n", __LINE__ );
 							real outflow = mesh_vars.outflow[m].second;
+							printf( "%i\n", __LINE__ );
 							DBAddOption(optlist, DBOPT_DTIME, &outflow);
+							printf( "%i\n", __LINE__ );
 							DBAddOption(optlist, DBOPT_CONSERVED, &one);
+							printf( "%i\n", __LINE__ );
 						}
+						printf( "%i\n", __LINE__ );
 						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_DOUBLE, DB_ZONECENT, optlist);
+						printf( "%i\n", __LINE__ );
 						count++;
+						printf( "%i\n", __LINE__ );
 						if( is_hydro ) {
+							printf( "%i\n", __LINE__ );
 							DBClearOption(optlist, DBOPT_CONSERVED);
+							printf( "%i\n", __LINE__ );
 							DBClearOption(optlist, DBOPT_DTIME);
+							printf( "%i\n", __LINE__ );
 						}
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 					if( opts().problem==DWD) {
+						printf( "%i\n", __LINE__ );
 						auto this_name = mesh_vars.roche_name;
+						printf( "%i\n", __LINE__ );
 						DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_CHAR, DB_ZONECENT, optlist);
+						printf( "%i\n", __LINE__ );
 					}
 				}
+				printf( "%i\n", __LINE__ );
 				DBFreeOptlist( optlist);
+				printf( "%i\n", __LINE__ );
 				DBClose( db);
+				printf( "%i\n", __LINE__ );
 			}, cycle).get();
+	printf( "%i\n", __LINE__ );
 	if (this_id < integer(localities.size()) - 1) {
+		printf( "%i\n", __LINE__ );
 		output_stage3_action func;
+		printf( "%i\n", __LINE__ );
 		func(localities[this_id + 1], fname, cycle);
+		printf( "%i\n", __LINE__ );
 	}
 
+	printf( "%i\n", __LINE__ );
 	double rtime = output_rotation_count;
+	printf( "%i\n", __LINE__ );
 	if (this_id == 0) {
+		printf( "%i\n", __LINE__ );
 		hpx::threads::run_as_os_thread(
 				[&this_fname,nfields,&rtime](int cycle) {
 					auto* db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
+					printf( "%i\n", __LINE__ );
 					double dtime = output_time;
+					printf( "%i\n", __LINE__ );
 					float ftime = dtime;
+					printf( "%i\n", __LINE__ );
 					std::vector<node_location> node_locs;
+					printf( "%i\n", __LINE__ );
 					std::vector<char*> mesh_names;
+					printf( "%i\n", __LINE__ );
 					std::vector<std::vector<char*>> field_names(nfields);
 
+					printf( "%i\n", __LINE__ );
 					std::vector<char*> roche_names;
+					printf( "%i\n", __LINE__ );
 
 					for (auto& i : node_list_.silo_leaves) {
+						printf( "%i\n", __LINE__ );
 						node_location nloc;
+						printf( "%i\n", __LINE__ );
 						nloc.from_id(i);
+						printf( "%i\n", __LINE__ );
 						node_locs.push_back(nloc);
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 					const auto top_field_names = grid::get_field_names();
+					printf( "%i\n", __LINE__ );
 					for (int i = 0; i < node_locs.size(); i++) {
+						printf( "%i\n", __LINE__ );
 						const auto suffix = std::to_string(node_locs[i].to_id());
+						printf( "%i\n", __LINE__ );
 						const auto str = suffix;
+						printf( "%i\n", __LINE__ );
 						char* ptr = new char[str.size() + 1];
+						printf( "%i\n", __LINE__ );
 						std::strcpy(ptr, str.c_str());
+						printf( "%i\n", __LINE__ );
 						mesh_names.push_back(ptr);
+						printf( "%i\n", __LINE__ );
 						for (int f = 0; f < nfields; f++) {
+							printf( "%i\n", __LINE__ );
 							const auto str = top_field_names[f] + std::string("_") + suffix;
+							printf( "%i\n", __LINE__ );
 							char* ptr = new char[str.size() + 1];
+							printf( "%i\n", __LINE__ );
+							printf( "%i\n", __LINE__ );
 							strcpy(ptr, str.c_str());
+							printf( "%i\n", __LINE__ );
 							field_names[f].push_back(ptr);
+							printf( "%i\n", __LINE__ );
 						}
+						printf( "%i\n", __LINE__ );
 						if( opts().problem == DWD ) {
+							printf( "%i\n", __LINE__ );
 							const auto str = std::string("roche_geometry_") + suffix;
+							printf( "%i\n", __LINE__ );
 							char* ptr = new char[str.size() + 1];
+							printf( "%i\n", __LINE__ );
 							strcpy(ptr, str.c_str());
+							printf( "%i\n", __LINE__ );
 							roche_names.push_back(ptr);
+							printf( "%i\n", __LINE__ );
 						}
+						printf( "%i\n", __LINE__ );
 
 					}
 
+					printf( "%i\n", __LINE__ );
 					const int n_total_domains = mesh_names.size();
+					printf( "%i\n", __LINE__ );
 
+					printf( "%i\n", __LINE__ );
 					auto optlist = DBMakeOptlist(9);
+					printf( "%i\n", __LINE__ );
 					int opt1 = DB_CARTESIAN;
+					printf( "%i\n", __LINE__ );
 					int mesh_type = DB_QUADMESH;
+					printf( "%i\n", __LINE__ );
 					char cgs[5];
+					printf( "%i\n", __LINE__ );
+					printf( "%i\n", __LINE__ );
 					std::strcpy(cgs,"cgs");
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_XUNITS, cgs);
+					printf( "%i\n", __LINE__ );
 					char xstr[2] = {'x', '\0'};
+					printf( "%i\n", __LINE__ );
 					char ystr[2] = {'y', '\0'};
+					printf( "%i\n", __LINE__ );
 					char zstr[2] = {'z', '\0'};
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_XLABEL, xstr );
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_YLABEL, ystr );
+					printf( "%i\n", __LINE__ );
 					DBAddOption(optlist, DBOPT_ZLABEL, zstr );
+					printf( "%i\n", __LINE__ );
 					assert( n_total_domains > 0 );
+					printf( "%i\n", __LINE__ );
 					printf( "Putting %i\n", n_total_domains );
+					printf( "%i\n", __LINE__ );
 					DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
+					printf( "%i\n", __LINE__ );
 					for (int f = 0; f < nfields; f++) {
+						printf( "%i\n", __LINE__ );
 						DBPutMultivar( db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 					if( opts().problem == DWD ) {
+						printf( "%i\n", __LINE__ );
 						DBPutMultivar( db, "roche_geometry", n_total_domains, roche_names.data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 					write_silo_var<integer> fi;
+					printf( "%i\n", __LINE__ );
 					write_silo_var<real> fr;
+					printf( "%i\n", __LINE__ );
 					fi(db, "version", SILO_VERSION);
+					printf( "%i\n", __LINE__ );
 					fr(db, "code_to_g", opts().code_to_g);
+					printf( "%i\n", __LINE__ );
 					fr(db, "code_to_s", opts().code_to_s);
+					printf( "%i\n", __LINE__ );
 					fr(db, "code_to_cm", opts().code_to_cm);
+					printf( "%i\n", __LINE__ );
 					fi(db, "n_species", integer(opts().n_species));
+					printf( "%i\n", __LINE__ );
 					fi(db, "eos", integer(opts().eos));
+					printf( "%i\n", __LINE__ );
 					fi(db, "gravity", integer(opts().gravity));
+					printf( "%i\n", __LINE__ );
 					fi(db, "hydro", integer(opts().hydro));
+					printf( "%i\n", __LINE__ );
 					fr(db, "omega", grid::get_omega() / opts().code_to_s);
+					printf( "%i\n", __LINE__ );
 					fr(db, "output_frequency", opts().output_dt);
+					printf( "%i\n", __LINE__ );
 					fi(db, "problem", integer(opts().problem));
+					printf( "%i\n", __LINE__ );
 					fi(db, "radiation", integer(opts().radiation));
+					printf( "%i\n", __LINE__ );
 					fr(db, "refinement_floor", opts().refinement_floor);
+					printf( "%i\n", __LINE__ );
 					fr(db, "cgs_time", dtime);
+					printf( "%i\n", __LINE__ );
 					fr(db, "rotational_time", rtime);
+					printf( "%i\n", __LINE__ );
 					fr(db, "xscale", opts().xscale); char hostname[HOST_NAME_LEN];
+					printf( "%i\n", __LINE__ );
 					gethostname(hostname, HOST_NAME_LEN);
+					printf( "%i\n", __LINE__ );
 					DBWrite( db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
+					printf( "%i\n", __LINE__ );
 					int nnodes = node_list_.all.size();
+					printf( "%i\n", __LINE__ );
 					DBWrite( db, "node_list", node_list_.all.data(), &nnodes, 1, DB_LONG_LONG);
+					printf( "%i\n", __LINE__ );
 					DBWrite( db, "node_positions", node_list_.positions.data(), &nnodes, 1, db_type<integer>::d);
+					printf( "%i\n", __LINE__ );
 					int nspc = opts().n_species;
+					printf( "%i\n", __LINE__ );
 					DBWrite( db, "X", opts().X.data(), &nspc, 1, db_type<real>::d);
+					printf( "%i\n", __LINE__ );
 					DBWrite( db, "Z", opts().Z.data(), &nspc, 1, db_type<real>::d);
+					printf( "%i\n", __LINE__ );
 					DBWrite( db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<real>::d);
+					printf( "%i\n", __LINE__ );
 					DBWrite( db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
+					printf( "%i\n", __LINE__ );
 					fi(db, "node_count", integer(nnodes));
+					printf( "%i\n", __LINE__ );
 					write_silo_var<integer>()(db, "timestamp", timestamp);
+					printf( "%i\n", __LINE__ );
 					write_silo_var<integer>()(db, "epoch", epoch);
+					printf( "%i\n", __LINE__ );
 					write_silo_var<integer>()(db, "N_localities", localities.size());
+					printf( "%i\n", __LINE__ );
 					write_silo_var<integer>()(db, "step_count", nsteps);
+					printf( "%i\n", __LINE__ );
 					write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
+					printf( "%i\n", __LINE__ );
 					write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
+					printf( "%i\n", __LINE__ );
 
+					printf( "%i\n", __LINE__ );
 					DBFreeOptlist( optlist);
+					printf( "%i\n", __LINE__ );
 					DBClose( db);
+					printf( "%i\n", __LINE__ );
 					for (auto ptr : mesh_names) {
+						printf( "%i\n", __LINE__ );
 						delete[] ptr;
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 					if( opts().problem == DWD ) {
+						printf( "%i\n", __LINE__ );
 						for (auto ptr : roche_names) {
+							printf( "%i\n", __LINE__ );
 							delete[] ptr;
+							printf( "%i\n", __LINE__ );
 						}
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 					for (int f = 0; f < nfields; f++) {
+						printf( "%i\n", __LINE__ );
 						for (auto& s : field_names[f]) {
+							printf( "%i\n", __LINE__ );
 							delete[] s;
+							printf( "%i\n", __LINE__ );
 						}
+						printf( "%i\n", __LINE__ );
 					}
+					printf( "%i\n", __LINE__ );
 				}, cycle).get();
+		printf( "%i\n", __LINE__ );
 	}
+	printf( "%i\n", __LINE__ );
 }
 
 void output_all(std::string fname, int cycle, bool block) {
