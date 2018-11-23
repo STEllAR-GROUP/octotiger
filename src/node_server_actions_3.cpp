@@ -280,7 +280,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 	integer step_num = 0;
 
 	output_cnt = root_ptr->get_rotation_count() / output_dt;
-
+	printf( "%e %e\n", root_ptr->get_rotation_count(), output_dt );
 	profiler_output(stdout);
 
 	real bench_start, bench_stop;

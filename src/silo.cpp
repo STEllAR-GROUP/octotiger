@@ -487,7 +487,8 @@ void output_stage3(std::string fname, int cycle) {
 					fi(db, "problem", integer(opts().problem));
 					fi(db, "radiation", integer(opts().radiation));
 					fr(db, "refinement_floor", opts().refinement_floor);
-					fr(db, "time", dtime); fr(db, "rotational_time", rtime);
+					fr(db, "cgs_time", dtime);
+					fr(db, "rotational_time", rtime);
 					fr(db, "xscale", opts().xscale); char hostname[HOST_NAME_LEN];
 					gethostname(hostname, HOST_NAME_LEN);
 					DBWrite( db, "hostname", hostname, &HOST_NAME_LEN, 1, DB_CHAR);
@@ -507,76 +508,6 @@ void output_stage3(std::string fname, int cycle) {
 					write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
 					write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
 
-/*
-					// mesh adjacency information
-					int nleaves = node_locs.size();
-					std::vector<int> neighbor_count(nleaves,0);
-					std::vector<std::vector<int>> neighbor_lists(nleaves);
-					std::vector<std::vector<int>> back_lists(nleaves);
-					std::vector<int> linear_neighbor_list;
-					std::vector<int> linear_back_list;
-					std::vector<std::vector<int*>> connections(nleaves);
-					std::vector<int*> linear_connections;
-					std::vector<std::vector<int>> tmp;
-					for( int n = 0; n < nleaves; n++) {
-						for( int m = n+1; m < nleaves; m++) {
-							range_type rn, rm, i;
-							rn = node_locs[n].abs_range();
-							rm = node_locs[m].abs_range();
-							i = intersection(rn,rm);
-							if( i[0].first != -1 ) {
-								neighbor_count[n]++;
-								neighbor_count[m]++;
-								back_lists[m].push_back(neighbor_lists[n].size());
-								back_lists[n].push_back(neighbor_lists[m].size());
-								neighbor_lists[m].push_back(n);//
-								neighbor_lists[n].push_back(m);
-								std::vector<int> adj1(15);
-								std::vector<int> adj2(15);
-								for( int d = 0; d < NDIM; d++) {
-									int d0 = NDIM - d - 1;
-									adj1[2*d+0] = rn[d].first;
-									adj1[2*d+1] = rn[d].second;
-									adj1[2*d+6] = i[d].first;
-									adj1[2*d+7] = i[d].second;
-									adj1[12+d] = d + 1;
-
-									adj2[2*d+0] = rm[d].first;
-									adj2[2*d+1] = rm[d].second;
-									adj2[2*d+6] = i[d].first;
-									adj2[2*d+7] = i[d].second;
-									adj2[12+d] = d + 1;
-
-								}
-								tmp.push_back(std::move(adj1));
-								tmp.push_back(std::move(adj2));
-								connections[n].push_back(tmp[tmp.size()-2].data());
-								connections[m].push_back(tmp[tmp.size()-1].data());
-							}
-						}
-					}
-					for( int n = 0; n < nleaves; n++) {
-				//		printf( "Neighbor Count = %i\n", neighbor_count[n]);
-						for( int m = 0; m < neighbor_count[n]; m++ )  {
-							linear_neighbor_list.push_back(neighbor_lists[n][m]);
-							linear_back_list.push_back(back_lists[n][m]);
-							linear_connections.push_back(connections[n][m]);
-//							printf( "				Neighbor = %i\n", neighbor_lists[n][m]);
-	//						printf( "				Back = %i\n                    " , back_lists[n][m]);
-							for( int i = 0; i < 15; i++) {
-		//								printf( " %3i ", connections[n][m][i]);
-							}
-			//				printf( "\n");
-						}
-					}
-					std::vector<int> fifteen(linear_connections.size(),15);
-					std::vector<int> mesh_types(nleaves,mesh_type);
-					DBMkDir(db,"Decomposition");
-					DBSetDir(db,"Decomposition");
-					int one = 1;
-					DBPutMultimeshadj(db, "Domain_Decomposition", nleaves, mesh_types.data(),
-							neighbor_count.data(),linear_neighbor_list.data(), linear_back_list.data(),fifteen.data(),linear_connections.data(),NULL,NULL,NULL);
-					DBWrite(db, "NumDomains", &nleaves, &one, 1, DB_INT);*/
 					DBFreeOptlist( optlist);
 					DBClose( db);
 					for (auto ptr : mesh_names) {
@@ -597,11 +528,6 @@ void output_stage3(std::string fname, int cycle) {
 }
 
 void output_all(std::string fname, int cycle, bool block) {
-//	block = true;
-//	static hpx::lcos::local::spinlock mtx;
-//	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
-
-//	block = true;
 
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
@@ -716,15 +642,18 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 
 void load_open(std::string fname, dir_map_type map) {
 	printf( "LOAD OPENED on proc %i\n", hpx::get_locality_id());
+	load_options_from_silo(fname, db_); /**/
 	hpx::threads::run_as_os_thread([&]() {
 		db_ = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ);
+		read_silo_var<real> rr;
+		output_time = rr(db_, "cgs_time"); /**/
+		output_rotation_count = 2 * M_PI * rr(db_, "rotational_time"); /**/
+		printf( "rotational_time = %e\n", output_rotation_count);
+		output_time /= opts().code_to_s;
+		node_dir_ = std::move(map);
+		printf( "%e\n", output_time );
+//		sleep(100);
 	}).get();
-	read_silo_var<real> rr;
-	output_time = rr(db_, "time"); /**/
-	output_rotation_count = rr(db_, "rotational_time"); /**/
-	load_options_from_silo(fname, db_); /**/
-	output_time /= opts().code_to_s;
-	node_dir_ = std::move(map);
 }
 
 void load_close() {
@@ -775,22 +704,6 @@ node_server::node_server(const node_location& loc) :
 			static std::mutex mtx;
 			std::lock_guard<std::mutex> lock(mtx);
 			const std::string suffix = std::to_string(loc.to_id());
-	/*	{
-			auto mesh = DBGetQuadmesh(db_,suffix.c_str());
-			FILE* fp = fopen( "test.dat", "at");
-			std::mutex mtx_;
-			std::lock_guard<std::mutex> lock(mtx_);
-			for( int i = 0; i <= mesh->dims[0]; i++) {
-				for( int j = 0; j <= mesh->dims[1]; j++) {
-					for( int k = 0; k <= mesh->dims[2]; k++) {
-						fprintf( fp, "%e %e %e\n", ((real*)mesh->coords[0])[i], ((real*)mesh->coords[1])[j], ((real*)mesh->coords[2])[k]);
-					}
-				}
-			}
-			fclose(fp);
-			DBFreeQuadmesh(mesh);
-		}*/
-
 			for( int f = 0; f != hydro_names.size(); f++) {
 				const auto this_name = hydro_names[f] + std::string( "_") + suffix; /**/
 				auto var = DBGetQuadvar(db_,this_name.c_str());
@@ -810,8 +723,6 @@ node_server::node_server(const node_location& loc) :
 				grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
 				grid_ptr->set_outflow(std::move(load.outflows[f]));
 			}
-			current_time = output_time;
-			rotational_time = output_rotation_count;
 			grid_ptr->rho_from_species();
 		} else {
 			is_refined = true;
@@ -823,6 +734,8 @@ node_server::node_server(const node_location& loc) :
 			}
 		}
 	}
+	current_time = output_time;
+	rotational_time = output_rotation_count;
 }
 
 node_server::node_server(const node_location& loc, silo_load_t load) :
@@ -839,8 +752,6 @@ node_server::node_server(const node_location& loc, silo_load_t load) :
 			grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
 			grid_ptr->set_outflow(std::move(load.outflows[f]));
 		}
-		current_time = output_time;
-		rotational_time = output_rotation_count;
 		grid_ptr->rho_from_species();
 	} else {
 		is_refined = true;
@@ -851,6 +762,8 @@ node_server::node_server(const node_location& loc, silo_load_t load) :
 			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc, child_loads[ci]);
 		}
 	}
+	current_time = output_time;
+	rotational_time = output_rotation_count;
 	assert(nc == 0 || nc == NCHILD);
 }
 
@@ -895,12 +808,6 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 			printf( "Sending LOAD OPEN to %i\n", i);
 			futs.push_back(hpx::async<load_open_action>(opts().all_localities[i], fname, this_dir));
 		}
-
-		for (const auto& entry : this_dir) {
-			printf("%s %i %i %i\n", node_location(entry.first).to_str().c_str(), entry.second.position,
-					entry.second.locality_id, entry.second.load);
-		}
-
 		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));
 		for (auto& f : futs) {
 			GET(f);
@@ -910,7 +817,6 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		throw;
 	}
 	root_ptr->reconstruct_tree();
-//	root_ptr->form_tree(root);
 	node_registry::clear();
 	futs.clear();
 	for (int i = 0; i < nprocs; i++) {
@@ -928,6 +834,8 @@ void node_server::reconstruct_tree() {
 		auto iter = node_dir_.find(cloc.to_id());
 		children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc).get();
 	}
+	current_time = output_time;
+	rotational_time = output_rotation_count;
 }
 
 silo_var_t::silo_var_t(const std::string& name, std::size_t nx) :
