@@ -181,11 +181,11 @@ void output_stage1(std::string fname, int cycle) {
 				mesh_vars_t rc(loc);
 				const std::string suffix = std::to_string(loc.to_id());
 				const grid& gridref = this_ptr->get_hydro_grid();
-				rc.vars = gridref.var_data(suffix);
+				rc.vars = gridref.var_data();
 				rc.outflow = gridref.get_outflows();
 				if( opts().problem==DWD ) {
 					rc.roche = gridref.get_roche_lobe();
-					rc.roche_name = std::string("roche_geometry_") + suffix;
+					rc.roche_name = std::string("roche_geometry");
 				}
 				return std::move(rc);
 			}, i->first, i->second));
@@ -234,7 +234,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 					if (is_hydro) {
 						new_mesh_ptr->outflow.push_back(std::make_pair(field_names[f], 0.0));
 					}
-					silo_var_t new_var(field_names[f] + "_" + std::to_string(ploc.to_id()), new_mesh_ptr->var_dims[0]);
+					silo_var_t new_var(field_names[f], new_mesh_ptr->var_dims[0]);
 					for (integer ci = 0; ci != NCHILD; ci++) {
 						if (is_hydro) {
 							new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
@@ -373,7 +373,10 @@ void output_stage3(std::string fname, int cycle) {
 					for( int d = 0; d < NDIM; d++) {
 						coords[d] = X[d].data();
 					}
-					DBPutQuadmesh(db, mesh_vars.mesh_name.c_str(), coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
+					const auto& dir_name = mesh_vars.mesh_name.c_str();
+					DBMkDir(db, dir_name);
+					DBSetDir( db, dir_name );
+					DBPutQuadmesh(db, "quadmesh", coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
 					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
 						const auto& o = mesh_vars.vars[m];
 						const bool is_hydro = grid::is_hydro_field(o.name());
@@ -382,7 +385,7 @@ void output_stage3(std::string fname, int cycle) {
 							DBAddOption(optlist, DBOPT_DTIME, &outflow);
 							DBAddOption(optlist, DBOPT_CONSERVED, &one);
 						}
-						DBPutQuadvar1(db, o.name(), mesh_vars.mesh_name.c_str(), o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+						DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_DOUBLE, DB_ZONECENT, optlist);
 						count++;
 						if( is_hydro ) {
@@ -395,6 +398,7 @@ void output_stage3(std::string fname, int cycle) {
 						DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_CHAR, DB_ZONECENT, optlist);
 					}
+					DBSetDir( db, "/" );
 				}
 				DBFreeOptlist( optlist);
 				DBClose( db);
@@ -425,18 +429,18 @@ void output_stage3(std::string fname, int cycle) {
 					const auto top_field_names = grid::get_field_names();
 					for (int i = 0; i < node_locs.size(); i++) {
 						const auto suffix = std::to_string(node_locs[i].to_id());
-						const auto str = suffix;
+						const auto str = "/" + suffix + "/quadmesh";
 						char* ptr = new char[str.size() + 1];
 						std::strcpy(ptr, str.c_str());
 						mesh_names.push_back(ptr);
 						for (int f = 0; f < nfields; f++) {
-							const auto str = top_field_names[f] + std::string("_") + suffix;
+							const auto str = "/" + suffix + "/" + top_field_names[f];
 							char* ptr = new char[str.size() + 1];
 							strcpy(ptr, str.c_str());
 							field_names[f].push_back(ptr);
 						}
 						if( opts().problem == DWD ) {
-							const auto str = std::string("roche_geometry_") + suffix;
+							const auto str = "/" + suffix + std::string("/roche_geometry");
 							char* ptr = new char[str.size() + 1];
 							strcpy(ptr, str.c_str());
 							roche_names.push_back(ptr);
@@ -596,7 +600,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 					read_silo_var<real> rr;
 					integer version = ri( db, "version");
 					if( version > SILO_VERSION) {
-						printf( "Warning !!!!!!!!!!! Attempted to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", version, SILO_VERSION);
+						printf( "WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
 					}
 					opts().code_to_g = rr(db, "code_to_g");
 					opts().code_to_s = rr(db, "code_to_s");
@@ -705,9 +709,8 @@ node_server::node_server(const node_location& loc) :
 			std::lock_guard<std::mutex> lock(mtx);
 			const std::string suffix = std::to_string(loc.to_id());
 			for( int f = 0; f != hydro_names.size(); f++) {
-				const auto this_name = hydro_names[f] + std::string( "_") + suffix; /**/
+				const auto this_name = std::string( "/") + suffix + std::string( "/") + hydro_names[f]; /**/
 				auto var = DBGetQuadvar(db_,this_name.c_str());
-
 				load.nx = var->dims[0];
 				const int nvar = load.nx * load.nx * load.nx;
 				load.outflows[f].first = load.vars[f].first = hydro_names[f];
@@ -794,7 +797,9 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		GET(hpx::threads::run_as_os_thread(DBClose, db));
 		std::set<node_location::node_id> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
-			load_locs.insert(std::stoi(master_mesh->meshnames[i]));
+			const int num = std::atoi(master_mesh->meshnames[i] + 1);
+			printf( "%i\n", num);
+			load_locs.insert(num);
 		}
 		for (int i = 0; i < node_list.size(); i++) {
 			node_entry_t entry;

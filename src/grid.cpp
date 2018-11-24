@@ -207,7 +207,7 @@ std::string grid::gravity_units_name(const std::string& nm) {
 	}
 }
 
-std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
+std::vector<silo_var_t> grid::var_data() const {
 	std::vector<silo_var_t> s;
 	real unit;
 	if (opts().hydro) {
@@ -215,9 +215,6 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 			unit = convert_hydro_units(l.second);
 			const int f = l.second;
 			std::string this_name = l.first;
-			if (suffix.size()) {
-				this_name += std::string("_") + suffix;
-			}
 			int jjj = 0;
 			silo_var_t this_s(this_name);
 			for (int i = 0; i < INX; i++) {
@@ -241,9 +238,6 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 			unit = convert_gravity_units(l.second);
 			const int f = l.second;
 			std::string this_name = l.first;
-			if (suffix.size()) {
-				this_name += std::string("_") + suffix;
-			}
 			int jjj = 0;
 			silo_var_t this_s(this_name);
 			for (int i = 0; i < INX; i++) {
@@ -264,7 +258,7 @@ std::vector<silo_var_t> grid::var_data(const std::string suffix) const {
 		}
 	}
 	if (opts().radiation) {
-		auto rad = rad_grid_ptr->var_data(suffix);
+		auto rad = rad_grid_ptr->var_data();
 		std::move(rad.begin(), rad.end(), s.end());
 	}
 	return std::move(s);

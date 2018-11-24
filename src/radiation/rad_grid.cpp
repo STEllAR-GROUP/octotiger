@@ -57,14 +57,11 @@ void rad_grid::set(const std::string name, real* data) {
 
 }
 
-std::vector<silo_var_t> rad_grid::var_data(const std::string suffix) const {
+std::vector<silo_var_t> rad_grid::var_data() const {
 	std::vector<silo_var_t> s;
 	for (auto l : str_to_index) {
 		const int f = l.second;
 		std::string this_name = l.first;
-		if (suffix.size()) {
-			this_name += std::string("_") + suffix;
-		}
 		int jjj = 0;
 		silo_var_t this_s(this_name);
 		for (int i = 0; i < INX; i++) {

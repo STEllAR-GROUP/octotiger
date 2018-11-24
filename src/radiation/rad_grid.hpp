@@ -50,7 +50,7 @@ public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
 	void set(const std::string name, real* data);
-	std::vector<silo_var_t> var_data(const std::string suffix) const;
+	std::vector<silo_var_t> var_data() const;
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
 	void store();

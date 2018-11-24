@@ -334,7 +334,7 @@ public:
 	;
 	std::pair<real, real> virial() const;
 
-	std::vector<silo_var_t> var_data(const std::string suffix = std::string()) const;
+	std::vector<silo_var_t> var_data() const;
 	void set(const std::string name, real* data);
 	friend class node_server;
 };
