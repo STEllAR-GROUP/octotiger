@@ -513,9 +513,11 @@ void output_stage3(std::string fname, int cycle) {
 					DBWrite( db, "atomic_mass", opts().atomic_mass.data(), &nspc, 1, db_type<real>::d);
 					DBWrite( db, "atomic_number", opts().atomic_number.data(), &nspc, 1, db_type<real>::d);
 					fi(db, "node_count", integer(nnodes));
+					fi(db, "leaf_count", integer(node_list_.silo_leaves.size()));
 					write_silo_var<integer>()(db, "timestamp", timestamp);
 					write_silo_var<integer>()(db, "epoch", epoch);
-					write_silo_var<integer>()(db, "N_localities", localities.size());
+					write_silo_var<integer>()(db, "locality_count", localities.size());
+					write_silo_var<integer>()(db, "thread_count", std::thread::hardware_concurrency());
 					write_silo_var<integer>()(db, "step_count", nsteps);
 					write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
 					write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
