@@ -286,7 +286,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 							}
 						}
 					}
-					new_mesh_ptr->roche_name = std::string("roche_geometry_") + oct_to_str(new_mesh_ptr->location.to_id());
+					new_mesh_ptr->roche_name = std::string("roche_geometry");
 					new_mesh_ptr->roche = std::move(roche);
 				}
 				for (auto this_iter : iters) {
@@ -807,8 +807,8 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		GET(hpx::threads::run_as_os_thread(DBClose, db));
 		std::set<node_location::node_id> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
-			const int num = std::atoi(master_mesh->meshnames[i] + 1);
-			printf( "%i\n", num);
+			const int num = std::strtol(master_mesh->meshnames[i] + 1, nullptr, 8);
+			printf("%i\n", num);
 			load_locs.insert(num);
 		}
 		for (int i = 0; i < node_list.size(); i++) {
