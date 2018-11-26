@@ -70,18 +70,23 @@ namespace fmm {
             // Todo: Remove slots
             size_t cur_slot = 0;
 
-            // Create necessary data
+            // Create necessary data and add padding
             const two_phase_stencil stencil = multipole_interactions::calculate_stencil();
-            const std::vector<std::array<real, 4>> four_constants =
-                monopole_interactions::calculate_stencil().second;
+            auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
+            p2p_stencil_pair.first.resize(P2P_PADDED_STENCIL_SIZE, p2p_stencil_pair.first[0]); // Padding
+            std::array<real, 4> default_four = {0.0, 0.0, 0.0, 0.0};
+            p2p_stencil_pair.second.resize(P2P_PADDED_STENCIL_SIZE, default_four); // Padding
+            auto four_constants = p2p_stencil_pair.second;
             std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
-            std::unique_ptr<real[]> four_tmp = std::make_unique<real[]>(4 * STENCIL_SIZE);
+            std::unique_ptr<real[]> four_tmp = std::make_unique<real[]>(4 * P2P_PADDED_STENCIL_SIZE);
             for (auto i = 0; i < STENCIL_SIZE; ++i) {
                 if (stencil.stencil_phase_indicator[i])
                     indicator[i] = 1.0;
                 else
                     indicator[i] = 0.0;
+            }
 
+            for (auto i = 0; i < P2P_PADDED_STENCIL_SIZE; i++) {
                 four_tmp[i * 4 + 0] = four_constants[i][0];
                 four_tmp[i * 4 + 1] = four_constants[i][1];
                 four_tmp[i * 4 + 2] = four_constants[i][2];
@@ -92,9 +97,14 @@ namespace fmm {
             if (worker_id == 0) {
                 for (size_t gpu_id = 0; gpu_id < gpu_count; gpu_id++) {
                     util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
-                    monopole_interactions::copy_stencil_to_p2p_constant_memory(stencil.stencil_elements.data(), stencil_size);
-                    monopole_interactions::copy_constants_to_p2p_constant_memory(four_tmp.get(), four_constants_size);
-                    multipole_interactions::copy_stencil_to_m2m_constant_memory(stencil.stencil_elements.data(), stencil_size);
+                    monopole_interactions::copy_stencil_to_p2p_constant_memory(p2p_stencil_pair.first.data(),
+                                                                               stencil_size);
+                    monopole_interactions::copy_constants_to_p2p_constant_memory(four_tmp.get(),
+                                                                                 four_constants_size);
+                    multipole_interactions::
+                        copy_stencil_to_m2m_constant_memory(stencil.stencil_elements.data(),
+                                                            STENCIL_SIZE *
+                                                            sizeof(octotiger::fmm::multiindex<>));
                     multipole_interactions::copy_indicator_to_m2m_constant_memory(indicator.get(), indicator_size);
                 }
             }

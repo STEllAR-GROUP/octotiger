@@ -5,8 +5,8 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        __constant__ octotiger::fmm::multiindex<> device_stencil_const[STENCIL_SIZE];
-        __constant__ double device_four_constants[STENCIL_SIZE * 4];
+        __constant__ octotiger::fmm::multiindex<> device_stencil_const[P2P_PADDED_STENCIL_SIZE];
+        __constant__ double device_four_constants[P2P_PADDED_STENCIL_SIZE * 4];
         void copy_stencil_to_p2p_constant_memory(const multiindex<> *stencil, const size_t stencil_size) {
             cudaError_t err = cudaMemcpyToSymbol(device_stencil_const, stencil, stencil_size);
             if (err != cudaSuccess) {
@@ -54,7 +54,34 @@ namespace fmm {
 
             const size_t block_offset = blockIdx.x * NUMBER_POT_EXPANSIONS_SMALL;
             const size_t block_start = blockIdx.x * 358;
-            const size_t block_end = 358 + blockIdx.x * 358;
+            size_t block_end = 358 + blockIdx.x * 358;
+
+            // Just for padding test purposes
+            if (blockIdx.x == 2)
+              block_end = P2P_PADDED_STENCIL_SIZE;
+
+
+            // Loop over i = 0 i < STENCIL SIZE i += 129
+
+            // Barrier
+
+            // Phase 1:
+            // - Each workitem loads first and last element
+            // - 128 Workitems -> load 129 interaction partners
+            // - Padding can be done with loading zeros in the four constant
+            // - for the Mutlipoles it would be a better idea to introduce another bit pattern as
+            //   a basic mask
+
+            // Barrier
+
+            // Phase 2: Each workitem works on 129 interactions. It can load the interaction
+            // partner and its flattened/coarse index from the shared memory
+
+            // Loop End
+
+            //
+
+
 
             // calculate interactions between this cell and each stencil element
             for (size_t stencil_index = block_start; stencil_index < block_end;
