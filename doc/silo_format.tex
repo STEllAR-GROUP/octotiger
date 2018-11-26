@@ -1,0 +1,88 @@
+\documentclass{article}
+\usepackage{amsmath}
+
+
+
+\begin{document}
+
+\section{ Field Variables }
+\begin{tabular}{|c|c|c|}
+\hline
+Symbol & SILO variable name & description \\
+\hline
+$\rho_i$ & rho\_1, rho\_2, rho\_3, etc. & ith density fraction. \\
+$s_i$ & sx, sy, sz & inertial frame momentum \\
+$z_i$ & zx, zy, zz & inertial frame spin momentum relative to cell center \\
+$g_i$ & gx, gy, gz & gravitational acceleration \\
+$\phi$ & phi & gravitational acceleration \\
+$E$ & egas & kinetic + internal energy density \\
+$\tau$ & tau & entropy tracer \\
+\hline
+\end{tabular}
+
+\section{ Other Variable}
+
+\begin{tabular}{|c|c|c|}
+\hline
+Symbol & SILO variable name & description \\
+\hline
+$\mu_i$ & A[i-1]  & atomic mass number of ith fraction \\ 
+$Z_i$ & Z[i-1]  & electron number of ith fraction \\ 
+$\Omega$ & omega & rotation frequency of the grid \\
+\hline
+\end{tabular}
+
+
+\section{Derived Expressions}
+
+total mass density
+\begin{equation}
+\
+ := \Sigma_{i=1}^N \rho_i 
+\end{equation}
+
+x - velocity relative to grid
+\begin{equation}
+v_x  := \frac{s_x}{\rho} + y \Omega 
+\end{equation}
+
+y - velocity relative to grid
+\begin{equation}
+v_y  := \frac{s_y}{\rho} - x \Omega 
+\end{equation}
+
+z - velocity relative to grid
+\begin{equation}
+v_z  := \frac{s_z}{\rho} 
+\end{equation}
+
+internal gas energy density
+\begin{equation}
+e    :=  \begin{cases}
+       E - \frac{1}{2} \frac{s^2}{\rho} & \text{if } E - \frac{1}{2} \frac{s^2}{\rho} > 0.001 E \\
+       \tau^\gamma & \text{else} \\
+     \end{cases} 
+\end{equation}
+
+number density of ith fraction (ions + electrons)
+\begin{equation}
+n_i := \frac{\rho_i}{\mu_i m_H} \left ( 1 + Z_i \right ) 
+\end{equation}
+
+total number density
+\begin{equation}
+n := \Sigma_{i=1}^N  
+\end{equation}
+
+temperature
+\begin{equation}
+T := \frac{1}{\gamma-1} \frac{e}{n}
+\end{equation}
+
+pressure
+\begin{equation}
+P := \left(\gamma-1\right) e
+\end{equation}
+
+
+\end{document}
