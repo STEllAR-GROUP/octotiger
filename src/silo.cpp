@@ -19,6 +19,14 @@
 #include <mutex>
 #include "util.hpp"
 
+std::string oct_to_str(int n) {
+	char* ptr;
+	asprintf( &ptr, "%o", n);
+	std::string rc(ptr);
+	free(ptr);
+	return std::move(rc);
+}
+
 struct node_list_t {
 	std::vector<node_location::node_id> silo_leaves;
 	std::vector<node_location::node_id> all;
@@ -157,7 +165,7 @@ struct mesh_vars_t {
 				X[d0][i] = (o + i * dx) * opts().code_to_cm;
 			}
 		}
-		mesh_name = std::to_string(loc.to_id());
+		mesh_name = oct_to_str(loc.to_id());
 		if( opts().problem == DWD) {
 			roche.resize(var_dims[0] * var_dims[1] * var_dims[2]);
 		}
@@ -179,7 +187,7 @@ void output_stage1(std::string fname, int cycle) {
 				assert(this_ptr);
 				const real dx = TWO / real(1 << loc.level()) / real(INX);
 				mesh_vars_t rc(loc);
-				const std::string suffix = std::to_string(loc.to_id());
+				const std::string suffix = oct_to_str(loc.to_id());
 				const grid& gridref = this_ptr->get_hydro_grid();
 				rc.vars = gridref.var_data();
 				rc.outflow = gridref.get_outflows();
@@ -278,7 +286,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 							}
 						}
 					}
-					new_mesh_ptr->roche_name = std::string("roche_geometry_") + std::to_string(new_mesh_ptr->location.to_id());
+					new_mesh_ptr->roche_name = std::string("roche_geometry_") + oct_to_str(new_mesh_ptr->location.to_id());
 					new_mesh_ptr->roche = std::move(roche);
 				}
 				for (auto this_iter : iters) {
@@ -428,7 +436,7 @@ void output_stage3(std::string fname, int cycle) {
 					}
 					const auto top_field_names = grid::get_field_names();
 					for (int i = 0; i < node_locs.size(); i++) {
-						const auto suffix = std::to_string(node_locs[i].to_id());
+						const auto suffix = oct_to_str(node_locs[i].to_id());
 						const auto str = "/" + suffix + "/quadmesh";
 						char* ptr = new char[str.size() + 1];
 						std::strcpy(ptr, str.c_str());
@@ -707,7 +715,7 @@ node_server::node_server(const node_location& loc) :
 		hpx::threads::run_as_os_thread([&]() {
 			static std::mutex mtx;
 			std::lock_guard<std::mutex> lock(mtx);
-			const std::string suffix = std::to_string(loc.to_id());
+			const std::string suffix = oct_to_str(loc.to_id());
 			for( int f = 0; f != hydro_names.size(); f++) {
 				const auto this_name = std::string( "/") + suffix + std::string( "/") + hydro_names[f]; /**/
 				auto var = DBGetQuadvar(db_,this_name.c_str());
