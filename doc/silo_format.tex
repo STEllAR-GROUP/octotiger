@@ -26,8 +26,8 @@ $\tau$ & tau & entropy tracer \\
 \hline
 Symbol & SILO variable name & description \\
 \hline
-$\mu_i$ & A[i-1]  & atomic mass number of ith fraction \\ 
-$Z_i$ & Z[i-1]  & electron number of ith fraction \\ 
+$\mu_i$ & atomic\_mass[i-1]  & atomic mass number of ith fraction \\ 
+$Z_i$ & atomic\_number[i-1]  & electron number of ith fraction \\ 
 $\Omega$ & omega & rotation frequency of the grid \\
 \hline
 \end{tabular}
@@ -37,8 +37,7 @@ $\Omega$ & omega & rotation frequency of the grid \\
 
 total mass density
 \begin{equation}
-\
- := \Sigma_{i=1}^N \rho_i 
+\rho := \Sigma_{i=1}^N \rho_i 
 \end{equation}
 
 x - velocity relative to grid

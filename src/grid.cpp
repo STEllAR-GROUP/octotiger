@@ -169,9 +169,9 @@ real grid::convert_gravity_units(int i) {
 	return val;
 }
 
-std::vector<std::int8_t> grid::get_roche_lobe() const {
+std::vector<grid::roche_type> grid::get_roche_lobe() const {
 	int jjj = 0;
-	std::vector<std::int8_t> this_s(INX*INX*INX);
+	std::vector<grid::roche_type> this_s(INX*INX*INX);
 	for (int i = 0; i < INX; i++) {
 		for (int j = 0; j < INX; j++) {
 			for (int k = 0; k < INX; k++) {

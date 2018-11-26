@@ -97,6 +97,7 @@ public:
 	static real get_fgamma() {
 		return fgamma;
 	}
+	using roche_type = std::int8_t;
 private:
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;
@@ -108,8 +109,7 @@ private:
 	static hpx::lcos::local::spinlock omega_mtx;
 	static real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
-
-	std::vector<std::int8_t> roche_lobe;
+	std::vector<roche_type> roche_lobe;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
@@ -145,7 +145,7 @@ private:
 public:
 	static std::string hydro_units_name(const std::string&);
 	static std::string gravity_units_name(const std::string&);
-	std::vector<std::int8_t> get_roche_lobe() const;
+	std::vector<roche_type> get_roche_lobe() const;
 	void rho_from_species();
 	static bool is_hydro_field(const std::string&);
 	static std::vector<std::string> get_field_names();
