@@ -2385,87 +2385,87 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 	const integer jlb = 0;
 	const integer jub = H_NX;
 
-	/*	if (opts().problem == SOD) {
-	 for (integer k = klb; k != kub; ++k) {
-	 for (integer j = jlb; j != jub; ++j) {
-	 for (integer i = ilb; i != iub; ++i) {
-	 const integer iii = i * dni + j * dnj + k * dnk;
-	 for (integer f = 0; f != opts().n_fields; ++f) {
-	 U[f][iii] = 0.0;
-	 }
-	 sod_state_t s;
-	 real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
-	 exact_sod(&s, &sod_init, x, t);
-	 U[rho_i][iii] = s.rho;
-	 U[egas_i][iii] = s.p / (fgamma - 1.0);
-	 U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
-	 U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
-	 U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
-	 U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
-	 U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
-	 U[spc_ac_i][iii] = s.rho;
-	 integer k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
-	 }
-	 }
-	 }
-	 } else {*/
-	for (integer field = 0; field != opts().n_fields; ++field) {
+	if (opts().problem == SOD) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = jlb; j != jub; ++j) {
 				for (integer i = ilb; i != iub; ++i) {
-					integer k0;
-					switch (boundary_types[face]) {
-					case REFLECT:
-						k0 = side == geo::MINUS ? (2 * H_BW - k - 1) : (2 * (H_NX - H_BW) - k - 1);
-						break;
-					case OUTFLOW:
-						k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
-						break;
-					default:
-						k0 = -1;
-						assert(false);
-						abort();
-					}
-					const real value = U[field][i * dni + j * dnj + k0 * dnk];
 					const integer iii = i * dni + j * dnj + k * dnk;
-					real& ref = U[field][iii];
-					if (field == sx_i + dim) {
-						real s0;
-						if (field == sx_i) {
-							s0 = -omega * X[YDIM][iii] * U[rho_i][iii];
-						} else if (field == sy_i) {
-							s0 = +omega * X[XDIM][iii] * U[rho_i][iii];
-						} else {
-							s0 = ZERO;
-						}
+					for (integer f = 0; f != opts().n_fields; ++f) {
+						U[f][iii] = 0.0;
+					}
+					sod_state_t s;
+					real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
+					exact_sod(&s, &sod_init, x, t);
+					U[rho_i][iii] = s.rho;
+					U[egas_i][iii] = s.p / (fgamma - 1.0);
+					U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
+					U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
+					U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
+					U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
+					U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
+					U[spc_i][iii] = s.rho;
+					integer k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
+				}
+			}
+		}
+	} else {
+		for (integer field = 0; field != opts().n_fields; ++field) {
+			for (integer k = klb; k != kub; ++k) {
+				for (integer j = jlb; j != jub; ++j) {
+					for (integer i = ilb; i != iub; ++i) {
+						integer k0;
 						switch (boundary_types[face]) {
 						case REFLECT:
-							ref = -value;
+							k0 = side == geo::MINUS ? (2 * H_BW - k - 1) : (2 * (H_NX - H_BW) - k - 1);
 							break;
 						case OUTFLOW:
-							const real before = value;
-							if (side == geo::MINUS) {
-								ref = s0 + std::min(value - s0, ZERO);
-							} else {
-								ref = s0 + std::max(value - s0, ZERO);
-							}
-							const real after = ref;
-							assert(rho_i < field);
-							assert(egas_i < field);
-							real this_rho = U[rho_i][iii];
-							if (this_rho != ZERO) {
-								U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
-							}
+							k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
 							break;
+						default:
+							k0 = -1;
+							assert(false);
+							abort();
 						}
-					} else {
-						ref = +value;
+						const real value = U[field][i * dni + j * dnj + k0 * dnk];
+						const integer iii = i * dni + j * dnj + k * dnk;
+						real& ref = U[field][iii];
+						if (field == sx_i + dim) {
+							real s0;
+							if (field == sx_i) {
+								s0 = -omega * X[YDIM][iii] * U[rho_i][iii];
+							} else if (field == sy_i) {
+								s0 = +omega * X[XDIM][iii] * U[rho_i][iii];
+							} else {
+								s0 = ZERO;
+							}
+							switch (boundary_types[face]) {
+							case REFLECT:
+								ref = -value;
+								break;
+							case OUTFLOW:
+								const real before = value;
+								if (side == geo::MINUS) {
+									ref = s0 + std::min(value - s0, ZERO);
+								} else {
+									ref = s0 + std::max(value - s0, ZERO);
+								}
+								const real after = ref;
+								assert(rho_i < field);
+								assert(egas_i < field);
+								real this_rho = U[rho_i][iii];
+								if (this_rho != ZERO) {
+									U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
+								}
+								break;
+							}
+						} else {
+							ref = +value;
+						}
 					}
 				}
 			}
 		}
 	}
-//	}
 }
 
 void grid::compute_sources(real t, real rotational_time) {
