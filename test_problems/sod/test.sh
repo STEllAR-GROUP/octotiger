@@ -1,4 +1,4 @@
-$1 -t8 --config_file=sod.ini -t2
+$1 --config_file=sod.ini -t2
 scp phys.lsu.edu/~dmarcel/original.silo .
 $2 original.silo final.silo > diff.txt
 if [[ $(wc -l <diff.txt) -gt 11 ]]; then
