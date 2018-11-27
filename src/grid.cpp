@@ -217,14 +217,15 @@ std::vector<silo_var_t> grid::var_data() const {
 			std::string this_name = l.first;
 			int jjj = 0;
 			silo_var_t this_s(this_name);
+			real min = +std::numeric_limits<real>::max();
+			real max = -std::numeric_limits<real>::max();
 			for (int i = 0; i < INX; i++) {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
 						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-						assert(!std::isnan(U[f][iii]));
-						assert(!std::isnan(unit));
-						assert(unit != 0.0);
 						this_s(jjj) = U[f][iii] * unit;
+						min = std::min(this_s(jjj), min);
+						max = std::max(this_s(jjj), max);
 						jjj++;
 					}
 				}
@@ -240,16 +241,15 @@ std::vector<silo_var_t> grid::var_data() const {
 			std::string this_name = l.first;
 			int jjj = 0;
 			silo_var_t this_s(this_name);
+			real min = +std::numeric_limits<real>::max();
+			real max = -std::numeric_limits<real>::max();
 			for (int i = 0; i < INX; i++) {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
 						const int iii = gindex(k, j, i);
-			//			printf( "%e\n", unit, G[f][iii]);
-						assert(!std::isnan(G[f][iii]));
-						assert(!std::isnan(unit));
-						assert(unit != 0.0);
 						this_s(jjj) = G[iii][f] * unit;
-		//				auto tmp = G[f][iii] / unit;
+						min = std::min(this_s(j), min);
+						max = std::max(this_s(j), max);
 						jjj++;
 					}
 				}

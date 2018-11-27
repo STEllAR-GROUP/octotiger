@@ -15,6 +15,7 @@ struct silo_var_t {
 private:
 	std::string name_;
 	std::vector<real> data_;
+	std::pair<real,real> range_;
 public:
 	std::size_t size() const {
 		return data_.size();

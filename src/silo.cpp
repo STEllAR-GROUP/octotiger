@@ -29,6 +29,10 @@ std::string oct_to_str(int n) {
 	return std::move(rc);
 }
 
+std::string outflow_name(const std::string& varname ) {
+	return varname + std::string( "_outflow");
+}
+
 struct node_list_t {
 	std::vector<node_location::node_id> silo_leaves;
 	std::vector<node_location::node_id> all;
@@ -373,9 +377,9 @@ void output_stage3(std::string fname, int cycle) {
 				float ftime = dtime;
 				int one = 1;
 				int opt1 = DB_CARTESIAN;
-				char cgs[5];
-				std::strcpy(cgs,"cgs");
-				auto optlist = DBMakeOptlist(9);
+				auto optlist = DBMakeOptlist(100);
+				DBAddOption(optlist, DBOPT_DTIME, &dtime);
+				DBAddOption(optlist, DBOPT_TIME, &ftime);
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
 				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
@@ -400,12 +404,16 @@ void output_stage3(std::string fname, int cycle) {
 					DBMkDir(db, dir_name);
 					DBSetDir( db, dir_name );
 					DBPutQuadmesh(db, "quadmesh", coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
+					auto mm = std::string(std::string("/") + dir_name + std::string("/quadmesh"));
+					DBAddOption(optlist, DBOPT_MMESH_NAME, const_cast<char*>(mm.c_str()));
+
 					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
 						const auto& o = mesh_vars.vars[m];
 						const bool is_hydro = grid::is_hydro_field(o.name());
 						if( is_hydro ) {
 							real outflow = mesh_vars.outflow[m].second;
-							DBAddOption(optlist, DBOPT_DTIME, &outflow);
+							write_silo_var<real> f;
+							f(db, outflow_name(o.name()).c_str(), outflow);
 							DBAddOption(optlist, DBOPT_CONSERVED, &one);
 						}
 						DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
@@ -413,7 +421,6 @@ void output_stage3(std::string fname, int cycle) {
 						count++;
 						if( is_hydro ) {
 							DBClearOption(optlist, DBOPT_CONSERVED);
-							DBClearOption(optlist, DBOPT_DTIME);
 						}
 					}
 #ifdef OUTPUT_ROCHE
@@ -423,6 +430,7 @@ void output_stage3(std::string fname, int cycle) {
 								db_type<grid::roche_type>::d, DB_ZONECENT, optlist);
 					}
 #endif
+					DBClearOption(optlist,DBOPT_MMESH_NAME);
 					DBSetDir( db, "/" );
 				}
 				DBFreeOptlist( optlist);
@@ -476,17 +484,15 @@ void output_stage3(std::string fname, int cycle) {
 
 					const int n_total_domains = mesh_names.size();
 
-					auto optlist = DBMakeOptlist(9);
+					auto optlist = DBMakeOptlist(100);
 					int opt1 = DB_CARTESIAN;
 					int mesh_type = DB_QUADMESH;
-					char cgs[5];
-					std::strcpy(cgs,"cgs");
 					DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
 					DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
-					DBAddOption(optlist, DBOPT_XUNITS, cgs);
+					DBAddOption(optlist, DBOPT_MMESH_NAME, const_cast<char*>("quadmesh"));
 					char xstr[2] = {'x', '\0'};
 					char ystr[2] = {'y', '\0'};
 					char zstr[2] = {'z', '\0'};
@@ -747,7 +753,8 @@ node_server::node_server(const node_location& loc) :
 				const int nvar = load.nx * load.nx * load.nx;
 				load.outflows[f].first = load.vars[f].first = hydro_names[f];
 				load.vars[f].second.resize(nvar);
-				load.outflows[f].second = var->dtime;
+				read_silo_var<real> rd;
+				load.outflows[f].second = rd(db_, outflow_name(this_name).c_str());
 				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real)*nvar);
 				DBFreeQuadvar(var);
 			}
