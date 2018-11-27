@@ -202,8 +202,7 @@ std::vector<real> sod_shock_tube_init(real x0, real y, real z, real t) {
 	std::vector<real> U(opts().n_fields, 0.0);
 	const real fgamma = grid::get_fgamma();
 	sod_state_t s;
-//	real x = (x0 + y + z) / std::sqrt(3.0);
-	real x = x0;
+	real x = (x0 + y + z) / std::sqrt(3.0);
 	exact_sod(&s, &sod_init, x, 0.0);
 	U[rho_i] = s.rho;
 	U[egas_i] = s.p / (fgamma - 1.0);

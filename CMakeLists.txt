@@ -96,6 +96,7 @@ set(source_files ${source_files}
     src/silo.cpp
     src/node_registry.cpp
     src/test_problems/rotating_star/rotating_star.cpp
+    src/test_problems/sod/sod.cpp
     src/eos.cpp
     src/scf_data.cpp
     src/exact_sod.cpp
