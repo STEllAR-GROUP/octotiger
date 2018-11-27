@@ -110,14 +110,6 @@ void grid::set(const std::string name, real* data) {
 					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
 					U[f][iii] = data[jjj] / unit;
 					jjj++;
-					static std::mutex mtx;
-					FILE* fp = fopen( "test.dat", "at");
-					hpx::mutex mtx_;
-					std::lock_guard<hpx::mutex> lock(mtx_);
-					if( name == "egas" ) {
-						fprintf( fp,"%e %e %e %e\n", X[1][iii],X[0][iii],X[2][iii],U[egas_i][iii]);
-					}
-					fclose(fp);
 				}
 			}
 		}
