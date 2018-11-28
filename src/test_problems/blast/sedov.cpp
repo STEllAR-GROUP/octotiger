@@ -1,5 +1,9 @@
+extern "C" {
+
 #include <stdlib.h>
 #include <math.h>
+
+
 
 
 typedef long double sfloat;
@@ -43,4 +47,5 @@ void sedov_solution( double t, int N, const double* xpos, double E, double rho, 
 	free( dout0 );
 	free( vout0 );
 	free( eout0 );
+}
 }

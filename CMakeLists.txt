@@ -4,12 +4,11 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX)
+project(octotiger C CXX Fortran)
 
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 ################################################################################
 # options
 ################################################################################
@@ -17,6 +16,7 @@ option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
+
 
 ################################################################################
 # Find required packages
@@ -93,13 +93,15 @@ set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z)
 
 # Octotiger executable
 set(source_files ${source_files}
+    src/test_problems/blast/sedov3.f
+    src/test_problems/blast/sedov.cpp
     src/silo.cpp
     src/node_registry.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/eos.cpp
     src/scf_data.cpp
-    src/exact_sod.cpp
+    src/test_problems/sod/exact_sod.cpp
     src/geometry.cpp
     src/grid.cpp
     src/grid_fmm.cpp
