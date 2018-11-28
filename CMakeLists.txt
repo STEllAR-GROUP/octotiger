@@ -37,6 +37,7 @@ endif()
 
 include_directories(${HPX_INCLUDE_DIRS})
 link_directories(${HPX_LIBRARY_DIR})
+include_directories(${Vc_ROOT}/include)
 
 ################################################################################
 # Silo support
