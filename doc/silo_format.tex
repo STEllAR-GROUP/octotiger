@@ -14,7 +14,7 @@ $\rho_i$ & rho\_1, rho\_2, rho\_3, etc. & ith density fraction. \\
 $s_i$ & sx, sy, sz & inertial frame momentum \\
 $z_i$ & zx, zy, zz & inertial frame spin momentum relative to cell center \\
 $g_i$ & gx, gy, gz & gravitational acceleration \\
-$\phi$ & phi & gravitational acceleration \\
+$\phi$ & phi & gravitational potential \\
 $E$ & egas & kinetic + internal energy density \\
 $\tau$ & tau & entropy tracer \\
 \hline
@@ -55,8 +55,12 @@ z - velocity relative to grid
 v_z  := \frac{s_z}{\rho} 
 \end{equation}
 
+\begin{equation}
+\end{equation}
+
 internal gas energy density
 \begin{equation}
+s^2  :=  {s_x}^2 + {s_y}^2 + {s_z}^2
 e    :=  \begin{cases}
        E - \frac{1}{2} \frac{s^2}{\rho} & \text{if } E - \frac{1}{2} \frac{s^2}{\rho} > 0.001 E \\
        \tau^\gamma & \text{else} \\
@@ -68,9 +72,13 @@ number density of ith fraction (ions + electrons)
 n_i := \frac{\rho_i}{\mu_i m_H} \left ( 1 + Z_i \right ) 
 \end{equation}
 
+\begin{equation}
+\gamma := \frac{5}{3}
+\end{equation}
+
 total number density
 \begin{equation}
-n := \Sigma_{i=1}^N  
+n := \Sigma_{i=1}^N  n_i
 \end{equation}
 
 temperature
