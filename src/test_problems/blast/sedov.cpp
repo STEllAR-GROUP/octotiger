@@ -1,10 +1,12 @@
+
+
+
 extern "C" {
+
+
 
 #include <stdlib.h>
 #include <math.h>
-
-
-
 
 typedef long double sfloat;
 void sed_1d_(const sfloat* t, const int* N, const sfloat* xpos, const sfloat* eblast, const sfloat* omega,  const sfloat*  geom, const sfloat* rho0, const sfloat* vel0, const sfloat* ener0, const sfloat* pres0, const sfloat* cs0, const sfloat* gam0, sfloat* den, sfloat* ener, sfloat* pres, sfloat* vel,sfloat *cs);
@@ -49,3 +51,38 @@ void sedov_solution( double t, int N, const double* xpos, double E, double rho, 
 	free( eout0 );
 }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+#include <vector>
+
+class sedov_analytic {
+	int N;
+	double rmax;
+	std::vector<double> eout;
+	std::vector<double> dout;
+	std::vector<double> vout;
+public:
+	sedov_analytic(double  t) {
+		N = 100;
+		rmax = 1.0;
+		std::vector<double> xpos(N);
+		for( int i = 0; i < N; i++) {
+			xpos[i] = (i + 0.5) * rmax / N;
+		}
+		eout.resize(N);
+		vout.resize(N);
+		dout.resize(N);
+		sedov_solution(t, N, xpos.data(), 1.0e+3, 1.0, dout.data(), eout.data(), vout.data());
+	}
+};

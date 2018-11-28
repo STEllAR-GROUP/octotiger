@@ -104,33 +104,6 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
     PROF_END;
 }
 
-#ifdef FIND_AXIS_V2
-std::array<std::pair<real, space_vector>,2> grid::find_core_max() const {
-	std::array<std::pair<real, space_vector>,2> rc;
-	rc[0].first = 0.0;
-	rc[1].first = 0.0;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				if( U[spc_ac_i][iii] > rc[0].first ) {
-					rc[0].first = U[spc_ac_i][iii];
-					for( integer d = 0; d != NDIM; ++d) {
-						rc[0].second[d] = X[d][iii];
-					}
-				}
-				if( U[spc_dc_i][iii] > rc[1].first ) {
-					rc[1].first = U[spc_dc_i][iii];
-					for( integer d = 0; d != NDIM; ++d) {
-						rc[1].second[d] = X[d][iii];
-					}
-				}
-			}
-		}
-	}
-	return rc;
-}
-#else
 std::pair<space_vector, space_vector> grid::find_axis() const {
     PROF_BEGIN;
     real quad_moment[NDIM][NDIM];
@@ -195,7 +168,6 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
     PROF_END;
     return pair;
 }
-#endif
 
 void grid::solve_gravity(gsolve_type type) {
     compute_multipoles(type);

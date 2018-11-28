@@ -9,7 +9,7 @@
 #include "diagnostics.hpp"
 #include "radiation/rad_grid.hpp"
 #include "node_server.hpp"
-#include "exact_sod.hpp"
+#include "./test_problems/sod/exact_sod.hpp"
 
 #include <array>
 #include <cmath>
