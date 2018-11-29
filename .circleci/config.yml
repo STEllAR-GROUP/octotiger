@@ -7,7 +7,7 @@ jobs:
                         Vc_ROOT: /home/circleci/Vc_install
                         Boost_ROOT: /home/circleci/boost_1_63_0_install
                         HPX_ROOT: /home/circleci/hpx_install
-                        LD_LIBRARY_PATH: /home/circleci/boost_1_63_0_install/lib:/home/circleci/hpx_install/lib:/home/circleci/Vc_install/lib
+                        LD_LIBRARY_PATH: /home/circleci/hdf5_install/lib:/home/circleci/boost_1_63_0_install/lib:/home/circleci/hpx_install/lib:/home/circleci/Vc_install/lib
                 steps:
                         - checkout
                         - run: sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
