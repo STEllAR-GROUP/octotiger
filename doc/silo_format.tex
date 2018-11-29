@@ -22,16 +22,57 @@ $\tau$ & tau & entropy tracer \\
 
 \section{ Other Variable}
 
+
+
+
 \begin{tabular}{|c|c|c|}
 \hline
 Symbol & SILO variable name & description \\
 \hline
 $\mu_i$ & atomic\_mass[i-1]  & atomic mass number of ith fraction \\ 
 $Z_i$ & atomic\_number[i-1]  & electron number of ith fraction \\ 
+$X$ & X[i-1] & hydrogen mass fraction of each species \\ 
+$Z$ & Z[i-1] & metallicity of each species \\ 
 $\Omega$ & omega & rotation frequency of the grid \\
 \hline
 \end{tabular}
 
+\begin{tabular}{|c|c|}
+\hline
+version           & version number for this SILO file \\
+code\_to\_g       & units used to convert code mass units to grams \\
+code\_to\_s       & units used to convert code time units to seconds\\
+code\_to\_cm      & units used to convert code length units to centimeters \\
+n\_speces         & number of species, rho\_1, rho\_2, etc. \\
+eos               & equation of state 0 = ideal 1 = Segretain \\
+gravity           & true if gravity module is enabled \\
+hydro             & true if hydro module is enabled \\
+radiation         & true if radiation module is enabled \\
+output\_frequency & time between outputs - for binary systems this is in \\
+                  & units of orbital periods \\
+problem           & problem specification (sod, dwd, etc. ) \\
+refinment\_floor  & refinemnt density floor in code units \\
+cgs\_time         & physical time of output from t=0 in seconds \\
+rotational\_time  & time in number of orbits \\
+xscale            & the length scale of the grid \\
+hostname          & name of the machine this file was produced on \\
+node\_list        & list of all nodes \\
+node\_positions   & position of each node in the space filling curve \\
+node\_count       & total number of nodes in octree \\
+leaf\_count       & total number of SILO leaves, this may be less than the \\
+                  & total number of octree leaves if compression is on \\
+timestamp         & time the file was written \\
+epoch             & starts at 0 and is incremented by one for each restart \\ 
+                  & since t = 0 \\
+locality\_count   & number of localities \\
+thread\_count     & total number of threads \\
+step\_count       & total number of steps \\
+time\_elapsed     & time in seconds from either startup or the last output \\
+                  & to the current output \\
+steps\_elapsed    & number of steps from either startup or the last output \\
+                  & to the current output  \\
+\hline
+\end{tabular}
 
 \section{Derived Expressions}
 
