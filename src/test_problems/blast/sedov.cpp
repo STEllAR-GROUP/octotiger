@@ -4,11 +4,12 @@
 extern "C" {
 
 
+#include <quadmath.h>
 
 #include <stdlib.h>
 #include <math.h>
 
-typedef long double sfloat;
+typedef __float128 sfloat;
 void sed_1d_(const sfloat* t, const int* N, const sfloat* xpos, const sfloat* eblast, const sfloat* omega,  const sfloat*  geom, const sfloat* rho0, const sfloat* vel0, const sfloat* ener0, const sfloat* pres0, const sfloat* cs0, const sfloat* gam0, sfloat* den, sfloat* ener, sfloat* pres, sfloat* vel,sfloat *cs);
 
 
@@ -33,7 +34,7 @@ void sedov_solution( double t, int N, const double* xpos, double E, double rho, 
 	ener0 = 0.0;
 	gam0 = 5.0/3.0;
 	pres0 = (gam0 - 1.0)*rho0*ener0;
-	cs0 = sqrt( gam0 * pres0 / rho0 );
+	cs0 = sqrtq( gam0 * pres0 / rho0 );
 	for( i = 0; i < N; i++ ) {
 		xpos0[i] = (sfloat) xpos[i];
 	}
@@ -65,6 +66,7 @@ void sedov_solution( double t, int N, const double* xpos, double E, double rho, 
 
 
 #include <vector>
+#include <stdio.h>
 
 class sedov_analytic {
 	int N;
@@ -83,6 +85,22 @@ public:
 		eout.resize(N);
 		vout.resize(N);
 		dout.resize(N);
-		sedov_solution(t, N, xpos.data(), 1.0e+3, 1.0, dout.data(), eout.data(), vout.data());
+		sedov_solution(t, N, xpos.data(), 1.0, 1.0, dout.data(), eout.data(), vout.data());
+#ifdef TESTME
+		for( int i = 0; i < N; i++ ) {
+			printf( "%e %e %e %e\n", (double) xpos[i], (double) dout[i], (double) vout[i], (double) eout[i] );
+		}
+#endif	
 	}
 };
+
+
+
+
+
+
+#ifdef TESTME
+int main() {
+	sedov_analytic test(1.0);
+}
+#endif
