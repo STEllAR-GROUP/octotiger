@@ -9,8 +9,8 @@
 #define SRC_OPTIONS_ENUM_HPP_
 
 
-#define COMMAND_LINE_ENUM( enum_name, args... )               \
-	enum enum_name : std::uint32_t {                                       \
+#define COMMAND_LINE_ENUM( enum_name, args... )                            \
+	enum enum_name : integer {                                             \
 		args                                                               \
 	};                                                                     \
 	static inline std::istream& operator>>(std::istream& in, enum_name& e) \

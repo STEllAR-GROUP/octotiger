@@ -14,6 +14,7 @@
 #include <limits>
 #include "real.hpp"
 #include <taylor.hpp>
+#include "options.hpp"
 
 struct diagnostics_t {
 	static constexpr integer nspec = 2;
@@ -41,14 +42,14 @@ struct diagnostics_t {
 	real z_moment[nspec];
 	real z_mom_orb;
 	real rho_max[nspec];
-	std::array<real,NF> grid_sum;
-	std::array<real,NF> grid_out;
+	hydro_state_t<> grid_sum;
+	hydro_state_t<> grid_out;
 	std::array<real,NDIM> lsum;
 	diagnostics_t() {
 		stage = 1;
 		omega = -1.0;
 		grid_com = 0.0;
-		for( integer f = 0; f != NF; ++f) {
+		for( integer f = 0; f != opts().n_fields; ++f) {
 			grid_sum[f] = 0.0;
 			grid_out[f] = 0.0;
 		}
@@ -88,7 +89,7 @@ struct diagnostics_t {
 		l1_phi = std::max(l1_phi, other.l1_phi);
 		l2_phi = std::max(l2_phi, other.l2_phi);
 		l3_phi = std::max(l3_phi, other.l3_phi);
-		for( integer f = 0; f != NF; ++f) {
+		for( integer f = 0; f != opts().n_fields; ++f) {
 			grid_sum[f] += other.grid_sum[f];
 			grid_out[f] += other.grid_out[f];
 		}

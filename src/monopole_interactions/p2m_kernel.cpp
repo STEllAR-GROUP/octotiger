@@ -12,7 +12,6 @@
 
 // std::vector<interaction_type> ilist_debugging;
 
-extern options opts;
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
 extern taylor<4, m2m_vector> factor_sixth_v;
@@ -23,7 +22,7 @@ namespace fmm {
 
         p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty)
           : neighbor_empty(neighbor_empty)
-          , theta_rec_squared(sqr(1.0 / opts.theta)) {
+          , theta_rec_squared(sqr(1.0 / opts().theta)) {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }

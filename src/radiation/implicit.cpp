@@ -89,7 +89,7 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 //	F0[0] = F0[1] = F0[2] = 0.0;
 //	u0[0] = u0[1] = u0[2] = 0.0;
 
-	const quad c = physcon.c;
+	const quad c = physcon().c;
 	const quad cinv = quad(1.0) / c;
 	const quad c2 = c * c;
 
@@ -207,7 +207,7 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
  void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_space_vector& u0, quad rho, quad mmw, quad kp,
  quad kr, quad dt) {
 
- const quad c = physcon.c;
+ const quad c = physcon().c;
  const quad cinv = quad(1.0) / c;
  const quad c2 = c * c;
 
@@ -287,7 +287,7 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 void implicit_radiation_step_2nd_order(quad& E0, quad& e0, quad_space_vector& F0, quad_space_vector& u0, quad rho, quad mmw,
 		quad kp, quad kr, quad dt) {
 
-	const quad c2 = quad(physcon.c) * quad(physcon.c);
+	const quad c2 = quad(physcon().c) * quad(physcon().c);
 	const auto step = [rho, mmw, kp, kr, c2](quad E, quad e, quad_space_vector F, quad_space_vector u, quad dt ) {
 		quad E1 = E;
 		quad e1 = e;

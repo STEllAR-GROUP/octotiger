@@ -4,12 +4,11 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX)
+project(octotiger C CXX Fortran)
 
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 ################################################################################
 # options
 ################################################################################
@@ -18,12 +17,14 @@ option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 
+
 ################################################################################
 # Find required packages
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 if (OCTOTIGER_WITH_SILO)
   find_package(Silo REQUIRED)
+  find_package(HDF5 REQUIRED)
 endif()
 
 if (OCTOTIGER_WITH_CUDA)
@@ -36,6 +37,7 @@ endif()
 
 include_directories(${HPX_INCLUDE_DIRS})
 link_directories(${HPX_LIBRARY_DIR})
+include_directories(${Vc_ROOT}/include)
 
 ################################################################################
 # Silo support
@@ -88,14 +90,19 @@ endif()
 set(source_files)
 set(dependencies)
 
-set(dependencies ${Silo_LIBRARY})
+set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z)
 
 # Octotiger executable
 set(source_files ${source_files}
-	#    src/mesa/mesa.cpp
+    src/test_problems/blast/sedov3.f
+    src/test_problems/blast/sedov.cpp
+    src/silo.cpp
+    src/node_registry.cpp
+    src/test_problems/rotating_star/rotating_star.cpp
+    src/test_problems/sod/sod.cpp
     src/eos.cpp
     src/scf_data.cpp
-    src/exact_sod.cpp
+    src/test_problems/sod/exact_sod.cpp
     src/geometry.cpp
     src/grid.cpp
     src/grid_fmm.cpp
@@ -140,7 +147,6 @@ set(source_files ${source_files}
 )
 
 set(header_files
-    src/mesa/mesa.hpp
     src/channel.hpp
     src/container_device.hpp
     src/defs.hpp
@@ -162,12 +168,11 @@ set(header_files
     src/real.hpp
     src/roe.hpp
     src/scf_data.hpp
-    src/set_locality_data.hpp
     src/simd.hpp
     src/space_vector.hpp
     src/state.hpp
     src/struct_eos.hpp
-    src/taylor.hpp
+    src/taylor.hpphdf
     src/util.hpp
     src/compute_factor.hpp
     src/common_kernel/interaction_constants.hpp
@@ -192,16 +197,24 @@ set(header_files
 )
 
 
-set(silo_cmp_dependencies ${Silo_LIBRARY} )
+set(silo_cmp_dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z)
 set(silo_cmp_source_files
     test/silo_cmp.cpp
 )
 set(silo_cmp_header_files)
 
 
+set(silo_reader_source_files
+    ./src/silo_reader/silo_reader.cpp
+)
+
 set(analysis_source_files
     analysis_src/analysis.cpp
 )
+
+add_library( eos ./src/libeos/libeos.cpp )
+add_executable( analysis ${analysis_source_files} )
+add_executable( silo_reader ${silo_reader_source_files} ./src/libeos/libeos.cpp  )
 
 add_hpx_executable(
   octotiger
@@ -225,9 +238,12 @@ add_hpx_executable(
     ${silo_cmp_header_files}
   FOLDER  "Octotiger"
 )
+
 endif()
 
 
-add_executable( analysis ${analysis_source_files} )
+
+target_link_libraries( silo_reader ${Silo_LIBRARY} ${HDF5_LIBRARY} pthread  dl z)
+target_link_libraries( analysis ${HDF5_LIBRARY} )
 
 

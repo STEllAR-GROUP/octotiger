@@ -8,9 +8,6 @@ else
     git pull
     cd ..
 fi
-cd hpx
-git checkout 61e7a441e4a1cbfe9647b4e45b2cbe3885d5f034
-cd ..
 
 mkdir -p hpx/build
 cd hpx/build

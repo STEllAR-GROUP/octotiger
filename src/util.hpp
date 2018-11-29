@@ -17,12 +17,10 @@
 
 #include "options.hpp"
 
-extern options opts;
-
 real LambertW(real z);
 
 inline integer refinement_freq() {
-	return  integer(R_BW / cfl + 0.5);
+	return  integer(2.0 / cfl + 0.5);
 }
 int file_copy(const char* fin, const char* fout);
 
@@ -32,7 +30,7 @@ int lprintf( const char* log, const char* str, Args&&...args) {
     // run output on separate thread
     auto f = hpx::threads::run_as_os_thread([&]() -> int
     {
-        if(!opts.disable_output) {
+        if(!opts().disable_output) {
             FILE* fp = fopen (log, "at");
 	        if( fp == NULL) {
 		        return -1;

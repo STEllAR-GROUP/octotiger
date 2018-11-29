@@ -17,13 +17,14 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 
-COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST);
+#include <silo.h>
+
+COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR);
 
 COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
 
 class options {
 public:
-
 	bool bench;
 	bool disable_output;
 	bool core_refine;
@@ -32,12 +33,15 @@ public:
 	bool radiation;
 	bool silo_planes_only;
 	bool variable_omega;
+	bool compress_silo;
+	bool v1309;
 
 	integer accretor_refine;
 	integer donor_refine;
 	integer max_level;
 	integer ngrids;
 	integer stop_step;
+
 
 	real driving_rate;
 	real driving_time;
@@ -49,13 +53,19 @@ public:
 	real stop_time;
 	real theta;
 	real xscale;
+	real code_to_g;
+	real code_to_s;
+	real code_to_cm;
 
 	size_t cuda_streams_per_thread;
 
+	std::string input_file;
 	std::string config_file;
 	std::string data_dir;
 	std::string output_filename;
 	std::string restart_filename;
+	integer n_species;
+	integer n_fields;
 
 	eos_type eos;
 
@@ -65,8 +75,16 @@ public:
 	interaction_kernel_type p2m_kernel_type;
 	interaction_kernel_type p2p_kernel_type;
 
+	std::vector<real> atomic_mass;
+	std::vector<real> atomic_number;
+	std::vector<real> X;
+	std::vector<real> Z;
+
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & n_fields;
+		arc & n_species;
+		arc & input_file;
 		arc & config_file;
 		arc & hydro;
 		arc & gravity;
@@ -81,6 +99,8 @@ public:
 		arc & driving_time;
 		arc & refinement_floor;
 		arc & ngrids;
+		arc & compress_silo;
+		arc & v1309;
 		arc & variable_omega;
 		arc & silo_planes_only;
 		arc & stop_time;
@@ -103,11 +123,17 @@ public:
 		arc & tmp;
 		eos = (eos_type) tmp;
 		arc & data_dir;
-
 		arc & m2m_kernel_type;
 		arc & p2p_kernel_type;
 		arc & p2m_kernel_type;
 		arc & cuda_streams_per_thread;
+		arc & atomic_mass;
+		arc & atomic_number;
+		arc & X;
+		arc & Z;
+		arc & code_to_g;
+		arc & code_to_s;
+		arc & code_to_cm;
 	}
 
 	bool process_options(int argc, char* argv[]);
@@ -115,8 +141,16 @@ public:
 	static std::vector<hpx::id_type> all_localities;
 };
 
-#ifndef IN_OPTIONS_CPP
-extern options opts;
-#endif
+
+options& opts();
+
+
+template<class T = real>
+struct hydro_state_t: public std::vector<T> {
+	hydro_state_t() :
+			std::vector<T>(opts().n_fields) {
+	}
+};
+
 
 #endif /* OPTIONS_HPP_ */

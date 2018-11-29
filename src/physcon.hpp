@@ -5,12 +5,24 @@
  *      Author: dminacore
  */
 
-#ifndef SRC_PHYSCON_HPP_
-#define SRC_PHYSCON_HPP_
+#ifndef SRC_PHYSCON444_HPP_
+#define SRC_PHYSCON444_HPP_
 
 #include "defs.hpp"
 #include <hpx/traits/is_bitwise_serializable.hpp>
 #include "safe_math.hpp"
+#include "options.hpp"
+#include <initializer_list>
+
+template<class T = real>
+struct specie_state_t: public std::vector<T> {
+	specie_state_t() :
+			std::vector<T>(opts().n_species) {
+	}
+	specie_state_t(std::initializer_list<T> list ) : std::vector<T>(list) {
+
+	}
+};
 
 struct physcon_t {
 	real A;
@@ -21,10 +33,10 @@ struct physcon_t {
 	real c;
 	real mh;
 	real h;
-	std::array<real, NSPECIES> _A;
-	std::array<real, NSPECIES> _Z;
+	specie_state_t<> _A;
+	specie_state_t<> _Z;
 	template<class Arc>
-	void serialize( Arc& arc, unsigned ) {
+	void serialize(Arc& arc, unsigned) {
 		arc & A;
 		arc & G;
 		arc & B;
@@ -40,19 +52,20 @@ struct physcon_t {
 
 HPX_IS_BITWISE_SERIALIZABLE(physcon_t);
 
-#ifndef __NPHYSCON__
-extern physcon_t physcon;
-#endif
+physcon_t& physcon();
 
-real mean_ion_weight(const std::array<real,NSPECIES> species);
+real mean_ion_weight(const specie_state_t<> species);
 void set_AB(real, real);
 
+void set_units(real m, real l, real t, real k);
 real stellar_temp_from_rho_mu_s(real rho, real mu, real s);
 real stellar_enthalpy_from_rho_mu_s(real rho, real mu, real s);
 real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s);
 real find_T_rad_gas(real p, real rho, real mu);
 
-void rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde);
 
+void these_units(real& m, real& l, real& t, real& k);
+
+void rad_coupling_vars(real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde);
 
 #endif /* SRC_PHYSCON_HPP_ */

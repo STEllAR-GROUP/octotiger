@@ -40,7 +40,9 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 void set_refine_test(const refine_test_type&);
 refine_test_type get_refine_test();
 void set_problem(const init_func_type&);
+void set_analytic(const analytic_func_type&);
 init_func_type get_problem();
+analytic_func_type get_analytic();
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U, std::array<std::vector<real>, NDIM> const& dudx);
 std::vector<real> radiation_test_problem(real,real,real,real);
