@@ -49,6 +49,7 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 
 }
 
+
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
 
@@ -89,15 +90,21 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 
 bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
-	for (integer i = 0; i != NDIM; ++i) {
-		if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.01) {
-			return level < max_level;
-		}
-		if (std::abs(dudx[i][tau_i]) > 0.01) {
-			return level < max_level;
+	bool rc = false;
+	if( level < 3 ) {
+		rc = true;
+	}
+	if( !rc ) {
+		for (integer i = 0; i != NDIM; ++i) {
+			if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.01) {
+				rc = rc || (level < max_level);
+			}
+			if (std::abs(dudx[i][tau_i]) > 0.01) {
+				rc = rc || (level < max_level);
+			}
 		}
 	}
-	return false;
+	return rc;
 }
 
 bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
@@ -183,20 +190,6 @@ init_func_type get_analytic() {
  std::vector<real> u(opts().n_fields, real(0));
  return u;
  }*/
-
-std::vector<real> blast_wave(real x, real y, real z, real dx) {
-	const real fgamma = grid::get_fgamma();
-	//x -= 0.453;
-	//y -= 0.043;
-	std::vector<real> u(opts().n_fields, real(0));
-	u[spc_dc_i] = u[rho_i] = 1.0e-3;
-	const real a = std::sqrt(10.0) * std::min(dx, 0.1);
-	real r = std::sqrt(x * x + y * y + z * z);
-	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a)) / 100.0;
-	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
-	return u;
-}
-
 
 const real dxs = 0.0;
 const real dys = -0.0;

@@ -90,7 +90,7 @@ endif()
 set(source_files)
 set(dependencies)
 
-set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z)
+set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z quadmath)
 
 # Octotiger executable
 set(source_files ${source_files}

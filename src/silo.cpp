@@ -161,6 +161,7 @@ struct mesh_vars_t {
 		int i = var_dims[0];
 		while (i > INX) {
 			i >>= 1;
+			lev++;
 		}
 		return lev;
 	}
