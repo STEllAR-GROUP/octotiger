@@ -1,62 +1,31 @@
 #include <hpx/include/run_as.hpp>
-
-extern "C" {
-#include <quadmath.h>
-
-#include <stdlib.h>
-#include <math.h>
-
-
-typedef __float128 sfloat;
-void sed_1d_(const sfloat* t, const int* N, const sfloat* xpos, const sfloat* eblast, const sfloat* omega, const sfloat* geom, const sfloat* rho0, const sfloat* vel0, const sfloat* ener0, const sfloat* pres0, const sfloat* cs0, const sfloat* gam0, sfloat* den, sfloat* ener, sfloat* pres, sfloat* vel,sfloat *cs);
-
-
-void sedov_solution( double t, int N, const double* xpos, double E, double rho, double* dout, double* eout, double* vout ) {
-	sfloat *xpos0, *pout, *csout, *dout0, *eout0, *vout0;
-	sfloat vel0, gam0, pres0, cs0, omega, geom, ener0, t0, E0, rho0;
-	int i;
-	t0 = (sfloat) t;
-	E0 = (sfloat) E;
-	rho0 = (sfloat) rho;
-	eout0 = (sfloat*) malloc( sizeof( sfloat ) * N );
-	dout0 = (sfloat*) malloc( sizeof( sfloat ) * N );
-	vout0 = (sfloat*) malloc( sizeof( sfloat ) * N );
-	xpos0 = (sfloat*) malloc( sizeof( sfloat ) * N );
-	pout = (sfloat*) malloc( sizeof( sfloat ) * N );
-	csout = (sfloat*) malloc(sizeof( sfloat ) * N );
-			vel0 = 0.0;
-			omega = 0.0;
-			geom = 3.0;
-			ener0 = 0.0;
-			gam0 = 5.0/3.0;
-			pres0 = (gam0 - 1.0)*rho0*ener0;
-			cs0 = sqrtq( gam0 * pres0 / rho0 );
-			for( i = 0; i < N; i++ ) {
-				xpos0[i] = (sfloat) xpos[i];
-			}
-			sed_1d_( &t0, &N, xpos0, &E0, &omega, &geom, &rho0, &vel0, &ener0, &pres0, &cs0, &gam0, dout0, eout0, pout, vout0, csout );
-			free( xpos0 );
-			free( pout );
-			free( csout );
-			for( i = 0; i < N; i++ ) {
-				dout[i] = (double) dout0[i];
-				eout[i] = (double) eout0[i];
-				vout[i] = (double) vout0[i];
-			}
-			free( dout0 );
-			free( vout0 );
-			free( eout0 );
-		}
-	}
-
-#include <vector>
 #include <stdio.h>
+#include <stdlib.h>
+#include "../../options.hpp"
 
-#ifndef TESTME
-#include "defs.hpp"
-#include "grid.hpp"
-#endif
+void compute_sedov(std::vector<double>& den, std::vector<double>& ener, std::vector<double>& vel, double xmax, int N, double eblast, double t ) {
 
+	char str[256];
+
+	char* ptr;
+	asprintf( &ptr, "./sedov_fort %i %e 3 0 %e %e 1.6666666 sedov.txt\n", N, eblast, t, xmax );
+	printf( ptr );
+	system(ptr);
+	free(ptr);
+	den.resize(N);
+	ener.resize(N);
+	vel.resize(N);
+	FILE* fp = fopen( "sedov.txt", "rt" );
+	fgets( str, 256, fp );
+	fgets( str, 256, fp );
+	for( int i = 0; i < N; i++ ) {
+		fgets( str, 256, fp );
+		den[i] = atof( str + 21 );
+		ener[i] = atof( str + 35 );
+		vel[i] = atof( str + 63 );
+	}
+	fclose(fp);
+}
 
 
 class sedov_analytic {
@@ -110,7 +79,7 @@ public:
 #endif
 	}
 	sedov_analytic(double t) {
-		N = 1000 + bw;
+		N = 1000  + bw;
 		rmax = 2.0;
 		dr = rmax / (N-bw);
 		std::vector<double> xpos(N);
@@ -120,8 +89,11 @@ public:
 		eout.resize(N);
 		vout.resize(N);
 		dout.resize(N);
+
+		//TODO insert new call
+
 		hpx::threads::run_as_os_thread([&]() {
-			sedov_solution(t, N - bw, xpos.data() + bw, 1.0, 1.0, dout.data() + bw, eout.data() + bw, vout.data() + bw);
+//			sedov_solution(t, N - bw, xpos.data() + bw, 1.0, 1.0, dout.data() + bw, eout.data() + bw, vout.data() + bw);
 		}).get();
 		dout[0] = dout[3];
 		dout[1] = dout[2];
@@ -146,7 +118,7 @@ int main() {
 #endif
 
 
-
+/*
 std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	const real fgamma = grid::get_fgamma();
 	std::vector<real> u(opts().n_fields, real(0));
@@ -156,14 +128,14 @@ std::vector<real> blast_wave(real x, real y, real z, real dx) {
 	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a)) / 100.0;
 	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
 	return u;
-}
+}*/
 
 
 #ifndef TESTME
-//std::vector<double> blast_wave(double x, double y, double z, double dx) {
-//	static sedov_analytic state(1.0e-3);
-//	return state.state_at(x,y,z);
-//}
+std::vector<double> blast_wave(double x, double y, double z, double dx) {
+	static sedov_analytic state(1.0e-3);
+	return state.state_at(x,y,z);
+}
 #endif
 
 

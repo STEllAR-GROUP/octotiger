@@ -1,10 +1,120 @@
-  
+      program sedov3
+      implicit none
+
+c..exercises the sedov solver
+
+c..declare
+      character*80     outfile,string
+      integer          i,nstep,iargc,nmax
+      parameter        (nmax = 1000)
+      real*16          time,zpos(nmax),
+     1                 eblast,rho0,omega,vel0,ener0,pres0,cs0,gamma,
+     2                 xgeom,
+     3                 den(nmax),ener(nmax),pres(nmax),vel(nmax),
+     4                 cs(nmax),
+     5                 zlo,zhi,zstep,value
+
+
+c..popular formats
+ 01   format(1x,t4,a,t8,a,t22,a,t36,a,t50,a,t64,a,t78,a,t92,a)
+ 02   format(1x,i4,1p8e12.4)
+ 03   format(1x,i4,1p8e14.6)
+
+
+
+c..if your compiler/linker handles command line arguments
+c..get the number of spatial points, blast energy, geometry type,
+c..density exponent,  and output file name
+
+      i = iargc()
+      if (i. lt. 2) stop 'too few arguments'
+
+      call getarg(1,string)
+      nstep = int(value(string))
+
+      call getarg(2,string)
+      eblast = value(string)
+
+      call getarg(3,string)
+      xgeom = value(string)
+
+      call getarg(4,string)
+      omega = value(string)
+
+      call getarg(5,string)
+      time = value(string)
+
+      call getarg(6,string)
+      zhi = value(string)
+
+      call getarg(7,string)
+      gamma = value(string)
+
+      call getarg(8,outfile)
+
+
+c..otherwise explicitly set stuff
+c..standard cases
+c..spherical constant density should reach r=1 at t=1
+
+c      nstep = 120
+c      eblast = 0.851072q0
+c      xgeom  = 3.0q0
+c      omega  = 0.0q0
+c      outfile = 'spherical_standard_omega0p00.dat'
+
+
+c..input parameters in cgs
+      rho0   = 1.0q0
+      vel0   = 0.0q0
+      ener0  = 0.0q0
+      pres0  = 0.0q0
+      cs0    = 0.0q0
+      
+
+
+c..number of grid points, spatial domain, spatial step size.
+c..to match hydrocode output, use the mid-cell points.
+      zlo   = 0.0q0
+      zstep = (zhi - zlo)/float(nstep)
+      do i=1,nstep
+       zpos(i)   = zlo + 0.5q0*zstep + float(i-1)*zstep
+      enddo
+
+
+c..get the solution for all spatial points at once
+
+       call sed_1d(time,nstep,zpos,
+     1             eblast,omega,xgeom,
+     2             rho0,vel0,ener0,pres0,cs0,gamma,
+     3             den,ener,pres,vel,cs)
+
+
+c..output file 
+      open(unit=2,file=outfile,status='unknown')
+      write(2,02) nstep,time
+      write(2,01) 'i','x','den','ener','pres','vel','cs'
+      do i=1,nstep
+       write(2,03) i,zpos(i),den(i),ener(i),pres(i),vel(i),cs(i)
+      enddo
+      close(unit=2)
+
+      write(6,*)
+
+c..close up shop
+      end
+
+
+
+
+
+
+
       subroutine sed_1d(time,nstep,xpos,
      1                  eblast,omega_in,xgeom_in,
      2                  rho0,vel0,ener0,pres0,cs0,gam0,
      3                  den,ener,pres,vel,cs)
       implicit none
-
 
 
 c..this routine produces 1d solutions for a sedov blast wave propagating
@@ -75,7 +185,7 @@ c..local variables
       integer          i
       real*16          efun01,efun02,eval1,eval2
       real*16          v0,v2,vstar,vmin,
-     1                 alpha,us,u2,rho2,p2,e2,cs2,
+     1                 alpha,vstep,us,u2,rho2,p2,e2,cs2,
      2                 zeroin,sed_v_find,sed_r_find,
      3                 vat,l_fun,dlamdv,f_fun,g_fun,h_fun,
      4                 denom2,denom3,rho1
@@ -87,7 +197,7 @@ c..eps2 controls the root find accuracy
 c..osmall controls the size of transition regions
 
       real*16          iprint,eps,eps2,osmall,pi
-      parameter        (iprint = 0,
+      parameter        (iprint = 1,
      1                  eps    = 1.0q-10, 
      2                  eps2   = 1.0q-30, 
      3                  osmall = 1.0q-4,
@@ -114,7 +224,7 @@ c..common block communication with the integration stepper
 
 
 c..popular formats
-c 87   format(1x,1p10e14.6)
+ 87   format(1x,1p10e14.6)
  88   format(1x,8(a7,1pe14.6,' '))
 
 
@@ -882,7 +992,7 @@ c..the external choose may be any of the above drivers, i.e midpnt,midinf...
 
 c..declare 
       external          choose,func 
-      integer           j,jmax,jmaxp,k,km
+      integer           j,jmax,jmaxp,k,km,i
       parameter         (jmax=14, jmaxp=jmax+1, k=5, km=k-1) 
       real*16           a,b,ss,s(jmaxp),h(jmaxp),eps,dss,func
 
@@ -1007,7 +1117,6 @@ c
 c-----------------------------------------------------------------------
 
 c.... call list variables
-
 
       real*16  ax
       real*16  bx

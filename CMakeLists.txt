@@ -94,7 +94,6 @@ set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z quadmath)
 
 # Octotiger executable
 set(source_files ${source_files}
-    src/test_problems/blast/sedov3.f
     src/test_problems/blast/sedov.cpp
     src/silo.cpp
     src/node_registry.cpp
