@@ -1,3 +1,4 @@
+#include <hpx/include/run_as.hpp>
 
 extern "C" {
 #include <quadmath.h>
@@ -5,8 +6,10 @@ extern "C" {
 #include <stdlib.h>
 #include <math.h>
 
+
 typedef __float128 sfloat;
 void sed_1d_(const sfloat* t, const int* N, const sfloat* xpos, const sfloat* eblast, const sfloat* omega, const sfloat* geom, const sfloat* rho0, const sfloat* vel0, const sfloat* ener0, const sfloat* pres0, const sfloat* cs0, const sfloat* gam0, sfloat* den, sfloat* ener, sfloat* pres, sfloat* vel,sfloat *cs);
+
 
 void sedov_solution( double t, int N, const double* xpos, double E, double rho, double* dout, double* eout, double* vout ) {
 	sfloat *xpos0, *pout, *csout, *dout0, *eout0, *vout0;
@@ -54,43 +57,43 @@ void sedov_solution( double t, int N, const double* xpos, double E, double rho, 
 #include "grid.hpp"
 #endif
 
+
+
 class sedov_analytic {
 	int N;
 	static constexpr int bw = 2;
 
-	static constexpr double coeff[4][4] = { { -0.06250000000, 0.5625000000, -0.06250000000, 0.5625000000 }, { 0.04166666667, -1.125000000,
-			-0.04166666667, 1.125000000 }, { 0.2500000000, -0.2500000000, 0.2500000000, -0.2500000000 }, { -0.1666666667,
-			0.5000000000, 0.1666666667, -0.5000000000 } };
 	double rmax, dr;
 	std::vector<double> eout;
 	std::vector<double> dout;
 	std::vector<double> vout;
 public:
 	std::vector<double> state_at(double x, double y, double z) {
-		std::vector<double> u(0.0);
+#ifndef TESTME
+		std::vector<double> u(opts().n_fields,0.0);
+#endif
 		int i[4];
 		const double r = std::sqrt(x * x + y * y + z * z);
-		i[1] = (r + 2 * dr) / dr;
+		i[1] = (r + bw * dr) / dr;
 		i[0] = i[1] - 1;
 		i[2] = i[1] + 1;
 		i[3] = i[1] + 2;
-		double r0 = r - (i[1]+2)*dr;
-		const auto interp = [&coeff,&r0](const std::vector<double>& data) {
-			double rn = 1.0;
+		double r0 = (r - (i[1]-bw)*dr)/dr;
+	//	printf( "%e %i\n", r0,  i[1]);
+		const auto interp = [&r0,&i](const std::vector<double>& data) {
 			double sum = 0.0;
-			for( int n = 0; n < 4; n++) {
-				for( int m = 0; m < 4; m++) {
-					sum += rn * coeff[n][m] * data[m];
-				}
-				rn *= r0;
-			}
+			sum += (-0.5 * data[i[0]] + 1.5 * data[i[1]] - 1.5 * data[i[2]] + 0.5 * data[i[3]]) * r0 * r0 * r0;
+			sum += (+1.0 * data[i[0]] - 2.5 * data[i[1]] + 2.0 * data[i[2]] - 0.5 * data[i[3]]) * r0 * r0;
+			sum += (-0.5 * data[i[0]]                   +  0.5 * data[i[2]]) * r0;
+			sum += data[i[1]];
 			return sum;
 		};
-		double d = interp(dout);
+		double d = std::max(interp(dout),1.0e-20);
 		double v = interp(vout);
-		double e = interp(eout);
+		double e = std::max(interp(eout), 1.0e-20);
 #ifdef TESTME
 		printf( "%e %e %e %e\n", r, d, v, e);
+		return std::vector<double>();
 #else
 		u[rho_i] = d;
 		u[spc_i] = d;
@@ -98,15 +101,16 @@ public:
 		u[sy_i] = v * d * y / r;
 		u[sz_i] = v * d * z / r;
 		u[egas_i] = d * v * v * 0.5 + e * d;
-		u[tau_i] = std::pow(e * d, 1.0 / grid::get_fgamma());
+		u[tau_i] = std::pow(e * d, 3.0 / 5.0);
 		u[zx_i] = 0.0;
 		u[zy_i] = 0.0;
 		u[zz_i] = 0.0;
-#endif
+//		printf( "%e\n", std::pow(e * d, 3.0 / 5.0));
 		return std::move(u);
+#endif
 	}
 	sedov_analytic(double t) {
-		N = 100 + bw;
+		N = 1000 + bw;
 		rmax = 2.0;
 		dr = rmax / (N-bw);
 		std::vector<double> xpos(N);
@@ -116,7 +120,9 @@ public:
 		eout.resize(N);
 		vout.resize(N);
 		dout.resize(N);
-		sedov_solution(t, N - bw, xpos.data() + bw, 1.0, 1.0, dout.data() + bw, eout.data() + bw, vout.data() + bw);
+		hpx::threads::run_as_os_thread([&]() {
+			sedov_solution(t, N - bw, xpos.data() + bw, 1.0, 1.0, dout.data() + bw, eout.data() + bw, vout.data() + bw);
+		}).get();
 		dout[0] = dout[3];
 		dout[1] = dout[2];
 		eout[0] = eout[3];
@@ -132,10 +138,37 @@ public:
 };
 
 constexpr int sedov_analytic::bw;
-constexpr double sedov_analytic::coeff[4][4];
 
 #ifdef TESTME
 int main() {
-	sedov_analytic test(1.0);
+	sedov_analytic test(1.0e-12);
 }
 #endif
+
+
+
+std::vector<real> blast_wave(real x, real y, real z, real dx) {
+	const real fgamma = grid::get_fgamma();
+	std::vector<real> u(opts().n_fields, real(0));
+	u[spc_i] = u[rho_i] = 1.0e-3;
+	const real a = std::sqrt(10.0) * std::min(dx, 0.1);
+	real r = std::sqrt(x * x + y * y + z * z);
+	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a)) / 100.0;
+	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
+	return u;
+}
+
+
+#ifndef TESTME
+//std::vector<double> blast_wave(double x, double y, double z, double dx) {
+//	static sedov_analytic state(1.0e-3);
+//	return state.state_at(x,y,z);
+//}
+#endif
+
+
+
+
+
+
+
