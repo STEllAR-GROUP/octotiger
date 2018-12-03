@@ -17,7 +17,7 @@ jobs:
                         - run: sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 20
                         - run: sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-6 20
                         - restore_cache:
-                                key: v3-dependencies-{{ .Branch }}
+                                key: dependencies-{{ .Branch }}
                         - run: ./circle_ci_scripts/build-cmake.sh 
                         - run: ./circle_ci_scripts/build-hdf5.sh
                         - run: ./circle_ci_scripts/build-silo.sh
@@ -26,7 +26,7 @@ jobs:
                         - run: ./circle_ci_scripts/build-hpx.sh
                         - run: ./circle_ci_scripts/build-octotiger.sh
                         - save_cache:
-                                key: v3-dependencies-{{ .Branch }}
+                                key: dependencies-{{ .Branch }}
                                 paths:
                                         - "/home/circleci/octotiger/boost_1_63_0"
                                         - "/home/circleci/boost_1_63_0_install"
@@ -57,7 +57,7 @@ jobs:
                         - run: sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 20
                         - run: sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-6 20
                         - restore_cache:
-                                key: v3-dependencies-{{ .Branch }}
+                                key: dependencies-{{ .Branch }}
                         - restore_cache:
                                 key: build-{{ .Branch }}-{{ .Revision }}
                         - run: cd test_problems && cd sod && ./test.sh ../../build/octotiger /home/circleci/silo_install/bin/silodiff

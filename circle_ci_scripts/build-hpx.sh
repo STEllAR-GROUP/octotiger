@@ -9,6 +9,11 @@ else
     cd ..
 fi
 
+cd hpx
+git checkout git checkout 6ac4d1acd9e8159456b3b0179f0087c8303d61c7
+cd ..
+
+
 mkdir -p hpx/build
 cd hpx/build
 
