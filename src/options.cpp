@@ -17,10 +17,10 @@ void normalize_constants();
 
 #define IN_OPTIONS_CPP
 
-constexpr real mass_solar = 1.08144220986243;
-constexpr real number_solar = 1.09847876422801;
-constexpr real X_solar = 0.70682;
-constexpr real Z_solar = 0.01809;
+constexpr real mass_solar = 1.2969;
+constexpr real number_solar = 1.0994;
+constexpr real X_solar = 0.7068;
+constexpr real Z_solar = 0.0181;
 
 
 options& opts() {
