@@ -2,16 +2,12 @@
 set -x
 
 if [ ! -d "Vc/" ]; then
-    git clone https://github.com/STEllAR-GROUP/Vc
+    https://github.com/VcDevel/Vc.git
 else
     cd Vc
-    git pull
+    git checkout tags/1.4.1
     cd ..
 fi
-
-cd Vc
-git checkout pfandedd_inlining_AVX512
-cd ..
 
 mkdir -p Vc/build
 cd Vc/build
