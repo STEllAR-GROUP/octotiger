@@ -10,7 +10,7 @@ else
 fi
 
 cd hpx
-git checkout git checkout 6ac4d1acd9e8159456b3b0179f0087c8303d61c7
+git checkout 6ac4d1acd9e8159456b3b0179f0087c8303d61c7
 cd ..
 
 
