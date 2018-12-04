@@ -1,146 +1,145 @@
-#include <hpx/include/run_as.hpp>
-#include <stdio.h>
-#include <stdlib.h>
-#include "../../options.hpp"
 
-void compute_sedov(std::vector<double>& den, std::vector<double>& ener, std::vector<double>& vel, double xmax, int N, double eblast, double t ) {
+#include "../../grid.hpp"
+#include <mutex>
+#include <unordered_map>
+#include <functional>
+#include <memory>
+#include <vector>
 
-	char str[256];
-
-	char* ptr;
-	asprintf( &ptr, "./sedov_fort %i %e 3 0 %e %e 1.6666666 sedov.txt\n", N, eblast, t, xmax );
-	printf( ptr );
-	system(ptr);
-	free(ptr);
-	den.resize(N);
-	ener.resize(N);
-	vel.resize(N);
-	FILE* fp = fopen( "sedov.txt", "rt" );
-	fgets( str, 256, fp );
-	fgets( str, 256, fp );
-	for( int i = 0; i < N; i++ ) {
-		fgets( str, 256, fp );
-		den[i] = atof( str + 21 );
-		ener[i] = atof( str + 35 );
-		vel[i] = atof( str + 63 );
-	}
-	fclose(fp);
+extern "C" {
+/* Subroutine */int sed_1d__(double *time, int *nstep,
+		double * xpos, double *eblast, double *omega_in__,
+		double * xgeom_in__, double *rho0, double *vel0,
+		double *ener0, double *pres0, double *cs0, double *gam0,
+		double *den, double *ener, double *pres, double *vel,
+		double *cs);
 }
 
+namespace sedov {
 
-class sedov_analytic {
-	int N;
-	static constexpr int bw = 2;
+void solution(double time, double r, double rmax, double& d, double& v, double& p) {
+	int nstep = 10000;
+	constexpr int bw = 2;
 
-	double rmax, dr;
-	std::vector<double> eout;
-	std::vector<double> dout;
-	std::vector<double> vout;
-public:
-	std::vector<double> state_at(double x, double y, double z) {
-#ifndef TESTME
-		std::vector<double> u(opts().n_fields,0.0);
-#endif
-		int i[4];
-		const double r = std::sqrt(x * x + y * y + z * z);
-		i[1] = (r + bw * dr) / dr;
-		i[0] = i[1] - 1;
-		i[2] = i[1] + 1;
-		i[3] = i[1] + 2;
-		double r0 = (r - (i[1]-bw)*dr)/dr;
-	//	printf( "%e %i\n", r0,  i[1]);
-		const auto interp = [&r0,&i](const std::vector<double>& data) {
-			double sum = 0.0;
-			sum += (-0.5 * data[i[0]] + 1.5 * data[i[1]] - 1.5 * data[i[2]] + 0.5 * data[i[3]]) * r0 * r0 * r0;
-			sum += (+1.0 * data[i[0]] - 2.5 * data[i[1]] + 2.0 * data[i[2]] - 0.5 * data[i[3]]) * r0 * r0;
-			sum += (-0.5 * data[i[0]]                   +  0.5 * data[i[2]]) * r0;
-			sum += data[i[1]];
-			return sum;
+	using function_type = std::function<void(double,double&,double&,double&)>;
+	using map_type = std::unordered_map<double,std::shared_ptr<function_type>>;
+	using mutex_type = std::mutex;
+
+	static map_type map;
+	static mutex_type mutex;
+
+	std::unique_lock<mutex_type> lock(mutex);
+
+	double rho0 = 1.0;
+	double vel0 = 0.0;
+	double ener0 = 0.0;
+	double pres0 = 0.0;
+	double cs0 = 0.0;
+	double gamma = grid::get_fgamma();
+	double omega = 0.0;
+	double eblast = 1.0;
+	double xgeom = 3.0;
+
+	std::vector<double> xpos(nstep+2*bw);
+	std::vector<double> den(nstep+2*bw);
+	std::vector<double> ener(nstep+2*bw);
+	std::vector<double> pres(nstep+2*bw);
+	std::vector<double> vel(nstep+2*bw);
+	std::vector<double> cs(nstep+2*bw);
+
+	std::shared_ptr<function_type> ptr;
+
+	auto iter = map.find(time);
+	for( int i = 0; i < nstep + 2*bw; i++) {
+		xpos[i] = (i - bw + 0.5)*rmax/(nstep);
+	}
+	nstep += bw;
+	if (iter == map.end()) {
+
+
+		printf( "HELLo1\n");
+		sed_1d__(&time, &nstep, xpos.data() + bw, &eblast, &omega, &xgeom, &rho0,
+				&vel0, &ener0, &pres0, &cs0, &gamma, den.data() + bw, ener.data() + bw,
+				pres.data() + bw, vel.data() + bw, cs.data() + bw);
+		printf( "HELLo\n");
+
+		xpos[0] = -xpos[3];
+		den[0] = den[3];
+		ener[0] = ener[3];
+		pres[0] = pres[3];
+		vel[0] = -vel[3];
+		cs[0] = cs[3];
+
+		xpos[1] = -xpos[2];
+		den[1] = den[2];
+		ener[1] = ener[2];
+		pres[1] = pres[2];
+		vel[1] = -vel[2];
+		cs[1] = cs[2];
+
+
+		function_type func = [nstep,rmax,den,pres,vel](double r, double& d, double& v, double & p) {
+			double dr = rmax / (nstep);
+			std::array<int,4> i;
+			i[1] = (r + bw * dr) / dr;
+			i[0] = i[1] - 1;
+			i[2] = i[1] + 1;
+			i[3] = i[1] + 2;
+			double r0 = (r - (i[1]-bw)*dr)/dr;
+
+
+			const auto interp = [r0,i](const std::vector<double>& data) {
+				double sum = 0.0;
+				sum += (-0.5 * data[i[0]] + 1.5 * data[i[1]] - 1.5 * data[i[2]] + 0.5 * data[i[3]]) * r0 * r0 * r0;
+				sum += (+1.0 * data[i[0]] - 2.5 * data[i[1]] + 2.0 * data[i[2]] - 0.5 * data[i[3]]) * r0 * r0;
+				sum += (-0.5 * data[i[0]]                   +  0.5 * data[i[2]]) * r0;
+				sum += data[i[1]];
+				return sum;
+			};
+
+			d = interp(den);
+			v = interp(vel);
+			p = interp(pres);
+
 		};
-		double d = std::max(interp(dout),1.0e-20);
-		double v = interp(vout);
-		double e = std::max(interp(eout), 1.0e-20);
-#ifdef TESTME
-		printf( "%e %e %e %e\n", r, d, v, e);
-		return std::vector<double>();
-#else
-		u[rho_i] = d;
-		u[spc_i] = d;
-		u[sx_i] = v * d * x / r;
-		u[sy_i] = v * d * y / r;
-		u[sz_i] = v * d * z / r;
-		u[egas_i] = d * v * v * 0.5 + e * d;
-		u[tau_i] = std::pow(e * d, 3.0 / 5.0);
-		u[zx_i] = 0.0;
-		u[zy_i] = 0.0;
-		u[zz_i] = 0.0;
-//		printf( "%e\n", std::pow(e * d, 3.0 / 5.0));
-		return std::move(u);
-#endif
+
+		ptr = std::make_shared<function_type>(std::move(func));
+		map[time] = ptr;
+	} else {
+		ptr = iter->second;
 	}
-	sedov_analytic(double t) {
-		N = 1000  + bw;
-		rmax = 2.0;
-		dr = rmax / (N-bw);
-		std::vector<double> xpos(N);
-		for (int i = 0; i < N; i++) {
-			xpos[i] = (i + 0.5 - bw) * dr;
-		}
-		eout.resize(N);
-		vout.resize(N);
-		dout.resize(N);
+	lock.unlock();
 
-		//TODO insert new call
+	const auto& func = *(ptr);
 
-		hpx::threads::run_as_os_thread([&]() {
-//			sedov_solution(t, N - bw, xpos.data() + bw, 1.0, 1.0, dout.data() + bw, eout.data() + bw, vout.data() + bw);
-		}).get();
-		dout[0] = dout[3];
-		dout[1] = dout[2];
-		eout[0] = eout[3];
-		eout[1] = eout[2];
-		vout[0] = -vout[3];
-		vout[1] = -vout[2];
-#ifdef TESTME
-		for( double r = 0; r < 1.0; r += 1.0e-3 ) {
-			state_at(r,0.0,0.0);
-		}
-#endif	
-	}
-};
-
-constexpr int sedov_analytic::bw;
-
-#ifdef TESTME
-int main() {
-	sedov_analytic test(1.0e-12);
+	func(r, d, v, p);
 }
-#endif
+
+}
+
+constexpr double blast_wave_t0 = 1.0;
 
 
-/*
-std::vector<real> blast_wave(real x, real y, real z, real dx) {
-	const real fgamma = grid::get_fgamma();
-	std::vector<real> u(opts().n_fields, real(0));
-	u[spc_i] = u[rho_i] = 1.0e-3;
-	const real a = std::sqrt(10.0) * std::min(dx, 0.1);
+std::vector<double> blast_wave_analytic(double x, double y, double z, double t) {
 	real r = std::sqrt(x * x + y * y + z * z);
-	u[egas_i] = std::max(1.0e-10, exp(-r * r / a / a)) / 100.0;
-	u[tau_i] = std::pow(u[egas_i], ONE / fgamma);
+	t += blast_wave_t0;
+	double rmax = 2.0 * opts().xscale;
+	double d, v, p;
+	sedov::solution(t, r, rmax, d, v, p);
+	std::vector<double> u(opts().n_fields, 0.0);
+	u[rho_i] = u[spc_i] = d;
+	real s = d * v;
+	u[sx_i] = s * x / r;
+	u[sy_i] = s * y / r;
+	u[sz_i] = s * z / r;
+	real e = p / (grid::get_fgamma() - 1);
+	u[egas_i] = e + s * v * 0.5;
+	u[tau_i] = std::pow(e, 1 / grid::get_fgamma());
 	return u;
-}*/
-
-
-#ifndef TESTME
-std::vector<double> blast_wave(double x, double y, double z, double dx) {
-	static sedov_analytic state(1.0e-3);
-	return state.state_at(x,y,z);
 }
-#endif
+
+std::vector<double> blast_wave(double x, double y, double z, double dx) {
+	return blast_wave_analytic(x,y,z,0.0);
 
 
-
-
-
-
-
+}

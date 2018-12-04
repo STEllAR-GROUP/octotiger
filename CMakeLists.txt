@@ -95,6 +95,7 @@ set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z quadmath)
 # Octotiger executable
 set(source_files ${source_files}
     src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf.c
     src/silo.cpp
     src/node_registry.cpp
     src/test_problems/rotating_star/rotating_star.cpp
@@ -211,9 +212,9 @@ set(analysis_source_files
     analysis_src/analysis.cpp
 )
 
-add_library( eos ./src/libeos/libeos.cpp )
-add_executable( analysis ${analysis_source_files} )
-add_executable( silo_reader ${silo_reader_source_files} ./src/libeos/libeos.cpp  )
+#add_library( eos ./src/libeos/libeos.cpp )
+#add_executable( analysis ${analysis_source_files} )
+#add_executable( silo_reader ${silo_reader_source_files} ./src/libeos/libeos.cpp  )
 
 add_hpx_executable(
   octotiger
@@ -226,23 +227,23 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
-if (OCTOTIGER_WITH_SILO)
-add_hpx_executable(
-  silocmp
-  DEPENDENCIES
-    ${silo_cmp_dependencies}
-  SOURCES
-    ${silo_cmp_source_files}
-  HEADERS
-    ${silo_cmp_header_files}
-  FOLDER  "Octotiger"
-)
+#if (OCTOTIGER_WITH_SILO)
+#add_hpx_executable(
+#  silocmp
+#  DEPENDENCIES
+#    ${silo_cmp_dependencies}
+#  SOURCES
+#    ${silo_cmp_source_files}
+#  HEADERS
+#    ${silo_cmp_header_files}
+#  FOLDER  "Octotiger"
+#)
 
-endif()
+#endif()
 
 
 
-target_link_libraries( silo_reader ${Silo_LIBRARY} ${HDF5_LIBRARY} pthread  dl z)
-target_link_libraries( analysis ${HDF5_LIBRARY} )
+#target_link_libraries( silo_reader ${Silo_LIBRARY} ${HDF5_LIBRARY} pthread  dl z)
+#target_link_libraries( analysis ${HDF5_LIBRARY} )
 
 
