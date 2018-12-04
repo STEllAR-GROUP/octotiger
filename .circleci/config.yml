@@ -3,7 +3,7 @@ jobs:
         build:
                 machine:
                         enabled: true
-                environement:
+                environment:
                         Vc_ROOT: /home/circleci/Vc_install
                         Boost_ROOT: /home/circleci/boost_1_63_0_install
                         HPX_ROOT: /home/circleci/hpx_install
