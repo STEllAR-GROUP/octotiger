@@ -15,6 +15,7 @@ cd silo
 cd silo-4.10.2
 cat configure | sed 's/-lhdf5/$hdf5_lib\/libhdf5.a -ldl/g' > tmp
 mv tmp configure
+chmod 755 configure
 ./configure --prefix=/home/circleci/silo_install --with-hdf5=/home/circleci/hdf5_install/include,/home/circleci/hdf5_install/lib/ --enable-optimization
 make -j2 VERBOSE=1 install
 
