@@ -39,8 +39,8 @@ static real nc1 = 5.0; // Primary core polytropic index
 static real nc2 = 5.0; // Secondary core polytropic index
 static real ne1 = 3.0; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
 static real ne2 = 1.5; // Secondary envelope polytropic index
-static real mu1 = 2.2; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
-static real mu2 = 2.2; // Primary ratio of molecular weights
+static real mu1 = 2.1598; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
+static real mu2 = 2.1598; // Primary ratio of molecular weights
 static real a = 6.36; // approx. orbital sep
 static real core_frac1 = 1.0 / 10.0; // Desired core fraction of primary // Ignored if equal_struct_eos=true
 static real core_frac2 = 2.0 / 3.0; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
