@@ -94,12 +94,13 @@ set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z quadmath)
 
 # Octotiger executable
 set(source_files ${source_files}
+    src/test_problems/marshak/marshak.cpp
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf.c
-    src/silo.cpp
-    src/node_registry.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
+    src/silo.cpp
+    src/node_registry.cpp
     src/eos.cpp
     src/scf_data.cpp
     src/test_problems/sod/exact_sod.cpp
