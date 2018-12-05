@@ -111,8 +111,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 }
 
 HPX_PLAIN_ACTION(initialize, initialize_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action)
-HPX_REGISTER_BROADCAST_ACTION(initialize_action)
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
+HPX_REGISTER_BROADCAST_ACTION(initialize_action);
 
 real OMEGA;
 namespace scf_options {
