@@ -94,13 +94,14 @@ void solution(real time, real r, real rmax, real& d, real& v, real& p) {
 		function_type func = [nstep,rmax,den1,pres1,vel1](real r, real& d, real& v, real & p) {
 			real dr = rmax / (nstep);
 			std::array<int,4> i;
-			i[1] = (r + bw * dr) / dr;
+			i[1] = (r + (bw - 0.5)*dr) / dr;
 			i[0] = i[1] - 1;
 			i[2] = i[1] + 1;
 			i[3] = i[1] + 2;
-			real r0 = (r - (i[1]-bw)*dr)/dr;
-
-
+			real r0 = (r - (i[1]-bw + 0.5)*dr)/dr;
+	//		printf( "%i %e\n", i[0], r, dr );
+			assert( i[0] >= 0 );
+			assert( i[3] < vel1.size());
 			const auto interp = [r0,i](const std::vector<real>& data) {
 				real sum = 0.0;
 				sum += (-0.5 * data[i[0]] + 1.5 * data[i[1]] - 1.5 * data[i[2]] + 0.5 * data[i[3]]) * r0 * r0 * r0;
@@ -137,11 +138,9 @@ constexpr sed_real blast_wave_t0 = 7e-4;
 std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
 	real r = std::sqrt(x * x + y * y + z * z);
 	t += blast_wave_t0;
-	real rmax = 2.0 * opts().xscale;
+	real rmax = 3.0 * opts().xscale;
 	real d, v, p;
-//	hpx::threads::run_as_os_thread( [&]() {
-		sedov::solution(t, r, rmax, d, v, p);
-//	});
+	sedov::solution(t, r, rmax, d, v, p);
 	std::vector<real> u(opts().n_fields, 0.0);
 	u[rho_i] = u[spc_i] = std::max(d,1.0e-20);
 	real s = d * v;

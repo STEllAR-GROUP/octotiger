@@ -67,6 +67,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 //		opts().gravity = false;
 		set_problem(blast_wave);
 		set_refine_test(refine_blast);
+		set_analytic(blast_wave_analytic);
 	} else if (opts().problem == STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
