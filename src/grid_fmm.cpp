@@ -475,12 +475,12 @@ void grid::compute_interactions(gsolve_type type) {
         // Coefficients for potential evaluation? (David)
         const std::array<double, 4> di0 = {
             1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-        const v4sd d0(di0.data(), Vc::flags::element_aligned);
+        const v4sd d0(di0.data(), Vc::Aligned);
 
         // negative of d0 because it's the force in the opposite direction
         const std::array<double, 4> di1 = {
             1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
-        const v4sd d1(di1.data(), Vc::flags::element_aligned);
+        const v4sd d1(di1.data(), Vc::Aligned);
 
         // Number of body-body interactions current leaf cell, probably includes interactions with
         // bodies in neighboring cells  (David)
@@ -962,7 +962,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
 
 
     const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-    const v4sd d0(di0.data(), Vc::flags::element_aligned);
+    const v4sd d0(di0.data(), Vc::Aligned);
 
     hpx::parallel::for_loop(
         for_loop_policy, 0, ilist_n_bnd.size(),

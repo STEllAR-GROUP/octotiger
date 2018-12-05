@@ -36,11 +36,10 @@ struct taylor_consts
     static integer map4[3][3][3][3];
 };
 
-constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35};    //
+constexpr integer taylor_sizes[MAX_ORDER] = {1, 4, 10, 20, 35};
 
 ///////////////////////////////////////////////////////////////////////////////
-template <int N, class T = real>
-class taylor
+template <int N, class T = real >class taylor
 {
 private:
     static constexpr integer my_size = taylor_sizes[N - 1];
@@ -137,7 +136,8 @@ public:
         return *this;
     }
 
-    OCTOTIGER_FORCEINLINE taylor<N, T>& operator+=(v4sd const& other) {
+
+    OCTOTIGER_FORCEINLINE taylor<N, T>& operator+=(v4sd const& other)  {
 #pragma GCC ivdep
         for (integer i = 0; i != 4; ++i) {
             data[i] += other[i];
@@ -550,5 +550,7 @@ std::ostream& operator<<(std::ostream& os, const taylor<N, T>& t) {
     std::cout << ")";
     return os;
 }
+
+
 
 #endif /* TAYLOR_HPP_ */
