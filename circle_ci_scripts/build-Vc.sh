@@ -2,7 +2,7 @@
 set -x
 
 if [ ! -d "Vc/" ]; then
-    https://github.com/VcDevel/Vc.git
+    git clone https://github.com/VcDevel/Vc.git
 else
     cd Vc
     git checkout tags/1.4.1
