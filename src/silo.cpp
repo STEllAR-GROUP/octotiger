@@ -591,7 +591,7 @@ void output_stage3(std::string fname, int cycle) {
 								adj2[2*d+7] = i[d].second;
 								adj2[12+d] = d + 1;
 							}
-]							tmp.push_back(std::move(adj1));
+							tmp.push_back(std::move(adj1));
 							tmp.push_back(std::move(adj2));
 							connections[n].push_back(tmp[tmp.size()-2].data());
 							connections[m].push_back(tmp[tmp.size()-1].data());
