@@ -38,7 +38,7 @@ range_type node_location::abs_range() const {
 	range_type range;
 	integer shift = opts().max_level - level();
 	for( int d = 0; d < NDIM; d++) {
-		range[d].first = INX*xloc[d];
+		range[d].first = (INX*xloc[d]) << shift;
 		range[d].second = (INX*(xloc[d]+1)) << shift;
 	}
 	return std::move(range);
