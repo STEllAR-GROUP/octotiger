@@ -75,6 +75,11 @@ void these_units(real& m, real& l, real& t, real& k) {
 		l = opts().code_to_cm;
 		t = opts().code_to_s;
 		k = 1.0;
+	} else if( opts().radiation ) {
+		m = opts().code_to_g;
+		l = opts().code_to_cm;
+		t = opts().code_to_cm / 2.99792458e+10;
+		k = 1.0;
 	} else {
 		G = 1.0;
 		m = opts().code_to_g;
