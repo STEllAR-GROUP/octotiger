@@ -60,6 +60,7 @@ jobs:
                                 key: v4-dependencies-{{ .Branch }}
                         - restore_cache:
                                 key: v4-build-{{ .Branch }}-{{ .Revision }}
+                        - run: cd test_problems && cd blast && ./test.sh ../../build/octotiger /home/circleci/silo_install/bin/silodiff
                         - run: cd test_problems && cd sod && ./test.sh ../../build/octotiger /home/circleci/silo_install/bin/silodiff
                         - run: cd build && ./octotiger --problem=moving_star --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 --hpx:threads=1 --hpx:bind=none --compress_silo=off
                         - run: cd test1 && ./test1.sh > output.txt
