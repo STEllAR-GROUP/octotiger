@@ -238,7 +238,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 	timings::scope ts(timings_, timings::time_total);
 	integer output_cnt;
 
-	if (!opts().hydro) {
+	if (!opts().hydro && !opts().radiation) {
 		diagnostics();
 		return;
 	}
