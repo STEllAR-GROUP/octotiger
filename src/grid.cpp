@@ -83,18 +83,20 @@ std::vector<std::string> grid::get_field_names() {
 	}
 	if (opts().radiation) {
 		const auto rnames = rad_grid::get_field_names();
-		std::copy(rnames.begin(), rnames.end(), rc.end());
+		for( auto& n : rnames ) {
+			rc.push_back(n);
+		}
 	}
 	return rc;
 }
 
 std::vector<std::string> grid::get_hydro_field_names() {
 	std::vector<std::string> rc;
-	if (opts().hydro) {
+//	if (opts().hydro) {
 		for (auto i : str_to_index_hydro) {
 			rc.push_back(i.first);
 		}
-	}
+//	}
 	return rc;
 }
 
@@ -202,7 +204,7 @@ std::string grid::gravity_units_name(const std::string& nm) {
 std::vector<silo_var_t> grid::var_data() const {
 	std::vector<silo_var_t> s;
 	real unit;
-	if (opts().hydro) {
+//	if (opts().hydro) {
 		for (auto l : str_to_index_hydro) {
 			unit = convert_hydro_units(l.second);
 			const int f = l.second;
@@ -220,7 +222,7 @@ std::vector<silo_var_t> grid::var_data() const {
 			}
 			s.push_back(std::move(this_s));
 		}
-	}
+//	}
 
 	if (opts().gravity) {
 		for (auto l : str_to_index_gravity) {
@@ -243,7 +245,11 @@ std::vector<silo_var_t> grid::var_data() const {
 	}
 	if (opts().radiation) {
 		auto rad = rad_grid_ptr->var_data();
-		std::move(rad.begin(), rad.end(), s.end());
+		printf( "size = %i\n", rad.size());
+		for( auto& r : rad ) {
+			s.push_back(std::move(r));
+		}
+//		std::move(rad.begin(), rad.end(), s.end());
 	}
 	return std::move(s);
 }
@@ -2760,7 +2766,7 @@ void grid::next_u(integer rk, real t, real dt) {
 			}
 		}
 	}
-#pragma GCC ivdep
+//#pragma GCC ivdep
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		const real out1 = U_out[field] + du_out[field];
 		const real out0 = U_out0[field];

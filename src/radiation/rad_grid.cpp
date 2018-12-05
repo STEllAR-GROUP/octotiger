@@ -67,7 +67,7 @@ std::vector<silo_var_t> rad_grid::var_data() const {
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
-					const int iii = hindex(k + R_BW, j + R_BW, i + R_BW);
+					const int iii = rindex(k + R_BW, j + R_BW, i + R_BW);
 					this_s(jjj) = U[f][iii];
 					jjj++;
 				}
