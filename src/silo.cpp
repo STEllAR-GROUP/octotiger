@@ -379,6 +379,7 @@ void output_stage3(std::string fname, int cycle) {
 				int one = 1;
 				int opt1 = DB_CARTESIAN;
 				auto optlist = DBMakeOptlist(100);
+				DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
 				DBAddOption(optlist, DBOPT_DTIME, &dtime);
 				DBAddOption(optlist, DBOPT_TIME, &ftime);
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
@@ -579,24 +580,18 @@ void output_stage3(std::string fname, int cycle) {
 							std::vector<int> adj2(15);
 							for( int d = 0; d < NDIM; d++) {
 								int d0 = NDIM - d - 1;
-								adj1[2*d+0] = 0;
-								adj1[2*d+1] = rn[d].second - rn[d].first;
-								adj1[2*d+6] = i[d].first - rn[d].first;
-								adj1[2*d+7] = i[d].second - rn[d].first;
+								adj1[2*d+0] = rn[d].first;
+								adj1[2*d+1] = rn[d].second;
+								adj1[2*d+6] = i[d].first;
+								adj1[2*d+7] = i[d].second;
 								adj1[12+d] = d + 1;
-								adj2[2*d+0] = 0;
-								adj2[2*d+1] = rm[d].second - rm[d].first;
-								adj2[2*d+6] = i[d].first - rm[d].first;
-								adj2[2*d+7] = i[d].second - rm[d].first;
+								adj2[2*d+0] = rm[d].first;
+								adj2[2*d+1] = rm[d].second;
+								adj2[2*d+6] = i[d].first;
+								adj2[2*d+7] = i[d].second;
 								adj2[12+d] = d + 1;
 							}
-							const integer factor1 = (rn[0].second - rn[0].first) / nx;
-							const integer factor2 = (rm[0].second - rm[0].first) / mx;
-							for( int d = 0; d < 4 * NDIM; d++) {
-								adj1[d]/=factor1;
-								adj2[d]/=factor2;
-							}
-							tmp.push_back(std::move(adj1));
+]							tmp.push_back(std::move(adj1));
 							tmp.push_back(std::move(adj2));
 							connections[n].push_back(tmp[tmp.size()-2].data());
 							connections[m].push_back(tmp[tmp.size()-1].data());
