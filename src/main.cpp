@@ -82,6 +82,11 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 //		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
 		set_refine_test(refine_test_moving_star);
+	} else if (opts().problem == MARSHAK) {
+		grid::set_fgamma(5.0 / 3.0);
+		grid::set_analytic_func(marshak_wave_analytic);
+		set_problem(marshak_wave);
+		set_refine_test(refine_test_moving_star);
 	} else if (opts().problem == SOLID_SPHERE) {
 	//	opts().hydro = false;
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
