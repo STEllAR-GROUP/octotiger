@@ -37,13 +37,11 @@ struct node_list_t {
 	std::vector<node_location::node_id> silo_leaves;
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
-	std::vector<integer> nx;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & silo_leaves;
 		arc & all;
 		arc & positions;
-		arc & nx;
 	}
 };
 
@@ -348,7 +346,6 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	node_list_t nl;
 	for (const auto& mv : all_mesh_vars) {
 		ids.push_back(mv.location.to_id());
-		nl.nx.push_back(mv.var_dims[0]);
 	}
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
@@ -561,10 +558,7 @@ void output_stage3(std::string fname, int cycle) {
 				std::vector<int*> linear_connections;
 				std::vector<std::vector<int>> tmp;
 				for( int n = 0; n < nleaves; n++) {
-					const integer nx = node_list_.nx[n];
 					for( int m = n+1; m < nleaves; m++) {
-						const integer nx = node_list_.nx[n];
-						const integer mx = node_list_.nx[m];
 						range_type rn, rm, i;
 						rn = node_locs[n].abs_range();
 						rm = node_locs[m].abs_range();
@@ -655,7 +649,6 @@ void output_all(std::string fname, int cycle, bool block) {
 	for (auto& id : localities) {
 		id_futs.push_back(hpx::async<output_stage2_action>(id, fname, cycle));
 	}
-	node_list_.nx.clear();
 	node_list_.silo_leaves.clear();
 	node_list_.all.clear();
 	node_list_.positions.clear();
@@ -669,9 +662,6 @@ void output_all(std::string fname, int cycle, bool block) {
 		}
 		for (auto& i : this_list.positions) {
 			node_list_.positions.push_back(i);
-		}
-		for (auto& i : this_list.nx) {
-			node_list_.nx.push_back(i);
 		}
 	}
 	barrier = hpx::async([cycle,fname]() {
