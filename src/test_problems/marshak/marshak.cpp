@@ -4,6 +4,11 @@
  Laplace Inversion Source Code
  Copyright © 2010 James R. Craig, University of Waterloo
  ----------------------------------------------------------------*/
+
+#ifndef TESTME
+#include "../../defs.hpp"
+#include "../../grid.hpp"
+#endif
 #include <math.h>
 #include <complex>
 #include <iostream>
@@ -165,7 +170,6 @@ void solution(double z, double t, double& T_mat, double& T_rad) {
 }
 
 #ifndef TESTME
-#include "../../grid.hpp"
 
 std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	std::vector<double> u(opts().n_fields);
