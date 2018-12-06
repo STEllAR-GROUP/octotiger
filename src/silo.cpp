@@ -37,11 +37,13 @@ struct node_list_t {
 	std::vector<node_location::node_id> silo_leaves;
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
+	std::vector<std::vector<double>> extents;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & silo_leaves;
 		arc & all;
 		arc & positions;
+		arc & extents;
 	}
 };
 
@@ -375,8 +377,9 @@ void output_stage3(std::string fname, int cycle) {
 				float ftime = dtime;
 				int one = 1;
 				int opt1 = DB_CARTESIAN;
+				int planar = DB_VOLUME;
 				auto optlist = DBMakeOptlist(100);
-				DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
+				DBAddOption(optlist, DBOPT_PLANAR, &planar);
 				DBAddOption(optlist, DBOPT_DTIME, &dtime);
 				DBAddOption(optlist, DBOPT_TIME, &ftime);
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
@@ -403,8 +406,6 @@ void output_stage3(std::string fname, int cycle) {
 					DBMkDir(db, dir_name);
 					DBSetDir( db, dir_name );
 					DBPutQuadmesh(db, "quadmesh", coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
-					auto mm = std::string(std::string("/") + dir_name + std::string("/quadmesh"));
-					DBAddOption(optlist, DBOPT_MMESH_NAME, const_cast<char*>(mm.c_str()));
 
 					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
 						const auto& o = mesh_vars.vars[m];
@@ -414,27 +415,29 @@ void output_stage3(std::string fname, int cycle) {
 							write_silo_var<real> f;
 							f(db, outflow_name(o.name()).c_str(), outflow);
 							DBAddOption(optlist, DBOPT_CONSERVED, &one);
+							DBAddOption(optlist, DBOPT_EXTENSIVE, &one);
 						}
 						DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 								DB_DOUBLE, DB_ZONECENT, optlist);
 						count++;
 						if( is_hydro ) {
-							DBClearOption(optlist, DBOPT_CONSERVED);
+							DBAddOption(optlist, DBOPT_CONSERVED, &one);
+							DBAddOption(optlist, DBOPT_EXTENSIVE, &one);
 						}
 					}
 #ifdef OUTPUT_ROCHE
-			if( opts().problem==DWD) {
-				auto this_name = mesh_vars.roche_name;
-				DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
-						db_type<grid::roche_type>::d, DB_ZONECENT, optlist);
-			}
+					if( opts().problem==DWD) {
+						auto this_name = mesh_vars.roche_name;
+						DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+								db_type<grid::roche_type>::d, DB_ZONECENT, optlist);
+					}
 #endif
-			DBClearOption(optlist,DBOPT_MMESH_NAME);
-			DBSetDir( db, "/" );
-		}
-		DBFreeOptlist( optlist);
-		DBClose( db);
-	}, cycle).get();
+					DBClearOption(optlist,DBOPT_MMESH_NAME);
+					DBSetDir( db, "/" );
+				}
+				DBFreeOptlist( optlist);
+				DBClose( db);
+		}, cycle).get();
 	if (this_id < integer(localities.size()) - 1) {
 		output_stage3_action func;
 		func(localities[this_id + 1], fname, cycle);
@@ -486,6 +489,11 @@ void output_stage3(std::string fname, int cycle) {
 			auto optlist = DBMakeOptlist(100);
 			int opt1 = DB_CARTESIAN;
 			int mesh_type = DB_QUADMESH;
+			int one = 1;
+			int dj = DB_ABUTTING;
+			int six = 2 * NDIM;
+			DBAddOption(optlist, DBOPT_DISJOINT_MODE,&dj);
+			DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
 			DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
 			DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 			DBAddOption(optlist, DBOPT_DTIME, &dtime);
@@ -499,10 +507,40 @@ void output_stage3(std::string fname, int cycle) {
 			DBAddOption(optlist, DBOPT_YLABEL, ystr );
 			DBAddOption(optlist, DBOPT_ZLABEL, zstr );
 			assert( n_total_domains > 0 );
+			std::vector<double> extents;
+			for( const auto& n : node_locs ) {
+				const real scale = opts().xscale * opts().code_to_cm;
+				const double xmin = n.x_location(0)*scale;
+				const double ymin = n.x_location(1)*scale;
+				const double zmin = n.x_location(2)*scale;
+				const double d =  TWO / real(1 << n.level())*scale;
+				const double xmax = xmin + d;
+				const double ymax = ymin + d;
+				const double zmax = zmin + d;
+				extents.push_back(xmin);
+				extents.push_back(ymin);
+				extents.push_back(zmin);
+				extents.push_back(xmax);
+				extents.push_back(ymax);
+				extents.push_back(zmax);
+			}
+			DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &six);
+			DBAddOption(optlist, DBOPT_EXTENTS, extents.data());
 			printf( "Putting %i\n", n_total_domains );
 			DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
+			DBClearOption(optlist, DBOPT_EXTENTS_SIZE);
+			DBClearOption(optlist, DBOPT_EXTENTS);
 			for (int f = 0; f < nfields; f++) {
+				const bool is_hydro = grid::is_hydro_field(top_field_names[f]);
+				if( is_hydro ) {
+					DBAddOption(optlist, DBOPT_CONSERVED, &one);
+					DBAddOption(optlist, DBOPT_EXTENSIVE, &one);
+				}
 				DBPutMultivar( db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+				if( is_hydro ) {
+					DBClearOption(optlist, DBOPT_CONSERVED);
+					DBClearOption(optlist, DBOPT_EXTENSIVE);
+				}
 			}
 #ifdef OUTPUT_ROCHE
 				if( opts().problem == DWD ) {
@@ -601,9 +639,12 @@ void output_stage3(std::string fname, int cycle) {
 				}
 				std::vector<int> fifteen(linear_connections.size(),15);
 				std::vector<int> mesh_types(nleaves,mesh_type);
+				int isTimeVarying = 1;
+				int n = 1;
+				DBWrite(db, "ConnectivityIsTimeVarying", &isTimeVarying, &n,
+						1, DB_INT);
 				DBMkDir(db,"Decomposition");
 				DBSetDir(db,"Decomposition");
-				int one = 1;
 				DBPutMultimeshadj(db, "Domain_Decomposition", nleaves, mesh_types.data(),
 						neighbor_count.data(),linear_neighbor_list.data(), linear_back_list.data(),fifteen.data(),linear_connections.data(),NULL,NULL,NULL);
 				DBWrite(db, "NumDomains", &nleaves, &one, 1, DB_INT);
@@ -944,6 +985,8 @@ void node_server::reconstruct_tree() {
 
 silo_var_t::silo_var_t(const std::string& name, std::size_t nx) :
 		name_(name), data_(nx * nx * nx) {
+	range_.first = std::numeric_limits<real>::max();
+	range_.second = std::numeric_limits<real>::min();
 }
 
 double&

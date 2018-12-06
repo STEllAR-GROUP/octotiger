@@ -214,6 +214,7 @@ std::vector<silo_var_t> grid::var_data() const {
 					for (int k = 0; k < INX; k++) {
 						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
 						this_s(jjj) = U[f][iii] * unit;
+						this_s.set_range(this_s(jjj));
 						jjj++;
 					}
 				}
@@ -234,6 +235,7 @@ std::vector<silo_var_t> grid::var_data() const {
 					for (int k = 0; k < INX; k++) {
 						const int iii = gindex(k, j, i);
 						this_s(jjj) = G[iii][f] * unit;
+						this_s.set_range(this_s(jjj));
 						jjj++;
 					}
 				}

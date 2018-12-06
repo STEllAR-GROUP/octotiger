@@ -17,6 +17,16 @@ private:
 	std::vector<real> data_;
 	std::pair<real,real> range_;
 public:
+	void set_range(real val ) {
+		range_.first = std::min(range_.first, val);
+		range_.second = std::min(range_.second, val);
+	}
+	real min() const {
+		return range_.first;
+	}
+	real max() const {
+		return range_.second;
+	}
 	std::size_t size() const {
 		return data_.size();
 	}
