@@ -1,5 +1,3 @@
-
-
 #include "future.hpp"
 #include "grid.hpp"
 #include "problem.hpp"
@@ -18,7 +16,6 @@
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
-
 
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
@@ -133,16 +130,16 @@ real grid::convert_hydro_units(int i) {
 	const real cm = opts().code_to_cm;
 	const real s = opts().code_to_s;
 	const real g = opts().code_to_g;
-	if( i >= spc_i && i <= spc_i + opts().n_species) {
-		val *= g / (cm*cm*cm);
-	} else if( i>= sx_i && i <= sz_i) {
-		val *= g / (s*s*cm*cm);
-	} else if( i == egas_i || (i >= zx_i && i <= zz_i) ) {
-		val *= g / (s*s*cm);
-	} else if( i == tau_i ) {
-		val *= POWER(g / (s*s*cm),1.0/fgamma);
+	if (i >= spc_i && i <= spc_i + opts().n_species) {
+		val *= g / (cm * cm * cm);
+	} else if (i >= sx_i && i <= sz_i) {
+		val *= g / (s * s * cm * cm);
+	} else if (i == egas_i || (i >= zx_i && i <= zz_i)) {
+		val *= g / (s * s * cm);
+	} else if (i == tau_i) {
+		val *= POWER(g / (s * s * cm), 1.0 / fgamma);
 	} else {
-		printf( "Asked to convert units for unknown field %i\n", i );
+		printf("Asked to convert units for unknown field %i\n", i);
 		abort();
 	}
 	return val;
@@ -153,7 +150,7 @@ real grid::convert_gravity_units(int i) {
 	const real cm = opts().code_to_cm;
 	const real s = opts().code_to_s;
 	const real g = opts().code_to_g;
-	if( i == phi_i ) {
+	if (i == phi_i) {
 		val *= cm * cm / s / s;
 	} else {
 		val *= cm / s / s;
@@ -163,7 +160,7 @@ real grid::convert_gravity_units(int i) {
 
 std::vector<grid::roche_type> grid::get_roche_lobe() const {
 	int jjj = 0;
-	std::vector<grid::roche_type> this_s(INX*INX*INX);
+	std::vector<grid::roche_type> this_s(INX * INX * INX);
 	for (int i = 0; i < INX; i++) {
 		for (int j = 0; j < INX; j++) {
 			for (int k = 0; k < INX; k++) {
@@ -178,21 +175,20 @@ std::vector<grid::roche_type> grid::get_roche_lobe() const {
 
 std::string grid::hydro_units_name(const std::string& nm) {
 	int f = str_to_index_hydro[nm];
-	if( f >= spc_i && f <= spc_i + opts().n_species) {
+	if (f >= spc_i && f <= spc_i + opts().n_species) {
 		return "g / cm^3";
-	} else if( f >= sx_i && f <= sz_i) {
+	} else if (f >= sx_i && f <= sz_i) {
 		return "g / (cm s)^2 ";
-	} else if( f == egas_i || (f >= zx_i && f <= zz_i)) {
+	} else if (f == egas_i || (f >= zx_i && f <= zz_i)) {
 		return "g / (cm s^2)";
-	} else if( f == tau_i) {
+	} else if (f == tau_i) {
 		return "(g / cm)^(3/5) / s^(6/5)";
 	}
 }
 
-
 std::string grid::gravity_units_name(const std::string& nm) {
 	int f = str_to_index_gravity[nm];
-	if( f == phi_i ) {
+	if (f == phi_i) {
 		return "cm^2 / s^2";
 	} else {
 		return "cm / s^2";
@@ -276,7 +272,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					}
 					real et = U[egas_i][iii];
 					if (ei < de_switch2 * et) {
-						ei = POWER(U[tau_i][iii],fgamma);
+						ei = POWER(U[tau_i][iii], fgamma);
 					}
 					real p = (fgamma - 1.0) * ei;
 					if (opts().eos == WD) {
@@ -471,7 +467,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 
 					if (i != -1) {
 						rl = i == 0 ? -1 : +1;
-						const integer s = rl * INVERSE( std::abs(rl));
+						const integer s = rl * INVERSE(std::abs(rl));
 
 						if (phi_eff > diags.l1_phi) {
 							rl += s;
@@ -507,7 +503,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 					}
 					real et = U[egas_i][iii];
 					if (ei < de_switch2 * et) {
-						ei = POWER(U[tau_i][iii],fgamma);
+						ei = POWER(U[tau_i][iii], fgamma);
 					}
 					real p = (fgamma - 1.0) * ei;
 					if (opts().eos == WD) {
@@ -1871,6 +1867,55 @@ void grid::set_coordinates() {
 			}
 		}
 	}PROF_END;
+}
+
+std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() {
+	std::vector<std::pair<std::string, std::string>> rc;
+	std::string rho;
+	for (integer i = 0; i < opts().n_species; i++) {
+		rho += "rho_" + std::to_string(i + 1) + " + ";
+	}
+	rho += '0';
+	rc.push_back(std::make_pair(std::string("rho"), std::move(rho)));
+	char* v[NDIM];
+	asprintf(&v[0], "s_x / rho + %e * mesh(quadmesh)[0]", omega);
+	asprintf(&v[1], "s_y / rho - %e * mesh(quadmesh)[1]", omega);
+	asprintf(&v[2], "s_z / rho");
+	rc.push_back(std::make_pair(std::string("vx"), std::move(v[0])));
+	rc.push_back(std::make_pair(std::string("vy"), std::move(v[1])));
+	rc.push_back(std::make_pair(std::string("vz"), std::move(v[2])));
+	free(v[0]);
+	free(v[1]);
+	free(v[2]);
+	std::string n;
+	for (integer i = 0; i < opts().n_species; i++) {
+		char* ptr;
+		const real mu = opts().atomic_mass[i] / (opts().atomic_number[i] + 1.);
+		asprintf(&ptr, "rho_%i / %e + ", int(i + 1), mu * physcon().mh * opts().code_to_g);
+		n += ptr;
+		free(ptr);
+	}
+	n += '0';
+	rc.push_back(std::make_pair(std::string("n"), std::move(n)));
+	rc.push_back( std::make_pair(std::string("ek"),std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
+	char* ptr;
+	asprintf( &ptr, "if( gt(egas-ek,0.001*egas), egas-ek, tau^%e)", fgamma);
+	rc.push_back( std::make_pair(std::string("ei"),std::string(ptr)));
+	free(ptr);
+	asprintf( &ptr, "%e * ei / n", 1.0 / physcon().kb / (fgamma-1.0));
+	rc.push_back( std::make_pair(std::string("T"),std::string(ptr)));
+	free(ptr);
+	asprintf( &ptr, "%e * ei", (fgamma-1.0));
+	rc.push_back( std::make_pair(std::string("P"),std::string(ptr)));
+	free(ptr);
+	return std::move(rc);
+}
+
+std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() {
+	std::vector<std::pair<std::string, std::string>> rc;
+	rc.push_back(std::make_pair(std::string("s"), std::string("{sx,sy,sz}")));
+	rc.push_back(std::make_pair(std::string("v"), std::string("{vx,vy,vz}")));
+	return std::move(rc);
 }
 
 analytic_t grid::compute_analytic(real t) {

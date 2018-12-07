@@ -420,12 +420,12 @@ void output_stage3(std::string fname, int cycle) {
 
 				for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
 					auto optlist_var = DBMakeOptlist(100);
-					DBAddOption(optlist_mesh, DBOPT_COORDSYS, &opt1);
-					DBAddOption(optlist_mesh, DBOPT_CYCLE, &cycle);
-					DBAddOption(optlist_mesh, DBOPT_TIME, &ftime);
-					DBAddOption(optlist_mesh, DBOPT_DTIME, &dtime);
+					DBAddOption(optlist_var, DBOPT_COORDSYS, &opt1);
+					DBAddOption(optlist_var, DBOPT_CYCLE, &cycle);
+					DBAddOption(optlist_var, DBOPT_TIME, &ftime);
+					DBAddOption(optlist_var, DBOPT_DTIME, &dtime);
 					// TODO: UNITS
-					DBAddOption(optlist_mesh, DBOPT_HIDE_FROM_GUI, &one);
+					DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
 
 					const auto& o = mesh_vars.vars[m];
 					const bool is_hydro = grid::is_hydro_field(o.name());
@@ -444,15 +444,15 @@ void output_stage3(std::string fname, int cycle) {
 #ifdef OUTPUT_ROCHE
 			if( opts().problem==DWD) {
 				auto optlist_var = DBMakeOptlist(100);
-				DBAddOption(optlist_mesh, DBOPT_COORDSYS, &opt1);
-				DBAddOption(optlist_mesh, DBOPT_CYCLE, &cycle);
-				DBAddOption(optlist_mesh, DBOPT_TIME, &ftime);
-				DBAddOption(optlist_mesh, DBOPT_DTIME, &dtime);
+				DBAddOption(optlist_var, DBOPT_COORDSYS, &opt1);
+				DBAddOption(optlist_var, DBOPT_CYCLE, &cycle);
+				DBAddOption(optlist_var, DBOPT_TIME, &ftime);
+				DBAddOption(optlist_var, DBOPT_DTIME, &dtime);
 				// TODO: UNITS
-				DBAddOption(optlist_mesh, DBOPT_HIDE_FROM_GUI, &one);
+				DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
 				auto this_name = mesh_vars.roche_name;
-				DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
-						db_type<grid::roche_type>::d, DB_ZONECENT, optlist_var);
+		//		DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+		//				db_type<grid::roche_type>::d, DB_ZONECENT, optlist_var);
 				DBFreeOptlist( optlist_var);
 			}
 #endif
@@ -546,6 +546,7 @@ void output_stage3(std::string fname, int cycle) {
 			DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
 			DBAddOption(optlist, DBOPT_DISJOINT_MODE,&dj);
 			DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
+			DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type );
 			printf( "Putting %i\n", n_total_domains );
 			DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
 			DBFreeOptlist( optlist);
@@ -573,7 +574,8 @@ void output_stage3(std::string fname, int cycle) {
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
-					DBPutMultivar( db, "roche_geometry", n_total_domains, roche_names.data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+					DBAddOption(optlist, DBOPT_MMESH_NAME, mmesh);
+//					DBPutMultivar( db, "roche_geometry", n_total_domains, roche_names.data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
 					DBFreeOptlist( optlist);
 				}
 #endif
@@ -679,6 +681,35 @@ void output_stage3(std::string fname, int cycle) {
 						neighbor_count.data(),linear_neighbor_list.data(), linear_back_list.data(),fifteen.data(),linear_connections.data(),NULL,NULL,NULL);
 				DBWrite(db, "NumDomains", &nleaves, &one, 1, DB_INT);
 
+				// Expressions
+
+				DBSetDir(db,"/");
+				std::vector<char*> names;
+				std::vector<char*> defs;
+				std::vector<int> types;
+				auto exps1 = grid::get_scalar_expressions();
+				auto exps2 = grid::get_vector_expressions();
+//				decltype(exps1) exps;
+//				for( auto& e : exps1 ) {
+//					exps.push_back(std::move(e));
+//				}
+//				for( auto& e : exps2 ) {
+//					exps.push_back(std::move(e));
+//				}
+				for( integer i = 0; i < exps1.size(); i++) {
+					types.push_back(DB_VARTYPE_SCALAR);
+					names.push_back(const_cast<char*>(exps1[i].first.c_str()));
+					defs.push_back(const_cast<char*>(exps1[i].second.c_str()));
+				}
+				for( integer i = 0; i < exps2.size(); i++) {
+					types.push_back(DB_VARTYPE_VECTOR);
+					names.push_back(const_cast<char*>(exps2[i].first.c_str()));
+					defs.push_back(const_cast<char*>(exps2[i].second.c_str()));
+				}
+//				for( int i = 0; i < exps.size();i++ ) {
+//					printf( "%s %i %s\n", names[i], types[i], defs[i]);
+//				}
+	//			DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), NULL );
 				DBClose( db);
 				for (auto ptr : mesh_names) {
 					delete[] ptr;
@@ -736,6 +767,8 @@ void output_all(std::string fname, int cycle, bool block) {
 		for (auto& i : this_list.zone_count) {
 			node_list_.zone_count.push_back(i);
 		}
+		const int nfields = grid::get_field_names().size();
+		node_list_.extents.resize(nfields);
 		for (int f = 0; f < this_list.extents.size(); f++) {
 			for (auto& i : this_list.extents[f]) {
 				node_list_.extents[f].push_back(i);
