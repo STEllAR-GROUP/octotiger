@@ -37,11 +37,15 @@ struct node_list_t {
 	std::vector<node_location::node_id> silo_leaves;
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
+	std::vector<std::vector<double>> extents;
+	std::vector<int> zone_count;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & silo_leaves;
 		arc & all;
 		arc & positions;
+		arc & extents;
+		arc & zone_count;
 	}
 };
 
@@ -262,6 +266,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 						if (is_hydro) {
 							new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
 						}
+						const auto& old_var = iters[ci]->second->vars[f];
 						const int nx = new_mesh_ptr->var_dims[0] / 2;
 						const int ib = ((ci >> 0) & 1) * nx;
 						const int jb = ((ci >> 1) & 1) * nx;
@@ -274,10 +279,12 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 								for (int k = kb; k < ke; k++) {
 									const int iiip = i * (4 * nx * nx) + j * 2 * nx + k;
 									const int iiic = (i - ib) * (nx * nx) + (j - jb) * nx + (k - kb);
-									new_var(iiip) = iters[ci]->second->vars[f](iiic);
+									new_var(iiip) = old_var(iiic);
 								}
 							}
 						}
+						new_var.set_range(old_var.min());
+						new_var.set_range(old_var.max());
 					}
 					new_mesh_ptr->vars.push_back(std::move(new_var));
 				}
@@ -344,8 +351,16 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		all_mesh_vars = compress(std::move(all_mesh_vars));
 	}
 	node_list_t nl;
+	nl.extents.resize(nfields);
 	for (const auto& mv : all_mesh_vars) {
 		ids.push_back(mv.location.to_id());
+		nl.zone_count.push_back(mv.var_dims[0] * mv.var_dims[1] * mv.var_dims[2]);
+		for (int f = 0; f < nfields; f++) {
+	//		printf( "%e\n", mv.vars[f].min(), mv.vars[f].max());
+			nl.extents[f].push_back(mv.vars[f].min());
+			nl.extents[f].push_back(mv.vars[f].max());
+		}
+
 	}
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
@@ -364,75 +379,90 @@ void output_stage3(std::string fname, int cycle) {
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".silo");
 	double dtime = output_time;
-	hpx::threads::run_as_os_thread(
-			[&this_fname,this_id,&dtime](integer cycle) {
-				DBfile *db;
-				if (this_id == 0) {
-					db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
-				} else {
-					db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
-				}
-				float ftime = dtime;
-				int one = 1;
-				int opt1 = DB_CARTESIAN;
-				auto optlist = DBMakeOptlist(100);
-				DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
-				DBAddOption(optlist, DBOPT_DTIME, &dtime);
-				DBAddOption(optlist, DBOPT_TIME, &ftime);
-				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
-				DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
-				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-				char xstr[2] = {'x', '\0'};
-				char ystr[2] = {'y', '\0'};
-				char zstr[2] = {'z', '\0'};
-				DBAddOption(optlist, DBOPT_XLABEL, xstr );
-				DBAddOption(optlist, DBOPT_YLABEL, ystr );
-				DBAddOption(optlist, DBOPT_ZLABEL, zstr );
-				const char* coord_names[] = {"x", "y", "z"};
-				constexpr int data_type = DB_DOUBLE;
-				constexpr int ndim = NDIM;
-				constexpr int coord_type = DB_COLLINEAR;
-				int count = 0;
-				for( const auto& mesh_vars : all_mesh_vars) {
-					const auto& X = mesh_vars.X;
-					const real* coords[NDIM];
-					for( int d = 0; d < NDIM; d++) {
-						coords[d] = X[d].data();
-					}
-					const auto& dir_name = mesh_vars.mesh_name.c_str();
-					DBMkDir(db, dir_name);
-					DBSetDir( db, dir_name );
-					DBPutQuadmesh(db, "quadmesh", coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist);
-					auto mm = std::string(std::string("/") + dir_name + std::string("/quadmesh"));
-					DBAddOption(optlist, DBOPT_MMESH_NAME, const_cast<char*>(mm.c_str()));
+	hpx::threads::run_as_os_thread([&this_fname,this_id,&dtime](integer cycle) {
+		DBfile *db;
+		if (this_id == 0) {
+			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
+		} else {
+			db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
+		}
+		float ftime = dtime;
+		int one = 1;
+		int opt1 = DB_CARTESIAN;
+		int planar = DB_VOLUME;
+		char xstr[2] = {'x', '\0'};
+		char ystr[2] = {'y', '\0'};
+		char zstr[2] = {'z', '\0'};
 
-					for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
-						const auto& o = mesh_vars.vars[m];
-						const bool is_hydro = grid::is_hydro_field(o.name());
-						if( is_hydro ) {
-							real outflow = mesh_vars.outflow[m].second;
-							write_silo_var<real> f;
-							f(db, outflow_name(o.name()).c_str(), outflow);
-							DBAddOption(optlist, DBOPT_CONSERVED, &one);
-						}
-						DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
-								DB_DOUBLE, DB_ZONECENT, optlist);
-						count++;
-						if( is_hydro ) {
-							DBClearOption(optlist, DBOPT_CONSERVED);
-						}
+		auto optlist_mesh = DBMakeOptlist(100);
+		DBAddOption(optlist_mesh, DBOPT_COORDSYS, &opt1);
+		DBAddOption(optlist_mesh, DBOPT_CYCLE, &cycle);
+		DBAddOption(optlist_mesh, DBOPT_XLABEL, xstr );
+		DBAddOption(optlist_mesh, DBOPT_YLABEL, ystr );
+		DBAddOption(optlist_mesh, DBOPT_ZLABEL, zstr );
+		DBAddOption(optlist_mesh, DBOPT_PLANAR, &planar);
+		DBAddOption(optlist_mesh, DBOPT_TIME, &ftime);
+		DBAddOption(optlist_mesh, DBOPT_DTIME, &dtime);
+		// TODO: XUNITS. YUNITS, ZUNITS
+			DBAddOption(optlist_mesh, DBOPT_HIDE_FROM_GUI, &one);
+
+			const char* coord_names[] = {"x", "y", "z"};
+			constexpr int data_type = DB_DOUBLE;
+			constexpr int ndim = NDIM;
+			constexpr int coord_type = DB_COLLINEAR;
+			int count = 0;
+			for( const auto& mesh_vars : all_mesh_vars) {
+				const auto& X = mesh_vars.X;
+				const real* coords[NDIM];
+				for( int d = 0; d < NDIM; d++) {
+					coords[d] = X[d].data();
+				}
+				const auto& dir_name = mesh_vars.mesh_name.c_str();
+				DBMkDir(db, dir_name);
+				DBSetDir( db, dir_name );
+				DBPutQuadmesh(db, "quadmesh", coord_names, coords, mesh_vars.X_dims.data(), ndim, data_type, coord_type, optlist_mesh);
+
+				for ( integer m = 0; m != mesh_vars.vars.size(); m++) {
+					auto optlist_var = DBMakeOptlist(100);
+					DBAddOption(optlist_var, DBOPT_COORDSYS, &opt1);
+					DBAddOption(optlist_var, DBOPT_CYCLE, &cycle);
+					DBAddOption(optlist_var, DBOPT_TIME, &ftime);
+					DBAddOption(optlist_var, DBOPT_DTIME, &dtime);
+					// TODO: UNITS
+					DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
+
+					const auto& o = mesh_vars.vars[m];
+					const bool is_hydro = grid::is_hydro_field(o.name());
+					if( is_hydro ) {
+						real outflow = mesh_vars.outflow[m].second;
+						write_silo_var<real> f;
+						f(db, outflow_name(o.name()).c_str(), outflow);
+						DBAddOption(optlist_var, DBOPT_CONSERVED, &one);
+						DBAddOption(optlist_var, DBOPT_EXTENSIVE, &one);
 					}
+					DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+							DB_DOUBLE, DB_ZONECENT, optlist_var);
+					count++;
+					DBFreeOptlist( optlist_var);
+				}
 #ifdef OUTPUT_ROCHE
 			if( opts().problem==DWD) {
+				auto optlist_var = DBMakeOptlist(100);
+				DBAddOption(optlist_var, DBOPT_COORDSYS, &opt1);
+				DBAddOption(optlist_var, DBOPT_CYCLE, &cycle);
+				DBAddOption(optlist_var, DBOPT_TIME, &ftime);
+				DBAddOption(optlist_var, DBOPT_DTIME, &dtime);
+				// TODO: UNITS
+				DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
 				auto this_name = mesh_vars.roche_name;
-				DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
-						db_type<grid::roche_type>::d, DB_ZONECENT, optlist);
+				DBPutQuadvar1(db, "roche_geometry", mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+						DB_CHAR, DB_ZONECENT, optlist_var);
+				DBFreeOptlist( optlist_var);
 			}
 #endif
-			DBClearOption(optlist,DBOPT_MMESH_NAME);
 			DBSetDir( db, "/" );
 		}
-		DBFreeOptlist( optlist);
+		DBFreeOptlist( optlist_mesh);
 		DBClose( db);
 	}, cycle).get();
 	if (this_id < integer(localities.size()) - 1) {
@@ -483,30 +513,73 @@ void output_stage3(std::string fname, int cycle) {
 
 			const int n_total_domains = mesh_names.size();
 
-			auto optlist = DBMakeOptlist(100);
 			int opt1 = DB_CARTESIAN;
 			int mesh_type = DB_QUADMESH;
-			DBAddOption(optlist, DBOPT_COORDSYS, &opt1);
-			DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-			DBAddOption(optlist, DBOPT_DTIME, &dtime);
-			DBAddOption(optlist, DBOPT_TIME, &ftime);
-			DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
-			DBAddOption(optlist, DBOPT_MMESH_NAME, const_cast<char*>("quadmesh"));
-			char xstr[2] = {'x', '\0'};
-			char ystr[2] = {'y', '\0'};
-			char zstr[2] = {'z', '\0'};
-			DBAddOption(optlist, DBOPT_XLABEL, xstr );
-			DBAddOption(optlist, DBOPT_YLABEL, ystr );
-			DBAddOption(optlist, DBOPT_ZLABEL, zstr );
+			int one = 1;
+			int dj = DB_ABUTTING;
+			int six = 2 * NDIM;
 			assert( n_total_domains > 0 );
+			std::vector<double> extents;
+			for( const auto& n : node_locs ) {
+				const real scale = opts().xscale * opts().code_to_cm;
+				const double xmin = n.x_location(0)*scale;
+				const double ymin = n.x_location(1)*scale;
+				const double zmin = n.x_location(2)*scale;
+				const double d = TWO / real(1 << n.level())*scale;
+				const double xmax = xmin + d;
+				const double ymax = ymin + d;
+				const double zmax = zmin + d;
+				extents.push_back(xmin);
+				extents.push_back(ymin);
+				extents.push_back(zmin);
+				extents.push_back(xmax);
+				extents.push_back(ymax);
+				extents.push_back(zmax);
+			}
+			int three = 3;
+			int two = 2;
+			auto optlist = DBMakeOptlist(100);
+			DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+			DBAddOption(optlist, DBOPT_TIME, &ftime);
+			DBAddOption(optlist, DBOPT_DTIME, &dtime);
+			DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &six);
+			DBAddOption(optlist, DBOPT_EXTENTS, extents.data());
+			DBAddOption(optlist, DBOPT_ZONECOUNTS, node_list_.zone_count.data());
+			DBAddOption(optlist, DBOPT_HAS_EXTERNAL_ZONES, std::vector<int>(n_total_domains).data());
+			DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
+			DBAddOption(optlist, DBOPT_DISJOINT_MODE,&dj);
+			DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
+			DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type );
 			printf( "Putting %i\n", n_total_domains );
 			DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
+			DBFreeOptlist( optlist);
+			char mmesh[strlen("quadmesh")+1];
+			std::strcpy(mmesh, "quadmesh");
 			for (int f = 0; f < nfields; f++) {
+				optlist = DBMakeOptlist(100);
+				DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+				DBAddOption(optlist, DBOPT_TIME, &ftime);
+				DBAddOption(optlist, DBOPT_DTIME, &dtime);
+				const bool is_hydro = grid::is_hydro_field(top_field_names[f]);
+				if( is_hydro ) {
+					DBAddOption(optlist, DBOPT_CONSERVED, &one);
+					DBAddOption(optlist, DBOPT_EXTENSIVE, &one);
+				}
+				DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &two);
+				DBAddOption(optlist, DBOPT_EXTENTS, node_list_.extents[f].data());
+				DBAddOption(optlist, DBOPT_MMESH_NAME, mmesh);
 				DBPutMultivar( db, top_field_names[f].c_str(), n_total_domains, field_names[f].data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+				DBFreeOptlist( optlist);
 			}
 #ifdef OUTPUT_ROCHE
 				if( opts().problem == DWD ) {
+					optlist = DBMakeOptlist(100);
+					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+					DBAddOption(optlist, DBOPT_TIME, &ftime);
+					DBAddOption(optlist, DBOPT_DTIME, &dtime);
+					DBAddOption(optlist, DBOPT_MMESH_NAME, mmesh);
 					DBPutMultivar( db, "roche_geometry", n_total_domains, roche_names.data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+					DBFreeOptlist( optlist);
 				}
 #endif
 				write_silo_var<integer> fi;
@@ -601,14 +674,45 @@ void output_stage3(std::string fname, int cycle) {
 				}
 				std::vector<int> fifteen(linear_connections.size(),15);
 				std::vector<int> mesh_types(nleaves,mesh_type);
+				int isTimeVarying = 1;
+				int n = 1;
+				DBWrite(db, "ConnectivityIsTimeVarying", &isTimeVarying, &n,
+						1, DB_INT);
 				DBMkDir(db,"Decomposition");
 				DBSetDir(db,"Decomposition");
-				int one = 1;
 				DBPutMultimeshadj(db, "Domain_Decomposition", nleaves, mesh_types.data(),
 						neighbor_count.data(),linear_neighbor_list.data(), linear_back_list.data(),fifteen.data(),linear_connections.data(),NULL,NULL,NULL);
 				DBWrite(db, "NumDomains", &nleaves, &one, 1, DB_INT);
 
-				DBFreeOptlist( optlist);
+				// Expressions
+
+				DBSetDir(db,"/");
+				std::vector<char*> names;
+				std::vector<char*> defs;
+				std::vector<int> types;
+				auto exps1 = grid::get_scalar_expressions();
+				auto exps2 = grid::get_vector_expressions();
+//				decltype(exps1) exps;
+//				for( auto& e : exps1 ) {
+//					exps.push_back(std::move(e));
+//				}
+//				for( auto& e : exps2 ) {
+//					exps.push_back(std::move(e));
+//				}
+				for( integer i = 0; i < exps1.size(); i++) {
+					types.push_back(DB_VARTYPE_SCALAR);
+					names.push_back(const_cast<char*>(exps1[i].first.c_str()));
+					defs.push_back(const_cast<char*>(exps1[i].second.c_str()));
+				}
+				for( integer i = 0; i < exps2.size(); i++) {
+					types.push_back(DB_VARTYPE_VECTOR);
+					names.push_back(const_cast<char*>(exps2[i].first.c_str()));
+					defs.push_back(const_cast<char*>(exps2[i].second.c_str()));
+				}
+//				for( int i = 0; i < exps.size();i++ ) {
+//					printf( "%s %i %s\n", names[i], types[i], defs[i]);
+//				}
+				DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), NULL );
 				DBClose( db);
 				for (auto ptr : mesh_names) {
 					delete[] ptr;
@@ -662,6 +766,16 @@ void output_all(std::string fname, int cycle, bool block) {
 		}
 		for (auto& i : this_list.positions) {
 			node_list_.positions.push_back(i);
+		}
+		for (auto& i : this_list.zone_count) {
+			node_list_.zone_count.push_back(i);
+		}
+		const int nfields = grid::get_field_names().size();
+		node_list_.extents.resize(nfields);
+		for (int f = 0; f < this_list.extents.size(); f++) {
+			for (auto& i : this_list.extents[f]) {
+				node_list_.extents[f].push_back(i);
+			}
 		}
 	}
 	barrier = hpx::async([cycle,fname]() {
@@ -944,6 +1058,8 @@ void node_server::reconstruct_tree() {
 
 silo_var_t::silo_var_t(const std::string& name, std::size_t nx) :
 		name_(name), data_(nx * nx * nx) {
+	range_.first = +std::numeric_limits<real>::max();
+	range_.second = -std::numeric_limits<real>::max();
 }
 
 double&
