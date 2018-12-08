@@ -97,7 +97,7 @@ public:
 	static real get_fgamma() {
 		return fgamma;
 	}
-	using roche_type = int;
+	using roche_type = char;
 private:
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;

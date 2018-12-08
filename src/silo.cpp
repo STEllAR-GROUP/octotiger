@@ -266,6 +266,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 						if (is_hydro) {
 							new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
 						}
+						const auto& old_var = iters[ci]->second->vars[f];
 						const int nx = new_mesh_ptr->var_dims[0] / 2;
 						const int ib = ((ci >> 0) & 1) * nx;
 						const int jb = ((ci >> 1) & 1) * nx;
@@ -278,10 +279,12 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 								for (int k = kb; k < ke; k++) {
 									const int iiip = i * (4 * nx * nx) + j * 2 * nx + k;
 									const int iiic = (i - ib) * (nx * nx) + (j - jb) * nx + (k - kb);
-									new_var(iiip) = iters[ci]->second->vars[f](iiic);
+									new_var(iiip) = old_var(iiic);
 								}
 							}
 						}
+						new_var.set_range(old_var.min());
+						new_var.set_range(old_var.max());
 					}
 					new_mesh_ptr->vars.push_back(std::move(new_var));
 				}
@@ -353,6 +356,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		ids.push_back(mv.location.to_id());
 		nl.zone_count.push_back(mv.var_dims[0] * mv.var_dims[1] * mv.var_dims[2]);
 		for (int f = 0; f < nfields; f++) {
+	//		printf( "%e\n", mv.vars[f].min(), mv.vars[f].max());
 			nl.extents[f].push_back(mv.vars[f].min());
 			nl.extents[f].push_back(mv.vars[f].max());
 		}
@@ -451,8 +455,8 @@ void output_stage3(std::string fname, int cycle) {
 				// TODO: UNITS
 				DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
 				auto this_name = mesh_vars.roche_name;
-		//		DBPutQuadvar1(db, this_name.c_str(), mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
-		//				db_type<grid::roche_type>::d, DB_ZONECENT, optlist_var);
+				DBPutQuadvar1(db, "roche_geometry", mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+						DB_CHAR, DB_ZONECENT, optlist_var);
 				DBFreeOptlist( optlist_var);
 			}
 #endif
@@ -575,7 +579,7 @@ void output_stage3(std::string fname, int cycle) {
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
 					DBAddOption(optlist, DBOPT_DTIME, &dtime);
 					DBAddOption(optlist, DBOPT_MMESH_NAME, mmesh);
-//					DBPutMultivar( db, "roche_geometry", n_total_domains, roche_names.data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
+					DBPutMultivar( db, "roche_geometry", n_total_domains, roche_names.data(), std::vector<int>(n_total_domains, DB_QUADVAR).data(), optlist);
 					DBFreeOptlist( optlist);
 				}
 #endif
@@ -709,7 +713,7 @@ void output_stage3(std::string fname, int cycle) {
 //				for( int i = 0; i < exps.size();i++ ) {
 //					printf( "%s %i %s\n", names[i], types[i], defs[i]);
 //				}
-	//			DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), NULL );
+				DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), NULL );
 				DBClose( db);
 				for (auto ptr : mesh_names) {
 					delete[] ptr;
@@ -1055,8 +1059,8 @@ void node_server::reconstruct_tree() {
 
 silo_var_t::silo_var_t(const std::string& name, std::size_t nx) :
 		name_(name), data_(nx * nx * nx) {
-	range_.first = std::numeric_limits<real>::max();
-	range_.second = std::numeric_limits<real>::min();
+	range_.first = +std::numeric_limits<real>::max();
+	range_.second = -std::numeric_limits<real>::max();
 }
 
 double&

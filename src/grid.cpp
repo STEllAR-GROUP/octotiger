@@ -1902,7 +1902,8 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	asprintf( &ptr, "if( gt(egas-ek,0.001*egas), egas-ek, tau^%e)", fgamma);
 	rc.push_back( std::make_pair(std::string("ei"),std::string(ptr)));
 	free(ptr);
-	asprintf( &ptr, "%e * ei / n", 1.0 / physcon().kb / (fgamma-1.0));
+	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
+	asprintf( &ptr, "%e * ei / n", 1.0 / kb / (fgamma-1.0));
 	rc.push_back( std::make_pair(std::string("T"),std::string(ptr)));
 	free(ptr);
 	asprintf( &ptr, "%e * ei", (fgamma-1.0));

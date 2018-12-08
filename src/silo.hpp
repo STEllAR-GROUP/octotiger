@@ -19,7 +19,7 @@ private:
 public:
 	void set_range(real val ) {
 		range_.first = std::min(range_.first, val);
-		range_.second = std::min(range_.second, val);
+		range_.second = std::max(range_.second, val);
 	}
 	real min() const {
 		return range_.first;
