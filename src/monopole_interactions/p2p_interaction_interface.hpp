@@ -7,11 +7,11 @@
 
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
-#include "geometry.hpp"
-#include "grid.hpp"
-#include "interaction_types.hpp"
+#include "../geometry.hpp"
+#include "../grid.hpp"
+#include "../interaction_types.hpp"
 #include "p2p_cpu_kernel.hpp"
-#include "taylor.hpp"
+#include "../taylor.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -46,7 +46,9 @@ namespace fmm {
         private:
             /// The stencil is used to identify the neighbors
             static thread_local const std::vector<multiindex<>> stencil;
+            static thread_local const std::vector<bool> stencil_masks;
             static thread_local const std::vector<std::array<real, 4>> four;
+            static thread_local const std::vector<std::array<real, 4>> stencil_four_constants;
             static thread_local std::vector<real> local_monopoles_staging_area;
             std::vector<bool> neighbor_empty_monopoles;
 

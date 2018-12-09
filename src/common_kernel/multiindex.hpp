@@ -56,6 +56,14 @@ namespace fmm {
             }
         }
 
+        CUDA_CALLABLE_METHOD inline bool operator == (const multiindex& other) const {
+            if (this->x == other.x && this->y == other.y && this->z == other.z) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
         // set this multiindex to the next coarser level index
         CUDA_CALLABLE_METHOD void transform_coarse() {
             const T patch_size = static_cast<typename T::value_type>(INX);
