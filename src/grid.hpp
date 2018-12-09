@@ -97,7 +97,7 @@ public:
 	static real get_fgamma() {
 		return fgamma;
 	}
-	using roche_type = std::int8_t;
+	using roche_type = char;
 private:
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;
@@ -191,6 +191,8 @@ public:
 	real get_dx() const {
 		return dx;
 	}
+	static std::vector<std::pair<std::string,std::string>> get_scalar_expressions();
+	static std::vector<std::pair<std::string,std::string>> get_vector_expressions();
 	std::vector<real>& get_field(integer f) {
 		return U[f];
 	}
