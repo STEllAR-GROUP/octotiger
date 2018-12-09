@@ -353,10 +353,12 @@ space_vector quad_space_vector_to_space_vector(const quad_space_vector& q) {
 }
 
 std::pair<real, space_vector> implicit_radiation_step_2nd_order(real E0_, real& e0_, const space_vector& F0_,
-		const space_vector& u0_, real rho_, real mmw_, real dt_) {
+		const space_vector& u0_, real rho_, real mmw_, real X_, real Z_, real dt_) {
 
 	quad rho = rho_;
 	quad mmw = mmw_;
+	quad X = X_;
+	quad Z = Z_;
 	quad dt = dt_;
 	quad E0 = E0_;
 	quad e0 = e0_;
@@ -370,8 +372,8 @@ std::pair<real, space_vector> implicit_radiation_step_2nd_order(real E0_, real& 
 	quad e1 = e0;
 	quad_space_vector F1 = F0;
 	quad_space_vector u1 = u0;
-	quad kp = kappa_p(rho, e0, mmw);
-	quad kr = kappa_R(rho, e0, mmw);
+	quad kp = kappa_p(rho, e0, mmw, X, Z);
+	quad kr = kappa_R(rho, e0, mmw, X, Z);
 	implicit_radiation_step(E1, e1, F1, u1, rho, mmw, kp, kr, dt);
 //	kp += 0.5 * (kappa_p(rho, e1, mmw) - kp);
 //	kr += 0.5 * (kappa_R(rho, e1, mmw) - kr);

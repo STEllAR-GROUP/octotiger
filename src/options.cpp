@@ -77,6 +77,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("eos", po::value < eos_type > (&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
+	("rad_implicit", po::value<bool>(&(opts().radiation))->default_value(true), "radiation on/off")    //
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value < std::string > (&(opts().data_dir))->default_value("./"), "directory for output") //
@@ -160,6 +161,7 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(gravity);
 		SHOW(hydro);
 		SHOW(radiation);
+		SHOW(rad_implicit);
 		SHOW(silo_planes_only);
 		SHOW(variable_omega);
 		SHOW(accretor_refine);

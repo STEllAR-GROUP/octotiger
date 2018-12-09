@@ -33,8 +33,6 @@ struct physcon_t {
 	real c;
 	real mh;
 	real h;
-	specie_state_t<> _A;
-	specie_state_t<> _Z;
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
 		arc & A;
@@ -45,8 +43,6 @@ struct physcon_t {
 		arc & kb;
 		arc & mh;
 		arc & h;
-		arc & _A;
-		arc & _Z;
 	}
 };
 
@@ -54,7 +50,7 @@ HPX_IS_BITWISE_SERIALIZABLE(physcon_t);
 
 physcon_t& physcon();
 
-real mean_ion_weight(const specie_state_t<> species);
+void mean_ion_weight(const specie_state_t<> species, real& mmw, real& X, real& Z);
 void set_AB(real, real);
 
 void set_units(real m, real l, real t, real k);

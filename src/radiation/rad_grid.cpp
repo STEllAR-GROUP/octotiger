@@ -182,7 +182,7 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				space_vector u1 = u0;
 				real e1 = e0;
 
-				const auto ddt = implicit_radiation_step_2nd_order(E1, e1, F1, u1, den, mmw[iiir], dt);
+				const auto ddt = implicit_radiation_step_2nd_order(E1, e1, F1, u1, den, mmw[iiir], X_spc[iiir], Z_spc[iiir], dt);
 				const real dE_dt = ddt.first;
 				const real dFx_dt = ddt.second[0];
 				const real dFy_dt = ddt.second[1];
@@ -278,7 +278,7 @@ real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vect
 
 				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
 				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
-				const real cons = kappa_R(rho[iiih], e0, mmw[iiir]) * dx;
+				const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
 				if (cons < 32.0) {
 					this_a *= std::max(1.0 - std::exp(-cons), 0.0);
 				}
@@ -291,6 +291,8 @@ real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vect
 
 void rad_grid::compute_mmw(const std::vector<std::vector<real>>& U) {
 	mmw.resize(R_N3);
+	X_spc.resize(R_N3);
+	Z_spc.resize(R_N3);
 	for (integer i = 0; i != R_NX; ++i) {
 		for (integer j = 0; j != R_NX; ++j) {
 			for (integer k = 0; k != R_NX; ++k) {
@@ -300,7 +302,7 @@ void rad_grid::compute_mmw(const std::vector<std::vector<real>>& U) {
 				specie_state_t<real> spc;
 				for (integer si = 0; si != opts().n_species; ++si) {
 					spc[si] = U[spc_i + si][iiih];
-					mmw[iiir] = mean_ion_weight(spc);
+					mean_ion_weight(spc, mmw[iiir], X_spc[iiir], Z_spc[iiir]);
 				}
 			}
 		}
@@ -353,7 +355,9 @@ void node_server::compute_radiation(real dt) {
 		printf("\nImplicit\n");
 	}
 	rgrid->sanity_check();
-	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt);
+	if( opts().rad_implicit) {
+		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt);
+	}
 	all_rad_bounds();
 	if (my_location.level() == 0) {
 		printf("Rad done\n");

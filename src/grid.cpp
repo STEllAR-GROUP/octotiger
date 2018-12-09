@@ -1894,15 +1894,36 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	free(v[1]);
 	free(v[2]);
 	std::string n;
+	std::string X = "(";
+	std::string Z = "(";
+
 	for (integer i = 0; i < opts().n_species; i++) {
 		char* ptr;
 		const real mu = opts().atomic_mass[i] / (opts().atomic_number[i] + 1.);
 		asprintf(&ptr, "rho_%i / %e + ", int(i + 1), mu * physcon().mh * opts().code_to_g);
 		n += ptr;
 		free(ptr);
+		asprintf(&ptr, "%e * rho_%i + ", opts().X[i], i + 1);
+		X += ptr;
+		free(ptr);
+		asprintf(&ptr, "%e * rho_%i + ", opts().Z[i], i + 1);
+		Z += ptr;
+		free(ptr);
 	}
 	n += '0';
+	X += "0)";
+	Z += "0)";
+	rc.push_back(std::make_pair(std::string("sigma_T"),std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
+//	rc.push_back(std::make_pair(std::string("sigma_m"),std::string("0.1 * Z")));
+	rc.push_back(std::make_pair(std::string("sigma_xf"),std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
+	rc.push_back(std::make_pair(std::string("mfp"),std::string("1 / kappa_R")));
+//	rc.push_back(std::make_pair(std::string("sigma_Hn"),std::string("1.1e-25 * sqrt(rho * Z) * T^7.7")));
+	rc.push_back(std::make_pair(std::string("kappa_R"),std::string("rho * (sigma_xf + sigma_T)")));
+	rc.push_back(std::make_pair(std::string("kappa_P"),std::string("rho * 30.262 * sigma_xf")));
 	rc.push_back(std::make_pair(std::string("n"), std::move(n)));
+	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
+	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));
+	rc.push_back(std::make_pair(std::string("Z"), std::move(Z)));
 	rc.push_back( std::make_pair(std::string("ek"),std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
 	char* ptr;
 	asprintf( &ptr, "if( gt(egas-ek,0.001*egas), egas-ek, tau^%e)", fgamma);

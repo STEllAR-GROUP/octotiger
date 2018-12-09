@@ -19,7 +19,7 @@
 
 
 physcon_t& physcon() {
-	static physcon_t physcon_ = { 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
+	static physcon_t physcon_ = { 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0 };
 	return physcon_;
 }
 
@@ -238,20 +238,21 @@ hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 	return f;
 }
 
-real mean_ion_weight(const specie_state_t<> species) {
+void mean_ion_weight(const specie_state_t<> species, real& mmw, real& X, real& Z) {
 //	real N;
 	real mtot = 0.0;
 	real ntot = 0.0;
+	X = Z = 0;
 	for (integer i = 0; i != opts().n_species; ++i) {
 		const real m = species[i];
-		ntot += m * (physcon()._Z[i] + 1.0) / physcon()._A[i];
+		ntot += m * (opts().atomic_number[i] + 1.0) / opts().atomic_mass[i];
+		X += m * opts().X[i];
+		Z += m * opts().Z[i];
 		mtot += m;
 	}
-	if (ntot > 0.0) {
-		return mtot / ntot;
-	} else {
-		return 0.0;
-	}
+	mmw = mtot / ntot;
+	X /=  mtot;
+	Z /= mtot;
 }
 
 typedef node_server::change_units_action change_units_action_type;
