@@ -338,22 +338,9 @@ namespace fmm {
                         if (neighbor_empty[dir_start.flat_index_with_center()] &&
                             neighbor_empty[dir_end.flat_index_with_center()]) {
                             vector_is_empty[cell_flat_index] = true;
-                            // std::cout << "prepare true cell_index:" << cell_index << std::endl;
-                            // std::cout << "cell_flat_index: " << cell_flat_index << std::endl;
-                            // std::cout << "dir_start.flat_index_with_center(): "
-                            //           << dir_start.flat_index_with_center() << std::endl;
-                            // std::cout << "dir_end.flat_index_with_center(): "
-                            //           << dir_end.flat_index_with_center() << std::endl;
-                            // std::cout << "in_boundary_end: " << in_boundary_end << std::endl;
 
                         } else {
                             vector_is_empty[cell_flat_index] = false;
-                            // std::cout << "prepare false cell_index:" << cell_index << std::endl;
-                            // std::cout << "cell_flat_index: " << cell_flat_index << std::endl;
-                            // std::cout << "dir_start.flat_index_with_center(): "
-                            //           << dir_start.flat_index_with_center() << std::endl;
-                            // std::cout << "dir_end.flat_index_with_center(): "
-                            //           << dir_end.flat_index_with_center() << std::endl;
                         }
                     }
                 }
