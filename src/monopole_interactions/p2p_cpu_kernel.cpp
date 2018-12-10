@@ -118,31 +118,6 @@ namespace fmm {
             const std::vector<std::array<real, 4>>& __restrict__ four_constants,
             const size_t outer_stencil_index, real dx) {
 
-            // preproceess
-            // std::array<real, 4> four_constants_defaults = {0, 0, 0, 0};
-            // std::vector<bool> stencil_masks(1331, false);
-            // std::vector<std::array<real, 4>> four_constants_stencil(1331, four_constants_defaults);
-            // size_t conversion_index = 0;
-            // size_t count_hits = 0;
-            // for (int stencil_x = -5; stencil_x <= 5; stencil_x++) {
-            //     for (int stencil_y = -5; stencil_y <= 5; stencil_y++) {
-            //         for (int stencil_z = -5; stencil_z <= 5; stencil_z++) {
-            //             const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
-            //             if (std::find(stencil.begin(), stencil.end(),
-            //                           stencil_element) != stencil.end()) {
-            //                 stencil_masks[conversion_index] = true;
-            //                 four_constants_stencil[conversion_index] =
-            //                     four_constants[conversion_index]; //bug - order is not given
-            //                 count_hits++;
-            //             }
-            //             conversion_index++;
-            //         }
-            //     }
-            // }
-            // std::cerr << count_hits << std::endl;
-            // std::cin.get();
-
-
             const m2m_vector d_components[2] = {1.0 / dx, -1.0 / sqr(dx)};
             m2m_vector tmpstore1[4];
             tmpstore1[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
@@ -154,16 +129,13 @@ namespace fmm {
             size_t skipped = 0;
             size_t calculated = 0;
 
-            for (int stencil_x = -5; stencil_x <= 5; stencil_x++) {
-                int x = stencil_x + 5;
-                for (int stencil_y = -5; stencil_y <= 5; stencil_y++) {
-                    int y = stencil_y + 5;
-                    for (int stencil_z = -5; stencil_z <= 5; stencil_z++) {
-                        const size_t index = x * 11 * 11 + y * 11 + (stencil_z + 5);
+            for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
+                int x = stencil_x - STENCIL_MIN;
+                for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
+                    int y = stencil_y - STENCIL_MIN;
+                    for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
+                        const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + (stencil_z - STENCIL_MIN);
                         if (!stencil[index]) {
-                            // std::cerr << "skipping " << stencil_x << " " << stencil_y << " " <<
-                            //     stencil_z << std::endl;
-                            // std::cin.get();
                             skipped++;
                             continue;
                         }
@@ -211,9 +183,6 @@ namespace fmm {
                     }
                 }
             }
-            // std::cout << "skipped: " << skipped << std::endl;
-            // std::cout << "calculated: " << calculated << std::endl;
-            // std::cin.get();
 
             if (data_changed) {
                 tmpstore1[0].memstore(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),

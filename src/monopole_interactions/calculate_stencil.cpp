@@ -99,8 +99,8 @@ namespace fmm {
         calculate_stencil_masks(std::vector<multiindex<>> superimposed_stencil) {
 
             std::array<real, 4> four_constants_defaults = {0, 0, 0, 0};
-            std::vector<bool> stencil_masks(1331, false);
-            std::vector<std::array<real, 4>> four_constants_stencil(1331, four_constants_defaults);
+            std::vector<bool> stencil_masks(FULL_STENCIL_SIZE, false);
+            std::vector<std::array<real, 4>> four_constants_stencil(FULL_STENCIL_SIZE, four_constants_defaults);
             for (auto stencil_element : superimposed_stencil) {
                 const int x = stencil_element.x + 5;
                 const int y = stencil_element.y + 5;

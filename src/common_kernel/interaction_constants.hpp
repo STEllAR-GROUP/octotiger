@@ -44,6 +44,10 @@ namespace fmm {
 
     constexpr uint64_t STENCIL_SIZE = 1074;
     constexpr uint64_t STENCIL_BLOCKING = 16;
+    constexpr int STENCIL_INX = 11;
+    constexpr int STENCIL_MIN = -5;
+    constexpr int STENCIL_MAX = 5;
+    constexpr int FULL_STENCIL_SIZE = STENCIL_INX * STENCIL_INX * STENCIL_INX;
 
 //constexpr uint64_t STENCIL_SIZE = 982;
     constexpr size_t NUMBER_LOCAL_MONOPOLE_VALUES = 1 * (ENTRIES);
