@@ -24,6 +24,12 @@ namespace fmm {
         multipole_interaction_interface::local_expansions_staging_area;
         thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
         multipole_interaction_interface::center_of_masses_staging_area;
+        thread_local const std::vector<bool> stencil_masks =
+            calculate_stencil_masks(multipole_interaction_interface::stencil).first;
+        thread_local const std::vector<bool> inner_stencil_masks =
+            calculate_stencil_masks(multipole_interaction_interface::stencil).second;
+
+
         multipole_interaction_interface::multipole_interaction_interface(void) {
             local_monopoles_staging_area = std::vector<real>(ENTRIES);
             this->m2m_type = opts.m2m_kernel_type;
