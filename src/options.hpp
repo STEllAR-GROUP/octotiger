@@ -19,7 +19,7 @@
 
 #include <silo.h>
 
-COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR);
+COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR,MARSHAK);
 
 COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
 
@@ -35,6 +35,7 @@ public:
 	bool variable_omega;
 	bool compress_silo;
 	bool v1309;
+	bool rad_implicit;
 
 	integer accretor_refine;
 	integer donor_refine;
@@ -82,6 +83,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & rad_implicit;
 		arc & n_fields;
 		arc & n_species;
 		arc & input_file;

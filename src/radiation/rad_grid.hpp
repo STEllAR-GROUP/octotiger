@@ -44,7 +44,7 @@ private:
 	std::array<std::array<std::vector<rad_type>, NRF>,NDIM> flux;
 	std::array<std::array<std::vector<rad_type>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
-	std::vector<real> mmw;
+	std::vector<real> mmw, X_spc, Z_spc;
 	static std::array<std::array<real,NDIM>,NDIM> compute_p( real E, real Fx, real Fy, real Fz);
 public:
 	static void static_init();
@@ -64,7 +64,7 @@ public:
 	}
 	void compute_mmw(const std::vector<std::vector<real>>& U);
 	void change_units(real m, real l, real t, real k);
-	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real dt);
+	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
 	void sanity_check();
 	void initialize_erad(const std::vector<real> rho, const std::vector<real> tau);
 	void set_dx(real dx);
