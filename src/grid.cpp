@@ -1911,8 +1911,8 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 		free(ptr);
 	}
 	n += '0';
-	X += "0)";
-	Z += "0)";
+	X += "0) / rho";
+	Z += "0) / rho";
 	rc.push_back(std::make_pair(std::string("sigma_T"),std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
 //	rc.push_back(std::make_pair(std::string("sigma_m"),std::string("0.1 * Z")));
 	rc.push_back(std::make_pair(std::string("sigma_xf"),std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
