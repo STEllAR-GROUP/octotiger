@@ -709,9 +709,12 @@ void output_stage3(std::string fname, int cycle) {
 					names.push_back(const_cast<char*>(exps2[i].first.c_str()));
 					defs.push_back(const_cast<char*>(exps2[i].second.c_str()));
 				}
-//				for( int i = 0; i < exps.size();i++ ) {
-//					printf( "%s %i %s\n", names[i], types[i], defs[i]);
-//				}
+				FILE* fp = fopen( "expressions.dat", "at");
+				for( int i = 0; i < names.size();i++ ) {
+				//	fprintf( fp, "%s %i %s\n", names[i], types[i], defs[i]);
+				}
+				fprintf( fp, "%e %e\n", physcon().mh, opts().code_to_g);
+				fclose(fp);
 				DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), NULL );
 				DBClose( db);
 				for (auto ptr : mesh_names) {
@@ -852,7 +855,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 		func();
 	}
 	grid::set_omega(opts().omega, false);
-	set_units(opts().code_to_g, opts().code_to_cm, opts().code_to_s, 1); /**/
+	set_units(1./opts().code_to_g, 1./opts().code_to_cm, 1./opts().code_to_s, 1); /**/
 
 }
 
