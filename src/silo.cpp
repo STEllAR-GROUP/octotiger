@@ -709,12 +709,12 @@ void output_stage3(std::string fname, int cycle) {
 					names.push_back(const_cast<char*>(exps2[i].first.c_str()));
 					defs.push_back(const_cast<char*>(exps2[i].second.c_str()));
 				}
-				FILE* fp = fopen( "expressions.dat", "at");
+//				FILE* fp = fopen( "expressions.dat", "at");
 				for( int i = 0; i < names.size();i++ ) {
 				//	fprintf( fp, "%s %i %s\n", names[i], types[i], defs[i]);
 				}
-				fprintf( fp, "%e %e\n", physcon().mh, opts().code_to_g);
-				fclose(fp);
+//				fprintf( fp, "%e %e\n", physcon().mh, opts().code_to_g);
+//				fclose(fp);
 				DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), NULL );
 				DBClose( db);
 				for (auto ptr : mesh_names) {
