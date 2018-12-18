@@ -590,6 +590,9 @@ void rad_grid::advance(real dt, real beta) {
 						u1 -= l * (flux[d][f][iii + D[d]] - flux[d][f][iii]);
 					}
 					for (integer d = 0; d != NDIM; ++d) {
+		//				if( f != 0 ) {
+							//printf( "%e\n", U[f][iii]);
+						//}
 						U[f][iii] = u0 * (1.0 - beta) + beta * u1;
 					}
 				}

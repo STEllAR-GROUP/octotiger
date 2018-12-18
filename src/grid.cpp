@@ -243,11 +243,9 @@ std::vector<silo_var_t> grid::var_data() const {
 	}
 	if (opts().radiation) {
 		auto rad = rad_grid_ptr->var_data();
-		printf( "size = %i\n", rad.size());
 		for( auto& r : rad ) {
 			s.push_back(std::move(r));
 		}
-//		std::move(rad.begin(), rad.end(), s.end());
 	}
 	return std::move(s);
 }
@@ -1914,12 +1912,15 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	X += "0) / rho";
 	Z += "0) / rho";
 	rc.push_back(std::make_pair(std::string("sigma_T"),std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
-//	rc.push_back(std::make_pair(std::string("sigma_m"),std::string("0.1 * Z")));
 	rc.push_back(std::make_pair(std::string("sigma_xf"),std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
 	rc.push_back(std::make_pair(std::string("mfp"),std::string("1 / kappa_R")));
-//	rc.push_back(std::make_pair(std::string("sigma_Hn"),std::string("1.1e-25 * sqrt(rho * Z) * T^7.7")));
-	rc.push_back(std::make_pair(std::string("kappa_R"),std::string("rho * (sigma_xf + sigma_T)")));
-	rc.push_back(std::make_pair(std::string("kappa_P"),std::string("rho * 30.262 * sigma_xf")));
+	if( opts().problem == MARSHAK ) {
+		rc.push_back(std::make_pair(std::string("kappa_R"),std::string("rho")));
+		rc.push_back(std::make_pair(std::string("kappa_P"),std::string("rho")));
+	} else {
+		rc.push_back(std::make_pair(std::string("kappa_R"),std::string("rho * (sigma_xf + sigma_T)")));
+		rc.push_back(std::make_pair(std::string("kappa_P"),std::string("rho * 30.262 * sigma_xf")));
+	}
 	rc.push_back(std::make_pair(std::string("n"), std::move(n)));
 	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
 	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));
@@ -1931,10 +1932,17 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	free(ptr);
 	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
 	asprintf( &ptr, "%e * ei / n", 1.0 / kb / (fgamma-1.0));
-	rc.push_back( std::make_pair(std::string("T"),std::string(ptr)));
+	if( opts().problem == MARSHAK ) {
+		rc.push_back( std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)") ));
+	} else {
+		rc.push_back( std::make_pair(std::string("T"),std::string(ptr)));
+	}
 	free(ptr);
 	asprintf( &ptr, "%e * ei", (fgamma-1.0));
 	rc.push_back( std::make_pair(std::string("P"),std::string(ptr)));
+	free(ptr);
+	asprintf( &ptr, "%e * T^4", physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3) );
+	rc.push_back( std::make_pair(std::string("B_p"),std::string(ptr)));
 	free(ptr);
 	return std::move(rc);
 }

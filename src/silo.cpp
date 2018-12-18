@@ -356,7 +356,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		ids.push_back(mv.location.to_id());
 		nl.zone_count.push_back(mv.var_dims[0] * mv.var_dims[1] * mv.var_dims[2]);
 		for (int f = 0; f < nfields; f++) {
-	//		printf( "%e\n", mv.vars[f].min(), mv.vars[f].max());
+	//		printf( "%s %e %e\n", mv.vars[f].name(), mv.vars[f].min(), mv.vars[f].max());
 			nl.extents[f].push_back(mv.vars[f].min());
 			nl.extents[f].push_back(mv.vars[f].max());
 		}
@@ -440,6 +440,11 @@ void output_stage3(std::string fname, int cycle) {
 						DBAddOption(optlist_var, DBOPT_CONSERVED, &one);
 						DBAddOption(optlist_var, DBOPT_EXTENSIVE, &one);
 					}
+			//			if( std::strcmp(o.name(),"fx")==0 ) {
+//							for( int i = 0; i < INX*INX*INX; i++) {
+//								printf( "%e\n", o(i));
+//							}
+	//				}
 					DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
 							DB_DOUBLE, DB_ZONECENT, optlist_var);
 					count++;
@@ -546,7 +551,7 @@ void output_stage3(std::string fname, int cycle) {
 			DBAddOption(optlist, DBOPT_EXTENTS, extents.data());
 			DBAddOption(optlist, DBOPT_ZONECOUNTS, node_list_.zone_count.data());
 			DBAddOption(optlist, DBOPT_HAS_EXTERNAL_ZONES, std::vector<int>(n_total_domains).data());
-			DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
+//			DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
 			DBAddOption(optlist, DBOPT_DISJOINT_MODE,&dj);
 			DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
 			DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type );
@@ -759,6 +764,7 @@ void output_all(std::string fname, int cycle, bool block) {
 	node_list_.silo_leaves.clear();
 	node_list_.all.clear();
 	node_list_.positions.clear();
+	node_list_.extents.clear();
 	for (auto& f : id_futs) {
 		node_list_t this_list = GET(f);
 		for (auto& i : this_list.silo_leaves) {
