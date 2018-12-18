@@ -41,6 +41,8 @@ std::vector<std::string> rad_grid::get_field_names() {
 
 void rad_grid::set(const std::string name, real* data) {
 	auto iter = str_to_index.find(name);
+	const real eunit = opts().code_to_g / std::pow(opts().code_to_s,2) / opts().code_to_cm;
+	const real funit  = eunit * opts().code_to_cm / opts().code_to_s;
 	if (iter != str_to_index.end()) {
 		int f = iter->second;
 		int jjj = 0;
@@ -48,6 +50,7 @@ void rad_grid::set(const std::string name, real* data) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
 					const int iii = rindex(k + R_BW, j + R_BW, i + R_BW);
+					data[jjj] /= f == er_i ? eunit : funit;
 					U[f][iii] = data[jjj];
 					jjj++;
 				}
@@ -59,6 +62,8 @@ void rad_grid::set(const std::string name, real* data) {
 
 std::vector<silo_var_t> rad_grid::var_data() const {
 	std::vector<silo_var_t> s;
+	const real eunit = opts().code_to_g / std::pow(opts().code_to_s,2) / opts().code_to_cm;
+	const real funit  = eunit * opts().code_to_cm / opts().code_to_s;
 	for (auto l : str_to_index) {
 		const int f = l.second;
 		std::string this_name = l.first;
@@ -69,6 +74,7 @@ std::vector<silo_var_t> rad_grid::var_data() const {
 				for (int k = 0; k < INX; k++) {
 					const int iii = rindex(k + R_BW, j + R_BW, i + R_BW);
 					this_s(jjj) = U[f][iii];
+					this_s(jjj) *= f == er_i ? eunit : funit;
 					this_s.set_range(this_s(jjj));
 					jjj++;
 				}

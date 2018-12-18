@@ -2707,6 +2707,9 @@ void grid::etot_to_egas() {
 }
 
 void grid::next_u(integer rk, real t, real dt) {
+	if( !opts().hydro ) {
+		return;
+	}
 //	return;
 
 	PROF_BEGIN;
