@@ -174,7 +174,7 @@ void solution(double z, double t, double& T_mat, double& T_rad) {
 std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	std::vector<double> u(opts().n_fields);
 	double e;
-	if (x < 0) {
+	if (x > 0) {
 		e = u[rho_i] = u[spc_i] = 1.0;
 	} else {
 		e = u[rho_i] = u[spc_i] = 1.0e-20;

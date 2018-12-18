@@ -505,7 +505,16 @@ void rad_grid::compute_flux() {
 			const hiprec clight = physcon().c;
 			hiprec f = absf * INVERSE (clight*er);
 			const hiprec tmp = SQRT(_4-_3*f*f);
-			const hiprec tmp2 = SQRT((_2/_3)*(_4-_3*f*f -tmp)+_2*mu*mu*(_2-f*f-tmp));
+			real tmp4 = (_2/_3)*(_4-_3*f*f -tmp)+_2*mu*mu*(_2-f*f-tmp);
+			if( tmp4 < 0.0 ) {
+				if( tmp4 > -std::numeric_limits<hiprec>::round_error()) {
+					tmp4 = 0.0;
+				} else {
+					printf( "Error in lamdba computation for rad_grid\n");
+					assert(false);
+				}
+			}
+			const hiprec tmp2 = SQRT(tmp4);
 			return hiprec((tmp2 + std::abs(mu*f)) * INVERSE( tmp ));
 		} else {
 			return _0;
@@ -646,7 +655,12 @@ void rad_grid::set_physical_boundaries(geo::face face) {
 				}
 				switch (face) {
 				case 0:
-					U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
+					if( opts().problem == MARSHAK ) {
+						U[fx_i][iii1] = physcon().c;
+						U[er_i][iii1] = 1.0;
+					} else {
+						U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
+					}
 					break;
 				case 1:
 					U[fx_i][iii1] = std::max(U[fx_i][iii1], 0.0);
