@@ -88,7 +88,6 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 		quad kr, quad dt) {
 //	F0[0] = F0[1] = F0[2] = 0.0;
 //	u0[0] = u0[1] = u0[2] = 0.0;
-
 	const quad c = physcon().c;
 	const quad cinv = quad(1.0) / c;
 	const quad c2 = c * c;
@@ -97,21 +96,35 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 	quad dE1 = 0;
 
 	quad_space_vector base1, base2;
-
-	if (dot(u0, u0) == quad(0)) {
+	const auto udotu = dot(u0, u0);
+	const auto FdotF = dot(F0, F0);
+	if ( udotu == quad(0)) {
 		if (dot(F0, F0) == quad(0)) {
 			base1[1] = base1[2] = base2[0] = base2[2] = quad(0);
 			base1[0] = base2[1] = quad(1);
+			printf( "a\n");
 		} else {
 			base1[0] = base1[1] = base1[2] = quad(0);
 			base2 = F0 * INVERSE(SQRT(dot(F0,F0)));
+			printf( "b\n");
 		}
 	} else {
-
-		base1 = u0 * INVERSE(SQRT(dot(u0,u0)));
+		base1 = u0 * SQRT(INVERSE(udotu));
 		base2 = F0 - base1 * (dot(base1, F0));
-		base2 = base2 * INVERSE(SQRT(dot(base2,base2)));
+		const auto base2dotbase2 = dot(base2,base2);
+		if( base2dotbase2 != quad(0)) {
+			base2 = base2 * SQRT(INVERSE(base2dotbase2));
+			printf( "%e \n", (double) base2dotbase2);
+		} else {
+			base1[1] = base1[2] = base2[0] = base2[2] = quad(0);
+			base1[0] = base2[1] = quad(1);
+			printf( "d\n");
+		}
 	}
+	printf( "%e %e %e\n", double(F0[0] / (c*E0)), double(F0[1] / (c*E0)), double(F0[2] / (c*E0)) );
+	printf( "%e %e %e\n", double(u0[0] / (c)), double(u0[1] / (c)), double(u0[2] / (c)) );
+	printf( "%e %e %e\n", double(base1[0]), double(base1[1]), double(base1[2]) );
+	printf( "%e %e %e\n", double(base2[0]), double(base2[1]), double(base2[2]) );
 
 	quad Fa0 = dot(F0, base1);
 	quad Fb0 = dot(F0, base2);
@@ -139,11 +152,11 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 		fa = dFa1 + cdt * kr * ((Fa0 + dFa1) - quad(4) / quad(3) * ua1 * (E0 + dE1));
 		fb = dFb1 + cdt * kr * ((Fb0 + dFb1) - quad(4) / quad(3) * ub1 * (E0 + dE1));
 
-		if( iter > 50 ) {
+//		if( iter > 50 ) {
 		printf("%3i %16.9e | %16.9e %16.9e %16.9e | %16.9e %16.9e %16.9e | %16.9e %16.9e %16.9e | %16.9e\n", iter, double(dE1),
 				double(E0 + dE1), double(Fa1 / (c * (E0 + dE1))), double(Fb1 / (c * (E0 + dE1))), double(e1),
 				double(ua1 * cinv), double(ub1 * cinv), double(fe), double(fa), double(fb), double(error));
-		}
+//		}
 
 		const quad A00 = quad(1) + cdt * kp * (quad(1) + dBde);
 		const quad A01 = -kp * dt * ua1 * cinv * dBde / quad(2)

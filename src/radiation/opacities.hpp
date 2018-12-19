@@ -58,7 +58,7 @@ U B_p(U rho, U e, U mmw) {
 template<class U>
 U dB_p_de(U rho, U e, U mmw) {
 	if (opts().problem == MARSHAK) {
-		return 3.0 * B_p(rho, e, mmw) / e;
+		return B_p(rho, e, mmw) / e;
 	} else {
 		if (e == U(0)) {
 			return U(0);

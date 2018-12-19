@@ -391,7 +391,16 @@ std::array<std::array<hiprec, NDIM>, NDIM> compute_p2(real E_, real Fx_, real Fy
 	} else {
 		nx = ny = nz = _0;
 	}
-	const hiprec chi = (_3 + _4 * f * f) * INVERSE((_5 + _2 * SQRT(_4 - _3 * f * f)));
+	auto tmp = _4 - _3 * f * f;
+	if( tmp < 0.0 ) {
+		if( tmp < std::numeric_limits<decltype(tmp)>::round_error() ) {
+			tmp = 0.0;
+		} else {
+			printf( "Error on line %i in %s\n", __LINE__, __FILE__ );
+			assert(false);
+		}
+	}
+	const hiprec chi = (_3 + _4 * f * f) * INVERSE((_5 + _2 * SQRT(tmp)));
 	const hiprec f1 = ((_1 - chi) / _2);
 	const hiprec f2 = ((_3 * chi - _1) / _2);
 	P[XDIM][YDIM] = P[YDIM][XDIM] = f2 * nx * ny * E;
@@ -504,13 +513,23 @@ void rad_grid::compute_flux() {
 		if( er > 0.0 ) {
 			const hiprec clight = physcon().c;
 			hiprec f = absf * INVERSE (clight*er);
-			const hiprec tmp = SQRT(_4-_3*f*f);
-			real tmp4 = (_2/_3)*(_4-_3*f*f -tmp)+_2*mu*mu*(_2-f*f-tmp);
+			auto tmp5 = _4 - _3 * f * f;
+			if( tmp5 < 0.0 ) {
+				if( tmp5 < std::numeric_limits<decltype(tmp5)>::round_error() ) {
+					tmp5 = 0.0;
+				} else {
+					printf( "Error on line %i in %s\n", __LINE__, __FILE__ );
+					assert(false);
+				}
+			}
+			const hiprec tmp = SQRT(tmp5);
+			hiprec tmp4 = (_2/_3)*(_4-_3*f*f -tmp)+_2*mu*mu*(_2-f*f-tmp);
 			if( tmp4 < 0.0 ) {
 				if( tmp4 > -std::numeric_limits<hiprec>::round_error()) {
 					tmp4 = 0.0;
 				} else {
-					printf( "Error in lamdba computation for rad_grid\n");
+					printf( "%e %e %e \n", f, mu, tmp);
+					printf( "Error in lamdba computation for rad_grid %e\n", tmp4);
 					assert(false);
 				}
 			}
