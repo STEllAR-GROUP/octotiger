@@ -17,6 +17,7 @@ namespace fmm {
     constexpr size_t stencil_size = P2P_PADDED_STENCIL_SIZE * sizeof(octotiger::fmm::multiindex<>);
     constexpr size_t indicator_size = STENCIL_SIZE * sizeof(real);
     constexpr size_t four_constants_size = 4 * P2P_PADDED_STENCIL_SIZE * sizeof(real);
+    constexpr size_t full_stencil_size = FULL_STENCIL_SIZE * sizeof(real);
 
     /// Custom allocator for host-side cuda vectors
     template <class T>

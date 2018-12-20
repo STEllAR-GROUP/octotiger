@@ -73,6 +73,26 @@ namespace fmm {
             // Create necessary data and add padding
             const two_phase_stencil stencil = multipole_interactions::calculate_stencil();
             auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
+
+            // new p2p stencil stuff
+            auto p2p_stencil_mask_pair = monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
+            auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
+            auto p2p_four_constants = p2p_stencil_mask_pair.second;
+            std::unique_ptr<real[]> stencil_masks = std::make_unique<real[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<real[]> four_constants_tmp = std::make_unique<real[]>(4 * FULL_STENCIL_SIZE);
+            for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
+                four_constants_tmp[i * 4 + 0] = p2p_four_constants[i][0];
+                four_constants_tmp[i * 4 + 1] = p2p_four_constants[i][1];
+                four_constants_tmp[i * 4 + 2] = p2p_four_constants[i][2];
+                four_constants_tmp[i * 4 + 3] = p2p_four_constants[i][3];
+                if (p2p_stencil_mask[i]) {
+                  stencil_masks[i] = 1.0;
+                } else {
+                  stencil_masks[i] = 0.0;
+                }
+            }
+
+            // old stencil stuff
             p2p_stencil_pair.first.resize(P2P_PADDED_STENCIL_SIZE, p2p_stencil_pair.first[0]); // Padding
             std::array<real, 4> default_four = {0.0, 0.0, 0.0, 0.0};
             p2p_stencil_pair.second.resize(P2P_PADDED_STENCIL_SIZE, default_four); // Padding
@@ -85,7 +105,6 @@ namespace fmm {
                 else
                     indicator[i] = 0.0;
             }
-
             for (auto i = 0; i < P2P_PADDED_STENCIL_SIZE; i++) {
                 four_tmp[i * 4 + 0] = four_constants[i][0];
                 four_tmp[i * 4 + 1] = four_constants[i][1];
@@ -93,14 +112,19 @@ namespace fmm {
                 four_tmp[i * 4 + 3] = four_constants[i][3];
             }
 
+
             // Move data to constant memory, once per gpu
             if (worker_id == 0) {
                 for (size_t gpu_id = 0; gpu_id < gpu_count; gpu_id++) {
                     util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
-                    monopole_interactions::copy_stencil_to_p2p_constant_memory(p2p_stencil_pair.first.data(),
-                                                                               stencil_size);
-                    monopole_interactions::copy_constants_to_p2p_constant_memory(four_tmp.get(),
-                                                                                 four_constants_size);
+                    // monopole_interactions::copy_stencil_to_p2p_constant_memory(p2p_stencil_pair.first.data(),
+                    //                                                            stencil_size);
+                    // monopole_interactions::copy_constants_to_p2p_constant_memory(four_tmp.get(),
+                    //                                                              four_constants_size);
+                    monopole_interactions::copy_stencil_to_p2p_constant_memory(stencil_masks.get(),
+                                                                               full_stencil_size);
+                    monopole_interactions::copy_constants_to_p2p_constant_memory(four_constants_tmp.get(),
+                                                                                 4 * full_stencil_size);
                     multipole_interactions::
                         copy_stencil_to_m2m_constant_memory(stencil.stencil_elements.data(),
                                                             STENCIL_SIZE *
