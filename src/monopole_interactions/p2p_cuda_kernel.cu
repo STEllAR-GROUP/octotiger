@@ -31,21 +31,20 @@ namespace fmm {
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void
-        __launch_bounds__(512, 1)
+        __launch_bounds__(64, 8)
         cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL],
             const double theta, const double dx) {
             // use in case of debug prints
-            // bool first_thread = (threadIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0)
-            //                     && (blockIdx.x == 2);
+          // bool first_thread = (threadIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
             // Set cell indices
-            const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
+          const octotiger::fmm::multiindex<> cell_index((threadIdx.x + blockIdx.x * 1) + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
             octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
             cell_index_coarse.transform_coarse();
             const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
-            octotiger::fmm::multiindex<> cell_index_unpadded(threadIdx.x, threadIdx.y, threadIdx.z);
+            octotiger::fmm::multiindex<> cell_index_unpadded((threadIdx.x + blockIdx.x * 1), threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
