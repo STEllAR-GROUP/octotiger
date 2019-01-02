@@ -96,5 +96,8 @@ public:
 	friend class node_server;
 };
 
+
+
+
 #endif /* RAD_GRID_HPP_ */
 

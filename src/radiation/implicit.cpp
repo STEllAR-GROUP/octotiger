@@ -7,6 +7,7 @@
 #include "../space_vector.hpp"
 #include "opacities.hpp"
 
+#include "implicit.hpp"
 #include "../physcon.hpp"
 
 #include <functional>
@@ -30,6 +31,23 @@ public:
 			(*this)[d] = other[d];
 		}
 		return *this;
+	}
+	bool operator==(const space_vector& other) const {
+		bool rc = true;
+		for (int d = 0; d < NDIM; d++) {
+			rc = (rc && ( (*this)[d] != other[d] ));
+		}
+		return rc;
+	}
+	quad_space_vector operator-() const {
+		quad_space_vector v(*this);
+		for (int d = 0; d < NDIM; d++) {
+			v[d] = -v[d];
+		}
+		return v;
+	}
+	bool operator!=(const space_vector& other ) const {
+		return !(this->operator==(other));
 	}
 	quad_space_vector& operator+=(const quad_space_vector& other) {
 		for (int d = 0; d < NDIM; ++d) {
@@ -84,8 +102,74 @@ inline quad dot(const quad_space_vector& a, const quad_space_vector& b) {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+std::pair<quad_space_vector,quad_space_vector> find_basis( const quad_space_vector& va, quad_space_vector& vb ) {
+	quad_space_vector ua, ub;
+	const auto va2 = dot(va,va);
+	const auto vb2 = dot(vb,vb);
+	decltype(ua) va_norm, vb_norm;
+	if ( va2 > 0  ){
+		va_norm = va * SQRT(INVERSE(va2));
+	} else {
+		va_norm = 0;
+	}
+	if ( vb2 > 0  ){
+		vb_norm = vb * SQRT(INVERSE(vb2));
+	} else {
+		vb_norm = 0;
+	}
+	if( (va2 == 0.0) && (vb2 == 0.0) ) {
+//		printf( "A\n" );
+		ua[0] = ub[1] = 1;
+		ua[1] = ua[2] = ub[0] = ub[2] = 0;
+	} else if( (va_norm == vb_norm) || ((va_norm != 0) && (vb_norm == 0)) || (-va_norm == vb_norm) ) {
+		//printf( "B\n" );
+		ua = va_norm;
+		if( std::abs(ua[0]) < std::abs(ua[1]) && std::abs(ua[0]) < std::abs(ua[2])) {
+			//printf( "B1\n" );
+			ub[0] = 1 - ua[0] * ua[0];
+			ub[1] =    -ua[0] * ua[1];
+			ub[2] =    -ua[0] * ua[2];
+		} else if( std::abs(ua[1]) < std::abs(ua[2]) && std::abs(ua[1]) < std::abs(ua[0]) ) {
+			//printf( "B2\n" );
+			ub[0] =    -ua[1] * ua[0];
+			ub[1] = 1 - ua[1] * ua[1];
+			ub[2] =    -ua[1] * ua[2];
+		} else {
+			//printf( "B3\n" );
+			ub[0] =    -ua[2] * ua[0];
+			ub[1] =    -ua[2] * ua[1];
+			ub[2] = 1 - ua[2] * ua[2];
+			//printf( "%e %e %e | %e %e %e\n", (double) ua[0], (double) ua[1], (double) ua[2],(double)  ub[0], (double) ub[1], (double) ub[2]);
+		}
+	} else if( va_norm == 0 && vb_norm != 0 ) {
+		//printf( "C\n" );
+		if( ub[0] < ub[1] && ub[0] < ub[2]) {
+			ua[0] = 1 - ub[0] * ub[0];
+			ua[1] =    -ub[0] * ub[1];
+			ua[2] =    -ub[0] * ub[2];
+		} else if( ub[1] < ub[2] && ub[1] < ub[0] ) {
+			ua[0] =    -ub[1] * ub[0];
+			ua[1] = 1 - ub[1] * ub[1];
+			ua[2] =    -ub[1] * ub[2];
+		} else {
+			ua[0] =    -ub[2] * ub[0];
+			ua[1] =    -ub[2] * ub[1];
+			ua[2] = 1 - ub[2] * ub[2];
+		}
+	} else {
+		//printf( "%16.9e %16.9e %16.9e %16.9e %16.9e %16.9e D\n", (double) va_norm[0],(double) va_norm[1],(double) va_norm[2],(double) vb_norm[0],(double) vb_norm[1],(double) vb_norm[2] );
+		ua = va_norm;
+		ub = vb_norm - va_norm * dot(va_norm,vb_norm);
+	}
+	return std::make_pair(std::move(ua),std::move(ub));
+}
+
+
+
+
 void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_space_vector& u0, quad rho, quad mmw, quad kp,
 		quad kr, quad dt) {
+	LIGHT_F3(E0,F0[0],F0[1],F0[2]);
 //	F0[0] = F0[1] = F0[2] = 0.0;
 //	u0[0] = u0[1] = u0[2] = 0.0;
 	const quad c = physcon().c;
@@ -96,36 +180,14 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 	quad dE1 = 0;
 
 	quad_space_vector base1, base2;
-	const auto udotu = dot(u0, u0);
-	const auto FdotF = dot(F0, F0);
-	if ( udotu == quad(0)) {
-		if (dot(F0, F0) == quad(0)) {
-			base1[1] = base1[2] = base2[0] = base2[2] = quad(0);
-			base1[0] = base2[1] = quad(1);
-			printf( "a\n");
-		} else {
-			base1[0] = base1[1] = base1[2] = quad(0);
-			base2 = F0 * INVERSE(SQRT(dot(F0,F0)));
-			printf( "b\n");
-		}
-	} else {
-		base1 = u0 * SQRT(INVERSE(udotu));
-		base2 = F0 - base1 * (dot(base1, F0));
-		const auto base2dotbase2 = dot(base2,base2);
-		if( base2dotbase2 != quad(0)) {
-			base2 = base2 * SQRT(INVERSE(base2dotbase2));
-			printf( "%e \n", (double) base2dotbase2);
-		} else {
-			base1[1] = base1[2] = base2[0] = base2[2] = quad(0);
-			base1[0] = base2[1] = quad(1);
-			printf( "d\n");
-		}
-	}
-	printf( "%e %e %e\n", double(F0[0] / (c*E0)), double(F0[1] / (c*E0)), double(F0[2] / (c*E0)) );
-	printf( "%e %e %e\n", double(u0[0] / (c)), double(u0[1] / (c)), double(u0[2] / (c)) );
-	printf( "%e %e %e\n", double(base1[0]), double(base1[1]), double(base1[2]) );
-	printf( "%e %e %e\n", double(base2[0]), double(base2[1]), double(base2[2]) );
-
+	auto tmp = find_basis(u0,F0);
+	base1 = std::move(tmp.first);
+	base2 = std::move(tmp.second);
+//	printf( "%e %e %e\n", double(F0[0] / (c*E0)), double(F0[1] / (c*E0)), double(F0[2] / (c*E0)) );
+//	printf( "%e %e %e\n", double(u0[0] / (c)), double(u0[1] / (c)), double(u0[2] / (c)) );
+//	printf( "%e %e %e\n", double(base1[0]), double(base1[1]), double(base1[2]) );
+//	printf( "%e %e %e\n", double(base2[0]), double(base2[1]), double(base2[2]) );
+	constexpr int maxiter = 1000;
 	quad Fa0 = dot(F0, base1);
 	quad Fb0 = dot(F0, base2);
 	quad ua0 = dot(u0, base1);
@@ -151,12 +213,11 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 		fe = dE1 + cdt * kp * (E0 + dE1 - B) + dt * (kr - quad(2) * kp) * (ua1 * (Fa0 + dFa1) + ub1 * (Fb0 + dFb1)) * cinv;
 		fa = dFa1 + cdt * kr * ((Fa0 + dFa1) - quad(4) / quad(3) * ua1 * (E0 + dE1));
 		fb = dFb1 + cdt * kr * ((Fb0 + dFb1) - quad(4) / quad(3) * ub1 * (E0 + dE1));
-
-//		if( iter > 50 ) {
+		if( iter > maxiter - 25 ) {
 		printf("%3i %16.9e | %16.9e %16.9e %16.9e | %16.9e %16.9e %16.9e | %16.9e %16.9e %16.9e | %16.9e\n", iter, double(dE1),
-				double(E0 + dE1), double(Fa1 / (c * (E0 + dE1))), double(Fb1 / (c * (E0 + dE1))), double(e1),
-				double(ua1 * cinv), double(ub1 * cinv), double(fe), double(fa), double(fb), double(error));
-//		}
+				double(E0 + dE1), double((Fa0 + dFa1) / (c * (E0 + dE1))), double((Fb0 + dFb1) / (c * (E0 + dE1))), double(e1),
+				double(ua1 * cinv), double(ub1 * cinv), double(fe), double(fa*cinv), double(fb*cinv), double(error));
+		}
 
 		const quad A00 = quad(1) + cdt * kp * (quad(1) + dBde);
 		const quad A01 = -kp * dt * ua1 * cinv * dBde / quad(2)
@@ -186,26 +247,49 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 		dE1 += dE;
 		dFa1 += da;
 		dFb1 += db;
+
+		Fa1 = Fa0 + dFa1;
+		Fb1 = Fb0 + dFb1;
+
+/*		if( std::abs(Fa0 + dFa1)  > c * (E0 + dE1) ) {
+			if( Fa0 + dFa1 > 0.0 ) {
+				dFa1 = c * (E0 + dE1) - Fa0;
+			} else {
+				dFa1 = -c * (E0 + dE1) - Fa0;
+			}
+		}
+		if( std::abs(Fb0 + dFb1)  > c * (E0 + dE1) ) {
+			if( Fb0 + dFb1 > 0.0 ) {
+				dFb1 = c * (E0 + dE1) - Fb0;
+			} else {
+				dFb1 = -c * (E0 + dE1) - Fb0;
+			}
+		}*/
+
 		const quad dua = -da * INVERSE(rho * c2);
 		const quad dub = -db * INVERSE(rho * c2);
 		const quad dk = quad(0.5) * rho * (quad(2) * dua * ua1 + dua * dua + quad(2) * dub * ub1 + dub * dub);
 		ua1 += dua;
 		ub1 += dub;
 		e1 = std::max(e1 - dE - dk, e1 / quad(2));
+		error = std::abs(fe) * INVERSE(E0 + e0);
 
-		error = std::sqrt((fe * fe + fa * fa * cinv * cinv + fb * fb * cinv * cinv)) * INVERSE(E0 + dE1);
-
-		if (iter > 100) {
+		if (iter > maxiter) {
 			printf("Implicit radiation failed to converge\n");
-			abort();
+			printf( "%e %e %e\n", double(F0[0] / (c*E0)), double(F0[1] / (c*E0)), double(F0[2] / (c*E0)) );
+			printf( "%e %e %e\n", double(u0[0] / (c)), double(u0[1] / (c)), double(u0[2] / (c)) );
+			printf( "%e %e %e\n", double(base1[0]), double(base1[1]), double(base1[2]) );
+			printf( "%e %e %e\n", double(base2[0]), double(base2[1]), double(base2[2]) );
 			break;
 		}
 		iter++;
-	} while (std::abs(error) > 5.0e-7);
-	if( iter > 50 ) {
-		printf("%3i %16.9e | %16.9e %16.9e %16.9e | %16.9e %16.9e %16.9e | %16.9e %16.9e %16.9e | %16.9e\n", iter, double(dE1),
-			double(E0 + dE1), double(Fa1 / (c * (E0 + dE1))), double(Fb1 / (c * (E0 + dE1))), double(e1),
-			double(ua1 * cinv), double(ub1 * cinv), double(fe), double(fa), double(fb), double(error));
+		LIGHT_F2(E0+dE1,Fb0 + dFb1,Fa0 + dFa1);
+	} while (std::abs(error) > 1.0e-6);
+	if( iter > maxiter ) {
+		printf(" %16.9e %16.9e %16.9e | %16.9e %16.9e %16.9e | %16.9e\n",
+			double(E0), double(Fa0 / (c * (E0))), double(Fb0 / (c * (E0))), double(e0),
+			double(ua0 * cinv), double(ub0 * cinv), double(error));
+		abort();
 	}
 	E0 = E0 + dE1;
 	e0 = e1;
@@ -213,7 +297,7 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 		F0[i] = Fa1 * base1[i] + Fb1 * base2[i];
 		u0[i] = ua1 * base1[i] + ub1 * base2[i];
 	}
-
+	LIGHT_F3(E0,F0[0],F0[1],F0[2]);
 }
 
 /*
@@ -377,7 +461,7 @@ std::pair<real, space_vector> implicit_radiation_step_2nd_order(real E0_, real& 
 	quad e0 = e0_;
 	quad_space_vector F0 = F0_;
 	quad_space_vector u0 = u0_;
-
+	auto f = LIGHT_F3(E0,F0[0],F0[1],F0[2]);
 	const quad dtinv = INVERSE(dt);
 
 // Take a single backward Euler step to get opacities at end of timestep to average with start of timestep
@@ -394,6 +478,7 @@ std::pair<real, space_vector> implicit_radiation_step_2nd_order(real E0_, real& 
 //Now take 2nd order step
 
 //	implicit_radiation_step_2nd_order(E0, e0, F0, u0, rho, mmw, kp, kr, dt);
+	f = LIGHT_F3(E1,F1[0],F1[1],F1[2]);
 	e0_ = e1;
 	return std::make_pair(real((E1 - E0) * dtinv), quad_space_vector_to_space_vector((F1 - F0) * dtinv));
 }

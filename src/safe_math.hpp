@@ -37,7 +37,7 @@ inline T safe_sqrt(const T& a, const char* file, const int line) {
 	if (a >= T(0)) {
 		return std::sqrt(a);
 	} else {
-		printf( "Square root of a negative. File:%s Line:%i\n", file, line);
+		printf( "Square root of a negative = %e. File:%s Line:%i\n", (double) a, file, line);
 		abort();
 	}
 }

@@ -4,12 +4,14 @@
 #include "options.hpp"
 #include "node_server.hpp"
 #include "opacities.hpp"
-#include "physcon.hpp"
 #include "../roe.hpp"
 
 //#define IMPLICIT_OFF
 #include <iostream>
 #include "implicit.hpp"
+
+
+
 
 
 integer rindex(integer x, integer y, integer z) {
@@ -327,7 +329,7 @@ void node_server::compute_radiation(real dt) {
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
 	const real clight = physcon().c;
-	const real max_dt = min_dx / clight * 0.4;
+	const real max_dt = min_dx / clight * 0.4 / std::sqrt(3);
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
 		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
@@ -380,7 +382,8 @@ std::array<std::array<hiprec, NDIM>, NDIM> compute_p2(real E_, real Fx_, real Fy
 
 	const hiprec clight = physcon().c;
 	std::array<std::array<hiprec, NDIM>, NDIM> P;
-	hiprec f = SQRT(Fx * Fx + Fy * Fy + Fz * Fz) * INVERSE(clight * E);
+//	hiprec f = SQRT(Fx * Fx + Fy * Fy + Fz * Fz) * INVERSE(clight * E);
+	auto f = LIGHT_F3(E,Fx,Fy,Fz);
 	hiprec nx, ny, nz;
 	assert(E > _0);
 	if (f > _0) {
@@ -392,14 +395,6 @@ std::array<std::array<hiprec, NDIM>, NDIM> compute_p2(real E_, real Fx_, real Fy
 		nx = ny = nz = _0;
 	}
 	auto tmp = _4 - _3 * f * f;
-	if( tmp < 0.0 ) {
-		if( tmp < std::numeric_limits<decltype(tmp)>::round_error() ) {
-			tmp = 0.0;
-		} else {
-			printf( "Error on line %i in %s\n", __LINE__, __FILE__ );
-			assert(false);
-		}
-	}
 	const hiprec chi = (_3 + _4 * f * f) * INVERSE((_5 + _2 * SQRT(tmp)));
 	const hiprec f1 = ((_1 - chi) / _2);
 	const hiprec f2 = ((_3 * chi - _1) / _2);
@@ -508,23 +503,13 @@ static inline real vanleer2(real a, real b) {
 void rad_grid::compute_flux() {
 	const hiprec clight = physcon().c;
 
-
-	const auto lambda_max = []( hiprec mu, hiprec er, hiprec absf) {
+	const auto lambda_max = [clight]( hiprec mu, hiprec er, hiprec absf) {
 		if( er > 0.0 ) {
-			const hiprec clight = physcon().c;
-			hiprec f = absf * INVERSE (clight*er);
+			auto f = LIGHT_F1(er,absf);
 			auto tmp5 = _4 - _3 * f * f;
-			if( tmp5 < 0.0 ) {
-				if( tmp5 < std::numeric_limits<decltype(tmp5)>::round_error() ) {
-					tmp5 = 0.0;
-				} else {
-					printf( "Error on line %i in %s\n", __LINE__, __FILE__ );
-					assert(false);
-				}
-			}
 			const hiprec tmp = SQRT(tmp5);
 			hiprec tmp4 = (_2/_3)*(_4-_3*f*f -tmp)+_2*mu*mu*(_2-f*f-tmp);
-			if( tmp4 < 0.0 ) {
+/*			if( tmp4 < 0.0 ) {
 				if( tmp4 > -std::numeric_limits<hiprec>::round_error()) {
 					tmp4 = 0.0;
 				} else {
@@ -532,7 +517,7 @@ void rad_grid::compute_flux() {
 					printf( "Error in lamdba computation for rad_grid %e\n", tmp4);
 					assert(false);
 				}
-			}
+			}*/
 			const hiprec tmp2 = SQRT(tmp4);
 			return hiprec((tmp2 + std::abs(mu*f)) * INVERSE( tmp ));
 		} else {
@@ -571,6 +556,13 @@ void rad_grid::compute_flux() {
 						absf_m += f_m[d] * f_m[d];
 						absf_p += f_p[d] * f_p[d];
 					}
+	//				printf( "%e %e %e %e %e %e\n",
+		//					(double)f_m[0]/(clight*er_m),
+			//				(double)f_m[1]/(clight*er_m),
+				//			(double)f_m[2]/(clight*er_m),
+					//		(double)f_p[0]/(clight*er_p),
+							//(double)f_p[1]/(clight*er_p),
+							//(double)f_p[2]/(clight*er_p));
 					absf_m = SQRT(absf_m);
 					absf_p = SQRT(absf_p);
 					if (absf_m > _0) {
@@ -580,9 +572,10 @@ void rad_grid::compute_flux() {
 						mu_p = f_p[face_dim] * INVERSE(absf_p);
 					}
 					constexpr hiprec half = _1/_2;
-					const hiprec a_m = lambda_max(mu_m, er_m, absf_m);
-					const hiprec a_p = lambda_max(mu_p, er_p, absf_p);
-					const hiprec a = std::max(a_m, a_p) * clight;
+//					const hiprec a_m = lambda_max(mu_m, er_m, absf_m);
+//					const hiprec a_p = lambda_max(mu_p, er_p, absf_p);
+//					const hiprec a = std::max(a_m, a_p) * clight;
+					const hiprec a = clight;
 					flux[face_dim][er_i][i] = (f_p[face_dim] + f_m[face_dim]) * half - (er_p - er_m) * half * a;
 					for (integer flux_dim = 0; flux_dim != NDIM; ++flux_dim) {
 						flux[face_dim][fx_i + flux_dim][i] = clight * clight
