@@ -251,20 +251,6 @@ void implicit_radiation_step(quad& E0, quad& e0, quad_space_vector& F0, quad_spa
 		Fa1 = Fa0 + dFa1;
 		Fb1 = Fb0 + dFb1;
 
-/*		if( std::abs(Fa0 + dFa1)  > c * (E0 + dE1) ) {
-			if( Fa0 + dFa1 > 0.0 ) {
-				dFa1 = c * (E0 + dE1) - Fa0;
-			} else {
-				dFa1 = -c * (E0 + dE1) - Fa0;
-			}
-		}
-		if( std::abs(Fb0 + dFb1)  > c * (E0 + dE1) ) {
-			if( Fb0 + dFb1 > 0.0 ) {
-				dFb1 = c * (E0 + dE1) - Fb0;
-			} else {
-				dFb1 = -c * (E0 + dE1) - Fb0;
-			}
-		}*/
 
 		const quad dua = -da * INVERSE(rho * c2);
 		const quad dub = -db * INVERSE(rho * c2);

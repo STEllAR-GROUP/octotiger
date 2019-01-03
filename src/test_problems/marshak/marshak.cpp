@@ -174,11 +174,11 @@ void solution(double z, double t, double& T_mat, double& T_rad) {
 std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	std::vector<double> u(opts().n_fields);
 	double e;
-//	if (x > 0) {
+	if (x > 0) {
 		e = u[rho_i] = u[spc_i] = 1.0;
-//	} else {
-//		e = u[rho_i] = u[spc_i] = 1.0e-20;
-//	}
+	} else {
+		e = u[rho_i] = u[spc_i] = 1.0e-20;
+	}
 	u[egas_i] = e;
 	u[tau_i] = std::pow(e, grid::get_fgamma());
 	return u;
@@ -186,7 +186,27 @@ std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 }
 #endif
 
-std::vector<double> marshak_wave_analytic(double x, double y, double z, double t) {
+std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
+	std::vector<double> u(opts().n_fields,0.0);
+	const double z = x0;
+	double T, T_rad;
+	double rho;
+	if (z > 0 ) {
+		rho = 1.0;
+		if( t > opts().xscale) {
+			solution(z, t - opts().xscale, T, T_rad);
+		} else {
+			T = 0.0;
+		}
+	} else {
+		T = 0.0;
+		rho = 0.0;
+	}
+	u[rho_i] = u[spc_i] = rho;
+	const double e = T * T * T * T * rho;
+	u[egas_i] = e;
+	u[tau_i] = std::pow(e, 1.0 / grid::get_fgamma());
+	return std::move(u);
 }
 
 #ifdef TESTME
