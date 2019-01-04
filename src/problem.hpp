@@ -36,6 +36,7 @@ std::vector<real> double_solid_sphere(real, real, real, real);
 std::vector<real> double_solid_sphere_analytic_phi(real x, real y, real z);
 
 bool refine_test(integer level, integer maxl, real,real,real, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);
+bool refine_test_marshak(integer level, integer maxl, real,real,real, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);
 bool refine_test_moving_star(integer level, integer maxl, real,real,real, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);
 bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);
 bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);

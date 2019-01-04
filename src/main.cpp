@@ -87,7 +87,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_analytic(nullptr);
 		set_analytic(marshak_wave_analytic);
 		set_problem(marshak_wave);
-		set_refine_test(refine_test_moving_star);
+		set_refine_test(refine_test_marshak);
 	} else if (opts().problem == SOLID_SPHERE) {
 	//	opts().hydro = false;
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
