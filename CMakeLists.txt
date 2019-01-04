@@ -12,7 +12,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 ################################################################################
 # options
 ################################################################################
-option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
+#option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
@@ -22,10 +22,8 @@ option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 # Find required packages
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
-if (OCTOTIGER_WITH_SILO)
-  find_package(Silo REQUIRED)
-  find_package(HDF5 REQUIRED)
-endif()
+find_package(Silo REQUIRED)
+find_package(HDF5 REQUIRED)
 
 if (OCTOTIGER_WITH_CUDA)
   add_definitions(-DOCTOTIGER_CUDA_ENABLED)
@@ -42,20 +40,15 @@ include_directories(${Vc_ROOT}/include)
 ################################################################################
 # Silo support
 ################################################################################
-if (OCTOTIGER_WITH_SILO)
-  add_definitions(-DOCTOTIGER_HAVE_SILO)
-else()
-  set(Silo_LIBRARY "" CACHE STRING "" FORCE)
-  set(Silo_INCLUDE_DIR "" CACHE STRING "" FORCE)
-endif()
+add_definitions(-DOCTOTIGER_HAVE_SILO)
 
 if(NOT MSVC)
     include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
 
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        set( COMMON_FLAGS "-Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations -ffast-math")
+        set( COMMON_FLAGS "-Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations -Wno-unused-result -ffast-math")
     elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-        #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo" )
+        #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result" )
         #set( CMAKE_C_FLAGS_RELEASE "-Ofast -ipo" )
         #set( CMAKE_Fortran_FLAGS_RELEASE "-Ofast -ipo" )
         #set( CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo" )
@@ -228,19 +221,6 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
-#if (OCTOTIGER_WITH_SILO)
-#add_hpx_executable(
-#  silocmp
-#  DEPENDENCIES
-#    ${silo_cmp_dependencies}
-#  SOURCES
-#    ${silo_cmp_source_files}
-#  HEADERS
-#    ${silo_cmp_header_files}
-#  FOLDER  "Octotiger"
-#)
-
-#endif()
 
 
 

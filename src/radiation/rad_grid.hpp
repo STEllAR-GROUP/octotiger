@@ -28,11 +28,12 @@ typedef real rad_type;
 
 
 class rad_grid {
-private:
+public:
 	static constexpr integer er_i = 0;
 	static constexpr integer fx_i = 1;
 	static constexpr integer fy_i = 2;
 	static constexpr integer fz_i = 3;
+private:
 	static constexpr integer DX = R_NX * R_NX;
 	static constexpr integer DY = R_NX;
 	static constexpr integer DZ = 1;
@@ -85,6 +86,7 @@ public:
 	rad_grid(real dx);
 	rad_grid();
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);
+	rad_type get_field(integer f, integer i, integer j, integer k) const;
 	void set_field(rad_type v, integer f, integer i, integer j, integer k);
 	void set_physical_boundaries(geo::face f);
 	std::vector<real> get_boundary(const geo::direction& dir);

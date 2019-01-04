@@ -43,8 +43,8 @@ std::vector<std::string> rad_grid::get_field_names() {
 
 void rad_grid::set(const std::string name, real* data) {
 	auto iter = str_to_index.find(name);
-	const real eunit = opts().code_to_g / std::pow(opts().code_to_s,2) / opts().code_to_cm;
-	const real funit  = eunit * opts().code_to_cm / opts().code_to_s;
+	real eunit = opts().problem == MARSHAK ? 1 : opts().code_to_g / std::pow(opts().code_to_s,2) / opts().code_to_cm;
+	real funit = opts().problem == MARSHAK ? 1 : eunit * opts().code_to_cm / opts().code_to_s;
 	if (iter != str_to_index.end()) {
 		int f = iter->second;
 		int jjj = 0;
@@ -64,8 +64,8 @@ void rad_grid::set(const std::string name, real* data) {
 
 std::vector<silo_var_t> rad_grid::var_data() const {
 	std::vector<silo_var_t> s;
-	const real eunit = opts().code_to_g / std::pow(opts().code_to_s,2) / opts().code_to_cm;
-	const real funit  = eunit * opts().code_to_cm / opts().code_to_s;
+	real eunit = opts().problem == MARSHAK ? 1 : opts().code_to_g / std::pow(opts().code_to_s,2) / opts().code_to_cm;
+	real funit = opts().problem == MARSHAK ? 1 : eunit * opts().code_to_cm / opts().code_to_s;
 	for (auto l : str_to_index) {
 		const int f = l.second;
 		std::string this_name = l.first;
@@ -1018,6 +1018,10 @@ std::vector<real> rad_grid::get_boundary(const geo::direction& dir) {
 
 void rad_grid::set_field(rad_type v, integer f, integer i, integer j, integer k) {
 	U[f][rindex(i, j, k)] = v;
+}
+
+rad_type rad_grid::get_field(integer f, integer i, integer j, integer k) const {
+	return U[f][rindex(i, j, k)];
 }
 
 void rad_grid::set_prolong(const std::vector<real>& data) {

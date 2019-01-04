@@ -40,7 +40,6 @@
 #define EXPERIMENT
 #define NRF 4
 
-#define NPF 5
 
 
 #define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()

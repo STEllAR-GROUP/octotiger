@@ -129,20 +129,22 @@ void grid::rho_from_species() {
 
 real grid::convert_hydro_units(int i) {
 	real val = 1.0;
-	const real cm = opts().code_to_cm;
-	const real s = opts().code_to_s;
-	const real g = opts().code_to_g;
-	if (i >= spc_i && i <= spc_i + opts().n_species) {
-		val *= g / (cm * cm * cm);
-	} else if (i >= sx_i && i <= sz_i) {
-		val *= g / (s * s * cm * cm);
-	} else if (i == egas_i || (i >= zx_i && i <= zz_i)) {
-		val *= g / (s * s * cm);
-	} else if (i == tau_i) {
-		val *= POWER(g / (s * s * cm), 1.0 / fgamma);
-	} else {
-		printf("Asked to convert units for unknown field %i\n", i);
-		abort();
+	if (opts().problem != MARSHAK) {
+		const real cm = opts().code_to_cm;
+		const real s = opts().code_to_s;
+		const real g = opts().code_to_g;
+		if (i >= spc_i && i <= spc_i + opts().n_species) {
+			val *= g / (cm * cm * cm);
+		} else if (i >= sx_i && i <= sz_i) {
+			val *= g / (s * s * cm * cm);
+		} else if (i == egas_i || (i >= zx_i && i <= zz_i)) {
+			val *= g / (s * s * cm);
+		} else if (i == tau_i) {
+			val *= POWER(g / (s * s * cm), 1.0 / fgamma);
+		} else {
+			printf("Asked to convert units for unknown field %i\n", i);
+			abort();
+		}
 	}
 	return val;
 }
@@ -1956,6 +1958,11 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 
 analytic_t grid::compute_analytic(real t) {
 	analytic_t a;
+	if( opts().hydro ) {
+		a = analytic_t(opts().n_fields);
+	} else {
+		a = analytic_t(opts().n_fields + NRF);
+	}
 	const auto func = get_analytic();
 	const real dv = dx * dx * dx;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i)
@@ -1970,6 +1977,15 @@ analytic_t grid::compute_analytic(real t) {
 					a.l1a[field] += std::abs(A[field]) * dv;
 					a.l2a[field] += A[field] * A[field] * dv;
 					U[field][iii] = A[field];
+				}
+				for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
+					auto tmp = rad_grid_ptr->get_field(field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
+					real dif = std::abs(A[field] - tmp);
+					a.l1[field] += dif * dv;
+					a.l2[field] += dif * dif * dv;
+					a.l1a[field] += std::abs(A[field]) * dv;
+					a.l2a[field] += A[field] * A[field] * dv;
+					rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
 				}
 			}
 	return a;

@@ -38,10 +38,18 @@ class struct_eos;
 
 class analytic_t {
 public:
-	hydro_state_t<> l1, l2, linf;
-	hydro_state_t<> l1a, l2a, linfa;
+	std::vector<real> l1, l2, linf;
+	std::vector<real> l1a, l2a, linfa;
+	integer nfields_;
 	template<class Arc>
 	void serialize(Arc& a, unsigned) {
+		a & nfields_;
+		l1.resize(nfields_);
+		l2.resize(nfields_);
+		linf.resize(nfields_);
+		l1a.resize(nfields_);
+		l2a.resize(nfields_);
+		linfa.resize(nfields_);
 		a & l1;
 		a & l2;
 		a & linf;
@@ -50,7 +58,17 @@ public:
 		a & linfa;
 	}
 	analytic_t() {
-		for (integer field = 0; field != opts().n_fields; ++field) {
+		nfields_ = 0;
+	}
+	analytic_t(integer nfields) {
+		nfields_ = nfields;
+		l1.resize(nfields_);
+		l2.resize(nfields_);
+		linf.resize(nfields_);
+		l1a.resize(nfields_);
+		l2a.resize(nfields_);
+		linfa.resize(nfields_);
+		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
 			l1a[field] = 0.0;
@@ -60,7 +78,7 @@ public:
 		}
 	}
 	analytic_t& operator+=(const analytic_t& other) {
-		for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
 			l1a[field] += other.l1a[field];

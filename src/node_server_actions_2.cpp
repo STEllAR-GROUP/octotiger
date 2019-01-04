@@ -119,7 +119,7 @@ future<analytic_t> node_client::compare_analytic() const {
 }
 
 analytic_t node_server::compare_analytic() {
-	analytic_t a;
+	analytic_t a(opts().n_fields);
 	if (!is_refined) {
 		a = grid_ptr->compute_analytic(current_time);
 	} else {
@@ -132,13 +132,13 @@ analytic_t node_server::compare_analytic() {
 			a += GET(futs[i]);
 		}
 	}
-	if (my_location.level() == 0) {
+/*	if (my_location.level() == 0) {
 		printf("L1, L2\n");
 		for (integer field = 0; field != opts().n_fields; ++field) {
 //TODO
 			//printf("%16s %e %e\n", grid::field_names()[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
 		}
-	}
+	}*/
 	return a;
 }
 

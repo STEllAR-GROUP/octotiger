@@ -49,6 +49,11 @@ inline void upperswap(double &u, const double v) {
  tolerance is the required accuracy of f(t)
  -----------------------------------------------------------------------*/
 double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double &t, const double tolerance) {
+
+	static hpx::lcos::local::spinlock mtx;
+	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
+
+
 	//--Variable declaration---------------------------------
 	int i, n, m, r;          //counters & intermediate array indices
 	int M(40);            //order of Taylor Expansion (must be less than MAX_LAPORDER)
@@ -187,25 +192,50 @@ std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 #endif
 
 std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
-	std::vector<double> u(opts().n_fields,0.0);
+	std::vector<double> u(opts().n_fields + NRF, 0.0);
 	const double z = x0;
 	double T, T_rad;
 	double rho;
-	if (z > 0 ) {
+	double fx, erad;
+	if (z > 0) {
 		rho = 1.0;
-		if( t > opts().xscale) {
+		if (t > opts().xscale) {
+			double dz, Tp, T_radp;
+			dz = std::max(z * 0.0001, 0.0001);
 			solution(z, t - opts().xscale, T, T_rad);
+			solution(z + dz, t - opts().xscale, Tp, T_radp);
+			erad = std::pow(T_rad, 4) * rho;
+			fx = -rho / 3.0 * (T_radp - T_rad) / dz;
 		} else {
 			T = 0.0;
+			erad = 0.0;
+			fx = 0.0;
 		}
 	} else {
 		T = 0.0;
 		rho = 0.0;
+		if (t - z > 0) {
+			erad = 1.0;
+			fx = 1.0;
+		} else {
+			erad = 0.0;
+			fx = 0.0;
+		}
 	}
 	u[rho_i] = u[spc_i] = rho;
-	const double e = T * T * T * T * rho;
+	const double e = std::pow(T, 4) * rho;
+	const double fy = 0;
+	const double fz = 0;
 	u[egas_i] = e;
 	u[tau_i] = std::pow(e, 1.0 / grid::get_fgamma());
+	assert( !std::isnan(erad));
+	assert( !std::isnan(fx));
+	assert( !std::isnan(fy));
+	assert( !std::isnan(fz));
+	u[opts().n_fields + rad_grid::er_i] = erad;
+	u[opts().n_fields + rad_grid::fx_i] = fx;
+	u[opts().n_fields + rad_grid::fy_i] = fy;
+	u[opts().n_fields + rad_grid::fz_i] = fz;
 	return std::move(u);
 }
 
