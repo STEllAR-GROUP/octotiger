@@ -15,8 +15,8 @@ using m2m_vector = typename Vc::Vector<double, Vc::VectorAbi::Avx>;
 using m2m_int_vector = typename Vc::Vector<int32_t, Vc::VectorAbi::Avx>;
 // using m2m_int_vector = typename Vc::datapar<int64_t, Vc::datapar_abi::avx>;
 #else                         // falling back to fixed_size types
-using m2m_vector = typename Vc::Vector<double, Vc::VectorAbi::Best>;
-using m2m_int_vector = typename Vc::Vector<int64_t, Vc::VectorAbi::Best>;
+using m2m_vector = typename Vc::Vector<double, Vc::VectorAbi::Best<double>>;
+using m2m_int_vector = typename Vc::Vector<int32_t, Vc::VectorAbi::Best<int32_t>>;
 #endif
 
 // using multipole_v = taylor<4, m2m_vector>;

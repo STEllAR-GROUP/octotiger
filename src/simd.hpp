@@ -412,6 +412,13 @@ using simd_vector = typename Vc::SimdArray<double, 8>;
 using int_simd_vector = typename Vc::SimdArray<uint32_t, 8>;
 using v4sd = typename Vc::SimdArray<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
+#else
+using floatv = Vc::float_v;
+using simd_vector = typename Vc::SimdArray<double, floatv::size()>;
+using int_simd_vector = typename Vc::SimdArray<uint32_t, floatv::size()>;
+using v4sd = typename Vc::SimdArray<double, 4>;
+constexpr std::size_t simd_len = simd_vector::size();
+
 #endif
 // using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
 // using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
