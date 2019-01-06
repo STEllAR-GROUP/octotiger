@@ -53,8 +53,8 @@ namespace fmm {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
                         &(env.device_angular_corrections), &theta};
-                    gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
-                        threads_per_block, args, 0);
+                    //gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
+                    //    threads_per_block, args, 0);
                     gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
                         env.device_angular_corrections, angular_corrections_size,
                         cudaMemcpyDeviceToHost);
@@ -63,8 +63,8 @@ namespace fmm {
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
                         &theta};
-                    gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
-                        threads_per_block, args, 0);
+                //    gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
+                //        threads_per_block, args, 0);
                 }
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     env.device_potential_expansions, potential_expansions_size,

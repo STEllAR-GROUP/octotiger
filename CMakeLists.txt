@@ -4,7 +4,7 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX)
+project(octotiger C CXX CUDA)
 
 cmake_minimum_required(VERSION 2.8)
 cmake_policy(SET CMP0015 NEW)
@@ -125,11 +125,11 @@ set(source_files ${source_files}
     src/compute_factor.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
     src/multipole_interactions/cuda_multipole_interaction_interface.cpp
-    src/multipole_interactions/multipole_cuda_kernel.cu
+    #src/multipole_interactions/multipole_cuda_kernel.cu
     src/multipole_interactions/calculate_stencil.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/monopole_interactions/cuda_p2p_interaction_interface.cpp
-    src/monopole_interactions/p2p_cuda_kernel.cu
+    #src/monopole_interactions/p2p_cuda_kernel.cu
     src/monopole_interactions/p2p_cpu_kernel.cpp
     src/monopole_interactions/p2p_interaction_interface.cpp
     src/monopole_interactions/calculate_stencil.cpp
@@ -138,6 +138,12 @@ set(source_files ${source_files}
     src/common_kernel/interactions_iterators.cpp
     src/cuda_util/cuda_scheduler.cpp
 )
+
+
+#SET(CUDA_SEPARABLE_COMPILATION ON)
+CUDA_COMPILE(CUDAP2P src/monopole_interactions/p2p_cuda_kernel.cu)
+CUDA_COMPILE(CUDAMP  src/multipole_interactions/multipole_cuda_kernel.cu)
+
 
 set(header_files
     src/mesa/mesa.hpp
@@ -209,6 +215,8 @@ add_hpx_executable(
     ${dependencies}
   SOURCES
     ${source_files}
+    ${CUDAP2P}
+    ${CUDAMP}
   HEADERS
     ${header_files}
   FOLDER  "Octotiger"

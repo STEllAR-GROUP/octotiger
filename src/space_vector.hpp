@@ -121,7 +121,13 @@
 #include <hpx/runtime/serialization/datapar.hpp>
 
 // #if defined(Vc_HAVE_AVX512F) || defined(Vc_HAVE_AVX)
-using space_vector = Vc::datapar<real, Vc::datapar_abi::avx>;
+
+#ifdef __AVX2__ 
+using space_vector = typename Vc::Vector<real, Vc::VectorAbi::Avx>;
+#else
+using floatv = Vc::float_v;
+using space_vector = typename Vc::Vector<real, Vc::VectorAbi::Best<real>>;
+#endif
 // #else
 // using space_vector = typename hpx::parallel::traits::vector_pack_type<real, 4>::type;
 // #endif

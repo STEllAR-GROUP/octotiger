@@ -2,6 +2,8 @@
 #include <sstream>
 #include "monopole_kernel_templates.hpp"
 #include "p2p_cuda_kernel.hpp"
+#include <hpx/config.hpp>
+
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -27,8 +29,8 @@ namespace fmm {
         }
 
 
-        __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
-        __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length = ENTRIES + SOA_PADDING;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void
         __launch_bounds__(64, 8)
