@@ -191,24 +191,9 @@ set(header_files
 )
 
 
-set(silo_cmp_dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z)
-set(silo_cmp_source_files
-    test/silo_cmp.cpp
-)
-set(silo_cmp_header_files)
 
 
-set(silo_reader_source_files
-    ./src/silo_reader/silo_reader.cpp
-)
-
-set(analysis_source_files
-    analysis_src/analysis.cpp
-)
-
-#add_library( eos ./src/libeos/libeos.cpp )
-#add_executable( analysis ${analysis_source_files} )
-#add_executable( silo_reader ${silo_reader_source_files} ./src/libeos/libeos.cpp  )
+add_executable( silo_compare src/compare/compare.cpp )
 
 add_hpx_executable(
   octotiger
@@ -224,7 +209,6 @@ add_hpx_executable(
 
 
 
-#target_link_libraries( silo_reader ${Silo_LIBRARY} ${HDF5_LIBRARY} pthread  dl z)
-#target_link_libraries( analysis ${HDF5_LIBRARY} )
+target_link_libraries( silo_compare ${Silo_LIBRARY} ${HDF5_LIBRARY} pthread  dl z)
 
 
