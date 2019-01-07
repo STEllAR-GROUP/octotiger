@@ -36,10 +36,15 @@ namespace fmm {
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL],
             const double theta, const double dx) {
+            __shared__ double monopole_cache[8 * 18];
+            __shared__ multiindex<> coarse_index_cache[8 * 18];
+            // get local id
+            int local_id = threadIdx.y * 8 + threadIdx.z;
+
             // use in case of debug prints
-          // bool first_thread = (threadIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
+            // bool first_thread = (blockIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
             // Set cell indices
-          const octotiger::fmm::multiindex<> cell_index((threadIdx.x + blockIdx.x * 1) + INNER_CELLS_PADDING_DEPTH,
+            const octotiger::fmm::multiindex<> cell_index((threadIdx.x + blockIdx.x * 1) + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
             octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
             cell_index_coarse.transform_coarse();
@@ -47,69 +52,65 @@ namespace fmm {
             octotiger::fmm::multiindex<> cell_index_unpadded((threadIdx.x + blockIdx.x * 1), threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+            const int cache_index_base = cell_index_unpadded.y * 18 +
+                            cell_index.z - 3;
 
             // Required for mask
             const double theta_rec_squared = sqr(1.0 / theta);
             const double d_components[2] = {1.0 / dx, -1.0 / sqr(dx)};
             double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
 
-            // const size_t block_offset = blockIdx.x * NUMBER_POT_EXPANSIONS_SMALL;
-            // const size_t block_start = blockIdx.x * 358;
-            // size_t block_end = 358 + blockIdx.x * 358;
-
-            // const size_t block_offset = blockIdx.x * NUMBER_POT_EXPANSIONS_SMALL;
-            // const size_t block_start = blockIdx.x * 358;
-            // size_t block_end = 358 + blockIdx.x * 358;
-            const size_t block_offset = 0;
-
             for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
                 int x = stencil_x - STENCIL_MIN;
                 for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                     int y = stencil_y - STENCIL_MIN;
+                    // fill up shared memory
+                    __syncthreads();
+                    if (local_id < 18) {
+                        for (int i = 0; i < 8; i++) {
+                            const multiindex<> partner_index(INNER_CELLS_PADDING_DEPTH + blockIdx.x + stencil_x,
+                                                             INNER_CELLS_PADDING_DEPTH + stencil_y + i,
+                                                             3 + local_id);
+                            const size_t partner_flat_index = to_flat_index_padded(partner_index);
+                            multiindex<> partner_index_coarse(partner_index);
+                            partner_index_coarse.transform_coarse();
+                            coarse_index_cache[18*i + local_id] = partner_index_coarse;
+                            monopole_cache[18*i + local_id] = local_monopoles[partner_flat_index];
+                        }
+                    }
+                    __syncthreads();
                     for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
                         const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + (stencil_z - STENCIL_MIN);
                         if (!device_stencil_masks[index]) {
                             continue;
                         }
-                        // Get interaction partner indices
-                        const multiindex<> partner_index(cell_index.x + stencil_x,
-                                                          cell_index.y + stencil_y,
-                                                          cell_index.z + stencil_z);
-                        // const multiindex<> partner_index(cell_index.x + device_stencil_const[stencil_index].x,
-                        //                                  cell_index.y + device_stencil_const[stencil_index].y, cell_index.z +
-                        //                                  device_stencil_const[stencil_index].z);
-                        const size_t partner_flat_index = to_flat_index_padded(partner_index);
-                        multiindex<> partner_index_coarse(partner_index);
-                        partner_index_coarse.transform_coarse();
+
+                        int cache_index = cache_index_base + stencil_z;
 
                         // Create mask
                         const double theta_c_rec_squared = static_cast<double>(
-                            distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                            distance_squared_reciprocal(cell_index_coarse, coarse_index_cache[cache_index]));
                         const bool mask_b = theta_rec_squared > theta_c_rec_squared;
                         double mask = mask_b ? 1.0 : 0.0;
 
 
-                        // 1. Load monopoles - either from global or if given from local memory
-                        double monopole = local_monopoles[partner_flat_index] * mask;
-                        // 2. Load constants
+                        double monopole = monopole_cache[cache_index] * mask;
                         const double four[4] = {device_four_constants[index * 4 + 0],
                                                 device_four_constants[index * 4 + 1],
                                                 device_four_constants[index * 4 + 2],
                                                 device_four_constants[index * 4 + 3]};
-                        // 3. Do calculations
                         compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
-                        // 4. Move local memory like the stencil
                     }
                 }
             }
 
             // Store results in output arrays
-            potential_expansions[block_offset + cell_flat_index_unpadded] = tmpstore[0];
-            potential_expansions[block_offset + 1 * component_length_unpadded +
+            potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
+            potential_expansions[1 * component_length_unpadded +
                 cell_flat_index_unpadded] = tmpstore[1];
-            potential_expansions[block_offset + 2 * component_length_unpadded +
+            potential_expansions[2 * component_length_unpadded +
                 cell_flat_index_unpadded] = tmpstore[2];
-            potential_expansions[block_offset + 3 * component_length_unpadded +
+            potential_expansions[3 * component_length_unpadded +
                 cell_flat_index_unpadded] = tmpstore[3];
         }
         __global__ void cuda_add_pot_blocks(
