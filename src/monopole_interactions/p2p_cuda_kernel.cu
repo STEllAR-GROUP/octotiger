@@ -62,23 +62,22 @@ namespace fmm {
 
             for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
                 int x = stencil_x - STENCIL_MIN;
+                __syncthreads();
+                if (local_id < 18) {
+                    for (int i = 0; i < 8; i++) {
+                        const multiindex<> partner_index(INNER_CELLS_PADDING_DEPTH + blockIdx.x + stencil_x,
+                                                            INNER_CELLS_PADDING_DEPTH + STENCIL_MIN + i,
+                                                            3 + local_id);
+                        const size_t partner_flat_index = to_flat_index_padded(partner_index);
+                        multiindex<> partner_index_coarse(partner_index);
+                        partner_index_coarse.transform_coarse();
+                        coarse_index_cache[18*i + local_id] = partner_index_coarse;
+                        monopole_cache[18*i + local_id] = local_monopoles[partner_flat_index];
+                    }
+                }
+                __syncthreads();
                 for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                     int y = stencil_y - STENCIL_MIN;
-                    // fill up shared memory
-                    __syncthreads();
-                    if (local_id < 18) {
-                        for (int i = 0; i < 8; i++) {
-                            const multiindex<> partner_index(INNER_CELLS_PADDING_DEPTH + blockIdx.x + stencil_x,
-                                                             INNER_CELLS_PADDING_DEPTH + stencil_y + i,
-                                                             3 + local_id);
-                            const size_t partner_flat_index = to_flat_index_padded(partner_index);
-                            multiindex<> partner_index_coarse(partner_index);
-                            partner_index_coarse.transform_coarse();
-                            coarse_index_cache[18*i + local_id] = partner_index_coarse;
-                            monopole_cache[18*i + local_id] = local_monopoles[partner_flat_index];
-                        }
-                    }
-                    __syncthreads();
                     for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
                         const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + (stencil_z - STENCIL_MIN);
                         if (!device_stencil_masks[index]) {
@@ -100,6 +99,24 @@ namespace fmm {
                                                 device_four_constants[index * 4 + 2],
                                                 device_four_constants[index * 4 + 3]};
                         compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
+                    }
+                    if (stencil_y < STENCIL_MAX && local_id < 18) {
+                        // move stencil
+                        for (int i = 0; i < 7; i++) {
+                            coarse_index_cache[18*i + local_id] = coarse_index_cache[18*(i + 1) + local_id];
+                            monopole_cache[18*i + local_id] = monopole_cache[18*(i + 1) + local_id];
+                            __syncthreads();
+                        }
+                        // Load new row
+                        const multiindex<> partner_index(INNER_CELLS_PADDING_DEPTH + blockIdx.x + stencil_x,
+                                                         INNER_CELLS_PADDING_DEPTH + (stencil_y + 1) + 7,
+                                                            3 + local_id);
+                        const size_t partner_flat_index = to_flat_index_padded(partner_index);
+                        multiindex<> partner_index_coarse(partner_index);
+                        partner_index_coarse.transform_coarse();
+                        coarse_index_cache[18*7 + local_id] = partner_index_coarse;
+                        monopole_cache[18*7 + local_id] = local_monopoles[partner_flat_index];
+                        __syncthreads();
                     }
                 }
             }
