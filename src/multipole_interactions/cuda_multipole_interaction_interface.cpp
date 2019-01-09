@@ -47,22 +47,30 @@ namespace fmm {
                     cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                const dim3 grid_spec(1, 1, 1);
-                const dim3 threads_per_block(8, 8, 8);
+                const dim3 grid_spec(4, 1, 1);
+                const dim3 threads_per_block(1, 8, 8);
                 if (type == RHO) {
+                    bool second_phase = false;
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
-                        &(env.device_local_expansions), &(env.device_potential_expansions),
-                        &(env.device_angular_corrections), &theta};
+                                    &(env.device_local_expansions), &(env.device_potential_expansions),
+                                    &(env.device_angular_corrections), &theta, &second_phase};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
-                        threads_per_block, args, 0);
+                                          threads_per_block, args, 0);
+                    second_phase = true;
+                    gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
+                                          threads_per_block, args, 0);
                     gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
-                        env.device_angular_corrections, angular_corrections_size,
-                        cudaMemcpyDeviceToHost);
+                                             env.device_angular_corrections, angular_corrections_size,
+                                             cudaMemcpyDeviceToHost);
 
                 } else {
+                    bool second_phase = false;
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
-                        &theta};
+                                    &theta, &second_phase};
+                    gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
+                        threads_per_block, args, 0);
+                    second_phase = true;
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
                         threads_per_block, args, 0);
                 }

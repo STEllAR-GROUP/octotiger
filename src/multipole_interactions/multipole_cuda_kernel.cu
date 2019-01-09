@@ -29,21 +29,25 @@ namespace fmm {
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void
-        __launch_bounds__(512, 1)
+        __launch_bounds__(64, 4)
         cuda_multipole_interactions_kernel_rho(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             const double (&center_of_masses)[NUMBER_MASS_VALUES],
             const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
             double (&angular_corrections)[NUMBER_ANG_CORRECTIONS],
-            const double theta) {
+            const double theta, const bool computing_second_half) {
+            int index_x = threadIdx.x + blockIdx.x;
+            if (computing_second_half)
+                index_x += 4;
             // Set cell indices
-            const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
+            const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
             octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
             cell_index_coarse.transform_coarse();
             const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
-            octotiger::fmm::multiindex<> cell_index_unpadded(threadIdx.x, threadIdx.y, threadIdx.z);
+            octotiger::fmm::multiindex<> cell_index_unpadded(index_x,
+                                                             threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
@@ -130,20 +134,25 @@ namespace fmm {
         }
 
         __global__ void
-        __launch_bounds__(512, 1)
+        __launch_bounds__(64, 4)
         cuda_multipole_interactions_kernel_non_rho(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             const double (&center_of_masses)[NUMBER_MASS_VALUES],
             const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
-            const double theta) {
+            const double theta, const bool computing_second_half) {
+            int index_x = threadIdx.x + blockIdx.x;
+            if (computing_second_half)
+                index_x += 4;
             // Set cell indices
-            const octotiger::fmm::multiindex<> cell_index(threadIdx.x + INNER_CELLS_PADDING_DEPTH,
-                threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
+            const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
+                                                          threadIdx.y + INNER_CELLS_PADDING_DEPTH,
+                                                          threadIdx.z + INNER_CELLS_PADDING_DEPTH);
             octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
             cell_index_coarse.transform_coarse();
             const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
-            octotiger::fmm::multiindex<> cell_index_unpadded(threadIdx.x, threadIdx.y, threadIdx.z);
+            octotiger::fmm::multiindex<> cell_index_unpadded(index_x,
+                                                             threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
