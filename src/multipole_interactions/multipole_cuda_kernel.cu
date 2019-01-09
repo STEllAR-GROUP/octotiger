@@ -29,7 +29,7 @@ namespace fmm {
         __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void
-        __launch_bounds__(64, 4)
+        __launch_bounds__(64, 8)
         cuda_multipole_interactions_kernel_rho(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             const double (&center_of_masses)[NUMBER_MASS_VALUES],
@@ -134,7 +134,7 @@ namespace fmm {
         }
 
         __global__ void
-        __launch_bounds__(64, 4)
+        __launch_bounds__(64, 8)
         cuda_multipole_interactions_kernel_non_rho(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             const double (&center_of_masses)[NUMBER_MASS_VALUES],

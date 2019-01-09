@@ -47,7 +47,7 @@ namespace fmm {
                     cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                const dim3 grid_spec(4, 1, 1);
+                const dim3 grid_spec(8, 1, 1);
                 const dim3 threads_per_block(1, 8, 8);
                 if (type == RHO) {
                     bool second_phase = false;
@@ -56,9 +56,9 @@ namespace fmm {
                                     &(env.device_angular_corrections), &theta, &second_phase};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
                                           threads_per_block, args, 0);
-                    second_phase = true;
-                    gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
-                                          threads_per_block, args, 0);
+                    // second_phase = true;
+                    // gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
+                    //                       threads_per_block, args, 0);
                     gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
                                              env.device_angular_corrections, angular_corrections_size,
                                              cudaMemcpyDeviceToHost);
@@ -70,9 +70,9 @@ namespace fmm {
                                     &theta, &second_phase};
                     gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
                         threads_per_block, args, 0);
-                    second_phase = true;
-                    gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
-                        threads_per_block, args, 0);
+                    // second_phase = true;
+                    // gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
+                    //     threads_per_block, args, 0);
                 }
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     env.device_potential_expansions, potential_expansions_size,
