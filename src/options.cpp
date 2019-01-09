@@ -80,7 +80,7 @@ bool options::process_options(int argc, char* argv[]) {
 			"boundary particle-multipole kernel type")  //
 	("cuda_streams_per_locality", po::value<size_t>(&(opts.cuda_streams_per_locality))->default_value(size_t(0)),
 			"cuda streams per HPX locality") //
-	("cuda_streams_per_gpu", po::value<size_t>(&(opts.cuda_streams_per_locality))->default_value(size_t(0)),
+	("cuda_streams_per_gpu", po::value<size_t>(&(opts.cuda_streams_per_gpu))->default_value(size_t(0)),
 			"cuda streams per GPU (per locality)") //
 			("input_file", po::value<std::string>(&(opts.input_file))->default_value(""), "input file for test problems") //
 			("config_file", po::value<std::string>(&(opts.config_file))->default_value(""), "configuration file") //
