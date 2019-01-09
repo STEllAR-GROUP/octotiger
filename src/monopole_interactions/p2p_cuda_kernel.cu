@@ -102,6 +102,7 @@ namespace fmm {
                     }
                     if (stencil_y < STENCIL_MAX && local_id < 18) {
                         // move stencil
+                        __syncthreads();
                         for (int i = 0; i < 7; i++) {
                             coarse_index_cache[18*i + local_id] = coarse_index_cache[18*(i + 1) + local_id];
                             monopole_cache[18*i + local_id] = monopole_cache[18*(i + 1) + local_id];
