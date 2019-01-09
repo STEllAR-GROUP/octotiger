@@ -92,26 +92,23 @@ namespace fmm {
                 }
             }
 
-            // old stencil stuff
-            p2p_stencil_pair.first.resize(P2P_PADDED_STENCIL_SIZE, p2p_stencil_pair.first[0]); // Padding
-            std::array<real, 4> default_four = {0.0, 0.0, 0.0, 0.0};
-            p2p_stencil_pair.second.resize(P2P_PADDED_STENCIL_SIZE, default_four); // Padding
-            auto four_constants = p2p_stencil_pair.second;
-            std::unique_ptr<real[]> indicator = std::make_unique<real[]>(STENCIL_SIZE);
-            std::unique_ptr<real[]> four_tmp = std::make_unique<real[]>(4 * P2P_PADDED_STENCIL_SIZE);
-            for (auto i = 0; i < STENCIL_SIZE; ++i) {
-                if (stencil.stencil_phase_indicator[i])
-                    indicator[i] = 1.0;
+            // new multipole stencil
+            auto multipole_stencil_pair =
+                multipole_interactions::calculate_stencil_masks(stencil);
+            auto multipole_stencil = multipole_stencil_pair.first;
+            auto multipole_inner_stencil = multipole_stencil_pair.second;
+            std::unique_ptr<real[]> multipole_stencil_masks = std::make_unique<real[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<real[]> multipole_inner_stencil_masks = std::make_unique<real[]>(FULL_STENCIL_SIZE);
+            for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
+                if (multipole_inner_stencil[i])
+                    multipole_inner_stencil_masks[i] = 1.0;
                 else
-                    indicator[i] = 0.0;
+                    multipole_inner_stencil_masks[i] = 0.0;
+                if (multipole_stencil[i])
+                    multipole_stencil_masks[i] = 1.0;
+                else
+                    multipole_stencil_masks[i] = 0.0;
             }
-            for (auto i = 0; i < P2P_PADDED_STENCIL_SIZE; i++) {
-                four_tmp[i * 4 + 0] = four_constants[i][0];
-                four_tmp[i * 4 + 1] = four_constants[i][1];
-                four_tmp[i * 4 + 2] = four_constants[i][2];
-                four_tmp[i * 4 + 3] = four_constants[i][3];
-            }
-
 
             // Move data to constant memory, once per gpu
             if (worker_id == 0) {
@@ -124,10 +121,10 @@ namespace fmm {
                     monopole_interactions::copy_constants_to_p2p_constant_memory(four_constants_tmp.get(),
                                                                                  4 * full_stencil_size);
                     multipole_interactions::
-                        copy_stencil_to_m2m_constant_memory(stencil.stencil_elements.data(),
-                                                            STENCIL_SIZE *
-                                                            sizeof(octotiger::fmm::multiindex<>));
-                    multipole_interactions::copy_indicator_to_m2m_constant_memory(indicator.get(), indicator_size);
+                        copy_stencil_to_m2m_constant_memory(multipole_stencil_masks.get(), full_stencil_size);
+                    multipole_interactions::
+                        copy_indicator_to_m2m_constant_memory(multipole_inner_stencil_masks.get(),
+                                                              full_stencil_size);
                 }
             }
 
