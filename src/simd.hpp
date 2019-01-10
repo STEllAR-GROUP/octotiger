@@ -8,9 +8,12 @@
 #ifndef SIMD_VECTOR_HPP_
 #define SIMD_VECTOR_HPP_
 #include "defs.hpp"
+#include <cstdint>
 #include <cstdlib>
 #include <cstdio>
 #include "immintrin.h"
+
+#include <Vc/Vc>
 
 // constexpr std::size_t simd_len = 8;
 
@@ -408,15 +411,15 @@
 //constexpr std::size_t simd_len = simd_vector::size();
 //#elif defined(Vc_IMPL_AVX)
 #ifdef __AVX2__
-using simd_vector = typename Vc::SimdArray<double, 8>;
-using int_simd_vector = typename Vc::SimdArray<uint32_t, 8>;
-using v4sd = typename Vc::SimdArray<double, 4>;
+using simd_vector = Vc::SimdArray<double, 8>;
+using int_simd_vector = Vc::SimdArray<std::uint32_t, 8>;
+using v4sd = Vc::SimdArray<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
 #else
 using floatv = Vc::float_v;
-using simd_vector = typename Vc::SimdArray<double, floatv::size()>;
-using int_simd_vector = typename Vc::SimdArray<uint32_t, floatv::size()>;
-using v4sd = typename Vc::SimdArray<double, 4>;
+using simd_vector = Vc::SimdArray<double, floatv::size()>;
+using int_simd_vector = Vc::SimdArray<uint32_t, floatv::size()>;
+using v4sd = Vc::SimdArray<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
 
 #endif

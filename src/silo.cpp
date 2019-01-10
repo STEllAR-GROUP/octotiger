@@ -17,16 +17,13 @@
 #include <hpx/lcos/broadcast.hpp>
 #include <future>
 #include <mutex>
+#include <hpx/util/format.hpp>
 #include "util.hpp"
 
 #define OUTPUT_ROCHE
 
 std::string oct_to_str(int n) {
-	char* ptr;
-	asprintf(&ptr, "%o", n);
-	std::string rc(ptr);
-	free(ptr);
-	return std::move(rc);
+	return hpx::util::format("{:o}", n);
 }
 
 std::string outflow_name(const std::string& varname) {
@@ -558,8 +555,7 @@ void output_stage3(std::string fname, int cycle) {
 			printf( "Putting %i\n", n_total_domains );
 			DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
 			DBFreeOptlist( optlist);
-			char mmesh[strlen("quadmesh")+1];
-			std::strcpy(mmesh, "quadmesh");
+			char mmesh[] = "quadmesh";
 			for (int f = 0; f < nfields; f++) {
 				optlist = DBMakeOptlist(100);
 				DBAddOption(optlist, DBOPT_CYCLE, &cycle);

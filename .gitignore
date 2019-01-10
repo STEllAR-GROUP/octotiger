@@ -1,3 +1,4 @@
 /build
 .ptp-sync*
 newgit
+cmake-build-debug
