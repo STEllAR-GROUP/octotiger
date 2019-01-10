@@ -7,7 +7,7 @@
 
 project(octotiger CXX)
 
-cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 cmake_policy(SET CMP0015 NEW)
 cmake_policy(SET CMP0003 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -37,7 +37,7 @@ set_property(TARGET octotiger::hdf5
 if (OCTOTIGER_WITH_CUDA)
   add_definitions(-DOCTOTIGER_CUDA_ENABLED)
   find_package(CUDA REQUIRED)
-  
+
   add_library(octotiger::cuda INTERFACE IMPORTED)
   set_property(TARGET octotiger::cuda
     PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CUDA_INCLUDE_DIRS}")
@@ -181,12 +181,6 @@ else()
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
 
-#get_cmake_property(_variableNames VARIABLES)
-#list (SORT _variableNames)
-#foreach (_variableName ${_variableNames})
-#  message(STATUS "${_variableName}=${${_variableName}}")
-#endforeach()
-
 target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_SILO)
 
 if(NOT MSVC)
@@ -201,20 +195,22 @@ else()
   # enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-  target_compile_definitions(octotiger PRIVATE _USE_MATH_DEFINES)
-  target_compile_definitions(octotiger PRIVATE NOMINMAX)
-  target_compile_definitions(octotiger PRIVATE _CRT_SECURE_NO_WARNINGS)
-  target_compile_definitions(octotiger PRIVATE __restrict__=__restrict)
+  target_compile_definitions(octotiger PRIVATE
+    _USE_MATH_DEFINES
+    NOMINMAX
+    _CRT_SECURE_NO_WARNINGS
+    __restrict__=__restrict)
 
-  target_compile_options(octotiger PRIVATE /wd4018)
-  target_compile_options(octotiger PRIVATE /wd4068)   # unknown pragma
-  target_compile_options(octotiger PRIVATE /wd4146)
-  target_compile_options(octotiger PRIVATE /wd4244)
-  target_compile_options(octotiger PRIVATE /wd4267)
-  target_compile_options(octotiger PRIVATE /wd4334)
-  target_compile_options(octotiger PRIVATE /wd4521)
-  target_compile_options(octotiger PRIVATE /wd4800)
-  
+  target_compile_options(octotiger PRIVATE
+    /wd4018
+    /wd4068 # unknown pragma
+    /wd4146
+    /wd4244
+    /wd4267
+    /wd4334
+    /wd4521
+    /wd4800)
+
   target_compile_options(octotiger PRIVATE /EHsc)
 endif()
 

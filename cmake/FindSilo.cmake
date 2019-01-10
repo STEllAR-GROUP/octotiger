@@ -1,5 +1,5 @@
 # Copyright (c) 2008-2012 Sandia Corporation, Kitware Inc.
-# Copyright (c) 2014-2014 Andreas Sch√§fer
+# Copyright (c) 2014-2014 Andreas Sch‰fer
 # Copyright (c) 2018 Parsa Amini
 #
 # Sandia National Laboratories, New Mexico
@@ -11,7 +11,7 @@
 # Clifton Park, NY 12065
 # USA
 #
-# Andreas Sch√§fer
+# Andreas Sch‰fer
 # Informatik 3
 # Martensstr. 3
 # 91058 Erlangen
@@ -81,7 +81,7 @@ else()
   find_path(Silo_X_INCLUDE_DIR silo_exports.h
     PATHS ${Silo_DIR}/src/silo)
   set(Silo_INCLUDE_DIR ${Silo_H_INCLUDE_DIR} ${Silo_X_INCLUDE_DIR})
-  
+
   find_library(Silo_LIBRARY NAMES silohdf5
     PATHS ${Silo_DIR}/SiloWindows/MSVC2012/x64/Release)
 endif()
