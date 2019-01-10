@@ -1240,7 +1240,7 @@ expansion_pass_type grid::compute_expansions_soa(
     // TODO make version with stride for vectorization
     octotiger::fmm::iterate_inner_cells_not_padded([this, &local_expansions, &center_of_masses_SoA,
                                                     com0, &parent_expansions_SoA, &parent_corrections_SoA, &exp_ret, child_index,
-        type](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+        type, inx](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
         std::array<m2m_vector, NDIM> parent_corrections;
         const integer index =
             (INX * INX / 4) * (i_unpadded.x) + (INX / 2) * (i_unpadded.y) + (i_unpadded.z);

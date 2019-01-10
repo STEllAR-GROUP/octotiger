@@ -4,9 +4,9 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX Fortran)
+project(octotiger CXX)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
 cmake_policy(SET CMP0015 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 ################################################################################
@@ -63,12 +63,19 @@ else()
 
     add_definitions(-D_USE_MATH_DEFINES)
     add_definitions(-DNOMINMAX)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    add_definitions(-D__restrict__=__restrict)
     include_directories(${CMAKE_SOURCE_DIR}/src)
 
-    hpx_add_compile_flag(-wd4068)   # unknown pragma
-    hpx_add_compile_flag(-wd4244)
-    hpx_add_compile_flag(-wd4267)
-    hpx_add_compile_flag(-wd4800)
+    add_compile_options(/wd4018)
+    add_compile_options(/wd4068)   # unknown pragma
+    add_compile_options(/wd4146)
+    add_compile_options(/wd4244)
+    add_compile_options(/wd4267)
+    add_compile_options(/wd4334)
+    add_compile_options(/wd4521)
+    add_compile_options(/wd4800)
+    add_compile_options(/arch:AVX2)
 endif()
 
 # handle other options
@@ -83,13 +90,17 @@ endif()
 set(source_files)
 set(dependencies)
 
-set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z quadmath)
+if(NOT MSVC)
+  set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z quadmath)
+endif()
+
+list(APPEND dependencies octotiger::silo)
 
 # Octotiger executable
 set(source_files ${source_files}
     src/test_problems/marshak/marshak.cpp
     src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf.c
+    src/test_problems/blast/sedovf_c.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/silo.cpp
@@ -146,7 +157,7 @@ set(header_files
     src/defs.hpp
     src/diagnostics.hpp
     src/eos.hpp
-    src/exact_sod.hpp
+    src/test_problems/sod/exact_sod.hpp
     src/future.hpp
     src/geometry.hpp
     src/grid.hpp
@@ -166,7 +177,7 @@ set(header_files
     src/space_vector.hpp
     src/state.hpp
     src/struct_eos.hpp
-    src/taylor.hpphdf
+    src/taylor.hpp
     src/util.hpp
     src/compute_factor.hpp
     src/common_kernel/interaction_constants.hpp
@@ -184,7 +195,6 @@ set(header_files
     src/monopole_interactions/calculate_stencil.hpp
     src/monopole_interactions/p2m_interaction_interface.hpp
     src/monopole_interactions/p2m_kernel.hpp
-    src/monopole_interactions/compare_interaction_lists.hpp
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
     src/cuda_util/cuda_scheduler.hpp
