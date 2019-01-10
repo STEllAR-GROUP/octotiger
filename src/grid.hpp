@@ -23,6 +23,7 @@
 #include "interaction_types.hpp"
 #include "silo.hpp"
 
+#include <hpx/config.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/runtime/serialization/set.hpp>
 #include <hpx/runtime/serialization/array.hpp>

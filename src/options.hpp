@@ -17,8 +17,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 
-#include <silo.h>
-
 COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR,MARSHAK);
 
 COMMAND_LINE_ENUM(eos_type,IDEAL,WD);

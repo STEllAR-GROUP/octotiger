@@ -1,5 +1,6 @@
 
 #include "../../grid.hpp"
+#include <algorithm>
 #include <mutex>
 #include <unordered_map>
 #include <functional>
@@ -9,19 +10,25 @@
 #include <hpx/runtime/threads/run_as_os_thread.hpp>
 
 
+#ifndef _MSC_VER
 #include <quadmath.h>
+using sed_real = __float128;
+#else
+#include <boost/multiprecision/cpp_bin_float.hpp>
+using sed_real = boost::multiprecision::cpp_bin_float_quad;
+#endif
 
-typedef __float128 sed_real;
 
 
-extern "C" {
+
+/*extern "C" {*/
 /* Subroutine */int sed_1d__(sed_real *time, int *nstep,
 		sed_real * xpos, sed_real *eblast, sed_real *omega_in__,
 		sed_real * xgeom_in__, sed_real *rho0, sed_real *vel0,
 		sed_real *ener0, sed_real *pres0, sed_real *cs0, sed_real *gam0,
 		sed_real *den, sed_real *ener, sed_real *pres, sed_real *vel,
 		sed_real *cs);
-}
+//}
 
 namespace sedov {
 
@@ -87,11 +94,20 @@ void solution(real time, real r, real rmax, real& d, real& v, real& p) {
 		vel[1] = -vel[2];
 		cs[1] = cs[2];
 
-		std::copy(den.begin(),den.end(),den1.begin());
-		std::copy(vel.begin(),vel.end(),vel1.begin());
-		std::copy(pres.begin(),pres.end(),pres1.begin());
+#ifdef _MSC_VER
+		std::transform(den.begin(), den.end(), den1.begin(),
+			[](sed_real v) { return v.convert_to<double>(); });
+		std::transform(vel.begin(), vel.end(), vel1.begin(),
+			[](sed_real v) { return v.convert_to<double>(); });
+		std::transform(pres.begin(), pres.end(), pres1.begin(),
+			[](sed_real v) { return v.convert_to<double>(); });
+#else
+		std::copy(den.begin(), den.end(), den1.begin());
+		std::copy(vel.begin(), vel.end(), vel1.begin());
+		std::copy(pres.begin(), pres.end(), pres1.begin());
+#endif
 
-		function_type func = [nstep,rmax,den1,pres1,vel1](real r, real& d, real& v, real & p) {
+		function_type func = [nstep,rmax,den1,pres1,vel1,bw](real r, real& d, real& v, real & p) {
 			real dr = rmax / (nstep);
 			std::array<int,4> i;
 			i[1] = (r + (bw - 0.5)*dr) / dr;
@@ -131,8 +147,7 @@ void solution(real time, real r, real rmax, real& d, real& v, real& p) {
 }
 
 }
-
-constexpr sed_real blast_wave_t0 = 7e-4;
+constexpr real blast_wave_t0 = 7e-4;
 
 
 std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {

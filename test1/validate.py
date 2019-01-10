@@ -1,39 +1,45 @@
-import mmap
 import sys
-from itertools import izip
+try:
+    from itertools import izip as zip
+except ImportError: # will be 3.x series
+    pass
 
-strings = ["rho","egas","sx","sy","tau","primary_core"]
 diff = False
+
 
 def find(f):
    data = []
    for line in f:
-       for s in strings:
+       for s in ["rho", "egas", "sx", "sy", "tau", "primary_core"]:
            if s in line:
-               data.append(line.replace("\n","").lstrip())
+               data.append(line.replace("\n", "").lstrip())
    return data
 
-def compare(old,test):
-        for o, n in zip(old,test):
-            if not (o == n):
-                print "Missmatch: " + o + " and " + n
-                diff = True
-                index = [ i for i,(a1,a2) in enumerate(izip(o,n)) if a1!=a2 ]
-                for i in index:
-                    print "Difference at " + str(i) + " where is " + o[i] + " instead " + n[i]  
+
+def compare(old, test):
+    for o, n in zip(old, test):
+        if o != n:
+            print("mismatch: {} and {}", o, n)
+            diff = True
+            index = [i for i, (a1, a2) in enumerate(zip(o, n)) if a1 != a2]
+            for i in index:
+                print("difference at {} where is {} instead {}".format(i, o[i], n[i]))
+
 
 if (len(sys.argv) != 3):
-    print sys.argv[0] + " file1 file2"
+    print(sys.argv[0] + " file1 file2")
     sys.exit()
 
-file = open(sys.argv[1],'r')
-file2 = open(sys.argv[2],'r')
-old = find(file)
+file1 = open(sys.argv[1], 'r')
+file2 = open(sys.argv[2], 'r')
+old = find(file1)
 test = find(file2)
 
-compare(old,test)
+compare(old, test)
 
-if ( diff == True):
+if diff:
+    print('fail')
     sys.exit(1)
 else:
+    print('success')
     sys.exit(0)
