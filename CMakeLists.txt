@@ -24,9 +24,15 @@ option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(Silo REQUIRED)
-find_package(HDF5 REQUIRED NAMES hdf5)
+find_package(HDF5 REQUIRED)
 find_package(Vc REQUIRED)
 find_package(Boost REQUIRED)
+
+add_library(octotiger::hdf5 INTERFACE IMPORTED)
+set_property(TARGET octotiger::hdf5
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS})
+set_property(TARGET octotiger::hdf5
+  PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
 
 if (OCTOTIGER_WITH_CUDA)
   add_definitions(-DOCTOTIGER_CUDA_ENABLED)
@@ -40,23 +46,13 @@ if (OCTOTIGER_WITH_CUDA)
   string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
 endif()
 
-add_library(octotiger::hpx INTERFACE IMPORTED)
-set_property(TARGET octotiger::hpx
-  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HPX_INCLUDE_DIRS})
-set_property(TARGET octotiger::hpx
-  PROPERTY INTERFACE_LINK_LIBRARIES ${HPX_LIBRARY_DIR})
-
-#add_library(octotiger::vc INTERFACE IMPORTED)
-#set_property(TARGET octotiger::vc
-#  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${Vc_ROOT}/include)
-
 ################################################################################
 # Silo support
 ################################################################################
 set(dependencies silo::silo Vc::Vc Boost::boost)
 
 if(NOT MSVC)
-  list(APPEND dependencies hdf5::hdf5_hl-shared dl z quadmath)
+  list(APPEND dependencies octotiger::hdf5 dl z quadmath)
 endif()
 
 # Octotiger executable
@@ -180,7 +176,7 @@ add_executable(silo_compare src/compare/compare.cpp)
 
 target_link_libraries(silo_compare silo::silo)
 if(NOT MSVC)
-  target_link_libraries(silo_compare hdf5::hdf5_hl-shared dl pthread dl z)
+  target_link_libraries(silo_compare octotiger::hdf5 dl pthread dl z)
 else()
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
