@@ -56,7 +56,7 @@ set_property(TARGET octotiger::hpx
 set(dependencies silo::silo Vc::Vc Boost::boost)
 
 if(NOT MSVC)
-  set(dependencies hdf5::hdf5_hl-shared dl z quadmath)
+  list(APPEND dependencies hdf5::hdf5_hl-shared dl z quadmath)
 endif()
 
 # Octotiger executable
