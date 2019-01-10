@@ -24,7 +24,7 @@ option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(Silo REQUIRED)
-find_package(HDF5 REQUIRED)
+find_package(HDF5 REQUIRED NAMES hdf5)
 find_package(Vc REQUIRED)
 find_package(Boost REQUIRED)
 
@@ -56,7 +56,7 @@ set_property(TARGET octotiger::hpx
 set(dependencies silo::silo Vc::Vc Boost::boost)
 
 if(NOT MSVC)
-  set(dependencies ${HDF5_LIBRARY} dl z quadmath)
+  set(dependencies hdf5::hdf5_hl-shared dl z quadmath)
 endif()
 
 # Octotiger executable
@@ -180,7 +180,7 @@ add_executable(silo_compare src/compare/compare.cpp)
 
 target_link_libraries(silo_compare silo::silo)
 if(NOT MSVC)
-  target_link_libraries(silo_compare ${HDF5_LIBRARY} pthread dl z)
+  target_link_libraries(silo_compare hdf5::hdf5_hl-shared dl pthread dl z)
 else()
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
@@ -195,7 +195,7 @@ target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_SILO)
 
 if(NOT MSVC)
   if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(octotiger -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations -Wno-unused-result -ffast-math)
+    target_compile_options(octotiger PRIVATE -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations -Wno-unused-result -ffast-math)
   elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
       #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
       #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
