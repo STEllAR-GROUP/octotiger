@@ -4,12 +4,13 @@
 #include "../monopole_interactions/calculate_stencil.hpp"
 #include "options.hpp"
 
-extern options opts;
+#undef interface
+
 namespace octotiger {
 namespace fmm {
     thread_local kernel_scheduler kernel_scheduler::scheduler;
     kernel_scheduler::kernel_scheduler(void)
-      : number_cuda_streams_managed(opts.cuda_streams_per_thread)
+      : number_cuda_streams_managed(opts().cuda_streams_per_thread)
       , slots_per_cuda_stream(1)
       , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
         stream_interfaces = std::vector<util::cuda_helper>(number_cuda_streams_managed);

@@ -242,7 +242,7 @@ int pow_ii(int * a, int * b) {
     slap_1.lstandard = false;
     slap_1.lsingular = false;
     slap_1.lvacuum = false;
-    if ((d__1 = v2 - vstar, fabs(d__1)) <= 1e-4) {
+    if ((d__1 = v2 - vstar, fabs((double)d__1)) <= 1e-4) {
         slap_1.lsingular = true;
     } else if (v2 < vstar - 1e-4) {
         slap_1.lstandard = true;
@@ -252,10 +252,10 @@ int pow_ii(int * a, int * b) {
     /* ..two apparent singularies, book's notation for omega2 and omega3 */
     slap_1.lomega2 = false;
     slap_1.lomega3 = false;
-    if (fabs(denom2) <= 1e-4) {
+    if (fabs((double)denom2) <= 1e-4) {
         slap_1.lomega2 = true;
         denom2 = 1e-8f;
-    } else if (fabs(denom3) <= 1e-4) {
+    } else if (fabs((double)denom3) <= 1e-4) {
         slap_1.lomega3 = true;
         denom3 = 1e-8f;
     }
@@ -315,7 +315,7 @@ int pow_ii(int * a, int * b) {
                 qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
                         (S_fp) midpnt_);
             } else {
-                cmidp_1.gam_int__ = fabs(cmidp_1.gam_int__);
+                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
                 qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
                         (S_fp) midpowl_);
             }
@@ -326,7 +326,7 @@ int pow_ii(int * a, int * b) {
                 qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
                         (S_fp) midpnt_);
             } else {
-                cmidp_1.gam_int__ = fabs(cmidp_1.gam_int__);
+                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
                 qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
                         (S_fp) midpowl2_);
             }
@@ -339,7 +339,7 @@ int pow_ii(int * a, int * b) {
                 qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
                         (S_fp) midpnt_);
             } else {
-                cmidp_1.gam_int__ = fabs(cmidp_1.gam_int__);
+                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
                 qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
                         (S_fp) midpowl_);
             }
@@ -350,7 +350,7 @@ int pow_ii(int * a, int * b) {
                 qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
                         (S_fp) midpnt_);
             } else {
-                cmidp_1.gam_int__ = fabs(cmidp_1.gam_int__);
+                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
                 qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
                         (S_fp) midpowl2_);
             }
@@ -472,7 +472,7 @@ int pow_ii(int * a, int * b) {
             cs[i__] = 0.f;
             if (den[i__] != 0.f) {
                 ener[i__] = pres[i__] / (slap_1.gamm1 * den[i__]);
-                cs[i__] = sqrt(slap_1.gamma * pres[i__] / den[i__]);
+                cs[i__] = sqrt((double)(slap_1.gamma * pres[i__] / den[i__]));
             }
         }
         /* ..end of loop over positions */
@@ -602,7 +602,7 @@ sed_real sed_r_find__(sed_real *r__) {
     dx1dv = slap_1.a_val__;
     /* Computing MAX */
     d__1 = 1e-30, d__2 = slap_1.c_val__ * *v - 1.f;
-    cbag = fmax(d__1, d__2);
+    cbag = fmax((double)d__1, (double)d__2);
     x2 = slap_1.b_val__ * cbag;
     dx2dv = slap_1.b_val__ * slap_1.c_val__;
     ebag = 1.f - slap_1.e_val__ * *v;
@@ -890,7 +890,7 @@ sed_real sed_r_find__(sed_real *r__) {
         (*choose)((D_fp) func, a, b, &s[j - 1], &j);
         if (j >= 5) {
             polint_(&h__[j - 5], &s[j - 5], &c__5, &c_b79, ss, &dss);
-            if (fabs(dss) <= *eps * fabs(*ss)) {
+            if (fabs((double)dss) <= *eps * fabs((double)*ss)) {
                 return 0;
             }
         }
@@ -925,10 +925,10 @@ sed_real sed_r_find__(sed_real *r__) {
 
     /* Function Body */
     ns = 1;
-    dif = (d__1 = *x - xa[1], fabs(d__1));
+    dif = (d__1 = *x - xa[1], fabs((double)d__1));
     i__1 = *n;
     for (i__ = 1; i__ <= i__1; ++i__) {
-        dift = (d__1 = *x - xa[i__], fabs(d__1));
+        dift = (d__1 = *x - xa[i__], fabs((double)d__1));
         if (dift < dif) {
             ns = i__;
             dif = dift;
@@ -1031,7 +1031,7 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
     fc = fa;
     d__ = b - a;
     e = d__;
-    L30: if (fabs(fc) >= fabs(fb)) {
+    L30: if (fabs((double)fc) >= fabs((double)fb)) {
         goto L40;
     }
     a = b;
@@ -1043,9 +1043,9 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 
     /* convergence test */
 
-    L40: tol1 = eps * 2.f * fabs(b) + *tol * .5f;
+    L40: tol1 = eps * 2.f * fabs((double)b) + *tol * .5f;
     xm = (c__ - b) * .5f;
-    if (fabs(xm) <= tol1) {
+    if (fabs((double)xm) <= tol1) {
         goto L90;
     }
     if (fb == 0.f) {
@@ -1054,10 +1054,10 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 
     /* is bisection necessary? */
 
-    if (fabs(e) < tol1) {
+    if (fabs((double)e) < tol1) {
         goto L70;
     }
-    if (fabs(fa) <= fabs(fb)) {
+    if (fabs((double)fa) <= fabs((double)fb)) {
         goto L70;
     }
 
@@ -1087,14 +1087,14 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
     L60: if (p > 0.f) {
         q = -q;
     }
-    p = fabs(p);
+    p = fabs((double)p);
 
     /* is interpolation acceptable? */
 
-    if (p * 2.f >= xm * 3.f * q - (d__1 = tol1 * q, fabs(d__1))) {
+    if (p * 2.f >= xm * 3.f * q - (d__1 = tol1 * q, fabs((double)d__1))) {
         goto L70;
     }
-    if (p >= (d__1 = e * .5f * q, fabs(d__1))) {
+    if (p >= (d__1 = e * .5f * q, fabs((double)d__1))) {
         goto L70;
     }
     e = d__;
@@ -1110,14 +1110,14 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 
     L80: a = b;
     fa = fb;
-    if (fabs(d__) > tol1) {
+    if (fabs((double)d__) > tol1) {
         b += d__;
     }
-    if (fabs(d__) <= tol1) {
+    if (fabs((double)d__) <= tol1) {
         b += d_sign(&tol1, &xm);
     }
     fb = (*f)(&b);
-    if (fb * (fc / fabs(fc)) > 0.f) {
+    if (fb * (fc / fabs((double)fc)) > 0.f) {
         goto L20;
     }
     goto L30;

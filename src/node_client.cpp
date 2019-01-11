@@ -7,6 +7,7 @@
 
 #include "node_server.hpp"
 #include "options.hpp"
+#include "future.hpp"
 
 #include <hpx/lcos/broadcast.hpp>
 

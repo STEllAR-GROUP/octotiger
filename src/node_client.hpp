@@ -15,6 +15,7 @@
 #include "eos.hpp"
 #include "diagnostics.hpp"
 #include "radiation/rad_grid.hpp"
+#include "future.hpp"
 
 //#include <boost/mpi/packed_iarchive.hpp>
 

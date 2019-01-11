@@ -15,10 +15,7 @@
 #include <array>
 #include <vector>
 
-//template<class T>
-//using future = hpx::future<T>;
-
-template<class T>
+template <class T>
 using future = hpx::future<T>;
 
 template<typename T>

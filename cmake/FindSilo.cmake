@@ -1,5 +1,6 @@
 # Copyright (c) 2008-2012 Sandia Corporation, Kitware Inc.
 # Copyright (c) 2014-2014 Andreas Schäfer
+# Copyright (c) 2019 Parsa Amini
 #
 # Sandia National Laboratories, New Mexico
 # PO Box 5800
@@ -10,7 +11,7 @@
 # Clifton Park, NY 12065
 # USA
 #
-# Andreas Schäfer
+# Andreas SchÃ¤fer
 # Informatik 3
 # Martensstr. 3
 # 91058 Erlangen
@@ -49,7 +50,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ========================================================================
 #
-# Try to find Silo library and headers. Define Silo_ROOT if Silo is
+# Try to find Silo library and headers. Define Silo_DIR if Silo is
 # installed in a non-standard directory.
 #
 # This file sets the following variables:
@@ -62,43 +63,55 @@
 # Silo_LIBRARY, the full path to the silo library.
 # Silo_INCLUDE_PATH, for CMake backward compatibility
 
-FIND_PATH( Silo_INCLUDE_DIR silo.h
-  PATHS /usr/local/include
-  /usr/include
-  ${Silo_ROOT}/include
-)
+if(NOT MSVC)
+  find_path(Silo_INCLUDE_DIR silo.h
+    PATHS /usr/local/include
+    /usr/include
+    ${Silo_DIR}/include)
 
-FIND_LIBRARY( Silo_LIBRARY NAMES siloh5
-  PATHS /usr/lib
-  /usr/lib64
-  /usr/local/lib
-  ${Silo_ROOT}/lib
-  ${Silo_ROOT}/lib64
-)
+  find_library(Silo_LIBRARY NAMES siloh5
+    PATHS /usr/lib
+    /usr/lib64
+    /usr/local/lib
+    ${Silo_DIR}/lib
+    ${Silo_DIR}/lib64)
+else()
+  find_path(Silo_H_INCLUDE_DIR silo.h
+    PATHS ${Silo_DIR}/SiloWindows/include)
+  find_path(Silo_X_INCLUDE_DIR silo_exports.h
+    PATHS ${Silo_DIR}/src/silo)
+  set(Silo_INCLUDE_DIR ${Silo_H_INCLUDE_DIR} ${Silo_X_INCLUDE_DIR})
 
-SET(Silo_FOUND "NO" )
-IF(Silo_INCLUDE_DIR)
-  IF(Silo_LIBRARY)
+  find_library(Silo_LIBRARY NAMES silohdf5
+    PATHS ${Silo_DIR}/SiloWindows/MSVC2012/x64/Release)
+endif()
 
-    SET(Silo_LIBRARIES ${Silo_LIBRARY})
-    SET(Silo_FOUND "YES" )
+set(Silo_FOUND "Off")
+if(Silo_INCLUDE_DIR)
+  if(Silo_LIBRARY)
+    set(Silo_LIBRARIES ${Silo_LIBRARY})
+    set(Silo_FOUND "On")
 
-  ELSE(Silo_LIBRARY)
-    IF(Silo_FIND_REQURIED)
+  else()
+    if(Silo_FIND_REQURIED)
       message(SEND_ERROR "Unable to find the requested Silo libraries.")
-    ENDIF(Silo_FIND_REQURIED)
-  ENDIF(Silo_LIBRARY)
-ENDIF(Silo_INCLUDE_DIR)
+    endif()
+  endif()
+endif()
 
 # handle the QUIETLY and REQUIRED arguments and set Silo_FOUND to TRUE if
 # all listed variables are TRUE
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Silo DEFAULT_MSG Silo_LIBRARY Silo_INCLUDE_DIR)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Silo DEFAULT_MSG Silo_LIBRARY Silo_INCLUDE_DIR)
 
-MARK_AS_ADVANCED(
+mark_as_advanced(
   Silo_INCLUDE_DIR
-  Silo_LIBRARY
-)
+  Silo_LIBRARY)
 
-add_library(octotiger::silo INTERFACE IMPORTED)
-set_property(TARGET octotiger::silo PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${Silo_INCLUDE_DIR})
+if(Silo_FOUND AND NOT TARGET silo::silo)
+  add_library(silo::silo INTERFACE IMPORTED)
+  set_property(TARGET silo::silo
+    PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${Silo_INCLUDE_DIR})
+  set_property(TARGET silo::silo
+    PROPERTY INTERFACE_LINK_LIBRARIES ${Silo_LIBRARY})
+endif()
