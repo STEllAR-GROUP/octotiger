@@ -99,3 +99,6 @@ MARK_AS_ADVANCED(
   Silo_INCLUDE_DIR
   Silo_LIBRARY
 )
+
+add_library(octotiger::silo INTERFACE IMPORTED)
+set_property(TARGET octotiger::silo PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${Silo_INCLUDE_DIR})

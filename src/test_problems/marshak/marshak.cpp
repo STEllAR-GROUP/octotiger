@@ -2,7 +2,7 @@
 
 /*----------------------------------------------------------------
  Laplace Inversion Source Code
- Copyright Â© 2010 James R. Craig, University of Waterloo
+ Copyright © 2010 James R. Craig, University of Waterloo
  ----------------------------------------------------------------*/
 
 #ifndef TESTME
@@ -138,8 +138,16 @@ double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double
 #include <limits>
 
 static constexpr auto one = cmplex(1, 0);
+<<<<<<< HEAD
 static constexpr double eps = 16.0;
+=======
+static constexpr double eps = 1.0;
+#ifdef _MSC_VER
+static constexpr auto root3 = cmplex(1.73205080757, 0.0);
+#else
+>>>>>>> 3f354b8aec5d90dd49abb45d6e02fb1439decb4f
 static constexpr auto root3 = cmplex(std::sqrt(3), 0.0);
+#endif
 static constexpr double theta_inc = 1.0;
 static constexpr double kappa = 1.0e+3;
 static constexpr double c = 1.0;
