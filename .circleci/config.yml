@@ -1,16 +1,22 @@
 version: 2
-jobs:
-    build:
+
+anchors:
+    - &docker_config
         docker:
             - image: prsam/octotiger:base_image
-        working_directory: /
+        environment:
+            LD_LIBRARY_PATH: /local/hdf5/lib:/local/boost_1_63_0/lib:/local/hpx/lib:/local/Vc/lib
+
+jobs:
+    build:
+        <<: *docker_config
         steps:
             - checkout:
                 path: /octotiger
             - run:
                 name: Configure Octotiger
                 command: |
-                    cmake -Hoctotiger -Boctotiger/build \
+                    cmake -H/octotiger -B/octotiger/build \
                           -DCMAKE_BUILD_TYPE=Release \
                           -DHPX_DIR=/local/hpx/lib/cmake/HPX \
                           -DVc_DIR=/local/vc/lib/cmake/Vc \
@@ -21,17 +27,14 @@ jobs:
                           -GNinja
             - run:
                 name: Build
-                command: cmake --build octotiger/build -- -j2
+                command: cmake --build /octotiger/build -- -j2
             - save_cache:
                 key: v5-build-{{ .Branch }}-{{ .Revision }}
                 paths:
                     - /octotiger/build
 
-    test:
-        docker:
-            - image: prsam/octotiger:base_image
-        environment:
-            LD_LIBRARY_PATH: /local/hdf5/lib:/local/boost_1_63_0/lib:/local/hpx/lib:/local/Vc/lib
+    test_blast:
+        <<: *docker_config
         steps:
             - checkout:
                 path: /octotiger
@@ -40,19 +43,43 @@ jobs:
             - run: |
                 cd /octotiger/test_problems/blast
                 ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+
+    test_sod:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - restore_cache:
+                key: v5-build-{{ .Branch }}-{{ .Revision }}
             - run: |
                 cd /octotiger/test_problems/sod
                 ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+
+    test_moving_star:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - restore_cache:
+                key: v5-build-{{ .Branch }}-{{ .Revision }}
             - run: |
-                /octotiger/build/octotiger --problem=moving_star --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 --hpx:threads=1 --hpx:bind=none --compress_silo=off
+                /octotiger/build/octotiger --problem=moving_star \
+                    --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 \
+                    --hpx:threads=1 --hpx:bind=none --compress_silo=off
+
+    test1:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - restore_cache:
+                key: v5-build-{{ .Branch }}-{{ .Revision }}
             - run: |
                 cd /octotiger/test1
-                ./test1.sh > output.txt
-            - run: |
-                cd /octotigertest1
+                ./test1.sh >output.txt
                 python validate.py output.txt test1.txt
             #- run: |
-            #    cd /octotigertools
+            #    cd /octotiger/tools
             #    tar xzf restart7.chk.tar.gz
 
 workflows:
@@ -60,6 +87,15 @@ workflows:
     build_and_test:
         jobs:
             - build
-            - test:
+            - test_blast:
+                requires:
+                    - build
+            - test_sod:
+                requires:
+                    - build
+            - test_moving_star:
+                requires:
+                    - build
+            - test1:
                 requires:
                     - build
