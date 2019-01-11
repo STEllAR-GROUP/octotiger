@@ -57,7 +57,7 @@ namespace fmm {
 
             // Required for mask
             const double theta_rec_squared = sqr(1.0 / theta);
-            const double d_components[2] = {1.0 / dx, -1.0 / sqr(dx)};
+            const double d_components[2] = {1.0 / dx, -1.0 / dx};
             double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
 
             for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
@@ -93,12 +93,16 @@ namespace fmm {
                         double mask = mask_b ? 1.0 : 0.0;
 
 
-                        double monopole = monopole_cache[cache_index] * mask;
+                        double monopole = monopole_cache[cache_index] * mask * d_components[0];
                         const double four[4] = {device_four_constants[index * 4 + 0],
                                                 device_four_constants[index * 4 + 1],
                                                 device_four_constants[index * 4 + 2],
                                                 device_four_constants[index * 4 + 3]};
-                        compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
+                        tmpstore[0] = tmpstore[0] + four[0] * monopole;
+                        tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
+                        tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
+                        tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
+                        // compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
                     }
                     if (stencil_y < STENCIL_MAX && local_id < 18) {
                         // move stencil
