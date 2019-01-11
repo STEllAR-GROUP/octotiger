@@ -1,6 +1,6 @@
 # Copyright (c) 2008-2012 Sandia Corporation, Kitware Inc.
 # Copyright (c) 2014-2014 Andreas Schäfer
-# Copyright (c) 2018 Parsa Amini
+# Copyright (c) 2019 Parsa Amini
 #
 # Sandia National Laboratories, New Mexico
 # PO Box 5800
@@ -11,7 +11,7 @@
 # Clifton Park, NY 12065
 # USA
 #
-# Andreas Schäfer
+# Andreas SchÃ¤fer
 # Informatik 3
 # Martensstr. 3
 # 91058 Erlangen

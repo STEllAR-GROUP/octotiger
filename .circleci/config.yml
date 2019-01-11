@@ -11,7 +11,7 @@ version: 2
 anchors:
     - &docker_config
         docker:
-            - image: prsam/octotiger:base_image
+            - image: stellargroup/octotiger:prerequisites-gcc6
         environment:
             LD_LIBRARY_PATH: /local/hdf5/lib:/local/boost_1_63_0/lib:/local/hpx/lib:/local/Vc/lib
 

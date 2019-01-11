@@ -4,7 +4,6 @@
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 FROM gcc:6
-# docker run --rm -it --security-opt seccomp=unconfined gcc:6
 
 RUN apt update && apt install -y libhwloc-dev libgoogle-perftools-dev ninja-build vim
 
