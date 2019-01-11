@@ -29,8 +29,7 @@ jobs:
                           -DHPX_DIR=/local/hpx/lib/cmake/HPX \
                           -DVc_DIR=/local/vc/lib/cmake/Vc \
                           -DSilo_DIR=/local/silo \
-                          -DHDF5_INCLUDE_DIR=/local/hdf5/include \
-                          -DHDF5_LIBRARY=/local/hdf5/lib/libhdf5.so \
+                          -DHDF5_ROOT=/local/hdf5 \
                           -DBOOST_ROOT=/local/boost \
                           -GNinja
             - run:

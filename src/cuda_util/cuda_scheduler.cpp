@@ -4,6 +4,8 @@
 #include "../monopole_interactions/calculate_stencil.hpp"
 #include "options.hpp"
 
+#undef interface
+
 extern options opts;
 namespace octotiger {
 namespace fmm {
