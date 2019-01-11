@@ -5,8 +5,8 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
-        __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+        __device__ HPX_CONSTEXPR size_t component_length = ENTRIES + SOA_PADDING;
+        __device__ HPX_CONSTEXPR size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void
         __launch_bounds__(512, 3)

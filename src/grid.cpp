@@ -189,6 +189,7 @@ std::string grid::hydro_units_name(const std::string& nm) {
 	} else if (f == tau_i) {
 		return "(g / cm)^(3/5) / s^(6/5)";
 	}
+	return "<unknown>";
 }
 
 std::string grid::gravity_units_name(const std::string& nm) {
