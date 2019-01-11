@@ -48,9 +48,10 @@ jobs:
                 path: /octotiger
             - restore_cache:
                 key: v5-build-{{ .Branch }}-{{ .Revision }}
-            - run: |
-                cd /octotiger/test_problems/blast
-                ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+            - run:
+                name: blast
+                working_directory: /octotiger/test_problems/blast
+                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
 
     test_sod:
         <<: *docker_config
@@ -59,9 +60,10 @@ jobs:
                 path: /octotiger
             - restore_cache:
                 key: v5-build-{{ .Branch }}-{{ .Revision }}
-            - run: |
-                cd /octotiger/test_problems/sod
-                ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+            - run:
+                name: sod
+                working_directory: /octotiger/test_problems/sod
+                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
 
     test_moving_star:
         <<: *docker_config
@@ -70,10 +72,12 @@ jobs:
                 path: /octotiger
             - restore_cache:
                 key: v5-build-{{ .Branch }}-{{ .Revision }}
-            - run: |
-                /octotiger/build/octotiger --problem=moving_star \
-                    --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 \
-                    --hpx:threads=1 --hpx:bind=none --compress_silo=off
+            - run:
+                name: moving_stars
+                command: |
+                    /octotiger/build/octotiger --problem=moving_star \
+                        --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 \
+                        --hpx:threads=1 --hpx:bind=none --compress_silo=off
 
     test1:
         <<: *docker_config
@@ -82,10 +86,12 @@ jobs:
                 path: /octotiger
             - restore_cache:
                 key: v5-build-{{ .Branch }}-{{ .Revision }}
-            - run: |
-                cd /octotiger/test1
-                ./test1.sh >output.txt
-                python validate.py output.txt test1.txt
+            - run:
+                name: test1
+                working_directory: /octotiger/test1
+                command: |
+                    ./test1.sh >output.txt
+                    python validate.py output.txt test1.txt
             #- run: |
             #    cd /octotiger/tools
             #    tar xzf restart7.chk.tar.gz
