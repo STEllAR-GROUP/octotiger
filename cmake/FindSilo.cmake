@@ -1,5 +1,5 @@
 # Copyright (c) 2008-2012 Sandia Corporation, Kitware Inc.
-# Copyright (c) 2014-2014 Andreas Sch‰fer
+# Copyright (c) 2014-2014 Andreas Sch√§fer
 # Copyright (c) 2018 Parsa Amini
 #
 # Sandia National Laboratories, New Mexico
@@ -11,7 +11,7 @@
 # Clifton Park, NY 12065
 # USA
 #
-# Andreas Sch‰fer
+# Andreas Sch√§fer
 # Informatik 3
 # Martensstr. 3
 # 91058 Erlangen
