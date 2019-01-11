@@ -222,14 +222,17 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 					printf("Er = %e %e %e %e\n", E0, E1, U[er_i][iiir], dt);
 					abort();
 				}
+				e = std::max(e,decltype(e)(0));
 				tau[iiih] = std::pow(e, INVERSE(fgamma));
-				if (tau[iiih] < 0.0) {
-					abort_error()
-					;
-				}
 				if (U[er_i][iiir] <= 0.0) {
 					printf("2231242!!! %e %e %e \n", E0, U[er_i][iiir], dE_dt * dt);
 					abort();
+				}
+				if( opts().problem == MARSHAK ) {
+					sx[iiih] =
+					sy[iiih] =
+					sz[iiih] = 0;
+					egas[iiih] = e;
 				}
 			}
 		}
@@ -358,15 +361,18 @@ void node_server::compute_radiation(real dt) {
 		rgrid->compute_flux();
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(this_dt, 1.0);
+
+		all_rad_bounds();
+		rgrid->compute_flux();
+		GET(exchange_rad_flux_corrections());
+		rgrid->advance(this_dt, 0.5);
+
+		rgrid->sanity_check();
+		all_rad_bounds();
+		if( opts().rad_implicit) {
+			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, this_dt);
+		}
 	}
-	if (my_location.level() == 0) {
-		printf("\nImplicit\n");
-	}
-	rgrid->sanity_check();
-	if( opts().rad_implicit) {
-		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt);
-	}
-	all_rad_bounds();
 	if (my_location.level() == 0) {
 		printf("Rad done\n");
 	}
@@ -391,19 +397,22 @@ std::array<std::array<hiprec, NDIM>, NDIM> compute_p2(real E_, real Fx_, real Fy
 		nx = Fx * finv;
 		ny = Fy * finv;
 		nz = Fz * finv;
+		auto tmp = _4 - _3 * f * f;
+		const hiprec chi = (_3 + _4 * f * f) * INVERSE((_5 + _2 * SQRT(tmp)));
+		const hiprec f1 = ((_1 - chi) / _2);
+		const hiprec f2 = ((_3 * chi - _1) / _2);
+		P[XDIM][YDIM] = P[YDIM][XDIM] = f2 * nx * ny * E;
+		P[XDIM][ZDIM] = P[ZDIM][XDIM] = f2 * nx * nz * E;
+		P[ZDIM][YDIM] = P[YDIM][ZDIM] = f2 * ny * nz * E;
+		P[XDIM][XDIM] = (f1 + f2 * nx * nx) * E;
+		P[YDIM][YDIM] = (f1 + f2 * ny * ny) * E;
+		P[ZDIM][ZDIM] = (f1 + f2 * nz * nz) * E;
 	} else {
-		nx = ny = nz = _0;
+		P[XDIM][YDIM] = P[YDIM][XDIM] = P[XDIM][ZDIM] = P[ZDIM][XDIM] = P[ZDIM][YDIM] = P[YDIM][ZDIM] = 0;
+		P[XDIM][XDIM] = E / 3.0;
+		P[YDIM][YDIM] = E / 3.0;
+		P[ZDIM][ZDIM] = E / 3.0;
 	}
-	auto tmp = _4 - _3 * f * f;
-	const hiprec chi = (_3 + _4 * f * f) * INVERSE((_5 + _2 * SQRT(tmp)));
-	const hiprec f1 = ((_1 - chi) / _2);
-	const hiprec f2 = ((_3 * chi - _1) / _2);
-	P[XDIM][YDIM] = P[YDIM][XDIM] = f2 * nx * ny * E;
-	P[XDIM][ZDIM] = P[ZDIM][XDIM] = f2 * nx * nz * E;
-	P[ZDIM][YDIM] = P[YDIM][ZDIM] = f2 * ny * nz * E;
-	P[XDIM][XDIM] = (f1 + f2 * nx * nx) * E;
-	P[YDIM][YDIM] = (f1 + f2 * ny * ny) * E;
-	P[ZDIM][ZDIM] = (f1 + f2 * nz * nz) * E;
 	return P;
 }
 
@@ -510,15 +519,6 @@ void rad_grid::compute_flux() {
 			const hiprec tmp = SQRT(tmp5);
 			mu = std::max(hiprec(-1),std::min(mu,hiprec(1)));
 			hiprec tmp4 = (_2/_3)*(_4-_3*f*f -tmp)+_2*mu*mu*(_2-f*f-tmp);
-/*			if( tmp4 < 0.0 ) {
-				if( tmp4 > -std::numeric_limits<hiprec>::round_error()) {
-					tmp4 = 0.0;
-				} else {
-					printf( "%e %e %e \n", f, mu, tmp);
-					printf( "Error in lamdba computation for rad_grid %e\n", tmp4);
-					assert(false);
-				}
-			}*/
 			const hiprec tmp2 = SQRT(tmp4);
 			return hiprec((tmp2 + std::abs(mu*f)) * INVERSE( tmp ));
 		} else {
@@ -573,10 +573,10 @@ void rad_grid::compute_flux() {
 						mu_p = f_p[face_dim] * INVERSE(absf_p);
 					}
 					constexpr hiprec half = _1/_2;
-//					const hiprec a_m = lambda_max(mu_m, er_m, absf_m);
-//					const hiprec a_p = lambda_max(mu_p, er_p, absf_p);
-//					const hiprec a = std::max(a_m, a_p) * clight;
-					const hiprec a = clight;
+					const hiprec a_m = lambda_max(mu_m, er_m, absf_m);
+					const hiprec a_p = lambda_max(mu_p, er_p, absf_p);
+					const hiprec a = std::max(a_m, a_p) * clight;
+//					const hiprec a = clight;
 					flux[face_dim][er_i][i] = (f_p[face_dim] + f_m[face_dim]) * half - (er_p - er_m) * half * a;
 					for (integer flux_dim = 0; flux_dim != NDIM; ++flux_dim) {
 						flux[face_dim][fx_i + flux_dim][i] = clight * clight
@@ -617,12 +617,7 @@ void rad_grid::advance(real dt, real beta) {
 					for (integer d = 0; d != NDIM; ++d) {
 						u1 -= l * (flux[d][f][iii + D[d]] - flux[d][f][iii]);
 					}
-					for (integer d = 0; d != NDIM; ++d) {
-		//				if( f != 0 ) {
-							//printf( "%e\n", U[f][iii]);
-						//}
-						U[f][iii] = u0 * (1.0 - beta) + beta * u1;
-					}
+					U[f][iii] = u0 * (1.0 - beta) + beta * u1;
 				}
 			}
 		}
@@ -662,9 +657,6 @@ void rad_grid::set_physical_boundaries(geo::face face) {
 				}
 				for (integer f = 0; f != NRF; ++f) {
 					U[f][iii1] = U[f][iii0];
-					//		U[f][iii1] = 0.0;
-				}
-				for (integer d = 0; d != NDIM; ++d) {
 				}
 				switch (face) {
 				case 0:
