@@ -5,7 +5,7 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger CXX)
+project(octotiger CXX CUDA)
 
 cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
 cmake_policy(SET CMP0015 NEW)
@@ -17,7 +17,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
-option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
+option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
 
 ################################################################################
 # Find required packages
@@ -34,7 +34,7 @@ set_property(TARGET octotiger::hdf5
 set_property(TARGET octotiger::hdf5
   PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
 
-if (OCTOTIGER_WITH_CUDA)
+if(OCTOTIGER_WITH_CUDA)
   add_definitions(-DOCTOTIGER_CUDA_ENABLED)
   find_package(CUDA REQUIRED)
 
@@ -47,7 +47,7 @@ if (OCTOTIGER_WITH_CUDA)
 endif()
 
 ################################################################################
-# Silo support
+# Set up Octotiger target
 ################################################################################
 set(dependencies silo::silo Vc::Vc Boost::boost)
 
@@ -172,20 +172,13 @@ add_hpx_executable(
 
 target_include_directories(octotiger PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-add_executable(silo_compare src/compare/compare.cpp)
-
-target_link_libraries(silo_compare silo::silo)
-if(NOT MSVC)
-  target_link_libraries(silo_compare octotiger::hdf5 dl pthread dl z)
-else()
-  target_compile_options(silo_compare PRIVATE /EHsc)
-endif()
-
 target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_SILO)
 
 if(NOT MSVC)
   if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(octotiger PRIVATE -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations -Wno-unused-result -ffast-math)
+    target_compile_options(octotiger PRIVATE
+      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+      -Wno-unused-result -ffast-math)
   elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
       #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
       #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
@@ -228,6 +221,12 @@ elseif(USE_AVX)
   endif()
 endif()
 
+# Handle CUDA
+if(OCTOTIGER_WITH_CUDA)
+  target_link_libraries(octotiger octotiger::cuda)
+  set_property(TARGET octotiger PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+endif()
+
 # Handle other options
 if (OCTOTIGER_WITH_GRAV_PAR)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_GRAV_PAR)
@@ -235,4 +234,16 @@ endif()
 
 if (OCTOTIGER_WITH_RADIATION)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_RADIATION)
+endif()
+
+################################################################################
+# Set up silo_compare target
+################################################################################
+add_executable(silo_compare src/compare/compare.cpp)
+
+target_link_libraries(silo_compare silo::silo)
+if(NOT MSVC)
+  target_link_libraries(silo_compare octotiger::hdf5 dl pthread dl z)
+else()
+  target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
