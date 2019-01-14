@@ -17,7 +17,6 @@
 
 #include "grid.hpp"
 
-
 physcon_t& physcon() {
 	static physcon_t physcon_ = { 1, 1, 1, 1, 1.0, 1.0, 1.0, 1.0 };
 	return physcon_;
@@ -51,7 +50,7 @@ void these_units(real& m, real& l, real& t, real& k) {
 	real m1, l1, t1, k1;
 	real kb = kbcgs;
 	real A, B, G;
-	if( (opts().radiation || opts().eos == WD) && opts().gravity) {
+	if ((opts().radiation || opts().eos == WD) && opts().gravity) {
 		A = physcon().A;
 		B = physcon().B;
 		G = physcon().G;
@@ -75,7 +74,7 @@ void these_units(real& m, real& l, real& t, real& k) {
 		l = opts().code_to_cm;
 		t = opts().code_to_s;
 		k = 1.0;
-	} else if( opts().radiation ) {
+	} else if (opts().radiation) {
 		m = opts().code_to_g;
 		l = opts().code_to_cm;
 		t = opts().code_to_cm / 2.99792458e+10;
@@ -84,7 +83,7 @@ void these_units(real& m, real& l, real& t, real& k) {
 		G = 1.0;
 		m = opts().code_to_g;
 		l = opts().code_to_cm;
-		t = std::sqrt(l * l * l / m) / std::sqrt(Gcgs/G);
+		t = std::sqrt(l * l * l / m) / std::sqrt(Gcgs / G);
 		k = 1.0;
 	}
 
@@ -98,8 +97,6 @@ void these_units(real& m, real& l, real& t, real& k) {
 		opts().code_to_g = m;
 		opts().code_to_s = t;
 	}
-
-
 }
 
 void normalize_constants() {
@@ -109,7 +106,7 @@ void normalize_constants() {
 	l = 1.0 / l;
 	t = 1.0 / t;
 	k = 1.0 / k;
-	physcon().kb = 1.380658e-16 * (m * l * l) / (t*t) / k;
+	physcon().kb = 1.380658e-16 * (m * l * l) / (t * t) / k;
 	physcon().c = 2.99792458e+10 * (l / t);
 	physcon().mh = 1.6733e-24 * m;
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
@@ -134,23 +131,21 @@ void set_units(real m, real l, real t, real k) {
 //	l = 1.0 / l;
 //	t = 1.0 / t;
 //	k = 1.0 / k;
-	physcon().kb = 1.380658e-16 * (m * l * l) / (t*t) / k;
+	physcon().kb = 1.380658e-16 * (m * l * l) / (t * t) / k;
 	physcon().c = 2.99792458e+10 * (l / t);
 	physcon().mh = 1.6733e-24 * m;
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
 	printf("----------Normalized constants\n");
-	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
-	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb, physcon().c, physcon().mh,
-			physcon().sigma, physcon().h);
+	printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
+	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B,
+			physcon().G, physcon().kb, physcon().c, physcon().mh, physcon().sigma, physcon().h);
 }
 
-struct call_normalize_constants
-{
-    call_normalize_constants()
-    {
-        normalize_constants();
-    }
+struct call_normalize_constants {
+	call_normalize_constants() {
+		normalize_constants();
+	}
 };
 
 //call_normalize_constants init;
@@ -171,7 +166,7 @@ hpx::future<void> set_physcon(const physcon_t& p) {
 			if (id != hpx::find_here())
 				remotes.push_back(id);
 		}
-		f = hpx::lcos::broadcast < set_physcon_action > (remotes, p);
+		f = hpx::lcos::broadcast<set_physcon_action>(remotes, p);
 	} else {
 		f = hpx::make_ready_future();
 	}
@@ -212,16 +207,15 @@ HPX_REGISTER_BROADCAST_ACTION (set_AB_action);
 
 void set_AB(real a, real b) {
 	if (hpx::get_locality_id() == 0) {
-        std::vector<hpx::id_type> remotes;
-        remotes.reserve(options::all_localities.size()-1);
-        for (hpx::id_type const& id: options::all_localities)
-        {
-            if(id != hpx::find_here())
-                remotes.push_back(id);
-        }
-        if (remotes.size() > 0) {
-            hpx::lcos::broadcast<set_AB_action>(remotes, a, b).get();
-        }
+		std::vector<hpx::id_type> remotes;
+		remotes.reserve(options::all_localities.size() - 1);
+		for (hpx::id_type const& id : options::all_localities) {
+			if (id != hpx::find_here())
+				remotes.push_back(id);
+		}
+		if (remotes.size() > 0) {
+			hpx::lcos::broadcast<set_AB_action>(remotes, a, b).get();
+		}
 	}
 	physcon().A = a;
 	physcon().B = b;
@@ -242,7 +236,7 @@ hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 			if (id != hpx::find_here())
 				remotes.push_back(id);
 		}
-		f = hpx::lcos::broadcast < static_change_units_action > (remotes, m, l, t, k);
+		f = hpx::lcos::broadcast<static_change_units_action>(remotes, m, l, t, k);
 	} else {
 		f = hpx::make_ready_future();
 	}
@@ -264,7 +258,7 @@ void mean_ion_weight(const specie_state_t<> species, real& mmw, real& X, real& Z
 		mtot += m;
 	}
 	mmw = mtot / ntot;
-	X /=  mtot;
+	X /= mtot;
 	Z /= mtot;
 }
 
@@ -336,15 +330,14 @@ real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s) {
 	return rho;
 }
 
-
-void rad_coupling_vars( real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde) {
-	constexpr  const real gm1 = 2.0 / 3.0;
+void rad_coupling_vars(real rho, real e, real mmw, real& bp, real& kp, real& dkpde, real& dbde) {
+	constexpr const real gm1 = 2.0 / 3.0;
 	constexpr real pi_inv = 1.0 / M_PI;
 	constexpr real coeff = 30.262 * 4.0e+25;
 	const real Z = 0.0;
 	const real einv = 1.0 / e;
 	const real T = (gm1 * mmw * physcon().mh / physcon().kb) * (e / rho);
-	kp =  coeff * (Z + 0.0001) * rho * rho * std::pow(T, -3.5);
+	kp = coeff * (Z + 0.0001) * rho * rho * std::pow(T, -3.5);
 	dkpde = -3.5 * kp * einv;
 	bp = physcon().sigma * pi_inv * std::pow(T, 4.0);
 	dbde = 4.0 * bp * einv;

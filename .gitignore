@@ -1,3 +1,5 @@
 /build
 .ptp-sync*
 newgit
+cmake-build-*
+cmake-cuda-*

@@ -34,9 +34,11 @@ T light_f(const T& E, const T& F, int line, const char* file) {
 	T f = light_f(E,F);
 	if (T(f) > T(1) + 2*std::numeric_limits < T >::round_error()) {
 		printf("light_f computation failed in %s line %i. f-1 is %e\n", file, line, (double)(T(f) - T(1)));
+		printf( "%e %e\n", (double) E, (double) F);
 		abort();
 	} else if (T(f) < T(0)) {
 		printf("light_f computation failed in %s line %i. f is %e\n", file, line, T(f));
+		printf( "%e %e\n", (double) E, (double) F);
 		abort();
 	}
 	f = std::min(f,T(1));

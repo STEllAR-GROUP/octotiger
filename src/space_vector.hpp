@@ -120,6 +120,8 @@
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 
+#include <Vc/Vc>
+
 // #if defined(Vc_HAVE_AVX512F) || defined(Vc_HAVE_AVX)
 using space_vector = Vc::Vector<real,Vc::VectorAbi::Avx>;
 // #else

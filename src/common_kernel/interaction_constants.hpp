@@ -9,11 +9,7 @@ namespace octotiger {
 namespace detail {
 
     constexpr uint64_t const_pow(uint64_t base, uint64_t exp) {
-        if (exp >= 1) {
-            return base * const_pow(base, exp - 1);
-        } else {
-            return 1;
-        }
+        return exp >= 1 ? base * const_pow(base, exp - 1) : 1;
     }
 }
 

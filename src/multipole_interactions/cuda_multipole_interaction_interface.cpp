@@ -4,14 +4,13 @@
 #include "calculate_stencil.hpp"
 #include "options.hpp"
 
-extern options opts;
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
-          , theta(opts.theta) {}
+          , theta(opts().theta) {}
 
         void cuda_multipole_interaction_interface::compute_multipole_interactions(
             std::vector<real>& monopoles, std::vector<multipole>& M_ptr,

@@ -16,6 +16,7 @@
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
+#include <hpx/util/format.hpp>
 
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
@@ -188,6 +189,7 @@ std::string grid::hydro_units_name(const std::string& nm) {
 	} else if (f == tau_i) {
 		return "(g / cm)^(3/5) / s^(6/5)";
 	}
+	return "<unknown>";
 }
 
 std::string grid::gravity_units_name(const std::string& nm) {
@@ -252,10 +254,10 @@ std::vector<silo_var_t> grid::var_data() const {
 	return std::move(s);
 }
 
+// MSVC needs this variable to be in the global namespace
+constexpr integer nspec = 2;
 diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	diagnostics_t rc;
-	constexpr
-	integer nspec = 2;
 	const real dV = dx * dx * dx;
 	real x, y, z;
 	integer iii, iiig;
@@ -665,11 +667,11 @@ private:
 	static hpx::util::thread_specific_ptr<tls_data_t, tls_data_tag> data;
 
 public:
-//     static void cleanup(void* ptr)
-//     {
-//         tls_data_t* _ptr = (tls_data_t*) ptr;
-//         delete _ptr;
-//     }
+//	 static void cleanup(void* ptr)
+//	 {
+//		 tls_data_t* _ptr = (tls_data_t*) ptr;
+//		 delete _ptr;
+//	 }
 
 	tls_data_t* get_ptr()
 	{
@@ -893,7 +895,7 @@ void grid::velocity_inc(const space_vector& dv) {
 }
 
 OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
-//    return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
+//	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
 	bool a_is_neg = a < 0;
 	bool b_is_neg = b < 0;
 	if (a_is_neg != b_is_neg)
@@ -1883,32 +1885,21 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	}
 	rho += '0';
 	rc.push_back(std::make_pair(std::string("rho"), std::move(rho)));
-	char* v[NDIM];
-	asprintf(&v[0], "s_x / rho + %e * mesh(quadmesh)[0]", omega);
-	asprintf(&v[1], "s_y / rho - %e * mesh(quadmesh)[1]", omega);
-	asprintf(&v[2], "s_z / rho");
-	rc.push_back(std::make_pair(std::string("vx"), std::move(v[0])));
-	rc.push_back(std::make_pair(std::string("vy"), std::move(v[1])));
-	rc.push_back(std::make_pair(std::string("vz"), std::move(v[2])));
-	free(v[0]);
-	free(v[1]);
-	free(v[2]);
+	rc.push_back(std::make_pair(std::string("vx"),
+		hpx::util::format("s_x / rho + {:e} * mesh(quadmesh)[0]", omega)));
+	rc.push_back(std::make_pair(std::string("vy"),
+		hpx::util::format("s_y / rho - {:e} * mesh(quadmesh)[1]", omega)));
+	rc.push_back(std::make_pair(std::string("vz"), std::string("s_z / rho")));
+
 	std::string n;
 	std::string X = "(";
 	std::string Z = "(";
 
 	for (integer i = 0; i < opts().n_species; i++) {
-		char* ptr;
 		const real mu = opts().atomic_mass[i] / (opts().atomic_number[i] + 1.);
-		asprintf(&ptr, "rho_%i / %e + ", int(i + 1), mu * physcon().mh * opts().code_to_g);
-		n += ptr;
-		free(ptr);
-		asprintf(&ptr, "%e * rho_%i + ", opts().X[i], i + 1);
-		X += ptr;
-		free(ptr);
-		asprintf(&ptr, "%e * rho_%i + ", opts().Z[i], i + 1);
-		Z += ptr;
-		free(ptr);
+		n += hpx::util::format("rho_{} / {:e} + ", int(i + 1), mu * physcon().mh * opts().code_to_g);
+		X += hpx::util::format("{:e} * rho_{} + ", opts().X[i], i + 1);
+		Z += hpx::util::format("{:e} * rho_{} + ", opts().Z[i], i + 1);
 	}
 	n += '0';
 	X += "0) / rho";
@@ -1927,25 +1918,16 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
 	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));
 	rc.push_back(std::make_pair(std::string("Z"), std::move(Z)));
-	rc.push_back( std::make_pair(std::string("ek"),std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
-	char* ptr;
-	asprintf( &ptr, "if( gt(egas-ek,0.001*egas), egas-ek, tau^%e)", fgamma);
-	rc.push_back( std::make_pair(std::string("ei"),std::string(ptr)));
-	free(ptr);
+	rc.push_back(std::make_pair(std::string("ek"),std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
+	rc.push_back(std::make_pair(std::string("ei"),hpx::util::format("if( gt(egas-ek,0.001*egas), egas-ek, tau^{:e})", fgamma)));
 	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
-	asprintf( &ptr, "%e * ei / n", 1.0 / kb / (fgamma-1.0));
 	if( opts().problem == MARSHAK ) {
 		rc.push_back( std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)") ));
 	} else {
-		rc.push_back( std::make_pair(std::string("T"),std::string(ptr)));
+		rc.push_back( std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / kb / (fgamma-1.0))));
 	}
-	free(ptr);
-	asprintf( &ptr, "%e * ei", (fgamma-1.0));
-	rc.push_back( std::make_pair(std::string("P"),std::string(ptr)));
-	free(ptr);
-	asprintf( &ptr, "%e * T^4", physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3) );
-	rc.push_back( std::make_pair(std::string("B_p"),std::string(ptr)));
-	free(ptr);
+	rc.push_back( std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma-1.0))));
+	rc.push_back( std::make_pair(std::string("B_p"), hpx::util::format("{:e} * T^4", physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
 	return std::move(rc);
 }
 
@@ -2121,7 +2103,8 @@ void grid::reconstruct() {
 		if (field >= zx_i && field <= zz_i) {
 			continue;
 		}
-		real theta_x, theta_y, theta_z;
+		// TODO: Remove these unused variables
+		//real theta_x, theta_y, theta_z;
 		std::vector<real> const& Vfield = V[field];
 #pragma GCC ivdep
 		for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {

@@ -138,8 +138,12 @@ double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double
 #include <limits>
 
 static constexpr auto one = cmplex(1, 0);
-static constexpr double eps = 1.0;
+static constexpr double eps = 16.0;
+#ifdef _MSC_VER
+static constexpr auto root3 = cmplex(1.73205080757, 0.0);
+#else
 static constexpr auto root3 = cmplex(std::sqrt(3), 0.0);
+#endif
 static constexpr double theta_inc = std::pow(1.0,0.25);
 static constexpr double kappa = 1.0e+1;
 static constexpr double c = 1.0;
@@ -178,9 +182,9 @@ void solution(double z, double t, double& T_mat, double& T_rad) {
 
 std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	std::vector<double> u(opts().n_fields);
-	double e;
+	double e = 1.0e-20;
 	if (x > 0) {
-		e = u[rho_i] = u[spc_i] = 1.0;
+		u[rho_i] = u[spc_i] = 1.0;
 	} else {
 		e = u[rho_i] = u[spc_i] = 1.0e-10;
 	}
@@ -204,7 +208,7 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 			dz = std::max(z * 0.0001, 0.0001);
 			solution(z, t - opts().xscale, T, T_rad);
 			solution(z + dz, t - opts().xscale, Tp, T_radp);
-			erad = std::pow(T_rad, 4) * rho;
+			erad = std::pow(T_rad, 4);
 			fx = -rho / 3.0 * (T_radp - T_rad) / dz;
 		} else {
 			T = 0.0;

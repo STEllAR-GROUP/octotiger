@@ -1,13 +1,15 @@
 # Copyright (c) 2015 Thomas Heller
 # Copyright (c) 2015 Dominic Marcello
+# Copyright (c) 2018-2019 Parsa Amini
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX Fortran)
+project(octotiger CXX)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
 cmake_policy(SET CMP0015 NEW)
+cmake_policy(SET CMP0003 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 ################################################################################
 # options
@@ -15,8 +17,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 #option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
-option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
-
+option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
 
 ################################################################################
 # Find required packages
@@ -24,72 +25,41 @@ option(OCTOTIGER_WITH_CUDA "Enable cuda fmm kernels" OFF)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(Silo REQUIRED)
 find_package(HDF5 REQUIRED)
+find_package(Vc REQUIRED)
+find_package(Boost REQUIRED)
 
-if (OCTOTIGER_WITH_CUDA)
+add_library(octotiger::hdf5 INTERFACE IMPORTED)
+set_property(TARGET octotiger::hdf5
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS})
+set_property(TARGET octotiger::hdf5
+  PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
+
+if(OCTOTIGER_WITH_CUDA)
   add_definitions(-DOCTOTIGER_CUDA_ENABLED)
-  find_package(CUDA  REQUIRED)
-  include_directories("${CUDA_INCLUDE_DIRS}")
-  link_directories(${CUDA_CUBLAS_LIBRARIES})
+  find_package(CUDA REQUIRED)
+
+  add_library(octotiger::cuda INTERFACE IMPORTED)
+  set_property(TARGET octotiger::cuda
+    PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CUDA_INCLUDE_DIRS}")
+  set_property(TARGET octotiger::cuda
+    PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_CUBLAS_LIBRARIES})
   string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
 endif()
 
-include_directories(${HPX_INCLUDE_DIRS})
-link_directories(${HPX_LIBRARY_DIR})
-include_directories(${Vc_ROOT}/include)
-
 ################################################################################
-# Silo support
+# Set up Octotiger target
 ################################################################################
-add_definitions(-DOCTOTIGER_HAVE_SILO)
+set(dependencies silo::silo Vc::Vc Boost::boost)
 
 if(NOT MSVC)
-    include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
-
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        set( COMMON_FLAGS "-Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations -Wno-unused-result -ffast-math")
-    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-        #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result" )
-        #set( CMAKE_C_FLAGS_RELEASE "-Ofast -ipo" )
-        #set( CMAKE_Fortran_FLAGS_RELEASE "-Ofast -ipo" )
-        #set( CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo" )
-        set( COMMON_FLAGS "-Wno-attributes -Wno-deprecated")
-    endif()
-    set(CMAKE_CXX_FLAGS "${COMMON_FLAGS} ${CMAKE_CXX_FLAGS}")
-    set(CMAKE_C_FLAGS "${COMMON_FLAGS} ${CMAKE_C_FLAGS}")
-    set(CMAKE_F_FLAGS "${COMMON_FLAGS} ${CMAKE_F_FLAGS}")
-else()
-    # enable solution folders for MSVC
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-    add_definitions(-D_USE_MATH_DEFINES)
-    add_definitions(-DNOMINMAX)
-    include_directories(${CMAKE_SOURCE_DIR}/src)
-
-    hpx_add_compile_flag(-wd4068)   # unknown pragma
-    hpx_add_compile_flag(-wd4244)
-    hpx_add_compile_flag(-wd4267)
-    hpx_add_compile_flag(-wd4800)
+  list(APPEND dependencies octotiger::hdf5 dl z quadmath)
 endif()
-
-# handle other options
-if (OCTOTIGER_WITH_GRAV_PAR)
-  add_definitions(-DOCTOTIGER_HAVE_GRAV_PAR)
-endif()
-
-if (OCTOTIGER_WITH_RADIATION)
-  add_definitions(-DOCTOTIGER_HAVE_RADIATION)
-endif()
-
-set(source_files)
-set(dependencies)
-
-set(dependencies ${Silo_LIBRARY} ${HDF5_LIBRARY} dl z quadmath)
 
 # Octotiger executable
-set(source_files ${source_files}
+set(source_files
     src/test_problems/marshak/marshak.cpp
     src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf.c
+    src/test_problems/blast/sedovf_c.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/silo.cpp
@@ -146,7 +116,7 @@ set(header_files
     src/defs.hpp
     src/diagnostics.hpp
     src/eos.hpp
-    src/exact_sod.hpp
+    src/test_problems/sod/exact_sod.hpp
     src/future.hpp
     src/geometry.hpp
     src/grid.hpp
@@ -166,7 +136,7 @@ set(header_files
     src/space_vector.hpp
     src/state.hpp
     src/struct_eos.hpp
-    src/taylor.hpphdf
+    src/taylor.hpp
     src/util.hpp
     src/compute_factor.hpp
     src/common_kernel/interaction_constants.hpp
@@ -184,16 +154,10 @@ set(header_files
     src/monopole_interactions/calculate_stencil.hpp
     src/monopole_interactions/p2m_interaction_interface.hpp
     src/monopole_interactions/p2m_kernel.hpp
-    src/monopole_interactions/compare_interaction_lists.hpp
     src/common_kernel/kernel_simd_types.hpp
     src/common_kernel/kernel_taylor_set_basis.hpp
     src/cuda_util/cuda_scheduler.hpp
 )
-
-
-
-
-add_executable( silo_compare src/compare/compare.cpp )
 
 add_hpx_executable(
   octotiger
@@ -206,9 +170,80 @@ add_hpx_executable(
   FOLDER  "Octotiger"
 )
 
+target_include_directories(octotiger PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_SILO)
 
+if(NOT MSVC)
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(octotiger PRIVATE
+      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+      -Wno-unused-result -ffast-math)
+  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+      #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
+      #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
+      target_compile_options(octotiger -Wno-attributes -Wno-deprecated)
+  endif()
+else()
+  # enable solution folders for MSVC
+  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-target_link_libraries( silo_compare ${Silo_LIBRARY} ${HDF5_LIBRARY} pthread  dl z)
+  target_compile_definitions(octotiger PRIVATE
+    _USE_MATH_DEFINES
+    NOMINMAX
+    _CRT_SECURE_NO_WARNINGS
+    __restrict__=__restrict)
 
+  target_compile_options(octotiger PRIVATE
+    /wd4018
+    /wd4068 # unknown pragma
+    /wd4146
+    /wd4244
+    /wd4267
+    /wd4334
+    /wd4521
+    /wd4800)
 
+  target_compile_options(octotiger PRIVATE /EHsc)
+endif()
+
+if(USE_AVX2)
+  if(MSVC)
+    target_compile_options(octotiger PRIVATE /arch:AVX2)
+  else()
+    target_compile_options(octotiger PRIVATE -mavx2)
+  endif()
+elseif(USE_AVX)
+  if(MSVC)
+    target_compile_options(octotiger PRIVATE /arch:AVX)
+  else()
+    target_compile_options(octotiger PRIVATE -mavx)
+  endif()
+endif()
+
+# Handle CUDA
+if(OCTOTIGER_WITH_CUDA)
+  target_link_libraries(octotiger octotiger::cuda)
+  set_property(TARGET octotiger PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+endif()
+
+# Handle other options
+if (OCTOTIGER_WITH_GRAV_PAR)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_GRAV_PAR)
+endif()
+
+if (OCTOTIGER_WITH_RADIATION)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_RADIATION)
+endif()
+
+################################################################################
+# Set up silo_compare target
+################################################################################
+add_executable(silo_compare src/compare/compare.cpp)
+
+target_link_libraries(silo_compare silo::silo)
+if(NOT MSVC)
+  target_link_libraries(silo_compare octotiger::hdf5 dl pthread dl z)
+else()
+  target_compile_options(silo_compare PRIVATE /EHsc)
+endif()
