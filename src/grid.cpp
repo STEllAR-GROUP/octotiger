@@ -1,22 +1,26 @@
-#include "future.hpp"
-#include "grid.hpp"
-#include "problem.hpp"
-#include "options.hpp"
-#include "profiler.hpp"
-#include "taylor.hpp"
-#include "diagnostics.hpp"
-#include "radiation/rad_grid.hpp"
-#include "node_server.hpp"
-#include "./test_problems/sod/exact_sod.hpp"
+#include "octotiger/radiation/rad_grid.hpp"
+#include "octotiger/test_problems/sod/exact_sod.hpp"
 
-#include <array>
-#include <cmath>
-#include <cassert>
-#include "silo.hpp"
+#include "octotiger/diagnostics.hpp"
+#include "octotiger/future.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/problem.hpp"
+#include "octotiger/profiler.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/silo.hpp"
+#include "octotiger/taylor.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 #include <hpx/util/format.hpp>
+
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <string>
+#include <unordered_map>
 
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;

@@ -1,18 +1,19 @@
-#include "p2p_cpu_kernel.hpp"
+#include "octotiger/monopole_interactions/p2p_cpu_kernel.hpp"
+#include "octotiger/monopole_interactions/monopole_kernel_templates.hpp"
 
-#include "../common_kernel/helper.hpp"
-#include "../common_kernel/struct_of_array_data.hpp"
-#include "defs.hpp"
-#include "interaction_types.hpp"
-#include "options.hpp"
+#include "octotiger/common_kernel/helper.hpp"
+#include "octotiger/common_kernel/struct_of_array_data.hpp"
+
+#include "octotiger/defs.hpp"
+#include "octotiger/interaction_types.hpp"
+#include "octotiger/options.hpp"
 
 #include <array>
+#include <cstddef>
 #include <functional>
-
-#include "monopole_kernel_templates.hpp"
+#include <vector>
 
 // std::vector<interaction_type> ilist_debugging;
-
 
 namespace octotiger {
 namespace fmm {

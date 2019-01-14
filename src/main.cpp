@@ -1,13 +1,22 @@
-#include "defs.hpp"
-#include "./test_problems/rotating_star/rotating_star.hpp"
+#include "octotiger/compute_factor.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/future.hpp"
+#include "octotiger/node_client.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/problem.hpp"
+#include "octotiger/test_problems/rotating_star/rotating_star.hpp"
 
-#include "node_server.hpp"
-#include "node_client.hpp"
-#include "future.hpp"
-#include "problem.hpp"
-#include "options.hpp"
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/cuda_util/cuda_helper.hpp"
+#endif
+
+#include <hpx/hpx_init.hpp>
+#include <hpx/include/lcos.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 #include <chrono>
+#include <cstdio>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,17 +27,6 @@
 #else
 #include <float.h>
 #endif
-
-#include <hpx/hpx_init.hpp>
-#include <hpx/include/lcos.hpp>
-#include <hpx/lcos/broadcast.hpp>
-
-#include "compute_factor.hpp"
-
-#ifdef OCTOTIGER_WITH_CUDA
-#include "cuda_util/cuda_helper.hpp"
-#endif
-
 
 void normalize_constants();
 
@@ -100,7 +98,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	compute_ilist();
 	compute_factor();
 
-#ifdef OCTOTIGER_WITH_CUDA
+#ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
 	octotiger::util::cuda_helper::print_local_targets();
 #endif

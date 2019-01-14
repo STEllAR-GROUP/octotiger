@@ -1,15 +1,18 @@
-#include "multipole_cpu_kernel.hpp"
+#include "octotiger/multipole_interactions/multipole_cpu_kernel.hpp"
+#include "octotiger/multipole_interactions/compute_kernel_templates.hpp"
 
-#include "../common_kernel/helper.hpp"
-#include "../common_kernel/interaction_constants.hpp"
-#include "../common_kernel/struct_of_array_data.hpp"
-#include "compute_kernel_templates.hpp"
-#include "defs.hpp"
-#include "interaction_types.hpp"
-#include "options.hpp"
+#include "octotiger/common_kernel/helper.hpp"
+#include "octotiger/common_kernel/interaction_constants.hpp"
+#include "octotiger/common_kernel/struct_of_array_data.hpp"
+
+#include "octotiger/defs.hpp"
+#include "octotiger/interaction_types.hpp"
+#include "octotiger/options.hpp"
 
 #include <array>
+#include <cstddef>
 #include <functional>
+#include <vector>
 
 namespace octotiger {
 namespace fmm {

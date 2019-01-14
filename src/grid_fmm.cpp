@@ -5,23 +5,26 @@
  *      Author: dmarce1
  */
 
-#include "grid.hpp"
-#include "options.hpp"
-#include "profiler.hpp"
-#include "simd.hpp"
-#include "taylor.hpp"
-#include "physcon.hpp"
+#include "octotiger/common_kernel/interaction_constants.hpp"
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+#include "octotiger/common_kernel/struct_of_array_data.hpp"
 
+#include "octotiger/grid.hpp"
+#include "octotiger/grid_flattened_indices.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/profiler.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/simd.hpp"
+#include "octotiger/space_vector.hpp"
+#include "octotiger/taylor.hpp"
 
 #include <hpx/include/parallel_for_loop.hpp>
-#include "grid_flattened_indices.hpp"
 
-#include "common_kernel/interactions_iterators.hpp"
-#include "common_kernel/interaction_constants.hpp"
-#include "common_kernel/struct_of_array_data.hpp"
-
+#include <cmath>
 #include <cstddef>
 #include <utility>
+#include <vector>
 
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;

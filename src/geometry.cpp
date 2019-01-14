@@ -8,7 +8,10 @@
 #ifndef GEOMETRY_CPP_
 #define GEOMETRY_CPP_
 
-#include "geometry.hpp"
+#include "octotiger/geometry.hpp"
+#include "octotiger/defs.hpp"
+
+#include <array>
 
 namespace geo {
 

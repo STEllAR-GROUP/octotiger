@@ -5,28 +5,30 @@
  *      Author: dmarce1
  */
 
-#include "defs.hpp"
-#include "container_device.hpp"
-#include "diagnostics.hpp"
-#include "future.hpp"
-#include "node_client.hpp"
-#include "node_server.hpp"
-#include "options.hpp"
-#include "profiler.hpp"
-#include "taylor.hpp"
-#include "node_registry.hpp"
+#include <hpx/config.hpp>
 
-#include <algorithm>
-#include <array>
-#include <chrono>
-#include <fstream>
-#include <vector>
+#include "octotiger/container_device.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/diagnostics.hpp"
+#include "octotiger/future.hpp"
+#include "octotiger/node_client.hpp"
+#include "octotiger/node_registry.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/profiler.hpp"
+#include "octotiger/taylor.hpp"
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
 #include <boost/iostreams/stream.hpp>
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <fstream>
+#include <vector>
 
 typedef node_server::regrid_gather_action regrid_gather_action_type;
 HPX_REGISTER_ACTION(regrid_gather_action_type);

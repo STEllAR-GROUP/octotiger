@@ -1,13 +1,13 @@
+#include "octotiger/grid.hpp"
 
-#include "../../grid.hpp"
+#include <hpx/runtime/threads/run_as_os_thread.hpp>
+
 #include <algorithm>
 #include <mutex>
 #include <unordered_map>
 #include <functional>
 #include <memory>
 #include <vector>
-
-#include <hpx/runtime/threads/run_as_os_thread.hpp>
 
 
 #ifndef _MSC_VER

@@ -5,13 +5,17 @@
  *      Author: dmarce1
  */
 
-#include "node_registry.hpp"
-#include "defs.hpp"
-#include "node_server.hpp"
-#include "problem.hpp"
-#include "future.hpp"
-#include "options.hpp"
-#include "taylor.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/future.hpp"
+#include "octotiger/node_registry.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/problem.hpp"
+#include "octotiger/taylor.hpp"
+#include "octotiger/util.hpp"
+
+#include <hpx/include/lcos.hpp>
+#include <hpx/include/util.hpp>
 
 #include <array>
 #include <streambuf>
@@ -21,9 +25,6 @@
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
-
-#include <hpx/include/lcos.hpp>
-#include <hpx/include/util.hpp>
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
@@ -221,8 +222,6 @@ inline bool file_exists(const std::string& name) {
 	struct stat buffer;
 	return (stat(name.c_str(), &buffer) == 0);
 }
-
-#include "util.hpp"
 
 void node_server::clear_family() {
 	parent = me = hpx::invalid_id;

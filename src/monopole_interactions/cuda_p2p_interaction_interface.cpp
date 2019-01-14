@@ -1,7 +1,11 @@
-#ifdef OCTOTIGER_WITH_CUDA
-#include "cuda_p2p_interaction_interface.hpp"
-#include "p2p_cuda_kernel.hpp"
-#include "options.hpp"
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
+
+#include "octotiger/options.hpp"
+
+#include <array>
+#include <vector>
 
 namespace octotiger {
 namespace fmm {

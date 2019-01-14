@@ -5,14 +5,17 @@
  *      Author: dmarce1
  */
 
-#include "roe.hpp"
-#include "grid.hpp"
-#include "simd.hpp"
-#include <cmath>
-#include <cassert>
-#include "options.hpp"
-#include "physcon.hpp"
+#include "octotiger/roe.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/simd.hpp"
 
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <vector>
 
 const integer con_i = rho_i;
 const integer acl_i = sx_i;

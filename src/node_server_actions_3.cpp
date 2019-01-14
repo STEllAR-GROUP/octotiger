@@ -1,14 +1,20 @@
-#include "node_server.hpp"
-#include "node_client.hpp"
-#include "future.hpp"
-#include "options.hpp"
-#include "util.hpp"
-#include "problem.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/future.hpp"
+#include "octotiger/node_client.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/problem.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/util.hpp"
 
-#include <hpx/include/run_as.hpp>
 #include <hpx/include/lcos.hpp>
+#include <hpx/include/run_as.hpp>
 #include <hpx/include/util.hpp>
 #include <hpx/lcos/broadcast.hpp>
+
+#include <algorithm>
+#include <array>
+#include <cstdio>
 
 typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
 HPX_REGISTER_ACTION(send_gravity_boundary_action_type);

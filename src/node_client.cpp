@@ -5,10 +5,11 @@
  *      Author: dmarce1
  */
 
-#include "node_server.hpp"
-#include "options.hpp"
-#include "future.hpp"
+#include "octotiger/future.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
 
+#include <hpx/include/naming.hpp>
 #include <hpx/lcos/broadcast.hpp>
 
 bool node_client::is_local() const {

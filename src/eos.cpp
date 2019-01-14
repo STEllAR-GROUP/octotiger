@@ -5,11 +5,16 @@
  *      Author: dmarce1
  */
 
-#include "eos.hpp"
-#include "util.hpp"
-#include "grid.hpp"
-#include "physcon.hpp"
-#include "options.hpp"
+#include "octotiger/eos.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/util.hpp"
+
+#include <cmath>
+#include <cstdio>
+#include <functional>
 
 #define ALPHA 0.01
 const real wdcons = (2.216281751e32 / 1.989e+33);

@@ -1,5 +1,9 @@
-#include "node_registry.hpp"
-#include "options.hpp"
+#include "octotiger/node_registry.hpp"
+#include "octotiger/options.hpp"
+
+#include <cstdio>
+#include <mutex>
+#include <vector>
 
 static const auto& localities = options::all_localities;
 
