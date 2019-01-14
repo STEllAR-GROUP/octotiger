@@ -1,8 +1,14 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
-#include "cuda_scheduler.hpp"
-#include "../multipole_interactions/calculate_stencil.hpp"
-#include "../monopole_interactions/calculate_stencil.hpp"
-#include "options.hpp"
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/cuda_util/cuda_scheduler.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
+#include "octotiger/multipole_interactions/calculate_stencil.hpp"
+
+#include "octotiger/options.hpp"
+#include "octotiger/real.hpp"
+
+#include <cstddef>
+#include <memory>
+#include <vector>
 
 #undef interface
 

@@ -1,23 +1,20 @@
-//#include "../../grid.hpp"
-
 /*----------------------------------------------------------------
  Laplace Inversion Source Code
- Copyright Â© 2010 James R. Craig, University of Waterloo
+ Copyright © 2010 James R. Craig, University of Waterloo
  ----------------------------------------------------------------*/
 
 #ifndef TESTME
-#include "../../defs.hpp"
-#include "../../grid.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/grid.hpp"
 #endif
-#include <math.h>
+
+#include <cmath>
 #include <complex>
-#include <iostream>
 #include <fstream>
 #include <functional>
+#include <iostream>
 
-using namespace std;
-
-typedef complex<double> cmplex;
+typedef std::complex<double> cmplex;
 
 const double PI = 3.141592653589793238462643;      // pi
 const int MAX_LAPORDER = 60;
@@ -48,7 +45,7 @@ inline void upperswap(double &u, const double v) {
  t is the desired time of evaluation of f(t)
  tolerance is the required accuracy of f(t)
  -----------------------------------------------------------------------*/
-double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double &t, const double tolerance) {
+double LaplaceInversion(const std::function<cmplex(const cmplex &s)>& F, const double &t, const double tolerance) {
 
 	static hpx::lcos::local::spinlock mtx;
 	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);

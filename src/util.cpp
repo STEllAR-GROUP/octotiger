@@ -5,18 +5,18 @@
  *      Author: dmarce1
  */
 
-//#include <sse_mathfun.h>
-#include "defs.hpp"
-#include <cmath>
-#include <stdio.h>
-#include <functional>
-#include <unordered_map>
-#include <memory>
-#include <stack>
-#include <atomic>
+#include "octotiger/defs.hpp"
+#include "octotiger/real.hpp"
 
-#include <hpx/include/threads.hpp>
 #include <hpx/include/run_as.hpp>
+#include <hpx/include/threads.hpp>
+
+#include <cmath>
+#include <cstdio>
+#include <functional>
+
+//#include <sse_mathfun.h>
+#include <cstdio>
 
 using real = double;
 

@@ -1,9 +1,14 @@
-#include "p2m_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
 
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+
+#include "octotiger/options.hpp"
+#include "octotiger/real.hpp"
+
+#include <array>
 #include <algorithm>
-#include "../common_kernel/interactions_iterators.hpp"
-#include "calculate_stencil.hpp"
-#include "options.hpp"
+#include <vector>
 
 // Big picture questions:
 // - use any kind of tiling?

@@ -1,8 +1,12 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
-#include "cuda_multipole_interaction_interface.hpp"
-#include "multipole_cuda_kernel.hpp"
-#include "calculate_stencil.hpp"
-#include "options.hpp"
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/multipole_inteactions/cuda_multipole_interaction_interface.hpp"
+#include "octotiger/multipole_inteactions/calculate_stencil.hpp"
+#include "octotiger/multipole_inteactions/multipole_cuda_kernel.hpp"
+
+#include "octotiger/options.hpp"
+
+#include <array>
+#include <vector>
 
 namespace octotiger {
 namespace fmm {

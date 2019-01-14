@@ -86,11 +86,11 @@ else()
     PATHS ${Silo_DIR}/SiloWindows/MSVC2012/x64/Release)
 endif()
 
-set(Silo_FOUND "Off")
+set(Silo_FOUND OFF)
 if(Silo_INCLUDE_DIR)
   if(Silo_LIBRARY)
     set(Silo_LIBRARIES ${Silo_LIBRARY})
-    set(Silo_FOUND "On")
+    set(Silo_FOUND ON)
 
   else()
     if(Silo_FIND_REQURIED)
@@ -108,10 +108,10 @@ mark_as_advanced(
   Silo_INCLUDE_DIR
   Silo_LIBRARY)
 
-if(Silo_FOUND AND NOT TARGET silo::silo)
-  add_library(silo::silo INTERFACE IMPORTED)
-  set_property(TARGET silo::silo
+if(Silo_FOUND AND NOT TARGET Silo::silo)
+  add_library(Silo::silo INTERFACE IMPORTED)
+  set_property(TARGET Silo::silo
     PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${Silo_INCLUDE_DIR})
-  set_property(TARGET silo::silo
+  set_property(TARGET Silo::silo
     PROPERTY INTERFACE_LINK_LIBRARIES ${Silo_LIBRARY})
 endif()

@@ -6,8 +6,8 @@
  */
 #include <hpx/config/defines.hpp>
 
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 
 // Note: This was commented out, because it doesn't actually resolve the alignement issue
 // Consider the struct interaction_type (interaction_types.hpp):

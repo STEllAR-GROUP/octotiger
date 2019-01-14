@@ -8,17 +8,21 @@
 #define SILO_DRIVER DB_HDF5
 #define SILO_VERSION 100
 
-#include "node_registry.hpp"
-#include "silo.hpp"
-#include "node_server.hpp"
-#include "options.hpp"
-#include <set>
-#include "physcon.hpp"
+#include "octotiger/silo.hpp"
+#include "octotiger/node_registry.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/util.hpp"
+
 #include <hpx/lcos/broadcast.hpp>
+#include <hpx/util/format.hpp>
+#include <hpx/util/io_service_pool.hpp>
+
 #include <future>
 #include <mutex>
-#include <hpx/util/format.hpp>
-#include "util.hpp"
+#include <set>
+#include <vector>
 
 #define OUTPUT_ROCHE
 

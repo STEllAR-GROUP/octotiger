@@ -1,18 +1,24 @@
-#include "defs.hpp"
-#include "rad_grid.hpp"
-#include "grid.hpp"
-#include "options.hpp"
-#include "node_server.hpp"
-#include "opacities.hpp"
-#include "../roe.hpp"
+#include "octotiger/radiation/rad_grid.hpp"
+#include "octotiger/radiation/implicit.hpp"
+#include "octotiger/radiation/opacities.hpp"
+
+#include "octotiger/defs.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/roe.hpp"
+#include "octotiger/space_vector.hpp"
+
+#include <hpx/include/future.hpp>
+
+#include <array>
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 //#define IMPLICIT_OFF
-#include <iostream>
-#include "implicit.hpp"
-
-
-
-
 
 integer rindex(integer x, integer y, integer z) {
 	return z + R_NX * (y + R_NX * x);

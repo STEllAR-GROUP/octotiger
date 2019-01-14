@@ -5,14 +5,15 @@
  *      Author: dmarce1
  */
 
-#include "../../defs.hpp"
-#include "../../grid.hpp"
-#include "../../options.hpp"
-#include "sod.hpp"
-#include "exact_sod.hpp"
+#include "octotiger/test_problems/sod/sod.hpp"
+#include "octotiger/test_problems/sod/exact_sod.hpp"
 
+#include "octotiger/defs.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/real.hpp"
 
-
+#include <cmath>
 
 std::vector<real> sod_shock_tube_init(real x, real y, real z, real ) {
 	return sod_shock_tube_analytic(x,y,z,0.0);

@@ -21,6 +21,8 @@
  */
 
 #include <cmath>
+//#include "f2c.h"
+
 #ifndef _MSC_VER
 #include <quadmath.h>
 using sed_real = __float128;
@@ -59,12 +61,6 @@ sed_real d_sign(sed_real *a, sed_real * b) {
     return *b;
 }
 #endif
-
-
-#include <math.h>
-
-//#include "f2c.h"
-
 
 /* Subroutine */int sed_1d__(sed_real *time, int *nstep,
         sed_real * xpos, sed_real *eblast, sed_real *omega_in__,

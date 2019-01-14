@@ -5,14 +5,18 @@
  *      Author: dmarce1
  */
 
-#include "defs.hpp"
-#include "problem.hpp"
-#include "options.hpp"
-#include "grid.hpp"
-#include "lane_emden.hpp"
-#include <cmath>
-#include "eos.hpp"
+#include "octotiger/problem.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/eos.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/lane_emden.hpp"
+#include "octotiger/options.hpp"
+
 #include <hpx/include/lcos.hpp>
+
+#include <array>
+#include <cmath>
+#include <vector>
 
 constexpr integer spc_ac_i = spc_i;
 constexpr integer spc_ae_i = spc_i + 1;

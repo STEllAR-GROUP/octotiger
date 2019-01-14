@@ -5,15 +5,22 @@
  *      Author: dmarce1
  */
 
-#include "defs.hpp"
-#include "options.hpp"
-#include <math.h>
-#include "grid.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/real.hpp"
+
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/program_options.hpp>
+
+#include <cmath>
+#include <iosfwd>
+#include <sstream>
+#include <string>
+#include <vector>
 
 void normalize_constants();
-
-#include <boost/archive/binary_oarchive.hpp>
-#include <boost/archive/binary_iarchive.hpp>
 
 #define IN_OPTIONS_CPP
 

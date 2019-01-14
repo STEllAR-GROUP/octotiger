@@ -1,9 +1,10 @@
-#include "defs.hpp"
-#include "geometry.hpp"
-#include "options.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
 
-#include "../common_kernel/helper.hpp"
-#include "calculate_stencil.hpp"
+#include "octotiger/common_kernel/helper.hpp"
+
+#include "octotiger/defs.hpp"
+#include "octotiger/geometry.hpp"
+#include "octotiger/options.hpp"
 
 namespace octotiger {
 namespace fmm {
@@ -12,7 +13,7 @@ namespace fmm {
         std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>> calculate_stencil() {
             std::array<std::vector<multiindex<>>, 8> stencils;
 
-            // used to check the radiuses of the outer and inner sphere
+            // used to check the radii of the outer and inner sphere
             const real theta0 = opts().theta;
 
             // int64_t i0 = 0;

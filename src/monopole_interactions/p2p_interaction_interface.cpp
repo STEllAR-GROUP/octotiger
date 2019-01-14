@@ -1,9 +1,14 @@
-#include "p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
+
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+
+#include "octotiger/options.hpp"
 
 #include <algorithm>
-#include "../common_kernel/interactions_iterators.hpp"
-#include "calculate_stencil.hpp"
-#include "options.hpp"
+#include <array>
+#include <vector>
+
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {

@@ -1,6 +1,9 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
-#include "monopole_kernel_templates.hpp"
-#include "p2p_cuda_kernel.hpp"
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/monopole_interactions/monopole_kernel_templates.hpp"
+#include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
+
+#include <cstddef>
+
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {

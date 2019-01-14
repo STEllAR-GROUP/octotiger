@@ -1,11 +1,14 @@
-#include "multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/calculate_stencil.hpp"
+#include "octotiger/multipole_interactions/multipole_cpu_kernel.hpp"
 
-#include "../common_kernel/interactions_iterators.hpp"
-#include "calculate_stencil.hpp"
-#include "multipole_cpu_kernel.hpp"
-#include "options.hpp"
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+
+#include "octotiger/options.hpp"
 
 #include <algorithm>
+#include <array>
+#include <vector>
 
 // Big picture questions:
 // - use any kind of tiling?

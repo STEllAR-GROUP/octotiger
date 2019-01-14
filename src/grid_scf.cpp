@@ -5,17 +5,22 @@
  *      Author: dmarce1
  */
 
-#include "grid.hpp"
-#include "node_server.hpp"
-#include "lane_emden.hpp"
-#include "node_client.hpp"
-#include "options.hpp"
-#include "eos.hpp"
-#include "util.hpp"
-#include "physcon.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/eos.hpp"
+#include "octotiger/grid.hpp"
+#include "octotiger/lane_emden.hpp"
+#include "octotiger/node_client.hpp"
+#include "octotiger/node_server.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/profiler.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/util.hpp"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
 #include <mutex>
-#include "profiler.hpp"
-#include <stdio.h>
 
 constexpr integer spc_ac_i = spc_i;
 constexpr integer spc_ae_i = spc_i + 1;

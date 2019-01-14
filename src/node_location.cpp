@@ -15,8 +15,10 @@
  *      Author: dmarce1
  */
 
-#include "node_location.hpp"
-#include "node_client.hpp"
+#include "octotiger/node_location.hpp"
+#include "octotiger/node_client.hpp"
+
+#include <cstdio>
 
 range_type intersection(const range_type& r1, const range_type& r2) {
 	range_type ri;

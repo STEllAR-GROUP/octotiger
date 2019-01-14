@@ -1,4 +1,8 @@
-#include "interactions_iterators.hpp"
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+
+#include <cmath>
+#include <iostream>
+#include <limits>
 
 namespace octotiger {
 namespace fmm {

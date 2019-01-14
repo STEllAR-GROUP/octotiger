@@ -1,16 +1,15 @@
-#include <string>
+#include "octotiger/radiation/implicit.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/radiation/opacities.hpp"
+#include "octotiger/space_vector.hpp"
+
 #include <array>
-#include <numeric>
+#include <cassert>
 #include <cmath>
-#include <assert.h>
 #include <functional>
-#include "../space_vector.hpp"
-#include "opacities.hpp"
+#include <numeric>
+#include <string>
 
-#include "implicit.hpp"
-#include "../physcon.hpp"
-
-#include <functional>
 #define _3DIM 3
 
 using quad = long double;
