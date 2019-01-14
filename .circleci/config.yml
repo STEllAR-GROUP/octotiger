@@ -36,7 +36,7 @@ jobs:
                 name: Build
                 command: cmake --build /octotiger/build -- -j2
             - save_cache:
-                key: v5-build-{{ .Branch }}-{{ .Revision }}
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
                 paths:
                     - /octotiger/build
 
@@ -46,7 +46,7 @@ jobs:
             - checkout:
                 path: /octotiger
             - restore_cache:
-                key: v5-build-{{ .Branch }}-{{ .Revision }}
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
             - run:
                 name: blast
                 working_directory: /octotiger/test_problems/blast
@@ -58,7 +58,7 @@ jobs:
             - checkout:
                 path: /octotiger
             - restore_cache:
-                key: v5-build-{{ .Branch }}-{{ .Revision }}
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
             - run:
                 name: sod
                 working_directory: /octotiger/test_problems/sod
@@ -70,7 +70,7 @@ jobs:
             - checkout:
                 path: /octotiger
             - restore_cache:
-                key: v5-build-{{ .Branch }}-{{ .Revision }}
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
             - run:
                 name: moving_stars
                 command: |
@@ -84,7 +84,7 @@ jobs:
             - checkout:
                 path: /octotiger
             - restore_cache:
-                key: v5-build-{{ .Branch }}-{{ .Revision }}
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
             - run:
                 name: test1
                 working_directory: /octotiger/test1
