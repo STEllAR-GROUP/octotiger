@@ -49,10 +49,12 @@ endif()
 ################################################################################
 # Set up Octotiger target
 ################################################################################
-set(dependencies silo::silo Vc::Vc Boost::boost)
 
 if(NOT MSVC)
+  set(dependencies siloh5 Vc::Vc Boost::boost)
   list(APPEND dependencies octotiger::hdf5 dl z quadmath)
+else()
+set(dependencies silo::silo Vc::Vc Boost::boost)
 endif()
 
 # Octotiger executable
@@ -241,9 +243,9 @@ endif()
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
 
-target_link_libraries(silo_compare silo::silo)
 if(NOT MSVC)
-  target_link_libraries(silo_compare octotiger::hdf5 dl pthread dl z)
+  target_link_libraries(silo_compare siloh5 hdf5 z dl pthread)
 else()
+  target_link_libraries(silo_compare silo::silo)
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()

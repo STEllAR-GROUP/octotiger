@@ -1960,14 +1960,18 @@ analytic_t grid::compute_analytic(real t) {
 					a.l2a[field] += A[field] * A[field] * dv;
 					U[field][iii] = A[field];
 				}
-				for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
-					auto tmp = rad_grid_ptr->get_field(field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
-					real dif = std::abs(A[field] - tmp);
-					a.l1[field] += dif * dv;
-					a.l2[field] += dif * dif * dv;
-					a.l1a[field] += std::abs(A[field]) * dv;
-					a.l2a[field] += A[field] * A[field] * dv;
-					rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
+				if (opts().radiation) {
+					for (integer field = opts().n_fields; field != opts().n_fields + NRF; ++field) {
+						auto tmp = rad_grid_ptr->get_field(field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
+								k - H_BW + R_BW);
+						real dif = std::abs(A[field] - tmp);
+						a.l1[field] += dif * dv;
+						a.l2[field] += dif * dif * dv;
+						a.l1a[field] += std::abs(A[field]) * dv;
+						a.l2a[field] += A[field] * A[field] * dv;
+						rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
+								k - H_BW + R_BW);
+					}
 				}
 			}
 	return a;
