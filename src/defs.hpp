@@ -19,10 +19,6 @@
 # define USE_GRAV_PAR
 #endif
 
-#ifdef OCTOTIGER_HAVE_SILO
-# define DO_OUTPUT
-#endif
-
 //#define FIND_AXIS_V2
 
 

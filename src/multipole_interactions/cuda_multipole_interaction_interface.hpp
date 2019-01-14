@@ -1,6 +1,6 @@
 #pragma once
 #include "multipole_interaction_interface.hpp" // will be used as fallback in non-cuda compilations
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include <functional>
 #include "../cuda_util/cuda_helper.hpp"
 #include "../cuda_util/cuda_scheduler.hpp"

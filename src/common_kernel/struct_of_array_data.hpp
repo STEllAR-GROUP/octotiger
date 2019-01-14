@@ -1,7 +1,7 @@
 #pragma once
 
 #include "kernel_simd_types.hpp"
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include "../cuda_util/cuda_helper.hpp"
 #endif
 

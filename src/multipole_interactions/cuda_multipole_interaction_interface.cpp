@@ -1,4 +1,4 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include "cuda_multipole_interaction_interface.hpp"
 #include "multipole_cuda_kernel.hpp"
 #include "calculate_stencil.hpp"

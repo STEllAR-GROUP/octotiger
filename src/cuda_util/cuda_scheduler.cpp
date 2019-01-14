@@ -1,4 +1,4 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include "cuda_scheduler.hpp"
 #include "../multipole_interactions/calculate_stencil.hpp"
 #include "../monopole_interactions/calculate_stencil.hpp"

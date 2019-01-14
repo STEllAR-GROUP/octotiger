@@ -1,5 +1,5 @@
 #pragma once
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include "../common_kernel/interaction_constants.hpp"
 #include "../common_kernel/multiindex.hpp"
 #include "../common_kernel/struct_of_array_data.hpp"

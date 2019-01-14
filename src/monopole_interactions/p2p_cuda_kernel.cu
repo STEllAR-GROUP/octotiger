@@ -1,4 +1,4 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include "monopole_kernel_templates.hpp"
 #include "p2p_cuda_kernel.hpp"
 namespace octotiger {

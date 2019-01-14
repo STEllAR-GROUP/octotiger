@@ -1,8 +1,6 @@
 #include "defs.hpp"
 #include "grid.hpp"
-#ifdef DO_OUTPUT
 #include <silo.h>
-#endif
 #include <atomic>
 #include <ios>
 #include <fstream>

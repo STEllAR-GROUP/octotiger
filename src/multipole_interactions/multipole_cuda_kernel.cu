@@ -1,4 +1,4 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include "compute_kernel_templates.hpp"
 #include "multipole_cuda_kernel.hpp"
 namespace octotiger {

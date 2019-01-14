@@ -7,7 +7,7 @@
 
 project(octotiger CXX)
 
-cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0015 NEW)
 cmake_policy(SET CMP0003 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -35,40 +35,18 @@ set_property(TARGET octotiger::hdf5
   PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
 
 if(OCTOTIGER_WITH_CUDA)
-  add_definitions(-DOCTOTIGER_CUDA_ENABLED)
-  find_package(CUDA REQUIRED)
+  enable_language(CUDA)
 
-  add_library(octotiger::cuda INTERFACE IMPORTED)
-  set_property(TARGET octotiger::cuda
-    PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CUDA_INCLUDE_DIRS}")
-  set_property(TARGET octotiger::cuda
-    PROPERTY INTERFACE_LINK_LIBRARIES ${CUDA_CUBLAS_LIBRARIES})
   string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
 endif()
 
 ################################################################################
 # Set up Octotiger target
 ################################################################################
-
-if(NOT MSVC)
-  set(dependencies siloh5 Vc::Vc Boost::boost)
-  list(APPEND dependencies octotiger::hdf5 dl z quadmath)
-else()
-set(dependencies silo::silo Vc::Vc Boost::boost)
-endif()
-
 # Octotiger executable
 set(source_files
-    src/test_problems/marshak/marshak.cpp
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp
-    src/test_problems/rotating_star/rotating_star.cpp
-    src/test_problems/sod/sod.cpp
-    src/silo.cpp
-    src/node_registry.cpp
+    src/compute_factor.cpp
     src/eos.cpp
-    src/scf_data.cpp
-    src/test_problems/sod/exact_sod.cpp
     src/geometry.cpp
     src/grid.cpp
     src/grid_fmm.cpp
@@ -79,6 +57,7 @@ set(source_files
     src/new.cpp
     src/node_client.cpp
     src/node_location.cpp
+    src/node_registry.cpp
     src/node_server.cpp
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
@@ -87,20 +66,16 @@ set(source_files
     src/physcon.cpp
     src/problem.cpp
     src/profiler.cpp
-    src/radiation/rad_grid.cpp
-    src/radiation/implicit.cpp
     src/real.cpp
     src/roe.cpp
     src/scf_data.cpp
+    src/scf_data.cpp
+    src/silo.cpp
     src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
-    src/compute_factor.cpp
-    src/multipole_interactions/multipole_interaction_interface.cpp
-    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
-    src/multipole_interactions/multipole_cuda_kernel.cu
-    src/multipole_interactions/calculate_stencil.cpp
-    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/common_kernel/interactions_iterators.cpp
+    src/cuda_util/cuda_scheduler.cpp
     src/monopole_interactions/cuda_p2p_interaction_interface.cpp
     src/monopole_interactions/p2p_cuda_kernel.cu
     src/monopole_interactions/p2p_cpu_kernel.cpp
@@ -108,86 +83,103 @@ set(source_files
     src/monopole_interactions/calculate_stencil.cpp
     src/monopole_interactions/p2m_interaction_interface.cpp
     src/monopole_interactions/p2m_kernel.cpp
-    src/common_kernel/interactions_iterators.cpp
-    src/cuda_util/cuda_scheduler.cpp
+    src/multipole_interactions/multipole_interaction_interface.cpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
+    src/multipole_interactions/multipole_cuda_kernel.cu
+    src/multipole_interactions/calculate_stencil.cpp
+    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/radiation/rad_grid.cpp
+    src/radiation/implicit.cpp
+    src/test_problems/marshak/marshak.cpp
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
+    src/test_problems/rotating_star/rotating_star.cpp
+    src/test_problems/sod/sod.cpp
+    src/test_problems/sod/exact_sod.cpp
 )
 
 set(header_files
-    src/channel.hpp
-    src/container_device.hpp
-    src/defs.hpp
-    src/diagnostics.hpp
-    src/eos.hpp
-    src/test_problems/sod/exact_sod.hpp
-    src/future.hpp
-    src/geometry.hpp
-    src/grid.hpp
-    src/lane_emden.hpp
-    src/node_client.hpp
-    src/node_location.hpp
-    src/node_server.hpp
-    src/options.hpp
-    src/physcon.hpp
-    src/problem.hpp
-    src/profiler.hpp
-    src/radiation/rad_grid.hpp
-    src/real.hpp
-    src/roe.hpp
-    src/scf_data.hpp
-    src/simd.hpp
-    src/space_vector.hpp
-    src/state.hpp
-    src/struct_eos.hpp
-    src/taylor.hpp
-    src/util.hpp
-    src/compute_factor.hpp
-    src/common_kernel/interaction_constants.hpp
-    src/common_kernel/multiindex.hpp
-    src/multipole_interactions/multipole_interaction_interface.hpp
-    src/multipole_interactions/compute_kernel_templates.hpp
-    src/multipole_interactions/multipole_cuda_kernel.hpp
-    src/multipole_interactions/cuda_multipole_interaction_interface.hpp
-    src/multipole_interactions/calculate_stencil.hpp
-    src/multipole_interactions/multipole_cpu_kernel.hpp
-    src/monopole_interactions/cuda_p2p_interaction_interface.hpp
-    src/monopole_interactions/p2p_interaction_interface.hpp
-    src/monopole_interactions/p2p_cuda_kernel.hpp
-    src/monopole_interactions/p2p_cpu_kernel.hpp
-    src/monopole_interactions/calculate_stencil.hpp
-    src/monopole_interactions/p2m_interaction_interface.hpp
-    src/monopole_interactions/p2m_kernel.hpp
-    src/common_kernel/kernel_simd_types.hpp
-    src/common_kernel/kernel_taylor_set_basis.hpp
-    src/cuda_util/cuda_scheduler.hpp
+    octotiger/channel.hpp
+    octotiger/compute_factor.hpp
+    octotiger/const.hpp
+    octotiger/container_device.hpp
+    octotiger/defs.hpp
+    octotiger/diagnostics.hpp
+    octotiger/eos.hpp
+    octotiger/future.hpp
+    octotiger/geometry.hpp
+    octotiger/grid.hpp
+    octotiger/grid_flattened_indices.hpp
+    octotiger/interaction_types.hpp
+    octotiger/lane_emden.hpp
+    octotiger/node_client.hpp
+    octotiger/node_location.hpp
+    octotiger/node_registry.hpp
+    octotiger/node_server.hpp
+    octotiger/options.hpp
+    octotiger/options_enum.hpp
+    octotiger/physcon.hpp
+    octotiger/problem.hpp
+    octotiger/profiler.hpp
+    octotiger/real.hpp
+    octotiger/roe.hpp
+    octotiger/safe_math.hpp
+    octotiger/scf_data.hpp
+    octotiger/silo.hpp
+    octotiger/simd.hpp
+    octotiger/space_vector.hpp
+    octotiger/state.hpp
+    octotiger/struct_eos.hpp
+    octotiger/taylor.hpp
+    octotiger/util.hpp
+    octotiger/common_kernel/helper.hpp
+    octotiger/common_kernel/interaction_constants.hpp
+    octotiger/common_kernel/interactions_iterators.hpp
+    octotiger/common_kernel/kernel_simd_types.hpp
+    octotiger/common_kernel/kernel_taylor_set_basis.hpp
+    octotiger/common_kernel/kernel_taylor_set_basis.hpp
+    octotiger/common_kernel/multiindex.hpp
+    octotiger/common_kernel/struct_of_array_data.hpp
+    octotiger/compute_factor.hpp
+    octotiger/cuda_util/cuda_global_def.hpp
+    octotiger/cuda_util/cuda_helper.hpp
+    octotiger/cuda_util/cuda_scheduler.hpp
+    octotiger/monopole_interactions/calculate_stencil.hpp
+    octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp
+    octotiger/monopole_interactions/monopole_kernel_templates.hpp
+    octotiger/monopole_interactions/p2m_interaction_interface.hpp
+    octotiger/monopole_interactions/p2m_kernel.hpp
+    octotiger/monopole_interactions/p2p_cpu_kernel.hpp
+    octotiger/monopole_interactions/p2p_cuda_kernel.hpp
+    octotiger/monopole_interactions/p2p_interaction_interface.hpp
+    octotiger/multipole_interactions/calculate_stencil.hpp
+    octotiger/multipole_interactions/compute_kernel_templates.hpp
+    octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp
+    octotiger/multipole_interactions/multipole_cpu_kernel.hpp
+    octotiger/multipole_interactions/multipole_cuda_kernel.hpp
+    octotiger/multipole_interactions/multipole_interaction_interface.hpp
+    octotiger/radiation/implicit.hpp
+    octotiger/radiation/opacities.hpp
+    octotiger/radiation/rad_grid.hpp
+    octotiger/test_problems/rotating_star/rotating_star.hpp
+    octotiger/test_problems/sod/sod.hpp
+    octotiger/test_problems/sod/exact_sod.hpp
 )
 
 add_hpx_executable(
   octotiger
   DEPENDENCIES
-    ${dependencies}
+    Silo::silo Vc::Vc Boost::boost
   SOURCES
     ${source_files}
   HEADERS
     ${header_files}
-  FOLDER  "Octotiger"
 )
 
-target_include_directories(octotiger PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(octotiger PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_SILO)
-
-if(NOT MSVC)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    target_compile_options(octotiger PRIVATE
-      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-      -Wno-unused-result -ffast-math)
-  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-      #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
-      #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
-      target_compile_options(octotiger -Wno-attributes -Wno-deprecated)
-  endif()
-else()
-  # enable solution folders for MSVC
+if(MSVC)
+  # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
   target_compile_definitions(octotiger PRIVATE
@@ -204,9 +196,22 @@ else()
     /wd4267
     /wd4334
     /wd4521
-    /wd4800)
+    /wd4800
+    /wd4996)
 
   target_compile_options(octotiger PRIVATE /EHsc)
+else()
+  target_link_libraries(octotiger octotiger::hdf5 dl z quadmath)
+  
+  if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+    target_compile_options(octotiger PRIVATE
+      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+      -Wno-unused-result -ffast-math)
+  elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
+      #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
+      #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
+      target_compile_options(octotiger -Wno-attributes -Wno-deprecated)
+  endif()
 endif()
 
 if(USE_AVX2)
@@ -225,16 +230,16 @@ endif()
 
 # Handle CUDA
 if(OCTOTIGER_WITH_CUDA)
-  target_link_libraries(octotiger octotiger::cuda)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_CUDA)
   set_property(TARGET octotiger PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
 # Handle other options
-if (OCTOTIGER_WITH_GRAV_PAR)
+if(OCTOTIGER_WITH_GRAV_PAR)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
-if (OCTOTIGER_WITH_RADIATION)
+if(OCTOTIGER_WITH_RADIATION)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_RADIATION)
 endif()
 
@@ -243,9 +248,9 @@ endif()
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
 
+target_link_libraries(silo_compare Silo::silo)
 if(NOT MSVC)
-  target_link_libraries(silo_compare siloh5 hdf5 z dl pthread)
+  target_link_libraries(silo_compare z dl pthread)
 else()
-  target_link_libraries(silo_compare silo::silo)
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()

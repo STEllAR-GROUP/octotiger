@@ -25,7 +25,7 @@
 
 #include "compute_factor.hpp"
 
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 #include "cuda_util/cuda_helper.hpp"
 #endif
 
@@ -100,7 +100,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	compute_ilist();
 	compute_factor();
 
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_WITH_CUDA
 	std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
 	octotiger::util::cuda_helper::print_local_targets();
 #endif
