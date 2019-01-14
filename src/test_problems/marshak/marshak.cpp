@@ -71,13 +71,13 @@ double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double
 
 	//Calculate period and integration limits------------------------------------
 	T = DeHoogFactor * t;
-	gamma = -0.5 * log(tolerance) / T;
+	gamma = -0.5 * log(tolerance) * INVERSE( T );
 
 	//Calculate F(s) at evalution points gamma+IM*i*PI/T for i=0 to 2*M-1--------
 	//This is likely the most time consuming portion of the DeHoog algorithm
 	Fctrl[0] = 0.5 * F(gamma);
 	for (i = 1; i <= 2 * M; i++) {
-		s = cmplex(gamma, i * PI / T);
+		s = cmplex(gamma, i * PI *INVERSE( T));
 		Fctrl[i] = F(s);
 	}
 
@@ -85,7 +85,7 @@ double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double
 	//eqn 20 of De Hoog et al 1982
 	for (i = 0; i < 2 * M; i++) {
 		e[i][0] = 0.0;
-		q[i][1] = Fctrl[i + 1] / Fctrl[i];
+		q[i][1] = Fctrl[i + 1] *INVERSE( Fctrl[i]);
 	}
 	e[2 * M][0] = 0.0;
 
@@ -93,7 +93,7 @@ double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double
 			{
 		for (i = 2 * (M - r); i >= 0; i--) {
 			if ((i < 2 * (M - r)) && (r > 1)) {
-				q[i][r] = q[i + 1][r - 1] * e[i + 1][r - 1] / e[i][r - 1];
+				q[i][r] = q[i + 1][r - 1] * e[i + 1][r - 1] *INVERSE( e[i][r - 1]);
 			}
 			e[i][r] = q[i + 1][r] - q[i][r] + e[i + 1][r - 1];
 		}
@@ -108,7 +108,7 @@ double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double
 
 	//Evaluate A, B---------------------------------------------------------------
 	//Eqn. 21 in De Hoog et al.
-	z = cmplex(cos(PI * t / T), sin(PI * t / T));
+	z = cmplex(cos(PI * t *INVERSE( T)), sin(PI * t * INVERSE( T)));
 
 	A[0] = 0.0;
 	B[0] = 1.0; //A_{-1},B_{-1} in De Hoog
@@ -122,14 +122,14 @@ double LaplaceInversion(const function<cmplex(const cmplex &s)>& F, const double
 
 	//Eqn. 23 in De Hoog et al.
 	h2M = 0.5 * (1.0 + z * (d[2 * M - 1] - d[2 * M]));
-	R2M = -h2M * (1.0 - sqrt(1.0 + (z * d[2 * M] / h2M / h2M)));
+	R2M = -h2M * (1.0 - sqrt(1.0 + (z * d[2 * M] *INVERSE( h2M * h2M))));
 
 	//Eqn. 24 in De Hoog et al.
 	A[2 * M + 1] = A[2 * M] + R2M * A[2 * M - 1];
 	B[2 * M + 1] = B[2 * M] + R2M * B[2 * M - 1];
 
 	//Final result: A[2*M]/B[2*M]=sum [F(gamma+itheta)*exp(itheta)]-------------
-	return 1.0 / T * exp(gamma * t) * (A[2 * M + 1] / B[2 * M + 1]).real();
+	return 1.0 *INVERSE( T) * exp(gamma * t) * (A[2 * M + 1] *INVERSE( B[2 * M + 1])).real();
 }
 
 #include <complex>
@@ -144,8 +144,8 @@ static constexpr auto root3 = cmplex(1.73205080757, 0.0);
 #else
 static constexpr auto root3 = cmplex(std::sqrt(3), 0.0);
 #endif
-static constexpr double theta_inc = 1.0;
-static constexpr double kappa = 1.0e+3;
+static constexpr double theta_inc = std::pow(1.0,0.25);
+static constexpr double kappa = 1.0e+1;
 static constexpr double c = 1.0;
 static constexpr double toler = 1.0e-10;
 
@@ -186,7 +186,7 @@ std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	if (x > 0) {
 		u[rho_i] = u[spc_i] = 1.0;
 	} else {
-		u[rho_i] = u[spc_i] = 1.0e-20;
+		e = u[rho_i] = u[spc_i] = 1.0e-10;
 	}
 	u[egas_i] = e;
 	u[tau_i] = std::pow(e, grid::get_fgamma());
@@ -227,7 +227,7 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 		}
 	}
 	u[rho_i] = u[spc_i] = rho;
-	const double e = std::pow(T, 4);
+	const double e = std::max(std::pow(T, 4) * rho,1.0e-10);
 	const double fy = 0;
 	const double fz = 0;
 	u[egas_i] = e;

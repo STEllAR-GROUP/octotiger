@@ -2411,13 +2411,13 @@ real grid::compute_fluxes() {
 
 //	return physcon.c;
 //	printf( "%e %e %e\n", omega, dx, (2./15.) / max_lambda);
-	if( opts().radiation && !opts().hydro) {
-		return physcon().c / 10.0;
-	}
 	if( opts().hard_dt < 0.0 ) {
 		return max_lambda;
 	} else {
 		return dx / opts().hard_dt;
+	}
+	if( opts().radiation && !opts().hydro) {
+		return physcon().c / 10.0;
 	}
 }
 

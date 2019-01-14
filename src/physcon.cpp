@@ -87,11 +87,16 @@ void these_units(real& m, real& l, real& t, real& k) {
 		k = 1.0;
 	}
 
-	printf("%e %e %e %e\n", l, m, t, k);
-	opts().code_to_cm = l;
-	opts().code_to_g = m;
-	opts().code_to_s = t;
-
+	printf( "%e %e %e %e\n", l, m, t, k);
+	if( opts().problem == MARSHAK ) {
+		opts().code_to_g = 1.0;
+		opts().code_to_s = 1.0;
+		opts().code_to_cm = 1.0;
+	} else {
+		opts().code_to_cm = l;
+		opts().code_to_g = m;
+		opts().code_to_s = t;
+	}
 }
 
 void normalize_constants() {
@@ -107,17 +112,17 @@ void normalize_constants() {
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
 	printf("Normalized constants\n");
-	printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
-	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B,
-			physcon().G, physcon().kb, physcon().c, physcon().mh, physcon().sigma, physcon().h);
-	if (opts().problem == MARSHAK) {
+	printf("%e %e %e %e\n", 1.0/m, 1.0/l, 1.0/t, 1.0/k);
+	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb, physcon().c, physcon().mh,
+		physcon().sigma, physcon().h);
+	if( opts().problem == MARSHAK ) {
 		opts().code_to_g = 1.0;
 		opts().code_to_s = 1.0;
 		opts().code_to_cm = 1.0;
 	} else {
-		opts().code_to_g = 1.0 / m;
-		opts().code_to_s = 1.0 / t;
-		opts().code_to_cm = 1.0 / l;
+		opts().code_to_g = 1.0/m;
+		opts().code_to_s = 1.0/t;
+		opts().code_to_cm = 1.0/l;
 	}
 }
 

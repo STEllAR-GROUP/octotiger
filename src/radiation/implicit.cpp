@@ -504,7 +504,7 @@ std::pair<real, space_vector> implicit_radiation_step_2nd_order(real E0_, real& 
 	int N = 50;
 	quad f_min = 0, f_mid = 0, error = 0;
 	de_mid = 0.0;
-	error = std::abs(test(0.0)) / (E + eg_t);
+	error = std::abs(test(0.0)) * INVERSE (E + eg_t);
 //	printf("\n%i | %e %e %e %e | %e %e %e %e | %e %e %e\n", i, (double) E, (double) F[0], (double) F[1], (double) F[2],
 				//(double) eg_t, (double) u[0], (double) u[1], (double) u[2], (double) de_min, (double) de_max, (double) error);
 		const quad toler = 1.0e-9;
