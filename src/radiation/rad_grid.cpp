@@ -218,6 +218,12 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vec
 				if (e < de_switch1 * egas[iiih]) {
 					e = e1;
 				}
+				if( opts().problem == MARSHAK ) {
+					egas[iiih]  = e;
+					sx[iiih] =
+					sy[iiih] =
+					sz[iiih]  = 0;
+				}
 				if (U[er_i][iiir] <= 0.0) {
 					printf("Er = %e %e %e %e\n", E0, E1, U[er_i][iiir], dt);
 					abort();
@@ -347,25 +353,27 @@ void node_server::compute_radiation(real dt) {
 	if (my_location.level() == 0) {
 		printf("Explicit\n");
 	}
-	rgrid->store();
 	for (integer i = 0; i != nsteps; ++i) {
 		rgrid->sanity_check();
 		if (my_location.level() == 0) {
 			printf("rad sub-step %i of %i\r", int(i + 1), int(nsteps));
 			fflush(stdout);
 		}
+		rgrid->store();
 		all_rad_bounds();
 		rgrid->compute_flux();
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(this_dt, 1.0);
-	}
-	if (my_location.level() == 0) {
-		printf("\nImplicit\n");
+		rgrid->store();
+		all_rad_bounds();
+		rgrid->compute_flux();
+		GET(exchange_rad_flux_corrections());
+		rgrid->advance(this_dt, 0.5);
+		if( opts().rad_implicit) {
+			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, this_dt);
+		}
 	}
 	rgrid->sanity_check();
-	if( opts().rad_implicit) {
-		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, dt);
-	}
 	all_rad_bounds();
 	if (my_location.level() == 0) {
 		printf("Rad done\n");
@@ -617,12 +625,7 @@ void rad_grid::advance(real dt, real beta) {
 					for (integer d = 0; d != NDIM; ++d) {
 						u1 -= l * (flux[d][f][iii + D[d]] - flux[d][f][iii]);
 					}
-					for (integer d = 0; d != NDIM; ++d) {
-		//				if( f != 0 ) {
-							//printf( "%e\n", U[f][iii]);
-						//}
-						U[f][iii] = u0 * (1.0 - beta) + beta * u1;
-					}
+					U[f][iii] = u0 * (1.0 - beta) + beta * u1;
 				}
 			}
 		}
