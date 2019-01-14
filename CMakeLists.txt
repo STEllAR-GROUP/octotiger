@@ -250,7 +250,7 @@ add_executable(silo_compare src/compare/compare.cpp)
 
 target_link_libraries(silo_compare Silo::silo)
 if(NOT MSVC)
-  target_link_libraries(silo_compare z dl pthread)
+  target_link_libraries(silo_compare octotiger::hdf5 z dl pthread)
 else()
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
