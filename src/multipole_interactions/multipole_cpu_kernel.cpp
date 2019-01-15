@@ -877,7 +877,8 @@ namespace fmm {
                 for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                     int y = stencil_y - STENCIL_MIN;
                     for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
-                        const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + (stencil_z - STENCIL_MIN);
+                        const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
+                                             (stencil_z - STENCIL_MIN);
                         if (!stencil[index]) {
                             skipped++;
                             continue;
