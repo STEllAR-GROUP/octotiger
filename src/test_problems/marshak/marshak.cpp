@@ -138,10 +138,11 @@ static constexpr auto one = cmplex(1, 0);
 static constexpr double eps = 16.0;
 #ifdef _MSC_VER
 static constexpr auto root3 = cmplex(1.73205080757, 0.0);
+static constexpr double theta_inc = 1.0;
 #else
 static constexpr auto root3 = cmplex(std::sqrt(3), 0.0);
+static constexpr double theta_inc = std::pow(1.0, 0.25);
 #endif
-static constexpr double theta_inc = std::pow(1.0,0.25);
 static constexpr double kappa = 1.0e+1;
 static constexpr double c = 1.0;
 static constexpr double toler = 1.0e-10;
