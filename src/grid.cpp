@@ -1525,9 +1525,9 @@ bool grid::refine_me(integer lev, integer last_ngrids) const {
 	dudx.resize(opts().n_fields);
 	dudy.resize(opts().n_fields);
 	dudz.resize(opts().n_fields);
-	for (integer i = H_BW - R_BW; i != H_NX - H_BW + R_BW; ++i) {
-		for (integer j = H_BW - R_BW; j != H_NX - H_BW + R_BW; ++j) {
-			for (integer k = H_BW - R_BW; k != H_NX - H_BW + R_BW; ++k) {
+	for (integer i = H_BW - REFINE_BW; i != H_NX - H_BW + REFINE_BW; ++i) {
+		for (integer j = H_BW - REFINE_BW; j != H_NX - H_BW + REFINE_BW; ++j) {
+			for (integer k = H_BW - REFINE_BW; k != H_NX - H_BW + REFINE_BW; ++k) {
 				int cnt = 0;
 				if (i < H_BW || i >= H_NX - H_BW) {
 					++cnt;
