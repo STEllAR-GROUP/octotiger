@@ -35,18 +35,18 @@ jobs:
             - run:
                 name: Build
                 command: cmake --build /octotiger/build -- -j2
-            - save_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - persist_to_workspace:
+                root: /
                 paths:
-                    - /octotiger/build
+                    - octotiger/build
 
     test_blast:
         <<: *docker_config
         steps:
             - checkout:
                 path: /octotiger
-            - restore_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - attach_workspace:
+                at: /
             - run:
                 name: blast
                 working_directory: /octotiger/test_problems/blast
@@ -69,8 +69,8 @@ jobs:
         steps:
             - checkout:
                 path: /octotiger
-            - restore_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - attach_workspace:
+                at: /
             - run:
                 name: moving_stars
                 command: |
@@ -83,8 +83,8 @@ jobs:
         steps:
             - checkout:
                 path: /octotiger
-            - restore_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - attach_workspace:
+                at: /
             - run:
                 name: test1
                 working_directory: /octotiger/test1
