@@ -171,7 +171,7 @@ namespace fmm {
                         data_changed = true;
                         m2m_vector monopole;
                         Vc::where(mask, monopole) = m2m_vector(
-                            mons.data() + interaction_partner_flat_index, Vc::Aligned);
+                            mons.data() + interaction_partner_flat_index);
 
                         const m2m_vector four[4] = {
                             four_constants[index][0],
@@ -185,14 +185,10 @@ namespace fmm {
             }
 
             if (data_changed) {
-                tmpstore1[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore1[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore1[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore1[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                tmpstore1[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+                tmpstore1[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+                tmpstore1[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+                tmpstore1[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
             }
         }
 
@@ -273,10 +269,10 @@ namespace fmm {
                 data_changed = true;
                 m2m_vector monopole;
                 Vc::where(mask, monopole) = m2m_vector(
-                    mons.data() + interaction_partner_flat_index, Vc::Aligned);
+                    mons.data() + interaction_partner_flat_index);
                 m2m_vector monopole2;
                 Vc::where(mask2, monopole2) = m2m_vector(
-                    mons.data() + interaction_partner_flat_index + 24, Vc::Aligned);
+                    mons.data() + interaction_partner_flat_index + 24);
 
                 const m2m_vector four[4] = {
                     four_constants[outer_stencil_index + inner_stencil_index][0],
@@ -288,26 +284,18 @@ namespace fmm {
                 compute_monopole_interaction<m2m_vector>(monopole2, tmpstore2, four, d_components);
             }
             if (data_changed) {
-                tmpstore1[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore1[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore1[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore1[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                tmpstore1[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+                tmpstore1[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+                tmpstore1[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+                tmpstore1[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
                 tmpstore2[0].store(
-                    potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded + 8),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded + 8));
                 tmpstore2[1].store(
-                    potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded + 8),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded + 8));
                 tmpstore2[2].store(
-                    potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded + 8),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded + 8));
                 tmpstore2[3].store(
-                    potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded + 8),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded + 8));
             }
         }
 

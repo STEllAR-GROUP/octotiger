@@ -15,7 +15,6 @@ namespace fmm {
             cudaError_t err = cudaMemcpyToSymbol(device_stencil_masks, stencil_masks, full_stencil_size);
             if (err != cudaSuccess) {
                 std::stringstream temp;
-                temp << "Copy stencil to constant memory returned error code " << cudaGetErrorString(err);
                 throw std::runtime_error(temp.str());
             }
         }

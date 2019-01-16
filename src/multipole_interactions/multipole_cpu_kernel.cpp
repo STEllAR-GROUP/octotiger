@@ -221,7 +221,7 @@ namespace fmm {
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
                 Vc::where(mask, m_partner[0]) = m2m_vector(
-                    mons.data() + interaction_partner_flat_index, Vc::Aligned);
+                    mons.data() + interaction_partner_flat_index);
                 mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
                     m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
@@ -310,56 +310,36 @@ namespace fmm {
                     tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
                 tmpstore[19] =
                     tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
-                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
+                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded));
+                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded));
+                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded));
+                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
+                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
+                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
                 tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
                 tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
                 tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
                 tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
                 tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
                 tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
                 tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
                 tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
                 tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
                 tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
 
                 tmp_corrections[0] =
                     tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
@@ -368,14 +348,11 @@ namespace fmm {
                 tmp_corrections[2] =
                     tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
                 tmp_corrections[0].store(
-                    angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmp_corrections[1].store(
-                    angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded));
                 tmp_corrections[2].store(
-                    angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded));
             }
         }
 
@@ -444,7 +421,7 @@ namespace fmm {
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
                 Vc::where(mask, m_partner[0]) = m2m_vector(
-                    mons.data() + interaction_partner_flat_index, Vc::Aligned);
+                    mons.data() + interaction_partner_flat_index);
                 mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
                     m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
@@ -533,56 +510,36 @@ namespace fmm {
                     tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
                 tmpstore[19] =
                     tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
-                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
+                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded));
+                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded));
+                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded));
+                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
+                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
+                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
                 tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
                 tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
                 tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
                 tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
                 tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
                 tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
                 tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
                 tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
                 tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
                 tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
             }
         }
 
@@ -686,7 +643,7 @@ namespace fmm {
                         m2m_vector::mask_type mask_phase_one(phase_one);
 
                         Vc::where(mask, m_partner[0]) = m2m_vector(
-                            mons.data() + interaction_partner_flat_index, Vc::Aligned);
+                            mons.data() + interaction_partner_flat_index);
                         mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                         Vc::where(mask, m_partner[0]) =
                             m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
@@ -777,56 +734,36 @@ namespace fmm {
                     tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
                 tmpstore[19] =
                     tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
-                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
+                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded));
+                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded));
+                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded));
+                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
+                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
+                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
                 tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
                 tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
                 tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
                 tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
                 tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
                 tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
                 tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
                 tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
                 tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
                 tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
 
                 tmp_corrections[0] =
                     tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
@@ -835,14 +772,11 @@ namespace fmm {
                 tmp_corrections[2] =
                     tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
                 tmp_corrections[0].store(
-                    angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmp_corrections[1].store(
-                    angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded));
                 tmp_corrections[2].store(
-                    angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded));
             }
         }
 
@@ -925,7 +859,7 @@ namespace fmm {
                         m2m_vector::mask_type mask_phase_one(phase_one);
 
                         Vc::where(mask, m_partner[0]) = m2m_vector(
-                            mons.data() + interaction_partner_flat_index, Vc::Aligned);
+                            mons.data() + interaction_partner_flat_index);
                         mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                         Vc::where(mask, m_partner[0]) =
                             m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
@@ -1016,56 +950,36 @@ namespace fmm {
                     tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
                 tmpstore[19] =
                     tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
-                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded),
-                    Vc::Aligned);
-                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+                tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+                tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+                tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
+                tmpstore[4].store(potential_expansions_SoA.pointer<4>(cell_flat_index_unpadded));
+                tmpstore[5].store(potential_expansions_SoA.pointer<5>(cell_flat_index_unpadded));
+                tmpstore[6].store(potential_expansions_SoA.pointer<6>(cell_flat_index_unpadded));
+                tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
+                tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
+                tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
                 tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
                 tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
                 tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
                 tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
                 tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
                 tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
                 tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
                 tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
                 tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
                 tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded),
-                    Vc::Aligned);
+                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
             }
         }
     }    // namespace multipole_interactions

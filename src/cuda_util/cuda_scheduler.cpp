@@ -115,16 +115,19 @@ namespace fmm {
                 for (size_t gpu_id = 0; gpu_id < gpu_count; gpu_id++) {
                     util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
                     // Setting shared memory to the right (double) memory bank configuration
-                    cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+                    //cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+                    std::cerr << "going in" << std::endl;
                     monopole_interactions::copy_stencil_to_p2p_constant_memory(stencil_masks.get(),
                                                                                full_stencil_size);
+                    std::cerr << "going out/in" << std::endl;
                     monopole_interactions::copy_constants_to_p2p_constant_memory(four_constants_tmp.get(),
                                                                                  4 * full_stencil_size);
-                    multipole_interactions::
-                        copy_stencil_to_m2m_constant_memory(multipole_stencil_masks.get(), full_stencil_size);
-                    multipole_interactions::
-                        copy_indicator_to_m2m_constant_memory(multipole_inner_stencil_masks.get(),
-                                                              full_stencil_size);
+                    std::cerr << "going out" << std::endl;
+                    // multipole_interactions::
+                    //     copy_stencil_to_m2m_constant_memory(multipole_stencil_masks.get(), full_stencil_size);
+                    // multipole_interactions::
+                    //     copy_indicator_to_m2m_constant_memory(multipole_inner_stencil_masks.get(),
+                    //                                           full_stencil_size);
                 }
             }
 
