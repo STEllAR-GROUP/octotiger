@@ -8,17 +8,17 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
         // __constant__ octotiger::fmm::multiindex<> device_stencil_const[P2P_PADDED_STENCIL_SIZE];
-        __constant__ double device_stencil_masks[FULL_STENCIL_SIZE];
+        __constant__ float device_stencil_masks[FULL_STENCIL_SIZE];
         __constant__ double device_four_constants[FULL_STENCIL_SIZE * 4];
 
-        void copy_stencil_to_p2p_constant_memory(const double *stencil_masks, const size_t full_stencil_size) {
+        __host__ void copy_stencil_to_p2p_constant_memory(const float *stencil_masks, const size_t full_stencil_size) {
             cudaError_t err = cudaMemcpyToSymbol(device_stencil_masks, stencil_masks, full_stencil_size);
             if (err != cudaSuccess) {
                 std::stringstream temp;
                 throw std::runtime_error(temp.str());
             }
         }
-        void copy_constants_to_p2p_constant_memory(const double *constants, const size_t constants_size) {
+        __host__ void copy_constants_to_p2p_constant_memory(const double *constants, const size_t constants_size) {
             cudaError_t err = cudaMemcpyToSymbol(device_four_constants, constants, constants_size);
             if (err != cudaSuccess) {
                 std::stringstream temp;

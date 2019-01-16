@@ -6,9 +6,9 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        __constant__ double device_stencil_indicator_const[FULL_STENCIL_SIZE];
-        __constant__ double device_stencil_masks[FULL_STENCIL_SIZE];
-        void copy_stencil_to_m2m_constant_memory(const double *stencil_masks, const size_t full_stencil_size) {
+        __constant__ float device_stencil_indicator_const[FULL_STENCIL_SIZE];
+        __constant__ float device_stencil_masks[FULL_STENCIL_SIZE];
+        void copy_stencil_to_m2m_constant_memory(const float *stencil_masks, const size_t full_stencil_size) {
             cudaError_t err = cudaMemcpyToSymbol(device_stencil_masks, stencil_masks, full_stencil_size);
             if (err != cudaSuccess) {
                 std::stringstream temp;
@@ -16,7 +16,7 @@ namespace fmm {
                 throw std::runtime_error(temp.str());
             }
         }
-        void copy_indicator_to_m2m_constant_memory(const double *indicator, const size_t indicator_size) {
+        void copy_indicator_to_m2m_constant_memory(const float *indicator, const size_t indicator_size) {
             cudaError_t err = cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
             if (err != cudaSuccess) {
                 std::stringstream temp;

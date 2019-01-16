@@ -78,7 +78,7 @@ namespace fmm {
             auto p2p_stencil_mask_pair = monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
             auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
             auto p2p_four_constants = p2p_stencil_mask_pair.second;
-            std::unique_ptr<real[]> stencil_masks = std::make_unique<real[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<float[]> stencil_masks = std::make_unique<float[]>(FULL_STENCIL_SIZE);
             std::unique_ptr<real[]> four_constants_tmp = std::make_unique<real[]>(4 * FULL_STENCIL_SIZE);
             for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
                 four_constants_tmp[i * 4 + 0] = p2p_four_constants[i][0];
@@ -97,8 +97,8 @@ namespace fmm {
                 multipole_interactions::calculate_stencil_masks(stencil);
             auto multipole_stencil = multipole_stencil_pair.first;
             auto multipole_inner_stencil = multipole_stencil_pair.second;
-            std::unique_ptr<real[]> multipole_stencil_masks = std::make_unique<real[]>(FULL_STENCIL_SIZE);
-            std::unique_ptr<real[]> multipole_inner_stencil_masks = std::make_unique<real[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<float[]> multipole_stencil_masks = std::make_unique<float[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<float[]> multipole_inner_stencil_masks = std::make_unique<float[]>(FULL_STENCIL_SIZE);
             for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
                 if (multipole_inner_stencil[i])
                     multipole_inner_stencil_masks[i] = 1.0;
@@ -116,18 +116,15 @@ namespace fmm {
                     util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
                     // Setting shared memory to the right (double) memory bank configuration
                     //cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-                    std::cerr << "going in" << std::endl;
                     monopole_interactions::copy_stencil_to_p2p_constant_memory(stencil_masks.get(),
-                                                                               full_stencil_size);
-                    std::cerr << "going out/in" << std::endl;
+                                                                               full_stencil_size/2);
                     monopole_interactions::copy_constants_to_p2p_constant_memory(four_constants_tmp.get(),
                                                                                  4 * full_stencil_size);
-                    std::cerr << "going out" << std::endl;
-                    // multipole_interactions::
-                    //     copy_stencil_to_m2m_constant_memory(multipole_stencil_masks.get(), full_stencil_size);
-                    // multipole_interactions::
-                    //     copy_indicator_to_m2m_constant_memory(multipole_inner_stencil_masks.get(),
-                    //                                           full_stencil_size);
+                    multipole_interactions::
+                        copy_stencil_to_m2m_constant_memory(multipole_stencil_masks.get(), full_stencil_size/2);
+                    multipole_interactions::
+                        copy_indicator_to_m2m_constant_memory(multipole_inner_stencil_masks.get(),
+                                                              full_stencil_size/2);
                 }
             }
 

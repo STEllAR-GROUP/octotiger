@@ -31,7 +31,7 @@ if (OCTOTIGER_WITH_CUDA)
   find_package(CUDA  REQUIRED)
   include_directories("${CUDA_INCLUDE_DIRS}")
   link_directories(${CUDA_CUBLAS_LIBRARIES})
-  string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
+  string(APPEND HPX_CUDA_CLANG_FLAGS " -arch=sm_61")
   string(APPEND CMAKE_CUDA_FLAGS " -arch=sm_61 --ptxas-options=-v -rdc=true")
 endif()
 
