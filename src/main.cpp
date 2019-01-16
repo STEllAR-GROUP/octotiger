@@ -36,7 +36,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	options::all_localities = localities;
 	opts() = _opts;
 	grid::get_omega() = opts().omega;
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) && !defined(__APPLE__)
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);

@@ -10,7 +10,7 @@ project(octotiger CXX)
 cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0015 NEW)
 cmake_policy(SET CMP0003 NEW)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 ################################################################################
 # options
 ################################################################################
@@ -169,7 +169,7 @@ add_hpx_executable(
     ${header_files}
 )
 
-target_include_directories(octotiger PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 
 if(MSVC)
   # Enable solution folders for MSVC
