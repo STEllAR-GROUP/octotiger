@@ -21,7 +21,7 @@ U temperature(U rho, U e, U mmw) {
 template<class U>
 U kappa_R(U rho, U e, U mmw, real X, real Z) {
 	if (opts().problem == MARSHAK) {
-		return rho * 1.0e+1;
+		return 1.0e+2;
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U f1 = (T * T + U(2.7e+11) * rho);
@@ -36,7 +36,7 @@ U kappa_R(U rho, U e, U mmw, real X, real Z) {
 template<class U>
 U kappa_p(U rho, U e, U mmw, real X, real Z) {
 	if (opts().problem == MARSHAK) {
-		return rho * 1.0e+1;
+		return 1.0e+2;
 	} else {
 		const U T = temperature(rho, e, mmw);
 		const U k_ff_bf = U(30.262) * U(4.0e+25) * (U(1) + X) * (Z + U(0.0001)) * rho * POWER(SQRT(INVERSE(T)), U(7));

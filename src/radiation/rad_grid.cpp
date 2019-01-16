@@ -18,7 +18,6 @@
 #include <unordered_map>
 #include <vector>
 
-//#define IMPLICIT_OFF
 
 integer rindex(integer x, integer y, integer z) {
 	return z + R_NX * (y + R_NX * x);
@@ -368,16 +367,18 @@ void node_server::compute_radiation(real dt) {
 			printf("rad sub-step %i of %i\r", int(i + 1), int(nsteps));
 			fflush(stdout);
 		}
+
 		rgrid->store();
 		all_rad_bounds();
 		rgrid->compute_flux();
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(this_dt, 1.0);
-		rgrid->store();
-		all_rad_bounds();
+
+	/*	all_rad_bounds();
 		rgrid->compute_flux();
 		GET(exchange_rad_flux_corrections());
-		rgrid->advance(this_dt, 0.5);
+		rgrid->advance(this_dt, 0.5);*/
+
 		if( opts().rad_implicit) {
 			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, this_dt);
 		}
@@ -635,7 +636,7 @@ void rad_grid::advance(real dt, real beta) {
 	}
 }
 
-void rad_grid::set_physical_boundaries(geo::face face) {
+void rad_grid::set_physical_boundaries(geo::face face, real t) {
 	for (integer i = 0; i != R_NX; ++i) {
 		for (integer j = 0; j != R_NX; ++j) {
 			for (integer k = 0; k != R_BW; ++k) {
@@ -672,8 +673,14 @@ void rad_grid::set_physical_boundaries(geo::face face) {
 				switch (face) {
 				case 0:
 					if( opts().problem == MARSHAK ) {
-						U[fx_i][iii1] = physcon().c;
-						U[er_i][iii1] = 1.0;
+						if( t > 0 ) {
+							auto u = marshak_wave_analytic(-opts().xscale,0,0,t);
+							U[fx_i][iii1] = u[opts().n_fields + fx_i];
+							U[er_i][iii1] = std::max(u[opts().n_fields + er_i],1.0e-10);
+						} else {
+							U[fx_i][iii1] = 0.0;
+							U[er_i][iii1] = 1.0e-10;
+						}
 					} else {
 						U[fx_i][iii1] = std::min(U[fx_i][iii1], 0.0);
 					}
@@ -945,7 +952,7 @@ void node_server::collect_radiation_bounds() {
 
 	for (auto& face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
-			rad_grid_ptr->set_physical_boundaries(face);
+			rad_grid_ptr->set_physical_boundaries(face,current_time);
 		}
 	}
 }

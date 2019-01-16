@@ -87,7 +87,7 @@ public:
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);
 	rad_type get_field(integer f, integer i, integer j, integer k) const;
 	void set_field(rad_type v, integer f, integer i, integer j, integer k);
-	void set_physical_boundaries(geo::face f);
+	void set_physical_boundaries(geo::face f, real t);
 	std::vector<real> get_boundary(const geo::direction& dir);
 	using kappa_type = std::function<real(real)>;
 
