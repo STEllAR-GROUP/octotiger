@@ -10,7 +10,7 @@ project(octotiger CXX)
 cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0015 NEW)
 cmake_policy(SET CMP0003 NEW)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 ################################################################################
 # options
 ################################################################################
@@ -24,15 +24,8 @@ option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(Silo REQUIRED)
-find_package(HDF5 REQUIRED)
 find_package(Vc REQUIRED)
 find_package(Boost REQUIRED)
-
-add_library(octotiger::hdf5 INTERFACE IMPORTED)
-set_property(TARGET octotiger::hdf5
-  PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS})
-set_property(TARGET octotiger::hdf5
-  PROPERTY INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
 
 if(OCTOTIGER_WITH_CUDA)
   enable_language(CUDA)
@@ -176,7 +169,7 @@ add_hpx_executable(
     ${header_files}
 )
 
-target_include_directories(octotiger PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 
 if(MSVC)
   # Enable solution folders for MSVC
@@ -201,7 +194,7 @@ if(MSVC)
 
   target_compile_options(octotiger PRIVATE /EHsc)
 else()
-  target_link_libraries(octotiger octotiger::hdf5 dl z quadmath)
+  target_link_libraries(octotiger quadmath)
   
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     target_compile_options(octotiger PRIVATE
@@ -249,8 +242,6 @@ endif()
 add_executable(silo_compare src/compare/compare.cpp)
 
 target_link_libraries(silo_compare Silo::silo)
-if(NOT MSVC)
-  target_link_libraries(silo_compare octotiger::hdf5 z dl pthread)
-else()
+if(MSVC)
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()

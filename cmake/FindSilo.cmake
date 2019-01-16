@@ -64,6 +64,18 @@
 # Silo_INCLUDE_PATH, for CMake backward compatibility
 
 if(NOT MSVC)
+  # HDF5 is needed for linking on non-MSVC builds
+  find_package(HDF5 REQUIRED)
+  find_package(ZLIB REQUIRED)
+  find_package(Threads REQUIRED)
+
+  add_library(octotiger::hdf5 INTERFACE IMPORTED)
+  set_property(TARGET octotiger::hdf5
+    PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS})
+  set_property(TARGET octotiger::hdf5
+    PROPERTY INTERFACE_LINK_LIBRARIES
+    ${HDF5_LIBRARIES} ZLIB::ZLIB dl Threads::Threads)
+  
   find_path(Silo_INCLUDE_DIR silo.h
     PATHS /usr/local/include
     /usr/include
@@ -114,4 +126,9 @@ if(Silo_FOUND AND NOT TARGET Silo::silo)
     PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${Silo_INCLUDE_DIR})
   set_property(TARGET Silo::silo
     PROPERTY INTERFACE_LINK_LIBRARIES ${Silo_LIBRARY})
+endif()
+
+if(NOT MSVC)
+  set_property(TARGET Silo::silo
+    APPEND PROPERTY INTERFACE_LINK_LIBRARIES octotiger::hdf5)
 endif()
