@@ -1,7 +1,7 @@
 #ifdef OCTOTIGER_HAVE_CUDA
-#include "octotiger/multipole_inteactions/cuda_multipole_interaction_interface.hpp"
-#include "octotiger/multipole_inteactions/calculate_stencil.hpp"
-#include "octotiger/multipole_inteactions/multipole_cuda_kernel.hpp"
+#include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/calculate_stencil.hpp"
+#include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
 
 #include "octotiger/options.hpp"
 
