@@ -23,7 +23,7 @@
 #include <cmath>
 //#include "f2c.h"
 
-#ifndef _MSC_VER
+#if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>
 using sed_real = __float128;
 

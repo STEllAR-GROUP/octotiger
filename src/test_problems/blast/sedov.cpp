@@ -10,7 +10,7 @@
 #include <vector>
 
 
-#ifndef _MSC_VER
+#if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>
 using sed_real = __float128;
 #else
@@ -94,7 +94,7 @@ void solution(real time, real r, real rmax, real& d, real& v, real& p) {
 		vel[1] = -vel[2];
 		cs[1] = cs[2];
 
-#ifdef _MSC_VER
+#if defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 		std::transform(den.begin(), den.end(), den1.begin(),
 			[](sed_real v) { return v.convert_to<double>(); });
 		std::transform(vel.begin(), vel.end(), vel1.begin(),

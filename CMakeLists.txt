@@ -18,6 +18,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
+option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
+  "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 
 ################################################################################
 # Find required packages
@@ -193,9 +195,12 @@ if(MSVC)
     /wd4996)
 
   target_compile_options(octotiger PRIVATE /EHsc)
+
+  if(NOT OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+    message(WARNING "GCC Quad-Precision Math Library is not available with "
+    "MSVC. Consider setting OCTOTIGER_WITH_BOOST_MULTIPRECISION to ON")
+  endif()
 else()
-  target_link_libraries(octotiger quadmath)
-  
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     target_compile_options(octotiger PRIVATE
       -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
@@ -205,6 +210,12 @@ else()
       #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
       target_compile_options(octotiger -Wno-attributes -Wno-deprecated)
   endif()
+endif()
+
+if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
+else()
+  target_link_libraries(octotiger quadmath)
 endif()
 
 if(USE_AVX2)
