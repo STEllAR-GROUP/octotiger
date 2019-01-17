@@ -116,7 +116,7 @@ namespace fmm {
                     util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
                     // Setting shared memory to the right (double) memory bank configuration
                     //cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-                    monopole_interactions::copy_stencil_to_p2p_constant_memory(stencil_masks.get(),
+/*                    monopole_interactions::copy_stencil_to_p2p_constant_memory(stencil_masks.get(),
                                                                                full_stencil_size/2);
                     monopole_interactions::copy_constants_to_p2p_constant_memory(four_constants_tmp.get(),
                                                                                  4 * full_stencil_size);
@@ -124,7 +124,12 @@ namespace fmm {
                         copy_stencil_to_m2m_constant_memory(multipole_stencil_masks.get(), full_stencil_size/2);
                     multipole_interactions::
                         copy_indicator_to_m2m_constant_memory(multipole_inner_stencil_masks.get(),
-                                                              full_stencil_size/2);
+                                                              full_stencil_size/2);*/
+             cudaMemcpyToSymbol(multipole_interactions::device_constant_stencil_masks, multipole_stencil_masks.get(), full_stencil_size/2);
+             cudaMemcpyToSymbol(multipole_interactions::device_stencil_indicator_const, multipole_inner_stencil_masks.get(), full_stencil_size/2);
+             cudaMemcpyToSymbol(monopole_interactions::device_stencil_masks, multipole_stencil_masks.get(), full_stencil_size/2);
+             cudaMemcpyToSymbol(monopole_interactions::device_four_constants, four_constants_tmp.get(), full_stencil_size * 4);
+
                 }
             }
 

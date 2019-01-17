@@ -31,8 +31,8 @@ if (OCTOTIGER_WITH_CUDA)
   find_package(CUDA  REQUIRED)
   include_directories("${CUDA_INCLUDE_DIRS}")
   link_directories(${CUDA_CUBLAS_LIBRARIES})
-  string(APPEND HPX_CUDA_CLANG_FLAGS " -arch=sm_61")
-  string(APPEND CMAKE_CUDA_FLAGS " -arch=sm_61 --ptxas-options=-v -rdc=true")
+  string(APPEND HPX_CUDA_CLANG_FLAGS " -arch=sm_70")
+  string(APPEND CMAKE_CUDA_FLAGS " -arch=sm_70 --ptxas-options=-v -rdc=true")
 endif()
 
 include_directories(${HPX_INCLUDE_DIRS})
@@ -141,7 +141,7 @@ set(source_files ${source_files}
 )
 
 
-#SET(CUDA_SEPARABLE_COMPILATION ON)
+SET(CUDA_SEPARABLE_COMPILATION ON)
 CUDA_COMPILE(CUDAP2P src/monopole_interactions/p2p_cuda_kernel.cu)
 CUDA_COMPILE(CUDAMP  src/multipole_interactions/multipole_cuda_kernel.cu)
 
@@ -220,8 +220,12 @@ add_hpx_executable(
     ${CUDAMP}
   HEADERS
     ${header_files}
+  PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    POSITION_INDEPENDENT_CODE ON
   FOLDER  "Octotiger"
 )
+target_compile_features(octotiger PUBLIC cxx_std_14)
 
 if (OCTOTIGER_WITH_SILO)
 add_hpx_executable(
