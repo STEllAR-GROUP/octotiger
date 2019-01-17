@@ -38,7 +38,7 @@ void rad_grid::static_init() {
 }
 
 std::vector<std::string> rad_grid::get_field_names() {
-	std::vector < std::string > rc;
+	std::vector<std::string> rc;
 	for (auto i : str_to_index) {
 		rc.push_back(i.first);
 	}
@@ -359,8 +359,14 @@ void node_server::compute_radiation(real dt) {
 		rgrid->sanity_check();
 		if (my_location.level() == 0) {
 			printf("rad sub-step %i of %i\r", int(i + 1), int(nsteps));
-			fflush (stdout);
+			fflush(stdout);
 		}
+
+
+		if (opts().rad_implicit) {
+			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5*this_dt);
+		}
+
 
 		rgrid->store();
 		all_rad_bounds();
@@ -368,14 +374,16 @@ void node_server::compute_radiation(real dt) {
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(this_dt, 1.0);
 
-		/*	all_rad_bounds();
-		 rgrid->compute_flux();
-		 GET(exchange_rad_flux_corrections());
-		 rgrid->advance(this_dt, 0.5);*/
+		all_rad_bounds();
+		rgrid->compute_flux();
+		GET(exchange_rad_flux_corrections());
+		rgrid->advance(this_dt, 0.5);
+
 
 		if (opts().rad_implicit) {
-			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, this_dt);
+			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5*this_dt);
 		}
+
 	}
 	rgrid->sanity_check();
 	all_rad_bounds();
@@ -456,7 +464,7 @@ void rad_grid::reconstruct(std::array<std::vector<rad_type>, NRF>& UL, std::arra
 			}
 		}
 	}
-	for (int f = er_i; f < NRF; f++) {
+	for (int f = fx_i; f < NRF; f++) {
 		for (int i = 0; i < R_N3; i++) {
 			UR[f][i] *= UR[er_i][i];
 			UL[f][i] *= UL[er_i][i];
@@ -625,7 +633,7 @@ void rad_grid::compute_flux() {
 
 	const integer D[3] = { DX, DY, DZ };
 	for (int face_dim = 0; face_dim < NDIM; face_dim++) {
-		reconstruct(UL,UR,face_dim);
+		reconstruct(UL, UR, face_dim);
 		for (integer l = R_BW; l != R_NX - R_BW + (face_dim == XDIM ? 1 : 0); ++l) {
 			for (integer j = R_BW; j != R_NX - R_BW + (face_dim == YDIM ? 1 : 0); ++j) {
 				for (integer k = R_BW; k != R_NX - R_BW + (face_dim == ZDIM ? 1 : 0); ++k) {
@@ -638,7 +646,13 @@ void rad_grid::compute_flux() {
 						f_m[d] = UL[fx_i + d][i];
 						f_p[d] = UR[fx_i + d][i];
 					}
-					const auto P_p = compute_p2(er_p, f_p[0], f_p[1], f_p[2]);
+//					const hiprec er_m = U[er_i][i-D[face_dim]];
+//					const hiprec er_p = U[er_i][i];
+//					for (integer d = 0; d != NDIM; ++d) {
+//						f_m[d] = U[fx_i + d][i-D[face_dim]];
+//						f_p[d] = U[fx_i + d][i];
+//					}
+				const auto P_p = compute_p2(er_p, f_p[0], f_p[1], f_p[2]);
 					const auto P_m = compute_p2(er_m, f_m[0], f_m[1], f_m[2]);
 
 					hiprec mu_m = _0;

@@ -21,7 +21,7 @@
 #define MIN_DEPTH 10
 
 static constexpr double eps = 16.0;
-static constexpr double kappa = 1.0e+2;
+static constexpr double kappa = MARSHAK_OPAC;
 static constexpr double c = 1.0;
 static constexpr double toler = 1.0e-10;
 
