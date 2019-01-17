@@ -337,7 +337,7 @@ void node_server::compute_radiation(real dt) {
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
 	const real clight = physcon().c;
-	const real max_dt = min_dx / clight * 0.4 / std::sqrt(3);
+	const real max_dt = min_dx / clight * 0.5 / std::sqrt(3);
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
 		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
@@ -403,7 +403,7 @@ void rad_grid::reconstruct(std::array<std::vector<rad_type>, NRF>& UL, std::arra
 		UL[f].resize(R_N3);
 		if (f > 0) {
 			for (int i = 0; i < R_N3; i++) {
-				U[f][i] /= U[er_i][i];
+				U[f][i] = U[f][i] * INVERSE(U[er_i][i]);
 			}
 		}
 	}
@@ -411,8 +411,8 @@ void rad_grid::reconstruct(std::array<std::vector<rad_type>, NRF>& UL, std::arra
 	int ub1[NDIM] = { R_NX - R_BW, R_NX - R_BW, R_NX - R_BW };
 	int ub2[NDIM] = { R_NX - R_BW, R_NX - R_BW, R_NX - R_BW };
 	lb1[dir] = 1;
-	ub1[dir] = R_NX;
-	ub2[dir] = R_NX - 1;
+	ub1[dir] = R_NX - 1;
+	ub2[dir] = R_NX - 2;
 	const integer D[3] = { DX, DY, DZ };
 	const integer d = D[dir];
 	for (int f = 0; f < NRF; f++) {
@@ -630,6 +630,7 @@ void rad_grid::compute_flux() {
 
 	std::array<std::vector<rad_type>, NRF> UL;
 	std::array<std::vector<rad_type>, NRF> UR;
+
 
 	const integer D[3] = { DX, DY, DZ };
 	for (int face_dim = 0; face_dim < NDIM; face_dim++) {
