@@ -20,7 +20,7 @@
 #include <unordered_map>
 #include <vector>
 
-#define R_BW 2
+#define R_BW 3
 #define R_NX (INX+2*R_BW)
 #define R_N3 (R_NX*R_NX*R_NX)
 
@@ -46,6 +46,7 @@ private:
 	std::vector<std::vector<real>> X;
 	std::vector<real> mmw, X_spc, Z_spc;
 	static std::array<std::array<real,NDIM>,NDIM> compute_p( real E, real Fx, real Fy, real Fz);
+	void reconstruct(std::array<std::vector<rad_type>, NRF>&,std::array<std::vector<rad_type>, NRF>&,int dir);
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
