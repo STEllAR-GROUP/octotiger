@@ -24,7 +24,7 @@
 #define R_NX (INX+2*R_BW)
 #define R_N3 (R_NX*R_NX*R_NX)
 
-typedef real rad_type;
+typedef real real;
 
 class rad_grid {
 public:
@@ -39,14 +39,13 @@ private:
 	static std::unordered_map<std::string, int> str_to_index;
 	static std::unordered_map<int, std::string> index_to_str;
 	real dx;
-	std::array<std::vector<rad_type>, NRF> U;
-	std::array<std::vector<rad_type>, NRF> U0;
-	std::array<std::array<std::vector<rad_type>, NRF>,NDIM> flux;
-	std::array<std::array<std::vector<rad_type>*, NDIM>, NDIM> P;
+	std::array<std::vector<real>, NRF> U;
+	std::array<std::vector<real>, NRF> U0;
+	std::array<std::array<std::vector<real>, NRF>,NDIM> flux;
+	std::array<std::array<std::vector<real>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
 	std::vector<real> mmw, X_spc, Z_spc;
-	static std::array<std::array<real,NDIM>,NDIM> compute_p( real E, real Fx, real Fy, real Fz);
-	void reconstruct(std::array<std::vector<rad_type>, NRF>&,std::array<std::vector<rad_type>, NRF>&,int dir);
+	void reconstruct(std::array<std::vector<real>, NRF>&,std::array<std::vector<real>, NRF>&,int dir);
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
@@ -55,8 +54,6 @@ public:
 	void set_X( const std::vector<std::vector<real>>& x );
 	void restore();
 	void store();
-	std::size_t load(std::istream& strm);
-	std::size_t save(std::ostream& strm) const;
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
@@ -78,16 +75,16 @@ public:
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 	void set_prolong(const std::vector<real>&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
-	void set_flux_restrict(const std::vector<rad_type>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
+	void set_flux_restrict(const std::vector<real>& data, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension& dim);
-	std::vector<rad_type> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const;
-	std::vector<rad_type> get_intensity(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
+	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::dimension& dim) const;
+	std::vector<real> get_intensity(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, const geo::octant&);
 	void allocate();
 	rad_grid(real dx);
 	rad_grid();
 	void set_boundary(const std::vector<real>& data, const geo::direction& dir);
-	rad_type get_field(integer f, integer i, integer j, integer k) const;
-	void set_field(rad_type v, integer f, integer i, integer j, integer k);
+	real get_field(integer f, integer i, integer j, integer k) const;
+	void set_field(real v, integer f, integer i, integer j, integer k);
 	void set_physical_boundaries(geo::face f, real t);
 	std::vector<real> get_boundary(const geo::direction& dir);
 	using kappa_type = std::function<real(real)>;

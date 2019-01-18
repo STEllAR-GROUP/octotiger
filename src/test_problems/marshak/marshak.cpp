@@ -79,7 +79,7 @@ double marshak_du(double x, double t, double eps) {
 			const double t2 = std::acos(std::sqrt(3.0 / (3.0 + 4.0 * g2_2)));
 			const double num1 = std::cos(x * std::sqrt(g2_1) + t1)* std::sqrt(g2_1);
 			const double den1 = eta * std::sqrt(3.0 + 4.0 * g2_1);
-			const double num2 = std::cos(x * std::sqrt(g2_2) + t2)*std::sqrt(g2_2);
+			const double num2 = std::cos(x * std::sqrt(g2_2) + t2) * std::sqrt(g2_2);
 			const double den2 = eta * std::sqrt(3.0 + 4.0 * g2_2)
 			* (1.0 + eps * eta);
 			const double exp1 = std::exp(-t * eta * eta);

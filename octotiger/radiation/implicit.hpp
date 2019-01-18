@@ -18,7 +18,8 @@
 #include <limits>
 #include <utility>
 
-std::pair<real,space_vector> implicit_radiation_step_2nd_order(real E0, real& e0, const space_vector& F0, const space_vector& u0, real rho, real mmw, real X, real Z,  real dt);
+std::pair<real, space_vector> implicit_radiation_step(real E0, real& e0, space_vector F0,
+		space_vector u0, real rho, real mmw, real X, real Z, real dt);
 
 
 template<class T>
