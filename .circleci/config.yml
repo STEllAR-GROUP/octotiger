@@ -40,6 +40,18 @@ jobs:
                 paths:
                     - octotiger/build
 
+    test_marshak:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+                name: marshak
+                working_directory: /octotiger/test_problems/marshak
+                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+
     test_blast:
         <<: *docker_config
         steps:
@@ -100,6 +112,9 @@ workflows:
     build_and_test:
         jobs:
             - build
+            - test_marshak:
+                requires:
+                    - build
             - test_blast:
                 requires:
                     - build
