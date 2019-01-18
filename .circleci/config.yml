@@ -112,6 +112,9 @@ workflows:
     build_and_test:
         jobs:
             - build
+            - test_marshak:
+                requires:
+                    - build
             - test_blast:
                 requires:
                     - build
