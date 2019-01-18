@@ -20,7 +20,7 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
-            if (slot == -1) {    // Run fkernel_scheduler::allback cpu implementation
+            if (slot == -1 || p2p_type == interaction_kernel_type::OLD) {    // Run cpu implementation
                 // std::cout << "Running cpu fallback" << std::endl;
                 p2p_interaction_interface::compute_p2p_interactions(
                     monopoles, neighbors, type, dx, is_direction_empty);
@@ -40,17 +40,20 @@ namespace fmm {
                     cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                const dim3 grid_spec(3);
-                const dim3 threads_per_block(8, 8, 8);
+                // const dim3 grid_spec(3);
+                const dim3 grid_spec(INX, 1, 1);
+                const dim3 threads_per_block(1, INX, INX);
+                // void* args[] = {&(env.device_local_monopoles), &(env.device_blocked_monopoles),
+                //                 &theta, &dx};
                 void* args[] = {&(env.device_local_monopoles), &(env.device_blocked_monopoles),
-                                &(env.device_stencil), &(env.device_four_constants),&theta, &dx};
+                                &theta, &dx};
                 gpu_interface.execute(
-                    &cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
-                void* sum_args[] = {&(env.device_blocked_monopoles)};
-                const dim3 sum_spec(1);
-                const dim3 threads(512);
-                gpu_interface.execute(
-                    &cuda_add_pot_blocks, sum_spec, threads, sum_args, 0);
+                    (const void*)&cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
+                // void* sum_args[] = {&(env.device_blocked_monopoles)};
+                // const dim3 sum_spec(1);
+                // const dim3 threads(512);
+                // gpu_interface.execute(
+                //     &cuda_add_pot_blocks, sum_spec, threads, sum_args, 0);
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     env.device_blocked_monopoles, potential_expansions_small_size,
                     cudaMemcpyDeviceToHost);

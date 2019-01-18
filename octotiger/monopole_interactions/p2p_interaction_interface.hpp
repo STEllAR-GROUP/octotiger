@@ -82,14 +82,21 @@ namespace fmm {
                 } else {
                     if (neighbor.is_monopole) {
                         if (!neighbor.data.m) {
-                            iterate_inner_cells_padding(dir,
-                                [&local_monopoles](const multiindex<>& i, const size_t flat_index,
-                                                            const multiindex<>&, const size_t) {
-                                    // initializes whole expansion, relatively expansion
-                                    local_monopoles.at(flat_index) = 0.0;
-                                });
                             neighbor_empty_monopoles[dir.flat_index_with_center()] = true;
+                            iterate_inner_cells_padding(
+                                dir, [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles]
+                                (const multiindex<>& i, const size_t flat_index,
+                                    const multiindex<>&,
+                                    const size_t) {
+                                local_expansions_SoA.set_AoS_value(
+                                    std::move(expansion()), flat_index);
+                                center_of_masses_SoA.set_AoS_value(
+                                    std::move(space_vector()), flat_index);
+                                local_monopoles.at(flat_index) = 0.0;
+                            });
                         } else {
+                            multipole_neighbors_exist = true;
+                            x_skip[z][y][x] = false;
                             std::vector<real>& neighbor_mons = *(neighbor.data.m);
                             const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
                             if (fullsizes) {
@@ -103,12 +110,16 @@ namespace fmm {
                                     });
                             } else {
                                 iterate_inner_cells_padding(
-                                    dir, [&local_monopoles](const multiindex<>& i,
-                                             const size_t flat_index, const multiindex<>&,
-                                             const size_t) {
-                                        // initializes whole expansion, relatively expansion
-                                        local_monopoles.at(flat_index) = 0.0;
-                                    });
+                                dir, [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles]
+                                (const multiindex<>& i, const size_t flat_index,
+                                                        const multiindex<>&,
+                                                        const size_t) {
+                                    local_expansions_SoA.set_AoS_value(
+                                        std::move(expansion()), flat_index);
+                                    center_of_masses_SoA.set_AoS_value(
+                                        std::move(space_vector()), flat_index);
+                                    local_monopoles.at(flat_index) = 0.0;
+                                });
                                 auto list = grid_ptr->get_ilist_n_bnd(dir);
                                 size_t counter = 0;
                                 for (auto i : list) {

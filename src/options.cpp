@@ -79,7 +79,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("donor_refine", po::value < integer > (&(opts().donor_refine))->default_value(0), "number of extra levels for donor")      //
 	("ngrids", po::value < integer > (&(opts().ngrids))->default_value(-1), "fix numbger of grids")                             //
 	("refinement_floor", po::value < real > (&(opts().refinement_floor))->default_value(1.0e-3), "density refinement floor")      //
-	("theta", po::value < real > (&(opts().theta))->default_value(0.5),
+	("theta", po::value < real > (&(opts().theta))->default_value(0.35),
 			"controls nearness determination for FMM, must be between 1/3 and 1/2")                                           //
 	("eos", po::value < eos_type > (&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
@@ -106,8 +106,10 @@ bool options::process_options(int argc, char* argv[]) {
 			"boundary particle-particle kernel type")   //
 	("p2m_kernel_type", po::value < interaction_kernel_type > (&(opts().p2m_kernel_type))->default_value(OLD),
 			"boundary particle-multipole kernel type")  //
-	("cuda_streams_per_thread", po::value < size_t > (&(opts().cuda_streams_per_thread))->default_value(size_t(2)),
-			"cuda streams per thread") //
+	("cuda_streams_per_locality", po::value<size_t>(&(opts().cuda_streams_per_locality))->default_value(size_t(0)),
+			"cuda streams per HPX locality") //
+	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)),
+			"cuda streams per GPU (per locality)") //
 	("input_file", po::value < std::string > (&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value < std::string > (&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value <integer > (&(opts().n_species))->default_value(1), "number of mass species") //
@@ -123,6 +125,10 @@ bool options::process_options(int argc, char* argv[]) {
 	boost::program_options::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, command_opts), vm);
 	po::notify(vm);
+	if (vm.count("help")) {
+		std::cout << command_opts << "\n";
+		return 1;
+	}
 	if (!config_file.empty()) {
 		std::ifstream ifs { vm["config_file"].as<std::string>().c_str() };
 		if (ifs) {
@@ -188,7 +194,8 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(stop_time);
 		SHOW(theta);
 		SHOW(xscale);
-		SHOW(cuda_streams_per_thread);
+		SHOW(cuda_streams_per_locality);
+		SHOW(cuda_streams_per_gpu);
 		SHOW(config_file);
 		SHOW(data_dir);
 		SHOW(input_file);
