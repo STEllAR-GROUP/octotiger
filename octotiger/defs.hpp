@@ -14,6 +14,9 @@
 #include <cstddef>
 #include <iostream>
 
+
+
+#define MARSHAK_OPAC 1.0e+2
 //#define OCTOTIGER_RESTART_LOAD_SEQ
 
 //#define OCTOTIGER_USE_NODE_CACHE

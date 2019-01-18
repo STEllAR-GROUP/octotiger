@@ -272,12 +272,12 @@ public:
 	void run_scf(std::string const& data_dir);
 
 private:
-	struct sibling_rad_type {
-		std::vector<rad_type> data;
+	struct sibling_real {
+		std::vector<real> data;
 		geo::direction direction;
 	};
 
-	std::array<unordered_channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
+	std::array<unordered_channel<sibling_real>, geo::direction::count()> sibling_rad_channels;
 	std::array<unordered_channel<std::vector<real>>, NCHILD> child_rad_channels;
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
@@ -292,7 +292,7 @@ public:
 	void recv_rad_flux_correct(std::vector<real>&&, const geo::face& face, const geo::octant& ci);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_flux_correct, send_rad_flux_correct_action);
 
-	void recv_rad_boundary(std::vector<rad_type>&&, const geo::direction&, std::size_t cycle);/**/
+	void recv_rad_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_rad_boundary, send_rad_boundary_action);
 
 	void recv_rad_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);/**/

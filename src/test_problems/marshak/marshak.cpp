@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------
  Laplace Inversion Source Code
- Copyright © 2010 James R. Craig, University of Waterloo
+ Copyright ï¿½ 2010 James R. Craig, University of Waterloo
  ----------------------------------------------------------------*/
 
 #ifndef TESTME
@@ -13,246 +13,176 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <unordered_map>
 
-typedef std::complex<double> cmplex;
-
-const double PI = 3.141592653589793238462643;      // pi
-const int MAX_LAPORDER = 60;
-
-int test_case = 1;
-inline void upperswap(double &u, const double v) {
-	if (v > u) {
-		u = v;
-	}
-}
-
-/***********************************************************************
- LaplaceInversion
- ************************************************************************
- Returns Inverse Laplace transform f(t) of function F(s),
- where s is complex, evaluated at time t
-
- f(t) = 1/2*PI*i \intfrmto{gamma-i\infty}{gamma+i\infty} exp(st)*F(s) ds
-
- Based upon De Hoog et al., 1982, An improved method for numerical inversion of
- Laplace transforms, SIAM J. Sci. Stat. Comput.
-
- Speed of algorithm is primarily a function of M, the order of the
- Taylor series expansion.
-
- Inputs: F(s), a function pointer to some complex function of a single
- complex variable
- t is the desired time of evaluation of f(t)
- tolerance is the required accuracy of f(t)
- -----------------------------------------------------------------------*/
-double LaplaceInversion(const std::function<cmplex(const cmplex &s)>& F, const double &t, const double tolerance) {
-
-	static hpx::lcos::local::spinlock mtx;
-	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx);
-
-
-	//--Variable declaration---------------------------------
-	int i, n, m, r;          //counters & intermediate array indices
-	int M(40);            //order of Taylor Expansion (must be less than MAX_LAPORDER)
-	double DeHoogFactor(4.0);            //DeHoog time factor
-	double T;                //Period of DeHoog Inversion formula
-	double gamma;            //Integration limit parameter
-	cmplex h2M, R2M, z, dz, s;   //Temporary variables
-
-	static cmplex Fctrl[2 * MAX_LAPORDER + 1];
-	static cmplex e[2 * MAX_LAPORDER][MAX_LAPORDER];
-	static cmplex q[2 * MAX_LAPORDER][MAX_LAPORDER];
-	static cmplex d[2 * MAX_LAPORDER + 1];
-	static cmplex A[2 * MAX_LAPORDER + 2];
-	static cmplex B[2 * MAX_LAPORDER + 2];
-
-	//Calculate period and integration limits------------------------------------
-	T = DeHoogFactor * t;
-	gamma = -0.5 * log(tolerance) * INVERSE( T );
-
-	//Calculate F(s) at evalution points gamma+IM*i*PI/T for i=0 to 2*M-1--------
-	//This is likely the most time consuming portion of the DeHoog algorithm
-	Fctrl[0] = 0.5 * F(gamma);
-	for (i = 1; i <= 2 * M; i++) {
-		s = cmplex(gamma, i * PI *INVERSE( T));
-		Fctrl[i] = F(s);
-	}
-
-	//Evaluate e and q ----------------------------------------------------------
-	//eqn 20 of De Hoog et al 1982
-	for (i = 0; i < 2 * M; i++) {
-		e[i][0] = 0.0;
-		q[i][1] = Fctrl[i + 1] *INVERSE( Fctrl[i]);
-	}
-	e[2 * M][0] = 0.0;
-
-	for (r = 1; r <= M - 1; r++) //one minor correction - does not work for r<=M, as suggested in paper
-			{
-		for (i = 2 * (M - r); i >= 0; i--) {
-			if ((i < 2 * (M - r)) && (r > 1)) {
-				q[i][r] = q[i + 1][r - 1] * e[i + 1][r - 1] *INVERSE( e[i][r - 1]);
-			}
-			e[i][r] = q[i + 1][r] - q[i][r] + e[i + 1][r - 1];
-		}
-	}
-
-	//Populate d vector-----------------------------------------------------------
-	d[0] = Fctrl[0];
-	for (m = 1; m <= M; m++) {
-		d[2 * m - 1] = -q[0][m];
-		d[2 * m] = -e[0][m];
-	}
-
-	//Evaluate A, B---------------------------------------------------------------
-	//Eqn. 21 in De Hoog et al.
-	z = cmplex(cos(PI * t *INVERSE( T)), sin(PI * t * INVERSE( T)));
-
-	A[0] = 0.0;
-	B[0] = 1.0; //A_{-1},B_{-1} in De Hoog
-	A[1] = d[0];
-	B[1] = 1.0;
-	for (n = 2; n <= 2 * M + 1; n++) {
-		dz = d[n - 1] * z;
-		A[n] = A[n - 1] + dz * A[n - 2];
-		B[n] = B[n - 1] + dz * B[n - 2];
-	}
-
-	//Eqn. 23 in De Hoog et al.
-	h2M = 0.5 * (1.0 + z * (d[2 * M - 1] - d[2 * M]));
-	R2M = -h2M * (1.0 - sqrt(1.0 + (z * d[2 * M] *INVERSE( h2M * h2M))));
-
-	//Eqn. 24 in De Hoog et al.
-	A[2 * M + 1] = A[2 * M] + R2M * A[2 * M - 1];
-	B[2 * M + 1] = B[2 * M] + R2M * B[2 * M - 1];
-
-	//Final result: A[2*M]/B[2*M]=sum [F(gamma+itheta)*exp(itheta)]-------------
-	return 1.0 *INVERSE( T) * exp(gamma * t) * (A[2 * M + 1] *INVERSE( B[2 * M + 1])).real();
-}
-
-#include <complex>
-#include <vector>
 #include <functional>
-#include <limits>
 
-static constexpr auto one = cmplex(1, 0);
+#define MAX_DEPTH 30
+#define MIN_DEPTH 10
+
 static constexpr double eps = 16.0;
-#ifdef _MSC_VER
-static constexpr auto root3 = cmplex(1.73205080757, 0.0);
-static constexpr double theta_inc = 1.0;
-#else
-static constexpr auto root3 = cmplex(std::sqrt(3), 0.0);
-static constexpr double theta_inc = std::pow(1.0, 0.25);
-#endif
-static constexpr double kappa = 1.0e+1;
+static constexpr double kappa = MARSHAK_OPAC;
 static constexpr double c = 1.0;
 static constexpr double toler = 1.0e-10;
 
-cmplex beta(const cmplex& s) {
-	return std::sqrt(s / (s + one) * (one + eps * (s + one)));
+
+double integrate(const std::function<double(double)>& f, double a, double c, double toler = 1.0e-4, int depth = 0) {
+	const double b = 0.5 * (a + c);
+	const double fa = f(a);
+	const double fb = f(b);
+	const double fc = f(c);
+	const double I1 = fb;
+	double I2 = 0.5 * (fa + fc);
+	if ((std::abs(I2 - I1) < toler && depth >= MIN_DEPTH) || depth == MAX_DEPTH) {
+		return (2.0 * I1 + I2) / 3.0 * (c - a);
+	} else {
+		return integrate(f, a, b, toler, depth + 1) + integrate(f, b, c, toler, depth + 1);
+	}
 }
 
-double v_func(double x, double tau) {
-	auto v = [x]( const cmplex& s) {
-		const auto b = beta(s);
-		return root3 * std::exp(-x*b) / (s*(s+one)*(root3+2.0*b));
+double marshak_u(double x, double t, double eps) {
+	const auto integrand = [x,t,eps](double eta) {
+		if( eta == 0.0 ) {
+			return 0.0;
+		} else if( eta == 1.0 ) {
+			return 0.0;
+		} else {
+			const double g2_1 = eta * eta * (eps + 1.0 / (1.0 - eta * eta));
+			const double g2_2 = (1.0 - eta) * (eps + 1.0 / eta);
+			const double t1 = std::acos(std::sqrt(3.0 / (3.0 + 4.0 * g2_1)));
+			const double t2 = std::acos(std::sqrt(3.0 / (3.0 + 4.0 * g2_2)));
+			const double num1 = std::sin(x * std::sqrt(g2_1) + t1);
+			const double den1 = eta * std::sqrt(3.0 + 4.0 * g2_1);
+			const double num2 = std::sin(x * std::sqrt(g2_2) + t2);
+			const double den2 = eta * std::sqrt(3.0 + 4.0 * g2_2)
+			* (1.0 + eps * eta);
+			const double exp1 = std::exp(-t * eta * eta);
+			const double exp2 = std::exp(-t * (1.0 + 1.0 / (eta * eps)));
+			double I1 = exp1 * num1 / den1 * std::sqrt(3.0) / M_PI * 2.0;
+			double I2 = exp2 * num2 / den2 * std::sqrt(3.0) / M_PI;
+			return 1.0 - I1 - I2;
+		}
 	};
-	return LaplaceInversion(v, tau, toler);
+	return std::max(0.0,integrate(integrand, 0.0, 1.0));
 }
 
-double u_func(double x, double tau) {
-	auto u = [x]( const cmplex& s) {
-		const auto b = beta(s);
-		return root3 * std::exp(-x*b) / (s*(root3+2.0*b));
+double marshak_du(double x, double t, double eps) {
+	const auto integrand = [x,t,eps](double eta) {
+		if( eta == 0.0 ) {
+			return 0.0;
+		} else if( eta == 1.0 ) {
+			return 0.0;
+		} else {
+			const double g2_1 = eta * eta * (eps + 1.0 / (1.0 - eta * eta));
+			const double g2_2 = (1.0 - eta) * (eps + 1.0 / eta);
+			const double t1 = std::acos(std::sqrt(3.0 / (3.0 + 4.0 * g2_1)));
+			const double t2 = std::acos(std::sqrt(3.0 / (3.0 + 4.0 * g2_2)));
+			const double num1 = std::cos(x * std::sqrt(g2_1) + t1)* std::sqrt(g2_1);
+			const double den1 = eta * std::sqrt(3.0 + 4.0 * g2_1);
+			const double num2 = std::cos(x * std::sqrt(g2_2) + t2) * std::sqrt(g2_2);
+			const double den2 = eta * std::sqrt(3.0 + 4.0 * g2_2)
+			* (1.0 + eps * eta);
+			const double exp1 = std::exp(-t * eta * eta);
+			const double exp2 = std::exp(-t * (1.0 + 1.0 / (eta * eps)));
+			double I1 = exp1 * num1 / den1 * std::sqrt(3.0) / M_PI * 2.0;
+			double I2 = exp2 * num2 / den2 * std::sqrt(3.0) / M_PI;
+			return -(I1+I2);
+		}
 	};
-	return LaplaceInversion(u, tau, toler);
+	return integrate(integrand, 0.0, 1.0);
 }
 
-void solution(double z, double t, double& T_mat, double& T_rad) {
-	const double x = std::sqrt(3) * kappa * z;
-	const double tau = t * eps * kappa / c;
-	const auto u = u_func(x, tau);
-	const auto v = v_func(x, tau);
-	T_mat = std::pow(v, 1.0 / 4.0) * theta_inc;
-	T_rad = std::pow(u, 1.0 / 4.0) * theta_inc;
+double marshak_v(double x, double t, double eps) {
+	const auto integrand = [x,t,eps](double eta) {
+		if( eta == 0.0 ) {
+			return 0.0;
+		} else if( eta == 1.0 ) {
+			return 0.0;
+		} else {
+			const double g2_1 = eta * eta * (eps + 1.0 / (1.0 - eta * eta));
+			const double g2_2 = (1.0 - eta) * (eps + 1.0 / eta);
+			const double t1 = std::acos(std::sqrt(3.0 / (3.0 + 4.0 * g2_1)));
+			const double t2 = std::acos(std::sqrt(3.0 / (3.0 + 4.0 * g2_2)));
+			const double num1 = std::sin(x * std::sqrt(g2_1) + t1);
+			const double den1 = eta * std::sqrt(3.0 + 4.0 * g2_1);
+			const double num2 = std::sin(x * std::sqrt(g2_2) + t2);
+			const double den2 = eta * std::sqrt(3.0 + 4.0 * g2_2)
+			* (1.0 + eps * eta);
+			const double exp1 = std::exp(-t * eta * eta);
+			const double exp2 = std::exp(-t * (1.0 + 1.0 / (eta * eps)));
+			double I1 = exp1 * num1 / den1 * std::sqrt(3.0) / M_PI * 2.0;
+			double I2 = exp2 * num2 / den2 * std::sqrt(3.0) / M_PI;
+			I1 *= (1.0 + g2_1 - eps * eta * eta);
+			I2 *= (1.0 + g2_2 - eps * (1.0 + 1.0 / (eta * eps)));
+			return 1.0 - I1 - I2;
+		}
+	};
+	return std::max(0.0,integrate(integrand, 0.0, 1.0));
 }
 
-#ifndef TESTME
+struct solution {
+	double u, v, du;
+};
+
+struct pair_hash {
+	std::size_t operator()( const std::pair<double,double>& v ) const {
+		return std::hash<double>()(v.first) ^std::hash<double>()(v.second);
+	}
+};
+
+static std::unordered_map<std::pair<double,double>, solution, pair_hash > sol_dir;
+static hpx::lcos::local::mutex mtx_;
+
+std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
+	std::vector<double> U(opts().n_fields + NRF, 0.0);
+	double z = x0 + opts().xscale;
+	z *= std::sqrt(3)*kappa;
+	t *= eps * kappa * c;
+	double u, v, du;
+	{
+		std::lock_guard < hpx::lcos::local::mutex > lock(mtx_);
+		auto iter = sol_dir.find(std::make_pair(z, t));
+		if (iter != sol_dir.end()) {
+			u = iter->second.u;
+			du = iter->second.du;
+			v = iter->second.v;
+		} else {
+			solution s;
+			s.du = du = marshak_du(z, t, eps);
+			s.u = u = marshak_u(z, t, eps);
+			s.v = v = marshak_v(z, t, eps);
+			sol_dir.insert(std::make_pair(std::make_pair(z, t), s));
+		}
+	}
+
+	double rho;
+	rho = 1.0;
+	double erad = 4.0 * u / c;
+	double e = 4.0 * v / c;
+	double fx = -4.0 / std::sqrt(3) * du * c;
+	U[rho_i] = U[spc_i] = rho;
+	const double fy = 0;
+	const double fz = 0;
+	U[egas_i] = e;
+	U[tau_i] = std::pow(e, 1.0 / grid::get_fgamma());
+	assert(!std::isnan(erad));
+	assert(!std::isnan(fx));
+	assert(!std::isnan(fy));
+	assert(!std::isnan(fz));
+	U[opts().n_fields + rad_grid::er_i] = erad;
+	U[opts().n_fields + rad_grid::fx_i] = fx;
+	U[opts().n_fields + rad_grid::fy_i] = fy;
+	U[opts().n_fields + rad_grid::fz_i] = fz;
+	return std::move(U);
+}
+
 
 std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	std::vector<double> u(opts().n_fields);
 	double e = 1.0e-20;
-	if (x > 0) {
-		u[rho_i] = u[spc_i] = 1.0;
-	} else {
-		e = u[rho_i] = u[spc_i] = 1.0e-10;
-	}
+	u[rho_i] = u[spc_i] = 1.0;
 	u[egas_i] = e;
 	u[tau_i] = std::pow(e, grid::get_fgamma());
 	return u;
 
 }
-#endif
-
-std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
-	std::vector<double> u(opts().n_fields + NRF, 0.0);
-	const double z = x0;
-	double T, T_rad;
-	double rho;
-	double fx, erad;
-	if (z > 0) {
-		rho = 1.0;
-		if (t > opts().xscale) {
-			double dz, Tp, T_radp;
-			dz = std::max(z * 0.0001, 0.0001);
-			solution(z, t - opts().xscale, T, T_rad);
-			solution(z + dz, t - opts().xscale, Tp, T_radp);
-			erad = std::pow(T_rad, 4);
-			fx = -rho / 3.0 * (T_radp - T_rad) / dz;
-		} else {
-			T = 0.0;
-			erad = 0.0;
-			fx = 0.0;
-		}
-	} else {
-		T = 0.0;
-		rho = 0.0;
-		if (t - z > 0) {
-			erad = 1.0;
-			fx = 1.0;
-		} else {
-			erad = 0.0;
-			fx = 0.0;
-		}
-	}
-	u[rho_i] = u[spc_i] = rho;
-	const double e = std::max(std::pow(T, 4) * rho,1.0e-10);
-	const double fy = 0;
-	const double fz = 0;
-	u[egas_i] = e;
-	u[tau_i] = std::pow(e, 1.0 / grid::get_fgamma());
-	assert( !std::isnan(erad));
-	assert( !std::isnan(fx));
-	assert( !std::isnan(fy));
-	assert( !std::isnan(fz));
-	u[opts().n_fields + rad_grid::er_i] = erad;
-	u[opts().n_fields + rad_grid::fx_i] = fx;
-	u[opts().n_fields + rad_grid::fy_i] = fy;
-	u[opts().n_fields + rad_grid::fz_i] = fz;
-	return std::move(u);
-}
-
-
-
-
-#ifdef TESTME
-int main() {
-	double dz = 1.0e-1;
-	double t = 1;
-	for( double z = dz/2.0; z < 10.0; z += dz) {
-		double Tm, Tr;
-		solution(z,t,Tm,Tr);
-		printf( "%e %e %e\n", z, std::pow(Tm,4), std::pow(Tr,4));
-	}
-
-}
-#endif

@@ -169,9 +169,7 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y, r
 
 bool refine_test_marshak(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
-	if( x < 0 && level >= max_level - 1 ){
-		return false;
-	} else if( x >= 0 && level >= max_level ) {
+	if( level >= max_level ) {
 		return false;
 	} else {
 		return true;
