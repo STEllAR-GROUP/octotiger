@@ -242,7 +242,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 void node_server::start_run(bool scf, integer ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings::scope ts(timings_, timings::time_total);
-	integer output_cnt;
+	integer output_cnt{};
 
 	if (!opts().hydro && !opts().radiation) {
 		diagnostics();
@@ -439,10 +439,10 @@ future<real> node_client::step(integer steps) const {
 
 void node_server::refined_step() {
 
-#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
-	static hpx::util::itt::string_handle sh("node_server::refined_step");
-	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
-#endif
+//#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+//	static hpx::util::itt::string_handle sh("node_server::refined_step");
+//	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+//#endif
 
 	timings::scope ts(timings_, timings::time_computation);
 	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
@@ -471,10 +471,10 @@ void node_server::refined_step() {
 }
 
 future<void> node_server::nonrefined_step() {
-#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
-	static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
-	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
-#endif
+//#if HPX_HAVE_ITTNOTIFY != 0 && !defined(HPX_HAVE_APEX)
+//	static hpx::util::itt::string_handle sh("node_server::nonrefined_step");
+//	hpx::util::itt::task t(hpx::get_thread_itt_domain(), sh);
+//#endif
 
 	timings::scope ts(timings_, timings::time_computation);
 
