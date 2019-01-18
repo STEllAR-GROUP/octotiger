@@ -609,7 +609,7 @@ void rad_grid::compute_flux() {
 	const auto lambda_max = [clight]( hiprec mu, hiprec er, hiprec absf) {
 		if( er > 0.0 ) {
 			auto f = LIGHT_F1(er,absf);
-			auto tmp5 = std::min(_4 - _3 * f * f,_1);
+			auto tmp5 = _4 - _3 * f * f;
 			const hiprec tmp = SQRT(tmp5);
 			mu = std::max(hiprec(-1),std::min(mu,hiprec(1)));
 			hiprec tmp4 = (_2/_3)*(_4-_3*f*f -tmp)+_2*mu*mu*(_2-f*f-tmp);
