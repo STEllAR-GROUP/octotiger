@@ -2,35 +2,35 @@
 #include <sstream>
 #include "monopole_kernel_templates.hpp"
 #include "p2p_cuda_kernel.hpp"
+#include <hpx/config.hpp>
+
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
         // __constant__ octotiger::fmm::multiindex<> device_stencil_const[P2P_PADDED_STENCIL_SIZE];
-        __constant__ double device_stencil_masks[FULL_STENCIL_SIZE];
-        __constant__ double device_four_constants[FULL_STENCIL_SIZE * 4];
+        __device__ __constant__ float device_stencil_masks[FULL_STENCIL_SIZE];
+        __device__ __constant__ double device_four_constants[FULL_STENCIL_SIZE * 4];
 
-        void copy_stencil_to_p2p_constant_memory(const double *stencil_masks, const size_t full_stencil_size) {
-            cudaError_t err = cudaMemcpyToSymbol(device_stencil_masks, stencil_masks, full_stencil_size);
+        __host__ void copy_stencil_to_p2p_constant_memory(const float *stencil_masks, const size_t full_stencil_size) {
+            /*cudaError_t err = cudaMemcpyToSymbol(device_stencil_masks, stencil_masks, full_stencil_size);
             if (err != cudaSuccess) {
                 std::stringstream temp;
-                temp << "Copy stencil to constant memory returned error code " << cudaGetErrorString(err);
                 throw std::runtime_error(temp.str());
-            }
+            }*/
         }
-        void copy_constants_to_p2p_constant_memory(const double *constants, const size_t constants_size) {
-            cudaError_t err = cudaMemcpyToSymbol(device_four_constants, constants, constants_size);
+        __host__ void copy_constants_to_p2p_constant_memory(const double *constants, const size_t constants_size) {
+            /*cudaError_t err = cudaMemcpyToSymbol(device_four_constants, constants, constants_size);
             if (err != cudaSuccess) {
                 std::stringstream temp;
                 temp << "Copy four-constants to constant memory returned error code " << cudaGetErrorString(err);
                 throw std::runtime_error(temp.str());
-            }
+            }*/
         }
 
-
-        __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
-        __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
-        __device__ constexpr size_t cache_line_length = INX + 10;
-        __device__ constexpr size_t cache_offset = INX + STENCIL_MIN;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length = ENTRIES + SOA_PADDING;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t cache_line_length = INX + 10;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t cache_offset = INX + STENCIL_MIN;
 
         __global__ void
         __launch_bounds__(INX * INX, 4)
@@ -44,7 +44,7 @@ namespace fmm {
             int local_id = threadIdx.y * INX + threadIdx.z;
 
             // use in case of debug prints
-            // bool first_thread = (blockIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
+            bool first_thread = (blockIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index((threadIdx.x + blockIdx.x * 1) + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
@@ -61,7 +61,6 @@ namespace fmm {
             const double theta_rec_squared = sqr(1.0 / theta);
             const double d_components[2] = {1.0 / dx, -1.0 / dx};
             double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
-
             for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
                 int x = stencil_x - STENCIL_MIN;
                 __syncthreads();
@@ -106,17 +105,19 @@ namespace fmm {
                         tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
                         // compute_monopole_interaction<double>(monopole, tmpstore, four, d_components);
                     }
-                    if (stencil_y < STENCIL_MAX && local_id < cache_line_length) {
                         // move stencil
                         __syncthreads();
                         for (int i = 0; i < (INX - 1); i++) {
+                            if (stencil_y < STENCIL_MAX && local_id < cache_line_length) {
                             coarse_index_cache[cache_line_length*i + local_id] =
                                 coarse_index_cache[cache_line_length*(i + 1) + local_id];
                             monopole_cache[cache_line_length*i + local_id] =
                                 monopole_cache[cache_line_length*(i + 1) + local_id];
+                            }
                             __syncthreads();
                         }
                         // Load new row
+                            if (stencil_y < STENCIL_MAX && local_id < cache_line_length) {
                         const multiindex<> partner_index(INNER_CELLS_PADDING_DEPTH + blockIdx.x + stencil_x,
                                                          INNER_CELLS_PADDING_DEPTH + (stencil_y + 1) + (INX - 1),
                                                             cache_offset + local_id);
@@ -125,8 +126,8 @@ namespace fmm {
                         partner_index_coarse.transform_coarse();
                         coarse_index_cache[cache_line_length*(INX - 1) + local_id] = partner_index_coarse;
                         monopole_cache[cache_line_length*(INX - 1) + local_id] = local_monopoles[partner_flat_index];
-                        __syncthreads();
                     }
+                        __syncthreads();
                 }
             }
 

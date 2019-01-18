@@ -4,9 +4,9 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX)
+project(octotiger C CXX CUDA)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0015 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -31,7 +31,8 @@ if (OCTOTIGER_WITH_CUDA)
   find_package(CUDA  REQUIRED)
   include_directories("${CUDA_INCLUDE_DIRS}")
   link_directories(${CUDA_CUBLAS_LIBRARIES})
-  string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
+  string(APPEND HPX_CUDA_CLANG_FLAGS " -arch=sm_70")
+  string(APPEND CMAKE_CUDA_FLAGS " -arch=sm_70 --ptxas-options=-v -rdc=true")
 endif()
 
 include_directories(${HPX_INCLUDE_DIRS})
@@ -125,11 +126,11 @@ set(source_files ${source_files}
     src/compute_factor.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
     src/multipole_interactions/cuda_multipole_interaction_interface.cpp
-    src/multipole_interactions/multipole_cuda_kernel.cu
+    #src/multipole_interactions/multipole_cuda_kernel.cu
     src/multipole_interactions/calculate_stencil.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/monopole_interactions/cuda_p2p_interaction_interface.cpp
-    src/monopole_interactions/p2p_cuda_kernel.cu
+    #src/monopole_interactions/p2p_cuda_kernel.cu
     src/monopole_interactions/p2p_cpu_kernel.cpp
     src/monopole_interactions/p2p_interaction_interface.cpp
     src/monopole_interactions/calculate_stencil.cpp
@@ -138,6 +139,12 @@ set(source_files ${source_files}
     src/common_kernel/interactions_iterators.cpp
     src/cuda_util/cuda_scheduler.cpp
 )
+
+
+SET(CUDA_SEPARABLE_COMPILATION ON)
+CUDA_COMPILE(CUDAP2P src/monopole_interactions/p2p_cuda_kernel.cu)
+CUDA_COMPILE(CUDAMP  src/multipole_interactions/multipole_cuda_kernel.cu)
+
 
 set(header_files
     src/mesa/mesa.hpp
@@ -209,10 +216,16 @@ add_hpx_executable(
     ${dependencies}
   SOURCES
     ${source_files}
+    ${CUDAP2P}
+    ${CUDAMP}
   HEADERS
     ${header_files}
+  PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    POSITION_INDEPENDENT_CODE ON
   FOLDER  "Octotiger"
 )
+target_compile_features(octotiger PUBLIC cxx_std_14)
 
 if (OCTOTIGER_WITH_SILO)
 add_hpx_executable(

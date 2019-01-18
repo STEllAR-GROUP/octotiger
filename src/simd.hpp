@@ -10,7 +10,14 @@
 #include "defs.hpp"
 #include <cstdlib>
 #include <cstdio>
-#include "immintrin.h"
+
+#ifdef __x86_64__
+#include <x86intrin.h>
+#endif
+
+#ifdef __ppc64__
+#include <spe.h>
+#endif
 
 // constexpr std::size_t simd_len = 8;
 
@@ -402,21 +409,30 @@
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 
-#if defined(Vc_HAVE_AVX512F)
-using simd_vector = Vc::datapar<double, Vc::datapar_abi::avx512>;
-using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
+//#if defined(Vc_IMPL_AVX2)
+//using simd_vector = Vc::datapar<double, Vc::datapar_abi::avx512>;
+//using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
+//constexpr std::size_t simd_len = simd_vector::size();
+//#elif defined(Vc_IMPL_AVX)
+#ifdef __AVX2__
+using simd_vector = typename Vc::SimdArray<double, 8>;
+using int_simd_vector = typename Vc::SimdArray<uint32_t, 8>;
+using v4sd = typename Vc::SimdArray<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
-#elif defined(Vc_HAVE_AVX)
-using simd_vector = typename Vc::datapar<double, Vc::datapar_abi::fixed_size<8>>;
-using int_simd_vector = typename Vc::datapar<int32_t, Vc::datapar_abi::fixed_size<8>>;
-using v4sd = typename Vc::datapar<double, Vc::datapar_abi::fixed_size<4>>;
+#else
+using floatv = Vc::float_v;
+using simd_vector =  Vc::SimdArray<double, floatv::size()>;
+using int_simd_vector = typename Vc::SimdArray<uint32_t, floatv::size()>;
+using v4sd = typename Vc::SimdArray<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
+
+#endif
 // using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
 // using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
-// #else
-// using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
-// using v4sd = typename hpx::parallel::traits::vector_pack_type<double, 4>::type;
-#endif
+//#else
+//using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
+//using v4sd = typename hpx::parallel::traits::vector_pack_type<double, 4>::type;
+//#endif
 
 // #endif
 

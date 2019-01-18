@@ -45,7 +45,7 @@ namespace fmm {
                 void* args[] = {&(env.device_local_monopoles), &(env.device_blocked_monopoles),
                                  &theta, &dx};
                 gpu_interface.execute(
-                    &cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
+                    (const void*)&cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 // void* sum_args[] = {&(env.device_blocked_monopoles)};
                 // const dim3 sum_spec(1);
                 // const dim3 threads(512);

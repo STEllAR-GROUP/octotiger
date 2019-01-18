@@ -6,27 +6,17 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        __constant__ double device_stencil_indicator_const[FULL_STENCIL_SIZE];
-        __constant__ double device_stencil_masks[FULL_STENCIL_SIZE];
-        void copy_stencil_to_m2m_constant_memory(const double *stencil_masks, const size_t full_stencil_size) {
-            cudaError_t err = cudaMemcpyToSymbol(device_stencil_masks, stencil_masks, full_stencil_size);
-            if (err != cudaSuccess) {
-                std::stringstream temp;
-                temp << "Copy stencil to constant memory returned error code " << cudaGetErrorString(err);
-                throw std::runtime_error(temp.str());
-            }
+        __device__ __constant__ float device_stencil_indicator_const[FULL_STENCIL_SIZE];
+       __device__  __constant__ float device_constant_stencil_masks[FULL_STENCIL_SIZE];
+        void copy_stencil_to_m2m_constant_memory(const float *stencil_masks, const size_t full_stencil_size) {
+            cudaError_t err = cudaMemcpyToSymbol(device_constant_stencil_masks, stencil_masks, full_stencil_size);
         }
-        void copy_indicator_to_m2m_constant_memory(const double *indicator, const size_t indicator_size) {
+        void copy_indicator_to_m2m_constant_memory(const float *indicator, const size_t indicator_size) {
             cudaError_t err = cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
-            if (err != cudaSuccess) {
-                std::stringstream temp;
-                temp << "Copy stencil indicator to constant memory returned error code " << cudaGetErrorString(err);
-                throw std::runtime_error(temp.str());
-            }
         }
 
-        __device__ constexpr size_t component_length = ENTRIES + SOA_PADDING;
-        __device__ constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length = ENTRIES + SOA_PADDING;
+        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void
         __launch_bounds__(INX * INX, 2)
@@ -83,7 +73,7 @@ namespace fmm {
                     for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
                         const size_t index = x * STENCIL_INX * STENCIL_INX +
                             y * STENCIL_INX + (stencil_z - STENCIL_MIN);
-                        if (!device_stencil_masks[index]) {
+                        if (!device_constant_stencil_masks[index]) {
                             continue;
                         }
                         const double mask_phase_one = device_stencil_indicator_const[index];
@@ -179,7 +169,7 @@ namespace fmm {
                     for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
                         const size_t index = x * STENCIL_INX * STENCIL_INX +
                             y * STENCIL_INX + (stencil_z - STENCIL_MIN);
-                        if (!device_stencil_masks[index]) {
+                        if (!device_constant_stencil_masks[index]) {
                             continue;
                         }
                         const double mask_phase_one = device_stencil_indicator_const[index];

@@ -39,7 +39,7 @@ namespace fmm {
             constexpr size_t component_array_offset =
                 component_access * padded_entries_per_component;
             return m2m_vector(
-                data.data() + flat_index + component_array_offset, Vc::flags::element_aligned);
+                data.data() + flat_index + component_array_offset);
         }
 
         template <typename AoS_temp_type>
