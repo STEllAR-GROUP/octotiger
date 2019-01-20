@@ -1,18 +1,21 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
-#include "cuda_multipole_interaction_interface.hpp"
-#include "multipole_cuda_kernel.hpp"
-#include "calculate_stencil.hpp"
-#include "options.hpp"
-#include "defs.hpp"
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/calculate_stencil.hpp"
+#include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
 
-extern options opts;
+#include "octotiger/options.hpp"
+#include "octotiger/defs.hpp"
+
+#include <array>
+#include <vector>
+
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
-          , theta(opts.theta) {}
+          , theta(opts().theta) {}
 
         void cuda_multipole_interaction_interface::compute_multipole_interactions(
             std::vector<real>& monopoles, std::vector<multipole>& M_ptr,

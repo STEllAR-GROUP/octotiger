@@ -16,9 +16,9 @@
 /* MODIFIED FROM THIS ORIGINAL SOURCE : http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes */
 
 #if !defined(_MSC_VER)
-#include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -35,7 +35,7 @@ void handler(int sig) {
 	}
 	goto ABLE;
 	UNABLE: printf("UNABLE TO PRINT STACK FROM GDB!\n");
-	ABLE: 
+	ABLE:
 	exit(0);
 }
 

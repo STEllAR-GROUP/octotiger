@@ -1,12 +1,11 @@
-#include "defs.hpp"
-#include "../common_kernel/interaction_constants.hpp"
-#include "geometry.hpp"
-#include "options.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
 
-#include "../common_kernel/helper.hpp"
-#include "calculate_stencil.hpp"
+#include "octotiger/common_kernel/helper.hpp"
+#include "octotiger/common_kernel/interaction_constants.hpp"
 
-extern options opts;
+#include "octotiger/defs.hpp"
+#include "octotiger/geometry.hpp"
+#include "octotiger/options.hpp"
 
 namespace octotiger {
 namespace fmm {

@@ -1,16 +1,19 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
-#include "cuda_p2p_interaction_interface.hpp"
-#include "p2p_cuda_kernel.hpp"
-#include "options.hpp"
+#ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
 
-extern options opts;
+#include "octotiger/options.hpp"
+
+#include <array>
+#include <vector>
+
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
         cuda_p2p_interaction_interface::cuda_p2p_interaction_interface(void)
           : p2p_interaction_interface()
-          , theta(opts.theta) {}
+          , theta(opts().theta) {}
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,

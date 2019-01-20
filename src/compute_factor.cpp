@@ -1,5 +1,9 @@
-#include "common_kernel/kernel_simd_types.hpp"
-#include "taylor.hpp"
+#include "octotiger/common_kernel/kernel_simd_types.hpp"
+#include "octotiger/taylor.hpp"
+
+#include "octotiger/defs.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/taylor.hpp"
 
 taylor<4, real> factor;
 taylor<4, m2m_vector> factor_half_v;

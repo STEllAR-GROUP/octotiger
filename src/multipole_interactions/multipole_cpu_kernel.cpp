@@ -1,24 +1,25 @@
-#include "multipole_cpu_kernel.hpp"
+#include "octotiger/multipole_interactions/multipole_cpu_kernel.hpp"
+#include "octotiger/multipole_interactions/compute_kernel_templates.hpp"
 
-#include "../common_kernel/helper.hpp"
-#include "../common_kernel/interaction_constants.hpp"
-#include "../common_kernel/struct_of_array_data.hpp"
-#include "compute_kernel_templates.hpp"
-#include "defs.hpp"
-#include "interaction_types.hpp"
-#include "options.hpp"
+#include "octotiger/common_kernel/helper.hpp"
+#include "octotiger/common_kernel/interaction_constants.hpp"
+#include "octotiger/common_kernel/struct_of_array_data.hpp"
+
+#include "octotiger/defs.hpp"
+#include "octotiger/interaction_types.hpp"
+#include "octotiger/options.hpp"
 
 #include <array>
+#include <cstddef>
 #include <functional>
-
-extern options opts;
+#include <vector>
 
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
         multipole_cpu_kernel::multipole_cpu_kernel(void)
-          : theta_rec_squared(sqr(1.0 / opts.theta)) {
+          : theta_rec_squared(sqr(1.0 / opts().theta)) {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }

@@ -5,7 +5,9 @@
  *      Author: dmarce1
  */
 
-#include "lane_emden.hpp"
+#include "octotiger/lane_emden.hpp"
+#include "octotiger/real.hpp"
+
 #include <cmath>
 
 static inline real pow_1_5(real y) {

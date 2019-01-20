@@ -5,15 +5,19 @@
  *      Author: dmarce1
  */
 
-#include "profiler.hpp"
-#include <unordered_map>
-#include <memory>
-#include <string>
-#include <cstring>
-#include <stack>
-#include <map>
+#include "octotiger/profiler.hpp"
+#include "octotiger/real.hpp"
 
 #include <hpx/util/high_resolution_clock.hpp>
+
+//#include <cstdio>
+#include <cstring>
+#include <map>
+#include <memory>
+#include <stack>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 static thread_local std::stack<std::string> callstack;
 static thread_local real t = 0.0;

@@ -1,14 +1,18 @@
-#include "p2m_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
 
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+
+#include "octotiger/options.hpp"
+#include "octotiger/real.hpp"
+
+#include <array>
 #include <algorithm>
-#include "../common_kernel/interactions_iterators.hpp"
-#include "calculate_stencil.hpp"
-#include "options.hpp"
+#include <vector>
 
 // Big picture questions:
 // - use any kind of tiling?
 
-extern options opts;
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -24,7 +28,7 @@ namespace fmm {
         p2m_interaction_interface::p2m_interaction_interface(void)
           : neighbor_empty_multipoles(27)
           , kernel(neighbor_empty_multipoles) {
-            this->p2m_type = opts.p2m_kernel_type;
+            this->p2m_type = opts().p2m_kernel_type;
         }
 
         void p2m_interaction_interface::compute_p2m_interactions(std::vector<real>& monopoles,

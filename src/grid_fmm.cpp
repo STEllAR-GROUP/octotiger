@@ -5,23 +5,26 @@
  *      Author: dmarce1
  */
 
-#include "grid.hpp"
-#include "options.hpp"
-#include "profiler.hpp"
-#include "simd.hpp"
-#include "taylor.hpp"
-#include "physcon.hpp"
+#include "octotiger/common_kernel/interaction_constants.hpp"
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+#include "octotiger/common_kernel/struct_of_array_data.hpp"
 
+#include "octotiger/grid.hpp"
+#include "octotiger/grid_flattened_indices.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/profiler.hpp"
+#include "octotiger/real.hpp"
+#include "octotiger/simd.hpp"
+#include "octotiger/space_vector.hpp"
+#include "octotiger/taylor.hpp"
 
 #include <hpx/include/parallel_for_loop.hpp>
-#include "grid_flattened_indices.hpp"
 
-#include "common_kernel/interactions_iterators.hpp"
-#include "common_kernel/interaction_constants.hpp"
-#include "common_kernel/struct_of_array_data.hpp"
-
+#include <cmath>
 #include <cstddef>
 #include <utility>
+#include <vector>
 
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
@@ -46,7 +49,6 @@ static std::vector<interaction_type> ilist_r;
 static std::vector<std::vector<boundary_interaction_type>> ilist_d_bnd(geo::direction::count());
 static std::vector<std::vector<boundary_interaction_type>> ilist_n_bnd(geo::direction::count());
 extern taylor<4, real> factor;
-extern options opts;
 
 template <class T>
 void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_type& data,
@@ -105,33 +107,6 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
     PROF_END;
 }
 
-#ifdef FIND_AXIS_V2
-std::array<std::pair<real, space_vector>,2> grid::find_core_max() const {
-	std::array<std::pair<real, space_vector>,2> rc;
-	rc[0].first = 0.0;
-	rc[1].first = 0.0;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				if( U[spc_ac_i][iii] > rc[0].first ) {
-					rc[0].first = U[spc_ac_i][iii];
-					for( integer d = 0; d != NDIM; ++d) {
-						rc[0].second[d] = X[d][iii];
-					}
-				}
-				if( U[spc_dc_i][iii] > rc[1].first ) {
-					rc[1].first = U[spc_dc_i][iii];
-					for( integer d = 0; d != NDIM; ++d) {
-						rc[1].second[d] = X[d][iii];
-					}
-				}
-			}
-		}
-	}
-	return rc;
-}
-#else
 std::pair<space_vector, space_vector> grid::find_axis() const {
     PROF_BEGIN;
     real quad_moment[NDIM][NDIM];
@@ -196,7 +171,6 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
     PROF_END;
     return pair;
 }
-#endif
 
 void grid::solve_gravity(gsolve_type type) {
     compute_multipoles(type);
@@ -1037,7 +1011,7 @@ void compute_ilist() {
     std::vector<interaction_type> ilist_d0;
     std::array<std::vector<interaction_type>, geo::direction::count()> ilist_n0_bnd;
     std::array<std::vector<interaction_type>, geo::direction::count()> ilist_d0_bnd;
-    const real theta0 = opts.theta;
+    const real theta0 = opts().theta;
     const auto theta = [](integer i0, integer j0, integer k0, integer i1, integer j1, integer k1) {
         real tmp = (sqr(i0 - i1) + sqr(j0 - j1) + sqr(k0 - k1));
         // protect against sqrt(0)
@@ -1269,7 +1243,7 @@ expansion_pass_type grid::compute_expansions_soa(
     // TODO make version with stride for vectorization
     octotiger::fmm::iterate_inner_cells_not_padded([this, &local_expansions, &center_of_masses_SoA,
                                                     com0, &parent_expansions_SoA, &parent_corrections_SoA, &exp_ret, child_index,
-        type](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+        type, inx](const octotiger::fmm::multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
         std::array<m2m_vector, NDIM> parent_corrections;
         const integer index =
             (INX * INX / 4) * (i_unpadded.x) + (INX / 2) * (i_unpadded.y) + (i_unpadded.z);
@@ -1539,14 +1513,14 @@ expansion_pass_type grid::compute_expansions(
 					const integer iii0 = h0index(i, j, k);
 					const integer iiih = hindex(i + H_BW, j + H_BW, k + H_BW);
 					if (type == RHO) {
-						G[iii][phi_i] = physcon.G * L[iii]();
+						G[iii][phi_i] = physcon().G * L[iii]();
 						for (integer d = 0; d < NDIM; ++d) {
-							G[iii][gx_i + d] = -physcon.G * L[iii](d);
-							G[iii][gx_i + d] -= physcon.G * L_c[iii][d];
+							G[iii][gx_i + d] = -physcon().G * L[iii](d);
+							G[iii][gx_i + d] -= physcon().G * L_c[iii][d];
 						}
 						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
 					} else {
-						dphi_dt[iii0] = physcon.G * L[iii]();
+						dphi_dt[iii0] = physcon().G * L[iii]();
 					}
 				}
 			}
@@ -1589,7 +1563,10 @@ multipole_pass_type grid::compute_multipoles(
             }
         }
     }
-
+    if( com_ptr[0] == nullptr ) {
+    	printf( "Failed to call RHO before DRHODT\n");
+    	abort();
+    }
     multipole_pass_type mret;
     if (!is_root) {
         mret.first.resize(INX * INX * INX / NCHILD);
@@ -1644,26 +1621,34 @@ multipole_pass_type grid::compute_multipoles(
                         taylor<4, simd_vector> mc, mp;
                         std::array<simd_vector, NDIM> x, y, dx;
                         for (integer ci = 0; ci != NCHILD; ++ci) {
+
                             const integer iiic = child_index(ip, jp, kp, ci);
                             const space_vector& X = (*(com_ptr[lev - 1]))[iiic];
                             if (is_leaf) {
+
                                 mc()[ci] = mon[iiic];
                                 for (integer j = 1; j != 20; ++j) {
                                     mc.ptr()[j][ci] = 0.0;
                                 }
+
                             } else {
+
                                 for (integer j = 0; j != 20; ++j) {
                                     mc.ptr()[j][ci] = M[iiic].ptr()[j];
                                 }
+
                             }
                             for (integer d = 0; d < NDIM; ++d) {
+
                                 x[d][ci] = X[d];
+
                             }
                         }
                         const space_vector& Y = (*(com_ptr[lev]))[iiip];
                         for (integer d = 0; d < NDIM; ++d) {
                             dx[d] = x[d] - simd_vector(Y[d]);
                         }
+
                         mp = mc >> dx;
                         for (integer j = 0; j != 20; ++j) {
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
@@ -1672,7 +1657,9 @@ multipole_pass_type grid::compute_multipoles(
                             MM[j] = Vc::reduce(mp[j]);
 #endif
                         }
+
                     } else {
+
                         if (child_poles == nullptr) {
                             const integer iiih = hindex(ip + H_BW, jp + H_BW, kp + H_BW);
                             const integer iii0 = h0index(ip, jp, kp);
@@ -1682,17 +1669,21 @@ multipole_pass_type grid::compute_multipoles(
                                 mon[iiip] = dUdt[rho_i][iii0] * dx3;
                             }
                         } else {
+                        	assert( M.size() );
                             M[iiip] = child_poles->first[index];
                             if (type == RHO) {
                                 (*(com_ptr)[lev])[iiip] = child_poles->second[index];
                             }
                             ++index;
                         }
+
                     }
                     if (!is_root && (lev == 1)) {
+
                         mret.first[index] = MM;
                         mret.second[index] = (*(com_ptr[lev]))[iiip];
                         ++index;
+
                     }
                 }
             }
@@ -1701,6 +1692,7 @@ multipole_pass_type grid::compute_multipoles(
         index = 0;
     }
     PROF_END;
+
 
     return mret;
 }

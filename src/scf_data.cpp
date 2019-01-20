@@ -5,7 +5,9 @@
  *      Author: dmarce1
  */
 
-#include "scf_data.hpp"
+#include "octotiger/scf_data.hpp"
+
+#include <cmath>
 #include <limits>
 
 scf_data_t::scf_data_t() {

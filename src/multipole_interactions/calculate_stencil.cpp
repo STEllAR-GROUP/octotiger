@@ -1,11 +1,15 @@
-#include "defs.hpp"
-#include "geometry.hpp"
-#include "options.hpp"
+#include "octotiger/multipole_interactions/calculate_stencil.hpp"
 
-#include "../common_kernel/helper.hpp"
-#include "calculate_stencil.hpp"
+#include "octotiger/common_kernel/helper.hpp"
 
-extern options opts;
+#include "octotiger/defs.hpp"
+#include "octotiger/geometry.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/real.hpp"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
 
 namespace octotiger {
 namespace fmm {
@@ -14,8 +18,8 @@ namespace fmm {
         two_phase_stencil calculate_stencil(void) {
             std::array<two_phase_stencil, 8> stencils;
 
-            // used to check the radiuses of the outer and inner sphere
-            const real theta0 = opts.theta;
+            // used to check the radii of the outer and inner sphere
+            const real theta0 = opts().theta;
 
             // int64_t i0 = 0;
             // int64_t i1 = 0;

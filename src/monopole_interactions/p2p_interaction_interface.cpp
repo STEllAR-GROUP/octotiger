@@ -1,11 +1,14 @@
-#include "p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
+
+#include "octotiger/common_kernel/interactions_iterators.hpp"
+
+#include "octotiger/options.hpp"
 
 #include <algorithm>
-#include "../common_kernel/interactions_iterators.hpp"
-#include "calculate_stencil.hpp"
-#include "options.hpp"
+#include <array>
+#include <vector>
 
-extern options opts;
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -23,7 +26,7 @@ namespace fmm {
         p2p_interaction_interface::p2p_interaction_interface(void)
           : neighbor_empty_monopoles(27)
           , kernel_monopoles(neighbor_empty_monopoles) {
-            this->p2p_type = opts.p2p_kernel_type;
+            this->p2p_type = opts().p2p_kernel_type;
         }
 
         void p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,

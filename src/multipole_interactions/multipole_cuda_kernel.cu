@@ -1,7 +1,10 @@
 #ifdef OCTOTIGER_CUDA_ENABLED
+#include "octotiger/multipole_interactions/compute_kernel_templates.hpp"
+#include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
+
 #include <sstream>
-#include "compute_kernel_templates.hpp"
-#include "multipole_cuda_kernel.hpp"
+#include <cstddef>
+
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {

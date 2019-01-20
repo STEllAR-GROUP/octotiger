@@ -5,7 +5,9 @@
  *      Author: dmarce1
  */
 
-#include "taylor.hpp"
+#include "octotiger/taylor.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/real.hpp"
 
 integer taylor_consts::map2[3][3] = {
     { 0, 1, 2 },

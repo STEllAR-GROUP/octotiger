@@ -5,11 +5,10 @@
  *      Author: dmarce1
  */
 
+#include "octotiger/real.hpp"
 
-
-
-#include "real.hpp"
-
+#include <atomic>
+#include <cstddef>
 
 #ifdef DIAGNOSTIC_MODE
 

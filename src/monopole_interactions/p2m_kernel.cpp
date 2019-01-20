@@ -1,13 +1,16 @@
-#include "p2m_kernel.hpp"
+#include "octotiger/monopole_interactions/p2m_kernel.hpp"
 
-#include "../common_kernel/helper.hpp"
-#include "../common_kernel/struct_of_array_data.hpp"
-#include "../common_kernel/kernel_taylor_set_basis.hpp"
-#include "defs.hpp"
-#include "interaction_types.hpp"
-#include "options.hpp"
+#include "octotiger/common_kernel/helper.hpp"
+#include "octotiger/common_kernel/kernel_taylor_set_basis.hpp"
+#include "octotiger/common_kernel/struct_of_array_data.hpp"
+
+#include "octotiger/defs.hpp"
+#include "octotiger/interaction_types.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/real.hpp"
 
 #include <array>
+#include <cstddef>
 #include <functional>
 
 // std::vector<interaction_type> ilist_debugging;
@@ -23,7 +26,7 @@ namespace fmm {
 
         p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty)
           : neighbor_empty(neighbor_empty)
-          , theta_rec_squared(sqr(1.0 / opts.theta)) {
+          , theta_rec_squared(sqr(1.0 / opts().theta)) {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }

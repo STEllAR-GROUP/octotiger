@@ -1,0 +1,129 @@
+# Copyright (c) 2017 David Pfander
+# Copyright (c) 2017-2018 Patrick Diehl
+# Copyright (c) 2017-2019 Dominic Marcello
+# Copyright (c) 2019 Parsa Amini
+#
+# Distributed under the Boost Software License, Version 1.0. (See accompanying
+# file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+version: 2
+
+anchors:
+    - &docker_config
+        docker:
+            - image: stellargroup/octotiger:prerequisites-gcc6
+        environment:
+            LD_LIBRARY_PATH: /local/hdf5/lib:/local/boost_1_63_0/lib:/local/hpx/lib:/local/Vc/lib
+
+jobs:
+    build:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - run:
+                name: Configure Octotiger
+                command: |
+                    cmake -H/octotiger -B/octotiger/build \
+                          -DCMAKE_BUILD_TYPE=Release \
+                          -DHPX_DIR=/local/hpx/lib/cmake/HPX \
+                          -DVc_DIR=/local/vc/lib/cmake/Vc \
+                          -DSilo_DIR=/local/silo \
+                          -DHDF5_ROOT=/local/hdf5 \
+                          -DBOOST_ROOT=/local/boost \
+                          -GNinja
+            - run:
+                name: Build
+                command: cmake --build /octotiger/build -- -j2
+            - persist_to_workspace:
+                root: /
+                paths:
+                    - octotiger/build
+
+    test_marshak:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+                name: marshak
+                working_directory: /octotiger/test_problems/marshak
+                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+
+    test_blast:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+                name: blast
+                working_directory: /octotiger/test_problems/blast
+                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+
+    test_sod:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - restore_cache:
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - run:
+                name: sod
+                working_directory: /octotiger/test_problems/sod
+                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+
+    test_moving_star:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+                name: moving_stars
+                command: |
+                    /octotiger/build/octotiger --problem=moving_star \
+                        --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 \
+                        --hpx:threads=1 --hpx:bind=none --compress_silo=off
+
+    test1:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+                name: test1
+                working_directory: /octotiger/test1
+                command: |
+                    ./test1.sh >output.txt
+                    python validate.py output.txt test1.txt
+            #- run: |
+            #    cd /octotiger/tools
+            #    tar xzf restart7.chk.tar.gz
+
+workflows:
+    version: 2
+    build_and_test:
+        jobs:
+            - build
+            - test_marshak:
+                requires:
+                    - build
+            - test_blast:
+                requires:
+                    - build
+            - test_sod:
+                requires:
+                    - build
+            - test_moving_star:
+                requires:
+                    - build
+            - test1:
+                requires:
+                    - build
