@@ -15,7 +15,7 @@ namespace fmm {
             std::array<std::vector<multiindex<>>, 8> stencils;
 
             // used to check the radiuses of the outer and inner sphere
-            const real theta0 = opts.theta;
+            const real theta0 = opts().theta;
 
             // int64_t i0 = 0;
             // int64_t i1 = 0;

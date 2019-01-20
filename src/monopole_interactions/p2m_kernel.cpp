@@ -15,7 +15,6 @@
 
 // std::vector<interaction_type> ilist_debugging;
 
-extern options opts;
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
 extern taylor<4, m2m_vector> factor_sixth_v;

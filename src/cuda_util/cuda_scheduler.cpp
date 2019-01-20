@@ -2,6 +2,8 @@
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
+#include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
 
 #include "octotiger/options.hpp"
 #include "octotiger/real.hpp"
