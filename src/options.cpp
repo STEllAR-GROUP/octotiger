@@ -64,6 +64,7 @@ bool options::process_options(int argc, char* argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
+    ("help", "produce help message")
 	("xscale", po::value < real > (&(opts().xscale))->default_value(1.0), "grid scale")                   //
 	("omega", po::value < real > (&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("compress_silo", po::value<bool>(&(opts().compress_silo))->default_value(true), "compress SILO files to fewer grids")                   //
@@ -127,7 +128,7 @@ bool options::process_options(int argc, char* argv[]) {
 	po::notify(vm);
     if (vm.count("help")) {
         std::cout << command_opts << "\n";
-        return 1;
+        exit(0);
     }
 	if (!config_file.empty()) {
 		std::ifstream ifs { vm["config_file"].as<std::string>().c_str() };
