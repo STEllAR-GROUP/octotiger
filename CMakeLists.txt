@@ -282,7 +282,7 @@ endif()
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
 
-target_link_libraries(silo_compare Silo::silo)
+target_link_libraries(silo_compare)
 if(MSVC)
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
