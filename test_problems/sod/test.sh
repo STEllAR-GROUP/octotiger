@@ -1,4 +1,4 @@
-$1 --config_file=sod.ini -t48
+$1/octotiger --config_file=sod.ini -t48
 if [ ! -f "sod.4.silo" ]; then
 	wget phys.lsu.edu/~dmarcel/sod.4.silo
 fi

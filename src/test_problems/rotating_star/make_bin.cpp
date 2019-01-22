@@ -10,9 +10,8 @@
 using namespace std;
 #include <cmath>
 #include <vector>
-
-constexpr int nr = 256;
-constexpr int nz = 256;
+constexpr int nr = 100;
+constexpr int nz = 100;
 #define nt (nr/4)
 #define zedge 0.6
 #define redge 0.9
@@ -22,7 +21,6 @@ constexpr int nz = 256;
 using array_type = std::array<std::array<double, nz>, nr>;
 
 #include <fenv.h>
-
 
 int main() {
 
@@ -52,6 +50,7 @@ int main() {
 
 	double scf_error = 0.0;
 	int scf_iter = 0;
+
 	do {
 
 		// Solve boundaries
@@ -92,32 +91,42 @@ int main() {
 
 		// Solve interior
 		{
-			int iter = 0;
 			double error;
-			double toler = 1.0e-12;
+			double toler = 1.0e-8;
 			constexpr double dz2 = 1.0 / (nz * nz);
 			constexpr double dr2 = 1.0 / (nr * nr);
 			const double den0 = 2.0 * (dz2 + dr2);
 			static array_type next_phi;
 			next_phi = phi;
+			const double rhoc0 = -4.0 * M_PI * dz2 * dr2;
 			do {
+				for (int iter = 0; iter < 16; iter++) {
+					for (int i = 0; i < nr - 1; i++) {
+						const double den1 = i != 0 ? 0.0 : -dz2 * (1.0 - 0.5 / (i + 0.5));
+						const double c_xp = dz2 * (1.0 + 0.5 / (i + 0.5));
+						const double c_xm = i != 0 ? dz2 * (1.0 - 0.5 / (i + 0.5)) : 0.0;
+						for (int k = 0; k < nz - 1; k++) {
+							const double den2 = k != 0 ? 0.0 : -dr2;
+							const double num_xp = c_xp * next_phi[i + 1][k];
+							const double num_xm = c_xm * next_phi[i - 1][k];
+							const double num_zm = (k != 0 ? dr2 : 0.0) * next_phi[i][k - 1];
+							const double num_zp = dr2 * next_phi[i][k + 1];
+							const double num_den = rhoc0 * rho[i][k];
+							next_phi[i][k] = (num_xp + num_xm + num_zp + num_zm + num_den) / (den0 + den1 + den2);
+						}
+					}
+					if (iter != 15) {
+						phi = next_phi;
+					}
+				}
 				error = 0.0;
 				for (int i = 0; i < nr - 1; i++) {
-					const double den1 = i != 0 ? 0.0 : -dz2 * (1.0 - 0.5 / (i + 0.5));
 					for (int k = 0; k < nz - 1; k++) {
-						const double den2 = k != 0 ? 0.0 : -dr2;
-						const double num_xp = dz2 * (1.0 + 0.5 / (i + 0.5)) * phi[i + 1][k];
-						const double num_xm = i != 0 ? dz2 * (1.0 - 0.5 / (i + 0.5)) * phi[i - 1][k] : 0.0;
-						const double num_zp = dr2 * phi[i][k + 1];
-						const double num_zm = k != 0 ? dr2 * phi[i][k - 1] : 0.0;
-						const double num_den = -4.0 * M_PI * dz2 * dr2 * rho[i][k];
-						next_phi[i][k] = (num_xp + num_xm + num_zp + num_zm + num_den) / (den0 + den1 + den2);
 						error += std::pow(next_phi[i][k] - phi[i][k], 2);
 					}
 				}
-				phi = next_phi;
 				error = std::sqrt(error);
-				iter++;
+				phi = next_phi;
 			} while (error > toler);
 		}
 		// next rho
@@ -184,7 +193,7 @@ int main() {
 		fclose(fp);
 	}
 
-	cout << "!!!Hello World!!!" << endl; // prints !!!Hello World!!!
+	printf("\rDone!\n");
 
 	return 0;
 }

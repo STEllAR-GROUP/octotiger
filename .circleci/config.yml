@@ -48,9 +48,21 @@ jobs:
             - attach_workspace:
                 at: /
             - run:
+                name: marshak
+                working_directory: /octotiger/test_problems/marshak
+                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+
+    test_blast:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
                 name: blast
                 working_directory: /octotiger/test_problems/blast
-                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+                command: ./test.sh ../../build/ /local/silo/bin/silodiff
 
     test_sod:
         <<: *docker_config
@@ -62,21 +74,19 @@ jobs:
             - run:
                 name: sod
                 working_directory: /octotiger/test_problems/sod
-                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+                command: ./test.sh ../../build/ /local/silo/bin/silodiff
 
-    test_moving_star:
+    test_rotating_star:
         <<: *docker_config
         steps:
             - checkout:
                 path: /octotiger
-            - attach_workspace:
-                at: /
+            - restore_cache:
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
             - run:
-                name: moving_stars
-                command: |
-                    /octotiger/build/octotiger --problem=moving_star \
-                        --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 \
-                        --hpx:threads=1 --hpx:bind=none --compress_silo=off
+                name: rotating_star
+                working_directory: /octotiger/test_problems/rotating_star
+                command: ./test.sh ../../build/ /local/silo/bin/silodiff
 
     test1:
         <<: *docker_config

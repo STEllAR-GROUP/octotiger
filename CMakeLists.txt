@@ -251,7 +251,11 @@ endif()
 # Set up silo_compare target
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
-
+add_executable(gen_rotating_star_init src/test_problems/rotating_star/make_bin.cpp)
+target_compile_options(gen_rotating_star_init PRIVATE
+      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+      -Wno-unused-result -ffast-math -O3)
+target_link_libraries(gen_rotating_star_init pthread)
 target_link_libraries(silo_compare Silo::silo)
 if(MSVC)
   target_compile_options(silo_compare PRIVATE /EHsc)
