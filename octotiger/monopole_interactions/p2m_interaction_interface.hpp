@@ -82,12 +82,14 @@ namespace fmm {
             masses_soa_container& center_of_masses_SoA) {
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
-            iterate_inner_cells_padded([&center_of_masses_SoA, &local_monopoles, mons, multipoles,
-                com0](const multiindex<>& i, const size_t flat_index,
+            iterate_inner_cells_padded([&center_of_masses_SoA, &local_expansions_SoA,
+                                        &local_monopoles, mons, multipoles, com0]
+                                       (const multiindex<>& i, const size_t flat_index,
                 const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
                 center_of_masses_SoA.set_AoS_value(
                     std::move(com0.at(flat_index_unpadded)), flat_index);
-
+                local_expansions_SoA.set_AoS_value(
+                    std::move(expansion()), flat_index);
                 local_monopoles.at(flat_index) = mons.at(flat_index_unpadded);
             });
 
@@ -182,6 +184,17 @@ namespace fmm {
                 } else {
                     neighbor_empty_multipoles[dir.flat_index_with_center()] = true;
                     x_skip[z][y][x] = true;
+                    iterate_inner_cells_padding(
+                        dir, [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles]
+                        (const multiindex<>& i, const size_t flat_index,
+                            const multiindex<>&,
+                            const size_t) {
+                            local_expansions_SoA.set_AoS_value(
+                                std::move(expansion()), flat_index);
+                            center_of_masses_SoA.set_AoS_value(
+                                std::move(space_vector()), flat_index);
+                            local_monopoles.at(flat_index) = 0.0;
+                        });
                 }
             }
             x_skip[1][1][1] = true;
