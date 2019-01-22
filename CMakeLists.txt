@@ -256,3 +256,14 @@ target_link_libraries(silo_compare Silo::silo)
 if(MSVC)
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
+
+
+################################################################################
+# Set up silo_counter target
+################################################################################
+add_executable(silo_counter src/silo_counter.cpp)
+
+target_link_libraries(silo_counter Silo::silo)
+if(MSVC)
+  target_compile_options(silo_counter PRIVATE /EHsc)
+endif()
