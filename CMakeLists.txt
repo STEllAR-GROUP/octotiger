@@ -5,7 +5,7 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX CUDA)
+project(octotiger C CXX)
 
 cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0015 NEW)
