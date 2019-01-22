@@ -40,7 +40,7 @@ jobs:
                 paths:
                     - octotiger/build
 
-    test_blast:
+    test_marshak:
         <<: *docker_config
         steps:
             - checkout:
@@ -110,13 +110,16 @@ workflows:
     build_and_test:
         jobs:
             - build
+            - test_marshak:
+                requires:
+                    - build
             - test_blast:
                 requires:
                     - build
             - test_sod:
                 requires:
                     - build
-            - test_moving_star:
+            - test_rotating_star:
                 requires:
                     - build
             - test1:
