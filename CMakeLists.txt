@@ -174,6 +174,7 @@ add_hpx_executable(
     ${header_files}
 )
 
+set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
 target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 
 if(MSVC)
@@ -255,6 +256,7 @@ endif()
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
 target_link_libraries(silo_compare Silo::silo)
+set_property(TARGET silo_compare PROPERTY FOLDER "Tools")
 if(MSVC)
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()
@@ -263,6 +265,7 @@ endif()
 # Set up gen_rotating_star_init target
 ################################################################################
 add_executable(gen_rotating_star_init src/test_problems/rotating_star/make_bin.cpp)
+set_property(TARGET gen_rotating_star_init PROPERTY FOLDER "Tools")
 if(MSVC)
   target_compile_definitions(gen_rotating_star_init PRIVATE
     _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
@@ -279,6 +282,8 @@ endif()
 add_executable(silo_counter src/silo_counter.cpp)
 
 target_link_libraries(silo_counter Silo::silo)
+
+set_property(TARGET silo_counter PROPERTY FOLDER "Tools")
 if(MSVC)
   target_compile_options(silo_counter PRIVATE /EHsc)
 endif()
