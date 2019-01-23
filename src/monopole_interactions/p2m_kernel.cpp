@@ -209,7 +209,7 @@ namespace fmm {
 
             m2m_vector theta_c_rec_squared =
                 // Vc::static_datapar_cast<double>(theta_c_rec_squared_int);
-            		  Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
+                Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
 
             m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
 
@@ -405,14 +405,10 @@ namespace fmm {
             tmpstore[1] = tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
             tmpstore[2] = tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
             tmpstore[3] = tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
-            tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::Aligned);
-            tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::Aligned);
-            tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::Aligned);
-            tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::Aligned);
+            tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+            tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+            tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+            tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
 
             tmp_corrections[0] =
                 tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
@@ -421,14 +417,11 @@ namespace fmm {
             tmp_corrections[2] =
                 tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
             tmp_corrections[0].store(
-                angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::Aligned);
+                angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
             tmp_corrections[1].store(
-                angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::Aligned);
+                angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded));
             tmp_corrections[2].store(
-                angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::Aligned);
+                angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded));
             // }
         }
 
@@ -464,7 +457,7 @@ namespace fmm {
 
             m2m_vector theta_c_rec_squared =
                 // Vc::static_datapar_cast<double>(theta_c_rec_squared_int);
-            		  Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
+                Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
 
             m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
 
@@ -580,14 +573,10 @@ namespace fmm {
             tmpstore[1] = tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
             tmpstore[2] = tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
             tmpstore[3] = tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
-            tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded),
-                Vc::Aligned);
-            tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded),
-                Vc::Aligned);
-            tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded),
-                Vc::Aligned);
-            tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded),
-                Vc::Aligned);
+            tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
+            tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
+            tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
+            tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
         }
     }    // namespace monopole_interactions
 }    // namespace fmm

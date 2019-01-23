@@ -25,6 +25,12 @@ namespace fmm {
         multipole_interaction_interface::local_expansions_staging_area;
         thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
         multipole_interaction_interface::center_of_masses_staging_area;
+        thread_local const std::vector<bool> multipole_interaction_interface::stencil_masks =
+            calculate_stencil_masks(multipole_interaction_interface::stencil).first;
+        thread_local const std::vector<bool> multipole_interaction_interface::inner_stencil_masks =
+            calculate_stencil_masks(multipole_interaction_interface::stencil).second;
+
+
         multipole_interaction_interface::multipole_interaction_interface(void) {
             local_monopoles_staging_area = std::vector<real>(ENTRIES);
             this->m2m_type = opts().m2m_kernel_type;
@@ -58,9 +64,9 @@ namespace fmm {
                     angular_corrections_SoA;
 
                 multipole_cpu_kernel kernel;
-                kernel.apply_stencil(local_expansions_SoA, center_of_masses_SoA,
-                    potential_expansions_SoA, angular_corrections_SoA, local_monopoles, stencil,
-                    type);
+                kernel.apply_stencil_non_blocked(local_expansions_SoA, center_of_masses_SoA,
+                    potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
+                                                 stencil_masks, inner_stencil_masks, type);
 
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
