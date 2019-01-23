@@ -88,23 +88,6 @@ jobs:
                 working_directory: /octotiger/test_problems/rotating_star
                 command: ./test.sh ../../build/ /local/silo/bin/silodiff
 
-    test1:
-        <<: *docker_config
-        steps:
-            - checkout:
-                path: /octotiger
-            - attach_workspace:
-                at: /
-            - run:
-                name: test1
-                working_directory: /octotiger/test1
-                command: |
-                    ./test1.sh >output.txt
-                    python validate.py output.txt test1.txt
-            #- run: |
-            #    cd /octotiger/tools
-            #    tar xzf restart7.chk.tar.gz
-
 workflows:
     version: 2
     build_and_test:
@@ -122,6 +105,4 @@ workflows:
             - test_rotating_star:
                 requires:
                     - build
-            - test1:
-                requires:
-                    - build
+
