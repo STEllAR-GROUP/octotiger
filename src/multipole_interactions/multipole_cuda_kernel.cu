@@ -1,4 +1,4 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/multipole_interactions/compute_kernel_templates.hpp"
 #include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
 

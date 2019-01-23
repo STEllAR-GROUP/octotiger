@@ -5,7 +5,7 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-project(octotiger C CXX)
+project(octotiger CXX)
 
 cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0015 NEW)
@@ -25,39 +25,16 @@ option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
 # Find required packages
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
-if (OCTOTIGER_WITH_SILO)
-  find_package(Silo REQUIRED)
+find_package(Silo REQUIRED)
+find_package(Vc REQUIRED)
+find_package(Boost REQUIRED)
+
+if(OCTOTIGER_WITH_CUDA)
+  enable_language(CUDA)
+
+  string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
 endif()
 
-if (OCTOTIGER_WITH_CUDA)
-  add_definitions(-DOCTOTIGER_CUDA_ENABLED)
-  find_package(CUDA  REQUIRED)
-  include_directories("${CUDA_INCLUDE_DIRS}")
-  link_directories(${CUDA_CUBLAS_LIBRARIES})
-  string(APPEND HPX_CUDA_CLANG_FLAGS " -arch=sm_70")
-  string(APPEND CMAKE_CUDA_FLAGS " -arch=sm_70 --ptxas-options=-v -rdc=true")
-endif()
-
-include_directories(${HPX_INCLUDE_DIRS})
-link_directories(${HPX_LIBRARY_DIR})
-
-set(dependencies ${Silo_LIBRARY})
-if(NOT MSVC)
-    include_directories(${CMAKE_SOURCE_DIR}/src ~/include ${Silo_INCLUDE_DIR})
-
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        set( COMMON_FLAGS "-Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations -ffast-math")
-    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-        #set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo" )
-        #set( CMAKE_C_FLAGS_RELEASE "-Ofast -ipo" )
-        #set( CMAKE_Fortran_FLAGS_RELEASE "-Ofast -ipo" )
-        #set( CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo" )
-        set( COMMON_FLAGS "-Wno-attributes -Wno-deprecated")
-    endif()
-    set(CMAKE_CXX_FLAGS "${COMMON_FLAGS} ${CMAKE_CXX_FLAGS}")
-    set(CMAKE_C_FLAGS "${COMMON_FLAGS} ${CMAKE_C_FLAGS}")
-    set(CMAKE_F_FLAGS "${COMMON_FLAGS} ${CMAKE_F_FLAGS}")
-endif()
 ################################################################################
 # Set up Octotiger target
 ################################################################################
@@ -187,19 +164,12 @@ set(header_files
 add_hpx_executable(
   octotiger
   DEPENDENCIES
-    ${dependencies}
+    Silo::silo Vc::Vc Boost::boost
   SOURCES
     ${source_files}
-    ${CUDAP2P}
-    ${CUDAMP}
   HEADERS
     ${header_files}
-  PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    POSITION_INDEPENDENT_CODE ON
-  FOLDER  "Octotiger"
 )
-target_compile_features(octotiger PUBLIC cxx_std_14)
 
 target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 
@@ -282,7 +252,7 @@ endif()
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
 
-target_link_libraries(silo_compare)
+target_link_libraries(silo_compare Silo::silo)
 if(MSVC)
   target_compile_options(silo_compare PRIVATE /EHsc)
 endif()

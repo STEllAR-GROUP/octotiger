@@ -124,13 +124,13 @@
 // #if defined(Vc_HAVE_AVX512F) || defined(Vc_HAVE_AVX)
 
 #ifdef __AVX2__
-using space_vector = typename Vc::Vector<real, Vc::VectorAbi::Avx>;
+using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
 #else
 using floatv = Vc::float_v;
-using space_vector = typename Vc::Vector<real, Vc::VectorAbi::Best<real>>;
+using space_vector = Vc::Vector<real, Vc::VectorAbi::Best<real>>;
 #endif
 // #else
-// using space_vector = typename hpx::parallel::traits::vector_pack_type<real, 4>::type;
+// using space_vector = hpx::parallel::traits::vector_pack_type<real, 4>::type;
 // #endif
 
 // #endif

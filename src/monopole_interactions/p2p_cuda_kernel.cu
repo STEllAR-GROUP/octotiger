@@ -2,10 +2,6 @@
 #include "octotiger/monopole_interactions/monopole_kernel_templates.hpp"
 #include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
 
-#include <cstddef>
-#include <sstream>
-#include <hpx/config.hpp>
-
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {

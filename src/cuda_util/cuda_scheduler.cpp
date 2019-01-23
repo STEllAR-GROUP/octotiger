@@ -1,4 +1,4 @@
-#ifdef OCTOTIGER_CUDA_ENABLED
+#ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/calculate_stencil.hpp"
