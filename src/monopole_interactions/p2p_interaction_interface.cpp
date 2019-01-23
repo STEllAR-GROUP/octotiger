@@ -14,8 +14,12 @@ namespace fmm {
     namespace monopole_interactions {
         const thread_local std::vector<multiindex<>> p2p_interaction_interface::stencil =
             calculate_stencil().first;
+        const thread_local std::vector<bool> p2p_interaction_interface::stencil_masks =
+            calculate_stencil_masks(p2p_interaction_interface::stencil).first;
         const thread_local std::vector<std::array<real, 4>> p2p_interaction_interface::four =
             calculate_stencil().second;
+        const thread_local std::vector<std::array<real, 4>> p2p_interaction_interface::stencil_four_constants =
+            calculate_stencil_masks(p2p_interaction_interface::stencil).second;
         thread_local std::vector<real> p2p_interaction_interface::local_monopoles_staging_area(
             ENTRIES);
 
@@ -38,8 +42,8 @@ namespace fmm {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;
-                kernel_monopoles.apply_stencil(
-                    local_monopoles_staging_area, potential_expansions_SoA, stencil, four, dx);
+                kernel_monopoles.apply_stencil_non_blocked(
+                    local_monopoles_staging_area, potential_expansions_SoA, stencil_masks, stencil_four_constants, dx);
                 potential_expansions_SoA.to_non_SoA(grid_ptr->get_L());
             } else {
                 grid_ptr->compute_interactions(type);

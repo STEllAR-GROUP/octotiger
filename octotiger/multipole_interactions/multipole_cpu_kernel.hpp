@@ -56,6 +56,34 @@ namespace fmm {
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
                 const two_phase_stencil& stencil, const size_t outer_stencil_index);
 
+            void non_blocked_interaction_rho(const struct_of_array_data<expansion, real, 20, ENTRIES,
+                                             SOA_PADDING>& local_expansions_SoA,
+                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                    center_of_masses_SoA,
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
+                    potential_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
+                    angular_corrections_SoA,
+                const std::vector<real>& mons, const multiindex<>& cell_index,
+                const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
+                const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
+                const std::vector<bool>& stencil, const
+                std::vector<bool>& inner_mask, const size_t outer_stencil_index);
+
+            void non_blocked_interaction_non_rho(const struct_of_array_data<expansion, real, 20,
+                                                 ENTRIES, SOA_PADDING>& local_expansions_SoA,
+                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                    center_of_masses_SoA,
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
+                    potential_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
+                    angular_corrections_SoA,
+                const std::vector<real>& mons, const multiindex<>& cell_index,
+                const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
+                const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
+                const std::vector<bool>& stencil, const
+                std::vector<bool>& inner_mask, const size_t outer_stencil_index);
+
         public:
             multipole_cpu_kernel(void);
 
@@ -75,6 +103,17 @@ namespace fmm {
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
                     angular_corrections_SoA,
                 const std::vector<real>& mons, const two_phase_stencil& stencil, gsolve_type type);
+
+            void apply_stencil_non_blocked(const struct_of_array_data<expansion, real, 20, ENTRIES,
+                                   SOA_PADDING>& local_expansions_SoA,
+                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                    center_of_masses_SoA,
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
+                    potential_expansions_SoA,
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
+                    angular_corrections_SoA,
+                const std::vector<real>& mons, const std::vector<bool> &stencil, const std::vector<bool>&
+                inner_stencil, gsolve_type type);
         };
 
     }    // namespace multipole_interactions

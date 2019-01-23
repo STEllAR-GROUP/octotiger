@@ -43,14 +43,16 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx);
 
             std::shared_ptr<grid> grid_ptr;
+            interaction_kernel_type p2p_type;
         private:
             /// The stencil is used to identify the neighbors
             static thread_local const std::vector<multiindex<>> stencil;
+            static thread_local const std::vector<bool> stencil_masks;
             static thread_local const std::vector<std::array<real, 4>> four;
+            static thread_local const std::vector<std::array<real, 4>> stencil_four_constants;
             static thread_local std::vector<real> local_monopoles_staging_area;
             std::vector<bool> neighbor_empty_monopoles;
 
-            interaction_kernel_type p2p_type;
             p2p_cpu_kernel kernel_monopoles;
         };
 
@@ -102,6 +104,7 @@ namespace fmm {
                                             neighbor_mons.at(flat_index_unpadded);
                                     });
                             } else {
+                                // Reset to default
                                 iterate_inner_cells_padding(
                                     dir, [&local_monopoles](const multiindex<>& i,
                                              const size_t flat_index, const multiindex<>&,
@@ -111,6 +114,7 @@ namespace fmm {
                                     });
                                 auto list = grid_ptr->get_ilist_n_bnd(dir);
                                 size_t counter = 0;
+                                // Load relevant stuff
                                 for (auto i : list) {
                                     const integer iii = i.second;
                                     const multiindex<> offset =

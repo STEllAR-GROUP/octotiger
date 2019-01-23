@@ -58,7 +58,8 @@ public:
 	real code_to_s;
 	real code_to_cm;
 
-	size_t cuda_streams_per_thread;
+    size_t cuda_streams_per_locality;
+	size_t cuda_streams_per_gpu;
 
 	std::string input_file;
 	std::string config_file;
@@ -129,7 +130,8 @@ public:
 		arc & m2m_kernel_type;
 		arc & p2p_kernel_type;
 		arc & p2m_kernel_type;
-		arc & cuda_streams_per_thread;
+		arc & cuda_streams_per_locality;
+		arc & cuda_streams_per_gpu;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;
