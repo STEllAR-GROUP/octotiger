@@ -76,6 +76,18 @@ jobs:
                 working_directory: /octotiger/test_problems/sod
                 command: ./test.sh ../../build/ /local/silo/bin/silodiff
 
+    test_sphere:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - restore_cache:
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - run:
+                name: sphere
+                working_directory: /octotiger/test_problems/sphere
+                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+
     test_rotating_star:
         <<: *docker_config
         steps:
@@ -103,6 +115,9 @@ workflows:
                 requires:
                     - build
             - test_rotating_star:
+                requires:
+                    - build
+            - test_sphere:
                 requires:
                     - build
 
