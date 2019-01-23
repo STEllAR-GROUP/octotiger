@@ -1,4 +1,4 @@
-$1 --config_file=blast.ini
+$1/octotiger --config_file=blast.ini
 if [ ! -f "blast.4.silo" ]; then
 	wget phys.lsu.edu/~dmarcel/blast.4.silo
 fi
