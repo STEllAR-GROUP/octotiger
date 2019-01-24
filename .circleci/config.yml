@@ -76,34 +76,29 @@ jobs:
                 working_directory: /octotiger/test_problems/sod
                 command: ./test.sh ../../build/ /local/silo/bin/silodiff
 
+    test_sphere:
+        <<: *docker_config
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+                name: sphere
+                working_directory: /octotiger/test_problems/sphere
+                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+
     test_rotating_star:
         <<: *docker_config
         steps:
             - checkout:
                 path: /octotiger
-            - attach_workspace:
-                at: /
+            - restore_cache:
+                key: v6-build-{{ .Branch }}-{{ .Revision }}
             - run:
                 name: rotating_star
                 working_directory: /octotiger/test_problems/rotating_star
                 command: ./test.sh ../../build/ /local/silo/bin/silodiff
-
-    test1:
-        <<: *docker_config
-        steps:
-            - checkout:
-                path: /octotiger
-            - attach_workspace:
-                at: /
-            - run:
-                name: test1
-                working_directory: /octotiger/test1
-                command: |
-                    ./test1.sh >output.txt
-                    python validate.py output.txt test1.txt
-            #- run: |
-            #    cd /octotiger/tools
-            #    tar xzf restart7.chk.tar.gz
 
 workflows:
     version: 2
@@ -122,6 +117,7 @@ workflows:
             - test_rotating_star:
                 requires:
                     - build
-            - test1:
+            - test_sphere:
                 requires:
                     - build
+

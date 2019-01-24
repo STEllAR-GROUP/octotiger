@@ -88,6 +88,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_refine_test(refine_test_marshak);
 	} else if (opts().problem == SOLID_SPHERE) {
 	//	opts().hydro = false;
+		set_refine_test(refine_test_center);
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
 			return solid_sphere(x,y,z,dx,0.25);
 		}));
