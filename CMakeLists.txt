@@ -243,9 +243,12 @@ endif()
 
 if(OCTOTIGER_WITH_BLAST_TEST)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BLAST_TEST)
-  target_sources(octotiger PRIVATE
+  set(blast_sources
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp)
+  target_sources(octotiger PRIVATE ${blast_sources})
+  source_group(TREE ${PROJECT_SOURCE_DIR}
+    PREFIX "Source Files" FILES ${blast_sources})
 
   if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
     target_compile_definitions(octotiger PRIVATE
