@@ -20,7 +20,13 @@
 
 #include <Vc/Vc>
 
-//#include "immintrin.h"
+#ifdef __x86_64__
+#include <x86intrin.h>
+#endif
+
+#ifdef __ppc64__
+#include <spe.h>
+#endif
 
 // constexpr std::size_t simd_len = 8;
 
@@ -409,6 +415,7 @@
 
 // #else
 
+
 //#if defined(Vc_IMPL_AVX2)
 //using simd_vector = Vc::datapar<double, Vc::datapar_abi::avx512>;
 //using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
@@ -422,16 +429,16 @@ constexpr std::size_t simd_len = simd_vector::size();
 #else
 using floatv = Vc::float_v;
 using simd_vector = Vc::SimdArray<double, floatv::size()>;
-using int_simd_vector = Vc::SimdArray<uint32_t, floatv::size()>;
+using int_simd_vector = Vc::SimdArray<std::uint32_t, floatv::size()>;
 using v4sd = Vc::SimdArray<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
 
 #endif
-// using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
+// using simd_vector = hpx::parallel::traits::vector_pack_type<double, 8>::type;
 // using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
 //#else
-//using simd_vector = typename hpx::parallel::traits::vector_pack_type<double, 8>::type;
-//using v4sd = typename hpx::parallel::traits::vector_pack_type<double, 4>::type;
+//using simd_vector = hpx::parallel::traits::vector_pack_type<double, 8>::type;
+//using v4sd = hpx::parallel::traits::vector_pack_type<double, 4>::type;
 //#endif
 
 // #endif

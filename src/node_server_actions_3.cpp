@@ -701,4 +701,3 @@ void node_server::velocity_inc(const space_vector& dv) {
 		grid_ptr->velocity_inc(dv);
 	}
 }
-
