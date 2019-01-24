@@ -18,8 +18,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
+option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
 option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
+option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 
 ################################################################################
 # Find required packages
@@ -89,8 +91,6 @@ set(source_files
     src/radiation/rad_grid.cpp
     src/radiation/implicit.cpp
     src/test_problems/marshak/marshak.cpp
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
@@ -200,10 +200,6 @@ if(MSVC)
 
   target_compile_options(octotiger PRIVATE /EHsc)
 
-  if(NOT OCTOTIGER_WITH_BOOST_MULTIPRECISION)
-    message(WARNING "GCC Quad-Precision Math Library is not available with "
-    "MSVC. Consider setting OCTOTIGER_WITH_BOOST_MULTIPRECISION to ON")
-  endif()
 else()
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     target_compile_options(octotiger PRIVATE
@@ -214,12 +210,6 @@ else()
       #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
       target_compile_options(octotiger -Wno-attributes -Wno-deprecated)
   endif()
-endif()
-
-if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
-else()
-  target_link_libraries(octotiger quadmath)
 endif()
 
 if(USE_AVX2)
@@ -249,6 +239,35 @@ endif()
 
 if(OCTOTIGER_WITH_RADIATION)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_RADIATION)
+endif()
+
+if(OCTOTIGER_WITH_BLAST_TEST)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BLAST_TEST)
+  target_sources(octotiger PRIVATE
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp)
+
+  if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+    target_compile_definitions(octotiger PRIVATE
+      OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
+    set(OCTOTIGER_WITH_QUADMATH OFF CACHE BOOL "" FORCE)
+
+  elseif(OCTOTIGER_WITH_QUADMATH)
+    # Check if on PowerPC with GCC <8
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le" AND
+      CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
+      message(FATAL_ERROR "GCC Quad-Precision Math Library is only available "
+        "with GCC 8 and above on PowerPC")
+    elseif(MSVC)
+      message(FATAL_ERROR "GCC Quad-Precision Math Library is not available with MSVC")
+    endif()
+    target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_QUADMATH)
+    target_link_libraries(octotiger quadmath)
+
+  else()
+      message(FATAL_ERROR "Octotiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
+        "be built without quadmath or Boost.Multiprecision")
+  endif()
 endif()
 
 ################################################################################
