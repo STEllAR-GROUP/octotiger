@@ -69,8 +69,8 @@ jobs:
         steps:
             - checkout:
                 path: /octotiger
-            - restore_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - attach_workspace:
+                at: /
             - run:
                 name: sod
                 working_directory: /octotiger/test_problems/sod
@@ -81,8 +81,8 @@ jobs:
         steps:
             - checkout:
                 path: /octotiger
-            - restore_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - attach_workspace:
+                at: /
             - run:
                 name: rotating_star
                 working_directory: /octotiger/test_problems/rotating_star

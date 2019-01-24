@@ -6,12 +6,11 @@
 //============================================================================
 
 #include <array>
+#include <cfenv>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <vector>
-
-#include <fenv.h>
 
 #define nt (nr / 4)
 #define zedge 0.6
