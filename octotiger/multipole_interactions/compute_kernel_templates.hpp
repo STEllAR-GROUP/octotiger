@@ -25,7 +25,7 @@ namespace fmm {
             factor[7] / 2.0, factor[8] / 2.0, factor[9] / 2.0, factor[10] / 2.0, factor[11] / 2.0,
             factor[12] / 2.0, factor[13] / 2.0, factor[14] / 2.0, factor[15] / 2.0,
             factor[16] / 2.0, factor[17] / 2.0, factor[18] / 2.0, factor[19] / 2.0};
-        CUDA_CALLABLE_METHOD constexpr  double factor_sixth[20] = {factor[0] / 6.0, factor[1] / 6.0,
+        CUDA_CALLABLE_METHOD constexpr double factor_sixth[20] = {factor[0] / 6.0, factor[1] / 6.0,
             factor[2] / 6.0, factor[3] / 6.0, factor[4] / 6.0, factor[5] / 6.0, factor[6] / 6.0,
             factor[7] / 6.0, factor[8] / 6.0, factor[9] / 6.0, factor[10] / 6.0, factor[11] / 6.0,
             factor[12] / 6.0, factor[13] / 6.0, factor[14] / 6.0, factor[15] / 6.0,

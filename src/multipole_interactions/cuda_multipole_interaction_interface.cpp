@@ -4,7 +4,6 @@
 #include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
 
 #include "octotiger/options.hpp"
-#include "octotiger/defs.hpp"
 
 #include <array>
 #include <vector>
@@ -25,7 +24,7 @@ namespace fmm {
             std::array<real, NDIM> xbase) {
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
-            if (slot == -1 || m2m_type == interaction_kernel_type::OLD) {    // Run fallback cpu implementation
+            if (slot == -1) {    // Run fkernel_scheduler::allback cpu implementation
                 // std::cout << "Running cpu fallback" << std::endl;
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
@@ -51,32 +50,25 @@ namespace fmm {
                     cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                const dim3 grid_spec(INX, 1, 1);
-                const dim3 threads_per_block(1, INX, INX);
+                const dim3 grid_spec(1, 1, 1);
+                const dim3 threads_per_block(8, 8, 8);
                 if (type == RHO) {
-                    bool second_phase = false;
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
-                        &(env.device_angular_corrections), &theta, &second_phase};
-                    gpu_interface.execute((const void*)&cuda_multipole_interactions_kernel_rho, grid_spec,
-                    threads_per_block, args, 0);
-                    // second_phase = true;
-                    // gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
-                    //                       threads_per_block, args, 0);
+                        &(env.device_angular_corrections), &(env.device_stencil),
+                        &(env.device_phase_indicator), &theta};
+                    gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
+                        threads_per_block, args, 0);
                     gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
-                                             env.device_angular_corrections, angular_corrections_size,
-                                             cudaMemcpyDeviceToHost);
+                        env.device_angular_corrections, angular_corrections_size,
+                        cudaMemcpyDeviceToHost);
 
                 } else {
-                    bool second_phase = false;
                     void* args[] = {&(env.device_local_monopoles), &(env.device_center_of_masses),
                         &(env.device_local_expansions), &(env.device_potential_expansions),
-                        &theta, &second_phase};
-                    gpu_interface.execute((const void*)&cuda_multipole_interactions_kernel_non_rho, grid_spec,
+                        &(env.device_stencil), &(env.device_phase_indicator), &theta};
+                    gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
                         threads_per_block, args, 0);
-                    // second_phase = true;
-                    // gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
-                    //     threads_per_block, args, 0);
                 }
                 gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
                     env.device_potential_expansions, potential_expansions_size,

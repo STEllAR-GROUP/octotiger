@@ -327,7 +327,7 @@ void grid::compute_interactions(gsolve_type type) {
                 // A0, A1 are the contributions to L (for each cell)
                 taylor<4, simd_vector> A0, A1;
                 // B0, B1 are the contributions to L_c (for each cell)
-                std::array<simd_vector, NDIM> BB0 = {
+                std::array<simd_vector, NDIM> B0 = {
                     simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)};
                 std::array<simd_vector, NDIM> B1 = {
                     simd_vector(ZERO), simd_vector(ZERO), simd_vector(ZERO)};
@@ -407,7 +407,7 @@ void grid::compute_interactions(gsolve_type type) {
                         for (integer i = 0; i != 10; ++i) {
                             const integer bcd_idx = bcd_idx_map[i];
                             const auto tmp = D[abcd_idx_map[i]] * (factor[bcd_idx] * SIXTH);
-                            BB0[a] -= n0[bcd_idx] * tmp;
+                            B0[a] -= n0[bcd_idx] * tmp;
                             B1[a] -= n1[bcd_idx] * tmp;
                         }
                     }
@@ -464,7 +464,7 @@ void grid::compute_interactions(gsolve_type type) {
                         space_vector& L_ciii0 = L_c[iii0];
                         space_vector& L_ciii1 = L_c[iii1];
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += BB0[j][i];
+                            L_ciii0[j] += B0[j][i];
                             L_ciii1[j] += B1[j][i];
                         }
                     }
@@ -582,7 +582,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
 
                 taylor<5, simd_vector> D;
                 taylor<4, simd_vector> A0;
-                std::array<simd_vector, NDIM> BB0 = {
+                std::array<simd_vector, NDIM> B0 = {
                     simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)};
 
                 D.set_basis(dX);
@@ -642,7 +642,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
                         for (integer i = 0; i != 10; ++i) {
                             const integer bcd_idx = bcd_idx_map[i];
                             const auto tmp = D[abcd_idx_map[i]] * (factor[bcd_idx] * SIXTH);
-                            BB0[a] -= n0[bcd_idx] * tmp;
+                            B0[a] -= n0[bcd_idx] * tmp;
                         }
                     }
                 }
@@ -687,7 +687,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += BB0[j][i];
+                            L_ciii0[j] += B0[j][i];
                         }
                     }
                 }
@@ -749,7 +749,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
 
                 taylor<5, simd_vector> D;
                 taylor<2, simd_vector> A0;
-                std::array<simd_vector, NDIM> BB0 = {
+                std::array<simd_vector, NDIM> B0 = {
                     simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)};
 
                 D.set_basis(dX);
@@ -807,7 +807,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
                         for (integer i = 0; i != 10; ++i) {
                             const integer bcd_idx = bcd_idx_map[i];
                             const auto tmp = D[abcd_idx_map[i]] * (factor[bcd_idx] * SIXTH);
-                            BB0[a] -= n0[bcd_idx] * tmp;
+                            B0[a] -= n0[bcd_idx] * tmp;
                         }
                     }
                 }
@@ -826,7 +826,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += BB0[j][i];
+                            L_ciii0[j] += B0[j][i];
                         }
                     }
                 }
@@ -896,7 +896,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
 
                 taylor<5, simd_vector> D;
                 taylor<4, simd_vector> A0;
-                std::array<simd_vector, NDIM> BB0 = {
+                std::array<simd_vector, NDIM> B0 = {
                     simd_vector(0.0), simd_vector(0.0), simd_vector(0.0)};
 
                 D.set_basis(dX);
@@ -925,7 +925,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                         for (integer i = 0; i != 10; ++i) {
                             const integer bcd_idx = bcd_idx_map[i];
                             const auto tmp = D[abcd_idx_map[i]] * (factor[bcd_idx] * SIXTH);
-                            BB0[a] -= n0[bcd_idx] * tmp;
+                            B0[a] -= n0[bcd_idx] * tmp;
                         }
                     }
                 }
@@ -947,7 +947,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                         space_vector& L_ciii0 = L_c[iii0];
 #pragma GCC ivdep
                         for (integer j = 0; j != NDIM; ++j) {
-                            L_ciii0[j] += BB0[j][i];
+                            L_ciii0[j] += B0[j][i];
                         }
                     }
                 }
