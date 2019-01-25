@@ -102,6 +102,7 @@ set(source_files
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/radiation/rad_grid.cpp
     src/radiation/implicit.cpp
+    src/radiation/radiation_cuda_kernel.cu
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
@@ -172,6 +173,7 @@ set(header_files
     octotiger/radiation/implicit.hpp
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
+    octotiger/radiation/radiation_cuda_kernel.hpp
     octotiger/test_problems/rotating_star/rotating_star.hpp
     octotiger/test_problems/sod/sod.hpp
     octotiger/test_problems/sod/exact_sod.hpp
@@ -195,6 +197,14 @@ if(MSVC)
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
   set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY
     VS_STARTUP_PROJECT octotiger)
+
+  string(REPLACE "/" "\\" SILO_ROOTPATH ${Silo_DIR})
+  string(REPLACE "/lib/cmake/HPX" "" HPX_ROOTPATH ${HPX_DIR})
+  string(REPLACE "/" "\\" HPX_ROOTPATH ${HPX_ROOTPATH})
+  add_custom_command(TARGET octotiger PRE_BUILD
+    COMMAND xcopy /D /Y ${SILO_ROOTPATH}\\SiloWindows\\MSVC2012\\x64\\Release\\*.dll $(TargetDir)
+    COMMAND xcopy /D /Y ${HPX_ROOTPATH}\\$(Configuration)\\bin\\*.dll $(TargetDir)
+    COMMENT "Copying files from Silo and HPX for $(Configuration) configuration")
 
   target_compile_definitions(octotiger PRIVATE
     _USE_MATH_DEFINES
