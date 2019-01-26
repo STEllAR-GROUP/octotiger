@@ -40,7 +40,7 @@ jobs:
 
     test_marshak:
         <<: *docker_config
-        working_directory: /octotiger/test_problems/marshak
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
@@ -51,16 +51,18 @@ jobs:
                 command: wget phys.lsu.edu/~dmarcel/marshak.2.silo
             - run:
                 name: Marshak wave test
-                command: /octotiger/build/octotiger --config_file=marshak.ini
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/marshak/marshak.ini
             - run:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 marshak.2.silo final.silo >diff.txt
                     ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
     test_blast:
         <<: *docker_config
-        working_directory: /octotiger/test_problems/blast
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
@@ -71,16 +73,18 @@ jobs:
                 command: wget phys.lsu.edu/~dmarcel/blast.4.silo
             - run:
                 name: Blast test
-                command: /octotiger/build/octotiger --config_file=blast.ini
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/blast/blast.ini
             - run:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 blast.4.silo final.silo >diff.txt
                     ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
     test_sod:
         <<: *docker_config
-        working_directory: /octotiger/test_problems/sod
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
@@ -91,16 +95,18 @@ jobs:
                 command: wget phys.lsu.edu/~dmarcel/sod.4.silo
             - run:
                 name: Sod shock tube test
-                command: /octotiger/build/octotiger --config_file=sod.ini
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sod/sod.ini
             - run:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 sod.4.silo final.silo >diff.txt
                     ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
     test_sphere:
         <<: *docker_config
-        working_directory: /octotiger/test_problems/sphere
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
@@ -111,16 +117,18 @@ jobs:
                 command: wget phys.lsu.edu/~dmarcel/sphere.1.silo
             - run:
                 name: Solid sphere test
-                command: /octotiger/build/octotiger --config_file=sphere.ini
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sphere/sphere.ini
             - run:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 sphere.1.silo final.silo >diff.txt
                     ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
     test_rotating_star:
         <<: *docker_config
-        working_directory: /octotiger/test_problems/rotating_star
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
@@ -134,12 +142,14 @@ jobs:
                 command: /octotiger/build/gen_rotating_star_init
             - run:
                 name: Rotating star test
-                command: /octotiger/build/octotiger --config_file=rotating_star.ini 
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/rotating_star/rotating_star.ini 
             - run:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 sphere.1.silo final.silo >diff.txt
                     ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
 workflows:
     version: 2
