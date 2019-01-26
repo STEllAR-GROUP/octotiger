@@ -56,8 +56,7 @@ jobs:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 marshak.2.silo final.silo >diff.txt
-                    grep ".vals" diff.txt | tee vals.txt
-                    [[ $(wc -l <vals.txt) -eq 0 ]]
+                    ! grep ".vals" diff.txt | tee vals.txt
 
     test_blast:
         <<: *docker_config
@@ -77,8 +76,7 @@ jobs:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 blast.4.silo final.silo >diff.txt
-                    grep ".vals" diff.txt | tee vals.txt
-                    [[ $(wc -l <vals.txt) -eq 0 ]]
+                    ! grep ".vals" diff.txt | tee vals.txt
 
     test_sod:
         <<: *docker_config
@@ -95,13 +93,10 @@ jobs:
                 name: Sod shock tube test
                 command: /octotiger/build/octotiger --config_file=sod.ini
             - run:
-                name: Compare with reference
+                name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 sod.4.silo final.silo >diff.txt
-                    grep ".vals" diff.txt | tee vals.txt
-            - run:
-                name: Check Integrity
-                command: [[ $(wc -l <vals.txt) -eq 0 ]]
+                    ! grep ".vals" diff.txt | tee vals.txt
 
     test_sphere:
         <<: *docker_config
@@ -121,8 +116,7 @@ jobs:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 sphere.1.silo final.silo >diff.txt
-                    grep ".vals" diff.txt | tee vals.txt
-                    [[ $(wc -l <vals.txt) -eq 0 ]]
+                    ! grep ".vals" diff.txt | tee vals.txt
 
     test_rotating_star:
         <<: *docker_config
@@ -145,8 +139,7 @@ jobs:
                 name: Check Integrity
                 command: |
                     silodiff -q -x 1.0 -R 1.0e-12 sphere.1.silo final.silo >diff.txt
-                    grep ".vals" diff.txt | tee vals.txt
-                    [[ $(wc -l <vals.txt) -eq 0 ]]
+                    ! grep ".vals" diff.txt | tee vals.txt
 
 workflows:
     version: 2
