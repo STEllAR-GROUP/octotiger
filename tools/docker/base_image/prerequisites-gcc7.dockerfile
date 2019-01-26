@@ -38,3 +38,6 @@ RUN git clone https://github.com/STEllAR-GROUP/hpx.git --depth=1 && \
 	cmake -Hhpx -Bhpx/build -DBOOST_ROOT=/local/boost -DHPX_WITH_EXAMPLES=Off -DHPX_WITH_DATAPAR_VC=On -DVc_DIR=/local/vc/lib/cmake/Vc -DCMAKE_INSTALL_PREFIX=/local/hpx -DCMAKE_BUILD_TYPE=Release -GNinja && \
 	cmake --build hpx/build --target install && \
 	rm -rf hpx
+
+ENV PATH=/local/silo/bin:/local/hdf5/bin:/local/hpx/bin:$PATH \
+	LD_LIBRARY_PATH=/local/silo/lib:/local/hdf5/lib:/local/boost/lib:/local/vc/lib:/local/hpx/lib

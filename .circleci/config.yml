@@ -12,8 +12,6 @@ anchors:
     - &docker_config
         docker:
             - image: stellargroup/octotiger:prerequisites-gcc6
-        environment:
-            LD_LIBRARY_PATH: /local/hdf5/lib:/local/boost_1_63_0/lib:/local/hpx/lib:/local/Vc/lib
 
 jobs:
     build:
@@ -50,7 +48,7 @@ jobs:
             - run:
                 name: marshak
                 working_directory: /octotiger/test_problems/marshak
-                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+                command: ./test.sh ../../build/ silodiff
 
     test_blast:
         <<: *docker_config
@@ -62,7 +60,7 @@ jobs:
             - run:
                 name: blast
                 working_directory: /octotiger/test_problems/blast
-                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+                command: ./test.sh ../../build/ silodiff
 
     test_sod:
         <<: *docker_config
@@ -74,7 +72,7 @@ jobs:
             - run:
                 name: sod
                 working_directory: /octotiger/test_problems/sod
-                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+                command: ./test.sh ../../build/ silodiff
 
     test_sphere:
         <<: *docker_config
@@ -86,19 +84,19 @@ jobs:
             - run:
                 name: sphere
                 working_directory: /octotiger/test_problems/sphere
-                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+                command: ./test.sh ../../build/ silodiff
 
     test_rotating_star:
         <<: *docker_config
         steps:
             - checkout:
                 path: /octotiger
-            - restore_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+            - attach_workspace:
+                at: /
             - run:
                 name: rotating_star
                 working_directory: /octotiger/test_problems/rotating_star
-                command: ./test.sh ../../build/ /local/silo/bin/silodiff
+                command: ./test.sh ../../build/ silodiff
 
 workflows:
     version: 2
@@ -120,4 +118,3 @@ workflows:
             - test_sphere:
                 requires:
                     - build
-
