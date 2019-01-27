@@ -5,7 +5,7 @@
  *      Author: dmarce1
  */
 
-#include <hpx/config.hpp>
+#include "octotiger/config.hpp"
 
 #include "octotiger/container_device.hpp"
 #include "octotiger/defs.hpp"

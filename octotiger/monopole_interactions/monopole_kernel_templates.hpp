@@ -1,6 +1,6 @@
 #pragma once
 
-#include "octotiger/common_kernel/interaction_constants.hpp"
+//#include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 
 namespace octotiger {
