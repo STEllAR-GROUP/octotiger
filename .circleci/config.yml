@@ -46,9 +46,16 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_marshak-v2
             - run:
                 name: Download integrity check reference
-                command: wget phys.lsu.edu/~dmarcel/marshak.2.silo
+                command: wget -nc phys.lsu.edu/~dmarcel/marshak.2.silo
+            - save_cache:
+                key: test_marshak-v2
+                paths:
+                    /test
             - run:
                 name: Marshak wave test
                 command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/marshak/marshak.ini
@@ -68,9 +75,16 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_blast-v4
             - run:
                 name: Download integrity check reference
-                command: wget phys.lsu.edu/~dmarcel/blast.4.silo
+                command: wget -nc phys.lsu.edu/~dmarcel/blast.4.silo
+            - save_cache:
+                key: test_blast-v4
+                paths:
+                    /test
             - run:
                 name: Blast test
                 command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/blast/blast.ini
@@ -90,9 +104,16 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_sod-v4
             - run:
                 name: Download integrity check reference
-                command: wget phys.lsu.edu/~dmarcel/sod.4.silo
+                command: wget -nc phys.lsu.edu/~dmarcel/sod.4.silo
+            - save_cache:
+                key: test_sod-v4
+                paths:
+                    /test
             - run:
                 name: Sod shock tube test
                 command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sod/sod.ini
@@ -112,9 +133,16 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_sphere-v1
             - run:
                 name: Download integrity check reference
-                command: wget phys.lsu.edu/~dmarcel/sphere.1.silo
+                command: wget -nc phys.lsu.edu/~dmarcel/sphere.1.silo
+            - save_cache:
+                key: test_sphere-v1
+                paths:
+                    /test
             - run:
                 name: Solid sphere test
                 command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sphere/sphere.ini
@@ -134,9 +162,16 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_rotating_star-v1
             - run:
                 name: Download integrity check reference
-                command: wget phys.lsu.edu/~dmarcel/rotating_star.1.silo
+                command: wget -nc phys.lsu.edu/~dmarcel/rotating_star.1.silo
+            - save_cache:
+                key: test_rotating_star-v1
+                paths:
+                    /test
             - run:
                 name: Generate Init
                 command: /octotiger/build/gen_rotating_star_init
