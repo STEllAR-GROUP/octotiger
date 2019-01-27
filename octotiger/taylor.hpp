@@ -8,28 +8,24 @@
 #ifndef TAYLOR_HPP_
 #define TAYLOR_HPP_
 
+#include "octotiger/config.hpp"
+
 #include "octotiger/defs.hpp"
 #include "octotiger/profiler.hpp"
-#include "octotiger/taylor.hpp"
+#include "octotiger/real.hpp"
 #include "octotiger/simd.hpp"
-
-#include <hpx/traits/is_bitwise_serializable.hpp>
-
-#if defined(HPX_HAVE_DATAPAR)
-#include <hpx/include/parallel_equal.hpp>
-#include <hpx/include/parallel_fill.hpp>
-#include <hpx/include/parallel_transform.hpp>
-#endif
+#include "octotiger/space_vector.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <type_traits>
 
 // class simd_vector;
 
-#define MAX_ORDER 5
+constexpr std::size_t MAX_ORDER = 5;
 
 struct taylor_consts
 {
@@ -345,8 +341,6 @@ namespace hpx { namespace traits
     {};
 }}
 
-#include "space_vector.hpp"
-
 template <int N, class T>
 taylor_consts taylor<N, T>::tc;
 
@@ -538,8 +532,8 @@ inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM
     // PROF_END;
 }
 
-typedef taylor<4, real> multipole;
-typedef taylor<4, real> expansion;
+using multipole = taylor<4, real>;
+using expansion = taylor<4, real>;
 
 template <int N, class T = real>
 std::ostream& operator<<(std::ostream& os, const taylor<N, T>& t) {
@@ -553,7 +547,5 @@ std::ostream& operator<<(std::ostream& os, const taylor<N, T>& t) {
     std::cout << ")";
     return os;
 }
-
-
 
 #endif /* TAYLOR_HPP_ */
