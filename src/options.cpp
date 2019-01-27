@@ -10,8 +10,6 @@
 #include "octotiger/grid.hpp"
 #include "octotiger/real.hpp"
 
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
 #include <boost/program_options.hpp>
 
 #include <cmath>

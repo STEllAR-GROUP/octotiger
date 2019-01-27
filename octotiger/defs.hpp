@@ -5,26 +5,24 @@
  *      Author: dmarce1
  */
 
-#include <hpx/config.hpp>
+#if !defined(DEFS_HPP_)
+#define DEFS_HPP_
 
 #include "octotiger/real.hpp"
-//#include "octotiger/future.hpp"
 
 #include <array>
-#include <cstddef>
-#include <iostream>
+//#include <cstddef>
+//#include <iostream>
 
-
-
-#define MARSHAK_OPAC 1.0e+2
+constexpr double MARSHAK_OPAC = 1.0e+2;
 //#define OCTOTIGER_RESTART_LOAD_SEQ
 
 //#define OCTOTIGER_USE_NODE_CACHE
 
 //#define OCTOTIGER_FLUX_CHECK
 
-#define rho_floor  (1.0e-15)
-#define REFINE_BW 2
+constexpr real rho_floor = 1.0e-15;
+constexpr int REFINE_BW = 2;
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 # define USE_GRAV_PAR
@@ -32,11 +30,8 @@
 
 //#define FIND_AXIS_V2
 
-
-#ifndef TYPES444_HPP_
-
 //#define CWD
-#define BIBI
+//#define BIBI
 //#define OLD_SCF
 
 //#define WD_EOS
@@ -44,20 +39,18 @@
 //#define USE_NIECE_BOOL
 
 
-#define EXPERIMENT
-#define NRF 4
-
-
+//#define EXPERIMENT
+constexpr int NRF = 4;
 
 #define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
 
 
 
-#define USE_SIMD
+//#define USE_SIMD
 
-#define ZCORRECT
+//#define ZCORRECT
 
-#define USE_PPM
+//#define USE_PPM
 //#define USE_MINMOD
 
  #if !defined(OCTOTIGER_FORCEINLINE)
@@ -72,22 +65,22 @@
 #   endif
 #endif
 
-typedef long long int integer;
+using integer = long long int;
 #define TYPES444_HPP_
 
-typedef unsigned char byte;
+//using byte = unsigned char;
 
 enum gsolve_type {
 	RHO, DRHODT
 };
 
 
-#define USE_ROTATING_FRAME
+//#define USE_ROTATING_FRAME
 //#define OUTPUT_FREQ (100.0)
 
 //#define USE_SPHERICAL
-constexpr integer M_POLES = 3;
-constexpr integer L_POLES = M_POLES;
+//constexpr integer M_POLES = 3;
+//constexpr integer L_POLES = M_POLES;
 
 
 
@@ -185,8 +178,8 @@ constexpr integer gx_i = 1;
 constexpr integer gy_i = 2;
 constexpr integer gz_i = 3;
 
-constexpr std::array<boundary_type, NFACE> boundary_types = { OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW };
-
+constexpr std::array<boundary_type, NFACE> boundary_types = {
+    OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW};
 
 // #define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
 constexpr inline integer h0index(integer i, integer j, integer k)
@@ -237,42 +230,44 @@ inline void inplace_average(T& s1, T& s2)
 };
 
 /*
-#define SYSTEM(command) \
-	if( system( (command).c_str()) != 0) { \
-		printf( "System command \"%s\" failed in %s on line %i\n", (command).c_str(), __FILE__, __LINE__); \
-		abort(); \
-	}
+#define SYSTEM(command)                                                        \
+    if (system((command).c_str()) != 0)                                        \
+    {                                                                          \
+        printf("System command \"%s\" failed in %s on line %i\n",              \
+            (command).c_str(), __FILE__, __LINE__);                            \
+        abort();                                                               \
+    }
 */
 
-template <typename T>
-std::size_t write(std::ostream& strm, T && t)
-{
-    typedef typename std::decay<T>::type output_type;
-    strm.write(reinterpret_cast<char const*>(&t), sizeof(output_type));
-    return sizeof(output_type);
-}
+//template <typename T>
+//std::size_t write(std::ostream& strm, T && t)
+//{
+//    using output_type = typename std::decay<T>::type;
+//    strm.write(reinterpret_cast<char const*>(&t), sizeof(output_type));
+//    return sizeof(output_type);
+//}
+//
+//template <typename T>
+//std::size_t write(std::ostream& strm, T* t, std::size_t size)
+//{
+//    strm.write(reinterpret_cast<char const*>(t), sizeof(T) * size);
+//    return sizeof(T) * size;
+//}
 
-template <typename T>
-std::size_t write(std::ostream& strm, T* t, std::size_t size)
-{
-    strm.write(reinterpret_cast<char const*>(t), sizeof(T) * size);
-    return sizeof(T) * size;
-}
-
-template <typename T>
-std::size_t read(std::istream& strm, T & t)
-{
-    typedef typename std::decay<T>::type input_type;
-    strm.read(reinterpret_cast<char*>(&t), sizeof(input_type));
-    return sizeof(input_type);
-}
-
-template <typename T>
-std::size_t read(std::istream& strm, T* t, std::size_t size)
-{
-    strm.read(reinterpret_cast<char*>(t), sizeof(T) * size);
-    return sizeof(T) * size;
-}
+//template <typename T>
+//std::size_t read(std::istream& strm, T & t)
+//{
+//    using input_type = typename std::decay<T>::type;
+//    strm.read(reinterpret_cast<char*>(&t), sizeof(input_type));
+//    return sizeof(input_type);
+//}
+//
+//template <typename T>
+//std::size_t read(std::istream& strm, T* t, std::size_t size)
+//{
+//    strm.read(reinterpret_cast<char*>(t), sizeof(T) * size);
+//    return sizeof(T) * size;
+//}
 
 
-#endif /* TYPES_HPP_ */
+#endif

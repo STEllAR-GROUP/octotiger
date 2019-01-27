@@ -10,7 +10,7 @@
 
 #define SILO_UNITS
 
-#include <hpx/config.hpp>
+#include "octotiger/config.hpp"
 
 #include "octotiger/radiation/rad_grid.hpp"
 
@@ -106,8 +106,8 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
 		std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi);
 
-typedef real xpoint_type;
-typedef int zone_int_type;
+using xpoint_type = real;
+using zone_int_type = int;
 
 class grid {
 public:

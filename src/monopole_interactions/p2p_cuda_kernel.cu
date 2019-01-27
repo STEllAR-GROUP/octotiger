@@ -1,4 +1,5 @@
 #ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/monopole_interactions/monopole_kernel_templates.hpp"
 #include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
 
@@ -25,10 +26,10 @@ namespace fmm {
             }*/
         }
 
-        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length = ENTRIES + SOA_PADDING;
-        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
-        __device__ HPX_CONSTEXPR_OR_CONST size_t cache_line_length = INX + 10;
-        __device__ HPX_CONSTEXPR_OR_CONST size_t cache_offset = INX + STENCIL_MIN;
+        //__device__ const size_t component_length = ENTRIES + SOA_PADDING;
+        __device__ const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+        __device__ const size_t cache_line_length = INX + 10;
+        __device__ const size_t cache_offset = INX + STENCIL_MIN;
 
         __global__ void
         __launch_bounds__(INX * INX, 4)
@@ -42,7 +43,7 @@ namespace fmm {
             int local_id = threadIdx.y * INX + threadIdx.z;
 
             // use in case of debug prints
-            bool first_thread = (blockIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
+            //bool first_thread = (blockIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index((threadIdx.x + blockIdx.x * 1) + INNER_CELLS_PADDING_DEPTH,
                 threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
