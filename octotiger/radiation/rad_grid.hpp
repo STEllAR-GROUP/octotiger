@@ -11,6 +11,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/physcon.hpp"
+#include "octotiger/real.hpp"
 #include "octotiger/silo.hpp"
 //#include "octotiger/sphere_points.hpp"
 
@@ -24,7 +25,7 @@
 #define R_NX (INX+2*R_BW)
 #define R_N3 (R_NX*R_NX*R_NX)
 
-typedef real real;
+//using real = real;
 
 class rad_grid {
 public:

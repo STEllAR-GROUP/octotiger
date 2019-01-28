@@ -145,7 +145,7 @@ private:
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
 	std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 #endif
 

@@ -30,7 +30,7 @@ extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
 extern taylor<4, m2m_vector> factor_sixth_v;
 
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
 const auto for_loop_policy = hpx::parallel::execution::par;
 #else
 const auto for_loop_policy = hpx::parallel::execution::seq;
@@ -442,7 +442,7 @@ void grid::compute_interactions(gsolve_type type) {
                     A1[i] = -m1[0] * tmp;
                     A0[i] = m0[0] * tmp;
                 }
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
 
@@ -669,7 +669,7 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
                     A0[i] = m0[0] * D[i];
                 }
 
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
@@ -812,7 +812,7 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
                     }
                 }
 
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
@@ -930,7 +930,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                     }
                 }
 
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
                 std::lock_guard<hpx::lcos::local::spinlock> lock(*L_mtx);
 #endif
                 for (integer i = 0; i != simd_len && i + li < list_size; ++i) {
