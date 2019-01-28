@@ -10,7 +10,6 @@
 
 #include <array>
 #include <cstddef>
-#include <functional>
 #include <vector>
 
 // std::vector<interaction_type> ilist_debugging;

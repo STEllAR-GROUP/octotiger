@@ -24,10 +24,6 @@ constexpr double MARSHAK_OPAC = 1.0e+2;
 constexpr real rho_floor = 1.0e-15;
 constexpr int REFINE_BW = 2;
 
-#ifdef OCTOTIGER_HAVE_GRAV_PAR
-# define USE_GRAV_PAR
-#endif
-
 //#define FIND_AXIS_V2
 
 //#define CWD
@@ -53,7 +49,7 @@ constexpr int NRF = 4;
 //#define USE_PPM
 //#define USE_MINMOD
 
- #if !defined(OCTOTIGER_FORCEINLINE)
+#if !defined(OCTOTIGER_FORCEINLINE)
 #   if defined(__NVCC__) || defined(__CUDACC__)
 #       define OCTOTIGER_FORCEINLINE inline
 #   elif defined(_MSC_VER)
@@ -66,7 +62,6 @@ constexpr int NRF = 4;
 #endif
 
 using integer = long long int;
-#define TYPES444_HPP_
 
 //using byte = unsigned char;
 
@@ -268,6 +263,5 @@ inline void inplace_average(T& s1, T& s2)
 //    strm.read(reinterpret_cast<char*>(t), sizeof(T) * size);
 //    return sizeof(T) * size;
 //}
-
 
 #endif

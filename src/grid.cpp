@@ -2009,7 +2009,7 @@ void grid::allocate() {
 
 	set_coordinates();
 
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
 	L_mtx.reset(new hpx::lcos::local::spinlock);
 #endif
 
