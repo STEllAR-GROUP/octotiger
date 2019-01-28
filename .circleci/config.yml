@@ -181,7 +181,7 @@ jobs:
             - run:
                 name: Check Integrity
                 command: |
-                    silodiff -q -x 1.0 -R 1.0e-12 sphere.1.silo final.silo >diff.txt
+                    silodiff -q -x 1.0 -R 1.0e-12 rotating_star.1.silo final.silo >diff.txt
                     ! grep ".vals" diff.txt | tee vals.txt
             - store_artifacts:
                 path: /test
