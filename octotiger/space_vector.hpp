@@ -9,14 +9,13 @@
 #define SPACE_VECTOR_HPP_
 
 #include "octotiger/defs.hpp"
+#include "octotiger/real.hpp"
 
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 #include <hpx/traits/is_bitwise_serializable.hpp>
 
 #include <Vc/Vc>
-
-#include <cmath>
 
 // #if !defined(HPX_HAVE_DATAPAR)
 

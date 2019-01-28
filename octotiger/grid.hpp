@@ -20,23 +20,18 @@
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/roe.hpp"
+#include "octotiger/real.hpp"
 #include "octotiger/scf_data.hpp"
 #include "octotiger/silo.hpp"
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"
 
-#include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/set.hpp>
-#include <hpx/runtime/serialization/vector.hpp>
 #include <hpx/traits/is_bitwise_serializable.hpp>
 
 #include <functional>
-#include <iostream>
-#include <list>
 #include <memory>
-#include <set>
 #include <utility>
 #include <vector>
 
