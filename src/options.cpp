@@ -135,7 +135,7 @@ bool options::process_options(int argc, char* argv[]) {
 		}
 	}
 	po::notify(vm);
-	if (opts().problem == DWD) {
+	if (opts().problem == DWD || opts().problem == ROTATING_STAR ) {
 		opts().n_species = std::max(int(5), int(opts().n_species));
 	}
 	n_fields = n_species + 10;

@@ -476,14 +476,14 @@ void grid::compute_interactions(gsolve_type type) {
         // components for the force
 
         // Coefficients for potential evaluation? (David)
-    	alignas(32) const double di0[4] = {
+        const std::array<double, 4> di0 = {
             1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-    	const v4sd d0(di0, Vc::Aligned);
+        const v4sd d0(di0.data(), Vc::Aligned);
 
         // negative of d0 because it's the force in the opposite direction
-    	alignas(32) const double di1[4] = {
+        const std::array<double, 4> di1 = {
             1.0 / dx, -1.0 / sqr(dx), -1.0 / sqr(dx), -1.0 / sqr(dx)};
-        const v4sd d1(di1, Vc::Aligned);
+        const v4sd d1(di1.data(), Vc::Aligned);
 
         // Number of body-body interactions current leaf cell, probably includes interactions with
         // bodies in neighboring cells  (David)
@@ -964,8 +964,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     auto& mon = *mon_ptr;
 
 
-    alignas(32) const double di0[4] = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
-    const v4sd d0(di0, Vc::Aligned);
+    const std::array<double, 4> di0 = {1.0 / dx, +1.0 / sqr(dx), +1.0 / sqr(dx), +1.0 / sqr(dx)};
+    const v4sd d0(di0.data(), Vc::Aligned);
 
     hpx::parallel::for_loop(
         for_loop_policy, 0, ilist_n_bnd.size(),
