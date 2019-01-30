@@ -132,9 +132,9 @@ int main()
                         {
                             const double den2 = k != 0 ? 0.0 : -dr2;
                             const double num_xp = c_xp * next_phi[i + 1][k];
-                            const double num_xm = c_xm * next_phi[i - 1][k];
+                            const double num_xm = c_xm * next_phi[std::max(i - 1,0)][k];
                             const double num_zm =
-                                (k != 0 ? dr2 : 0.0) * next_phi[i][k - 1];
+                                (k != 0 ? dr2 : 0.0) * next_phi[i][std::max(k - 1,0)];
                             const double num_zp = dr2 * next_phi[i][k + 1];
                             const double num_den = rhoc0 * rho[i][k];
                             next_phi[i][k] =
