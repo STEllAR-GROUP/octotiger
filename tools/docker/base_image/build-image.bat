@@ -18,6 +18,9 @@ docker build -t stellargroup/octotiger:prerequisites-gcc6-debug -f prerequisites
 docker build -t stellargroup/octotiger:prerequisites-gcc7-debug -f prerequisites-gcc.dockerfile --build-arg GCC_RELEASE=7 --build-arg BUILD_TYPE=Debug .
 docker build -t stellargroup/octotiger:prerequisites-gcc8-debug -f prerequisites-gcc.dockerfile --build-arg GCC_RELEASE=8 --build-arg BUILD_TYPE=Debug .
 
+docker build -t stellargroup/octotiger:prerequisites-clang6-debug -f prerequisites-clang.dockerfile --build-arg UBUNTU_RELEASE=16.04 --build-arg LLVM_RELEASE=6.0.1 --build-arg BUILD_TYPE=Debug .
+docker build -t stellargroup/octotiger:prerequisites-clang7-debug -f prerequisites-clang.dockerfile --build-arg UBUNTU_RELEASE=18.04 --build-arg LLVM_RELEASE=7.0.1 --build-arg BUILD_TYPE=Debug .
+
 docker push stellargroup/octotiger:prerequisites-gcc6
 docker push stellargroup/octotiger:prerequisites-gcc7
 docker push stellargroup/octotiger:prerequisites-gcc8
@@ -25,4 +28,7 @@ docker push stellargroup/octotiger:prerequisites-gcc8
 docker push stellargroup/octotiger:prerequisites-gcc6-debug
 docker push stellargroup/octotiger:prerequisites-gcc7-debug
 docker push stellargroup/octotiger:prerequisites-gcc8-debug
-pause
+
+docker push stellargroup/octotiger:prerequisites-clang5-debug
+docker push stellargroup/octotiger:prerequisites-clang6-debug
+docker push stellargroup/octotiger:prerequisites-clang7-debug
