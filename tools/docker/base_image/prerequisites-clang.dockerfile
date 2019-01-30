@@ -14,20 +14,27 @@
 # be configured to use GCC 6, 7, or 8, a desired CMake version, with desired
 # build types for Boost, Vc, and HPX
 
-ARG GCC_RELEASE=6
+ARG UBUNTU_RELEASE=18.04
+FROM ubuntu:$UBUNTU_RELEASE as builder
 
-FROM gcc:${GCC_RELEASE}
-
+ARG UBUNTU_RELEASE
+ARG LLVM_RELEASE=7.0.1
 ARG BUILD_TYPE=Release
 ARG HPX_BRANCH=master
 ARG CMAKE_VERSION=3.10.0
 
 RUN apt-get update \
-    && apt-get install --yes \
+    && apt-get install --no-install-recommends --yes \
+        build-essential \
+        ca-certificates \
+        curl \
+        file \
+        git \
         libgoogle-perftools-dev \
         ninja-build \
+        xz-utils \
         vim \
-        linux-perf-4.9 \
+        zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -JL https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz \
@@ -69,14 +76,24 @@ RUN curl -JL https://wci.llnl.gov/content/assets/docs/simulation/computer-codes/
     ) \
     && rm -rf silo-4.10.2
 
+RUN curl -JL https://releases.llvm.org/${LLVM_RELEASE}/clang+llvm-${LLVM_RELEASE}-x86_64-linux-gnu-ubuntu-${UBUNTU_RELEASE}.tar.xz | \
+        tar xJ --transform='s,clang+llvm-[^/]*,llvm,'
+
+ENV PATH=/local/silo/bin:/local/hdf5/bin:/local/hpx/bin:/llvm/bin:$PATH \
+    LD_LIBRARY_PATH=/local/silo/lib:/local/hdf5/lib:/local/boost/lib:/local/vc/lib:/local/hpx/lib:/llvm/lib
+
+# update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 \
+# && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 RUN curl -JL 'http://downloads.sourceforge.net/project/boost/boost/1.63.0/boost_1_63_0.tar.gz' \
         | tar xz \
     && ( \
         cd boost_1_63_0 \
-        && ./bootstrap.sh --prefix=/local/boost \
+        && ./bootstrap.sh --prefix=/local/boost --with-toolset=clang \
         && ./b2 -j22 --with-atomic --with-filesystem --with-program_options \
             --with-regex --with-system --with-chrono --with-date_time \
-            --with-thread $(echo ${BUILD_TYPE} | tr '[:upper:]' '[:lower:]' ) install \
+            --with-thread $(echo ${BUILD_TYPE} | tr '[:upper:]' '[:lower:]' ) \
+            toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" \
+            install \
     ) \
     && rm -rf boost_1_63_0
 
@@ -85,6 +102,9 @@ RUN git clone https://github.com/VcDevel/Vc.git --depth=1 --branch=1.4.1 \
         -DBUILD_TESTING=OFF \
         -DCMAKE_INSTALL_PREFIX=/local/vc \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DCMAKE_C_COMPILER=clang \
+        -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -GNinja \
     && cmake --build Vc/build --target install \
     && rm -rf Vc
@@ -98,9 +118,9 @@ RUN git clone https://github.com/STEllAR-GROUP/hpx.git --depth=1 --branch=${HPX_
         -DHWLOC_ROOT=/local/hwloc \
         -DCMAKE_INSTALL_PREFIX=/local/hpx \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DCMAKE_C_COMPILER=clang \
+        -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -GNinja \
     && cmake --build hpx/build --target install \
     && rm -rf hpx
-
-ENV PATH=/local/silo/bin:/local/hdf5/bin:/local/hpx/bin:$PATH \
-    LD_LIBRARY_PATH=/local/silo/lib:/local/hdf5/lib:/local/boost/lib:/local/vc/lib:/local/hpx/lib
