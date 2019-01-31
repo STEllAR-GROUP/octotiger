@@ -181,6 +181,8 @@ target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 if(MSVC)
   # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+  set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY
+    VS_STARTUP_PROJECT octotiger)
 
   target_compile_definitions(octotiger PRIVATE
     _USE_MATH_DEFINES
