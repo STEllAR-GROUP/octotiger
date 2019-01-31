@@ -12,6 +12,7 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
+        thread_local bool p2p_interaction_interface::is_initialized = false;
         thread_local std::vector<multiindex<>> p2p_interaction_interface::stencil;
         thread_local std::vector<bool> p2p_interaction_interface::stencil_masks;
         thread_local std::vector<std::array<real, 4>> p2p_interaction_interface::four;
@@ -23,6 +24,19 @@ namespace fmm {
           : neighbor_empty_monopoles(27)
           , kernel_monopoles(neighbor_empty_monopoles) {
             this->p2p_type = opts().p2p_kernel_type;
+            if (!is_initialized) {
+                monopole_interactions::p2p_interaction_interface::stencil =
+                    monopole_interactions::calculate_stencil().first;
+                monopole_interactions::p2p_interaction_interface::stencil_masks =
+                    monopole_interactions::calculate_stencil_masks(
+                        monopole_interactions::p2p_interaction_interface::stencil).first;
+                monopole_interactions::p2p_interaction_interface::four =
+                    monopole_interactions::calculate_stencil().second;
+                monopole_interactions::p2p_interaction_interface::stencil_four_constants =
+                    monopole_interactions::calculate_stencil_masks(
+                        monopole_interactions::p2p_interaction_interface::stencil).second;
+                is_initialized = true;
+            }
         }
 
         void p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,

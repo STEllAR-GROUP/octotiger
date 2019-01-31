@@ -20,7 +20,12 @@ namespace fmm {
     kernel_scheduler::kernel_scheduler(void)
       : number_cuda_streams_managed(0)
       , slots_per_cuda_stream(1)    // Slots (queue per stream) is currently deactived
-      , number_slots(number_cuda_streams_managed * slots_per_cuda_stream) {
+      , number_slots(number_cuda_streams_managed * slots_per_cuda_stream),
+        is_initialized(false) {
+    }
+    void kernel_scheduler::init(void) {
+        if (is_initialized)
+            return;
         // Determine what the scheduler has to manage
         const size_t total_worker_count = hpx::get_os_thread_count();
         const size_t worker_id = hpx::get_worker_thread_num();
@@ -175,6 +180,7 @@ namespace fmm {
             // continue when all cuda things are handled
             util::cuda_helper::cuda_error(cudaThreadSynchronize());
         }
+        is_initialized = true;
     }
 
     kernel_scheduler::~kernel_scheduler(void) {

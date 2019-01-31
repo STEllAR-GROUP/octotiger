@@ -15,7 +15,9 @@ namespace fmm {
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
-          , theta(opts().theta) {}
+          , theta(opts().theta) {
+            kernel_scheduler::scheduler.init();
+        }
 
         void cuda_multipole_interaction_interface::compute_multipole_interactions(
             std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
