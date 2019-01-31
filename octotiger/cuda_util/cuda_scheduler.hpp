@@ -105,6 +105,7 @@ namespace fmm {
         /// Global scheduler instance for this HPX thread
         static thread_local kernel_scheduler scheduler;
 
+        void init(void);
     public:
         kernel_scheduler(kernel_scheduler& other) = delete;
         kernel_scheduler(const kernel_scheduler& other) = delete;
@@ -122,6 +123,7 @@ namespace fmm {
         const size_t slots_per_cuda_stream;
         /// How many slots are there
         size_t number_slots;
+        bool is_initialized;
 
         /// Contains number_cuda_streams_managed cuda interfaces
         std::vector<util::cuda_helper> stream_interfaces;

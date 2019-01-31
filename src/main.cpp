@@ -6,10 +6,6 @@
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/rotating_star/rotating_star.hpp"
-#include "octotiger/multipole_interactions/multipole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/calculate_stencil.hpp"
-#include "octotiger/monopole_interactions/calculate_stencil.hpp"
-#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"
@@ -104,26 +100,6 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	}
 	compute_ilist();
 	compute_factor();
-
-    octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil =
-        octotiger::fmm::monopole_interactions::calculate_stencil().first;
-    octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_masks =
-        octotiger::fmm::monopole_interactions::calculate_stencil_masks(
-            octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).first;
-    octotiger::fmm::monopole_interactions::p2p_interaction_interface::four =
-        octotiger::fmm::monopole_interactions::calculate_stencil().second;
-    octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_four_constants =
-        octotiger::fmm::monopole_interactions::calculate_stencil_masks(
-            octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).second;
-
-    octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil =
-            octotiger::fmm::multipole_interactions::calculate_stencil();
-    octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil_masks =
-            octotiger::fmm::multipole_interactions::calculate_stencil_masks(
-                octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).first;
-    octotiger::fmm::multipole_interactions::multipole_interaction_interface::inner_stencil_masks =
-            octotiger::fmm::multipole_interactions::calculate_stencil_masks(
-                octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).second;
 
 #ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;

@@ -13,7 +13,9 @@ namespace fmm {
 
         cuda_p2p_interaction_interface::cuda_p2p_interaction_interface(void)
           : p2p_interaction_interface()
-          , theta(opts().theta) {}
+          , theta(opts().theta) {
+            kernel_scheduler::scheduler.init();
+        }
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
