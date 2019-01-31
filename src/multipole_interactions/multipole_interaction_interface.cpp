@@ -32,17 +32,6 @@ namespace fmm {
         multipole_interaction_interface::multipole_interaction_interface(void) {
             local_monopoles_staging_area = std::vector<real>(ENTRIES);
             this->m2m_type = opts().m2m_kernel_type;
-            if (!is_initialized) {
-                multipole_interaction_interface::stencil =
-                    octotiger::fmm::multipole_interactions::calculate_stencil();
-                multipole_interaction_interface::stencil_masks =
-                    multipole_interactions::calculate_stencil_masks(
-                        multipole_interactions::multipole_interaction_interface::stencil).first;
-                multipole_interaction_interface::inner_stencil_masks =
-                    multipole_interactions::calculate_stencil_masks(
-                        multipole_interactions::multipole_interaction_interface::stencil).second;
-                is_initialized = true;
-            }
         }
 
         void multipole_interaction_interface::compute_multipole_interactions(
@@ -66,6 +55,17 @@ namespace fmm {
                 local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 center_of_masses_SoA) {
+            if (!is_initialized) {
+                multipole_interaction_interface::stencil =
+                    octotiger::fmm::multipole_interactions::calculate_stencil();
+                multipole_interaction_interface::stencil_masks =
+                    multipole_interactions::calculate_stencil_masks(
+                        multipole_interactions::multipole_interaction_interface::stencil).first;
+                multipole_interaction_interface::inner_stencil_masks =
+                    multipole_interactions::calculate_stencil_masks(
+                        multipole_interactions::multipole_interaction_interface::stencil).second;
+                is_initialized = true;
+            }
             if (m2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;
