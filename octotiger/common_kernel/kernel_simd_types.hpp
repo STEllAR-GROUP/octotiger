@@ -15,6 +15,10 @@
 using m2m_vector = Vc::Vector<double, Vc::VectorAbi::Avx>;
 using m2m_int_vector = Vc::Vector<std::int32_t, Vc::VectorAbi::Avx>;
 // using m2m_int_vector = typename Vc::datapar<int64_t, Vc::datapar_abi::avx>;
+#elif !defined(OCTOTIGER_HAVE_VC)
+using m2m_vector = std::vector<double>;
+using m2m_int_vector = std::vector<std::int32_t>;
+
 #else                         // falling back to fixed_size types
 using m2m_vector = Vc::Vector<double, Vc::VectorAbi::Best<double>>;
 using m2m_int_vector = Vc::Vector<std::int32_t, Vc::VectorAbi::Best<std::int32_t>>;
