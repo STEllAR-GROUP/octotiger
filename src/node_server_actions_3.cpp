@@ -247,6 +247,15 @@ void node_server::start_run(bool scf, integer ngrids) {
 
 	if (!opts().hydro && !opts().radiation) {
 		diagnostics();
+		if (get_analytic() != nullptr) {
+			compare_analytic();
+			if( opts().gravity ) {
+				solve_gravity(true, false);
+			}
+			if (!opts().disable_output) {
+				output_all("analytic", output_cnt, true);
+			}
+		}
 		return;
 	}
 	if (scf) {

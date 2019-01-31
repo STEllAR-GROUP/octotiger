@@ -251,6 +251,7 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 	return g;
 }
 
+
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 	std::vector<real> u(opts().n_fields, real(0));
 	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);

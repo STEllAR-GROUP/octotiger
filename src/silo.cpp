@@ -405,7 +405,7 @@ void output_stage3(std::string fname, int cycle) {
 		DBAddOption(optlist_mesh, DBOPT_TIME, &ftime);
 		DBAddOption(optlist_mesh, DBOPT_DTIME, &dtime);
 		// TODO: XUNITS. YUNITS, ZUNITS
-			DBAddOption(optlist_mesh, DBOPT_HIDE_FROM_GUI, &one);
+		DBAddOption(optlist_mesh, DBOPT_HIDE_FROM_GUI, &one);
 
 			const char* coord_names[] = {"x", "y", "z"};
 			constexpr int data_type = DB_DOUBLE;
