@@ -426,6 +426,14 @@ using simd_vector = Vc::SimdArray<double, 8>;
 using int_simd_vector = Vc::SimdArray<std::uint32_t, 8>;
 using v4sd = Vc::SimdArray<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
+#elif !defined(OCTOTIGER_HAVE_VC)
+
+using floatv = float;
+using simd_vector = std::array<double>;
+using int_simd_vector = std::array<std::uint32_t>;
+using v4sd = std::array<double, 4>;
+constexpr std::size_t simd_len = simd_vector::size();
+#else
 #else
 using floatv = Vc::float_v;
 using simd_vector = Vc::SimdArray<double, floatv::size()>;
