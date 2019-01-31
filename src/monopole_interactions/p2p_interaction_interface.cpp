@@ -24,6 +24,19 @@ namespace fmm {
           : neighbor_empty_monopoles(27)
           , kernel_monopoles(neighbor_empty_monopoles) {
             this->p2p_type = opts().p2p_kernel_type;
+        }
+
+
+        void p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+            std::array<bool, geo::direction::count()>& is_direction_empty) {
+            update_input(monopoles, neighbors, type, local_monopoles_staging_area);
+            compute_interactions(type, is_direction_empty, neighbors, dx);
+        }
+
+        void p2p_interaction_interface::compute_interactions(gsolve_type type,
+            std::array<bool, geo::direction::count()>& is_direction_empty,
+            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx) {
             if (!is_initialized) {
                 monopole_interactions::p2p_interaction_interface::stencil =
                     monopole_interactions::calculate_stencil().first;
@@ -37,18 +50,6 @@ namespace fmm {
                         monopole_interactions::p2p_interaction_interface::stencil).second;
                 is_initialized = true;
             }
-        }
-
-        void p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<bool, geo::direction::count()>& is_direction_empty) {
-            update_input(monopoles, neighbors, type, local_monopoles_staging_area);
-            compute_interactions(type, is_direction_empty, neighbors, dx);
-        }
-
-        void p2p_interaction_interface::compute_interactions(gsolve_type type,
-            std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx) {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;

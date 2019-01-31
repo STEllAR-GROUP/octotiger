@@ -14,12 +14,12 @@ namespace fmm {
         cuda_p2p_interaction_interface::cuda_p2p_interaction_interface(void)
           : p2p_interaction_interface()
           , theta(opts().theta) {
-            kernel_scheduler::scheduler.init();
         }
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
+            kernel_scheduler::scheduler.init();
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
             if (slot == -1 || p2p_type == interaction_kernel_type::OLD) {    // Run cpu implementation
