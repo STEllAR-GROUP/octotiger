@@ -75,9 +75,9 @@ namespace fmm {
                 center_of_masses_staging_area;
         public:
             /// Stencil for stencil based FMM kernels
-            static thread_local const two_phase_stencil stencil;
-            static thread_local const std::vector<bool> stencil_masks;
-            static thread_local const std::vector<bool> inner_stencil_masks;
+            static thread_local two_phase_stencil stencil;
+            static thread_local std::vector<bool> stencil_masks;
+            static thread_local std::vector<bool> inner_stencil_masks;
         };
 
         template <typename monopole_container, typename expansion_soa_container,
