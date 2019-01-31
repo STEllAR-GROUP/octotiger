@@ -434,7 +434,6 @@ using int_simd_vector = std::array<std::uint32_t>;
 using v4sd = std::array<double, 4>;
 constexpr std::size_t simd_len = simd_vector::size();
 #else
-#else
 using floatv = Vc::float_v;
 using simd_vector = Vc::SimdArray<double, floatv::size()>;
 using int_simd_vector = Vc::SimdArray<std::uint32_t, floatv::size()>;
