@@ -18,16 +18,23 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
+option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
 option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
+option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
+option(OCTOTIGER_WITH_Vc "" ON)
+option(OCTOTIGER_WITH_AVX "" ON)
+option(OCTOTIGER_WITH_AVX2 "" ON)
 
 ################################################################################
 # Find required packages
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(Silo REQUIRED)
-find_package(Vc REQUIRED)
 find_package(Boost REQUIRED)
+if(NOT MSVC)
+  find_package(Threads REQUIRED)
+endif()
 
 if(OCTOTIGER_WITH_CUDA)
   enable_language(CUDA)
@@ -88,8 +95,6 @@ set(source_files
     src/radiation/rad_grid.cpp
     src/radiation/implicit.cpp
     src/test_problems/marshak/marshak.cpp
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
@@ -98,6 +103,7 @@ set(source_files
 set(header_files
     octotiger/channel.hpp
     octotiger/compute_factor.hpp
+    octotiger/config.hpp
     octotiger/const.hpp
     octotiger/container_device.hpp
     octotiger/defs.hpp
@@ -166,18 +172,21 @@ set(header_files
 add_hpx_executable(
   octotiger
   DEPENDENCIES
-    Silo::silo Vc::Vc Boost::boost
+    Silo::silo Boost::boost  #Vc::Vc
   SOURCES
     ${source_files}
   HEADERS
     ${header_files}
 )
 
+set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
 target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 
 if(MSVC)
   # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+  set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY
+    VS_STARTUP_PROJECT octotiger)
 
   target_compile_definitions(octotiger PRIVATE
     _USE_MATH_DEFINES
@@ -198,10 +207,6 @@ if(MSVC)
 
   target_compile_options(octotiger PRIVATE /EHsc)
 
-  if(NOT OCTOTIGER_WITH_BOOST_MULTIPRECISION)
-    message(WARNING "GCC Quad-Precision Math Library is not available with "
-    "MSVC. Consider setting OCTOTIGER_WITH_BOOST_MULTIPRECISION to ON")
-  endif()
 else()
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     target_compile_options(octotiger PRIVATE
@@ -214,19 +219,19 @@ else()
   endif()
 endif()
 
-if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
-else()
-  target_link_libraries(octotiger quadmath)
+if(OCTOTIGER_WITH_Vc)
+  find_package(Vc REQUIRED)
+
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_VC)
 endif()
 
-if(USE_AVX2)
+if((OCTOTIGER_WITH_Vc AND USE_AVX2) OR OCTOTIGER_WITH_AVX2)
   if(MSVC)
     target_compile_options(octotiger PRIVATE /arch:AVX2)
   else()
     target_compile_options(octotiger PRIVATE -mavx2)
   endif()
-elseif(USE_AVX)
+elseif((OCTOTIGER_WITH_Vc AND USE_AVX) OR OCTOTIGER_WITH_AVX)
   if(MSVC)
     target_compile_options(octotiger PRIVATE /arch:AVX)
   else()
@@ -250,12 +255,71 @@ if(OCTOTIGER_WITH_RADIATION)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_RADIATION)
 endif()
 
+if(OCTOTIGER_WITH_BLAST_TEST)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BLAST_TEST)
+  set(blast_sources
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp)
+  target_sources(octotiger PRIVATE ${blast_sources})
+  source_group(TREE ${PROJECT_SOURCE_DIR}
+    PREFIX "Source Files" FILES ${blast_sources})
+
+  if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
+    target_compile_definitions(octotiger PRIVATE
+      OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
+    set(OCTOTIGER_WITH_QUADMATH OFF CACHE BOOL "" FORCE)
+
+  elseif(OCTOTIGER_WITH_QUADMATH)
+    # Check if on PowerPC with GCC <8
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le" AND
+      CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
+      message(FATAL_ERROR "GCC Quad-Precision Math Library is only available "
+        "with GCC 8 and above on PowerPC")
+    elseif(MSVC)
+      message(FATAL_ERROR "GCC Quad-Precision Math Library is not available with MSVC")
+    endif()
+    target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_QUADMATH)
+    target_link_libraries(octotiger quadmath)
+
+  else()
+      message(FATAL_ERROR "Octotiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
+        "be built without quadmath or Boost.Multiprecision")
+  endif()
+endif()
+
 ################################################################################
 # Set up silo_compare target
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
-
 target_link_libraries(silo_compare Silo::silo)
+set_property(TARGET silo_compare PROPERTY FOLDER "Tools")
 if(MSVC)
   target_compile_options(silo_compare PRIVATE /EHsc)
+endif()
+
+################################################################################
+# Set up gen_rotating_star_init target
+################################################################################
+add_executable(gen_rotating_star_init src/test_problems/rotating_star/make_bin.cpp)
+set_property(TARGET gen_rotating_star_init PROPERTY FOLDER "Tools")
+if(MSVC)
+  target_compile_definitions(gen_rotating_star_init PRIVATE
+    _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+else()
+  target_compile_options(gen_rotating_star_init PRIVATE
+        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+        -Wno-unused-result -ffast-math -O3)
+  target_link_libraries(gen_rotating_star_init Threads::Threads)
+endif()
+
+################################################################################
+# Set up silo_counter target
+################################################################################
+add_executable(silo_counter src/silo_counter.cpp)
+
+target_link_libraries(silo_counter Silo::silo)
+
+set_property(TARGET silo_counter PROPERTY FOLDER "Tools")
+if(MSVC)
+  target_compile_options(silo_counter PRIVATE /EHsc)
 endif()
