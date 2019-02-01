@@ -15,7 +15,8 @@ namespace fmm {
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
-          , theta(opts().theta) {}
+          , theta(opts().theta) {
+        }
 
         void cuda_multipole_interaction_interface::compute_multipole_interactions(
             std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
@@ -23,6 +24,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
+            kernel_scheduler::scheduler.init();
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
             if (slot == -1 || m2m_type == interaction_kernel_type::OLD) {    // Run fallback cpu implementation

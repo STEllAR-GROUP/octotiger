@@ -44,13 +44,14 @@ namespace fmm {
 
             std::shared_ptr<grid> grid_ptr;
             interaction_kernel_type p2p_type;
-        private:
+        public:
             /// The stencil is used to identify the neighbors
-            static thread_local const std::vector<multiindex<>> stencil;
-            static thread_local const std::vector<bool> stencil_masks;
-            static thread_local const std::vector<std::array<real, 4>> four;
-            static thread_local const std::vector<std::array<real, 4>> stencil_four_constants;
+            static thread_local std::vector<multiindex<>> stencil;
+            static thread_local std::vector<bool> stencil_masks;
+            static thread_local std::vector<std::array<real, 4>> four;
+            static thread_local std::vector<std::array<real, 4>> stencil_four_constants;
             static thread_local std::vector<real> local_monopoles_staging_area;
+            static thread_local bool is_initialized;
             std::vector<bool> neighbor_empty_monopoles;
 
             p2p_cpu_kernel kernel_monopoles;
