@@ -138,7 +138,7 @@ jobs:
                     - test_sphere-v1
             - run:
                 name: Download integrity check reference
-                command: wget -nc phys.lsu.edu/~dmarcel/sphere.1.silo
+                command: wget -nc phys.lsu.edu/~dmarcel/sphere.2.silo
             - save_cache:
                 key: test_sphere-v1
                 paths:
@@ -149,7 +149,7 @@ jobs:
             - run:
                 name: Check Integrity
                 command: |
-                    silodiff -q -x 1.0 -R 1.0e-12 sphere.1.silo X.silo >diff.txt
+                    silodiff -q -x 1.0 -R 1.0e-12 sphere.2.silo X.silo >diff.txt
                     ! grep ".vals" diff.txt | tee vals.txt
             - store_artifacts:
                 path: /test
