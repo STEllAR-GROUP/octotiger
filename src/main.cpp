@@ -305,6 +305,7 @@ namespace scf_options {
 void read_option_file();
 }
 int hpx_main(int argc, char* argv[]) {
+	printf( "%i\n", int(Vc::float_v::size()));
 	printf("###########################################################\n");
 #if defined(__AVX512F__)
 	printf("Compiled for AVX512 SIMD architectures.\n");

@@ -20,8 +20,8 @@ using m2m_vector = std::vector<double>;
 using m2m_int_vector = std::vector<std::int32_t>;
 
 #else                         // falling back to fixed_size types
-using m2m_vector = Vc::Vector<double, Vc::VectorAbi::Best<double>>;
-using m2m_int_vector = Vc::Vector<std::int32_t, Vc::VectorAbi::Best<std::int32_t>>;
+using m2m_vector = Vc::Vector<double, Vc::VectorAbi::Scalar>;
+using m2m_int_vector = Vc::Vector<std::int32_t, Vc::VectorAbi::Scalar>;
 #endif
 
 // using multipole_v = taylor<4, m2m_vector>;

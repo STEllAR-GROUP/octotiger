@@ -2427,6 +2427,7 @@ real grid::compute_fluxes() {
 	if( opts().radiation && !opts().hydro) {
 		return physcon().c / 10.0;
 	}
+	return max_lambda;
 }
 
 void grid::set_max_level(integer l) {
