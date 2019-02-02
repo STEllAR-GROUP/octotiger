@@ -7,7 +7,7 @@
 
 project(octotiger CXX)
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.5)
 cmake_policy(SET CMP0015 NEW)
 cmake_policy(SET CMP0003 NEW)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
@@ -32,7 +32,9 @@ find_package(Boost REQUIRED)
 if(OCTOTIGER_WITH_CUDA)
   enable_language(CUDA)
 
-  string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
+  #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
+  #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
+  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,-dlcm=cg,--opt-level=4")
 endif()
 
 ################################################################################
@@ -236,6 +238,7 @@ endif()
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_CUDA)
   set_property(TARGET octotiger PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+  set_property(TARGET octotiger PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 endif()
 
 # Handle other options
