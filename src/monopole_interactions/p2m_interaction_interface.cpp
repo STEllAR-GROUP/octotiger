@@ -16,8 +16,8 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        const thread_local std::vector<multiindex<>> p2m_interaction_interface::stencil =
-            calculate_stencil().first;
+        thread_local bool p2m_interaction_interface::is_initialized = false;
+        thread_local std::vector<multiindex<>> p2m_interaction_interface::stencil;
         thread_local std::vector<real> p2m_interaction_interface::local_monopoles_staging_area(
             ENTRIES);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -44,6 +44,10 @@ namespace fmm {
         void p2m_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data) {
+            if (!is_initialized) {
+                p2m_interaction_interface::stencil = calculate_stencil().first;
+                is_initialized = true;
+            }
             if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 if (multipole_neighbors_exist) {
                     struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>

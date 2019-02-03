@@ -58,7 +58,8 @@ namespace fmm {
             static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 center_of_masses_staging_area;
             /// The stencil is used to identify the neighbors
-            static thread_local const std::vector<multiindex<>> stencil;
+            static thread_local std::vector<multiindex<>> stencil;
+            static thread_local bool is_initialized;
 
             bool multipole_neighbors_exist;
             std::vector<bool> neighbor_empty_multipoles;
