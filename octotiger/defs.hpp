@@ -103,7 +103,7 @@ enum boundary_type {
 
 constexpr integer NDIM = 3;
 
-constexpr integer INX = 8;
+constexpr integer INX = 16;
 constexpr integer H_BW = 3;
 constexpr integer R_BW = 2;
 
