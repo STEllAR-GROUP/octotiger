@@ -34,7 +34,7 @@ if(OCTOTIGER_WITH_CUDA)
 
   #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
   #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
-  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,-dlcm=cg,--opt-level=4")
+  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
 endif()
 
 ################################################################################
