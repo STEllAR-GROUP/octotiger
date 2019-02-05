@@ -16,7 +16,8 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        thread_local std::vector<multiindex<>> p2m_interaction_interface::stencil;
+        thread_local std::vector<multiindex<>> p2m_interaction_interface::stencil =
+            calculate_stencil().first;
         thread_local std::vector<real> p2m_interaction_interface::local_monopoles_staging_area(
             ENTRIES);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>

@@ -82,7 +82,7 @@ std::size_t init_thread_local_worker(std::size_t desired)
           hpx::get_locality_id << ": thread_local memory has been initialized! \n";
                                   return desired;
     }
-          return std::size_t(-1);
+    return std::size_t(-1);
 }
 HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
 
