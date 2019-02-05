@@ -51,7 +51,6 @@ namespace fmm {
             static thread_local std::vector<std::array<real, 4>> four;
             static thread_local std::vector<std::array<real, 4>> stencil_four_constants;
             static thread_local std::vector<real> local_monopoles_staging_area;
-            static thread_local bool is_initialized;
             std::vector<bool> neighbor_empty_monopoles;
 
             p2p_cpu_kernel kernel_monopoles;

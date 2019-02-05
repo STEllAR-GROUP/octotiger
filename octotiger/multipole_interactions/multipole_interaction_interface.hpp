@@ -73,7 +73,6 @@ namespace fmm {
             /// SoA conversion area - used as input for compute_interactions
             static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 center_of_masses_staging_area;
-            static thread_local bool is_initialized;
         public:
             /// Stencil for stencil based FMM kernels
             static thread_local two_phase_stencil stencil;

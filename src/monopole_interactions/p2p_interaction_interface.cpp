@@ -12,7 +12,6 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        thread_local bool p2p_interaction_interface::is_initialized = false;
         thread_local std::vector<multiindex<>> p2p_interaction_interface::stencil;
         thread_local std::vector<bool> p2p_interaction_interface::stencil_masks;
         thread_local std::vector<std::array<real, 4>> p2p_interaction_interface::four;
@@ -37,19 +36,6 @@ namespace fmm {
         void p2p_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx) {
-            if (!is_initialized) {
-                monopole_interactions::p2p_interaction_interface::stencil =
-                    monopole_interactions::calculate_stencil().first;
-                monopole_interactions::p2p_interaction_interface::stencil_masks =
-                    monopole_interactions::calculate_stencil_masks(
-                        monopole_interactions::p2p_interaction_interface::stencil).first;
-                monopole_interactions::p2p_interaction_interface::four =
-                    monopole_interactions::calculate_stencil().second;
-                monopole_interactions::p2p_interaction_interface::stencil_four_constants =
-                    monopole_interactions::calculate_stencil_masks(
-                        monopole_interactions::p2p_interaction_interface::stencil).second;
-                is_initialized = true;
-            }
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;

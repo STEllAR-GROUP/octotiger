@@ -13,6 +13,11 @@
 #include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
 #endif
+#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/lcos.hpp>
@@ -42,12 +47,40 @@ std::size_t init_thread_local_worker(std::size_t desired)
     std::size_t current = hpx::get_worker_thread_num();
     if (current == desired)
     {
+      // init cuda/cpu scheduler
       octotiger::fmm::kernel_scheduler::scheduler.init();
+
+      // init stencil and four constants for p2p fmm interactions
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil =
+          octotiger::fmm::monopole_interactions::calculate_stencil().first;
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_masks =
+          octotiger::fmm::monopole_interactions::calculate_stencil_masks(
+              octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).first;
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::four =
+          octotiger::fmm::monopole_interactions::calculate_stencil().second;
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_four_constants =
+          octotiger::fmm::monopole_interactions::calculate_stencil_masks(
+              octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).second;
+
+      // init stencil for p2m fmm interactions
+      octotiger::fmm::monopole_interactions::p2m_interaction_interface::stencil =
+          octotiger::fmm::monopole_interactions::calculate_stencil().first;
+
+      // init stencil for multipole fmm interactions
+      octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil =
+          octotiger::fmm::multipole_interactions::calculate_stencil();
+      octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil_masks =
+          octotiger::fmm::multipole_interactions::calculate_stencil_masks(
+              octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).first;
+      octotiger::fmm::multipole_interactions::multipole_interaction_interface::inner_stencil_masks =
+          octotiger::fmm::multipole_interactions::calculate_stencil_masks(
+              octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).second;
+
       std::cout << "OS-thread " << current << " on locality " <<
           hpx::get_locality_id << ": thread_local memory has been initialized! \n";
-        return desired;
+                                  return desired;
     }
-    return std::size_t(-1);
+          return std::size_t(-1);
 }
 HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
 
