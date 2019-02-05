@@ -29,62 +29,65 @@ namespace octotiger {
             size_t streams_per_gpu = opts().cuda_streams_per_gpu;
             if (streams_per_gpu == 0)
                 streams_per_gpu = streams_per_locality;
-            size_t gpu_count = streams_per_locality / streams_per_gpu;
-            // handle remaining streams by putting it on the next gpu
-            if (streams_per_locality % streams_per_gpu != 0)
-                gpu_count++;
-            // Create necessary data and add padding
-            const two_phase_stencil stencil = multipole_interactions::calculate_stencil();
-            auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
 
-            // new p2p stencil stuff
-            auto p2p_stencil_mask_pair = monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
-            auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
-            auto p2p_four_constants = p2p_stencil_mask_pair.second;
-            std::unique_ptr<float[]> stencil_masks = std::make_unique<float[]>(FULL_STENCIL_SIZE);
-            std::unique_ptr<real[]> four_constants_tmp = std::make_unique<real[]>(4 * FULL_STENCIL_SIZE);
-            for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
-                four_constants_tmp[i * 4 + 0] = p2p_four_constants[i][0];
-                four_constants_tmp[i * 4 + 1] = p2p_four_constants[i][1];
-                four_constants_tmp[i * 4 + 2] = p2p_four_constants[i][2];
-                four_constants_tmp[i * 4 + 3] = p2p_four_constants[i][3];
-                if (p2p_stencil_mask[i]) {
-                    stencil_masks[i] = 1.0;
-                } else {
-                    stencil_masks[i] = 0.0;
+            if (streams_per_locality > 0) { // is cuda activated?
+                size_t gpu_count = streams_per_locality / streams_per_gpu;
+                // handle remaining streams by putting it on the next gpu
+                if (streams_per_locality % streams_per_gpu != 0)
+                    gpu_count++;
+                // Create necessary data and add padding
+                const two_phase_stencil stencil = multipole_interactions::calculate_stencil();
+                auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
+
+                // new p2p stencil stuff
+                auto p2p_stencil_mask_pair = monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
+                auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
+                auto p2p_four_constants = p2p_stencil_mask_pair.second;
+                std::unique_ptr<float[]> stencil_masks = std::make_unique<float[]>(FULL_STENCIL_SIZE);
+                std::unique_ptr<real[]> four_constants_tmp = std::make_unique<real[]>(4 * FULL_STENCIL_SIZE);
+                for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
+                    four_constants_tmp[i * 4 + 0] = p2p_four_constants[i][0];
+                    four_constants_tmp[i * 4 + 1] = p2p_four_constants[i][1];
+                    four_constants_tmp[i * 4 + 2] = p2p_four_constants[i][2];
+                    four_constants_tmp[i * 4 + 3] = p2p_four_constants[i][3];
+                    if (p2p_stencil_mask[i]) {
+                        stencil_masks[i] = 1.0;
+                    } else {
+                        stencil_masks[i] = 0.0;
+                    }
                 }
-            }
 
-            // new multipole stencil
-            auto multipole_stencil_pair =
-                multipole_interactions::calculate_stencil_masks(stencil);
-            auto multipole_stencil = multipole_stencil_pair.first;
-            auto multipole_inner_stencil = multipole_stencil_pair.second;
-            std::unique_ptr<float[]> multipole_stencil_masks = std::make_unique<float[]>(FULL_STENCIL_SIZE);
-            std::unique_ptr<float[]> multipole_inner_stencil_masks =
-                std::make_unique<float[]>(FULL_STENCIL_SIZE);
-            for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
-                if (multipole_inner_stencil[i])
-                    multipole_inner_stencil_masks[i] = 1.0;
-                else
-                    multipole_inner_stencil_masks[i] = 0.0;
-                if (multipole_stencil[i])
-                    multipole_stencil_masks[i] = 1.0;
-                else
-                    multipole_stencil_masks[i] = 0.0;
-            }
+                // new multipole stencil
+                auto multipole_stencil_pair =
+                    multipole_interactions::calculate_stencil_masks(stencil);
+                auto multipole_stencil = multipole_stencil_pair.first;
+                auto multipole_inner_stencil = multipole_stencil_pair.second;
+                std::unique_ptr<float[]> multipole_stencil_masks = std::make_unique<float[]>(FULL_STENCIL_SIZE);
+                std::unique_ptr<float[]> multipole_inner_stencil_masks =
+                    std::make_unique<float[]>(FULL_STENCIL_SIZE);
+                for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
+                    if (multipole_inner_stencil[i])
+                        multipole_inner_stencil_masks[i] = 1.0;
+                    else
+                        multipole_inner_stencil_masks[i] = 0.0;
+                    if (multipole_stencil[i])
+                        multipole_stencil_masks[i] = 1.0;
+                    else
+                        multipole_stencil_masks[i] = 0.0;
+                }
 
-            // Move data to constant memory, once per gpu
-            for (size_t gpu_id = 0; gpu_id < gpu_count; gpu_id++) {
-                util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
-                cudaMemcpyToSymbol(multipole_interactions::device_constant_stencil_masks,
-                                    multipole_stencil_masks.get(), full_stencil_size/2);
-                cudaMemcpyToSymbol(multipole_interactions::device_stencil_indicator_const,
-                                    multipole_inner_stencil_masks.get(), full_stencil_size/2);
-                cudaMemcpyToSymbol(monopole_interactions::device_stencil_masks,
-                                    multipole_stencil_masks.get(), full_stencil_size/2);
-                cudaMemcpyToSymbol(monopole_interactions::device_four_constants,
-                                    four_constants_tmp.get(), full_stencil_size * 4);
+                // Move data to constant memory, once per gpu
+                for (size_t gpu_id = 0; gpu_id < gpu_count; gpu_id++) {
+                    util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
+                    cudaMemcpyToSymbol(multipole_interactions::device_constant_stencil_masks,
+                                       multipole_stencil_masks.get(), full_stencil_size/2);
+                    cudaMemcpyToSymbol(multipole_interactions::device_stencil_indicator_const,
+                                       multipole_inner_stencil_masks.get(), full_stencil_size/2);
+                    cudaMemcpyToSymbol(monopole_interactions::device_stencil_masks,
+                                       multipole_stencil_masks.get(), full_stencil_size/2);
+                    cudaMemcpyToSymbol(monopole_interactions::device_four_constants,
+                                       four_constants_tmp.get(), full_stencil_size * 4);
+                }
             }
         }
         void kernel_scheduler::init(void) {
