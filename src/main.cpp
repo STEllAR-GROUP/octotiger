@@ -9,6 +9,7 @@
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"
+#include "octotiger/cuda_util/cuda_scheduler.hpp"
 #endif
 
 #include <hpx/hpx_init.hpp>
@@ -101,6 +102,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
 	octotiger::util::cuda_helper::print_local_targets();
+    octotiger::fmm::kernel_scheduler::init_constants();
 #endif
 	grid::static_init();
 	normalize_constants();
