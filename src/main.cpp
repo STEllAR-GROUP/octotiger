@@ -10,11 +10,15 @@
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
+#include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
 #endif
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/lcos/broadcast.hpp>
+#include <hpx/include/actions.hpp>
+#include <hpx/include/util.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -32,6 +36,20 @@
 void normalize_constants();
 
 void compute_ilist();
+
+std::size_t init_thread_local_worker(std::size_t desired)
+{
+    std::size_t current = hpx::get_worker_thread_num();
+    if (current == desired)
+    {
+      octotiger::fmm::kernel_scheduler::scheduler.init();
+      std::cout << "OS-thread " << current << " on locality " <<
+          hpx::get_locality_id << ": thread_local memory has been initialized! \n";
+        return desired;
+    }
+    return std::size_t(-1);
+}
+HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	options::all_localities = localities;
@@ -109,7 +127,36 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #ifdef SILO_UNITS
 //	grid::set_unit_conversions();
 #endif
+    std::size_t const os_threads = hpx::get_os_thread_count();
+    hpx::naming::id_type const here = hpx::find_here();
+    std::set<std::size_t> attendance;
+    for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)
+        attendance.insert(os_thread);
+    while (!attendance.empty())
+    {
+        std::vector<hpx::lcos::future<std::size_t> > futures;
+        futures.reserve(attendance.size());
+
+        for (std::size_t worker : attendance)
+        {
+            typedef init_thread_local_worker_action action_type;
+            futures.push_back(hpx::async<action_type>(here, worker));
+        }
+        hpx::lcos::local::spinlock mtx;
+        hpx::lcos::wait_each(
+            hpx::util::unwrapping([&](std::size_t t) {
+                if (std::size_t(-1) != t)
+                {
+                    std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
+                    attendance.erase(t);
+                }
+            }),
+            futures);
+    }
 }
+
+
+
 
 HPX_PLAIN_ACTION(initialize, initialize_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
