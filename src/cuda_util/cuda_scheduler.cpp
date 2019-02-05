@@ -204,8 +204,13 @@ namespace octotiger {
             for (size_t slot_id = 0; slot_id < number_cuda_streams_managed; ++slot_id) {
                 const cudaError_t response = stream_interfaces[slot_id].pass_through(
                     [](cudaStream_t& stream) -> cudaError_t { return cudaStreamQuery(stream); });
-                if (response == cudaSuccess)    // slot is free
+                if (response == cudaSuccess) {    // slot is free
                     return slot_id;
+                } else if (response != cudaErrorNotReady) {
+                    std::string error = std::string("Stream returned: ") +
+                        std::string(cudaGetErrorName(response));
+                    throw(error.c_str());
+                }
             }
             // No slots available
             return -1;
