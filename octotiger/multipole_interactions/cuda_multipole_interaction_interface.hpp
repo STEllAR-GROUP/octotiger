@@ -32,6 +32,10 @@ namespace fmm {
                 std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::array<real, NDIM> xbase);
 
+        public:
+            static thread_local size_t cpu_launch_counter;
+            static thread_local size_t cuda_launch_counter;
+
         protected:
             real theta;
 

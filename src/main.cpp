@@ -30,6 +30,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <tuple>
 
 #include <fenv.h>
 #if !defined(_MSC_VER)
@@ -80,11 +81,41 @@ std::size_t init_thread_local_worker(std::size_t desired)
 
       std::cout << "OS-thread " << current << " on locality " <<
           hpx::get_locality_id << ": thread_local memory has been initialized! \n";
-                                  return desired;
+      return desired;
     }
     return std::size_t(-1);
 }
 HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
+
+std::array<size_t, 5>
+sum_counters_worker(std::size_t desired) {
+    std::array<size_t, 5> ret;
+    ret[0] = std::size_t(-1);
+    ret[1] = 0;
+    ret[2] = 0;
+    ret[3] = 0;
+    ret[4] = 0;
+    std::size_t current = hpx::get_worker_thread_num();
+    if (current == desired)
+    {
+        ret[0] = desired;
+        ret[1] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cpu_launch_counter;
+        ret[2] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cuda_launch_counter;
+
+        ret[3] = octotiger::fmm::monopole_interactions::
+        cuda_p2p_interaction_interface::cpu_launch_counter;
+        ret[4] = octotiger::fmm::monopole_interactions::
+        cuda_p2p_interaction_interface::cuda_launch_counter;
+
+        // std::cout << "OS-thread " << ret[1] << " "
+        //           << ret[2] << " " << ret[3]
+        //           << " " << ret[4] << std::endl;
+    }
+    return ret;
+}
+HPX_PLAIN_ACTION(sum_counters_worker, sum_counters_worker_action);
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	options::all_localities = localities;
@@ -190,6 +221,59 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
     }
 }
 
+void analyse_local_launch_counters(void) {
+    std::size_t const os_threads = hpx::get_os_thread_count();
+    hpx::naming::id_type const here = hpx::find_here();
+    std::set<std::size_t> attendance;
+    for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)
+        attendance.insert(os_thread);
+    size_t total_multipole_cpu_launches = 0;
+    size_t total_multipole_cuda_launches = 0;
+    size_t total_p2p_cpu_launches = 0;
+    size_t total_p2p_cuda_launches = 0;
+    while (!attendance.empty())
+    {
+        std::vector<hpx::lcos::future<std::array<size_t, 5>>> futures;
+        futures.reserve(attendance.size());
+
+        for (std::size_t worker : attendance)
+        {
+            typedef sum_counters_worker_action action_type;
+            futures.push_back(hpx::async<action_type>(here, worker));
+        }
+        hpx::lcos::local::spinlock mtx;
+        hpx::lcos::wait_each(
+            hpx::util::unwrapping([&](std::array<size_t, 5> t) {
+                if (std::size_t(-1) != t[0])
+                {
+                    std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
+                    total_multipole_cpu_launches += t[1];
+                    total_multipole_cuda_launches += t[2];
+                    total_p2p_cpu_launches += t[3];
+                    total_p2p_cuda_launches += t[4];
+                    attendance.erase(t[0]);
+                }
+                }),
+            futures);
+    }
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Total multipole launches: "
+              << total_multipole_cpu_launches + total_multipole_cuda_launches << std::endl;
+    std::cout << "CPU multipole launches " << total_multipole_cpu_launches << std::endl;
+    std::cout << "CUDA multipole launches " << total_multipole_cuda_launches << std::endl;
+    float percentage = static_cast<float>(total_multipole_cuda_launches) /
+        (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
+    std::cout << "=> " << percentage * 100 << "% of all multipole launches were done on the GPU(s) \n";
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Total p2p launches: "
+              << total_p2p_cpu_launches + total_p2p_cuda_launches << std::endl;
+    std::cout << "CPU p2p launches " << total_p2p_cpu_launches << std::endl;
+    std::cout << "CUDA p2p launches " << total_p2p_cuda_launches << std::endl;
+    percentage = static_cast<float>(total_p2p_cuda_launches) /
+        (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
+    std::cout << "=> " << percentage * 100 << "% of all p2p launches were done on the GPU(s) \n";
+}
+
 
 
 
@@ -250,6 +334,7 @@ int hpx_main(int argc, char* argv[]) {
 			}
 			hpx::async(&node_server::start_run, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
 			root->report_timing();
+            analyse_local_launch_counters();
 		}
 	} catch (...) {
 		throw;
