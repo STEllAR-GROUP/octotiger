@@ -47,8 +47,10 @@ std::size_t init_thread_local_worker(std::size_t desired)
     std::size_t current = hpx::get_worker_thread_num();
     if (current == desired)
     {
+#ifdef OCTOTIGER_HAVE_CUDA
       // init cuda/cpu scheduler
       octotiger::fmm::kernel_scheduler::scheduler.init();
+#endif
 
       // init stencil and four constants for p2p fmm interactions
       octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil =
