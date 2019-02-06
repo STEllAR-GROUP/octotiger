@@ -263,7 +263,7 @@ void analyse_local_launch_counters(void) {
     std::cout << "CUDA multipole launches " << total_multipole_cuda_launches << std::endl;
     float percentage = static_cast<float>(total_multipole_cuda_launches) /
         (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
-    std::cout << "=> " << percentage * 100 << "% of all multipole launches were done on the GPU(s) \n";
+    std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Total p2p launches: "
               << total_p2p_cpu_launches + total_p2p_cuda_launches << std::endl;
@@ -271,7 +271,7 @@ void analyse_local_launch_counters(void) {
     std::cout << "CUDA p2p launches " << total_p2p_cuda_launches << std::endl;
     percentage = static_cast<float>(total_p2p_cuda_launches) /
         (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
-    std::cout << "=> " << percentage * 100 << "% of all p2p launches were done on the GPU(s) \n";
+    std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
 }
 
 
