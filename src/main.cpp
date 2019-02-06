@@ -282,7 +282,7 @@ void analyse_local_launch_counters(void) {
     std::cout << "CUDA non-rho-multipole launches " << total_multipole_cuda_launches_non_rho << std::endl;
     percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
         (static_cast<float>(total_multipole_cuda_launches_non_rho) + total_multipole_cpu_launches_non_rho);
-    std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
+    std::cout << "=> Percentage of non-rho-multipole on the GPU: " << percentage * 100 << "\n";
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Total p2p launches: "
               << total_p2p_cpu_launches + total_p2p_cuda_launches << std::endl;
