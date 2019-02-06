@@ -48,12 +48,12 @@ jobs:
                 at: /
             - run:
                 name: Marshak wave test
-                command: ctest -R test_problems.marshak.diff
+                command: ctest --output-on-failure -R test_problems.marshak.diff
             - run:
                 name: Move artifacts
                 command: |
                     mkdir /test
-                    mv *.silo *.bin *.dat /test/ || true
+                    mv *.silo *.dat /test/ || true
             - store_artifacts:
                 path: /test
 
@@ -67,12 +67,12 @@ jobs:
                 at: /
             - run:
                 name: Blast test
-                command: ctest -R test_problems.blast.diff
+                command: ctest --output-on-failure -R test_problems.blast.diff
             - run:
                 name: Move artifacts
                 command: |
                     mkdir /test
-                    mv *.silo *.bin *.dat /test/ || true
+                    mv *.silo *.dat /test/ || true
             - store_artifacts:
                 path: /test
 
@@ -86,12 +86,12 @@ jobs:
                 at: /
             - run:
                 name: Sod shock tube test
-                command: ctest -R test_problems.sod.diff
+                command: ctest --output-on-failure -R test_problems.sod.diff
             - run:
                 name: Move artifacts
                 command: |
                     mkdir /test
-                    mv *.silo *.bin *.dat /test/ || true
+                    mv *.silo *.dat /test/ || true
             - store_artifacts:
                 path: /test
 
@@ -105,12 +105,12 @@ jobs:
                 at: /
             - run:
                 name: Solid sphere test
-                command: ctest -R test_problems.sphere.diff
+                command: ctest --output-on-failure -R test_problems.sphere.diff
             - run:
                 name: Move artifacts
                 command: |
                     mkdir /test
-                    mv *.silo *.bin *.dat /test/ || true
+                    mv *.silo *.dat /test/ || true
             - store_artifacts:
                 path: /test
 
@@ -124,7 +124,7 @@ jobs:
                 at: /
             - run:
                 name: Rotating star test
-                command: ctest -R test_problems.rotating_star.diff
+                command: ctest --output-on-failure -R test_problems.rotating_star.diff
             - run:
                 name: Move artifacts
                 command: |
