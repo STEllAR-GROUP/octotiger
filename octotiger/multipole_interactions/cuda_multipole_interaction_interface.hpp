@@ -35,6 +35,8 @@ namespace fmm {
         public:
             static thread_local size_t cpu_launch_counter;
             static thread_local size_t cuda_launch_counter;
+            static thread_local size_t cpu_launch_counter_non_rho;
+            static thread_local size_t cuda_launch_counter_non_rho;
 
         protected:
             real theta;

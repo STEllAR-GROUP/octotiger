@@ -87,14 +87,16 @@ std::size_t init_thread_local_worker(std::size_t desired)
 }
 HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
 
-std::array<size_t, 5>
+std::array<size_t, 7>
 sum_counters_worker(std::size_t desired) {
-    std::array<size_t, 5> ret;
+    std::array<size_t, 7> ret;
     ret[0] = std::size_t(-1);
     ret[1] = 0;
     ret[2] = 0;
     ret[3] = 0;
     ret[4] = 0;
+    ret[5] = 0;
+    ret[6] = 0;
     std::size_t current = hpx::get_worker_thread_num();
     if (current == desired)
     {
@@ -108,6 +110,11 @@ sum_counters_worker(std::size_t desired) {
         cuda_p2p_interaction_interface::cpu_launch_counter;
         ret[4] = octotiger::fmm::monopole_interactions::
         cuda_p2p_interaction_interface::cuda_launch_counter;
+
+        ret[5] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cpu_launch_counter_non_rho;
+        ret[6] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cuda_launch_counter_non_rho;
 
         // std::cout << "OS-thread " << ret[1] << " "
         //           << ret[2] << " " << ret[3]
@@ -229,11 +236,13 @@ void analyse_local_launch_counters(void) {
         attendance.insert(os_thread);
     size_t total_multipole_cpu_launches = 0;
     size_t total_multipole_cuda_launches = 0;
+    size_t total_multipole_cpu_launches_non_rho = 0;
+    size_t total_multipole_cuda_launches_non_rho = 0;
     size_t total_p2p_cpu_launches = 0;
     size_t total_p2p_cuda_launches = 0;
     while (!attendance.empty())
     {
-        std::vector<hpx::lcos::future<std::array<size_t, 5>>> futures;
+        std::vector<hpx::lcos::future<std::array<size_t, 7>>> futures;
         futures.reserve(attendance.size());
 
         for (std::size_t worker : attendance)
@@ -243,7 +252,7 @@ void analyse_local_launch_counters(void) {
         }
         hpx::lcos::local::spinlock mtx;
         hpx::lcos::wait_each(
-            hpx::util::unwrapping([&](std::array<size_t, 5> t) {
+            hpx::util::unwrapping([&](std::array<size_t, 7> t) {
                 if (std::size_t(-1) != t[0])
                 {
                     std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
@@ -251,6 +260,8 @@ void analyse_local_launch_counters(void) {
                     total_multipole_cuda_launches += t[2];
                     total_p2p_cpu_launches += t[3];
                     total_p2p_cuda_launches += t[4];
+                    total_multipole_cpu_launches_non_rho += t[5];
+                    total_multipole_cuda_launches_non_rho += t[6];
                     attendance.erase(t[0]);
                 }
                 }),
@@ -263,6 +274,14 @@ void analyse_local_launch_counters(void) {
     std::cout << "CUDA multipole launches " << total_multipole_cuda_launches << std::endl;
     float percentage = static_cast<float>(total_multipole_cuda_launches) /
         (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
+    std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Total non-rho-multipole launches: "
+              << total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho << std::endl;
+    std::cout << "CPU non-rho-multipole launches " << total_multipole_cpu_launches_non_rho << std::endl;
+    std::cout << "CUDA non-rho-multipole launches " << total_multipole_cuda_launches_non_rho << std::endl;
+    percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
+        (static_cast<float>(total_multipole_cuda_launches_non_rho) + total_multipole_cpu_launches_non_rho);
     std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Total p2p launches: "
