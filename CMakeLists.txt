@@ -5,16 +5,20 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+cmake_minimum_required(VERSION 3.10)
+cmake_policy(VERSION 3.10)
+
+# Libraries linked via full path no longer produce linker search paths.
+cmake_policy(SET CMP0003 NEW)
+
 project(octotiger CXX)
 
-cmake_minimum_required(VERSION 3.10)
-cmake_policy(SET CMP0015 NEW)
-cmake_policy(SET CMP0003 NEW)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
+# Search path for CMake modules to be loaded by include() and find_package()
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
 ################################################################################
-# options
+# Options
 ################################################################################
-#option(OCTOTIGER_WITH_SILO "Enable support for Silo output" ON)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
@@ -22,6 +26,7 @@ option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
 option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
+option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 
 ################################################################################
 # Find required packages
@@ -31,7 +36,7 @@ find_package(Silo REQUIRED)
 find_package(Vc REQUIRED)
 find_package(Boost REQUIRED)
 if(NOT MSVC)
-  find_package(Threads REQUIRED)
+  find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
 endif()
 
 if(OCTOTIGER_WITH_CUDA)
@@ -296,8 +301,8 @@ if(MSVC)
     _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
 else()
   target_compile_options(gen_rotating_star_init PRIVATE
-        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-        -Wno-unused-result -ffast-math -O3)
+    -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+    -Wno-unused-result -ffast-math -O3)
   target_link_libraries(gen_rotating_star_init Threads::Threads)
 endif()
 
@@ -311,4 +316,101 @@ target_link_libraries(silo_counter Silo::silo)
 set_property(TARGET silo_counter PROPERTY FOLDER "Tools")
 if(MSVC)
   target_compile_options(silo_counter PRIVATE /EHsc)
+endif()
+
+################################################################################
+# Tests
+################################################################################
+if(OCTOTIGER_WITH_TESTS)
+  enable_testing()
+
+  # *.diff tests fail when the output contains any .vals
+  set(OCTOTIGER_SILODIFF_FAIL_PATTERN ".vals")
+
+  # Marshak
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.2.silo ${PROJECT_BINARY_DIR}/marshak.silo)
+  add_test(NAME test_problems.marshak
+    COMMAND octotiger
+      --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
+  add_test(NAME test_problems.marshak.diff
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+      ${PROJECT_BINARY_DIR}/marshak.silo ${PROJECT_BINARY_DIR}/final.silo)
+
+  set_tests_properties(test_problems.marshak PROPERTIES
+    FIXTURES_SETUP test_problems.marshak)
+  set_tests_properties(test_problems.marshak.diff PROPERTIES
+    FIXTURES_REQUIRED test_problems.marshak
+    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+
+  # Blast
+  if(OCTOTIGER_WITH_BLAST_TEST)
+    file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.4.silo ${PROJECT_BINARY_DIR}/blast.silo)
+    add_test(NAME test_problems.blast
+      COMMAND octotiger
+        --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini)
+    add_test(NAME test_problems.blast.diff
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+        ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/final.silo)
+
+    set_tests_properties(test_problems.blast PROPERTIES
+      FIXTURES_SETUP test_problems.blast)
+    set_tests_properties(test_problems.blast.diff PROPERTIES
+      FIXTURES_REQUIRED test_problems.blast
+      FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  endif()
+
+  # Sod Shock Tube
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.4.silo ${PROJECT_BINARY_DIR}/sod.silo)
+  add_test(NAME test_problems.sod
+    COMMAND octotiger
+      --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini)
+
+  add_test(NAME test_problems.sod.diff
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+      ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.silo)
+
+  set_tests_properties(test_problems.sod PROPERTIES
+    FIXTURES_SETUP test_problems.sod)
+  set_tests_properties(test_problems.sod.diff PROPERTIES
+    FIXTURES_REQUIRED test_problems.sod
+    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+
+  # Sphere
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
+  add_test(NAME test_problems.sphere
+    COMMAND octotiger
+      --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini)
+  add_test(NAME test_problems.sphere.diff
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+      ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.silo)
+
+  set_tests_properties(test_problems.sphere PROPERTIES
+    FIXTURES_SETUP test_problems.sphere)
+  set_tests_properties(test_problems.sphere.diff PROPERTIES
+    FIXTURES_REQUIRED test_problems.sphere
+    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+
+  # Rotating Star
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.2.silo
+    ${PROJECT_BINARY_DIR}/rotating_star.silo)
+  add_test(NAME test_problems.rotating_star.init COMMAND gen_rotating_star_init)
+  add_test(NAME test_problems.rotating_star
+    COMMAND octotiger
+      --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini)
+  add_test(NAME test_problems.rotating_star.diff
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.silo)
+
+  set_tests_properties(test_problems.rotating_star.init PROPERTIES
+    FIXTURES_SETUP test_problems.rotating_star.init)
+  set_tests_properties(test_problems.rotating_star PROPERTIES
+    FIXTURES_REQUIRED test_problems.rotating_star.init)
+
+  set_tests_properties(test_problems.rotating_star PROPERTIES
+    FIXTURES_SETUP test_problems.rotating_star
+    FIXTURES_REQUIRED test_problems.rotating_star.init)
+  set_tests_properties(test_problems.rotating_star.diff PROPERTIES 
+    FIXTURES_REQUIRED "test_problems.rotating_star.init;test_problems.rotating_star"
+    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+
 endif()
