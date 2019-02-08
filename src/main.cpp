@@ -149,7 +149,7 @@ int hpx_main(int argc, char* argv[]) {
 			node_client root_client(root_id);
 			node_server* root = root_client.get_ptr().get();
 
-			int ngrids = 0;
+			node_count_type ngrids = {0,0};
 			//		printf("1\n");
 			if (!opts().restart_filename.empty()) {
 				std::cout << "Loading from " << opts().restart_filename << " ...\n";
@@ -170,7 +170,7 @@ int hpx_main(int argc, char* argv[]) {
 				root->solve_gravity(false, false);
 				printf("...done\n");
 			}
-			hpx::async(&node_server::start_run, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
+			hpx::async(&node_server::execute_solver, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
 			root->report_timing();
 		}
 	} catch (...) {

@@ -239,7 +239,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 	}
 }
 
-void node_server::start_run(bool scf, integer ngrids) {
+void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings::scope ts(timings_, timings::time_total);
 	integer output_cnt{};
@@ -356,9 +356,9 @@ void node_server::start_run(bool scf, integer ngrids) {
 			hpx::threads::run_as_os_thread([=]()
 			{
 				FILE* fp = fopen( (opts().data_dir + "step.dat").c_str(), "at");
-				fprintf(fp, "%i %e %e %e %e %e %e %e %e %i\n",
+				fprintf(fp, "%i %e %e %e %e %e %e %e %e %i %i %i\n",
 						int(next_step - 1), double(t), double(dt_), time_elapsed, rotational_time,
-						theta, theta_dot, omega, omega_dot, int(ngrids));
+						theta, theta_dot, omega, omega_dot, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
 				fclose(fp);
 			});     // do not wait for it to finish
 		}
@@ -374,7 +374,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 		if (step_num % refinement_freq() == 0) {
 			real new_floor = opts().refinement_floor;
 			if (opts().ngrids > 0) {
-				new_floor *= std::pow(real(ngrids) / real(opts().ngrids), 2);
+				new_floor *= std::pow(real(ngrids.total) / real(opts().ngrids), 2);
 				printf("Old refinement floor = %e\n", opts().refinement_floor);
 				printf("New refinement floor = %e\n", new_floor);
 			}
