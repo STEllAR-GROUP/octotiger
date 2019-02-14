@@ -29,21 +29,95 @@ namespace fmm {
         }
 
         // meant to iterate the input data structure
+        // TODO Rewrite to respect different size
+        // template <typename F>
+        // void iterate_inner_cells_padding(const geo::direction& dir, const F& f) {
+        //     // TODO: implementation not finished
+        //     for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
+        //         for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
+        //             for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
+        //                 // shift to central cube and apply dir-based offset
+        //                 const multiindex<> m(
+        //                     i0 + INNER_CELLS_PADDING_DEPTH + dir[0] * INNER_CELLS_PADDING_DEPTH,
+        //                     i1 + INNER_CELLS_PADDING_DEPTH + dir[1] * INNER_CELLS_PADDING_DEPTH,
+        //                     i2 + INNER_CELLS_PADDING_DEPTH + dir[2] * INNER_CELLS_PADDING_DEPTH);
+        //                 // TODO rename to flat index padded_unpruned
+        //                 const size_t inner_flat_index = to_flat_index_padded(m);
+        //                 const multiindex<> m_unpadded(i0, i1, i2);
+        //                 // TODO create to inner index unpadded function - needs size per
+        //                 // dimension and startpoint per dimension
+        //                 const size_t inner_flat_index_unpadded =
+        //                     to_inner_flat_index_not_padded(m_unpadded);
+        //                 f(m, inner_flat_index, m_unpadded, inner_flat_index_unpadded);
+        //             }
+        //         }
+        //     }
+        // }
+
         template <typename F>
         void iterate_inner_cells_padding(const geo::direction& dir, const F& f) {
-            // TODO: implementation not finished
-            for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-                for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
-                    for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
+            multiindex<> start_index;
+            if (dir[0] == -1)
+                start_index.x = INNER_CELLS_PER_DIRECTION - STENCIL_MAX;
+            else
+                start_index.x = 0;
+            if (dir[1] == -1)
+                start_index.y = INNER_CELLS_PER_DIRECTION - STENCIL_MAX;
+            else
+                start_index.y = 0;
+            if (dir[2] == -1)
+                start_index.z = INNER_CELLS_PER_DIRECTION - STENCIL_MAX;
+            else
+                start_index.z = 0;
+
+            multiindex<> end_index;
+            if (dir[0] == 1)
+                end_index.x = STENCIL_MAX;
+            else
+                end_index.x = INNER_CELLS_PER_DIRECTION;
+            if (dir[1] == 1)
+                end_index.y = STENCIL_MAX;
+            else
+                end_index.y = INNER_CELLS_PER_DIRECTION;
+            if (dir[2] == 1)
+                end_index.z = STENCIL_MAX;
+            else
+                end_index.z = INNER_CELLS_PER_DIRECTION;
+
+            multiindex<> padded_start(0, 0, 0);
+            if (dir[0] == 1)
+                padded_start.x = INNER_CELLS_PER_DIRECTION + INNER_CELLS_PER_DIRECTION;
+            else if (dir[0] == 0)
+                padded_start.x = INNER_CELLS_PER_DIRECTION;
+            if (dir[1] == 1)
+                padded_start.y = INNER_CELLS_PER_DIRECTION + INNER_CELLS_PER_DIRECTION;
+            else if (dir[1] == 0)
+                padded_start.y = INNER_CELLS_PER_DIRECTION;
+            if (dir[2] == 1)
+                padded_start.z = INNER_CELLS_PER_DIRECTION + INNER_CELLS_PER_DIRECTION;
+            else if (dir[2] == 0)
+                padded_start.z = INNER_CELLS_PER_DIRECTION;
+            for (size_t i0 = start_index.x; i0 < end_index.x; i0++) {
+                for (size_t i1 = start_index.y; i1 < end_index.y; i1++) {
+                    for (size_t i2 = start_index.z; i2 < end_index.z; i2++) {
                         // shift to central cube and apply dir-based offset
                         const multiindex<> m(
-                            i0 + INNER_CELLS_PADDING_DEPTH + dir[0] * INNER_CELLS_PADDING_DEPTH,
-                            i1 + INNER_CELLS_PADDING_DEPTH + dir[1] * INNER_CELLS_PADDING_DEPTH,
-                            i2 + INNER_CELLS_PADDING_DEPTH + dir[2] * INNER_CELLS_PADDING_DEPTH);
+                            i0 + padded_start.x,
+                            i1 + padded_start.y,
+                            i2 + padded_start.z);
+                        // TODO rename to flat index padded_unpruned
                         const size_t inner_flat_index = to_flat_index_padded(m);
                         const multiindex<> m_unpadded(i0, i1, i2);
+                        // TODO create to inner index unpadded function - needs size per
+                        // dimension and startpoint per dimension
+
+                        // Unpadded index is correct now
                         const size_t inner_flat_index_unpadded =
                             to_inner_flat_index_not_padded(m_unpadded);
+                        // std::cout << dir[0] << " " << dir[1] << " " << dir[2] << std::endl;
+                        // std::cout << m << std::endl;
+                        // std::cout << m_unpadded << std::endl;
+                        // std::cin.get();
                         f(m, inner_flat_index, m_unpadded, inner_flat_index_unpadded);
                     }
                 }

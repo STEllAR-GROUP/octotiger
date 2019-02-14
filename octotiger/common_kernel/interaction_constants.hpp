@@ -26,8 +26,7 @@ namespace fmm {
     // number of expansions in each cell (inner cells)
     constexpr uint64_t INNER_CELLS = detail::const_pow(INNER_CELLS_PER_DIRECTION, DIMENSION);
 
-    // TODO: change this to 4 as soon as simplified padding works
-    constexpr uint64_t INNER_CELLS_PADDING_DEPTH = INX;    // 8
+    constexpr uint64_t INNER_CELLS_PADDING_DEPTH = INX;
 
     constexpr uint64_t PADDED_STRIDE = INNER_CELLS_PER_DIRECTION + 2 * INNER_CELLS_PADDING_DEPTH;
 
@@ -36,8 +35,6 @@ namespace fmm {
     constexpr uint64_t EXPANSION_COUNT_PADDED = detail::const_pow(PADDED_STRIDE, DIMENSION);
     constexpr uint64_t EXPANSION_COUNT_NOT_PADDED = INNER_CELLS;
 
-    // how many stencil elements are processed for one origin cell, before the next
-    // cell is processed
     constexpr uint64_t SOA_PADDING = 19;    // to prevent some of the 4k aliasing
 
     constexpr uint64_t STENCIL_SIZE = 1074;
