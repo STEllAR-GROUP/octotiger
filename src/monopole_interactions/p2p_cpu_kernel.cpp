@@ -148,9 +148,9 @@ namespace fmm {
 
                         const size_t interaction_partner_flat_index =
                             to_flat_index_padded(interaction_partner_index);    // iii1n
-                        if (vector_is_empty[interaction_partner_flat_index]) {
-                            continue;
-                        }
+                        // if (vector_is_empty[interaction_partner_flat_index]) {
+                        //     continue;
+                        // }
 
                         // implicitly broadcasts to vector
                         multiindex<m2m_int_vector> interaction_partner_index_coarse(
@@ -300,39 +300,39 @@ namespace fmm {
         }
 
         void p2p_cpu_kernel::vectors_check_empty() {
-            vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
-            for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
-                for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
-                    for (size_t i2 = 0; i2 < PADDED_STRIDE; i2 += 1) {
-                        const multiindex<> cell_index(i0, i1, i2);
-                        const int64_t cell_flat_index = to_flat_index_padded(cell_index);
-                        // std::cout << "cell_flat_index: " << cell_flat_index << std::endl;
+            // vector_is_empty = std::vector<bool>(PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE);
+            // for (size_t i0 = 0; i0 < PADDED_STRIDE; i0 += 1) {
+            //     for (size_t i1 = 0; i1 < PADDED_STRIDE; i1 += 1) {
+            //         for (size_t i2 = 0; i2 < PADDED_STRIDE; i2 += 1) {
+            //             const multiindex<> cell_index(i0, i1, i2);
+            //             const int64_t cell_flat_index = to_flat_index_padded(cell_index);
+            //             // std::cout << "cell_flat_index: " << cell_flat_index << std::endl;
 
-                        const multiindex<> in_boundary_start(
-                            (cell_index.x / INNER_CELLS_PER_DIRECTION) - 1,
-                            (cell_index.y / INNER_CELLS_PER_DIRECTION) - 1,
-                            (cell_index.z / INNER_CELLS_PER_DIRECTION) - 1);
+            //             const multiindex<> in_boundary_start(
+            //                 (cell_index.x / INNER_CELLS_PER_DIRECTION) - 1,
+            //                 (cell_index.y / INNER_CELLS_PER_DIRECTION) - 1,
+            //                 (cell_index.z / INNER_CELLS_PER_DIRECTION) - 1);
 
-                        const multiindex<> in_boundary_end(in_boundary_start.x, in_boundary_start.y,
-                            ((cell_index.z + m2m_int_vector::size()) / INNER_CELLS_PER_DIRECTION) -
-                                1);
+            //             const multiindex<> in_boundary_end(in_boundary_start.x, in_boundary_start.y,
+            //                 ((cell_index.z + m2m_int_vector::size()) / INNER_CELLS_PER_DIRECTION) -
+            //                     1);
 
-                        geo::direction dir_start;
-                        dir_start.set(
-                            in_boundary_start.x, in_boundary_start.y, in_boundary_start.z);
-                        geo::direction dir_end;
-                        dir_end.set(in_boundary_end.x, in_boundary_end.y, in_boundary_end.z);
+            //             geo::direction dir_start;
+            //             dir_start.set(
+            //                 in_boundary_start.x, in_boundary_start.y, in_boundary_start.z);
+            //             geo::direction dir_end;
+            //             dir_end.set(in_boundary_end.x, in_boundary_end.y, in_boundary_end.z);
 
-                        if (neighbor_empty[dir_start.flat_index_with_center()] &&
-                            neighbor_empty[dir_end.flat_index_with_center()]) {
-                            vector_is_empty[cell_flat_index] = true;
+            //             if (neighbor_empty[dir_start.flat_index_with_center()] &&
+            //                 neighbor_empty[dir_end.flat_index_with_center()]) {
+            //                 vector_is_empty[cell_flat_index] = true;
 
-                        } else {
-                            vector_is_empty[cell_flat_index] = false;
-                        }
-                    }
-                }
-            }
+            //             } else {
+            //                 vector_is_empty[cell_flat_index] = false;
+            //             }
+            //         }
+            //     }
+            // }
         }
     }    // namespace monopole_interactions
 }    // namespace fmm

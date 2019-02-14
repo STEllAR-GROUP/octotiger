@@ -27,8 +27,9 @@ namespace fmm {
     constexpr uint64_t INNER_CELLS = detail::const_pow(INNER_CELLS_PER_DIRECTION, DIMENSION);
 
     constexpr uint64_t INNER_CELLS_PADDING_DEPTH = INX;
+    constexpr uint64_t PADDING_OFFSET = INNER_CELLS_PADDING_DEPTH - 5;
 
-    constexpr uint64_t PADDED_STRIDE = INNER_CELLS_PER_DIRECTION + 2 * INNER_CELLS_PADDING_DEPTH;
+constexpr uint64_t PADDED_STRIDE = INNER_CELLS_PER_DIRECTION + 2 * (5);
 
     constexpr uint64_t ENTRIES = PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE;
 
