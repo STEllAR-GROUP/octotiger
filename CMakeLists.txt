@@ -300,26 +300,26 @@ endif()
 ################################################################################
 # Set up gen_rotating_star_init target
 ################################################################################
-add_executable(gen_rotating_star_init src/test_problems/rotating_star/make_bin.cpp)
-set_property(TARGET gen_rotating_star_init PROPERTY FOLDER "Tools")
-if(MSVC)
-  target_compile_definitions(gen_rotating_star_init PRIVATE
-    _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
-else()
-  target_compile_options(gen_rotating_star_init PRIVATE
-        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-        -Wno-unused-result -ffast-math -O3)
-  target_link_libraries(gen_rotating_star_init Threads::Threads)
-endif()
+#add_executable(gen_rotating_star_init src/test_problems/rotating_star/make_bin.cpp)
+#set_property(TARGET gen_rotating_star_init PROPERTY FOLDER "Tools")
+#if(MSVC)
+#  target_compile_definitions(gen_rotating_star_init PRIVATE
+#    _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+#else()
+#  target_compile_options(gen_rotating_star_init PRIVATE
+#        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+#        -Wno-unused-result -ffast-math -O3)
+#  target_link_libraries(gen_rotating_star_init Threads::Threads)
+#endif()
 
 ################################################################################
 # Set up silo_counter target
 ################################################################################
-add_executable(silo_counter src/silo_counter.cpp)
+#add_executable(silo_counter src/silo_counter.cpp)
 
-target_link_libraries(silo_counter Silo::silo)
+#target_link_libraries(silo_counter Silo::silo)
 
-set_property(TARGET silo_counter PROPERTY FOLDER "Tools")
-if(MSVC)
-  target_compile_options(silo_counter PRIVATE /EHsc)
-endif()
+#set_property(TARGET silo_counter PROPERTY FOLDER "Tools")
+#if(MSVC)
+#  target_compile_options(silo_counter PRIVATE /EHsc)
+#endif()
