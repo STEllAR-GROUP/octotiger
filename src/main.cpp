@@ -87,6 +87,7 @@ std::size_t init_thread_local_worker(std::size_t desired)
 }
 HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
 
+#ifdef OCTOTIGER_HAVE_CUDA
 std::array<size_t, 7>
 sum_counters_worker(std::size_t desired) {
     std::array<size_t, 7> ret;
@@ -123,6 +124,7 @@ sum_counters_worker(std::size_t desired) {
     return ret;
 }
 HPX_PLAIN_ACTION(sum_counters_worker, sum_counters_worker_action);
+#endif
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	options::all_localities = localities;
@@ -155,9 +157,9 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	} else if (opts().problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
 //		opts().gravity = false;
-		set_problem(blast_wave);
-		set_refine_test(refine_blast);
-		set_analytic(blast_wave_analytic);
+//		set_problem(blast_wave);
+//		set_refine_test(refine_blast);
+//		set_analytic(blast_wave_analytic);
 	} else if (opts().problem == STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
@@ -229,6 +231,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 }
 
 void analyse_local_launch_counters(void) {
+#ifdef OCTOTIGER_HAVE_CUDA
     std::size_t const os_threads = hpx::get_os_thread_count();
     hpx::naming::id_type const here = hpx::find_here();
     std::set<std::size_t> attendance;
@@ -291,6 +294,7 @@ void analyse_local_launch_counters(void) {
     percentage = static_cast<float>(total_p2p_cuda_launches) /
         (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
     std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
+#endif
 }
 
 
