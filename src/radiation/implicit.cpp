@@ -41,6 +41,7 @@ void abort_if_solver_not_converged(
         else
         {
             de_min = de_mid;
+            de_mid = 0.5 * (de_min + de_max);
             real f_min = test(de_min);
         }
 
