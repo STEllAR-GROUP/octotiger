@@ -27,30 +27,30 @@ void abort_if_solver_not_converged(
     // Errors
     real const error_tolerance = 1.0e-9;
 
-    std::size_t i;
-    for (i = 0; i < max_iterations; ++i)
+    for (std::size_t i = 0; i < max_iterations; ++i)
     {
-        // If signs don't match, continue search in the lower half
-        if ((f_min < 0) != (f_mid < 0))
-        {
-            de_max = de_mid;
-            de_mid = 0.5 * (de_min + de_max);
-            real f_mid = test(de_mid);
-        }
-        // Continue search in the upper half
-        else
-        {
-            de_min = de_mid;
-            de_mid = 0.5 * (de_min + de_max);
-            real f_min = test(de_min);
-        }
-
         // Root solver has converged if error is smaller that error tolerance
         real const error =
             std::max(std::abs(f_mid), std::abs(f_min)) / (E + eg_t);
         if (error < error_tolerance)
         {
             return;
+        }
+
+        // If signs don't match, continue search in the lower half
+        if ((f_min < 0) != (f_mid < 0))
+        {
+            de_max = de_mid;
+            de_mid = 0.5 * (de_min + de_max);
+            f_mid = test(de_mid);
+        }
+        // Continue search in the upper half
+        else
+        {
+            de_min = de_mid;
+            de_mid = 0.5 * (de_min + de_max);
+            f_min = f_mid;
+            f_mid = test(de_mid);
         }
     }
     // Error is not smaller that error tolerance after performed iterations. Abort.
