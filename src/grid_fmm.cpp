@@ -476,7 +476,7 @@ void grid::compute_interactions(gsolve_type type) {
         // components for the force
 
         // Coefficients for potential evaluation? (David)
-        double di0_[8];
+        double di0_[4];
         auto* di0 = reinterpret_cast<double*>((std::uintptr_t(di0_) & ~0x1F) | 0x20);
         di0[0] = 1.0 / dx;
         di0[1] = di0[2] = di0[3] = +1.0 / sqr(dx);
@@ -486,7 +486,7 @@ void grid::compute_interactions(gsolve_type type) {
         double di1_[8];
         auto* di1 = reinterpret_cast<double*>((std::uintptr_t(di1_) & ~0x1F) | 0x20);
         di1[0] = 1.0 / dx;
-        di1[1] = di0[2] = di0[3] = -1.0 / sqr(dx);
+        di1[1] = di1[2] = di1[3] = -1.0 / sqr(dx);
         const v4sd d1(di1, Vc::Aligned);
 
         // Number of body-body interactions current leaf cell, probably includes interactions with
