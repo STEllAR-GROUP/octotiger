@@ -476,7 +476,7 @@ void grid::compute_interactions(gsolve_type type) {
         // components for the force
 
         // Coefficients for potential evaluation? (David)
-        double di0_[4];
+        double di0_[8];
         auto* di0 = reinterpret_cast<double*>((std::uintptr_t(di0_) & ~0x1F) | 0x20);
         di0[0] = 1.0 / dx;
         di0[1] = di0[2] = di0[3] = +1.0 / sqr(dx);
