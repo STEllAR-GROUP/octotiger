@@ -19,8 +19,8 @@
 #include <vector>
 
 
-constexpr real de_switch2 = real(1.0e-3);
-constexpr real de_switch1 = real(1.0e-1);
+#define de_switch1 (opts().dual_energy_sw1)
+#define de_switch2 (opts().dual_energy_sw2)
 
 real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<real>>& UL,
 		hydro_state_t<std::vector<real>>& UR,  const std::vector<space_vector>& X, real omega, integer dimension, real dx);

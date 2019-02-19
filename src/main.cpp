@@ -28,11 +28,17 @@
 #include <float.h>
 #endif
 
+namespace scf_options {
+void read_option_file();
+}
+
 void normalize_constants();
 
 void compute_ilist();
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
+	scf_options::read_option_file();
+
 	options::all_localities = localities;
 	opts() = _opts;
 	grid::get_omega() = opts().omega;
@@ -120,9 +126,6 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
 HPX_REGISTER_BROADCAST_ACTION(initialize_action);
 
 real OMEGA;
-namespace scf_options {
-void read_option_file();
-}
 int hpx_main(int argc, char* argv[]) {
 	printf("###########################################################\n");
 #if defined(__AVX512F__)

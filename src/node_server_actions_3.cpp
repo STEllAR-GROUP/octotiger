@@ -243,7 +243,7 @@ void node_server::start_run(bool scf, integer ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings::scope ts(timings_, timings::time_total);
 	integer output_cnt{};
-	output_all("X", 0, false);
+//	output_all("X", 0, false);
 
 	if (!opts().hydro && !opts().radiation) {
 		diagnostics();
