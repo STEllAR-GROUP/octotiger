@@ -287,25 +287,31 @@ void analyse_local_launch_counters(void) {
               << total_multipole_cpu_launches + total_multipole_cuda_launches << std::endl;
     std::cout << "CPU multipole launches " << total_multipole_cpu_launches << std::endl;
     std::cout << "CUDA multipole launches " << total_multipole_cuda_launches << std::endl;
-    float percentage = static_cast<float>(total_multipole_cuda_launches) /
-        (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
-    std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
+    if (total_multipole_cpu_launches + total_multipole_cuda_launches > 0) {
+        float percentage = static_cast<float>(total_multipole_cuda_launches) /
+            (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
+        std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
+    }
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Total non-rho-multipole launches: "
               << total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho << std::endl;
     std::cout << "CPU non-rho-multipole launches " << total_multipole_cpu_launches_non_rho << std::endl;
     std::cout << "CUDA non-rho-multipole launches " << total_multipole_cuda_launches_non_rho << std::endl;
-    percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
-        (static_cast<float>(total_multipole_cuda_launches_non_rho) + total_multipole_cpu_launches_non_rho);
-    std::cout << "=> Percentage of non-rho-multipole on the GPU: " << percentage * 100 << "\n";
+    if (total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho > 0) {
+        float percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
+            (static_cast<float>(total_multipole_cuda_launches_non_rho) + total_multipole_cpu_launches_non_rho);
+        std::cout << "=> Percentage of non-rho-multipole on the GPU: " << percentage * 100 << "\n";
+    }
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Total p2p launches: "
               << total_p2p_cpu_launches + total_p2p_cuda_launches << std::endl;
     std::cout << "CPU p2p launches " << total_p2p_cpu_launches << std::endl;
     std::cout << "CUDA p2p launches " << total_p2p_cuda_launches << std::endl;
-    percentage = static_cast<float>(total_p2p_cuda_launches) /
-        (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
-    std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
+    if (total_p2p_cpu_launches + total_p2p_cuda_launches > 0) {
+        float percentage = static_cast<float>(total_p2p_cuda_launches) /
+            (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
+        std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
+    }
 #endif
 }
 
