@@ -243,9 +243,19 @@ void node_server::start_run(bool scf, integer ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings::scope ts(timings_, timings::time_total);
 	integer output_cnt{};
+	output_all("X", 0, false);
 
 	if (!opts().hydro && !opts().radiation) {
 		diagnostics();
+		if (get_analytic() != nullptr) {
+			compare_analytic();
+			if( opts().gravity ) {
+				solve_gravity(true, false);
+			}
+			if (!opts().disable_output) {
+				output_all("analytic", output_cnt, true);
+			}
+		}
 		return;
 	}
 	if (scf) {

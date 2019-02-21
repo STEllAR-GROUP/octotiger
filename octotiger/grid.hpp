@@ -10,7 +10,7 @@
 
 #define SILO_UNITS
 
-#include <hpx/config.hpp>
+#include "octotiger/config.hpp"
 
 #include "octotiger/radiation/rad_grid.hpp"
 
@@ -20,23 +20,18 @@
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/roe.hpp"
+#include "octotiger/real.hpp"
 #include "octotiger/scf_data.hpp"
 #include "octotiger/silo.hpp"
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
-#include "octotiger/taylor.hpp"
+//#include "octotiger/taylor.hpp"
 
-#include <hpx/runtime/serialization/array.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/set.hpp>
-#include <hpx/runtime/serialization/vector.hpp>
 #include <hpx/traits/is_bitwise_serializable.hpp>
 
 #include <functional>
-#include <iostream>
-#include <list>
 #include <memory>
-#include <set>
 #include <utility>
 #include <vector>
 
@@ -106,12 +101,12 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 		std::pair<real, real>& rho2_max, std::pair<real, real>& l1_phi, std::pair<real, real>& l2_phi,
 		std::pair<real, real>& l3_phi, real& rho1_phi, real& rho2_phi);
 
-typedef real xpoint_type;
-typedef int zone_int_type;
+using xpoint_type = real;
+using zone_int_type = int;
 
 class grid {
 public:
-	typedef std::array<xpoint_type, NDIM> xpoint;
+	using xpoint = std::array<xpoint_type, NDIM>;
 	struct node_point;
 	static void set_max_level(integer l);
 	static void set_fgamma(real fg) {
@@ -145,7 +140,7 @@ private:
 	std::vector<expansion> L;
 	std::vector<space_vector> L_c;
 	std::vector<real> dphi_dt;
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
 	std::unique_ptr<hpx::lcos::local::spinlock> L_mtx;
 #endif
 

@@ -12,8 +12,6 @@ anchors:
     - &docker_config
         docker:
             - image: stellargroup/octotiger:prerequisites-gcc6
-        environment:
-            LD_LIBRARY_PATH: /local/hdf5/lib:/local/boost_1_63_0/lib:/local/hpx/lib:/local/Vc/lib
 
 jobs:
     build:
@@ -42,70 +40,151 @@ jobs:
 
     test_marshak:
         <<: *docker_config
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_marshak-v2
             - run:
-                name: marshak
-                working_directory: /octotiger/test_problems/marshak
-                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+                name: Download integrity check reference
+                command: wget -nc phys.lsu.edu/~dmarcel/marshak.2.silo
+            - save_cache:
+                key: test_marshak-v2
+                paths:
+                    /test
+            - run:
+                name: Marshak wave test
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/marshak/marshak.ini
+            - run:
+                name: Check Integrity
+                command: |
+                    silodiff -q -x 1.0 -R 1.0e-12 marshak.2.silo final.silo >diff.txt
+                    ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
     test_blast:
         <<: *docker_config
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_blast-v4
             - run:
-                name: blast
-                working_directory: /octotiger/test_problems/blast
-                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+                name: Download integrity check reference
+                command: wget -nc phys.lsu.edu/~dmarcel/blast.4.silo
+            - save_cache:
+                key: test_blast-v4
+                paths:
+                    /test
+            - run:
+                name: Blast test
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/blast/blast.ini
+            - run:
+                name: Check Integrity
+                command: |
+                    silodiff -q -x 1.0 -R 1.0e-12 blast.4.silo final.silo >diff.txt
+                    ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
     test_sod:
         <<: *docker_config
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
+            - attach_workspace:
+                at: /
             - restore_cache:
-                key: v6-build-{{ .Branch }}-{{ .Revision }}
+                keys:
+                    - test_sod-v4
             - run:
-                name: sod
-                working_directory: /octotiger/test_problems/sod
-                command: ./test.sh ../../build/octotiger /local/silo/bin/silodiff
+                name: Download integrity check reference
+                command: wget -nc phys.lsu.edu/~dmarcel/sod.4.silo
+            - save_cache:
+                key: test_sod-v4
+                paths:
+                    /test
+            - run:
+                name: Sod shock tube test
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sod/sod.ini
+            - run:
+                name: Check Integrity
+                command: |
+                    silodiff -q -x 1.0 -R 1.0e-12 sod.4.silo final.silo >diff.txt
+                    ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
-    test_moving_star:
+    test_sphere:
         <<: *docker_config
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_sphere-v1
             - run:
-                name: moving_stars
+                name: Download integrity check reference
+                command: wget -nc phys.lsu.edu/~dmarcel/sphere.2.silo
+            - save_cache:
+                key: test_sphere-v1
+                paths:
+                    /test
+            - run:
+                name: Solid sphere test
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sphere/sphere.ini
+            - run:
+                name: Check Integrity
                 command: |
-                    /octotiger/build/octotiger --problem=moving_star \
-                        --max_level=2 --xscale=32 --odt=0.5 --stop_step=0 \
-                        --hpx:threads=1 --hpx:bind=none --compress_silo=off
+                    silodiff -q -x 1.0 -R 1.0e-12 sphere.2.silo X.silo >diff.txt
+                    ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
-    test1:
+    test_rotating_star:
         <<: *docker_config
+        working_directory: /test
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - restore_cache:
+                keys:
+                    - test_rotating_star-v1
             - run:
-                name: test1
-                working_directory: /octotiger/test1
+                name: Download integrity check reference
+                command: wget -nc phys.lsu.edu/~dmarcel/rotating_star.2.silo
+            - save_cache:
+                key: test_rotating_star-v1
+                paths:
+                    /test
+            - run:
+                name: Generate Init
+                command: /octotiger/build/gen_rotating_star_init
+            - run:
+                name: Rotating star test
+                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/rotating_star/rotating_star.ini 
+            - run:
+                name: Check Integrity
                 command: |
-                    ./test1.sh >output.txt
-                    python validate.py output.txt test1.txt
-            #- run: |
-            #    cd /octotiger/tools
-            #    tar xzf restart7.chk.tar.gz
+                    silodiff -q -x 1.0 -R 1.0e-12 rotating_star.2.silo final.silo >diff.txt
+                    ! grep ".vals" diff.txt | tee vals.txt
+            - store_artifacts:
+                path: /test
 
 workflows:
     version: 2
@@ -121,9 +200,9 @@ workflows:
             - test_sod:
                 requires:
                     - build
-            - test_moving_star:
+            - test_rotating_star:
                 requires:
                     - build
-            - test1:
+            - test_sphere:
                 requires:
                     - build

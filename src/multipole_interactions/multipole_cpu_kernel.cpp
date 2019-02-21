@@ -9,9 +9,7 @@
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/options.hpp"
 
-#include <array>
 #include <cstddef>
-#include <functional>
 #include <vector>
 
 namespace octotiger {

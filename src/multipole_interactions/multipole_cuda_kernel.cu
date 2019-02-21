@@ -1,4 +1,5 @@
 #ifdef OCTOTIGER_HAVE_CUDA
+#include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/multipole_interactions/compute_kernel_templates.hpp"
 #include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
 
@@ -18,8 +19,8 @@ namespace fmm {
             cudaError_t err = cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
         }
 
-        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length = ENTRIES + SOA_PADDING;
-        __device__ HPX_CONSTEXPR_OR_CONST size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+        __device__ const size_t component_length = ENTRIES + SOA_PADDING;
+        __device__ const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
         __global__ void
         __launch_bounds__(INX * INX, 2)

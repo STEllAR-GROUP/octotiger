@@ -12,6 +12,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <iostream>
 #include <vector>
 
 class rotating_star_analytic {

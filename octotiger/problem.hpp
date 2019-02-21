@@ -21,12 +21,14 @@ using refine_test_type = std::function<bool(integer,integer, real,real,real,std:
 
 const static init_func_type null_problem = nullptr;
 std::vector<real> old_scf(real, real, real, real, real, real, real);
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 std::vector<real> blast_wave(real, real, real, real);
+std::vector<real> blast_wave_analytic(real x, real y, real z, real t);
+#endif
 std::vector<real> sod_shock_tube_init(real, real, real, real);
 std::vector<real> sod_shock_tube_analytic(real, real, real, real);
 std::vector<real> marshak_wave(real, real, real, real);
 std::vector<real> marshak_wave_analytic(real, real, real, real);
-std::vector<real> blast_wave_analytic(real x, real y, real z, real t);
 std::vector<real> star(real, real, real, real);
 std::vector<real> moving_star_analytic(real, real, real, real);
 std::vector<real> moving_star(real, real, real, real);
@@ -38,6 +40,7 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real);
 std::vector<real> double_solid_sphere(real, real, real, real);
 std::vector<real> double_solid_sphere_analytic_phi(real x, real y, real z);
 
+bool refine_test_center(integer level, integer maxl, real,real,real, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);
 bool refine_test(integer level, integer maxl, real,real,real, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);
 bool refine_test_marshak(integer level, integer maxl, real,real,real, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);
 bool refine_test_moving_star(integer level, integer maxl, real,real,real, std::vector<real> const& U, std::array<std::vector<real>, NDIM> const& dudx);

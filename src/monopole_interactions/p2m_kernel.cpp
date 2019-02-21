@@ -11,7 +11,6 @@
 
 #include <array>
 #include <cstddef>
-#include <functional>
 
 // std::vector<interaction_type> ilist_debugging;
 

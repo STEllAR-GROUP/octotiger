@@ -10,14 +10,15 @@
 
 //#define DIAGNOSTIC_MODE
 
-#include <atomic>
-#include <cmath>
-#include <utility>
 
 using real_type = double;
 
 
 #ifdef DIAGNOSTIC_MODE
+
+#include <atomic>
+#include <cmath>
+#include <utility>
 
 #define ARITHMETIC_OPERATOR( op ) \
 	real& operator op##=( const real& other ) { \

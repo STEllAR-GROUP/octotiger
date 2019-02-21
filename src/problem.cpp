@@ -27,6 +27,7 @@ constexpr integer spc_vac_i = spc_i + 4;
 namespace hpx {
 using mutex = hpx::lcos::local::spinlock;
 }
+const real ssr0 = 1.0 / 3.0;
 
 init_func_type problem = nullptr;
 analytic_func_type analytic = nullptr;
@@ -109,6 +110,14 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 		}
 	}
 	return rc;
+}
+
+bool refine_test_center(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
+		std::array<std::vector<real>, NDIM> const& dudx) {
+	if( x*x + y*y + z*z < ssr0) {
+		return level < max_level;
+	}
+	return false;
 }
 
 bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
@@ -220,7 +229,6 @@ std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
 	return u;
 }
 
-const real ssr0 = 1.0 / 3.0;
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
 	const real r0 = ssr0;
 	const real M = 1.0;
@@ -242,6 +250,7 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 	g[gz_i] = -Menc * z / r3;
 	return g;
 }
+
 
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 	std::vector<real> u(opts().n_fields, real(0));

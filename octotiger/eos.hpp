@@ -8,8 +8,9 @@
 #ifndef POLYTROPE_HPP_
 #define POLYTROPE_HPP_
 
-#include "octotiger/grid.hpp"
 #include "octotiger/real.hpp"
+
+#include <hpx/traits/is_bitwise_serializable.hpp>
 
 #define V1309
 

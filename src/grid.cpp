@@ -85,7 +85,7 @@ std::vector<std::string> grid::get_field_names() {
 	}
 	if (opts().radiation) {
 		const auto rnames = rad_grid::get_field_names();
-		for( auto& n : rnames ) {
+		for (auto& n : rnames) {
 			rc.push_back(n);
 		}
 	}
@@ -95,9 +95,9 @@ std::vector<std::string> grid::get_field_names() {
 std::vector<std::string> grid::get_hydro_field_names() {
 	std::vector<std::string> rc;
 //	if (opts().hydro) {
-		for (auto i : str_to_index_hydro) {
-			rc.push_back(i.first);
-		}
+	for (auto i : str_to_index_hydro) {
+		rc.push_back(i.first);
+	}
 //	}
 	return rc;
 }
@@ -209,24 +209,24 @@ std::vector<silo_var_t> grid::var_data() const {
 	std::vector<silo_var_t> s;
 	real unit;
 //	if (opts().hydro) {
-		for (auto l : str_to_index_hydro) {
-			unit = convert_hydro_units(l.second);
-			const int f = l.second;
-			std::string this_name = l.first;
-			int jjj = 0;
-			silo_var_t this_s(this_name);
-			for (int i = 0; i < INX; i++) {
-				for (int j = 0; j < INX; j++) {
-					for (int k = 0; k < INX; k++) {
-						const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
-						this_s(jjj) = U[f][iii] * unit;
-						this_s.set_range(this_s(jjj));
-						jjj++;
-					}
+	for (auto l : str_to_index_hydro) {
+		unit = convert_hydro_units(l.second);
+		const int f = l.second;
+		std::string this_name = l.first;
+		int jjj = 0;
+		silo_var_t this_s(this_name);
+		for (int i = 0; i < INX; i++) {
+			for (int j = 0; j < INX; j++) {
+				for (int k = 0; k < INX; k++) {
+					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
+					this_s(jjj) = U[f][iii] * unit;
+					this_s.set_range(this_s(jjj));
+					jjj++;
 				}
 			}
-			s.push_back(std::move(this_s));
 		}
+		s.push_back(std::move(this_s));
+	}
 //	}
 
 	if (opts().gravity) {
@@ -251,7 +251,7 @@ std::vector<silo_var_t> grid::var_data() const {
 	}
 	if (opts().radiation) {
 		auto rad = rad_grid_ptr->var_data();
-		for( auto& r : rad ) {
+		for (auto& r : rad) {
 			s.push_back(std::move(r));
 		}
 	}
@@ -1279,8 +1279,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1293,11 +1293,11 @@ void grid::set_omega(real omega, bool bcast) {
 				}
 			}
 			if (remotes.size() > 0) {
-				hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
+				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
 			}
 		}
 	}
-	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
+	std::unique_lock < hpx::lcos::local::spinlock > l(grid::omega_mtx, std::try_to_lock);
 // if someone else has the lock, it's fine, we just return and have it set
 // by the other thread
 	if (!l)
@@ -1889,10 +1889,8 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	}
 	rho += '0';
 	rc.push_back(std::make_pair(std::string("rho"), std::move(rho)));
-	rc.push_back(std::make_pair(std::string("vx"),
-		hpx::util::format("s_x / rho + {:e} * mesh(quadmesh)[0]", omega)));
-	rc.push_back(std::make_pair(std::string("vy"),
-		hpx::util::format("s_y / rho - {:e} * mesh(quadmesh)[1]", omega)));
+	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("s_x / rho + {:e} * mesh(quadmesh)[0]", omega)));
+	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("s_y / rho - {:e} * mesh(quadmesh)[1]", omega)));
 	rc.push_back(std::make_pair(std::string("vz"), std::string("s_z / rho")));
 
 	std::string n;
@@ -1908,30 +1906,36 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	n += '0';
 	X += "0) / rho";
 	Z += "0) / rho";
-	rc.push_back(std::make_pair(std::string("sigma_T"),std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
-	rc.push_back(std::make_pair(std::string("sigma_xf"),std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
-	rc.push_back(std::make_pair(std::string("mfp"),std::string("1 / kappa_R")));
-	if( opts().problem == MARSHAK ) {
-		rc.push_back(std::make_pair(std::string("kappa_R"),std::string("rho")));
-		rc.push_back(std::make_pair(std::string("kappa_P"),std::string("rho")));
+	rc.push_back(
+			std::make_pair(std::string("sigma_T"),
+					std::string("(1 + X) * 0.2 * T * T / ((T * T + 2.7e+11 * rho) * (1 + (T / 4.5e+8)^0.86))")));
+	rc.push_back(std::make_pair(std::string("sigma_xf"), std::string("4e+25*(1+X)*(Z+0.001)*rho*(T^(-3.5))")));
+	rc.push_back(std::make_pair(std::string("mfp"), std::string("1 / kappa_R")));
+	if (opts().problem == MARSHAK) {
+		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho")));
+		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho")));
 	} else {
-		rc.push_back(std::make_pair(std::string("kappa_R"),std::string("rho * (sigma_xf + sigma_T)")));
-		rc.push_back(std::make_pair(std::string("kappa_P"),std::string("rho * 30.262 * sigma_xf")));
+		rc.push_back(std::make_pair(std::string("kappa_R"), std::string("rho * (sigma_xf + sigma_T)")));
+		rc.push_back(std::make_pair(std::string("kappa_P"), std::string("rho * 30.262 * sigma_xf")));
 	}
 	rc.push_back(std::make_pair(std::string("n"), std::move(n)));
 	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
 	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));
 	rc.push_back(std::make_pair(std::string("Z"), std::move(Z)));
-	rc.push_back(std::make_pair(std::string("ek"),std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
-	rc.push_back(std::make_pair(std::string("ei"),hpx::util::format("if( gt(egas-ek,0.001*egas), egas-ek, tau^{:e})", fgamma)));
+	rc.push_back(std::make_pair(std::string("ek"), std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
+	rc.push_back(
+			std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,0.001*egas), egas-ek, tau^{:e})", fgamma)));
 	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
-	if( opts().problem == MARSHAK ) {
-		rc.push_back( std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)") ));
+	if (opts().problem == MARSHAK) {
+		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
 	} else {
-		rc.push_back( std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / kb / (fgamma-1.0))));
+		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / kb / (fgamma - 1.0))));
 	}
-	rc.push_back( std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma-1.0))));
-	rc.push_back( std::make_pair(std::string("B_p"), hpx::util::format("{:e} * T^4", physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
+	rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
+	rc.push_back(
+			std::make_pair(std::string("B_p"),
+					hpx::util::format("{:e} * T^4",
+							physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
 	return std::move(rc);
 }
 
@@ -1944,7 +1948,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 
 analytic_t grid::compute_analytic(real t) {
 	analytic_t a;
-	if( opts().hydro ) {
+	if (opts().hydro) {
 		a = analytic_t(opts().n_fields);
 	} else {
 		a = analytic_t(opts().n_fields + NRF);
@@ -1975,6 +1979,12 @@ analytic_t grid::compute_analytic(real t) {
 						a.l2a[field] += A[field] * A[field] * dv;
 						rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW,
 								k - H_BW + R_BW);
+					}
+				}
+				if (opts().problem == SOLID_SPHERE) {
+					const auto a = solid_sphere_analytic_phi(X[0][iii], X[1][iii], X[2][iii], 0.25);
+					for (int f = 0; f < 4; f++) {
+						G[gindex(i - H_BW, j - H_BW, k - H_BW)][f] = a[f];
 					}
 				}
 			}
@@ -2009,7 +2019,7 @@ void grid::allocate() {
 
 	set_coordinates();
 
-#ifdef USE_GRAV_PAR
+#ifdef OCTOTIGER_HAVE_GRAV_PAR
 	L_mtx.reset(new hpx::lcos::local::spinlock);
 #endif
 
@@ -2419,12 +2429,12 @@ real grid::compute_fluxes() {
 
 //	return physcon.c;
 //	printf( "%e %e %e\n", omega, dx, (2./15.) / max_lambda);
-	if( opts().hard_dt < 0.0 ) {
+	if (opts().hard_dt < 0.0) {
 		return max_lambda;
 	} else {
 		return dx / opts().hard_dt;
 	}
-	if( opts().radiation && !opts().hydro) {
+	if (opts().radiation && !opts().hydro) {
 		return physcon().c / 10.0;
 	}
 	return max_lambda;
@@ -2722,7 +2732,7 @@ void grid::etot_to_egas() {
 }
 
 void grid::next_u(integer rk, real t, real dt) {
-	if( !opts().hydro ) {
+	if (!opts().hydro) {
 		return;
 	}
 //	return;

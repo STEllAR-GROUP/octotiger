@@ -154,12 +154,14 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_problem(sod_shock_tube_init);
 		set_refine_test(refine_sod);
 		set_analytic(sod_shock_tube_analytic);
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 	} else if (opts().problem == BLAST) {
 		grid::set_fgamma(7.0 / 5.0);
 //		opts().gravity = false;
-//		set_problem(blast_wave);
-//		set_refine_test(refine_blast);
-//		set_analytic(blast_wave_analytic);
+		set_problem(blast_wave);
+		set_refine_test(refine_blast);
+		set_analytic(blast_wave_analytic);
+#endif
 	} else if (opts().problem == STAR) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_problem(star);
@@ -182,6 +184,10 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_refine_test(refine_test_marshak);
 	} else if (opts().problem == SOLID_SPHERE) {
 	//	opts().hydro = false;
+		set_analytic([](real x, real y, real z, real dx) {
+			return solid_sphere(x,y,z,dx,0.25);
+		});
+		set_refine_test(refine_test_center);
 		set_problem(init_func_type([](real x, real y, real z, real dx) {
 			return solid_sphere(x,y,z,dx,0.25);
 		}));
@@ -309,7 +315,6 @@ namespace scf_options {
 void read_option_file();
 }
 int hpx_main(int argc, char* argv[]) {
-	printf( "%i\n", int(Vc::float_v::size()));
 	printf("###########################################################\n");
 #if defined(__AVX512F__)
 	printf("Compiled for AVX512 SIMD architectures.\n");

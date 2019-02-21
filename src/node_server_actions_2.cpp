@@ -1,3 +1,5 @@
+#include "octotiger/config.hpp"
+
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_client.hpp"
