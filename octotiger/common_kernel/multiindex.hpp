@@ -99,7 +99,8 @@ namespace fmm {
 
     template <typename T>
     CUDA_CALLABLE_METHOD inline T to_flat_index_padded(const multiindex<T>& m) {
-        return m.x * PADDED_STRIDE * PADDED_STRIDE + m.y * PADDED_STRIDE + m.z;
+      return (m.x - PADDING_OFFSET) * PADDED_STRIDE * PADDED_STRIDE + (m.y - PADDING_OFFSET) *
+      PADDED_STRIDE + (m.z - PADDING_OFFSET);
     }
 
     /** are only valid for single cell! (no padding)

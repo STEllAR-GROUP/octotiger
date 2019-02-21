@@ -106,6 +106,7 @@ namespace fmm {
         static thread_local kernel_scheduler scheduler;
 
         void init(void);
+        static void init_constants(void);
     public:
         kernel_scheduler(kernel_scheduler& other) = delete;
         kernel_scheduler(const kernel_scheduler& other) = delete;

@@ -36,6 +36,10 @@ namespace fmm {
                 grid_ptr = ptr;
             }
 
+        public:
+            /// The stencil is used to identify the neighbors
+            static thread_local std::vector<multiindex<>> stencil;
+
         protected:
             /// Converts AoS input data into SoA data
             template <typename monopole_container, typename expansion_soa_container,
@@ -57,8 +61,6 @@ namespace fmm {
             /// com_ptr - Center of masses, required for the angular corrections
             static thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
                 center_of_masses_staging_area;
-            /// The stencil is used to identify the neighbors
-            static thread_local const std::vector<multiindex<>> stencil;
 
             bool multipole_neighbors_exist;
             std::vector<bool> neighbor_empty_multipoles;

@@ -9,17 +9,28 @@
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"
+#include "octotiger/cuda_util/cuda_scheduler.hpp"
+#include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
 #endif
+#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/lcos/broadcast.hpp>
+#include <hpx/include/actions.hpp>
+#include <hpx/include/util.hpp>
 
 #include <chrono>
 #include <cstdio>
 #include <string>
 #include <utility>
 #include <vector>
+#include <tuple>
 
 #include <fenv.h>
 #if !defined(_MSC_VER)
@@ -35,6 +46,89 @@ void read_option_file();
 void normalize_constants();
 
 void compute_ilist();
+
+std::size_t init_thread_local_worker(std::size_t desired)
+{
+    std::size_t current = hpx::get_worker_thread_num();
+    if (current == desired)
+    {
+#ifdef OCTOTIGER_HAVE_CUDA
+      // init cuda/cpu scheduler
+      octotiger::fmm::kernel_scheduler::scheduler.init();
+#endif
+
+      // init stencil and four constants for p2p fmm interactions
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil =
+          octotiger::fmm::monopole_interactions::calculate_stencil().first;
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_masks =
+          octotiger::fmm::monopole_interactions::calculate_stencil_masks(
+              octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).first;
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::four =
+          octotiger::fmm::monopole_interactions::calculate_stencil().second;
+      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_four_constants =
+          octotiger::fmm::monopole_interactions::calculate_stencil_masks(
+              octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).second;
+
+      // init stencil for p2m fmm interactions
+      octotiger::fmm::monopole_interactions::p2m_interaction_interface::stencil =
+          octotiger::fmm::monopole_interactions::calculate_stencil().first;
+
+      // init stencil for multipole fmm interactions
+      octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil =
+          octotiger::fmm::multipole_interactions::calculate_stencil();
+      octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil_masks =
+          octotiger::fmm::multipole_interactions::calculate_stencil_masks(
+              octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).first;
+      octotiger::fmm::multipole_interactions::multipole_interaction_interface::inner_stencil_masks =
+          octotiger::fmm::multipole_interactions::calculate_stencil_masks(
+              octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).second;
+
+      std::cout << "OS-thread " << current << " on locality " <<
+          hpx::get_locality_id << ": thread_local memory has been initialized! \n";
+      return desired;
+    }
+    return std::size_t(-1);
+}
+HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
+
+#ifdef OCTOTIGER_HAVE_CUDA
+std::array<size_t, 7>
+sum_counters_worker(std::size_t desired) {
+    std::array<size_t, 7> ret;
+    ret[0] = std::size_t(-1);
+    ret[1] = 0;
+    ret[2] = 0;
+    ret[3] = 0;
+    ret[4] = 0;
+    ret[5] = 0;
+    ret[6] = 0;
+    std::size_t current = hpx::get_worker_thread_num();
+    if (current == desired)
+    {
+        ret[0] = desired;
+        ret[1] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cpu_launch_counter;
+        ret[2] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cuda_launch_counter;
+
+        ret[3] = octotiger::fmm::monopole_interactions::
+        cuda_p2p_interaction_interface::cpu_launch_counter;
+        ret[4] = octotiger::fmm::monopole_interactions::
+        cuda_p2p_interaction_interface::cuda_launch_counter;
+
+        ret[5] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cpu_launch_counter_non_rho;
+        ret[6] = octotiger::fmm::multipole_interactions::
+        cuda_multipole_interaction_interface::cuda_launch_counter_non_rho;
+
+        // std::cout << "OS-thread " << ret[1] << " "
+        //           << ret[2] << " " << ret[3]
+        //           << " " << ret[4] << std::endl;
+    }
+    return ret;
+}
+HPX_PLAIN_ACTION(sum_counters_worker, sum_counters_worker_action);
+#endif
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	scf_options::read_option_file();
@@ -113,13 +207,116 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "Cuda is enabled! Available cuda targets on this localility: " << std::endl;
 	octotiger::util::cuda_helper::print_local_targets();
+    octotiger::fmm::kernel_scheduler::init_constants();
 #endif
 	grid::static_init();
 	normalize_constants();
 #ifdef SILO_UNITS
 //	grid::set_unit_conversions();
 #endif
+    std::size_t const os_threads = hpx::get_os_thread_count();
+    hpx::naming::id_type const here = hpx::find_here();
+    std::set<std::size_t> attendance;
+    for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)
+        attendance.insert(os_thread);
+    while (!attendance.empty())
+    {
+        std::vector<hpx::lcos::future<std::size_t> > futures;
+        futures.reserve(attendance.size());
+
+        for (std::size_t worker : attendance)
+        {
+            typedef init_thread_local_worker_action action_type;
+            futures.push_back(hpx::async<action_type>(here, worker));
+        }
+        hpx::lcos::local::spinlock mtx;
+        hpx::lcos::wait_each(
+            hpx::util::unwrapping([&](std::size_t t) {
+                if (std::size_t(-1) != t)
+                {
+                    std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
+                    attendance.erase(t);
+                }
+            }),
+            futures);
+    }
 }
+
+void analyse_local_launch_counters(void) {
+#ifdef OCTOTIGER_HAVE_CUDA
+    std::size_t const os_threads = hpx::get_os_thread_count();
+    hpx::naming::id_type const here = hpx::find_here();
+    std::set<std::size_t> attendance;
+    for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)
+        attendance.insert(os_thread);
+    size_t total_multipole_cpu_launches = 0;
+    size_t total_multipole_cuda_launches = 0;
+    size_t total_multipole_cpu_launches_non_rho = 0;
+    size_t total_multipole_cuda_launches_non_rho = 0;
+    size_t total_p2p_cpu_launches = 0;
+    size_t total_p2p_cuda_launches = 0;
+    while (!attendance.empty())
+    {
+        std::vector<hpx::lcos::future<std::array<size_t, 7>>> futures;
+        futures.reserve(attendance.size());
+
+        for (std::size_t worker : attendance)
+        {
+            typedef sum_counters_worker_action action_type;
+            futures.push_back(hpx::async<action_type>(here, worker));
+        }
+        hpx::lcos::local::spinlock mtx;
+        hpx::lcos::wait_each(
+            hpx::util::unwrapping([&](std::array<size_t, 7> t) {
+                if (std::size_t(-1) != t[0])
+                {
+                    std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
+                    total_multipole_cpu_launches += t[1];
+                    total_multipole_cuda_launches += t[2];
+                    total_p2p_cpu_launches += t[3];
+                    total_p2p_cuda_launches += t[4];
+                    total_multipole_cpu_launches_non_rho += t[5];
+                    total_multipole_cuda_launches_non_rho += t[6];
+                    attendance.erase(t[0]);
+                }
+                }),
+            futures);
+    }
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Total multipole launches: "
+              << total_multipole_cpu_launches + total_multipole_cuda_launches << std::endl;
+    std::cout << "CPU multipole launches " << total_multipole_cpu_launches << std::endl;
+    std::cout << "CUDA multipole launches " << total_multipole_cuda_launches << std::endl;
+    if (total_multipole_cpu_launches + total_multipole_cuda_launches > 0) {
+        float percentage = static_cast<float>(total_multipole_cuda_launches) /
+            (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
+        std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
+    }
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Total non-rho-multipole launches: "
+              << total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho << std::endl;
+    std::cout << "CPU non-rho-multipole launches " << total_multipole_cpu_launches_non_rho << std::endl;
+    std::cout << "CUDA non-rho-multipole launches " << total_multipole_cuda_launches_non_rho << std::endl;
+    if (total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho > 0) {
+        float percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
+            (static_cast<float>(total_multipole_cuda_launches_non_rho) + total_multipole_cpu_launches_non_rho);
+        std::cout << "=> Percentage of non-rho-multipole on the GPU: " << percentage * 100 << "\n";
+    }
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Total p2p launches: "
+              << total_p2p_cpu_launches + total_p2p_cuda_launches << std::endl;
+    std::cout << "CPU p2p launches " << total_p2p_cpu_launches << std::endl;
+    std::cout << "CUDA p2p launches " << total_p2p_cuda_launches << std::endl;
+    if (total_p2p_cpu_launches + total_p2p_cuda_launches > 0) {
+        float percentage = static_cast<float>(total_p2p_cuda_launches) /
+            (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
+        std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
+    }
+#endif
+}
+
+
+
 
 HPX_PLAIN_ACTION(initialize, initialize_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
@@ -175,6 +372,7 @@ int hpx_main(int argc, char* argv[]) {
 			}
 			hpx::async(&node_server::start_run, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
 			root->report_timing();
+            analyse_local_launch_counters();
 		}
 	} catch (...) {
 		throw;
