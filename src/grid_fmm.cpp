@@ -486,7 +486,7 @@ void grid::compute_interactions(gsolve_type type) {
         double di1_[8];
         auto* di1 = reinterpret_cast<double*>((std::uintptr_t(di1_) & ~0x1F) | 0x20);
         di1[0] = 1.0 / dx;
-        di1[1] = di0[2] = di0[3] = -1.0 / sqr(dx);
+        di1[1] = di1[2] = di1[3] = -1.0 / sqr(dx);
         const v4sd d1(di1, Vc::Aligned);
 
         // Number of body-body interactions current leaf cell, probably includes interactions with

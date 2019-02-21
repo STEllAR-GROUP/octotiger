@@ -76,7 +76,7 @@ RUN curl -JL 'http://downloads.sourceforge.net/project/boost/boost/1.63.0/boost_
         && ./bootstrap.sh --prefix=/local/boost \
         && ./b2 -j22 --with-atomic --with-filesystem --with-program_options \
             --with-regex --with-system --with-chrono --with-date_time \
-            --with-thread $(echo ${BUILD_TYPE} | tr '[:upper:]' '[:lower:]' ) install \
+            --with-thread $(echo ${BUILD_TYPE/%WithDebInfo/ease} | tr '[:upper:]' '[:lower:]') install \
     ) \
     && rm -rf boost_1_63_0
 

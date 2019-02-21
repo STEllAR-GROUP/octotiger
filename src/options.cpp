@@ -86,6 +86,8 @@ bool options::process_options(int argc, char* argv[]) {
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
 	("output", po::value<std::string>(&(opts().output_filename))->default_value(""), "filename for output") //
 	("odt", po::value<real>(&(opts().output_dt))->default_value(1.0 / 25.0), "output frequency") //
+	("dual_energy_sw1", po::value<real>(&(opts().dual_energy_sw1))->default_value(0.1), "dual energy switch 1") //
+	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.001), "dual energy switch 2") //
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
 	("disable_output", po::value<bool>(&(opts().disable_output)), "disable silo output") //
 	("silo_planes_only", po::value<bool>(&(opts().silo_planes_only)), "disable silo output") //
@@ -166,6 +168,8 @@ bool options::process_options(int argc, char* argv[]) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
+		SHOW(dual_energy_sw1);
+		SHOW(dual_energy_sw2);
 		SHOW(hard_dt);
 		SHOW(bench);
 		SHOW(disable_output);

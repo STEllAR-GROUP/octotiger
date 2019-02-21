@@ -11,7 +11,7 @@
 # Clifton Park, NY 12065
 # USA
 #
-# Andreas SchÃ¤fer
+# Andreas Schäfer
 # Informatik 3
 # Martensstr. 3
 # 91058 Erlangen
@@ -82,11 +82,15 @@ if(NOT MSVC)
     ${Silo_DIR}/include)
 
   find_library(Silo_LIBRARY NAMES siloh5
-    PATHS /usr/lib
-    /usr/lib64
-    /usr/local/lib
-    ${Silo_DIR}/lib
-    ${Silo_DIR}/lib64)
+    PATHS /usr
+    /usr/local
+    ${Silo_DIR}
+    PATH_SUFFIXES lib lib64)
+
+  find_program(Silo_BROWSER NAMES browser
+    PATHS /usr/bin
+    /usr/local/bin
+    ${Silo_DIR}/bin)
 else()
   find_path(Silo_H_INCLUDE_DIR silo.h
     PATHS ${Silo_DIR}/SiloWindows/include)
@@ -94,7 +98,13 @@ else()
     PATHS ${Silo_DIR}/src/silo)
   set(Silo_INCLUDE_DIR ${Silo_H_INCLUDE_DIR} ${Silo_X_INCLUDE_DIR})
 
+  unset(Silo_H_INCLUDE_DIR)
+  unset(Silo_X_INCLUDE_DIR)
+
   find_library(Silo_LIBRARY NAMES silohdf5
+    PATHS ${Silo_DIR}/SiloWindows/MSVC2012/x64/Release)
+    
+  find_program(Silo_BROWSER NAMES browser
     PATHS ${Silo_DIR}/SiloWindows/MSVC2012/x64/Release)
 endif()
 
@@ -111,14 +121,16 @@ if(Silo_INCLUDE_DIR)
   endif()
 endif()
 
-# handle the QUIETLY and REQUIRED arguments and set Silo_FOUND to TRUE if
-# all listed variables are TRUE
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Silo DEFAULT_MSG Silo_LIBRARY Silo_INCLUDE_DIR)
-
 mark_as_advanced(
   Silo_INCLUDE_DIR
-  Silo_LIBRARY)
+  Silo_LIBRARY
+  Silo_BROWSER)
+
+# Handle the QUIETLY and REQUIRED arguments and set Silo_FOUND to TRUE if
+# all listed variables are TRUE
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Silo DEFAULT_MSG
+  Silo_LIBRARY Silo_INCLUDE_DIR Silo_BROWSER)
 
 if(Silo_FOUND AND NOT TARGET Silo::silo)
   add_library(Silo::silo INTERFACE IMPORTED)

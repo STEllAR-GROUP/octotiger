@@ -1,5 +1,5 @@
-#include "octotiger/radiation/implicit.hpp"
 #include "octotiger/physcon.hpp"
+#include "octotiger/radiation/implicit.hpp"
 #include "octotiger/radiation/opacities.hpp"
 #include "octotiger/space_vector.hpp"
 
@@ -10,6 +10,53 @@
 #include <numeric>
 #include <string>
 
+template <typename F>
+void abort_if_solver_not_converged(
+    real const eg_t0, real E0, F const test, real const E, real const eg_t)
+{
+    // Bisection root finding method
+    // Indices of max, mid, and min
+    real de_max = eg_t0;
+    real de_mid = 0.0;
+    real de_min = -E0;
+    // Values of max, mid, and min
+    real f_min = test(de_min);
+    real f_mid = test(de_mid);
+    // Max iterations
+    constexpr std::size_t max_iterations = 50;
+    // Errors
+    real const error_tolerance = 1.0e-9;
+
+    for (std::size_t i = 0; i < max_iterations; ++i)
+    {
+        // Root solver has converged if error is smaller that error tolerance
+        real const error =
+            std::max(std::abs(f_mid), std::abs(f_min)) / (E + eg_t);
+        if (error < error_tolerance)
+        {
+            return;
+        }
+
+        // If signs don't match, continue search in the lower half
+        if ((f_min < 0) != (f_mid < 0))
+        {
+            de_max = de_mid;
+            de_mid = 0.5 * (de_min + de_max);
+            f_mid = test(de_mid);
+        }
+        // Continue search in the upper half
+        else
+        {
+            de_min = de_mid;
+            de_mid = 0.5 * (de_min + de_max);
+            f_min = f_mid;
+            f_mid = test(de_mid);
+        }
+    }
+    // Error is not smaller that error tolerance after performed iterations. Abort.
+    printf("Implicit radiation solver failed to converge\n");
+    abort();
+}
 
 std::pair<real, space_vector> implicit_radiation_step(real E0, real& e0, space_vector F0,
 		space_vector u0, real rho, real mmw, real X, real Z, real dt) {
@@ -65,37 +112,8 @@ std::pair<real, space_vector> implicit_radiation_step(real E0, real& e0, space_v
 		return f;
 	};
 
-	real de_max, de_min, de_mid;
+    abort_if_solver_not_converged(eg_t0, E0, test, E, eg_t);
 
-	de_max = +eg_t0;
-	de_min = -E0;
-	int N = 50;
-	real f_min = 0, f_mid = 0, error = 0;
-	de_mid = 0.0;
-	error = std::abs(test(0.0)) * INVERSE (E + eg_t);
-		const real toler = 1.0e-9;
-		int i;
-	for (i = 0; i < N; i++) {
-		f_min = test(de_min);
-		f_mid = test(de_mid);
-
-		if (f_min * f_mid < 0.0) {
-			de_max = de_mid;
-		} else if (f_min * f_mid > 0.0) {
-			de_min = de_mid;
-		} else {
-			break;
-		}
-		error = std::max(std::abs(f_mid), std::abs(f_min)) / (E + eg_t);
-		if( error < toler ) {
-			break;
-		}
-		de_mid = 0.5 * (de_min + de_max);
-	}
-	if( i == 50 ) {
-		printf( "Implicit radiation solver failed to converge\n");
-		abort();
-	}
 	ei = eg_t - 0.5 * (u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
 	e0 = ei * rhoc2;
 	const auto dtinv = 1.0 / dt;

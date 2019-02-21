@@ -43,6 +43,8 @@ public:
 	integer ngrids;
 	integer stop_step;
 
+	real dual_energy_sw2;
+	real dual_energy_sw1;
 	real hard_dt;
 	real driving_rate;
 	real driving_time;
@@ -84,6 +86,8 @@ public:
 
 	template<class Arc>
 	void serialize(Arc& arc, unsigned) {
+		arc & dual_energy_sw1;
+		arc & dual_energy_sw2;
 		arc & hard_dt;
 		arc & rad_implicit;
 		arc & n_fields;

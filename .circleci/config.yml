@@ -40,149 +40,101 @@ jobs:
 
     test_marshak:
         <<: *docker_config
-        working_directory: /test
+        working_directory: /octotiger/build
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
-            - restore_cache:
-                keys:
-                    - test_marshak-v2
-            - run:
-                name: Download integrity check reference
-                command: wget -nc phys.lsu.edu/~dmarcel/marshak.2.silo
-            - save_cache:
-                key: test_marshak-v2
-                paths:
-                    /test
             - run:
                 name: Marshak wave test
-                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/marshak/marshak.ini
+                command: ctest --output-on-failure -R test_problems.marshak.diff
             - run:
-                name: Check Integrity
+                name: Move artifacts
                 command: |
-                    silodiff -q -x 1.0 -R 1.0e-12 marshak.2.silo final.silo >diff.txt
-                    ! grep ".vals" diff.txt | tee vals.txt
+                    mkdir /test
+                    mv *.silo *.dat /test/ || :
+                when: always
             - store_artifacts:
                 path: /test
 
     test_blast:
         <<: *docker_config
-        working_directory: /test
+        working_directory: /octotiger/build
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
-            - restore_cache:
-                keys:
-                    - test_blast-v4
-            - run:
-                name: Download integrity check reference
-                command: wget -nc phys.lsu.edu/~dmarcel/blast.4.silo
-            - save_cache:
-                key: test_blast-v4
-                paths:
-                    /test
             - run:
                 name: Blast test
-                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/blast/blast.ini
+                command: ctest --output-on-failure -R test_problems.blast.diff
             - run:
-                name: Check Integrity
+                name: Move artifacts
                 command: |
-                    silodiff -q -x 1.0 -R 1.0e-12 blast.4.silo final.silo >diff.txt
-                    ! grep ".vals" diff.txt | tee vals.txt
+                    mkdir /test
+                    mv *.silo *.dat /test/ || :
+                when: always
             - store_artifacts:
                 path: /test
 
     test_sod:
         <<: *docker_config
-        working_directory: /test
+        working_directory: /octotiger/build
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
-            - restore_cache:
-                keys:
-                    - test_sod-v4
-            - run:
-                name: Download integrity check reference
-                command: wget -nc phys.lsu.edu/~dmarcel/sod.4.silo
-            - save_cache:
-                key: test_sod-v4
-                paths:
-                    /test
             - run:
                 name: Sod shock tube test
-                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sod/sod.ini
+                command: ctest --output-on-failure -R test_problems.sod.diff
             - run:
-                name: Check Integrity
+                name: Move artifacts
                 command: |
-                    silodiff -q -x 1.0 -R 1.0e-12 sod.4.silo final.silo >diff.txt
-                    ! grep ".vals" diff.txt | tee vals.txt
+                    mkdir /test
+                    mv *.silo *.dat /test/ || :
+                when: always
             - store_artifacts:
                 path: /test
 
     test_sphere:
         <<: *docker_config
-        working_directory: /test
+        working_directory: /octotiger/build
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
-            - restore_cache:
-                keys:
-                    - test_sphere-v1
-            - run:
-                name: Download integrity check reference
-                command: wget -nc phys.lsu.edu/~dmarcel/sphere.2.silo
-            - save_cache:
-                key: test_sphere-v1
-                paths:
-                    /test
             - run:
                 name: Solid sphere test
-                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/sphere/sphere.ini
+                command: ctest --output-on-failure -R test_problems.sphere.diff
             - run:
-                name: Check Integrity
+                name: Move artifacts
                 command: |
-                    silodiff -q -x 1.0 -R 1.0e-12 sphere.2.silo X.silo >diff.txt
-                    ! grep ".vals" diff.txt | tee vals.txt
+                    mkdir /test
+                    mv *.silo *.dat /test/ || :
+                when: always
             - store_artifacts:
                 path: /test
 
     test_rotating_star:
         <<: *docker_config
-        working_directory: /test
+        working_directory: /octotiger/build
         steps:
             - checkout:
                 path: /octotiger
             - attach_workspace:
                 at: /
-            - restore_cache:
-                keys:
-                    - test_rotating_star-v1
-            - run:
-                name: Download integrity check reference
-                command: wget -nc phys.lsu.edu/~dmarcel/rotating_star.2.silo
-            - save_cache:
-                key: test_rotating_star-v1
-                paths:
-                    /test
-            - run:
-                name: Generate Init
-                command: /octotiger/build/gen_rotating_star_init
             - run:
                 name: Rotating star test
-                command: /octotiger/build/octotiger --config_file=/octotiger/test_problems/rotating_star/rotating_star.ini 
+                command: ctest --output-on-failure -R test_problems.rotating_star.diff
             - run:
-                name: Check Integrity
+                name: Move artifacts
                 command: |
-                    silodiff -q -x 1.0 -R 1.0e-12 rotating_star.2.silo final.silo >diff.txt
-                    ! grep ".vals" diff.txt | tee vals.txt
+                    mkdir /test
+                    mv *.silo *.bin *.dat /test/ || :
+                when: always
             - store_artifacts:
                 path: /test
 
