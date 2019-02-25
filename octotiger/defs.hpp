@@ -91,7 +91,7 @@ enum boundary_type {
 
 constexpr integer NDIM = 3;
 
-constexpr integer INX = 12;
+constexpr integer INX = OCTOTIGER_GRIDDIM;
 constexpr integer H_BW = 3;
 constexpr integer R_BW = 2;
 

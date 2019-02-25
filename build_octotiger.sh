@@ -18,6 +18,7 @@ rm -r CMakeFiles
 cmake -DCMAKE_PREFIX_PATH="$HOME/local/$1/hpx" -DCMAKE_CXX_FLAGS="-DBOOST_USE_VALGRIND" \
       -DCMAKE_CXX_COMPILER=g++ \
       -DCMAKE_C_COMPILER=gcc \
+      -DOCTOTIGER_GRIDDIM=8 \
       -DCMAKE_CXX_FLAGS="-DBOOST_USE_VALGRIND -L$HOME/local/boost/lib -march=native" \
       -DCMAKE_C_FLAGS="-L$HOME/local/boost/lib" \
       -DCMAKE_BUILD_TYPE=$1                                                                                                                            \
@@ -27,6 +28,6 @@ cmake -DCMAKE_PREFIX_PATH="$HOME/local/$1/hpx" -DCMAKE_CXX_FLAGS="-DBOOST_USE_VA
       ..
 
 
-make -j4 VERBOSE=1
+make -j VERBOSE=1
 
 
