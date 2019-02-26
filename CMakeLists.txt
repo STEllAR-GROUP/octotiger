@@ -11,18 +11,7 @@ cmake_policy(VERSION 3.10)
 # Libraries linked via full path no longer produce linker search paths.
 cmake_policy(SET CMP0003 NEW)
 
-# Grid size
-
-IF(OCTOTIGER_GRIDDIM)
-ELSE()
-    set( OCTOTIGER_GRIDDIM "8" )
-ENDIF()
-
-IF(OCTOTIGER_GRIDDIM)
-    ADD_DEFINITIONS(-DOCTOTIGER_GRIDDIM=${OCTOTIGER_GRIDDIM})
-ENDIF()
-
-project(octotiger_${OCTOTIGER_GRIDDIM} CXX)
+project(octotiger CXX)
 
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
@@ -38,9 +27,12 @@ option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 option(OCTOTIGER_WITH_Vc "" ON)
-option(OCTOTIGER_WITH_AVX "" ON)
-option(OCTOTIGER_WITH_AVX2 "" ON)
+option(OCTOTIGER_WITH_AVX "" OFF)
+option(OCTOTIGER_WITH_AVX2 "" OFF)
+option(OCTOTIGER_WITH_AVX512 "" OFF)
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
+
+set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 
 ################################################################################
 # Find required packages
@@ -185,10 +177,8 @@ set(header_files
     octotiger/test_problems/sod/exact_sod.hpp
 )
 
-
-
 add_hpx_executable(
-  octotiger_${OCTOTIGER_GRIDDIM}
+  octotiger
   DEPENDENCIES
     Silo::silo Vc::Vc Boost::boost
   SOURCES
@@ -197,22 +187,22 @@ add_hpx_executable(
     ${header_files}
 )
 
-set_property(TARGET octotiger_${OCTOTIGER_GRIDDIM} PROPERTY FOLDER "Octotiger")
-target_include_directories(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE ${PROJECT_SOURCE_DIR})
+set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
+target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 
 if(MSVC)
   # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
   set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY
-    VS_STARTUP_PROJECT octotiger_${OCTOTIGER_GRIDDIM})
+    VS_STARTUP_PROJECT octotiger)
 
-  target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE
+  target_compile_definitions(octotiger PRIVATE
     _USE_MATH_DEFINES
     NOMINMAX
     _CRT_SECURE_NO_WARNINGS
     __restrict__=__restrict)
 
-  target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE
+  target_compile_options(octotiger PRIVATE
     /wd4018
     /wd4068 # unknown pragma
     /wd4146
@@ -223,65 +213,84 @@ if(MSVC)
     /wd4800
     /wd4996)
 
-  target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE /EHsc)
+  target_compile_options(octotiger PRIVATE /EHsc)
 
 else()
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
-    target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE
+    target_compile_options(octotiger PRIVATE
       -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
       -Wno-unused-result -ffast-math)
   elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
       #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
       #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
-      target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} -Wno-attributes -Wno-deprecated)
+      target_compile_options(octotiger -Wno-attributes -Wno-deprecated)
   endif()
 endif()
 
 if(OCTOTIGER_WITH_Vc)
   find_package(Vc REQUIRED)
 
-  target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_VC)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_VC)
 endif()
 
-if((OCTOTIGER_WITH_Vc AND USE_AVX2) OR OCTOTIGER_WITH_AVX2)
+if(OCTOTIGER_WITH_Vc AND USE_AVX512 AND OCTOTIGER_WITH_AVX512)
   if(MSVC)
-    target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE /arch:AVX2)
+    target_compile_options(octotiger PRIVATE /arch:AVX512)
   else()
+    target_compile_options(octotiger PRIVATE -mavx512f)
   endif()
-elseif((OCTOTIGER_WITH_Vc AND USE_AVX) OR OCTOTIGER_WITH_AVX)
+  set(OCTOTIGER_WITH_AVX OFF CACHE BOOL "" FORCE)
+  set(OCTOTIGER_WITH_AVX2 OFF CACHE BOOL "" FORCE)
+elseif(OCTOTIGER_WITH_Vc AND USE_AVX2 AND OCTOTIGER_WITH_AVX2)
   if(MSVC)
-    target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE /arch:AVX)
+    target_compile_options(octotiger PRIVATE /arch:AVX2)
   else()
+    target_compile_options(octotiger PRIVATE -mavx2)
   endif()
+  set(OCTOTIGER_WITH_AVX OFF CACHE BOOL "" FORCE)
+  set(OCTOTIGER_WITH_AVX512 OFF CACHE BOOL "" FORCE)
+elseif(OCTOTIGER_WITH_Vc AND USE_AVX AND OCTOTIGER_WITH_AVX)
+  if(MSVC)
+    target_compile_options(octotiger PRIVATE /arch:AVX)
+  else()
+    target_compile_options(octotiger PRIVATE -mavx)
+  endif()
+  set(OCTOTIGER_WITH_AVX2 OFF CACHE BOOL "" FORCE)
+  set(OCTOTIGER_WITH_AVX512 OFF CACHE BOOL "" FORCE)
 endif()
 
 # Handle CUDA
 if(OCTOTIGER_WITH_CUDA)
-  target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_CUDA)
-  set_property(TARGET octotiger_${OCTOTIGER_GRIDDIM} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-  set_property(TARGET octotiger_${OCTOTIGER_GRIDDIM} PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_CUDA)
+  set_property(TARGET octotiger PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+  set_property(TARGET octotiger PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 endif()
 
 # Handle other options
 if(OCTOTIGER_WITH_GRAV_PAR)
-  target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_GRAV_PAR)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
 if(OCTOTIGER_WITH_RADIATION)
-  target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_RADIATION)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_RADIATION)
 endif()
 
+# Grid size
+message(STATUS "Octotiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
+target_compile_definitions(octotiger PRIVATE OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
+
+# Tests
 if(OCTOTIGER_WITH_BLAST_TEST)
-  target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_BLAST_TEST)
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp)
-  target_sources(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE ${blast_sources})
+  target_sources(octotiger PRIVATE ${blast_sources})
   source_group(TREE ${PROJECT_SOURCE_DIR}
     PREFIX "Source Files" FILES ${blast_sources})
 
   if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
-    target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE
+    target_compile_definitions(octotiger PRIVATE
       OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
     set(OCTOTIGER_WITH_QUADMATH OFF CACHE BOOL "" FORCE)
 
@@ -294,8 +303,8 @@ if(OCTOTIGER_WITH_BLAST_TEST)
     elseif(MSVC)
       message(FATAL_ERROR "GCC Quad-Precision Math Library is not available with MSVC")
     endif()
-    target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_QUADMATH)
-    target_link_libraries(octotiger_${OCTOTIGER_GRIDDIM} quadmath)
+    target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_QUADMATH)
+    target_link_libraries(octotiger quadmath)
 
   else()
       message(FATAL_ERROR "Octotiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
@@ -352,11 +361,11 @@ if(OCTOTIGER_WITH_TESTS)
   # Marshak
   file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.2.silo ${PROJECT_BINARY_DIR}/marshak.silo)
   add_test(NAME test_problems.marshak
-    COMMAND octotiger_${OCTOTIGER_GRIDDIM}
+    COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
   add_test(NAME test_problems.marshak.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/marshak.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/marshak.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
   set_tests_properties(test_problems.marshak PROPERTIES
     FIXTURES_SETUP test_problems.marshak)
@@ -368,11 +377,11 @@ if(OCTOTIGER_WITH_TESTS)
   if(OCTOTIGER_WITH_BLAST_TEST)
     file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.4.silo ${PROJECT_BINARY_DIR}/blast.silo)
     add_test(NAME test_problems.blast
-      COMMAND octotiger_${OCTOTIGER_GRIDDIM}
+      COMMAND octotiger
         --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini)
     add_test(NAME test_problems.blast.diff
       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-        ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_GRIDDIM}.silo)
+        ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
     set_tests_properties(test_problems.blast PROPERTIES
       FIXTURES_SETUP test_problems.blast)
@@ -384,12 +393,12 @@ if(OCTOTIGER_WITH_TESTS)
   # Sod Shock Tube
   file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.4.silo ${PROJECT_BINARY_DIR}/sod.silo)
   add_test(NAME test_problems.sod
-    COMMAND octotiger_${OCTOTIGER_GRIDDIM}
+    COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini)
 
   add_test(NAME test_problems.sod.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
   set_tests_properties(test_problems.sod PROPERTIES
     FIXTURES_SETUP test_problems.sod)
@@ -400,11 +409,11 @@ if(OCTOTIGER_WITH_TESTS)
   # Sphere
   file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
   add_test(NAME test_problems.sphere
-    COMMAND octotiger_${OCTOTIGER_GRIDDIM}
+    COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini)
   add_test(NAME test_problems.sphere.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.${OCTOTIGER_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
   set_tests_properties(test_problems.sphere PROPERTIES
     FIXTURES_SETUP test_problems.sphere)
@@ -417,11 +426,11 @@ if(OCTOTIGER_WITH_TESTS)
     ${PROJECT_BINARY_DIR}/rotating_star.silo)
   add_test(NAME test_problems.rotating_star.init COMMAND gen_rotating_star_init)
   add_test(NAME test_problems.rotating_star
-    COMMAND octotiger_${OCTOTIGER_GRIDDIM}
+    COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini)
   add_test(NAME test_problems.rotating_star.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
   set_tests_properties(test_problems.rotating_star.init PROPERTIES
     FIXTURES_SETUP test_problems.rotating_star.init)
