@@ -33,13 +33,15 @@
 typedef node_server::regrid_gather_action regrid_gather_action_type;
 HPX_REGISTER_ACTION(regrid_gather_action_type);
 
-future<integer> node_client::regrid_gather(bool rb) const {
+future<node_count_type> node_client::regrid_gather(bool rb) const {
 	return hpx::async<typename node_server::regrid_gather_action>(get_unmanaged_gid(), rb);
 }
 
-integer node_server::regrid_gather(bool rebalance_only) {
+node_count_type node_server::regrid_gather(bool rebalance_only) {
 	node_registry::delete_(my_location);
-	integer count = integer(1);
+	node_count_type count;
+	count.total = 1;
+	count.leaf = is_refined ? 0 : 1;
 	std::vector<hpx::future<void>> kfuts;
 	if (is_refined) {
 		if (!rebalance_only) {
@@ -54,19 +56,21 @@ integer node_server::regrid_gather(bool rebalance_only) {
 		}
 
 		if (is_refined) {
-			std::array<future<integer>, NCHILD> futs;
+			std::array<future<node_count_type>, NCHILD> futs;
 			integer index = 0;
 			for (auto& child : children) {
 				futs[index++] = child.regrid_gather(rebalance_only);
 			}
 			auto futi = futs.begin();
 			for (auto const& ci : geo::octant::full_set()) {
-				auto child_cnt = futi->get();
+				const auto child_cnt = futi->get();
 				++futi;
-				child_descendant_count[ci] = child_cnt;
-				count += child_cnt;
+				child_descendant_count[ci] = child_cnt.total;
+				count.leaf += child_cnt.leaf;
+				count.total += child_cnt.total;
 			}
 		} else {
+			count.leaf = 1;
 			for (auto const& ci : geo::octant::full_set()) {
 				child_descendant_count[ci] = 0;
 			}
@@ -74,7 +78,8 @@ integer node_server::regrid_gather(bool rebalance_only) {
 	} else if (!rebalance_only) {
 		if (refinement_flag != 0) {
 			refinement_flag = 0;
-			count += NCHILD;
+			count.total += NCHILD;
+			count.leaf += NCHILD - 1;
 
 			/* Turning refinement on*/
 			is_refined = true;
@@ -195,7 +200,7 @@ void node_server::regrid_scatter(integer a_, integer total) {
 	}
 }
 
-integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb,bool grav_energy_comp) {
+node_count_type node_server::regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb,bool grav_energy_comp) {
 	timings::scope ts(timings_, timings::time_regrid);
 	hpx::util::high_resolution_timer timer;
 	assert(grid_ptr != nullptr);
@@ -208,18 +213,19 @@ integer node_server::regrid(const hpx::id_type& root_gid, real omega, real new_f
 	}
 	printf("regridding\n");
 	real tstart = timer.elapsed();
-	integer a = regrid_gather(rb);
+	auto a = regrid_gather(rb);
 	real tstop = timer.elapsed();
 	printf("Regridded tree in %f seconds\n", real(tstop - tstart));
-	printf("rebalancing %i nodes\n", int(a));
+	printf("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
 	tstart = timer.elapsed();
-	regrid_scatter(0, a);
+	regrid_scatter(0, a.total);
 	tstop = timer.elapsed();
 	printf("Rebalanced tree in %f seconds\n", real(tstop - tstart));
 	assert(grid_ptr != nullptr);
 	tstart = timer.elapsed();
 	printf("forming tree connections\n");
-	form_tree(hpx::unmanaged(root_gid));
+	a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
+	printf( "%i amr boundaries\n", a.amr_bnd);
 	tstop = timer.elapsed();
 	printf("Formed tree in %f seconds\n", real(tstop - tstart));
 	printf("solving gravity\n");

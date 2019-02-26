@@ -32,6 +32,8 @@ typedef bool set_child_aunt_type;
 typedef integer set_child_aunt_type;
 #endif
 
+struct node_count_type;
+
 
 namespace hpx {
     using mutex = hpx::lcos::local::spinlock;
@@ -86,10 +88,10 @@ public:
 	future<set_child_aunt_type> set_child_aunt(const hpx::id_type&, const geo::face&) const;
 	future<void> set_aunt(const hpx::id_type&, const geo::face&) const;
 	future<node_server*> get_ptr() const;
-	future<void> form_tree(hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&& );
+	future<int> form_tree(hpx::id_type&&, hpx::id_type&&, std::vector<hpx::id_type>&& );
 	future<hpx::id_type> get_child_client(const node_location& parent_loc, const geo::octant&);
 	future<void> regrid_scatter(integer, integer) const;
-	future<integer> regrid_gather(bool) const;
+	future<node_count_type> regrid_gather(bool) const;
 	future<line_of_centers_t> line_of_centers(const std::pair<space_vector,space_vector>& line) const;
 	void send_flux_check(std::vector<real>&&, const geo::direction& dir, std::size_t cycle) const;
 	void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir, std::size_t cycle) const;

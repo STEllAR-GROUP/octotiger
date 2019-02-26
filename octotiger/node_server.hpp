@@ -36,7 +36,22 @@
 #include <map>
 #include <vector>
 
+
+struct node_count_type {
+	int total;
+	int leaf;
+	int amr_bnd;
+	template<class A>
+	void serialize(A& arc, unsigned) {
+		arc & total;
+		arc & leaf;
+		arc & amr_bnd;
+	}
+};
+
 class node_server: public hpx::components::managed_component_base<node_server> {
+
+
 
 private:
 	struct sibling_hydro_type {
@@ -169,7 +184,7 @@ public:
 	void report_timing();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, report_timing, report_timing_action);
 
-	integer regrid_gather(bool rebalance_only);/**/HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
+	node_count_type regrid_gather(bool rebalance_only);/**/HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_gather, regrid_gather_action);
 
 	hpx::future<hpx::id_type> create_child(hpx::id_type const& locality, integer ci);
 
@@ -199,14 +214,14 @@ public:
 
 	void update();
 
-	integer regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp=true);
+	node_count_type regrid(const hpx::id_type& root_gid, real omega, real new_floor, bool rb, bool grav_energy_comp=true);
 
 	void compute_fmm(gsolve_type gs, bool energy_account, bool allocate_only = false);
 
 	void solve_gravity(bool ene, bool skip_solve);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
 
-	void start_run(bool scf, integer);
+	void execute_solver(bool scf, node_count_type);
 
 	void set_grid(const std::vector<real>&, std::vector<real>&&);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_grid, set_grid_action);
@@ -225,7 +240,7 @@ public:
 	hpx::id_type get_child_client(const geo::octant&);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, get_child_client, get_child_client_action);
 
-	void form_tree(hpx::id_type, hpx::id_type=hpx::invalid_id, std::vector<hpx::id_type> = std::vector<hpx::id_type>(geo::direction::count()));/**/
+	int form_tree(hpx::id_type, hpx::id_type=hpx::invalid_id, std::vector<hpx::id_type> = std::vector<hpx::id_type>(geo::direction::count()));/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
 	std::uintptr_t get_ptr();/**/
