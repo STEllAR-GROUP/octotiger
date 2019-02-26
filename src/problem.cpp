@@ -128,7 +128,6 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		return std::sqrt(x * x + y * y + z * z) < 10.0 * dx;
 	}
 	int test_level = max_level;
-	int penalty = 0;
 	bool majority_core = U[spc_ac_i] + U[spc_dc_i] > 0.5 * U[rho_i];
 	bool majority_accretor = U[spc_ae_i] + U[spc_ac_i] > 0.5 * U[rho_i];
 	bool majority_donor = U[spc_de_i] + U[spc_dc_i] > 0.5 * U[rho_i];

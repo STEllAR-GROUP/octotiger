@@ -2558,6 +2558,8 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 								}
 								break;
 							}
+//						} else if (field == rho_i) {
+//							ref = std::max(rho_floor,value);
 						} else {
 							ref = +value;
 						}
@@ -2888,7 +2890,7 @@ void grid::next_u(integer rk, real t, real dt) {
 							X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
 					//	abort();
 				} else if (U[rho_i][iii] <= ZERO) {
-					printf("Rho is non-positive - %e %i %i %i\n", double(U[rho_i][iii]), int(i), int(j), int(k));
+					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", double(U[rho_i][iii]), int(i), int(j), int(k), double(X[XDIM][iii]),double(X[YDIM][iii]),double(X[ZDIM][iii]));
 					abort();
 				}
 			}

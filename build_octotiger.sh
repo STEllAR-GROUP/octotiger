@@ -27,6 +27,6 @@ cmake -DCMAKE_PREFIX_PATH="$HOME/local/$1/hpx" -DCMAKE_CXX_FLAGS="-DBOOST_USE_VA
       ..
 
 
-make -j4 VERBOSE=1
+make -j VERBOSE=1
 
 

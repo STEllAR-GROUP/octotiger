@@ -342,7 +342,7 @@ static std::vector<mesh_vars_t> all_mesh_vars;
 node_list_t output_stage2(std::string fname, int cycle) {
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
-	std::string this_fname = fname + std::string(".silo");
+	std::string this_fname = fname + std::string(".") + std::to_string(INX) + std::string(".silo");
 	all_mesh_vars.clear();
 	for (auto& this_fut : futs_) {
 		all_mesh_vars.push_back(std::move(GET(this_fut)));
