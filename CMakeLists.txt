@@ -240,7 +240,7 @@ endif()
 if(OCTOTIGER_WITH_Vc)
   find_package(Vc REQUIRED)
 
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_VC)
+  target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_VC)
 endif()
 
 if((OCTOTIGER_WITH_Vc AND USE_AVX2) OR OCTOTIGER_WITH_AVX2)
