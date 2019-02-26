@@ -11,6 +11,17 @@ cmake_policy(VERSION 3.10)
 # Libraries linked via full path no longer produce linker search paths.
 cmake_policy(SET CMP0003 NEW)
 
+# Grid size
+
+IF(OCTOTIGER_GRIDDIM)
+ELSE()
+    set( OCTOTIGER_GRIDDIM "12" )
+ENDIF()
+
+IF(OCTOTIGER_GRIDDIM)
+    ADD_DEFINITIONS(-DOCTOTIGER_GRIDDIM=${OCTOTIGER_GRIDDIM})
+ENDIF()
+
 project(octotiger_${OCTOTIGER_GRIDDIM} CXX)
 
 # Search path for CMake modules to be loaded by include() and find_package()
@@ -171,10 +182,6 @@ set(header_files
 )
 
 
-# Grid size
-IF(OCTOTIGER_GRIDDIM)
-    ADD_DEFINITIONS(-DOCTOTIGER_GRIDDIM=${OCTOTIGER_GRIDDIM})
-ENDIF()
 
 add_hpx_executable(
   octotiger_${OCTOTIGER_GRIDDIM}
