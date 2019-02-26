@@ -37,6 +37,9 @@ option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
 option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
+option(OCTOTIGER_WITH_Vc "" ON)
+option(OCTOTIGER_WITH_AVX "" ON)
+option(OCTOTIGER_WITH_AVX2 "" ON)
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 
 ################################################################################
@@ -44,7 +47,6 @@ option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(Silo REQUIRED)
-find_package(Vc REQUIRED)
 find_package(Boost REQUIRED)
 if(NOT MSVC)
   find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
@@ -53,7 +55,9 @@ endif()
 if(OCTOTIGER_WITH_CUDA)
   enable_language(CUDA)
 
-  string(APPEND HPX_CUDA_CLANG_FLAGS " -fno-fast-math -Xcuda-ptxas -v")
+  #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
+  #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
+  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
 endif()
 
 ################################################################################
@@ -233,17 +237,21 @@ else()
   endif()
 endif()
 
-if(USE_AVX2)
+if(OCTOTIGER_WITH_Vc)
+  find_package(Vc REQUIRED)
+
+  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_VC)
+endif()
+
+if((OCTOTIGER_WITH_Vc AND USE_AVX2) OR OCTOTIGER_WITH_AVX2)
   if(MSVC)
     target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE /arch:AVX2)
   else()
-    target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE -mavx2)
   endif()
-elseif(USE_AVX)
+elseif((OCTOTIGER_WITH_Vc AND USE_AVX) OR OCTOTIGER_WITH_AVX)
   if(MSVC)
     target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE /arch:AVX)
   else()
-    target_compile_options(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE -mavx)
   endif()
 endif()
 
@@ -251,6 +259,7 @@ endif()
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger_${OCTOTIGER_GRIDDIM} PRIVATE OCTOTIGER_HAVE_CUDA)
   set_property(TARGET octotiger_${OCTOTIGER_GRIDDIM} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+  set_property(TARGET octotiger_${OCTOTIGER_GRIDDIM} PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 endif()
 
 # Handle other options
@@ -422,7 +431,7 @@ if(OCTOTIGER_WITH_TESTS)
   set_tests_properties(test_problems.rotating_star PROPERTIES
     FIXTURES_SETUP test_problems.rotating_star
     FIXTURES_REQUIRED test_problems.rotating_star.init)
-  set_tests_properties(test_problems.rotating_star.diff PROPERTIES 
+  set_tests_properties(test_problems.rotating_star.diff PROPERTIES
     FIXTURES_REQUIRED "test_problems.rotating_star.init;test_problems.rotating_star"
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
 
