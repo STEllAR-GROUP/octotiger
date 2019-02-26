@@ -61,7 +61,9 @@ bool options::process_options(int argc, char* argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
-	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
+	("help", "produce help message")
+	("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
+	("cfl", po::value<real>(&(opts().cfl))->default_value(2./15.), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("compress_silo", po::value<bool>(&(opts().compress_silo))->default_value(true), "compress SILO files to fewer grids")    //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
@@ -196,6 +198,7 @@ bool options::process_options(int argc, char* argv[]) {
 		SHOW(refinement_floor);
 		SHOW(stop_time);
 		SHOW(theta);
+		SHOW(cfl);
 		SHOW(xscale);
 		SHOW(cuda_streams_per_locality);
 		SHOW(cuda_streams_per_gpu);

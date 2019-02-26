@@ -59,6 +59,7 @@ public:
 	real code_to_g;
 	real code_to_s;
 	real code_to_cm;
+	real cfl;
 
     size_t cuda_streams_per_locality;
 	size_t cuda_streams_per_gpu;
@@ -114,6 +115,7 @@ public:
 		arc & stop_time;
 		arc & max_level;
 		arc & xscale;
+		arc & cfl;
 		arc & omega;
 		arc & restart_filename;
 		arc & output_filename;

@@ -160,7 +160,6 @@ constexpr real HALF = real(real(1) / real(2));
 constexpr real SIXTH = real(real(1) / real(6));
 constexpr real TWELFTH = real(real(1) / real(12));
 
-constexpr real cfl = real(1./15.);
 constexpr real ei_floor = 1.0e-15;
 constexpr integer NRK = 2;
 constexpr real rk_beta[2] = { ONE, HALF };

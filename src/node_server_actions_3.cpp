@@ -456,7 +456,7 @@ void node_server::refined_step() {
 
 	timings::scope ts(timings_, timings::time_computation);
 	const real dx = TWO * grid::get_scaling_factor() / real(INX << my_location.level());
-	real cfl0 = cfl;
+	real cfl0 = opts().cfl;
 
 	real a = std::numeric_limits<real>::min();
 	all_hydro_bounds();
@@ -488,7 +488,7 @@ future<void> node_server::nonrefined_step() {
 
 	timings::scope ts(timings_, timings::time_computation);
 
-	real cfl0 = cfl;
+	real cfl0 = opts().cfl;
 	dt_ = ZERO;
 
 	all_hydro_bounds();

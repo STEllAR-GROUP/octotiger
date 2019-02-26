@@ -18,7 +18,7 @@
 real LambertW(real z);
 
 inline integer refinement_freq() {
-	return  integer(2.0 / cfl + 0.5);
+	return  integer(2.0 / opts().cfl + 0.5);
 }
 int file_copy(const char* fin, const char* fout);
 
