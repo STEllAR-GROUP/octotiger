@@ -15,7 +15,7 @@ cmake_policy(SET CMP0003 NEW)
 
 IF(OCTOTIGER_GRIDDIM)
 ELSE()
-    set( OCTOTIGER_GRIDDIM "12" )
+    set( OCTOTIGER_GRIDDIM "8" )
 ENDIF()
 
 IF(OCTOTIGER_GRIDDIM)
@@ -341,7 +341,7 @@ if(OCTOTIGER_WITH_TESTS)
   set(OCTOTIGER_SILODIFF_FAIL_PATTERN ".vals")
 
   # Marshak
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.12.silo ${PROJECT_BINARY_DIR}/marshak.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.2.silo ${PROJECT_BINARY_DIR}/marshak.silo)
   add_test(NAME test_problems.marshak
     COMMAND octotiger_${OCTOTIGER_GRIDDIM}
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
@@ -357,7 +357,7 @@ if(OCTOTIGER_WITH_TESTS)
 
   # Blast
   if(OCTOTIGER_WITH_BLAST_TEST)
-    file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.12.silo ${PROJECT_BINARY_DIR}/blast.silo)
+    file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.4.silo ${PROJECT_BINARY_DIR}/blast.silo)
     add_test(NAME test_problems.blast
       COMMAND octotiger_${OCTOTIGER_GRIDDIM}
         --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini)
@@ -373,7 +373,7 @@ if(OCTOTIGER_WITH_TESTS)
   endif()
 
   # Sod Shock Tube
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.12.silo ${PROJECT_BINARY_DIR}/sod.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.4.silo ${PROJECT_BINARY_DIR}/sod.silo)
   add_test(NAME test_problems.sod
     COMMAND octotiger_${OCTOTIGER_GRIDDIM}
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini)
@@ -389,7 +389,7 @@ if(OCTOTIGER_WITH_TESTS)
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
 
   # Sphere
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.12.silo ${PROJECT_BINARY_DIR}/sphere.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
   add_test(NAME test_problems.sphere
     COMMAND octotiger_${OCTOTIGER_GRIDDIM}
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini)
@@ -404,7 +404,7 @@ if(OCTOTIGER_WITH_TESTS)
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
 
   # Rotating Star
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.12.silo
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.2.silo
     ${PROJECT_BINARY_DIR}/rotating_star.silo)
   add_test(NAME test_problems.rotating_star.init COMMAND gen_rotating_star_init)
   add_test(NAME test_problems.rotating_star
