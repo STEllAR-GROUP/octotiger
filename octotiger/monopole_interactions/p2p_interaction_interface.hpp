@@ -47,9 +47,9 @@ namespace fmm {
         public:
             /// The stencil is used to identify the neighbors
             static thread_local std::vector<multiindex<>> stencil;
-            static thread_local std::vector<bool> stencil_masks;
+            static std::vector<bool>& stencil_masks();
             static thread_local std::vector<std::array<real, 4>> four;
-            static thread_local std::vector<std::array<real, 4>> stencil_four_constants;
+            static std::vector<std::array<real, 4>>& stencil_four_constants();
             static thread_local std::vector<real> local_monopoles_staging_area;
             static thread_local bool is_initialized;
             std::vector<bool> neighbor_empty_monopoles;

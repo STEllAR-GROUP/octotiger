@@ -22,10 +22,8 @@
 #include <vector>
 
 #define R_BW 3
-#define R_NX (INX+2*R_BW)
-#define R_N3 (R_NX*R_NX*R_NX)
-
-//using real = real;
+#define R_NX (INX + 2 * R_BW)
+#define R_N3 (R_NX * R_NX * R_NX)
 
 class rad_grid {
 public:

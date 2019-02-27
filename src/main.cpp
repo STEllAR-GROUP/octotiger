@@ -53,40 +53,44 @@ std::size_t init_thread_local_worker(std::size_t desired)
     if (current == desired)
     {
 #ifdef OCTOTIGER_HAVE_CUDA
-      // init cuda/cpu scheduler
-      octotiger::fmm::kernel_scheduler::scheduler.init();
+        // Initialize CUDA/CPU scheduler
+        octotiger::fmm::kernel_scheduler::scheduler.init();
 #endif
 
-      // init stencil and four constants for p2p fmm interactions
-      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil =
-          octotiger::fmm::monopole_interactions::calculate_stencil().first;
-      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_masks =
-          octotiger::fmm::monopole_interactions::calculate_stencil_masks(
-              octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).first;
-      octotiger::fmm::monopole_interactions::p2p_interaction_interface::four =
-          octotiger::fmm::monopole_interactions::calculate_stencil().second;
-      octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil_four_constants =
-          octotiger::fmm::monopole_interactions::calculate_stencil_masks(
-              octotiger::fmm::monopole_interactions::p2p_interaction_interface::stencil).second;
+        namespace mono_inter = octotiger::fmm::monopole_interactions;
+        using mono_inter_p2p =
+            octotiger::fmm::monopole_interactions::p2p_interaction_interface;
+        // Initialize stencil and four constants for p2p fmm interactions
+        mono_inter_p2p::stencil = mono_inter::calculate_stencil().first;
+        mono_inter_p2p::stencil_masks() =
+            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil).first;
+        mono_inter_p2p::four = mono_inter::calculate_stencil().second;
+        mono_inter_p2p::stencil_four_constants() =
+            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil).second;
 
-      // init stencil for p2m fmm interactions
-      octotiger::fmm::monopole_interactions::p2m_interaction_interface::stencil =
-          octotiger::fmm::monopole_interactions::calculate_stencil().first;
+        // Initialize stencil for p2m fmm interactions
+        mono_inter::p2m_interaction_interface::stencil =
+            mono_inter::calculate_stencil().first;
 
-      // init stencil for multipole fmm interactions
-      octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil =
-          octotiger::fmm::multipole_interactions::calculate_stencil();
-      octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil_masks =
-          octotiger::fmm::multipole_interactions::calculate_stencil_masks(
-              octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).first;
-      octotiger::fmm::multipole_interactions::multipole_interaction_interface::inner_stencil_masks =
-          octotiger::fmm::multipole_interactions::calculate_stencil_masks(
-              octotiger::fmm::multipole_interactions::multipole_interaction_interface::stencil).second;
+        namespace multi_inter = octotiger::fmm::multipole_interactions;
+        using multi_inter_p2p = octotiger::fmm::multipole_interactions::
+            multipole_interaction_interface;
+        // Initialize stencil for multipole fmm interactions
+        multi_inter_p2p::stencil = multi_inter::calculate_stencil();
+        multi_inter_p2p::stencil_masks() =
+            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil)
+                .first;
+        multi_inter_p2p::inner_stencil_masks() =
+            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil)
+                .second;
 
-      std::cout << "OS-thread " << current << " on locality " <<
-          hpx::get_locality_id << ": thread_local memory has been initialized! \n";
-      return desired;
+        std::cout << "OS-thread " << current << " on locality "
+                  << hpx::get_locality_id
+                  << ": thread_local memory has been initialized! \n";
+        return desired;
     }
+    // NOTE: This might be an issue. Throw an exception and/or make the output
+    // a tuple with the second being the error code
     return std::size_t(-1);
 }
 HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
