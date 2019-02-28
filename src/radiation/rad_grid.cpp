@@ -19,10 +19,6 @@
 #include <unordered_map>
 #include <vector>
 
-integer rindex(integer x, integer y, integer z) {
-	return z + R_NX * (y + R_NX * x);
-}
-
 using real = double;
 
 std::unordered_map<std::string, int> rad_grid::str_to_index;
@@ -56,7 +52,7 @@ void rad_grid::set(const std::string name, real* data) {
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
-					const int iii = rindex(k + R_BW, j + R_BW, i + R_BW);
+					const int iii = rindex(k + RAD_BW, j + RAD_BW, i + RAD_BW);
 					data[jjj] /= f == er_i ? eunit : funit;
 					U[f][iii] = data[jjj];
 					jjj++;
@@ -79,7 +75,7 @@ std::vector<silo_var_t> rad_grid::var_data() const {
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
-					const int iii = rindex(k + R_BW, j + R_BW, i + R_BW);
+					const int iii = rindex(k + RAD_BW, j + RAD_BW, i + RAD_BW);
 					this_s(jjj) = U[f][iii];
 					this_s(jjj) *= f == er_i ? eunit : funit;
 					this_s.set_range(this_s(jjj));
@@ -156,7 +152,7 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau,
     return;
 #endif
 
-    const integer d = H_BW - R_BW;
+    const integer d = H_BW - RAD_BW;
     const real clight = physcon().c;
     const real clightinv = INVERSE(clight);
     const real fgamma = grid::get_fgamma();
@@ -171,11 +167,11 @@ void rad_grid::set_dx(real _dx) {
 void rad_grid::set_X(const std::vector<std::vector<real>>& x) {
 	X.resize(NDIM);
 	for (integer d = 0; d != NDIM; ++d) {
-		X[d].resize(R_N3);
-		for (integer xi = 0; xi != R_NX; ++xi) {
-			for (integer yi = 0; yi != R_NX; ++yi) {
-				for (integer zi = 0; zi != R_NX; ++zi) {
-					const auto D = H_BW - R_BW;
+		X[d].resize(RAD_N3);
+		for (integer xi = 0; xi != RAD_NX; ++xi) {
+			for (integer yi = 0; yi != RAD_NX; ++yi) {
+				for (integer zi = 0; zi != RAD_NX; ++zi) {
+					const auto D = H_BW - RAD_BW;
 					const integer iiir = rindex(xi, yi, zi);
 					const integer iiih = hindex(xi + D, yi + D, zi + D);
 					//		printf( "%i %i %i %i %i %i \n", d, iiir, xi, yi, zi, iiih);
@@ -190,10 +186,10 @@ real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vect
 		const std::vector<real>& sy, const std::vector<real>& sz, const std::vector<real>& rho) {
 	real a = 0.0;
 	const real fgamma = grid::get_fgamma();
-	for (integer xi = R_BW; xi != R_NX - R_BW; ++xi) {
-		for (integer yi = R_BW; yi != R_NX - R_BW; ++yi) {
-			for (integer zi = R_BW; zi != R_NX - R_BW; ++zi) {
-				const integer D = H_BW - R_BW;
+	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
+		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
+			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
+				const integer D = H_BW - RAD_BW;
 				const integer iiir = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
 				const real rhoinv = INVERSE(rho[iiih]);
@@ -225,13 +221,13 @@ real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vect
 }
 
 void rad_grid::compute_mmw(const std::vector<std::vector<real>>& U) {
-	mmw.resize(R_N3);
-	X_spc.resize(R_N3);
-	Z_spc.resize(R_N3);
-	for (integer i = 0; i != R_NX; ++i) {
-		for (integer j = 0; j != R_NX; ++j) {
-			for (integer k = 0; k != R_NX; ++k) {
-				const integer d = H_BW - R_BW;
+	mmw.resize(RAD_N3);
+	X_spc.resize(RAD_N3);
+	Z_spc.resize(RAD_N3);
+	for (integer i = 0; i != RAD_NX; ++i) {
+		for (integer j = 0; j != RAD_NX; ++j) {
+			for (integer k = 0; k != RAD_NX; ++k) {
+				const integer d = H_BW - RAD_BW;
 				const integer iiir = rindex(i, j, k);
 				const integer iiih = hindex(i + d, j + d, k + d);
 				specie_state_t<real> spc;
@@ -316,24 +312,24 @@ T minmod(T a, T b) {
 
 void rad_grid::reconstruct(std::array<std::vector<real>, NRF>& UL, std::array<std::vector<real>, NRF>& UR, int dir) {
 	for (int f = 0; f < NRF; f++) {
-		UR[f].resize(R_N3);
-		UL[f].resize(R_N3);
+		UR[f].resize(RAD_N3);
+		UL[f].resize(RAD_N3);
 		if (f > 0) {
-			for (int i = 0; i < R_N3; i++) {
+			for (int i = 0; i < RAD_N3; i++) {
 				U[f][i] = U[f][i] * INVERSE(U[er_i][i]);
 			}
 		}
 	}
-	int lb1[NDIM] = { R_BW, R_BW, R_BW };
-	int ub1[NDIM] = { R_NX - R_BW, R_NX - R_BW, R_NX - R_BW };
-	int ub2[NDIM] = { R_NX - R_BW, R_NX - R_BW, R_NX - R_BW };
+	int lb1[NDIM] = { RAD_BW, RAD_BW, RAD_BW };
+	int ub1[NDIM] = { RAD_NX - RAD_BW, RAD_NX - RAD_BW, RAD_NX - RAD_BW };
+	int ub2[NDIM] = { RAD_NX - RAD_BW, RAD_NX - RAD_BW, RAD_NX - RAD_BW };
 	lb1[dir] = 1;
-	ub1[dir] = R_NX - 1;
-	ub2[dir] = R_NX - 2;
+	ub1[dir] = RAD_NX - 1;
+	ub2[dir] = RAD_NX - 2;
 	const integer D[3] = { DX, DY, DZ };
 	const integer d = D[dir];
 	for (int f = 0; f < NRF; f++) {
-		std::vector<real> slp(R_N3);
+		std::vector<real> slp(RAD_N3);
 		for (int i = lb1[0]; i < ub1[0]; i++) {
 			for (int j = lb1[1]; j < ub1[1]; j++) {
 				for (int k = lb1[2]; k < ub1[2]; k++) {
@@ -371,9 +367,9 @@ void rad_grid::reconstruct(std::array<std::vector<real>, NRF>& UL, std::array<st
 				}
 			}
 		}
-		for (int i = ub2[0]; i >= R_BW; i--) {
-			for (int j = ub2[1]; j >= R_BW; j--) {
-				for (int k = ub2[2]; k >= R_BW; k--) {
+		for (int i = ub2[0]; i >= RAD_BW; i--) {
+			for (int j = ub2[1]; j >= RAD_BW; j--) {
+				for (int k = ub2[2]; k >= RAD_BW; k--) {
 					const int iii = rindex(i, j, k);
 					UR[f][iii] = UL[f][iii];
 					UL[f][iii] = UR[f][iii - d];
@@ -382,7 +378,7 @@ void rad_grid::reconstruct(std::array<std::vector<real>, NRF>& UL, std::array<st
 		}
 	}
 	for (int f = fx_i; f < NRF; f++) {
-		for (int i = 0; i < R_N3; i++) {
+		for (int i = 0; i < RAD_N3; i++) {
 			UR[f][i] *= UR[er_i][i];
 			UL[f][i] *= UL[er_i][i];
 			U[f][i] *= U[er_i][i];
@@ -433,17 +429,17 @@ std::array<std::array<real, NDIM>, NDIM> compute_p(real E, real Fx, real Fy, rea
 void rad_grid::allocate() {
 	rad_grid::dx = dx;
 	for (integer f = 0; f != NRF; ++f) {
-		U0[f].resize(R_N3);
-		U[f].resize(R_N3);
+		U0[f].resize(RAD_N3);
+		U[f].resize(RAD_N3);
 		for (integer d = 0; d != NDIM; ++d) {
-			flux[d][f].resize(R_N3);
+			flux[d][f].resize(RAD_N3);
 		}
 	}
 }
 
 void rad_grid::store() {
 	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = 0; i != R_N3; ++i) {
+		for (integer i = 0; i != RAD_N3; ++i) {
 			U0[f][i] = U[f][i];
 		}
 	}
@@ -451,7 +447,7 @@ void rad_grid::store() {
 
 void rad_grid::restore() {
 	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = 0; i != R_N3; ++i) {
+		for (integer i = 0; i != RAD_N3; ++i) {
 			U[f][i] = U0[f][i];
 		}
 	}
@@ -469,9 +465,9 @@ inline real minmod(real a, real b) {
 }
 
 void rad_grid::sanity_check() {
-	for (integer xi = R_BW; xi != R_NX - R_BW; ++xi) {
-		for (integer yi = R_BW; yi != R_NX - R_BW; ++yi) {
-			for (integer zi = R_BW; zi != R_NX - R_BW; ++zi) {
+	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
+		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
+			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
 				const integer iiir = rindex(xi, yi, zi);
 				if (U[er_i][iiir] <= 0.0) {
 					printf("INSANE\n");
@@ -492,9 +488,9 @@ void rad_grid::compute_flux() {
 	const integer D[3] = { DX, DY, DZ };
 	for (int face_dim = 0; face_dim < NDIM; face_dim++) {
 		reconstruct(UL, UR, face_dim);
-		for (integer l = R_BW; l != R_NX - R_BW + (face_dim == XDIM ? 1 : 0); ++l) {
-			for (integer j = R_BW; j != R_NX - R_BW + (face_dim == YDIM ? 1 : 0); ++j) {
-				for (integer k = R_BW; k != R_NX - R_BW + (face_dim == ZDIM ? 1 : 0); ++k) {
+		for (integer l = RAD_BW; l != RAD_NX - RAD_BW + (face_dim == XDIM ? 1 : 0); ++l) {
+			for (integer j = RAD_BW; j != RAD_NX - RAD_BW + (face_dim == YDIM ? 1 : 0); ++j) {
+				for (integer k = RAD_BW; k != RAD_NX - RAD_BW + (face_dim == ZDIM ? 1 : 0); ++k) {
 					integer i = rindex(l, j, k);
 					real f_p[3], f_m[3];
 					real absf_m = _0, absf_p = _0;
@@ -529,7 +525,7 @@ void rad_grid::change_units(real m, real l, real t, real k) {
 	const real tinv = 1.0 * INVERSE(t);
 	const real l3 = l2 * l;
 	const real l3inv = 1.0 * INVERSE(l3);
-	for (integer i = 0; i != R_N3; ++i) {
+	for (integer i = 0; i != RAD_N3; ++i) {
 		U[er_i][i] *= (m * l2 * t2inv) * l3inv;
 		U[fx_i][i] *= tinv * (m * t2inv);
 		U[fy_i][i] *= tinv * (m * t2inv);
@@ -541,9 +537,9 @@ void rad_grid::advance(real dt, real beta) {
 	const real l = dt * INVERSE(dx);
 	const integer D[3] = { DX, DY, DZ };
 	for (integer f = 0; f != NRF; ++f) {
-		for (integer xi = R_BW; xi != R_NX - R_BW; ++xi) {
-			for (integer yi = R_BW; yi != R_NX - R_BW; ++yi) {
-				for (integer zi = R_BW; zi != R_NX - R_BW; ++zi) {
+		for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
+			for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {
+				for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
 					const integer iii = rindex(xi, yi, zi);
 					const real& u0 = U0[f][iii];
 					real u1 = U[f][iii];
@@ -558,35 +554,35 @@ void rad_grid::advance(real dt, real beta) {
 }
 
 void rad_grid::set_physical_boundaries(geo::face face, real t) {
-	for (integer i = 0; i != R_NX; ++i) {
-		for (integer j = 0; j != R_NX; ++j) {
-			for (integer k = 0; k != R_BW; ++k) {
+	for (integer i = 0; i != RAD_NX; ++i) {
+		for (integer j = 0; j != RAD_NX; ++j) {
+			for (integer k = 0; k != RAD_BW; ++k) {
 				integer iii1, iii0;
 				switch (face) {
 				case 0:
 					iii1 = rindex(k, i, j);
-					iii0 = rindex(R_BW, i, j);
+					iii0 = rindex(RAD_BW, i, j);
 					break;
 				case 1:
-					iii1 = rindex(R_NX - 1 - k, i, j);
-					iii0 = rindex(R_NX - 1 - R_BW, i, j);
+					iii1 = rindex(RAD_NX - 1 - k, i, j);
+					iii0 = rindex(RAD_NX - 1 - RAD_BW, i, j);
 					break;
 				case 2:
 					iii1 = rindex(i, k, j);
-					iii0 = rindex(i, R_BW, j);
+					iii0 = rindex(i, RAD_BW, j);
 					break;
 				case 3:
-					iii1 = rindex(i, R_NX - 1 - k, j);
-					iii0 = rindex(i, R_NX - 1 - R_BW, j);
+					iii1 = rindex(i, RAD_NX - 1 - k, j);
+					iii0 = rindex(i, RAD_NX - 1 - RAD_BW, j);
 					break;
 				case 4:
 					iii1 = rindex(i, j, k);
-					iii0 = rindex(i, j, R_BW);
+					iii0 = rindex(i, j, RAD_BW);
 					break;
 				case 5:
 				default:
-					iii1 = rindex(i, j, R_NX - 1 - k);
-					iii0 = rindex(i, j, R_NX - 1 - R_BW);
+					iii1 = rindex(i, j, RAD_NX - 1 - k);
+					iii0 = rindex(i, j, RAD_NX - 1 - RAD_BW);
 				}
 				for (integer f = 0; f != NRF; ++f) {
 					U[f][iii1] = U[f][iii0];
@@ -635,12 +631,12 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 		auto const& this_aunt = aunts[f];
 		if (!this_aunt.empty()) {
 			std::array<integer, NDIM> lb, ub;
-			lb[XDIM] = lb[YDIM] = lb[ZDIM] = R_BW;
-			ub[XDIM] = ub[YDIM] = ub[ZDIM] = INX + R_BW;
+			lb[XDIM] = lb[YDIM] = lb[ZDIM] = RAD_BW;
+			ub[XDIM] = ub[YDIM] = ub[ZDIM] = INX + RAD_BW;
 			if (f.get_side() == geo::MINUS) {
-				lb[face_dim] = R_BW;
+				lb[face_dim] = RAD_BW;
 			} else {
-				lb[face_dim] = INX + R_BW;
+				lb[face_dim] = INX + RAD_BW;
 			}
 			ub[face_dim] = lb[face_dim] + 1;
 			auto data = rad_grid_ptr->get_flux_restrict(lb, ub, face_dim);
@@ -664,26 +660,26 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 										std::array<integer, NDIM> lb, ub;
 										switch (face_dim) {
 											case XDIM:
-											lb[XDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + R_BW;
-											lb[YDIM] = quadrant.get_side(0) * (INX / 2) + R_BW;
-											lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + R_BW;
+											lb[XDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+											lb[YDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+											lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
 											ub[XDIM] = lb[XDIM] + 1;
 											ub[YDIM] = lb[YDIM] + (INX / 2);
 											ub[ZDIM] = lb[ZDIM] + (INX / 2);
 											break;
 											case YDIM:
-											lb[XDIM] = quadrant.get_side(0) * (INX / 2) + R_BW;
-											lb[YDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + R_BW;
-											lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + R_BW;
+											lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+											lb[YDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+											lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
 											ub[XDIM] = lb[XDIM] + (INX / 2);
 											ub[YDIM] = lb[YDIM] + 1;
 											ub[ZDIM] = lb[ZDIM] + (INX / 2);
 											break;
 											case ZDIM:
 											default:
-											lb[XDIM] = quadrant.get_side(0) * (INX / 2) + R_BW;
-											lb[YDIM] = quadrant.get_side(1) * (INX / 2) + R_BW;
-											lb[ZDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + R_BW;
+											lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+											lb[YDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
+											lb[ZDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
 											ub[XDIM] = lb[XDIM] + (INX / 2);
 											ub[YDIM] = lb[YDIM] + (INX / 2);
 											ub[ZDIM] = lb[ZDIM] + 1;
@@ -727,8 +723,8 @@ std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM>& l
 	size /= (NCHILD / 2);
 	size *= NRF;
 	data.reserve(size);
-	const integer stride1 = (dim == XDIM) ? (R_NX) : (R_NX) * (R_NX);
-	const integer stride2 = (dim == ZDIM) ? (R_NX) : 1;
+	const integer stride1 = (dim == XDIM) ? (RAD_NX) : (RAD_NX) * (RAD_NX);
+	const integer stride2 = (dim == ZDIM) ? (RAD_NX) : 1;
 	for (integer field = 0; field != NRF; ++field) {
 		for (integer i = lb[XDIM]; i < ub[XDIM]; i += 2) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; j += 2) {
@@ -880,10 +876,10 @@ void node_server::collect_radiation_bounds() {
 
 void rad_grid::initialize_erad(const std::vector<real> rho, const std::vector<real> tau) {
 	const real fgamma = grid::get_fgamma();
-	for (integer xi = 0; xi != R_NX; ++xi) {
-		for (integer yi = 0; yi != R_NX; ++yi) {
-			for (integer zi = 0; zi != R_NX; ++zi) {
-				const auto D = H_BW - R_BW;
+	for (integer xi = 0; xi != RAD_NX; ++xi) {
+		for (integer yi = 0; yi != RAD_NX; ++yi) {
+			for (integer zi = 0; zi != RAD_NX; ++zi) {
+				const auto D = H_BW - RAD_BW;
 				const integer iiir = rindex(xi, yi, zi);
 				const integer iiih = hindex(xi + D, yi + D, zi + D);
 				const real ei = POWER(tau[iiih], fgamma);
@@ -906,7 +902,7 @@ rad_grid::rad_grid() {
 void rad_grid::set_boundary(const std::vector<real>& data, const geo::direction& dir) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, dir, OUTER, INX, R_BW);
+	get_boundary_size(lb, ub, dir, OUTER, INX, RAD_BW);
 	integer iter = 0;
 
 	for (integer field = 0; field != NRF; ++field) {
@@ -927,7 +923,7 @@ std::vector<real> rad_grid::get_boundary(const geo::direction& dir) {
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	integer size;
-	size = NRF * get_boundary_size(lb, ub, dir, INNER, INX, R_BW);
+	size = NRF * get_boundary_size(lb, ub, dir, INNER, INX, RAD_BW);
 	data.resize(size);
 	integer iter = 0;
 
@@ -958,9 +954,9 @@ real rad_grid::get_field(integer f, integer i, integer j, integer k) const {
 void rad_grid::set_prolong(const std::vector<real>& data) {
 	integer index = 0;
 	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = R_BW; i != R_NX - R_BW; ++i) {
-			for (integer j = R_BW; j != R_NX - R_BW; ++j) {
-				for (integer k = R_BW; k != R_NX - R_BW; ++k) {
+		for (integer i = RAD_BW; i != RAD_NX - RAD_BW; ++i) {
+			for (integer j = RAD_BW; j != RAD_NX - RAD_BW; ++j) {
+				for (integer k = RAD_BW; k != RAD_NX - RAD_BW; ++k) {
 					const integer iii = rindex(i, j, k);
 					U[f][iii] = data[index];
 					++index;
@@ -1000,15 +996,15 @@ std::vector<real> rad_grid::get_prolong(const std::array<integer, NDIM>& lb, con
 std::vector<real> rad_grid::get_restrict() const {
 	std::vector<real> data;
 	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = R_BW; i < R_NX - R_BW; i += 2) {
-			for (integer j = R_BW; j < R_NX - R_BW; j += 2) {
-				for (integer k = R_BW; k < R_NX - R_BW; k += 2) {
+		for (integer i = RAD_BW; i < RAD_NX - RAD_BW; i += 2) {
+			for (integer j = RAD_BW; j < RAD_NX - RAD_BW; j += 2) {
+				for (integer k = RAD_BW; k < RAD_NX - RAD_BW; k += 2) {
 					const integer iii = rindex(i, j, k);
 					real v = ZERO;
 					for (integer x = 0; x != 2; ++x) {
 						for (integer y = 0; y != 2; ++y) {
 							for (integer z = 0; z != 2; ++z) {
-								const integer jjj = iii + x * R_NX * R_NX + y * R_NX + z;
+								const integer jjj = iii + x * RAD_NX * RAD_NX + y * RAD_NX + z;
 								v += U[f][jjj];
 							}
 						}
@@ -1028,9 +1024,9 @@ void rad_grid::set_restrict(const std::vector<real>& data, const geo::octant& oc
 	const integer j0 = octant.get_side(YDIM) * (INX / 2);
 	const integer k0 = octant.get_side(ZDIM) * (INX / 2);
 	for (integer f = 0; f != NRF; ++f) {
-		for (integer i = R_BW; i != R_NX / 2; ++i) {
-			for (integer j = R_BW; j != R_NX / 2; ++j) {
-				for (integer k = R_BW; k != R_NX / 2; ++k) {
+		for (integer i = RAD_BW; i != RAD_NX / 2; ++i) {
+			for (integer j = RAD_BW; j != RAD_NX / 2; ++j) {
+				for (integer k = RAD_BW; k != RAD_NX / 2; ++k) {
 					const integer iii = rindex(i + i0, j + j0, k + k0);
 					U[f][iii] = data[index];
 					++index;
@@ -1054,10 +1050,10 @@ void node_server::send_rad_amr_bounds() {
 				if (flags[dir]) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
-					get_boundary_size(lb, ub, dir, OUTER, INX, R_BW);
+					get_boundary_size(lb, ub, dir, OUTER, INX, RAD_BW);
 					for (integer dim = 0; dim != NDIM; ++dim) {
-						lb[dim] = ((lb[dim] - R_BW)) + 2 * R_BW + ci.get_side(dim) * (INX);
-						ub[dim] = ((ub[dim] - R_BW)) + 2 * R_BW + ci.get_side(dim) * (INX);
+						lb[dim] = ((lb[dim] - RAD_BW)) + 2 * RAD_BW + ci.get_side(dim) * (INX);
+						ub[dim] = ((ub[dim] - RAD_BW)) + 2 * RAD_BW + ci.get_side(dim) * (INX);
 					}
 					data = rad_grid_ptr->get_prolong(lb, ub);
 					children[ci].send_rad_boundary(std::move(data), dir, rcycle);

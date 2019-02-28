@@ -117,6 +117,17 @@ constexpr integer G_DNY = G_NX;
 constexpr integer G_DNZ = 1;
 constexpr integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
 
+// Radiation {{{
+constexpr integer RAD_BW = 3;
+constexpr integer RAD_NX = INX + 2 * RAD_BW;
+constexpr integer RAD_N3 = RAD_NX * RAD_NX * RAD_NX;
+
+constexpr inline integer rindex(integer x, integer y, integer z)
+{
+    return z + RAD_NX * (y + RAD_NX * x);
+}
+// }}}
+
 constexpr integer rho_i = 0;
 constexpr integer egas_i = 1;
 constexpr integer sx_i = 2;

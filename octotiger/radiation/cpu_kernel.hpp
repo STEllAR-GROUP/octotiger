@@ -143,11 +143,11 @@ namespace octotiger { namespace radiation {
         std::vector<real> X_spc, std::vector<real> Z_spc, real dt,
         real const clightinv)
     {
-        for (integer i = R_BW; i != R_NX - R_BW; ++i)
+        for (integer i = RAD_BW; i != RAD_NX - RAD_BW; ++i)
         {
-            for (integer j = R_BW; j != R_NX - R_BW; ++j)
+            for (integer j = RAD_BW; j != RAD_NX - RAD_BW; ++j)
             {
-                for (integer k = R_BW; k != R_NX - R_BW; ++k)
+                for (integer k = RAD_BW; k != RAD_NX - RAD_BW; ++k)
                 {
                     integer const iiih = hindex(i + d, j + d, k + d);
                     integer const iiir = rindex(i, j, k);
