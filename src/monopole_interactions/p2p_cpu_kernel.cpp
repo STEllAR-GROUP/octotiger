@@ -73,7 +73,7 @@ namespace fmm {
                 potential_expansions_SoA,
             const std::vector<bool>& stencil_masks, const std::vector<std::array<real, 4>>& four, real dx) {
                 for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-                    for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
+                    for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1+=2) {
                         // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
                         for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
                              i2 += m2m_vector::size()) {
@@ -123,6 +123,11 @@ namespace fmm {
             tmpstore1[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
             tmpstore1[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
             tmpstore1[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            m2m_vector tmpstore2[4];
+            tmpstore1[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+            tmpstore1[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+            tmpstore1[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+            tmpstore1[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
 
             bool data_changed = true;
             size_t skipped = 0;
@@ -144,6 +149,10 @@ namespace fmm {
                         const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
                                                                      cell_index.y + stencil_element.y,
                                                                      cell_index.z + stencil_element.z);
+                        const multiindex<> interaction_partner_index2(cell_index.x + stencil_element.x,
+                                                                     cell_index.y +
+                        stencil_element.y + 1,
+                                                                     cell_index.z + stencil_element.z);
 
                         const size_t interaction_partner_flat_index =
                             to_flat_index_padded(interaction_partner_index);    // iii1n
@@ -154,23 +163,35 @@ namespace fmm {
                         // implicitly broadcasts to vector
                         multiindex<m2m_int_vector> interaction_partner_index_coarse(
                             interaction_partner_index);
+                        multiindex<m2m_int_vector> interaction_partner_index_coarse2(
+                            interaction_partner_index2);
                         interaction_partner_index_coarse.z += offset_vector;
+                        interaction_partner_index_coarse2.z += offset_vector;
                         interaction_partner_index_coarse.transform_coarse();
+                        interaction_partner_index_coarse2.transform_coarse();
 
                         m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
                             cell_index_coarse, interaction_partner_index_coarse);
+                        m2m_int_vector theta_c_rec_squared_int2 = detail::distance_squared_reciprocal(
+                            cell_index_coarse, interaction_partner_index_coarse2);
 
                         const m2m_vector theta_c_rec_squared =
                             Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
+                        const m2m_vector theta_c_rec_squared2 =
+                            Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int2);
 
                         const m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
-                        if (Vc::none_of(mask)) {
+                        const m2m_vector::mask_type mask2 = theta_rec_squared > theta_c_rec_squared2;
+                        if (Vc::none_of(mask) && Vc::none_of(mask2)) {
                             continue;
                         }
                         data_changed = true;
                         m2m_vector monopole;
                         Vc::where(mask, monopole) = m2m_vector(
                             mons.data() + interaction_partner_flat_index);
+                        m2m_vector monopole2;
+                        Vc::where(mask2, monopole2) = m2m_vector(
+                            mons.data() + interaction_partner_flat_index + INX + 10);
 
                         const m2m_vector four[4] = {
                             four_constants[index][0],
@@ -179,6 +200,7 @@ namespace fmm {
                             four_constants[index][3]};
 
                         compute_monopole_interaction<m2m_vector>(monopole, tmpstore1, four, d_components);
+                        compute_monopole_interaction<m2m_vector>(monopole2, tmpstore2, four, d_components);
                     }
                 }
             }
@@ -188,6 +210,14 @@ namespace fmm {
                 tmpstore1[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
                 tmpstore1[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
                 tmpstore1[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
+                tmpstore2[0].store(
+                    potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded + INX));
+                tmpstore2[1].store(
+                    potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded + INX));
+                tmpstore2[2].store(
+                    potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded + INX));
+                tmpstore2[3].store(
+                    potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded + INX));
             }
         }
 
