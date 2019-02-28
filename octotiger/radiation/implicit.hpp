@@ -18,10 +18,6 @@
 #include <limits>
 #include <utility>
 
-std::pair<real, space_vector> implicit_radiation_step(real E0, real& e0, space_vector F0,
-		space_vector u0, real rho, real mmw, real X, real Z, real dt);
-
-
 template<class T>
 T light_f(const T& E, const T& F) {
 	const T c = physcon().c;
