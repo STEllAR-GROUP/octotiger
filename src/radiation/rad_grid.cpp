@@ -1,6 +1,7 @@
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/radiation/implicit.hpp"
 #include "octotiger/radiation/opacities.hpp"
+#include "octotiger/radiation/kernel_interface.hpp"
 
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
@@ -147,114 +148,6 @@ hpx::future<void> node_client::send_rad_children(std::vector<real>&& data, const
 	return hpx::async<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
-template <integer er_i, integer fx_i, integer fy_i, integer fz_i>
-void radiation_cpu_kernel(integer const d, std::vector<real> const& rho,
-    std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
-    std::vector<real>& egas, std::vector<real>& tau, real const fgamma,
-    std::array<std::vector<real>, NRF> U, std::vector<real> mmw,
-    std::vector<real> X_spc, std::vector<real> Z_spc, real dt,
-    real const clightinv)
-{
-    for (integer i = R_BW; i != R_NX - R_BW; ++i)
-    {
-        for (integer j = R_BW; j != R_NX - R_BW; ++j)
-        {
-            for (integer k = R_BW; k != R_NX - R_BW; ++k)
-            {
-                integer const iiih = hindex(i + d, j + d, k + d);
-                integer const iiir = rindex(i, j, k);
-                real const den = rho[iiih];
-                real const deninv = INVERSE(den);
-                real vx = sx[iiih] * deninv;
-                real vy = sy[iiih] * deninv;
-                real vz = sz[iiih] * deninv;
-
-                /* Compute e0 from dual energy formalism */
-                real e0 = egas[iiih];
-                e0 -= 0.5 * vx * vx * den;
-                e0 -= 0.5 * vy * vy * den;
-                e0 -= 0.5 * vz * vz * den;
-                if (opts().eos == WD)
-                {
-                    e0 -= ztwd_energy(den);
-                }
-                if (e0 < egas[iiih] * de_switch2)
-                {
-                    e0 = std::pow(tau[iiih], fgamma);
-                }
-                real E0 = U[er_i][iiir];
-                space_vector F0;
-                space_vector u0;
-                F0[0] = U[fx_i][iiir];
-                F0[1] = U[fy_i][iiir];
-                F0[2] = U[fz_i][iiir];
-                u0[0] = vx;
-                u0[1] = vy;
-                u0[2] = vz;
-                real E1 = E0;
-                space_vector F1 = F0;
-                space_vector u1 = u0;
-                real e1 = e0;
-
-                const auto ddt = implicit_radiation_step(E1, e1, F1, u1, den,
-                    mmw[iiir], X_spc[iiir], Z_spc[iiir], dt);
-                const real dE_dt = ddt.first;
-                const real dFx_dt = ddt.second[0];
-                const real dFy_dt = ddt.second[1];
-                const real dFz_dt = ddt.second[2];
-
-                /* Accumulate derivatives */
-                U[er_i][iiir] += dE_dt * dt;
-                U[fx_i][iiir] += dFx_dt * dt;
-                U[fy_i][iiir] += dFy_dt * dt;
-                U[fz_i][iiir] += dFz_dt * dt;
-
-                egas[iiih] -= dE_dt * dt;
-                sx[iiih] -= dFx_dt * dt * clightinv * clightinv;
-                sy[iiih] -= dFy_dt * dt * clightinv * clightinv;
-                sz[iiih] -= dFz_dt * dt * clightinv * clightinv;
-
-                /* Find tau with dual energy formalism*/
-                real e = egas[iiih];
-                e -= 0.5 * sx[iiih] * sx[iiih] * deninv;
-                e -= 0.5 * sy[iiih] * sy[iiih] * deninv;
-                e -= 0.5 * sz[iiih] * sz[iiih] * deninv;
-                if (opts().eos == WD)
-                {
-                    e -= ztwd_energy(den);
-                }
-                if (e < de_switch1 * egas[iiih])
-                {
-                    e = e1;
-                }
-                if (opts().problem == MARSHAK)
-                {
-                    egas[iiih] = e;
-                    sx[iiih] = sy[iiih] = sz[iiih] = 0;
-                }
-                if (U[er_i][iiir] <= 0.0)
-                {
-                    printf("Er = %e %e %e %e\n", E0, E1, U[er_i][iiir], dt);
-                    abort();
-                }
-                e = std::max(e, decltype(e)(0));
-                tau[iiih] = std::pow(e, INVERSE(fgamma));
-                if (U[er_i][iiir] <= 0.0)
-                {
-                    printf("2231242!!! %e %e %e \n", E0, U[er_i][iiir],
-                        dE_dt * dt);
-                    abort();
-                }
-                if (opts().problem == MARSHAK)
-                {
-                    sx[iiih] = sy[iiih] = sz[iiih] = 0;
-                    egas[iiih] = e;
-                }
-            }
-        }
-    }
-}
-
 void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau,
     std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
     const std::vector<real>& rho, real dt)
@@ -267,8 +160,8 @@ void rad_grid::rad_imp(std::vector<real>& egas, std::vector<real>& tau,
     const real clight = physcon().c;
     const real clightinv = INVERSE(clight);
     const real fgamma = grid::get_fgamma();
-    radiation_cpu_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas, tau,
-        fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
+    octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx,
+        sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
 }
 
 void rad_grid::set_dx(real _dx) {

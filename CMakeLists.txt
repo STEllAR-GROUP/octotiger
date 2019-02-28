@@ -100,9 +100,8 @@ set(source_files
     src/multipole_interactions/multipole_cuda_kernel.cu
     src/multipole_interactions/calculate_stencil.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/radiation/cuda_kernel.cu
     src/radiation/rad_grid.cpp
-    src/radiation/implicit.cpp
-    src/radiation/radiation_cuda_kernel.cu
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
@@ -170,10 +169,12 @@ set(header_files
     octotiger/multipole_interactions/multipole_cpu_kernel.hpp
     octotiger/multipole_interactions/multipole_cuda_kernel.hpp
     octotiger/multipole_interactions/multipole_interaction_interface.hpp
+    octotiger/radiation/cpu_kernel.hpp
+    octotiger/radiation/cuda_kernel.hpp
     octotiger/radiation/implicit.hpp
+    octotiger/radiation/kernel_interface.hpp
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
-    octotiger/radiation/radiation_cuda_kernel.hpp
     octotiger/test_problems/rotating_star/rotating_star.hpp
     octotiger/test_problems/sod/sod.hpp
     octotiger/test_problems/sod/exact_sod.hpp
