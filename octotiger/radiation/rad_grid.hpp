@@ -21,10 +21,6 @@
 #include <unordered_map>
 #include <vector>
 
-#define R_BW 3
-#define R_NX (INX + 2 * R_BW)
-#define R_N3 (R_NX * R_NX * R_NX)
-
 class rad_grid {
 public:
 	static constexpr integer er_i = 0;
@@ -32,8 +28,8 @@ public:
 	static constexpr integer fy_i = 2;
 	static constexpr integer fz_i = 3;
 private:
-	static constexpr integer DX = R_NX * R_NX;
-	static constexpr integer DY = R_NX;
+	static constexpr integer DX = RAD_NX * RAD_NX;
+	static constexpr integer DY = RAD_NX;
 	static constexpr integer DZ = 1;
 	static std::unordered_map<std::string, int> str_to_index;
 	static std::unordered_map<int, std::string> index_to_str;
