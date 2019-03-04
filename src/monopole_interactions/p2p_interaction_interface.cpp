@@ -55,7 +55,7 @@ namespace fmm {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;
-                kernel_monopoles.apply_stencil_non_blocked(
+                kernel_monopoles.apply_stencil(
                     local_monopoles_staging_area, potential_expansions_SoA,
                     stencil_masks(), stencil_four_constants(), dx);
                 potential_expansions_SoA.to_non_SoA(grid_ptr->get_L());
