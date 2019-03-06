@@ -323,7 +323,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if ((opts().problem == DWD) && (step_num % refinement_freq() == 0)) {
 			printf("dwd step...\n");
 			auto dt = GET(step(next_step - step_num));
-			printf("diagnostics...\n");
+			if( !opts().disable_diagnostics) {
+				printf("diagnostics...\n");
+			}
 			auto diags = diagnostics();
 			omega = grid::get_omega();
 

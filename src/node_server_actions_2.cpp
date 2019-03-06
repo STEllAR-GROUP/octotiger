@@ -155,6 +155,10 @@ const diagnostics_t& diagnostics_t::compute() {
 		V[d] = com_dot[1][d] - com_dot[0][d];
 	}
 	real sep2 = dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2];
+	if( sep2 == 0.0 ) {
+		failed = true;
+		return *this;
+	}
 	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) * INVERSE(sep2));
 	a = std::sqrt(sep2);
 	real mu = m[0] * m[1] / (m[1] + m[0]);
@@ -191,42 +195,42 @@ diagnostics_t node_server::diagnostics() {
 			//TODO center of mass for non gravity runs
 		}
 	}
+	if( !diags.failed && !opts().disable_diagnostics) {
 
-	FILE* fp = fopen("binary.dat", "at");
-	if (fp) {
-		fprintf(fp, "%13e ", current_time);
-		fprintf(fp, "%13e ", diags.a);
-		fprintf(fp, "%13e ", diags.omega);
-		fprintf(fp, "%13e ", diags.jorb);
-		for (integer s = 0; s != 2; ++s) {
-			fprintf(fp, "%13e ", diags.m[s]);
-			fprintf(fp, "%13e ", diags.js[s]);
-			fprintf(fp, "%13e ", diags.rL[s]);
-			fprintf(fp, "%13e ", diags.gt[s]);
-			fprintf(fp, "%13e ", diags.z_moment[s]);
+		FILE* fp = fopen("binary.dat", "at");
+		if (fp) {
+			fprintf(fp, "%13e ", current_time);
+			fprintf(fp, "%13e ", diags.a);
+			fprintf(fp, "%13e ", diags.omega);
+			fprintf(fp, "%13e ", diags.jorb);
+			for (integer s = 0; s != 2; ++s) {
+				fprintf(fp, "%13e ", diags.m[s]);
+				fprintf(fp, "%13e ", diags.js[s]);
+				fprintf(fp, "%13e ", diags.rL[s]);
+				fprintf(fp, "%13e ", diags.gt[s]);
+				fprintf(fp, "%13e ", diags.z_moment[s]);
+			}
+			fprintf(fp, "%13e ", diags.rho_max[0]);
+			fprintf(fp, "%13e ", diags.rho_max[1]);
+			fprintf(fp, "\n");
+			fclose(fp);
+		} else {
+			printf("Failed to write binary.dat\n");
 		}
-		fprintf(fp, "%13e ", diags.rho_max[0]);
-		fprintf(fp, "%13e ", diags.rho_max[1]);
-		fprintf(fp, "\n");
-		fclose(fp);
 	} else {
-		printf("Failed to write binary.dat\n");
+		printf("Failed to compute Roche geometry\n");
 	}
-	if (fp) {
-		fp = fopen("sums.dat", "at");
-		fprintf(fp, "%.13e ", current_time);
-		for (integer i = 0; i != opts().n_fields; ++i) {
-			fprintf(fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
-			fprintf(fp, "%.13e ", diags.grid_out[i]);
-		}
-		for (integer i = 0; i != 3; ++i) {
-			fprintf(fp, "%.13e ", diags.lsum[i]);
-		}
-		fprintf(fp, "\n");
-		fclose(fp);
-	} else {
-		printf("Failed to write sums.dat\n");
+	FILE* fp = fopen("sums.dat", "at");
+	fprintf(fp, "%.13e ", current_time);
+	for (integer i = 0; i != opts().n_fields; ++i) {
+		fprintf(fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
+		fprintf(fp, "%.13e ", diags.grid_out[i]);
 	}
+	for (integer i = 0; i != 3; ++i) {
+		fprintf(fp, "%.13e ", diags.lsum[i]);
+	}
+	fprintf(fp, "\n");
+	fclose (fp);
 	return diags;
 }
 

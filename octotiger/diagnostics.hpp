@@ -20,6 +20,7 @@
 
 struct diagnostics_t {
 	static constexpr integer nspec = 2;
+	bool failed;
 	real l1_phi;
 	real l2_phi;
 	real l3_phi;
@@ -48,6 +49,7 @@ struct diagnostics_t {
 	hydro_state_t<> grid_out;
 	std::array<real,NDIM> lsum;
 	diagnostics_t() {
+		failed = false;
 		stage = 1;
 		omega = -1.0;
 		grid_com = 0.0;
@@ -88,6 +90,7 @@ struct diagnostics_t {
 	}
 	const diagnostics_t& compute();
 	diagnostics_t& operator+=(const diagnostics_t& other) {
+		failed = failed || other.failed;
 		l1_phi = std::max(l1_phi, other.l1_phi);
 		l2_phi = std::max(l2_phi, other.l2_phi);
 		l3_phi = std::max(l3_phi, other.l3_phi);
@@ -133,6 +136,7 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc& arc, const unsigned) {
+		arc & failed;
 		arc & lsum;
 		arc & l1_phi;
 		arc & l2_phi;

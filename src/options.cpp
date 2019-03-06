@@ -92,6 +92,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.001), "dual energy switch 2") //
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
 	("disable_output", po::value<bool>(&(opts().disable_output)), "disable silo output") //
+	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics)), "disable diagnostics") //
 	("silo_planes_only", po::value<bool>(&(opts().silo_planes_only)), "disable silo output") //
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
 	("restart_filename", po::value<std::string>(&(opts().restart_filename))->default_value(""), "restart filename")         //
