@@ -19,7 +19,7 @@
 #define ALPHA 0.01
 const real wdcons = (2.216281751e32 / 1.989e+33);
 
-constexpr real T0 = 1.0e+6;
+constexpr real T0 = 0.0;
 
 real poly_K(real rho0, real mu) {
 	const auto& c = physcon();

@@ -262,6 +262,9 @@ std::vector<silo_var_t> grid::var_data() const {
 constexpr integer nspec = 2;
 diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 	diagnostics_t rc;
+	if( opts().disable_diagnostics) {
+		return rc;
+	}
 	const real dV = dx * dx * dx;
 	real x, y, z;
 	integer iii, iiig;
@@ -387,6 +390,10 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 			} else {
 				for( integer s = 0; s != nspec; ++s) {
 					const real this_x = s == 0 ? x0 : x1;
+					if( this_x == 0.0 ) {
+						rc = 99;
+						return rc;
+					}
 					g[s] += ax * dX[s][XDIM] *INVERSE( this_x);
 					g[s] += ay * dX[s][YDIM] *INVERSE( this_x);
 					g[s] += az * dX[s][ZDIM] *INVERSE( this_x);
@@ -431,13 +438,20 @@ diagnostics_t grid::diagnostics(const diagnostics_t& diags) {
 						rho = {U[rho_i][iii], 0.0};
 					} else if( star == -1 ) {
 						rho = {0.0, U[rho_i][iii]};
-					} else {
+					} else if( star != 99 ){
 						rho = {0.0, 0.0};
+					} else {
+						rc.failed = true;
+						return rc;
 					}
 				}
 				if (diags.stage > 1) {
 					const real R2 = x * x + y * y;
 					const real phi_g = G[iiig][phi_i];
+					if( diags.omega < 0.0 ) {
+						rc.failed = true;
+						return rc;
+					}
 					const real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
 					const real phi_eff = phi_g + phi_r;
 					const real rho0 = U[rho_i][iii];
