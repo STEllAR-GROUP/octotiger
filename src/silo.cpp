@@ -183,7 +183,7 @@ struct mesh_vars_t {
 		}
 		mesh_name = oct_to_str(loc.to_id());
 #ifdef OUTPUT_ROCHE
-		if (opts().problem == DWD) {
+		if (opts().problem == DWD && !opts().disable_diagnostics) {
 			roche.resize(var_dims[0] * var_dims[1] * var_dims[2]);
 		}
 #endif
@@ -210,7 +210,7 @@ void output_stage1(std::string fname, int cycle) {
 				rc.vars = gridref.var_data();
 				rc.outflow = gridref.get_outflows();
 #ifdef OUTPUT_ROCHE
-					if( opts().problem==DWD ) {
+					if( opts().problem==DWD  && !opts().disable_diagnostics) {
 						rc.roche = gridref.get_roche_lobe();
 						rc.roche_name = std::string("roche_geometry");
 					}
@@ -290,7 +290,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 					new_mesh_ptr->vars.push_back(std::move(new_var));
 				}
 #ifdef OUTPUT_ROCHE
-				if (opts().problem == DWD) {
+				if (opts().problem == DWD && !opts().disable_diagnostics) {
 					const int nx = new_mesh_ptr->var_dims[0] / 2;
 					std::vector<grid::roche_type> roche(8 * nx * nx * nx);
 					for (integer ci = 0; ci != NCHILD; ci++) {
@@ -452,7 +452,7 @@ void output_stage3(std::string fname, int cycle) {
 					DBFreeOptlist( optlist_var);
 				}
 #ifdef OUTPUT_ROCHE
-			if( opts().problem==DWD) {
+			if( opts().problem==DWD && !opts().disable_diagnostics) {
 				auto optlist_var = DBMakeOptlist(100);
 				DBAddOption(optlist_var, DBOPT_COORDSYS, &opt1);
 				DBAddOption(optlist_var, DBOPT_CYCLE, &cycle);
@@ -508,7 +508,7 @@ void output_stage3(std::string fname, int cycle) {
 						field_names[f].push_back(ptr);
 					}
 #ifdef OUTPUT_ROCHE
-				if( opts().problem == DWD ) {
+				if( opts().problem == DWD && !opts().disable_diagnostics ) {
 					const auto str = "/" + suffix + std::string("/roche_geometry");
 					char* ptr = new char[str.size() + 1];
 					strcpy(ptr, str.c_str());
@@ -577,7 +577,7 @@ void output_stage3(std::string fname, int cycle) {
 				DBFreeOptlist( optlist);
 			}
 #ifdef OUTPUT_ROCHE
-				if( opts().problem == DWD ) {
+				if( opts().problem == DWD  && !opts().disable_diagnostics) {
 					optlist = DBMakeOptlist(100);
 					DBAddOption(optlist, DBOPT_CYCLE, &cycle);
 					DBAddOption(optlist, DBOPT_TIME, &ftime);
@@ -726,7 +726,7 @@ void output_stage3(std::string fname, int cycle) {
 					delete[] ptr;
 				}
 #ifdef OUTPUT_ROCHE
-				if( opts().problem == DWD ) {
+				if( opts().problem == DWD  && !opts().disable_diagnostics) {
 					for (auto ptr : roche_names) {
 						delete[] ptr;
 					}
