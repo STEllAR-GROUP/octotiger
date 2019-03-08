@@ -327,6 +327,16 @@ if(OCTOTIGER_WITH_BLAST_TEST)
 endif()
 
 ################################################################################
+# Set up binary_params target
+################################################################################
+add_executable(binary_params src/binary_params/binary_params.cpp)
+target_link_libraries(binary_params Silo::silo)
+set_property(TARGET binary_params PROPERTY FOLDER "Tools")
+if(MSVC)
+  target_compile_options(binary_params PRIVATE /EHsc)
+endif()
+
+################################################################################
 # Set up silo_compare target
 ################################################################################
 add_executable(silo_compare src/compare/compare.cpp)
