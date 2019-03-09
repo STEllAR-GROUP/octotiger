@@ -44,20 +44,27 @@ namespace fmm {
             double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
 
             const size_t index_base = (threadIdx.y + 5) * (INX + 10) + threadIdx.z + 5;
+            int load_offset = 0;
+            int load_id = local_id;
+            if (local_id >= cache_line_length) {
+              load_offset = 1;
+              load_id = load_id - cache_line_length;
+            }
 
             for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
                 int x = stencil_x - STENCIL_MIN;
                 __syncthreads();
-                if (local_id < cache_line_length) {
-                    for (int i = 0; i < cache_line_length; i++) {
+                if (local_id < cache_line_length * 2) {
+                    for (int i = 0; i < cache_line_length / 2; i++) {
                         const multiindex<> partner_index(INNER_CELLS_PADDING_DEPTH + blockIdx.x + stencil_x,
-                                                            i + cache_offset,
-                                                            cache_offset + local_id);
+                                                            2*i + load_offset + cache_offset,
+                                                            cache_offset + load_id);
                         const size_t partner_flat_index = to_flat_index_padded(partner_index);
                         multiindex<> partner_index_coarse(partner_index);
                         partner_index_coarse.transform_coarse();
-                        coarse_index_cache[cache_line_length*i + local_id] = partner_index_coarse;
-                        monopole_cache[cache_line_length*i + local_id] = local_monopoles[partner_flat_index];
+                        coarse_index_cache[cache_line_length*(2*i + load_offset) + load_id] = partner_index_coarse;
+                        monopole_cache[cache_line_length*(2*i + load_offset) + load_id] = local_monopoles[partner_flat_index];
+
                     }
                 }
                 __syncthreads();
