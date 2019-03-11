@@ -26,8 +26,8 @@
 
 #define OUTPUT_ROCHE
 
-std::string oct_to_str(int n) {
-	return hpx::util::format("{:o}", n);
+std::string oct_to_str(node_location::node_id n) {
+	return hpx::util::format("{:llo}", n);
 }
 
 std::string outflow_name(const std::string& varname) {
