@@ -51,7 +51,7 @@ static real core_frac1 = 1.0 / 10.0; // Desired core fraction of primary // Igno
 static real core_frac2 = 2.0 / 3.0; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
 static real fill1 = 0.99; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
 static real fill2 = 0.99; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
-static real contact_fill = 0.01; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
+static real contact_fill = 0.1; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
 
 
 //namespace scf_options {
@@ -308,11 +308,11 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				const real x = X[XDIM][iiih];
 				const real y = X[YDIM][iiih];
 				const real z = X[ZDIM][iiih];
-				const real R = SQRT(std::pow(x - com, 2) + y * y);
+				const real R = SQRT(POWER(x - com, 2) + y * y);
 				real rho = U[rho_i][iiih];
-				real phi_eff = G[iiig][phi_i] - 0.5 * std::pow(omega * R, 2);
-				const real fx = G[iiig][gx_i] + (x - com) * std::pow(omega, 2);
-				const real fy = G[iiig][gy_i] + y * std::pow(omega, 2);
+				real phi_eff = G[iiig][phi_i] - 0.5 * POWER(omega * R, 2);
+				const real fx = G[iiig][gx_i] + (x - com) * POWER(omega, 2);
+				const real fy = G[iiig][gy_i] + y * POWER(omega, 2);
 				const real fz = G[iiig][gz_i];
 
 				bool is_donor_side;
@@ -416,7 +416,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[sx_i][iiih] = sx;
 				U[sy_i][iiih] = sy;
 				U[tau_i][iiih] = POWER(etherm, 1.0 / fgamma);
-				U[egas_i][iiih] = eint + (sx * sx + sy * sy) / 2.0 / rho;
+				U[egas_i][iiih] = eint + (sx * sx + sy * sy) / 2.0 * INVERSE( rho );
 				U[zx_i][iiih] = 0.0;
 				U[zy_i][iiih] = 0.0;
 				U[zz_i][iiih] = dx * dx * omega * rho / 6.0;
@@ -429,34 +429,6 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 	return 0.0;
 }
 
-real interpolate(real x1, real x2, real x3, real x4, real y1, real y2, real y3, real y4, real x) {
-	x1 -= x2;
-	x3 -= x2;
-	x4 -= x2;
-	x -= x2;
-
-	real a, b, c, d;
-
-	a = y2;
-
-	b = (x3 * x4) / (x1 * (x1 - x3) * (x1 - x4)) * y1;
-	b += -(1.0 / x1 + (x3 + x4) / (x3 * x4)) * y2;
-	b += (x1 * x4) / ((x1 - x3) * x3 * (x4 - x3)) * y3;
-	b += (x1 * x3) / ((x1 - x4) * x4 * (x3 - x4)) * y4;
-
-	c = -(x3 + x4) / (x1 * (x1 - x3) * (x1 - x4)) * y1;
-	c += (x1 + x3 + x4) / (x1 * x3 * x4) * y2;
-	c += (x1 + x4) / (x3 * (x1 - x3) * (x3 - x4)) * y3;
-	c += (x3 + x1) / (x4 * (x1 - x4) * (x4 - x3)) * y4;
-
-	d = y1 / (x1 * (x1 - x3) * (x1 - x4));
-	d -= y2 / (x1 * x3 * x4);
-	d += y3 / (x3 * (x3 - x1) * (x3 - x4));
-	d += y4 / ((x1 - x4) * (x3 - x4) * x4);
-
-	return a + b * x + c * x * x + d * x * x * x;
-
-}
 
 void node_server::run_scf(std::string const& data_dir) {
 	solve_gravity(false, false);
@@ -478,9 +450,9 @@ void node_server::run_scf(std::string const& data_dir) {
 				output_all(buffer, i,false);
 			}
 		}
-		real f0 = scf_options::M1 / (diags.m[0]);
-		real f1 = scf_options::M2 / (diags.m[1]);
-		real f = (scf_options::M1 + scf_options::M2) / (diags.m[0] + diags.m[1]);
+		real f0 = scf_options::M1 * INVERSE (diags.m[0]);
+		real f1 = scf_options::M2 * INVERSE (diags.m[1]);
+		real f = (scf_options::M1 + scf_options::M2) * INVERSE (diags.m[0] + diags.m[1]);
 		f = (f + 1.0) / 2.0;
 		rho_mult(f0, f1);
 		diags = diagnostics();
@@ -496,7 +468,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		if (i == 0) {
 			jorb0 = jorb;
 		}
-		real spin_ratio = (j1 + j2) / (jorb);
+		real spin_ratio = (j1 + j2) * INVERSE (jorb);
 		real this_m = (diags.m[0] + diags.m[1]);
 		solve_gravity(false, false);
 		auto axis = grid_ptr->find_axis();
@@ -506,7 +478,7 @@ void node_server::run_scf(std::string const& data_dir) {
 
 		real com = axis.second[0];
 		real new_omega;
-		new_omega = jorb0 / iorb;
+		new_omega = jorb0 * INVERSE( iorb );
 		omega = new_omega;
 		std::pair<real, real> rho1_max;
 		std::pair<real, real> rho2_max;
@@ -540,10 +512,9 @@ void node_server::run_scf(std::string const& data_dir) {
 		static real rhoc1 = 1.0e-3 * rho1;
 		if (opts().v1309) {
 			const real rho_min = 0.5 * std::min(rhoc1, params.struct_eos2->dE());
-			rhoc1 /= POWER(spin_ratio * 3.0, w0);
-			printf("%e\n", rhoc1 / rho1);
+			rhoc1 *= INVERSE(POWER(spin_ratio * 3.0, w0));
 			params.struct_eos1->set_cutoff_density(rhoc1);
-			params.struct_eos2->set_cutoff_density(rho2 * 1.0e-10);
+			params.struct_eos2->set_cutoff_density(rhoc1);
 		}
 
 		real h_1 = params.struct_eos1->h0();
@@ -581,8 +552,8 @@ void node_server::run_scf(std::string const& data_dir) {
 		auto e1 = params.struct_eos1;
 		auto e2 = params.struct_eos2;
 
-		real core_frac_1 = diags.grid_sum[spc_ac_i] / M1;
-		real core_frac_2 = diags.grid_sum[spc_dc_i] / M2;
+		real core_frac_1 = diags.grid_sum[spc_ac_i] * INVERSE( M1 );
+		real core_frac_2 = diags.grid_sum[spc_dc_i] * INVERSE( M2 );
 		const real virial = diags.virial;
 		real e1f;
 		if (opts().eos != WD) {
@@ -591,7 +562,7 @@ void node_server::run_scf(std::string const& data_dir) {
 				if (core_frac_1 == 0.0) {
 					e1f = 0.5 + 0.5 * e1f;
 				} else {
-					e1f = (1.0 - w0) * e1f + w0 * POWER(e1f, scf_options::core_frac1 / core_frac_1);
+					e1f = (1.0 - w0) * e1f + w0 * POWER(e1f, scf_options::core_frac1 * INVERSE( core_frac_1) );
 				}
 				e1->set_frac(e1f);
 			}
@@ -603,7 +574,7 @@ void node_server::run_scf(std::string const& data_dir) {
 				if (core_frac_2 == 0.0) {
 					e2f = 0.5 + 0.5 * e2f;
 				} else {
-					e2f = (1.0 - w0) * e2f + w0 * POWER(e2f, scf_options::core_frac2 / core_frac_2);
+					e2f = (1.0 - w0) * e2f + w0 * POWER(e2f, scf_options::core_frac2 * INVERSE(core_frac_2));
 				}
 				if (!scf_options::equal_struct_eos) {
 					e2->set_frac(e2f);
@@ -614,7 +585,7 @@ void node_server::run_scf(std::string const& data_dir) {
 					const real gamma = grid::get_fgamma();
 					const real p0 = params.struct_eos1->P0();
 					const real de = params.struct_eos1->dE();
-					const real s1 = POWER(p0 * POWER(rhoc1 / de, 1.0 + 1.0 / ne) / (gamma - 1.0), 1.0 / gamma) / rhoc1;
+					const real s1 = POWER(p0 * POWER(rhoc1 * INVERSE( de), 1.0 + 1.0 * INVERSE( ne)) / (gamma - 1.0), 1.0 / gamma) * INVERSE( rhoc1 );
 					printf("S = %e\n", s1);
 					e2->set_entropy(s1);
 				} else {
@@ -625,13 +596,13 @@ void node_server::run_scf(std::string const& data_dir) {
 			e2f = e2->get_frac();
 		}
 		real amin, jmin, mu;
-		mu = M1 * M2 / (M1 + M2);
-		amin = SQRT(3.0 * (is1 + is2) / mu);
+		mu = M1 * M2 * INVERSE (M1 + M2);
+		amin = SQRT(3.0 * (is1 + is2) * INVERSE( mu ));
 
 		const real r0 = POWER(diags.stellar_vol[0] / (1.3333333333 * 3.14159), 1.0 / 3.0);
 		const real r1 = POWER(diags.stellar_vol[1] / (1.3333333333 * 3.14159), 1.0 / 3.0);
-		const real fi0 = diags.stellar_vol[0] / diags.roche_vol[0];
-		const real fi1 = diags.stellar_vol[1] / diags.roche_vol[1];
+		const real fi0 = diags.stellar_vol[0] * INVERSE( diags.roche_vol[0] );
+		const real fi1 = diags.stellar_vol[1] * INVERSE( diags.roche_vol[1] );
 
 		jmin = SQRT((M1 + M2)) * (mu * POWER(amin, 0.5) + (is1 + is2) * POWER(amin, -1.5));
 		if (i % 5 == 0) {
@@ -698,9 +669,9 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 			for (double z0 = z - dx / 2.0 + dx / 2.0 / M; z0 < z + dx / 2.0; z0 += dx / M) {
 				++nsamp;
 				if (x < params.l1_x) {
-					r = SQRT(std::pow(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
+					r = SQRT(POWER(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
 				} else {
-					r = SQRT(std::pow(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
+					r = SQRT(POWER(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
 				}
 				if (r <= R0) {
 					rho += this_struct_eos->density_at(r, dx);
