@@ -1019,8 +1019,8 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		GET(hpx::threads::run_as_os_thread(DBClose, db));
 		std::set<node_location::node_id> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
-			const int num = std::strtol(master_mesh->meshnames[i] + 1, nullptr, 8);
-			printf("%i\n", num);
+			const node_location::node_id num = std::strtoll(master_mesh->meshnames[i] + 1, nullptr, 8);
+			printf("%lli\n", num);
 			load_locs.insert(num);
 		}
 		for (int i = 0; i < node_list.size(); i++) {
