@@ -215,8 +215,8 @@ int main()
         fclose(fp);
         int i0, k0;
         fp = fopen("rotating_star.bin", "wb");
-        fwrite(&nr, 1, sizeof(std::int64_t), fp);
-        fwrite(&nz, 1, sizeof(std::int64_t), fp);
+        fwrite(&nr, 1, sizeof(decltype(nr)), fp);
+        fwrite(&nz, 1, sizeof(decltype(nz)), fp);
         fwrite(&omega, 1, sizeof(double), fp);
         for (int i = 0; i < 2 * nr; i++)
         {
