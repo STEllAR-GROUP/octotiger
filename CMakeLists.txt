@@ -369,93 +369,179 @@ endif()
 if(OCTOTIGER_WITH_TESTS)
   enable_testing()
 
+  # New kernels
+  set(OCTOTIGER_NEW_KERNELS_ARGS
+      "--p2p_kernel_type=SOA_CPU "
+      "--p2m_kernel_type=SOA_CPU "
+      "--multipole_kernel_type=SOA_CPU")
+
   # *.diff tests fail when the output contains any .vals
   set(OCTOTIGER_SILODIFF_FAIL_PATTERN ".vals")
 
+  ##############################################################################
   # Marshak
+  ##############################################################################
   file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.2.silo ${PROJECT_BINARY_DIR}/marshak.silo)
-  add_test(NAME test_problems.marshak
+
+  # Marshak - CPU
+  add_test(NAME test_problems.cpu.marshak
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
-  add_test(NAME test_problems.marshak.diff
+  add_test(NAME test_problems.cpu.marshak.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/marshak.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
-  set_tests_properties(test_problems.marshak PROPERTIES
-    FIXTURES_SETUP test_problems.marshak)
-  set_tests_properties(test_problems.marshak.diff PROPERTIES
-    FIXTURES_REQUIRED test_problems.marshak
+  set_tests_properties(test_problems.cpu.marshak PROPERTIES
+    FIXTURES_SETUP test_problems.cpu.marshak)
+  set_tests_properties(test_problems.cpu.marshak.diff PROPERTIES
+    FIXTURES_REQUIRED test_problems.cpu.marshak
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
 
+  ##############################################################################
   # Blast
+  ##############################################################################
   if(OCTOTIGER_WITH_BLAST_TEST)
     file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.4.silo ${PROJECT_BINARY_DIR}/blast.silo)
-    add_test(NAME test_problems.blast
+
+    # Blast - CPU
+    add_test(NAME test_problems.cpu.blast
       COMMAND octotiger
         --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini)
-    add_test(NAME test_problems.blast.diff
+    add_test(NAME test_problems.cpu.blast.diff
       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
         ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
-    set_tests_properties(test_problems.blast PROPERTIES
-      FIXTURES_SETUP test_problems.blast)
-    set_tests_properties(test_problems.blast.diff PROPERTIES
-      FIXTURES_REQUIRED test_problems.blast
+    set_tests_properties(test_problems.cpu.blast PROPERTIES
+      FIXTURES_SETUP test_problems.cpu.blast)
+    set_tests_properties(test_problems.cpu.blast.diff PROPERTIES
+      FIXTURES_REQUIRED test_problems.cpu.blast
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
   endif()
 
+  ##############################################################################
   # Sod Shock Tube
+  ##############################################################################
   file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.4.silo ${PROJECT_BINARY_DIR}/sod.silo)
-  add_test(NAME test_problems.sod
+
+  # Sod Shock Tube - CPU
+  add_test(NAME test_problems.cpu.sod
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini)
 
-  add_test(NAME test_problems.sod.diff
+  add_test(NAME test_problems.cpu.sod.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
-  set_tests_properties(test_problems.sod PROPERTIES
-    FIXTURES_SETUP test_problems.sod)
-  set_tests_properties(test_problems.sod.diff PROPERTIES
-    FIXTURES_REQUIRED test_problems.sod
+  set_tests_properties(test_problems.cpu.sod PROPERTIES
+    FIXTURES_SETUP test_problems.cpu.sod)
+  set_tests_properties(test_problems.cpu.sod.diff PROPERTIES
+    FIXTURES_REQUIRED test_problems.cpu.sod
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
 
+  # Sod Shock Tube - GPU
+  if(OCTOTIGER_WITH_CUDA)
+    add_test(NAME test_problems.gpu.sod
+      COMMAND octotiger
+        --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini
+        ${OCTOTIGER_NEW_KERNELS_ARGS}
+        --cuda_streams_per_locality=1 --cuda_streams_per_gpu=1)
+
+    add_test(NAME test_problems.gpu.sod.diff
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+        ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+
+    set_tests_properties(test_problems.gpu.sod PROPERTIES
+      FIXTURES_SETUP test_problems.gpu.sod)
+    set_tests_properties(test_problems.gpu.sod.diff PROPERTIES
+      FIXTURES_REQUIRED test_problems.gpu.sod
+      FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  endif()
+
+  ##############################################################################
   # Sphere
+  ##############################################################################
   file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
-  add_test(NAME test_problems.sphere
+  
+  # Sphere - CPU
+  add_test(NAME test_problems.cpu.sphere
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini)
-  add_test(NAME test_problems.sphere.diff
+  add_test(NAME test_problems.cpu.sphere.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
-  set_tests_properties(test_problems.sphere PROPERTIES
-    FIXTURES_SETUP test_problems.sphere)
-  set_tests_properties(test_problems.sphere.diff PROPERTIES
-    FIXTURES_REQUIRED test_problems.sphere
+  set_tests_properties(test_problems.cpu.sphere PROPERTIES
+    FIXTURES_SETUP test_problems.cpu.sphere)
+  set_tests_properties(test_problems.cpu.sphere.diff PROPERTIES
+    FIXTURES_REQUIRED test_problems.cpu.sphere
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  
+  # Sphere - GPU
+  if(OCTOTIGER_WITH_CUDA)
+    add_test(NAME test_problems.gpu.sphere
+      COMMAND octotiger
+        --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini
+        ${OCTOTIGER_NEW_KERNELS_ARGS}
+        --cuda_streams_per_locality=1 --cuda_streams_per_gpu=1)
+    add_test(NAME test_problems.gpu.sphere.diff
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+        ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
+    set_tests_properties(test_problems.gpu.sphere PROPERTIES
+      FIXTURES_SETUP test_problems.gpu.sphere)
+    set_tests_properties(test_problems.gpu.sphere.diff PROPERTIES
+      FIXTURES_REQUIRED test_problems.gpu.sphere
+      FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  endif()
+
+  ##############################################################################
   # Rotating Star
+  ##############################################################################
   file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.2.silo
     ${PROJECT_BINARY_DIR}/rotating_star.silo)
-  add_test(NAME test_problems.rotating_star.init COMMAND gen_rotating_star_init)
-  add_test(NAME test_problems.rotating_star
+
+  # Rotating Star - CPU
+  add_test(NAME test_problems.cpu.rotating_star.init COMMAND gen_rotating_star_init)
+  add_test(NAME test_problems.cpu.rotating_star
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini)
-  add_test(NAME test_problems.rotating_star.diff
+  add_test(NAME test_problems.cpu.rotating_star.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
-  set_tests_properties(test_problems.rotating_star.init PROPERTIES
-    FIXTURES_SETUP test_problems.rotating_star.init)
-  set_tests_properties(test_problems.rotating_star PROPERTIES
-    FIXTURES_REQUIRED test_problems.rotating_star.init)
+  set_tests_properties(test_problems.cpu.rotating_star.init PROPERTIES
+    FIXTURES_SETUP test_problems.cpu.rotating_star.init)
+  set_tests_properties(test_problems.cpu.rotating_star PROPERTIES
+    FIXTURES_REQUIRED test_problems.cpu.rotating_star.init)
 
-  set_tests_properties(test_problems.rotating_star PROPERTIES
-    FIXTURES_SETUP test_problems.rotating_star
-    FIXTURES_REQUIRED test_problems.rotating_star.init)
-  set_tests_properties(test_problems.rotating_star.diff PROPERTIES
-    FIXTURES_REQUIRED "test_problems.rotating_star.init;test_problems.rotating_star"
+  set_tests_properties(test_problems.cpu.rotating_star PROPERTIES
+    FIXTURES_SETUP test_problems.cpu.rotating_star
+    FIXTURES_REQUIRED test_problems.cpu.rotating_star.init)
+  set_tests_properties(test_problems.cpu.rotating_star.diff PROPERTIES
+    FIXTURES_REQUIRED "test_problems.cpu.rotating_star.init;test_problems.cpu.rotating_star"
+    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+
+  # Rotating Star - GPU
+  add_test(NAME test_problems.gpu.rotating_star.init COMMAND gen_rotating_star_init)
+  add_test(NAME test_problems.gpu.rotating_star
+    COMMAND octotiger
+      --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini
+      ${OCTOTIGER_NEW_KERNELS_ARGS}
+      --cuda_streams_per_locality=1 --cuda_streams_per_gpu=1)
+  add_test(NAME test_problems.gpu.rotating_star.diff
+    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+
+  set_tests_properties(test_problems.gpu.rotating_star.init PROPERTIES
+    FIXTURES_SETUP test_problems.gpu.rotating_star.init)
+  set_tests_properties(test_problems.gpu.rotating_star PROPERTIES
+    FIXTURES_REQUIRED test_problems.gpu.rotating_star.init)
+
+  set_tests_properties(test_problems.gpu.rotating_star PROPERTIES
+    FIXTURES_SETUP test_problems.gpu.rotating_star
+    FIXTURES_REQUIRED test_problems.gpu.rotating_star.init)
+  set_tests_properties(test_problems.gpu.rotating_star.diff PROPERTIES
+    FIXTURES_REQUIRED "test_problems.gpu.rotating_star.init;test_problems.gpu.rotating_star"
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
 
 endif()

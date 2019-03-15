@@ -48,7 +48,7 @@ jobs:
                 at: /
             - run:
                 name: Marshak wave test
-                command: ctest --output-on-failure -R test_problems.marshak.diff
+                command: ctest --output-on-failure -R test_problems.cpu.marshak.diff
             - run:
                 name: Move artifacts
                 command: |
@@ -68,7 +68,7 @@ jobs:
                 at: /
             - run:
                 name: Blast test
-                command: ctest --output-on-failure -R test_problems.blast.diff
+                command: ctest --output-on-failure -R test_problems.cpu.blast.diff
             - run:
                 name: Move artifacts
                 command: |
@@ -88,7 +88,7 @@ jobs:
                 at: /
             - run:
                 name: Sod shock tube test
-                command: ctest --output-on-failure -R test_problems.sod.diff
+                command: ctest --output-on-failure -R test_problems.cpu.sod.diff
             - run:
                 name: Move artifacts
                 command: |
@@ -108,7 +108,7 @@ jobs:
                 at: /
             - run:
                 name: Solid sphere test
-                command: ctest --output-on-failure -R test_problems.sphere.diff
+                command: ctest --output-on-failure -R test_problems.cpu.sphere.diff
             - run:
                 name: Move artifacts
                 command: |
@@ -128,7 +128,7 @@ jobs:
                 at: /
             - run:
                 name: Rotating star test
-                command: ctest --output-on-failure -R test_problems.rotating_star.diff
+                command: ctest --output-on-failure -R test_problems.cpu.rotating_star.diff
             - run:
                 name: Move artifacts
                 command: |
