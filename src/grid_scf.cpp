@@ -76,14 +76,14 @@ static real contact_fill = 0.1; //  Degree of contact - IGNORED FOR NON-CONTACT 
 #define READ_LINE(s) 		\
 	else if( cmp(ptr,#s) ) { \
 		s = read_float(ptr); \
-		if( hpx::get_locality_id() == 0 ) printf( #s "= %e\n", double(s)); \
+		if( hpx::get_locality_id() == 0 ) stdout_printf( #s "= %e\n", double(s)); \
 	}
 
 void read_option_file() {
 	FILE* fp = fopen("scf.init", "rt");
 	if (fp != NULL) {
 		if (hpx::get_locality_id() == 0)
-			printf("SCF option file found\n");
+			stdout_printf("SCF option file found\n");
 		const auto cmp = [](char* ptr, const char* str) {
 			return strncmp(ptr,str,strlen(str))==0;
 		};
@@ -126,14 +126,14 @@ void read_option_file() {
 				READ_LINE(M2)
 				READ_LINE(a) else if (strlen(ptr)) {
 					if (hpx::get_locality_id() == 0)
-						printf("unknown SCF option - %s\n", buffer);
+						stdout_printf("unknown SCF option - %s\n", buffer);
 				}
 			}
 		}
 		fclose(fp);
 	} else {
 		if (hpx::get_locality_id() == 0)
-			printf("SCF option file \"scf.init\" not found - using defaults\n");
+			stdout_printf("SCF option file \"scf.init\" not found - using defaults\n");
 	}
 
 }
@@ -257,7 +257,7 @@ struct scf_parameters {
 		R1 = POWER(V1 / c, 1.0 / 3.0) * POWER(fill1, 5);
 		R2 = POWER(V2 / c, 1.0 / 3.0) * POWER(fill2, 5);
 		if (opts().eos == WD) {
-			//	printf( "!\n");
+			//	stdout_printf( "!\n");
 			struct_eos2 = std::make_shared<struct_eos>(scf_options::M2, R2);
 			struct_eos1 = std::make_shared<struct_eos>(scf_options::M1, *struct_eos2);
 		} else {
@@ -278,7 +278,7 @@ struct scf_parameters {
 				}
 			}
 		}
-		//	printf( "R1 R2 %e %e\n", R1, R2);
+		//	stdout_printf( "R1 R2 %e %e\n", R1, R2);
 	}
 };
 
@@ -294,7 +294,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 		struct_eos struct_eos_2) {
 	PROF_BEGIN;
 	if (omega <= 0.0) {
-		printf("OMEGA <= 0.0\n");
+		stdout_printf("OMEGA <= 0.0\n");
 		abort();
 	}
 	real rho_int = 10.0 * rho_floor;
@@ -434,14 +434,14 @@ void node_server::run_scf(std::string const& data_dir) {
 	solve_gravity(false, false);
 	real omega = initial_params().omega;
 	real jorb0;
-//	printf( "Starting SCF\n");
+//	stdout_printf( "Starting SCF\n");
 	grid::set_omega(omega);
-	printf("Starting SCF\n");
+	stdout_printf("Starting SCF\n");
 	real l1_phi = 0.0, l2_phi, l3_phi;
 	for (integer i = 0; i != 100; ++i) {
 //		profiler_output(stdout);
 		char buffer[33];    // 21 bytes for int (max) + some leeway
-		sprintf(buffer, "X.scf.%i", int(i));
+		stdout_printf(buffer, "X.scf.%i", int(i));
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
 		auto diags = diagnostics();
@@ -501,10 +501,10 @@ void node_server::run_scf(std::string const& data_dir) {
 		l2_phi = l2_phi_pair.second;
 		l3_phi = l3_phi_pair.second;
 
-		//	printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
+		//	stdout_printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
 		params.struct_eos2->set_d0(rho2 * f1);
 		if (scf_options::equal_struct_eos) {
-			//	printf( "%e %e \n", rho1, rho1*f0);
+			//	stdout_printf( "%e %e \n", rho1, rho1*f0);
 			params.struct_eos1->set_d0_using_struct_eos(rho1 * f0, *(params.struct_eos2));
 		} else {
 			params.struct_eos1->set_d0(rho1 * f0);
@@ -548,7 +548,7 @@ void node_server::run_scf(std::string const& data_dir) {
 			params.struct_eos1->set_h0(c_1 - phi_1);
 		}
 		params.struct_eos2->set_h0(c_2 - phi_2);
-		//	printf( "---------\n");
+		//	stdout_printf( "---------\n");
 		auto e1 = params.struct_eos1;
 		auto e2 = params.struct_eos2;
 
@@ -586,7 +586,7 @@ void node_server::run_scf(std::string const& data_dir) {
 					const real p0 = params.struct_eos1->P0();
 					const real de = params.struct_eos1->dE();
 					const real s1 = POWER(p0 * POWER(rhoc1 * INVERSE( de), 1.0 + 1.0 * INVERSE( ne)) / (gamma - 1.0), 1.0 / gamma) * INVERSE( rhoc1 );
-					printf("S = %e\n", s1);
+					stdout_printf("S = %e\n", s1);
 					e2->set_entropy(s1);
 				} else {
 					e2->set_entropy(e1->s0());
@@ -606,15 +606,15 @@ void node_server::run_scf(std::string const& data_dir) {
 
 		jmin = SQRT((M1 + M2)) * (mu * POWER(amin, 0.5) + (is1 + is2) * POWER(amin, -1.5));
 		if (i % 5 == 0) {
-			printf(
+			stdout_printf(
 					"   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n",
 					"rho1", "rho2", "M1", "M2", "is1", "is2", "omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin",
 					"amin", "jtot", "com", "spin_ratio", "iorb", "R1", "R2", "fill1", "fill2");
 		}
-		lprintf((opts().data_dir + "log.txt").c_str(),
-				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e\n",
-				i, rho1, rho2, M1, M2, is1, is2, omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com,
-				spin_ratio, iorb, r0, r1, fi0, fi1);
+//		lstdout_printf((opts().data_dir + "log.txt").c_str(),
+//				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e\n",
+//				i, rho1, rho2, M1, M2, is1, is2, omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com,
+//				spin_ratio, iorb, r0, r1, fi0, fi1);
 		if (i % 10 == 0) {
 			regrid(me.get_unmanaged_gid(), omega, -1, false);
 		} else {
@@ -623,9 +623,9 @@ void node_server::run_scf(std::string const& data_dir) {
 		if (opts().eos == WD) {
 			set_AB(e2->A, e2->B());
 		}
-//		printf( "%e %e\n", grid::get_A(), grid::get_B());
+//		stdout_printf( "%e %e\n", grid::get_A(), grid::get_B());
 		const real dx = axis.second[0];
-		//	printf( "%e %e %e\n", rho1_max.first, rho2_max.first, l1_x);
+		//	stdout_printf( "%e %e %e\n", rho1_max.first, rho2_max.first, l1_x);
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
 		solve_gravity(false, false);
 
@@ -659,7 +659,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		this_struct_eos = params.struct_eos2;
 		R0 = R02;
 	}
-//	printf( "%e %e\n", R01, R02);
+//	stdout_printf( "%e %e\n", R01, R02);
 	rho = 0;
 //	const real R0 = this_struct_eos->get_R0();
 	int M = std::max(std::min(int(10.0 * dx), 2), 1);

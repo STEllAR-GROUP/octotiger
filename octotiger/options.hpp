@@ -26,6 +26,7 @@ COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
 class options {
 public:
 	bool disable_diagnostics;
+	bool disable_stdout;
 	bool bench;
 	bool disable_output;
 	bool core_refine;
@@ -122,6 +123,7 @@ public:
 		arc & output_filename;
 		arc & output_dt;
 		arc & stop_step;
+		arc & disable_stdout;
 		arc & disable_diagnostics;
 		arc & disable_output;
 		arc & theta;

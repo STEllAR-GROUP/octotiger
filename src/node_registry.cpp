@@ -1,5 +1,6 @@
 #include "octotiger/node_registry.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/util.hpp"
 
 #include <cstdio>
 #include <mutex>
@@ -16,7 +17,7 @@ node_ptr get(const node_location& loc) {
 	std::lock_guard<hpx::lcos::local::spinlock> lock(mtx_);
 	const auto i = table_.find(loc);
 	if (i == table_.end()) {
-		printf("Error in node_registry::get %s\n", loc.to_str().c_str());
+		stdout_printf("Error in node_registry::get %s\n", loc.to_str().c_str());
 		abort();
 	}
 	return i->second;
