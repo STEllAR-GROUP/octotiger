@@ -18,6 +18,8 @@
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
+#include "octotiger/util.hpp"
+
 
 #include <hpx/include/parallel_for_loop.hpp>
 
@@ -1161,7 +1163,7 @@ void compute_ilist() {
         }
     }
 
-//     printf("# direct = %i\n", int(max_d));
+//     stdout_printf("# direct = %i\n", int(max_d));
     ilist_n = std::vector<interaction_type>(ilist_n0.begin(), ilist_n0.end());
     ilist_d = std::vector<interaction_type>(ilist_d0.begin(), ilist_d0.end());
     ilist_r = std::vector<interaction_type>(ilist_r0.begin(), ilist_r0.end());
@@ -1572,7 +1574,7 @@ multipole_pass_type grid::compute_multipoles(
         }
     }
     if( com_ptr[0] == nullptr ) {
-    	printf( "Failed to call RHO before DRHODT\n");
+    	stdout_printf( "Failed to call RHO before DRHODT\n");
     	abort();
     }
     multipole_pass_type mret;

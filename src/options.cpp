@@ -17,6 +17,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "octotiger/util.hpp"
+
 
 void normalize_constants();
 
@@ -91,6 +93,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("dual_energy_sw1", po::value<real>(&(opts().dual_energy_sw1))->default_value(0.1), "dual energy switch 1") //
 	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.001), "dual energy switch 2") //
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
+	("disable_stdout", po::value<bool>(&(opts().disable_stdout)), "disable stdout") //
 	("disable_output", po::value<bool>(&(opts().disable_output)), "disable silo output") //
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics)), "disable diagnostics") //
 	("silo_planes_only", po::value<bool>(&(opts().silo_planes_only)), "disable silo output") //
@@ -145,32 +148,28 @@ bool options::process_options(int argc, char* argv[]) {
 	}
 	n_fields = n_species + 10;
 	if (!opts().restart_filename.empty()) {
-		printf("1\n");
+		stdout_printf("1\n");
 		load_options_from_silo(opts().restart_filename);
-		printf("1\n");
+		stdout_printf("1\n");
 	}
 	{
-#define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
-		std::cout << "atomic_number=";
+#define SHOW( opt ) stdout_printf( "%s = %s\n", #opt, to_string(opt))
 		for (auto r : atomic_number) {
 			std::cout << std::to_string(r) << ',';
 		}
-		std::cout << '\n';
-		std::cout << "atomic_mass=";
+		stdout_printf( "\natomic_mass=");
 		for (auto r : atomic_mass) {
-			std::cout << std::to_string(r) << ',';
+			stdout_printf( "%e, ", std::to_string(r) );
 		}
-		std::cout << '\n';
-		std::cout << "X=";
+		stdout_printf( "\nX=");
 		for (auto r : X) {
-			std::cout << std::to_string(r) << ',';
+			stdout_printf( "%e, ", std::to_string(r) );
 		}
-		std::cout << '\n';
-		std::cout << "Z=";
+		stdout_printf( "\nZ=");
 		for (auto r : Z) {
-			std::cout << std::to_string(r) << ',';
+			stdout_printf( "%e, ", std::to_string(r) );
 		}
-		std::cout << '\n';
+		stdout_printf( "\n");
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);
 		SHOW(hard_dt);

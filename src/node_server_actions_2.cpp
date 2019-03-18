@@ -13,6 +13,8 @@
 #include <hpx/include/run_as.hpp>
 #include <hpx/runtime/get_colocation_id.hpp>
 #include <hpx/runtime/serialization/list.hpp>
+#include "octotiger/util.hpp"
+
 
 #include <cstdint>
 #include <cstdio>
@@ -133,10 +135,10 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	/*	if (my_location.level() == 0) {
-	 printf("L1, L2\n");
+	 stdout_printf("L1, L2\n");
 	 for (integer field = 0; field != opts().n_fields; ++field) {
 	 //TODO
-	 //printf("%16s %e %e\n", grid::field_names()[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
+	 //stdout_printf("%16s %e %e\n", grid::field_names()[field], a.l1[field] / a.l1a[field], std::sqrt(a.l2[field] / a.l2a[field]));
 	 }
 	 }*/
 	return a;
@@ -215,10 +217,10 @@ diagnostics_t node_server::diagnostics() {
 			fprintf(fp, "\n");
 			fclose(fp);
 		} else {
-			printf("Failed to write binary.dat\n");
+			stdout_printf("Failed to write binary.dat\n");
 		}
 	} else {
-		printf("Failed to compute Roche geometry\n");
+		stdout_printf("Failed to compute Roche geometry\n");
 	}
 	FILE* fp = fopen("sums.dat", "at");
 	fprintf(fp, "%.13e ", current_time);
@@ -303,7 +305,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location>&& locs) {
 
 			/** BUG HERE ***/
 			if (parent.empty()) {
-				printf("parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
+				stdout_printf("parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
 				abort();
 			}
 			assert(!parent.empty());
@@ -522,7 +524,7 @@ set_child_aunt_type node_server::set_child_aunt(const hpx::id_type& aunt, const 
 	} else {
 		for (auto const& ci : geo::octant::face_subset(face)) {
 			if (children[ci].get_gid() != hpx::invalid_id) {
-				printf("CHILD SHOULD NOT EXIST\n");
+				stdout_printf("CHILD SHOULD NOT EXIST\n");
 				abort();
 			}
 		}
@@ -544,7 +546,7 @@ std::uintptr_t node_server::get_ptr() {
 future<node_server*> node_client::get_ptr() const {
 	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([this](future<std::uintptr_t>&& fut) {
 		if(hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
-			printf( "get_ptr called non-locally\n");
+			stdout_printf( "get_ptr called non-locally\n");
 			abort();
 		}
 		return reinterpret_cast<node_server*>(GET(fut));
