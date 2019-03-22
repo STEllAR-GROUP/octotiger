@@ -24,7 +24,6 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
 #include <hpx/lcos/broadcast.hpp>
-#include "octotiger/util.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -202,7 +201,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 			return solid_sphere(x,y,z,dx,0.25);
 		}));
 	} else {
-		stdout_printf("No problem specified\n");
+		printf("No problem specified\n");
 		throw;
 	}
 	compute_ilist();
@@ -328,51 +327,51 @@ HPX_REGISTER_BROADCAST_ACTION(initialize_action);
 
 real OMEGA;
 int hpx_main(int argc, char* argv[]) {
+	printf("###########################################################\n");
+#if defined(__AVX512F__)
+	printf("Compiled for AVX512 SIMD architectures.\n");
+#elif defined(__AVX2__)
+	printf("Compiled for AVX2 SIMD architectures.\n");
+#elif defined(__AVX__)
+	printf("Compiled for AVX SIMD architectures.\n");
+#elif defined(__SSE2__ )
+	printf("Compiled for SSE2 SIMD architectures.\n");
+#else
+	printf("Not compiled for a known SIMD architecture.\n");
+#endif
+	printf("###########################################################\n");
+
+	printf("Running\n");
+
 	try {
 		if (opts().process_options(argc, argv)) {
-			stdout_printf("###########################################################\n");
-#if defined(__AVX512F__)
-			stdout_printf("Compiled for AVX512 SIMD architectures.\n");
-#elif defined(__AVX2__)
-			stdout_printf("Compiled for AVX2 SIMD architectures.\n");
-#elif defined(__AVX__)
-			stdout_printf("Compiled for AVX SIMD architectures.\n");
-#elif defined(__SSE2__ )
-			stdout_printf("Compiled for SSE2 SIMD architectures.\n");
-#else
-			stdout_printf("Not compiled for a known SIMD architecture.\n");
-#endif
-			stdout_printf("###########################################################\n");
-
-			stdout_printf("Running\n");
-
 			auto all_locs = hpx::find_all_localities();
-			hpx::lcos::broadcast < initialize_action > (all_locs, opts(), all_locs).get();
+			hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
 
-			hpx::id_type root_id = hpx::new_ < node_server > (hpx::find_here()).get();
+			hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
 			node_client root_client(root_id);
 			node_server* root = root_client.get_ptr().get();
 
 			node_count_type ngrids = {0,0};
-			//		stdout_printf("1\n");
+			//		printf("1\n");
 			if (!opts().restart_filename.empty()) {
-				stdout_printf( "Loading from %s...\n", opts().restart_filename);
+				std::cout << "Loading from " << opts().restart_filename << " ...\n";
 				load_data_from_silo(opts().restart_filename, root, root_client.get_unmanaged_gid());
-				stdout_printf( "Re-grid\n");
+				printf( "Re-grid\n");
 				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true, false);
-				stdout_printf("Done. \n");
+				printf("Done. \n");
 			} else {
 				for (integer l = 0; l < opts().max_level; ++l) {
 					ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
-					stdout_printf("---------------Created Level %i---------------\n\n", int(l + 1));
+					printf("---------------Created Level %i---------------\n\n", int(l + 1));
 				}
 				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
-				stdout_printf("---------------Re-gridded Level %i---------------\n\n", int(opts().max_level));
+				printf("---------------Re-gridded Level %i---------------\n\n", int(opts().max_level));
 			}
 			if (opts().gravity) {
-				stdout_printf("solving gravity------------\n");
+				printf("solving gravity------------\n");
 				root->solve_gravity(false, false);
-				stdout_printf("...done\n");
+				printf("...done\n");
 			}
 			hpx::async(&node_server::execute_solver, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
 			root->report_timing();
@@ -381,7 +380,7 @@ int hpx_main(int argc, char* argv[]) {
 	} catch (...) {
 		throw;
 	}
-	stdout_printf("Exiting...\n");
+	printf("Exiting...\n");
 	return hpx::finalize();
 }
 

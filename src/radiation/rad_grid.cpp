@@ -11,8 +11,6 @@
 #include "octotiger/roe.hpp"
 #include "octotiger/space_vector.hpp"
 
-#include "octotiger/util.hpp"
-
 #include <hpx/include/future.hpp>
 
 #include <array>
@@ -176,7 +174,7 @@ void rad_grid::set_X(const std::vector<std::vector<real>>& x) {
 					const auto D = H_BW - RAD_BW;
 					const integer iiir = rindex(xi, yi, zi);
 					const integer iiih = hindex(xi + D, yi + D, zi + D);
-					//		stdout_printf( "%i %i %i %i %i %i \n", d, iiir, xi, yi, zi, iiih);
+					//		printf( "%i %i %i %i %i %i \n", d, iiir, xi, yi, zi, iiih);
 					X[d][iiir] = x[d][iiih];
 				}
 			}
@@ -210,7 +208,7 @@ real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vect
 				}
 
 				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
-				//		stdout_printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
+				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
 				const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
 				if (cons < 32.0) {
 					this_a *= std::max(1.0 - std::exp(-cons), 0.0);
@@ -246,7 +244,7 @@ void rad_grid::compute_mmw(const std::vector<std::vector<real>>& U) {
 void node_server::compute_radiation(real dt) {
 //	physcon().c = 1.0;
 	if (my_location.level() == 0) {
-//		stdout_printf("c = %e\n", physcon().c);
+//		printf("c = %e\n", physcon().c);
 	}
 
 	rad_grid_ptr->set_dx(grid_ptr->get_dx());
@@ -257,7 +255,7 @@ void node_server::compute_radiation(real dt) {
 	const real max_dt = min_dx / clight * 0.5 / std::sqrt(3);
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
-		stdout_printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
+		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
 	}
 	integer nsteps = std::max(int(ns), 1);
 
@@ -270,12 +268,12 @@ void node_server::compute_radiation(real dt) {
 	auto& sz = grid_ptr->get_field(sz_i);
 
 //	if (my_location.level() == 0) {
-//		stdout_printf("Explicit\n");
+//		printf("Explicit\n");
 //	}
 	for (integer i = 0; i != nsteps; ++i) {
 	//	rgrid->sanity_check();
 		if (my_location.level() == 0) {
-			stdout_printf("radiation sub-step %i of %i\r", int(i + 1), int(nsteps));
+			printf("radiation sub-step %i of %i\r", int(i + 1), int(nsteps));
 			fflush(stdout);
 		}
 
@@ -302,8 +300,8 @@ void node_server::compute_radiation(real dt) {
 //	rgrid->sanity_check();
 	all_rad_bounds();
 	if (my_location.level() == 0) {
-		stdout_printf( "\n");
-//		stdout_printf("Rad done\n");
+		printf( "\n");
+//		printf("Rad done\n");
 	}
 }
 
@@ -472,8 +470,8 @@ void rad_grid::sanity_check() {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
 				const integer iiir = rindex(xi, yi, zi);
 				if (U[er_i][iiir] <= 0.0) {
-					stdout_printf("INSANE\n");
-					//		stdout_printf("%e %i %i %i\n", U[er_i][iiir], xi, yi, zi);
+					printf("INSANE\n");
+					//		printf("%e %i %i %i\n", U[er_i][iiir], xi, yi, zi);
 					abort();
 				}
 			}
@@ -1033,7 +1031,7 @@ void rad_grid::set_restrict(const std::vector<real>& data, const geo::octant& oc
 					U[f][iii] = data[index];
 					++index;
 					if (index > int(data.size())) {
-						stdout_printf("rad_grid::set_restrict error %i %i\n", int(index), int(data.size()));
+						printf("rad_grid::set_restrict error %i %i\n", int(index), int(data.size()));
 					}
 				}
 			}

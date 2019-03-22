@@ -223,7 +223,7 @@ void output_stage1(std::string fname, int cycle) {
 
 std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 
-//	stdout_printf("Compressing %i grids...\n", int(mesh_vars.size()));
+//	printf("Compressing %i grids...\n", int(mesh_vars.size()));
 
 	using table_type = std::unordered_map<node_location::node_id, std::shared_ptr<mesh_vars_t>>;
 	table_type table;
@@ -332,7 +332,7 @@ std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t>&& mesh_vars) {
 		}
 	}
 
-//	stdout_printf("Compressed to %i grids...\n", int(done.size()));
+//	printf("Compressed to %i grids...\n", int(done.size()));
 
 	return std::move(done);
 }
@@ -357,7 +357,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		ids.push_back(mv.location.to_id());
 		nl.zone_count.push_back(mv.var_dims[0] * mv.var_dims[1] * mv.var_dims[2]);
 		for (int f = 0; f < nfields; f++) {
-	//		stdout_printf( "%s %e %e\n", mv.vars[f].name(), mv.vars[f].min(), mv.vars[f].max());
+	//		printf( "%s %e %e\n", mv.vars[f].name(), mv.vars[f].min(), mv.vars[f].max());
 			nl.extents[f].push_back(mv.vars[f].min());
 			nl.extents[f].push_back(mv.vars[f].max());
 		}
@@ -443,7 +443,7 @@ void output_stage3(std::string fname, int cycle) {
 					}
 			//			if( std::strcmp(o.name(),"fx")==0 ) {
 //							for( int i = 0; i < INX*INX*INX; i++) {
-//								stdout_printf( "%e\n", o(i));
+//								printf( "%e\n", o(i));
 //							}
 	//				}
 					DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
@@ -556,7 +556,7 @@ void output_stage3(std::string fname, int cycle) {
 			DBAddOption(optlist, DBOPT_DISJOINT_MODE,&dj);
 			DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
 			DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type );
-			stdout_printf( "Putting %i\n", n_total_domains );
+			printf( "Putting %i\n", n_total_domains );
 			DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
 			DBFreeOptlist( optlist);
 			char mmesh[] = "quadmesh";
@@ -798,7 +798,7 @@ void output_all(std::string fname, int cycle, bool block) {
 }
 
 #define SILO_TEST(i) \
-	if( i != 0 ) stdout_printf( "SILO call failed at %i\n", __LINE__ );
+	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
 void load_options_from_silo(std::string fname, DBfile* db) {
 	const auto func =
@@ -821,7 +821,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 					read_silo_var<real> rr;
 					integer version = ri( db, "version");
 					if( version > SILO_VERSION) {
-						stdout_printf( "WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
+						printf( "WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
 					}
 					opts().code_to_g = rr(db, "code_to_g");
 					opts().code_to_s = rr(db, "code_to_s");
@@ -866,17 +866,17 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 }
 
 void load_open(std::string fname, dir_map_type map) {
-	stdout_printf("LOAD OPENED on proc %i\n", hpx::get_locality_id());
+	printf("LOAD OPENED on proc %i\n", hpx::get_locality_id());
 	load_options_from_silo(fname, db_); /**/
 	hpx::threads::run_as_os_thread([&]() {
 		db_ = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ);
 		read_silo_var<real> rr;
 		output_time = rr(db_, "cgs_time"); /**/
 		output_rotation_count = 2 * M_PI * rr(db_, "rotational_time"); /**/
-		stdout_printf( "rotational_time = %e\n", output_rotation_count);
+		printf( "rotational_time = %e\n", output_rotation_count);
 		output_time /= opts().code_to_s;
 		node_dir_ = std::move(map);
-		stdout_printf( "%e\n", output_time );
+		printf( "%e\n", output_time );
 //		sleep(100);
 		}).get();
 }
@@ -898,7 +898,7 @@ node_server::node_server(const node_location& loc) :
 	assert(iter != node_dir_.end());
 
 	if (!iter->second.load) {
-		stdout_printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		int nc = 0;
 		for (int ci = 0; ci < NCHILD; ci++) {
 			auto cloc = loc.get_child(ci);
@@ -920,7 +920,7 @@ node_server::node_server(const node_location& loc) :
 		}
 		assert(nc == 0 || nc == NCHILD);
 	} else {
-		stdout_printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		silo_load_t load;
 		static const auto hydro_names = grid::get_hydro_field_names();
 		load.vars.resize(hydro_names.size());
@@ -965,7 +965,7 @@ node_server::node_server(const node_location& loc) :
 
 node_server::node_server(const node_location& loc, silo_load_t load) :
 		my_location(loc) {
-	stdout_printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto& localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
@@ -1020,7 +1020,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		std::set<node_location::node_id> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
 			const node_location::node_id num = std::strtoll(master_mesh->meshnames[i] + 1, nullptr, 8);
-			stdout_printf("%lli\n", num);
+			printf("%lli\n", num);
 			load_locs.insert(num);
 		}
 		for (int i = 0; i < node_list.size(); i++) {
@@ -1032,7 +1032,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		}
 		auto this_dir = std::move(node_dir_);
 		for (int i = 0; i < nprocs; i++) {
-			stdout_printf("Sending LOAD OPEN to %i\n", i);
+			printf("Sending LOAD OPEN to %i\n", i);
 			futs.push_back(hpx::async<load_open_action>(opts().all_localities[i], fname, this_dir));
 		}
 		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));

@@ -21,21 +21,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "octotiger/util.hpp"
 
 void handler(int sig) {
 	char hostname[256];
 	gethostname(hostname, sizeof(hostname));
 	static char command[1024];
 	auto pid = getpid();
-	stdout_printf(command, "echo \"SIGNAL %i\n\" > gdb.%s.%i.txt", sig, hostname, pid);
-	stdout_printf(command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i' >> gdb.%s.%i.txt\n",
+	sprintf(command, "echo \"SIGNAL %i\n\" > gdb.%s.%i.txt", sig, hostname, pid);
+	sprintf(command, "ssh %s 'gdb --batch --quiet -ex \"thread apply all bt\" -ex \"quit\" -p %i' >> gdb.%s.%i.txt\n",
 			hostname, pid, hostname, pid);
 	if (system(command) != 0) {
 		goto UNABLE;
 	}
 	goto ABLE;
-	UNABLE: stdout_printf("UNABLE TO PRINT STACK FROM GDB!\n");
+	UNABLE: printf("UNABLE TO PRINT STACK FROM GDB!\n");
 	ABLE:
 	exit(0);
 }

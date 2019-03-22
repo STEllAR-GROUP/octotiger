@@ -45,13 +45,13 @@
 // 	void* ptr;
 // 	if ((n >= alignment) && (n % alignment == 0)) {
 // 		if (posix_memalign(&ptr, alignment, n) != 0) {
-// 			stdout_printf("posix_memalign failed!\n");
+// 			printf("posix_memalign failed!\n");
 // 			abort();
 // 		}
 // 	} else {
 // 		ptr = (void*) malloc(n);
 // 		if (ptr == nullptr) {
-// 			stdout_printf("malloc failed!\n");
+// 			printf("malloc failed!\n");
 // 			abort();
 // 		}
 

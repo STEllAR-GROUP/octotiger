@@ -12,7 +12,6 @@
 #include "octotiger/silo.hpp"
 #include "octotiger/taylor.hpp"
 
-#include "octotiger/util.hpp"
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
 #include <hpx/util/format.hpp>
@@ -148,7 +147,7 @@ real grid::convert_hydro_units(int i) {
 		} else if (i == tau_i) {
 			val *= POWER(g / (s * s * cm), 1.0 / fgamma);
 		} else {
-			stdout_printf("Asked to convert units for unknown field %i\n", i);
+			printf("Asked to convert units for unknown field %i\n", i);
 			abort();
 		}
 	}
@@ -623,8 +622,8 @@ void grid::set_flux_check(const std::vector<real>& data, const geo::face& f) {
 				const real b = data[index];
 				++index;
 				if (a != b) {
-					stdout_printf("Flux error\n");
-					//		stdout_printf("%e %e %i\n", a, b, f);
+					printf("Flux error\n");
+					//		printf("%e %e %i\n", a, b, f);
 //					abort();
 				}
 			}
@@ -884,7 +883,7 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 			}
 		}
 	}
-//	stdout_printf("%e\n", e[0]);
+//	printf("%e\n", e[0]);
 	PROF_END;
 	return e;
 }
@@ -1260,7 +1259,7 @@ void grid::change_units(real m, real l, real t, real k) {
 	xmin[ZDIM] *= l;
 	dx *= l;
 	if (dx > 1.0e+12)
-		stdout_printf("++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx * l);
+		printf("++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx * l);
 	for (integer i = 0; i != H_N3; ++i) {
 		U[rho_i][i] *= m * l3inv;
 		for (integer si = 0; si != opts().n_species; ++si) {
@@ -1279,7 +1278,7 @@ void grid::change_units(real m, real l, real t, real k) {
 		X[YDIM][i] *= l;
 		X[ZDIM][i] *= l;
 //		if (std::abs(X[XDIM][i]) > 1.0e+12) {
-//			stdout_printf("!!!!!!!!!!!! %e !!!!!!!!!!!!!!!!\n", std::abs(X[XDIM][i]));
+//			printf("!!!!!!!!!!!! %e !!!!!!!!!!!!!!!!\n", std::abs(X[XDIM][i]));
 //		}
 	}
 	for (integer i = 0; i != INX * INX * INX; ++i) {
@@ -1371,7 +1370,7 @@ std::vector<real> grid::frac_volumes() const {
 			}
 		}
 	}
-//	stdout_printf( "%e", V[0]);
+//	printf( "%e", V[0]);
 	PROF_END;
 	return V;
 }
@@ -1660,7 +1659,7 @@ space_vector grid::center_of_mass() const {
 			this_com[dim] /= m;
 		}
 	}PROF_END;
-//	stdout_printf( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk %e %e %e\n", this_com[0], this_com[1], this_com[2] );
+//	printf( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk %e %e %e\n", this_com[0], this_com[1], this_com[2] );
 	return this_com;
 }
 
@@ -1685,7 +1684,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 					V[tau_i][iii] = U[tau_i][iii];
 					const real rho = V[rho_i][iii];
 					if (rho <= 0.0) {
-						stdout_printf("%i %i %i %e\n", int(i), int(j), int(k), rho);
+						printf("%i %i %i %e\n", int(i), int(j), int(k), rho);
 						abort_error()
 						;
 					}
@@ -2064,7 +2063,7 @@ grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xm
 						U[field][iii] = this_u[field];
 					}
 				} else {
-					stdout_printf("No problem specified\n");
+					printf("No problem specified\n");
 					abort();
 				}
 			}
@@ -2443,7 +2442,7 @@ real grid::compute_fluxes() {
 	 */
 
 //	return physcon.c;
-//	stdout_printf( "%e %e %e\n", omega, dx, (2./15.) / max_lambda);
+//	printf( "%e %e %e\n", omega, dx, (2./15.) / max_lambda);
 	if (opts().hard_dt < 0.0) {
 		return max_lambda;
 	} else {
@@ -2621,7 +2620,7 @@ void grid::compute_sources(real t, real rotational_time) {
 					const real period_len = 2.0 * M_PI / grid::omega;
 					if (opts().driving_time > rotational_time / (2.0 * M_PI)) {
 						const real ff = -opts().driving_rate / period_len;
-						///	stdout_printf("%e %e %e\n", ff, opts().driving_rate, period_len);
+						///	printf("%e %e %e\n", ff, opts().driving_rate, period_len);
 						const real rho = U[rho_i][iii];
 						const real sx = U[sx_i][iii];
 						const real sy = U[sy_i][iii];
@@ -2901,11 +2900,11 @@ void grid::next_u(integer rk, real t, real dt) {
 				const integer iii = hindex(i, j, k);
 
 				if (U[tau_i][iii] < ZERO) {
-					stdout_printf("Tau is negative- %e %i %i %i  %e %e %e\n", double(U[tau_i][iii]), int(i), int(j), int(k),
+					printf("Tau is negative- %e %i %i %i  %e %e %e\n", double(U[tau_i][iii]), int(i), int(j), int(k),
 							X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
 					//	abort();
 				} else if (U[rho_i][iii] <= ZERO) {
-					stdout_printf("Rho is non-positive - %e %i %i %i %e %e %e\n", double(U[rho_i][iii]), int(i), int(j), int(k), double(X[XDIM][iii]),double(X[YDIM][iii]),double(X[ZDIM][iii]));
+					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", double(U[rho_i][iii]), int(i), int(j), int(k), double(X[XDIM][iii]),double(X[YDIM][iii]),double(X[ZDIM][iii]));
 					abort();
 				}
 			}

@@ -17,8 +17,6 @@
 
 #include "octotiger/node_location.hpp"
 #include "octotiger/node_client.hpp"
-#include "octotiger/util.hpp"
-
 
 #include <cstdio>
 
@@ -237,7 +235,7 @@ node_location node_location::get_child(integer c) const {
 
 std::string node_location::to_str() const {
 	char buffer[100];    // 21 bytes for int (max) + some leeway
-	stdout_printf(buffer, "%i_%i_%i_%i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]));
+	sprintf(buffer, "%i_%i_%i_%i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]));
 	return std::string(buffer);
 }
 
