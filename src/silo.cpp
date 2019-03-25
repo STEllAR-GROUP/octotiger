@@ -904,7 +904,7 @@ node_server::node_server(const node_location& loc) :
 	assert(iter != node_dir_.end());
 
 	if (!iter->second.load) {
-		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+//		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		int nc = 0;
 		for (int ci = 0; ci < NCHILD; ci++) {
 			auto cloc = loc.get_child(ci);
@@ -926,7 +926,7 @@ node_server::node_server(const node_location& loc) :
 		}
 		assert(nc == 0 || nc == NCHILD);
 	} else {
-		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+//		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		silo_load_t load;
 		static const auto hydro_names = grid::get_hydro_field_names();
 		load.vars.resize(hydro_names.size());
@@ -971,7 +971,7 @@ node_server::node_server(const node_location& loc) :
 
 node_server::node_server(const node_location& loc, silo_load_t load) :
 		my_location(loc) {
-	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+//	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto& localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
@@ -1026,7 +1026,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		std::set<node_location::node_id> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
 			const node_location::node_id num = std::strtoll(master_mesh->meshnames[i] + 1, nullptr, 8);
-			printf("%lli\n", num);
+//			printf("%lli\n", num);
 			load_locs.insert(num);
 		}
 		for (int i = 0; i < node_list.size(); i++) {
