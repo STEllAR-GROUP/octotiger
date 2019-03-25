@@ -127,7 +127,7 @@ bool options::process_options(int argc, char* argv[]) {
 	po::store(po::parse_command_line(argc, argv, command_opts), vm);
 	po::notify(vm);
 	if (vm.count("help")) {
-		std::cout << command_opts << "\n";
+		stdout_printf( "%s\n", command_opts );
 		exit(0);
 	}
 	if (!config_file.empty()) {
@@ -135,7 +135,7 @@ bool options::process_options(int argc, char* argv[]) {
 		if (ifs) {
 			store(parse_config_file(ifs, command_opts), vm);
 		} else {
-			std::cout << "Configuration file \"" << config_file << " not found!\n";
+			stdout_printf( "Configuration file %s  not found!\n", config_file );
 			exit(0);
 		}
 	}

@@ -42,8 +42,9 @@ struct cell_t {
 
 int cell_t::n_species;
 
-void find_eigenvector(const std::array<std::array<double, 3>, 3>& q, std::array<double, 3>& e) {
-	double b0[3], b1[3], A, bdif;
+double find_eigenvector(const std::array<std::array<double, 3>, 3>& q, std::array<double, 3>& e) {
+	std::array<double, 3> b0, b1;
+	double A, bdif;
 	int iter = 0;
 	b0[2] = 0.0;
 	b0[0] = 1.0;
@@ -66,21 +67,16 @@ void find_eigenvector(const std::array<std::array<double, 3>, 3>& q, std::array<
 			b0[i] = b1[i];
 		}
 	} while (fabs(bdif) > 1.0e-14);
+	double lambda = 0.0;
+	double e2 = 0.0;
+	e = b0;
 	for (int m = 0; m < 3; m++) {
-		e[m] = b0[m];
+		lambda += e[m] * (q[m][0]*e[0]+q[m][1]*e[1]+q[m][2]*e[2]);
+		e2 += e[m] * e[m];
 	}
+	return lambda / e2;
 }
 
-space_vector find_axis(const double mtot, const space_vector& this_com,
-		const std::array<std::array<double, 3>, 3>& quad_moment) {
-	std::array<double, 3> eigen;
-	find_eigenvector(quad_moment, eigen);
-	space_vector rc;
-	for (int j = 0; j != 3; ++j) {
-		rc[j] = eigen[j];
-	}
-	return rc;
-}
 
 std::array<double, 3> center_of_mass(const std::vector<cell_t>& cells) {
 	std::array<double, 3> com;
@@ -250,8 +246,8 @@ int main(int argc, char* argv[]) {
 	}
 	DBClose(handle);
 
-	auto m = total_mass(cells);
-	printf("Total Mass: %e\n", m);
+	auto M = total_mass(cells);
+	printf("Total Mass: %e\n", M);
 
 	auto com = center_of_mass(cells);
 	printf("Center of Mass: %e %e %e\n", com[0], com[1], com[2]);
@@ -260,16 +256,20 @@ int main(int argc, char* argv[]) {
 	printf("Quadrupole Moment: %12e %12e\n", q[0][0], q[0][1]);
 	printf("                   %12e %12e\n", q[1][0], q[1][1]);
 
-	auto loc = find_axis(m, com, q);
+	double lambda;
+	std::array<double, 3> loc;
+	lambda = find_eigenvector(q, loc);
+
 	printf("Line of Centers:   %12e %12e %12e\n", loc[0], loc[1], loc[2]);
 
 	double rho_max = 0.0;
-	space_vector c1;
+	space_vector c1, c2;
 	for( const auto& c : cells) {
 		double dx2_max = 0.0;
 		for( int d = 0; d < 3; d++) {
 			dx2_max = std::max(dx2_max,sqr(c.x[d] - loc[d]));
 		}
+		auto rho = c.rho_tot;
 		if( dx2_max <= c.dx* c.dx ) {
 			if( rho > rho_max) {
 				rho_max = rho;
@@ -278,11 +278,18 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	printf( "First star at %e %e %e with rho_max = %e\n", c1[0], c2[1], c3[2], rho_max);
 
+	double d1 = sqrt(c1[0]*c1[0]+c1[1]*c1[1]+c1[2]*c1[2]);
+	double d2 = lambda / d1 / M;
 
+	double a = d1 + d2;
+	printf( "%e %e %e\n", d1, d2, a);
 
-
+	for( int d= 0; d < 3; d++) {
+		c2[d] = c1[d] + loc[d]*(d1+d2);
+	}
+	printf( "First  star at %e %e %e with rho_max = %e\n", c1[0], c1[1], c1[2], rho_max);
+	printf( "Second star at %e %e %e\n", c2[0], c2[1], c2[2]);
 
 
 	return 0;
