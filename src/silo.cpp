@@ -743,6 +743,12 @@ void output_stage3(std::string fname, int cycle) {
 
 void output_all(std::string fname, int cycle, bool block) {
 
+
+	if( opts().disable_output) {
+		printf( "Skipping SILO output\n");
+		return;
+	}
+
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
 	nsteps = node_registry::begin()->second.get_ptr().get()->get_step_num();
