@@ -38,6 +38,7 @@ public:
 	bool v1309;
 	bool rad_implicit;
 
+	integer extra_regrid;
 	integer accretor_refine;
 	integer donor_refine;
 	integer max_level;
@@ -127,6 +128,7 @@ public:
 		arc & theta;
 		arc & core_refine;
 		arc & donor_refine;
+		arc & extra_regrid;
 		arc & accretor_refine;
 		int tmp = problem;
 		arc & tmp;
