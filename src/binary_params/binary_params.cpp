@@ -23,8 +23,137 @@ using map_type = std::unordered_map<std::string, array_type<>>;
 map_type var_map_;
 array_type<> x_, y_, z_, dx_;
 array_type<bool> in_plane_;
+array_type<bool> in_loc_;
+array_type<double> loc_x_;
 
 static DBfile* db_;
+
+std::array<double, 3> find_com() {
+	std::array<double, 3> com = { { 0, 0, 0 } };
+	double mtot;
+	const auto& rho = var_map_["rho"];
+	for (int i = 0; i < rho.size(); i++) {
+		const double V = std::pow(dx_[i], 3);
+		const double M = V * rho[i];
+		const double x = x_[i];
+		const double y = y_[i];
+		const double z = z_[i];
+		mtot += M;
+		com[0] += x * M;
+		com[1] += y * M;
+		com[2] += z * M;
+	}
+	com[0] /= mtot;
+	com[1] /= mtot;
+	com[2] /= mtot;
+	return com;
+}
+
+double find_omega(std::array<double,3> com) {
+	const auto& rho = var_map_["rho"];
+	const auto& sx = var_map_["sx"];
+	const auto& sy = var_map_["sy"];
+	double I = 0.0;
+	double l = 0.0;
+	for (int i = 0; i < rho.size(); i++) {
+		const double V = std::pow(dx_[i], 3);
+		const double x = x_[i] - com[0];
+		const double y = y_[i] - com[1];
+		const double r2 = x * x + y * y;
+		const double this_omega = (x * sy[i] - y * sx[i]) / r2 / rho[i];
+		if( rho[i] > 1.0 ) {
+			printf( "%e\n", this_omega);
+		}
+		I += rho[i] * V * r2;
+		l += (x * sy[i] - y * sx[i]) * V;
+	}
+	printf("%e %e\n", l, I);
+	return l / I;
+}
+
+void tag_loc(std::array<double, 2> loc, std::array<double, 3> a) {
+	const auto& rho = var_map_["rho"];
+	double p[3], n[3];
+	n[0] = loc[0];
+	n[1] = loc[1];
+	n[2] = 0;
+	for (int i = 0; i < rho.size(); i++) {
+		p[0] = x_[i];
+		p[1] = y_[i];
+		p[2] = z_[i];
+		double amp[3];
+		double ampdotn;
+		for (int d = 0; d < 3; d++) {
+			amp[d] = a[d] - p[d];
+		}
+		ampdotn = 0.0;
+		for (int d = 0; d < 3; d++) {
+			ampdotn += amp[d] * n[d];
+		}
+		double dist = 0.0;
+		double loc_x = 0.0;
+		for (int d = 0; d < 3; d++) {
+			dist += std::pow(amp[d] - ampdotn * n[d], 2);
+			loc_x += n[d] * p[d];
+		}
+		dist = std::sqrt(dist);
+		loc_x_.push_back(loc_x);
+		if (dist < dx_[i]) {
+			in_loc_.push_back(true);
+		} else {
+			in_loc_.push_back(false);
+		}
+	}
+}
+
+double find_eigenvector(std::array<double, 2>& e) {
+	std::array<std::array<double, 2>, 2> q = { { { 0, 0 }, { 0, 0 } } };
+
+	const auto& rho = var_map_["rho"];
+
+	for (int i = 0; i < rho.size(); i++) {
+		const double V = std::pow(dx_[i], 3);
+		const double M = V * rho[i];
+		const double x = x_[i];
+		const double y = y_[i];
+		q[0][0] += x * x * M;
+		q[0][1] += x * y * M;
+		q[1][0] += y * x * M;
+		q[1][1] += y * y * M;
+	}
+
+	std::array<double, 2> b0, b1;
+	double A, bdif;
+	int iter = 0;
+	b0[0] = 1.0;
+	b0[1] = 1.0;
+	do {
+		iter++;
+		b1[0] = b1[1] = 0.0;
+		for (int i = 0; i < 2; i++) {
+			for (int m = 0; m < 2; m++) {
+				b1[i] += q[i][m] * b0[m];
+			}
+		}
+		A = sqrt(b1[0] * b1[0] + b1[1] * b1[1]);
+		bdif = 0.0;
+		for (int i = 0; i < 2; i++) {
+			b1[i] = b1[i] / A;
+			bdif += pow(b0[i] - b1[i], 2);
+		}
+		for (int i = 0; i < 2; i++) {
+			b0[i] = b1[i];
+		}
+	} while (fabs(bdif) > 1.0e-14);
+	double lambda = 0.0;
+	double e2 = 0.0;
+	e = b0;
+	for (int m = 0; m < 2; m++) {
+		lambda += e[m] * (q[m][0] * e[0] + q[m][1] * e[1]);
+		e2 += e[m] * e[m];
+	}
+	return lambda / e2;
+}
 
 double sum_all(const std::string var_name) {
 	const auto var = var_map_[var_name];
@@ -40,7 +169,7 @@ double max_all(const std::string var_name, bool plane_only = false) {
 	const auto var = var_map_[var_name];
 	double max = -std::numeric_limits<double>::max();
 	for (int i = 0; i < var.size(); i++) {
-		if (!plane_only || in_plane[i]) {
+		if (!plane_only || in_plane_[i]) {
 			max = std::max(max, var[i]);
 		}
 	}
@@ -71,8 +200,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	int n_species;
+	double omega;
 
 	DBReadVar(db_, "n_species", (void*) &n_species);
+	DBReadVar(db_, "omega", (void*) &omega);
+	printf("Omega = %e\n", omega);
 
 	printf("Reading table of contents\n");
 	DBmultimesh* mmesh = DBGetMultimesh(db_, "quadmesh");
@@ -149,6 +281,32 @@ int main(int argc, char* argv[]) {
 	printf("Mass sum = %e\n", sum_all("rho_3") / 2e33);
 	printf("Mass sum = %e\n", sum_all("rho_4") / 2e33);
 	printf("Mass sum = %e\n", sum_all("rho_5") / 2e33);
+
+	auto com = find_com();
+
+	printf("Center of Mass = %e %e %e\n", com[0], com[1], com[2]);
+
+	std::array<double, 2> loc;
+	double q = find_eigenvector(loc);
+	printf("LOC = %e  %e\n", loc[0], loc[1]);
+	printf("q = %e\n", q);
+
+	tag_loc(loc, com);
+	{
+		FILE* fp = fopen("loc.txt", "wt");
+		auto& rho = var_map_["rho"];
+		for (int i = 0; i < rho.size(); i++) {
+			if (in_loc_[i]) {
+				fprintf(fp, "%e %e\n", loc_x_[i], rho[i]);
+			}
+		}
+		fclose(fp);
+	}
+
+	omega = find_omega(com);
+	double period = 2.0 * M_PI / omega / 60. / 60. / 24.;
+	printf("Omega = %e\n", omega);
+	printf("Period = %e days\n", period);
 
 	/* Close SILO */
 
