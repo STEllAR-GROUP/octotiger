@@ -351,6 +351,45 @@ int main(int argc, char* argv[]) {
 	printf("Omega = %e\n", omega);
 	printf("Period = %e days\n", period);
 
+	
+	double l1 = -std::numeric_limits<double>::max();
+	double l2 = -std::numeric_limits<double>::max();
+	double l3 = -std::numeric_limits<double>::max();
+	double l1_loc, l2_loc, l3_loc;
+
+	double c1_loc = x_[c1i] * loc[0] + y_[c1i] * loc[1]; 
+	double c2_loc = x_[c2i] * loc[0] + y_[c2i] * loc[1]; 
+
+	{	
+		const auto& phi = var_map_["phi"];
+		for( int i = 0; i < phi.size(); i++ ) {
+			double this_loc = x_[i] * loc[0] + y_[i] * loc[1];
+			if( in_loc_[i] ) {
+				double phi_eff = -omega * (x_[i] * x_[i] + y_[i] * y_[i]) + phi[i];
+				double* lptr;
+				double* loc_ptr;
+				if( (c1_loc < c2_loc && this_loc < c1_loc) || (c1_loc > c2_loc && this_loc > c1_loc) ) {
+					lptr = &l3;
+					loc_ptr = &l3_loc;
+				}  else if( (this_loc - c1_loc) * (this_loc - c2_loc) <= 0.0 ) {
+					lptr = &l1;
+					loc_ptr = &l1_loc;
+				} else {
+					lptr = &l2;
+					loc_ptr = &l2_loc;
+				}
+				if( phi_eff > *lptr ) {
+					*lptr = phi_eff;
+					*loc_ptr = this_loc;
+				}
+			}
+		}
+	}
+
+	printf( "L1 = %e @ %e\n", l1, l1_loc );
+	printf( "L2 = %e @ %e\n", l2, l2_loc );
+	printf( "L3 = %e @ %e\n", l3, l3_loc );
+
 	/* Close SILO */
 
 	DBClose(db_);
