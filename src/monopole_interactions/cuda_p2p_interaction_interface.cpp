@@ -45,7 +45,7 @@ namespace fmm {
 
                 // Launch kernel and queue copying of results
                 // const dim3 grid_spec(3);
-                const dim3 grid_spec(INX,1,1);
+                const dim3 grid_spec(INX/2,1,1);
                 const dim3 threads_per_block(1, INX, INX);
                 // void* args[] = {&(env.device_local_monopoles), &(env.device_blocked_monopoles),
                 //                 &theta, &dx};

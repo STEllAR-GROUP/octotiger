@@ -30,20 +30,7 @@ namespace fmm {
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
 
-            void blocked_interaction(
-                std::vector<real>& mons,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS,
-                    SOA_PADDING>& __restrict__ potential_expansions_SoA,    // L
-                const multiindex<>& __restrict__ cell_index,
-                const size_t cell_flat_index,    /// iii0
-                const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
-                const multiindex<>& __restrict__ cell_index_unpadded,
-                const size_t cell_flat_index_unpadded,
-                const std::vector<multiindex<>>& __restrict__ stencil,
-                const std::vector<std::array<real, 4>>& __restrict__ four_constants,
-                const size_t outer_stencil_index, real dx);
-
-            void non_blocked_interaction(
+            void cell_interactions(
                 std::vector<real>& mons,
                 struct_of_array_data<expansion, real, 20, INNER_CELLS,
                     SOA_PADDING>& __restrict__ potential_expansions_SoA,    // L
@@ -56,10 +43,6 @@ namespace fmm {
                 const std::vector<std::array<real, 4>>& __restrict__ four_constants,
                 const size_t outer_stencil_index, real dx);
 
-            void vectors_check_empty();
-
-            // void calculate_coarse_indices();
-
         public:
             p2p_cpu_kernel(std::vector<bool>& neighbor_empty);
 
@@ -70,12 +53,6 @@ namespace fmm {
             p2p_cpu_kernel operator=(const p2p_cpu_kernel& other) = delete;
 
             void apply_stencil(std::vector<real>& mons,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
-                    potential_expansions_SoA,
-                const std::vector<multiindex<>>& stencil, const
-                std::vector<std::array<real, 4>>& four,
-                real dx);
-            void apply_stencil_non_blocked(std::vector<real>& mons,
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
                     potential_expansions_SoA,
                 const std::vector<bool>& stencil, const
