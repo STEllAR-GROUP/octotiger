@@ -29,6 +29,8 @@ iterator_type begin();
 
 iterator_type end();
 
+const size_t size();
+
 void clear();
 
 

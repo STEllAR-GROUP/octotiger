@@ -33,6 +33,7 @@ bool grid::is_hydro_field(const std::string& str) {
 
 std::vector<std::pair<std::string, real>> grid::get_outflows() const {
 	std::vector<std::pair<std::string, real>> rc;
+    rc.reserve(str_to_index_hydro.size());
 	for (auto i = str_to_index_hydro.begin(); i != str_to_index_hydro.end(); i++) {
 		rc.push_back(std::make_pair(i->first, U_out[i->second]));
 	}
