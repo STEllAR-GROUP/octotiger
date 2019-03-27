@@ -49,7 +49,7 @@ std::array<double, 3> find_com() {
 	return com;
 }
 
-double find_omega(std::array<double,3> com) {
+double find_omega(std::array<double, 3> com) {
 	const auto& rho = var_map_["rho"];
 	const auto& sx = var_map_["sx"];
 	const auto& sy = var_map_["sy"];
@@ -61,8 +61,8 @@ double find_omega(std::array<double,3> com) {
 		const double y = y_[i] - com[1];
 		const double r2 = x * x + y * y;
 		const double this_omega = (x * sy[i] - y * sx[i]) / r2 / rho[i];
-		if( rho[i] > 1.0 ) {
-			printf( "%e\n", this_omega);
+		if (rho[i] > 1.0) {
+			printf("%e\n", this_omega);
 		}
 		I += rho[i] * V * r2;
 		l += (x * sy[i] - y * sx[i]) * V;
@@ -199,12 +199,18 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	int n_species;
+	long long n_species;
+	long long version;
 	double omega;
+	double code_to_s;
 
+	DBReadVar(db_, "version", (void*) &version);
 	DBReadVar(db_, "n_species", (void*) &n_species);
+	DBReadVar(db_, "code_to_s", (void*) &code_to_s);
 	DBReadVar(db_, "omega", (void*) &omega);
 	printf("Omega = %e\n", omega);
+	printf( "SILO version: %i\n", version);
+	printf( "N species   : %i\n", n_species);
 
 	printf("Reading table of contents\n");
 	DBmultimesh* mmesh = DBGetMultimesh(db_, "quadmesh");
@@ -233,6 +239,11 @@ int main(int argc, char* argv[]) {
 			auto& data = var_map_[qvar];
 			data.resize(data.size() + sz);
 			double* dest = &(data[data.size() - sz]);
+			if (version == 100 && (qvar == "sx" || qvar == "sy" || qvar == "sz")) {
+				for (int k = 0; k < sz; k++) {
+					(((double**) var->vals)[0])[k] *= code_to_s;
+				}
+			}
 			std::memcpy(dest, ((double**) var->vals)[0], sizeof(double) * sz);
 			DBFreeQuadvar(var);
 		}
