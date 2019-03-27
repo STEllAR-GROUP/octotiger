@@ -306,10 +306,16 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		auto time_start = std::chrono::high_resolution_clock::now();
 		if (!opts().disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			diagnostics();
-			printf("doing silo out...\n");
 			static bool first_call = true;
-			std::string fname = "X." + std::to_string(int(output_cnt));
-			output_all(fname, output_cnt, first_call);
+			if (opts().rewrite_silo || !first_call || (opts().restart_filename == "")) {
+				printf("doing silo out...\n");
+				std::string fname = "X." + std::to_string(int(output_cnt));
+				output_all(fname, output_cnt, first_call);
+				if( opts().rewrite_silo) {
+					printf( "Exiting after rewriting SILO\n");
+					return;
+				}
+			}
 			first_call = false;
 			++output_cnt;
 

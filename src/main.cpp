@@ -360,6 +360,9 @@ int hpx_main(int argc, char* argv[]) {
 				printf( "Re-grid\n");
 				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true, false);
 				printf("Done. \n");
+
+
+
 			} else {
 				for (integer l = 0; l < opts().max_level; ++l) {
 					ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
@@ -368,6 +371,10 @@ int hpx_main(int argc, char* argv[]) {
 				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
 				printf("---------------Re-gridded Level %i---------------\n\n", int(opts().max_level));
 			}
+			for (integer l = 0; l < opts().extra_regrid; ++l) {
+				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
+			}
+
 			if (opts().gravity) {
 				printf("solving gravity------------\n");
 				root->solve_gravity(false, false);

@@ -6,7 +6,9 @@
  */
 
 #define SILO_DRIVER DB_HDF5
-#define SILO_VERSION 100
+#define SILO_VERSION 101
+
+//101 - fixed units bug in momentum
 
 #include "octotiger/silo.hpp"
 #include "octotiger/node_registry.hpp"
@@ -25,6 +27,8 @@
 #include <vector>
 
 #define OUTPUT_ROCHE
+
+static int version_;
 
 std::string oct_to_str(node_location::node_id n) {
 	return hpx::util::format("{:llo}", n);
@@ -743,6 +747,12 @@ void output_stage3(std::string fname, int cycle) {
 
 void output_all(std::string fname, int cycle, bool block) {
 
+
+	if( opts().disable_output) {
+		printf( "Skipping SILO output\n");
+		return;
+	}
+
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
 	nsteps = node_registry::begin()->second.get_ptr().get()->get_step_num();
@@ -823,6 +833,10 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 					if( version > SILO_VERSION) {
 						printf( "WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
 					}
+					if( version == 100 ) {
+						printf( "Reading version 100 SILO - correcting momentum units\n" );
+					}
+					version_ = version;
 					opts().code_to_g = rr(db, "code_to_g");
 					opts().code_to_s = rr(db, "code_to_s");
 					opts().code_to_cm = rr(db, "code_to_cm");
@@ -898,7 +912,7 @@ node_server::node_server(const node_location& loc) :
 	assert(iter != node_dir_.end());
 
 	if (!iter->second.load) {
-		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+//		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		int nc = 0;
 		for (int ci = 0; ci < NCHILD; ci++) {
 			auto cloc = loc.get_child(ci);
@@ -920,7 +934,7 @@ node_server::node_server(const node_location& loc) :
 		}
 		assert(nc == 0 || nc == NCHILD);
 	} else {
-		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+//		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		silo_load_t load;
 		static const auto hydro_names = grid::get_hydro_field_names();
 		load.vars.resize(hydro_names.size());
@@ -945,7 +959,7 @@ node_server::node_server(const node_location& loc) :
 		if (load.nx == INX) {
 			is_refined = false;
 			for (integer f = 0; f < hydro_names.size(); f++) {
-				grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
+				grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
 				grid_ptr->set_outflow(std::move(load.outflows[f]));
 			}
 			grid_ptr->rho_from_species();
@@ -965,7 +979,7 @@ node_server::node_server(const node_location& loc) :
 
 node_server::node_server(const node_location& loc, silo_load_t load) :
 		my_location(loc) {
-	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+//	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 	const auto& localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
@@ -974,7 +988,7 @@ node_server::node_server(const node_location& loc, silo_load_t load) :
 	if (load.nx == INX) {
 		is_refined = false;
 		for (integer f = 0; f < hydro_names.size(); f++) {
-			grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
+			grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
 			grid_ptr->set_outflow(std::move(load.outflows[f]));
 		}
 		grid_ptr->rho_from_species();
@@ -1020,7 +1034,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 		std::set<node_location::node_id> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
 			const node_location::node_id num = std::strtoll(master_mesh->meshnames[i] + 1, nullptr, 8);
-			printf("%lli\n", num);
+//			printf("%lli\n", num);
 			load_locs.insert(num);
 		}
 		for (int i = 0; i < node_list.size(); i++) {

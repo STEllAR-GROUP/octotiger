@@ -37,7 +37,9 @@ public:
 	bool compress_silo;
 	bool v1309;
 	bool rad_implicit;
+	bool rewrite_silo;
 
+	integer extra_regrid;
 	integer accretor_refine;
 	integer donor_refine;
 	integer max_level;
@@ -91,6 +93,7 @@ public:
 		arc & dual_energy_sw1;
 		arc & dual_energy_sw2;
 		arc & hard_dt;
+		arc & rewrite_silo;
 		arc & rad_implicit;
 		arc & n_fields;
 		arc & n_species;
@@ -127,6 +130,7 @@ public:
 		arc & theta;
 		arc & core_refine;
 		arc & donor_refine;
+		arc & extra_regrid;
 		arc & accretor_refine;
 		int tmp = problem;
 		arc & tmp;
