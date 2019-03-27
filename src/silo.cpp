@@ -647,11 +647,7 @@ void output_stage3(std::string fname, int cycle) {
 				std::vector<std::vector<int*>> connections(nleaves);
 				std::vector<int*> linear_connections;
 				std::vector<std::vector<int>> tmp;
-				for( int n = 0; n < nleaves; n++) {
-                  neighbor_lists[n].reserve(50);
-                  back_lists[n].reserve(50);
-                }
-                tmp.reserve(nleaves * 50 * 2);
+                tmp.reserve(nleaves);
 				for( int n = 0; n < nleaves; n++) {
 					for( int m = n+1; m < nleaves; m++) {
 						range_type rn, rm, i;
@@ -687,9 +683,9 @@ void output_stage3(std::string fname, int cycle) {
 						}
 					}
 				}
-                linear_neighbor_list.reserve(nleaves * 50);
-                linear_back_list.reserve(nleaves * 50);
-                linear_connections.reserve(nleaves * 50);
+                linear_neighbor_list.reserve(nleaves);
+                linear_back_list.reserve(nleaves);
+                linear_connections.reserve(nleaves);
 				for( int n = 0; n < nleaves; n++) {
 					for( int m = 0; m < neighbor_count[n]; m++ ) {
 						linear_neighbor_list.push_back(neighbor_lists[n][m]);
