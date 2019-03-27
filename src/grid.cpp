@@ -102,12 +102,18 @@ std::vector<std::string> grid::get_hydro_field_names() {
 	return rc;
 }
 
-void grid::set(const std::string name, real* data) {
+void grid::set(const std::string name, real* data, int version) {
 	auto iter = str_to_index_hydro.find(name);
-	const real unit = convert_hydro_units(iter->second);
+	real unit = convert_hydro_units(iter->second);
+
 	if (iter != str_to_index_hydro.end()) {
 		int f = iter->second;
 		int jjj = 0;
+
+		/* Correct for bugfix across versions */				
+		if( version == 100 && f >= sx_i && f <= sz_i ) {
+			unit *= opts().code_to_s;
+		}
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
@@ -141,7 +147,7 @@ real grid::convert_hydro_units(int i) {
 		if (i >= spc_i && i <= spc_i + opts().n_species) {
 			val *= g / (cm * cm * cm);
 		} else if (i >= sx_i && i <= sz_i) {
-			val *= g / (s * s * cm * cm);
+			val *= g / (s * cm * cm);
 		} else if (i == egas_i || (i >= zx_i && i <= zz_i)) {
 			val *= g / (s * s * cm);
 		} else if (i == tau_i) {
@@ -212,6 +218,8 @@ std::vector<silo_var_t> grid::var_data() const {
 	for (auto l : str_to_index_hydro) {
 		unit = convert_hydro_units(l.second);
 		const int f = l.second;
+
+
 		std::string this_name = l.first;
 		int jjj = 0;
 		silo_var_t this_s(this_name);
