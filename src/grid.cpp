@@ -112,7 +112,7 @@ void grid::set(const std::string name, real* data, int version) {
 
 		/* Correct for bugfix across versions */				
 		if( version == 100 && f >= sx_i && f <= sz_i ) {
-			unit *= opts().code_to_s;
+			unit /= opts().code_to_s;
 		}
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {

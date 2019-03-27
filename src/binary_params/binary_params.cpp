@@ -25,6 +25,7 @@ array_type<> x_, y_, z_, dx_;
 array_type<bool> in_plane_;
 array_type<bool> in_loc_;
 array_type<double> loc_x_;
+double rho_mid_;
 
 static DBfile* db_;
 
@@ -56,16 +57,16 @@ double find_omega(std::array<double, 3> com) {
 	double I = 0.0;
 	double l = 0.0;
 	for (int i = 0; i < rho.size(); i++) {
-		const double V = std::pow(dx_[i], 3);
-		const double x = x_[i] - com[0];
-		const double y = y_[i] - com[1];
-		const double r2 = x * x + y * y;
-		const double this_omega = (x * sy[i] - y * sx[i]) / r2 / rho[i];
-		if (rho[i] > 1.0) {
-			printf("%e\n", this_omega);
+		if (rho[i] > 1.) {
+			const double V = std::pow(dx_[i], 3);
+			const double x = x_[i] - com[0];
+			const double y = y_[i] - com[1];
+			const double r2 = x * x + y * y;
+			const double this_omega = (x * sy[i] - y * sx[i]) / r2 / rho[i];
+			I += rho[i] * V * r2;
+			l += (x * sy[i] - y * sx[i]) * V;
 		}
-		I += rho[i] * V * r2;
-		l += (x * sy[i] - y * sx[i]) * V;
+
 	}
 	printf("%e %e\n", l, I);
 	return l / I;
@@ -165,15 +166,34 @@ double sum_all(const std::string var_name) {
 	return sum;
 }
 
-double max_all(const std::string var_name, bool plane_only = false) {
+std::pair<double, int> max_all(const std::string var_name, bool plane_only = false) {
 	const auto var = var_map_[var_name];
 	double max = -std::numeric_limits<double>::max();
+	int max_i = 0;
 	for (int i = 0; i < var.size(); i++) {
 		if (!plane_only || in_plane_[i]) {
-			max = std::max(max, var[i]);
+			if (max < var[i]) {
+				max = var[i];
+				max_i = i;
+			}
 		}
 	}
-	return max;
+	return std::pair<double, int>(max, max_i);
+}
+
+std::pair<double, int> min_all(const std::string var_name, bool plane_only = false) {
+	const auto var = var_map_[var_name];
+	double min = +std::numeric_limits<double>::max();
+	int min_i = 0;
+	for (int i = 0; i < var.size(); i++) {
+		if (!plane_only || in_plane_[i]) {
+			if (min > var[i]) {
+				min = var[i];
+				min_i = i;
+			}
+		}
+	}
+	return std::pair<double, int>(min, min_i);
 }
 
 std::string strip_nonnumeric(std::string&& s) {
@@ -209,8 +229,8 @@ int main(int argc, char* argv[]) {
 	DBReadVar(db_, "code_to_s", (void*) &code_to_s);
 	DBReadVar(db_, "omega", (void*) &omega);
 	printf("Omega = %e\n", omega);
-	printf( "SILO version: %i\n", version);
-	printf( "N species   : %i\n", n_species);
+	printf("SILO version: %i\n", version);
+	printf("N species   : %i\n", n_species);
 
 	printf("Reading table of contents\n");
 	DBmultimesh* mmesh = DBGetMultimesh(db_, "quadmesh");
@@ -285,7 +305,19 @@ int main(int argc, char* argv[]) {
 
 	printf("Mass sum = %e\n\n\n\n", sum_all("rho"));
 
-	printf("Max rho = %e\n", max_all("rho"));
+	auto rho_max = max_all("rho").first;
+	auto rho_min = min_all("rho").first;
+	rho_mid_ = std::sqrt(rho_max * rho_min);
+
+	printf( "rho_max = %e\n", rho_max);
+	printf( "rho_mid = %e\n", rho_mid_);
+	printf( "rho_min = %e\n", rho_min);
+
+	auto c1i = max_all("rho_1").second;
+	auto c2i = max_all("rho_3").second;
+
+	printf("c1 at %e %e %e\n", x_[c1i], y_[c1i], z_[c1i]);
+	printf("c2 at %e %e %e\n", x_[c2i], y_[c2i], z_[c2i]);
 
 	printf("Mass sum = %e\n", sum_all("rho_1") / 2e33);
 	printf("Mass sum = %e\n", sum_all("rho_2") / 2e33);
