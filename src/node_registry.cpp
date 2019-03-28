@@ -42,10 +42,6 @@ iterator_type end() {
 	return table_.end();
 }
 
-const size_t size() {
-  return table_.size();
-}
-
 void clear_();
 
 }
