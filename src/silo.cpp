@@ -348,7 +348,6 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".") + std::to_string(INX) + std::string(".silo");
 	all_mesh_vars.clear();
-    all_mesh_vars.reserve(futs_.size());
 	for (auto& this_fut : futs_) {
 		all_mesh_vars.push_back(std::move(GET(this_fut)));
 	}
@@ -358,10 +357,6 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	}
 	node_list_t nl;
 	nl.extents.resize(nfields);
-    ids.reserve(all_mesh_vars.size());
-	for (int f = 0; f < nfields; f++) {
-      nl.extents[f].reserve(all_mesh_vars.size() * 2);
-    }
 	for (const auto& mv : all_mesh_vars) {
 		ids.push_back(mv.location.to_id());
 		nl.zone_count.push_back(mv.var_dims[0] * mv.var_dims[1] * mv.var_dims[2]);
@@ -374,8 +369,6 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	}
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
-    all.reserve(node_registry::size());
-    positions.reserve(node_registry::size());
 	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
 		all.push_back(i->first.to_id());
 		positions.push_back(i->second.get_ptr().get()->get_position());
@@ -500,16 +493,12 @@ void output_stage3(std::string fname, int cycle) {
 #ifdef OUTPUT_ROCHE
 				std::vector<char*> roche_names;
 #endif
-                node_locs.reserve(node_list_.silo_leaves.size());
 				for (auto& i : node_list_.silo_leaves) {
 					node_location nloc;
 					nloc.from_id(i);
 					node_locs.push_back(nloc);
 				}
 				const auto top_field_names = grid::get_field_names();
-                mesh_names.reserve(node_locs.size());
-				for (int f = 0; f < nfields; f++)
-                    field_names[f].reserve(node_locs.size());
 				for (int i = 0; i < node_locs.size(); i++) {
 					const auto suffix = oct_to_str(node_locs[i].to_id());
 					const auto str = "/" + suffix + "/quadmesh";
@@ -541,7 +530,6 @@ void output_stage3(std::string fname, int cycle) {
 			int six = 2 * NDIM;
 			assert( n_total_domains > 0 );
 			std::vector<double> extents;
-            extents.reserve(node_locs.size() * 6);
 			for( const auto& n : node_locs ) {
 				const real scale = opts().xscale * opts().code_to_cm;
 				const double xmin = n.x_location(0)*scale;
@@ -651,7 +639,6 @@ void output_stage3(std::string fname, int cycle) {
 				std::vector<std::vector<int*>> connections(nleaves);
 				std::vector<int*> linear_connections;
 				std::vector<std::vector<int>> tmp;
-                tmp.reserve(nleaves);
 				for( int n = 0; n < nleaves; n++) {
 					for( int m = n+1; m < nleaves; m++) {
 						range_type rn, rm, i;
@@ -687,9 +674,6 @@ void output_stage3(std::string fname, int cycle) {
 						}
 					}
 				}
-                linear_neighbor_list.reserve(nleaves);
-                linear_back_list.reserve(nleaves);
-                linear_connections.reserve(nleaves);
 				for( int n = 0; n < nleaves; n++) {
 					for( int m = 0; m < neighbor_count[n]; m++ ) {
 						linear_neighbor_list.push_back(neighbor_lists[n][m]);
@@ -718,9 +702,6 @@ void output_stage3(std::string fname, int cycle) {
 				auto exps1 = grid::get_scalar_expressions();
 				auto exps2 = grid::get_vector_expressions();
 //				decltype(exps1) exps;
-                types.reserve(exps1.size() + exps2.size());
-                names.reserve(exps1.size() + exps2.size());
-                defs.reserve(exps1.size() + exps2.size());
 //				for( auto& e : exps1 ) {
 //					exps.push_back(std::move(e));
 //				}
@@ -796,19 +777,24 @@ void output_all(std::string fname, int cycle, bool block) {
 	node_list_.extents.clear();
 	for (auto& f : id_futs) {
 		node_list_t this_list = GET(f);
-        node_list_.silo_leaves.insert(node_list_.silo_leaves.end(), this_list.silo_leaves.begin(),
-                                      this_list.silo_leaves.end());
-        node_list_.all.insert(node_list_.all.end(), this_list.all.begin(),
-                                      this_list.all.end());
-        node_list_.positions.insert(node_list_.positions.end(), this_list.positions.begin(),
-                                      this_list.positions.end());
-        node_list_.zone_count.insert(node_list_.zone_count.end(), this_list.zone_count.begin(),
-                                      this_list.zone_count.end());
+		for (auto& i : this_list.silo_leaves) {
+			node_list_.silo_leaves.push_back(i);
+		}
+		for (auto& i : this_list.all) {
+			node_list_.all.push_back(i);
+		}
+		for (auto& i : this_list.positions) {
+			node_list_.positions.push_back(i);
+		}
+		for (auto& i : this_list.zone_count) {
+			node_list_.zone_count.push_back(i);
+		}
 		const int nfields = grid::get_field_names().size();
 		node_list_.extents.resize(nfields);
 		for (int f = 0; f < this_list.extents.size(); f++) {
-            node_list_.extents[f].insert(node_list_.extents[f].end(), this_list.extents[f].begin(),
-                                        this_list.extents[f].end());
+			for (auto& i : this_list.extents[f]) {
+				node_list_.extents[f].push_back(i);
+			}
 		}
 	}
 	barrier = hpx::async([cycle,fname]() {
@@ -1140,3 +1126,4 @@ std::vector<silo_load_t> silo_load_t::decompress() {
 	outflows.clear();
 	return std::move(children);
 }
+
