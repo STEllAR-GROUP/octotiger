@@ -83,6 +83,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
+	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
@@ -128,7 +129,7 @@ bool options::process_options(int argc, char* argv[]) {
 	po::store(po::parse_command_line(argc, argv, command_opts), vm);
 	po::notify(vm);
 	if (vm.count("help")) {
-		std::cout << command_opts << "\n";
+		printf( "%s\n", command_opts );
 		exit(0);
 	}
 	if (!config_file.empty()) {
@@ -136,7 +137,7 @@ bool options::process_options(int argc, char* argv[]) {
 		if (ifs) {
 			store(parse_config_file(ifs, command_opts), vm);
 		} else {
-			std::cout << "Configuration file \"" << config_file << " not found!\n";
+			printf( "Configuration file %s  not found!\n", config_file );
 			exit(0);
 		}
 	}

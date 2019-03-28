@@ -6,7 +6,9 @@
  */
 
 #define SILO_DRIVER DB_HDF5
-#define SILO_VERSION 100
+#define SILO_VERSION 101
+
+//101 - fixed units bug in momentum
 
 #include "octotiger/silo.hpp"
 #include "octotiger/node_registry.hpp"
@@ -25,6 +27,8 @@
 #include <vector>
 
 #define OUTPUT_ROCHE
+
+static int version_;
 
 std::string oct_to_str(node_location::node_id n) {
 	return hpx::util::format("{:llo}", n);
@@ -843,6 +847,10 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 					if( version > SILO_VERSION) {
 						printf( "WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
 					}
+					if( version == 100 ) {
+						printf( "Reading version 100 SILO - correcting momentum units\n" );
+					}
+					version_ = version;
 					opts().code_to_g = rr(db, "code_to_g");
 					opts().code_to_s = rr(db, "code_to_s");
 					opts().code_to_cm = rr(db, "code_to_cm");
@@ -965,7 +973,7 @@ node_server::node_server(const node_location& loc) :
 		if (load.nx == INX) {
 			is_refined = false;
 			for (integer f = 0; f < hydro_names.size(); f++) {
-				grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
+				grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
 				grid_ptr->set_outflow(std::move(load.outflows[f]));
 			}
 			grid_ptr->rho_from_species();
@@ -994,7 +1002,7 @@ node_server::node_server(const node_location& loc, silo_load_t load) :
 	if (load.nx == INX) {
 		is_refined = false;
 		for (integer f = 0; f < hydro_names.size(); f++) {
-			grid_ptr->set(load.vars[f].first, load.vars[f].second.data());
+			grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
 			grid_ptr->set_outflow(std::move(load.outflows[f]));
 		}
 		grid_ptr->rho_from_species();
