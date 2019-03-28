@@ -66,6 +66,7 @@ public:
 
     size_t cuda_streams_per_locality;
 	size_t cuda_streams_per_gpu;
+	size_t cuda_scheduling_threads;
 
 	std::string input_file;
 	std::string config_file;
@@ -144,6 +145,7 @@ public:
 		arc & p2m_kernel_type;
 		arc & cuda_streams_per_locality;
 		arc & cuda_streams_per_gpu;
+		arc & cuda_scheduling_threads;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;

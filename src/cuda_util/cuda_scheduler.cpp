@@ -94,97 +94,105 @@ namespace octotiger {
             if (is_initialized)
                 return;
             // Determine what the scheduler has to manage
-            const size_t total_worker_count = hpx::get_os_thread_count();
+            // const size_t total_worker_count = hpx::get_os_thread_count();
             const size_t worker_id = hpx::get_worker_thread_num();
             const size_t streams_per_locality = opts().cuda_streams_per_locality;
             size_t streams_per_gpu = opts().cuda_streams_per_gpu;
-            if (streams_per_gpu == 0)
-                streams_per_gpu = streams_per_locality;
-            if (streams_per_locality > 0) { // is cuda activated?
-                size_t gpu_count = streams_per_locality / streams_per_gpu;
-                // handle remaining streams by putting it on the next gpu
-                if (streams_per_locality % streams_per_gpu != 0)
-                    gpu_count++;
-                // How many streams does each worker handle?
-                size_t number_of_streams_managed = streams_per_locality / total_worker_count;
-                const size_t remaining_streams = streams_per_locality % total_worker_count;
-                // if there are remaining streams, each worker receives one of them until there an
-                // non left
-                size_t offset = 0;
-                if (remaining_streams != 0) {
-                    if (worker_id < remaining_streams)
-                        // offset indicates that the current worker will get one of the remaining extra streams
-                        offset = 1;
-                }
 
-                const size_t accumulated_offset =
-                    worker_id < remaining_streams ? worker_id : remaining_streams;
-                const size_t worker_stream_id =
-                                worker_id * number_of_streams_managed + accumulated_offset;
-                const size_t gpu_id = (worker_stream_id) / streams_per_gpu;
-                // increase the number of streams by one of the remaining streams if necessary
-                number_of_streams_managed += offset;
-                std::cout << "Worker " << worker_id << " uses gpu " << gpu_id << " with "
-                          << number_of_streams_managed << " streams "<< std::endl;
-
-                // Number of streams the current HPX worker thread has to handle
-                number_cuda_streams_managed = number_of_streams_managed;
-                number_slots = number_cuda_streams_managed * slots_per_cuda_stream;
-
-                // Get one slot per stream to handle the data on the cpu
-                local_expansions_slots =
-                    std::vector<struct_of_array_data<expansion, real, 20, ENTRIES,
-                                                     SOA_PADDING,
-                                                     std::vector<real, cuda_pinned_allocator<real>>>>(number_slots);
-                center_of_masses_slots =
-                    std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                                                     std::vector<real, cuda_pinned_allocator<real>>>>(number_slots);
-                local_monopole_slots =
-                    std::vector<std::vector<real, cuda_pinned_allocator<real>>>(number_slots);
-                for (std::vector<real, cuda_pinned_allocator<real>>& mons : local_monopole_slots) {
-                    mons = std::vector<real, cuda_pinned_allocator<real>>(ENTRIES);
-                }
-
-                // Get one kernel enviroment per stream to handle the data on the gpu
-                kernel_device_enviroments = std::vector<kernel_device_enviroment>(number_slots);
-                size_t cur_interface = 0;
-                // Todo: Remove slots
-                size_t cur_slot = 0;
-
-                // Allocate buffers on the gpus - once per stream
-                size_t local_stream_id = 0;
-                stream_interfaces.reserve(number_cuda_streams_managed);
-                for (kernel_device_enviroment& env : kernel_device_enviroments) {
-                    const size_t worker_gpu_id = (worker_stream_id + local_stream_id) / streams_per_gpu;
-                    util::cuda_helper::cuda_error(cudaSetDevice(worker_gpu_id));
-                    stream_interfaces.emplace_back(worker_gpu_id);
-
-                    // Allocate memory on device
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_local_monopoles), local_monopoles_size));
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_local_expansions), local_expansions_size));
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_center_of_masses), center_of_masses_size));
-                    util::cuda_helper::cuda_error(cudaMalloc(
-                                                      (void**) &(env.device_potential_expansions), potential_expansions_size));
-                    util::cuda_helper::cuda_error(cudaMalloc(
-                                                      (void**) &(env.device_angular_corrections), angular_corrections_size));
-
-                    util::cuda_helper::cuda_error(cudaMalloc(
-                                                      (void**) &(env.device_blocked_monopoles), 3 * potential_expansions_small_size));
-
-                    // Change stream interface if necessary
-                    local_stream_id++;
-                    cur_slot++;
-                    if (cur_slot >= slots_per_cuda_stream) {
-                        //util::cuda_helper::cuda_error(cudaThreadSynchronize());
-                        cur_slot = 0;
-                        cur_interface++;
+            number_cuda_streams_managed = 0;
+            size_t total_worker_count = opts().cuda_scheduling_threads;
+            if (total_worker_count == 0 && streams_per_locality != 0) {
+                total_worker_count = hpx::get_os_thread_count();
+            }
+            if (worker_id < total_worker_count) {
+                if (streams_per_gpu == 0)
+                    streams_per_gpu = streams_per_locality;
+                if (streams_per_locality > 0) { // is cuda activated?
+                    size_t gpu_count = streams_per_locality / streams_per_gpu;
+                    // handle remaining streams by putting it on the next gpu
+                    if (streams_per_locality % streams_per_gpu != 0)
+                        gpu_count++;
+                    // How many streams does each worker handle?
+                    size_t number_of_streams_managed = streams_per_locality / total_worker_count;
+                    const size_t remaining_streams = streams_per_locality % total_worker_count;
+                    // if there are remaining streams, each worker receives one of them until there an
+                    // non left
+                    size_t offset = 0;
+                    if (remaining_streams != 0) {
+                        if (worker_id < remaining_streams)
+                            // offset indicates that the current worker will get one of the remaining extra streams
+                            offset = 1;
                     }
+
+                    const size_t accumulated_offset =
+                        worker_id < remaining_streams ? worker_id : remaining_streams;
+                    const size_t worker_stream_id =
+                                    worker_id * number_of_streams_managed + accumulated_offset;
+                    const size_t gpu_id = (worker_stream_id) / streams_per_gpu;
+                    // increase the number of streams by one of the remaining streams if necessary
+                    number_of_streams_managed += offset;
+                    std::cout << "Worker " << worker_id << " uses gpu " << gpu_id << " with "
+                              << number_of_streams_managed << " streams "<< std::endl;
+
+                    // Number of streams the current HPX worker thread has to handle
+                    number_cuda_streams_managed = number_of_streams_managed;
+                    number_slots = number_cuda_streams_managed * slots_per_cuda_stream;
+
+                    // Get one slot per stream to handle the data on the cpu
+                    local_expansions_slots =
+                        std::vector<struct_of_array_data<expansion, real, 20, ENTRIES,
+                                                         SOA_PADDING,
+                                                         std::vector<real, cuda_pinned_allocator<real>>>>(number_slots);
+                    center_of_masses_slots =
+                        std::vector<struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                                                         std::vector<real, cuda_pinned_allocator<real>>>>(number_slots);
+                    local_monopole_slots =
+                        std::vector<std::vector<real, cuda_pinned_allocator<real>>>(number_slots);
+                    for (std::vector<real, cuda_pinned_allocator<real>>& mons : local_monopole_slots) {
+                        mons = std::vector<real, cuda_pinned_allocator<real>>(ENTRIES);
+                    }
+
+                    // Get one kernel enviroment per stream to handle the data on the gpu
+                    kernel_device_enviroments = std::vector<kernel_device_enviroment>(number_slots);
+                    size_t cur_interface = 0;
+                    // Todo: Remove slots
+                    size_t cur_slot = 0;
+
+                    // Allocate buffers on the gpus - once per stream
+                    size_t local_stream_id = 0;
+                    stream_interfaces.reserve(number_cuda_streams_managed);
+                    for (kernel_device_enviroment& env : kernel_device_enviroments) {
+                        const size_t worker_gpu_id = (worker_stream_id + local_stream_id) / streams_per_gpu;
+                        util::cuda_helper::cuda_error(cudaSetDevice(worker_gpu_id));
+                        stream_interfaces.emplace_back(worker_gpu_id);
+
+                        // Allocate memory on device
+                        util::cuda_helper::cuda_error(
+                            cudaMalloc((void**) &(env.device_local_monopoles), local_monopoles_size));
+                        util::cuda_helper::cuda_error(
+                            cudaMalloc((void**) &(env.device_local_expansions), local_expansions_size));
+                        util::cuda_helper::cuda_error(
+                            cudaMalloc((void**) &(env.device_center_of_masses), center_of_masses_size));
+                        util::cuda_helper::cuda_error(cudaMalloc(
+                                                          (void**) &(env.device_potential_expansions), potential_expansions_size));
+                        util::cuda_helper::cuda_error(cudaMalloc(
+                                                          (void**) &(env.device_angular_corrections), angular_corrections_size));
+
+                        util::cuda_helper::cuda_error(cudaMalloc(
+                                                          (void**) &(env.device_blocked_monopoles), 3 * potential_expansions_small_size));
+
+                        // Change stream interface if necessary
+                        local_stream_id++;
+                        cur_slot++;
+                        if (cur_slot >= slots_per_cuda_stream) {
+                            //util::cuda_helper::cuda_error(cudaThreadSynchronize());
+                            cur_slot = 0;
+                            cur_interface++;
+                        }
+                    }
+                    // continue when all cuda things are handled
+                    util::cuda_helper::cuda_error(cudaThreadSynchronize());
                 }
-                // continue when all cuda things are handled
-                util::cuda_helper::cuda_error(cudaThreadSynchronize());
             }
             is_initialized = true;
         }

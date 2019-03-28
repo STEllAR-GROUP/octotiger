@@ -113,6 +113,8 @@ bool options::process_options(int argc, char* argv[]) {
 			"cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)),
 			"cuda streams per GPU (per locality)") //
+	("cuda_scheduling_threads", po::value<size_t>(&(opts().cuda_scheduling_threads))->default_value(size_t(0)),
+			"Number of worker threads per locality that mamage cuda streams") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value<integer>(&(opts().n_species))->default_value(1), "number of mass species") //
