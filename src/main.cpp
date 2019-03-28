@@ -295,7 +295,7 @@ std::array<size_t, 6> analyze_local_launch_counters() {
     if (total_multipole_cpu_launches + total_multipole_cuda_launches > 0) {
         float percentage = static_cast<float>(total_multipole_cuda_launches) /
             (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
-        std::cout << "=> Percentage of multipole on the GPU on locality " << hpx::get_locality_id() << ":" << percentage * 100 << "\n";
+        std::cout << "=> Percentage of multipole on the GPU on locality " << hpx::get_locality_id() << ": " << percentage * 100 << "\n";
     }
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Total non-rho-multipole launches on locality " << hpx::get_locality_id() << ": "
@@ -305,7 +305,7 @@ std::array<size_t, 6> analyze_local_launch_counters() {
     if (total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho > 0) {
         float percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
             (static_cast<float>(total_multipole_cuda_launches_non_rho) + total_multipole_cpu_launches_non_rho);
-        std::cout << "=> Percentage of non-rho-multipole on the GPU on locality " << hpx::get_locality_id() << ":" << percentage * 100 << "\n";
+        std::cout << "=> Percentage of non-rho-multipole on the GPU on locality " << hpx::get_locality_id() << ": " << percentage * 100 << "\n";
     }
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Total p2p launches on locality " << hpx::get_locality_id() << ": "
