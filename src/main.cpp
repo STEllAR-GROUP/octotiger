@@ -95,7 +95,6 @@ std::size_t init_thread_local_worker(std::size_t desired)
 }
 HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
 
-#ifdef OCTOTIGER_HAVE_CUDA
 std::array<size_t, 7> sum_counters_worker(std::size_t desired)
 {
     std::array<size_t, 7> ret;
@@ -110,9 +109,9 @@ std::array<size_t, 7> sum_counters_worker(std::size_t desired)
     if (current == desired)
     {
         using cuda_multi_intfc = octotiger::fmm::multipole_interactions::
-            cuda_multipole_interaction_interface;
+            multipole_interaction_interface;
         using cuda_mono_intfc = octotiger::fmm::monopole_interactions::
-            cuda_p2p_interaction_interface;
+            p2p_interaction_interface;
 
         ret[0] = desired;
         ret[1] = cuda_multi_intfc::cpu_launch_counter;
@@ -131,7 +130,6 @@ std::array<size_t, 7> sum_counters_worker(std::size_t desired)
     return ret;
 }
 HPX_PLAIN_ACTION(sum_counters_worker, sum_counters_worker_action);
-#endif
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	scf_options::read_option_file();
@@ -246,7 +244,6 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 }
 
 std::array<size_t, 6> analyze_local_launch_counters() {
-#ifdef OCTOTIGER_HAVE_CUDA
     std::size_t const os_threads = hpx::get_os_thread_count();
     hpx::naming::id_type const here = hpx::find_here();
     std::set<std::size_t> attendance;
@@ -318,7 +315,6 @@ std::array<size_t, 6> analyze_local_launch_counters() {
         std::cout << "=> Percentage of p2p on the GPU on locality " << hpx::get_locality_id() << ": " << percentage * 100 << "\n";
     }
     return results;
-#endif
 }
 HPX_PLAIN_ACTION(analyze_local_launch_counters, analyze_local_launch_counters_action);
 

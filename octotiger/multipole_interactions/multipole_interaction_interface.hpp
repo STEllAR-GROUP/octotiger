@@ -35,6 +35,12 @@ namespace fmm {
             void set_grid_ptr(std::shared_ptr<grid> ptr) {
                 grid_ptr = ptr;
             }
+        public:
+            static thread_local size_t cpu_launch_counter;
+            static thread_local size_t cuda_launch_counter;
+            static thread_local size_t cpu_launch_counter_non_rho;
+            static thread_local size_t cuda_launch_counter_non_rho;
+
 
         protected:
             /// Converts AoS input data into SoA data

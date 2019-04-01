@@ -12,11 +12,6 @@
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        thread_local size_t cuda_multipole_interaction_interface::cpu_launch_counter = 0;
-        thread_local size_t cuda_multipole_interaction_interface::cuda_launch_counter = 0;
-        thread_local size_t cuda_multipole_interaction_interface::cpu_launch_counter_non_rho = 0;
-        thread_local size_t cuda_multipole_interaction_interface::cuda_launch_counter_non_rho = 0;
-
 
         cuda_multipole_interaction_interface::cuda_multipole_interaction_interface(void)
           : multipole_interaction_interface()
@@ -33,10 +28,6 @@ namespace fmm {
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
             if (slot == -1 || m2m_type == interaction_kernel_type::OLD) {    // Run fallback cpu implementation
-                if (type == RHO)
-                    cpu_launch_counter++;
-                else
-                    cpu_launch_counter_non_rho++;
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
             } else {    // run on cuda device
