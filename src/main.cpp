@@ -354,8 +354,8 @@ void accumulate_distributed_counters(void) {
     std::cout << "========================================" << std::endl;
     std::cout << "Total multipole launches: "
               << total_multipole_cpu_launches + total_multipole_cuda_launches << std::endl;
-    std::cout << "CPU multipole launches " << total_multipole_cpu_launches << std::endl;
-    std::cout << "CUDA multipole launches " << total_multipole_cuda_launches << std::endl;
+    std::cout << "CPU multipole launches: " << total_multipole_cpu_launches << std::endl;
+    std::cout << "CUDA multipole launches: " << total_multipole_cuda_launches << std::endl;
     if (total_multipole_cpu_launches + total_multipole_cuda_launches > 0) {
         float percentage = static_cast<float>(total_multipole_cuda_launches) /
             (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
@@ -364,8 +364,8 @@ void accumulate_distributed_counters(void) {
     std::cout << "========================================" << std::endl;
     std::cout << "Total non-rho-multipole launches: "
               << total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho << std::endl;
-    std::cout << "CPU non-rho-multipole launches " << total_multipole_cpu_launches_non_rho << std::endl;
-    std::cout << "CUDA non-rho-multipole launches " << total_multipole_cuda_launches_non_rho << std::endl;
+    std::cout << "CPU non-rho-multipole launches: " << total_multipole_cpu_launches_non_rho << std::endl;
+    std::cout << "CUDA non-rho-multipole launches: " << total_multipole_cuda_launches_non_rho << std::endl;
     if (total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho > 0) {
         float percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
             (static_cast<float>(total_multipole_cuda_launches_non_rho) + total_multipole_cpu_launches_non_rho);
@@ -374,8 +374,8 @@ void accumulate_distributed_counters(void) {
     std::cout << "========================================" << std::endl;
     std::cout << "Total p2p launches: "
               << total_p2p_cpu_launches + total_p2p_cuda_launches << std::endl;
-    std::cout << "CPU p2p launches " << total_p2p_cpu_launches << std::endl;
-    std::cout << "CUDA p2p launches " << total_p2p_cuda_launches << std::endl;
+    std::cout << "CPU p2p launches: " << total_p2p_cpu_launches << std::endl;
+    std::cout << "CUDA p2p launches: " << total_p2p_cuda_launches << std::endl;
     if (total_p2p_cpu_launches + total_p2p_cuda_launches > 0) {
         float percentage = static_cast<float>(total_p2p_cuda_launches) /
             (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
