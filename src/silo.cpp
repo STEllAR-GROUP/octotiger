@@ -1021,6 +1021,7 @@ node_server::node_server(const node_location& loc, silo_load_t load) :
 }
 
 void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
+	timings::scope ts(root_ptr->timings_, timings::time_total);
 	const integer nprocs = opts().all_localities.size();
 	static int sz = localities.size();
 	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), SILO_DRIVER, DB_READ));

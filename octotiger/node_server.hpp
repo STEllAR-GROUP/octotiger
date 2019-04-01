@@ -104,7 +104,6 @@ private:
 	channel<real> global_timestep_channel;
 	std::array<channel<real>, NCHILD + 1> local_timestep_channels;
 
-	timings timings_;
 	real dt_;
 
 	octotiger::fmm::monopole_interactions::p2m_interaction_interface p2m_interactor;
@@ -116,6 +115,8 @@ private:
 	octotiger::fmm::monopole_interactions::p2p_interaction_interface p2p_interactor;
 #endif
 public:
+	timings timings_;
+
 	real get_time() const {
 		return current_time;
 	}
