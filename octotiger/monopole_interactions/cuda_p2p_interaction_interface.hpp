@@ -30,10 +30,6 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty);
 
-        public:
-            static thread_local size_t cpu_launch_counter;
-            static thread_local size_t cuda_launch_counter;
-
         protected:
             real theta;
             /// Host-side pinned memory buffer for potential expansions results

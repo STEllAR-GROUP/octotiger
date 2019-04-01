@@ -10,9 +10,6 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        thread_local size_t cuda_p2p_interaction_interface::cpu_launch_counter = 0;
-        thread_local size_t cuda_p2p_interaction_interface::cuda_launch_counter = 0;
-
         cuda_p2p_interaction_interface::cuda_p2p_interaction_interface(void)
           : p2p_interaction_interface()
           , theta(opts().theta) {
@@ -25,7 +22,6 @@ namespace fmm {
             // Check where we want to run this:
             int slot = kernel_scheduler::scheduler.get_launch_slot();
             if (slot == -1 || p2p_type == interaction_kernel_type::OLD) {    // Run cpu implementation
-                cpu_launch_counter++;
                 p2p_interaction_interface::compute_p2p_interactions(
                     monopoles, neighbors, type, dx, is_direction_empty);
             } else {    // run on cuda device

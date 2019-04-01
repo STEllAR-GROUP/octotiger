@@ -16,6 +16,11 @@
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
+        thread_local size_t multipole_interaction_interface::cpu_launch_counter = 0;
+        thread_local size_t multipole_interaction_interface::cuda_launch_counter = 0;
+        thread_local size_t multipole_interaction_interface::cpu_launch_counter_non_rho = 0;
+        thread_local size_t multipole_interaction_interface::cuda_launch_counter_non_rho = 0;
+
 
         thread_local two_phase_stencil multipole_interaction_interface::stencil =
             calculate_stencil();
@@ -54,6 +59,10 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
+            if (type == RHO)
+                cpu_launch_counter++;
+            else
+                cpu_launch_counter_non_rho++;
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                 local_monopoles_staging_area, local_expansions_staging_area,
                 center_of_masses_staging_area);
