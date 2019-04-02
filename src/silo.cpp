@@ -567,7 +567,6 @@ void output_stage3(std::string fname, int cycle) {
 			DBAddOption(optlist, DBOPT_EXTENTS_SIZE, &six);
 			DBAddOption(optlist, DBOPT_EXTENTS, extents.data());
 			DBAddOption(optlist, DBOPT_ZONECOUNTS, node_list_.zone_count.data());
-			DBAddOption(optlist, DBOPT_HAS_EXTERNAL_ZONES, std::vector<int>(n_total_domains).data());
 //			DBAddOption(optlist, DBOPT_TV_CONNECTIVITY, &one);
 			DBAddOption(optlist, DBOPT_DISJOINT_MODE,&dj);
 			DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
