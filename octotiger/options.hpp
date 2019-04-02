@@ -32,7 +32,6 @@ public:
 	bool gravity;
 	bool hydro;
 	bool radiation;
-	bool silo_planes_only;
 	bool variable_omega;
 	bool compress_silo;
 	bool v1309;
@@ -116,7 +115,6 @@ public:
 		arc & compress_silo;
 		arc & v1309;
 		arc & variable_omega;
-		arc & silo_planes_only;
 		arc & stop_time;
 		arc & max_level;
 		arc & xscale;
