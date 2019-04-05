@@ -15,6 +15,12 @@
 #include <cmath>
 #include <unordered_map>
 
+#define NOSTAR 0
+#define COMMON_ENVELOPE 1
+#define STAR1 2
+#define STAR2 3
+
+
 template<class T = double>
 using array_type = std::vector<T>;
 
@@ -26,6 +32,7 @@ array_type<bool> in_plane_;
 array_type<bool> in_loc_;
 array_type<double> loc_x_;
 double rho_mid_;
+array_type<int> in_star_;
 
 static DBfile* db_;
 
@@ -212,7 +219,7 @@ int main(int argc, char* argv[]) {
 
 	printf("Opening SILO\n");
 	std::string filename = argv[1];
-	db_ = DBOpenReal(filename.c_str(), DB_HDF5, DB_READ);
+	db_ = DBOpenReal(filename.c_str(), DB_HDF5, DB_READ );
 
 	if (db_ == nullptr) {
 		printf("Unable to open %s\n", filename.c_str());
@@ -223,7 +230,8 @@ int main(int argc, char* argv[]) {
 	long long version;
 	double omega;
 	double code_to_s;
-
+	double cgs_time;
+	DBReadVar(db_, "cgs_time", (void*) &cgs_time);
 	DBReadVar(db_, "version", (void*) &version);
 	DBReadVar(db_, "n_species", (void*) &n_species);
 	DBReadVar(db_, "code_to_s", (void*) &code_to_s);
@@ -351,16 +359,16 @@ int main(int argc, char* argv[]) {
 	printf("Omega = %e\n", omega);
 	printf("Period = %e days\n", period);
 
-	
+
 	double l1 = -std::numeric_limits<double>::max();
 	double l2 = -std::numeric_limits<double>::max();
 	double l3 = -std::numeric_limits<double>::max();
 	double l1_loc, l2_loc, l3_loc;
 
-	double c1_loc = x_[c1i] * loc[0] + y_[c1i] * loc[1]; 
-	double c2_loc = x_[c2i] * loc[0] + y_[c2i] * loc[1]; 
+	double c1_loc = x_[c1i] * loc[0] + y_[c1i] * loc[1];
+	double c2_loc = x_[c2i] * loc[0] + y_[c2i] * loc[1];
 
-	{	
+	{
 		const auto& phi = var_map_["phi"];
 		for( int i = 0; i < phi.size(); i++ ) {
 			double this_loc = x_[i] * loc[0] + y_[i] * loc[1];
@@ -390,6 +398,97 @@ int main(int argc, char* argv[]) {
 	printf( "L2 = %e @ %e\n", l2, l2_loc );
 	printf( "L3 = %e @ %e\n", l3, l3_loc );
 
+	const auto& sx = var_map_["sx"];
+	const auto& sy = var_map_["sy"];
+	const auto& tau = var_map_["tau"];
+
+	double M[4] = {0,0,0,0};
+	double spin[4] = {0,0,0,0};
+	double lorb = 0.0;
+	double heat = 0.0;
+	FILE* fp = fopen( "roche.txt", "wt");
+	{
+		const auto& phi = var_map_["phi"];
+		for( int i = 0; i < phi.size(); i++ ) {
+			double R2 = x_[i] * x_[i] + y_[i] * y_[i];
+			double phi_eff = phi[i] - 0.5 * R2 * omega;
+			double g1, g2;
+			std::array<double, 3> d1, d2;
+			d1[0] = x_[c1i] - x_[i];
+			d1[1] = y_[c1i] - y_[i];
+			d1[2] = z_[c1i] - z_[i];
+			d2[0] = x_[c2i] - x_[i];
+			d2[1] = y_[c2i] - y_[i];
+			d2[2] = z_[c2i] - z_[i];
+			g1 = g2 = 0.0;
+			g1 += d1[0] * x_[c1i];
+			g1 += d1[1] * y_[c1i];
+			g1 += d1[2] * z_[c1i];
+			g2 += d2[0] * x_[c2i];
+			g2 += d2[1] * y_[c2i];
+			g2 += d2[2] * z_[c2i];
+			int v;
+			std::array<double,3> pivot;
+	//		if( phi_eff < l1) {
+				if( g1 >= 0 && g2 >=0 ) {
+					if( g1 > g2) {
+						v = STAR1;
+					} else {
+						v = STAR2;
+					}
+				} else if( g1 >= 0 ) {
+					v = STAR1;
+				} else if( g2 >= 0 ) {
+					v = STAR2;
+				} else {
+					v = NOSTAR;
+				}
+		/*	} else  {
+				if( g1 >= 0 || g2 >=0 ) {
+					v = COMMON_ENVELOPE;
+				} else {
+					v = NOSTAR;
+				}
+			}*/
+			if( v == STAR1 ) {
+				pivot[0] = x_[c1i];
+				pivot[1] = y_[c1i];
+				pivot[2] = z_[c1i];
+			} else if( v == STAR2 ) {
+				pivot[0] = x_[c2i];
+				pivot[1] = y_[c2i];
+				pivot[2] = z_[c2i];
+			} else {
+				pivot = com;
+			}
+			double arm[2];
+			arm[0] = x_[i] - pivot[0];
+			arm[1] = y_[i] - pivot[1];
+			const double vol = dx_[i] * dx_[i] * dx_[i];
+			M[v] += rho[i] * vol;
+			spin[v] += (sx[i] * arm[1] - sy[i] * arm[0])*vol;
+			arm[0] = x_[i] - com[0];
+			arm[1] = y_[i] - com[1];
+			if( v == STAR1 || v == STAR2 ) {
+				lorb += (sx[i] * arm[1] - sy[i] * arm[0])*vol;
+			}
+			heat += std::pow(tau[i],5./3.) * vol;
+			in_star_.push_back(v);
+			fprintf( fp, "%e %e %e %i\n", x_[i], y_[i], z_[i], v);
+		}
+
+	}
+	lorb -= spin[3] + spin[2];
+	fclose(fp);
+#define sqr(a) ((a)*(a))
+
+	for( int f = 0; f < 4; f++) {
+		M[f] /= 1.99e+33;
+	}
+	double sep = std::sqrt(sqr(x_[c1i] - x_[c2i]) + sqr(y_[c1i] - y_[c2i]) + sqr(z_[c1i] - z_[c2i]));
+	fp = fopen( "binary.txt", "at");
+	fprintf( fp, "%e %e %e %e %e %e %e %e %e\n", cgs_time, M[0], M[2], M[3], sep, spin[2], spin[3], lorb, heat );
+	fclose(fp);
 	/* Close SILO */
 
 	DBClose(db_);
