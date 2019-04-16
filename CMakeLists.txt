@@ -381,9 +381,7 @@ if(OCTOTIGER_WITH_TESTS)
 
   # New kernels
   set(OCTOTIGER_NEW_KERNELS_ARGS
-      "--p2p_kernel_type=SOA_CPU "
-      "--p2m_kernel_type=SOA_CPU "
-      "--multipole_kernel_type=SOA_CPU")
+   )
 
   # *.diff tests fail when the output contains any .vals
   set(OCTOTIGER_SILODIFF_FAIL_PATTERN ".vals")
@@ -391,7 +389,7 @@ if(OCTOTIGER_WITH_TESTS)
   ##############################################################################
   # Marshak
   ##############################################################################
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.2.silo ${PROJECT_BINARY_DIR}/marshak.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.3.silo ${PROJECT_BINARY_DIR}/marshak.silo)
 
   # Marshak - CPU
   add_test(NAME test_problems.cpu.marshak
@@ -399,7 +397,7 @@ if(OCTOTIGER_WITH_TESTS)
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/marshak/marshak.ini)
   add_test(NAME test_problems.cpu.marshak.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/marshak.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/marshak.silo ${PROJECT_BINARY_DIR}/final.silo)
 
   set_tests_properties(test_problems.cpu.marshak PROPERTIES
     FIXTURES_SETUP test_problems.cpu.marshak)
@@ -419,7 +417,7 @@ if(OCTOTIGER_WITH_TESTS)
         --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini)
     add_test(NAME test_problems.cpu.blast.diff
       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-        ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+        ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/final.silo)
 
     set_tests_properties(test_problems.cpu.blast PROPERTIES
       FIXTURES_SETUP test_problems.cpu.blast)
@@ -440,7 +438,7 @@ if(OCTOTIGER_WITH_TESTS)
 
   add_test(NAME test_problems.cpu.sod.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.silo)
 
   set_tests_properties(test_problems.cpu.sod PROPERTIES
     FIXTURES_SETUP test_problems.cpu.sod)
@@ -458,7 +456,7 @@ if(OCTOTIGER_WITH_TESTS)
 
     add_test(NAME test_problems.gpu.sod.diff
       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-        ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+        ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.silo)
 
     set_tests_properties(test_problems.gpu.sod PROPERTIES
       FIXTURES_SETUP test_problems.gpu.sod)
@@ -507,7 +505,7 @@ if(OCTOTIGER_WITH_TESTS)
   ##############################################################################
   # Rotating Star
   ##############################################################################
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.2.silo
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.3.silo
     ${PROJECT_BINARY_DIR}/rotating_star.silo)
 
   # Rotating Star - CPU
@@ -517,7 +515,7 @@ if(OCTOTIGER_WITH_TESTS)
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini)
   add_test(NAME test_problems.cpu.rotating_star.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.silo)
 
   set_tests_properties(test_problems.cpu.rotating_star.init PROPERTIES
     FIXTURES_SETUP test_problems.cpu.rotating_star.init)
@@ -540,7 +538,7 @@ if(OCTOTIGER_WITH_TESTS)
       --cuda_streams_per_locality=1 --cuda_streams_per_gpu=1)
   add_test(NAME test_problems.gpu.rotating_star.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.${OCTOTIGER_WITH_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.silo)
 
   set_tests_properties(test_problems.gpu.rotating_star.init PROPERTIES
     FIXTURES_SETUP test_problems.gpu.rotating_star.init)
