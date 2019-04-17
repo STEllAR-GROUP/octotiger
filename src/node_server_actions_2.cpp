@@ -184,6 +184,11 @@ const diagnostics_t& diagnostics_t::compute() {
 }
 
 diagnostics_t node_server::diagnostics() {
+
+	if( opts().disable_diagnostics) {
+		return diagnostics_t();
+	}
+
 	diagnostics_t diags;
 	for (integer i = 1; i != (opts().problem == DWD ? 6 : 2); ++i) {
 		diags.stage = i;

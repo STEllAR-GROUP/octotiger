@@ -94,6 +94,8 @@ public:
 		if (fp.fail()) {
 			std::cout << "Could not open rotating_star.bin, aborting\n";
 			throw;
+		} else {
+			std::cout << "Reading rotating_star.bin\n";
 		}
 		fp.read((char*) &nr_, sizeof(decltype(nr_)));
 		fp.read((char*) &nz_, sizeof(decltype(nz_)));
@@ -110,6 +112,7 @@ public:
 				fp.read((char*) &(ene_[i][k]), sizeof(double));
 			}
 		}
+		std::cout << "Done reading rotating_star.bin\n";
 	}
 	void state_at(double& rho, double& ene, double& sx, double& sy, double x, double y, double z) const {
 		const double R = std::sqrt(x * x + y * y);

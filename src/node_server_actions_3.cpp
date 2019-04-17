@@ -246,7 +246,10 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 //	output_all("X", 0, false);
 
 	if (!opts().hydro && !opts().radiation) {
-		diagnostics();
+//		diagnostics();
+		if (!opts().disable_output) {
+			output_all("final", output_cnt, true);
+		}
 		if (get_analytic() != nullptr) {
 			compare_analytic();
 			if( opts().gravity ) {
