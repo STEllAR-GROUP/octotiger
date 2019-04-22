@@ -106,7 +106,7 @@ bool options::process_options(int argc, char* argv[]) {
 			"boundary multipole-multipole kernel type") //
 	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(OLD),
 			"boundary particle-particle kernel type")   //
-	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(OLD),
+	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(SOA_CPU),
 			"boundary particle-multipole kernel type")  //
 	("cuda_streams_per_locality", po::value<size_t>(&(opts().cuda_streams_per_locality))->default_value(size_t(0)),
 			"cuda streams per HPX locality") //
