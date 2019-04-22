@@ -505,7 +505,7 @@ if(OCTOTIGER_WITH_TESTS)
   ##############################################################################
   # Rotating Star
   ##############################################################################
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.3.silo
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.4.silo
     ${PROJECT_BINARY_DIR}/rotating_star.silo)
 
   # Rotating Star - CPU
