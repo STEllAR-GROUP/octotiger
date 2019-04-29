@@ -129,20 +129,25 @@ bool options::process_options(int argc, char* argv[]) {
 	boost::program_options::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, command_opts), vm);
 	po::notify(vm);
-	if (vm.count("help")) {
-		printf( "%s\n", command_opts );
-		exit(0);
-	}
-	if (!config_file.empty()) {
-		std::ifstream ifs { vm["config_file"].as<std::string>().c_str() };
-		if (ifs) {
-			store(parse_config_file(ifs, command_opts), vm);
-		} else {
-			printf( "Configuration file %s  not found!\n", config_file );
-			exit(0);
-		}
-	}
-	po::notify(vm);
+    if (vm.count("help"))
+    {
+        std::cout << command_opts << "\n";
+        return false;
+    }
+    if (!config_file.empty())
+    {
+        std::ifstream cfg_fs{vm["config_file"].as<std::string>()};
+        if (cfg_fs)
+        {
+            po::store(po::parse_config_file(cfg_fs, command_opts), vm);
+        }
+        else
+        {
+            printf("Configuration file %s not found!\n", config_file.c_str());
+            return false;
+        }
+    }
+    po::notify(vm);
 	if (opts().problem == DWD || opts().problem == ROTATING_STAR ) {
 		opts().n_species = std::max(int(5), int(opts().n_species));
 	}
