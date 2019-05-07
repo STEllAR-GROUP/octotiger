@@ -409,7 +409,7 @@ if(OCTOTIGER_WITH_TESTS)
   # Blast
   ##############################################################################
   if(OCTOTIGER_WITH_BLAST_TEST)
-    file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.4.silo ${PROJECT_BINARY_DIR}/blast.silo)
+    file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.5.silo ${PROJECT_BINARY_DIR}/blast.silo)
 
     # Blast - CPU
     add_test(NAME test_problems.cpu.blast
@@ -429,7 +429,7 @@ if(OCTOTIGER_WITH_TESTS)
   ##############################################################################
   # Sod Shock Tube
   ##############################################################################
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.4.silo ${PROJECT_BINARY_DIR}/sod.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.5.silo ${PROJECT_BINARY_DIR}/sod.silo)
 
   # Sod Shock Tube - CPU
   add_test(NAME test_problems.cpu.sod
@@ -505,7 +505,7 @@ if(OCTOTIGER_WITH_TESTS)
   ##############################################################################
   # Rotating Star
   ##############################################################################
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.4.silo
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.5.silo
     ${PROJECT_BINARY_DIR}/rotating_star.silo)
 
   # Rotating Star - CPU
