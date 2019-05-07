@@ -2158,12 +2158,11 @@ void grid::reconstruct() {
 //#pragma GCC ivdep
 	auto step1 = [&](real& lhs, real const& rhs) {lhs += 6.0 * rhs / dx;};
 	auto step2 = [&](real& lhs, real const& rhs) {lhs -= 6.0 * rhs / dx;};
-	auto minmod_step = [](real& lhs, real const& r1, real const& r2, real const& r3)
+	auto minmod_step = [](real& lhs, real const& r1)
 	{
-		auto olhs = lhs;
-		lhs = minmod(lhs, minmod(r1 - r2, r2 - r3));
-		if( olhs != 0 ) {
-			return lhs/olhs;
+		lhs = minmod(lhs, r1 );
+		if( r1 != 0 ) {
+			return lhs/r1;
 		} else {
 			return 0.;
 		}
@@ -2226,7 +2225,7 @@ void grid::reconstruct() {
 			limit_slope(UfFZMfield[iii], Vfield[iii], UfFZPfield[iii]);
 		}
 	}
-	for (integer iii = H_NX * H_NX; iii != H_N3 - H_NX * H_NX; ++iii) {
+	for (integer iii = 0; iii != H_N3; ++iii) {
 
 		slpx[sy_i][iii] = Uf[FXP][sy_i][iii] - Uf[FXM][sy_i][iii];
 		slpx[sz_i][iii] = Uf[FXP][sz_i][iii] - Uf[FXM][sz_i][iii];
@@ -2251,29 +2250,35 @@ void grid::reconstruct() {
 		step2(slpz[sy_i][iii], V[zx_i][iii]);
 		step2(slpx[sz_i][iii], V[zy_i][iii]);
 
-		auto wxy = minmod_step(slpx[sy_i][iii], V[sy_i][iii + H_DNX], V[sy_i][iii], V[sy_i][iii - H_DNX]);
-		auto wxz = minmod_step(slpx[sz_i][iii], V[sz_i][iii + H_DNX], V[sz_i][iii], V[sz_i][iii - H_DNX]);
+		auto wxy = minmod_step(slpx[sy_i][iii], Uf[FXP][sy_i][iii] - Uf[FXM][sy_i][iii] );
+		auto wxz = minmod_step(slpx[sz_i][iii], Uf[FXP][sz_i][iii] - Uf[FXM][sz_i][iii] );
 
-		auto wyx = minmod_step(slpy[sx_i][iii], V[sx_i][iii + H_DNY], V[sx_i][iii], V[sx_i][iii - H_DNY]);
-		auto wyz = minmod_step(slpy[sz_i][iii], V[sz_i][iii + H_DNY], V[sz_i][iii], V[sz_i][iii - H_DNY]);
+		auto wyx = minmod_step(slpy[sx_i][iii], Uf[FYP][sx_i][iii] - Uf[FYM][sx_i][iii] );
+		auto wyz = minmod_step(slpy[sz_i][iii], Uf[FYP][sz_i][iii] - Uf[FYM][sz_i][iii] );
 
-		auto wzx = minmod_step(slpz[sx_i][iii], V[sx_i][iii + H_DNZ], V[sx_i][iii], V[sx_i][iii - H_DNZ]);
-		auto wzy = minmod_step(slpz[sy_i][iii], V[sy_i][iii + H_DNZ], V[sy_i][iii], V[sy_i][iii - H_DNZ]);
+		auto wzx = minmod_step(slpz[sx_i][iii], Uf[FZP][sx_i][iii] - Uf[FZM][sx_i][iii] );
+		auto wzy = minmod_step(slpz[sy_i][iii], Uf[FZP][sy_i][iii] - Uf[FZM][sy_i][iii] );
 
-		Uf[FXP][sy_i][iii] = wxy * Uf[FXP][sy_i][iii]  + (1-wxy) * U[sy_i][iii];
-		Uf[FXM][sy_i][iii] = wxy * Uf[FXM][sy_i][iii]  + (1-wxy) * U[sy_i][iii];
-		Uf[FXP][sz_i][iii] = wxz * Uf[FXP][sz_i][iii]  + (1-wxz) * U[sz_i][iii];
-		Uf[FXM][sz_i][iii] = wxz * Uf[FXM][sz_i][iii]  + (1-wxz) * U[sz_i][iii];
+		//printf( "%e %e %e %e %e %e\n", wxy, wxz, wyx, wyz, wzx, wzy );
 
-		Uf[FYP][sx_i][iii] = wyx * Uf[FYP][sx_i][iii]  + (1-wyx) * U[sx_i][iii];
-		Uf[FYM][sx_i][iii] = wyx * Uf[FYM][sx_i][iii]  + (1-wyx) * U[sx_i][iii];
-		Uf[FYP][sz_i][iii] = wyz * Uf[FYP][sz_i][iii]  + (1-wyz) * U[sz_i][iii];
-		Uf[FYM][sz_i][iii] = wyz * Uf[FYM][sz_i][iii]  + (1-wyz) * U[sz_i][iii];
 
-		Uf[FZP][sx_i][iii] = wzx * Uf[FZP][sx_i][iii]  + (1-wzx) * U[sx_i][iii];
-		Uf[FZM][sx_i][iii] = wzx * Uf[FZM][sx_i][iii]  + (1-wzx) * U[sx_i][iii];
-		Uf[FZP][sy_i][iii] = wzy * Uf[FZP][sy_i][iii]  + (1-wzy) * U[sy_i][iii];
-		Uf[FZM][sy_i][iii] = wzy * Uf[FZM][sy_i][iii]  + (1-wzy) * U[sy_i][iii];
+		Uf[FXP][sy_i][iii] = wxy * Uf[FXP][sy_i][iii]  + (1-wxy) * V[sy_i][iii];
+		Uf[FXM][sy_i][iii] = wxy * Uf[FXM][sy_i][iii]  + (1-wxy) * V[sy_i][iii];
+
+		Uf[FXP][sz_i][iii] = wxz * Uf[FXP][sz_i][iii]  + (1-wxz) * V[sz_i][iii];
+		Uf[FXM][sz_i][iii] = wxz * Uf[FXM][sz_i][iii]  + (1-wxz) * V[sz_i][iii];
+
+		Uf[FYP][sx_i][iii] = wyx * Uf[FYP][sx_i][iii]  + (1-wyx) * V[sx_i][iii];
+		Uf[FYM][sx_i][iii] = wyx * Uf[FYM][sx_i][iii]  + (1-wyx) * V[sx_i][iii];
+
+		Uf[FYP][sz_i][iii] = wyz * Uf[FYP][sz_i][iii]  + (1-wyz) * V[sz_i][iii];
+		Uf[FYM][sz_i][iii] = wyz * Uf[FYM][sz_i][iii]  + (1-wyz) * V[sz_i][iii];
+
+		Uf[FZP][sx_i][iii] = wzx * Uf[FZP][sx_i][iii]  + (1-wzx) * V[sx_i][iii];
+		Uf[FZM][sx_i][iii] = wzx * Uf[FZM][sx_i][iii]  + (1-wzx) * V[sx_i][iii];
+
+		Uf[FZP][sy_i][iii] = wzy * Uf[FZP][sy_i][iii]  + (1-wzy) * V[sy_i][iii];
+		Uf[FZM][sy_i][iii] = wzy * Uf[FZM][sy_i][iii]  + (1-wzy) * V[sy_i][iii];
 
 		const real zx_lim = +(slpy[sz_i][iii] - slpz[sy_i][iii]) / 12.0;
 		const real zy_lim = -(slpx[sz_i][iii] - slpz[sx_i][iii]) / 12.0;
