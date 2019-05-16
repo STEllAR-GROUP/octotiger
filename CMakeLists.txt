@@ -362,6 +362,19 @@ else()
 endif()
 
 ################################################################################
+# Set up silo_planes target
+################################################################################
+add_executable(silo_planes src/silo_planes.cpp)
+
+target_link_libraries(silo_planes Silo::silo)
+
+set_property(TARGET silo_planes PROPERTY FOLDER "Tools")
+if(MSVC)
+  target_compile_options(silo_counter PRIVATE /EHsc)
+endif()
+
+
+################################################################################
 # Set up silo_counter target
 ################################################################################
 add_executable(silo_counter src/silo_counter.cpp)
