@@ -211,7 +211,8 @@ if(MSVC)
     _USE_MATH_DEFINES
     NOMINMAX
     _CRT_SECURE_NO_WARNINGS
-    __restrict__=__restrict)
+    __restrict__=__restrict
+    _ENABLE_EXTENDED_ALIGNED_STORAGE)
 
   target_compile_options(octotiger PRIVATE
     /wd4018
@@ -482,7 +483,7 @@ if(OCTOTIGER_WITH_TESTS)
   # Sphere
   ##############################################################################
   file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
-  
+
   # Sphere - CPU
   add_test(NAME test_problems.cpu.sphere
     COMMAND octotiger
@@ -496,7 +497,7 @@ if(OCTOTIGER_WITH_TESTS)
   set_tests_properties(test_problems.cpu.sphere.diff PROPERTIES
     FIXTURES_REQUIRED test_problems.cpu.sphere
     FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
-  
+
   # Sphere - GPU
   if(OCTOTIGER_WITH_CUDA)
     add_test(NAME test_problems.gpu.sphere
