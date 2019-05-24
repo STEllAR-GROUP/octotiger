@@ -370,7 +370,7 @@ target_link_libraries(silo_planes Silo::silo)
 
 set_property(TARGET silo_planes PROPERTY FOLDER "Tools")
 if(MSVC)
-  target_compile_options(silo_counter PRIVATE /EHsc)
+  target_compile_options(silo_planes PRIVATE /EHsc)
 endif()
 
 
