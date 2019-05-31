@@ -11,6 +11,7 @@
 #define SILO_UNITS
 
 #include "octotiger/config.hpp"
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/diagnostics.hpp"
@@ -106,12 +107,12 @@ class grid {
 public:
 	using xpoint = std::array<xpoint_type, NDIM>;
 	struct node_point;
-	static void set_max_level(integer l);
-	static void set_fgamma(real fg) {
+	OCTOTIGER_EXPORT static void set_max_level(integer l);
+	OCTOTIGER_EXPORT static void set_fgamma(real fg) {
 		fgamma = fg;
 	}
-	static void static_init();
-	static real get_fgamma() {
+	OCTOTIGER_EXPORT static void static_init();
+	OCTOTIGER_EXPORT static real get_fgamma() {
 		return fgamma;
 	}
 	using roche_type = char;
@@ -124,7 +125,7 @@ private:
 	static real fgamma;
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
-	static real scaling_factor;
+	static OCTOTIGER_EXPORT real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<std::vector<real>> U;
@@ -263,7 +264,7 @@ public:
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
 			integer index, real rho_cut) const;
 	static void set_omega(real, bool bcast = true);
-	static real& get_omega();
+	static OCTOTIGER_EXPORT real& get_omega();
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
 	void compute_conserved_slopes(const std::array<integer, NDIM> lb = { 1, 1, 1 },
 			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);

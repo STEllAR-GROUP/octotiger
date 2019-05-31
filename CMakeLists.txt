@@ -65,7 +65,6 @@ set(source_files
     src/grid_output.cpp
     src/grid_scf.cpp
     src/lane_emden.cpp
-    src/main.cpp
     src/new.cpp
     src/node_client.cpp
     src/node_location.cpp
@@ -110,6 +109,7 @@ set(source_files
 
 # Octotiger library headers
 set(header_files
+    octotiger/config/export_definitions.hpp
     octotiger/channel.hpp
     octotiger/compute_factor.hpp
     octotiger/config.hpp
@@ -182,8 +182,9 @@ set(header_files
     octotiger/test_problems/sod/exact_sod.hpp
 )
 
-add_hpx_executable(
-  octotiger
+# Octotiger library
+add_hpx_library(
+  octolib
   DEPENDENCIES
     Silo::silo Vc::Vc Boost::boost
   SOURCES
@@ -192,8 +193,23 @@ add_hpx_executable(
     ${header_files}
 )
 
+# Enable exported functions
+target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
+# Header files
+set_property(TARGET octolib PROPERTY FOLDER "Octotiger")
+
+# add octotiger/* to compiler search path
+target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
+
+# Octotiger executable
+add_hpx_executable(
+  octotiger
+  DEPENDENCIES
+    octolib
+  SOURCES
+    frontend/main.cpp
+)
 set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
-target_include_directories(octotiger PRIVATE ${PROJECT_SOURCE_DIR})
 
 if(MSVC)
   # Enable solution folders for MSVC
@@ -209,14 +225,14 @@ if(MSVC)
     COMMAND xcopy /D /Y ${HPX_ROOTPATH}\\$(Configuration)\\bin\\*.dll $(TargetDir)
     COMMENT "Copying files from Silo and HPX for $(Configuration) configuration")
 
-  target_compile_definitions(octotiger PRIVATE
+  target_compile_definitions(octolib PUBLIC
     _USE_MATH_DEFINES
     NOMINMAX
     _CRT_SECURE_NO_WARNINGS
     __restrict__=__restrict
     _ENABLE_EXTENDED_ALIGNED_STORAGE)
 
-  target_compile_options(octotiger PRIVATE
+  set(MSVC_WARNING_SILENCERS
     /wd4018
     /wd4068 # unknown pragma
     /wd4146
@@ -225,51 +241,55 @@ if(MSVC)
     /wd4334
     /wd4521
     /wd4800
-    /wd4996)
+    /wd4996
+  )
+  target_compile_options(octolib PUBLIC ${MSVC_WARNING_SILENCERS})
+  # HACK: Silencing warnings in octolib does not propagate to Octotiger. No clue why.
+  target_compile_options(octotiger PRIVATE ${MSVC_WARNING_SILENCERS})
 
-  target_compile_options(octotiger PRIVATE /EHsc)
+  target_compile_options(octolib PUBLIC /EHsc)
 
 else()
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
-    target_compile_options(octotiger PRIVATE
+    target_compile_options(octolib PRIVATE
       -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
       -Wno-unused-result -ffast-math)
   elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
       #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
       #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
-      target_compile_options(octotiger -Wno-attributes -Wno-deprecated)
+      target_compile_options(octolib -Wno-attributes -Wno-deprecated)
   endif()
 endif()
 
 if(OCTOTIGER_WITH_Vc)
   find_package(Vc REQUIRED)
 
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_VC)
+  target_compile_definitions(octolib PRIVATE OCTOTIGER_HAVE_VC)
 endif()
 
 if(OCTOTIGER_WITH_Vc AND USE_AVX512 AND OCTOTIGER_WITH_AVX512)
   if(MSVC)
-    target_compile_options(octotiger PRIVATE /arch:AVX512)
+    target_compile_options(octolib PRIVATE /arch:AVX512)
   else()
-    target_compile_options(octotiger PRIVATE -mavx512f)
+    target_compile_options(octolib PRIVATE -mavx512f)
   endif()
   message(STATUS "Enabled AVX512 compile options")
   set(OCTOTIGER_WITH_AVX OFF CACHE BOOL "" FORCE)
   set(OCTOTIGER_WITH_AVX2 OFF CACHE BOOL "" FORCE)
 elseif(OCTOTIGER_WITH_Vc AND USE_AVX2 AND OCTOTIGER_WITH_AVX2)
   if(MSVC)
-    target_compile_options(octotiger PRIVATE /arch:AVX2)
+    target_compile_options(octolib PRIVATE /arch:AVX2)
   else()
-    target_compile_options(octotiger PRIVATE -mavx2)
+    target_compile_options(octolib PRIVATE -mavx2)
   endif()
   message(STATUS "Enabled AVX2 compile options")
   set(OCTOTIGER_WITH_AVX OFF CACHE BOOL "" FORCE)
   set(OCTOTIGER_WITH_AVX512 OFF CACHE BOOL "" FORCE)
 elseif(OCTOTIGER_WITH_Vc AND USE_AVX AND OCTOTIGER_WITH_AVX)
   if(MSVC)
-    target_compile_options(octotiger PRIVATE /arch:AVX)
+    target_compile_options(octolib PRIVATE /arch:AVX)
   else()
-    target_compile_options(octotiger PRIVATE -mavx)
+    target_compile_options(octolib PRIVATE -mavx)
   endif()
   message(STATUS "Enabled AVX compile options")
   set(OCTOTIGER_WITH_AVX2 OFF CACHE BOOL "" FORCE)
@@ -278,36 +298,36 @@ endif()
 
 # Handle CUDA
 if(OCTOTIGER_WITH_CUDA)
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_CUDA)
-  set_property(TARGET octotiger PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-  set_property(TARGET octotiger PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_CUDA)
+  set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+  set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 endif()
 
 # Handle other options
 if(OCTOTIGER_WITH_GRAV_PAR)
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_GRAV_PAR)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_GRAV_PAR)
 endif()
 
 if(OCTOTIGER_WITH_RADIATION)
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_RADIATION)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_RADIATION)
 endif()
 
 # Grid size
 message(STATUS "Octotiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
-target_compile_definitions(octotiger PRIVATE OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
+target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
-  target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BLAST_TEST)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp)
-  target_sources(octotiger PRIVATE ${blast_sources})
+  target_sources(octolib PRIVATE ${blast_sources})
   source_group(TREE ${PROJECT_SOURCE_DIR}
     PREFIX "Source Files" FILES ${blast_sources})
 
   if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
-    target_compile_definitions(octotiger PRIVATE
+    target_compile_definitions(octolib PUBLIC
       OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
     set(OCTOTIGER_WITH_QUADMATH OFF CACHE BOOL "" FORCE)
 
@@ -320,8 +340,8 @@ if(OCTOTIGER_WITH_BLAST_TEST)
     elseif(MSVC)
       message(FATAL_ERROR "GCC Quad-Precision Math Library is not available with MSVC")
     endif()
-    target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_QUADMATH)
-    target_link_libraries(octotiger PRIVATE quadmath)
+    target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_QUADMATH)
+    target_link_libraries(octolib PRIVATE quadmath)
 
   else()
       message(FATAL_ERROR "Octotiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "

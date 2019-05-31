@@ -8,6 +8,7 @@
 #ifndef POLYTROPE_HPP_
 #define POLYTROPE_HPP_
 
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/real.hpp"
 
 #include <hpx/traits/is_bitwise_serializable.hpp>
@@ -68,8 +69,8 @@ public:
 	real get_cutoff_density() const {
 		return rho_cut;
 	}
-	void initialize(real&, real&);
-	void initialize(real&, real&, real&);
+	OCTOTIGER_EXPORT void initialize(real&, real&);
+	OCTOTIGER_EXPORT void initialize(real&, real&, real&);
 
 public:
 	real get_R0() const;

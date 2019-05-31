@@ -1,6 +1,5 @@
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/compute_factor.hpp"
-
 #include "octotiger/defs.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/taylor.hpp"

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "octotiger/config/export_definitions.hpp"
+
 namespace scf_options {
-    void read_option_file();
+    OCTOTIGER_EXPORT void read_option_file();
 }

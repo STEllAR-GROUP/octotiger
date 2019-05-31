@@ -1,9 +1,9 @@
 #pragma once
 
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
-
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
@@ -45,14 +45,14 @@ namespace fmm {
             std::shared_ptr<grid> grid_ptr;
             interaction_kernel_type p2p_type;
         public:
-            static size_t& cpu_launch_counter();
-            static size_t& cuda_launch_counter();
+            static OCTOTIGER_EXPORT size_t& cpu_launch_counter();
+            static OCTOTIGER_EXPORT size_t& cuda_launch_counter();
 
             /// The stencil is used to identify the neighbors
-            static std::vector<multiindex<>>& stencil();
-            static std::vector<bool>& stencil_masks();
-            static std::vector<std::array<real, 4>>& four();
-            static std::vector<std::array<real, 4>>& stencil_four_constants();
+            static OCTOTIGER_EXPORT std::vector<multiindex<>>& stencil();
+            static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
+            static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& four();
+            static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& stencil_four_constants();
             static thread_local std::vector<real> local_monopoles_staging_area;
             static thread_local bool is_initialized;
             std::vector<bool> neighbor_empty_monopoles;
