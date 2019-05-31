@@ -49,7 +49,7 @@ RUN curl -JL https://download.open-mpi.org/release/hwloc/v2.0/hwloc-2.0.3.tar.gz
     ) \
     && rm -rf hwloc-2.0.3
 
-RUN git clone https://github.com/live-clones/hdf5.git --depth=1 --branch=hdf5_1_10_4 \
+RUN git clone https://github.com/live-clones/hdf5.git --depth=1 --branch=hdf5-1_10_4 \
     && cmake -Hhdf5 -Bhdf5/build \
         -DBUILD_TESTING=OFF \
         -DHDF5_BUILD_CPP_LIB=OFF \
