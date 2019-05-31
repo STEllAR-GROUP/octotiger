@@ -319,7 +319,7 @@ if(OCTOTIGER_WITH_BLAST_TEST)
       message(FATAL_ERROR "GCC Quad-Precision Math Library is not available with MSVC")
     endif()
     target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_QUADMATH)
-    target_link_libraries(octotiger quadmath)
+    target_link_libraries(octotiger PRIVATE quadmath)
 
   else()
       message(FATAL_ERROR "Octotiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
