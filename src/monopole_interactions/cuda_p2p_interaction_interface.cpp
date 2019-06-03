@@ -19,9 +19,9 @@ namespace octotiger { namespace fmm { namespace monopole_interactions {
         std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
         real dx, std::array<bool, geo::direction::count()>& is_direction_empty)
     {
-        kernel_scheduler::scheduler.init();
+        kernel_scheduler::scheduler().init();
         // Check where we want to run this:
-        int slot = kernel_scheduler::scheduler.get_launch_slot();
+        int slot = kernel_scheduler::scheduler().get_launch_slot();
         if (slot == -1 || p2p_type == interaction_kernel_type::OLD)
         {
             // Run CPU implementation
@@ -31,18 +31,18 @@ namespace octotiger { namespace fmm { namespace monopole_interactions {
         else
         {
             // run on CUDA device
-            cuda_launch_counter++;
+            cuda_launch_counter()++;
             // Move data into staging arrays
             auto staging_area =
-                kernel_scheduler::scheduler.get_staging_area(slot);
+                kernel_scheduler::scheduler().get_staging_area(slot);
             update_input(
                 monopoles, neighbors, type, staging_area.local_monopoles);
 
             // Queue moving of input data to device
             util::cuda_helper& gpu_interface =
-                kernel_scheduler::scheduler.get_launch_interface(slot);
+                kernel_scheduler::scheduler().get_launch_interface(slot);
             kernel_device_enviroment& env =
-                kernel_scheduler::scheduler.get_device_enviroment(slot);
+                kernel_scheduler::scheduler().get_device_enviroment(slot);
             gpu_interface.copy_async(env.device_local_monopoles,
                 staging_area.local_monopoles.data(), local_monopoles_size,
                 cudaMemcpyHostToDevice);

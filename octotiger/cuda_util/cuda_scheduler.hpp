@@ -138,7 +138,7 @@ namespace octotiger { namespace fmm {
         // Throws if a CPU slot (-1) is given
         util::cuda_helper& get_launch_interface(std::size_t slot);
         // Global scheduler instance for this HPX thread
-        static thread_local kernel_scheduler scheduler;
+        static kernel_scheduler& scheduler();
 
         void init();
         static void init_constants();

@@ -16,14 +16,32 @@
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        thread_local size_t multipole_interaction_interface::cpu_launch_counter = 0;
-        thread_local size_t multipole_interaction_interface::cuda_launch_counter = 0;
-        thread_local size_t multipole_interaction_interface::cpu_launch_counter_non_rho = 0;
-        thread_local size_t multipole_interaction_interface::cuda_launch_counter_non_rho = 0;
+        size_t& multipole_interaction_interface::cpu_launch_counter()
+        {
+            static thread_local size_t cpu_launch_counter_ = 0;
+            return cpu_launch_counter_;
+        }
+        size_t& multipole_interaction_interface::cuda_launch_counter()
+        {
+            static thread_local size_t cuda_launch_counter_ = 0;
+            return cuda_launch_counter_;
+        }
+        size_t& multipole_interaction_interface::cpu_launch_counter_non_rho()
+        {
+            static thread_local size_t cpu_launch_counter_non_rho_ = 0;
+            return cpu_launch_counter_non_rho_;
+        }
+        size_t& multipole_interaction_interface::cuda_launch_counter_non_rho()
+        {
+            static thread_local size_t cuda_launch_counter_non_rho_ = 0;
+            return cuda_launch_counter_non_rho_;
+        }
 
-
-        thread_local two_phase_stencil multipole_interaction_interface::stencil =
-            calculate_stencil();
+        two_phase_stencil& multipole_interaction_interface::stencil()
+        {
+            static thread_local two_phase_stencil stencil_ = calculate_stencil();
+            return stencil_;
+        }
         thread_local std::vector<real>
             multipole_interaction_interface::local_monopoles_staging_area(EXPANSION_COUNT_PADDED);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -34,7 +52,7 @@ namespace fmm {
         {
             static thread_local std::vector<bool> stencil_masks_ =
                 calculate_stencil_masks(
-                    multipole_interaction_interface::stencil)
+                    multipole_interaction_interface::stencil())
                     .first;
             return stencil_masks_;
         }
@@ -42,7 +60,7 @@ namespace fmm {
         {
             static thread_local std::vector<bool> inner_stencil_masks_ =
                 calculate_stencil_masks(
-                    multipole_interaction_interface::stencil)
+                    multipole_interaction_interface::stencil())
                     .second;
             return inner_stencil_masks_;
         }
@@ -60,9 +78,9 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
             if (type == RHO)
-                cpu_launch_counter++;
+                cpu_launch_counter()++;
             else
-                cpu_launch_counter_non_rho++;
+                cpu_launch_counter_non_rho()++;
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                 local_monopoles_staging_area, local_expansions_staging_area,
                 center_of_masses_staging_area);

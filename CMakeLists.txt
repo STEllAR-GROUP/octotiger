@@ -296,7 +296,7 @@ endif()
 message(STATUS "Octotiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octotiger PRIVATE OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
-# Tests
+# Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
   target_compile_definitions(octotiger PRIVATE OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources

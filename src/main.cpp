@@ -49,34 +49,34 @@ std::size_t init_thread_local_worker(std::size_t desired)
     {
 #ifdef OCTOTIGER_HAVE_CUDA
         // Initialize CUDA/CPU scheduler
-        octotiger::fmm::kernel_scheduler::scheduler.init();
+        octotiger::fmm::kernel_scheduler::scheduler().init();
 #endif
 
         namespace mono_inter = octotiger::fmm::monopole_interactions;
         using mono_inter_p2p =
             octotiger::fmm::monopole_interactions::p2p_interaction_interface;
         // Initialize stencil and four constants for p2p fmm interactions
-        mono_inter_p2p::stencil = mono_inter::calculate_stencil().first;
+        mono_inter_p2p::stencil() = mono_inter::calculate_stencil().first;
         mono_inter_p2p::stencil_masks() =
-            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil).first;
-        mono_inter_p2p::four = mono_inter::calculate_stencil().second;
+            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil()).first;
+        mono_inter_p2p::four() = mono_inter::calculate_stencil().second;
         mono_inter_p2p::stencil_four_constants() =
-            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil).second;
+            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil()).second;
 
         // Initialize stencil for p2m fmm interactions
-        mono_inter::p2m_interaction_interface::stencil =
+        mono_inter::p2m_interaction_interface::stencil() =
             mono_inter::calculate_stencil().first;
 
         namespace multi_inter = octotiger::fmm::multipole_interactions;
         using multi_inter_p2p = octotiger::fmm::multipole_interactions::
             multipole_interaction_interface;
         // Initialize stencil for multipole fmm interactions
-        multi_inter_p2p::stencil = multi_inter::calculate_stencil();
+        multi_inter_p2p::stencil() = multi_inter::calculate_stencil();
         multi_inter_p2p::stencil_masks() =
-            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil)
+            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil())
                 .first;
         multi_inter_p2p::inner_stencil_masks() =
-            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil)
+            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil())
                 .second;
 
         std::cout << "OS-thread " << current << " on locality "
@@ -109,14 +109,14 @@ std::array<size_t, 7> sum_counters_worker(std::size_t desired)
             p2p_interaction_interface;
 
         ret[0] = desired;
-        ret[1] = cuda_multi_intfc::cpu_launch_counter;
-        ret[2] = cuda_multi_intfc::cuda_launch_counter;
+        ret[1] = cuda_multi_intfc::cpu_launch_counter();
+        ret[2] = cuda_multi_intfc::cuda_launch_counter();
 
-        ret[3] = cuda_mono_intfc::cpu_launch_counter;
-        ret[4] = cuda_mono_intfc::cuda_launch_counter;
+        ret[3] = cuda_mono_intfc::cpu_launch_counter();
+        ret[4] = cuda_mono_intfc::cuda_launch_counter();
 
-        ret[5] = cuda_multi_intfc::cpu_launch_counter_non_rho;
-        ret[6] = cuda_multi_intfc::cuda_launch_counter_non_rho;
+        ret[5] = cuda_multi_intfc::cpu_launch_counter_non_rho();
+        ret[6] = cuda_multi_intfc::cuda_launch_counter_non_rho();
 
         // std::cout << "OS-thread " << ret[1] << " "
         //           << ret[2] << " " << ret[3]
