@@ -5,9 +5,10 @@
  *      Author: dmarce1
  */
 
-#include "octotiger/options.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
+#include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
 #include "octotiger/real.hpp"
 
 #include <boost/program_options.hpp>
@@ -17,8 +18,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
-void normalize_constants();
 
 #define IN_OPTIONS_CPP
 

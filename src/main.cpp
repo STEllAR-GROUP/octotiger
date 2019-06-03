@@ -1,9 +1,12 @@
 #include "octotiger/compute_factor.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
+#include "octotiger/grid_fmm.hpp"
+#include "octotiger/grid_scf.hpp"
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/rotating_star/rotating_star.hpp"
 
@@ -38,14 +41,6 @@
 #else
 #include <float.h>
 #endif
-
-namespace scf_options {
-void read_option_file();
-}
-
-void normalize_constants();
-
-void compute_ilist();
 
 std::size_t init_thread_local_worker(std::size_t desired)
 {

@@ -11,9 +11,7 @@
 #define SILO_UNITS
 
 #include "octotiger/config.hpp"
-
 #include "octotiger/radiation/rad_grid.hpp"
-
 #include "octotiger/defs.hpp"
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/geometry.hpp"

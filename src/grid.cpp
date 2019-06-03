@@ -111,7 +111,7 @@ void grid::set(const std::string name, real* data, int version) {
 		int f = iter->second;
 		int jjj = 0;
 
-		/* Correct for bugfix across versions */				
+		/* Correct for bugfix across versions */
 		if( version == 100 && f >= sx_i && f <= sz_i ) {
 			unit /= opts().code_to_s;
 		}
