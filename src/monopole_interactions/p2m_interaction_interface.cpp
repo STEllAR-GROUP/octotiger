@@ -16,8 +16,12 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        thread_local std::vector<multiindex<>> p2m_interaction_interface::stencil =
-            calculate_stencil().first;
+        std::vector<multiindex<>>& p2m_interaction_interface::stencil()
+        {
+            static thread_local std::vector<multiindex<>> stencil_ =
+                calculate_stencil().first;
+            return stencil_;
+        }
         thread_local std::vector<real> p2m_interaction_interface::local_monopoles_staging_area(
             ENTRIES);
         thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
@@ -52,7 +56,7 @@ namespace fmm {
                         angular_corrections_SoA;
                     kernel.apply_stencil(local_expansions_staging_area,
                         center_of_masses_staging_area, potential_expansions_SoA,
-                        angular_corrections_SoA, stencil, type, x_skip, y_skip, z_skip);
+                        angular_corrections_SoA, stencil(), type, x_skip, y_skip, z_skip);
                     potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
                     if (type == RHO) {
                         angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());

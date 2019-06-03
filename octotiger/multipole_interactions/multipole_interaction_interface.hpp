@@ -5,7 +5,6 @@
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
-
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
@@ -36,10 +35,10 @@ namespace fmm {
                 grid_ptr = ptr;
             }
         public:
-            static thread_local size_t cpu_launch_counter;
-            static thread_local size_t cuda_launch_counter;
-            static thread_local size_t cpu_launch_counter_non_rho;
-            static thread_local size_t cuda_launch_counter_non_rho;
+            static size_t& cpu_launch_counter();
+            static size_t& cuda_launch_counter();
+            static size_t& cpu_launch_counter_non_rho();
+            static size_t& cuda_launch_counter_non_rho();
 
 
         protected:
@@ -82,7 +81,7 @@ namespace fmm {
             static thread_local bool is_initialized;
         public:
             /// Stencil for stencil based FMM kernels
-            static thread_local two_phase_stencil stencil;
+            static two_phase_stencil& stencil();
             static std::vector<bool>& stencil_masks();
             static std::vector<bool>& inner_stencil_masks();
         };

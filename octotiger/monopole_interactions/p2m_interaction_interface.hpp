@@ -5,7 +5,6 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
-
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
@@ -38,7 +37,7 @@ namespace fmm {
 
         public:
             /// The stencil is used to identify the neighbors
-            static thread_local std::vector<multiindex<>> stencil;
+            static std::vector<multiindex<>>& stencil();
 
         protected:
             /// Converts AoS input data into SoA data

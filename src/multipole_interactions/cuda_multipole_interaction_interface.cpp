@@ -25,9 +25,9 @@ namespace octotiger { namespace fmm { namespace multipole_interactions {
         real dx, std::array<bool, geo::direction::count()>& is_direction_empty,
         std::array<real, NDIM> xbase)
     {
-        kernel_scheduler::scheduler.init();
+        kernel_scheduler::scheduler().init();
         // Check where we want to run this:
-        int slot = kernel_scheduler::scheduler.get_launch_slot();
+        int slot = kernel_scheduler::scheduler().get_launch_slot();
         if (slot == -1 || m2m_type == interaction_kernel_type::OLD)
         {
             // Run fallback CPU implementation
@@ -38,21 +38,21 @@ namespace octotiger { namespace fmm { namespace multipole_interactions {
         else
         {    // run on cuda device
             if (type == RHO)
-                cuda_launch_counter++;
+                cuda_launch_counter()++;
             else
-                cuda_launch_counter_non_rho++;
+                cuda_launch_counter_non_rho()++;
             // Move data into SoA arrays
             auto staging_area =
-                kernel_scheduler::scheduler.get_staging_area(slot);
+                kernel_scheduler::scheduler().get_staging_area(slot);
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                 staging_area.local_monopoles, staging_area.local_expansions_SoA,
                 staging_area.center_of_masses_SoA);
 
             // Queue moving of input data to device
             util::cuda_helper& gpu_interface =
-                kernel_scheduler::scheduler.get_launch_interface(slot);
+                kernel_scheduler::scheduler().get_launch_interface(slot);
             kernel_device_enviroment& env =
-                kernel_scheduler::scheduler.get_device_enviroment(slot);
+                kernel_scheduler::scheduler().get_device_enviroment(slot);
             gpu_interface.copy_async(env.device_local_monopoles,
                 staging_area.local_monopoles.data(), local_monopoles_size,
                 cudaMemcpyHostToDevice);

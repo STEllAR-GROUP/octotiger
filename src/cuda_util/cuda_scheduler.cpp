@@ -15,11 +15,15 @@
 #undef interface
 
 namespace octotiger { namespace fmm {
-    thread_local kernel_scheduler kernel_scheduler::scheduler;
+    kernel_scheduler& kernel_scheduler::scheduler()
+    {
+        static thread_local kernel_scheduler scheduler_;
+        return scheduler_;
+    }
     kernel_scheduler::kernel_scheduler()
       : number_cuda_streams_managed(0)
       , slots_per_cuda_stream(
-            1)    // Slots (queue per stream) is currently deactived
+            1)    // Slots (queue per stream) is currently deactivated
       , number_slots(number_cuda_streams_managed * slots_per_cuda_stream)
       , is_initialized(false)
     {
