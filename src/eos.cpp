@@ -220,8 +220,6 @@ void struct_eos::set_d0_using_struct_eos(real newd, const struct_eos& other) {
 	}
 }
 
-void normalize_constants();
-
 struct_eos::struct_eos(real M, real R) :
 		rho_cut(0.0) {
 //B = 1.0;

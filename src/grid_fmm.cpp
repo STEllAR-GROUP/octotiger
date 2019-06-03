@@ -8,9 +8,9 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
-
 #include "octotiger/grid.hpp"
 #include "octotiger/grid_flattened_indices.hpp"
+#include "octotiger/grid_fmm.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/profiler.hpp"

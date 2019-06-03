@@ -122,6 +122,8 @@ set(header_files
     octotiger/geometry.hpp
     octotiger/grid.hpp
     octotiger/grid_flattened_indices.hpp
+    octotiger/grid_fmm.hpp
+    octotiger/grid_scf.hpp
     octotiger/interaction_types.hpp
     octotiger/lane_emden.hpp
     octotiger/node_client.hpp
@@ -177,7 +179,6 @@ set(header_files
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star/rotating_star.hpp
-    octotiger/test_problems/sod/sod.hpp
     octotiger/test_problems/sod/exact_sod.hpp
 )
 
@@ -329,7 +330,7 @@ if(OCTOTIGER_WITH_BLAST_TEST)
 endif()
 
 ################################################################################
-# # Tool targets
+# Tool targets
 ################################################################################
 add_subdirectory(tools)
 

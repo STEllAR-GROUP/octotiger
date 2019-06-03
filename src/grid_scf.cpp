@@ -8,6 +8,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/eos.hpp"
 #include "octotiger/grid.hpp"
+#include "octotiger/grid_scf.hpp"
 #include "octotiger/lane_emden.hpp"
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_server.hpp"

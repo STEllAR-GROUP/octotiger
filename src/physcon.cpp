@@ -6,10 +6,11 @@
  */
 
 #define __NPHYSCON__
-#include "octotiger/physcon.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/grid.hpp"
+#include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/safe_math.hpp"
 #include "octotiger/util.hpp"
@@ -28,10 +29,6 @@ physcon_t& physcon() {
 }
 
 //physcon_t physcon() = { 6.00228e+22, 6.67259e-8, 2 * 9.81011e+5, 1.380658e-16, 1.0, 1.0, 1.0, 1.0, { 4.0, 4.0, 4.0, 4.0, 4.0 }, { 2.0, 2.0, 2.0, 2.0, 2.0 } };
-
-#include "octotiger/node_server.hpp"
-
-void normalize_constants();
 
 real find_T_rad_gas(real p, real rho, real mu) {
 	const real cg = physcon().kb / (mu * physcon().mh);

@@ -5,7 +5,7 @@
  *      Author: dmarce1
  */
 
-#include "octotiger/test_problems/sod/sod.hpp"
+#include "octotiger/problem.hpp"
 #include "octotiger/test_problems/sod/exact_sod.hpp"
 
 #include "octotiger/defs.hpp"

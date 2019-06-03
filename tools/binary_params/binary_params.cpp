@@ -38,7 +38,7 @@ static DBfile* db_;
 
 std::array<double, 3> find_com() {
 	std::array<double, 3> com = { { 0, 0, 0 } };
-	double mtot;
+	double mtot = 0.0;
 	const auto& rho = var_map_["rho"];
 	for (int i = 0; i < rho.size(); i++) {
 		const double V = std::pow(dx_[i], 3);

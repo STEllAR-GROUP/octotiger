@@ -5,12 +5,13 @@
  *      Author: dmarce1
  */
 
-#include "octotiger/problem.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/eos.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/lane_emden.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/physcon.hpp"
+#include "octotiger/problem.hpp"
 
 #include <hpx/include/lcos.hpp>
 
@@ -321,8 +322,6 @@ const real z0 = 0.0;
 const real rmax = 3.7;
 const real dr = rmax / 128.0;
 const real alpha = 1.0;
-
-void normalize_constants();
 
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
