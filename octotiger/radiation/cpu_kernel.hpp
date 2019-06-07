@@ -144,8 +144,8 @@ namespace octotiger { namespace radiation {
     void radiation_cpu_kernel(integer const d, std::vector<real> const& rho,
         std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
         std::vector<real>& egas, std::vector<real>& tau, real const fgamma,
-        std::array<std::vector<real>, NRF> U, std::vector<real> mmw,
-        std::vector<real> X_spc, std::vector<real> Z_spc, real dt,
+        std::array<std::vector<real>, NRF>& U, std::vector<real> const& mmw,
+        std::vector<real> const& X_spc, std::vector<real> const& Z_spc, real dt,
         real const clightinv)
     {
         for (integer i = RAD_BW; i != RAD_NX - RAD_BW; ++i)
