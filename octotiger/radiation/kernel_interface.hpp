@@ -5,6 +5,8 @@
 #include "octotiger/radiation/cuda_kernel.hpp"
 #include "octotiger/real.hpp"
 
+#include <hpx/include/run_as.hpp>
+
 #include <array>
 #include <vector>
 
@@ -156,17 +158,22 @@ namespace octotiger { namespace radiation {
         static std::atomic_size_t next_index(0);
         std::size_t index = next_index++;
 
-        dumper::save_case_args(index, opts().eos, opts().problem,
-            opts().dual_energy_sw1, opts().dual_energy_sw2, physcon().A,
-            physcon().B, physcon().c, fgamma, dt, clightinv, er_i, fx_i, fy_i,
-            fz_i, d, sx, sy, sz, egas, tau, U, rho, X_spc, Z_spc, mmw);
+        hpx::threads::run_as_os_thread([&]() {
+            dumper::save_case_args(index, opts().eos, opts().problem,
+                opts().dual_energy_sw1, opts().dual_energy_sw2, physcon().A,
+                physcon().B, physcon().c, fgamma, dt, clightinv, er_i, fx_i,
+                fy_i, fz_i, d, sx, sy, sz, egas, tau, U, rho, X_spc, Z_spc,
+                mmw);
+        }).get();
 #endif
 
         radiation_cpu_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas,
             tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
 
 #if defined(OCTOTIGER_DUMP_RADIATION_CASES)
-        dumper::save_case_outs(index, sx, sy, sz, egas, tau, U);
+        hpx::threads::run_as_os_thread([&]() {
+            dumper::save_case_outs(index, sx, sy, sz, egas, tau, U);
+        }).get();
 #endif
     }
 
