@@ -278,7 +278,7 @@ void node_server::compute_radiation(real dt) {
 		}
 
 		if (opts().rad_implicit) {
-			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
+		//	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
 		}
 
 		rgrid->store();
@@ -287,13 +287,13 @@ void node_server::compute_radiation(real dt) {
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(this_dt, 1.0);
 
-		all_rad_bounds();
+	/*	all_rad_bounds();
 		rgrid->compute_flux();
 		GET(exchange_rad_flux_corrections());
-		rgrid->advance(this_dt, 0.5);
+		rgrid->advance(this_dt, 0.5);*/
 
 		if (opts().rad_implicit) {
-			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
+		//	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
 		}
 
 	}
@@ -310,80 +310,103 @@ T minmod(T a, T b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }
 
+
 void rad_grid::reconstruct(std::array<std::vector<real>, NRF>& UL, std::array<std::vector<real>, NRF>& UR, int dir) {
-	for (int f = 0; f < NRF; f++) {
-		UR[f].resize(RAD_N3);
-		UL[f].resize(RAD_N3);
-		if (f > 0) {
-			for (int i = 0; i < RAD_N3; i++) {
-				U[f][i] = U[f][i] * INVERSE(U[er_i][i]);
-			}
-		}
-	}
-	int lb1[NDIM] = { RAD_BW, RAD_BW, RAD_BW };
-	int ub1[NDIM] = { RAD_NX - RAD_BW, RAD_NX - RAD_BW, RAD_NX - RAD_BW };
-	int ub2[NDIM] = { RAD_NX - RAD_BW, RAD_NX - RAD_BW, RAD_NX - RAD_BW };
-	lb1[dir] = 1;
-	ub1[dir] = RAD_NX - 1;
-	ub2[dir] = RAD_NX - 2;
-	const integer D[3] = { DX, DY, DZ };
-	const integer d = D[dir];
-	for (int f = 0; f < NRF; f++) {
-		std::vector<real> slp(RAD_N3);
-		for (int i = lb1[0]; i < ub1[0]; i++) {
-			for (int j = lb1[1]; j < ub1[1]; j++) {
-				for (int k = lb1[2]; k < ub1[2]; k++) {
-					const int iii = rindex(i, j, k);
-					const auto sp = U[f][iii + d] - U[f][iii];
-					const auto sm = U[f][iii] - U[f][iii - d];
-					const auto s0 = (sp + sm) * 0.5;
-					slp[iii] = minmod(s0, 2.0 * minmod(sp, sm));
-				}
-			}
-		}
-		for (int i = lb1[0]; i < ub2[0]; i++) {
-			for (int j = lb1[1]; j < ub2[1]; j++) {
-				for (int k = lb1[2]; k < ub2[2]; k++) {
-					const int iii = rindex(i, j, k);
-					UR[f][iii] = 0.5 * (U[f][iii] + U[f][iii + d]);
-					UR[f][iii] -= (1.0 / 6.0) * (slp[iii + d] - slp[iii]);
-					UL[f][iii + d] = UR[f][iii];
-					auto& ql = UL[f][iii];
-					auto& qr = UR[f][iii];
-					const auto& q0 = U[f][iii];
-					const real tmp1 = qr - ql;
-					const real tmp2 = qr + ql;
-					if (bool(qr < q0) != bool(q0 < ql)) {
-						qr = ql = q0;
-					} else {
-						const real tmp3 = tmp1 * tmp1 / 6.0;
-						const real tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-						if (tmp4 > tmp3) {
-							ql = 3.0 * q0 - 2.0 * qr;
-						} else if (-tmp3 > tmp4) {
-							qr = 3.0 * q0 - 2.0 * ql;
-						}
-					}
-				}
-			}
-		}
-		for (int i = ub2[0]; i >= RAD_BW; i--) {
-			for (int j = ub2[1]; j >= RAD_BW; j--) {
-				for (int k = ub2[2]; k >= RAD_BW; k--) {
-					const int iii = rindex(i, j, k);
-					UR[f][iii] = UL[f][iii];
-					UL[f][iii] = UR[f][iii - d];
-				}
-			}
-		}
-	}
-	for (int f = fx_i; f < NRF; f++) {
-		for (int i = 0; i < RAD_N3; i++) {
-			UR[f][i] *= UR[er_i][i];
-			UL[f][i] *= UL[er_i][i];
-			U[f][i] *= U[er_i][i];
-		}
-	}
+        for (int f = 0; f < NRF; f++) {
+#ifndef NDEBUG
+                UR[f].resize(RAD_N3,std::numeric_limits<double>::signaling_NaN());
+                UL[f].resize(RAD_N3,std::numeric_limits<double>::signaling_NaN());
+#else
+                UR[f].resize(RAD_N3);
+                UL[f].resize(RAD_N3);
+#endif
+                if (f > 0) {
+                        for (int i = 0; i < RAD_N3; i++) {
+                                U[f][i] = U[f][i] * INVERSE(U[er_i][i]);
+                        }
+                }
+        }
+        std::array<int,NDIM> lb1 = { RAD_BW, RAD_BW, RAD_BW };
+        std::array<int,NDIM> ub1 = { RAD_NX - RAD_BW, RAD_NX - RAD_BW, RAD_NX - RAD_BW };
+        std::array<int,NDIM> ub2 = { RAD_NX - RAD_BW, RAD_NX - RAD_BW, RAD_NX - RAD_BW };
+        lb1[dir] = 1;
+        ub1[dir] = RAD_NX - 1;
+        ub2[dir] = RAD_NX - 2;
+        auto lb2 = lb1;
+        lb2[dir] = 2;
+        const integer D[3] = { DX, DY, DZ };
+        const integer d = D[dir];
+        for (int f = 0; f < NRF; f++) {
+                std::vector<real> slp(RAD_N3);
+                for (int i = lb1[0]; i < ub1[0]; i++) {
+                        for (int j = lb1[1]; j < ub1[1]; j++) {
+                                for (int k = lb1[2]; k < ub1[2]; k++) {
+                                        const int iii = rindex(i, j, k);
+                                        const auto sp = U[f][iii + d] - U[f][iii];
+                                        const auto sm = U[f][iii] - U[f][iii - d];
+                                        const auto s0 = (sp + sm) * 0.5;
+                                        slp[iii] = minmod(s0, 2.0 * minmod(sp, sm));
+                                }
+                        }
+                }
+                for (int i = lb1[0]; i < ub2[0]; i++) {
+                        for (int j = lb1[1]; j < ub2[1]; j++) {
+                                for (int k = lb1[2]; k < ub2[2]; k++) {
+                                        const int iii = rindex(i, j, k);
+                                        UR[f][iii] = 0.5 * (U[f][iii] + U[f][iii + d]);
+                                        UR[f][iii] -= (1.0 / 6.0) * (slp[iii + d] - slp[iii]);
+                                        UL[f][iii + d] = UR[f][iii];
+                                        //printf( "%i %i %i %i %e\n", iii + d, i, j, k, UL[f][iii + d] );
+                                }
+                        }
+                }
+                for (int i = lb2[0]; i < ub2[0]; i++) {
+                        for (int j = lb2[1]; j < ub2[1]; j++) {
+                                for (int k = lb2[2]; k < ub2[2]; k++) {
+                                        const int iii = rindex(i, j, k);
+                                        auto& ql = UL[f][iii];
+                                        auto& qr = UR[f][iii];
+                                        const auto& q0 = U[f][iii];
+                                        const real tmp1 = qr - ql;
+                                        const real tmp2 = qr + ql;
+                                        if (bool(qr < q0) != bool(q0 < ql)) {
+                                                qr = ql = q0;
+                                        } else {
+                                                const real tmp3 = tmp1 * tmp1 / 6.0;
+                                                const real tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+                                                if (tmp4 > tmp3) {
+                                                        ql = 3.0 * q0 - 2.0 * qr;
+                                                } else if (-tmp3 > tmp4) {
+                                                        qr = 3.0 * q0 - 2.0 * ql;
+                                                }
+                                        }
+                                }
+                        }
+                }
+                for (int i = ub2[0] - 1; i >= RAD_BW; i--) {
+                        for (int j = ub2[1] - 1; j >= RAD_BW; j--) {
+                                for (int k = ub2[2] - 1; k >= RAD_BW; k--) {
+                                        const int iii = rindex(i, j, k);
+                                        UR[f][iii] = UL[f][iii];
+                                        UL[f][iii] = UR[f][iii - d];
+                                }
+                        }
+                }
+        }
+        for (int f = fx_i; f < NRF; f++) {
+                for (int i = 0; i < RAD_N3; i++) {
+                        U[f][i] *= U[er_i][i];
+                }
+                for (int i = ub2[0] - 1; i >= RAD_BW; i--) {
+                        for (int j = ub2[1] - 1; j >= RAD_BW; j--) {
+                                for (int k = ub2[2] - 1; k >= RAD_BW; k--) {
+                                        const int iii = rindex(i, j, k);
+                                        UR[f][iii] *= UR[er_i][iii];
+                                        UL[f][iii] *= UL[er_i][iii];
+                                }
+                        }
+                }
+        }
 }
 
 std::array<std::array<real, NDIM>, NDIM> compute_p(real E, real Fx, real Fy, real Fz, int dir, real& lambda) {
