@@ -167,7 +167,7 @@ void rad_grid::set_dx(real _dx) {
 void rad_grid::set_X(const std::vector<std::vector<real>>& x) {
 	X.resize(NDIM);
 	for (integer d = 0; d != NDIM; ++d) {
-		X[d].resize(RAD_N3,std::nan(""));
+		X[d].resize(RAD_N3);
 		for (integer xi = 0; xi != RAD_NX; ++xi) {
 			for (integer yi = 0; yi != RAD_NX; ++yi) {
 				for (integer zi = 0; zi != RAD_NX; ++zi) {
@@ -221,9 +221,9 @@ real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vect
 }
 
 void rad_grid::compute_mmw(const std::vector<std::vector<real>>& U) {
-	mmw.resize(RAD_N3,std::nan(""));
-	X_spc.resize(RAD_N3,std::nan(""));
-	Z_spc.resize(RAD_N3,std::nan(""));
+	mmw.resize(RAD_N3);
+	X_spc.resize(RAD_N3);
+	Z_spc.resize(RAD_N3);
 	for (integer i = 0; i != RAD_NX; ++i) {
 		for (integer j = 0; j != RAD_NX; ++j) {
 			for (integer k = 0; k != RAD_NX; ++k) {
@@ -452,10 +452,10 @@ std::array<std::array<real, NDIM>, NDIM> compute_p(real E, real Fx, real Fy, rea
 void rad_grid::allocate() {
 	rad_grid::dx = dx;
 	for (integer f = 0; f != NRF; ++f) {
-		U0[f].resize(RAD_N3,std::nan(""));
-		U[f].resize(RAD_N3,std::nan(""));
+		U0[f].resize(RAD_N3);
+		U[f].resize(RAD_N3);
 		for (integer d = 0; d != NDIM; ++d) {
-			flux[d][f].resize(RAD_N3,std::nan(""));
+			flux[d][f].resize(RAD_N3);
 		}
 	}
 }
