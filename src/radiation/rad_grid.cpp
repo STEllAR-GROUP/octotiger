@@ -167,7 +167,7 @@ void rad_grid::set_dx(real _dx) {
 void rad_grid::set_X(const std::vector<std::vector<real>>& x) {
 	X.resize(NDIM);
 	for (integer d = 0; d != NDIM; ++d) {
-		X[d].resize(RAD_N3);
+		X[d].resize(RAD_N3,std::nan(""));
 		for (integer xi = 0; xi != RAD_NX; ++xi) {
 			for (integer yi = 0; yi != RAD_NX; ++yi) {
 				for (integer zi = 0; zi != RAD_NX; ++zi) {
@@ -221,9 +221,9 @@ real rad_grid::hydro_signal_speed(const std::vector<real>& egas, const std::vect
 }
 
 void rad_grid::compute_mmw(const std::vector<std::vector<real>>& U) {
-	mmw.resize(RAD_N3);
-	X_spc.resize(RAD_N3);
-	Z_spc.resize(RAD_N3);
+	mmw.resize(RAD_N3,std::nan(""));
+	X_spc.resize(RAD_N3,std::nan(""));
+	Z_spc.resize(RAD_N3,std::nan(""));
 	for (integer i = 0; i != RAD_NX; ++i) {
 		for (integer j = 0; j != RAD_NX; ++j) {
 			for (integer k = 0; k != RAD_NX; ++k) {
@@ -278,7 +278,7 @@ void node_server::compute_radiation(real dt) {
 		}
 
 		if (opts().rad_implicit) {
-			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
+		//	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
 		}
 
 		rgrid->store();
@@ -287,13 +287,13 @@ void node_server::compute_radiation(real dt) {
 		GET(exchange_rad_flux_corrections());
 		rgrid->advance(this_dt, 1.0);
 
-		all_rad_bounds();
+	/*	all_rad_bounds();
 		rgrid->compute_flux();
 		GET(exchange_rad_flux_corrections());
-		rgrid->advance(this_dt, 0.5);
+		rgrid->advance(this_dt, 0.5);*/
 
 		if (opts().rad_implicit) {
-			rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
+		//	rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * this_dt);
 		}
 
 	}
@@ -313,8 +313,13 @@ T minmod(T a, T b) {
 
 void rad_grid::reconstruct(std::array<std::vector<real>, NRF>& UL, std::array<std::vector<real>, NRF>& UR, int dir) {
         for (int f = 0; f < NRF; f++) {
-                UR[f].resize(RAD_N3,0);
-                UL[f].resize(RAD_N3,0);
+#ifndef NDEBUG
+                UR[f].resize(RAD_N3,std::numeric_limits<double>::signaling_NaN());
+                UL[f].resize(RAD_N3,std::numeric_limits<double>::signaling_NaN());
+#else
+                UR[f].resize(RAD_N3);
+                UL[f].resize(RAD_N3);
+#endif
                 if (f > 0) {
                         for (int i = 0; i < RAD_N3; i++) {
                                 U[f][i] = U[f][i] * INVERSE(U[er_i][i]);
@@ -395,8 +400,9 @@ void rad_grid::reconstruct(std::array<std::vector<real>, NRF>& UL, std::array<st
                 for (int i = ub2[0] - 1; i >= RAD_BW; i--) {
                         for (int j = ub2[1] - 1; j >= RAD_BW; j--) {
                                 for (int k = ub2[2] - 1; k >= RAD_BW; k--) {
-                                        UR[f][i] *= UR[er_i][i];
-                                        UL[f][i] *= UL[er_i][i];
+                                        const int iii = rindex(i, j, k);
+                                        UR[f][iii] *= UR[er_i][iii];
+                                        UL[f][iii] *= UL[er_i][iii];
                                 }
                         }
                 }
@@ -446,10 +452,10 @@ std::array<std::array<real, NDIM>, NDIM> compute_p(real E, real Fx, real Fy, rea
 void rad_grid::allocate() {
 	rad_grid::dx = dx;
 	for (integer f = 0; f != NRF; ++f) {
-		U0[f].resize(RAD_N3);
-		U[f].resize(RAD_N3);
+		U0[f].resize(RAD_N3,std::nan(""));
+		U[f].resize(RAD_N3,std::nan(""));
 		for (integer d = 0; d != NDIM; ++d) {
-			flux[d][f].resize(RAD_N3);
+			flux[d][f].resize(RAD_N3,std::nan(""));
 		}
 	}
 }
