@@ -13,6 +13,7 @@
 #include <array>
 #include <cassert>
 #include <cstdlib>
+#include <string>
 
 namespace geo {
 
