@@ -1,7 +1,9 @@
 ##############################################################################
-# Marshak
+# Marshak wave test
 ##############################################################################
+message(STATUS "Downloading reference SILO file for Marshak wave test")
 file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.3.silo ${PROJECT_BINARY_DIR}/marshak.silo)
+message(STATUS "Downloading reference SILO file for Marshak wave test -- Success")
 
 # Marshak - CPU
 add_test(NAME test_problems.cpu.marshak
