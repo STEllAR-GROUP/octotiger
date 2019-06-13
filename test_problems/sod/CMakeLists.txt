@@ -1,7 +1,9 @@
 ##############################################################################
 # Sod Shock Tube
 ##############################################################################
+message(STATUS "Downloading reference SILO file for Sod shock tube test")
 file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.5.silo ${PROJECT_BINARY_DIR}/sod.silo)
+message(STATUS "Downloading reference SILO file for Sod shock tube test -- Success")
 
 # Sod Shock Tube - CPU
 add_test(NAME test_problems.cpu.sod

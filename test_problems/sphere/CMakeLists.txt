@@ -1,7 +1,9 @@
 ##############################################################################
 # Sphere
 ##############################################################################
+message(STATUS "Downloading reference SILO file for Solid sphere test")
 file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
+message(STATUS "Downloading reference SILO file for Solid sphere test -- Success")
 
 # Sphere - CPU
 add_test(NAME test_problems.cpu.sphere
