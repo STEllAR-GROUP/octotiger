@@ -93,8 +93,6 @@ RUN git clone https://github.com/STEllAR-GROUP/hpx.git --depth=1 --branch=${HPX_
     && cmake -Hhpx -Bhpx/build \
         -DBOOST_ROOT=/local/boost \
         -DHPX_WITH_EXAMPLES=OFF \
-        -DHPX_WITH_DATAPAR_VC=ON \
-        -DVc_DIR=/local/vc/lib/cmake/Vc \
         -DHWLOC_ROOT=/local/hwloc \
         -DCMAKE_INSTALL_PREFIX=/local/hpx \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
