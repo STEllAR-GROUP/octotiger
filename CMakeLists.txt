@@ -264,7 +264,11 @@ endif()
 if(OCTOTIGER_WITH_Vc)
   find_package(Vc REQUIRED)
 
-  target_compile_definitions(octolib PRIVATE OCTOTIGER_HAVE_VC)
+  target_compile_definitions(octolib PUBLIC
+    OCTOTIGER_HAVE_VC
+    # Need serialization support from HPX
+    HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC
+  )
 endif()
 
 if(OCTOTIGER_WITH_Vc AND USE_AVX512 AND OCTOTIGER_WITH_AVX512)
