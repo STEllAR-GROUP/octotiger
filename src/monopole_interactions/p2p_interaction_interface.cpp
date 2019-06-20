@@ -1,8 +1,6 @@
-#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/calculate_stencil.hpp"
-
 #include "octotiger/common_kernel/interactions_iterators.hpp"
-
+#include "octotiger/monopole_interactions/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
 #include "octotiger/options.hpp"
 
 #include <algorithm>
@@ -29,6 +27,7 @@ namespace fmm {
                 calculate_stencil().first;
             return stencil_;
         }
+
         std::vector<bool>& p2p_interaction_interface::stencil_masks()
         {
             static thread_local std::vector<bool> stencil_masks_ =

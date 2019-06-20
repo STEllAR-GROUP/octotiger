@@ -1,12 +1,11 @@
 #pragma once
 #ifdef OCTOTIGER_HAVE_CUDA
 
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
-
 #include "octotiger/cuda_util/cuda_helper.hpp"
-
 #include "octotiger/real.hpp"
 #include "octotiger/taylor.hpp"
 
@@ -138,10 +137,10 @@ namespace octotiger { namespace fmm {
         // Throws if a CPU slot (-1) is given
         util::cuda_helper& get_launch_interface(std::size_t slot);
         // Global scheduler instance for this HPX thread
-        static kernel_scheduler& scheduler();
+        static OCTOTIGER_EXPORT kernel_scheduler& scheduler();
 
-        void init();
-        static void init_constants();
+        OCTOTIGER_EXPORT void init();
+        static OCTOTIGER_EXPORT void init_constants();
 
     public:
         kernel_scheduler(kernel_scheduler& other) = delete;

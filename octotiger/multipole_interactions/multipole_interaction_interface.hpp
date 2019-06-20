@@ -1,5 +1,6 @@
 #pragma once
 
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
@@ -35,11 +36,10 @@ namespace fmm {
                 grid_ptr = ptr;
             }
         public:
-            static size_t& cpu_launch_counter();
-            static size_t& cuda_launch_counter();
-            static size_t& cpu_launch_counter_non_rho();
-            static size_t& cuda_launch_counter_non_rho();
-
+            static OCTOTIGER_EXPORT size_t& cpu_launch_counter();
+            static OCTOTIGER_EXPORT size_t& cuda_launch_counter();
+            static OCTOTIGER_EXPORT size_t& cpu_launch_counter_non_rho();
+            static OCTOTIGER_EXPORT size_t& cuda_launch_counter_non_rho();
 
         protected:
             /// Converts AoS input data into SoA data
@@ -81,9 +81,9 @@ namespace fmm {
             static thread_local bool is_initialized;
         public:
             /// Stencil for stencil based FMM kernels
-            static two_phase_stencil& stencil();
-            static std::vector<bool>& stencil_masks();
-            static std::vector<bool>& inner_stencil_masks();
+            static OCTOTIGER_EXPORT two_phase_stencil& stencil();
+            static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
+            static OCTOTIGER_EXPORT std::vector<bool>& inner_stencil_masks();
         };
 
         template <typename monopole_container, typename expansion_soa_container,

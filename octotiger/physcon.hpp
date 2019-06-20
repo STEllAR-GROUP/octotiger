@@ -61,7 +61,7 @@ real stellar_enthalpy_from_rho_mu_s(real rho, real mu, real s);
 real stellar_rho_from_enthalpy_mu_s(real h, real mu, real s);
 real find_T_rad_gas(real p, real rho, real mu);
 
-void normalize_constants();
+OCTOTIGER_EXPORT void normalize_constants();
 
 void these_units(real& m, real& l, real& t, real& k);
 

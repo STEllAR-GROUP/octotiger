@@ -8,13 +8,12 @@
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_
 
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
-
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
-
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
@@ -49,7 +48,7 @@ struct node_count_type {
 	}
 };
 
-class node_server: public hpx::components::managed_component_base<node_server> {
+class OCTOTIGER_EXPORT node_server: public hpx::components::managed_component_base<node_server> {
 
 
 

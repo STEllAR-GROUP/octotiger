@@ -5,7 +5,6 @@
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
-
 #include "octotiger/taylor.hpp"
 
 #include <cstdint>

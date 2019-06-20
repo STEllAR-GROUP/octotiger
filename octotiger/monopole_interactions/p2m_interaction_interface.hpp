@@ -1,13 +1,13 @@
 #pragma once
 
-#include "octotiger/monopole_interactions/p2m_kernel.hpp"
-
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
+#include "octotiger/monopole_interactions/p2m_kernel.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <array>
@@ -37,7 +37,7 @@ namespace fmm {
 
         public:
             /// The stencil is used to identify the neighbors
-            static std::vector<multiindex<>>& stencil();
+            static OCTOTIGER_EXPORT std::vector<multiindex<>>& stencil();
 
         protected:
             /// Converts AoS input data into SoA data

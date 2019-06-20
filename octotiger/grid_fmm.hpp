@@ -1,3 +1,5 @@
 #pragma once
 
-void compute_ilist();
+#include "octotiger/config/export_definitions.hpp"
+
+OCTOTIGER_EXPORT void compute_ilist();
