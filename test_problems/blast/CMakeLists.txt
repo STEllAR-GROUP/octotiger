@@ -2,7 +2,9 @@
 # Blast
 ##############################################################################
 message(STATUS "Downloading reference SILO file for Blast test")
-file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.5.silo ${PROJECT_BINARY_DIR}/blast.silo)
+if(NOT EXISTS ${PROJECT_BINARY_DIR}/blast.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/blast.5.silo ${PROJECT_BINARY_DIR}/blast.silo)
+endif()
 message(STATUS "Downloading reference SILO file for Blast test -- Success")
 
 # Blast - CPU

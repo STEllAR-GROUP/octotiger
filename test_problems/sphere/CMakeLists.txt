@@ -2,7 +2,9 @@
 # Sphere
 ##############################################################################
 message(STATUS "Downloading reference SILO file for Solid sphere test")
-file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
+if(NOT EXISTS ${PROJECT_BINARY_DIR}/sphere.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
+endif()
 message(STATUS "Downloading reference SILO file for Solid sphere test -- Success")
 
 # Sphere - CPU

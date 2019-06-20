@@ -2,7 +2,9 @@
 # Marshak wave test
 ##############################################################################
 message(STATUS "Downloading reference SILO file for Marshak wave test")
-file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.3.silo ${PROJECT_BINARY_DIR}/marshak.silo)
+if(NOT EXISTS ${PROJECT_BINARY_DIR}/marshak.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.3.silo ${PROJECT_BINARY_DIR}/marshak.silo)
+endif()
 message(STATUS "Downloading reference SILO file for Marshak wave test -- Success")
 
 # Marshak - CPU

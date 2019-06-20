@@ -2,8 +2,10 @@
 # Rotating Star
 ##############################################################################
 message(STATUS "Downloading reference SILO file for Rotating star test")
-file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.5.silo
-  ${PROJECT_BINARY_DIR}/rotating_star.silo)
+if(NOT EXISTS ${PROJECT_BINARY_DIR}/rotating_star.silo)
+  file(DOWNLOAD phys.lsu.edu/~dmarcel/rotating_star.5.silo
+    ${PROJECT_BINARY_DIR}/rotating_star.silo)
+endif()
 message(STATUS "Downloading reference SILO file for Rotating star test -- Success")
 
 # Rotating Star - CPU
