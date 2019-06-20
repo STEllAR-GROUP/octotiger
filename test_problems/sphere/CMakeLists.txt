@@ -1,11 +1,9 @@
 ##############################################################################
 # Sphere
 ##############################################################################
-message(STATUS "Downloading reference SILO file for Solid sphere test")
-if(NOT EXISTS ${PROJECT_BINARY_DIR}/sphere.silo)
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/sphere.2.silo ${PROJECT_BINARY_DIR}/sphere.silo)
-endif()
-message(STATUS "Downloading reference SILO file for Solid sphere test -- Success")
+download_test_reference("Solid sphere test"
+  "phys.lsu.edu/~dmarcel/sphere.2.silo"
+  ${PROJECT_BINARY_DIR}/sphere.silo)
 
 # Sphere - CPU
 add_test(NAME test_problems.cpu.sphere

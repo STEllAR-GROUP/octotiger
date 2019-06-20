@@ -1,17 +1,14 @@
 ##############################################################################
 # Sod Shock Tube
 ##############################################################################
-message(STATUS "Downloading reference SILO file for Sod shock tube test")
-if(NOT EXISTS ${PROJECT_BINARY_DIR}/sod.silo)
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/sod.5.silo ${PROJECT_BINARY_DIR}/sod.silo)
-endif()
-message(STATUS "Downloading reference SILO file for Sod shock tube test -- Success")
+download_test_reference("Sod shock tube test"
+  "phys.lsu.edu/~dmarcel/sod.5.silo"
+  ${PROJECT_BINARY_DIR}/sod.silo)
 
 # Sod Shock Tube - CPU
 add_test(NAME test_problems.cpu.sod
   COMMAND octotiger
     --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini)
-
 add_test(NAME test_problems.cpu.sod.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
     ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.silo)
@@ -28,7 +25,6 @@ if(OCTOTIGER_WITH_CUDA)
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini
       --cuda_streams_per_locality=1 --cuda_streams_per_gpu=1)
-
   add_test(NAME test_problems.gpu.sod.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/final.silo)

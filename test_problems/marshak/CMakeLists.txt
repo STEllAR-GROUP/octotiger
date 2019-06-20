@@ -1,11 +1,9 @@
 ##############################################################################
 # Marshak wave test
 ##############################################################################
-message(STATUS "Downloading reference SILO file for Marshak wave test")
-if(NOT EXISTS ${PROJECT_BINARY_DIR}/marshak.silo)
-  file(DOWNLOAD phys.lsu.edu/~dmarcel/marshak.3.silo ${PROJECT_BINARY_DIR}/marshak.silo)
-endif()
-message(STATUS "Downloading reference SILO file for Marshak wave test -- Success")
+download_test_reference("Marshak wave test"
+  "phys.lsu.edu/~dmarcel/marshak.3.silo"
+  ${PROJECT_BINARY_DIR}/marshak.silo)
 
 # Marshak - CPU
 add_test(NAME test_problems.cpu.marshak
