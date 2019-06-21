@@ -35,11 +35,11 @@ namespace octotiger { namespace radiation {
             real f_min = test(de_min);
             real f_mid = test(de_mid);
             // Max iterations
-            constexpr std::size_t max_iterations = 50;
+            constexpr std::size_t MAX_ITERATIONS = 50;
             // Errors
             real const error_tolerance = 1.0e-9;
 
-            for (std::size_t i = 0; i < max_iterations; ++i)
+            for (std::size_t i = 0; i < MAX_ITERATIONS; ++i)
             {
                 // Root solver has converged if error is smaller that error tolerance
                 real const error =
@@ -50,7 +50,7 @@ namespace octotiger { namespace radiation {
                 }
 
                 // If signs don't match, continue search in the lower half
-                if ((f_min < 0) != (f_mid < 0))
+                if ((f_min < 0.0) != (f_mid < 0.0))
                 {
                     de_max = de_mid;
                     de_mid = 0.5 * (de_min + de_max);
@@ -90,13 +90,13 @@ namespace octotiger { namespace radiation {
                 return (4.0 * M_PI / c) * B_p(rho, e * rhoc2, mmw) / rhoc2;
             };
 
-            auto E = E0;
+            real E = E0;
             auto eg_t =
                 e0 + 0.5 * (u0[0] * u0[0] + u0[1] * u0[1] + u0[2] * u0[2]);
-            auto F = F0;
-            auto u = u0;
+            space_vector F = F0;
+            space_vector u = u0;
             real ei;
-            auto const eg_t0 = eg_t;
+            real const eg_t0 = eg_t;
 
             real u2_0 = 0.0;
             real F2_0 = 0.0;
@@ -112,10 +112,10 @@ namespace octotiger { namespace radiation {
                 real udotF = 0.0;
                 for (int d = 0; d < NDIM; d++)
                 {
-                    auto const num =
+                    real const num =
                         F0[d] + (4.0 / 3.0) * kr * E * (u0[d] + F0[d]);
-                    auto const den = 1.0 + kr * (1.0 + (4.0 / 3.0) * E);
-                    auto const deninv = 1.0 / den;
+                    real const den = 1.0 + kr * (1.0 + (4.0 / 3.0) * E);
+                    real const deninv = 1.0 / den;
                     F[d] = num * deninv;
                     u[d] = u0[d] + F0[d] - F[d];
                     u2 += u[d] * u[d];
@@ -133,7 +133,7 @@ namespace octotiger { namespace radiation {
 
             ei = eg_t - 0.5 * (u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
             e0 = ei * rhoc2;
-            auto const dtinv = 1.0 / dt;
+            real const dtinv = 1.0 / dt;
 
             return std::make_pair(
                 real((E - E0) * dtinv * rhoc2), ((F - F0) * dtinv * rhoc2 * c));
@@ -171,10 +171,10 @@ namespace octotiger { namespace radiation {
                     real vz = sz[iiih] * deninv;
 
                     // Compute e0 from dual energy formalism
-                    real e0 = egas[iiih];
-                    e0 -= 0.5 * vx * vx * den;
-                    e0 -= 0.5 * vy * vy * den;
-                    e0 -= 0.5 * vz * vz * den;
+                    real e0 = egas[iiih]         //
+                        - 0.5 * vx * vx * den    //
+                        - 0.5 * vy * vy * den    //
+                        - 0.5 * vz * vz * den;
                     if (opts().eos == WD)
                     {
                         e0 -= ztwd_energy(den);
@@ -216,10 +216,10 @@ namespace octotiger { namespace radiation {
                     sz[iiih] -= dFz_dt * dt * clightinv * clightinv;
 
                     // Find tau with dual energy formalism
-                    real e = egas[iiih];
-                    e -= 0.5 * sx[iiih] * sx[iiih] * deninv;
-                    e -= 0.5 * sy[iiih] * sy[iiih] * deninv;
-                    e -= 0.5 * sz[iiih] * sz[iiih] * deninv;
+                    real e = egas[iiih]                         //
+                        - 0.5 * sx[iiih] * sx[iiih] * deninv    //
+                        - 0.5 * sy[iiih] * sy[iiih] * deninv    //
+                        - 0.5 * sz[iiih] * sz[iiih] * deninv;
                     if (opts().eos == WD)
                     {
                         e -= ztwd_energy(den);
@@ -228,17 +228,12 @@ namespace octotiger { namespace radiation {
                     {
                         e = e1;
                     }
-                    if (opts().problem == MARSHAK)
-                    {
-                        egas[iiih] = e;
-                        sx[iiih] = sy[iiih] = sz[iiih] = 0;
-                    }
                     if (U[er_i][iiir] <= 0.0)
                     {
                         printf("Er = %e %e %e %e\n", E0, E1, U[er_i][iiir], dt);
                         abort();
                     }
-                    e = std::max(e, decltype(e)(0));
+                    e = std::max(e, 0.0);
                     tau[iiih] = std::pow(e, INVERSE(fgamma));
                     if (U[er_i][iiir] <= 0.0)
                     {
@@ -246,10 +241,13 @@ namespace octotiger { namespace radiation {
                             dE_dt * dt);
                         abort();
                     }
+                    // Frozen in case of Marshak
                     if (opts().problem == MARSHAK)
                     {
-                        sx[iiih] = sy[iiih] = sz[iiih] = 0;
                         egas[iiih] = e;
+                        sx[iiih] = 0.0;
+                        sy[iiih] = 0.0;
+                        sz[iiih] = 0.0;
                     }
                 }
             }
