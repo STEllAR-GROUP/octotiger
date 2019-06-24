@@ -22,7 +22,7 @@ namespace fmm {
         class p2m_interaction_interface
         {
         public:
-            p2m_interaction_interface(void);
+            p2m_interaction_interface();
             /** Takes AoS data, converts it, calculates monopole-multipole FMM interactions,
                 stores results in L, L_c */
             void compute_p2m_interactions(std::vector<real>& monopoles,

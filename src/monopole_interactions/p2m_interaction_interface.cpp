@@ -29,7 +29,7 @@ namespace fmm {
         thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
             p2m_interaction_interface::center_of_masses_staging_area;
 
-        p2m_interaction_interface::p2m_interaction_interface(void)
+        p2m_interaction_interface::p2m_interaction_interface()
           : neighbor_empty_multipoles(27)
           , kernel(neighbor_empty_multipoles) {
             this->p2m_type = opts().p2m_kernel_type;

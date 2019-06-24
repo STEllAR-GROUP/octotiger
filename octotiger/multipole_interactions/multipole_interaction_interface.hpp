@@ -23,7 +23,7 @@ namespace fmm {
         class multipole_interaction_interface
         {
         public:
-            multipole_interaction_interface(void);
+            multipole_interaction_interface();
             /// Takes AoS data, converts it, calculates FMM interactions, stores results in L, L_c
             void compute_multipole_interactions(std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,

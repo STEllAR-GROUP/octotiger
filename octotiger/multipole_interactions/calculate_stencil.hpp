@@ -5,7 +5,7 @@
 
 namespace octotiger { namespace fmm { namespace multipole_interactions {
 
-    OCTOTIGER_EXPORT two_phase_stencil calculate_stencil(void);
+    OCTOTIGER_EXPORT two_phase_stencil calculate_stencil();
     OCTOTIGER_EXPORT std::pair<std::vector<bool>, std::vector<bool>>
     calculate_stencil_masks(two_phase_stencil superimposed_stencil);
 

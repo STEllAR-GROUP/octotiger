@@ -102,7 +102,7 @@ namespace octotiger { namespace util {
             }
         }
 
-        static void print_local_targets(void)
+        static void print_local_targets()
         {
             auto targets = hpx::compute::cuda::target::get_local_targets();
             for (auto target : targets)

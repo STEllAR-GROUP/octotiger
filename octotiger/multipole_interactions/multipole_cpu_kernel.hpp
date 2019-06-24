@@ -85,7 +85,7 @@ namespace fmm {
                 std::vector<bool>& inner_mask, const size_t outer_stencil_index);
 
         public:
-            multipole_cpu_kernel(void);
+            multipole_cpu_kernel();
 
             multipole_cpu_kernel(multipole_cpu_kernel& other) = delete;
 

@@ -53,7 +53,7 @@ namespace fmm {
         thread_local std::vector<real> p2p_interaction_interface::local_monopoles_staging_area(
             ENTRIES);
 
-        p2p_interaction_interface::p2p_interaction_interface(void)
+        p2p_interaction_interface::p2p_interaction_interface()
           : neighbor_empty_monopoles(27)
           , kernel_monopoles(neighbor_empty_monopoles) {
             this->p2p_type = opts().p2p_kernel_type;

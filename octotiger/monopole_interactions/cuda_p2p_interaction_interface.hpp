@@ -23,7 +23,7 @@ namespace fmm {
         class cuda_p2p_interaction_interface : public p2p_interaction_interface
         {
         public:
-            cuda_p2p_interaction_interface(void);
+            cuda_p2p_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
               * stores results in L */
             void compute_p2p_interactions(std::vector<real>& monopoles,

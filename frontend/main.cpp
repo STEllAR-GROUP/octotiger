@@ -313,7 +313,7 @@ std::array<size_t, 6> analyze_local_launch_counters() {
 }
 HPX_PLAIN_ACTION(analyze_local_launch_counters, analyze_local_launch_counters_action);
 
-void accumulate_distributed_counters(void) {
+void accumulate_distributed_counters() {
     std::vector<hpx::naming::id_type> localities =
             hpx::find_all_localities();
 

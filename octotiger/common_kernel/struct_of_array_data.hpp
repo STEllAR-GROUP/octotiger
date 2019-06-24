@@ -21,7 +21,7 @@ namespace fmm {
 
     public:
         static constexpr size_t padded_entries_per_component = entries + padding;
-        inline component_type* const get_pod(void) {
+        inline component_type* const get_pod() {
             return data.data();
         }
         template <size_t component_access>
@@ -64,7 +64,7 @@ namespace fmm {
                 }
             }
         }
-        struct_of_array_data(void)
+        struct_of_array_data()
           : data(num_components * padded_entries_per_component) {
             for (auto i = 0; i < num_components * padded_entries_per_component; ++i) {
                 data[i] = 0.0;
