@@ -237,8 +237,8 @@ int main(int argc, char* argv[]) {
 	DBReadVar(db_, "code_to_s", (void*) &code_to_s);
 	DBReadVar(db_, "omega", (void*) &omega);
 	printf("Omega = %e\n", omega);
-	printf("SILO version: %i\n", version);
-	printf("N species   : %i\n", n_species);
+	printf("SILO version: %i\n", static_cast<int>(version));
+	printf("N species   : %i\n", static_cast<int>(n_species));
 
 	printf("Reading table of contents\n");
 	DBmultimesh* mmesh = DBGetMultimesh(db_, "quadmesh");
