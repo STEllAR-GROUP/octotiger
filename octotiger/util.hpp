@@ -30,10 +30,11 @@ int lprintf( const char* log, const char* str, Args&&...args) {
     {
         if(!opts().disable_output) {
             FILE* fp = fopen (log, "at");
-	        if( fp == NULL) {
-		        return -1;
-	        }
-	        fprintf( fp, str, std::forward<Args>(args)...);
+            if (fp == nullptr)
+            {
+                return -1;
+            }
+            fprintf( fp, str, std::forward<Args>(args)...);
 	        fclose(fp);
 	    }
         printf( str, std::forward<Args>(args)...);

@@ -23,7 +23,7 @@ namespace fmm {
         class cuda_multipole_interaction_interface : public multipole_interaction_interface
         {
         public:
-            cuda_multipole_interaction_interface(void);
+            cuda_multipole_interaction_interface();
             /// Takes AoS input, converts, launches kernel and writes AoS results back into L,L_c
             void compute_multipole_interactions(std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,

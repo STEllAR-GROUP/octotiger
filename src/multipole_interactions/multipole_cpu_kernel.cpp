@@ -16,7 +16,7 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        multipole_cpu_kernel::multipole_cpu_kernel(void)
+        multipole_cpu_kernel::multipole_cpu_kernel()
           : theta_rec_squared(sqr(1.0 / opts().theta)) {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;

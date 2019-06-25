@@ -15,7 +15,7 @@ namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
 
-        two_phase_stencil calculate_stencil(void) {
+        two_phase_stencil calculate_stencil() {
             std::array<two_phase_stencil, 8> stencils;
 
             // used to check the radii of the outer and inner sphere

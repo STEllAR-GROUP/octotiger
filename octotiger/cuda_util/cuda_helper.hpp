@@ -29,7 +29,7 @@ namespace octotiger { namespace util {
             stream_ = target_.native_handle().get_stream();
         }
 
-        ~cuda_helper() {}
+        ~cuda_helper() = default;
 
         // This is a simple wrapper for any cuBLAS call, pass in the same arguments
         // that you would use for a cuBLAS call except the cuBLAS handle which is omitted
@@ -102,7 +102,7 @@ namespace octotiger { namespace util {
             }
         }
 
-        static void print_local_targets(void)
+        static void print_local_targets()
         {
             auto targets = hpx::compute::cuda::target::get_local_targets();
             for (auto target : targets)

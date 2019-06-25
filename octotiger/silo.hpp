@@ -79,7 +79,7 @@ struct  silo_load_t {
 
 void output_all(std::string fname, int cycle, bool);
 
-void load_options_from_silo(std::string fname, DBfile* = NULL);
+void load_options_from_silo(std::string fname, DBfile* = nullptr);
 
 OCTOTIGER_EXPORT void load_data_from_silo(std::string fname, node_server*, hpx::id_type);
 

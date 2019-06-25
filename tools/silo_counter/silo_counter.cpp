@@ -1,6 +1,6 @@
 #include <silo.h>
 
-#include <cstdlib>
+#include <cstdio>
 #include <string>
 
 int main(int argc, char* argv[])
@@ -10,9 +10,9 @@ int main(int argc, char* argv[])
         printf("silo_counter <prefix> <num_files>\n");
         return -1;
     }
-    int maxblockindex;
+    int maxblockindex = 0;
     int maxblocks = 0;
-    int count = atoi(argv[2]);
+    int count = std::stoi(argv[2]);
     char* prefix = argv[1];
     for (int i = 0; i < count; i++)
     {

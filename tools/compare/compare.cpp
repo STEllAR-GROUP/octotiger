@@ -28,12 +28,12 @@ struct silo_file {
 	std::set<std::string> var_names;
 	std::set<std::string> mesh_names;
 
-	silo_file(const std::string name) {
+	silo_file(std::string const name) {
 		handle = DBOpenReal(name.c_str(), SILO_DRIVER, DB_READ);
 
 		//      std::cout << "Variables in " << name << " are:\n";
 		auto toc = DBGetToc(handle);
-		for (int i = 0; i < toc->nmultivar; i++) {
+		for (int i = 0; i < toc->nmultivar; ++i) {
 			auto name = std::string(toc->multivar_names[i]);
 			var_names.insert(name);
 			// std::cout << "   " << name << "\n";
@@ -41,7 +41,7 @@ struct silo_file {
 
 //         std::cout << "Meshes in " << name << " are:\n";
 		auto mesh = DBGetMultimesh(handle, "quadmesh");
-		for (int i = 0; i < mesh->nblocks; i++) {
+		for (int i = 0; i < mesh->nblocks; ++i) {
 			auto name = strip_nonnumeric(std::string(mesh->meshnames[i]));
 			mesh_names.insert(name);
 			//       std::cout << "   " << name << "\n";
@@ -50,14 +50,14 @@ struct silo_file {
 		DBFreeMultimesh(mesh);
 	}
 
-	void compare(const std::string name) {
+	void compare(std::string const name) {
 		auto other = DBOpenReal(name.c_str(), SILO_DRIVER, DB_READ);
-		std::string copy = std::string("cp ") + name.c_str() + std::string(" diff.silo\n");
+		std::string copy = std::string("cp ") + name + std::string(" diff.silo\n");
 		std::cout << copy;
 		std::system(copy.c_str());
 		auto diff = DBOpenReal("diff.silo", SILO_DRIVER, DB_APPEND);
 
-		for (const auto& vn : var_names) {
+		for (auto const& vn : var_names) {
 			double vtot = 0.0;
 			double l1 = 0.0;
 			double l2 = 0.0;
@@ -68,17 +68,17 @@ struct silo_file {
 
 				auto quadmesh = DBGetQuadmesh(handle, mesh_loc.c_str());
 
-				double* X = (double*) quadmesh->coords[0];
-				const auto dx = X[1] - X[0];
-				const auto dv = dx * dx * dx;
+				double* X = static_cast<double*>(quadmesh->coords[0]);
+				auto const dx = X[1] - X[0];
+				auto const dv = dx * dx * dx;
 
 				auto this_var = DBGetQuadvar(handle, var_loc.c_str());
 				auto other_var = DBGetQuadvar(other, var_loc.c_str());
 
-				const auto n = this_var->dims[0] * this_var->dims[1] * this_var->dims[2];
+				auto const n = this_var->dims[0] * this_var->dims[1] * this_var->dims[2];
 				for (int i = 0; i < n; i++) {
-					double& this_val = ((double*) this_var->vals[0])[i];
-					double other_val = ((double*) other_var->vals[0])[i];
+					double& this_val = static_cast<double*>(this_var->vals[0])[i];
+					double other_val = static_cast<double*>(other_var->vals[0])[i];
 					auto d = std::abs(this_val - other_val);
 					l1 += d * dv;
 					l2 += d * d * dv;
@@ -90,7 +90,7 @@ struct silo_file {
 				int one = 1;
 				DBAddOption(optlist, DBOPT_HIDE_FROM_GUI, &one);
 				std::string diff_loc = var_loc + std::string("_diff");
-				DBPutQuadvar1(diff, diff_loc.c_str(), this_var->meshname, (double*) this_var->vals[0], this_var->dims,
+				DBPutQuadvar1(diff, diff_loc.c_str(), this_var->meshname, static_cast<double*>(this_var->vals[0]), this_var->dims,
 						this_var->ndims, nullptr, 0, this_var->datatype, this_var->centering, optlist);
 
 				DBFreeOptlist(optlist);
@@ -101,10 +101,10 @@ struct silo_file {
 
 			}
 			auto mv = DBGetMultivar(diff, vn.c_str());
-			const auto name = vn + std::string("_diff");
+			auto const name = vn + std::string("_diff");
 			std::vector<char*> names;
 			for (int i = 0; i < mv->nvars; i++) {
-				const auto name = std::string(mv->varnames[i]) + std::string("_diff");
+				auto const name = std::string(mv->varnames[i]) + std::string("_diff");
 				char* ptr = new char[name.size() + 1];
 				std::strcpy(ptr, name.c_str());
 				names.push_back(ptr);

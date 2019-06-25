@@ -21,9 +21,8 @@ static inline real fy(real y, real z, real r) {
 static inline real fz(real y, real z, real r) {
 	if (r != 0.0) {
 		return -(pow_1_5(y) + 2.0 * z / r);
-	} else {
-		return -3.0;
 	}
+	return -3.0;
 }
 
 static inline real fm(real theta, real dummy, real r) {
@@ -32,14 +31,13 @@ static inline real fm(real theta, real dummy, real r) {
 }
 
 real lane_emden(real r0, real dr, real* m_enc) {
-	int N;
-	real dy1, dz1, y, z, r, dy2, dz2, dy3, dz3, dy4, dz4, y0, z0;
+    real dy1, dz1, y, z, r, dy2, dz2, dy3, dz3, dy4, dz4, y0, z0;
 	real dm1, m, dm2, dm3, dm4, m0;
 	int done = 0;
 	y = 1.0;
 	z = 0.0;
 	m = 0.0;
-	N = (int) (r0 / dr + 0.5);
+	int N = static_cast<int>(r0 / dr + 0.5);
 	if (N < 1) {
 		N = 1;
 	}
@@ -101,9 +99,8 @@ real lane_emden(real r0, real dr, real* m_enc) {
 	}
 	if (y < 0.0) {
 		return 0.0;
-	} else {
-		return y;
 	}
+	return y;
 }
 
 real wd_radius(real mass, real* rho0) {
@@ -156,16 +153,14 @@ real find_V(real q) {
 	real x, y, z;
 	real fx, fy, fz, r1inv, r2inv, phi, phi_l1;
 	real h = 5.0e-2;
-	int in;
-	real r1inv3, r2inv3;
+    real r1inv3, r2inv3;
 	const real l1_x = find_l1(q);
 	r1inv = 1.0 / sqrt(pow(l1_x + q * qp1inv, 2));
 	r2inv = 1.0 / sqrt(pow(l1_x - qp1inv, 2));
 	phi_l1 = -1.0 * r1inv - q * r2inv - 0.5 * qp1 * (l1_x * l1_x);
-	in = 0;
-	real dx;
+	int in = 0;
 
-	for (x = l1_x; x < 1.0 + l1_x; x += h) {
+    for (x = l1_x; x < 1.0 + l1_x; x += h) {
 		for (y = h / 2.0; y < 0.5; y += h) {
 			for (z = h / 2.0; z < 0.5; z += h) {
 				r1inv = 1.0 / sqrt(pow(x + q * qp1inv, 2) + y * y + z * z);
@@ -174,7 +169,7 @@ real find_V(real q) {
 				if (phi < phi_l1) {
 					r1inv3 = r1inv * r1inv * r1inv;
 					r2inv3 = r2inv * r2inv * r2inv;
-					dx = x - qp1inv;
+					real dx = x - qp1inv;
 					fx = -(x + q * qp1inv) * r1inv3 - q * dx * r2inv3 + qp1 * x;
 					fy = -y * r1inv3 - y * q * r2inv3 + qp1 * y;
 					fz = -z * r1inv3 - z * q * r2inv3;

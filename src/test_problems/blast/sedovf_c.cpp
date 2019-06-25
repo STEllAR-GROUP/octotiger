@@ -87,12 +87,10 @@ struct {
 
 /* Table of constant values */
 
-
-typedef sed_real (*D_fp)(sed_real*);
-typedef /* Subroutine */ int (*S_fp)(
-    D_fp, sed_real*, sed_real*, sed_real*, int*);
-typedef int /* Unknown procedure type */ (*U_fp)();
-
+using D_fp = sed_real (*)(sed_real*);
+using S_fp = int (*)(
+    D_fp, sed_real*, sed_real*, sed_real*, int*);    //Subroutine
+using U_fp = int (*)();                              // Unknown procedure type
 
 static sed_real c_b52 = 2.;
 static sed_real c_b53 = 1e-10;
@@ -238,7 +236,7 @@ int pow_ii(int * a, int * b) {
     slap_1.lstandard = false;
     slap_1.lsingular = false;
     slap_1.lvacuum = false;
-    if ((d__1 = v2 - vstar, fabs((double)d__1)) <= 1e-4) {
+    if ((d__1 = v2 - vstar, fabs(static_cast<double>(d__1))) <= 1e-4) {
         slap_1.lsingular = true;
     } else if (v2 < vstar - 1e-4) {
         slap_1.lstandard = true;
@@ -248,10 +246,10 @@ int pow_ii(int * a, int * b) {
     /* ..two apparent singularies, book's notation for omega2 and omega3 */
     slap_1.lomega2 = false;
     slap_1.lomega3 = false;
-    if (fabs((double)denom2) <= 1e-4) {
+    if (fabs(static_cast<double>(denom2)) <= 1e-4) {
         slap_1.lomega2 = true;
         denom2 = 1e-8f;
-    } else if (fabs((double)denom3) <= 1e-4) {
+    } else if (fabs(static_cast<double>(denom3)) <= 1e-4) {
         slap_1.lomega3 = true;
         denom3 = 1e-8f;
     }
@@ -286,7 +284,7 @@ int pow_ii(int * a, int * b) {
         d__1 = slap_1.gamm1 * slap_1.xgeom + 2.f;
         alpha = slap_1.gpogm * pow_dd(&c_b52, &slap_1.xgeom)
                 / (slap_1.xgeom * (d__1 * d__1));
-        if ((int) slap_1.xgeom != 1) {
+        if (static_cast<int>(slap_1.xgeom) != 1) {
             alpha *= 3.1415926535897932384626433832795029;
         }
         /* ..for the standard or vacuum cases */
@@ -308,23 +306,23 @@ int pow_ii(int * a, int * b) {
         if (slap_1.lstandard) {
             cmidp_1.gam_int__ = slap_1.a3 - slap_1.a2 * slap_1.xg2 - 1.f;
             if (cmidp_1.gam_int__ >= 0.) {
-                qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
-                        (S_fp) midpnt_);
+                qromo_(static_cast<D_fp>(efun01_), &vmin, &v2, &c_b53, &eval1,
+                        static_cast<S_fp>(midpnt_));
             } else {
-                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
-                qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
-                        (S_fp) midpowl_);
+                cmidp_1.gam_int__ = fabs(static_cast<double>(cmidp_1.gam_int__));
+                qromo_(static_cast<D_fp>(efun01_), &vmin, &v2, &c_b53, &eval1,
+                        static_cast<S_fp>(midpowl_));
             }
             /* ..in the vacuum case the term (1 - c_val/gamma*v) might be singular at v=vmin */
         } else if (slap_1.lvacuum) {
             cmidp_1.gam_int__ = slap_1.a5;
             if (cmidp_1.gam_int__ >= 0.) {
-                qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
-                        (S_fp) midpnt_);
+                qromo_(static_cast<D_fp>(efun01_), &vmin, &v2, &c_b53, &eval1,
+                        static_cast<S_fp>(midpnt_));
             } else {
-                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
-                qromo_((D_fp) efun01_, &vmin, &v2, &c_b53, &eval1,
-                        (S_fp) midpowl2_);
+                cmidp_1.gam_int__ = fabs(static_cast<double>(cmidp_1.gam_int__));
+                qromo_(static_cast<D_fp>(efun01_), &vmin, &v2, &c_b53, &eval1,
+                        static_cast<S_fp>(midpowl2_));
             }
         }
         /* ..the second energy integral */
@@ -332,27 +330,27 @@ int pow_ii(int * a, int * b) {
         if (slap_1.lstandard) {
             cmidp_1.gam_int__ = slap_1.a3 - slap_1.a2 * slap_1.xg2 - 2.f;
             if (cmidp_1.gam_int__ >= 0.) {
-                qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
-                        (S_fp) midpnt_);
+                qromo_(static_cast<D_fp>(efun02_), &vmin, &v2, &c_b53, &eval2,
+                        static_cast<S_fp>(midpnt_));
             } else {
-                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
-                qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
-                        (S_fp) midpowl_);
+                cmidp_1.gam_int__ = fabs(static_cast<double>(cmidp_1.gam_int__));
+                qromo_(static_cast<D_fp>(efun02_), &vmin, &v2, &c_b53, &eval2,
+                        static_cast<S_fp>(midpowl_));
             }
             /* ..in the vacuum case the term (1 - c_val/gamma*v) might be singular at v=vmin */
         } else if (slap_1.lvacuum) {
             cmidp_1.gam_int__ = slap_1.a5;
             if (cmidp_1.gam_int__ >= 0.) {
-                qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
-                        (S_fp) midpnt_);
+                qromo_(static_cast<D_fp>(efun02_), &vmin, &v2, &c_b53, &eval2,
+                        static_cast<S_fp>(midpnt_));
             } else {
-                cmidp_1.gam_int__ = fabs((double)cmidp_1.gam_int__);
-                qromo_((D_fp) efun02_, &vmin, &v2, &c_b53, &eval2,
-                        (S_fp) midpowl2_);
+                cmidp_1.gam_int__ = fabs(static_cast<double>(cmidp_1.gam_int__));
+                qromo_(static_cast<D_fp>(efun02_), &vmin, &v2, &c_b53, &eval2,
+                        static_cast<S_fp>(midpowl2_));
             }
         }
         /* ..kamm equations 57 and 58 for alpha, in a slightly different form. */
-        if ((int) slap_1.xgeom == 1) {
+        if (static_cast<int>(slap_1.xgeom) == 1) {
             alpha = eval1 * .5f + eval2 / slap_1.gamm1;
         } else {
             alpha = (slap_1.xgeom - 1.f) * 3.1415926535897932384626433832795029
@@ -400,7 +398,7 @@ int pow_ii(int * a, int * b) {
     /* ..find the radius corresponding to vv */
     if (slap_1.lvacuum) {
         slap_1.vwant = slap_1.vv;
-        slap_1.rvv = zeroin_(&c_b79, &slap_1.r2, (D_fp) sed_r_find__, &c_b80);
+        slap_1.rvv = zeroin_(&c_b79, &slap_1.r2, static_cast<D_fp>(sed_r_find__), &c_b80);
     }
 //	if (slap_1.lstandard) {
 //		s_wsfe(&io___50);
@@ -453,10 +451,10 @@ int pow_ii(int * a, int * b) {
         } else {
             if (slap_1.lstandard) {
                 d__1 = v0 * .9f;
-                vat = zeroin_(&d__1, &v2, (D_fp) sed_v_find__, &c_b80);
+                vat = zeroin_(&d__1, &v2, static_cast<D_fp>(sed_v_find__), &c_b80);
             } else if (slap_1.lvacuum) {
                 d__1 = slap_1.vv * 1.2f;
-                vat = zeroin_(&v2, &d__1, (D_fp) sed_v_find__, &c_b80);
+                vat = zeroin_(&v2, &d__1, static_cast<D_fp>(sed_v_find__), &c_b80);
             }
             /* ..the physical solution */
             sedov_funcs__(&vat, &l_fun__, &dlamdv, &f_fun__, &g_fun__,
@@ -468,7 +466,7 @@ int pow_ii(int * a, int * b) {
             cs[i__] = 0.f;
             if (den[i__] != 0.f) {
                 ener[i__] = pres[i__] / (slap_1.gamm1 * den[i__]);
-                cs[i__] = sqrt((double)(slap_1.gamma * pres[i__] / den[i__]));
+                cs[i__] = sqrt(static_cast<double>(slap_1.gamma * pres[i__] / den[i__]));
             }
         }
         /* ..end of loop over positions */
@@ -598,7 +596,7 @@ sed_real sed_r_find__(sed_real *r__) {
     dx1dv = slap_1.a_val__;
     /* Computing MAX */
     d__1 = 1e-30, d__2 = slap_1.c_val__ * *v - 1.f;
-    cbag = fmax((double)d__1, (double)d__2);
+    cbag = fmax(static_cast<double>(d__1), static_cast<double>(d__2));
     x2 = slap_1.b_val__ * cbag;
     dx2dv = slap_1.b_val__ * slap_1.c_val__;
     ebag = 1.f - slap_1.e_val__ * *v;
@@ -720,7 +718,7 @@ sed_real sed_r_find__(sed_real *r__) {
     } else {
         i__1 = *n - 2;
         it = pow_ii(&c__3, &i__1);
-        tnm = (sed_real) it;
+        tnm = static_cast<sed_real>(it);
         del = (*b - *a) / (tnm * 3.f);
         ddel = del + del;
         x = *a + del * .5f;
@@ -776,7 +774,7 @@ sed_real sed_r_find__(sed_real *r__) {
     } else {
         i__1 = *n - 2;
         it = pow_ii(&c__3, &i__1);
-        tnm = (sed_real) it;
+        tnm = static_cast<sed_real>(it);
         del = (b - a) / (tnm * 3.f);
         ddel = del + del;
         x = a + del * .5f;
@@ -838,7 +836,7 @@ sed_real sed_r_find__(sed_real *r__) {
     } else {
         i__1 = *n - 2;
         it = pow_ii(&c__3, &i__1);
-        tnm = (sed_real) it;
+        tnm = static_cast<sed_real>(it);
         del = (b - a) / (tnm * 3.f);
         ddel = del + del;
         x = a + del * .5f;
@@ -883,10 +881,10 @@ sed_real sed_r_find__(sed_real *r__) {
     /* ..declare */
     h__[0] = 1.f;
     for (j = 1; j <= 14; ++j) {
-        (*choose)((D_fp) func, a, b, &s[j - 1], &j);
+        (*choose)(static_cast<D_fp>(func), a, b, &s[j - 1], &j);
         if (j >= 5) {
             polint_(&h__[j - 5], &s[j - 5], &c__5, &c_b79, ss, &dss);
-            if (fabs((double)dss) <= *eps * fabs((double)*ss)) {
+            if (fabs(static_cast<double>(dss)) <= *eps * fabs(static_cast<double>(*ss))) {
                 return 0;
             }
         }
@@ -921,10 +919,10 @@ sed_real sed_r_find__(sed_real *r__) {
 
     /* Function Body */
     ns = 1;
-    dif = (d__1 = *x - xa[1], fabs((double)d__1));
+    dif = (d__1 = *x - xa[1], fabs(static_cast<double>(d__1)));
     i__1 = *n;
     for (i__ = 1; i__ <= i__1; ++i__) {
-        dift = (d__1 = *x - xa[i__], fabs((double)d__1));
+        dift = (d__1 = *x - xa[i__], fabs(static_cast<double>(d__1)));
         if (dift < dif) {
             ns = i__;
             dif = dift;
@@ -1027,7 +1025,7 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
     fc = fa;
     d__ = b - a;
     e = d__;
-    L30: if (fabs((double)fc) >= fabs((double)fb)) {
+    L30: if (fabs(static_cast<double>(fc)) >= fabs(static_cast<double>(fb))) {
         goto L40;
     }
     a = b;
@@ -1039,9 +1037,9 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 
     /* convergence test */
 
-    L40: tol1 = eps * 2.f * fabs((double)b) + *tol * .5f;
+    L40: tol1 = eps * 2.f * fabs(static_cast<double>(b)) + *tol * .5f;
     xm = (c__ - b) * .5f;
-    if (fabs((double)xm) <= tol1) {
+    if (fabs(static_cast<double>(xm)) <= tol1) {
         goto L90;
     }
     if (fb == 0.f) {
@@ -1050,10 +1048,10 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 
     /* is bisection necessary? */
 
-    if (fabs((double)e) < tol1) {
+    if (fabs(static_cast<double>(e)) < tol1) {
         goto L70;
     }
-    if (fabs((double)fa) <= fabs((double)fb)) {
+    if (fabs(static_cast<double>(fa)) <= fabs(static_cast<double>(fb))) {
         goto L70;
     }
 
@@ -1083,14 +1081,14 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
     L60: if (p > 0.f) {
         q = -q;
     }
-    p = fabs((double)p);
+    p = fabs(static_cast<double>(p));
 
     /* is interpolation acceptable? */
 
-    if (p * 2.f >= xm * 3.f * q - (d__1 = tol1 * q, fabs((double)d__1))) {
+    if (p * 2.f >= xm * 3.f * q - (d__1 = tol1 * q, fabs(static_cast<double>(d__1)))) {
         goto L70;
     }
-    if (p >= (d__1 = e * .5f * q, fabs((double)d__1))) {
+    if (p >= (d__1 = e * .5f * q, fabs(static_cast<double>(d__1)))) {
         goto L70;
     }
     e = d__;
@@ -1106,14 +1104,14 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 
     L80: a = b;
     fa = fb;
-    if (fabs((double)d__) > tol1) {
+    if (fabs(static_cast<double>(d__)) > tol1) {
         b += d__;
     }
-    if (fabs((double)d__) <= tol1) {
+    if (fabs(static_cast<double>(d__)) <= tol1) {
         b += d_sign(&tol1, &xm);
     }
     fb = (*f)(&b);
-    if (fb * (fc / fabs((double)fc)) > 0.f) {
+    if (fb * (fc / fabs(static_cast<double>(fc))) > 0.f) {
         goto L20;
     }
     goto L30;

@@ -13,7 +13,7 @@
 #include <unordered_map>
 
 #define SILO_DRIVER DB_HDF5
-#define ZERO (1e-10)
+constexpr double ZERO = 1e-10;
 
 template<class T = double>
 using array_type = std::vector<T>;
@@ -64,14 +64,14 @@ int main(int argc, char* argv[]) {
 	double omega;
 	double code_to_s;
 	double cgs_time;
-	DBReadVar(db_in_, "cgs_time", (void*) &cgs_time);
-	DBReadVar(db_in_, "version", (void*) &version);
-	DBReadVar(db_in_, "n_species", (void*) &n_species);
-	DBReadVar(db_in_, "code_to_s", (void*) &code_to_s);
-	DBReadVar(db_in_, "omega", (void*) &omega);
+	DBReadVar(db_in_, "cgs_time", static_cast<void*>(&cgs_time));
+	DBReadVar(db_in_, "version", static_cast<void*>(&version));
+	DBReadVar(db_in_, "n_species", static_cast<void*>(&n_species));
+	DBReadVar(db_in_, "code_to_s", static_cast<void*>(&code_to_s));
+	DBReadVar(db_in_, "omega", static_cast<void*>(&omega));
 	printf("Omega = %e\n", omega);
-	printf("SILO version: %i\n", version);
-	printf("N species   : %i\n", n_species);
+	printf("SILO version: %i\n", static_cast<int>(version));
+	printf("N species   : %i\n", static_cast<int>(n_species));
 
 	printf("Reading table of contents\n");
 
@@ -105,21 +105,20 @@ int main(int argc, char* argv[]) {
 		free(data);
 	}
 
-	for (int i = 0; i < dir_names.size(); i++) {
-		const std::string dir = dir_names[i];
+	for (auto const& dir : dir_names) {
 		if (dir == "Decomposition") {
 			continue;
 		}
 		DBSetDir(db_in_, dir.c_str());
 
-		int sz;
+		//int sz;
 
 		const DBtoc* this_toc = DBGetToc(db_in_);
 
 
 		DBquadmesh* mesh = DBGetQuadmesh(db_in_, "quadmesh");
 		const double* xc = static_cast<double*>(mesh->coords[0]);
-		const double* yc = static_cast<double*>(mesh->coords[1]);
+		//const double* yc = static_cast<double*>(mesh->coords[1]);
 		const double* zc = static_cast<double*>(mesh->coords[2]);
 		const double dx = xc[1] - xc[0];
 		int l_plane = -1;
@@ -138,13 +137,13 @@ int main(int argc, char* argv[]) {
 			auto optlist_var = DBMakeOptlist(1);
 			DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
 
-			const auto name = "quadmesh_2d";
-			const auto& coord_names = mesh->labels;
-			const auto& coords = mesh->coords;
-			const auto& dims = mesh->dims;
-			const int ndims = 2;
-			const auto datatype = mesh->datatype;
-			const auto coordtype = mesh->coordtype;
+			//const auto name = "quadmesh_2d";
+			//const auto& coord_names = mesh->labels;
+			//const auto& coords = mesh->coords;
+			//const auto& dims = mesh->dims;
+			//const int ndims = 2;
+			//const auto datatype = mesh->datatype;
+			//const auto coordtype = mesh->coordtype;
 			DBPutQuadmesh(db_out_, "quadmesh_2d", mesh->labels, mesh->coords,
 					mesh->dims, 2, mesh->datatype, mesh->coordtype,
 					optlist_var);
@@ -159,11 +158,11 @@ int main(int argc, char* argv[]) {
 				const std::string qvar = this_toc->qvar_names[j];
 				DBquadvar* var = DBGetQuadvar(db_in_, qvar.c_str());
 				if (first_pass) {
-					top_var_names.push_back(var->name);
-					var_names.push_back(std::vector<char*>());
+					top_var_names.emplace_back(var->name);
+					var_names.emplace_back();
 				}
 				DBPutQuadvar1(db_out_, var->name, "quadmesh_2d", var->vals[0],
-						var->dims, 2, (const void*) NULL, 0, DB_DOUBLE,
+						var->dims, 2, static_cast<const void*>(nullptr), 0, DB_DOUBLE,
 						DB_ZONECENT, optlist_var);
 
 				std::string var_name = dir + "/" + var->name;
@@ -210,17 +209,17 @@ int main(int argc, char* argv[]) {
 	auto optlist_var = DBMakeOptlist(1);
 	DBAddOption(optlist_var, DBOPT_MB_BLOCK_TYPE, &mesh_type);
 	DBPutMultimesh(db_out_, "quadmesh_2d", n_total_domains, mesh_names.data(),
-	NULL, optlist_var);
+	nullptr, optlist_var);
 	DBFreeOptlist(optlist_var);
-	for (int f = 0; f < top_var_names.size(); f++) {
+	for (std::size_t f = 0; f < top_var_names.size(); ++f) {
 		DBPutMultivar(db_out_, top_var_names[f].c_str(), n_total_domains,
 				var_names[f].data(),
-				std::vector<int>(n_total_domains, DB_QUADVAR).data(), NULL);
+				std::vector<int>(n_total_domains, DB_QUADVAR).data(), nullptr);
 	}
 
 
 	auto tmp = DBGetDefvars(db_in_, "expressions");
-	DBPutDefvars(db_out_, "expressions", tmp->ndefs, tmp->names, tmp->types, tmp->defns, NULL);
+	DBPutDefvars(db_out_, "expressions", tmp->ndefs, tmp->names, tmp->types, tmp->defns, nullptr);
 	DBFreeDefvars(tmp);
 
 

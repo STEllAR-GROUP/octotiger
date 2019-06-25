@@ -26,8 +26,9 @@ range_type intersection(const range_type& r1, const range_type& r2) {
 		ri[d].first = std::max(r1[d].first, r2[d].first);
 		ri[d].second = std::min(r1[d].second, r2[d].second);
 		if (ri[d].first > ri[d].second) {
-			for (int d1 = 0; d1 < NDIM; d1++) {
+			for (int d1 = 0; d1 < NDIM; ++d1) {
 				ri[d1].first = ri[d1].second = -1;
+				// NOTE: What's the point of the loop if break on the first iteration?
 				break;
 			}
 		}

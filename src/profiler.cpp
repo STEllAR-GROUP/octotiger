@@ -38,13 +38,13 @@ std::atomic<int>& lock() {
 profiler_register::profiler_register(const char* func, int line) {
 	std::string str = make_name(func, line);
 	while (lock()++ != 0) {
-		lock()--;}
+		--lock();}
 auto 	cntptr = std::make_shared < real > (0.0);
 	std::pair < std::string, std::shared_ptr<real> > entry;
 	entry.first = str;
 	entry.second = cntptr;
 	map.insert(entry);
-	lock()--;}
+	--lock();}
 
 static/**/void accumulate() {
 	const real told = t;
@@ -52,11 +52,11 @@ static/**/void accumulate() {
 	if (!callstack.empty()) {
 		const std::string& str(callstack.top());
 		while (lock()++ != 0) {
-			lock()--;
+			--lock();
 			/* */
 		}
 		auto ptr = map[str];
-		lock()--;
+		--lock();
 		real dt = t - told;
 		(*ptr) += dt;
 	}

@@ -848,8 +848,6 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
     std::vector<space_vector> const& com0 = *(com_ptr[0]);
     hpx::parallel::for_loop(for_loop_policy, 0, ilist_n_bnd.size(),
         [&mpoles, &Xbase, &com0, &ilist_n_bnd, type, this, &M](std::size_t si) {
-
-            simd_vector m0;
             taylor<4, simd_vector> n0;
             std::array<simd_vector, NDIM> dX;
             std::array<simd_vector, NDIM> X;
@@ -864,7 +862,7 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                 Y[d] = bnd.x[d] * dx + Xbase[d];
             }
 
-            m0 = (*(mpoles.m))[index];
+            simd_vector m0 = (*(mpoles.m))[index];
             for (integer li = 0; li < list_size; li += simd_len) {
                 for (integer i = 0; i != simd_len && li + i < list_size; ++i) {
                     const integer iii0 = bnd.first[li + i];

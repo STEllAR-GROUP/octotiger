@@ -44,12 +44,11 @@ namespace fmm {
             X_11 = dX[1] * dX[1];
             X_22 = dX[2] * dX[2];
 
-            T d0, d1;
             T r2 = X_00 + X_11 + X_22;
             T r2inv = T(1.0) / max(r2, T(1.0e-20));
 
-            d0 = -sqrt(r2inv);
-            d1 = -d0 * r2inv;
+            T d0 = -sqrt(r2inv);
+            T d1 = -d0 * r2inv;
             d2 = -3.0 * d1 * r2inv;
             d3 = -5.0 * d2 * r2inv;
 

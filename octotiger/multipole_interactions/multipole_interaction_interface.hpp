@@ -1,11 +1,11 @@
 #pragma once
 
-#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
@@ -23,7 +23,7 @@ namespace fmm {
         class multipole_interaction_interface
         {
         public:
-            multipole_interaction_interface(void);
+            multipole_interaction_interface();
             /// Takes AoS data, converts it, calculates FMM interactions, stores results in L, L_c
             void compute_multipole_interactions(std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,

@@ -225,23 +225,23 @@ namespace octotiger { namespace fmm {
 
                     // Allocate memory on device
                     util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_local_monopoles),
+                        cudaMalloc(reinterpret_cast<void**>(&(env.device_local_monopoles)),
                             local_monopoles_size));
                     util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_local_expansions),
+                        cudaMalloc(reinterpret_cast<void**>(&(env.device_local_expansions)),
                             local_expansions_size));
                     util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_center_of_masses),
+                        cudaMalloc(reinterpret_cast<void**>(&(env.device_center_of_masses)),
                             center_of_masses_size));
                     util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_potential_expansions),
+                        cudaMalloc(reinterpret_cast<void**>(&(env.device_potential_expansions)),
                             potential_expansions_size));
                     util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_angular_corrections),
+                        cudaMalloc(reinterpret_cast<void**>(&(env.device_angular_corrections)),
                             angular_corrections_size));
 
                     util::cuda_helper::cuda_error(
-                        cudaMalloc((void**) &(env.device_blocked_monopoles),
+                        cudaMalloc(reinterpret_cast<void**>(&(env.device_blocked_monopoles)),
                             3 * potential_expansions_small_size));
 
                     // Change stream interface if necessary
@@ -267,15 +267,15 @@ namespace octotiger { namespace fmm {
         for (kernel_device_enviroment& env : kernel_device_enviroments)
         {
             util::cuda_helper::cuda_error(
-                cudaFree((void*) (env.device_local_monopoles)));
+                cudaFree(static_cast<void*>(env.device_local_monopoles)));
             util::cuda_helper::cuda_error(
-                cudaFree((void*) (env.device_local_expansions)));
+                cudaFree(static_cast<void*>(env.device_local_expansions)));
             util::cuda_helper::cuda_error(
-                cudaFree((void*) (env.device_center_of_masses)));
+                cudaFree(static_cast<void*>(env.device_center_of_masses)));
             util::cuda_helper::cuda_error(
-                cudaFree((void*) (env.device_potential_expansions)));
+                cudaFree(static_cast<void*>(env.device_potential_expansions)));
             util::cuda_helper::cuda_error(
-                cudaFree((void*) (env.device_angular_corrections)));
+                cudaFree(static_cast<void*>(env.device_angular_corrections)));
        }
     }
 

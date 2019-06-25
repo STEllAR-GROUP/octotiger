@@ -1,9 +1,9 @@
 #pragma once
 
-#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
@@ -22,7 +22,7 @@ namespace fmm {
         class p2p_interaction_interface
         {
         public:
-            p2p_interaction_interface(void);
+            p2p_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
               * stores results in L */
             void compute_p2p_interactions(std::vector<real>& monopoles,

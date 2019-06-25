@@ -1,10 +1,10 @@
 #pragma once
 #ifdef OCTOTIGER_HAVE_CUDA
 
-#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
+#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/taylor.hpp"
@@ -47,7 +47,7 @@ namespace octotiger { namespace fmm {
         {
             T* data;
             util::cuda_helper::cuda_error(
-                cudaMallocHost((void**) &data, n * sizeof(T)));
+                cudaMallocHost(static_cast<void**>(&data), n * sizeof(T)));
             return data;
         }
         void deallocate(T* p, std::size_t n)

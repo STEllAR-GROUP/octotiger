@@ -1,7 +1,7 @@
 #pragma once
 
-#include "octotiger/defs.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
+#include "octotiger/defs.hpp"
 
 #include <array>
 #include <cmath>

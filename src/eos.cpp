@@ -16,7 +16,7 @@
 #include <cstdio>
 #include <functional>
 
-#define ALPHA 0.01
+constexpr double ALPHA = 0.01;
 const real wdcons = (2.216281751e32 / 1.989e+33);
 
 
@@ -165,13 +165,13 @@ real struct_eos::pressure(real d) const {
 		const real mu = 4.0 / 3.0;
 		const real kappa = poly_K(d0(), mu);
 		const real x = pow(d * INVERSE( b ), 1.0 / 3.0);
-		real pd, pg;
+		real pd;
 		if (x < 0.01) {
 			pd = 1.6 * A * pow(x, 5);
 		} else {
 			pd = A * (x * (2.0 * x * x - 3.0) * sqrt(x * x + 1.0) + 3.0 * asinh(x));
 		}
-		pg = kappa * x * x * x * x;
+		real pg = kappa * x * x * x * x;
 		return pd + pg;
 
 	} else {
@@ -277,7 +277,7 @@ struct_eos::struct_eos(real M, real _n_C, const struct_eos& other) :
 }
 
 struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real mu, const struct_eos& other) :
-		n_C(_n_C), n_E(_n_E), M0(1.0), R0(1.0), rho_cut(0.0) {
+		M0(1.0), R0(1.0), n_C(_n_C), n_E(_n_E), rho_cut(0.0) {
 	std::function<double(double)> fff = [&](real frac) {
 		f_C = frac;
 		f_E = frac * INVERSE( mu );
@@ -304,14 +304,14 @@ void struct_eos::set_entropy(real other_s0) {
 }
 
 real struct_eos::dhdot_dr(real h, real hdot, real r) const {
-	real a, b, d;
-	d = this->enthalpy_to_density(h);
+	real a;
 	if (r != 0.0) {
 		a = 2.0 * hdot * INVERSE( r );
 	} else {
 		a = 0.0;
 	}
-	b = 4.0 * M_PI * G * d;
+	real d = this->enthalpy_to_density(h);
+	real b = 4.0 * M_PI * G * d;
 	return -(a + b);
 }
 
@@ -348,19 +348,17 @@ void struct_eos::initialize(real& mass, real& radius) {
 
 		const real dr0 = (1.0 * INVERSE( B())) * SQRT(A * INVERSE (G)) / 100.0;
 
-		real h, hdot, r, m;
-		h = density_to_enthalpy(d0_);
-		hdot = 0.0;
-		r = 0.0;
-		m = 0.0;
+		real h = density_to_enthalpy(d0_);
+		real hdot = 0.0;
+		real r = 0.0;
+		real m = 0.0;
 		real dr = dr0;
-		real d;
 		integer i = 0;
 		do {
 			if (hdot != 0.0) {
 				dr = std::max(std::min(dr0, std::abs(h * INVERSE( hdot)) / 2.0), dr0 * 1.0e-6);
 			}
-			d = this->enthalpy_to_density(h);
+			real d = this->enthalpy_to_density(h);
 			//	printf("%e %e %e\n", r, d, h);
 			//	printf("%e %e %e %e %e\n", r, m, h, d, dr);
 			const real dh1 = dh_dr(h, hdot, r) * dr;
@@ -384,11 +382,10 @@ void struct_eos::initialize(real& mass, real& radius) {
 	} else {
 		const real dr0 = R0 / 100.0;
 
-		real h, hdot, r, m;
-		h = h0();
-		hdot = 0.0;
-		r = 0.0;
-		m = 0.0;
+		real h = h0();
+		real hdot = 0.0;
+		real r = 0.0;
+		real m = 0.0;
 		real dr = dr0;
 		real d;
 		integer i = 0;
@@ -427,11 +424,10 @@ void struct_eos::initialize(real& mass, real& radius, real& core_mass) {
 
 	const real dr0 = R0 / 100.0;
 	core_mass = 0.0;
-	real h, hdot, r, m;
-	h = h0();
-	hdot = 0.0;
-	r = 0.0;
-	m = 0.0;
+    real h = h0();
+	real hdot = 0.0;
+	real r = 0.0;
+	real m = 0.0;
 	real dr = dr0;
 	real d;
 	do {
@@ -532,9 +528,9 @@ real struct_eos::get_R0() const {
 
 real struct_eos::density_at(real R, real dr) {
 
-	real h, hdot, r;
-	h = h0();
-	hdot = 0.0;
+	real r;
+	real h = h0();
+	real hdot = 0.0;
 	const int N = std::max(int(R / dr + 1.0), 100);
 	dr = R / real(N);
 	for (integer i = 0; i < N; ++i) {

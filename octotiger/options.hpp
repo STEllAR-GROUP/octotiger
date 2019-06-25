@@ -137,10 +137,10 @@ public:
         arc& accretor_refine;
         int tmp = problem;
         arc& tmp;
-        problem = (problem_type) tmp;
+        problem = static_cast<problem_type>(tmp);
         tmp = eos;
         arc& tmp;
-        eos = (eos_type) tmp;
+        eos = static_cast<eos_type>(tmp);
         arc& data_dir;
         arc& m2m_kernel_type;
         arc& p2p_kernel_type;

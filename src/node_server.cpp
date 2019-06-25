@@ -5,10 +5,10 @@
  *      Author: dmarce1
  */
 
-#include "octotiger/node_server.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_registry.hpp"
+#include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/taylor.hpp"
@@ -18,9 +18,9 @@
 #include <hpx/include/util.hpp>
 
 #include <array>
-#include <streambuf>
 #include <fstream>
 #include <iostream>
+#include <streambuf>
 #include <sys/stat.h>
 #if !defined(_MSC_VER)
 #include <unistd.h>
@@ -34,9 +34,8 @@ std::atomic<integer> node_server::static_initializing(0);
 real node_server::get_rotation_count() const {
 	if (opts().problem == DWD) {
 		return rotational_time / (2.0 * M_PI);
-	} else {
-		return current_time;
 	}
+	return current_time;
 }
 
 future<void> node_server::exchange_flux_corrections() {

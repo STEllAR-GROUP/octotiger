@@ -12,16 +12,16 @@
 #include <iostream>
 #include <vector>
 
-#define nt (nr / 4)
-#define zedge 0.6
-#define redge 0.9
-#define zei int(zedge * nz)
-#define rei int(redge * nr)
-
-using namespace std;
-
 constexpr int nr = 100;
 constexpr int nz = 100;
+
+constexpr int nt = nr / 4;
+constexpr double zedge = 0.6;
+constexpr double redge = 0.9;
+constexpr int zei = static_cast<int>(zedge * nz);
+constexpr int rei = static_cast<int>(redge * nr);
+
+using namespace std;
 
 using array_type = std::array<std::array<double, nz>, nr>;
 
@@ -44,8 +44,8 @@ int main()
             {
                 phi[i][k] = 0.0;
                 rho[i][k] = 0.0;
-                const double R = (i + 0.5) / nr;
-                const double z = (k + 0.5) / nz;
+                //const double R = (i + 0.5) / nr;
+                //const double z = (k + 0.5) / nz;
                 if (i == 0 && k == 0)
                 {
                     rho[i][k] = 1.0;
@@ -54,7 +54,7 @@ int main()
         }
     }
 
-    double scf_error = 0.0;
+    //double scf_error = 0.0;
     int scf_iter = 0;
 
     do
@@ -163,7 +163,7 @@ int main()
         double W = 0.0;
         double T = 0.0;
         {
-            static array_type next_rho;
+            //static array_type next_rho;
             const double Rb = (rei + 0.5) * dr;
             const double Rbinv2 = 1.0 / Rb / Rb;
             const double phi0 = phi[0][zei];

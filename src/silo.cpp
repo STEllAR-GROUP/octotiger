@@ -139,7 +139,7 @@ struct read_silo_var {
 
 static const int HOST_NAME_LEN = 100;
 static int epoch = 0;
-static time_t start_time = time(NULL);
+static time_t start_time = time(nullptr);
 static integer start_step = 0;
 static int timestamp;
 static int nsteps;
@@ -172,7 +172,7 @@ struct mesh_vars_t {
 		return lev;
 	}
 	mesh_vars_t(const node_location& loc, int compression = 0) :
-			location(loc), X(NDIM) {
+			X(NDIM), location(loc) {
 		const int nx = (INX << compression);
 		X_dims[0] = X_dims[1] = X_dims[2] = nx + 1;
 		var_dims[0] = var_dims[1] = var_dims[2] = nx;
@@ -200,7 +200,7 @@ void output_stage1(std::string fname, int cycle) {
 	const auto* node_ptr_ = node_registry::begin()->second.get_ptr().get();
 	output_time = node_ptr_->get_time() * opts().code_to_s;
 	output_rotation_count = node_ptr_->get_rotation_count();
-	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
+	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
 		const auto* node_ptr_ = i->second.get_ptr().get();
 		if (!node_ptr_->refined()) {
 			futs_.push_back(hpx::async([](node_location loc, node_registry::node_ptr ptr)
@@ -376,7 +376,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	std::vector<integer> positions;
     all.reserve(node_registry::size());
     positions.reserve(node_registry::size());
-	for (auto i = node_registry::begin(); i != node_registry::end(); i++) {
+	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
 		all.push_back(i->first.to_id());
 		positions.push_back(i->second.get_ptr().get()->get_position());
 	}
@@ -457,7 +457,7 @@ void output_stage3(std::string fname, int cycle) {
 //								printf( "%e\n", o(i));
 //							}
 	//				}
-					DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+					DBPutQuadvar1(db, o.name(), "quadmesh", o.data(), mesh_vars.var_dims.data(), ndim, nullptr, 0,
 							DB_DOUBLE, DB_ZONECENT, optlist_var);
 					count++;
 					DBFreeOptlist( optlist_var);
@@ -472,7 +472,7 @@ void output_stage3(std::string fname, int cycle) {
 				// TODO: UNITS
 				DBAddOption(optlist_var, DBOPT_HIDE_FROM_GUI, &one);
 				auto this_name = mesh_vars.roche_name;
-				DBPutQuadvar1(db, "roche_geometry", mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, (const void*) NULL, 0,
+				DBPutQuadvar1(db, "roche_geometry", mesh_vars.mesh_name.c_str(), mesh_vars.roche.data(), mesh_vars.var_dims.data(), ndim, nullptr, 0,
 						DB_CHAR, DB_ZONECENT, optlist_var);
 				DBFreeOptlist( optlist_var);
 			}
@@ -572,7 +572,7 @@ void output_stage3(std::string fname, int cycle) {
 			DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
 			DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type );
 			printf( "Putting %i\n", n_total_domains );
-			DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), NULL, optlist);
+			DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), nullptr, optlist);
 			DBFreeOptlist( optlist);
 			char mmesh[] = "quadmesh";
 			for (int f = 0; f < nfields; f++) {
@@ -705,7 +705,7 @@ void output_stage3(std::string fname, int cycle) {
 				DBMkDir(db,"Decomposition");
 				DBSetDir(db,"Decomposition");
 				DBPutMultimeshadj(db, "Domain_Decomposition", nleaves, mesh_types.data(),
-						neighbor_count.data(),linear_neighbor_list.data(), linear_back_list.data(),fifteen.data(),linear_connections.data(),NULL,NULL,NULL);
+						neighbor_count.data(),linear_neighbor_list.data(), linear_back_list.data(),fifteen.data(),linear_connections.data(),nullptr,nullptr,nullptr);
 				DBWrite(db, "NumDomains", &nleaves, &one, 1, DB_INT);
 
 				// Expressions
@@ -742,7 +742,7 @@ void output_stage3(std::string fname, int cycle) {
 				}
 //				fprintf( fp, "%e %e\n", physcon().mh, opts().code_to_g);
 //				fclose(fp);
-				DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), NULL );
+				DBPutDefvars( db, "expressions",types.size(), names.data(), types.data(), defs.data(), nullptr );
 				DBClose( db);
 				for (auto ptr : mesh_names) {
 					delete[] ptr;
@@ -774,9 +774,9 @@ void output_all(std::string fname, int cycle, bool block) {
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
 	nsteps = node_registry::begin()->second.get_ptr().get()->get_step_num();
-	timestamp = time(NULL);
+	timestamp = time(nullptr);
 	steps_elapsed = nsteps - start_step;
-	time_elapsed = time(NULL) - start_time;
+	time_elapsed = time(nullptr) - start_time;
 	start_time = timestamp;
 	start_step = nsteps;
 	std::vector<hpx::future<void>> futs1;
@@ -828,7 +828,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 			[&fname,&db]()
 			{
 				bool leaveopen;
-				if( db == NULL )
+				if( db == nullptr )
 				{
 					db = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ);
 					leaveopen = false;
@@ -837,7 +837,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 				{
 					leaveopen = true;
 				}
-				if (db != NULL)
+				if (db != nullptr)
 				{
 
 					read_silo_var<integer> ri;
@@ -882,7 +882,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 					throw;
 				}
 			};
-	if (db == NULL) {
+	if (db == nullptr) {
 		GET(hpx::threads::run_as_os_thread(func));
 	} else {
 		func();
@@ -1030,7 +1030,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 	std::vector<integer> positions;
 	std::vector<hpx::future<void>> futs;
 	int node_count;
-	if (db != NULL) {
+	if (db != nullptr) {
 		DBmultimesh* master_mesh = GET(hpx::threads::run_as_os_thread([&]()
 		{
 			return DBGetMultimesh( db, "quadmesh");

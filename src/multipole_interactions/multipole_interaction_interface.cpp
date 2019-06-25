@@ -66,7 +66,7 @@ namespace fmm {
         }
 
 
-        multipole_interaction_interface::multipole_interaction_interface(void) {
+        multipole_interaction_interface::multipole_interaction_interface() {
             local_monopoles_staging_area = std::vector<real>(ENTRIES);
             this->m2m_type = opts().m2m_kernel_type;
         }
