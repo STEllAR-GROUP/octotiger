@@ -80,18 +80,16 @@ void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t) {
 }
 
 static double func(double pm) {
-	double rc;
 	const double mu2 = (Gamma - 1.) / (Gamma + 1.);
-	rc = -2 * cl * (1 - pow((pm / pl), ((-1 + Gamma) / (2 * Gamma)))) / (cr * (-1 + Gamma)) + (-1 + pm / pr) * sqrt(((1 - mu2) / (Gamma * (mu2 + pm / pr))));
+	double rc = -2 * cl * (1 - pow((pm / pl), ((-1 + Gamma) / (2 * Gamma)))) / (cr * (-1 + Gamma)) +
+		(-1 + pm / pr) * sqrt(((1 - mu2) / (Gamma * (mu2 + pm / pr))));
 	return rc;
 }
 
 static double rtbis(double x1, double x2, double xacc) {
 	double rc;
-	int done;
 	const int JMAX = 100;
-	int j;
-	double dx, f, fmid, xmid;
+    double dx, f, fmid, xmid;
 	fmid = func(x2);
 	f = func(x1);
 	if (f * fmid >= 0.) {
@@ -105,8 +103,8 @@ static double rtbis(double x1, double x2, double xacc) {
 		rc = x2;
 		dx = x1 - x2;
 	}
-	done = 0;
-	for (j = 1; j <= JMAX; j++) {
+	int done = 0;
+	for (int j = 1; j <= JMAX; j++) {
 		dx = dx * 5.E-1;
 		xmid = rc + dx;
 		fmid = func(xmid);

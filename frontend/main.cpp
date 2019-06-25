@@ -35,11 +35,11 @@
 #include <utility>
 #include <vector>
 
-#include <fenv.h>
+#include <cfenv>
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #else
-#include <float.h>
+#include <cfloat>
 #endif
 
 std::size_t init_thread_local_worker(std::size_t desired)
@@ -322,7 +322,7 @@ void accumulate_distributed_counters() {
 
         for (hpx::naming::id_type const& node : localities)
         {
-            typedef analyze_local_launch_counters_action action_type;
+            using action_type = analyze_local_launch_counters_action;
             futures.push_back(hpx::async<action_type>(node));
         }
 

@@ -264,7 +264,7 @@ void mean_ion_weight(const specie_state_t<> species, real& mmw, real& X, real& Z
 	Z /= mtot;
 }
 
-typedef node_server::change_units_action change_units_action_type;
+using change_units_action_type = node_server::change_units_action;
 HPX_REGISTER_ACTION (change_units_action_type);
 
 hpx::future<void> node_client::change_units(real a, real b, real c, real d) const {

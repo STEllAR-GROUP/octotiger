@@ -1,7 +1,7 @@
 #pragma once
 
-#include "octotiger/config/export_definitions.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
+#include "octotiger/config/export_definitions.hpp"
 
 namespace octotiger { namespace fmm { namespace multipole_interactions {
 

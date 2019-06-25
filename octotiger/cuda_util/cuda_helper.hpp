@@ -29,7 +29,7 @@ namespace octotiger { namespace util {
             stream_ = target_.native_handle().get_stream();
         }
 
-        ~cuda_helper() {}
+        ~cuda_helper() = default;
 
         // This is a simple wrapper for any cuBLAS call, pass in the same arguments
         // that you would use for a cuBLAS call except the cuBLAS handle which is omitted

@@ -82,7 +82,7 @@ static real contact_fill = 0.1; //  Degree of contact - IGNORED FOR NON-CONTACT 
 
 void read_option_file() {
 	FILE* fp = fopen("scf.init", "rt");
-	if (fp != NULL) {
+	if (fp != nullptr) {
 		if (hpx::get_locality_id() == 0)
 			printf("SCF option file found\n");
 		const auto cmp = [](char* ptr, const char* str) {
@@ -95,11 +95,11 @@ void read_option_file() {
 			if( *ptr == '=') {
 				++ptr;
 			}
-			return atof(ptr);
+			return std::stof(ptr);
 		};
 		while (!feof(fp)) {
 			char buffer[1024];
-			if (fgets(buffer, 1023, fp) != NULL) {
+			if (fgets(buffer, 1023, fp) != nullptr) {
 				char* ptr = buffer;
 				while (isspace(*ptr) && *ptr != '\0') {
 					++ptr;
@@ -107,8 +107,8 @@ void read_option_file() {
 				if (isspace(*ptr)) {
 					++ptr;
 				}
-				if (false) {
-				}
+				//if (false) {
+				//}
 				READ_LINE(equal_struct_eos)
 				READ_LINE(contact_fill)
 				READ_LINE(core_frac1)
@@ -165,10 +165,10 @@ void node_server::rho_move(real x) {
 	}
 }
 
-typedef typename node_server::scf_update_action scf_update_action_type;
+using scf_update_action_type = typename node_server::scf_update_action;
 HPX_REGISTER_ACTION(scf_update_action_type);
 
-typedef typename node_server::rho_mult_action rho_mult_action_type;
+using rho_mult_action_type = typename node_server::rho_mult_action;
 HPX_REGISTER_ACTION(rho_mult_action_type);
 
 future<void> node_client::rho_mult(real f0, real f1) const {
@@ -649,7 +649,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		return u;
 	}
 	std::shared_ptr<struct_eos> this_struct_eos;
-	real rho, r, ei;
+	real r, ei;
 	static real R01 = params.struct_eos1->get_R0();
 	static real R02 = params.struct_eos2->get_R0();
 	real R0;
@@ -661,7 +661,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 		R0 = R02;
 	}
 //	printf( "%e %e\n", R01, R02);
-	rho = 0;
+	real rho = 0;
 //	const real R0 = this_struct_eos->get_R0();
 	int M = std::max(std::min(int(10.0 * dx), 2), 1);
 	int nsamp = 0;

@@ -48,10 +48,10 @@ int file_copy(const char* fin, const char* fout) {
 	    char buffer[chunk_size];
 	    FILE* fp_in = fopen(fin, "rb");
 	    FILE* fp_out = fopen(fout, "wb");
-	    if (fp_in == NULL) {
+	    if (fp_in == nullptr) {
 		    return 1;
 	    }
-	    if (fp_out == NULL) {
+	    if (fp_out == nullptr) {
 		    return 2;
 	    }
 	    size_t bytes_read;
@@ -84,8 +84,7 @@ bool find_root(std::function<double(double)>& func, double xmin, double xmax,
 	root = xmid;
 	if( error(root,xmin0) < 10.0*toler || error(xmax0,root) < 10.0*toler ) {
 		return false;
-	} else {
-		return true;
 	}
+	return true;
 }
 

@@ -16,7 +16,7 @@
 #include <array>
 #include <cstdio>
 
-typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
+using send_gravity_boundary_action_type = node_server::send_gravity_boundary_action;
 HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
 
 void node_client::send_gravity_boundary(gravity_boundary_type&& data, const geo::direction& dir, bool monopole,
@@ -33,7 +33,7 @@ void node_server::recv_gravity_boundary(gravity_boundary_type&& bdata, const geo
 	neighbor_gravity_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;
+using send_gravity_expansions_action_type = node_server::send_gravity_expansions_action;
 HPX_REGISTER_ACTION(send_gravity_expansions_action_type);
 
 void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
@@ -44,7 +44,7 @@ void node_client::send_gravity_expansions(expansion_pass_type&& data) const {
 	hpx::apply<typename node_server::send_gravity_expansions_action>(get_unmanaged_gid(), std::move(data));
 }
 
-typedef node_server::send_gravity_multipoles_action send_gravity_multipoles_action_type;
+using send_gravity_multipoles_action_type = node_server::send_gravity_multipoles_action;
 HPX_REGISTER_ACTION(send_gravity_multipoles_action_type);
 
 void node_client::send_gravity_multipoles(multipole_pass_type&& data, const geo::octant& ci) const {
@@ -55,7 +55,7 @@ void node_server::recv_gravity_multipoles(multipole_pass_type&& v, const geo::oc
 	child_gravity_channels[ci].set_value(std::move(v));
 }
 
-typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
+using send_hydro_boundary_action_type = node_server::send_hydro_boundary_action;
 HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
 
 void node_client::send_hydro_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
@@ -69,7 +69,7 @@ void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::dire
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-typedef node_server::send_flux_check_action send_flux_check_action_type;
+using send_flux_check_action_type = node_server::send_flux_check_action;
 HPX_REGISTER_ACTION(send_flux_check_action_type);
 
 void node_client::send_flux_check(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
@@ -83,7 +83,7 @@ void node_server::recv_flux_check(std::vector<real>&& bdata, const geo::directio
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-typedef node_server::send_hydro_children_action send_hydro_children_action_type;
+using send_hydro_children_action_type = node_server::send_hydro_children_action;
 HPX_REGISTER_ACTION(send_hydro_children_action_type);
 
 void node_server::recv_hydro_children(std::vector<real>&& data, const geo::octant& ci, std::size_t cycle) {
@@ -94,7 +94,7 @@ void node_client::send_hydro_children(std::vector<real>&& data, const geo::octan
 	hpx::apply<typename node_server::send_hydro_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
-typedef node_server::send_hydro_flux_correct_action send_hydro_flux_correct_action_type;
+using send_hydro_flux_correct_action_type = node_server::send_hydro_flux_correct_action;
 HPX_REGISTER_ACTION(send_hydro_flux_correct_action_type);
 
 void node_client::send_hydro_flux_correct(std::vector<real>&& data, const geo::face& face, const geo::octant& ci) const {
@@ -119,7 +119,7 @@ void node_server::recv_hydro_flux_correct(std::vector<real>&& data, const geo::f
 	niece_hydro_channels[face][index].set_value(std::move(data));
 }
 
-typedef node_server::line_of_centers_action line_of_centers_action_type;
+using line_of_centers_action_type = node_server::line_of_centers_action;
 HPX_REGISTER_ACTION(line_of_centers_action_type);
 
 future<line_of_centers_t> node_client::line_of_centers(const std::pair<space_vector, space_vector>& line) const {
@@ -453,7 +453,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	}
 }
 
-typedef node_server::step_action step_action_type;
+using step_action_type = node_server::step_action;
 HPX_REGISTER_ACTION(step_action_type);
 
 future<real> node_client::step(integer steps) const {
@@ -519,10 +519,9 @@ future<void> node_server::nonrefined_step() {
 								[rk, cfl0, this, dt_fut](future<void> f)
 								{
 									GET(f);
-									future<void> fut_flux;
 									grid_ptr->reconstruct();
 									real a = grid_ptr->compute_fluxes();
-									fut_flux = exchange_flux_corrections();
+									future<void> fut_flux = exchange_flux_corrections();
 									if (rk == 0) {
 										const real dx = TWO * grid::get_scaling_factor() /
 										real(INX << my_location.level());
@@ -640,7 +639,7 @@ future<real> node_server::step(integer steps) {
 	return fut;
 }
 
-typedef node_server::timestep_driver_ascend_action timestep_driver_ascend_action_type;
+using timestep_driver_ascend_action_type = node_server::timestep_driver_ascend_action;
 HPX_REGISTER_ACTION(timestep_driver_ascend_action_type);
 
 void node_client::timestep_driver_ascend(real dt) const {
@@ -656,7 +655,7 @@ void node_server::timestep_driver_ascend(real dt) {
 	}
 }
 
-typedef node_server::set_local_timestep_action set_local_timestep_action_type;
+using set_local_timestep_action_type = node_server::set_local_timestep_action;
 HPX_REGISTER_ACTION(set_local_timestep_action_type);
 
 void node_client::set_local_timestep(integer idx, real dt) const {
@@ -702,7 +701,7 @@ future<void> node_server::timestep_driver_descend() {
 	}
 }
 
-typedef node_server::velocity_inc_action velocity_inc_action_type;
+using velocity_inc_action_type = node_server::velocity_inc_action;
 HPX_REGISTER_ACTION(velocity_inc_action_type);
 
 future<void> node_client::velocity_inc(const space_vector& dv) const {

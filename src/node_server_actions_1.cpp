@@ -30,7 +30,7 @@
 #include <fstream>
 #include <vector>
 
-typedef node_server::regrid_gather_action regrid_gather_action_type;
+using regrid_gather_action_type = node_server::regrid_gather_action;
 HPX_REGISTER_ACTION(regrid_gather_action_type);
 
 future<node_count_type> node_client::regrid_gather(bool rb) const {
@@ -150,7 +150,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const& locality, int
 	});
 }
 
-typedef node_server::regrid_scatter_action regrid_scatter_action_type;
+using regrid_scatter_action_type = node_server::regrid_scatter_action;
 HPX_REGISTER_ACTION(regrid_scatter_action_type);
 
 future<void> node_client::regrid_scatter(integer a, integer b) const {
@@ -235,7 +235,7 @@ node_count_type node_server::regrid(const hpx::id_type& root_gid, real omega, re
 	return a;
 }
 
-typedef node_server::set_aunt_action set_aunt_action_type;
+using set_aunt_action_type = node_server::set_aunt_action;
 HPX_REGISTER_ACTION(set_aunt_action_type);
 
 future<void> node_client::set_aunt(const hpx::id_type& aunt, const geo::face& f) const {
@@ -250,7 +250,7 @@ void node_server::set_aunt(const hpx::id_type& aunt, const geo::face& face) {
 	aunts[face] = aunt;
 }
 
-typedef node_server::set_grid_action set_grid_action_type;
+using set_grid_action_type = node_server::set_grid_action;
 HPX_REGISTER_ACTION(set_grid_action_type);
 
 future<void> node_client::set_grid(std::vector<real>&& g, std::vector<real>&& o) const {
@@ -261,7 +261,7 @@ void node_server::set_grid(const std::vector<real>& data, std::vector<real>&& ou
 	grid_ptr->set_prolong(data, std::move(outflows));
 }
 
-typedef node_server::solve_gravity_action solve_gravity_action_type;
+using solve_gravity_action_type = node_server::solve_gravity_action;
 HPX_REGISTER_ACTION(solve_gravity_action_type);
 
 future<void> node_client::solve_gravity(bool ene, bool aonly) const {

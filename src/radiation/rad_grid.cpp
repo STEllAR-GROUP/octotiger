@@ -1,12 +1,11 @@
-#include "octotiger/radiation/rad_grid.hpp"
-#include "octotiger/radiation/implicit.hpp"
-#include "octotiger/radiation/opacities.hpp"
-#include "octotiger/radiation/kernel_interface.hpp"
-
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
+#include "octotiger/radiation/implicit.hpp"
+#include "octotiger/radiation/kernel_interface.hpp"
+#include "octotiger/radiation/opacities.hpp"
+#include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/roe.hpp"
 #include "octotiger/space_vector.hpp"
@@ -95,7 +94,7 @@ constexpr auto _3 = real(3);
 constexpr auto _4 = real(4);
 constexpr auto _5 = real(5);
 
-typedef node_server::set_rad_grid_action set_rad_grid_action_type;
+using set_rad_grid_action_type = node_server::set_rad_grid_action;
 HPX_REGISTER_ACTION (set_rad_grid_action_type);
 
 hpx::future<void> node_client::set_rad_grid(std::vector<real>&& g/*, std::vector<real>&& o*/) const {
@@ -106,10 +105,10 @@ void node_server::set_rad_grid(const std::vector<real>& data/*, std::vector<real
 	rad_grid_ptr->set_prolong(data/*, std::move(outflows)*/);
 }
 
-typedef node_server::send_rad_boundary_action send_rad_boundary_action_type;
+using send_rad_boundary_action_type = node_server::send_rad_boundary_action;
 HPX_REGISTER_ACTION (send_rad_boundary_action_type);
 
-typedef node_server::send_rad_flux_correct_action send_rad_flux_correct_action_type;
+using send_rad_flux_correct_action_type = node_server::send_rad_flux_correct_action;
 HPX_REGISTER_ACTION (send_rad_flux_correct_action_type);
 
 void node_client::send_rad_flux_correct(std::vector<real>&& data, const geo::face& face, const geo::octant& ci) const {
@@ -133,7 +132,7 @@ void node_server::recv_rad_boundary(std::vector<real>&& bdata, const geo::direct
 	sibling_rad_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-typedef node_server::send_rad_children_action send_rad_children_action_type;
+using send_rad_children_action_type = node_server::send_rad_children_action;
 HPX_REGISTER_ACTION (send_rad_children_action_type);
 
 void node_server::recv_rad_children(std::vector<real>&& data, const geo::octant& ci, std::size_t cycle) {
@@ -945,8 +944,7 @@ std::vector<real> rad_grid::get_boundary(const geo::direction& dir) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	integer size;
-	size = NRF * get_boundary_size(lb, ub, dir, INNER, INX, RAD_BW);
+    integer size = NRF * get_boundary_size(lb, ub, dir, INNER, INX, RAD_BW);
 	data.resize(size);
 	integer iter = 0;
 
@@ -1086,7 +1084,7 @@ void node_server::send_rad_amr_bounds() {
 	}
 }
 
-typedef node_server::erad_init_action erad_init_action_type;
+using erad_init_action_type = node_server::erad_init_action;
 HPX_REGISTER_ACTION (erad_init_action_type);
 
 hpx::future<void> node_client::erad_init() const {

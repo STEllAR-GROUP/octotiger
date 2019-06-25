@@ -55,7 +55,7 @@ namespace octotiger { namespace fmm { namespace monopole_interactions {
             //                 &theta, &dx};
             void* args[] = {&(env.device_local_monopoles),
                 &(env.device_blocked_monopoles), &theta, &dx};
-            gpu_interface.execute((void const*) &cuda_p2p_interactions_kernel,
+            gpu_interface.execute(static_cast<void const*>(&cuda_p2p_interactions_kernel),
                 grid_spec, threads_per_block, args, 0);
             // void* sum_args[] = {&(env.device_blocked_monopoles)};
             // dim3 const sum_spec(1);

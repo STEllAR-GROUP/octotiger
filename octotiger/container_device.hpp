@@ -25,8 +25,8 @@ namespace hpx { namespace util
     class container_device
     {
     public:
-        typedef typename Container::value_type char_type;
-        typedef boost::iostreams::seekable_device_tag category;
+        using char_type = typename Container::value_type;
+        using category = boost::iostreams::seekable_device_tag;
 
         container_device(Container& container)
           : container_(container), pos_(0)
@@ -97,20 +97,20 @@ namespace hpx { namespace util
             }
 
             // Check for errors
-            if (next < ((boost::iostreams::stream_offset)0) ||
-                next >= ((boost::iostreams::stream_offset)container_.size()))
+            if (next < static_cast<boost::iostreams::stream_offset>(0) ||
+                next >= static_cast<boost::iostreams::stream_offset>(container_.size()))
             {
                 throw std::ios_base::failure("bad seek offset");
             }
 
-            pos_ = (size_type)next;
+            pos_ = static_cast<size_type>(next);
             return pos_;
         }
 
         Container& container() { return container_; }
 
     private:
-        typedef typename Container::size_type size_type;
+        using size_type = typename Container::size_type;
         Container& container_;
         size_type pos_;
     };

@@ -1,4 +1,4 @@
-/*----------------------------------------------------------------
+﻿/*----------------------------------------------------------------
  Laplace Inversion Source Code
  Copyright � 2010 James R. Craig, University of Waterloo
  ----------------------------------------------------------------*/
@@ -17,8 +17,8 @@
 
 #include <functional>
 
-#define MAX_DEPTH 30
-#define MIN_DEPTH 10
+constexpr int MAX_DEPTH = 30;
+constexpr int MIN_DEPTH = 10;
 
 static constexpr double eps = 16.0;
 static constexpr double kappa = MARSHAK_OPAC;
@@ -35,9 +35,8 @@ double integrate(const std::function<double(double)>& f, double a, double c, dou
 	double I2 = 0.5 * (fa + fc);
 	if ((std::abs(I2 - I1) < toler && depth >= MIN_DEPTH) || depth == MAX_DEPTH) {
 		return (2.0 * I1 + I2) / 3.0 * (c - a);
-	} else {
-		return integrate(f, a, b, toler, depth + 1) + integrate(f, b, c, toler, depth + 1);
 	}
+	return integrate(f, a, b, toler, depth + 1) + integrate(f, b, c, toler, depth + 1);
 }
 
 double marshak_u(double x, double t, double eps) {
@@ -133,19 +132,22 @@ struct pair_hash {
 static std::unordered_map<std::pair<double,double>, solution, pair_hash > sol_dir;
 static hpx::lcos::local::mutex mtx_;
 
+// NOTE: Why are y0 and z0 are unused?
 std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, double t) {
 	std::vector<double> U(opts().n_fields + NRF, 0.0);
 	double z = x0 + opts().xscale;
 	z *= std::sqrt(3)*kappa;
 	t *= eps * kappa * c;
-	double u, v, du;
+	double u;
+	double v;
+	double du;
 	{
 		std::lock_guard < hpx::lcos::local::mutex > lock(mtx_);
 		auto iter = sol_dir.find(std::make_pair(z, t));
 		if (iter != sol_dir.end()) {
 			u = iter->second.u;
-			du = iter->second.du;
 			v = iter->second.v;
+			du = iter->second.du;
 		} else {
 			solution s;
 			s.du = du = marshak_du(z, t, eps);
@@ -155,8 +157,7 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 		}
 	}
 
-	double rho;
-	rho = 1.0;
+	double rho = 1.0;
 	double erad = 4.0 * u / c;
 	double e = 4.0 * v / c;
 	double fx = -4.0 / std::sqrt(3) * du * c;
@@ -177,6 +178,7 @@ std::vector<double> marshak_wave_analytic(double x0, double y0, double z0, doubl
 }
 
 
+// NOTE: Why are x, y, and z unused?
 std::vector<double> marshak_wave(double x, double y, double z, double dx) {
 	std::vector<double> u(opts().n_fields);
 	double e = 1.0e-20;

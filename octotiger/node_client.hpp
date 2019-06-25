@@ -26,9 +26,9 @@ class node_server;
 class analytic_t;
 
 #ifdef USE_NIECE_BOOL
-typedef bool set_child_aunt_type;
+using set_child_aunt_type = bool;
 #else
-typedef integer set_child_aunt_type;
+using set_child_aunt_type = integer;
 #endif
 
 struct node_count_type;

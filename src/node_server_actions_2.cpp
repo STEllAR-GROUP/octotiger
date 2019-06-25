@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <cstdio>
 
-typedef node_server::check_for_refinement_action check_for_refinement_action_type;
+using check_for_refinement_action_type = node_server::check_for_refinement_action;
 HPX_REGISTER_ACTION(check_for_refinement_action_type);
 
 future<void> node_client::check_for_refinement(real omega, real r) const {
@@ -64,7 +64,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 
 }
 
-typedef node_server::kill_action kill_action_type;
+using kill_action_type = node_server::kill_action;
 HPX_REGISTER_ACTION(kill_action_type);
 
 hpx::future<void> node_client::kill() const {
@@ -76,7 +76,7 @@ void node_server::kill() {
 
 }
 
-typedef node_server::copy_to_locality_action copy_to_locality_action_type;
+using copy_to_locality_action_type = node_server::copy_to_locality_action;
 HPX_REGISTER_ACTION(copy_to_locality_action_type);
 
 future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const {
@@ -104,14 +104,14 @@ future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 	return rc;
 }
 
-typedef node_server::diagnostics_action diagnostics_action_type;
+using diagnostics_action_type = node_server::diagnostics_action;
 HPX_REGISTER_ACTION(diagnostics_action_type);
 
 future<diagnostics_t> node_client::diagnostics(const diagnostics_t& d) const {
 	return hpx::async<typename node_server::diagnostics_action>(get_unmanaged_gid(), d);
 }
 
-typedef node_server::compare_analytic_action compare_analytic_action_type;
+using compare_analytic_action_type = node_server::compare_analytic_action;
 HPX_REGISTER_ACTION(compare_analytic_action_type);
 
 future<analytic_t> node_client::compare_analytic() const {
@@ -273,7 +273,7 @@ diagnostics_t node_server::local_diagnostics(const diagnostics_t& diags) {
 	return grid_ptr->diagnostics(diags);
 }
 
-typedef node_server::force_nodes_to_exist_action force_nodes_to_exist_action_type;
+using force_nodes_to_exist_action_type = node_server::force_nodes_to_exist_action;
 HPX_REGISTER_ACTION(force_nodes_to_exist_action_type);
 
 future<void> node_client::force_nodes_to_exist(std::vector<node_location>&& locs) const {
@@ -448,7 +448,7 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 	return amr_bnd;
 }
 
-typedef node_server::get_child_client_action get_child_client_action_type;
+using get_child_client_action_type = node_server::get_child_client_action;
 HPX_REGISTER_ACTION(get_child_client_action_type);
 
 future<hpx::id_type> node_client::get_child_client(const node_location& parent_loc, const geo::octant& ci) {
@@ -506,7 +506,7 @@ hpx::id_type node_server::get_child_client(const geo::octant& ci) {
 	}
 }
 
-typedef node_server::set_child_aunt_action set_child_aunt_action_type;
+using set_child_aunt_action_type = node_server::set_child_aunt_action;
 HPX_REGISTER_ACTION(set_child_aunt_action_type);
 
 future<set_child_aunt_type> node_client::set_child_aunt(const hpx::id_type& aunt, const geo::face& f) const {
@@ -539,7 +539,7 @@ set_child_aunt_type node_server::set_child_aunt(const hpx::id_type& aunt, const 
 #endif
 }
 
-typedef node_server::get_ptr_action get_ptr_action_type;
+using get_ptr_action_type = node_server::get_ptr_action;
 HPX_REGISTER_ACTION(get_ptr_action_type);
 
 std::uintptr_t node_server::get_ptr() {

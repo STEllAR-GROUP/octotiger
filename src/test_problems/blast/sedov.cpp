@@ -3,12 +3,11 @@
 #include <hpx/runtime/threads/run_as_os_thread.hpp>
 
 #include <algorithm>
-#include <mutex>
-#include <unordered_map>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
-
 
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>

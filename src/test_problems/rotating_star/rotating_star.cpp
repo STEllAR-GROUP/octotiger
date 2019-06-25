@@ -94,22 +94,22 @@ public:
 		if (fp.fail()) {
 			std::cout << "Could not open rotating_star.bin, aborting\n";
 			throw;
-		} else {
-			std::cout << "Reading rotating_star.bin\n";
 		}
-		fp.read((char*) &nr_, sizeof(decltype(nr_)));
-		fp.read((char*) &nz_, sizeof(decltype(nz_)));
+		std::cout << "Reading rotating_star.bin\n";
+
+		fp.read(reinterpret_cast<char*>(&nr_), sizeof(decltype(nr_)));
+		fp.read(reinterpret_cast<char*>(&nz_), sizeof(decltype(nz_)));
 		dr_ = 1.0 / nr_;
 		dz_ = 1.0 / nz_;
 		nr_ *= 2;
 		nz_ *= 2;
-		fp.read((char*) &omega_, sizeof(double));
+		fp.read(reinterpret_cast<char*>(&omega_), sizeof(double));
 		rho_.resize(nr_, std::vector<double>(nz_));
 		ene_.resize(nr_, std::vector<double>(nz_));
 		for (int i = 0; i < nr_; i++) {
 			for (int k = 0; k < nz_; k++) {
-				fp.read((char*) &(rho_[i][k]), sizeof(double));
-				fp.read((char*) &(ene_[i][k]), sizeof(double));
+				fp.read(reinterpret_cast<char*>(&(rho_[i][k])), sizeof(double));
+				fp.read(reinterpret_cast<char*>(&(ene_[i][k])), sizeof(double));
 			}
 		}
 		std::cout << "Done reading rotating_star.bin\n";
