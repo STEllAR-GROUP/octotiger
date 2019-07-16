@@ -1516,7 +1516,9 @@ expansion_pass_type grid::compute_expansions(
 						G[iii][phi_i] = physcon().G * L[iii]();
 						for (integer d = 0; d < NDIM; ++d) {
 							G[iii][gx_i + d] = -physcon().G * L[iii](d);
-							G[iii][gx_i + d] -= physcon().G * L_c[iii][d];
+							if( opts().angmom) {
+								G[iii][gx_i + d] -= physcon().G * L_c[iii][d];
+							}
 						}
 						U[pot_i][iiih] = G[iii][phi_i] * U[rho_i][iiih];
 					} else {
