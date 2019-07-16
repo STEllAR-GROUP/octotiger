@@ -40,6 +40,7 @@ public:
     bool v1309;
     bool rad_implicit;
     bool rewrite_silo;
+    bool angmom;
 
     integer extra_regrid;
     integer accretor_refine;
@@ -97,6 +98,7 @@ public:
         arc& dual_energy_sw1;
         arc& dual_energy_sw2;
         arc& hard_dt;
+        arc& angmom;
         arc& rewrite_silo;
         arc& rad_implicit;
         arc& n_fields;
