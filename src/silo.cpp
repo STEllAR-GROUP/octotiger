@@ -5,8 +5,8 @@
  *      Author: dmarce1
  */
 
-#define SILO_DRIVER DB_HDF5
-#define SILO_VERSION 101
+#define SILO_DRIVER DB_PDB
+#define SILO_VERSION 102
 
 //101 - fixed units bug in momentum
 
@@ -830,7 +830,7 @@ void load_options_from_silo(std::string fname, DBfile* db) {
 				bool leaveopen;
 				if( db == nullptr )
 				{
-					db = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ);
+					db = DBOpenReal( fname.c_str(),DB_UNKNOWN, DB_READ);
 					leaveopen = false;
 				}
 				else
@@ -896,7 +896,7 @@ void load_open(std::string fname, dir_map_type map) {
 	printf("LOAD OPENED on proc %i\n", hpx::get_locality_id());
 	load_options_from_silo(fname, db_); /**/
 	hpx::threads::run_as_os_thread([&]() {
-		db_ = DBOpenReal( fname.c_str(), SILO_DRIVER, DB_READ);
+		db_ = DBOpenReal( fname.c_str(), DB_UNKNOWN, DB_READ);
 		read_silo_var<real> rr;
 		output_time = rr(db_, "cgs_time"); /**/
 		output_rotation_count = 2 * M_PI * rr(db_, "rotational_time"); /**/
@@ -1023,7 +1023,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 	timings::scope ts(root_ptr->timings_, timings::time_total);
 	const integer nprocs = opts().all_localities.size();
 	static int sz = localities.size();
-	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), SILO_DRIVER, DB_READ));
+	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_UNKNOWN, DB_READ));
 	epoch = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
 	epoch++;
 	std::vector<node_location::node_id> node_list;
