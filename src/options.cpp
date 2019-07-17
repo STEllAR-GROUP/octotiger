@@ -82,6 +82,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
+	("angmom", po::value<bool>(&(opts().angmom))->default_value(true), "Angular momentum correction switch")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
@@ -178,6 +179,7 @@ bool options::process_options(int argc, char* argv[]) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
+		SHOW(angmom);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);
 		SHOW(hard_dt);
