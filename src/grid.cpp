@@ -22,6 +22,47 @@
 #include <string>
 #include <unordered_map>
 
+
+
+void grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
+
+	std::array<integer, NDIM> lb, ub;
+	int l = 0;
+	get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
+	for (int i = lb[0]; i < ub[0]; i++) {
+		for (int j = lb[1]; j < ub[1]; j++) {
+			for (int k = lb[2]; k < ub[2]; k++) {
+				is_coarse[hSindex(i, j, k)] = true;
+			}
+		}
+	}
+
+	for (int f = 0; f < opts().n_fields; f++) {
+		for (int i = lb[0]; i < ub[0]; i++) {
+			for (int j = lb[1]; j < ub[1]; j++) {
+				for (int k = lb[2]; k < ub[2]; k++) {
+					Ushad[f][hSindex(i, j, k)] = data[l++];
+				}
+			}
+		}
+	}
+}
+
+
+void grid::complete_hydro_amr_boundary() {
+
+
+
+
+
+	std::fill(is_coarse.begin(), is_coarse.end(), false);
+
+
+}
+
+
+
+
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
@@ -756,6 +797,7 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	return c;
 }
 
+
 void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, integer width, bool etot_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
@@ -779,6 +821,20 @@ void grid::set_hydro_boundary(const std::vector<real>& data, const geo::directio
 			}
 		}
 	}PROF_END;
+}
+
+std::vector<real> grid::get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
+	std::vector<real> data;
+	for (int f = 0; f < opts().n_fields; f++) {
+		for (int i = lb[0]; i < ub[0]; i++) {
+			for (int j = lb[1]; j < ub[1]; j++) {
+				for (int k = lb[2]; k < ub[2]; k++) {
+					data.push_back(U[f][hindex(i, j, k)]);
+				}
+			}
+		}
+	}
+	return std::move(data);
 }
 
 std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, integer width, bool etot_only) {
@@ -2066,9 +2122,14 @@ void grid::allocate() {
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		X[dim].resize(H_N3);
 	}
+
+	is_coarse.resize(HS_N3, false);
+
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		U0[field].resize(INX * INX * INX);
+
 		U[field].resize(H_N3, 0.0);
+		Ushad[field].resize(HS_N3);
 		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(F_N3);
