@@ -71,6 +71,8 @@ bool options::process_options(int argc, char* argv[]) {
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "entropy loss driving rate")      //
 	("entropy_driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "entropy driving rate time")      //
+	("old_amrbnd", po::value<bool>(&(opts().old_amrbnd))->default_value(false), "use old amr boundary interpolation")           //
+	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(false), "amr boundary interpolation order")           //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
@@ -179,6 +181,8 @@ bool options::process_options(int argc, char* argv[]) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
+		SHOW(old_amrbnd);
+		SHOW(amrbnd_order);
 		SHOW(angmom);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);

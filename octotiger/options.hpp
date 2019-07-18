@@ -28,6 +28,7 @@ COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 class options
 {
 public:
+	 bool old_amrbnd;
     bool disable_diagnostics;
     bool bench;
     bool disable_output;
@@ -42,6 +43,7 @@ public:
     bool rewrite_silo;
     bool angmom;
 
+	 integer amrbnd_order;
     integer extra_regrid;
     integer accretor_refine;
     integer donor_refine;
@@ -95,6 +97,8 @@ public:
     template <class Arc>
     void serialize(Arc& arc, unsigned)
     {
+   	  arc& old_amrbnd;
+   	  arc& amrbnd_order;
         arc& dual_energy_sw1;
         arc& dual_energy_sw2;
         arc& hard_dt;

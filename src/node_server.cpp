@@ -158,8 +158,15 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 					hpx::util::annotated_function([this, tau_only](future<sibling_hydro_type> && f) -> void
 					{
 							auto&& tmp = GET(f);
-							grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
-									H_BW, tau_only);
+							if( opts().old_amrbnd) {
+								grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
+										H_BW, tau_only);
+							} else {
+
+								// TODO
+								printf( "TODO in collect_hydro_boundaries\n");
+
+							}
 						}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
 		}
 	}
@@ -189,18 +196,26 @@ void node_server::send_hydro_amr_boundaries(bool tau_only) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
 //						const integer width = dir.is_face() ? H_BW : 1;
-					const integer width = H_BW;
-					if (!tau_only) {
-						get_boundary_size(lb, ub, dir, OUTER, INX, width);
+					if( opts().old_amrbnd) {
+						const integer width = H_BW;
+						if (!tau_only) {
+							get_boundary_size(lb, ub, dir, OUTER, INX, width);
+						} else {
+							get_boundary_size(lb, ub, dir, OUTER, INX, width);
+						}
+						for (integer dim = 0; dim != NDIM; ++dim) {
+							lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
+							ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
+						}
+						data = grid_ptr->get_prolong(lb, ub, tau_only);
+						children[ci].send_hydro_boundary(std::move(data), dir, hcycle);
 					} else {
-						get_boundary_size(lb, ub, dir, OUTER, INX, width);
+
+						//TODO
+						printf( "Todo in send_hydro_amr_boundaries\n");
+
+						children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);
 					}
-					for (integer dim = 0; dim != NDIM; ++dim) {
-						lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
-						ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
-					}
-					data = grid_ptr->get_prolong(lb, ub, tau_only);
-					children[ci].send_hydro_boundary(std::move(data), dir, hcycle);
 				}
 			}
 //			}
