@@ -128,7 +128,7 @@ private:
 	static OCTOTIGER_EXPORT real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
-	std::vector<bool> is_coarse;
+	std::vector<int> is_coarse;
 	std::vector<std::vector<real>> Ushad;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;

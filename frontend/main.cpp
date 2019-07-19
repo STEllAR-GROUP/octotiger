@@ -9,6 +9,7 @@
 #include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/rotating_star/rotating_star.hpp"
+#include "octotiger/test_problems/amr/amr.hpp"
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"
@@ -177,6 +178,11 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		grid::set_fgamma(5.0 / 3.0);
 //		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
+		set_refine_test(refine_test_moving_star);
+	} else if (opts().problem == AMR_TEST) {
+		grid::set_fgamma(5.0 / 3.0);
+//		grid::set_analytic_func(moving_star_analytic);
+		set_problem(amr_test);
 		set_refine_test(refine_test_moving_star);
 	} else if (opts().problem == MARSHAK) {
 		grid::set_fgamma(5.0 / 3.0);
@@ -440,7 +446,12 @@ int hpx_main(int argc, char* argv[]) {
 				root->solve_gravity(false, false);
 				printf("...done\n");
 			}
-			hpx::async(&node_server::execute_solver, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
+			if( opts().problem != AMR_TEST) {
+				hpx::async(&node_server::execute_solver, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
+			} else {
+				root->enforce_bc();
+				output_all("X", 0, true);
+			}
 			root->report_timing();
             accumulate_distributed_counters();
 		}

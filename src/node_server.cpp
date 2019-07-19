@@ -155,10 +155,10 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 	for (auto const& dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
-					hpx::util::annotated_function([this, tau_only](future<sibling_hydro_type> && f) -> void
+					hpx::util::annotated_function([this, tau_only, dir](future<sibling_hydro_type> && f) -> void
 					{
 							auto&& tmp = GET(f);
-							if( opts().old_amrbnd) {
+							if( opts().old_amrbnd || !neighbors[dir].empty()) {
 								grid_ptr->set_hydro_boundary(tmp.data, tmp.direction,
 										H_BW, tau_only);
 							} else {
@@ -169,7 +169,6 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 						}, "node_server::collect_hydro_boundaries::set_hydro_boundary"));
 		}
 	}
-	grid_ptr->complete_hydro_amr_boundary();
 	while (index < geo::direction::count()) {
 		results[index++] = hpx::make_ready_future();
 	}
@@ -182,6 +181,9 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 		if (my_location.is_physical_boundary(face)) {
 			grid_ptr->set_physical_boundaries(face, current_time);
 		}
+	}
+	if( !opts().old_amrbnd) {
+		grid_ptr->complete_hydro_amr_boundary();
 	}
 }
 

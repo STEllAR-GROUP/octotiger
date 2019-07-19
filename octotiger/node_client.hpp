@@ -120,6 +120,7 @@ public:
     void set_local_timestep(integer, real) const;
     future<void> velocity_inc(const space_vector&) const;
     future<void> check_for_refinement(real omega, real) const;
+    future<void> enforce_bc() const;
     future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
     void report_timing() const;
     future<void> change_units(real, real, real, real) const;

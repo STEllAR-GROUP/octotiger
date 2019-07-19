@@ -266,6 +266,9 @@ public:
 	void check_for_refinement(real omega, real new_floor);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
 
+	void enforce_bc();/**/
+	HPX_DEFINE_COMPONENT_ACTION(node_server, enforce_bc, enforce_bc_action);
+
 	void force_nodes_to_exist(std::vector<node_location>&& loc);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
 
@@ -342,6 +345,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::scf_update_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::check_for_refinement_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::enforce_bc_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_child_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);

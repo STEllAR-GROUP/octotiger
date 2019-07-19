@@ -51,10 +51,28 @@ void grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::dire
 
 void grid::complete_hydro_amr_boundary() {
 
+	for (int f = 0; f < opts().n_fields; f++) {
+		for (int ir = 0; ir < H_NX; ir++) {
+			for (int jr = 0; jr < H_NX; jr++) {
+				for (int kr = 0; kr < H_NX; kr++) {
+					const int i0 = (ir + H_BW) / 2;
+					const int j0 = (jr + H_BW) / 2;
+					const int k0 = (kr + H_BW) / 2;
+					const int iii0 = hSindex(i0, j0, k0);
+					const int iiir = hindex(ir, jr, kr);
+					if (is_coarse[iii0]) {
+						if( opts().amrbnd_order == 0 ) {
+							U[f][iiir] = Ushad[f][iii0];
+						} else {
+							printf( "AMR boundary order not supported\n");
+							abort();
+						}
+					}
+				}
+			}
+		}
 
-
-
-
+	}
 	std::fill(is_coarse.begin(), is_coarse.end(), false);
 
 
@@ -2669,18 +2687,20 @@ void grid::set_physical_boundaries(const geo::face& face, real t) {
 								ref = -value;
 								break;
 							case OUTFLOW:
-								const real before = value;
-								if (side == geo::MINUS) {
-									ref = s0 + std::min(value - s0, ZERO);
-								} else {
-									ref = s0 + std::max(value - s0, ZERO);
-								}
-								const real after = ref;
-								assert(rho_i < field);
-								assert(egas_i < field);
-								real this_rho = U[rho_i][iii];
-								if (this_rho != ZERO) {
-									U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
+								if (opts().problem != AMR_TEST) {
+									const real before = value;
+									if (side == geo::MINUS) {
+										ref = s0 + std::min(value - s0, ZERO);
+									} else {
+										ref = s0 + std::max(value - s0, ZERO);
+									}
+									const real after = ref;
+									assert(rho_i < field);
+									assert(egas_i < field);
+									real this_rho = U[rho_i][iii];
+									if (this_rho != ZERO) {
+										U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
+									}
 								}
 								break;
 							}

@@ -101,6 +101,7 @@ set(source_files
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/radiation/cuda_kernel.cu
     src/radiation/rad_grid.cpp
+    src/test_problems/amr/amr.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
@@ -178,6 +179,7 @@ set(header_files
     octotiger/radiation/kernel_interface.hpp
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
+    octotiger/test_problems/amr/amr.hpp
     octotiger/test_problems/rotating_star/rotating_star.hpp
     octotiger/test_problems/sod/exact_sod.hpp
 )
