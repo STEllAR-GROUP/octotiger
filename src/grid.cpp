@@ -259,6 +259,9 @@ std::vector<silo_var_t> grid::var_data() const {
 	std::vector<silo_var_t> s;
 	real unit;
 //	if (opts().hydro) {
+	const auto& x0 = opts().silo_offset_x;
+	const auto& y0 = opts().silo_offset_y;
+	const auto& z0 = opts().silo_offset_z;
 	for (auto l : str_to_index_hydro) {
 		unit = convert_hydro_units(l.second);
 		const int f = l.second;
@@ -269,7 +272,7 @@ std::vector<silo_var_t> grid::var_data() const {
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
-					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
+					const int iii = hindex(k + H_BW - x0, j + H_BW - y0, i + H_BW - z0);
 					this_s(jjj) = U[f][iii] * unit;
 					this_s.set_range(this_s(jjj));
 					jjj++;
@@ -1750,7 +1753,7 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-		U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
+		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
 				true) {
 	dx = _dx;
 	xmin = _xmin;
@@ -2150,13 +2153,13 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(
+		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(
 				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
 //	allocate();
 }
 
 grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xmin) :
-		U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
+		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
 				true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
