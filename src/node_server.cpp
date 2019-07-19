@@ -209,10 +209,8 @@ void node_server::send_hydro_amr_boundaries(bool tau_only) {
 					} else {
 						get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
 						for (integer dim = 0; dim != NDIM; ++dim) {
-							printf( "%i %i |", lb[dim], ub[dim]);
 							lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
 							ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
-							printf( "%i %i\n", lb[dim], ub[dim]);
 						}
 						data = grid_ptr->get_subset(lb, ub);
 						children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);
