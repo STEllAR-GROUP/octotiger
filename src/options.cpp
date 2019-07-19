@@ -74,8 +74,7 @@ bool options::process_options(int argc, char* argv[]) {
 	("silo_offset_y", po::value<integer>(&(opts().silo_offset_y))->default_value(0), "")      //
 	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
 	("old_amrbnd", po::value<bool>(&(opts().old_amrbnd))->default_value(true), "use old amr boundary interpolation")           //
-	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(false), "amr boundary interpolation order")
-	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(false), "amr boundary interpolation order")        //
+	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
