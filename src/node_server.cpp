@@ -31,6 +31,10 @@ HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_ser
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
 
+
+
+
+
 real node_server::get_rotation_count() const {
 	if (opts().problem == DWD) {
 		return rotational_time / (2.0 * M_PI);

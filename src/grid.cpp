@@ -22,7 +22,20 @@
 #include <string>
 #include <unordered_map>
 
+OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
+//	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
+	bool a_is_neg = a < 0;
+	bool b_is_neg = b < 0;
+	if (a_is_neg != b_is_neg)
+		return ZERO;
 
+	real val = std::min(std::abs(a), std::abs(b));
+	return a_is_neg ? -val : val;
+}
+
+OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real c, real theta) {
+	return minmod(theta * minmod(a, b), c);
+}
 
 std::vector<real> grid::get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
 	std::vector<real> data;
@@ -37,7 +50,6 @@ std::vector<real> grid::get_subset(const std::array<integer, NDIM>& lb, const st
 	}
 	return std::move(data);
 }
-
 
 void grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
 
@@ -61,9 +73,8 @@ void grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::dire
 			}
 		}
 	}
-	assert(l==data.size());
+	assert(l == data.size());
 }
-
 
 void grid::complete_hydro_amr_boundary() {
 
@@ -76,11 +87,83 @@ void grid::complete_hydro_amr_boundary() {
 					const int k0 = (kr + H_BW) / 2;
 					const int iii0 = hSindex(i0, j0, k0);
 					const int iiir = hindex(ir, jr, kr);
+					const int isgn = ir % 2 ? -1 : +1;
+					const int jsgn = jr % 2 ? -1 : +1;
+					const int ksgn = kr % 2 ? -1 : +1;
 					if (is_coarse[iii0]) {
-						if( opts().amrbnd_order == 0 ) {
+						if (opts().amrbnd_order == 0) {
 							U[f][iiir] = Ushad[f][iii0];
+						} else if (opts().amrbnd_order == 1) {
+							const auto u0 = U[f][iiir] = Ushad[f][iii0];
+							double slpx, slpy, slpz;
+							int jjj;
+							double tmp;
+
+							jjj = hSindex(i0 + 1, j0, k0);
+							if (is_coarse[jjj]) {
+								slpx = Ushad[f][jjj] - u0;
+							} else {
+								slpx = 0.25 * (U[f][hindex(ir + 1, jr, kr)] - u0) * 4.0 / 3.0;
+								slpx += 0.25 * (U[f][hindex(ir + 1, jr + jsgn, kr)] - u0) * 4.0 / 3.0;
+								slpx += 0.25 * (U[f][hindex(ir + 1, jr, kr + ksgn)] - u0) * 4.0 / 3.0;
+								slpx += 0.25 * (U[f][hindex(ir + 1, jr + jsgn, kr + ksgn)] - u0) * 4.0 / 3.0;
+							}
+
+							jjj = hSindex(i0 - 1, j0, k0);
+							if (is_coarse[jjj]) {
+								tmp = u0 - Ushad[f][jjj];
+							} else {
+								tmp = 0.25 * (-U[f][hindex(ir - 1, jr, kr)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir - 1, jr + jsgn, kr)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir - 1, jr, kr + ksgn)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir - 1, jr + jsgn, kr + ksgn)] + u0) * 4.0 / 3.0;
+							}
+							slpx = minmod(slpx, tmp);
+
+							jjj = hSindex(i0, j0 + 1, k0);
+							if (is_coarse[jjj]) {
+								slpy = Ushad[f][jjj] - u0;
+							} else {
+								slpy = 0.25 * (U[f][hindex(ir, jr + 1, kr)] - u0) * 4.0 / 3.0;
+								slpy += 0.25 * (U[f][hindex(ir + isgn, jr + 1, kr)] - u0) * 4.0 / 3.0;
+								slpy += 0.25 * (U[f][hindex(ir, jr + 1, kr + ksgn)] - u0) * 4.0 / 3.0;
+								slpy += 0.25 * (U[f][hindex(ir + isgn, jr + 1, kr + ksgn)] - u0) * 4.0 / 3.0;
+							}
+
+							jjj = hSindex(i0, j0 - 1, k0);
+							if (is_coarse[jjj]) {
+								tmp = u0 - Ushad[f][jjj];
+							} else {
+								tmp = 0.25 * (-U[f][hindex(ir, jr - 1, kr)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir + isgn, jr - 1, kr)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir, jr - 1, kr + ksgn)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir + isgn, jr - 1, kr + ksgn)] + u0) * 4.0 / 3.0;
+							}
+							slpy = minmod(slpy, tmp);
+
+							jjj = hSindex(i0, j0, k0 + 1);
+							if (is_coarse[jjj]) {
+								slpz = Ushad[f][jjj] - u0;
+							} else {
+								slpz = 0.25 * (U[f][hindex(ir, jr, kr + 1)] - u0) * 4.0 / 3.0;
+								slpz += 0.25 * (U[f][hindex(ir + isgn, jr, kr + 1)] - u0) * 4.0 / 3.0;
+								slpz += 0.25 * (U[f][hindex(ir, jr + jsgn, kr + 1)] - u0) * 4.0 / 3.0;
+								slpz += 0.25 * (U[f][hindex(ir + isgn, jr + jsgn, kr + 1)] - u0) * 4.0 / 3.0;
+							}
+
+							jjj = hSindex(i0, j0 - 1, k0);
+							if (is_coarse[jjj]) {
+								tmp = u0 - Ushad[f][jjj];
+							} else {
+								tmp = 0.25 * (-U[f][hindex(ir, jr, kr - 1)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir + isgn, jr, kr - 1)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir, jr + jsgn, kr - 1)] + u0) * 4.0 / 3.0;
+								tmp += 0.25 * (-U[f][hindex(ir + isgn, jr + jsgn, kr - 1)] + u0) * 4.0 / 3.0;
+							}
+							slpz = minmod(slpz, tmp);
+
 						} else {
-							printf( "AMR boundary order not supported\n");
+							printf("AMR boundary order not supported\n");
 							abort();
 						}
 					}
@@ -91,11 +174,7 @@ void grid::complete_hydro_amr_boundary() {
 	}
 	std::fill(is_coarse.begin(), is_coarse.end(), false);
 
-
 }
-
-
-
 
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
@@ -834,7 +913,6 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	return c;
 }
 
-
 void grid::set_hydro_boundary(const std::vector<real>& data, const geo::direction& dir, integer width, bool etot_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
@@ -1003,21 +1081,6 @@ void grid::velocity_inc(const space_vector& dv) {
 		}
 	}
 
-}
-
-OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
-//	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
-	bool a_is_neg = a < 0;
-	bool b_is_neg = b < 0;
-	if (a_is_neg != b_is_neg)
-		return ZERO;
-
-	real val = std::min(std::abs(a), std::abs(b));
-	return a_is_neg ? -val : val;
-}
-
-OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real c, real theta) {
-	return minmod(theta * minmod(a, b), c);
 }
 
 OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real theta = 1.0) {
@@ -1773,8 +1836,8 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
-				true) {
+		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+				false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -2173,14 +2236,14 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(
-				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
+		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(
+				H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
 //	allocate();
 }
 
 grid::grid(const init_func_type& init_func, real _dx, std::array<real, NDIM> _xmin) :
-		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
-				true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
+		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
 	xmin = _xmin;
@@ -2490,7 +2553,7 @@ void grid::reconstruct() {
 					Ufface[sx_i][iii] -= omega * (X[YDIM][iii] + y0) * Uffacerho_iii;
 					Ufface[sy_i][iii] += omega * (X[XDIM][iii] + x0) * Uffacerho_iii;
 					if (opts().angmom) {
-							Ufface[zz_i][iii] += sqr(dx) * omega * Uffacerho_iii / 6.0;
+						Ufface[zz_i][iii] += sqr(dx) * omega * Uffacerho_iii / 6.0;
 					}
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sx_i][iii]) / Uffacerho_iii;
 					Ufface[egas_i][iii] += HALF * sqr(Ufface[sy_i][iii]) / Uffacerho_iii;
