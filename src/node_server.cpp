@@ -198,9 +198,8 @@ void node_server::send_hydro_amr_boundaries(bool tau_only) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
 //						const integer width = dir.is_face() ? H_BW : 1;
-					const integer width = H_BW;
-					get_boundary_size(lb, ub, dir, OUTER, INX, width);
 					if( opts().old_amrbnd) {
+						get_boundary_size(lb, ub, dir, OUTER, INX, H_BW);
 						for (integer dim = 0; dim != NDIM; ++dim) {
 							lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
 							ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
@@ -208,9 +207,12 @@ void node_server::send_hydro_amr_boundaries(bool tau_only) {
 						data = grid_ptr->get_prolong(lb, ub, tau_only);
 						children[ci].send_hydro_boundary(std::move(data), dir, hcycle);
 					} else {
+						get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
 						for (integer dim = 0; dim != NDIM; ++dim) {
+							printf( "%i %i |", lb[dim], ub[dim]);
 							lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
 							ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
+							printf( "%i %i\n", lb[dim], ub[dim]);
 						}
 						data = grid_ptr->get_subset(lb, ub);
 						children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);

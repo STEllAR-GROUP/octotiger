@@ -24,6 +24,21 @@
 
 
 
+std::vector<real> grid::get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
+	std::vector<real> data;
+	for (int f = 0; f < opts().n_fields; f++) {
+		for (int i = lb[0]; i < ub[0]; i++) {
+			for (int j = lb[1]; j < ub[1]; j++) {
+				for (int k = lb[2]; k < ub[2]; k++) {
+					data.push_back(U[f][hindex(i, j, k)]);
+				}
+			}
+		}
+	}
+	return std::move(data);
+}
+
+
 void grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
 
 	std::array<integer, NDIM> lb, ub;
@@ -46,6 +61,7 @@ void grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::dire
 			}
 		}
 	}
+	assert(l==data.size());
 }
 
 
@@ -842,20 +858,6 @@ void grid::set_hydro_boundary(const std::vector<real>& data, const geo::directio
 			}
 		}
 	}PROF_END;
-}
-
-std::vector<real> grid::get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
-	std::vector<real> data;
-	for (int f = 0; f < opts().n_fields; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					data.push_back(U[f][hindex(i, j, k)]);
-				}
-			}
-		}
-	}
-	return std::move(data);
 }
 
 std::vector<real> grid::get_hydro_boundary(const geo::direction& dir, integer width, bool etot_only) {
