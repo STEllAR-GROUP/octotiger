@@ -161,6 +161,9 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y, r
 	bool rc = false;
 	real den_floor = opts().refinement_floor;
 	integer test_level = max_level;
+	if( x > 0 ) {
+		test_level--;
+	}
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
 			rc = rc || (level < this_test_level);
