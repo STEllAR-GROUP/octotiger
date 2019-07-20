@@ -61,9 +61,7 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 		for (int j = lb[1]; j < ub[1]; j++) {
 			for (int k = lb[2]; k < ub[2]; k++) {
 				is_coarse[hSindex(i, j, k)]++;
-				assert( i < H_BW || i >= HS_NX - H_BW ||
-						j < H_BW || j >= HS_NX - H_BW ||
-						k < H_BW || k >= HS_NX - H_BW );
+				assert(i < H_BW || i >= HS_NX - H_BW || j < H_BW || j >= HS_NX - H_BW || k < H_BW || k >= HS_NX - H_BW);
 			}
 		}
 	}
@@ -92,9 +90,9 @@ void grid::complete_hydro_amr_boundary() {
 					const int iii0 = hSindex(i0, j0, k0);
 					const int iiir = hindex(ir, jr, kr);
 					if (is_coarse[iii0]) {
-						assert( ir < H_BW || ir >= H_NX - H_BW ||
-								jr < H_BW || jr >= H_NX - H_BW ||
-								kr < H_BW || kr >= H_NX - H_BW );
+						assert(
+								ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW
+										|| kr >= H_NX - H_BW);
 						U[f][iiir] = Ushad[f][iii0];
 					}
 				}
@@ -106,7 +104,7 @@ void grid::complete_hydro_amr_boundary() {
 		for (int d = 0; d < NDIM; d++) {
 			slp[d].resize(opts().n_fields);
 			for (int f = 0; f < opts().n_fields; f++) {
-				slp[d][f].resize(HS_N3);
+				slp[d][f].resize(HS_N3,std::numeric_limits<real>::signaling_NaN());
 			}
 		}
 		for (int f = 0; f < opts().n_fields; f++) {
@@ -119,7 +117,7 @@ void grid::complete_hydro_amr_boundary() {
 						const int iii0 = hSindex(i0, j0, k0);
 						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
-					//		printf( "%i\n", int(is_coarse[iii0]));
+							//		printf( "%i\n", int(is_coarse[iii0]));
 
 							const auto u0 = Ushad[f][iii0];
 							for (int d = 0; d < NDIM; d++) {
@@ -128,32 +126,32 @@ void grid::complete_hydro_amr_boundary() {
 								const int iiip = iii0 + HS_DN[d];
 								const int iiim = iii0 - HS_DN[d];
 								double slpp, slpm;
-//								if (is_coarse[iiip]) {
+								if (is_coarse[iiip]) {
 									slpp = Ushad[f][iiip] - u0;
-//								} else {
-//									const int iiir0 = iiir + 2 * H_DN[d];
-//									assert(iiir0 >= 0);
-//									assert(iiir0 < H_N3);
-//									slpp = 0.0;
-//									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpp /= 3.0;
-//								}
-//								if (is_coarse[iiim]) {
+								} else {
+									const int iiir0 = iiir + 2 * H_DN[d];
+									assert(iiir0 >= 0);
+									assert(iiir0 < H_N3);
+									slpp = 0.0;
+									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
+									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
+									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+									slpp /= 3.0;
+								}
+								if (is_coarse[iiim]) {
 									slpm = Ushad[f][iiim] - u0;
-//								} else {
-//									const int iiir0 = iiir - H_DN[d];
-//									assert(iiir0 >= 0);
-//									assert(iiir0 < H_N3);
-//									slpm = 0.0;
-//									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpm /= 3.0;
-//								}
+								} else {
+									const int iiir0 = iiir - H_DN[d];
+									assert(iiir0 >= 0);
+									assert(iiir0 < H_N3);
+									slpm = 0.0;
+									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
+									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
+									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+									slpm /= 3.0;
+								}
 								slp[d][f][iii0] = minmod(slpp, -slpm);
 							}
 						}
@@ -161,23 +159,23 @@ void grid::complete_hydro_amr_boundary() {
 				}
 			}
 		}
-		for (int f = 1; f < opts().n_fields; f++) {
+		for (int f = 0; f < opts().n_fields; f++) {
 			for (int ir = 1; ir < H_NX - 1; ir++) {
 				for (int jr = 1; jr < H_NX - 1; jr++) {
-					for (int kr = 0; kr < H_NX - 1; kr++) {
-						const int isgn = ir % 2 ? -1 : 1;
-						const int jsgn = jr % 2 ? -1 : 1;
-						const int ksgn = kr % 2 ? -1 : 1;
+					for (int kr = 1; kr < H_NX - 1; kr++) {
+						const int isgn = ir % 2 ? 1 : -1;
+						const int jsgn = jr % 2 ? 1 : -1;
+						const int ksgn = kr % 2 ? 1 : -1;
 						const int i0 = (ir + H_BW) / 2;
 						const int j0 = (jr + H_BW) / 2;
 						const int k0 = (kr + H_BW) / 2;
 						const int iii0 = hSindex(i0, j0, k0);
 						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
-							U[f][iiir] = Ushad[f][iii0];
-							U[f][iiir] += 0.25 * isgn * slp[XDIM][f][iii0];
-							U[f][iiir] += 0.25 * jsgn * slp[YDIM][f][iii0];
-							U[f][iiir] += 0.25 * ksgn * slp[ZDIM][f][iii0];
+							const auto u0 = U[f][iiir];
+							U[f][iiir] -= 0.25 * isgn * slp[XDIM][f][iii0];
+							U[f][iiir] -= 0.25 * jsgn * slp[YDIM][f][iii0];
+							U[f][iiir] -= 0.25 * ksgn * slp[ZDIM][f][iii0];
 						}
 					}
 				}
@@ -187,8 +185,7 @@ void grid::complete_hydro_amr_boundary() {
 
 }
 
-
-std::pair<real,real> grid::amr_error() const {
+std::pair<real, real> grid::amr_error() const {
 
 	const auto is_physical = [this](int i, int j, int k) {
 		const integer iii = hindex(i, j, k);
@@ -212,7 +209,7 @@ std::pair<real,real> grid::amr_error() const {
 	for (int i = 0; i < H_NX; i++) {
 		for (int j = 0; j < H_NX; j++) {
 			for (int k = 0; k < H_NX; k++) {
-				const int iii = hindex(i,j,k);
+				const int iii = hindex(i, j, k);
 				const auto x = X[XDIM][iii];
 				const auto y = X[YDIM][iii];
 				const auto z = X[ZDIM][iii];
@@ -222,11 +219,11 @@ std::pair<real,real> grid::amr_error() const {
 					const int k0 = (k + H_BW) / 2;
 					const int iii0 = hSindex(i0, j0, k0);
 					if (is_coarse[iii0]) {
-						const double v0 = amr_test_analytic(x,y,z);
+						const double v0 = amr_test_analytic(x, y, z);
 						const double v1 = U[rho_i][iii];
-						sum += std::pow(v0 - v1 ,2) * dV;
-						FILE* fp = fopen( "error.txt", "at");
-						fprintf( fp, "%e %e\n", v0, v1 );
+						sum += std::pow(v0 - v1, 2) * dV;
+						FILE *fp = fopen("error.txt", "at");
+						fprintf(fp, "%e %e %e\n", y, v0, v1);
 						fclose(fp);
 						V += dV;
 					}
@@ -234,9 +231,8 @@ std::pair<real,real> grid::amr_error() const {
 			}
 		}
 	}
-	return std::pair(sum,V);
+	return std::pair(sum, V);
 }
-
 
 void grid::clear_amr() {
 	std::fill(is_coarse.begin(), is_coarse.end(), 0);
@@ -1546,7 +1542,7 @@ void grid::set_omega(real omega, bool bcast) {
 			}
 		}
 	}
-	std::unique_lock < hpx::lcos::local::spinlock > l(grid::omega_mtx, std::try_to_lock);
+	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
 // if someone else has the lock, it's fine, we just return and have it set
 // by the other thread
 	if (!l)
@@ -1901,9 +1897,9 @@ space_vector grid::center_of_mass() const {
 	return this_com;
 }
 
-grid::grid(real _dx, std::array<real, NDIM> _xmin) : is_coarse(H_N3),
-		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(
-				NGF), is_root(false), is_leaf(true) {
+grid::grid(real _dx, std::array<real, NDIM> _xmin) :
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -2277,12 +2273,11 @@ void grid::allocate() {
 		X[dim].resize(H_N3);
 	}
 
-
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		U0[field].resize(INX * INX * INX);
 
 		U[field].resize(H_N3, 0.0);
-		Ushad[field].resize(HS_N3);
+		Ushad[field].resize(HS_N3,std::numeric_limits<real>::signaling_NaN());
 		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(F_N3);
@@ -2302,17 +2297,17 @@ void grid::allocate() {
 	PROF_END;
 }
 
-grid::grid() : is_coarse(H_N3),
-		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(
-				NGF), dphi_dt(H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
+grid::grid() :
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
 				opts().n_fields, ZERO) {
 //	allocate();
 }
 
-grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) : is_coarse(H_N3),
-		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(
-				NGF), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(
-				H_N3) {
+grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) :
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
+				opts().n_fields, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
 	xmin = _xmin;
@@ -2766,7 +2761,19 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 	const integer jlb = 0;
 	const integer jub = H_NX;
 
-	if (opts().problem == SOD) {
+	if (opts().problem == AMR_TEST) {
+		for (integer k = klb; k != kub; ++k) {
+			for (integer j = jlb; j != jub; ++j) {
+				for (integer i = ilb; i != iub; ++i) {
+					const auto iii = hindex(i,j,k);
+					const auto u = amr_test(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], dx);
+					for (int f = 0; f < opts().n_fields; f++) {
+						U[f][iii] = u[f];
+					}
+				}
+			}
+		}
+	} else if (opts().problem == SOD) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = jlb; j != jub; ++j) {
 				for (integer i = ilb; i != iub; ++i) {
