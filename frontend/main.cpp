@@ -184,6 +184,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 //		grid::set_analytic_func(moving_star_analytic);
 		set_problem(amr_test);
 		set_refine_test(refine_test_moving_star);
+		set_refine_test(refine_test_amr);
 	} else if (opts().problem == MARSHAK) {
 		grid::set_fgamma(5.0 / 3.0);
 		set_analytic(nullptr);

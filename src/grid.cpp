@@ -11,6 +11,7 @@
 #include "octotiger/real.hpp"
 #include "octotiger/silo.hpp"
 #include "octotiger/taylor.hpp"
+#include "octotiger/test_problems/amr/amr.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
@@ -59,7 +60,10 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 	for (int i = lb[0]; i < ub[0]; i++) {
 		for (int j = lb[1]; j < ub[1]; j++) {
 			for (int k = lb[2]; k < ub[2]; k++) {
-				is_coarse[hSindex(i, j, k)] = true;
+				is_coarse[hSindex(i, j, k)]++;
+				assert( i < H_BW || i >= HS_NX - H_BW ||
+						j < H_BW || j >= HS_NX - H_BW ||
+						k < H_BW || k >= HS_NX - H_BW );
 			}
 		}
 	}
@@ -88,6 +92,9 @@ void grid::complete_hydro_amr_boundary() {
 					const int iii0 = hSindex(i0, j0, k0);
 					const int iiir = hindex(ir, jr, kr);
 					if (is_coarse[iii0]) {
+						assert( ir < H_BW || ir >= H_NX - H_BW ||
+								jr < H_BW || jr >= H_NX - H_BW ||
+								kr < H_BW || kr >= H_NX - H_BW );
 						U[f][iiir] = Ushad[f][iii0];
 					}
 				}
@@ -112,6 +119,7 @@ void grid::complete_hydro_amr_boundary() {
 						const int iii0 = hSindex(i0, j0, k0);
 						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
+					//		printf( "%i\n", int(is_coarse[iii0]));
 
 							const auto u0 = Ushad[f][iii0];
 							for (int d = 0; d < NDIM; d++) {
@@ -120,32 +128,32 @@ void grid::complete_hydro_amr_boundary() {
 								const int iiip = iii0 + HS_DN[d];
 								const int iiim = iii0 - HS_DN[d];
 								double slpp, slpm;
-								if (is_coarse[iiip]) {
+//								if (is_coarse[iiip]) {
 									slpp = Ushad[f][iiip] - u0;
-								} else {
-									const int iiir0 = iiir + 2 * H_DN[d];
-									assert(iiir0 >= 0);
-									assert(iiir0 < H_N3);
-									slpp = 0.0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpp /= 3.0;
-								}
-								if (is_coarse[iiim]) {
-									slpm = Ushad[f][iiip] - u0;
-								} else {
-									const int iiir0 = iiir - H_DN[d];
-									assert(iiir0 >= 0);
-									assert(iiir0 < H_N3);
-									slpm = 0.0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpm /= 3.0;
-								}
+//								} else {
+//									const int iiir0 = iiir + 2 * H_DN[d];
+//									assert(iiir0 >= 0);
+//									assert(iiir0 < H_N3);
+//									slpp = 0.0;
+//									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
+//									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+//									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
+//									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+//									slpp /= 3.0;
+//								}
+//								if (is_coarse[iiim]) {
+									slpm = Ushad[f][iiim] - u0;
+//								} else {
+//									const int iiir0 = iiir - H_DN[d];
+//									assert(iiir0 >= 0);
+//									assert(iiir0 < H_N3);
+//									slpm = 0.0;
+//									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
+//									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+//									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
+//									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+//									slpm /= 3.0;
+//								}
 								slp[d][f][iii0] = minmod(slpp, -slpm);
 							}
 						}
@@ -179,8 +187,59 @@ void grid::complete_hydro_amr_boundary() {
 
 }
 
+
+std::pair<real,real> grid::amr_error() const {
+
+	const auto is_physical = [this](int i, int j, int k) {
+		const integer iii = hindex(i, j, k);
+		const auto x = X[XDIM][iii];
+		const auto y = X[YDIM][iii];
+		const auto z = X[ZDIM][iii];
+		if (std::abs(x) > opts().xscale) {
+			return true;
+		}
+		if (std::abs(y) > opts().xscale) {
+			return true;
+		}
+		if (std::abs(z) > opts().xscale) {
+			return true;
+		}
+		return false;
+	};
+
+	real sum = 0.0, V = 0.0;
+	const real dV = dx * dx * dx;
+	for (int i = 0; i < H_NX; i++) {
+		for (int j = 0; j < H_NX; j++) {
+			for (int k = 0; k < H_NX; k++) {
+				const int iii = hindex(i,j,k);
+				const auto x = X[XDIM][iii];
+				const auto y = X[YDIM][iii];
+				const auto z = X[ZDIM][iii];
+				if (!is_physical(i, j, k)) {
+					const int i0 = (i + H_BW) / 2;
+					const int j0 = (j + H_BW) / 2;
+					const int k0 = (k + H_BW) / 2;
+					const int iii0 = hSindex(i0, j0, k0);
+					if (is_coarse[iii0]) {
+						const double v0 = amr_test_analytic(x,y,z);
+						const double v1 = U[rho_i][iii];
+						sum += std::pow(v0 - v1 ,2) * dV;
+						FILE* fp = fopen( "error.txt", "at");
+						fprintf( fp, "%e %e\n", v0, v1 );
+						fclose(fp);
+						V += dV;
+					}
+				}
+			}
+		}
+	}
+	return std::pair(sum,V);
+}
+
+
 void grid::clear_amr() {
-	std::fill(is_coarse.begin(), is_coarse.end(), false);
+	std::fill(is_coarse.begin(), is_coarse.end(), 0);
 }
 
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
@@ -1842,7 +1901,7 @@ space_vector grid::center_of_mass() const {
 	return this_com;
 }
 
-grid::grid(real _dx, std::array<real, NDIM> _xmin) :
+grid::grid(real _dx, std::array<real, NDIM> _xmin) : is_coarse(H_N3),
 		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(
 				NGF), is_root(false), is_leaf(true) {
 	dx = _dx;
@@ -2218,7 +2277,6 @@ void grid::allocate() {
 		X[dim].resize(H_N3);
 	}
 
-	is_coarse.resize(HS_N3, false);
 
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		U0[field].resize(INX * INX * INX);
@@ -2244,14 +2302,14 @@ void grid::allocate() {
 	PROF_END;
 }
 
-grid::grid() :
+grid::grid() : is_coarse(H_N3),
 		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(
 				NGF), dphi_dt(H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
 				opts().n_fields, ZERO) {
 //	allocate();
 }
 
-grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) :
+grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) : is_coarse(H_N3),
 		Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(
 				NGF), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(
 				H_N3) {
@@ -2693,50 +2751,6 @@ void grid::restore() {
 		}
 	}
 	U_out = U_out0;
-}
-
-std::pair<real,real> grid::amr_error() const {
-
-	const auto is_physical = [this](int i, int j, int k) {
-		const integer iii = hindex(i, j, k);
-		const auto x = X[XDIM][iii];
-		const auto y = X[YDIM][iii];
-		const auto z = X[ZDIM][iii];
-		if (std::abs(x) > opts().xscale) {
-			return true;
-		}
-		if (std::abs(y) > opts().xscale) {
-			return true;
-		}
-		if (std::abs(z) > opts().xscale) {
-			return true;
-		}
-		return false;
-	};
-
-	real sum = 0.0, V = 0.0;
-	const real dV = dx * dx * dx;
-	for (int i = 0; i < H_NX; i++) {
-		for (int j = 0; j < H_NX; j++) {
-			for (int k = 0; k < H_NX; k++) {
-				const int iii = hindex(i,j,k);
-				const auto x = X[XDIM][iii];
-				const auto y = X[YDIM][iii];
-				const auto z = X[ZDIM][iii];
-				if (!is_physical(i, j, k)) {
-					const int i0 = (i + H_BW) / 2;
-					const int j0 = (j + H_BW) / 2;
-					const int k0 = (k + H_BW) / 2;
-					const int iii0 = hSindex(i0, j0, k0);
-					if (is_coarse[iii0]) {
-						sum += std::abs((x*x+y*y+z*z - U[rho_i][iii])) * dV;
-						V += dV;
-					}
-				}
-			}
-		}
-	}
-	return std::pair(sum,V);
 }
 
 void grid::set_physical_boundaries(const geo::face &face, real t) {
