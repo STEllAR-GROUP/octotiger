@@ -39,7 +39,7 @@ future<std::pair<real,real>> node_client::amr_error() const {
 
 std::pair<real,real> node_server::amr_error() {
 	std::vector<hpx::future<std::pair<real,real>>> kfuts;
-	auto sum = std::pair(0.0,0.0);
+	auto sum = std::make_pair(0.0,0.0);
 	if (is_refined) {
 		for (int i = 0; i < NCHILD; i++) {
 			kfuts.push_back(children[i].amr_error());
