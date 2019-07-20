@@ -450,6 +450,8 @@ int hpx_main(int argc, char* argv[]) {
 				hpx::async(&node_server::execute_solver, root, opts().problem == DWD && opts().restart_filename.empty(), ngrids).get();
 			} else {
 				root->enforce_bc();
+				auto e = root->amr_error();
+				printf( "AMR Error: %e %e %e\n", e.first, e.second, e.first/e.second);
 				output_all("X", 0, true);
 			}
 			root->report_timing();

@@ -77,6 +77,7 @@ public:
     future<void> check_channels() const;
     future<real> scf_update(
         real, real, real, real, real, real, real, struct_eos, struct_eos) const;
+    future<std::pair<real,real>> amr_error() const;
     void send_hydro_children(
         std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_hydro_flux_correct(std::vector<real>&&, const geo::face& face,

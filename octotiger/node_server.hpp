@@ -252,6 +252,9 @@ public:
 	analytic_t compare_analytic();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
 
+	std::pair<real,real> amr_error();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, amr_error, amr_error_action);
+
 	diagnostics_t diagnostics(const diagnostics_t&);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
@@ -372,6 +375,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::amr_error_action);
 //HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
 
 #endif /* NODE_SERVER_HPP_ */

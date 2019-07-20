@@ -18,7 +18,7 @@
 
 std::vector<real> amr_test(real x, real y, real z, real) {
 	std::vector<real> u(opts().n_fields, real(0));
-	u[rho_i] = u[spc_i] = 1 + x;
+	u[rho_i] = u[spc_i] = x * x + y * y + z * z;
 	return u;
 }
 

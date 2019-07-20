@@ -263,6 +263,8 @@ public:
 			is_leaf = flag;
 		}
 	}
+	void clear_amr();
+	std::pair<real,real> amr_error() const;
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
 			integer index, real rho_cut) const;
 	static void set_omega(real, bool bcast = true);

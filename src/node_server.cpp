@@ -146,6 +146,9 @@ void node_server::exchange_interlevel_hydro_data() {
 }
 
 void node_server::collect_hydro_boundaries(bool tau_only) {
+	if( !opts().old_amrbnd) {
+		grid_ptr->clear_amr();
+	}
 	for (auto const& dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			const integer width = H_BW;

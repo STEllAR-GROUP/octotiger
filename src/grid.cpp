@@ -155,7 +155,7 @@ void grid::complete_hydro_amr_boundary() {
 		}
 		for (int f = 1; f < opts().n_fields; f++) {
 			for (int ir = 1; ir < H_NX - 1; ir++) {
-				for (int jr = 1; jr < H_NX - 1 ; jr++) {
+				for (int jr = 1; jr < H_NX - 1; jr++) {
 					for (int kr = 0; kr < H_NX - 1; kr++) {
 						const int isgn = ir % 2 ? -1 : 1;
 						const int jsgn = jr % 2 ? -1 : 1;
@@ -176,8 +176,11 @@ void grid::complete_hydro_amr_boundary() {
 			}
 		}
 	}
-	std::fill(is_coarse.begin(), is_coarse.end(), false);
 
+}
+
+void grid::clear_amr() {
+	std::fill(is_coarse.begin(), is_coarse.end(), false);
 }
 
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
@@ -2690,6 +2693,50 @@ void grid::restore() {
 		}
 	}
 	U_out = U_out0;
+}
+
+std::pair<real,real> grid::amr_error() const {
+
+	const auto is_physical = [this](int i, int j, int k) {
+		const integer iii = hindex(i, j, k);
+		const auto x = X[XDIM][iii];
+		const auto y = X[YDIM][iii];
+		const auto z = X[ZDIM][iii];
+		if (std::abs(x) > opts().xscale) {
+			return true;
+		}
+		if (std::abs(y) > opts().xscale) {
+			return true;
+		}
+		if (std::abs(z) > opts().xscale) {
+			return true;
+		}
+		return false;
+	};
+
+	real sum = 0.0, V = 0.0;
+	const real dV = dx * dx * dx;
+	for (int i = 0; i < H_NX; i++) {
+		for (int j = 0; j < H_NX; j++) {
+			for (int k = 0; k < H_NX; k++) {
+				const int iii = hindex(i,j,k);
+				const auto x = X[XDIM][iii];
+				const auto y = X[YDIM][iii];
+				const auto z = X[ZDIM][iii];
+				if (!is_physical(i, j, k)) {
+					const int i0 = (i + H_BW) / 2;
+					const int j0 = (j + H_BW) / 2;
+					const int k0 = (k + H_BW) / 2;
+					const int iii0 = hSindex(i0, j0, k0);
+					if (is_coarse[iii0]) {
+						sum += std::abs((x*x+y*y+z*z - U[rho_i][iii])) * dV;
+						V += dV;
+					}
+				}
+			}
+		}
+	}
+	return std::pair(sum,V);
 }
 
 void grid::set_physical_boundaries(const geo::face &face, real t) {
