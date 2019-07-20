@@ -2178,9 +2178,6 @@ void grid::reconstruct() {
 	compute_primitives();
 
 	for (integer field = 0; field != opts().n_fields; ++field) {
-		if (field >= zx_i && field <= zz_i) {
-			continue;
-		}
 		// TODO: Remove these unused variables
 		//real theta_x, theta_y, theta_z;
 		std::vector<real> const &Vfield = V[field];
@@ -2215,9 +2212,6 @@ void grid::reconstruct() {
 		std::vector<real> &UfFXMfield = Uf[FXM][field];
 		std::vector<real> const &slpxfield = slpx[field];
 
-		if (field >= zx_i && field <= zz_i) {
-			continue;
-		}
 #pragma GCC ivdep
 		for (integer iii = 0; iii != H_N3 - H_NX * H_NX; ++iii) {
 			UfFXPfield[iii] = UfFXMfield[iii + H_DNX] = average(Vfield[iii + H_DNX], Vfield[iii]);
@@ -2316,20 +2310,6 @@ void grid::reconstruct() {
 
 			Uf[FZP][sy_i][iii] = wzy * Uf[FZP][sy_i][iii] + (1 - wzy) * V[sy_i][iii];
 			Uf[FZM][sy_i][iii] = wzy * Uf[FZM][sy_i][iii] + (1 - wzy) * V[sy_i][iii];
-
-			const real zx_lim = +(slpy[sz_i][iii] - slpz[sy_i][iii]) / 12.0;
-			const real zy_lim = -(slpx[sz_i][iii] - slpz[sx_i][iii]) / 12.0;
-			const real zz_lim = +(slpx[sy_i][iii] - slpy[sx_i][iii]) / 12.0;
-
-			const real Vzxi = V[zx_i][iii] - zx_lim * dx;
-			const real Vzyi = V[zy_i][iii] - zy_lim * dx;
-			const real Vzzi = V[zz_i][iii] - zz_lim * dx;
-
-			for (int face = 0; face != NFACE; ++face) {
-				Uf[face][zx_i][iii] = Vzxi;
-				Uf[face][zy_i][iii] = Vzyi;
-				Uf[face][zz_i][iii] = Vzzi;
-			}
 		}
 	}
 	for (integer iii = 0; iii != H_N3; ++iii) {

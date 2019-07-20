@@ -136,6 +136,9 @@ void grid::complete_hydro_amr_boundary() {
 							value -= 0.25 * isgn * slp[XDIM][iii0];
 							value -= 0.25 * jsgn * slp[YDIM][iii0];
 							value -= 0.25 * ksgn * slp[ZDIM][iii0];
+				//			if( f >= zx_i && f <= zz_i ) {
+				//				value /= 4.0;
+				//			}
 							if (opts().angmom) {
 								if (f == sx_i) {
 									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
