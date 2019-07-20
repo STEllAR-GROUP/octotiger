@@ -81,7 +81,7 @@ if(NOT MSVC)
     /usr/include
     ${Silo_DIR}/include)
 
-  find_library(Silo_LIBRARY NAMES silo
+  find_library(Silo_LIBRARY NAMES siloh5
     PATHS /usr
     /usr/local
     ${Silo_DIR}
