@@ -206,7 +206,7 @@ std::pair<real, real> grid::amr_error() const {
 			}
 		}
 	}
-	return std::pair(sum, V);
+	return std::make_pair(sum, V);
 }
 
 void grid::clear_amr() {
