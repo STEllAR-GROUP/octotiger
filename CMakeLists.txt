@@ -60,6 +60,7 @@ set(source_files
     src/compute_factor.cpp
     src/eos.cpp
     src/geometry.cpp
+    src/grid_amr.cpp
     src/grid.cpp
     src/grid_fmm.cpp
     src/grid_output.cpp

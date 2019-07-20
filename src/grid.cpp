@@ -12,6 +12,7 @@
 #include "octotiger/silo.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/test_problems/amr/amr.hpp"
+#include "octotiger/util.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
@@ -22,222 +23,6 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
-
-OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
-//	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
-	bool a_is_neg = a < 0;
-	bool b_is_neg = b < 0;
-	if (a_is_neg != b_is_neg)
-		return ZERO;
-
-	real val = std::min(std::abs(a), std::abs(b));
-	return a_is_neg ? -val : val;
-}
-
-OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real c, real theta) {
-	return minmod(theta * minmod(a, b), c);
-}
-
-std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
-	std::vector<real> data;
-	for (int f = 0; f < opts().n_fields; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					data.push_back(U[f][hindex(i, j, k)]);
-				}
-			}
-		}
-	}
-	return std::move(data);
-}
-
-void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir) {
-
-	std::array<integer, NDIM> lb, ub;
-	int l = 0;
-	get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
-	for (int i = lb[0]; i < ub[0]; i++) {
-		for (int j = lb[1]; j < ub[1]; j++) {
-			for (int k = lb[2]; k < ub[2]; k++) {
-				is_coarse[hSindex(i, j, k)]++;
-				assert(i < H_BW || i >= HS_NX - H_BW || j < H_BW || j >= HS_NX - H_BW || k < H_BW || k >= HS_NX - H_BW);
-			}
-		}
-	}
-
-	for (int f = 0; f < opts().n_fields; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					Ushad[f][hSindex(i, j, k)] = data[l++];
-				}
-			}
-		}
-	}
-	assert(l == data.size());
-}
-
-void grid::complete_hydro_amr_boundary() {
-
-	for (int f = 0; f < opts().n_fields; f++) {
-		for (int ir = 0; ir < H_NX; ir++) {
-			for (int jr = 0; jr < H_NX; jr++) {
-				for (int kr = 0; kr < H_NX; kr++) {
-					const int i0 = (ir + H_BW) / 2;
-					const int j0 = (jr + H_BW) / 2;
-					const int k0 = (kr + H_BW) / 2;
-					const int iii0 = hSindex(i0, j0, k0);
-					const int iiir = hindex(ir, jr, kr);
-					if (is_coarse[iii0]) {
-						assert(
-								ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW
-										|| kr >= H_NX - H_BW);
-						U[f][iiir] = Ushad[f][iii0];
-					}
-				}
-			}
-		}
-	}
-	if (opts().amrbnd_order > 0) {
-		std::array<std::vector<std::vector<double>>, NDIM> slp;
-		for (int d = 0; d < NDIM; d++) {
-			slp[d].resize(opts().n_fields);
-			for (int f = 0; f < opts().n_fields; f++) {
-				slp[d][f].resize(HS_N3,std::numeric_limits<real>::signaling_NaN());
-			}
-		}
-		for (int f = 0; f < opts().n_fields; f++) {
-			for (int i0 = 2; i0 < HS_NX - 2; i0++) {
-				for (int j0 = 2; j0 < HS_NX - 2; j0++) {
-					for (int k0 = 2; k0 < HS_NX - 2; k0++) {
-						const int ir = 2 * i0 - H_BW;
-						const int jr = 2 * j0 - H_BW;
-						const int kr = 2 * k0 - H_BW;
-						const int iii0 = hSindex(i0, j0, k0);
-						const int iiir = hindex(ir, jr, kr);
-						if (is_coarse[iii0]) {
-							//		printf( "%i\n", int(is_coarse[iii0]));
-
-							const auto u0 = Ushad[f][iii0];
-							for (int d = 0; d < NDIM; d++) {
-								const int da = d == XDIM ? YDIM : XDIM;
-								const int db = d == ZDIM ? YDIM : ZDIM;
-								const int iiip = iii0 + HS_DN[d];
-								const int iiim = iii0 - HS_DN[d];
-								double slpp, slpm;
-								if (is_coarse[iiip]) {
-									slpp = Ushad[f][iiip] - u0;
-								} else {
-									const int iiir0 = iiir + 2 * H_DN[d];
-									assert(iiir0 >= 0);
-									assert(iiir0 < H_N3);
-									slpp = 0.0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpp /= 3.0;
-								}
-								if (is_coarse[iiim]) {
-									slpm = Ushad[f][iiim] - u0;
-								} else {
-									const int iiir0 = iiir - H_DN[d];
-									assert(iiir0 >= 0);
-									assert(iiir0 < H_N3);
-									slpm = 0.0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpm /= 3.0;
-								}
-								slp[d][f][iii0] = minmod(slpp, -slpm);
-							}
-						}
-					}
-				}
-			}
-		}
-		for (int f = 0; f < opts().n_fields; f++) {
-			for (int ir = 1; ir < H_NX - 1; ir++) {
-				for (int jr = 1; jr < H_NX - 1; jr++) {
-					for (int kr = 1; kr < H_NX - 1; kr++) {
-						const int isgn = ir % 2 ? 1 : -1;
-						const int jsgn = jr % 2 ? 1 : -1;
-						const int ksgn = kr % 2 ? 1 : -1;
-						const int i0 = (ir + H_BW) / 2;
-						const int j0 = (jr + H_BW) / 2;
-						const int k0 = (kr + H_BW) / 2;
-						const int iii0 = hSindex(i0, j0, k0);
-						const int iiir = hindex(ir, jr, kr);
-						if (is_coarse[iii0]) {
-							const auto u0 = U[f][iiir];
-							U[f][iiir] -= 0.25 * isgn * slp[XDIM][f][iii0];
-							U[f][iiir] -= 0.25 * jsgn * slp[YDIM][f][iii0];
-							U[f][iiir] -= 0.25 * ksgn * slp[ZDIM][f][iii0];
-						}
-					}
-				}
-			}
-		}
-	}
-
-}
-
-std::pair<real, real> grid::amr_error() const {
-
-	const auto is_physical = [this](int i, int j, int k) {
-		const integer iii = hindex(i, j, k);
-		const auto x = X[XDIM][iii];
-		const auto y = X[YDIM][iii];
-		const auto z = X[ZDIM][iii];
-		if (std::abs(x) > opts().xscale) {
-			return true;
-		}
-		if (std::abs(y) > opts().xscale) {
-			return true;
-		}
-		if (std::abs(z) > opts().xscale) {
-			return true;
-		}
-		return false;
-	};
-
-	real sum = 0.0, V = 0.0;
-	const real dV = dx * dx * dx;
-	for (int i = 0; i < H_NX; i++) {
-		for (int j = 0; j < H_NX; j++) {
-			for (int k = 0; k < H_NX; k++) {
-				const int iii = hindex(i, j, k);
-				const auto x = X[XDIM][iii];
-				const auto y = X[YDIM][iii];
-				const auto z = X[ZDIM][iii];
-				if (!is_physical(i, j, k)) {
-					const int i0 = (i + H_BW) / 2;
-					const int j0 = (j + H_BW) / 2;
-					const int k0 = (k + H_BW) / 2;
-					const int iii0 = hSindex(i0, j0, k0);
-					if (is_coarse[iii0]) {
-						const double v0 = amr_test_analytic(x, y, z);
-						const double v1 = U[rho_i][iii];
-						sum += std::pow(v0 - v1, 2) * dV;
-						FILE *fp = fopen("error.txt", "at");
-						fprintf(fp, "%e %e %e\n", y, v0, v1);
-						fclose(fp);
-						V += dV;
-					}
-				}
-			}
-		}
-	}
-	return std::pair(sum, V);
-}
-
-void grid::clear_amr() {
-	std::fill(is_coarse.begin(), is_coarse.end(), 0);
-}
-
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
@@ -975,6 +760,175 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	return c;
 }
 
+
+std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+		bool etot_only) {
+	PROF_BEGIN;
+	auto &dUdx = TLS_dUdx();
+	auto &tmpz = TLS_zz();
+	std::vector<real> data;
+
+	integer size = opts().n_fields;
+	for (integer dim = 0; dim != NDIM; ++dim) {
+		size *= (ub[dim] - lb[dim]);
+	}
+	data.reserve(size);
+	auto lb0 = lb;
+	auto ub0 = ub;
+	for (integer d = 0; d != NDIM; ++d) {
+		lb0[d] /= 2;
+		ub0[d] = (ub[d] - 1) / 2 + 1;
+	}
+	compute_primitives(lb0, ub0, etot_only);
+	compute_primitive_slopes(1.0, lb0, ub0, etot_only);
+	compute_conserved_slopes(lb0, ub0, etot_only);
+
+	if (opts().angmom) {
+
+		if (!etot_only) {
+// #if !defined(HPX_HAVE_DATAPAR)
+			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
+				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
+#pragma GCC ivdep
+					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
+						const integer iii = hindex(i, j, k);
+						tmpz[XDIM][iii] = U[zx_i][iii];
+						tmpz[YDIM][iii] = U[zy_i][iii];
+						tmpz[ZDIM][iii] = U[zz_i][iii];
+					}
+				}
+			}
+// #else
+// #endif
+		}
+	}
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		if (!etot_only || (etot_only && field == egas_i)) {
+			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+				const real xsgn = (i % 2) ? +1 : -1;
+				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+					const real ysgn = (j % 2) ? +1 : -1;
+#pragma GCC ivdep
+					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+						const integer iii = hindex(i / 2, j / 2, k / 2);
+						const real zsgn = (k % 2) ? +1 : -1;
+						real value = U[field][iii];
+						value += xsgn * dUdx[XDIM][field][iii] * 0.25;
+						value += ysgn * dUdx[YDIM][field][iii] * 0.25;
+						value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
+						if (opts().angmom) {
+							if (field == sx_i) {
+								U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
+								U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
+							} else if (field == sy_i) {
+								U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
+								U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
+							} else if (field == sz_i) {
+								U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
+								U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
+							}
+						}
+						data.push_back(value);
+					}
+				}
+			}
+		}
+	}
+
+	if (opts().angmom) {
+		if (!etot_only) {
+			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
+				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
+#pragma GCC ivdep
+					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
+						const integer iii = hindex(i, j, k);
+						U[zx_i][iii] = tmpz[XDIM][iii];
+						U[zy_i][iii] = tmpz[YDIM][iii];
+						U[zz_i][iii] = tmpz[ZDIM][iii];
+					}
+				}
+			}
+		}
+	}PROF_END;
+	return data;
+}
+
+std::vector<real> grid::get_restrict() const {
+	PROF_BEGIN;
+	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
+	std::vector<real> data;
+	data.reserve(Size);
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer i = H_BW; i < H_NX - H_BW; i += 2) {
+			for (integer j = H_BW; j < H_NX - H_BW; j += 2) {
+				for (integer k = H_BW; k < H_NX - H_BW; k += 2) {
+					const integer iii = hindex(i, j, k);
+					real pt = ZERO;
+					for (integer x = 0; x != 2; ++x) {
+						for (integer y = 0; y != 2; ++y) {
+							for (integer z = 0; z != 2; ++z) {
+								const integer jjj = iii + x * H_DNX + y * H_DNY + z * H_DNZ;
+								pt += U[field][jjj];
+								if (opts().angmom) {
+									if (field == zx_i) {
+										pt += X[YDIM][jjj] * U[sz_i][jjj];
+										pt -= X[ZDIM][jjj] * U[sy_i][jjj];
+									} else if (field == zy_i) {
+										pt -= X[XDIM][jjj] * U[sz_i][jjj];
+										pt += X[ZDIM][jjj] * U[sx_i][jjj];
+									} else if (field == zz_i) {
+										pt += X[XDIM][jjj] * U[sy_i][jjj];
+										pt -= X[YDIM][jjj] * U[sx_i][jjj];
+									}
+								}
+							}
+						}
+					}
+					pt /= real(NCHILD);
+					data.push_back(pt);
+				}
+			}
+		}
+	}
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		data.push_back(U_out[field]);
+	}PROF_END;
+	return data;
+}
+
+void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant) {
+	PROF_BEGIN;
+	integer index = 0;
+	const integer i0 = octant.get_side(XDIM) * (INX / 2);
+	const integer j0 = octant.get_side(YDIM) * (INX / 2);
+	const integer k0 = octant.get_side(ZDIM) * (INX / 2);
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer i = H_BW; i != H_NX / 2; ++i) {
+			for (integer j = H_BW; j != H_NX / 2; ++j) {
+				for (integer k = H_BW; k != H_NX / 2; ++k) {
+					const integer iii = (i + i0) * H_DNX + (j + j0) * H_DNY + (k + k0) * H_DNZ;
+					auto &v = U[field][iii];
+					v = data[index];
+					if (opts().angmom) {
+						if (field == zx_i) {
+							v -= X[YDIM][iii] * U[sz_i][iii];
+							v += X[ZDIM][iii] * U[sy_i][iii];
+						} else if (field == zy_i) {
+							v += X[XDIM][iii] * U[sz_i][iii];
+							v -= X[ZDIM][iii] * U[sx_i][iii];
+						} else if (field == zz_i) {
+							v -= X[XDIM][iii] * U[sy_i][iii];
+							v += X[YDIM][iii] * U[sx_i][iii];
+						}
+					}
+					++index;
+				}
+			}
+		}
+	}PROF_END;
+}
+
+
 void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, integer width, bool etot_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
@@ -1279,173 +1233,6 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 					const integer iii = hindex(i, j, k);
 					auto &value = U[field][iii];
 					value = data[index];
-					++index;
-				}
-			}
-		}
-	}PROF_END;
-}
-
-std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
-		bool etot_only) {
-	PROF_BEGIN;
-	auto &dUdx = TLS_dUdx();
-	auto &tmpz = TLS_zz();
-	std::vector<real> data;
-
-	integer size = opts().n_fields;
-	for (integer dim = 0; dim != NDIM; ++dim) {
-		size *= (ub[dim] - lb[dim]);
-	}
-	data.reserve(size);
-	auto lb0 = lb;
-	auto ub0 = ub;
-	for (integer d = 0; d != NDIM; ++d) {
-		lb0[d] /= 2;
-		ub0[d] = (ub[d] - 1) / 2 + 1;
-	}
-	compute_primitives(lb0, ub0, etot_only);
-	compute_primitive_slopes(1.0, lb0, ub0, etot_only);
-	compute_conserved_slopes(lb0, ub0, etot_only);
-
-	if (opts().angmom) {
-
-		if (!etot_only) {
-// #if !defined(HPX_HAVE_DATAPAR)
-			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
-				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
-#pragma GCC ivdep
-					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
-						const integer iii = hindex(i, j, k);
-						tmpz[XDIM][iii] = U[zx_i][iii];
-						tmpz[YDIM][iii] = U[zy_i][iii];
-						tmpz[ZDIM][iii] = U[zz_i][iii];
-					}
-				}
-			}
-// #else
-// #endif
-		}
-	}
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		if (!etot_only || (etot_only && field == egas_i)) {
-			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-				const real xsgn = (i % 2) ? +1 : -1;
-				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-					const real ysgn = (j % 2) ? +1 : -1;
-#pragma GCC ivdep
-					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-						const integer iii = hindex(i / 2, j / 2, k / 2);
-						const real zsgn = (k % 2) ? +1 : -1;
-						real value = U[field][iii];
-						value += xsgn * dUdx[XDIM][field][iii] * 0.25;
-						value += ysgn * dUdx[YDIM][field][iii] * 0.25;
-						value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
-						if (opts().angmom) {
-							if (field == sx_i) {
-								U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
-								U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
-							} else if (field == sy_i) {
-								U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
-								U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
-							} else if (field == sz_i) {
-								U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
-								U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
-							}
-						}
-						data.push_back(value);
-					}
-				}
-			}
-		}
-	}
-
-	if (opts().angmom) {
-		if (!etot_only) {
-			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
-				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
-#pragma GCC ivdep
-					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
-						const integer iii = hindex(i, j, k);
-						U[zx_i][iii] = tmpz[XDIM][iii];
-						U[zy_i][iii] = tmpz[YDIM][iii];
-						U[zz_i][iii] = tmpz[ZDIM][iii];
-					}
-				}
-			}
-		}
-	}PROF_END;
-	return data;
-}
-
-std::vector<real> grid::get_restrict() const {
-	PROF_BEGIN;
-	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
-	std::vector<real> data;
-	data.reserve(Size);
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		for (integer i = H_BW; i < H_NX - H_BW; i += 2) {
-			for (integer j = H_BW; j < H_NX - H_BW; j += 2) {
-				for (integer k = H_BW; k < H_NX - H_BW; k += 2) {
-					const integer iii = hindex(i, j, k);
-					real pt = ZERO;
-					for (integer x = 0; x != 2; ++x) {
-						for (integer y = 0; y != 2; ++y) {
-							for (integer z = 0; z != 2; ++z) {
-								const integer jjj = iii + x * H_DNX + y * H_DNY + z * H_DNZ;
-								pt += U[field][jjj];
-								if (opts().angmom) {
-									if (field == zx_i) {
-										pt += X[YDIM][jjj] * U[sz_i][jjj];
-										pt -= X[ZDIM][jjj] * U[sy_i][jjj];
-									} else if (field == zy_i) {
-										pt -= X[XDIM][jjj] * U[sz_i][jjj];
-										pt += X[ZDIM][jjj] * U[sx_i][jjj];
-									} else if (field == zz_i) {
-										pt += X[XDIM][jjj] * U[sy_i][jjj];
-										pt -= X[YDIM][jjj] * U[sx_i][jjj];
-									}
-								}
-							}
-						}
-					}
-					pt /= real(NCHILD);
-					data.push_back(pt);
-				}
-			}
-		}
-	}
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		data.push_back(U_out[field]);
-	}PROF_END;
-	return data;
-}
-
-void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant) {
-	PROF_BEGIN;
-	integer index = 0;
-	const integer i0 = octant.get_side(XDIM) * (INX / 2);
-	const integer j0 = octant.get_side(YDIM) * (INX / 2);
-	const integer k0 = octant.get_side(ZDIM) * (INX / 2);
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		for (integer i = H_BW; i != H_NX / 2; ++i) {
-			for (integer j = H_BW; j != H_NX / 2; ++j) {
-				for (integer k = H_BW; k != H_NX / 2; ++k) {
-					const integer iii = (i + i0) * H_DNX + (j + j0) * H_DNY + (k + k0) * H_DNZ;
-					auto &v = U[field][iii];
-					v = data[index];
-					if (opts().angmom) {
-						if (field == zx_i) {
-							v -= X[YDIM][iii] * U[sz_i][iii];
-							v += X[ZDIM][iii] * U[sy_i][iii];
-						} else if (field == zy_i) {
-							v += X[XDIM][iii] * U[sz_i][iii];
-							v -= X[ZDIM][iii] * U[sx_i][iii];
-						} else if (field == zz_i) {
-							v -= X[XDIM][iii] * U[sy_i][iii];
-							v += X[YDIM][iii] * U[sx_i][iii];
-						}
-					}
 					++index;
 				}
 			}
