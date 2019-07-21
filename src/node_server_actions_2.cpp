@@ -45,7 +45,7 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			futs[index++] = child.check_for_refinement(omega, new_floor);
 		}
 	}
-	if (opts().hydro) {
+	if (opts().hydro || opts().problem == AMR_TEST) {
 		all_hydro_bounds();
 	}
 	if (!rc) {
@@ -58,6 +58,32 @@ void node_server::check_for_refinement(real omega, real new_floor) {
 			}
 		}
 	}
+	for (auto& f : futs) {
+		GET(f);
+	}
+
+}
+
+
+using enforce_bc_action_type = node_server::enforce_bc_action;
+HPX_REGISTER_ACTION(enforce_bc_action_type);
+
+future<void> node_client::enforce_bc() const {
+	return hpx::async<typename node_server::enforce_bc_action>(get_unmanaged_gid());
+}
+
+void node_server::enforce_bc() {
+	std::array<future<void>, NCHILD + 1> futs;
+	for (integer i = 0; i != NCHILD + 1; ++i) {
+		futs[i] = hpx::make_ready_future();
+	}
+	integer index = 0;
+	if (is_refined) {
+		for (auto& child : children) {
+			futs[index++] = child.enforce_bc();
+		}
+	}
+	all_hydro_bounds();
 	for (auto& f : futs) {
 		GET(f);
 	}

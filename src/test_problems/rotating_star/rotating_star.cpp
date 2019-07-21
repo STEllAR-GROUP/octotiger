@@ -121,10 +121,13 @@ public:
 		sx = -y * rho * omega_;
 		sy = +x * rho * omega_;
 	}
+	double get_omega() {
+		return omega_;
+	}
 
 };
 
-std::vector<real> rotating_star(real x, real y, real z, real) {
+std::vector<real> rotating_star(real x, real y, real z, real dx) {
 	std::vector<real> u(opts().n_fields, real(0));
 	static rotating_star_analytic rs;
 	const real fgamma = 5.0 / 3.0;
@@ -134,6 +137,7 @@ std::vector<real> rotating_star(real x, real y, real z, real) {
 	u[tau_i] = std::pow(u[egas_i], 1.0 / fgamma);
 	u[egas_i] += 0.5 * (std::pow(u[sx_i], 2) + std::pow(u[sy_i], 2)) / u[rho_i];
 	u[spc_i] = u[rho_i];
+	u[zz_i] = rs.get_omega() * dx * dx / 6.0 * u[rho_i];
 	for (int s = 1; s < opts().n_species; s++) {
 		u[spc_i + s] = 0.0;
 	}

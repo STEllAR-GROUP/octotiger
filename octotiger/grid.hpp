@@ -128,6 +128,8 @@ private:
 	static OCTOTIGER_EXPORT real scaling_factor;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
+	std::vector<std::atomic<int>> is_coarse;
+	std::vector<std::vector<real>> Ushad;
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
 	std::vector<std::vector<real>> dUdt;
@@ -261,6 +263,8 @@ public:
 			is_leaf = flag;
 		}
 	}
+	void clear_amr();
+	std::pair<real,real> amr_error() const;
 	bool is_in_star(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, integer frac,
 			integer index, real rho_cut) const;
 	static void set_omega(real, bool bcast = true);
@@ -276,6 +280,8 @@ public:
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
 	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
+	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&);
+	void complete_hydro_amr_boundary();
 	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
@@ -286,6 +292,7 @@ public:
 			const geo::dimension&) const;
 	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only =
 			false);
+	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,

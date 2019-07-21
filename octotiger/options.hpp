@@ -21,13 +21,14 @@
 #include <vector>
 
 COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR,
-    MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK);
+    MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST);
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
 class options
 {
 public:
+	bool old_amrbnd;
     bool disable_diagnostics;
     bool bench;
     bool disable_output;
@@ -42,12 +43,16 @@ public:
     bool rewrite_silo;
     bool angmom;
 
+	 integer amrbnd_order;
     integer extra_regrid;
     integer accretor_refine;
     integer donor_refine;
     integer max_level;
     integer ngrids;
     integer stop_step;
+    integer silo_offset_x;
+    integer silo_offset_y;
+    integer silo_offset_z;
 
     real dual_energy_sw2;
     real dual_energy_sw1;
@@ -95,6 +100,11 @@ public:
     template <class Arc>
     void serialize(Arc& arc, unsigned)
     {
+    	arc& silo_offset_x;
+    	arc& silo_offset_y;
+    	arc& silo_offset_z;
+   	  arc& old_amrbnd;
+   	  arc& amrbnd_order;
         arc& dual_energy_sw1;
         arc& dual_energy_sw2;
         arc& hard_dt;
