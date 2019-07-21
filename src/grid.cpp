@@ -2226,13 +2226,17 @@ void grid::reconstruct() {
 		inplace_average(slpx[sz_i][iii], slpz[sx_i][iii]);
 		inplace_average(slpy[sz_i][iii], slpz[sy_i][iii]);
 
-		step1(slpx[sy_i][iii], V[zz_i][iii]);
-		step1(slpy[sz_i][iii], V[zx_i][iii]);
-		step1(slpz[sx_i][iii], V[zy_i][iii]);
+		const auto zx = V[zx_i][iii] + (V[sy_i][iii] * slpz[rho_i][iii] - V[sz_i][iii] * slpy[rho_i][iii]) * dx * dx / 6.0 / V[rho_i][iii];
+		const auto zy = V[zy_i][iii] - (V[sx_i][iii] * slpz[rho_i][iii] - V[sz_i][iii] * slpx[rho_i][iii]) * dx * dx / 6.0 / V[rho_i][iii];
+		const auto zz = V[zz_i][iii] + (V[sx_i][iii] * slpy[rho_i][iii] - V[sy_i][iii] * slpx[rho_i][iii]) * dx * dx / 6.0 / V[rho_i][iii];
 
-		step2(slpy[sx_i][iii], V[zz_i][iii]);
-		step2(slpz[sy_i][iii], V[zx_i][iii]);
-		step2(slpx[sz_i][iii], V[zy_i][iii]);
+		step1(slpx[sy_i][iii], zz);
+		step1(slpy[sz_i][iii], zx);
+		step1(slpz[sx_i][iii], zy);
+
+		step2(slpy[sx_i][iii], zz);
+		step2(slpz[sy_i][iii], zx);
+		step2(slpx[sz_i][iii], zy);
 
 		minmod_step(slpx[sy_i][iii], V[sy_i][iii + H_DNX], V[sy_i][iii], V[sy_i][iii - H_DNX]);
 		minmod_step(slpx[sz_i][iii], V[sz_i][iii + H_DNX], V[sz_i][iii], V[sz_i][iii - H_DNX]);
