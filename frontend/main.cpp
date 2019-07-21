@@ -425,14 +425,14 @@ int hpx_main(int argc, char* argv[]) {
 
 			} else {
 				for (integer l = 0; l < opts().max_level; ++l) {
-					ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
+					ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
 					printf("---------------Created Level %i---------------\n\n", int(l + 1));
 				}
-				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
+				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
 				printf("---------------Re-gridded Level %i---------------\n\n", int(opts().max_level));
 			}
 			for (integer l = 0; l < opts().extra_regrid; ++l) {
-				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false);
+				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
 			}
 
 			if (opts().gravity) {
