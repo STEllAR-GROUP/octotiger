@@ -317,6 +317,7 @@ public:
 	std::vector<real> l_sums() const;
 	std::vector<real> gforce_sum(bool torque) const;
 	std::vector<real> conserved_outflows() const;
+	void init_z_field();
 	grid(const init_func_type&, real dx, std::array<real, NDIM> xmin);
 	grid(real dx, std::array<real, NDIM>);
 	grid();
