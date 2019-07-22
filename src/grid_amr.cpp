@@ -34,7 +34,11 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 		for (int i = lb[0]; i < ub[0]; i++) {
 			for (int j = lb[1]; j < ub[1]; j++) {
 				for (int k = lb[2]; k < ub[2]; k++) {
-					Ushad[f][hSindex(i, j, k)] = data[l++];
+					auto& ref = Ushad[f][hSindex(i, j, k)];
+					ref = data[l++];
+					if( f >= zx_i && f <= zz_i ) {
+						ref /= 4.0;
+					}
 				}
 			}
 		}
@@ -63,13 +67,16 @@ void grid::complete_hydro_amr_boundary() {
 			}
 		}
 	}
+
 	if (opts().amrbnd_order > 0) {
-		static thread_local std::array<std::vector<double>, NDIM> slp;
+		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp;
 		for (int d = 0; d < NDIM; d++) {
 			slp[d].resize(opts().n_fields);
-			slp[d].resize(HS_N3, std::numeric_limits<real>::signaling_NaN());
+			for( int f = 0; f < opts().n_fields; f++) {
+				slp[d][f].resize(HS_N3, std::numeric_limits<real>::signaling_NaN());
+			}
 		}
-		for (int f = 0; f < opts().n_fields; f++) {
+		const auto first_order1 = [&](int f) {
 			for (int i0 = 2; i0 < HS_NX - 2; i0++) {
 				for (int j0 = 2; j0 < HS_NX - 2; j0++) {
 					for (int k0 = 2; k0 < HS_NX - 2; k0++) {
@@ -114,12 +121,16 @@ void grid::complete_hydro_amr_boundary() {
 									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
 									slpm /= 3.0;
 								}
-								slp[d][iii0] = minmod(slpp, -slpm);
+								auto &s = slp[d][f][iii0];
+								s = minmod(slpp, -slpm);
 							}
 						}
 					}
 				}
 			}
+		};
+
+		const auto first_order2 = [&](int f) {
 			for (int ir = 1; ir < H_NX - 1; ir++) {
 				for (int jr = 1; jr < H_NX - 1; jr++) {
 					for (int kr = 1; kr < H_NX - 1; kr++) {
@@ -133,29 +144,21 @@ void grid::complete_hydro_amr_boundary() {
 						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
 							auto &value = U[f][iiir];
-							value -= 0.25 * isgn * slp[XDIM][iii0];
-							value -= 0.25 * jsgn * slp[YDIM][iii0];
-							value -= 0.25 * ksgn * slp[ZDIM][iii0];
-				//			if( f >= zx_i && f <= zz_i ) {
-				//				value /= 4.0;
-				//			}
-							if (opts().angmom) {
-								if (f == sx_i) {
-									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
-									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
-								} else if (f == sy_i) {
-									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
-									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
-								} else if (f == sz_i) {
-									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
-									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
-								}
-							}
+							value = Ushad[f][iii0];
+							value -= 0.25 * isgn * slp[XDIM][f][iii0];
+							value -= 0.25 * jsgn * slp[YDIM][f][iii0];
+							value -= 0.25 * ksgn * slp[ZDIM][f][iii0];
 						}
 					}
 				}
 			}
+		};
+
+		for (int f = 0; f < opts().n_fields; f++) {
+			first_order1(f);
+			first_order2(f);
 		}
+
 	}
 
 }

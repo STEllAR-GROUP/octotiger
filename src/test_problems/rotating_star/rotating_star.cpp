@@ -129,6 +129,7 @@ public:
 
 std::vector<real> rotating_star(real x, real y, real z, real dx) {
 	std::vector<real> u(opts().n_fields, real(0));
+	x -= 0.5;
 	static rotating_star_analytic rs;
 	const real fgamma = 5.0 / 3.0;
 	rs.state_at(u[rho_i], u[egas_i], u[sx_i], u[sy_i], x, y, z);
