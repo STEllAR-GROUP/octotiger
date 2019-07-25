@@ -23,7 +23,14 @@
 #define de_switch2 (opts().dual_energy_sw2)
 
 real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<real>>& UL,
-		hydro_state_t<std::vector<real>>& UR,  const std::vector<space_vector>& X, real omega, integer dimension, real dx);
+		hydro_state_t<std::vector<real>>& UR,
+
+
+		std::array<hydro_state_t<std::vector<real>>,4>& F4, std::array<hydro_state_t<std::vector<real>>,4>& UL4,
+				std::array<hydro_state_t<std::vector<real>>,4>& UR4,
+
+				const std::vector<space_vector>& X,
+				const std::vector<std::vector<space_vector>> &X4, real omega, integer dimension, real dx);
 
 
 inline real ztwd_pressure(real d, real A = physcon().A, real B = physcon().B) {
