@@ -6,44 +6,9 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
-#include <iostream>
-#include <cmath>
-#include <vector>
-#include <array>
-#include <cassert>
-#include <limits>
-#include <silo.h>
 
-#define SNAN std::numeric_limits<double>::signaling_NaN()
+#include "../../octotiger/unitiger/unitiger.hpp"
 
-using namespace std;
-
-double tmax = 1.0e-1;
-
-#ifdef OCTOTIGER_GRIDDIM
-#include "octotiger/hydro_defs.hpp"
-#else
-constexpr int NDIM = 1;
-constexpr int H_BW = 3;
-constexpr int H_NX = (2 * H_BW + 100);
-constexpr int H_DNX = 1;
-constexpr int H_DN[3] = { 1, H_NX, H_NX * H_NX };
-constexpr int H_DNY = H_NX;
-constexpr int H_DNZ = (H_NX * H_NX);
-constexpr int H_N3 = std::pow(H_NX, NDIM);
-constexpr auto rho_i = 0;
-constexpr auto egas_i = 1;
-constexpr auto sx_i = 2;
-constexpr auto sy_i = 3;
-constexpr auto sz_i = 4;
-#endif
-constexpr int H_DN0 = 0;
-constexpr int NDIR = std::pow(3, NDIM);
-constexpr int NFACEDIR = std::pow(3, NDIM - 1);
-
-constexpr char *field_names[] = { "rho", "egas", "sx", "sy", "sz" };
-
-constexpr int NF = (2 + NDIM);
 
 constexpr int directions[3][27] = { {
 /**/-H_DNX, +H_DN0, +H_DNX /**/
@@ -63,11 +28,11 @@ constexpr int directions[3][27] = { {
 /**/-H_DNX + H_DNY + H_DNZ, +H_DN0 + H_DNY + H_DNZ, +H_DNX + H_DNY + H_DNZ/**/
 
 } };
-constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 }, {
-		10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
+constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 }, { 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0,
+		1, 2, 3, 5, 6, 7, 8 } } };
 
-constexpr double quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36.,
-		1. / 36., 4. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36. } };
+constexpr double quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36., 1. / 36.,
+		4. / 36., 1. / 36. } };
 
 #define FGAMMA (7.0/5.0)
 
@@ -109,21 +74,13 @@ inline static double minmod(double a, double b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }
 
+inline static double minmod_theta(double a, double b, double c) {
+	return minmod(c * minmod(a, b), 0.5 * (a + b));
+}
+
 inline static double limit_this(double a, double b) {
 	return std::copysign(std::min(std::abs(a), std::abs(b)), a);
 }
-
-inline static double bound_width() {
-	int bw = 1;
-	int next_bw = 1;
-	for (int dim = 1; dim < NDIM; dim++) {
-		next_bw *= H_NX;
-		bw += next_bw;
-	}
-	return bw;
-}
-
-constexpr int ORDER = 3;
 
 double limiter(double ql, double qr, double ll, double lr, double ul, double u0, double ur) {
 	const auto M = std::max(qr, ql);
@@ -157,47 +114,14 @@ double limiter(double ql, double qr, double ll, double lr, double ul, double u0,
 	return theta;
 }
 
-template<int N>
-int get_index_dim(int k, int d) {
-	for (int i = 1; i < d; i++) {
-		k /= N;
-	}
-	return k % N;
-}
-
-template<int N>
-int get_index_sum(int k) {
-	int s = 0;
-	for (int dim = 0; dim < NDIM; dim++) {
-		s += get_index_dim<N>(k, dim);
-	}
-	return s;
-}
-
-template<int N>
-int set_index_dim(int k, int d, int v) {
-	int indexes[NDIM];
-	for (int dim = 0; dim < NDIM; dim++) {
-		indexes[dim] = k % N;
-		k /= N;
-	}
-	indexes[d] = v;
-	for (int dim = 0; dim < NDIM; dim++) {
-		k *= N;
-		k += indexes[NDIM - 1 - dim];
-	}
-	return k;
-}
-
 double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<std::vector<double>>> &F) {
 
-	static thread_local std::vector<std::vector<std::array<double, NDIR>>> Q(NF,
-			std::vector<std::array<double, NDIR>>(H_N3));
+	static thread_local std::vector<std::vector<std::array<double, NDIR>>> L(NF, std::vector<std::array<double, NDIR>>(H_N3));
+	static thread_local std::vector<std::vector<std::array<double, NDIR / 2>>> D1(NF, std::vector<std::array<double, NDIR / 2>>(H_N3));
+	static thread_local std::vector<std::vector<std::array<double, NDIR / 2>>> D2(NF, std::vector<std::array<double, NDIR / 2>>(H_N3));
+	static thread_local std::vector<std::vector<std::array<double, NDIR>>> Q(NF, std::vector<std::array<double, NDIR>>(H_N3));
 	static thread_local std::vector<std::vector<std::vector<std::array<double, NFACEDIR>>>> fluxes(NDIM,
-			std::vector < std::vector<std::array<double, NFACEDIR>>
-					> (NF, std::vector<std::array<double, NFACEDIR>>(H_N3)));
-	static thread_local std::vector<std::vector<std::array<double, NDIR>>> L(NF,
-			std::vector<std::array<double, NDIR>>(H_N3, { SNAN, SNAN, SNAN}));
+			std::vector < std::vector<std::array<double, NFACEDIR>> > (NF, std::vector<std::array<double, NFACEDIR>>(H_N3)));
 	static thread_local std::array<double, NF> UR, UL, this_flux;
 
 	constexpr auto faces = lower_face_members[NDIM - 1];
@@ -208,76 +132,49 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 	int bw = bound_width();
 
 	for (int f = 0; f < NF; f++) {
-		if (ORDER == 1) {
-			for (int i = bw; i < H_N3 - bw; i++) {
-				for (int d = 0; d < NDIR; d++) {
-					Q[f][i][d] = U[f][i];
-				}
+		for (int i = bw; i < H_N3 - bw; i++) {
+			for (int d = 0; d < NDIR; d++) {
+				Q[f][i][d] = U[f][i];
 			}
-		} else if (ORDER == 2) {
+		}
+		if (ORDER > 1) {
 			for (int i = bw; i < H_N3 - bw; i++) {
 				for (int d = 0; d < NDIR / 2; d++) {
 					const auto di = dir[d];
-					auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
-					Q[f][i][d] = U[f][i] + 0.5 * slp;
-					Q[f][i][flip(d)] = U[f][i] - 0.5 * slp;
+					D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 1.0);
 				}
 			}
-		} else if (ORDER == 3) {
-			auto P = std::vector<std::vector<std::vector<double>>>(NF,
-					std::vector<std::vector<double>>(NDIR, std::vector<double>(H_N3, 0.0)));
-			P[f][0] = U[f];
-			for (int p = 1; p < ORDER; p++) {
-				for (int bi = 0; bi < NDIR; bi++) {
-					if (get_index_sum<ORDER>(bi) == p) {
-						int weight = 0;
-						for (int dim = 0; dim < NDIM; dim++) {
-							const auto this_i = get_index_dim<ORDER>(bi, dim);
-							if (this_i > 0) {
-								weight++;
-								const int j = set_index_dim<ORDER>(bi, dim, this_i - 1);
-								for (int iii = p * bw; iii < H_N3 - p * bw; iii++) {
-									const auto slpm = P[f][j][iii + H_DN[dim]] - P[f][j][iii];
-									const auto slpp = P[f][j][iii] - P[f][j][iii - H_DN[dim]];
-									P[f][bi][iii] += minmod(slpp, slpm);
-								}
-							}
-						}
-						assert(weight);
-						if (weight != 1) {
-							for (int iii = p * bw; iii < H_N3 - p * bw; iii++) {
-								P[bi][f][iii] /= weight;
-							}
-						}
-						for (int dim = 0; dim < NDIM; dim++) {
-							const auto this_i = get_index_dim<ORDER>(bi, dim);
-							if (this_i > 0) {
-								const int j = set_index_dim<ORDER>(bi, dim, this_i - 1);
-								for (int iii = p * bw; iii < H_N3 - p * bw; iii++) {
-									limit_this(P[f][bi][iii], P[f][j][iii]);
-								}
-							}
-						}
-					}
+			for (int i = bw; i < H_N3 - bw; i++) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					Q[f][i][d] += 0.5 * D1[f][i][d];
+					Q[f][i][flip(d)] -= 0.5 * D1[f][i][d];
 				}
 			}
-			for (int i = 0; i < H_N3; i++) {
-				for (int j = 0; j < NDIR; j++) {
-					Q[f][i][j] = 0.0;
+		}
+		if (ORDER > 2) {
+			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					const auto di = dir[d];
+					const auto &d1 = D1[f][i][d];
+					auto &d2 = D2[f][i][d];
+					d2 = minmod_theta(D1[f][i + di][d] - D1[f][i][d], D1[f][i][d] - D1[f][i - di][d], 2.0);
+					d2 = std::copysign(std::min(std::abs(d2), std::abs(2.0 * d1)), d2);
 				}
+
 			}
-			for (int li = 0; li < NDIR; li++) {
-				for (int bi = 0; bi < NDIR; bi++) {
-					double c = 1.0;
-					for (int dim = 0; dim < NDIM; dim++) {
-						const auto x = 0.5 * (get_index_dim<NDIM>(li, dim) - 1);
-						for (int i = 0; i < bi; i++) {
-							c *= x;
-						}
+			for (int i = bw; i < H_N3 - bw; i++) {
+				double d2avg = 0.0;
+				double c0 = 1.0;
+				if (NDIM > 1) {
+					for (int d = 0; d < NDIR / 2; d++) {
+						d2avg += D2[f][i][d];
 					}
-					for (int i = 0; i < H_N3; i++) {
-						Q[f][i][li] += c * P[f][bi][i];
-					}
+					d2avg /= (NDIR / 2);
+					c0 = double(NDIR - 1) / double(NDIR - 3) / 12.0;
+				}
+				for (int d = 0; d < NDIR / 2; d++) {
+					Q[f][i][d] += c0 * (D2[f][i][d] - d2avg);
+					Q[f][i][flip(d)] += c0 * (D2[f][i][d] - d2avg);
 				}
 			}
 		}
@@ -313,170 +210,3 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 	}
 	return amax;
 }
-
-void boundaries(std::vector<std::vector<double>> &U) {
-	for (int f = 0; f < NF; f++) {
-		if (NDIM == 1) {
-			for (int i = 0; i < H_BW + 20; i++) {
-				U[f][i] = U[f][H_BW];
-				U[f][H_NX - 1 - i] = U[f][H_NX - H_BW - 1];
-			}
-		} else if (NDIM == 2) {
-
-			const auto index = [](int i, int j) {
-				return i + H_NX * j;
-			};
-
-			for (int i = 0; i < H_BW; i++) {
-				for (int j = 0; j < H_NX; j++) {
-					U[f][index(i, j)] = U[f][index(H_BW, j)];
-					U[f][index(j, i)] = U[f][index(j, H_BW)];
-					U[f][index(H_NX - 1 - i, j)] = U[f][index(H_NX - 1 - H_BW, j)];
-					U[f][index(j, H_NX - 1 - i)] = U[f][index(j, H_NX - 1 - H_BW)];
-				}
-			}
-		} else {
-			for (int i = 0; i < H_BW; i++) {
-				for (int j = 0; j < H_NX; j++) {
-					for (int k = 0; k < H_NX; k++) {
-						const int ox = i + j * H_NX + k * H_NX * H_NX;
-						const int oy = j + i * H_NX + k * H_NX * H_NX;
-						const int oz = k + j * H_NX + j * H_NX * H_NX;
-						U[f][ox + i] = U[f][ox + H_BW];
-						U[f][oy + i] = U[f][oy + H_BW];
-						U[f][oz + i] = U[f][oz + H_BW];
-						U[f][ox + H_NX - 1 - i] = U[f][ox + H_NX - H_BW - 1];
-						U[f][oy + H_NX - 1 - i] = U[f][oy + H_NX - H_BW - 1];
-						U[f][oz + H_NX - 1 - i] = U[f][oz + H_NX - H_BW - 1];
-					}
-				}
-			}
-		}
-	}
-}
-
-void advance(const std::vector<std::vector<double>> &U0, std::vector<std::vector<double>> &U,
-		const std::vector<std::vector<std::vector<double>>> &F, double dx, double dt, double beta) {
-	int stride = 1;
-	int H_BW = bound_width();
-	for (int dim = 0; dim < NDIM; dim++) {
-		for (int f = 0; f < NF; f++) {
-			for (int i = 2 * H_BW; i < H_N3 - 2 * H_BW; i++) {
-				double u0 = U0[f][i];
-				const auto fr = F[dim][f][i + stride];
-				const auto fl = F[dim][f][i];
-				const auto dudt = -(fr - fl) / dx;
-				double u1 = U[f][i] + dudt * dt;
-				U[f][i] = u0 * (1.0 - beta) + u1 * beta;
-			}
-		}
-		stride *= H_NX;
-	}
-}
-
-void output(const std::vector<std::vector<double>> &U, const std::vector<std::array<double, NDIM>> &X, int num) {
-	std::string filename = "Y." + std::to_string(num);
-	if (NDIM == 1) {
-		filename += ".txt";
-		FILE *fp = fopen(filename.c_str(), "wt");
-		for (int i = 0; i < H_NX; i++) {
-			for (int dim = 0; dim < NDIM; dim++) {
-				fprintf(fp, "%13.6e ", X[i][dim]);
-			}
-			for (int f = 0; f < NF; f++) {
-				fprintf(fp, "%13.6e ", U[f][i]);
-			}
-			fprintf(fp, "\n");
-		}
-		fclose(fp);
-	} else {
-		filename += ".silo";
-		auto db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Uni-tiger", DB_PDB);
-		const char *coord_names[] = { "x", "y", "z" };
-		double coords[NDIM][H_NX + 1];
-		for (int i = 0; i < H_NX + 1; i++) {
-			const auto x = double(i - H_BW) / H_NX;
-			for (int dim = 0; dim < NDIM; dim++) {
-				coords[dim][i] = x;
-			}
-		}
-		void *coords_[] = { coords, coords + 1, coords + 2 };
-		int dims1[] = { H_NX + 1, H_NX + 1, H_NX + 1 };
-		int dims2[] = { H_NX, H_NX, H_NX };
-		DBPutQuadmesh(db, "quadmesh", coord_names, coords_, dims1, NDIM, DB_DOUBLE, DB_COLLINEAR, NULL);
-		for (int f = 0; f < NF; f++) {
-			DBPutQuadvar1(db, field_names[f], "quadmesh", U[f].data(), dims2, NDIM, NULL, 0, DB_DOUBLE, DB_ZONECENT,
-			NULL);
-		}
-		DBClose(db);
-	}
-
-}
-
-#include <fenv.h>
-
-int main() {
-
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
-
-	std::vector<std::array<double, NDIM>> X(H_N3);
-	std::vector<std::vector<std::vector<double>>> F(NDIM,
-			std::vector<std::vector<double>>(NF, std::vector<double>(H_N3, SNAN)));
-	std::vector<std::vector<double>> U(NF, std::vector<double>(H_N3, SNAN));
-	std::vector<std::vector<double>> U0(NF, std::vector<double>(H_N3, SNAN));
-
-	const double dx = 1.0 / H_NX;
-
-	for (int i = 0; i < H_N3; i++) {
-		int k = i;
-		int j = 0;
-		while (k) {
-			X[i][j] = (((k % H_NX) - H_BW) + 0.5) * dx;
-			k /= H_NX;
-			j++;
-		}
-	}
-
-	for (int i = 0; i < H_N3; i++) {
-		for (int f = 0; f < NF; f++) {
-			U[f][i] = 0.0;
-		}
-		double xsum = 0.0;
-		for (int dim = 0; dim < NDIM; dim++) {
-			xsum += X[i][dim];
-		}
-		if (xsum < 0.5) {
-			U[rho_i][i] = 1.0;
-			U[egas_i][i] = 2.5;
-		} else {
-			U[rho_i][i] = 0.125;
-			U[egas_i][i] = 0.25;
-		}
-	}
-
-	double t = 0.0;
-	int iter = 0;
-	output(U, X, iter++);
-	while (t < tmax) {
-		U0 = U;
-		auto a = hydro_flux(U, F);
-		double dt = 0.4 * dx / a / NDIM;
-		advance(U0, U, F, dx, dt, 1.0);
-		boundaries(U);
-		if (ORDER >= 2) {
-			boundaries(U);
-			hydro_flux(U, F);
-			advance(U0, U, F, dx, dt, 0.5);
-		}
-		t += dt;
-		boundaries(U);
-		output(U, X, iter++);
-		printf("%e %e\n", t, dt);
-	}
-	output(U, X, iter++);
-
-	return 0;
-}
-
