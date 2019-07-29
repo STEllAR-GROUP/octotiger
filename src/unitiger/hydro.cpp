@@ -27,6 +27,7 @@ constexpr int NDIM = 2;
 constexpr int H_BW = 3;
 constexpr int H_NX = (2 * H_BW + 100);
 constexpr int H_DNX = 1;
+constexpr int H_DN[3] = { 1, H_NX, H_NX * H_NX };
 constexpr int H_DNY = H_NX;
 constexpr int H_DNZ = (H_NX * H_NX);
 constexpr int H_N3 = std::pow(H_NX, NDIM);
@@ -108,6 +109,10 @@ inline static double minmod(double a, double b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }
 
+inline static double limit_this(double a, double b) {
+	return std::copysign(std::min(std::abs(a),std::abs(b)),a);
+}
+
 inline static double bound_width() {
 	int H_BW = 1;
 	int next_H_BW = 1;
@@ -121,117 +126,168 @@ inline static double bound_width() {
 constexpr int ORDER = 3;
 
 double limiter(double ql, double qr, double ll, double lr, double ul, double u0, double ur) {
-	const auto M = std::max(qr,ql);
-	const auto m = std::min(qr,ql);
-	const auto M_p = std::max( lr, qr );
-	const auto M_m = std::max( ll, ql );
-	const auto m_p = std::min( lr, qr );
-	const auto m_m = std::min( ll, ql );
+	const auto M = std::max(qr, ql);
+	const auto m = std::min(qr, ql);
+	const auto M_p = std::max(lr, qr);
+	const auto M_m = std::max(ll, ql);
+	const auto m_p = std::min(lr, qr);
+	const auto m_m = std::min(ll, ql);
 	double theta = 1.0;
 	double tmp;
 	if (ul < u0 && u0 < ur) {
 		tmp = M - lr;
-		if( tmp != 0.0 ) {
-			theta = std::min(theta, (M_p - lr) / tmp );
+		if (tmp != 0.0) {
+			theta = std::min(theta, (M_p - lr) / tmp);
 		}
 		tmp = m - ll;
-		if( tmp != 0.0 ) {
-			theta = std::min(theta, (m_m - ll) / tmp );
+		if (tmp != 0.0) {
+			theta = std::min(theta, (m_m - ll) / tmp);
 		}
 	} else if (ul > u0 && u0 > ur) {
 		tmp = m - lr;
-		if( tmp != 0.0 ) {
-			theta = std::min(theta, (m_p - lr) / tmp );
+		if (tmp != 0.0) {
+			theta = std::min(theta, (m_p - lr) / tmp);
 		}
 		tmp = M - ll;
-		if( tmp != 0.0 ) {
-			theta = std::min(theta, (M_m - ll) / tmp );
+		if (tmp != 0.0) {
+			theta = std::min(theta, (M_m - ll) / tmp);
 		}
 	}
-	assert( theta >= 0.0 && theta <= 1.0);
+	assert(theta >= 0.0 && theta <= 1.0);
 	return theta;
+}
+
+int get_index_dim(int k, int d) {
+	for (int i = 0; i < d; i++) {
+		k /= NDIM;
+	}
+	return k % NDIM;
+}
+
+int get_index_sum(int k) {
+	int s = 0;
+	for (int dim = 0; dim < NDIM; dim++) {
+		s += get_index_dim(k, dim);
+	}
+	return s;
+}
+
+int set_index_dim(int k, int d, int v) {
+	int indexes[NDIM];
+	for (int dim = 0; dim < NDIM; dim++) {
+		indexes[dim] = k % NDIM;
+		k /= NDIM;
+	}
+	indexes[d] = v;
+	for (int dim = 0; dim < NDIM; dim++) {
+		k *= NDIM;
+		k += indexes[NDIM - 1 - dim];
+	}
 }
 
 double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<std::vector<double>>> &F) {
 
 	static thread_local std::vector<std::vector<std::array<double, NDIR>>> L(NF,
-			std::vector<std::array<double, NDIR>>(H_N3, { SNAN, SNAN, SNAN}));
-static thread_local std::vector<std::vector<std::array<double, NDIR>>> Q(NF,
-std::vector<std::array<double, NDIR>>(H_N3));
-static thread_local std::vector<std::vector<std::vector<std::array<double, NFACEDIR>>>> fluxes(NDIM,
-std::vector < std::vector<std::array<double, NFACEDIR>>
-> (NF, std::vector<std::array<double, NFACEDIR>>(H_N3)));
-static thread_local std::array<double, NF> UR, UL, this_flux;
+			std::vector<std::array<double, NDIR>>(H_N3, { SNAN, SNAN, SNAN }));
+	static thread_local std::vector<std::vector<std::array<double, NDIR>>> Q(NF,
+			std::vector<std::array<double, NDIR>>(H_N3));
+	static thread_local std::vector<std::vector<std::vector<std::array<double, NFACEDIR>>>> fluxes(NDIM,
+			std::vector < std::vector<std::array<double, NFACEDIR>>
+					> (NF, std::vector<std::array<double, NFACEDIR>>(H_N3)));
+	static thread_local std::array<double, NF> UR, UL, this_flux;
 
-constexpr auto faces = lower_face_members[NDIM - 1];
-constexpr auto weights = quad_weights[NDIM - 1];
+	constexpr auto faces = lower_face_members[NDIM - 1];
+	constexpr auto weights = quad_weights[NDIM - 1];
 
-constexpr auto dir = directions[NDIM - 1];
+	constexpr auto dir = directions[NDIM - 1];
 
-int H_BW = bound_width();
+	int H_BW = bound_width();
 
-for (int f = 0; f < NF; f++) {
-	if( ORDER == 0) {
-		for (int i = H_BW; i < H_N3 - H_BW; i++) {
-			for (int d = 0; d < NDIR; d++) {
-				Q[f][i][d] = U[f][i];
-			}
-		}
-	}
-	if (ORDER >= 1) {
-		for (int i = H_BW; i < H_N3 - H_BW; i++) {
-			for (int d = 0; d < NDIR / 2; d++) {
-				const auto di = dir[d];
-				auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
-				Q[f][i][d] = U[f][i] + 0.5 * slp;
-				Q[f][i][flip(d)] = U[f][i] - 0.5 * slp;
-			}
-		}
-	}
-	if (ORDER > 2) {
-		L = Q;
-		for (int i = H_BW; i < H_N3 - H_BW; i++) {
-			for (int d = 0; d < NDIR / 2; d++) {
-				const auto di = dir[d];
-				const auto u0 = U[f][i];
-				const auto d1 = 0.5*(U[f][i+di] - U[f][i-di]);
-				const auto d2 = (U[f][i+di] + U[f][i-di] - 2.0*U[f][i+di]);
-				Q[f][i][d] = u0 + 0.5 * d1 + (1.0/12.0) * d2;
-				Q[f][i][flip(d)] = u0 - 0.5 * d1 + (1.0/12.0) * d2;
-			}
-		}
-	}
-}
-
-double amax = 0.0;
-
-for (int dim = 0; dim < NDIM; dim++) {
-	for (int i = 2 * H_BW; i < H_N3 - 2 * H_BW; i++) {
-		double a = -1.0;
-		for (int fi = 0; fi < NFACEDIR; fi++) {
-			const auto d = faces[dim][fi];
-			const auto di = dir[d];
-			for (int f = 0; f < NF; f++) {
-				UR[f] = Q[f][i][d];
-				UL[f] = Q[f][i + di][flip(d)];
-			}
-			flux(UL, UR, this_flux, dim, a);
-			for (int f = 0; f < NF; f++) {
-				fluxes[dim][f][i][fi] = this_flux[f];
-			}
-		}
-		amax = std::max(a, amax);
-	}
 	for (int f = 0; f < NF; f++) {
-		for (int i = H_BW; i < H_N3 - H_BW; i++) {
-			F[dim][f][i] = 0.0;
-			for (int fi = 0; fi < NFACEDIR; fi++) {
-				F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
+		if (ORDER == 1) {
+			for (int i = H_BW; i < H_N3 - H_BW; i++) {
+				for (int d = 0; d < NDIR; d++) {
+					Q[f][i][d] = U[f][i];
+				}
+			}
+		} else if (ORDER == 2) {
+			for (int i = H_BW; i < H_N3 - H_BW; i++) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					const auto di = dir[d];
+					auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
+					Q[f][i][d] = U[f][i] + 0.5 * slp;
+					Q[f][i][flip(d)] = U[f][i] - 0.5 * slp;
+				}
+			}
+		} else if (ORDER == 3) {
+			auto P = std::vector<std::vector<std::vector<double>>>(NF,
+					std::vector<std::vector<double>>(NDIR, std::vector<double>(H_N3, 0.0)));
+			P[f][0] = U[f];
+			for (int p = 1; p < ORDER; p++) {
+				for (int bi = 0; bi < NDIR; bi++) {
+					if (get_index_sum(bi) == p) {
+						int weight = 0;
+						for (int dim = 0; dim < NDIM; dim++) {
+							const auto this_i = get_index_dim(bi, dim);
+							if (this_i > 0) {
+								weight++;
+								const int j = set_index_dim(bi, dim, this_i - 1);
+								for (int iii = 0; iii < H_N3; iii++) {
+									const auto slpm = P[f][j][iii + H_DN[dim]] - P[f][j][iii];
+									const auto slpp = P[f][j][iii] - P[f][j][iii - H_DN[dim]];
+									P[f][bi][iii] += minmod(slpp, slpm);
+								}
+							}
+						}
+						if (weight != 1) {
+							for (int iii = 0; iii < H_N3; iii++) {
+								P[bi][f][iii] /= weight;
+							}
+						}
+						for (int dim = 0; dim < NDIM; dim++) {
+							const auto this_i = get_index_dim(bi, dim);
+							if (this_i > 0) {
+								const int j = set_index_dim(bi, dim, this_i - 1);
+								for (int iii = 0; iii < H_N3; iii++) {
+									 limit_this(P[f][bi][iii], P[f][j][iii]);
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
-}
-return amax;
+
+	double amax = 0.0;
+
+	for (int dim = 0; dim < NDIM; dim++) {
+		for (int i = 2 * H_BW; i < H_N3 - 2 * H_BW; i++) {
+			double a = -1.0;
+			for (int fi = 0; fi < NFACEDIR; fi++) {
+				const auto d = faces[dim][fi];
+				const auto di = dir[d];
+				for (int f = 0; f < NF; f++) {
+					UR[f] = Q[f][i][d];
+					UL[f] = Q[f][i + di][flip(d)];
+				}
+				flux(UL, UR, this_flux, dim, a);
+				for (int f = 0; f < NF; f++) {
+					fluxes[dim][f][i][fi] = this_flux[f];
+				}
+			}
+			amax = std::max(a, amax);
+		}
+		for (int f = 0; f < NF; f++) {
+			for (int i = H_BW; i < H_N3 - H_BW; i++) {
+				F[dim][f][i] = 0.0;
+				for (int fi = 0; fi < NFACEDIR; fi++) {
+					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
+				}
+			}
+		}
+	}
+	return amax;
 }
 
 void boundaries(std::vector<std::vector<double>> &U) {
