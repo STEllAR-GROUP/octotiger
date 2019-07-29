@@ -3,6 +3,7 @@
 
 #include "../../octotiger/unitiger/unitiger.hpp"
 
+#include <hpx/hpx_init.hpp>
 
 void boundaries(std::vector<std::vector<double>> &U) {
 	for (int f = 0; f < NF; f++) {
@@ -106,7 +107,7 @@ void output(const std::vector<std::vector<double>> &U, const std::vector<std::ar
 
 
 
-int main() {
+int hpx_main(int, char*[]) {
 
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
@@ -167,6 +168,17 @@ int main() {
 	}
 	output(U, X, iter++);
 
-	return 0;
+	return hpx::finalize();
+}
+
+
+
+int main(int argc, char* argv[]) {
+	printf( "Running\n");
+	std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
+			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
+			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
+			};
+	hpx::init(argc, argv, cfg);
 }
 

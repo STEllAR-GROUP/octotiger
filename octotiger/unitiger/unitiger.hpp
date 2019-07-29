@@ -23,14 +23,14 @@
 #define THETA 1.3
 using namespace std;
 
-static constexpr double tmax = 5.0e-1;
+static constexpr double tmax = 0.002;
 
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"
 #else
-constexpr int NDIM = 3;
+constexpr int NDIM = 2;
 constexpr int H_BW = 3;
-constexpr int H_NX = (2 * H_BW + 128);
+constexpr int H_NX = (2 * H_BW + 1024);
 constexpr int H_DNX = 1;
 constexpr int H_DN[3] = { 1, H_NX, H_NX * H_NX };
 constexpr int H_DNY = H_NX;
