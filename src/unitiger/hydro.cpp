@@ -23,7 +23,7 @@ double tmax = 1.0e-1;
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"
 #else
-constexpr int NDIM = 2;
+constexpr int NDIM = 1;
 constexpr int H_BW = 3;
 constexpr int H_NX = (2 * H_BW + 100);
 constexpr int H_DNX = 1;
@@ -110,17 +110,17 @@ inline static double minmod(double a, double b) {
 }
 
 inline static double limit_this(double a, double b) {
-	return std::copysign(std::min(std::abs(a),std::abs(b)),a);
+	return std::copysign(std::min(std::abs(a), std::abs(b)), a);
 }
 
 inline static double bound_width() {
-	int H_BW = 1;
-	int next_H_BW = 1;
+	int bw = 1;
+	int next_bw = 1;
 	for (int dim = 1; dim < NDIM; dim++) {
-		next_H_BW *= H_NX;
-		H_BW += next_H_BW;
+		next_bw *= H_NX;
+		bw += next_bw;
 	}
-	return H_BW;
+	return bw;
 }
 
 constexpr int ORDER = 3;
@@ -157,43 +157,47 @@ double limiter(double ql, double qr, double ll, double lr, double ul, double u0,
 	return theta;
 }
 
+template<int N>
 int get_index_dim(int k, int d) {
-	for (int i = 0; i < d; i++) {
-		k /= NDIM;
+	for (int i = 1; i < d; i++) {
+		k /= N;
 	}
-	return k % NDIM;
+	return k % N;
 }
 
+template<int N>
 int get_index_sum(int k) {
 	int s = 0;
 	for (int dim = 0; dim < NDIM; dim++) {
-		s += get_index_dim(k, dim);
+		s += get_index_dim<N>(k, dim);
 	}
 	return s;
 }
 
+template<int N>
 int set_index_dim(int k, int d, int v) {
 	int indexes[NDIM];
 	for (int dim = 0; dim < NDIM; dim++) {
-		indexes[dim] = k % NDIM;
-		k /= NDIM;
+		indexes[dim] = k % N;
+		k /= N;
 	}
 	indexes[d] = v;
 	for (int dim = 0; dim < NDIM; dim++) {
-		k *= NDIM;
+		k *= N;
 		k += indexes[NDIM - 1 - dim];
 	}
+	return k;
 }
 
 double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<std::vector<double>>> &F) {
 
-	static thread_local std::vector<std::vector<std::array<double, NDIR>>> L(NF,
-			std::vector<std::array<double, NDIR>>(H_N3, { SNAN, SNAN, SNAN }));
 	static thread_local std::vector<std::vector<std::array<double, NDIR>>> Q(NF,
 			std::vector<std::array<double, NDIR>>(H_N3));
 	static thread_local std::vector<std::vector<std::vector<std::array<double, NFACEDIR>>>> fluxes(NDIM,
 			std::vector < std::vector<std::array<double, NFACEDIR>>
 					> (NF, std::vector<std::array<double, NFACEDIR>>(H_N3)));
+	static thread_local std::vector<std::vector<std::array<double, NDIR>>> L(NF,
+			std::vector<std::array<double, NDIR>>(H_N3, { SNAN, SNAN, SNAN}));
 	static thread_local std::array<double, NF> UR, UL, this_flux;
 
 	constexpr auto faces = lower_face_members[NDIM - 1];
@@ -201,17 +205,17 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 
 	constexpr auto dir = directions[NDIM - 1];
 
-	int H_BW = bound_width();
+	int bw = bound_width();
 
 	for (int f = 0; f < NF; f++) {
 		if (ORDER == 1) {
-			for (int i = H_BW; i < H_N3 - H_BW; i++) {
+			for (int i = bw; i < H_N3 - bw; i++) {
 				for (int d = 0; d < NDIR; d++) {
 					Q[f][i][d] = U[f][i];
 				}
 			}
 		} else if (ORDER == 2) {
-			for (int i = H_BW; i < H_N3 - H_BW; i++) {
+			for (int i = bw; i < H_N3 - bw; i++) {
 				for (int d = 0; d < NDIR / 2; d++) {
 					const auto di = dir[d];
 					auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
@@ -225,34 +229,54 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 			P[f][0] = U[f];
 			for (int p = 1; p < ORDER; p++) {
 				for (int bi = 0; bi < NDIR; bi++) {
-					if (get_index_sum(bi) == p) {
+					if (get_index_sum<ORDER>(bi) == p) {
 						int weight = 0;
 						for (int dim = 0; dim < NDIM; dim++) {
-							const auto this_i = get_index_dim(bi, dim);
+							const auto this_i = get_index_dim<ORDER>(bi, dim);
 							if (this_i > 0) {
 								weight++;
-								const int j = set_index_dim(bi, dim, this_i - 1);
-								for (int iii = 0; iii < H_N3; iii++) {
+								const int j = set_index_dim<ORDER>(bi, dim, this_i - 1);
+								for (int iii = p * bw; iii < H_N3 - p * bw; iii++) {
 									const auto slpm = P[f][j][iii + H_DN[dim]] - P[f][j][iii];
 									const auto slpp = P[f][j][iii] - P[f][j][iii - H_DN[dim]];
 									P[f][bi][iii] += minmod(slpp, slpm);
 								}
 							}
 						}
+						assert(weight);
 						if (weight != 1) {
-							for (int iii = 0; iii < H_N3; iii++) {
+							for (int iii = p * bw; iii < H_N3 - p * bw; iii++) {
 								P[bi][f][iii] /= weight;
 							}
 						}
 						for (int dim = 0; dim < NDIM; dim++) {
-							const auto this_i = get_index_dim(bi, dim);
+							const auto this_i = get_index_dim<ORDER>(bi, dim);
 							if (this_i > 0) {
-								const int j = set_index_dim(bi, dim, this_i - 1);
-								for (int iii = 0; iii < H_N3; iii++) {
-									 limit_this(P[f][bi][iii], P[f][j][iii]);
+								const int j = set_index_dim<ORDER>(bi, dim, this_i - 1);
+								for (int iii = p * bw; iii < H_N3 - p * bw; iii++) {
+									limit_this(P[f][bi][iii], P[f][j][iii]);
 								}
 							}
 						}
+					}
+				}
+			}
+			for (int i = 0; i < H_N3; i++) {
+				for (int j = 0; j < NDIR; j++) {
+					Q[f][i][j] = 0.0;
+				}
+			}
+			for (int li = 0; li < NDIR; li++) {
+				for (int bi = 0; bi < NDIR; bi++) {
+					double c = 1.0;
+					for (int dim = 0; dim < NDIM; dim++) {
+						const auto x = 0.5 * (get_index_dim<NDIM>(li, dim) - 1);
+						for (int i = 0; i < bi; i++) {
+							c *= x;
+						}
+					}
+					for (int i = 0; i < H_N3; i++) {
+						Q[f][i][li] += c * P[f][bi][i];
 					}
 				}
 			}
@@ -262,7 +286,7 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 	double amax = 0.0;
 
 	for (int dim = 0; dim < NDIM; dim++) {
-		for (int i = 2 * H_BW; i < H_N3 - 2 * H_BW; i++) {
+		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
 			double a = -1.0;
 			for (int fi = 0; fi < NFACEDIR; fi++) {
 				const auto d = faces[dim][fi];
@@ -279,7 +303,7 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 			amax = std::max(a, amax);
 		}
 		for (int f = 0; f < NF; f++) {
-			for (int i = H_BW; i < H_N3 - H_BW; i++) {
+			for (int i = bw; i < H_N3 - bw; i++) {
 				F[dim][f][i] = 0.0;
 				for (int fi = 0; fi < NFACEDIR; fi++) {
 					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
