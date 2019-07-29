@@ -211,6 +211,16 @@ add_hpx_executable(
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
 
+# Unitiger executable
+add_hpx_executable(
+  unitiger
+  DEPENDENCIES
+    Silo::silo 
+  SOURCES
+    src/unitiger/hydro.cpp
+)
+set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
+
 if(MSVC)
   # Enable solution folders for MSVC
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -267,7 +277,7 @@ if(OCTOTIGER_WITH_Vc)
   target_compile_definitions(octolib PUBLIC
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
-    HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC
+#    HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC
   )
 endif()
 
