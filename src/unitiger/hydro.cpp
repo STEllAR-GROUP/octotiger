@@ -10,6 +10,7 @@
 #include <cmath>
 #include <vector>
 #include <array>
+#include <cassert>
 #include <limits>
 #include <silo.h>
 
@@ -18,7 +19,6 @@
 using namespace std;
 
 double tmax = 1.0e-1;
-
 
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"
@@ -120,14 +120,42 @@ inline static double bound_width() {
 
 constexpr int ORDER = 3;
 
+double limiter(double ql, double qr, double ll, double lr, double ul, double u0, double ur) {
+	const auto M = std::max(qr,ql);
+	const auto m = std::min(qr,ql);
+	const auto M_p = std::max( lr, qr );
+	const auto M_m = std::max( ll, ql );
+	const auto m_p = std::min( lr, qr );
+	const auto m_m = std::min( ll, ql );
+	double theta = 1.0;
+	double tmp;
+	if (ul < u0 && u0 < ur) {
+		tmp = M - lr;
+		if( tmp != 0.0 ) {
+			theta = std::min(theta, (M_p - lr) / tmp );
+		}
+		tmp = m - ll;
+		if( tmp != 0.0 ) {
+			theta = std::min(theta, (m_m - ll) / tmp );
+		}
+	} else if (ul > u0 && u0 > ur) {
+		tmp = m - lr;
+		if( tmp != 0.0 ) {
+			theta = std::min(theta, (m_p - lr) / tmp );
+		}
+		tmp = M - ll;
+		if( tmp != 0.0 ) {
+			theta = std::min(theta, (M_m - ll) / tmp );
+		}
+	}
+	assert( theta >= 0.0 && theta <= 1.0);
+	return theta;
+}
+
 double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<std::vector<double>>> &F) {
 
 	static thread_local std::vector<std::vector<std::array<double, NDIR>>> L(NF,
 			std::vector<std::array<double, NDIR>>(H_N3, { SNAN, SNAN, SNAN}));
-static thread_local std::vector<std::vector<std::array<double, NDIR / 2>>> D1(NF,
-std::vector<std::array<double, NDIR / 2>>(H_N3, {SNAN, SNAN, SNAN}));
-static thread_local std::vector<std::vector<std::array<double, NDIR / 2>>> D2(NF,
-std::vector<std::array<double, NDIR / 2>>(H_N3, {SNAN, SNAN, SNAN}));
 static thread_local std::vector<std::vector<std::array<double, NDIR>>> Q(NF,
 std::vector<std::array<double, NDIR>>(H_N3));
 static thread_local std::vector<std::vector<std::vector<std::array<double, NFACEDIR>>>> fluxes(NDIM,
@@ -143,49 +171,33 @@ constexpr auto dir = directions[NDIM - 1];
 int H_BW = bound_width();
 
 for (int f = 0; f < NF; f++) {
-	for (int i = H_BW; i < H_N3 - H_BW; i++) {
-		for (int d = 0; d < NDIR; d++) {
-			Q[f][i][d] = U[f][i];
+	if( ORDER == 0) {
+		for (int i = H_BW; i < H_N3 - H_BW; i++) {
+			for (int d = 0; d < NDIR; d++) {
+				Q[f][i][d] = U[f][i];
+			}
 		}
 	}
-	if (ORDER > 1) {
+	if (ORDER >= 1) {
 		for (int i = H_BW; i < H_N3 - H_BW; i++) {
 			for (int d = 0; d < NDIR / 2; d++) {
 				const auto di = dir[d];
-				D1[f][i][d] = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
-			}
-		}
-		for (int i = H_BW; i < H_N3 - H_BW; i++) {
-			for (int d = 0; d < NDIR / 2; d++) {
-				Q[f][i][d] += 0.5 * D1[f][i][d];
-				Q[f][i][flip(d)] -= 0.5 * D1[f][i][d];
+				auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
+				Q[f][i][d] = U[f][i] + 0.5 * slp;
+				Q[f][i][flip(d)] = U[f][i] - 0.5 * slp;
 			}
 		}
 	}
 	if (ORDER > 2) {
-		for (int i = 2 * H_BW; i < H_N3 - 2 * H_BW; i++) {
+		L = Q;
+		for (int i = H_BW; i < H_N3 - H_BW; i++) {
 			for (int d = 0; d < NDIR / 2; d++) {
 				const auto di = dir[d];
-				const auto &d1 = D1[f][i][d];
-				auto &d2 = D2[f][i][d];
-				d2 = minmod(D1[f][i + di][d] - D1[f][i][d], D1[f][i][d] - D1[f][i - di][d]);
-				d2 = std::copysign(std::min(std::abs(d2), std::abs(2.0 * d1)), d2);
-			}
-
-		}
-		for (int i = H_BW; i < H_N3 - H_BW; i++) {
-			double d2avg = 0.0;
-			double c0 = 1.0;
-			if (NDIM > 1) {
-				for (int d = 0; d < NDIR / 2; d++) {
-					d2avg += D2[f][i][d];
-				}
-				d2avg /= (NDIR / 2);
-				c0 = double(NDIR - 1) / double(NDIR - 3) / 12.0;
-			}
-			for (int d = 0; d < NDIR / 2; d++) {
-				Q[f][i][d] += c0 * (D2[f][i][d] - d2avg);
-				Q[f][i][flip(d)] += c0 * (D2[f][i][d] - d2avg);
+				const auto u0 = U[f][i];
+				const auto d1 = 0.5*(U[f][i+di] - U[f][i-di]);
+				const auto d2 = (U[f][i+di] + U[f][i-di] - 2.0*U[f][i+di]);
+				Q[f][i][d] = u0 + 0.5 * d1 + (1.0/12.0) * d2;
+				Q[f][i][flip(d)] = u0 - 0.5 * d1 + (1.0/12.0) * d2;
 			}
 		}
 	}
