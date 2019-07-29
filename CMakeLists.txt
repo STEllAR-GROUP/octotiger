@@ -105,6 +105,7 @@ set(source_files
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
+    src/unitiger/hydro.cpp
 )
 
 # Octotiger library headers
