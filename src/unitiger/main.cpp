@@ -1,4 +1,3 @@
-
 #include <fenv.h>
 
 #include "../../octotiger/unitiger/unitiger.hpp"
@@ -50,10 +49,10 @@ void boundaries(std::vector<std::vector<double>> &U) {
 void advance(const std::vector<std::vector<double>> &U0, std::vector<std::vector<double>> &U, const std::vector<std::vector<std::vector<double>>> &F, double dx,
 		double dt, double beta) {
 	int stride = 1;
-	int H_BW = bound_width();
+	int bw = bound_width();
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (int f = 0; f < NF; f++) {
-			for (int i = 2 * H_BW; i < H_N3 - 2 * H_BW; i++) {
+			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
 				double u0 = U0[f][i];
 				const auto fr = F[dim][f][i + stride];
 				const auto fl = F[dim][f][i];
@@ -63,6 +62,27 @@ void advance(const std::vector<std::vector<double>> &U0, std::vector<std::vector
 			}
 		}
 		stride *= H_NX;
+	}
+
+}
+
+void update_tau(std::vector<std::vector<double>> &U) {
+	constexpr auto dir = directions[NDIM - 1];
+	int bw = bound_width();
+	for (int i = bw; i < H_N3 - bw; i++) {
+		double ek = 0.0;
+		for (int dim = 0; dim < NDIM; dim++) {
+			ek += U[sx_i + dim][i] * U[sx_i + dim][i];
+		}
+		ek *= 0.5 / U[rho_i][i];
+		auto egas_max = U[egas_i][i];
+		for (int d = 0; d < NDIR; d++) {
+			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
+		}
+		double ein = U[egas_i][i] - ek;
+		if (ein * 0.1 > egas_max ) {
+			U[tau_i][i] = std::pow(ein, 1.0 / FGAMMA);
+		}
 	}
 }
 
@@ -105,8 +125,6 @@ void output(const std::vector<std::vector<double>> &U, const std::vector<std::ar
 
 }
 
-
-
 int hpx_main(int, char*[]) {
 
 	feenableexcept(FE_DIVBYZERO);
@@ -145,6 +163,7 @@ int hpx_main(int, char*[]) {
 			U[rho_i][i] = 0.125;
 			U[egas_i][i] = 0.25;
 		}
+		U[tau_i][i] = std::pow(U[egas_i][i], 1.0/FGAMMA);
 	}
 
 	double t = 0.0;
@@ -163,6 +182,8 @@ int hpx_main(int, char*[]) {
 		}
 		t += dt;
 		boundaries(U);
+		update_tau(U);
+		boundaries(U);
 		output(U, X, iter++);
 		printf("%e %e\n", t, dt);
 	}
@@ -171,10 +192,8 @@ int hpx_main(int, char*[]) {
 	return hpx::finalize();
 }
 
-
-
-int main(int argc, char* argv[]) {
-	printf( "Running\n");
+int main(int argc, char *argv[]) {
+	printf("Running\n");
 	std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
 			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
 			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...

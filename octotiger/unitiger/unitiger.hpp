@@ -18,12 +18,10 @@
 #include <limits>
 #include <silo.h>
 
-#define SNAN std::numeric_limits<double>::signaling_NaN()
-
 #define THETA 1.3
 using namespace std;
 
-static constexpr double tmax = 0.002;
+static constexpr double tmax = 0.5;
 
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"
@@ -41,16 +39,17 @@ constexpr auto egas_i = 1;
 constexpr auto sx_i = 2;
 constexpr auto sy_i = 3;
 constexpr auto sz_i = 4;
+constexpr auto tau_i = 4;
 #endif
 constexpr int H_DN0 = 0;
 constexpr int NDIR = std::pow(3, NDIM);
 constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 
-constexpr char *field_names[] = { "rho", "egas", "sx", "sy", "sz" };
+static constexpr char *field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau" };
 
 constexpr int ORDER = 3;
 
-constexpr int NF = (2 + NDIM);
+constexpr int NF = (3 + NDIM);
 
 
 inline static double bound_width() {
@@ -64,6 +63,28 @@ inline static double bound_width() {
 }
 
 
+#define FGAMMA (7.0/5.0)
+
 double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<std::vector<double>>> &F);
+
+
+static constexpr int directions[3][27] = { {
+/**/-H_DNX, +H_DN0, +H_DNX /**/
+}, {
+/**/-H_DNX - H_DNY, +H_DN0 - H_DNY, +H_DNX - H_DNY,/**/
+/**/-H_DNX + H_DN0, +H_DN0 + H_DN0, +H_DNX + H_DN0,/**/
+/**/-H_DNX + H_DNY, +H_DN0 + H_DNY, +H_DNX + H_DNY, /**/
+}, {
+/**/-H_DNX - H_DNY - H_DNZ, +H_DN0 - H_DNY - H_DNZ, +H_DNX - H_DNY - H_DNZ,/**/
+/**/-H_DNX + H_DN0 - H_DNZ, +H_DN0 + H_DN0 - H_DNZ, +H_DNX + H_DN0 - H_DNZ,/**/
+/**/-H_DNX + H_DNY - H_DNZ, +H_DN0 + H_DNY - H_DNZ, +H_DNX + H_DNY - H_DNZ,/**/
+/**/-H_DNX - H_DNY + H_DN0, +H_DN0 - H_DNY + H_DN0, +H_DNX - H_DNY + H_DN0,/**/
+/**/-H_DNX + H_DN0 + H_DN0, +H_DN0 + H_DN0 + H_DN0, +H_DNX + H_DN0 + H_DN0,/**/
+/**/-H_DNX + H_DNY + H_DN0, +H_DN0 + H_DNY + H_DN0, +H_DNX + H_DNY + H_DN0,/**/
+/**/-H_DNX - H_DNY + H_DNZ, +H_DN0 - H_DNY + H_DNZ, +H_DNX - H_DNY + H_DNZ,/**/
+/**/-H_DNX + H_DN0 + H_DNZ, +H_DN0 + H_DN0 + H_DNZ, +H_DNX + H_DN0 + H_DNZ,/**/
+/**/-H_DNX + H_DNY + H_DNZ, +H_DN0 + H_DNY + H_DNZ, +H_DNX + H_DNY + H_DNZ/**/
+
+} };
 
 #endif /* UNITIGER_HPP_ */
