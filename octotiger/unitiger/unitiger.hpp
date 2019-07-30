@@ -21,7 +21,7 @@
 #define THETA 1.3
 using namespace std;
 
-static constexpr double tmax = 0.5;
+static constexpr double tmax = 0.1;
 
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"
@@ -44,10 +44,11 @@ constexpr auto tau_i = 4;
 constexpr int H_DN0 = 0;
 constexpr int NDIR = std::pow(3, NDIM);
 constexpr int NFACEDIR = std::pow(3, NDIM - 1);
+constexpr int ORDER = 3;
+constexpr double CFL = (0.4/ORDER/NDIM);
 
 static constexpr char *field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau" };
 
-constexpr int ORDER = 3;
 
 constexpr int NF = (3 + NDIM);
 

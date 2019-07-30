@@ -50,18 +50,23 @@ void advance(const std::vector<std::vector<double>> &U0, std::vector<std::vector
 		double dt, double beta) {
 	int stride = 1;
 	int bw = bound_width();
+	std::vector<std::vector<double>> dudt(NF,std::vector<double>(H_N3,0.0));
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (int f = 0; f < NF; f++) {
 			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
-				double u0 = U0[f][i];
 				const auto fr = F[dim][f][i + stride];
 				const auto fl = F[dim][f][i];
-				const auto dudt = -(fr - fl) / dx;
-				double u1 = U[f][i] + dudt * dt;
-				U[f][i] = u0 * (1.0 - beta) + u1 * beta;
+				dudt[f][i] -= (fr - fl) / dx;
 			}
 		}
 		stride *= H_NX;
+	}
+	for (int f = 0; f < NF; f++) {
+		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
+			double u0 = U0[f][i];
+			double u1 = U[f][i] + dudt[f][i] * dt;
+			U[f][i] = u0 * (1.0 - beta) + u1 * beta;
+		}
 	}
 
 }
@@ -80,7 +85,7 @@ void update_tau(std::vector<std::vector<double>> &U) {
 			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
 		}
 		double ein = U[egas_i][i] - ek;
-		if (ein * 0.1 > egas_max ) {
+		if (ein  > 0.1 * egas_max ) {
 			U[tau_i][i] = std::pow(ein, 1.0 / FGAMMA);
 		}
 	}
@@ -153,16 +158,20 @@ int hpx_main(int, char*[]) {
 			U[f][i] = 0.0;
 		}
 		double xsum = 0.0;
+		double x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
+			x2 += (X[i][dim]-0.5)*(X[i][dim]-0.5);
 		}
-		if (xsum < 1) {
-			U[rho_i][i] = 1.0;
-			U[egas_i][i] = 2.5;
-		} else {
-			U[rho_i][i] = 0.125;
-			U[egas_i][i] = 0.25;
-		}
+//		if (xsum < 0.5 * NDIM) {
+//			U[rho_i][i] = 1.0;
+//			U[egas_i][i] = 2.5;
+//		} else {
+//			U[rho_i][i] = 0.125;
+//			U[egas_i][i] = 0.25;
+//		}
+		U[rho_i][i] = 1.0;
+		U[egas_i][i] = 1.0 + 1.0e+6 * std::exp( -x2 * H_NX * H_NX / 4.0 );
 		U[tau_i][i] = std::pow(U[egas_i][i], 1.0/FGAMMA);
 	}
 
@@ -172,13 +181,18 @@ int hpx_main(int, char*[]) {
 	while (t < tmax) {
 		U0 = U;
 		auto a = hydro_flux(U, F);
-		double dt = 0.4 * dx / a / NDIM;
+		double dt = CFL * dx / a;
 		advance(U0, U, F, dx, dt, 1.0);
 		boundaries(U);
 		if (ORDER >= 2) {
 			boundaries(U);
 			hydro_flux(U, F);
-			advance(U0, U, F, dx, dt, 0.5);
+			advance(U0, U, F, dx, dt, ORDER == 2 ? 0.5 : 0.25);
+			if( ORDER >= 3) {
+				boundaries(U);
+				hydro_flux(U, F);
+				advance(U0, U, F, dx, dt, 2.0/3.0);
+			}
 		}
 		t += dt;
 		boundaries(U);

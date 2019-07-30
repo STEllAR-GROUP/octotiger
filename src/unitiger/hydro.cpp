@@ -11,7 +11,7 @@
 #include <hpx/include/future.hpp>
 #include <functional>
 
-constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 }, { 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0,
+constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 6, 0 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 }, { 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0,
 		1, 2, 3, 5, 6, 7, 8 } } };
 
 constexpr double quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36., 1. / 36.,
@@ -28,7 +28,7 @@ void to_prim(VECTOR u, double &p, double &v, int dim) {
 		ek += std::pow(u[sx_i + dim], 2) * rhoinv * 0.5;
 	}
 	auto ein = u[egas_i] - ek;
-	if (ein * 0.01 < u[egas_i]) {
+	if (ein < 0.001 * u[egas_i]) {
 		ein = std::pow(u[tau_i], FGAMMA);
 	}
 	v = u[sx_i + dim] * rhoinv;
@@ -154,7 +154,7 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 				}
 				for (int i = bw; i < H_N3 - bw; i++) {
 					double d2avg = 0.0;
-					double c0 = 1.0;
+					double c0 = 1.0 / 12.0;
 					if (NDIM > 1) {
 						for (int d = 0; d < NDIR / 2; d++) {
 							d2avg += D2[f][i][d];
