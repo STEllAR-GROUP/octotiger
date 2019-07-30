@@ -36,12 +36,14 @@ void to_prim(VECTOR u, double &p, double &v, int dim) {
 }
 
 template<class VECTOR>
-void flux(const VECTOR &UL, const VECTOR &UR, VECTOR &F, int dim, double &a) {
+void flux(const VECTOR &UL, const VECTOR &UR, VECTOR &F, int dim, double &a, std::array<double, NDIM> &vg) {
 
-	double pr, vr, pl, vl;
+	double pr, vr, pl, vl, vr0, vl0;
 
-	to_prim(UR, pr, vr, dim);
-	to_prim(UL, pl, vl, dim);
+	to_prim(UR, pr, vr0, dim);
+	to_prim(UL, pl, vl0, dim);
+	vr = vr0 - vg[dim];
+	vl = vl0 - vg[dim];
 	if (a < 0.0) {
 		double ar, al;
 		ar = std::abs(vr) + std::sqrt(FGAMMA * pr / UR[rho_i]);
@@ -52,7 +54,7 @@ void flux(const VECTOR &UL, const VECTOR &UR, VECTOR &F, int dim, double &a) {
 		F[f] = 0.5 * ((vr - a) * UR[f] + (vl + a) * UL[f]);
 	}
 	F[sx_i + dim] += 0.5 * (pr + pl);
-	F[egas_i] += 0.5 * (pr * vr + pl * vl);
+	F[egas_i] += 0.5 * (pr * vr0 + pl * vl0);
 }
 
 inline static double minmod(double a, double b) {
@@ -99,7 +101,8 @@ double limiter(double ql, double qr, double ll, double lr, double ul, double u0,
 	return theta;
 }
 
-double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<std::vector<double>>> &F) {
+double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<std::vector<double>>> &F, std::vector<std::array<double, NDIM>> &X,
+		double omega) {
 
 	std::vector<std::vector<std::array<double, NDIR / 2>>> D1(NF, std::vector<std::array<double, NDIR / 2>>(H_N3));
 	std::vector<std::vector<std::array<double, NDIR / 2>>> D2(NF, std::vector<std::array<double, NDIR / 2>>(H_N3));
@@ -189,7 +192,15 @@ double hydro_flux(std::vector<std::vector<double>> &U, std::vector<std::vector<s
 						UR[f] = Q[f][i][d];
 						UL[f] = Q[f][i + di][flip(d)];
 					}
-					flux(UL, UR, this_flux, dim, a);
+					std::array<double, NDIM> vg;
+					if constexpr (NDIM > 1) {
+						vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
+						vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
+						if constexpr (NDIM == 3) {
+							vg[2] = 0.0;
+						}
+					}
+					flux(UL, UR, this_flux, dim, a, vg);
 					for (int f = 0; f < NF; f++) {
 						fluxes[dim][f][i][fi] = this_flux[f];
 					}

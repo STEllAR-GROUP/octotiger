@@ -47,7 +47,7 @@ void boundaries(std::vector<std::vector<double>> &U) {
 }
 
 void advance(const std::vector<std::vector<double>> &U0, std::vector<std::vector<double>> &U, const std::vector<std::vector<std::vector<double>>> &F, double dx,
-		double dt, double beta) {
+		double dt, double beta, double omega) {
 	int stride = 1;
 	int bw = bound_width();
 	std::vector<std::vector<double>> dudt(NF,std::vector<double>(H_N3,0.0));
@@ -60,6 +60,10 @@ void advance(const std::vector<std::vector<double>> &U0, std::vector<std::vector
 			}
 		}
 		stride *= H_NX;
+	}
+	for( int i = 0; i < H_N3; i++) {
+		dudt[sx_i][i] += U[sy_i][i] * omega;
+		dudt[sy_i][i] -= U[sx_i][i] * omega;
 	}
 	for (int f = 0; f < NF; f++) {
 		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
@@ -147,7 +151,7 @@ int hpx_main(int, char*[]) {
 		int k = i;
 		int j = 0;
 		while (k) {
-			X[i][j] = (((k % H_NX) - H_BW) + 0.5) * dx;
+			X[i][j] = (((k % H_NX) - H_BW) + 0.5) * dx - 0.5;
 			k /= H_NX;
 			j++;
 		}
@@ -161,7 +165,8 @@ int hpx_main(int, char*[]) {
 		double x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
-			x2 += (X[i][dim]-0.5)*(X[i][dim]-0.5);
+			auto o = dim == 0 ? 0.25 : 0.0;
+			x2 += (X[i][dim]-o)*(X[i][dim]-o);
 		}
 //		if (xsum < 0.5 * NDIM) {
 //			U[rho_i][i] = 1.0;
@@ -178,20 +183,22 @@ int hpx_main(int, char*[]) {
 	double t = 0.0;
 	int iter = 0;
 	output(U, X, iter++);
+	const double omega = 2.0*M_PI / tmax ;
 	while (t < tmax) {
 		U0 = U;
-		auto a = hydro_flux(U, F);
+		auto a = hydro_flux(U, F, X, omega);
 		double dt = CFL * dx / a;
-		advance(U0, U, F, dx, dt, 1.0);
+		dt = std::min(dt, tmax - t + 1.0e-20);
+		advance(U0, U, F, dx, dt, 1.0, omega);
 		boundaries(U);
 		if (ORDER >= 2) {
 			boundaries(U);
-			hydro_flux(U, F);
-			advance(U0, U, F, dx, dt, ORDER == 2 ? 0.5 : 0.25);
+			hydro_flux(U, F, X, omega);
+			advance(U0, U, F, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
 			if( ORDER >= 3) {
 				boundaries(U);
-				hydro_flux(U, F);
-				advance(U0, U, F, dx, dt, 2.0/3.0);
+				hydro_flux(U, F, X, omega);
+				advance(U0, U, F, dx, dt, 2.0/3.0, omega);
 			}
 		}
 		t += dt;
@@ -199,7 +206,7 @@ int hpx_main(int, char*[]) {
 		update_tau(U);
 		boundaries(U);
 		output(U, X, iter++);
-		printf("%e %e\n", t, dt);
+		printf("%i %e %e\n", iter, t, dt);
 	}
 	output(U, X, iter++);
 
