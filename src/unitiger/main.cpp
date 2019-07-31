@@ -1,141 +1,23 @@
 #include <fenv.h>
 
 #include "../../octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/unitiger/hydro.hpp"
 
 #include <hpx/hpx_init.hpp>
 
-void boundaries(std::vector<std::vector<double>> &U) {
-	for (int f = 0; f < NF; f++) {
-		if (NDIM == 1) {
-			for (int i = 0; i < H_BW + 20; i++) {
-				U[f][i] = U[f][H_BW];
-				U[f][H_NX - 1 - i] = U[f][H_NX - H_BW - 1];
-			}
-		} else if (NDIM == 2) {
+#define NDIM 2
+#define INX 100
+#define ORDER 2
 
-			const auto index = [](int i, int j) {
-				return i + H_NX * j;
-			};
-
-			for (int i = 0; i < H_BW; i++) {
-				for (int j = 0; j < H_NX; j++) {
-					U[f][index(i, j)] = U[f][index(H_BW, j)];
-					U[f][index(j, i)] = U[f][index(j, H_BW)];
-					U[f][index(H_NX - 1 - i, j)] = U[f][index(H_NX - 1 - H_BW, j)];
-					U[f][index(j, H_NX - 1 - i)] = U[f][index(j, H_NX - 1 - H_BW)];
-				}
-			}
-		} else {
-			const auto index = [](int i, int j, int k) {
-				return i + H_NX * j + k * H_NX * H_NX;
-			};
-
-			for (int i = 0; i < H_BW; i++) {
-				for (int j = 0; j < H_NX; j++) {
-					for (int k = 0; k < H_NX; k++) {
-						U[f][index(i, j, k)] = U[f][index(H_BW, j, k)];
-						U[f][index(j, i, k)] = U[f][index(j, H_BW, k)];
-						U[f][index(j, k, i)] = U[f][index(j, k, H_BW)];
-						U[f][index(H_NX - 1 - i, j, k)] = U[f][index(H_NX - 1 - H_BW, j, k)];
-						U[f][index(j, H_NX - 1 - i, k)] = U[f][index(j, H_NX - 1 - H_BW, k)];
-						U[f][index(j, H_NX - 1 - k, i)] = U[f][index(j, k, H_NX - 1 - H_BW)];
-					}
-				}
-			}
-		}
-	}
-}
-
-void advance(const std::vector<std::vector<double>> &U0, std::vector<std::vector<double>> &U, const std::vector<std::vector<std::vector<double>>> &F, double dx,
-		double dt, double beta, double omega) {
-	int stride = 1;
-	int bw = bound_width();
-	std::vector<std::vector<double>> dudt(NF,std::vector<double>(H_N3,0.0));
-	for (int dim = 0; dim < NDIM; dim++) {
-		for (int f = 0; f < NF; f++) {
-			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
-				const auto fr = F[dim][f][i + stride];
-				const auto fl = F[dim][f][i];
-				dudt[f][i] -= (fr - fl) / dx;
-			}
-		}
-		stride *= H_NX;
-	}
-	for( int i = 0; i < H_N3; i++) {
-		dudt[sx_i][i] += U[sy_i][i] * omega;
-		dudt[sy_i][i] -= U[sx_i][i] * omega;
-	}
-	for (int f = 0; f < NF; f++) {
-		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
-			double u0 = U0[f][i];
-			double u1 = U[f][i] + dudt[f][i] * dt;
-			U[f][i] = u0 * (1.0 - beta) + u1 * beta;
-		}
-	}
-
-}
-
-void update_tau(std::vector<std::vector<double>> &U) {
-	constexpr auto dir = directions[NDIM - 1];
-	int bw = bound_width();
-	for (int i = bw; i < H_N3 - bw; i++) {
-		double ek = 0.0;
-		for (int dim = 0; dim < NDIM; dim++) {
-			ek += U[sx_i + dim][i] * U[sx_i + dim][i];
-		}
-		ek *= 0.5 / U[rho_i][i];
-		auto egas_max = U[egas_i][i];
-		for (int d = 0; d < NDIR; d++) {
-			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
-		}
-		double ein = U[egas_i][i] - ek;
-		if (ein  > 0.1 * egas_max ) {
-			U[tau_i][i] = std::pow(ein, 1.0 / FGAMMA);
-		}
-	}
-}
-
-void output(const std::vector<std::vector<double>> &U, const std::vector<std::array<double, NDIM>> &X, int num) {
-	std::string filename = "Y." + std::to_string(num);
-	if (NDIM == 1) {
-		filename += ".txt";
-		FILE *fp = fopen(filename.c_str(), "wt");
-		for (int i = 0; i < H_NX; i++) {
-			for (int dim = 0; dim < NDIM; dim++) {
-				fprintf(fp, "%13.6e ", X[i][dim]);
-			}
-			for (int f = 0; f < NF; f++) {
-				fprintf(fp, "%13.6e ", U[f][i]);
-			}
-			fprintf(fp, "\n");
-		}
-		fclose(fp);
-	} else {
-		filename += ".silo";
-		auto db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Uni-tiger", DB_PDB);
-		const char *coord_names[] = { "x", "y", "z" };
-		double coords[NDIM][H_NX + 1];
-		for (int i = 0; i < H_NX + 1; i++) {
-			const auto x = double(i - H_BW) / H_NX;
-			for (int dim = 0; dim < NDIM; dim++) {
-				coords[dim][i] = x;
-			}
-		}
-		void *coords_[] = { coords, coords + 1, coords + 2 };
-		int dims1[] = { H_NX + 1, H_NX + 1, H_NX + 1 };
-		int dims2[] = { H_NX, H_NX, H_NX };
-		DBPutQuadmesh(db, "quadmesh", coord_names, coords_, dims1, NDIM, DB_DOUBLE, DB_COLLINEAR, NULL);
-		for (int f = 0; f < NF; f++) {
-			DBPutQuadvar1(db, field_names[f], "quadmesh", U[f].data(), dims2, NDIM, NULL, 0, DB_DOUBLE, DB_ZONECENT,
-			NULL);
-		}
-		DBClose(db);
-	}
-
-}
+#define H_BW 3
+#define NF 3 + NDIM
+#define H_NX (INX + H_BW)
+#define H_N3 std::pow(INX+3,NDIM)
+static constexpr double CFL = (0.4 / ORDER / NDIM);
 
 int hpx_main(int, char*[]) {
 
+	hydro_computer<NDIM, INX, ORDER> computer(2);
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
@@ -166,7 +48,7 @@ int hpx_main(int, char*[]) {
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
 			auto o = dim == 0 ? 0.25 : 0.0;
-			x2 += (X[i][dim]-o)*(X[i][dim]-o);
+			x2 += (X[i][dim] - o) * (X[i][dim] - o);
 		}
 //		if (xsum < 0.5 * NDIM) {
 //			U[rho_i][i] = 1.0;
@@ -176,39 +58,41 @@ int hpx_main(int, char*[]) {
 //			U[egas_i][i] = 0.25;
 //		}
 		U[rho_i][i] = 1.0;
-		U[egas_i][i] = 1.0 + 1.0e+6 * std::exp( -x2 * H_NX * H_NX / 4.0 );
-		U[tau_i][i] = std::pow(U[egas_i][i], 1.0/FGAMMA);
+		U[egas_i][i] = 1.0 + 1.0e+6 * std::exp(-x2 * H_NX * H_NX / 4.0);
+		U[tau_i][i] = std::pow(U[egas_i][i], 1.0 / FGAMMA);
 	}
 
 	double t = 0.0;
 	int iter = 0;
-	output(U, X, iter++);
-	const double omega = 2.0*M_PI / tmax /100.0;
+
+	computer.output(U, X, iter++);
+	const double omega = 2.0 * M_PI / tmax / 100.0;
+
 	while (t < tmax) {
 		U0 = U;
-		auto a = hydro_flux(U, F, X, omega);
+		auto a = computer.hydro_flux(U, F, X, omega);
 		double dt = CFL * dx / a;
 		dt = std::min(dt, tmax - t + 1.0e-20);
-		advance(U0, U, F, dx, dt, 1.0, omega);
-		boundaries(U);
+		computer.advance(U0, U, F, dx, dt, 1.0, omega);
+		computer.boundaries(U);
 		if (ORDER >= 2) {
-			boundaries(U);
-			hydro_flux(U, F, X, omega);
-			advance(U0, U, F, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
-			if( ORDER >= 3) {
-				boundaries(U);
-				hydro_flux(U, F, X, omega);
-				advance(U0, U, F, dx, dt, 2.0/3.0, omega);
+			computer.boundaries(U);
+			computer.hydro_flux(U, F, X, omega);
+			computer.advance(U0, U, F, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
+			if ( ORDER >= 3) {
+				computer.boundaries(U);
+				computer.hydro_flux(U, F, X, omega);
+				computer.advance(U0, U, F, dx, dt, 2.0 / 3.0, omega);
 			}
 		}
 		t += dt;
-		boundaries(U);
-		update_tau(U);
-		boundaries(U);
-		output(U, X, iter++);
+		computer.boundaries(U);
+		computer.update_tau(U);
+		computer.boundaries(U);
+		computer.output(U, X, iter++);
 		printf("%i %e %e\n", iter, t, dt);
 	}
-	output(U, X, iter++);
+	computer.output(U, X, iter++);
 
 	return hpx::finalize();
 }
