@@ -183,7 +183,7 @@ int hpx_main(int, char*[]) {
 	double t = 0.0;
 	int iter = 0;
 	output(U, X, iter++);
-	const double omega = 2.0*M_PI / tmax ;
+	const double omega = 2.0*M_PI / tmax /100.0;
 	while (t < tmax) {
 		U0 = U;
 		auto a = hydro_flux(U, F, X, omega);

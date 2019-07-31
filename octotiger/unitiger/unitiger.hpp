@@ -28,7 +28,7 @@ static constexpr double tmax = 1e-4;
 #else
 constexpr int NDIM = 2;
 constexpr int H_BW = 3;
-constexpr int H_NX = (2 * H_BW + 128);
+constexpr int H_NX = (2 * H_BW + 256);
 constexpr int H_DNX = 1;
 constexpr int H_DN[3] = { 1, H_NX, H_NX * H_NX };
 constexpr int H_DNY = H_NX;
