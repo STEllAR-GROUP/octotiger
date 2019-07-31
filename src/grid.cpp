@@ -14,7 +14,6 @@
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
-#include <hpx/util/format.hpp>
 
 #include <array>
 #include <cassert>

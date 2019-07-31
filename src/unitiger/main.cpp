@@ -1,18 +1,19 @@
 #include <fenv.h>
 
-#include "../../octotiger/unitiger/unitiger.hpp"
-#include "../../octotiger/unitiger/hydro.hpp"
+#include "../../octotiger/octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/octotiger/unitiger/hydro.hpp"
 
+#ifndef NOHPX
 #include <hpx/hpx_init.hpp>
+#endif
 
 #define NDIM 2
 #define INX 100
 #define ORDER 2
 
 #define H_BW 3
-#define NF 3 + NDIM
-#define H_NX (INX + H_BW)
-#define H_N3 std::pow(INX+3,NDIM)
+#define H_NX (INX + 2 * H_BW)
+#define H_N3 std::pow(INX+2*H_BW,NDIM)
 static constexpr double CFL = (0.4 / ORDER / NDIM);
 
 int hpx_main(int, char*[]) {
@@ -22,12 +23,14 @@ int hpx_main(int, char*[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-	std::vector<std::array<double, NDIM>> X(H_N3);
-	std::vector<std::vector<std::vector<double>>> F(NDIM, std::vector<std::vector<double>>(NF, std::vector<double>(H_N3, SNAN)));
-	std::vector<std::vector<double>> U(NF, std::vector<double>(H_N3, SNAN));
-	std::vector<std::vector<double>> U0(NF, std::vector<double>(H_N3, SNAN));
+	using comp = decltype(computer);
 
-	const double dx = 1.0 / H_NX;
+	std::vector<std::array<double, NDIM>> X(H_N3);
+	std::vector<std::vector<std::vector<double>>> F(NDIM, std::vector<std::vector<double>>(computer.nf, std::vector<double>(H_N3, SNAN)));
+	std::vector<std::vector<double>> U(computer.nf, std::vector<double>(H_N3, SNAN));
+	std::vector<std::vector<double>> U0(computer.nf, std::vector<double>(H_N3, SNAN));
+
+	const double dx = 1.0 / INX;
 
 	for (int i = 0; i < H_N3; i++) {
 		int k = i;
@@ -40,7 +43,7 @@ int hpx_main(int, char*[]) {
 	}
 
 	for (int i = 0; i < H_N3; i++) {
-		for (int f = 0; f < NF; f++) {
+		for (int f = 0; f < computer.nf; f++) {
 			U[f][i] = 0.0;
 		}
 		double xsum = 0.0;
@@ -57,9 +60,14 @@ int hpx_main(int, char*[]) {
 //			U[rho_i][i] = 0.125;
 //			U[egas_i][i] = 0.25;
 //		}
-		U[rho_i][i] = 1.0;
-		U[egas_i][i] = 1.0 + 1.0e+6 * std::exp(-x2 * H_NX * H_NX / 4.0);
-		U[tau_i][i] = std::pow(U[egas_i][i], 1.0 / FGAMMA);
+		U[comp::rho_i][i] = 1.0;
+		U[comp::egas_i][i] = 1.0 + 1.0e+6 * std::exp(-x2 * H_NX * H_NX / 4.0);
+		U[comp::tau_i][i] = std::pow(U[comp::egas_i][i], 1.0 / FGAMMA);
+		if (X[i][0] > 0.5) {
+			U[comp::spc_i][i] = U[comp::rho_i][i];
+		} else {
+			U[comp::spc_i + 1][i] = U[comp::rho_i][i];
+		}
 	}
 
 	double t = 0.0;
@@ -94,15 +102,23 @@ int hpx_main(int, char*[]) {
 	}
 	computer.output(U, X, iter++);
 
+#ifdef NOHPX
+	return 0;
+#else
 	return hpx::finalize();
+#endif
 }
 
 int main(int argc, char *argv[]) {
+#ifdef NOHPX
+	return hpx_main(argc, argv);
+#else
 	printf("Running\n");
 	std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
 			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
 			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
 			};
 	hpx::init(argc, argv, cfg);
+#endif
 }
 

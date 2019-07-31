@@ -8,8 +8,6 @@
 #ifndef UNITIGER_HPP_
 #define UNITIGER_HPP_
 
-
-
 #include <iostream>
 #include <cmath>
 #include <vector>
@@ -28,21 +26,13 @@ static constexpr double tmax = 1e-4;
 #else
 //constexpr int NDIM = 2;
 
-constexpr auto rho_i = 0;
-constexpr auto egas_i = 1;
-constexpr auto sx_i = 2;
-constexpr auto sy_i = 3;
-constexpr auto sz_i = 4;
-constexpr auto tau_i = 4;
 #endif
 constexpr int ORDER = 3;
 
-static constexpr char *field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau" };
-
-
-
+static constexpr char *field_names3[] = { "rho", "egas", "tau", "pot", "sx", "sy", "sz", "zx", "zy", "zz", "spc_2", "spc_2", "spc_3", "spc_4", "spc_5" };
+static constexpr char *field_names2[] = { "rho", "egas", "tau", "pot", "sx", "sy", "zz", "spc_2", "spc_2", "spc_3", "spc_4", "spc_5" };
+static constexpr char *field_names1[] = { "rho", "egas", "tau", "pot", "sx", "spc_2", "spc_2", "spc_3", "spc_4", "spc_5" };
 
 #define FGAMMA (7.0/5.0)
-
 
 #endif /* UNITIGER_HPP_ */

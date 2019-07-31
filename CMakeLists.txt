@@ -266,9 +266,12 @@ else()
   if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     target_compile_options(octolib PRIVATE
       -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-      -Wno-unused-result -ffast-math)
+      -Wno-unused-result -ffast-math -Wno-write-strings)
+    target_compile_options(unitiger PRIVATE
+      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+      -Wno-unused-result -ffast-math -Wno-write-strings)
   elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
-      #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result")
+      #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result ")
       #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
       target_compile_options(octolib -Wno-attributes -Wno-deprecated)
   endif()

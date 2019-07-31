@@ -6,9 +6,10 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
-#include "../../octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/octotiger/unitiger/hydro.hpp"
+
 #include <functional>
-#include "../../octotiger/unitiger/hydro.hpp"
 
 constexpr double vol_weight1d[3] = { 1. / 6., 2. / 3., 1. / 6. };
 constexpr double vol_weight2d[9] = { 1. / 36., 1. / 9., 1. / 36., 1. / 9., 4. / 9., 1. / 9., 1. / 36., 1. / 9., 1. / 36. };

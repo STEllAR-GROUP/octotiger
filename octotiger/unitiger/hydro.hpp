@@ -29,15 +29,6 @@ struct hydro_computer {
 			double dx, double dt, double beta, double omega);
 	void output(const std::vector<std::vector<double>> &U, const std::vector<std::array<double, NDIM>> &X, int num);
 
-	hydro_computer(int nspecies) {
-		nf = 4 + 2 * NDIM + nspecies;
-		ns = nspecies;
-	}
-
-private:
-
-	int nf, ns;
-
 	static constexpr int rho_i = 0;
 	static constexpr int egas_i = 1;
 	static constexpr int tau_i = 2;
@@ -50,6 +41,11 @@ private:
 	static constexpr int zz_i = 6 + NDIM;
 	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 
+	int nf;
+
+private:
+
+	int ns;
 	static constexpr int H_BW = 3;
 	static constexpr int H_NX = (2 * H_BW + INX);
 	static constexpr int H_DNX = 1;
@@ -84,24 +80,37 @@ private:
 	/**/-H_DNX + H_DNY + H_DNZ, +H_DN0 + H_DNY + H_DNZ, +H_DNX + H_DNY + H_DNZ/**/
 
 	} };
+	std::vector<std::vector<std::array<double, NDIR / 2>>> D1;
+	std::vector<std::vector<std::array<double, NDIR / 2>>> D2;
+	std::vector<std::vector<std::array<double, NDIR>>> Q;
+	std::vector<std::vector<std::vector<std::array<double, nfACEDIR>>>> fluxes;
+
+public:
+
+	hydro_computer(int nspecies) {
+		nf = 4 + NDIM + nspecies + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+		ns = nspecies;
+
+		D1 = decltype(D1)(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
+		D2 = decltype(D2)(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
+		Q = decltype(Q)(nf, std::vector<std::array<double, NDIR>>(H_N3));
+		fluxes = decltype(fluxes)(NDIM,
+				std::vector<std::vector<std::array<double, nfACEDIR>> >(nf, std::vector<std::array<double, nfACEDIR>>(H_N3)));
+
+	}
 
 };
 
+#ifndef NOHPX
 #include <hpx/include/async.hpp>
-#include <hpx/include/future.hpp>
+#endif
+//#include <hpx/include/future.hpp>
 
 #define flip( d ) (NDIR - 1 - (d))
 
 template<int NDIM, int INX, int ORDER>
 double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<double>> U, std::vector<std::vector<std::vector<double>>> &F,
 		std::vector<std::array<double, NDIM>> &X, double omega) {
-
-	std::vector<std::vector<std::array<double, NDIR / 2>>> D1(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
-	std::vector<std::vector<std::array<double, NDIR / 2>>> D2(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
-	std::vector<std::vector<std::array<double, NDIR>>> Q(nf, std::vector<std::array<double, NDIR>>(H_N3));
-	std::vector < std::vector
-			< std::vector<std::array<double, nfACEDIR>>
-					>> fluxes(NDIM, std::vector < std::vector<std::array<double, nfACEDIR>> > (nf, std::vector<std::array<double, nfACEDIR>>(H_N3)));
 
 	constexpr auto faces = lower_face_members[NDIM - 1];
 	constexpr auto weights = quad_weights[NDIM - 1];
@@ -110,157 +119,159 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 
 	int bw = bound_width();
 
-	std::vector<hpx::future<void>> frecon(nf);
-	std::vector<hpx::future<double>> futs2;
+//	std::vector<hpx::future<void>> frecon(nf);
+//	std::vector<hpx::future<double>> futs2;
 
-	for (int f = 0; f < nf; f++) {
-		frecon[f] = hpx::make_ready_future<void>();
+//	for (int f = 0; f < nf; f++) {
+//		frecon[f] = hpx::make_ready_future<void>();
+//	}
+//
+//	frecon[pot_i] = frecon[pot_i].then([&U](hpx::future<void> &&fut) {
+//		fut.get();
+	for (int i = 0; i < H_N3; i++) {
+		U[pot_i][i] /= U[rho_i][i];
 	}
-
-	frecon[pot_i] = frecon[pot_i].then([&U](hpx::future<void> &&fut) {
-		fut.get();
-		for (int i = 0; i < H_N3; i++) {
-			U[pot_i][i] /= U[rho_i][i];
-		}
-	});
+//	});
 
 	for (int f = 0; f < nf; f++) {
-		if (f == rho_i) {
-			continue;
+//		if (f == rho_i) {
+//			continue;
+//		}
+//		frecon[f] = frecon[f].then([f, bw, &U, &Q, &D1, &D2](hpx::future<void> &&fut) {
+//			fut.get();
+		for (int i = bw; i < H_N3 - bw; i++) {
+			for (int d = 0; d < NDIR; d++) {
+				const auto &Uf = U[f];
+				auto &Qfi = Q[f][i];
+				Qfi[d] = Uf[i];
+			}
 		}
-		frecon[f] = frecon[f].then([f, bw, &U, &Q, &D1, &D2](hpx::future<void> &&fut) {
-			fut.get();
+		if (ORDER > 1) {
 			for (int i = bw; i < H_N3 - bw; i++) {
-				for (int d = 0; d < NDIR; d++) {
-					Q[f][i][d] = U[f][i];
-				}
-			}
-			if (ORDER > 1) {
-				for (int i = bw; i < H_N3 - bw; i++) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						const auto di = dir[d];
-						D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 1.0);
-					}
-				}
-				for (int i = bw; i < H_N3 - bw; i++) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						Q[f][i][d] += 0.5 * D1[f][i][d];
-						Q[f][i][flip(d)] -= 0.5 * D1[f][i][d];
-					}
-				}
-			}
-			if (ORDER > 2) {
-				for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						const auto di = dir[d];
-						const auto &d1 = D1[f][i][d];
-						auto &d2 = D2[f][i][d];
-						d2 = minmod_theta(D1[f][i + di][d] - D1[f][i][d], D1[f][i][d] - D1[f][i - di][d], 2.0);
-						d2 = std::copysign(std::min(std::abs(d2), std::abs(2.0 * d1)), d2);
-					}
-
-				}
-				for (int i = bw; i < H_N3 - bw; i++) {
-					double d2avg = 0.0;
-					double c0 = 1.0 / 12.0;
-					for (int d = 0; d < NDIR / 2; d++) {
-						Q[f][i][d] += c0 * (D2[f][i][d]);
-						Q[f][i][flip(d)] += c0 * (D2[f][i][d]);
-					}
-				}
-			}
-		});
-
-	}
-
-	frecon[rho_i].then([&](hpx::future<void> &&fut) {
-		fut.get();
-		for (int s = 0; s < ns; s++) {
-			frecon[spc_i + s].wait();
-		}
-		for (int i = 1; i < H_N3 - 1; i++) {
-			for (int d = 0; d < NDIR / 2; d++) {
-				Q[rho_i][i][d] = 0.0;
-				for (int s = 0; s < ns; s++) {
-					Q[rho_i][i][d] += Q[spc_i + i][i][d];
-				}
-			}
-		}
-	});
-
-	frecon[pot_i].then([&](hpx::future<void> &&fut) {
-		fut.get();
-		frecon[rho_i].wait();
-		for (int i = 1; i < H_N3 - 1; i++) {
-			for (int d = 0; d < NDIR / 2; d++) {
-				auto &q1 = Q[pot_i][i][d];
-				auto &q2 = Q[pot_i][i + dir[d]][flip(d)];
-				auto avg = 0.5 * (q1 + q2);
-				q1 = q2 = avg;
-				q1 *= Q[rho_i][i][d];
-				q2 *= Q[rho_i][i + dir[d]][flip(d)];
-			}
-		}
-	});
-
-	for (auto &fut : frecon) {
-		fut.get();
-	}
-
-	for (int dim = 0; dim < NDIM; dim++) {
-		futs2.push_back(hpx::async(hpx::launch::async, [&](int dim) {
-			std::vector<double> UR(nf), UL(nf), this_flux(nf);
-			double amax = 0.0;
-			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
-				double a = -1.0;
-				for (int fi = 0; fi < nfACEDIR; fi++) {
-					const auto d = faces[dim][fi];
+				for (int d = 0; d < NDIR / 2; d++) {
 					const auto di = dir[d];
-					for (int f = 0; f < nf; f++) {
-						UR[f] = Q[f][i][d];
-						UL[f] = Q[f][i + di][flip(d)];
-					}
-					std::array<double, NDIM> vg;
-					if constexpr (NDIM > 1) {
-						vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
-						vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
-						if constexpr (NDIM == 3) {
-							vg[2] = 0.0;
-						}
-					}
-					flux(UL, UR, this_flux, dim, a, vg);
-					for (int f = 0; f < nf; f++) {
-						fluxes[dim][f][i][fi] = this_flux[f];
-					}
-				}
-				amax = std::max(a, amax);
-			}
-			for (int f = 0; f < nf; f++) {
-				for (int i = bw; i < H_N3 - bw; i++) {
-					F[dim][f][i] = 0.0;
-					for (int fi = 0; fi < nfACEDIR; fi++) {
-						F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
-					}
+					D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 1.0);
 				}
 			}
-			return amax;
-		},dim));
-	}
-	double amax = 0.0;
-	for (auto &fut : futs2) {
-		amax = std::max(amax, fut.get());
-	}
-
-	for (int f = 0; f < nf; f++) {
-		double sum = 0.0;
-		for (int i = 3 * bw; i < H_N3 - 2 * bw; i++) {
-			for (int d = 0; d < NDIR / 2; d++) {
-				sum += std::abs(Q[f][i][d] - Q[f][i + dir[d]][flip(d)]);
+			for (int i = bw; i < H_N3 - bw; i++) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					Q[f][i][d] += 0.5 * D1[f][i][d];
+					Q[f][i][flip(d)] -= 0.5 * D1[f][i][d];
+				}
 			}
 		}
-		printf("%e ", sum);
+		if (ORDER > 2) {
+			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					const auto di = dir[d];
+					const auto &d1 = D1[f][i][d];
+					auto &d2 = D2[f][i][d];
+					d2 = minmod_theta(D1[f][i + di][d] - D1[f][i][d], D1[f][i][d] - D1[f][i - di][d], 2.0);
+					d2 = std::copysign(std::min(std::abs(d2), std::abs(2.0 * d1)), d2);
+				}
+
+			}
+			for (int i = bw; i < H_N3 - bw; i++) {
+				double d2avg = 0.0;
+				double c0 = 1.0 / 12.0;
+				for (int d = 0; d < NDIR / 2; d++) {
+					Q[f][i][d] += c0 * (D2[f][i][d]);
+					Q[f][i][flip(d)] += c0 * (D2[f][i][d]);
+				}
+			}
+		}
+//		});
+
 	}
-	printf("\n");
+
+//	frecon[rho_i] = frecon[rho_i].then([&](hpx::future<void> &&fut) {
+//		fut.get();
+//		for (int s = 0; s < ns; s++) {
+//			frecon[spc_i + s].wait();
+//		}
+//		for (int i = 1; i < H_N3 - 1; i++) {
+//			for (int d = 0; d < NDIR / 2; d++) {
+//				Q[rho_i][i][d] = 0.0;
+//				for (int s = 0; s < ns; s++) {
+//					Q[rho_i][i][d] += Q[spc_i + s][i][d];
+//				}
+//			}
+//		}
+////	});
+//
+//	frecon[rho_i] = frecon[rho_i].then([&](hpx::future<void> &&fut) {
+//		fut.get();
+//		frecon[rho_i].wait();
+	for (int i = bw; i < H_N3 - bw; i++) {
+		for (int d = 0; d < NDIR / 2; d++) {
+			auto &q1 = Q[pot_i][i][d];
+			auto &q2 = Q[pot_i][i + dir[d]][flip(d)];
+			auto avg = 0.5 * (q1 + q2);
+			q1 = q2 = avg;
+			q1 *= Q[rho_i][i][d];
+			q2 *= Q[rho_i][i + dir[d]][flip(d)];
+		}
+	}
+//	});
+//
+//	for (auto &fut : frecon) {
+//		fut.get();
+//	}
+
+	double amax = 0.0;
+	for (int dim = 0; dim < NDIM; dim++) {
+//		futs2.push_back(hpx::async(hpx::launch::async, [&](int dim) {
+		std::vector<double> UR(nf), UL(nf), this_flux(nf);
+//			double amax = 0.0;
+		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
+			double a = -1.0;
+			for (int fi = 0; fi < nfACEDIR; fi++) {
+				const auto d = faces[dim][fi];
+				const auto di = dir[d];
+				for (int f = 0; f < nf; f++) {
+					UR[f] = Q[f][i][d];
+					UL[f] = Q[f][i + di][flip(d)];
+				}
+				std::array<double, NDIM> vg;
+				if constexpr (NDIM > 1) {
+					vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
+					vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
+					if constexpr (NDIM == 3) {
+						vg[2] = 0.0;
+					}
+				}
+				flux(UL, UR, this_flux, dim, a, vg);
+				for (int f = 0; f < nf; f++) {
+					fluxes[dim][f][i][fi] = this_flux[f];
+				}
+			}
+			amax = std::max(a, amax);
+		}
+		for (int f = 0; f < nf; f++) {
+			for (int i = bw; i < H_N3 - bw; i++) {
+				F[dim][f][i] = 0.0;
+				for (int fi = 0; fi < nfACEDIR; fi++) {
+					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
+				}
+			}
+		}
+//			return amax;
+//		},dim));
+	}
+//	for (auto &fut : futs2) {
+//		amax = std::max(amax, fut.get());
+//	}
+
+//	for (int f = 0; f < nf; f++) {
+//		double sum = 0.0;
+//		for (int i = 3 * bw; i < H_N3 - 2 * bw; i++) {
+//			for (int d = 0; d < NDIR / 2; d++) {
+//				sum += std::abs(Q[f][i][d] - Q[f][i + dir[d]][flip(d)]);
+//			}
+//		}
+//		printf("%e ", sum);
+//	}
+//	printf("\n");
 	//	abort();
 	return amax;
 }
@@ -450,6 +461,7 @@ void hydro_computer<NDIM, INX, ORDER>::output(const std::vector<std::vector<doub
 		void *coords_[] = { coords, coords + 1, coords + 2 };
 		int dims1[] = { H_NX + 1, H_NX + 1, H_NX + 1 };
 		int dims2[] = { H_NX, H_NX, H_NX };
+		const auto &field_names = NDIM == 2 ? field_names2 : field_names3;
 		DBPutQuadmesh(db, "quadmesh", coord_names, coords_, dims1, NDIM, DB_DOUBLE, DB_COLLINEAR, NULL);
 		for (int f = 0; f < nf; f++) {
 			DBPutQuadvar1(db, field_names[f], "quadmesh", U[f].data(), dims2, NDIM, NULL, 0, DB_DOUBLE, DB_ZONECENT,
