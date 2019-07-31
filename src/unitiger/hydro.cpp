@@ -6,8 +6,13 @@
 // Description : Hello World in C++, Ansi-style
 //============================================================================
 
+#ifdef NOHPX
 #include "../../octotiger/octotiger/unitiger/unitiger.hpp"
 #include "../../octotiger/octotiger/unitiger/hydro.hpp"
+#else
+#include "../../octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/unitiger/hydro.hpp"
+#endif
 
 #include <functional>
 
@@ -50,40 +55,165 @@ constexpr double filter3d[27][27] = { { 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 
 				0., 0., 0., 0., 0., 0.125, -0.25, 0.125, -0.25, 0.5, -0.25, 0.125, -0.25, 0.125 }, { 0.125, -0.25, 0.125, -0.25, 0.5, -0.25, 0.125, -0.25,
 				0.125, -0.25, 0.5, -0.25, 0.5, -1., 0.5, -0.25, 0.5, -0.25, 0.125, -0.25, 0.125, -0.25, 0.5, -0.25, 0.125, -0.25, 0.125 } };
 
+constexpr int inv_filter1d[3][3] = { { 1, -1, 1 }, { 1, 0, 0 }, { 1, 1, 1 } };
 
-inline static double limit_this(double a, double b) {
-	return std::copysign(std::min(std::abs(a), std::abs(b)), a);
+constexpr int inv_filter2d[9][9] = { { 1, -1, 1, -1, 1, -1, 1, -1, 1 }, { 1, -1, 1, 0, 0, 0, 0, 0, 0 }, { 1, -1, 1, 1, -1, 1, 1, -1, 1 }, { 1, 0, 0, -1, 0, 0,
+		1, 0, 0 }, { 1, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, 0, 0, 1, 0, 0, 1, 0, 0 }, { 1, 1, 1, -1, -1, -1, 1, 1, 1 }, { 1, 1, 1, 0, 0, 0, 0, 0, 0 }, { 1, 1, 1, 1,
+		1, 1, 1, 1, 1 } };
+
+constexpr int inv_filter3d[27][27] = { { 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1 }, { 1, -1, 1, -1, 1, -1,
+		1, -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, -1, 1, -1, 1, -1, 1, -1, 1, 1, -1, 1, -1, 1, -1, 1, -1, 1, 1, -1, 1, -1, 1, -1,
+		1, -1, 1 }, { 1, -1, 1, 0, 0, 0, 0, 0, 0, -1, 1, -1, 0, 0, 0, 0, 0, 0, 1, -1, 1, 0, 0, 0, 0, 0, 0 }, { 1, -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, -1, 1, 0, 0, 0, 0, 0, 0, 1, -1, 1, 0, 0, 0, 0, 0, 0, 1, -1, 1, 0, 0, 0, 0, 0, 0 }, { 1, -1, 1, 1, -1, 1, 1, -1,
+		1, -1, 1, -1, -1, 1, -1, -1, 1, -1, 1, -1, 1, 1, -1, 1, 1, -1, 1 },
+		{ 1, -1, 1, 1, -1, 1, 1, -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, -1, 1, 1, -1, 1, 1, -1, 1, 1, -1, 1, 1, -1, 1, 1, -1, 1, 1,
+				-1, 1, 1, -1, 1, 1, -1, 1 }, { 1, 0, 0, -1, 0, 0, 1, 0, 0, -1, 0, 0, 1, 0, 0, -1, 0, 0, 1, 0, 0, -1, 0, 0, 1, 0, 0 }, { 1, 0, 0, -1, 0, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+		{ 1, 0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 1, 0, 0 }, { 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0 }, { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 }, { 1,
+				0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+				1, 0, 0, 1, 0, 0 }, { 1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1, -1, 1, 1, 1 }, { 1, 1, 1, -1, -1, -1, 1,
+				1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, 1, -1, -1, -1,
+				1, 1, 1 }, { 1, 1, 1, 0, 0, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 }, { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, { 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 }, { 1, 1, 1, 1, 1,
+				1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0 }, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } };
+
+double attenuate(double &a, double b) {
+	a = std::copysign(std::min(std::abs(a), std::abs(b)), a);
 }
 
-double limiter(double ql, double qr, double ll, double lr, double ul, double u0, double ur) {
-	const auto M = std::max(qr, ql);
-	const auto m = std::min(qr, ql);
-	const auto M_p = std::max(lr, qr);
-	const auto M_m = std::max(ll, ql);
-	const auto m_p = std::min(lr, qr);
-	const auto m_m = std::min(ll, ql);
-	double theta = 1.0;
-	double tmp;
-	if (ul < u0 && u0 < ur) {
-		tmp = M - lr;
-		if (tmp != 0.0) {
-			theta = std::min(theta, (M_p - lr) / tmp);
+void filter_cell1d(std::array<double, 3> &C, double C0) {
+	constexpr int center = 1;
+	constexpr int ndir = 3;
+	std::array<double, ndir> Q;
+	double total;
+	total = 0.0;
+	for (int i = 0; i < ndir; i++) {
+		if (i == center) {
+			continue;
 		}
-		tmp = m - ll;
-		if (tmp != 0.0) {
-			theta = std::min(theta, (m_m - ll) / tmp);
-		}
-	} else if (ul > u0 && u0 > ur) {
-		tmp = m - lr;
-		if (tmp != 0.0) {
-			theta = std::min(theta, (m_p - lr) / tmp);
-		}
-		tmp = M - ll;
-		if (tmp != 0.0) {
-			theta = std::min(theta, (M_m - ll) / tmp);
+		total += vol_weight1d[i];
+	}
+	C[center] = (C0 - total) / vol_weight1d[center];
+	for (int i = 0; i < ndir; i++) {
+		Q[i] = 0.0;
+		for (int j = 0; j < ndir; j++) {
+			Q[i] += filter1d[i][j] * C[j];
 		}
 	}
-	assert(theta >= 0.0 && theta <= 1.0);
-	return theta;
+	for (int i = 2; i < 3; i++) {
+		attenuate(Q[i], Q[i - 1]);
+	}
+	for (int i = 0; i < ndir; i++) {
+		C[i] = 0.0;
+		for (int j = 0; j < ndir; j++) {
+			C[i] += inv_filter1d[i][j] * Q[j];
+		}
+	}
+	total = 0.0;
+	for (int i = 0; i < ndir; i++) {
+		total += vol_weight1d[i];
+	}
+	const auto dif = C0 - total;
+	for (int i = 0; i < ndir; i++) {
+		C[i] += dif;
+	}
+}
+
+void filter_cell2d(std::array<double, 9> &C, double C0) {
+	constexpr int center = 4;
+	constexpr int ndir = 9;
+	std::array<double, ndir> Q;
+	double total;
+	total = 0.0;
+	for (int i = 0; i < ndir; i++) {
+		if (i == center) {
+			continue;
+		}
+		total += vol_weight2d[i];
+	}
+	C[center] = (C0 - total) / vol_weight2d[center];
+	for (int i = 0; i < ndir; i++) {
+		Q[i] = 0.0;
+		for (int j = 0; j < ndir; j++) {
+			Q[i] += filter2d[i][j] * C[j];
+		}
+	}
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (i == 2) {
+				attenuate(Q[3 * i + j], Q[3 * (i - 1) + j]);
+			}
+			if (j == 2) {
+				attenuate(Q[3 * i + j], Q[3 * i + j - 1]);
+			}
+		}
+	}
+	for (int i = 0; i < ndir; i++) {
+		C[i] = 0.0;
+		for (int j = 0; j < ndir; j++) {
+			C[i] += inv_filter2d[i][j] * Q[j];
+		}
+	}
+	total = 0.0;
+	for (int i = 0; i < ndir; i++) {
+		total += vol_weight2d[i];
+	}
+	const auto dif = C0 - total;
+	for (int i = 0; i < ndir; i++) {
+		C[i] += dif;
+	}
+}
+
+void filter_cell3d(std::array<double, 27> &C, double C0) {
+	constexpr int center = 13;
+	constexpr int ndir = 27;
+	std::array<double, ndir> Q;
+	double total;
+	total = 0.0;
+	for (int i = 0; i < ndir; i++) {
+		if (i == center) {
+			continue;
+		}
+		total += vol_weight3d[i];
+	}
+	C[center] = (C0 - total) / vol_weight3d[center];
+	for (int i = 0; i < ndir; i++) {
+		Q[i] = 0.0;
+		for (int j = 0; j < ndir; j++) {
+			Q[i] += filter3d[i][j] * C[j];
+		}
+	}
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			for (int k = 0; k < 3; k++) {
+				if (i == 2) {
+					attenuate(Q[9 * k + 3 * i + j], Q[9 * k + 3 * (i - 1) + j]);
+				}
+				if (j == 2) {
+					attenuate(Q[9 * k + 3 * i + j], Q[9 * k + 3 * i + j - 1]);
+				}
+				if (k == 2) {
+					attenuate(Q[9 * (k - 1) + 3 * i + j], Q[9 * k + 3 * i + j]);
+				}
+			}
+		}
+	}
+	for (int i = 0; i < ndir; i++) {
+		C[i] = 0.0;
+		for (int j = 0; j < ndir; j++) {
+			C[i] += inv_filter3d[i][j] * Q[j];
+		}
+	}
+	total = 0.0;
+	for (int i = 0; i < ndir; i++) {
+		total += vol_weight3d[i];
+	}
+	const auto dif = C0 - total;
+	for (int i = 0; i < ndir; i++) {
+		C[i] += dif;
+	}
 }
 

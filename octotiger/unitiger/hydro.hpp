@@ -9,6 +9,33 @@
 #define OCTOTIGER_UNITIGER_HYDRO_HPP_
 #include <vector>
 
+void filter_cell1d(std::array<double, 3> &C, double C0);
+void filter_cell2d(std::array<double, 9> &C, double C0);
+void filter_cell3d(std::array<double, 27> &C, double C0);
+
+template<int NDIM>
+struct filter_cell_helper;
+
+template<>
+struct filter_cell_helper<1> {
+	static constexpr auto func = filter_cell1d;
+};
+
+template<>
+struct filter_cell_helper<2> {
+	static constexpr auto func = filter_cell1d;
+};
+
+template<>
+struct filter_cell_helper<3> {
+	static constexpr auto func = filter_cell1d;
+};
+
+template<int NDIM, class VECTOR>
+void filter_cell( VECTOR& C) {
+	return (*filter_cell_helper<NDIM>::func)(C);
+}
+
 template<int NDIM, int INX, int ORDER>
 struct hydro_computer {
 	double hydro_flux(std::vector<std::vector<double>> U, std::vector<std::vector<std::vector<double>>> &F, std::vector<std::array<double, NDIM>> &X,
@@ -94,8 +121,7 @@ public:
 		D1 = decltype(D1)(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
 		D2 = decltype(D2)(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
 		Q = decltype(Q)(nf, std::vector<std::array<double, NDIR>>(H_N3));
-		fluxes = decltype(fluxes)(NDIM,
-				std::vector<std::vector<std::array<double, nfACEDIR>> >(nf, std::vector<std::array<double, nfACEDIR>>(H_N3)));
+		fluxes = decltype(fluxes)(NDIM, std::vector<std::vector<std::array<double, nfACEDIR>> >(nf, std::vector<std::array<double, nfACEDIR>>(H_N3)));
 
 	}
 
