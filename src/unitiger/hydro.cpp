@@ -81,8 +81,12 @@ constexpr int inv_filter3d[27][27] = { { 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -
 				0, 0, 0, 0, 0 }, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } };
 
 double attenuate(double &a, double b) {
-	a = std::copysign(std::min(std::abs(a), std::abs(b)), a);
+	a = std::copysign(std::min(std::abs(a), 0.5*std::abs(b)), a);
 }
+
+
+
+
 
 void filter_cell1d(std::array<double, 3> &C, double C0) {
 	constexpr int center = 1;
@@ -132,7 +136,7 @@ void filter_cell2d(std::array<double, 9> &C, double C0) {
 		if (i == center) {
 			continue;
 		}
-		total += vol_weight2d[i];
+		total += vol_weight2d[i] * C[i];
 	}
 	C[center] = (C0 - total) / vol_weight2d[center];
 	for (int i = 0; i < ndir; i++) {
@@ -143,12 +147,12 @@ void filter_cell2d(std::array<double, 9> &C, double C0) {
 	}
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
-			if (i == 2) {
-				attenuate(Q[3 * i + j], Q[3 * (i - 1) + j]);
-			}
-			if (j == 2) {
-				attenuate(Q[3 * i + j], Q[3 * i + j - 1]);
-			}
+				if (i == 2) {
+					attenuate(Q[3 * i + j], Q[3 * (i - 1) + j]);
+				}
+				if (j == 2) {
+					attenuate(Q[3 * i + j], Q[3 * i + j - 1]);
+				}
 		}
 	}
 	for (int i = 0; i < ndir; i++) {
@@ -159,7 +163,7 @@ void filter_cell2d(std::array<double, 9> &C, double C0) {
 	}
 	total = 0.0;
 	for (int i = 0; i < ndir; i++) {
-		total += vol_weight2d[i];
+		total += vol_weight2d[i] * C[i];
 	}
 	const auto dif = C0 - total;
 	for (int i = 0; i < ndir; i++) {
@@ -214,6 +218,17 @@ void filter_cell3d(std::array<double, 27> &C, double C0) {
 	const auto dif = C0 - total;
 	for (int i = 0; i < ndir; i++) {
 		C[i] += dif;
+	}
+}
+
+void output_cell2d(FILE *fp, const std::array<double, 9> &C, int joff, int ioff) {
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (i < 2)
+				fprintf(fp, "%i %i %e %i %i %e \n", i + ioff, j + joff, C[3 * i + j], 1, 0, C[3 * (i + 1) + j] - C[3 * i + j]);
+			if (j < 2)
+				fprintf(fp, "%i %i %e %i %i %e \n", i + ioff, j + joff, C[3 * i + j], 0, 1, C[3 * i + j + 1] - C[3 * i + j]);
+		}
 	}
 }
 

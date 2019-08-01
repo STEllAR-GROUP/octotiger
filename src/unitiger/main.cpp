@@ -1,20 +1,20 @@
 #include <fenv.h>
 
-#include "../../octotiger/octotiger/unitiger/unitiger.hpp"
-#include "../../octotiger/octotiger/unitiger/hydro.hpp"
+#include "../../octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/unitiger/hydro.hpp"
 
 #ifndef NOHPX
 #include <hpx/hpx_init.hpp>
 #endif
 
 #define NDIM 2
-#define INX 100
-#define ORDER 2
+#define INX 128
+#define ORDER 3
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
 #define H_N3 std::pow(INX+2*H_BW,NDIM)
-static constexpr double CFL = (0.4 / ORDER / NDIM);
+static constexpr double CFL = (0.4 / NDIM);
 
 int hpx_main(int, char*[]) {
 
@@ -53,28 +53,28 @@ int hpx_main(int, char*[]) {
 			auto o = dim == 0 ? 0.25 : 0.0;
 			x2 += (X[i][dim] - o) * (X[i][dim] - o);
 		}
-//		if (xsum < 0.5 * NDIM) {
-//			U[rho_i][i] = 1.0;
-//			U[egas_i][i] = 2.5;
+//		if (xsum < 0) {
+//			U[comp::rho_i][i] = 1.0;
+//			U[comp::egas_i][i] = 2.5;
 //		} else {
-//			U[rho_i][i] = 0.125;
-//			U[egas_i][i] = 0.25;
+//			U[comp::rho_i][i] = 0.125;
+//			U[comp::egas_i][i] = 0.25;
 //		}
 		U[comp::rho_i][i] = 1.0;
 		U[comp::egas_i][i] = 1.0 + 1.0e+6 * std::exp(-x2 * H_NX * H_NX / 4.0);
-		U[comp::tau_i][i] = std::pow(U[comp::egas_i][i], 1.0 / FGAMMA);
 		if (X[i][0] > 0.5) {
 			U[comp::spc_i][i] = U[comp::rho_i][i];
 		} else {
 			U[comp::spc_i + 1][i] = U[comp::rho_i][i];
 		}
+		U[comp::tau_i][i] = std::pow(U[comp::egas_i][i], 1.0 / FGAMMA);
 	}
 
 	double t = 0.0;
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-	const double omega = 2.0 * M_PI / tmax / 100.0;
+	const double omega = 2.0 * M_PI / tmax;
 
 	while (t < tmax) {
 		U0 = U;

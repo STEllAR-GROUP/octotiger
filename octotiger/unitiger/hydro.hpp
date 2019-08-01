@@ -9,6 +9,8 @@
 #define OCTOTIGER_UNITIGER_HYDRO_HPP_
 #include <vector>
 
+void output_cell2d(FILE *fp, const std::array<double, 9> &C, int ioff, int joff);
+
 void filter_cell1d(std::array<double, 3> &C, double C0);
 void filter_cell2d(std::array<double, 9> &C, double C0);
 void filter_cell3d(std::array<double, 27> &C, double C0);
@@ -23,7 +25,7 @@ struct filter_cell_helper<1> {
 
 template<>
 struct filter_cell_helper<2> {
-	static constexpr auto func = filter_cell1d;
+	static constexpr auto func = filter_cell2d;
 };
 
 template<>
@@ -32,8 +34,8 @@ struct filter_cell_helper<3> {
 };
 
 template<int NDIM, class VECTOR>
-void filter_cell( VECTOR& C) {
-	return (*filter_cell_helper<NDIM>::func)(C);
+void filter_cell(VECTOR &C, double c0) {
+	return (*filter_cell_helper<NDIM>::func)(C, c0);
 }
 
 template<int NDIM, int INX, int ORDER>
@@ -134,6 +136,25 @@ public:
 
 #define flip( d ) (NDIR - 1 - (d))
 
+
+
+inline void limit_slope(double &ql, double q0, double &qr) {
+	const double tmp1 = qr - ql;
+	const double tmp2 = qr + ql;
+
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		qr = ql = q0;
+		return;
+	}
+	const double tmp3 = tmp1 * tmp1 / 6.0;
+	const double tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	if (tmp4 > tmp3) {
+		ql = 3.0 * q0 - 2.0 * qr;
+	} else if (-tmp3 > tmp4) {
+		qr = 3.0 * q0 - 2.0 * ql;
+	}
+}
+
 template<int NDIM, int INX, int ORDER>
 double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<double>> U, std::vector<std::vector<std::vector<double>>> &F,
 		std::vector<std::array<double, NDIM>> &X, double omega) {
@@ -144,27 +165,11 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 	constexpr auto dir = directions[NDIM - 1];
 
 	int bw = bound_width();
-
-//	std::vector<hpx::future<void>> frecon(nf);
-//	std::vector<hpx::future<double>> futs2;
-
-//	for (int f = 0; f < nf; f++) {
-//		frecon[f] = hpx::make_ready_future<void>();
-//	}
-//
-//	frecon[pot_i] = frecon[pot_i].then([&U](hpx::future<void> &&fut) {
-//		fut.get();
 	for (int i = 0; i < H_N3; i++) {
 		U[pot_i][i] /= U[rho_i][i];
 	}
-//	});
 
 	for (int f = 0; f < nf; f++) {
-//		if (f == rho_i) {
-//			continue;
-//		}
-//		frecon[f] = frecon[f].then([f, bw, &U, &Q, &D1, &D2](hpx::future<void> &&fut) {
-//			fut.get();
 		for (int i = bw; i < H_N3 - bw; i++) {
 			for (int d = 0; d < NDIR; d++) {
 				const auto &Uf = U[f];
@@ -176,7 +181,7 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 			for (int i = bw; i < H_N3 - bw; i++) {
 				for (int d = 0; d < NDIR / 2; d++) {
 					const auto di = dir[d];
-					D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 1.0);
+					D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], ORDER - 1);
 				}
 			}
 			for (int i = bw; i < H_N3 - bw; i++) {
@@ -187,47 +192,30 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 			}
 		}
 		if (ORDER > 2) {
-			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
+			for (int i = bw; i < H_N3 - bw; i++) {
 				for (int d = 0; d < NDIR / 2; d++) {
 					const auto di = dir[d];
-					const auto &d1 = D1[f][i][d];
-					auto &d2 = D2[f][i][d];
-					d2 = minmod_theta(D1[f][i + di][d] - D1[f][i][d], D1[f][i][d] - D1[f][i - di][d], 2.0);
-					d2 = std::copysign(std::min(std::abs(d2), std::abs(2.0 * d1)), d2);
-				}
+					Q[f][i][d] = 0.5 * (U[f][i] + U[f][i + di]);
+					Q[f][i][d] += (1.0 / 6.0) * (D1[f][i][d] - D1[f][i + di][d]);
+					Q[f][i + di][flip(d)] = Q[f][i][d];
 
+				}
 			}
 			for (int i = bw; i < H_N3 - bw; i++) {
-				double d2avg = 0.0;
-				double c0 = 1.0 / 12.0;
 				for (int d = 0; d < NDIR / 2; d++) {
-					Q[f][i][d] += c0 * (D2[f][i][d]);
-					Q[f][i][flip(d)] += c0 * (D2[f][i][d]);
+					const auto di = dir[d];
+				//	limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
+				}
+			}
+
+			for (int i = 2 * bw; i < H_N3 - bw; i++) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					filter_cell<NDIM>(Q[f][i], U[f][i]);
 				}
 			}
 		}
-//		});
 
 	}
-
-//	frecon[rho_i] = frecon[rho_i].then([&](hpx::future<void> &&fut) {
-//		fut.get();
-//		for (int s = 0; s < ns; s++) {
-//			frecon[spc_i + s].wait();
-//		}
-//		for (int i = 1; i < H_N3 - 1; i++) {
-//			for (int d = 0; d < NDIR / 2; d++) {
-//				Q[rho_i][i][d] = 0.0;
-//				for (int s = 0; s < ns; s++) {
-//					Q[rho_i][i][d] += Q[spc_i + s][i][d];
-//				}
-//			}
-//		}
-////	});
-//
-//	frecon[rho_i] = frecon[rho_i].then([&](hpx::future<void> &&fut) {
-//		fut.get();
-//		frecon[rho_i].wait();
 	for (int i = bw; i < H_N3 - bw; i++) {
 		for (int d = 0; d < NDIR / 2; d++) {
 			auto &q1 = Q[pot_i][i][d];
@@ -238,17 +226,21 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 			q2 *= Q[rho_i][i + dir[d]][flip(d)];
 		}
 	}
-//	});
-//
-//	for (auto &fut : frecon) {
-//		fut.get();
-//	}
+
+	if constexpr (NDIM == 2) {
+		FILE *fp = fopen("rho.txt", "wt");
+		for (int i = H_BW; i < H_NX - H_BW; i++) {
+			for (int j = H_BW; j < H_NX - H_BW; j++) {
+				output_cell2d(fp, Q[rho_i][H_NX * j + i], 2 * i, 2 * j);
+			}
+		}
+		fclose(fp);
+	//	abort();
+	}
 
 	double amax = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
-//		futs2.push_back(hpx::async(hpx::launch::async, [&](int dim) {
 		std::vector<double> UR(nf), UL(nf), this_flux(nf);
-//			double amax = 0.0;
 		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
 			double a = -1.0;
 			for (int fi = 0; fi < nfACEDIR; fi++) {
@@ -281,24 +273,7 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 				}
 			}
 		}
-//			return amax;
-//		},dim));
 	}
-//	for (auto &fut : futs2) {
-//		amax = std::max(amax, fut.get());
-//	}
-
-//	for (int f = 0; f < nf; f++) {
-//		double sum = 0.0;
-//		for (int i = 3 * bw; i < H_N3 - 2 * bw; i++) {
-//			for (int d = 0; d < NDIR / 2; d++) {
-//				sum += std::abs(Q[f][i][d] - Q[f][i + dir[d]][flip(d)]);
-//			}
-//		}
-//		printf("%e ", sum);
-//	}
-//	printf("\n");
-	//	abort();
 	return amax;
 }
 
@@ -313,7 +288,7 @@ void hydro_computer<NDIM, INX, ORDER>::to_prim(VECTOR u, double &p, double &v, i
 	}
 	auto ein = u[egas_i] - ek;
 	if (ein < 0.001 * u[egas_i]) {
-		ein = std::pow(u[tau_i], FGAMMA);
+		ein = std::pow(std::max(u[tau_i],0.0), FGAMMA);
 	}
 	v = u[sx_i + dim] * rhoinv;
 	p = (FGAMMA - 1.0) * ein;
