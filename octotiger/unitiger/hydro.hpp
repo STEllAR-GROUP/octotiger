@@ -88,7 +88,7 @@ private:
 	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 6, 0 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 },
 			{ 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
-	static constexpr double quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36.,
+	static constexpr double quad_weights[3][9] = { { 1.0 }, { 3.0 / 3.0, 0.0 / 6.0, 0.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36.,
 			1. / 36., 4. / 36., 1. / 36. } };
 
 	static constexpr int directions[3][27] = { {
@@ -131,12 +131,13 @@ public:
 
 #ifndef NOHPX
 #include <hpx/include/async.hpp>
+#include <hpx/include/future.hpp>
+#include <hpx/lcos/when_all.hpp>
+
+using namespace hpx;
 #endif
-//#include <hpx/include/future.hpp>
 
 #define flip( d ) (NDIR - 1 - (d))
-
-
 
 inline void limit_slope(double &ql, double q0, double &qr) {
 	const double tmp1 = qr - ql;
@@ -169,53 +170,55 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 		U[pot_i][i] /= U[rho_i][i];
 	}
 
+	std::vector<future<void>> frecon;
+	frecon.reserve(nf);
 	for (int f = 0; f < nf; f++) {
-		for (int i = bw; i < H_N3 - bw; i++) {
-			for (int d = 0; d < NDIR; d++) {
-				const auto &Uf = U[f];
-				auto &Qfi = Q[f][i];
-				Qfi[d] = Uf[i];
-			}
-		}
-		if (ORDER > 1) {
-			for (int i = bw; i < H_N3 - bw; i++) {
-				for (int d = 0; d < NDIR / 2; d++) {
-					const auto di = dir[d];
-					D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], ORDER - 1);
+		frecon.push_back(hpx::async(hpx::launch::async, [&](int f) {
+			if constexpr (ORDER == 1) {
+				for (int i = bw; i < H_N3 - bw; i++) {
+					for (int d = 0; d < NDIR; d++) {
+						Q[f][i][d] = U[f][i];
+					}
 				}
-			}
-			for (int i = bw; i < H_N3 - bw; i++) {
-				for (int d = 0; d < NDIR / 2; d++) {
-					Q[f][i][d] += 0.5 * D1[f][i][d];
-					Q[f][i][flip(d)] -= 0.5 * D1[f][i][d];
+			} else if constexpr (ORDER == 21) {
+				for (int i = bw; i < H_N3 - bw; i++) {
+					for (int d = 0; d < NDIR / 2; d++) {
+						const auto di = dir[d];
+						const auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
+						Q[f][i][d] = U[f][i] + 0.5 * slp;
+						Q[f][i][flip(d)] = U[f][i] - 0.5 * slp;
+					}
 				}
-			}
-		}
-		if (ORDER > 2) {
-			for (int i = bw; i < H_N3 - bw; i++) {
-				for (int d = 0; d < NDIR / 2; d++) {
-					const auto di = dir[d];
-					Q[f][i][d] = 0.5 * (U[f][i] + U[f][i + di]);
-					Q[f][i][d] += (1.0 / 6.0) * (D1[f][i][d] - D1[f][i + di][d]);
-					Q[f][i + di][flip(d)] = Q[f][i][d];
+			} else if constexpr (ORDER == 3) {
+				for (int i = bw; i < H_N3 - bw; i++) {
+					for (int d = 0; d < NDIR / 2; d++) {
+						const auto di = dir[d];
+						D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 2.0);
+					}
+				}
+				for (int i = bw; i < H_N3 - bw; i++) {
+					for (int d = 0; d < NDIR / 2; d++) {
+						const auto di = dir[d];
+						Q[f][i][d] = 0.5 * (U[f][i] + U[f][i + di]);
+						Q[f][i][d] += (1.0 / 6.0) * (D1[f][i][d] - D1[f][i + di][d]);
+						Q[f][i + di][flip(d)] = Q[f][i][d];
 
+					}
 				}
-			}
-			for (int i = bw; i < H_N3 - bw; i++) {
-				for (int d = 0; d < NDIR / 2; d++) {
-					const auto di = dir[d];
-					limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
-				}
-			}
-
-			for (int i = 2 * bw; i < H_N3 - bw; i++) {
-				for (int d = 0; d < NDIR / 2; d++) {
+				for (int i = bw; i < H_N3 - bw; i++) {
+					for (int d = 0; d < NDIR / 2; d++) {
+						const auto di = dir[d];
+						limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
+					}
 					filter_cell<NDIM>(Q[f][i], U[f][i]);
 				}
 			}
-		}
+		}, f));
 
 	}
+
+	hpx::when_all(frecon.begin(), frecon.end()).get();
+
 	for (int i = bw; i < H_N3 - bw; i++) {
 		for (int d = 0; d < NDIR / 2; d++) {
 			auto &q1 = Q[pot_i][i][d];
@@ -227,54 +230,63 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 		}
 	}
 
-	if constexpr (NDIM == 2) {
-		FILE *fp = fopen("rho.txt", "wt");
-		for (int i = H_BW; i < H_NX - H_BW; i++) {
-			for (int j = H_BW; j < H_NX - H_BW; j++) {
-				output_cell2d(fp, Q[rho_i][H_NX * j + i], 2 * i, 2 * j);
-			}
-		}
-		fclose(fp);
-	//	abort();
-	}
+//	if constexpr (NDIM == 2) {
+//		FILE *fp = fopen("rho.txt", "wt");
+//		for (int i = H_BW; i < H_NX - H_BW; i++) {
+//			for (int j = H_BW; j < H_NX - H_BW; j++) {
+//				output_cell2d(fp, Q[rho_i][H_NX * j + i], 2 * i, 2 * j);
+//			}
+//		}
+//		fclose(fp);
+//		//	abort();
+//	}
 
-	double amax = 0.0;
+	std::vector<future<void>> fflux;
+	fflux.reserve(NDIM);
+
+	std::array<double, 3> amax = { 0.0, 0.0, 0.0 };
 	for (int dim = 0; dim < NDIM; dim++) {
-		std::vector<double> UR(nf), UL(nf), this_flux(nf);
-		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
-			double a = -1.0;
-			for (int fi = 0; fi < nfACEDIR; fi++) {
-				const auto d = faces[dim][fi];
-				const auto di = dir[d];
-				for (int f = 0; f < nf; f++) {
-					UR[f] = Q[f][i][d];
-					UL[f] = Q[f][i + di][flip(d)];
-				}
-				std::array<double, NDIM> vg;
-				if constexpr (NDIM > 1) {
-					vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
-					vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
-					if constexpr (NDIM == 3) {
-						vg[2] = 0.0;
+		fflux.push_back(hpx::async(hpx::launch::async, [&](int dim) {
+			std::vector<double> UR(nf), UL(nf), this_flux(nf);
+			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
+				double a = -1.0;
+				for (int fi = 0; fi < nfACEDIR; fi++) {
+					const auto d = faces[dim][fi];
+					const auto di = dir[d];
+					for (int f = 0; f < nf; f++) {
+						UR[f] = Q[f][i][d];
+						UL[f] = Q[f][i + di][flip(d)];
+					}
+					std::array<double, NDIM> vg;
+					if constexpr (NDIM > 1) {
+						vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
+						vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
+						if constexpr (NDIM == 3) {
+							vg[2] = 0.0;
+						}
+					}
+					flux(UL, UR, this_flux, dim, a, vg);
+					for (int f = 0; f < nf; f++) {
+						fluxes[dim][f][i][fi] = this_flux[f];
 					}
 				}
-				flux(UL, UR, this_flux, dim, a, vg);
-				for (int f = 0; f < nf; f++) {
-					fluxes[dim][f][i][fi] = this_flux[f];
+				amax[dim] = std::max(a, amax[dim]);
+			}
+			for (int f = 0; f < nf; f++) {
+				for (int i = bw; i < H_N3 - bw; i++) {
+					F[dim][f][i] = 0.0;
+					for (int fi = 0; fi < nfACEDIR; fi++) {
+						F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
+					}
 				}
 			}
-			amax = std::max(a, amax);
-		}
-		for (int f = 0; f < nf; f++) {
-			for (int i = bw; i < H_N3 - bw; i++) {
-				F[dim][f][i] = 0.0;
-				for (int fi = 0; fi < nfACEDIR; fi++) {
-					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
-				}
-			}
-		}
+		}, dim));
 	}
-	return amax;
+	hpx::when_all(fflux.begin(), fflux.end()).get();
+	for (int d = 1; d < NDIM; d++) {
+		amax[0] = std::max(amax[0], amax[d]);
+	}
+	return amax[0];
 }
 
 template<int NDIM, int INX, int ORDER>
@@ -288,7 +300,7 @@ void hydro_computer<NDIM, INX, ORDER>::to_prim(VECTOR u, double &p, double &v, i
 	}
 	auto ein = u[egas_i] - ek;
 	if (ein < 0.001 * u[egas_i]) {
-		ein = std::pow(std::max(u[tau_i],0.0), FGAMMA);
+		ein = std::pow(std::max(u[tau_i], 0.0), FGAMMA);
 	}
 	v = u[sx_i + dim] * rhoinv;
 	p = (FGAMMA - 1.0) * ein;

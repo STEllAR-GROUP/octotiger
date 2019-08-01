@@ -8,7 +8,7 @@
 #endif
 
 #define NDIM 2
-#define INX 128
+#define INX 250
 #define ORDER 3
 
 #define H_BW 3
