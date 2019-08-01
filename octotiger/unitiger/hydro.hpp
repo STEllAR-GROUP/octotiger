@@ -204,7 +204,7 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 			for (int i = bw; i < H_N3 - bw; i++) {
 				for (int d = 0; d < NDIR / 2; d++) {
 					const auto di = dir[d];
-				//	limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
+					limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
 				}
 			}
 
