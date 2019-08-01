@@ -84,12 +84,30 @@ private:
 	static constexpr int H_N3 = std::pow(H_NX, NDIM);
 	static constexpr int H_DN0 = 0;
 	static constexpr int NDIR = std::pow(3, NDIM);
+	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
+	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
+			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
 	static constexpr int nfACEDIR = std::pow(3, NDIM - 1);
 	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 6, 0 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 },
 			{ 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
 	static constexpr double quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36.,
 			1. / 36., 4. / 36., 1. / 36. } };
+
+	static constexpr int face_locs[3][27][3] = {
+	/**/{ { -1 }, { 0 }, { 1 } },
+	/**/{ { -1, -1 }, { -1, 0 }, { -1, 1 },
+	/**/{ +0, -1 }, { +0, 0 }, { +0, 1 },
+	/**/{ +1, -1 }, { +1, 0 }, { +1, 1 } },
+	/**/{ { -1, -1, -1 }, { -1, -1, +0 }, { -1, -1, +1 },
+	/**/{ -1, +0, -1 }, { -1, +0, +0 }, { -1, +0, +1 },
+	/**/{ -1, +1, -1 }, { -1, +1, +0 }, { -1, +1, +1 },
+	/**/{ +0, -1, -1 }, { +0, -1, +0 }, { +0, -1, +1 },
+	/**/{ +0, +0, -1 }, { +0, +0, +0 }, { +0, +0, +1 },
+	/**/{ +0, +1, -1 }, { +0, +1, +0 }, { +0, +1, +1 },
+	/**/{ +1, -1, -1 }, { +1, -1, +0 }, { +1, -1, +1 },
+	/**/{ +1, +0, -1 }, { +1, +0, +0 }, { +1, +0, +1 },
+	/**/{ +1, +1, -1 }, { +1, +1, +0 }, { +1, +1, +1 } } };
 
 	static constexpr int directions[3][27] = { {
 	/**/-H_DNX, +H_DN0, +H_DNX /**/
@@ -110,8 +128,8 @@ private:
 
 	} };
 	std::vector<std::vector<std::array<double, NDIR / 2>>> D1;
-	std::vector<std::vector<std::array<double, NDIR / 2>>> D2;
 	std::vector<std::vector<std::array<double, NDIR>>> Q;
+	std::vector<std::vector<std::array<double, NDIR>>> L;
 	std::vector<std::vector<std::vector<std::array<double, nfACEDIR>>>> fluxes;
 
 public:
@@ -121,8 +139,8 @@ public:
 		ns = nspecies;
 
 		D1 = decltype(D1)(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
-		D2 = decltype(D2)(nf, std::vector<std::array<double, NDIR / 2>>(H_N3));
 		Q = decltype(Q)(nf, std::vector<std::array<double, NDIR>>(H_N3));
+		L = decltype(Q)(nf, std::vector<std::array<double, NDIR>>(H_N3));
 		fluxes = decltype(fluxes)(NDIM, std::vector<std::vector<std::array<double, nfACEDIR>> >(nf, std::vector<std::array<double, nfACEDIR>>(H_N3)));
 
 	}
@@ -180,15 +198,29 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 		return I;
 	};
 
-	constexpr auto faces = lower_face_members[NDIM - 1];
-	constexpr auto weights = quad_weights[NDIM - 1];
+	static constexpr auto faces = lower_face_members[NDIM - 1];
+	static constexpr auto weights = quad_weights[NDIM - 1];
+	static constexpr auto face_loc = face_locs[NDIM - 1];
+	static constexpr auto kdelta = kdeltas[NDIM - 1];
+	static constexpr auto dx = 1.0 / INX;
 
-	constexpr auto dir = directions[NDIM - 1];
+	static constexpr auto dir = directions[NDIM - 1];
 
 	int bw = bound_width();
-	for (int i = 0; i < H_N3; i++) {
-		U[pot_i][i] /= U[rho_i][i];
-	}
+
+	static const auto measure_ang_mom = [](std::array<std::array<double, NDIR>,NDIM> C) {
+		std::array<double, NANGMOM> L;
+		for (int n = 0; n < NANGMOM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				for (int l = 0; l < NDIM; l++) {
+					for (int d = 0; d < NDIR; d++) {
+						L[n] += weights[d] * kdelta[n][m][l] * face_loc[d][m] * C[l][d];
+					}
+				}
+			}
+		}
+		return L;
+	};
 
 	std::vector<future<void>> frecon;
 	frecon.reserve(nf);
@@ -215,6 +247,9 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 					for (int d = 0; d < NDIR / 2; d++) {
 						const auto di = dir[d];
 						D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 2.0);
+						const auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
+						L[f][i][d] = U[f][i] + 0.5 * slp;
+						L[f][i][flip(d)] = U[f][i] - 0.5 * slp;
 					}
 				}
 				static const auto indices2 = find_indices(2, H_NX - 1);
@@ -241,28 +276,6 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 	}
 
 	hpx::when_all(frecon.begin(), frecon.end()).get();
-
-	for (int i = bw; i < H_N3 - bw; i++) {
-		for (int d = 0; d < NDIR / 2; d++) {
-			auto &q1 = Q[pot_i][i][d];
-			auto &q2 = Q[pot_i][i + dir[d]][flip(d)];
-			auto avg = 0.5 * (q1 + q2);
-			q1 = q2 = avg;
-			q1 *= Q[rho_i][i][d];
-			q2 *= Q[rho_i][i + dir[d]][flip(d)];
-		}
-	}
-
-//	if constexpr (NDIM == 2) {
-//		FILE *fp = fopen("rho.txt", "wt");
-//		for (int i = H_BW; i < H_NX - H_BW; i++) {
-//			for (int j = H_BW; j < H_NX - H_BW; j++) {
-//				output_cell2d(fp, Q[rho_i][H_NX * j + i], 2 * i, 2 * j);
-//			}
-//		}
-//		fclose(fp);
-//		//	abort();
-//	}
 
 	std::vector<future<void>> fflux;
 	fflux.reserve(NDIM);
@@ -301,6 +314,18 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 					F[dim][f][i] = 0.0;
 					for (int fi = 0; fi < nfACEDIR; fi++) {
 						F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
+					}
+				}
+			}
+			for (int n = 0; n < NANGMOM; n++) {
+				for (int m = 0; m < NDIM; m++) {
+					for (int l = 0; l < NDIM; l++) {
+						for (int fi = 0; fi < nfACEDIR; fi++) {
+							const auto d = faces[dim][fi];
+							for (int i = bw; i < H_N3 - bw; i++) {
+								F[dim][zx_i + n][i] += kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
+							}
+						}
 					}
 				}
 			}
@@ -469,9 +494,18 @@ void hydro_computer<NDIM, INX, ORDER>::advance(const std::vector<std::vector<dou
 		}
 		stride *= H_NX;
 	}
+
+	constexpr auto kdelta = kdeltas[NDIM - 1];
 	for (int i = 0; i < H_N3; i++) {
 		dudt[sx_i][i] += U[sy_i][i] * omega;
 		dudt[sy_i][i] -= U[sx_i][i] * omega;
+		for (int n = 0; n < NANGMOM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				for (int l = 0; l < NDIM; l++) {
+					dudt[zx_i + n][i] += kdelta[n][m][l] * F[m][sx_i + l][i];
+				}
+			}
+		}
 	}
 	for (int f = 0; f < nf; f++) {
 		for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
