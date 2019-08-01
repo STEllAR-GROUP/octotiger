@@ -88,7 +88,7 @@ private:
 	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 6, 0 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 },
 			{ 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
-	static constexpr double quad_weights[3][9] = { { 1.0 }, { 3.0 / 3.0, 0.0 / 6.0, 0.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36.,
+	static constexpr double quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36.,
 			1. / 36., 4. / 36., 1. / 36. } };
 
 	static constexpr int directions[3][27] = { {
@@ -160,6 +160,26 @@ template<int NDIM, int INX, int ORDER>
 double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<double>> U, std::vector<std::vector<std::vector<double>>> &F,
 		std::vector<std::array<double, NDIM>> &X, double omega) {
 
+	const auto find_indices = [=](int lb, int ub) {
+		std::vector<int> I;
+		for (int i = 0; i < H_N3; i++) {
+			int k = i;
+			bool interior = true;
+			for (int dim = 0; dim < NDIM; dim++) {
+				int this_i = k % H_NX;
+				if (this_i < lb || this_i >= ub) {
+					interior = false;
+				} else {
+					k /= H_NX;
+				}
+			}
+			if (interior) {
+				I.push_back(i);
+			}
+		}
+		return I;
+	};
+
 	constexpr auto faces = lower_face_members[NDIM - 1];
 	constexpr auto weights = quad_weights[NDIM - 1];
 
@@ -190,13 +210,15 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 					}
 				}
 			} else if constexpr (ORDER == 3) {
-				for (int i = bw; i < H_N3 - bw; i++) {
+				static const auto indices1 = find_indices(1, H_NX - 1);
+				for (const auto &i : indices1) {
 					for (int d = 0; d < NDIR / 2; d++) {
 						const auto di = dir[d];
 						D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 2.0);
 					}
 				}
-				for (int i = bw; i < H_N3 - bw; i++) {
+				static const auto indices2 = find_indices(2, H_NX - 1);
+				for (const auto &i : indices2) {
 					for (int d = 0; d < NDIR / 2; d++) {
 						const auto di = dir[d];
 						Q[f][i][d] = 0.5 * (U[f][i] + U[f][i + di]);
@@ -205,7 +227,8 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 
 					}
 				}
-				for (int i = bw; i < H_N3 - bw; i++) {
+				static const auto indices3 = find_indices(2, H_NX - 2);
+				for (const auto &i : indices3) {
 					for (int d = 0; d < NDIR / 2; d++) {
 						const auto di = dir[d];
 						limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
@@ -248,7 +271,8 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 	for (int dim = 0; dim < NDIM; dim++) {
 		fflux.push_back(hpx::async(hpx::launch::async, [&](int dim) {
 			std::vector<double> UR(nf), UL(nf), this_flux(nf);
-			for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
+			static const auto indices = find_indices(3, H_NX - 2);
+			for (const auto &i : indices) {
 				double a = -1.0;
 				for (int fi = 0; fi < nfACEDIR; fi++) {
 					const auto d = faces[dim][fi];
@@ -298,7 +322,7 @@ void hydro_computer<NDIM, INX, ORDER>::to_prim(VECTOR u, double &p, double &v, i
 	for (int dim = 0; dim < NDIM; dim++) {
 		ek += std::pow(u[sx_i + dim], 2) * rhoinv * 0.5;
 	}
-	auto ein = u[egas_i] - ek;
+	auto ein = std::max(u[egas_i] - ek, 0.0);
 	if (ein < 0.001 * u[egas_i]) {
 		ein = std::pow(std::max(u[tau_i], 0.0), FGAMMA);
 	}
