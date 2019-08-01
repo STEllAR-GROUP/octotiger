@@ -9,7 +9,7 @@
 
 #define NDIM 2
 #define INX 250
-#define ORDER 3
+#define ORDER 2
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -50,7 +50,7 @@ int hpx_main(int, char*[]) {
 		double x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
-			auto o = dim == 0 ? 0.25 : 0.0;
+			auto o = dim == 0 ? 0.0 : 0.0;
 			x2 += (X[i][dim] - o) * (X[i][dim] - o);
 		}
 //		if (xsum < 0) {
@@ -74,8 +74,8 @@ int hpx_main(int, char*[]) {
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-	const double omega = 2.0 * M_PI / tmax;
-//	const double omega = 0.0;
+//	const double omega = 2.0 * M_PI / tmax;
+	const double omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto a = computer.hydro_flux(U, F, X, omega);

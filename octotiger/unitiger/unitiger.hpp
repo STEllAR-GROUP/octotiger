@@ -19,7 +19,7 @@
 #define THETA 1.3
 using namespace std;
 
-static constexpr double tmax = 1e-4;
+static constexpr double tmax = 5e-1;
 
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"
@@ -29,9 +29,9 @@ static constexpr double tmax = 1e-4;
 #endif
 constexpr int ORDER = 3;
 
-static constexpr char *field_names3[] = { "rho", "egas", "tau", "pot", "sx", "sy", "sz", "zx", "zy", "zz", "spc_2", "spc_2", "spc_3", "spc_4", "spc_5" };
-static constexpr char *field_names2[] = { "rho", "egas", "tau", "pot", "sx", "sy", "zz", "spc_2", "spc_2", "spc_3", "spc_4", "spc_5" };
-static constexpr char *field_names1[] = { "rho", "egas", "tau", "pot", "sx", "spc_2", "spc_2", "spc_3", "spc_4", "spc_5" };
+static constexpr char *field_names3[] = { "rho", "egas", "tau", "pot", "sx", "sy", "sz", "zx", "zy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
+static constexpr char *field_names2[] = { "rho", "egas", "tau", "pot", "sx", "sy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
+static constexpr char *field_names1[] = { "rho", "egas", "tau", "pot", "sx", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
 
 #define FGAMMA (7.0/5.0)
 

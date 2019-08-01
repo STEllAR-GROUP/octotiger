@@ -232,7 +232,7 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 						Q[f][i][d] = U[f][i];
 					}
 				}
-			} else if constexpr (ORDER == 21) {
+			} else if constexpr (ORDER == 2) {
 				for (int i = bw; i < H_N3 - bw; i++) {
 					for (int d = 0; d < NDIR / 2; d++) {
 						const auto di = dir[d];
@@ -496,7 +496,7 @@ void hydro_computer<NDIM, INX, ORDER>::advance(const std::vector<std::vector<dou
 	}
 
 	constexpr auto kdelta = kdeltas[NDIM - 1];
-	for (int i = 0; i < H_N3; i++) {
+	for (int i = 2 * bw; i < H_N3 - 2 * bw; i++) {
 		dudt[sx_i][i] += U[sy_i][i] * omega;
 		dudt[sy_i][i] -= U[sx_i][i] * omega;
 		for (int n = 0; n < NANGMOM; n++) {
