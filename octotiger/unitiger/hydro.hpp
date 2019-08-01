@@ -411,10 +411,16 @@ void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<double
 
 			for (int i = 0; i < H_BW; i++) {
 				for (int j = 0; j < H_NX; j++) {
-					U[f][index(i, j)] = U[f][index(H_BW, j)];
-					U[f][index(j, i)] = U[f][index(j, H_BW)];
-					U[f][index(H_NX - 1 - i, j)] = U[f][index(H_NX - 1 - H_BW, j)];
-					U[f][index(j, H_NX - 1 - i)] = U[f][index(j, H_NX - 1 - H_BW)];
+					int j0 = j;
+					j0 = std::max(j0, H_BW);
+					j0 = std::min(j0, H_NX - 1 - H_BW);
+					int i0 = i;
+					i0 = std::max(i0, H_BW);
+					i0 = std::min(i0, H_NX - 1 - H_BW);
+					U[f][index(i, j)] = U[f][index(H_BW, j0)];
+					U[f][index(j, i)] = U[f][index(j0, H_BW)];
+					U[f][index(H_NX - 1 - i, j)] = U[f][index(H_NX - 1 - H_BW, j0)];
+					U[f][index(j, H_NX - 1 - i)] = U[f][index(j0, H_NX - 1 - H_BW)];
 				}
 			}
 		} else {
@@ -425,12 +431,21 @@ void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<double
 			for (int i = 0; i < H_BW; i++) {
 				for (int j = 0; j < H_NX; j++) {
 					for (int k = 0; k < H_NX; k++) {
-						U[f][index(i, j, k)] = U[f][index(H_BW, j, k)];
-						U[f][index(j, i, k)] = U[f][index(j, H_BW, k)];
-						U[f][index(j, k, i)] = U[f][index(j, k, H_BW)];
-						U[f][index(H_NX - 1 - i, j, k)] = U[f][index(H_NX - 1 - H_BW, j, k)];
-						U[f][index(j, H_NX - 1 - i, k)] = U[f][index(j, H_NX - 1 - H_BW, k)];
-						U[f][index(j, H_NX - 1 - k, i)] = U[f][index(j, k, H_NX - 1 - H_BW)];
+						int j0;
+						j0 = std::max(j0, H_BW);
+						j0 = std::min(j0, H_NX - 1 - H_BW);
+						int i0 = i;
+						i0 = std::max(i0, H_BW);
+						i0 = std::min(i0, H_NX - 1 - H_BW);
+						int k0 = i;
+						k0 = std::max(k0, H_BW);
+						k0 = std::min(k0, H_NX - 1 - H_BW);
+						U[f][index(i, j, k)] = U[f][index(H_BW, j0, k0)];
+						U[f][index(j, i, k)] = U[f][index(j0, H_BW, k0)];
+						U[f][index(j, k, i)] = U[f][index(j0, k0, H_BW)];
+						U[f][index(H_NX - 1 - i, j, k)] = U[f][index(H_NX - 1 - H_BW, j0, k0)];
+						U[f][index(j, H_NX - 1 - i, k)] = U[f][index(j0, H_NX - 1 - H_BW, k0)];
+						U[f][index(j, H_NX - 1 - k, i)] = U[f][index(j0, k0, H_NX - 1 - H_BW)];
 					}
 				}
 			}
