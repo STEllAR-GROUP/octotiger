@@ -1,15 +1,19 @@
 #include <fenv.h>
 
-#include "../../octotiger/unitiger/unitiger.hpp"
-#include "../../octotiger/unitiger/hydro.hpp"
+
 
 #ifndef NOHPX
 #include <hpx/hpx_init.hpp>
+#include "../../octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/unitiger/hydro.hpp"
+#else
+#include "../../octotiger/octotiger/unitiger/unitiger.hpp"
+#include "../../octotiger/octotiger/unitiger/hydro.hpp"
 #endif
 
 #define NDIM 2
 #define INX 250
-#define ORDER 2
+#define ORDER 3
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -74,7 +78,7 @@ int hpx_main(int, char*[]) {
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-//	const double omega = 2.0 * M_PI / tmax;
+//	const double omega = 2.0 * M_PI / tmax / 4.0;
 	const double omega = 0.0;
 	while (t < tmax) {
 		U0 = U;

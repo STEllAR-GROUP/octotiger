@@ -9,6 +9,13 @@
 #define OCTOTIGER_UNITIGER_HYDRO_HPP_
 #include <vector>
 
+#ifdef NOHPX
+#include <future>
+using std::future;
+using std::async;
+using std::launch;
+#endif
+
 void output_cell2d(FILE *fp, const std::array<double, 9> &C, int ioff, int joff);
 
 void filter_cell1d(std::array<double, 3> &C, double C0);
@@ -208,15 +215,37 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 
 	int bw = bound_width();
 
-	static const auto measure_ang_mom = [](std::array<std::array<double, NDIR>,NDIM> C) {
+	static const auto measure_angmom = [](const std::array<std::array<double, NDIR>, NDIM> &C) {
 		std::array<double, NANGMOM> L;
 		for (int n = 0; n < NANGMOM; n++) {
 			for (int m = 0; m < NDIM; m++) {
 				for (int l = 0; l < NDIM; l++) {
 					for (int d = 0; d < NDIR; d++) {
-						L[n] += weights[d] * kdelta[n][m][l] * face_loc[d][m] * C[l][d];
+						L[n] += weights[d] * kdelta[n][m][l] * 0.5 * face_loc[d][m] * C[l][d];
 					}
 				}
+			}
+		}
+		return L;
+	};
+
+	static const auto add_angmom = [](std::array<std::array<double, NDIR>, NDIM> &C, std::array<double, NANGMOM> &Z) {
+		std::array<double, NANGMOM> L;
+		for (int d = 0; d < NDIR; d++) {
+			double x2 = 0.0;
+			for (int dim = 0; dim < NDIM; dim++) {
+				x2 += face_loc[d][dim] * 0.5 * face_loc[d][dim];
+			}
+			if (x2 != 0.0) {
+				double tmp2[3] = { 0, 0, 0 };
+				for (int n = 0; n < NANGMOM; n++) {
+					for (int m = 0; m < NDIM; m++) {
+						for (int l = 0; l < NDIM; l++) {
+							C[m][d] += (kdelta[n][m][l] * 0.5 * face_loc[d][m] * Z[n]) / x2;
+						}
+					}
+				}
+
 			}
 		}
 		return L;
@@ -225,7 +254,7 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 	std::vector<future<void>> frecon;
 	frecon.reserve(nf);
 	for (int f = 0; f < nf; f++) {
-		frecon.push_back(hpx::async(hpx::launch::async, [&](int f) {
+		frecon.push_back(async(launch::async, [&](int f) {
 			if constexpr (ORDER == 1) {
 				for (int i = bw; i < H_N3 - bw; i++) {
 					for (int d = 0; d < NDIR; d++) {
@@ -259,7 +288,22 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 						Q[f][i][d] = 0.5 * (U[f][i] + U[f][i + di]);
 						Q[f][i][d] += (1.0 / 6.0) * (D1[f][i][d] - D1[f][i + di][d]);
 						Q[f][i + di][flip(d)] = Q[f][i][d];
+					}
+				}
+				for (const auto &i : indices2) {
+					for (int d = 0; d < NDIR / 2; d++) {
+						const auto di = dir[d];
 
+						auto am1 = measure_angmom( { Q[sx_i][i], Q[sy_i][i] });
+						double Z[1] = { U[zx_i][i] };
+						if (am1[0] != 0.0) {
+							printf("%e %e ", am1[0], Z[0]);
+							Z[0] -= am1[0];
+							std::array<std::array<double, 9>, 2> tmp = { Q[sx_i][i], Q[sy_i][i] };
+							add_angmom(tmp, am1);
+							auto am2 = measure_angmom(tmp);
+							printf("%e\n", am2[0]);
+						}
 					}
 				}
 				static const auto indices3 = find_indices(2, H_NX - 2);
@@ -275,14 +319,16 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 
 	}
 
-	hpx::when_all(frecon.begin(), frecon.end()).get();
+	for( auto& f : frecon ) {
+		f.get();
+	}
 
 	std::vector<future<void>> fflux;
 	fflux.reserve(NDIM);
 
 	std::array<double, 3> amax = { 0.0, 0.0, 0.0 };
 	for (int dim = 0; dim < NDIM; dim++) {
-		fflux.push_back(hpx::async(hpx::launch::async, [&](int dim) {
+		fflux.push_back(async(launch::async, [&](int dim) {
 			std::vector<double> UR(nf), UL(nf), this_flux(nf);
 			static const auto indices = find_indices(3, H_NX - 2);
 			for (const auto &i : indices) {
@@ -323,7 +369,7 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 						for (int fi = 0; fi < nfACEDIR; fi++) {
 							const auto d = faces[dim][fi];
 							for (int i = bw; i < H_N3 - bw; i++) {
-								F[dim][zx_i + n][i] += kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
+								F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
 							}
 						}
 					}
@@ -331,7 +377,9 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 			}
 		}, dim));
 	}
-	hpx::when_all(fflux.begin(), fflux.end()).get();
+	for( auto& f : fflux) {
+		f.get();
+	}
 	for (int d = 1; d < NDIM; d++) {
 		amax[0] = std::max(amax[0], amax[d]);
 	}

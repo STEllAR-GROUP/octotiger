@@ -126,6 +126,9 @@ void filter_cell1d(std::array<double, 3> &C, double C0) {
 	}
 }
 
+
+
+
 void filter_cell2d(std::array<double, 9> &C, double C0) {
 	constexpr int center = 4;
 	constexpr int ndir = 9;
@@ -170,6 +173,8 @@ void filter_cell2d(std::array<double, 9> &C, double C0) {
 		C[i] += dif;
 	}
 }
+
+
 
 void filter_cell3d(std::array<double, 27> &C, double C0) {
 	constexpr int center = 13;

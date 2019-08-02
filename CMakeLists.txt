@@ -56,6 +56,14 @@ endif()
 # Set up Octotiger target
 ################################################################################
 # Octotiger library sources
+set(hydro_source_files
+    src/unitiger/hydro.cpp
+)
+
+# Octotiger library headers
+set(hydro_header_files
+    octotiger/unitiger/hydro.hpp
+)
 set(source_files
     src/compute_factor.cpp
     src/eos.cpp
@@ -105,7 +113,6 @@ set(source_files
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
-    src/unitiger/hydro.cpp
 )
 
 # Octotiger library headers
@@ -194,6 +201,17 @@ add_hpx_library(
     ${header_files}
 )
 
+# Hydro library
+add_hpx_library(
+  hydrolib
+  DEPENDENCIES
+    Silo::silo Vc::Vc Boost::boost
+  SOURCES
+    ${hydro_source_files}
+  HEADERS
+    ${hydro_header_files}
+)
+
 # Enable exported functions
 target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
 # Header files
@@ -201,12 +219,14 @@ set_property(TARGET octolib PROPERTY FOLDER "Octotiger")
 
 # add octotiger/* to compiler search path
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 
 # Octotiger executable
 add_hpx_executable(
   octotiger
   DEPENDENCIES
     octolib
+    hydrolib
   SOURCES
     frontend/main.cpp
 )
@@ -216,11 +236,10 @@ set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
 add_hpx_executable(
   unitiger
   DEPENDENCIES
-    Silo::silo
+    Silo::silo hydrolib
   SOURCES
-    src/unitiger/main.cpp src/unitiger/hydro.cpp
-  HEADERS
-    octotiger/unitiger/unitiger.hpp
+    src/unitiger/main.cpp
+    
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
 
