@@ -155,11 +155,11 @@ public:
 };
 
 #ifndef NOHPX
-#include <hpx/include/async.hpp>
-#include <hpx/include/future.hpp>
-#include <hpx/lcos/when_all.hpp>
+//#include <hpx/include/async.hpp>
+//#include <hpx/include/future.hpp>
+//#include <hpx/lcos/when_all.hpp>
 
-using namespace hpx;
+//using namespace hpx;
 #endif
 
 #define flip( d ) (NDIR - 1 - (d))
@@ -234,14 +234,15 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 		for (int d = 0; d < NDIR; d++) {
 			double x2 = 0.0;
 			for (int dim = 0; dim < NDIM; dim++) {
-				x2 += face_loc[d][dim] * 0.5 * face_loc[d][dim];
+				assert(NDIM != 3);
+				x2 += face_loc[d][dim] * 0.25 * face_loc[d][dim];
 			}
 			if (x2 != 0.0) {
 				double tmp2[3] = { 0, 0, 0 };
 				for (int n = 0; n < NANGMOM; n++) {
 					for (int m = 0; m < NDIM; m++) {
 						for (int l = 0; l < NDIM; l++) {
-							C[m][d] += (kdelta[n][m][l] * 0.5 * face_loc[d][m] * Z[n]) / x2;
+							C[m][d] -= 2.0 * (kdelta[n][m][l] * 0.5 * face_loc[d][m] * Z[n]) / x2;
 						}
 					}
 				}
@@ -251,134 +252,127 @@ double hydro_computer<NDIM, INX, ORDER>::hydro_flux(std::vector<std::vector<doub
 		return L;
 	};
 
-	std::vector<future<void>> frecon;
-	frecon.reserve(nf);
+	static const auto indices1 = find_indices(1, H_NX - 1);
+	static const auto indices2 = find_indices(2, H_NX - 1);
+	static const auto indices3 = find_indices(2, H_NX - 2);
 	for (int f = 0; f < nf; f++) {
-		frecon.push_back(async(launch::async, [&](int f) {
-			if constexpr (ORDER == 1) {
-				for (int i = bw; i < H_N3 - bw; i++) {
-					for (int d = 0; d < NDIR; d++) {
-						Q[f][i][d] = U[f][i];
-					}
-				}
-			} else if constexpr (ORDER == 2) {
-				for (int i = bw; i < H_N3 - bw; i++) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						const auto di = dir[d];
-						const auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
-						Q[f][i][d] = U[f][i] + 0.5 * slp;
-						Q[f][i][flip(d)] = U[f][i] - 0.5 * slp;
-					}
-				}
-			} else if constexpr (ORDER == 3) {
-				static const auto indices1 = find_indices(1, H_NX - 1);
-				for (const auto &i : indices1) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						const auto di = dir[d];
-						D1[f][i][d] = minmod_theta(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di], 2.0);
-						const auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
-						L[f][i][d] = U[f][i] + 0.5 * slp;
-						L[f][i][flip(d)] = U[f][i] - 0.5 * slp;
-					}
-				}
-				static const auto indices2 = find_indices(2, H_NX - 1);
-				for (const auto &i : indices2) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						const auto di = dir[d];
-						Q[f][i][d] = 0.5 * (U[f][i] + U[f][i + di]);
-						Q[f][i][d] += (1.0 / 6.0) * (D1[f][i][d] - D1[f][i + di][d]);
-						Q[f][i + di][flip(d)] = Q[f][i][d];
-					}
-				}
-				for (const auto &i : indices2) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						const auto di = dir[d];
-
-						auto am1 = measure_angmom( { Q[sx_i][i], Q[sy_i][i] });
-						double Z[1] = { U[zx_i][i] };
-						if (am1[0] != 0.0) {
-							printf("%e %e ", am1[0], Z[0]);
-							Z[0] -= am1[0];
-							std::array<std::array<double, 9>, 2> tmp = { Q[sx_i][i], Q[sy_i][i] };
-							add_angmom(tmp, am1);
-							auto am2 = measure_angmom(tmp);
-							printf("%e\n", am2[0]);
-						}
-					}
-				}
-				static const auto indices3 = find_indices(2, H_NX - 2);
-				for (const auto &i : indices3) {
-					for (int d = 0; d < NDIR / 2; d++) {
-						const auto di = dir[d];
-						limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
-					}
-					filter_cell<NDIM>(Q[f][i], U[f][i]);
+		if constexpr (ORDER == 1) {
+			for (int i = bw; i < H_N3 - bw; i++) {
+				for (int d = 0; d < NDIR; d++) {
+					Q[f][i][d] = U[f][i];
 				}
 			}
-		}, f));
-
+		} else if constexpr (ORDER == 2) {
+			for (int i = bw; i < H_N3 - bw; i++) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					const auto di = dir[d];
+					const auto slp = minmod(U[f][i + di] - U[f][i], U[f][i] - U[f][i - di]);
+					Q[f][i][d] = U[f][i] + 0.5 * slp;
+					Q[f][i][flip(d)] = U[f][i] - 0.5 * slp;
+				}
+			}
+		} else if constexpr (ORDER == 3) {
+			for (const auto &i : indices2) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					const auto di = dir[d];
+					Q[f][i][d] = 0.5 * (U[f][i] + U[f][i + di]);
+					Q[f][i][d] += (1.0 / 6.0) * (D1[f][i][d] - D1[f][i + di][d]);
+					Q[f][i + di][flip(d)] = Q[f][i][d];
+				}
+			}
+		}
 	}
 
-	for( auto& f : frecon ) {
-		f.get();
+	if (ORDER == 3) {
+		for (const auto &i : indices2) {
+			std::array<double, NANGMOM> Z;
+			std::array<std::array<double, NDIR>, NDIM> S;
+			for (int dim = 0; dim < NANGMOM; dim++) {
+				Z[dim] = U[zx_i + dim][i];
+			}
+			for (int dim = 0; dim < NDIM; dim++) {
+				for (int d = 0; d < NDIR; d++) {
+					S[dim][d] = Q[sx_i + dim][i][d];
+				}
+			}
+			auto am1 = measure_angmom(S);
+			decltype(Z) am2;
+			for (int dim = 0; dim < NANGMOM; dim++) {
+				am2[dim] = U[zx_i + dim][i] - am1[dim];
+			}
+			add_angmom(S, am2);
+			for (int dim = 0; dim < NDIM; dim++) {
+				for (int d = 0; d < NDIR; d++) {
+					auto &q = Q[sx_i + dim][i][d];
+					const auto &s = S[dim][d];
+					const auto &u0 = U[sx_i + dim][i];
+					const auto &up = U[sx_i + dim][i + dir[d]];
+					const auto M = std::max(u0, up);
+					const auto m = std::min(u0, up);
+					q = std::min(s, M);
+					q = std::max(q, m);
+				}
+			}
+		}
+		for (int f = 0; f < nf; f++) {
+			for (const auto &i : indices3) {
+				for (int d = 0; d < NDIR / 2; d++) {
+					const auto di = dir[d];
+					limit_slope(Q[f][i][d], U[f][i], Q[f][i][flip(d)]);
+				}
+				filter_cell<NDIM>(Q[f][i], U[f][i]);
+			}
+		}
 	}
-
-	std::vector<future<void>> fflux;
-	fflux.reserve(NDIM);
 
 	std::array<double, 3> amax = { 0.0, 0.0, 0.0 };
 	for (int dim = 0; dim < NDIM; dim++) {
-		fflux.push_back(async(launch::async, [&](int dim) {
-			std::vector<double> UR(nf), UL(nf), this_flux(nf);
-			static const auto indices = find_indices(3, H_NX - 2);
-			for (const auto &i : indices) {
-				double a = -1.0;
+		std::vector<double> UR(nf), UL(nf), this_flux(nf);
+		static const auto indices = find_indices(3, H_NX - 2);
+		for (const auto &i : indices) {
+			double a = -1.0;
+			for (int fi = 0; fi < nfACEDIR; fi++) {
+				const auto d = faces[dim][fi];
+				const auto di = dir[d];
+				for (int f = 0; f < nf; f++) {
+					UR[f] = Q[f][i][d];
+					UL[f] = Q[f][i + di][flip(d)];
+				}
+				std::array<double, NDIM> vg;
+				if constexpr (NDIM > 1) {
+					vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
+					vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
+					if constexpr (NDIM == 3) {
+						vg[2] = 0.0;
+					}
+				}
+				flux(UL, UR, this_flux, dim, a, vg);
+				for (int f = 0; f < nf; f++) {
+					fluxes[dim][f][i][fi] = this_flux[f];
+				}
+			}
+			amax[dim] = std::max(a, amax[dim]);
+		}
+		for (int f = 0; f < nf; f++) {
+			for (int i = bw; i < H_N3 - bw; i++) {
+				F[dim][f][i] = 0.0;
 				for (int fi = 0; fi < nfACEDIR; fi++) {
-					const auto d = faces[dim][fi];
-					const auto di = dir[d];
-					for (int f = 0; f < nf; f++) {
-						UR[f] = Q[f][i][d];
-						UL[f] = Q[f][i + di][flip(d)];
-					}
-					std::array<double, NDIM> vg;
-					if constexpr (NDIM > 1) {
-						vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
-						vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
-						if constexpr (NDIM == 3) {
-							vg[2] = 0.0;
-						}
-					}
-					flux(UL, UR, this_flux, dim, a, vg);
-					for (int f = 0; f < nf; f++) {
-						fluxes[dim][f][i][fi] = this_flux[f];
-					}
+					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
 				}
-				amax[dim] = std::max(a, amax[dim]);
 			}
-			for (int f = 0; f < nf; f++) {
-				for (int i = bw; i < H_N3 - bw; i++) {
-					F[dim][f][i] = 0.0;
+		}
+		for (int n = 0; n < NANGMOM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				for (int l = 0; l < NDIM; l++) {
 					for (int fi = 0; fi < nfACEDIR; fi++) {
-						F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
-					}
-				}
-			}
-			for (int n = 0; n < NANGMOM; n++) {
-				for (int m = 0; m < NDIM; m++) {
-					for (int l = 0; l < NDIM; l++) {
-						for (int fi = 0; fi < nfACEDIR; fi++) {
-							const auto d = faces[dim][fi];
-							for (int i = bw; i < H_N3 - bw; i++) {
-								F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
-							}
+						const auto d = faces[dim][fi];
+						for (int i = bw; i < H_N3 - bw; i++) {
+							F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
 						}
 					}
 				}
 			}
-		}, dim));
-	}
-	for( auto& f : fflux) {
-		f.get();
+		}
 	}
 	for (int d = 1; d < NDIM; d++) {
 		amax[0] = std::max(amax[0], amax[d]);

@@ -20,7 +20,8 @@
 #define H_N3 std::pow(INX+2*H_BW,NDIM)
 static constexpr double CFL = (0.4 / NDIM);
 
-int hpx_main(int, char*[]) {
+int main(int, char*[]) {
+//int hpx_main(int, char*[]) {
 
 	hydro_computer<NDIM, INX, ORDER> computer(2);
 	feenableexcept(FE_DIVBYZERO);
@@ -109,20 +110,20 @@ int hpx_main(int, char*[]) {
 #ifdef NOHPX
 	return 0;
 #else
-	return hpx::finalize();
+//	return hpx::finalize();
 #endif
 }
-
-int main(int argc, char *argv[]) {
-#ifdef NOHPX
-	return hpx_main(argc, argv);
-#else
-	printf("Running\n");
-	std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
-			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
-			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
-			};
-	hpx::init(argc, argv, cfg);
-#endif
-}
-
+//
+//int main(int argc, char *argv[]) {
+//#ifdef NOHPX
+//	return hpx_main(argc, argv);
+//#else
+//	printf("Running\n");
+//	std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
+//			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
+//			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
+//			};
+//	hpx::init(argc, argv, cfg);
+//#endif
+//}
+//
