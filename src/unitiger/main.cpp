@@ -1,13 +1,14 @@
 #include <fenv.h>
 
 
-
 #ifndef NOHPX
-#include <hpx/hpx_init.hpp>
+//#include <hpx/hpx_init.hpp>
 #include "../../octotiger/unitiger/unitiger.hpp"
 #include "../../octotiger/unitiger/hydro.hpp"
+#include "../../octotiger/unitiger/safe_real.hpp"
 #else
 #include "../../octotiger/octotiger/unitiger/unitiger.hpp"
+#include "safe_real.hpp"
 #include "../../octotiger/octotiger/unitiger/hydro.hpp"
 #endif
 
@@ -18,7 +19,7 @@
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
 #define H_N3 std::pow(INX+2*H_BW,NDIM)
-static constexpr double CFL = (0.4 / NDIM);
+static constexpr safe_real CFL = (0.4 / NDIM);
 
 int main(int, char*[]) {
 //int hpx_main(int, char*[]) {
@@ -30,17 +31,17 @@ int main(int, char*[]) {
 
 	using comp = decltype(computer);
 
-	std::vector<std::array<double, NDIM>> X(H_N3);
-	std::vector<std::vector<std::vector<double>>> F(NDIM, std::vector<std::vector<double>>(computer.nf, std::vector<double>(H_N3, SNAN)));
-	std::vector<std::vector<double>> U(computer.nf, std::vector<double>(H_N3, SNAN));
-	std::vector<std::vector<double>> U0(computer.nf, std::vector<double>(H_N3, SNAN));
+	std::vector<std::array<safe_real, NDIM>> X(H_N3);
+	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(computer.nf, std::vector<safe_real>(H_N3)));
+	std::vector<std::vector<safe_real>> U(computer.nf, std::vector<safe_real>(H_N3));
+	std::vector<std::vector<safe_real>> U0(computer.nf, std::vector<safe_real>(H_N3));
 
-	const double dx = 1.0 / INX;
+	const safe_real dx = 1.0 / INX;
 
 	for (int i = 0; i < H_N3; i++) {
 		int k = i;
 		int j = 0;
-		while (k) {
+		for( int dim = 0; dim < NDIM; dim++) {
 			X[i][j] = (((k % H_NX) - H_BW) + 0.5) * dx - 0.5;
 			k /= H_NX;
 			j++;
@@ -51,8 +52,8 @@ int main(int, char*[]) {
 		for (int f = 0; f < computer.nf; f++) {
 			U[f][i] = 0.0;
 		}
-		double xsum = 0.0;
-		double x2 = 0.0;
+		safe_real xsum = 0.0;
+		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
 			auto o = dim == 0 ? 0.0 : 0.0;
@@ -72,20 +73,20 @@ int main(int, char*[]) {
 		} else {
 			U[comp::spc_i + 1][i] = U[comp::rho_i][i];
 		}
-		U[comp::tau_i][i] = std::pow(U[comp::egas_i][i], 1.0 / FGAMMA);
+		U[comp::tau_i][i] = POWER(U[comp::egas_i][i], 1.0 / FGAMMA);
 	}
 
-	double t = 0.0;
+	safe_real t = 0.0;
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-//	const double omega = 2.0 * M_PI / tmax / 4.0;
-	const double omega = 0.0;
+	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
+//	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto a = computer.hydro_flux(U, F, X, omega);
-		double dt = CFL * dx / a;
-		dt = std::min(dt, tmax - t + 1.0e-20);
+		safe_real dt = CFL * dx / a;
+		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, dx, dt, 1.0, omega);
 		computer.boundaries(U);
 		if (ORDER >= 2) {
@@ -103,7 +104,7 @@ int main(int, char*[]) {
 		computer.update_tau(U);
 		computer.boundaries(U);
 		computer.output(U, X, iter++);
-		printf("%i %e %e\n", iter, t, dt);
+		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
 	computer.output(U, X, iter++);
 
