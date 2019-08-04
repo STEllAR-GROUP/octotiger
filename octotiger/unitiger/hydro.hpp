@@ -25,7 +25,13 @@ using std::future;
 using std::async;
 using std::launch;
 #endif
+namespace hydro {
 
+void filter_cell1d(std::array<safe_real, 3> &C, safe_real C0);
+void filter_cell2d(std::array<safe_real, 9> &C, safe_real C0);
+void filter_cell3d(std::array<safe_real, 27> &C, safe_real C0);
+void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int ioff);
+}
 
 template<int NDIM, int INX, int ORDER>
 struct hydro_computer {
@@ -78,7 +84,7 @@ private:
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
 	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
 			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
-	static constexpr int nfACEDIR = std::pow(3, NDIM - 1);
+	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 },
 			{ 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
@@ -94,9 +100,14 @@ private:
 
 	static constexpr int face_locs[3][27][3] = {
 	/**/{ { -1 }, { 0 }, { 1 } },
-	/**/{ { -1, -1 }, { -1, 0 }, { -1, 1 },
-	/**/{ +0, -1 }, { +0, 0 }, { +0, 1 },
-	/**/{ +1, -1 }, { +1, 0 }, { +1, 1 } },
+
+
+
+	/**/{ { -1, -1 }, {  0, -1 }, { 1, -1 },
+	/**/  { -1,  0 }, { +0,  0 }, { 1,  0 },
+	/**/{   -1,  1 }, {  0,  1 }, { 1,  1 } },
+
+
 	/**/{ { -1, -1, -1 }, { -1, -1, +0 }, { -1, -1, +1 },
 	/**/{ -1, +0, -1 }, { -1, +0, +0 }, { -1, +0, +1 },
 	/**/{ -1, +1, -1 }, { -1, +1, +0 }, { -1, +1, +1 },
@@ -128,7 +139,7 @@ private:
 	std::vector<std::array<safe_real, NDIR / 2>> D1;
 	std::vector<std::vector<std::array<safe_real, NDIR>>> Q;
 	std::vector<std::vector<std::array<safe_real, NDIR>>> L;
-	std::vector<std::vector<std::vector<std::array<safe_real, nfACEDIR>>>> fluxes;
+	std::vector<std::vector<std::vector<std::array<safe_real, NFACEDIR>>>> fluxes;
 
 	void filter_cell(std::array<safe_real,NDIR> &C, safe_real c0) {
 		if constexpr (NDIM == 1) {
