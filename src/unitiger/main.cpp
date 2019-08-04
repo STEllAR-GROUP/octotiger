@@ -67,7 +67,11 @@ int main(int, char*[]) {
 //			U[comp::egas_i][i] = 0.25;
 //		}
 		U[comp::rho_i][i] = 1.0;
-		U[comp::egas_i][i] = 1.0 + 1.0e+6 * std::exp(-x2 * H_NX * H_NX / 4.0);
+		if( x2 < dx*dx ) {
+			U[comp::egas_i][i] = 1000.0;
+		} else {
+			U[comp::egas_i][i] = 1.0;
+		}
 		if (X[i][0] > 0.5) {
 			U[comp::spc_i][i] = U[comp::rho_i][i];
 		} else {
@@ -80,8 +84,8 @@ int main(int, char*[]) {
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
-//	const safe_real omega = 0.0;
+//	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
+	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto a = computer.hydro_flux(U, F, X, omega);
