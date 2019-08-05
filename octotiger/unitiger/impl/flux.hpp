@@ -8,7 +8,8 @@
 
 template<int NDIM, int INX, int ORDER>
 safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
-		std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X, safe_real omega) {
+		std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X,
+		safe_real omega) {
 
 	static constexpr auto faces = geo::lower_face_members[NDIM - 1];
 	static constexpr auto weights = geo::quad_weights[NDIM - 1];
@@ -29,16 +30,16 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 		}
 		k = 0;
 //		printf( "%i | %i %i %i | ", flip_dim, d, dims[0], dims[1]);
-		dims[flip_dim] = 2 - dims[flip_dim];
-		for (int dim = 0; dim < NDIM; dim++) {
-			k *= 3;
-			k += dims[NDIM - 1 - dim];
-		}
-		//	printf( "%i %i %i\n", k,  dims[0], dims[1]);
-		return k;
-	};
+			dims[flip_dim] = 2 - dims[flip_dim];
+			for (int dim = 0; dim < NDIM; dim++) {
+				k *= 3;
+				k += dims[NDIM - 1 - dim];
+			}
+			//	printf( "%i %i %i\n", k,  dims[0], dims[1]);
+			return k;
+		};
 
-	std::array < safe_real, 3 > amax = { 0.0, 0.0, 0.0 };
+	std::array < safe_real, 3 > amax = {0.0, 0.0, 0.0};
 	for (int dim = 0; dim < NDIM; dim++) {
 		std::vector<safe_real> UR(nf), UL(nf), this_flux(nf);
 		for (const auto &i : find_indices(2, geo::H_NX - 2)) {
@@ -52,11 +53,11 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 				}
 				std::array < safe_real, NDIM > vg;
 				if constexpr (NDIM > 1) {
-					vg[0] = -0.5 * omega * (X[i][1] + X[i - geo::H_DN[dim]][1]);
-					vg[1] = +0.5 * omega * (X[i][0] + X[i - geo::H_DN[dim]][0]);
-					if constexpr (NDIM == 3) {
-						vg[2] = 0.0;
-					}
+					vg[0] = -omega * (X[i][1] + 0.5 * face_loc[d][1] * dx);
+					vg[1] = +omega * (X[i][0] + 0.5 * face_loc[d][0] * dx);
+					vg[2] = 0.0;
+				} else {
+					vg[0] = 0.0;
 				}
 				physics < NDIM > ::flux(UL, UR, this_flux, dim, a, vg, dx);
 				for (int f = 0; f < nf; f++) {
@@ -83,7 +84,8 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 							for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 								const auto d = faces[dim][fi];
 								for (const auto &i : find_indices(3, geo::H_NX - 2)) {
-									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
+									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx
+											* fluxes[dim][sx_i + l][i][fi];
 								}
 							}
 						}

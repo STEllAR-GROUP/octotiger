@@ -56,7 +56,7 @@ int main(int, char*[]) {
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
-			auto o = dim == 0 ? 0.2 : 0.0;
+			auto o = dim == 0 ? 0.0 : 0.0;
 			x2 += (X[i][dim] - o) * (X[i][dim] - o);
 		}
 //		if (xsum < 0) {
