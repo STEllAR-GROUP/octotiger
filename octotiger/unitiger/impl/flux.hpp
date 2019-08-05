@@ -1,6 +1,3 @@
-
-
-
 #ifdef NOHPX
 #include "../basis.hpp"
 #else
@@ -8,9 +5,6 @@
 #endif
 
 #include "../physics.hpp"
-
-
-
 
 template<int NDIM, int INX, int ORDER>
 safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
@@ -64,7 +58,7 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 						vg[2] = 0.0;
 					}
 				}
-				physics<NDIM>::flux(UL, UR, this_flux, dim, a, vg, dx);
+				physics < NDIM > ::flux(UL, UR, this_flux, dim, a, vg, dx);
 				for (int f = 0; f < nf; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
@@ -79,14 +73,18 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 				}
 			}
 		}
-		for (int n = 0; n < geo::NANGMOM; n++) {
-			for (int m = 0; m < NDIM; m++) {
-				if (dim != m) {
-					for (int l = 0; l < NDIM; l++) {
-						for (int fi = 0; fi < geo::NFACEDIR; fi++) {
-							const auto d = faces[dim][fi];
-							for (const auto &i : find_indices(3, geo::H_NX - 2)) {
-								F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
+		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
+			const int sx_i = angmom_index_ + angmom_pair * (NDIM + geo::NANGMOM);
+			const int zx_i = sx_i + NDIM;
+			for (int n = 0; n < geo::NANGMOM; n++) {
+				for (int m = 0; m < NDIM; m++) {
+					if (dim != m) {
+						for (int l = 0; l < NDIM; l++) {
+							for (int fi = 0; fi < geo::NFACEDIR; fi++) {
+								const auto d = faces[dim][fi];
+								for (const auto &i : find_indices(3, geo::H_NX - 2)) {
+									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
+								}
 							}
 						}
 					}

@@ -46,12 +46,16 @@ struct hydro_computer : public cell_geometry<NDIM,INX> {
 	inline static safe_real minmod(safe_real a, safe_real b);
 	inline static safe_real minmod_theta(safe_real a, safe_real b, safe_real c);
 	inline static safe_real bound_width();
-
 	void boundaries(std::vector<std::vector<safe_real>> &U);
 	void advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
 			const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
 	void output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num);
+
+	void use_angmom_correction( int index, int count ) {
+		angmom_index_ = index;
+		angmom_count_ = count;
+	}
 
 	static constexpr int rho_i = 0;
 	static constexpr int egas_i = 1;
@@ -69,6 +73,7 @@ struct hydro_computer : public cell_geometry<NDIM,INX> {
 	hydro_computer();
 
 private:
+	int angmom_index_, angmom_count_;
 	static std::vector<int> find_indices(int lb, int ub);
 	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;

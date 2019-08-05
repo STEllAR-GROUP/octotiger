@@ -24,11 +24,12 @@ int main(int, char*[]) {
 //int hpx_main(int, char*[]) {
 
 	hydro_computer<NDIM, INX, ORDER> computer;
+	using comp = decltype(computer);
+	computer.use_angmom_correction(comp::sx_i, 1);
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-	using comp = decltype(computer);
 
 	std::vector<std::array<safe_real, NDIM>> X(H_N3);
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(computer.nf, std::vector<safe_real>(H_N3)));
@@ -66,7 +67,7 @@ int main(int, char*[]) {
 //			U[comp::egas_i][i] = 0.25;
 //		}
 		U[comp::rho_i][i] = 1.0;
-		U[comp::egas_i][i] = 1e+6*std::exp(-x2 * INX * INX / 4.0 );
+		U[comp::egas_i][i] = 1e+6 * std::exp(-x2 * INX * INX / 4.0);
 		U[comp::tau_i][i] = POWER(U[comp::egas_i][i], 1.0 / FGAMMA);
 	}
 
@@ -98,7 +99,7 @@ int main(int, char*[]) {
 		}
 		t += dt;
 		computer.boundaries(U);
-		computer.update_tau(U,dx);
+		computer.update_tau(U, dx);
 		computer.boundaries(U);
 		computer.output(U, X, iter++);
 		printf("%i %e %e\n", iter, double(t), double(dt));
