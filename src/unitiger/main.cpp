@@ -1,6 +1,5 @@
 #include <fenv.h>
 
-
 #ifndef NOHPX
 //#include <hpx/hpx_init.hpp>
 #include "../../octotiger/unitiger/unitiger.hpp"
@@ -41,7 +40,7 @@ int main(int, char*[]) {
 	for (int i = 0; i < H_N3; i++) {
 		int k = i;
 		int j = 0;
-		for( int dim = 0; dim < NDIM; dim++) {
+		for (int dim = 0; dim < NDIM; dim++) {
 			X[i][j] = (((k % H_NX) - H_BW) + 0.5) * dx - 0.5;
 			k /= H_NX;
 			j++;
@@ -67,11 +66,7 @@ int main(int, char*[]) {
 //			U[comp::egas_i][i] = 0.25;
 //		}
 		U[comp::rho_i][i] = 1.0;
-		if( x2 < dx*dx ) {
-			U[comp::egas_i][i] = 1000.0;
-		} else {
-			U[comp::egas_i][i] = 1.0;
-		}
+		U[comp::egas_i][i] = 1e+6*std::exp(-x2 * INX * INX / 4.0 );
 		if (X[i][0] > 0.5) {
 			U[comp::spc_i][i] = U[comp::rho_i][i];
 		} else {
