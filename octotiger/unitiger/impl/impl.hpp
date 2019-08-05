@@ -124,6 +124,7 @@ void hydro_computer<NDIM, INX, ORDER>::update_tau(std::vector<std::vector<safe_r
 
 template<int NDIM, int INX, int ORDER>
 void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<safe_real>> &U) {
+
 	for (int f = 0; f < nf; f++) {
 		if (NDIM == 1) {
 			for (int i = 0; i < geo::H_BW + 20; i++) {
@@ -141,9 +142,6 @@ void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<safe_r
 					int j0 = j;
 					j0 = std::max(j0, geo::H_BW);
 					j0 = std::min(j0, geo::H_NX - 1 - geo::H_BW);
-					int i0 = i;
-					i0 = std::max(i0, geo::H_BW);
-					i0 = std::min(i0, geo::H_NX - 1 - geo::H_BW);
 					U[f][index(i, j)] = U[f][index(geo::H_BW, j0)];
 					U[f][index(j, i)] = U[f][index(j0, geo::H_BW)];
 					U[f][index(geo::H_NX - 1 - i, j)] = U[f][index(geo::H_NX - 1 - geo::H_BW, j0)];
@@ -158,13 +156,10 @@ void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<safe_r
 			for (int i = 0; i < geo::H_BW; i++) {
 				for (int j = 0; j < geo::H_NX; j++) {
 					for (int k = 0; k < geo::H_NX; k++) {
-						int j0;
+						int j0 = j;
 						j0 = std::max(j0, geo::H_BW);
 						j0 = std::min(j0, geo::H_NX - 1 - geo::H_BW);
-						int i0 = i;
-						i0 = std::max(i0, geo::H_BW);
-						i0 = std::min(i0, geo::H_NX - 1 - geo::H_BW);
-						int k0 = i;
+						int k0 = k;
 						k0 = std::max(k0, geo::H_BW);
 						k0 = std::min(k0, geo::H_NX - 1 - geo::H_BW);
 						U[f][index(i, j, k)] = U[f][index(geo::H_BW, j0, k0)];
@@ -172,7 +167,7 @@ void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<safe_r
 						U[f][index(j, k, i)] = U[f][index(j0, k0, geo::H_BW)];
 						U[f][index(geo::H_NX - 1 - i, j, k)] = U[f][index(geo::H_NX - 1 - geo::H_BW, j0, k0)];
 						U[f][index(j, geo::H_NX - 1 - i, k)] = U[f][index(j0, geo::H_NX - 1 - geo::H_BW, k0)];
-						U[f][index(j, geo::H_NX - 1 - k, i)] = U[f][index(j0, k0, geo::H_NX - 1 - geo::H_BW)];
+						U[f][index(j, k, geo::H_NX - 1 - i)] = U[f][index(j0, k0, geo::H_NX - 1 - geo::H_BW)];
 					}
 				}
 			}
@@ -254,7 +249,7 @@ void hydro_computer<NDIM, INX, ORDER>::output(const std::vector<std::vector<safe
 		const char *coord_names[] = { "x", "y", "z" };
 		safe_real coords[NDIM][geo::H_NX + 1];
 		for (int i = 0; i < geo::H_NX + 1; i++) {
-			const auto x = safe_real(i - geo::H_BW) / INX;
+			const auto x = safe_real(i - geo::H_BW) / INX - safe_real(0.5);
 			for (int dim = 0; dim < NDIM; dim++) {
 				coords[dim][i] = x;
 			}

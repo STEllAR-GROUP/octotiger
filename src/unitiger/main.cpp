@@ -11,9 +11,9 @@
 #include "../../octotiger/octotiger/unitiger/hydro.hpp"
 #endif
 
-#define NDIM 2
-#define INX 250
-#define ORDER 3
+#define NDIM 3
+#define INX 32
+#define ORDER 2
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -25,7 +25,7 @@ int main(int, char*[]) {
 
 	hydro_computer<NDIM, INX, ORDER> computer;
 	using comp = decltype(computer);
-	computer.use_angmom_correction(comp::sx_i, 1);
+	//computer.use_angmom_correction(comp::sx_i, 1);
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
@@ -56,7 +56,7 @@ int main(int, char*[]) {
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
-			auto o = dim == 0 ? 0.2 : 0.0;
+			auto o = dim == 0 ? 0.0 : 0.0;
 			x2 += (X[i][dim] - o) * (X[i][dim] - o);
 		}
 //		if (xsum < 0) {
@@ -75,8 +75,8 @@ int main(int, char*[]) {
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
-//	const safe_real omega = 0.0;
+//	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
+	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto q = computer.reconstruct(U,dx);
@@ -102,6 +102,7 @@ int main(int, char*[]) {
 		computer.update_tau(U, dx);
 		computer.boundaries(U);
 		computer.output(U, X, iter++);
+		if( iter > 10 ) break;
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
 	computer.output(U, X, iter++);
