@@ -15,7 +15,7 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 	static constexpr auto weights = geo::quad_weights[NDIM - 1];
 	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
 	static constexpr auto kdelta = geo::kdeltas[NDIM - 1];
-	static constexpr auto dx = 1.0 / INX;
+	static const auto dx = X[geo::H_DNX][0] - X[0][0];
 
 	static constexpr auto dir = geo::directions[NDIM - 1];
 

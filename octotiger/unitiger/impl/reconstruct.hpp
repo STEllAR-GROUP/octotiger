@@ -6,19 +6,16 @@
 
 template<int NDIM, int INX, int ORDER>
 const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, ORDER>::geo::NDIR>>> hydro_computer<NDIM, INX, ORDER>::reconstruct(
-		std::vector<std::vector<safe_real>> U) {
+		std::vector<std::vector<safe_real>> U, safe_real dx) {
 
-	static constexpr auto faces = geo::lower_face_members[NDIM - 1];
-	static constexpr auto weights = geo::quad_weights[NDIM - 1];
 	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
 	static constexpr auto kdelta = geo::kdeltas[NDIM - 1];
-	static constexpr auto dx = 1.0 / INX;
 
 	static constexpr auto dir = geo::directions[NDIM - 1];
 
 	int bw = bound_width();
 
-	const auto measure_angmom = [](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
+	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
 		for (int n = 0; n < geo::NANGMOM; n++) {
 			L[n] = 0.0;
@@ -33,7 +30,7 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 		return L;
 	};
 
-	const auto add_angmom = [](std::array<std::array<safe_real, geo::NDIR>, NDIM> &C, std::array<safe_real, geo::NANGMOM> &Z) {
+	const auto add_angmom = [dx](std::array<std::array<safe_real, geo::NDIR>, NDIM> &C, std::array<safe_real, geo::NANGMOM> &Z) {
 		for (int d = 0; d < geo::NDIR; d++) {
 			for (int n = 0; n < geo::NANGMOM; n++) {
 				for (int m = 0; m < NDIM; m++) {

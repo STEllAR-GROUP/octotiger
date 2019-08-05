@@ -31,10 +31,10 @@ int main(int, char*[]) {
 	feenableexcept(FE_OVERFLOW);
 
 
-	std::vector<std::array<safe_real, NDIM>> X(H_N3);
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(computer.nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(computer.nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(computer.nf, std::vector<safe_real>(H_N3));
+	std::vector<std::array<safe_real, NDIM>> X(H_N3);
 
 	const safe_real dx = 1.0 / INX;
 
@@ -56,7 +56,7 @@ int main(int, char*[]) {
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
-			auto o = dim == 0 ? 0.0 : 0.0;
+			auto o = dim == 0 ? 0.2 : 0.0;
 			x2 += (X[i][dim] - o) * (X[i][dim] - o);
 		}
 //		if (xsum < 0) {
@@ -79,7 +79,7 @@ int main(int, char*[]) {
 //	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
-		auto q = computer.reconstruct(U);
+		auto q = computer.reconstruct(U,dx);
 		auto a = computer.flux(q, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
@@ -87,12 +87,12 @@ int main(int, char*[]) {
 		computer.boundaries(U);
 		if (ORDER >= 2) {
 			computer.boundaries(U);
-			q = computer.reconstruct(U);
+			q = computer.reconstruct(U,dx);
 			computer.flux(q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
 			if ( ORDER >= 3) {
 				computer.boundaries(U);
-				q = computer.reconstruct(U);
+				q = computer.reconstruct(U,dx);
 				computer.flux(q, F, X, omega);
 				computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 			}

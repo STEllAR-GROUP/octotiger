@@ -75,6 +75,8 @@ hydro_computer<NDIM, INX, ORDER>::hydro_computer() {
 
 }
 
+
+
 template<int NDIM, int INX, int ORDER>
 inline safe_real hydro_computer<NDIM, INX, ORDER>::minmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));

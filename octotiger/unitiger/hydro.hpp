@@ -38,7 +38,7 @@ void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int io
 template<int NDIM, int INX, int ORDER>
 struct hydro_computer : public cell_geometry<NDIM,INX> {
 	using geo = cell_geometry<NDIM,INX>;
-	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U);
+	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U, safe_real dx);
 	safe_real flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
 			std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
 	void update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx);
