@@ -41,12 +41,8 @@ struct hydro_computer : public cell_geometry<NDIM,INX> {
 	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U);
 	safe_real flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
 			std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
-	void update_tau(std::vector<std::vector<safe_real>> &U);
+	void update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx);
 
-	template<class VECTOR>
-	void to_prim(VECTOR u, safe_real &p, safe_real &v, int dim);
-	template<class VECTOR>
-	void flux(const VECTOR &UL, const VECTOR &UR, VECTOR &F, int dim, safe_real &a, std::array<safe_real, NDIM> &vg);
 	inline static safe_real minmod(safe_real a, safe_real b);
 	inline static safe_real minmod_theta(safe_real a, safe_real b, safe_real c);
 	inline static safe_real bound_width();

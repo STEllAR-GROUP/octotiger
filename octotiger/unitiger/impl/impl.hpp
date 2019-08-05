@@ -76,23 +76,6 @@ hydro_computer<NDIM, INX, ORDER>::hydro_computer() {
 }
 
 template<int NDIM, int INX, int ORDER>
-template<class VECTOR>
-void hydro_computer<NDIM, INX, ORDER>::to_prim(VECTOR u, safe_real &p, safe_real &v, int dim) {
-	const auto rho = u[rho_i];
-	const auto rhoinv = INVERSE(rho);
-	safe_real ek = 0.0;
-	for (int dim = 0; dim < NDIM; dim++) {
-		ek += std::pow(u[sx_i + dim], 2) * rhoinv * 0.5;
-	}
-	auto ein = std::max(u[egas_i] - ek, 0.0);
-	if (ein < 0.001 * u[egas_i]) {
-		ein = POWER(std::max(u[tau_i], safe_real(0.0)), FGAMMA);
-	}
-	v = u[sx_i + dim] * rhoinv;
-	p = (FGAMMA - 1.0) * ein;
-}
-
-template<int NDIM, int INX, int ORDER>
 inline safe_real hydro_computer<NDIM, INX, ORDER>::minmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }
@@ -114,13 +97,16 @@ inline safe_real hydro_computer<NDIM, INX, ORDER>::bound_width() {
 }
 
 template<int NDIM, int INX, int ORDER>
-void hydro_computer<NDIM, INX, ORDER>::update_tau(std::vector<std::vector<safe_real>> &U) {
+void hydro_computer<NDIM, INX, ORDER>::update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx) {
 	constexpr auto dir = geo::directions[NDIM - 1];
 	int bw = bound_width();
 	for (int i = bw; i < geo::H_N3 - bw; i++) {
 		safe_real ek = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			ek += U[sx_i + dim][i] * U[sx_i + dim][i];
+		}
+		for (int n = 0; n < geo::NANGMOM; n++) {
+			ek += pow(U[zx_i + n][i], 2) / (dx * dx);
 		}
 		ek *= 0.5 * INVERSE(U[rho_i][i]);
 		auto egas_max = U[egas_i][i];

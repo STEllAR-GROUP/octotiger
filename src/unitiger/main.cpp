@@ -98,7 +98,7 @@ int main(int, char*[]) {
 		}
 		t += dt;
 		computer.boundaries(U);
-		computer.update_tau(U);
+		computer.update_tau(U,dx);
 		computer.boundaries(U);
 		computer.output(U, X, iter++);
 		printf("%i %e %e\n", iter, double(t), double(dt));

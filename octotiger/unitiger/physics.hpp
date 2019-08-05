@@ -29,12 +29,17 @@ struct physics {
 		return nf;
 	}
 
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, int dim) {
+	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, int dim, safe_real dx) {
 		const auto rho = u[rho_i];
 		const auto rhoinv = safe_real(1.) / rho;
 		safe_real ek = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
+		}
+		if constexpr( NDIM > 1 ) {
+			for (int n = 0; n < pow<int,int>(3,NDIM-2); n++) {
+				ek += pow(u[zx_i + n], 2) * safe_real(0.5) * rhoinv / (dx * dx);
+			}
 		}
 		auto ein = max(u[egas_i] - ek, 0.0);
 		if (ein < safe_real(0.001) * u[egas_i]) {
@@ -45,12 +50,12 @@ struct physics {
 	}
 
 	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, std::vector<safe_real> &F, int dim, safe_real &a,
-			std::array<safe_real, NDIM> &vg) {
+			std::array<safe_real, NDIM> &vg, safe_real dx) {
 
 		safe_real pr, vr, pl, vl, vr0, vl0;
 
-		to_prim(UR, pr, vr0, dim);
-		to_prim(UL, pl, vl0, dim);
+		to_prim(UR, pr, vr0, dim, dx);
+		to_prim(UL, pl, vl0, dim, dx);
 		vr = vr0 - vg[dim];
 		vl = vl0 - vg[dim];
 		if (a < 0.0) {
@@ -67,7 +72,7 @@ struct physics {
 	}
 
 	template<int INX>
-	static void post_process(std::vector<std::vector<safe_real>> &U, const cell_geometry<NDIM,INX> &geo) {
+	static void post_process(std::vector<std::vector<safe_real>> &U, const cell_geometry<NDIM, INX> &geo) {
 		constexpr auto dir = geo.directions[NDIM - 1];
 		for (const auto &i : find_indices<NDIM, geo.H_NX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
 			safe_real ek = 0.0;

@@ -64,7 +64,7 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 						vg[2] = 0.0;
 					}
 				}
-				physics<NDIM>::flux(UL, UR, this_flux, dim, a, vg);
+				physics<NDIM>::flux(UL, UR, this_flux, dim, a, vg, dx);
 				for (int f = 0; f < nf; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
