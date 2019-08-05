@@ -7,43 +7,22 @@
 #include "octotiger/unitiger/basis.hpp"
 #endif
 
+#include "../physics.hpp"
+
+
 
 
 template<int NDIM, int INX, int ORDER>
-template<class VECTOR>
-void hydro_computer<NDIM, INX, ORDER>::flux(const VECTOR &UL, const VECTOR &UR, VECTOR &F, int dim, safe_real &a, std::array<safe_real, NDIM> &vg) {
-
-	safe_real pr, vr, pl, vl, vr0, vl0;
-
-	to_prim(UR, pr, vr0, dim);
-	to_prim(UL, pl, vl0, dim);
-	vr = vr0 - vg[dim];
-	vl = vl0 - vg[dim];
-	if (a < 0.0) {
-		safe_real ar, al;
-		ar = std::abs(vr) + SQRT(FGAMMA * pr * INVERSE( UR[rho_i]));
-		al = std::abs(vl) + SQRT(FGAMMA * pl * INVERSE( UL[rho_i]));
-		a = std::max(al, ar);
-	}
-	for (int f = 0; f < nf; f++) {
-		F[f] = 0.5 * ((vr - a) * UR[f] + (vl + a) * UL[f]);
-	}
-	F[sx_i + dim] += 0.5 * (pr + pl);
-	F[egas_i] += 0.5 * (pr * vr0 + pl * vl0);
-}
-
-
-template<int NDIM, int INX, int ORDER>
-safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, ORDER>::NDIR>>> &Q,
+safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
 		std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X, safe_real omega) {
 
-	static constexpr auto faces = lower_face_members[NDIM - 1];
-	static constexpr auto weights = quad_weights[NDIM - 1];
-	static constexpr auto face_loc = face_locs[NDIM - 1];
-	static constexpr auto kdelta = kdeltas[NDIM - 1];
+	static constexpr auto faces = geo::lower_face_members[NDIM - 1];
+	static constexpr auto weights = geo::quad_weights[NDIM - 1];
+	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
+	static constexpr auto kdelta = geo::kdeltas[NDIM - 1];
 	static constexpr auto dx = 1.0 / INX;
 
-	static constexpr auto dir = directions[NDIM - 1];
+	static constexpr auto dir = geo::directions[NDIM - 1];
 
 	int bw = bound_width();
 
@@ -68,24 +47,24 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 	std::array < safe_real, 3 > amax = { 0.0, 0.0, 0.0 };
 	for (int dim = 0; dim < NDIM; dim++) {
 		std::vector<safe_real> UR(nf), UL(nf), this_flux(nf);
-		for (const auto &i : find_indices(2, H_NX - 2)) {
+		for (const auto &i : find_indices(2, geo::H_NX - 2)) {
 			safe_real a = -1.0;
-			for (int fi = 0; fi < NFACEDIR; fi++) {
+			for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 				const auto d = faces[dim][fi];
 				const auto di = dir[d];
 				for (int f = 0; f < nf; f++) {
 					UR[f] = Q[f][i][d];
-					UL[f] = Q[f][i - H_DN[dim]][flip_dim(d, dim)];
+					UL[f] = Q[f][i - geo::H_DN[dim]][flip_dim(d, dim)];
 				}
 				std::array < safe_real, NDIM > vg;
 				if constexpr (NDIM > 1) {
-					vg[0] = -0.5 * omega * (X[i][1] + X[i - H_DN[dim]][1]);
-					vg[1] = +0.5 * omega * (X[i][0] + X[i - H_DN[dim]][0]);
+					vg[0] = -0.5 * omega * (X[i][1] + X[i - geo::H_DN[dim]][1]);
+					vg[1] = +0.5 * omega * (X[i][0] + X[i - geo::H_DN[dim]][0]);
 					if constexpr (NDIM == 3) {
 						vg[2] = 0.0;
 					}
 				}
-				flux(UL, UR, this_flux, dim, a, vg);
+				physics<NDIM>::flux(UL, UR, this_flux, dim, a, vg);
 				for (int f = 0; f < nf; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
@@ -93,20 +72,20 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 			amax[dim] = std::max(a, amax[dim]);
 		}
 		for (int f = 0; f < nf; f++) {
-			for (const auto &i : find_indices(3, H_NX - 2)) {
+			for (const auto &i : find_indices(3, geo::H_NX - 2)) {
 				F[dim][f][i] = 0.0;
-				for (int fi = 0; fi < NFACEDIR; fi++) {
+				for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
 				}
 			}
 		}
-		for (int n = 0; n < NANGMOM; n++) {
+		for (int n = 0; n < geo::NANGMOM; n++) {
 			for (int m = 0; m < NDIM; m++) {
 				if (dim != m) {
 					for (int l = 0; l < NDIM; l++) {
-						for (int fi = 0; fi < NFACEDIR; fi++) {
+						for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 							const auto d = faces[dim][fi];
-							for (const auto &i : find_indices(3, H_NX - 2)) {
+							for (const auto &i : find_indices(3, geo::H_NX - 2)) {
 								F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
 							}
 						}

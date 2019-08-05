@@ -33,11 +33,13 @@ void filter_cell3d(std::array<safe_real, 27> &C, safe_real C0);
 void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int ioff);
 }
 
+#include "./cell_geometry.hpp"
+
 template<int NDIM, int INX, int ORDER>
-struct hydro_computer {
-	static constexpr int NDIR = std::pow(3, NDIM);
-	const std::vector<std::vector<std::array<safe_real, NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U);
-	safe_real flux(const std::vector<std::vector<std::array<safe_real, NDIR>>> &Q,
+struct hydro_computer : public cell_geometry<NDIM,INX> {
+	using geo = cell_geometry<NDIM,INX>;
+	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U);
+	safe_real flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
 			std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
 	void update_tau(std::vector<std::vector<safe_real>> &U);
 
@@ -65,81 +67,19 @@ struct hydro_computer {
 	static constexpr int zx_i = 4 + NDIM;
 	static constexpr int zy_i = 5 + NDIM;
 	static constexpr int zz_i = 6 + NDIM;
-	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 
 	int nf;
 
-	hydro_computer(int nspecies);
+	hydro_computer();
 
 private:
 	static std::vector<int> find_indices(int lb, int ub);
-	int ns;
-	static constexpr int H_BW = 3;
-	static constexpr int H_NX = (2 * H_BW + INX);
-	static constexpr int H_DNX = 1;
-	static constexpr int H_DN[3] = { 1, H_NX, H_NX * H_NX };
-	static constexpr int H_DNY = H_NX;
-	static constexpr int H_DNZ = (H_NX * H_NX);
-	static constexpr int H_N3 = std::pow(H_NX, NDIM);
-	static constexpr int H_DN0 = 0;
-	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
-	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
-			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
-	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
-	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 },
-			{ 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
+	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
+	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
+	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> L;
+	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 
-	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 16.
-			/ 36., 1. / 36., 4. / 36., 1. / 36. } };
-
-	static constexpr safe_real vol_weights[3][27] = {
-	/**/{ 1.0 },
-	/**/{ 1. / 36., 4. / 36., 1. / 36., 4. / 36., 16. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36. },
-	/**/{ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216., 1. / 216.,
-	/****/4. / 216., 16. / 216., 4. / 216., 16. / 216., 64. / 216., 16. / 216., 4. / 216., 16. / 216., 4. / 216.,
-	/****/1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216., 1. / 216. } };
-
-	static constexpr int face_locs[3][27][3] = {
-	/**/{ { -1 }, { 0 }, { 1 } },
-
-	/**/{ { -1, -1 }, { 0, -1 }, { 1, -1 },
-	/**/{ -1, 0 }, { +0, 0 }, { 1, 0 },
-	/**/{ -1, 1 }, { 0, 1 }, { 1, 1 } },
-
-	/**/{ { -1, -1, -1 }, { -1, -1, +0 }, { -1, -1, +1 },
-	/**/{ -1, +0, -1 }, { -1, +0, +0 }, { -1, +0, +1 },
-	/**/{ -1, +1, -1 }, { -1, +1, +0 }, { -1, +1, +1 },
-	/**/{ +0, -1, -1 }, { +0, -1, +0 }, { +0, -1, +1 },
-	/**/{ +0, +0, -1 }, { +0, +0, +0 }, { +0, +0, +1 },
-	/**/{ +0, +1, -1 }, { +0, +1, +0 }, { +0, +1, +1 },
-	/**/{ +1, -1, -1 }, { +1, -1, +0 }, { +1, -1, +1 },
-	/**/{ +1, +0, -1 }, { +1, +0, +0 }, { +1, +0, +1 },
-	/**/{ +1, +1, -1 }, { +1, +1, +0 }, { +1, +1, +1 } } };
-
-	static constexpr int directions[3][27] = { {
-	/**/-H_DNX, +H_DN0, +H_DNX /**/
-	}, {
-	/**/-H_DNX - H_DNY, +H_DN0 - H_DNY, +H_DNX - H_DNY,/**/
-	/**/-H_DNX + H_DN0, +H_DN0 + H_DN0, +H_DNX + H_DN0,/**/
-	/**/-H_DNX + H_DNY, +H_DN0 + H_DNY, +H_DNX + H_DNY, /**/
-	}, {
-	/**/-H_DNX - H_DNY - H_DNZ, +H_DN0 - H_DNY - H_DNZ, +H_DNX - H_DNY - H_DNZ,/**/
-	/**/-H_DNX + H_DN0 - H_DNZ, +H_DN0 + H_DN0 - H_DNZ, +H_DNX + H_DN0 - H_DNZ,/**/
-	/**/-H_DNX + H_DNY - H_DNZ, +H_DN0 + H_DNY - H_DNZ, +H_DNX + H_DNY - H_DNZ,/**/
-	/**/-H_DNX - H_DNY + H_DN0, +H_DN0 - H_DNY + H_DN0, +H_DNX - H_DNY + H_DN0,/**/
-	/**/-H_DNX + H_DN0 + H_DN0, +H_DN0 + H_DN0 + H_DN0, +H_DNX + H_DN0 + H_DN0,/**/
-	/**/-H_DNX + H_DNY + H_DN0, +H_DN0 + H_DNY + H_DN0, +H_DNX + H_DNY + H_DN0,/**/
-	/**/-H_DNX - H_DNY + H_DNZ, +H_DN0 - H_DNY + H_DNZ, +H_DNX - H_DNY + H_DNZ,/**/
-	/**/-H_DNX + H_DN0 + H_DNZ, +H_DN0 + H_DN0 + H_DNZ, +H_DNX + H_DN0 + H_DNZ,/**/
-	/**/-H_DNX + H_DNY + H_DNZ, +H_DN0 + H_DNY + H_DNZ, +H_DNX + H_DNY + H_DNZ/**/
-
-	} };
-	std::vector<std::array<safe_real, NDIR / 2>> D1;
-	std::vector<std::vector<std::array<safe_real, NDIR>>> Q;
-	std::vector<std::vector<std::array<safe_real, NDIR>>> L;
-	std::vector<std::vector<std::vector<std::array<safe_real, NFACEDIR>>>> fluxes;
-
-	void filter_cell(std::array<safe_real, NDIR> &C, safe_real c0) {
+	void filter_cell(std::array<safe_real, geo::NDIR> &C, safe_real c0) {
 		if constexpr (NDIM == 1) {
 			hydro::filter_cell1d(C, c0);
 		} else if constexpr (NDIM == 2) {
@@ -151,7 +91,7 @@ private:
 
 	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
 		safe_real err = 0.0;
-		for (auto &i : find_indices(H_BW, H_NX - H_BW)) {
+		for (auto &i : find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			err += std::abs(U[zx_i][i]);
 		}
 		return err;

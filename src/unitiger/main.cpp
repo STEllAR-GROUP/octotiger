@@ -23,7 +23,7 @@ static constexpr safe_real CFL = (0.4 / NDIM);
 int main(int, char*[]) {
 //int hpx_main(int, char*[]) {
 
-	hydro_computer<NDIM, INX, ORDER> computer(2);
+	hydro_computer<NDIM, INX, ORDER> computer;
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
@@ -67,11 +67,6 @@ int main(int, char*[]) {
 //		}
 		U[comp::rho_i][i] = 1.0;
 		U[comp::egas_i][i] = 1e+6*std::exp(-x2 * INX * INX / 4.0 );
-		if (X[i][0] > 0.5) {
-			U[comp::spc_i][i] = U[comp::rho_i][i];
-		} else {
-			U[comp::spc_i + 1][i] = U[comp::rho_i][i];
-		}
 		U[comp::tau_i][i] = POWER(U[comp::egas_i][i], 1.0 / FGAMMA);
 	}
 
