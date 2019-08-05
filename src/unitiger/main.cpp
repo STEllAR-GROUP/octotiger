@@ -83,18 +83,21 @@ int main(int, char*[]) {
 //	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
-		auto a = computer.hydro_flux(U, F, X, omega);
+		auto q = computer.reconstruct(U);
+		auto a = computer.flux(q, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U);
 		if (ORDER >= 2) {
 			computer.boundaries(U);
-			computer.hydro_flux(U, F, X, omega);
+			q = computer.reconstruct(U);
+			computer.flux(q, F, X, omega);
 			computer.advance(U0, U, F, X, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
 			if ( ORDER >= 3) {
 				computer.boundaries(U);
-				computer.hydro_flux(U, F, X, omega);
+				q = computer.reconstruct(U);
+				computer.flux(q, F, X, omega);
 				computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 			}
 		}

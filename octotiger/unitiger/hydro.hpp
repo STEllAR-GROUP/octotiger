@@ -35,9 +35,10 @@ void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int io
 
 template<int NDIM, int INX, int ORDER>
 struct hydro_computer {
-	safe_real hydro_flux(std::vector<std::vector<safe_real>> U, std::vector<std::vector<std::vector<safe_real>>> &F,
-			std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
-
+	static constexpr int NDIR = std::pow(3, NDIM);
+	const std::vector<std::vector<std::array<safe_real, NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U);
+	safe_real flux(const std::vector<std::vector<std::array<safe_real, NDIR>>> &Q,
+			std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
 	void update_tau(std::vector<std::vector<safe_real>> &U);
 
 	template<class VECTOR>
@@ -50,7 +51,8 @@ struct hydro_computer {
 
 	void boundaries(std::vector<std::vector<safe_real>> &U);
 	void advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
-			const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real,NDIM>>& X, safe_real dx, safe_real dt, safe_real beta, safe_real omega);
+			const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> &X, safe_real dx, safe_real dt,
+			safe_real beta, safe_real omega);
 	void output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num);
 
 	static constexpr int rho_i = 0;
@@ -80,7 +82,6 @@ private:
 	static constexpr int H_DNZ = (H_NX * H_NX);
 	static constexpr int H_N3 = std::pow(H_NX, NDIM);
 	static constexpr int H_DN0 = 0;
-	static constexpr int NDIR = std::pow(3, NDIM);
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
 	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
 			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
@@ -101,12 +102,9 @@ private:
 	static constexpr int face_locs[3][27][3] = {
 	/**/{ { -1 }, { 0 }, { 1 } },
 
-
-
-	/**/{ { -1, -1 }, {  0, -1 }, { 1, -1 },
-	/**/  { -1,  0 }, { +0,  0 }, { 1,  0 },
-	/**/{   -1,  1 }, {  0,  1 }, { 1,  1 } },
-
+	/**/{ { -1, -1 }, { 0, -1 }, { 1, -1 },
+	/**/{ -1, 0 }, { +0, 0 }, { 1, 0 },
+	/**/{ -1, 1 }, { 0, 1 }, { 1, 1 } },
 
 	/**/{ { -1, -1, -1 }, { -1, -1, +0 }, { -1, -1, +1 },
 	/**/{ -1, +0, -1 }, { -1, +0, +0 }, { -1, +0, +1 },
@@ -141,19 +139,19 @@ private:
 	std::vector<std::vector<std::array<safe_real, NDIR>>> L;
 	std::vector<std::vector<std::vector<std::array<safe_real, NFACEDIR>>>> fluxes;
 
-	void filter_cell(std::array<safe_real,NDIR> &C, safe_real c0) {
+	void filter_cell(std::array<safe_real, NDIR> &C, safe_real c0) {
 		if constexpr (NDIM == 1) {
-			hydro::filter_cell1d(C,c0);
+			hydro::filter_cell1d(C, c0);
 		} else if constexpr (NDIM == 2) {
-			hydro::filter_cell2d(C,c0);
+			hydro::filter_cell2d(C, c0);
 		} else {
-			hydro::filter_cell3d(C,c0);
+			hydro::filter_cell3d(C, c0);
 		}
 	}
 
-	safe_real z_error(const std::vector<std::vector<safe_real>>& U) {
+	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
 		safe_real err = 0.0;
-		for( auto& i : find_indices(H_BW,H_NX-H_BW) ) {
+		for (auto &i : find_indices(H_BW, H_NX - H_BW)) {
 			err += std::abs(U[zx_i][i]);
 		}
 		return err;
