@@ -13,7 +13,7 @@
 
 #define NDIM 3
 #define INX 32
-#define ORDER 2
+#define ORDER 3
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)

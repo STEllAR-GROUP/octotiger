@@ -8,6 +8,20 @@
 #ifndef OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_
 #define OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_
 
+/* 0  1  2 */
+/* 3  4  5 */
+/* 6  7  8 */
+
+/* 9 10 11 */
+/*12 13 14 */
+/*15 16 17 */
+
+/*18 19 20 */
+/*21 22 23 */
+/*24 25 26 */
+
+
+
 template<int NDIM, int INX>
 struct cell_geometry {
 	static constexpr int H_BW = 3;
@@ -23,10 +37,11 @@ struct cell_geometry {
 	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
 			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
-	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18 },
+	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18, 21, 24 },
 			{ 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
-	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 16.
+	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 },
+			{ 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4.
 			/ 36., 1. / 36., 4. / 36., 1. / 36. } };
 
 	static constexpr safe_real vol_weights[3][27] = {
