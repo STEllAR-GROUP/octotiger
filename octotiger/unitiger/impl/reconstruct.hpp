@@ -14,6 +14,8 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 	static constexpr auto dir = geo::directions[NDIM - 1];
 
 	int bw = bound_width();
+	static const auto indices1  = find_interior_indices<1>();
+	static const auto indices2  = find_interior_indices<2>();
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
@@ -45,13 +47,13 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 
 	const auto reconstruct = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, int order) {
 		if (order == 1) {
-			for (const auto &i : find_indices(1, geo::H_NX - 1)) {
+			for (const auto &i : indices1) {
 				for (int d = 0; d < geo::NDIR; d++) {
 					q[i][d] = u[i];
 				}
 			}
 		} else if (order == 2) {
-			for (const auto &i : find_indices(1, geo::H_NX - 1)) {
+			for (const auto &i : indices1) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {
 					const auto di = dir[d];
 					const auto slp = minmod(u[i + di] - u[i], u[i] - u[i - di]);
@@ -60,13 +62,13 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 				}
 			}
 		} else if (order == 3) {
-			for (const auto &i : find_indices(1, geo::H_NX - 1)) {
+			for (const auto &i : indices1) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {
 					const auto di = dir[d];
 					D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
 				}
 			}
-			for (const auto &i : find_indices(1, geo::H_NX - 1)) {
+			for (const auto &i : indices1) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {
 					const auto di = dir[d];
 					q[i][d] = 0.5 * (u[i] + u[i + di]);
@@ -74,7 +76,7 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 					q[i + di][geo::flip(d)] = q[i][d];
 				}
 			}
-			for (const auto &i : find_indices(2, geo::H_NX - 2)) {
+			for (const auto i : indices2) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {
 					limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
 				}
@@ -110,7 +112,7 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 
 			if (ORDER == 3) {
 				for (int dim = 0; dim < NDIM; dim++) {
-					for (const auto &i : find_indices(1, geo::H_NX - 1)) {
+					for (const auto &i : indices1) {
 						for (int d = 0; d < geo::NDIR / 2; d++) {
 							const auto &u = U[sx_i + dim];
 							const auto di = dir[d];
@@ -120,7 +122,7 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 						}
 					}
 				}
-				for (const auto &i : find_indices(2, geo::H_NX - 2)) {
+				for (const auto &i : indices2) {
 					std::array < safe_real, geo::NANGMOM > Z;
 					for (int dim = 0; dim < geo::NANGMOM; dim++) {
 						Z[dim] = U[zx_i + dim][i];

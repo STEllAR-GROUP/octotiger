@@ -11,6 +11,7 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 		std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X,
 		safe_real omega) {
 
+	static const auto indices2  = find_interior_indices<2>();
 	static constexpr auto faces = geo::lower_face_members[NDIM - 1];
 	static constexpr auto weights = geo::quad_weights[NDIM - 1];
 	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
@@ -42,7 +43,7 @@ safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<s
 	std::array < safe_real, 3 > amax = {0.0, 0.0, 0.0};
 	for (int dim = 0; dim < NDIM; dim++) {
 		std::vector<safe_real> UR(nf), UL(nf), this_flux(nf);
-		for (const auto &i : find_indices(2, geo::H_NX - 2)) {
+		for (const auto &i : indices2) {
 			safe_real a = -1.0;
 			for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 				const auto d = faces[dim][fi];

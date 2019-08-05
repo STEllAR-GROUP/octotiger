@@ -36,11 +36,11 @@ void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int io
 #include "./cell_geometry.hpp"
 
 template<int NDIM, int INX, int ORDER>
-struct hydro_computer : public cell_geometry<NDIM,INX> {
+struct hydro_computer: public cell_geometry<NDIM, INX> {
 	using geo = cell_geometry<NDIM,INX>;
 	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U, safe_real dx);
-	safe_real flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
-			std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
+	safe_real flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q, std::vector<std::vector<std::vector<safe_real>>> &F,
+			std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
 	void update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx);
 
 	inline static safe_real minmod(safe_real a, safe_real b);
@@ -52,7 +52,7 @@ struct hydro_computer : public cell_geometry<NDIM,INX> {
 			safe_real beta, safe_real omega);
 	void output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num);
 
-	void use_angmom_correction( int index, int count ) {
+	void use_angmom_correction(int index, int count) {
 		angmom_index_ = index;
 		angmom_count_ = count;
 	}
@@ -73,6 +73,29 @@ struct hydro_computer : public cell_geometry<NDIM,INX> {
 	hydro_computer();
 
 private:
+
+	template<int BW, int PAD_DIR = geo::NDIR / 2>
+	static std::array<int, int(std::pow<int, int>(geo::H_NX - 2 * BW, NDIM))> find_interior_indices() {
+		std::array<int, int(std::pow<int, int>(geo::H_NX - 2 * BW, NDIM))> indexes;
+		int l = 0;
+		for (int i = 0; i < geo::H_N3; i++) {
+			int k = i;
+			bool interior = true;
+			for (int dim = 0; dim < NDIM; dim++) {
+				const int tmp = k % geo::H_NX;
+				const int lb = geo::face_locs[NDIM-1][PAD_DIR][dim] == +1 ? BW - 1 : BW;
+				const int ub = geo::face_locs[NDIM-1][PAD_DIR][dim] == -1 ? geo::H_NX - BW + 1 : geo::H_NX - BW;
+				interior = interior && tmp >= lb;
+				interior = interior && tmp < ub;
+				k /= geo::H_NX;
+			}
+			if (interior) {
+				indexes[l++] = i;
+			}
+		}
+		return indexes;
+	}
+
 	int angmom_index_, angmom_count_;
 	static std::vector<int> find_indices(int lb, int ub);
 	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
