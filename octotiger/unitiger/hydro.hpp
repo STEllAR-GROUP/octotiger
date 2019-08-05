@@ -50,7 +50,7 @@ struct hydro_computer {
 
 	void boundaries(std::vector<std::vector<safe_real>> &U);
 	void advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
-			const std::vector<std::vector<std::vector<safe_real>>> &F, safe_real dx, safe_real dt, safe_real beta, safe_real omega);
+			const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real,NDIM>>& X, safe_real dx, safe_real dt, safe_real beta, safe_real omega);
 	void output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num);
 
 	static constexpr int rho_i = 0;

@@ -55,7 +55,7 @@ int main(int, char*[]) {
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[i][dim];
-			auto o = dim == 0 ? 0.0 : 0.0;
+			auto o = dim == 0 ? 0.2 : 0.0;
 			x2 += (X[i][dim] - o) * (X[i][dim] - o);
 		}
 //		if (xsum < 0) {
@@ -79,23 +79,23 @@ int main(int, char*[]) {
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-//	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
-	const safe_real omega = 0.0;
+	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
+//	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto a = computer.hydro_flux(U, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
-		computer.advance(U0, U, F, dx, dt, 1.0, omega);
+		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U);
 		if (ORDER >= 2) {
 			computer.boundaries(U);
 			computer.hydro_flux(U, F, X, omega);
-			computer.advance(U0, U, F, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
+			computer.advance(U0, U, F, X, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
 			if ( ORDER >= 3) {
 				computer.boundaries(U);
 				computer.hydro_flux(U, F, X, omega);
-				computer.advance(U0, U, F, dx, dt, 2.0 / 3.0, omega);
+				computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 			}
 		}
 		t += dt;
