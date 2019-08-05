@@ -28,7 +28,7 @@ void filter_cell1d(std::array<safe_real, 3> &C, safe_real C0) {
 		if (i == center) {
 			continue;
 		}
-		total += vol_weight1d[i];
+		total += vol_weight1d[i] * C[i];
 	}
 	C[center] = (C0 - total) * INVERSE(vol_weight1d[center]);
 	for (int i = 0; i < ndir; i++) {
@@ -48,7 +48,7 @@ void filter_cell1d(std::array<safe_real, 3> &C, safe_real C0) {
 	}
 	total = 0.0;
 	for (int i = 0; i < ndir; i++) {
-		total += vol_weight1d[i];
+		total += vol_weight1d[i] * C[i];
 	}
 	const auto dif = C0 - total;
 	for (int i = 0; i < ndir; i++) {
@@ -111,7 +111,7 @@ void filter_cell3d(std::array<safe_real, 27> &C, safe_real C0) {
 		if (i == center) {
 			continue;
 		}
-		total += vol_weight3d[i];
+		total += vol_weight3d[i] * C[i];
 	}
 	C[center] = (C0 - total) * INVERSE(vol_weight3d[center]);
 	for (int i = 0; i < ndir; i++) {
@@ -143,7 +143,7 @@ void filter_cell3d(std::array<safe_real, 27> &C, safe_real C0) {
 	}
 	total = 0.0;
 	for (int i = 0; i < ndir; i++) {
-		total += vol_weight3d[i];
+		total += vol_weight3d[i] * C[i];
 	}
 	const auto dif = C0 - total;
 	for (int i = 0; i < ndir; i++) {
