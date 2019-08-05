@@ -5,7 +5,7 @@
  *      Author: dmarce1
  */
 
-#include "octotiger/test_problems/rotating_star/rotating_star.hpp"
+#include "octotiger/test_problems/rotating_star.hpp"
 
 #include "octotiger/defs.hpp"
 #include "octotiger/options.hpp"

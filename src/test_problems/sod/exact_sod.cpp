@@ -2,7 +2,7 @@
 /* This C code was adopted from the FORTRAN code exact_sod.f at http://www.itam.nsc.ru/OLD2/flowlib/SRC/sod.f */
 /**************************************************************************************************************/
 
-#include "octotiger/test_problems/sod/exact_sod.hpp"
+#include "octotiger/test_problems/exact_sod.hpp"
 
 #include <cmath>
 #include <cstdio>

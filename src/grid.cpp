@@ -1,5 +1,5 @@
 #include "octotiger/radiation/rad_grid.hpp"
-#include "octotiger/test_problems/sod/exact_sod.hpp"
+#include "octotiger/test_problems/exact_sod.hpp"
 
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/future.hpp"

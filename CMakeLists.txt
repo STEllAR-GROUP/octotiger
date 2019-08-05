@@ -186,8 +186,8 @@ set(header_files
     octotiger/radiation/kernel_interface.hpp
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
-    octotiger/test_problems/rotating_star/rotating_star.hpp
-    octotiger/test_problems/sod/exact_sod.hpp
+    octotiger/test_problems/rotating_star.hpp
+    octotiger/test_problems/exact_sod.hpp
 )
 
 # Octotiger library
@@ -205,7 +205,7 @@ add_hpx_library(
 add_hpx_library(
   hydrolib
   DEPENDENCIES
-    Silo::silo Vc::Vc Boost::boost
+    Silo::silo Vc::Vc Boost::boost quadmath
   SOURCES
     ${hydro_source_files}
   HEADERS
@@ -357,13 +357,22 @@ target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRI
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
+
+
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
     src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp)
+    )
   target_sources(octolib PRIVATE ${blast_sources})
   source_group(TREE ${PROJECT_SOURCE_DIR}
     PREFIX "Source Files" FILES ${blast_sources})
+
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
+  set(blast_sources2
+    src/test_problems/blast/sedovf_c.cpp)
+  target_sources(hydrolib PRIVATE ${blast_sources2})
+  source_group(TREE ${PROJECT_SOURCE_DIR}
+    PREFIX "Source Files" FILES ${blast_sources2})
 
   if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
     target_compile_definitions(octolib PUBLIC

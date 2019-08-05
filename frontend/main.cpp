@@ -8,7 +8,8 @@
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
-#include "octotiger/test_problems/rotating_star/rotating_star.hpp"
+#include "octotiger/test_problems/rotating_star.hpp"
+#include "octotiger/test_problems/blast.hpp"
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"
