@@ -98,10 +98,6 @@ private:
 
 	int angmom_index_, angmom_count_;
 	static std::vector<int> find_indices(int lb, int ub);
-	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
-	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
-	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> L;
-	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 
 	void filter_cell(std::array<safe_real, geo::NDIR> &C, safe_real c0) {
 		if constexpr (NDIM == 1) {
