@@ -123,14 +123,14 @@ void filter_cell3d(std::array<safe_real, 27> &C, safe_real C0) {
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
 			for (int k = 0; k < 3; k++) {
-				if (i == 2) {
-					attenuate(Q[9 * k + 3 * i + j], Q[9 * k + 3 * (i - 1) + j]);
+				if (k == 2) {
+					attenuate(Q[9 * k + 3 * i + j], Q[9 * (k - 1) + 3 * i + j]);
 				}
 				if (j == 2) {
 					attenuate(Q[9 * k + 3 * i + j], Q[9 * k + 3 * i + j - 1]);
 				}
-				if (k == 2) {
-					attenuate(Q[9 * (k - 1) + 3 * i + j], Q[9 * k + 3 * i + j]);
+				if (i == 2) {
+					attenuate(Q[9 * k + 3 * i + j], Q[9 * k + 3 * (i - 1) + j]);
 				}
 			}
 		}
