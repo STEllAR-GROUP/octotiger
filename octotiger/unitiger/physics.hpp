@@ -36,8 +36,8 @@ struct physics {
 		for (int dim = 0; dim < NDIM; dim++) {
 			ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 		}
-		if constexpr( NDIM > 1 ) {
-			for (int n = 0; n < pow<int,int>(3,NDIM-2); n++) {
+		if constexpr (NDIM > 1) {
+			for (int n = 0; n < pow<int, int>(3, NDIM - 2); n++) {
 				ek += pow(u[zx_i + n], 2) * safe_real(0.5) * rhoinv / (dx * dx);
 			}
 		}
@@ -72,12 +72,17 @@ struct physics {
 	}
 
 	template<int INX>
-	static void post_process(std::vector<std::vector<safe_real>> &U, const cell_geometry<NDIM, INX> &geo) {
+	void post_process(std::vector<std::vector<safe_real>> &U, safe_real dx) {
+		static const cell_geometry<NDIM, INX> geo;
 		constexpr auto dir = geo.directions[NDIM - 1];
-		for (const auto &i : find_indices<NDIM, geo.H_NX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
+		const static auto is = find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW);
+		for (auto i : is) {
 			safe_real ek = 0.0;
 			for (int dim = 0; dim < NDIM; dim++) {
 				ek += U[sx_i + dim][i] * U[sx_i + dim][i];
+			}
+			for (int n = 0; n < geo.NANGMOM; n++) {
+				ek += pow(U[zx_i + n][i], 2) / (dx * dx);
 			}
 			ek *= 0.5 * INVERSE(U[rho_i][i]);
 			auto egas_max = U[egas_i][i];
@@ -88,6 +93,39 @@ struct physics {
 			if (ein > 0.1 * egas_max) {
 				U[tau_i][i] = POWER(ein, 1.0 / FGAMMA);
 			}
+		}
+	}
+
+	template<int INX>
+	static void source(std::vector<std::vector<safe_real>> &dudt, const std::vector<std::vector<safe_real>> &U,
+			const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> X, safe_real omega, safe_real dx) {
+		static constexpr cell_geometry<NDIM, INX> geo;
+		for (int dim = 0; dim < NDIM; dim++) {
+			static constexpr auto kdelta = geo.kdeltas[NDIM - 1];
+			for (int n = 0; n < geo.NANGMOM; n++) {
+				const auto m = dim;
+				for (int l = 0; l < NDIM; l++) {
+					for (const auto &i : find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
+						const auto fr = F[dim][sx_i + l][i + geo.H_DN[dim]];
+						const auto fl = F[dim][sx_i + l][i];
+						dudt[zx_i + n][i] -= kdelta[n][m][l] * 0.5 * (fr + fl);
+					}
+				}
+			}
+		}
+		for (const auto &i : find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
+			if constexpr (NDIM == 2) {
+				dudt[zx_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
+			} else if constexpr (NDIM == 3) {
+				dudt[zx_i][i] -= omega * X[i][2] * U[sx_i][i];
+				dudt[zy_i][i] -= omega * X[i][2] * U[sy_i][i];
+				dudt[zz_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
+			}
+
+		}
+		for (const auto &i : find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
+			dudt[sx_i][i] += U[sy_i][i] * omega;
+			dudt[sy_i][i] -= U[sx_i][i] * omega;
 		}
 
 	}

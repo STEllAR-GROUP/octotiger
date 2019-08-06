@@ -41,7 +41,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U, safe_real dx);
 	safe_real flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q, std::vector<std::vector<std::vector<safe_real>>> &F,
 			std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
-	void update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx);
+	void post_process(std::vector<std::vector<safe_real>> &U, safe_real dx);
 
 	inline static safe_real minmod(safe_real a, safe_real b);
 	inline static safe_real minmod_theta(safe_real a, safe_real b, safe_real c);
@@ -97,7 +97,6 @@ private:
 	}
 
 	int angmom_index_, angmom_count_;
-	static std::vector<int> find_indices(int lb, int ub);
 	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> L;
@@ -115,7 +114,7 @@ private:
 
 	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
 		safe_real err = 0.0;
-		for (auto &i : find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
+		for (auto &i : find_indices<NDIM,INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			err += std::abs(U[zx_i][i]);
 		}
 		return err;

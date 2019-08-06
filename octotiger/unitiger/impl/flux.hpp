@@ -60,6 +60,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const std::vector<std::vector<std::arr
 				} else {
 					vg[0] = 0.0;
 				}
+
 				physics < NDIM > ::flux(UL, UR, this_flux, dim, a, vg, dx);
 				for (int f = 0; f < nf; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
@@ -68,7 +69,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const std::vector<std::vector<std::arr
 			amax[dim] = std::max(a, amax[dim]);
 		}
 		for (int f = 0; f < nf; f++) {
-			for (const auto &i : find_indices(3, geo::H_NX - 2)) {
+			for (const auto &i : find_indices<NDIM,INX>(3, geo::H_NX - 2)) {
 				F[dim][f][i] = 0.0;
 				for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
@@ -84,7 +85,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const std::vector<std::vector<std::arr
 						for (int l = 0; l < NDIM; l++) {
 							for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 								const auto d = faces[dim][fi];
-								for (const auto &i : find_indices(3, geo::H_NX - 2)) {
+								for (const auto &i : find_indices<NDIM,INX>(3, geo::H_NX - 2)) {
 									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx
 											* fluxes[dim][sx_i + l][i][fi];
 								}

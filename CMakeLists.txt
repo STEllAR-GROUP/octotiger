@@ -63,6 +63,13 @@ set(hydro_source_files
 # Octotiger library headers
 set(hydro_header_files
     octotiger/unitiger/hydro.hpp
+    octotiger/unitiger/physics.hpp
+    octotiger/unitiger/basis.hpp
+    octotiger/unitiger/cell_geometry.hpp
+    octotiger/unitiger/safe_real.hpp
+    octotiger/unitiger/impl/impl.hpp
+    octotiger/unitiger/impl/reconstruct.hpp
+    octotiger/unitiger/impl/flux.hpp
 )
 set(source_files
     src/compute_factor.cpp
@@ -239,7 +246,8 @@ add_hpx_executable(
     Silo::silo hydrolib
   SOURCES
     src/unitiger/main.cpp
-    
+  HEADERS
+    ${hydro_header_files}
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
 

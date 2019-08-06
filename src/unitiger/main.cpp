@@ -11,7 +11,8 @@
 #include "../../octotiger/octotiger/unitiger/hydro.hpp"
 #endif
 
-#define NDIM 3
+
+#define NDIM 2
 #define INX 128
 
 #define H_BW 3
@@ -93,13 +94,12 @@ int main(int, char*[]) {
 		computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 		t += dt;
 		computer.boundaries(U);
-		computer.update_tau(U, dx);
+		computer.post_process(U, dx);
 		computer.boundaries(U);
 		computer.output(U, X, iter++);
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
 	computer.output(U, X, iter++);
-
 #ifdef NOHPX
 	return 0;
 #else

@@ -37,45 +37,22 @@ inline void limit_slope(safe_real &ql, safe_real q0, safe_real &qr) {
 #include "./reconstruct.hpp"
 
 template<int NDIM, int INX>
-std::vector<int> hydro_computer<NDIM, INX>::find_indices(int lb, int ub) {
-	std::vector<int> I;
-	for (int i = 0; i < geo::H_N3; i++) {
-		int k = i;
-		bool interior = true;
-		for (int dim = 0; dim < NDIM; dim++) {
-			int this_i = k % geo::H_NX;
-			if (this_i < lb || this_i >= ub) {
-				interior = false;
-				break;
-			} else {
-				k /= geo::H_NX;
-			}
-		}
-		if (interior) {
-			I.push_back(i);
-		}
-	}
-	return I;
-}
-
-template<int NDIM, int INX>
 hydro_computer<NDIM, INX>::hydro_computer() {
 	nf = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 	angmom_count_ = 0;
 	D1 = decltype(D1)(geo::H_N3);
 	Q = decltype(Q)(nf, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
-	fluxes = decltype(fluxes)(NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>> > (nf, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
+	fluxes = decltype(fluxes)(NDIM,
+			std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>> > (nf, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
 	L = decltype(L)(NDIM, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 
-	for (const auto &i : find_indices(0, geo::H_NX)) {
+	for (const auto &i : find_indices<NDIM, INX>(0, geo::H_NX)) {
 		for (int d = 0; d < geo::NDIR / 2; d++) {
 			D1[i][d] = NAN;
 		}
 	}
 
 }
-
-
 
 template<int NDIM, int INX>
 inline safe_real hydro_computer<NDIM, INX>::minmod(safe_real a, safe_real b) {
@@ -99,27 +76,9 @@ inline safe_real hydro_computer<NDIM, INX>::bound_width() {
 }
 
 template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx) {
-	constexpr auto dir = geo::directions[NDIM - 1];
-	int bw = bound_width();
-	for (int i = bw; i < geo::H_N3 - bw; i++) {
-		safe_real ek = 0.0;
-		for (int dim = 0; dim < NDIM; dim++) {
-			ek += U[sx_i + dim][i] * U[sx_i + dim][i];
-		}
-		for (int n = 0; n < geo::NANGMOM; n++) {
-			ek += pow(U[zx_i + n][i], 2) / (dx * dx);
-		}
-		ek *= 0.5 * INVERSE(U[rho_i][i]);
-		auto egas_max = U[egas_i][i];
-		for (int d = 0; d < geo::NDIR; d++) {
-			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
-		}
-		safe_real ein = U[egas_i][i] - ek;
-		if (ein > 0.1 * egas_max) {
-			U[tau_i][i] = POWER(ein, 1.0 / FGAMMA);
-		}
-	}
+void hydro_computer<NDIM, INX>::post_process(std::vector<std::vector<safe_real>> &U, safe_real dx) {
+	physics < NDIM > p;
+	p.template post_process < NDIM > (U, dx);
 }
 
 template<int NDIM, int INX>
@@ -179,46 +138,25 @@ template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
 		const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> &X, safe_real dx, safe_real dt,
 		safe_real beta, safe_real omega) {
-	int stride = 1;
 	int bw = bound_width();
-	std::vector < std::vector < safe_real >> dudt(nf, std::vector < safe_real > (geo::H_N3, 0.0));
+	static thread_local std::vector < std::vector < safe_real >> dudt(nf, std::vector < safe_real > (geo::H_N3));
+	for (int f = 0; f < nf; f++) {
+		for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
+			dudt[f][i] = 0.0;
+		}
+	}
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (int f = 0; f < nf; f++) {
-			for (const auto &i : find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
-				const auto fr = F[dim][f][i + stride];
+			for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
+				const auto fr = F[dim][f][i + geo::H_DN[dim]];
 				const auto fl = F[dim][f][i];
 				dudt[f][i] -= (fr - fl) * INVERSE(dx);
 			}
 		}
-		static constexpr auto kdelta = geo::kdeltas[NDIM - 1];
-		for (int n = 0; n < geo::NANGMOM; n++) {
-			const auto m = dim;
-			for (int l = 0; l < NDIM; l++) {
-				for (const auto &i : find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
-					const auto fr = F[dim][sx_i + l][i + stride];
-					const auto fl = F[dim][sx_i + l][i];
-					dudt[zx_i + n][i] -= kdelta[n][m][l] * 0.5 * (fr + fl);
-				}
-			}
-		}
-		stride *= geo::H_NX;
 	}
-	for (const auto &i : find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
-		if constexpr (NDIM == 2) {
-			dudt[zx_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
-		} else if constexpr (NDIM == 3) {
-			dudt[zx_i][i] -= omega * X[i][2] * U[sx_i][i];
-			dudt[zy_i][i] -= omega * X[i][2] * U[sy_i][i];
-			dudt[zz_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
-		}
-
-	}
-	for (const auto &i : find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
-		dudt[sx_i][i] += U[sy_i][i] * omega;
-		dudt[sy_i][i] -= U[sx_i][i] * omega;
-	}
+	physics < NDIM > ::template source<INX>(dudt, U, F, X, omega, dx);
 	for (int f = 0; f < nf; f++) {
-		for (const auto &i : find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
+		for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			safe_real u0 = U0[f][i];
 			safe_real u1 = U[f][i] + dudt[f][i] * dt;
 			U[f][i] = u0 * (1.0 - beta) + u1 * beta;
