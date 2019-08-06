@@ -8,9 +8,8 @@
 #ifndef OCTOTIGER_UNITIGER_UTI1L_HPP_
 #define OCTOTIGER_UNITIGER_UTI1L_HPP_
 
-
 template<int a, int b>
-constexpr int int_pow() {
+static constexpr int int_pow() {
 	if constexpr (b == 0) {
 		return 1;
 	} else {
@@ -18,27 +17,13 @@ constexpr int int_pow() {
 	}
 }
 
-template<int NDIM, int INX>
-static std::vector<int> find_indices(int lb, int ub) {
-	static const cell_geometry<NDIM,INX> geo;
-	std::vector<int> I;
-	for (int i = 0; i < geo::H_N3; i++) {
-		int k = i;
-		bool interior = true;
-		for (int dim = 0; dim < NDIM; dim++) {
-			int this_i = k % geo::H_NX;
-			if (this_i < lb || this_i >= ub) {
-				interior = false;
-				break;
-			} else {
-				k /= geo::H_NX;
-			}
-		}
-		if (interior) {
-			I.push_back(i);
-		}
-	}
-	return I;
+
+static inline safe_real minmod(safe_real a, safe_real b) {
+	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
+}
+
+static inline safe_real minmod_theta(safe_real a, safe_real b, safe_real c) {
+	return minmod(c * minmod(a, b), 0.5 * (a + b));
 }
 
 #endif /* OCTOTIGER_UNITIGER_UTIL_HPP_ */

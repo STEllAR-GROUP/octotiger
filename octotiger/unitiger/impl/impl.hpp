@@ -55,27 +55,6 @@ hydro_computer<NDIM, INX>::hydro_computer() {
 }
 
 template<int NDIM, int INX>
-inline safe_real hydro_computer<NDIM, INX>::minmod(safe_real a, safe_real b) {
-	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
-}
-
-template<int NDIM, int INX>
-inline safe_real hydro_computer<NDIM, INX>::minmod_theta(safe_real a, safe_real b, safe_real c) {
-	return minmod(c * minmod(a, b), 0.5 * (a + b));
-}
-
-template<int NDIM, int INX>
-inline safe_real hydro_computer<NDIM, INX>::bound_width() {
-	int bw = 1;
-	int next_bw = 1;
-	for (int dim = 1; dim < NDIM; dim++) {
-		next_bw *= geo::H_NX;
-		bw += next_bw;
-	}
-	return bw;
-}
-
-template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::post_process(hydro::state_type &U, safe_real dx) {
 	physics < NDIM > p;
 	p.template post_process < NDIM > (U, dx);
@@ -137,7 +116,6 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> &X,
 		safe_real dx, safe_real dt, safe_real beta, safe_real omega) {
-	int bw = bound_width();
 	static thread_local std::vector<std::vector<safe_real>> dudt(nf, std::vector < safe_real > (geo::H_N3));
 	for (int f = 0; f < nf; f++) {
 		for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {

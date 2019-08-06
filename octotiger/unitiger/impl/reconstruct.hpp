@@ -4,6 +4,8 @@
 #include "octotiger/unitiger/basis.hpp"
 #endif
 
+#include "../util.hpp"
+
 template<int NDIM, int INX>
 const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U, safe_real dx) {
 
@@ -12,7 +14,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 	static constexpr auto dir = geo::directions[NDIM - 1];
 
-	int bw = bound_width();
 	static const auto indices1 = find_interior_indices<1>();
 	static const auto indices2 = find_interior_indices<2>();
 
@@ -90,7 +91,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				storeZ[n] = U[zx_i + n];
 			}
 
-			safe_real z1 = z_error(U);
+//			safe_real z1 = z_error(U);
 
 			for (int dim = 0; dim < NDIM; dim++) {
 				for (const auto &i : indices1) {
@@ -162,12 +163,12 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 //			}
 			}
 
-			if (z1 != 0.0) {
-				FILE *fp = fopen("z.txt", "at");
-				auto z2 = z_error(U);
-				fprintf(fp, "%e %e \n ", (double) z2, (double) z2 / z1);
-				fclose(fp);
-			}
+//			if (z1 != 0.0) {
+//				FILE *fp = fopen("z.txt", "at");
+//				auto z2 = z_error(U);
+//				fprintf(fp, "%e %e \n ", (double) z2, (double) z2 / z1);
+//				fclose(fp);
+//			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 				reconstruct(Q[f], U[f]);
 			}

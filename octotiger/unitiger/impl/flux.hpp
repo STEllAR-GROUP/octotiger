@@ -20,7 +20,6 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
 
 	static constexpr auto dir = geo::directions[NDIM - 1];
 
-	int bw = bound_width();
 
 	const auto flip_dim = [](const int d, int flip_dim) {
 		std::array<int, NDIM> dims;

@@ -34,15 +34,7 @@ void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int io
 }
 
 #include "./cell_geometry.hpp"
-
-template<int a, int b>
-constexpr int int_pow() {
-	if constexpr (b == 0) {
-		return 1;
-	} else {
-		return a * int_pow<a, b - 1>();
-	}
-}
+#include "./util.hpp"
 
 namespace hydro {
 
@@ -60,16 +52,18 @@ using state_type = std::vector<std::vector<safe_real>>;
 template<int NDIM, int INX>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 	using geo = cell_geometry<NDIM,INX>;
+
 	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, safe_real dx);
+
 	safe_real flux(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X, safe_real omega);
+
 	void post_process(hydro::state_type &U, safe_real dx);
 
-	inline static safe_real minmod(safe_real a, safe_real b);
-	inline static safe_real minmod_theta(safe_real a, safe_real b, safe_real c);
-	inline static safe_real bound_width();
 	void boundaries(hydro::state_type &U);
+
 	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
+
 	void output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num);
 
 	void use_angmom_correction(int index, int count) {
@@ -77,22 +71,13 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		angmom_count_ = count;
 	}
 
-	static constexpr int rho_i = 0;
-	static constexpr int egas_i = 1;
-	static constexpr int tau_i = 2;
-	static constexpr int pot_i = 3;
-	static constexpr int sx_i = 4;
-	static constexpr int sy_i = 5;
-	static constexpr int sz_i = 6;
-	static constexpr int zx_i = 4 + NDIM;
-	static constexpr int zy_i = 5 + NDIM;
-	static constexpr int zz_i = 6 + NDIM;
 
-	int nf;
 
 	hydro_computer();
 
 private:
+
+	int nf;
 
 	template<int BW, int PAD_DIR = geo::NDIR / 2>
 	static std::array<int, int(std::pow<int, int>(geo::H_NX - 2 * BW, NDIM))> find_interior_indices() {
@@ -131,14 +116,14 @@ private:
 			hydro::filter_cell3d(C, c0);
 		}
 	}
-
-	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
-		safe_real err = 0.0;
-		for (auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
-			err += std::abs(U[zx_i][i]);
-		}
-		return err;
-	}
+//
+//	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
+//		safe_real err = 0.0;
+//		for (auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
+//			err += std::abs(U[zx_i][i]);
+//		}
+//		return err;
+//	}
 
 }
 ;
