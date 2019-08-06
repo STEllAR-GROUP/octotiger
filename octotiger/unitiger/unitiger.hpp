@@ -18,7 +18,7 @@
 
 using namespace std;
 
-static constexpr double tmax = 1.0e-4;
+static constexpr double tmax = 1.0e-1;
 
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"

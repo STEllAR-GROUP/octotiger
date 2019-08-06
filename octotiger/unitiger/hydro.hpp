@@ -68,15 +68,19 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void use_angmom_correction(int index, int count);
 
+	void use_smooth_recon(int field);
+
 	hydro_computer();
 
 private:
 
 	int nf_;
-	int angmom_index_, angmom_count_;
+	int angmom_index_;
+	int angmom_count_;
 	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
 	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
+	std::vector<bool> smooth_field_;
 
 	void filter_cell(std::array<safe_real, geo::NDIR> &C, safe_real c0);
 	//

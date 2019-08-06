@@ -69,6 +69,7 @@ struct physics {
 		}
 		F[sx_i + dim] += safe_real(0.5) * (pr + pl);
 		F[egas_i] += safe_real(0.5) * (pr * vr0 + pl * vl0);
+		F[egas_i] += safe_real(0.5) * (UR[pot_i] * vr0 + UL[pot_i] * vl0);
 	}
 
 	template<int INX>

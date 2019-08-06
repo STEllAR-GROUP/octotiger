@@ -15,6 +15,7 @@
 #define NDIM 2
 #define INX 128
 
+
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
 #define H_N3 std::pow(INX+2*H_BW,NDIM)
@@ -25,7 +26,7 @@ int main(int, char*[]) {
 
 	hydro_computer<NDIM, INX> computer;
 	using comp = decltype(computer);
-	//computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
+	computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);

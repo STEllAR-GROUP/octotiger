@@ -36,7 +36,9 @@ hydro_computer<NDIM, INX>::hydro_computer() {
 			D1[i][d] = NAN;
 		}
 	}
-
+	for( int f = 0; f < nf_; f++) {
+		smooth_field_.push_back(false);
+	}
 }
 
 template<int NDIM, int INX>
@@ -50,6 +52,11 @@ void hydro_computer<NDIM, INX>::filter_cell(std::array<safe_real, geo::NDIR> &C,
 	}
 }
 
+
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::use_smooth_recon(int field) {
+	smooth_field_[field] = true;
+}
 
 template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::use_angmom_correction(int index, int count) {
