@@ -49,8 +49,8 @@ struct physics {
 		p = (FGAMMA - 1.0) * ein;
 	}
 
-	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, std::vector<safe_real> &F, int dim, safe_real &a,
-			std::array<safe_real, NDIM> &vg, safe_real dx) {
+	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, std::vector<safe_real> &F,
+			int dim, safe_real &a, std::array<safe_real, NDIM> &vg, safe_real dx) {
 
 		safe_real pr, vr, pl, vl, vr0, vl0;
 
@@ -98,8 +98,8 @@ struct physics {
 	}
 
 	template<int INX>
-	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> X, safe_real omega,
-			safe_real dx) {
+	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F,
+			const hydro::x_type<NDIM> X, safe_real omega, safe_real dx) {
 		static constexpr cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
 			static constexpr auto kdelta = geo.kronecker_delta();
@@ -115,14 +115,13 @@ struct physics {
 			}
 		}
 		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
-			if constexpr (NDIM == 2) {
-				dudt[zx_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
-			} else if constexpr (NDIM == 3) {
-				dudt[zx_i][i] -= omega * X[i][2] * U[sx_i][i];
-				dudt[zy_i][i] -= omega * X[i][2] * U[sy_i][i];
-				dudt[zz_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
+			if constexpr (NDIM == 3) {
+				dudt[zx_i][i] -= omega * X[2][i] * U[sx_i][i];
+				dudt[zy_i][i] -= omega * X[2][i] * U[sy_i][i];
 			}
-
+			if constexpr (NDIM >= 2) {
+				dudt[zx_i][i] += omega * (X[0][i] * U[sx_i][i] + X[1][i] * U[sy_i][i]);
+			}
 		}
 		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
 			dudt[sx_i][i] += U[sy_i][i] * omega;

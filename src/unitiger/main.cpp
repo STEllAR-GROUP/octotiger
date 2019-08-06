@@ -34,7 +34,10 @@ int main(int, char*[]) {
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(physics<NDIM>::nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(physics<NDIM>::nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(physics<NDIM>::nf, std::vector<safe_real>(H_N3));
-	hydro::x_type<NDIM> X(H_N3);
+	hydro::x_type<NDIM> X;
+	for( int dim = 0; dim < NDIM; dim++) {
+		X[dim].resize(H_N3);
+	}
 
 	const safe_real dx = 1.0 / INX;
 
@@ -42,7 +45,7 @@ int main(int, char*[]) {
 		int k = i;
 		int j = 0;
 		for (int dim = 0; dim < NDIM; dim++) {
-			X[i][j] = (((k % H_NX) - H_BW) + 0.5) * dx - 0.5;
+			X[j][i] = (((k % H_NX) - H_BW) + 0.5) * dx - 0.5;
 			k /= H_NX;
 			j++;
 		}
@@ -55,9 +58,9 @@ int main(int, char*[]) {
 		safe_real xsum = 0.0;
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
-			xsum += X[i][dim];
-			auto o = dim == 0 ? 0.0 : 0.0;
-			x2 += (X[i][dim] - o) * (X[i][dim] - o);
+			xsum += X[dim][i];
+			auto o = dim == 0 ? 0.2 : 0.0;
+			x2 += (X[dim][i] - o) * (X[dim][i] - o);
 		}
 //		if (xsum < 0) {
 //			U[physics<NDIM>::rho_i][i] = 1.0;
@@ -74,9 +77,10 @@ int main(int, char*[]) {
 	safe_real t = 0.0;
 	int iter = 0;
 
+
 	computer.output(U, X, iter++);
-//	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
-	const safe_real omega = 0.0;
+	const safe_real omega = 2.0 * M_PI / tmax / 10.0;
+//	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto q = computer.reconstruct(U, dx);

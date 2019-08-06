@@ -56,21 +56,9 @@ endif()
 # Set up Octotiger target
 ################################################################################
 # Octotiger library sources
-set(hydro_source_files
-    src/unitiger/hydro.cpp
-)
+ 
 
 # Octotiger library headers
-set(hydro_header_files
-    octotiger/unitiger/hydro.hpp
-    octotiger/unitiger/physics.hpp
-    octotiger/unitiger/basis.hpp
-    octotiger/unitiger/cell_geometry.hpp
-    octotiger/unitiger/safe_real.hpp
-    octotiger/unitiger/impl/impl.hpp
-    octotiger/unitiger/impl/reconstruct.hpp
-    octotiger/unitiger/impl/flux.hpp
-)
 set(source_files
     src/compute_factor.cpp
     src/eos.cpp
@@ -214,9 +202,20 @@ add_hpx_library(
   DEPENDENCIES
     Silo::silo Vc::Vc Boost::boost quadmath
   SOURCES
-    ${hydro_source_files}
+   src/unitiger/hydro.cpp
+   src/test_problems/blast/sedovf_c.cpp
   HEADERS
-    ${hydro_header_files}
+    octotiger/unitiger/hydro.hpp
+    octotiger/unitiger/physics.hpp
+    octotiger/unitiger/basis.hpp
+    octotiger/unitiger/cell_geometry.hpp
+    octotiger/unitiger/safe_real.hpp
+    octotiger/unitiger/impl/boundaries.hpp
+    octotiger/unitiger/impl/advance.hpp
+    octotiger/unitiger/impl/output.hpp
+    octotiger/unitiger/impl/hydro.hpp
+    octotiger/unitiger/impl/reconstruct.hpp
+    octotiger/unitiger/impl/flux.hpp
 )
 
 # Enable exported functions
@@ -375,12 +374,6 @@ if(OCTOTIGER_WITH_BLAST_TEST)
   source_group(TREE ${PROJECT_SOURCE_DIR}
     PREFIX "Source Files" FILES ${blast_sources})
 
-  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
-  set(blast_sources2
-    src/test_problems/blast/sedovf_c.cpp)
-  target_sources(hydrolib PRIVATE ${blast_sources2})
-  source_group(TREE ${PROJECT_SOURCE_DIR}
-    PREFIX "Source Files" FILES ${blast_sources2})
 
   if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
     target_compile_definitions(octolib PUBLIC
