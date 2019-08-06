@@ -4,24 +4,9 @@
 #include "octotiger/unitiger/basis.hpp"
 #endif
 
-#include <mutex>
-
 template<int NDIM, int INX, int ORDER>
 const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, ORDER>::geo::NDIR>>> hydro_computer<NDIM, INX, ORDER>::reconstruct(
 		std::vector<std::vector<safe_real>> U, safe_real dx) {
-
-	static thread_local std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
-	static thread_local std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
-	static thread_local std::once_flag flag;
-	std::call_once(flag, [this]() {
-		D1 = decltype(D1)(geo::H_N3);
-		Q = decltype(Q)(nf, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
-		for (const auto &i : find_indices(0, geo::H_NX)) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				D1[i][d] = NAN;
-			}
-		}
-	});
 
 	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
 	static constexpr auto kdelta = geo::kdeltas[NDIM - 1];
@@ -29,8 +14,8 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 	static constexpr auto dir = geo::directions[NDIM - 1];
 
 	int bw = bound_width();
-	static const auto indices1 = find_interior_indices<1>();
-	static const auto indices2 = find_interior_indices<2>();
+	static const auto indices1  = find_interior_indices<1>();
+	static const auto indices2  = find_interior_indices<2>();
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
@@ -126,6 +111,17 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 			safe_real z1 = z_error(U);
 
 			if (ORDER == 3) {
+				for (int dim = 0; dim < NDIM; dim++) {
+					for (const auto &i : indices1) {
+						for (int d = 0; d < geo::NDIR / 2; d++) {
+							const auto &u = U[sx_i + dim];
+							const auto di = dir[d];
+							const auto slp = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
+							L[dim][i][d] = u[i] + 0.5 * slp;
+							L[dim][i][geo::flip(d)] = u[i] - 0.5 * slp;
+						}
+					}
+				}
 				for (const auto &i : indices2) {
 					std::array < safe_real, geo::NANGMOM > Z;
 					for (int dim = 0; dim < geo::NANGMOM; dim++) {
@@ -151,8 +147,10 @@ const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX, OR
 						for (int d = 0; d < geo::NDIR; d++) {
 							if (d != geo::NDIR / 2) {
 								auto &s = S[dim][d];
+								const auto &q = Q[sx_i + dim][i][d];
 								const auto &s0 = S0[dim][d];
 								const auto &u0 = U[sx_i + dim][i];
+								const safe_real l = 0.5 * (L[dim][i][d] + L[dim][i + dir[d]][geo::flip(d)]);
 								const safe_real up = U[sx_i + dim][i + dir[d]];
 								const auto M = std::max(u0, up);
 								const auto m = std::min(u0, up);
