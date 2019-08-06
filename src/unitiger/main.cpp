@@ -12,8 +12,7 @@
 #endif
 
 #define NDIM 3
-#define INX 32
-#define ORDER 3
+#define INX 128
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -23,13 +22,12 @@ static constexpr safe_real CFL = (0.4 / NDIM);
 int main(int, char*[]) {
 //int hpx_main(int, char*[]) {
 
-	hydro_computer<NDIM, INX, ORDER> computer;
+	hydro_computer<NDIM, INX> computer;
 	using comp = decltype(computer);
 	//computer.use_angmom_correction(comp::sx_i, 1);
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
-
 
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(computer.nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(computer.nf, std::vector<safe_real>(H_N3));
@@ -79,30 +77,25 @@ int main(int, char*[]) {
 	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
-		auto q = computer.reconstruct(U,dx);
+		auto q = computer.reconstruct(U, dx);
 		auto a = computer.flux(q, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U);
-		if (ORDER >= 2) {
-			computer.boundaries(U);
-			q = computer.reconstruct(U,dx);
-			computer.flux(q, F, X, omega);
-			computer.advance(U0, U, F, X, dx, dt, ORDER == 2 ? 0.5 : 0.25, omega);
-			if ( ORDER >= 3) {
-				computer.boundaries(U);
-				q = computer.reconstruct(U,dx);
-				computer.flux(q, F, X, omega);
-				computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
-			}
-		}
+		computer.boundaries(U);
+		q = computer.reconstruct(U, dx);
+		computer.flux(q, F, X, omega);
+		computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
+		computer.boundaries(U);
+		q = computer.reconstruct(U, dx);
+		computer.flux(q, F, X, omega);
+		computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 		t += dt;
 		computer.boundaries(U);
 		computer.update_tau(U, dx);
 		computer.boundaries(U);
 		computer.output(U, X, iter++);
-		if( iter > 10 ) break;
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
 	computer.output(U, X, iter++);

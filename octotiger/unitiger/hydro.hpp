@@ -35,7 +35,7 @@ void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int io
 
 #include "./cell_geometry.hpp"
 
-template<int NDIM, int INX, int ORDER>
+template<int NDIM, int INX>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 	using geo = cell_geometry<NDIM,INX>;
 	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U, safe_real dx);

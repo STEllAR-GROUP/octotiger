@@ -36,8 +36,8 @@ inline void limit_slope(safe_real &ql, safe_real q0, safe_real &qr) {
 #include "./flux.hpp"
 #include "./reconstruct.hpp"
 
-template<int NDIM, int INX, int ORDER>
-std::vector<int> hydro_computer<NDIM, INX, ORDER>::find_indices(int lb, int ub) {
+template<int NDIM, int INX>
+std::vector<int> hydro_computer<NDIM, INX>::find_indices(int lb, int ub) {
 	std::vector<int> I;
 	for (int i = 0; i < geo::H_N3; i++) {
 		int k = i;
@@ -58,8 +58,8 @@ std::vector<int> hydro_computer<NDIM, INX, ORDER>::find_indices(int lb, int ub) 
 	return I;
 }
 
-template<int NDIM, int INX, int ORDER>
-hydro_computer<NDIM, INX, ORDER>::hydro_computer() {
+template<int NDIM, int INX>
+hydro_computer<NDIM, INX>::hydro_computer() {
 	nf = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 	angmom_count_ = 0;
 	D1 = decltype(D1)(geo::H_N3);
@@ -77,18 +77,18 @@ hydro_computer<NDIM, INX, ORDER>::hydro_computer() {
 
 
 
-template<int NDIM, int INX, int ORDER>
-inline safe_real hydro_computer<NDIM, INX, ORDER>::minmod(safe_real a, safe_real b) {
+template<int NDIM, int INX>
+inline safe_real hydro_computer<NDIM, INX>::minmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }
 
-template<int NDIM, int INX, int ORDER>
-inline safe_real hydro_computer<NDIM, INX, ORDER>::minmod_theta(safe_real a, safe_real b, safe_real c) {
+template<int NDIM, int INX>
+inline safe_real hydro_computer<NDIM, INX>::minmod_theta(safe_real a, safe_real b, safe_real c) {
 	return minmod(c * minmod(a, b), 0.5 * (a + b));
 }
 
-template<int NDIM, int INX, int ORDER>
-inline safe_real hydro_computer<NDIM, INX, ORDER>::bound_width() {
+template<int NDIM, int INX>
+inline safe_real hydro_computer<NDIM, INX>::bound_width() {
 	int bw = 1;
 	int next_bw = 1;
 	for (int dim = 1; dim < NDIM; dim++) {
@@ -98,8 +98,8 @@ inline safe_real hydro_computer<NDIM, INX, ORDER>::bound_width() {
 	return bw;
 }
 
-template<int NDIM, int INX, int ORDER>
-void hydro_computer<NDIM, INX, ORDER>::update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx) {
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::update_tau(std::vector<std::vector<safe_real>> &U, safe_real dx) {
 	constexpr auto dir = geo::directions[NDIM - 1];
 	int bw = bound_width();
 	for (int i = bw; i < geo::H_N3 - bw; i++) {
@@ -122,8 +122,8 @@ void hydro_computer<NDIM, INX, ORDER>::update_tau(std::vector<std::vector<safe_r
 	}
 }
 
-template<int NDIM, int INX, int ORDER>
-void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<safe_real>> &U) {
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::boundaries(std::vector<std::vector<safe_real>> &U) {
 
 	for (int f = 0; f < nf; f++) {
 		if (NDIM == 1) {
@@ -175,8 +175,8 @@ void hydro_computer<NDIM, INX, ORDER>::boundaries(std::vector<std::vector<safe_r
 	}
 }
 
-template<int NDIM, int INX, int ORDER>
-void hydro_computer<NDIM, INX, ORDER>::advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
 		const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> &X, safe_real dx, safe_real dt,
 		safe_real beta, safe_real omega) {
 	int stride = 1;
@@ -227,8 +227,8 @@ void hydro_computer<NDIM, INX, ORDER>::advance(const std::vector<std::vector<saf
 
 }
 
-template<int NDIM, int INX, int ORDER>
-void hydro_computer<NDIM, INX, ORDER>::output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num) {
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num) {
 	std::string filename = "Y." + std::to_string(num);
 	if (NDIM == 1) {
 		filename += ".txt";

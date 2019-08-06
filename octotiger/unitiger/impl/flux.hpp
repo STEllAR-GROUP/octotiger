@@ -6,8 +6,8 @@
 
 #include "../physics.hpp"
 
-template<int NDIM, int INX, int ORDER>
-safe_real hydro_computer<NDIM, INX, ORDER>::flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
+template<int NDIM, int INX>
+safe_real hydro_computer<NDIM, INX>::flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
 		std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X,
 		safe_real omega) {
 
