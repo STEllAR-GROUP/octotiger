@@ -5,11 +5,21 @@
  *      Author: dmarce1
  */
 
-#ifndef OCTOTIGER_UNITIGER_UTIL_HPP_
-#define OCTOTIGER_UNITIGER_UTIL_HPP_
+#ifndef OCTOTIGER_UNITIGER_UTI1L_HPP_
+#define OCTOTIGER_UNITIGER_UTI1L_HPP_
+
+
+template<int a, int b>
+constexpr int int_pow() {
+	if constexpr (b == 0) {
+		return 1;
+	} else {
+		return a * int_pow<a, b - 1>();
+	}
+}
 
 template<int NDIM, int INX>
-std::vector<int> find_indices(int lb, int ub) {
+static std::vector<int> find_indices(int lb, int ub) {
 	static const cell_geometry<NDIM,INX> geo;
 	std::vector<int> I;
 	for (int i = 0; i < geo::H_N3; i++) {

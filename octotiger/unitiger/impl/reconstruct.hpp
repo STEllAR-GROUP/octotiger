@@ -5,8 +5,7 @@
 #endif
 
 template<int NDIM, int INX>
-const std::vector<std::vector<std::array<safe_real, hydro_computer<NDIM, INX>::geo::NDIR>>> hydro_computer<NDIM, INX>::reconstruct(
-		std::vector<std::vector<safe_real>> U, safe_real dx) {
+const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U, safe_real dx) {
 
 	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
 	static constexpr auto kdelta = geo::kdeltas[NDIM - 1];

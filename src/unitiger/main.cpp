@@ -33,7 +33,7 @@ int main(int, char*[]) {
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(computer.nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(computer.nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(computer.nf, std::vector<safe_real>(H_N3));
-	std::vector<std::array<safe_real, NDIM>> X(H_N3);
+	hydro::x_type<NDIM> X(H_N3);
 
 	const safe_real dx = 1.0 / INX;
 

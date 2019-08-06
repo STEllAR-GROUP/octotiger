@@ -7,11 +7,11 @@
 #include "../physics.hpp"
 
 template<int NDIM, int INX>
-safe_real hydro_computer<NDIM, INX>::flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q,
-		std::vector<std::vector<std::vector<safe_real>>> &F, std::vector<std::array<safe_real, NDIM>> &X,
+safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
+		hydro::flux_type &F, hydro::x_type<NDIM> &X,
 		safe_real omega) {
 
-	static const auto indices2  = find_interior_indices<2>();
+	static const auto indices2 = find_interior_indices<2>();
 	static constexpr auto faces = geo::lower_face_members[NDIM - 1];
 	static constexpr auto weights = geo::quad_weights[NDIM - 1];
 	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
@@ -31,14 +31,14 @@ safe_real hydro_computer<NDIM, INX>::flux(const std::vector<std::vector<std::arr
 		}
 		k = 0;
 //		printf( "%i | %i %i %i | ", flip_dim, d, dims[0], dims[1]);
-			dims[flip_dim] = 2 - dims[flip_dim];
-			for (int dim = 0; dim < NDIM; dim++) {
-				k *= 3;
-				k += dims[NDIM - 1 - dim];
-			}
-			//	printf( "%i %i %i\n", k,  dims[0], dims[1]);
-			return k;
-		};
+		dims[flip_dim] = 2 - dims[flip_dim];
+		for (int dim = 0; dim < NDIM; dim++) {
+			k *= 3;
+			k += dims[NDIM - 1 - dim];
+		}
+		//	printf( "%i %i %i\n", k,  dims[0], dims[1]);
+		return k;
+	};
 
 	std::array < safe_real, 3 > amax = {0.0, 0.0, 0.0};
 	for (int dim = 0; dim < NDIM; dim++) {
@@ -87,7 +87,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const std::vector<std::vector<std::arr
 								const auto d = faces[dim][fi];
 								for (const auto &i : find_indices<NDIM,INX>(3, geo::H_NX - 2)) {
 									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx
-											* fluxes[dim][sx_i + l][i][fi];
+									* fluxes[dim][sx_i + l][i][fi];
 								}
 							}
 						}

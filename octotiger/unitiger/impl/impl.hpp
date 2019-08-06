@@ -76,13 +76,13 @@ inline safe_real hydro_computer<NDIM, INX>::bound_width() {
 }
 
 template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::post_process(std::vector<std::vector<safe_real>> &U, safe_real dx) {
+void hydro_computer<NDIM, INX>::post_process(hydro::state_type &U, safe_real dx) {
 	physics < NDIM > p;
 	p.template post_process < NDIM > (U, dx);
 }
 
 template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::boundaries(std::vector<std::vector<safe_real>> &U) {
+void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 
 	for (int f = 0; f < nf; f++) {
 		if (NDIM == 1) {
@@ -135,11 +135,10 @@ void hydro_computer<NDIM, INX>::boundaries(std::vector<std::vector<safe_real>> &
 }
 
 template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
-		const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> &X, safe_real dx, safe_real dt,
-		safe_real beta, safe_real omega) {
+void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> &X,
+		safe_real dx, safe_real dt, safe_real beta, safe_real omega) {
 	int bw = bound_width();
-	static thread_local std::vector < std::vector < safe_real >> dudt(nf, std::vector < safe_real > (geo::H_N3));
+	static thread_local std::vector<std::vector<safe_real>> dudt(nf, std::vector < safe_real > (geo::H_N3));
 	for (int f = 0; f < nf; f++) {
 		for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			dudt[f][i] = 0.0;
@@ -166,7 +165,7 @@ void hydro_computer<NDIM, INX>::advance(const std::vector<std::vector<safe_real>
 }
 
 template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num) {
+void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num) {
 	std::string filename = "Y." + std::to_string(num);
 	if (NDIM == 1) {
 		filename += ".txt";

@@ -72,7 +72,7 @@ struct physics {
 	}
 
 	template<int INX>
-	void post_process(std::vector<std::vector<safe_real>> &U, safe_real dx) {
+	void post_process(hydro::state_type &U, safe_real dx) {
 		static const cell_geometry<NDIM, INX> geo;
 		constexpr auto dir = geo.directions[NDIM - 1];
 		const static auto is = find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW);
@@ -97,8 +97,8 @@ struct physics {
 	}
 
 	template<int INX>
-	static void source(std::vector<std::vector<safe_real>> &dudt, const std::vector<std::vector<safe_real>> &U,
-			const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> X, safe_real omega, safe_real dx) {
+	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> X, safe_real omega,
+			safe_real dx) {
 		static constexpr cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
 			static constexpr auto kdelta = geo.kdeltas[NDIM - 1];

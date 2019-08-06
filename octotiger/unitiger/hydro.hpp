@@ -35,22 +35,42 @@ void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int io
 
 #include "./cell_geometry.hpp"
 
+template<int a, int b>
+constexpr int int_pow() {
+	if constexpr (b == 0) {
+		return 1;
+	} else {
+		return a * int_pow<a, b - 1>();
+	}
+}
+
+namespace hydro {
+
+template<int NDIM>
+using x_type = std::vector<std::array<safe_real, NDIM>>;
+
+using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
+
+template<int NDIM>
+using recon_type =std::vector<std::vector<std::array<safe_real, int_pow<3,NDIM>()>>>;
+
+using state_type = std::vector<std::vector<safe_real>>;
+}
+
 template<int NDIM, int INX>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 	using geo = cell_geometry<NDIM,INX>;
-	const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> reconstruct(std::vector<std::vector<safe_real>> U, safe_real dx);
-	safe_real flux(const std::vector<std::vector<std::array<safe_real, geo::NDIR>>> &Q, std::vector<std::vector<std::vector<safe_real>>> &F,
-			std::vector<std::array<safe_real, NDIM>> &X, safe_real omega);
-	void post_process(std::vector<std::vector<safe_real>> &U, safe_real dx);
+	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, safe_real dx);
+	safe_real flux(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X, safe_real omega);
+	void post_process(hydro::state_type &U, safe_real dx);
 
 	inline static safe_real minmod(safe_real a, safe_real b);
 	inline static safe_real minmod_theta(safe_real a, safe_real b, safe_real c);
 	inline static safe_real bound_width();
-	void boundaries(std::vector<std::vector<safe_real>> &U);
-	void advance(const std::vector<std::vector<safe_real>> &U0, std::vector<std::vector<safe_real>> &U,
-			const std::vector<std::vector<std::vector<safe_real>>> &F, const std::vector<std::array<safe_real, NDIM>> &X, safe_real dx, safe_real dt,
+	void boundaries(hydro::state_type &U);
+	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
-	void output(const std::vector<std::vector<safe_real>> &U, const std::vector<std::array<safe_real, NDIM>> &X, int num);
+	void output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num);
 
 	void use_angmom_correction(int index, int count) {
 		angmom_index_ = index;
@@ -83,8 +103,8 @@ private:
 			bool interior = true;
 			for (int dim = 0; dim < NDIM; dim++) {
 				const int tmp = k % geo::H_NX;
-				const int lb = geo::face_locs[NDIM-1][PAD_DIR][dim] == +1 ? BW - 1 : BW;
-				const int ub = geo::face_locs[NDIM-1][PAD_DIR][dim] == -1 ? geo::H_NX - BW + 1 : geo::H_NX - BW;
+				const int lb = geo::face_locs[NDIM - 1][PAD_DIR][dim] == +1 ? BW - 1 : BW;
+				const int ub = geo::face_locs[NDIM - 1][PAD_DIR][dim] == -1 ? geo::H_NX - BW + 1 : geo::H_NX - BW;
 				interior = interior && tmp >= lb;
 				interior = interior && tmp < ub;
 				k /= geo::H_NX;
@@ -114,7 +134,7 @@ private:
 
 	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
 		safe_real err = 0.0;
-		for (auto &i : find_indices<NDIM,INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
+		for (auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			err += std::abs(U[zx_i][i]);
 		}
 		return err;
