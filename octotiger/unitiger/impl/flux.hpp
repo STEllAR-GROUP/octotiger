@@ -18,7 +18,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 	static constexpr auto kdelta = geo::kronecker_delta();
 	static constexpr auto dir = geo::direction();
 
-	const auto dx = X[geo::H_DNX][0] - X[0][0];
+	const auto dx = X[0][geo::H_DNX] - X[0][0];
 
 	const auto flip_dim = [](const int d, int flip_dim) {
 		std::array<int, NDIM> dims;
@@ -55,8 +55,8 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 				}
 				std::array < safe_real, NDIM > vg;
 				if constexpr (NDIM > 1) {
-					vg[0] = -omega * (X[i][1] + 0.5 * xloc[d][1] * dx);
-					vg[1] = +omega * (X[i][0] + 0.5 * xloc[d][0] * dx);
+					vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+					vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
 					vg[2] = 0.0;
 				} else {
 					vg[0] = 0.0;

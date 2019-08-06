@@ -39,7 +39,7 @@ void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int io
 namespace hydro {
 
 template<int NDIM>
-using x_type = std::vector<std::array<safe_real, NDIM>>;
+using x_type = std::array<std::vector<safe_real>, NDIM>;
 
 using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
 

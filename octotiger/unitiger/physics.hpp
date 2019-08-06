@@ -80,9 +80,9 @@ struct physics {
 		if (UL0[rho_i] < rho_min && UL0[rho_i] != UL[rho_i]) {
 			thetaL = (UL0[rho_i] - rho_min) / (UL0[rho_i] - UL[rho_i]);
 		}
-		const auto theta = std::max(std::min(std::min(thetaL, thetaR),safe_real(1.0)),safe_real(0.0));
+		const auto theta = std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0));
 		if (theta < 1.0) {
-			printf( "theta = %e\n", double(theta));
+			printf("theta = %e\n", double(theta));
 			for (int f = 0; f < nf; f++) {
 				F[f] *= theta;
 			}
@@ -144,14 +144,13 @@ struct physics {
 			}
 		}
 		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
-			if constexpr (NDIM == 2) {
-				dudt[zx_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
-			} else if constexpr (NDIM == 3) {
-				dudt[zx_i][i] -= omega * X[i][2] * U[sx_i][i];
-				dudt[zy_i][i] -= omega * X[i][2] * U[sy_i][i];
-				dudt[zz_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
+			if constexpr (NDIM == 3) {
+				dudt[zx_i][i] -= omega * X[2][i] * U[sx_i][i];
+				dudt[zy_i][i] -= omega * X[2][i] * U[sy_i][i];
 			}
-
+			if constexpr (NDIM >= 2) {
+				dudt[zx_i][i] += omega * (X[0][i] * U[sx_i][i] + X[1][i] * U[sy_i][i]);
+			}
 		}
 		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
 			dudt[sx_i][i] += U[sy_i][i] * omega;
