@@ -78,29 +78,6 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 private:
 
 	int nf;
-
-	template<int BW, int PAD_DIR = geo::NDIR / 2>
-	static std::array<int, int(std::pow<int, int>(geo::H_NX - 2 * BW, NDIM))> find_interior_indices() {
-		std::array<int, int(std::pow<int, int>(geo::H_NX - 2 * BW, NDIM))> indexes;
-		int l = 0;
-		for (int i = 0; i < geo::H_N3; i++) {
-			int k = i;
-			bool interior = true;
-			for (int dim = 0; dim < NDIM; dim++) {
-				const int tmp = k % geo::H_NX;
-				const int lb = geo::face_locs[NDIM - 1][PAD_DIR][dim] == +1 ? BW - 1 : BW;
-				const int ub = geo::face_locs[NDIM - 1][PAD_DIR][dim] == -1 ? geo::H_NX - BW + 1 : geo::H_NX - BW;
-				interior = interior && tmp >= lb;
-				interior = interior && tmp < ub;
-				k /= geo::H_NX;
-			}
-			if (interior) {
-				indexes[l++] = i;
-			}
-		}
-		return indexes;
-	}
-
 	int angmom_index_, angmom_count_;
 	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;

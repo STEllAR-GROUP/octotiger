@@ -75,7 +75,7 @@ struct physics {
 	void post_process(hydro::state_type &U, safe_real dx) {
 		static const cell_geometry<NDIM, INX> geo;
 		constexpr auto dir = geo.directions[NDIM - 1];
-		const static auto is = find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW);
+		const static auto is = geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW);
 		for (auto i : is) {
 			safe_real ek = 0.0;
 			for (int dim = 0; dim < NDIM; dim++) {
@@ -105,7 +105,7 @@ struct physics {
 			for (int n = 0; n < geo.NANGMOM; n++) {
 				const auto m = dim;
 				for (int l = 0; l < NDIM; l++) {
-					for (const auto &i : find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
+					for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
 						const auto fr = F[dim][sx_i + l][i + geo.H_DN[dim]];
 						const auto fl = F[dim][sx_i + l][i];
 						dudt[zx_i + n][i] -= kdelta[n][m][l] * 0.5 * (fr + fl);
@@ -113,7 +113,7 @@ struct physics {
 				}
 			}
 		}
-		for (const auto &i : find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
+		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
 			if constexpr (NDIM == 2) {
 				dudt[zx_i][i] += omega * (X[i][0] * U[sx_i][i] + X[i][1] * U[sy_i][i]);
 			} else if constexpr (NDIM == 3) {
@@ -123,7 +123,7 @@ struct physics {
 			}
 
 		}
-		for (const auto &i : find_indices<NDIM, INX>(geo.H_BW, geo.H_NX - geo.H_BW)) {
+		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
 			dudt[sx_i][i] += U[sy_i][i] * omega;
 			dudt[sy_i][i] -= U[sx_i][i] * omega;
 		}

@@ -11,7 +11,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
 		hydro::flux_type &F, hydro::x_type<NDIM> &X,
 		safe_real omega) {
 
-	static const auto indices2 = find_interior_indices<2>();
+	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
 	static constexpr auto faces = geo::lower_face_members[NDIM - 1];
 	static constexpr auto weights = geo::quad_weights[NDIM - 1];
 	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
@@ -68,7 +68,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
 			amax[dim] = std::max(a, amax[dim]);
 		}
 		for (int f = 0; f < nf; f++) {
-			for (const auto &i : find_indices<NDIM,INX>(3, geo::H_NX - 2)) {
+			for (const auto &i : geo::find_indices(3, geo::H_NX - 2)) {
 				F[dim][f][i] = 0.0;
 				for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
@@ -84,7 +84,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
 						for (int l = 0; l < NDIM; l++) {
 							for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 								const auto d = faces[dim][fi];
-								for (const auto &i : find_indices<NDIM,INX>(3, geo::H_NX - 2)) {
+								for (const auto &i : geo::find_indices(3, geo::H_NX - 2)) {
 									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * face_loc[d][m] * 0.5 * dx
 									* fluxes[dim][sx_i + l][i][fi];
 								}

@@ -46,7 +46,7 @@ hydro_computer<NDIM, INX>::hydro_computer() {
 			std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>> > (nf, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
 	L = decltype(L)(NDIM, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 
-	for (const auto &i : find_indices<NDIM, INX>(0, geo::H_NX)) {
+	for (const auto &i : geo::find_indices(0, geo::H_NX)) {
 		for (int d = 0; d < geo::NDIR / 2; d++) {
 			D1[i][d] = NAN;
 		}
@@ -118,13 +118,13 @@ void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::stat
 		safe_real dx, safe_real dt, safe_real beta, safe_real omega) {
 	static thread_local std::vector<std::vector<safe_real>> dudt(nf, std::vector < safe_real > (geo::H_N3));
 	for (int f = 0; f < nf; f++) {
-		for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
+		for (const auto &i : geo::find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			dudt[f][i] = 0.0;
 		}
 	}
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (int f = 0; f < nf; f++) {
-			for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
+			for (const auto &i : geo::find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
 				const auto fr = F[dim][f][i + geo::H_DN[dim]];
 				const auto fl = F[dim][f][i];
 				dudt[f][i] -= (fr - fl) * INVERSE(dx);
@@ -133,7 +133,7 @@ void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::stat
 	}
 	physics < NDIM > ::template source<INX>(dudt, U, F, X, omega, dx);
 	for (int f = 0; f < nf; f++) {
-		for (const auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
+		for (const auto &i : geo::find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			safe_real u0 = U0[f][i];
 			safe_real u1 = U[f][i] + dudt[f][i] * dt;
 			U[f][i] = u0 * (1.0 - beta) + u1 * beta;

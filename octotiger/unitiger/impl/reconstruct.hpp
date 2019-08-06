@@ -14,8 +14,8 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 	static constexpr auto dir = geo::directions[NDIM - 1];
 
-	static const auto indices1 = find_interior_indices<1>();
-	static const auto indices2 = find_interior_indices<2>();
+	static const auto indices1 = geo::find_indices(1, geo::H_NX - 1);
+	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;

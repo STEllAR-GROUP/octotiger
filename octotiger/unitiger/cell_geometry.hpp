@@ -90,29 +90,28 @@ struct cell_geometry {
 		return NDIR - 1 - d;
 	}
 
-};
-
-template<int NDIM, int INX>
-static inline std::vector<int> find_indices(int lb, int ub) {
-	static constexpr cell_geometry<NDIM, INX> geo;
-	std::vector<int> I;
-	for (int i = 0; i < geo.H_N3; i++) {
-		int k = i;
-		bool interior = true;
-		for (int dim = 0; dim < NDIM; dim++) {
-			int this_i = k % geo.H_NX;
-			if (this_i < lb || this_i >= ub) {
-				interior = false;
-				break;
-			} else {
-				k /= geo.H_NX;
+	static inline std::vector<int> find_indices(int lb, int ub) {
+		static constexpr cell_geometry<NDIM, INX> geo;
+		std::vector<int> I;
+		for (int i = 0; i < geo.H_N3; i++) {
+			int k = i;
+			bool interior = true;
+			for (int dim = 0; dim < NDIM; dim++) {
+				int this_i = k % geo.H_NX;
+				if (this_i < lb || this_i >= ub) {
+					interior = false;
+					break;
+				} else {
+					k /= geo.H_NX;
+				}
+			}
+			if (interior) {
+				I.push_back(i);
 			}
 		}
-		if (interior) {
-			I.push_back(i);
-		}
+		return I;
 	}
-	return I;
-}
+
+};
 
 #endif /* OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_ */
