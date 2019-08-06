@@ -66,34 +66,20 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num);
 
-	void use_angmom_correction(int index, int count) {
-		angmom_index_ = index;
-		angmom_count_ = count;
-	}
-
-
+	void use_angmom_correction(int index, int count);
 
 	hydro_computer();
 
 private:
 
-	int nf;
+	int nf_;
 	int angmom_index_, angmom_count_;
 	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
-	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> L;
 	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 
-	void filter_cell(std::array<safe_real, geo::NDIR> &C, safe_real c0) {
-		if constexpr (NDIM == 1) {
-			hydro::filter_cell1d(C, c0);
-		} else if constexpr (NDIM == 2) {
-			hydro::filter_cell2d(C, c0);
-		} else {
-			hydro::filter_cell3d(C, c0);
-		}
-	}
-//
+	void filter_cell(std::array<safe_real, geo::NDIR> &C, safe_real c0);
+	//
 //	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
 //		safe_real err = 0.0;
 //		for (auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
@@ -105,6 +91,6 @@ private:
 }
 ;
 
-#include "impl/impl.hpp"
+#include "impl/hydro.hpp"
 
 #endif /* OCTOTIGER_UNITIGER_HYDRO_HPP_ */

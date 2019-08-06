@@ -74,7 +74,7 @@ struct physics {
 	template<int INX>
 	void post_process(hydro::state_type &U, safe_real dx) {
 		static const cell_geometry<NDIM, INX> geo;
-		constexpr auto dir = geo.directions[NDIM - 1];
+		constexpr auto dir = geo.direction();
 		const static auto is = geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW);
 		for (auto i : is) {
 			safe_real ek = 0.0;
@@ -101,7 +101,7 @@ struct physics {
 			safe_real dx) {
 		static constexpr cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
-			static constexpr auto kdelta = geo.kdeltas[NDIM - 1];
+			static constexpr auto kdelta = geo.kronecker_delta();
 			for (int n = 0; n < geo.NANGMOM; n++) {
 				const auto m = dim;
 				for (int l = 0; l < NDIM; l++) {

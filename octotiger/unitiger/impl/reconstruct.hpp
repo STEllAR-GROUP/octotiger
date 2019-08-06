@@ -9,10 +9,10 @@
 template<int NDIM, int INX>
 const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U, safe_real dx) {
 
-	static constexpr auto face_loc = geo::face_locs[NDIM - 1];
-	static constexpr auto kdelta = geo::kdeltas[NDIM - 1];
-
-	static constexpr auto dir = geo::directions[NDIM - 1];
+	static constexpr auto xloc = geo::xloc();
+	static constexpr auto kdelta = geo::kronecker_delta();
+	static constexpr auto vw = geo::volume_weight();
+	static constexpr auto dir = geo::direction();
 
 	static const auto indices1 = geo::find_indices(1, geo::H_NX - 1);
 	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
@@ -24,7 +24,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			for (int m = 0; m < NDIM; m++) {
 				for (int l = 0; l < NDIM; l++) {
 					for (int d = 0; d < geo::NDIR; d++) {
-						L[n] += geo::vol_weights[NDIM - 1][d] * kdelta[n][m][l] * 0.5 * face_loc[d][m] * C[l][d] * dx;
+						L[n] += vw[d] * kdelta[n][m][l] * 0.5 * xloc[d][m] * C[l][d] * dx;
 					}
 				}
 			}
@@ -38,7 +38,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				for (int m = 0; m < NDIM; m++) {
 					for (int l = 0; l < NDIM; l++) {
 						const auto tmp = 6.0 * Z[n] / dx;
-						C[l][d] += kdelta[n][m][l] * 0.5 * face_loc[d][m] * tmp;
+						C[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
 					}
 				}
 			}
@@ -69,7 +69,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 	};
 
 	if (angmom_count_ == 0) {
-		for (int f = 0; f < nf; f++) {
+		for (int f = 0; f < nf_; f++) {
 			reconstruct(Q[f], U[f]);
 		}
 
@@ -93,17 +93,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 //			safe_real z1 = z_error(U);
 
-			for (int dim = 0; dim < NDIM; dim++) {
-				for (const auto &i : indices1) {
-					for (int d = 0; d < geo::NDIR / 2; d++) {
-						const auto &u = U[sx_i + dim];
-						const auto di = dir[d];
-						const auto slp = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
-						L[dim][i][d] = u[i] + 0.5 * slp;
-						L[dim][i][geo::flip(d)] = u[i] - 0.5 * slp;
-					}
-				}
-			}
 			for (const auto &i : indices2) {
 				std::array < safe_real, geo::NANGMOM > Z;
 				for (int dim = 0; dim < geo::NANGMOM; dim++) {
@@ -129,10 +118,8 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 					for (int d = 0; d < geo::NDIR; d++) {
 						if (d != geo::NDIR / 2) {
 							auto &s = S[dim][d];
-							const auto &q = Q[sx_i + dim][i][d];
 							const auto &s0 = S0[dim][d];
 							const auto &u0 = U[sx_i + dim][i];
-							const safe_real l = 0.5 * (L[dim][i][d] + L[dim][i + dir[d]][geo::flip(d)]);
 							const safe_real up = U[sx_i + dim][i + dir[d]];
 							const auto M = std::max(u0, up);
 							const auto m = std::min(u0, up);
@@ -178,7 +165,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
-		for (int f = angmom_index_ + (geo::NFACEDIR + NDIM) * angmom_count_; f < nf; f++) {
+		for (int f = angmom_index_ + (geo::NFACEDIR + NDIM) * angmom_count_; f < nf_; f++) {
 			reconstruct(Q[f], U[f]);
 		}
 

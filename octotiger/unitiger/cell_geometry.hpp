@@ -22,6 +22,7 @@
 
 template<int NDIM, int INX>
 struct cell_geometry {
+
 	static constexpr int H_BW = 3;
 	static constexpr int H_NX = (2 * H_BW + INX);
 	static constexpr int H_DNX = 1;
@@ -32,14 +33,16 @@ struct cell_geometry {
 	static constexpr int H_DN0 = 0;
 	static constexpr int NDIR = std::pow(3, NDIM);
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
-	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 },
-			{ 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0, 0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
-	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15,
-			18, 21, 24 }, { 10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
-	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1.
-			/ 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36. } };
+private:
+	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
+			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
+	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18, 21, 24 }, { 10, 0, 1, 2, 9, 11,
+			18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
+
+	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4.
+			/ 36., 1. / 36., 4. / 36., 1. / 36. } };
 
 	static constexpr safe_real vol_weights[3][27] = {
 	/**/{ 1.0 },
@@ -85,6 +88,29 @@ struct cell_geometry {
 	/**/-H_DNX + H_DNY + H_DNZ, +H_DN0 + H_DNY + H_DNZ, +H_DNX + H_DNY + H_DNZ/**/
 
 	} };
+public:
+	static constexpr auto kronecker_delta() {
+		return kdeltas[NDIM - 1];
+	}
+	static constexpr auto direction() {
+		return directions[NDIM - 1];
+	}
+
+	static constexpr auto xloc() {
+		return face_locs[NDIM - 1];
+	}
+
+	static constexpr auto volume_weight() {
+		return vol_weights[NDIM - 1];
+	}
+
+	static constexpr auto face_weight() {
+		return quad_weights[NDIM - 1];
+	}
+
+	static constexpr auto face_pts() {
+		return lower_face_members[NDIM - 1];
+	}
 
 	constexpr int flip(const int d) {
 		return NDIR - 1 - d;

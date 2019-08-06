@@ -18,6 +18,23 @@ static constexpr int int_pow() {
 }
 
 
+static inline void limit_slope(safe_real &ql, safe_real q0, safe_real &qr) {
+	const safe_real tmp1 = qr - ql;
+	const safe_real tmp2 = qr + ql;
+
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		qr = ql = q0;
+		return;
+	}
+	const safe_real tmp3 = tmp1 * tmp1 / 6.0;
+	const safe_real tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	if (tmp4 > tmp3) {
+		ql = 3.0 * q0 - 2.0 * qr;
+	} else if (-tmp3 > tmp4) {
+		qr = 3.0 * q0 - 2.0 * ql;
+	}
+}
+
 static inline safe_real minmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }
