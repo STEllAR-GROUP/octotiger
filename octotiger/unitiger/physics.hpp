@@ -49,8 +49,9 @@ struct physics {
 		p = (FGAMMA - 1.0) * ein;
 	}
 
-	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
-			std::vector<safe_real> &F, int dim, safe_real &a, std::array<safe_real, NDIM> &vg, safe_real dx) {
+	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR,
+			const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0, std::vector<safe_real> &F, int dim,
+			safe_real &a, std::array<safe_real, NDIM> &vg, safe_real dx) {
 
 		safe_real pr, vr, pl, vl, vr0, vl0;
 
@@ -71,18 +72,23 @@ struct physics {
 		F[egas_i] += safe_real(0.5) * (pr * vr0 + pl * vl0);
 		F[egas_i] += safe_real(0.5) * (UR[pot_i] * vr0 + UL[pot_i] * vl0);
 
-		safe_real thetaR = 1.0, thetaL = 1.0;
-		constexpr safe_real max_change = 1.0e-3;
-		const auto rho_min = max_change * std::max(UR0[rho_i], UL0[rho_i]);
-		if (UR0[rho_i] < rho_min && UR0[rho_i] != UR[rho_i]) {
-			thetaR = (UR0[rho_i] - rho_min) / (UR0[rho_i] - UR[rho_i]);
+		constexpr static int npos = 3;
+		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i, egas_i };
+
+		constexpr safe_real max_change = 1.0e-6;
+		safe_real theta = 1.0;
+		for (int f = 0; f < npos; f++) {
+			safe_real thetaR = 1.0, thetaL = 1.0;
+			const auto umin = max_change * std::max(UR0[f], UL0[f]);
+			if (UR[f] < umin && UR0[f] != UR[f]) {
+				thetaR = (UR0[f] - umin) / (UR0[f] - UR[f]);
+			}
+			if (UL[f] < umin && UL0[f] != UL[f]) {
+				thetaL = (UL0[f] - umin) / (UL0[f] - UL[f]);
+			}
+			theta = std::min(theta,std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0)));
 		}
-		if (UL0[rho_i] < rho_min && UL0[rho_i] != UL[rho_i]) {
-			thetaL = (UL0[rho_i] - rho_min) / (UL0[rho_i] - UL[rho_i]);
-		}
-		const auto theta = std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0));
 		if (theta < 1.0) {
-			printf("theta = %e\n", double(theta));
 			for (int f = 0; f < nf; f++) {
 				F[f] *= theta;
 			}
@@ -127,8 +133,8 @@ struct physics {
 	}
 
 	template<int INX>
-	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> X, safe_real omega,
-			safe_real dx) {
+	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F,
+			const hydro::x_type<NDIM> X, safe_real omega, safe_real dx) {
 		static constexpr cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
 			static constexpr auto kdelta = geo.kronecker_delta();

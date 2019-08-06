@@ -15,7 +15,7 @@
 #define NDIM 2
 #define INX 150
 
-static constexpr double tmax = 1.0;
+static constexpr double tmax = 1.0e-3;
 
 
 #define H_BW 3
@@ -61,7 +61,7 @@ int main(int, char*[]) {
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[dim][i];
-			auto o = dim == 0 ? 0.2 : 0.0;
+			auto o = dim == 0 ? 0.0 : 0.0;
 			x2 += (X[dim][i] - o) * (X[dim][i] - o);
 		}
 //		if (xsum < 0) {
@@ -72,7 +72,7 @@ int main(int, char*[]) {
 //			U[physics<NDIM>::egas_i][i] = 0.25;
 //		}
 		U[physics<NDIM>::rho_i][i] = 1.0;
-		U[physics<NDIM>::egas_i][i] = 1e+6 * std::exp(-x2 * INX * INX / 4.0);
+		U[physics<NDIM>::egas_i][i] = 1e+6 * std::exp(-x2 * INX * INX * 2.0) + 1.0e-3;
 		U[physics<NDIM>::tau_i][i] = POWER(U[physics<NDIM>::egas_i][i], 1.0 / FGAMMA);
 	}
 
