@@ -49,8 +49,8 @@ struct physics {
 		p = (FGAMMA - 1.0) * ein;
 	}
 
-	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, std::vector<safe_real> &F, int dim, safe_real &a,
-			std::array<safe_real, NDIM> &vg, safe_real dx) {
+	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
+			std::vector<safe_real> &F, int dim, safe_real &a, std::array<safe_real, NDIM> &vg, safe_real dx) {
 
 		safe_real pr, vr, pl, vl, vr0, vl0;
 
@@ -70,6 +70,35 @@ struct physics {
 		F[sx_i + dim] += safe_real(0.5) * (pr + pl);
 		F[egas_i] += safe_real(0.5) * (pr * vr0 + pl * vl0);
 		F[egas_i] += safe_real(0.5) * (UR[pot_i] * vr0 + UL[pot_i] * vl0);
+
+		safe_real thetaR = 1.0, thetaL = 1.0;
+		constexpr safe_real max_change = 1.0e-3;
+		const auto rho_min = max_change * std::max(UR0[rho_i], UL0[rho_i]);
+		if (UR0[rho_i] < rho_min && UR0[rho_i] != UR[rho_i]) {
+			thetaR = (UR0[rho_i] - rho_min) / (UR0[rho_i] - UR[rho_i]);
+		}
+		if (UL0[rho_i] < rho_min && UL0[rho_i] != UL[rho_i]) {
+			thetaL = (UL0[rho_i] - rho_min) / (UL0[rho_i] - UL[rho_i]);
+		}
+		const auto theta = std::max(std::min(std::min(thetaL, thetaR),safe_real(1.0)),safe_real(0.0));
+		if (theta < 1.0) {
+			printf( "theta = %e\n", double(theta));
+			for (int f = 0; f < nf; f++) {
+				F[f] *= theta;
+			}
+			const auto c0 = 1.0 - theta;
+			to_prim(UR0, pr, vr0, dim, dx);
+			to_prim(UL0, pl, vl0, dim, dx);
+			vr = vr0 - vg[dim];
+			vl = vl0 - vg[dim];
+			for (int f = 0; f < nf; f++) {
+				F[f] = c0 * safe_real(0.5) * ((vr - a) * UR0[f] + (vl + a) * UL0[f]);
+			}
+			F[sx_i + dim] += c0 * safe_real(0.5) * (pr + pl);
+			F[egas_i] += c0 * safe_real(0.5) * (pr * vr0 + pl * vl0);
+			F[egas_i] += c0 * safe_real(0.5) * (UR[pot_i] * vr0 + UL[pot_i] * vl0);
+		}
+
 	}
 
 	template<int INX>

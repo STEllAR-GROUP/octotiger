@@ -55,7 +55,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, safe_real dx);
 
-	safe_real flux(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X, safe_real omega);
+	safe_real flux(const hydro::state_type& U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X, safe_real omega);
 
 	void post_process(hydro::state_type &U, safe_real dx);
 

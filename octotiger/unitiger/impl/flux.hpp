@@ -7,7 +7,7 @@
 #include "../physics.hpp"
 
 template<int NDIM, int INX>
-safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
+safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydro::recon_type<NDIM>& Q,
 		hydro::flux_type &F, hydro::x_type<NDIM> &X,
 		safe_real omega) {
 
@@ -41,12 +41,15 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
 	std::array < safe_real, 3 > amax = {0.0, 0.0, 0.0};
 	for (int dim = 0; dim < NDIM; dim++) {
 		std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
+		std::vector<safe_real> UR0(nf_), UL0(nf_);
 		for (const auto &i : indices2) {
 			safe_real a = -1.0;
 			for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 				const auto d = faces[dim][fi];
 				const auto di = dir[d];
 				for (int f = 0; f < nf_; f++) {
+					UR0[f] = U[f][i];
+					UL0[f] = U[f][i-geo::H_DN[dim]];
 					UR[f] = Q[f][i][d];
 					UL[f] = Q[f][i - geo::H_DN[dim]][flip_dim(d, dim)];
 				}
@@ -59,7 +62,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::recon_type<NDIM>& Q,
 					vg[0] = 0.0;
 				}
 
-				physics < NDIM > ::flux(UL, UR, this_flux, dim, a, vg, dx);
+				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, a, vg, dx);
 				for (int f = 0; f < nf_; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
