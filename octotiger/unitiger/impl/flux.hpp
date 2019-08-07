@@ -58,6 +58,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 					vg[0] = 0.0;
 				}
 
+
 				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, am, ap, vg, dx);
 				for (int f = 0; f < nf_; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];

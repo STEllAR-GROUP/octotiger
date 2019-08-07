@@ -2,7 +2,7 @@
 #include "../util.hpp"
 
 template<int NDIM, int INX>
-const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U, safe_real dx) {
+const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, safe_real dx) {
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
@@ -11,6 +11,9 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 	static const auto indices1 = geo::find_indices(1, geo::H_NX - 1);
 	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
+
+
+	auto U = physics<NDIM>::template pre_recon<INX>(U_,dx);
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
@@ -164,11 +167,14 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
-		for (int f = angmom_index_ + (geo::NFACEDIR + NDIM) * angmom_count_; f < nf_; f++) {
+		for (int f = zx_i + 1 - geo::NANGMOM - NDIM; f < nf_; f++) {
 			reconstruct(Q[f], U[f], smooth_field_[f]);
 		}
 
 	}
+
+
+	Q = physics<NDIM>::template post_recon<INX>(Q,dx);
 	return Q;
 }
 

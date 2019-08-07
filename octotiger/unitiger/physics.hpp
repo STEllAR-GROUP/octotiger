@@ -23,7 +23,9 @@ struct physics {
 	static constexpr int zx_i = 4 + NDIM;
 	static constexpr int zy_i = 5 + NDIM;
 	static constexpr int zz_i = 6 + NDIM;
-	static constexpr int nf = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+	static int nf;
+	static int n_species;
 
 	static int field_count() {
 		return nf;
@@ -115,7 +117,7 @@ struct physics {
 	}
 
 	template<int INX>
-	void post_process(hydro::state_type &U, safe_real dx) {
+	static void post_process(hydro::state_type &U, safe_real dx) {
 		static const cell_geometry<NDIM, INX> geo;
 		constexpr auto dir = geo.direction();
 		const static auto is = geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW);
@@ -172,6 +174,67 @@ struct physics {
 
 	}
 
+	template<int INX>
+	static const hydro::state_type pre_recon(const hydro::state_type &U, safe_real dx) {
+		static constexpr cell_geometry<NDIM, INX> geo;
+		static const auto indices = geo.find_indices(0, geo.H_NX);
+		auto V = U;
+		for (const auto &i : indices) {
+			const auto rho = V[rho_i][i];
+			const auto rhoinv = 1.0 / rho;
+			for (int dim = 0; dim < NDIM; dim++) {
+				auto &s = V[sx_i + dim][i];
+				V[egas_i][i] -= 0.5 * s * s * rhoinv;
+				s *= rhoinv;
+			}
+			for (int n = 0; n < geo.NANGMOM; n++) {
+				auto &z = V[zx_i + n][i];
+				V[egas_i][i] -= 0.5 * z * z * rhoinv / (dx * dx);
+				z *= rhoinv;
+			}
+			for (int si = 0; si < n_species; si++) {
+				V[spc_i + si][i] *= rhoinv;
+			}
+			V[pot_i][i] *= rhoinv;
+		}
+		return V;
+	}
+
+	template<int INX>
+	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, safe_real dx) {
+		static constexpr cell_geometry<NDIM, INX> geo;
+		static const auto indices = geo.find_indices(2, geo.H_NX - 2);
+		auto Q = P;
+		for (const auto &i : indices) {
+			for (int d = 0; d < geo.NDIR; d++) {
+				if (d != geo.NDIR / 2) {
+					const auto rho = Q[rho_i][i][d];
+					for (int dim = 0; dim < NDIM; dim++) {
+						auto &v = Q[sx_i + dim][i][d];
+						Q[egas_i][i][d] += 0.5 * v * v * rho;
+						v *= rho;
+					}
+					for (int n = 0; n < geo.NANGMOM; n++) {
+						auto &z = Q[zx_i + n][i][d];
+						Q[egas_i][i][d] += 0.5 * z * z * rho / (dx * dx);
+						z *= rho;
+					}
+					Q[pot_i][i][d] *= rho;
+					for (int si = 0; si < n_species; si++) {
+						Q[spc_i + si][i][d] *= rho;
+					}
+				}
+			}
+		}
+		return Q;
+	}
+
 };
+
+template<int NDIM>
+int physics<NDIM>::nf = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + 2;
+
+template<int NDIM>
+int physics<NDIM>::n_species = 2;
 
 #endif /* OCTOTIGER_UNITIGER_PHYSICS_HPP_ */

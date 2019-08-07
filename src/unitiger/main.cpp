@@ -11,12 +11,10 @@
 #include "../../octotiger/octotiger/unitiger/hydro.hpp"
 #endif
 
-
 #define NDIM 2
-#define INX 150
+#define INX 256
 
 static constexpr double tmax = 1.0e-4;
-
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -37,7 +35,7 @@ int main(int, char*[]) {
 	std::vector<std::vector<safe_real>> U(physics<NDIM>::nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(physics<NDIM>::nf, std::vector<safe_real>(H_N3));
 	hydro::x_type<NDIM> X;
-	for( int dim = 0; dim < NDIM; dim++) {
+	for (int dim = 0; dim < NDIM; dim++) {
 		X[dim].resize(H_N3);
 	}
 
@@ -61,10 +59,10 @@ int main(int, char*[]) {
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[dim][i];
-			auto o = dim == 0 ? 0.25 : 0.0;
+			auto o = dim == 0 ? 0.0 : 0.0;
 			x2 += (X[dim][i] - o) * (X[dim][i] - o);
 		}
-//		if (xsum < 0) {
+		//		if (xsum < 0) {
 //			U[physics<NDIM>::rho_i][i] = 1.0;
 //			U[physics<NDIM>::egas_i][i] = 2.5;
 //		} else {
@@ -74,30 +72,36 @@ int main(int, char*[]) {
 		U[physics<NDIM>::rho_i][i] = 1.0;
 		U[physics<NDIM>::egas_i][i] = 1e+6 * std::exp(-x2 * INX * INX * 2.0) + 1.0e-3;
 		U[physics<NDIM>::tau_i][i] = POWER(U[physics<NDIM>::egas_i][i], 1.0 / FGAMMA);
+		if (xsum < 0.0) {
+			U[physics<NDIM>::spc_i + 0][i] = U[physics<NDIM>::rho_i][i];
+			U[physics<NDIM>::spc_i + 1][i] = 0.0;
+		} else {
+			U[physics<NDIM>::spc_i + 1][i] = U[physics<NDIM>::rho_i][i];
+			U[physics<NDIM>::spc_i + 0][i] = 0.0;
+		}
 	}
 
 	safe_real t = 0.0;
 	int iter = 0;
 
-
 	computer.output(U, X, iter++);
-	const safe_real omega =2.0 * M_PI / tmax / 4.0;
-//	const safe_real omega = 0.0;
+//	const safe_real omega =2.0 * M_PI / tmax / 4.0;
+	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto q = computer.reconstruct(U, dx);
-		auto a = computer.flux(U,q, F, X, omega);
+		auto a = computer.flux(U, q, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U);
 		computer.boundaries(U);
 		q = computer.reconstruct(U, dx);
-		computer.flux(U,q, F, X, omega);
+		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
 		computer.boundaries(U);
 		q = computer.reconstruct(U, dx);
-		computer.flux(U,q, F, X, omega);
+		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 		t += dt;
 		computer.boundaries(U);
