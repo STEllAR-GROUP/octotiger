@@ -1,8 +1,3 @@
-#ifdef NOHPX
-#include "../basis.hpp"
-#else
-#include "octotiger/unitiger/basis.hpp"
-#endif
 
 #include "../physics.hpp"
 

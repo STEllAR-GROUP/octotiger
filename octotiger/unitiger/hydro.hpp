@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "safe_real.hpp"
-#include "basis.hpp"
 
 #define SAFE_MATH_ON
 #ifdef NOHPX
