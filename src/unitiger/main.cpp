@@ -14,7 +14,7 @@
 #define NDIM 2
 #define INX 256
 
-static constexpr double tmax = 1.0e-4;
+static constexpr double tmax = 1.0e-3;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -85,22 +85,23 @@ int main(int, char*[]) {
 	int iter = 0;
 
 	computer.output(U, X, iter++);
-//	const safe_real omega =2.0 * M_PI / tmax / 4.0;
-	const safe_real omega = 0.0;
+	const safe_real omega =2.0 * M_PI / tmax / 4.0;
+//	const safe_real omega = 0.0;
+	printf( "omega = %e\n", omega);
 	while (t < tmax) {
 		U0 = U;
-		auto q = computer.reconstruct(U, dx);
+		auto q = computer.reconstruct(U, X, omega);
 		auto a = computer.flux(U, q, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U);
 		computer.boundaries(U);
-		q = computer.reconstruct(U, dx);
+		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
 		computer.boundaries(U);
-		q = computer.reconstruct(U, dx);
+		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
 		t += dt;

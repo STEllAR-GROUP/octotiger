@@ -58,4 +58,28 @@ void hydro_computer<NDIM, INX>::post_process(hydro::state_type &U, safe_real dx)
 	p.template post_process < NDIM > (U, dx);
 }
 
+template<int NDIM, int INX>
+std::vector<safe_real>  hydro_computer<NDIM, INX>::get_field_sums(const hydro::state_type &U, safe_real dx) {
+	std::vector<safe_real> sums(nf_,0.0);
+	static const auto indices = geo::find_indices(geo::H_BW,geo::H_NX-geo::H_BW);
+	for( int f = 0; f < nf_; f++) {
+		for( auto i : indices) {
+			sums[f] += U[f][i] * (dx * dx * dx);
+		}
+	}
+	return sums;
+}
+
+template<int NDIM, int INX>
+std::vector<safe_real>  hydro_computer<NDIM, INX>::get_field_mags(const hydro::state_type &U, safe_real dx) {
+	std::vector<safe_real> sums(nf_,0.0);
+	static const auto indices = geo::find_indices(geo::H_BW,geo::H_NX-geo::H_BW);
+	for( int f = 0; f < nf_; f++) {
+		for( auto i : indices) {
+			sums[f] += std::abs(U[f][i] * (dx * dx * dx));
+		}
+	}
+	return sums;
+}
+
 #endif /* IMPL_HPP_ */

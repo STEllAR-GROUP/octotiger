@@ -8,6 +8,16 @@
 #ifndef OCTOTIGER_UNITIGER_UTI1L_HPP_
 #define OCTOTIGER_UNITIGER_UTI1L_HPP_
 
+template<int NDIM, int NX>
+std::array<int, NDIM> index_to_dims(int i) {
+	std::array<int, NDIM> dims;
+	for (int j = 0; j < NDIM; j++) {
+		dims[j] = i % NX;
+		i /= NX;
+	}
+	return dims;
+}
+
 template<int a, int b>
 static constexpr int int_pow() {
 	if constexpr (b == 0) {
@@ -16,7 +26,6 @@ static constexpr int int_pow() {
 		return a * int_pow<a, b - 1>();
 	}
 }
-
 
 static inline void limit_slope(safe_real &ql, safe_real q0, safe_real &qr) {
 	const safe_real tmp1 = qr - ql;

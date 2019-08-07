@@ -45,7 +45,7 @@ template<int NDIM, int INX>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 	using geo = cell_geometry<NDIM,INX>;
 
-	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, safe_real dx);
+	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, const hydro::x_type<NDIM>&, safe_real );
 
 	safe_real flux(const hydro::state_type& U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X, safe_real omega);
 
@@ -61,6 +61,10 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	void use_angmom_correction(int index, int count);
 
 	void use_smooth_recon(int field);
+
+	std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
+
+	std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
 
 	hydro_computer();
 

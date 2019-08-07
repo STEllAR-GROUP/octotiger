@@ -1,5 +1,23 @@
 template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num) {
+
+	const auto dx = X[0][1] - X[0][0];
+	FILE* fp = fopen( "sums.dat", "at");
+	auto sums = get_field_sums(U,dx);
+	for( int f = 0; f < nf_; f++) {
+		fprintf( fp, "%e ", (double) sums[f]);
+	}
+	fprintf( fp, "\n");
+	fclose(fp);
+
+	fp = fopen( "mags.dat", "at");
+	sums = get_field_mags(U,dx);
+	for( int f = 0; f < nf_; f++) {
+		fprintf( fp, "%e ", (double) sums[f]);
+	}
+	fprintf( fp, "\n");
+	fclose(fp);
+
 	std::string filename = "Y." + std::to_string(num);
 	if (NDIM == 1) {
 		filename += ".txt";

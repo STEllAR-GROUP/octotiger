@@ -174,11 +174,13 @@ struct physics {
 
 	}
 
+
 	template<int INX>
-	static const hydro::state_type pre_recon(const hydro::state_type &U, safe_real dx) {
+	static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type<NDIM> X, safe_real omega) {
 		static constexpr cell_geometry<NDIM, INX> geo;
 		static const auto indices = geo.find_indices(0, geo.H_NX);
 		auto V = U;
+		const auto dx = X[0][geo.H_DNX] - X[0][0];
 		for (const auto &i : indices) {
 			const auto rho = V[rho_i][i];
 			const auto rhoinv = 1.0 / rho;
@@ -196,18 +198,31 @@ struct physics {
 				V[spc_i + si][i] *= rhoinv;
 			}
 			V[pot_i][i] *= rhoinv;
+//			if constexpr (NDIM > 1) {
+//				V[sx_i + 0][i] += omega * X[1][i];
+//				V[sx_i + 1][i] -= omega * X[0][i];
+//				V[zx_i + geo.NANGMOM - 1][i] -= omega * dx * dx / 6.0;
+//			}
 		}
 		return V;
 	}
 
 	template<int INX>
-	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, safe_real dx) {
+	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, const hydro::x_type<NDIM> X, safe_real omega) {
 		static constexpr cell_geometry<NDIM, INX> geo;
+		static constexpr auto xloc = geo.xloc();
 		static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 		auto Q = P;
+		const auto dx = X[0][geo.H_DNX] - X[0][0];
+		//		;
 		for (const auto &i : indices) {
 			for (int d = 0; d < geo.NDIR; d++) {
 				if (d != geo.NDIR / 2) {
+//					if constexpr (NDIM > 1) {
+//						Q[sx_i + 0][i][d] -= omega * (X[1][i] + xloc[d][1] * dx * 0.5);
+//						Q[sx_i + 1][i][d] += omega * (X[0][i] + xloc[d][0] * dx * 0.5);
+//						Q[zx_i + geo.NANGMOM - 1][i][d] += omega * dx * dx / 6.0;
+//					}
 					const auto rho = Q[rho_i][i][d];
 					for (int dim = 0; dim < NDIM; dim++) {
 						auto &v = Q[sx_i + dim][i][d];
@@ -220,8 +235,14 @@ struct physics {
 						z *= rho;
 					}
 					Q[pot_i][i][d] *= rho;
+					safe_real w = 0.0;
 					for (int si = 0; si < n_species; si++) {
+						w += Q[spc_i + si][i][d];
 						Q[spc_i + si][i][d] *= rho;
+					}
+					w = 1.0 / w;
+					for (int si = 0; si < n_species; si++) {
+						Q[spc_i + si][i][d] *= w;
 					}
 				}
 			}

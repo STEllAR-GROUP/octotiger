@@ -6,7 +6,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 		hydro::flux_type &F, hydro::x_type<NDIM> &X,
 		safe_real omega) {
 
-	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
+	static const auto indices3 = geo::find_indices(3, geo::H_NX - 2);
 	static constexpr auto faces = geo::face_pts();
 	static constexpr auto weights = geo::face_weight();
 	static constexpr auto xloc = geo::xloc();
@@ -33,11 +33,12 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 		return k;
 	};
 
-	std::array < safe_real, 3 > amax = {0.0, 0.0, 0.0};
+	safe_real amax;
+//	std::array<int,NDIM> max_speed;
 	for (int dim = 0; dim < NDIM; dim++) {
 		std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
 		std::vector<safe_real> UR0(nf_), UL0(nf_);
-		for (const auto &i : indices2) {
+		for (const auto &i : indices3) {
 			safe_real ap = -1.0;
 			safe_real am = +1.0;
 			for (int fi = 0; fi < geo::NFACEDIR; fi++) {
@@ -57,17 +58,19 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 				} else {
 					vg[0] = 0.0;
 				}
-
-
 				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, am, ap, vg, dx);
 				for (int f = 0; f < nf_; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
 			}
-			amax[dim] = std::max(ap, amax[dim]);
+			const auto this_amax = std::max(ap, safe_real(-am));
+			if( this_amax > amax) {
+				amax = this_amax;
+//				max_speed = index_to_dims<NDIM, geo::H_NX>(i);
+			}
 		}
 		for (int f = 0; f < nf_; f++) {
-			for (const auto &i : geo::find_indices(3, geo::H_NX - 2)) {
+			for (const auto &i : indices3) {
 				F[dim][f][i] = 0.0;
 				for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
@@ -83,7 +86,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 						for (int l = 0; l < NDIM; l++) {
 							for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 								const auto d = faces[dim][fi];
-								for (const auto &i : geo::find_indices(3, geo::H_NX - 2)) {
+								for (const auto &i : indices3) {
 									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * xloc[d][m] * 0.5 * dx
 									* fluxes[dim][sx_i + l][i][fi];
 								}
@@ -94,8 +97,6 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 			}
 		}
 	}
-	for (int d = 1; d < NDIM; d++) {
-		amax[0] = std::max(amax[0], amax[d]);
-	}
-	return amax[0];
+//	printf( "%i %i %e\n", max_speed[0],  max_speed[1], (double) amax);
+	return amax;
 }

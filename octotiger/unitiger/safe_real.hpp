@@ -5,7 +5,7 @@
 
 struct safe_real {
 	inline constexpr safe_real() :
-			r_(SNAN) {
+			r_(0) {
 	}
 	inline constexpr safe_real(double r) :
 			r_(r) {

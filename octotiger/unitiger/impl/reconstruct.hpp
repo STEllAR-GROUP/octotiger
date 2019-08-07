@@ -2,7 +2,7 @@
 #include "../util.hpp"
 
 template<int NDIM, int INX>
-const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, safe_real dx) {
+const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type<NDIM>& X, safe_real omega) {
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
@@ -12,8 +12,8 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 	static const auto indices1 = geo::find_indices(1, geo::H_NX - 1);
 	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
 
-
-	auto U = physics<NDIM>::template pre_recon<INX>(U_,dx);
+	const auto dx = X[0][geo::H_DNX] - X[0][0];
+	auto U = physics<NDIM>::template pre_recon<INX>(U_,X,omega);
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
@@ -93,17 +93,11 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			for (int n = 0; n < geo::NANGMOM; n++) {
 				storeZ[n] = U[zx_i + n];
 			}
-
-//			safe_real z1 = z_error(U);
-
 			for (const auto &i : indices2) {
 				std::array < safe_real, geo::NANGMOM > Z;
 				for (int dim = 0; dim < geo::NANGMOM; dim++) {
 					Z[dim] = U[zx_i + dim][i];
 				}
-//			if (std::abs(Z[0]) > 1.0e-3) {
-//				//			printf("\n");
-//			}
 				std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
 				for (int dim = 0; dim < NDIM; dim++) {
 					for (int d = 0; d < geo::NDIR; d++) {
@@ -174,7 +168,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 	}
 
 
-	Q = physics<NDIM>::template post_recon<INX>(Q,dx);
+	Q = physics<NDIM>::template post_recon<INX>(Q,X,omega);
 	return Q;
 }
 
