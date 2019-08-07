@@ -38,7 +38,8 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 		std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
 		std::vector<safe_real> UR0(nf_), UL0(nf_);
 		for (const auto &i : indices2) {
-			safe_real a = -1.0;
+			safe_real ap = -1.0;
+			safe_real am = +1.0;
 			for (int fi = 0; fi < geo::NFACEDIR; fi++) {
 				const auto d = faces[dim][fi];
 				const auto di = dir[d];
@@ -57,12 +58,12 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type& U, const hydr
 					vg[0] = 0.0;
 				}
 
-				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, a, vg, dx);
+				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, am, ap, vg, dx);
 				for (int f = 0; f < nf_; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
 			}
-			amax[dim] = std::max(a, amax[dim]);
+			amax[dim] = std::max(ap, amax[dim]);
 		}
 		for (int f = 0; f < nf_; f++) {
 			for (const auto &i : geo::find_indices(3, geo::H_NX - 2)) {

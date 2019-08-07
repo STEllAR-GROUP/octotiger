@@ -15,7 +15,7 @@
 #define NDIM 2
 #define INX 150
 
-static constexpr double tmax = 0.5;
+static constexpr double tmax = 1.0e-4;
 
 
 #define H_BW 3
@@ -61,7 +61,7 @@ int main(int, char*[]) {
 		safe_real x2 = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += X[dim][i];
-			auto o = dim == 0 ? 0.0 : 0.0;
+			auto o = dim == 0 ? 0.25 : 0.0;
 			x2 += (X[dim][i] - o) * (X[dim][i] - o);
 		}
 //		if (xsum < 0) {
@@ -81,8 +81,8 @@ int main(int, char*[]) {
 
 
 	computer.output(U, X, iter++);
-//	const safe_real omega =2.0 * M_PI / tmax / 4.0;
-	const safe_real omega = 0.0;
+	const safe_real omega =2.0 * M_PI / tmax / 4.0;
+//	const safe_real omega = 0.0;
 	while (t < tmax) {
 		U0 = U;
 		auto q = computer.reconstruct(U, dx);

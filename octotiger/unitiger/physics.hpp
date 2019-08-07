@@ -49,29 +49,36 @@ struct physics {
 		p = (FGAMMA - 1.0) * ein;
 	}
 
-	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR,
-			const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0, std::vector<safe_real> &F, int dim,
-			safe_real &a, std::array<safe_real, NDIM> &vg, safe_real dx) {
+	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
+			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg, safe_real dx) {
 
 		safe_real pr, vr, pl, vl, vr0, vl0;
 
+		static thread_local std::vector<safe_real> FR(nf), FL(nf);
 		to_prim(UR, pr, vr0, dim, dx);
 		to_prim(UL, pl, vl0, dim, dx);
 		vr = vr0 - vg[dim];
 		vl = vl0 - vg[dim];
-		if (a < 0.0) {
-			safe_real ar, al;
-			ar = abs(vr) + sqrt(FGAMMA * pr / (UR[rho_i]));
-			al = abs(vl) + sqrt(FGAMMA * pl / (UL[rho_i]));
-			a = std::max(al, ar);
+		if (ap < 0.0) {
+			safe_real cr, cl;
+			cr = sqrt(FGAMMA * pr / (UR[rho_i]));
+			cl = sqrt(FGAMMA * pl / (UL[rho_i]));
+			ap = std::max(vr + cr, vl + cl);
+			am = std::min(vr - cr, vl - cl);
+			ap = std::max(ap, safe_real(0.0));
+			am = std::min(am, safe_real(0.0));
 		}
 		for (int f = 0; f < nf; f++) {
-			F[f] = safe_real(0.5) * ((vr - a) * UR[f] + (vl + a) * UL[f]);
+			FR[f] = vr * UR[f];
+			FL[f] = vl * UL[f];
 		}
-		F[sx_i + dim] += safe_real(0.5) * (pr + pl);
-		F[egas_i] += safe_real(0.5) * (pr * vr0 + pl * vl0);
-		F[egas_i] += safe_real(0.5) * (UR[pot_i] * vr0 + UL[pot_i] * vl0);
-
+		FR[sx_i + dim] += pr;
+		FL[sx_i + dim] += pl;
+		FR[egas_i] += (UR[pot_i] + pr) * vr0;
+		FL[egas_i] += (UL[pot_i] + pl) * vl0;
+		for (int f = 0; f < nf; f++) {
+			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
+		}
 		constexpr static int npos = 3;
 		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i, egas_i };
 
@@ -86,7 +93,7 @@ struct physics {
 			if (UL[f] < umin && UL0[f] != UL[f]) {
 				thetaL = (UL0[f] - umin) / (UL0[f] - UL[f]);
 			}
-			theta = std::min(theta,std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0)));
+			theta = std::min(theta, std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0)));
 		}
 		if (theta < 1.0) {
 			for (int f = 0; f < nf; f++) {
@@ -98,7 +105,7 @@ struct physics {
 			vr = vr0 - vg[dim];
 			vl = vl0 - vg[dim];
 			for (int f = 0; f < nf; f++) {
-				F[f] = c0 * safe_real(0.5) * ((vr - a) * UR0[f] + (vl + a) * UL0[f]);
+				F[f] += c0 * safe_real(0.5) * ((vr - ap) * UR0[f] + (vl + ap) * UL0[f]);
 			}
 			F[sx_i + dim] += c0 * safe_real(0.5) * (pr + pl);
 			F[egas_i] += c0 * safe_real(0.5) * (pr * vr0 + pl * vl0);
@@ -133,8 +140,8 @@ struct physics {
 	}
 
 	template<int INX>
-	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F,
-			const hydro::x_type<NDIM> X, safe_real omega, safe_real dx) {
+	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> X, safe_real omega,
+			safe_real dx) {
 		static constexpr cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
 			static constexpr auto kdelta = geo.kronecker_delta();
