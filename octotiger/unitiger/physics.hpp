@@ -145,7 +145,7 @@ struct physics {
 	template<int INX>
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> X, safe_real omega,
 			safe_real dx) {
-		static constexpr cell_geometry<NDIM, INX> geo;
+		static const cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
 			static constexpr auto kdelta = geo.kronecker_delta();
 			for (int n = 0; n < geo.NANGMOM; n++) {
@@ -178,7 +178,7 @@ struct physics {
 
 	template<int INX>
 	static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type<NDIM> X, safe_real omega) {
-		static constexpr cell_geometry<NDIM, INX> geo;
+		static const cell_geometry<NDIM, INX> geo;
 		static const auto indices = geo.find_indices(0, geo.H_NX);
 		auto V = U;
 		const auto dx = X[0][geo.H_DNX] - X[0][0];
@@ -205,7 +205,7 @@ struct physics {
 
 	template<int INX>
 	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, const hydro::x_type<NDIM> X, safe_real omega) {
-		static constexpr cell_geometry<NDIM, INX> geo;
+		static const cell_geometry<NDIM, INX> geo;
 		static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 		auto Q = P;
 		const auto dx = X[0][geo.H_DNX] - X[0][0];
