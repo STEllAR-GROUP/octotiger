@@ -25,13 +25,6 @@ using std::future;
 using std::async;
 using std::launch;
 #endif
-namespace hydro {
-
-void filter_cell1d(std::array<safe_real, 3> &C, safe_real C0);
-void filter_cell2d(std::array<safe_real, 9> &C, safe_real C0);
-void filter_cell3d(std::array<safe_real, 27> &C, safe_real C0);
-void output_cell2d(FILE *fp, const std::array<safe_real, 9> &C, int joff, int ioff);
-}
 
 #include "./cell_geometry.hpp"
 #include "./util.hpp"
@@ -81,17 +74,6 @@ private:
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
 	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 	std::vector<bool> smooth_field_;
-
-	void filter_cell(std::array<safe_real, geo::NDIR> &C, safe_real c0);
-	//
-//	safe_real z_error(const std::vector<std::vector<safe_real>> &U) {
-//		safe_real err = 0.0;
-//		for (auto &i : find_indices<NDIM, INX>(geo::H_BW, geo::H_NX - geo::H_BW)) {
-//			err += std::abs(U[zx_i][i]);
-//		}
-//		return err;
-//	}
-
 }
 ;
 

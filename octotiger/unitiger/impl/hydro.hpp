@@ -42,18 +42,6 @@ hydro_computer<NDIM, INX>::hydro_computer() {
 }
 
 template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::filter_cell(std::array<safe_real, geo::NDIR> &C, safe_real c0) {
-	if constexpr (NDIM == 1) {
-		hydro::filter_cell1d(C, c0);
-	} else if constexpr (NDIM == 2) {
-		hydro::filter_cell2d(C, c0);
-	} else {
-		hydro::filter_cell3d(C, c0);
-	}
-}
-
-
-template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::use_smooth_recon(int field) {
 	smooth_field_[field] = true;
 }

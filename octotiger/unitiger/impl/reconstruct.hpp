@@ -24,7 +24,9 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			for (int m = 0; m < NDIM; m++) {
 				for (int l = 0; l < NDIM; l++) {
 					for (int d = 0; d < geo::NDIR; d++) {
-						L[n] += vw[d] * kdelta[n][m][l] * 0.5 * xloc[d][m] * C[l][d] * dx;
+						if (d != geo::NDIR / 2) {
+							L[n] += vw[d] * kdelta[n][m][l] * 0.5 * xloc[d][m] * C[l][d] * dx;
+						}
 					}
 				}
 			}
@@ -34,11 +36,13 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 	const auto add_angmom = [dx](std::array<std::array<safe_real, geo::NDIR>, NDIM> &C, std::array<safe_real, geo::NANGMOM> &Z) {
 		for (int d = 0; d < geo::NDIR; d++) {
-			for (int n = 0; n < geo::NANGMOM; n++) {
-				for (int m = 0; m < NDIM; m++) {
-					for (int l = 0; l < NDIM; l++) {
-						const auto tmp = 6.0 * Z[n] / dx;
-						C[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
+			if (d != geo::NDIR / 2) {
+				for (int n = 0; n < geo::NANGMOM; n++) {
+					for (int m = 0; m < NDIM; m++) {
+						for (int l = 0; l < NDIM; l++) {
+							const auto tmp = 6.0 * Z[n] / dx;
+							C[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
+						}
 					}
 				}
 			}
@@ -65,7 +69,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				for (int d = 0; d < geo::NDIR / 2; d++) {
 					limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
 				}
-				filter_cell(q[i], u[i]);
 			}
 		}
 	};
@@ -85,7 +88,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct(Q[f], U[f],false);
+				reconstruct(Q[f], U[f], false);
 			}
 
 			std::array<std::vector<safe_real>, geo::NANGMOM> storeZ;
@@ -136,7 +139,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 						const auto di = dir[d];
 						limit_slope(S[dim][d], U[f][i], S[dim][geo::flip(d)]);
 					}
-					filter_cell(S[dim], U[f][i]);
 				}
 				am2 = measure_angmom(S);
 				for (int n = 0; n < geo::NANGMOM; n++) {

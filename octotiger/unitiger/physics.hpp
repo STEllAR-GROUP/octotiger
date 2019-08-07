@@ -43,7 +43,7 @@ struct physics {
 		}
 		auto ein = max(u[egas_i] - ek, 0.0);
 		if (ein < safe_real(0.001) * u[egas_i]) {
-			ein = pow(std::max(u[tau_i], safe_real(0.0)), FGAMMA);
+			ein = pow(u[tau_i], FGAMMA);
 		}
 		v = u[sx_i + dim] * rhoinv;
 		p = (FGAMMA - 1.0) * ein;
