@@ -27,6 +27,10 @@ struct physics {
 	static int nf;
 	static int n_species;
 
+	enum test_type {
+		SOD, BLAST, KH
+	};
+
 	static int field_count() {
 		return nf;
 	}
@@ -175,7 +179,6 @@ struct physics {
 
 	}
 
-
 	template<int INX>
 	static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type<NDIM> X, safe_real omega) {
 		static const cell_geometry<NDIM, INX> geo;
@@ -239,6 +242,109 @@ struct physics {
 		return Q;
 	}
 
+	template<int INX>
+	using comp_type = hydro_computer<NDIM, INX>;
+
+	template<int INX>
+	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type<NDIM> &X) {
+		static const cell_geometry<NDIM, INX> geo;
+
+		std::vector<typename comp_type<INX>::bc_type> bc(2 * NDIM);
+
+		for (int i = 0; i < 2 * NDIM; i++) {
+			bc[i] = comp_type<INX>::OUTFLOW;
+		}
+
+		switch (t) {
+		case SOD:
+			break;
+		case BLAST:
+			break;
+		case KH:
+			for (int i = 0; i < 2 * NDIM; i++) {
+				bc[i] = comp_type<INX>::PERIODIC;
+			}
+			break;
+		}
+		U.resize(nf);
+		for (int dim = 0; dim < NDIM; dim++) {
+			X[dim].resize(geo.H_N3);
+		}
+		for (int f = 0; f < nf; f++) {
+			U[f].resize(geo.H_N3, 0.0);
+		}
+
+		const safe_real dx = 1.0 / INX;
+
+		for (int i = 0; i < geo.H_N3; i++) {
+			int k = i;
+			int j = 0;
+			for (int dim = 0; dim < NDIM; dim++) {
+				X[j][i] = (((k % geo.H_NX) - geo.H_BW) + 0.5) * dx - 0.5;
+				k /= geo.H_NX;
+				j++;
+			}
+		}
+
+		for (int i = 0; i < geo.H_N3; i++) {
+			safe_real rho = 0, vx = 0, vy = 0, vz = 0, p = 0;
+			safe_real x2, xsum;
+			switch (t) {
+			case SOD:
+				xsum = 0.0;
+				for (int dim = 0; dim < NDIM; dim++) {
+					xsum += X[dim][i];
+				}
+				if (xsum < 0) {
+					rho = 1.0;
+					p = 1.0;
+				} else {
+					rho = 0.125;
+					p = 0.1;
+				}
+				break;
+			case BLAST:
+				x2 = 0.0;
+				for (int dim = 0; dim < NDIM; dim++) {
+					x2 += X[dim][i] * X[dim][i];
+				}
+				rho = 1.0;
+				p = 1e+6 * std::exp(-x2 * INX * INX * 2.0) + 1.0e-3;
+				break;
+			case KH:
+				const auto eps = []() {
+					return (rand() + 0.5) / RAND_MAX * 1.0e-3;
+				};
+
+				U[physics<NDIM>::tau_i][i] = 1.0;
+				p = 1.0;
+				if (X[1][i] < 0.0) {
+					rho = 1.0 + eps();
+					vx = -0.5;
+				} else {
+					rho = 2.0 + eps();
+					vx = +0.5;
+				}
+				break;
+			}
+			U[rho_i][i] = rho;
+			U[spc_i][i] = rho;
+			U[sx_i][i] = rho * vx;
+			U[egas_i][i] = p / (FGAMMA - 1.0) + 0.5 * rho * vx * vx;
+			U[tau_i][i] = std::pow(p / (FGAMMA - 1.0), 1.0 / FGAMMA);
+			if constexpr (NDIM >= 2) {
+				U[sy_i][i] = rho * vy;
+				U[egas_i][i] += 0.5 * rho * vy * vy;
+			}
+			if constexpr (NDIM >= 3) {
+				U[sz_i][i] = rho * vz;
+				U[egas_i][i] += 0.5 * rho * vz * vz;
+			}
+
+		}
+
+		return bc;
+	}
 };
 
 template<int NDIM>

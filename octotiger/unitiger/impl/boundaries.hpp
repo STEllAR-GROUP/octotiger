@@ -4,13 +4,13 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 	for (int f = 0; f < nf_; f++) {
 		if constexpr(NDIM == 1) {
 			for (int i = 0; i < geo::H_BW + 20; i++) {
-				if (bc_types[0] == OUTFLOW) {
+				if (bc_[0] == OUTFLOW) {
 					U[f][i] = U[f][geo::H_BW];
 				} else {
 					U[f][i] = U[f][i + INX];
 				}
 
-				if (bc_types[1] == OUTFLOW) {
+				if (bc_[1] == OUTFLOW) {
 					U[f][geo::H_NX - 1 - i] = U[f][geo::H_NX - geo::H_BW - 1];
 				} else {
 					U[f][geo::H_NX - 1 - i] = U[f][2 * geo::H_BW - 1 - i];
@@ -30,25 +30,25 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 					j0 = std::max(j0, geo::H_BW);
 					j0 = std::min(j0, geo::H_NX - 1 - geo::H_BW);
 
-					if (bc_types[0] == OUTFLOW) {
+					if (bc_[0] == OUTFLOW) {
 						U[f][index(i, j)] = U[f][index(geo::H_BW, j0)];
 					} else {
 						U[f][index(i, j)] = U[f][index(i + INX, j)];
 					}
 
-					if (bc_types[2] == OUTFLOW) {
+					if (bc_[2] == OUTFLOW) {
 						U[f][index(j, i)] = U[f][index(j0, geo::H_BW)];
 					} else {
 						U[f][index(j, i)] = U[f][index(j, i + INX)];
 					}
 
-					if (bc_types[1] == OUTFLOW) {
+					if (bc_[1] == OUTFLOW) {
 						U[f][index(geo::H_NX - 1 - i, j)] = U[f][index(geo::H_NX - 1 - geo::H_BW, j0)];
 					} else {
 						U[f][index(geo::H_NX - 1 - i, j)] = U[f][index(2 * geo::H_BW - 1 - i, j)];
 					}
 
-					if (bc_types[3] == OUTFLOW) {
+					if (bc_[3] == OUTFLOW) {
 						U[f][index(j, geo::H_NX - 1 - i)] = U[f][index(j0, geo::H_NX - 1 - geo::H_BW)];
 					} else {
 						U[f][index(j, geo::H_NX - 1 - i)] = U[f][index(j, 2 * geo::H_BW - 1 - i)];
@@ -71,37 +71,37 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 						k0 = std::max(k0, geo::H_BW);
 						k0 = std::min(k0, geo::H_NX - 1 - geo::H_BW);
 
-						if (bc_types[0] == OUTFLOW) {
+						if (bc_[0] == OUTFLOW) {
 							U[f][index(i, j, k)] = U[f][index(geo::H_BW, j0, k0)];
 						} else {
 							U[f][index(i, j, k)] = U[f][index(i + INX, j, k)];
 						}
 
-						if (bc_types[2] == OUTFLOW) {
+						if (bc_[2] == OUTFLOW) {
 							U[f][index(j, i, k)] = U[f][index(j0, geo::H_BW, k0)];
 						} else {
 							U[f][index(j, i, k)] = U[f][index(j0, i + INX, k0)];
 						}
 
-						if (bc_types[4] == OUTFLOW) {
+						if (bc_[4] == OUTFLOW) {
 							U[f][index(j, k, i)] = U[f][index(j0, k0, geo::H_BW)];
 						} else {
 							U[f][index(j, k, i)] = U[f][index(j0, k0, i + INX)];
 						}
 
-						if (bc_types[1] == OUTFLOW) {
+						if (bc_[1] == OUTFLOW) {
 							U[f][index(geo::H_NX - 1 - i, j, k)] = U[f][index(geo::H_NX - 1 - geo::H_BW, j0, k0)];
 						} else {
 							U[f][index(geo::H_NX - 1 - i, j, k)] = U[f][index(2 * geo::H_BW - 1 - i, j, k)];
 						}
 
-						if (bc_types[3] == OUTFLOW) {
+						if (bc_[3] == OUTFLOW) {
 							U[f][index(j, geo::H_NX - 1 - i, k)] = U[f][index(j0, geo::H_NX - 1 - geo::H_BW, k0)];
 						} else {
 							U[f][index(j, geo::H_NX - 1 - i, k)] = U[f][index(j0, 2 * geo::H_BW - 1 - i, k0)];
 						}
 
-						if (bc_types[5] == OUTFLOW) {
+						if (bc_[5] == OUTFLOW) {
 							U[f][index(j, k, geo::H_NX - 1 - i)] = U[f][index(j0, k0, geo::H_NX - 1 - geo::H_BW)];
 						} else {
 							U[f][index(j, k, geo::H_NX - 1 - i)] = U[f][index(j0, k0, 2 * geo::H_BW - 1 - i)];

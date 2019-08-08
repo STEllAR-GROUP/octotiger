@@ -33,75 +33,12 @@ int main(int, char*[]) {
 		X[dim].resize(H_N3);
 	}
 
-	const safe_real dx = 1.0 / INX;
-
-	for (int i = 0; i < H_N3; i++) {
-		int k = i;
-		int j = 0;
-		for (int dim = 0; dim < NDIM; dim++) {
-			X[j][i] = (((k % H_NX) - H_BW) + 0.5) * dx - 0.5;
-			k /= H_NX;
-			j++;
-		}
-	}
-
-	for (int i = 0; i < H_N3; i++) {
-		for (int f = 0; f < physics<NDIM>::nf; f++) {
-			U[f][i] = 0.0;
-		}
-		safe_real xsum = 0.0;
-		safe_real x2 = 0.0;
-		for (int dim = 0; dim < NDIM; dim++) {
-			xsum += X[dim][i];
-			auto o = dim == 0 ? 0.0 : 0.0;
-			x2 += (X[dim][i] - o) * (X[dim][i] - o);
-		}
-		//		if (xsum < 0) {
-//			U[physics<NDIM>::rho_i][i] = 1.0;
-//			U[physics<NDIM>::egas_i][i] = 2.5;
-//		} else {
-//			U[physics<NDIM>::rho_i][i] = 0.125;
-//			U[physics<NDIM>::egas_i][i] = 0.25;
-//		}
-//		U[physics<NDIM>::tau_i][i] = POWER(U[physics<NDIM>::egas_i][i], 1.0 / FGAMMA);
-
-//		U[physics<NDIM>::rho_i][i] = 1.0;
-//		U[physics<NDIM>::egas_i][i] = 1e+6 * std::exp(-x2 * INX * INX * 2.0) + 1.0e-3;
-//		U[physics<NDIM>::tau_i][i] = POWER(U[physics<NDIM>::egas_i][i], 1.0 / FGAMMA);
-
-		for (int dim = 0; dim < NDIM; dim++) {
-			computer.set_bc(2 * dim, hydro_computer<NDIM, INX>::PERIODIC);
-			computer.set_bc(2 * dim + 1, hydro_computer<NDIM, INX>::PERIODIC);
-		}
-		// Kelvin Helmholtz
-
-		const auto eps = []() {
-			return (rand() + 0.5) / RAND_MAX * 1.0e-3;
-		};
-
-		U[physics<NDIM>::tau_i][i] = 1.0;
-		if (X[1][i] < 0.0) {
-			U[physics<NDIM>::rho_i][i] = 1.0 + eps();
-			U[physics<NDIM>::sx_i][i] = -0.5 + eps();
-			U[physics<NDIM>::egas_i][i] = 1.0 + eps() + 0.5 * 0.5 * 0.5 / 1.0;
-		} else {
-			U[physics<NDIM>::rho_i][i] = 2.0 + eps();
-			U[physics<NDIM>::sx_i][i] = +0.5 + eps();
-			U[physics<NDIM>::egas_i][i] = 1.0 + eps() + 0.5 * 0.5 * 0.5 / 2.0;
-		}
-
-		if (xsum < 0.0) {
-			U[physics<NDIM>::spc_i + 0][i] = U[physics<NDIM>::rho_i][i];
-			U[physics<NDIM>::spc_i + 1][i] = 0.0;
-		} else {
-			U[physics<NDIM>::spc_i + 1][i] = U[physics<NDIM>::rho_i][i];
-			U[physics<NDIM>::spc_i + 0][i] = 0.0;
-		}
-	}
-
 	safe_real t = 0.0;
 	int iter = 0;
 
+	physics<NDIM> phys;
+	computer.set_bc(phys.initialize<INX>(decltype(phys)::BLAST, U, X));
+	const safe_real dx = X[0][cell_geometry<NDIM,INX>::H_DNX] - X[0][0];
 	computer.output(U, X, iter++, 0);
 //	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
 	const safe_real omega = 0.0;

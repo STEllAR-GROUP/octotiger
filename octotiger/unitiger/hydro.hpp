@@ -71,7 +71,11 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	hydro_computer();
 
 	void set_bc( int face, bc_type bc) {
-		bc_types[face] = bc;
+		bc_[face] = bc;
+	}
+
+	void set_bc( std::vector<bc_type>&& bc) {
+		bc_ = std::move(bc);
 	}
 
 private:
@@ -83,7 +87,7 @@ private:
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
 	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 	std::vector<bool> smooth_field_;
-	std::vector<bc_type> bc_types;
+	std::vector<bc_type> bc_;
 }
 ;
 
