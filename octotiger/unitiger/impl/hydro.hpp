@@ -39,6 +39,7 @@ hydro_computer<NDIM, INX>::hydro_computer() {
 	for( int f = 0; f < nf_; f++) {
 		smooth_field_.push_back(false);
 	}
+	bc_types.resize(2*NDIM,OUTFLOW);
 }
 
 template<int NDIM, int INX>

@@ -109,17 +109,15 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				for (int dim = 0; dim < geo::NANGMOM; dim++) {
 					am2[dim] = U[zx_i + dim][i] - am1[dim];
 				}
-				const auto S0 = S;
 				add_angmom(S, am2);
 				for (int dim = 0; dim < NDIM; dim++) {
 					for (int d = 0; d < geo::NDIR; d++) {
 						if (d != geo::NDIR / 2) {
 							auto &s = S[dim][d];
-							const auto &s0 = S0[dim][d];
+							const auto &q = Q[sx_i + dim][i][d];
 							const auto &u0 = U[sx_i + dim][i];
-							const safe_real up = U[sx_i + dim][i + dir[d]];
-							const auto M = std::max(u0, up);
-							const auto m = std::min(u0, up);
+							const auto M = std::max(u0, q);
+							const auto m = std::min(u0, q);
 							s = std::min(s, M);
 							s = std::max(s, m);
 						}

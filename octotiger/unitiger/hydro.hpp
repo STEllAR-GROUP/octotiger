@@ -45,6 +45,8 @@ template<int NDIM, int INX>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 	using geo = cell_geometry<NDIM,INX>;
 
+	enum bc_type {OUTFLOW, PERIODIC};
+
 	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, const hydro::x_type<NDIM>&, safe_real );
 
 	safe_real flux(const hydro::state_type& U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X, safe_real omega);
@@ -56,7 +58,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
 
-	void output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num);
+	void output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num, safe_real);
 
 	void use_angmom_correction(int index, int count);
 
@@ -68,6 +70,10 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	hydro_computer();
 
+	void set_bc( int face, bc_type bc) {
+		bc_types[face] = bc;
+	}
+
 private:
 
 	int nf_;
@@ -77,6 +83,7 @@ private:
 	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
 	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 	std::vector<bool> smooth_field_;
+	std::vector<bc_type> bc_types;
 }
 ;
 
