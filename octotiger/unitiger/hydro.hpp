@@ -12,11 +12,7 @@
 #include "safe_real.hpp"
 
 #define SAFE_MATH_ON
-#ifdef NOHPX
-#include "/home/dmarce1/workspace/octotiger/octotiger/safe_math.hpp"
-#else
 #include "../../octotiger/safe_math.hpp"
-#endif
 
 #ifdef NOHPX
 #include <future>

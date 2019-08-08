@@ -1125,17 +1125,25 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 
 
 #include <functional>
-#include <hpx/lcos/local/spinlock.hpp>
 #include <mutex>
+
+#ifndef NO_HPX
+#include <hpx/lcos/local/spinlock.hpp>
+using mutex_type = hpx::lcos::local::spinlock;
+#else
+#include <unordered_map>
+#include <memory>
+#include <cassert>
+using mutex_type = std::mutex;
+#endif
 
 namespace sedov {
 
-void solution(double time, double r, double rmax, double& d, double& v, double& p) {
+void solution(double time, double r, double rmax, double& d, double& v, double& p, int ndim) {
 	int nstep = 10000;
 	constexpr int bw = 2;
 	using function_type = std::function<void(double,double&,double&,double&)>;
 	using map_type = std::unordered_map<double,std::shared_ptr<function_type>>;
-	using mutex_type = hpx::lcos::local::spinlock;
 
 	static map_type map;
 	static mutex_type mutex;
@@ -1149,7 +1157,7 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 	sed_real gamma = 7.0/5.0;
 	sed_real omega = 0.0;
 	sed_real eblast = 1.0;
-	sed_real xgeom = 3.0;
+	sed_real xgeom = sed_real(ndim);
 
 	std::vector<sed_real> xpos(nstep+2*bw);
 	std::vector<sed_real> den(nstep+2*bw);

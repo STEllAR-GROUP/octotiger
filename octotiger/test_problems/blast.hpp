@@ -3,7 +3,7 @@
 
 
 namespace sedov {
-void solution(double time, double r, double rmax, double& d, double& v, double& p);
+void solution(double time, double r, double rmax, double& d, double& v, double& p, int ndim = 3);
 }
 
 

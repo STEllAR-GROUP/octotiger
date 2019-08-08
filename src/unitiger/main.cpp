@@ -8,8 +8,10 @@
 #define NDIM 2
 #define INX 150
 
-static constexpr double tmax = 2.5;
+static constexpr double tmax = 1.0e-2;
 static constexpr safe_real dt_out = tmax / 250;
+static constexpr auto problem = physics<NDIM>::BLAST;
+
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -37,7 +39,7 @@ int main(int, char*[]) {
 	int iter = 0;
 
 	physics<NDIM> phys;
-	computer.set_bc(phys.initialize<INX>(decltype(phys)::BLAST, U, X));
+	computer.set_bc(phys.initialize<INX>(problem, U, X));
 	const safe_real dx = X[0][cell_geometry<NDIM,INX>::H_DNX] - X[0][0];
 	computer.output(U, X, iter++, 0);
 //	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
@@ -68,6 +70,7 @@ int main(int, char*[]) {
 		iter++;
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
+	physics<NDIM>::analytic_solution<INX>(problem, U, X, t);
 	computer.output(U, X, iter++, t);
 #ifdef NOHPX
 	return 0;

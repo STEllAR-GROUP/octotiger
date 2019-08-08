@@ -26,7 +26,7 @@ struct safe_real {
 		r_ /= other.r_;
 		return *this;
 	}
-	inline constexpr operator double() const {
+	inline  operator double() const {
 		return r_;
 	}
 private:
