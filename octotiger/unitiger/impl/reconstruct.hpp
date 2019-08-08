@@ -126,7 +126,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				for (int f = sx_i; f < sx_i + NDIM; f++) {
 					const auto dim = f - sx_i;
 					for (int d = 0; d < geo::NDIR / 2; d++) {
-						const auto di = dir[d];
 						limit_slope(S[dim][d], U[f][i], S[dim][geo::flip(d)]);
 					}
 				}

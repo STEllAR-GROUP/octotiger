@@ -1,15 +1,9 @@
 #include <fenv.h>
 
-#ifndef NOHPX
 //#include <hpx/hpx_init.hpp>
 #include "../../octotiger/unitiger/unitiger.hpp"
 #include "../../octotiger/unitiger/hydro.hpp"
 #include "../../octotiger/unitiger/safe_real.hpp"
-#else
-#include "../../octotiger/octotiger/unitiger/unitiger.hpp"
-#include "safe_real.hpp"
-#include "../../octotiger/octotiger/unitiger/hydro.hpp"
-#endif
 
 #define NDIM 2
 #define INX 150
@@ -26,7 +20,6 @@ int main(int, char*[]) {
 //int hpx_main(int, char*[]) {
 
 	hydro_computer<NDIM, INX> computer;
-	using comp = decltype(computer);
 	computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
