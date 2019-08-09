@@ -1,6 +1,6 @@
 
 template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> &X,
+void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X,
 		safe_real dx, safe_real dt, safe_real beta, safe_real omega) {
 	static thread_local std::vector<std::vector<safe_real>> dudt(nf_, std::vector < safe_real > (geo::H_N3));
 	for (int f = 0; f < nf_; f++) {

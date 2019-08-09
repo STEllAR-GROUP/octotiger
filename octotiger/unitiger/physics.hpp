@@ -46,7 +46,7 @@ struct physics {
 			ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 		}
 		if constexpr (NDIM > 1) {
-			for (int n = 0; n < pow<int, int>(3, NDIM - 2); n++) {
+			for (int n = 0; n < std::pow<int, int>(3, NDIM - 2); n++) {
 				ek += pow(u[zx_i + n], 2) * safe_real(0.5) * rhoinv / (dx * dx);
 			}
 		}
@@ -150,7 +150,7 @@ struct physics {
 	}
 
 	template<int INX>
-	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> X, safe_real omega,
+	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega,
 			safe_real dx) {
 		static const cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
@@ -183,7 +183,7 @@ struct physics {
 	}
 
 	template<int INX>
-	static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type<NDIM> X, safe_real omega, bool angmom) {
+	static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
 		static const cell_geometry<NDIM, INX> geo;
 		static const auto indices = geo.find_indices(0, geo.H_NX);
 		auto V = U;
@@ -212,7 +212,7 @@ struct physics {
 	}
 
 	template<int INX>
-	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, const hydro::x_type<NDIM> X, safe_real omega, bool angmom) {
+	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, const hydro::x_type X, safe_real omega, bool angmom) {
 		static const cell_geometry<NDIM, INX> geo;
 		static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 		auto Q = P;
@@ -253,10 +253,10 @@ struct physics {
 	using comp_type = hydro_computer<NDIM, INX>;
 
 	template<int INX>
-	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type<NDIM> &X);
+	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);
 
 	template<int INX>
-	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type<NDIM> &X, safe_real time) {
+	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time) {
 		static const cell_geometry<NDIM, INX> geo;
 		static safe_real rmax = 0.0;
 		static std::once_flag one;
@@ -307,7 +307,7 @@ private:
 
 template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type<NDIM> &X) {
+std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
 	std::vector<typename hydro_computer<NDIM, INX>::bc_type> bc(2 * NDIM);

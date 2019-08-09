@@ -28,7 +28,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(nf, std::vector<safe_real>(H_N3));
-	hydro::x_type<NDIM> X;
+	hydro::x_type X(NDIM);
 	for (int dim = 0; dim < NDIM; dim++) {
 		X[dim].resize(H_N3);
 	}

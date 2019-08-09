@@ -16,8 +16,6 @@
 #include <limits>
 #include <silo.h>
 
-using namespace std;
-
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"
 #else

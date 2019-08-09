@@ -33,6 +33,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include "octotiger/unitiger/hydro.hpp"
 
 class struct_eos;
 
@@ -126,6 +127,7 @@ private:
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;
+	hydro_computer<NDIM,INX> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<std::vector<real>> U;
@@ -337,7 +339,6 @@ public:
 
 	const std::vector<boundary_interaction_type>& get_ilist_n_bnd(const geo::direction &dir);
 	void allocate();
-	void reconstruct();
 	void store();
 	void restore();
 	real compute_fluxes();

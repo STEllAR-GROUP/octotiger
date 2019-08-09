@@ -1,8 +1,7 @@
 #include "../physics.hpp"
 
 template<int NDIM, int INX>
-safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X,
-		safe_real omega) {
+safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega) {
 
 	static const cell_geometry<NDIM, INX> geo;
 

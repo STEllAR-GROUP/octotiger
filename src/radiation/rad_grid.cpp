@@ -475,17 +475,6 @@ void rad_grid::restore() {
 	}
 }
 
-inline real minmod(real a, real b) {
-//	return 0;
-	bool a_is_neg = a < 0;
-	bool b_is_neg = b < 0;
-	if (a_is_neg != b_is_neg)
-		return ZERO;
-
-	real val = std::min(std::abs(a), std::abs(b));
-	return a_is_neg ? -val : val;
-}
-
 void rad_grid::sanity_check() {
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
 		for (integer yi = RAD_BW; yi != RAD_NX - RAD_BW; ++yi) {

@@ -26,13 +26,14 @@ using std::launch;
 
 namespace hydro {
 
-template<int NDIM>
-using x_type = std::array<std::vector<safe_real>, NDIM>;
+using x_type = std::vector<std::vector<safe_real>>;
 
 using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
 
+
 template<int NDIM>
 using recon_type =std::vector<std::vector<std::array<safe_real, int_pow<3,NDIM>()>>>;
+
 
 using state_type = std::vector<std::vector<safe_real>>;
 }
@@ -43,18 +44,18 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	enum bc_type {OUTFLOW, PERIODIC};
 
-	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, const hydro::x_type<NDIM>&, safe_real );
+	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, const hydro::x_type&, safe_real );
 
-	safe_real flux(const hydro::state_type& U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type<NDIM> &X, safe_real omega);
+	safe_real flux(const hydro::state_type& U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
 	void post_process(hydro::state_type &U, safe_real dx);
 
 	void boundaries(hydro::state_type &U);
 
-	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> &X, safe_real dx, safe_real dt,
+	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
 
-	void output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num, safe_real);
+	void output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real);
 
 	void use_angmom_correction(int index, int count);
 

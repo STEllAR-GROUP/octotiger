@@ -519,7 +519,6 @@ future<void> node_server::nonrefined_step() {
 								[rk, cfl0, this, dt_fut](future<void> f)
 								{
 									GET(f);
-									grid_ptr->reconstruct();
 									real a = grid_ptr->compute_fluxes();
 									future<void> fut_flux = exchange_flux_corrections();
 									if (rk == 0) {
