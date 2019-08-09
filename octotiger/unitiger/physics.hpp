@@ -24,21 +24,21 @@ struct physics {
 	static constexpr int zx_i = 4 + NDIM;
 	static constexpr int zy_i = 5 + NDIM;
 	static constexpr int zz_i = 6 + NDIM;
-	static constexpr int spc_i = 4 + NDIM
-			+ (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
-	static int nf;
-	static int n_species;
+	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 
 	enum test_type {
 		SOD, BLAST, KH
 	};
 
 	static int field_count() {
-		return nf;
+		return nf_;
 	}
 
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v,
-			int dim, safe_real dx) {
+	static void set_fgamma( safe_real fg ) {
+		fgamma_ = fg;
+	}
+
+	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, int dim, safe_real dx) {
 		const auto rho = u[rho_i];
 		const auto rhoinv = safe_real(1.) / rho;
 		safe_real ek = 0.0;
@@ -50,37 +50,34 @@ struct physics {
 				ek += pow(u[zx_i + n], 2) * safe_real(0.5) * rhoinv / (dx * dx);
 			}
 		}
-		auto ein = max(u[egas_i] - ek, 0.0);
+		auto ein = std::max(u[egas_i] - ek, 0.0);
 		if (ein < safe_real(0.001) * u[egas_i]) {
-			ein = pow(u[tau_i], FGAMMA);
+			ein = pow(u[tau_i], fgamma_);
 		}
 		v = u[sx_i + dim] * rhoinv;
-		p = (FGAMMA - 1.0) * ein;
+		p = (fgamma_ - 1.0) * ein;
 	}
 
-	static void flux(const std::vector<safe_real> &UL,
-			const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0,
-			const std::vector<safe_real> &UR0, std::vector<safe_real> &F,
-			int dim, safe_real &am, safe_real &ap,
-			std::array<safe_real, NDIM> &vg, safe_real dx) {
+	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
+			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg, safe_real dx) {
 
 		safe_real pr, vr, pl, vl, vr0, vl0;
 
-		static thread_local std::vector<safe_real> FR(nf), FL(nf);
+		static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
 		to_prim(UR, pr, vr0, dim, dx);
 		to_prim(UL, pl, vl0, dim, dx);
 		vr = vr0 - vg[dim];
 		vl = vl0 - vg[dim];
 		if (ap < 0.0) {
 			safe_real cr, cl;
-			cr = sqrt(FGAMMA * pr / (UR[rho_i]));
-			cl = sqrt(FGAMMA * pl / (UL[rho_i]));
+			cr = sqrt(fgamma_ * pr / (UR[rho_i]));
+			cl = sqrt(fgamma_ * pl / (UL[rho_i]));
 			ap = std::max(vr + cr, vl + cl);
 			am = std::min(vr - cr, vl - cl);
 			ap = std::max(ap, safe_real(0.0));
 			am = std::min(am, safe_real(0.0));
 		}
-		for (int f = 0; f < nf; f++) {
+		for (int f = 0; f < nf_; f++) {
 			FR[f] = vr * UR[f];
 			FL[f] = vl * UL[f];
 		}
@@ -88,13 +85,11 @@ struct physics {
 		FL[sx_i + dim] += pl;
 		FR[egas_i] += (UR[pot_i] + pr) * vr0;
 		FL[egas_i] += (UL[pot_i] + pl) * vl0;
-		for (int f = 0; f < nf; f++) {
-			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f]))
-					/ (ap - am);
+		for (int f = 0; f < nf_; f++) {
+			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
 		}
 		constexpr static int npos = 3;
-		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i,
-				egas_i };
+		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i, egas_i };
 
 		constexpr safe_real max_change = 1.0e-6;
 		safe_real theta = 1.0;
@@ -108,12 +103,10 @@ struct physics {
 			if (UL[f] < umin && UL0[f] != UL[f]) {
 				thetaL = (UL0[f] - umin) / (UL0[f] - UL[f]);
 			}
-			theta = std::min(theta,
-					std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)),
-							safe_real(0.0)));
+			theta = std::min(theta, std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0)));
 		}
 		if (theta < 1.0) {
-			for (int f = 0; f < nf; f++) {
+			for (int f = 0; f < nf_; f++) {
 				F[f] *= theta;
 			}
 			const auto c0 = 1.0 - theta;
@@ -121,14 +114,12 @@ struct physics {
 			to_prim(UL0, pl, vl0, dim, dx);
 			vr = vr0 - vg[dim];
 			vl = vl0 - vg[dim];
-			for (int f = 0; f < nf; f++) {
-				F[f] += c0 * safe_real(0.5)
-						* ((vr - ap) * UR0[f] + (vl + ap) * UL0[f]);
+			for (int f = 0; f < nf_; f++) {
+				F[f] += c0 * safe_real(0.5) * ((vr - ap) * UR0[f] + (vl + ap) * UL0[f]);
 			}
 			F[sx_i + dim] += c0 * safe_real(0.5) * (pr + pl);
 			F[egas_i] += c0 * safe_real(0.5) * (pr * vr0 + pl * vl0);
-			F[egas_i] += c0 * safe_real(0.5)
-					* (UR[pot_i] * vr0 + UL[pot_i] * vl0);
+			F[egas_i] += c0 * safe_real(0.5) * (UR[pot_i] * vr0 + UL[pot_i] * vl0);
 		}
 
 	}
@@ -153,23 +144,21 @@ struct physics {
 			}
 			safe_real ein = U[egas_i][i] - ek;
 			if (ein > 0.1 * egas_max) {
-				U[tau_i][i] = POWER(ein, 1.0 / FGAMMA);
+				U[tau_i][i] = POWER(ein, 1.0 / fgamma_);
 			}
 		}
 	}
 
 	template<int INX>
-	static void source(hydro::state_type &dudt, const hydro::state_type &U,
-			const hydro::flux_type &F, const hydro::x_type<NDIM> X,
-			safe_real omega, safe_real dx) {
+	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type<NDIM> X, safe_real omega,
+			safe_real dx) {
 		static const cell_geometry<NDIM, INX> geo;
 		for (int dim = 0; dim < NDIM; dim++) {
 			static constexpr auto kdelta = geo.kronecker_delta();
 			for (int n = 0; n < geo.NANGMOM; n++) {
 				const auto m = dim;
 				for (int l = 0; l < NDIM; l++) {
-					for (const auto &i : geo.find_indices(geo.H_BW,
-							geo.H_NX - geo.H_BW)) {
+					for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
 						const auto fr = F[dim][sx_i + l][i + geo.H_DN[dim]];
 						const auto fl = F[dim][sx_i + l][i];
 						dudt[zx_i + n][i] -= kdelta[n][m][l] * 0.5 * (fr + fl);
@@ -183,8 +172,7 @@ struct physics {
 				dudt[zy_i][i] -= omega * X[2][i] * U[sy_i][i];
 			}
 			if constexpr (NDIM >= 2) {
-				dudt[zx_i][i] += omega
-						* (X[0][i] * U[sx_i][i] + X[1][i] * U[sy_i][i]);
+				dudt[zx_i][i] += omega * (X[0][i] * U[sx_i][i] + X[1][i] * U[sy_i][i]);
 			}
 		}
 		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
@@ -195,8 +183,7 @@ struct physics {
 	}
 
 	template<int INX>
-	static const hydro::state_type pre_recon(const hydro::state_type &U,
-			const hydro::x_type<NDIM> X, safe_real omega) {
+	static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type<NDIM> X, safe_real omega, bool angmom) {
 		static const cell_geometry<NDIM, INX> geo;
 		static const auto indices = geo.find_indices(0, geo.H_NX);
 		auto V = U;
@@ -209,12 +196,14 @@ struct physics {
 				V[egas_i][i] -= 0.5 * s * s * rhoinv;
 				s *= rhoinv;
 			}
-			for (int n = 0; n < geo.NANGMOM; n++) {
-				auto &z = V[zx_i + n][i];
-				V[egas_i][i] -= 0.5 * z * z * rhoinv / (dx * dx);
-				z *= rhoinv;
+			if (angmom) {
+				for (int n = 0; n < geo.NANGMOM; n++) {
+					auto &z = V[zx_i + n][i];
+					V[egas_i][i] -= 0.5 * z * z * rhoinv / (dx * dx);
+					z *= rhoinv;
+				}
 			}
-			for (int si = 0; si < n_species; si++) {
+			for (int si = 0; si < n_species_; si++) {
 				V[spc_i + si][i] *= rhoinv;
 			}
 			V[pot_i][i] *= rhoinv;
@@ -223,8 +212,7 @@ struct physics {
 	}
 
 	template<int INX>
-	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P,
-			const hydro::x_type<NDIM> X, safe_real omega) {
+	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, const hydro::x_type<NDIM> X, safe_real omega, bool angmom) {
 		static const cell_geometry<NDIM, INX> geo;
 		static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 		auto Q = P;
@@ -238,19 +226,21 @@ struct physics {
 						Q[egas_i][i][d] += 0.5 * v * v * rho;
 						v *= rho;
 					}
-					for (int n = 0; n < geo.NANGMOM; n++) {
-						auto &z = Q[zx_i + n][i][d];
-						Q[egas_i][i][d] += 0.5 * z * z * rho / (dx * dx);
-						z *= rho;
+					if (angmom) {
+						for (int n = 0; n < geo.NANGMOM; n++) {
+							auto &z = Q[zx_i + n][i][d];
+							Q[egas_i][i][d] += 0.5 * z * z * rho / (dx * dx);
+							z *= rho;
+						}
 					}
 					Q[pot_i][i][d] *= rho;
 					safe_real w = 0.0;
-					for (int si = 0; si < n_species; si++) {
+					for (int si = 0; si < n_species_; si++) {
 						w += Q[spc_i + si][i][d];
 						Q[spc_i + si][i][d] *= rho;
 					}
 					w = 1.0 / w;
-					for (int si = 0; si < n_species; si++) {
+					for (int si = 0; si < n_species_; si++) {
 						Q[spc_i + si][i][d] *= w;
 					}
 				}
@@ -263,31 +253,29 @@ struct physics {
 	using comp_type = hydro_computer<NDIM, INX>;
 
 	template<int INX>
-	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t,
-			hydro::state_type &U, hydro::x_type<NDIM> &X);
+	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type<NDIM> &X);
 
 	template<int INX>
-	static void analytic_solution(test_type test, hydro::state_type& U,
-			const hydro::x_type<NDIM>& X, safe_real time) {
+	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type<NDIM> &X, safe_real time) {
 		static const cell_geometry<NDIM, INX> geo;
 		static safe_real rmax = 0.0;
 		static std::once_flag one;
 
 		std::call_once(one, [&X]() {
 			const auto dx = X[0][geo.H_DNX] - X[0][0];
-			for( int i = 0; i < geo.H_N3; i++) {
+			for (int i = 0; i < geo.H_N3; i++) {
 				safe_real r = 0.0;
-				for( int dim = 0; dim < NDIM; dim++) {
+				for (int dim = 0; dim < NDIM; dim++) {
 					r += X[dim][i] * X[dim][i];
 				}
 				r = sqrt(r);
-				rmax = std::max(r,rmax);
+				rmax = std::max(r, rmax);
 			}
-			rmax += 2.0 * dx;
+			rmax *= 2.0;
 		});
 
-		for (int f = 0; f < nf; f++) {
-			for (auto& u : U[f]) {
+		for (int f = 0; f < nf_; f++) {
+			for (auto &u : U[f]) {
 				u = 0.0;
 			}
 		}
@@ -301,8 +289,8 @@ struct physics {
 			double den, vel, pre;
 			sedov::solution(time + 7e-4, r, rmax, den, vel, pre, NDIM);
 			U[rho_i][i] = den;
-			U[tau_i][i] = pow(pre / (FGAMMA - 1.0), 1.0 / FGAMMA);
-			U[egas_i][i] = pre / (FGAMMA - 1.0) + 0.5 * den * vel * vel;
+			U[tau_i][i] = pow(pre / (fgamma_ - 1.0), 1.0 / fgamma_);
+			U[egas_i][i] = pre / (fgamma_ - 1.0) + 0.5 * den * vel * vel;
 			for (int dim = 0; dim < NDIM; dim++) {
 				U[sx_i + dim][i] = den * vel * X[dim][i] / r;
 			}
@@ -310,13 +298,16 @@ struct physics {
 		}
 	}
 
+private:
+	static int nf_;
+	static int n_species_;
+	static safe_real fgamma_;
+
 };
 
 template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initialize(
-		physics<NDIM>::test_type t, hydro::state_type &U,
-		hydro::x_type<NDIM> &X) {
+std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type<NDIM> &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
 	std::vector<typename hydro_computer<NDIM, INX>::bc_type> bc(2 * NDIM);
@@ -336,11 +327,11 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 		}
 		break;
 	}
-	U.resize(nf);
+	U.resize(nf_);
 	for (int dim = 0; dim < NDIM; dim++) {
 		X[dim].resize(geo.H_N3);
 	}
-	for (int f = 0; f < nf; f++) {
+	for (int f = 0; f < nf_; f++) {
 		U[f].resize(geo.H_N3, 0.0);
 	}
 
@@ -382,7 +373,7 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 			r = sqrt(x2);
 			double v;
 			sedov::solution(7e-4, r, std::sqrt(3) + dx, rho, v, p, NDIM);
-			p = std::max((FGAMMA-1.0)*1.0e-20,p);
+			p = std::max((fgamma_ - 1.0) * 1.0e-20, p);
 			vx = v * X[0][i] / r;
 			if constexpr (NDIM >= 2) {
 				vy = v * X[1][i] / r;
@@ -410,8 +401,8 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 		U[rho_i][i] = rho;
 		U[spc_i][i] = rho;
 		U[sx_i][i] = rho * vx;
-		U[egas_i][i] = p / (FGAMMA - 1.0) + 0.5 * rho * vx * vx;
-		U[tau_i][i] = std::pow(p / (FGAMMA - 1.0), 1.0 / FGAMMA);
+		U[egas_i][i] = p / (fgamma_ - 1.0) + 0.5 * rho * vx * vx;
+		U[tau_i][i] = std::pow(p / (fgamma_ - 1.0), 1.0 / fgamma_);
 		if constexpr (NDIM >= 2) {
 			U[sy_i][i] = rho * vy;
 			U[egas_i][i] += 0.5 * rho * vy * vy;
@@ -427,10 +418,15 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 }
 
 template<int NDIM>
-int physics<NDIM>::nf = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2)))
-		+ 2;
+int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + 2;
 
 template<int NDIM>
-int physics<NDIM>::n_species = 2;
+int physics<NDIM>::n_species_ = 2;
+
+template<int NDIM>
+safe_real physics<NDIM>::fgamma_ = 7./4.;
+
+
+
 
 #endif /* OCTOTIGER_UNITIGER_PHYSICS_HPP_ */

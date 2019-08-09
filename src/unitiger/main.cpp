@@ -6,7 +6,7 @@
 #include "../../octotiger/unitiger/hydro.hpp"
 #include "../../octotiger/unitiger/safe_real.hpp"
 
-static constexpr double tmax = 2.0e-3;
+static constexpr double tmax = 1.0e-1;
 static constexpr safe_real dt_out = tmax / 250;
 
 #define H_BW 3
@@ -24,10 +24,10 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	if (with_correction) {
 		computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
 	}
-
-	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(physics<NDIM>::nf, std::vector<safe_real>(H_N3)));
-	std::vector<std::vector<safe_real>> U(physics<NDIM>::nf, std::vector<safe_real>(H_N3));
-	std::vector<std::vector<safe_real>> U0(physics<NDIM>::nf, std::vector<safe_real>(H_N3));
+	const auto nf = physics<NDIM>::field_count();
+	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
+	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
+	std::vector<std::vector<safe_real>> U0(nf, std::vector<safe_real>(H_N3));
 	hydro::x_type<NDIM> X;
 	for (int dim = 0; dim < NDIM; dim++) {
 		X[dim].resize(H_N3);
@@ -72,9 +72,8 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	physics<NDIM>::template analytic_solution<INX>(problem, U, X, t);
 	computer.output(U, X, iter++, t);
 
-	phys.template pre_recon<INX>(U0, X, omega);
-	phys.template pre_recon<INX>(U, X, omega);
-	const auto nf = phys.field_count();
+	phys.template pre_recon<INX>(U0, X, omega, with_correction);
+	phys.template pre_recon<INX>(U, X, omega, with_correction);
 	std::vector<safe_real> L1(nf);
 	std::vector<safe_real> L2(nf);
 	std::vector<safe_real> Linf(nf);
@@ -115,22 +114,22 @@ int main(int, char*[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-	run_test<2, 210>(physics<2>::BLAST, false);
 
-	run_test<2, 88>(physics<2>::BLAST, false);
-	run_test<2, 106>(physics<2>::BLAST, false);
-	run_test<2, 126>(physics<2>::BLAST, false);
-	run_test<2, 148>(physics<2>::BLAST, false);
-	run_test<2, 180>(physics<2>::BLAST, false);
-	run_test<2, 250>(physics<2>::BLAST, false);
-	run_test<2, 298>(physics<2>::BLAST, false);
-	run_test<2, 354>(physics<2>::BLAST, false);
-	run_test<2, 420>(physics<2>::BLAST, false);
-	run_test<2, 500>(physics<2>::BLAST, false);
-	run_test<2, 594>(physics<2>::BLAST, false);
-	run_test<2, 708>(physics<2>::BLAST, false);
-	run_test<2, 840>(physics<2>::BLAST, false);
-	run_test<2, 1000>(physics<2>::BLAST, false);
+	run_test<2, 100>(physics<2>::BLAST, true);
+	run_test<2, 110>(physics<2>::BLAST, true);
+	run_test<2, 130>(physics<2>::BLAST, true);
+	run_test<2, 160>(physics<2>::BLAST, true);
+	run_test<2, 200>(physics<2>::BLAST, true);
+	run_test<2, 250>(physics<2>::BLAST, true);
+	run_test<2, 300>(physics<2>::BLAST, true);
+	run_test<2, 350>(physics<2>::BLAST, true);
+//	run_test<2, 350>(physics<2>::BLAST, true);
+//	run_test<2, 420>(physics<2>::BLAST, true);
+//	run_test<2, 500>(physics<2>::BLAST, true);
+//	run_test<2, 600>(physics<2>::BLAST, true);
+//	run_test<2, 7>(physics<2>::BLAST, true);
+//	run_test<2, 840>(physics<2>::BLAST, true);
+//	run_test<2, 1000>(physics<2>::BLAST, true);
 
 	return 0;
 }

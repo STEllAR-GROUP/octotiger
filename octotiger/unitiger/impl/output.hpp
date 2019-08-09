@@ -1,3 +1,6 @@
+#include "../unitiger.hpp"
+
+
 template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::x_type<NDIM> &X, int num, safe_real t) {
 

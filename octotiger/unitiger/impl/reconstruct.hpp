@@ -1,8 +1,7 @@
-
 #include "../util.hpp"
 
 template<int NDIM, int INX>
-const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type<NDIM>& X, safe_real omega) {
+const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type<NDIM> &X, safe_real omega) {
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
@@ -13,7 +12,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
-	auto U = physics<NDIM>::template pre_recon<INX>(U_,X,omega);
+	auto U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
@@ -89,12 +88,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				reconstruct(Q[f], U[f], false);
 			}
 
-			std::array<std::vector<safe_real>, geo::NANGMOM> storeZ;
-			for (int n = 0; n < geo::NANGMOM; n++) {
-				storeZ[n] = U[zx_i + n];
-			}
-
-
 			for (const auto &i : indices2) {
 				std::array < safe_real, geo::NANGMOM > Z;
 				for (int dim = 0; dim < geo::NANGMOM; dim++) {
@@ -116,7 +109,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 					for (int d = 0; d < geo::NDIR; d++) {
 						if (d != geo::NDIR / 2) {
 							auto &s = S[dim][d];
-							const auto &q = Q[sx_i + dim][i][d];
+							const auto &q = U[sx_i + dim][i + dir[d]];
 							const auto &u0 = U[sx_i + dim][i];
 							const auto M = std::max(u0, q);
 							const auto m = std::min(u0, q);
@@ -140,22 +133,9 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 						Q[sx_i + dim][i][d] = S[dim][d];
 					}
 				}
-//			if (std::abs(Z[0]) > 1.0e-3) {
-//				printf("%e %e %e\n", (double) Z[0], (double) am1[0], (double) am2[0]);
-//			}
 			}
-
-//			if (z1 != 0.0) {
-//				FILE *fp = fopen("z.txt", "at");
-//				auto z2 = z_error(U);
-//				fprintf(fp, "%e %e \n ", (double) z2, (double) z2 / z1);
-//				fclose(fp);
-//			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 				reconstruct(Q[f], U[f], false);
-			}
-			for (int n = 0; n < geo::NANGMOM; n++) {
-				U[zx_i + n] = storeZ[n];
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
@@ -166,8 +146,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 	}
 
-
-	Q = physics<NDIM>::template post_recon<INX>(Q,X,omega);
+	Q = physics < NDIM > ::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
 	return Q;
 }
 
