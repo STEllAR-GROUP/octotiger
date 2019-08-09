@@ -32,10 +32,7 @@ using x_type = std::array<std::vector<safe_real>, NDIM>;
 using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
 
 template<int NDIM>
-using inner_recon_type = std::vector<std::array<safe_real, int_pow<3,NDIM>()>>;
-
-template<int NDIM>
-using recon_type =std::vector<inner_recon_type<NDIM>>;
+using recon_type =std::vector<std::vector<std::array<safe_real, int_pow<3,NDIM>()>>>;
 
 using state_type = std::vector<std::vector<safe_real>>;
 }
@@ -82,8 +79,8 @@ private:
 	int nf_;
 	int angmom_index_;
 	int angmom_count_;
-	hydro::recon_type<NDIM> D1;
-	hydro::recon_type<NDIM> Q;
+	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
+	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
 	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 	std::vector<bool> smooth_field_;
 	std::vector<bc_type> bc_;

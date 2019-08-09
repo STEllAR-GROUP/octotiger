@@ -46,50 +46,38 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 		}
 	};
 
-	const auto derivs = [this](const std::vector<safe_real> &u, hydro::inner_recon_type<NDIM> &d1) {
+	const auto reconstruct = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
 		for (const auto &i : indices1) {
 			for (int d = 0; d < geo::NDIR / 2; d++) {
 				const auto di = dir[d];
-				d1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
+				D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
 			}
 		}
-	};
-
-	const auto recon = [this](hydro::inner_recon_type<NDIM> &q, const std::vector<safe_real> &u, const hydro::inner_recon_type<NDIM> &d1) {
 		for (const auto &i : indices1) {
 			for (int d = 0; d < geo::NDIR / 2; d++) {
 				const auto di = dir[d];
 				q[i][d] = 0.5 * (u[i] + u[i + di]);
-				q[i][d] += (1.0 / 6.0) * (d1[i][d] - d1[i + di][d]);
+				q[i][d] += (1.0 / 6.0) * (D1[i][d] - D1[i + di][d]);
 				q[i + di][geo::flip(d)] = q[i][d];
 			}
 		}
-	};
-
-	const auto limit = [this](hydro::inner_recon_type<NDIM> &q, const std::vector<safe_real> &u) {
-		for (const auto i : indices2) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
+		if (!smooth) {
+			for (const auto i : indices2) {
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
+				}
 			}
 		}
 	};
 
 	if (angmom_count_ == 0) {
 		for (int f = 0; f < nf_; f++) {
-			derivs(U[f], D1[f]);
-			recon(Q[f], U[f], D1[f]);
-			if (!smooth_field_[f]) {
-				limit(Q[f], U[f]);
-			}
+			reconstruct(Q[f], U[f], smooth_field_[f]);
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			derivs(U[f], D1[f]);
-			recon(Q[f], U[f], D1[f]);
-			if (!smooth_field_[f]) {
-				limit(Q[f], U[f]);
-			}
+			reconstruct(Q[f], U[f], smooth_field_[f]);
 		}
 
 		int sx_i = angmom_index_;
@@ -97,15 +85,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				derivs(U[f], D1[f]);
-
-			}
-
-
-			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				recon(Q[f], U[f], D1[f]);
-				limit(Q[f], U[f]);
-
+				reconstruct(Q[f], U[f], false);
 			}
 
 			for (const auto &i : indices2) {
@@ -155,19 +135,13 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				derivs(U[f], D1[f]);
-				recon(Q[f], U[f], D1[f]);
-				limit(Q[f], U[f]);
+				reconstruct(Q[f], U[f], false);
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = zx_i + 1 - geo::NANGMOM - NDIM; f < nf_; f++) {
-			derivs(U[f], D1[f]);
-			recon(Q[f], U[f], D1[f]);
-			if (!smooth_field_[f]) {
-				limit(Q[f], U[f]);
-			}
+			reconstruct(Q[f], U[f], smooth_field_[f]);
 		}
 
 	}
