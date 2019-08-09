@@ -40,28 +40,20 @@ struct cell_geometry {
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 
 private:
-	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, {
-			-1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0,
-			-1 }, { 0, 0, 0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0,
-			0, 0 } } } };
-	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, {
-			{ 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18, 21, 24 }, {
-			10, 0, 1, 2, 9, 11, 18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
+	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
+			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
+	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18, 21, 24 }, { 10, 0, 1, 2, 9, 11,
+			18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
-	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0
-			/ 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4.
-			/ 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36. } };
+	static constexpr safe_real quad_weights[3][9] = { { 1.0 }, { 2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0 }, { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4.
+			/ 36., 1. / 36., 4. / 36., 1. / 36. } };
 
 	static constexpr safe_real vol_weights[3][27] = {
 	/**/{ 1.0 },
-	/**/{ 1. / 36., 4. / 36., 1. / 36., 4. / 36., 16. / 36., 4. / 36., 1. / 36.,
-			4. / 36., 1. / 36. },
-	/**/{ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1.
-			/ 216., 4. / 216., 1. / 216.,
-	/****/4. / 216., 16. / 216., 4. / 216., 16. / 216., 64. / 216., 16. / 216.,
-			4. / 216., 16. / 216., 4. / 216.,
-			/****/1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4.
-					/ 216., 1. / 216., 4. / 216., 1. / 216. } };
+	/**/{ 1. / 36., 4. / 36., 1. / 36., 4. / 36., 16. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36. },
+	/**/{ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216., 1. / 216.,
+	/****/4. / 216., 16. / 216., 4. / 216., 16. / 216., 64. / 216., 16. / 216., 4. / 216., 16. / 216., 4. / 216.,
+	/****/1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216., 1. / 216. } };
 
 	static constexpr int face_locs[3][27][3] = {
 	/**/{ { -1 }, { 0 }, { 1 } },
@@ -108,7 +100,7 @@ public:
 	cell_geometry() {
 		static std::once_flag flag;
 		std::call_once(flag, []() {
-			for (int bw = 1; bw < H_BW; bw++) {
+			for (int bw = 1; bw <= H_BW; bw++) {
 				for (int d = 0; d < NDIR; d++) {
 					all_indices[bw - 1][d] = find_indices(bw, H_NX - bw, d);
 				}
@@ -116,8 +108,8 @@ public:
 		});
 	}
 
-	inline const auto& get_indexes( int bw, int d ) const {
-		return all_indices[bw-1][d];
+	inline const auto& get_indexes(int bw, int d) const {
+		return all_indices[bw - 1][d];
 	}
 
 	inline static constexpr auto kronecker_delta() {
@@ -147,17 +139,20 @@ public:
 		return NDIR - 1 - d;
 	}
 
-	static inline std::vector<int> find_indices(int lb, int ub,
-			int d = NDIR / 2) {
+	static inline std::vector<int> find_indices(int lb, int ub, int d = NDIR / 2) {
 		std::vector<int> I;
+		std::array<int, NDIM> lbs;
+		std::array<int, NDIM> ubs;
+		for (int dim = 0; dim < NDIM; dim++) {
+			ubs[dim] = xloc()[d][dim] == -1 ? (ub + 1) : ub;
+			lbs[dim] = xloc()[d][dim] == +1 ? (lb - 1) : lb;
+		}
 		for (int i = 0; i < H_N3; i++) {
 			bool interior = true;
 			const auto dims = index_to_dims<NDIM, H_NX>(i);
 			for (int dim = 0; dim < NDIM; dim++) {
 				int this_i = dims[dim];
-				int this_ub = xloc()[d][dim] == -1 ? ub + 1 : ub;
-				int this_lb = xloc()[d][dim] == +1 ? lb - 1 : lb;
-				if (this_i < this_lb || this_i >= this_ub) {
+				if (this_i < lbs[dim] || this_i >= ubs[dim]) {
 					interior = false;
 					break;
 				}
@@ -172,7 +167,6 @@ public:
 };
 
 template<int NDIM, int INX>
-std::array<std::array<std::vector<int>, cell_geometry<NDIM, INX>::NDIR>,
-		cell_geometry<NDIM, INX>::H_BW> cell_geometry<NDIM, INX>::all_indices;
+std::array<std::array<std::vector<int>, cell_geometry<NDIM, INX>::NDIR>, cell_geometry<NDIM, INX>::H_BW> cell_geometry<NDIM, INX>::all_indices;
 
 #endif /* OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_ */

@@ -1,5 +1,5 @@
-#ifndef EXACT_SOD__C
-#define EXACT_SOD__C
+#ifndef EXACT_BLAST__C
+#define EXACT_BLAST__C
 
 
 namespace sedov {

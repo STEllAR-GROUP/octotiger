@@ -1,31 +1,29 @@
 #include <fenv.h>
 
 //#include <hpx/hpx_init.hpp>
+
 #include "../../octotiger/unitiger/unitiger.hpp"
 #include "../../octotiger/unitiger/hydro.hpp"
 #include "../../octotiger/unitiger/safe_real.hpp"
 
-#define NDIM 2
-#define INX 150
-
-static constexpr double tmax = 1.0e-2;
+static constexpr double tmax = 2.0e-3;
 static constexpr safe_real dt_out = tmax / 250;
-static constexpr auto problem = physics<NDIM>::BLAST;
-
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
 #define H_N3 std::pow(INX+2*H_BW,NDIM)
-static constexpr safe_real CFL = (0.4 / NDIM);
 
-int main(int, char*[]) {
-//int hpx_main(int, char*[]) {
+template<int NDIM, int INX>
+void run_test(typename physics<NDIM>::test_type problem, bool with_correction);
+
+template<int NDIM, int INX>
+void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
+	static constexpr safe_real CFL = (0.4 / NDIM);
 
 	hydro_computer<NDIM, INX> computer;
-	computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
+	if (with_correction) {
+		computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
+	}
 
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(physics<NDIM>::nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(physics<NDIM>::nf, std::vector<safe_real>(H_N3));
@@ -39,12 +37,12 @@ int main(int, char*[]) {
 	int iter = 0;
 
 	physics<NDIM> phys;
-	computer.set_bc(phys.initialize<INX>(problem, U, X));
-	const safe_real dx = X[0][cell_geometry<NDIM,INX>::H_DNX] - X[0][0];
+	computer.set_bc(phys.template initialize<INX>(problem, U, X));
+	const safe_real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
 	computer.output(U, X, iter++, 0);
-//	const safe_real omega = 2.0 * M_PI / tmax / 4.0;
-	const safe_real omega = 0.0;
-	printf("omega = %e\n", omega);
+	const safe_real omega = 2.0 * M_PI / tmax / 10.0;
+//	const safe_real omega = 0.0;
+	printf("omega = %e\n", (double) omega);
 	while (t < tmax) {
 		U0 = U;
 		auto q = computer.reconstruct(U, X, omega);
@@ -70,25 +68,69 @@ int main(int, char*[]) {
 		iter++;
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
-	physics<NDIM>::analytic_solution<INX>(problem, U, X, t);
+	U0 = U;
+	physics<NDIM>::template analytic_solution<INX>(problem, U, X, t);
 	computer.output(U, X, iter++, t);
-#ifdef NOHPX
-	return 0;
-#else
-//	return hpx::finalize();
-#endif
+
+	phys.template pre_recon<INX>(U0, X, omega);
+	phys.template pre_recon<INX>(U, X, omega);
+	const auto nf = phys.field_count();
+	std::vector<safe_real> L1(nf);
+	std::vector<safe_real> L2(nf);
+	std::vector<safe_real> Linf(nf);
+	for (int f = 0; f < nf; f++) {
+		L1[f] = L2[f] = Linf[f];
+		for (int i = 0; i < H_N3; i++) {
+			L1[f] += std::abs(U0[f][i] - U[f][i]);
+			L2[f] += std::pow(U0[f][i] - U[f][i], 2);
+			Linf[f] = std::max((double) Linf[f], std::abs(U0[f][i] - U[f][i]));
+		}
+		L2[f] = sqrt(L2[f]);
+		L1[f] /= INX * INX;
+		L2[f] /= INX * INX;
+	}
+
+	FILE *fp1 = fopen("L1.dat", "at");
+	FILE *fp2 = fopen("L2.dat", "at");
+	FILE *fpinf = fopen("Linf.dat", "at");
+	fprintf(fp1, "%i ", INX);
+	fprintf(fp2, "%i ", INX);
+	fprintf(fpinf, "%i ", INX);
+	for (int f = 0; f < nf; f++) {
+		fprintf(fp1, "%e ", (double) L1[f]);
+		fprintf(fp2, "%e ", (double) L2[f]);
+		fprintf(fpinf, "%e ", (double) Linf[f]);
+	}
+	fprintf(fp1, "\n");
+	fprintf(fp2, "\n");
+	fprintf(fpinf, "\n");
+	fclose(fp1);
+	fclose(fp2);
+	fclose(fpinf);
+
 }
-//
-//int main(int argc, char *argv[]) {
-//#ifdef NOHPX
-//	return hpx_main(argc, argv);
-//#else
-//	printf("Running\n");
-//	std::vector<std::string> cfg = 9{ "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
-//			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
-//			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
-//			};
-//	hpx::init(argc, argv, cfg);
-//#endif
-//}
-//
+
+int main(int, char*[]) {
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
+
+	run_test<2, 210>(physics<2>::BLAST, false);
+
+	run_test<2, 88>(physics<2>::BLAST, false);
+	run_test<2, 106>(physics<2>::BLAST, false);
+	run_test<2, 126>(physics<2>::BLAST, false);
+	run_test<2, 148>(physics<2>::BLAST, false);
+	run_test<2, 180>(physics<2>::BLAST, false);
+	run_test<2, 250>(physics<2>::BLAST, false);
+	run_test<2, 298>(physics<2>::BLAST, false);
+	run_test<2, 354>(physics<2>::BLAST, false);
+	run_test<2, 420>(physics<2>::BLAST, false);
+	run_test<2, 500>(physics<2>::BLAST, false);
+	run_test<2, 594>(physics<2>::BLAST, false);
+	run_test<2, 708>(physics<2>::BLAST, false);
+	run_test<2, 840>(physics<2>::BLAST, false);
+	run_test<2, 1000>(physics<2>::BLAST, false);
+
+	return 0;
+}

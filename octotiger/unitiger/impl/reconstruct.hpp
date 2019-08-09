@@ -93,6 +93,8 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			for (int n = 0; n < geo::NANGMOM; n++) {
 				storeZ[n] = U[zx_i + n];
 			}
+
+
 			for (const auto &i : indices2) {
 				std::array < safe_real, geo::NANGMOM > Z;
 				for (int dim = 0; dim < geo::NANGMOM; dim++) {

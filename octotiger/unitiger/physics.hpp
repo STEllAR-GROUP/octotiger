@@ -283,7 +283,7 @@ struct physics {
 				r = sqrt(r);
 				rmax = std::max(r,rmax);
 			}
-			rmax += dx;
+			rmax += 2.0 * dx;
 		});
 
 		for (int f = 0; f < nf; f++) {
