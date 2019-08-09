@@ -1223,7 +1223,7 @@ void solution(double time, double r, double rmax, double& d, double& v, double& 
 			double r0 = (r - (i[1]-bw + 0.5)*dr)/dr;
 	//		printf( "%i %e\n", i[0], r, dr );
 			assert( i[0] >= 0 );
-			assert( i[3] < vel1.size());
+			assert( i[3] < int(vel1.size()));
 			const auto interp = [r0,i](const std::vector<double>& data) {
 				double sum = 0.0;
 				sum += (-0.5 * data[i[0]] + 1.5 * data[i[1]] - 1.5 * data[i[2]] + 0.5 * data[i[3]]) * r0 * r0 * r0;

@@ -28,7 +28,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 		return k;
 	};
 
-	safe_real amax;
+	safe_real amax = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
 		std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
 		std::vector<safe_real> UR0(nf_), UL0(nf_);
