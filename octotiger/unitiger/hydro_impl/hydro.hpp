@@ -52,6 +52,7 @@ template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::use_angmom_correction(int index, int count) {
 	angmom_index_ = index;
 	angmom_count_ = count;
+	physics<NDIM>::set_angmom();
 }
 
 template<int NDIM, int INX>

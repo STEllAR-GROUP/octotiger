@@ -12,7 +12,7 @@ template<int NDIM, int NX>
 std::array<int, NDIM> index_to_dims(int i) {
 	std::array<int, NDIM> dims;
 	for (int j = 0; j < NDIM; j++) {
-		dims[j] = i % NX;
+		dims[NDIM - 1 - j] = i % NX;
 		i /= NX;
 	}
 	return dims;

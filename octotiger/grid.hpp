@@ -25,6 +25,7 @@
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"
+#include "octotiger/unitiger/safe_real.hpp"
 
 #include <hpx/runtime/serialization/serialize.hpp>
 #include <hpx/traits/is_bitwise_serializable.hpp>
@@ -130,11 +131,11 @@ private:
 	hydro_computer<NDIM,INX> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
-	std::vector<std::vector<real>> U;
-	std::vector<std::vector<real>> U0;
+	std::vector<std::vector<safe_real>> U;
+	std::vector<std::vector<safe_real>> U0;
 	std::vector<std::vector<real>> dUdt;
-	std::vector<hydro_state_t<std::vector<real>>> F;
-	std::vector<std::vector<real>> X;
+	std::vector<hydro_state_t<std::vector<safe_real>>> F;
+	std::vector<std::vector<safe_real>> X;
 	std::vector<v4sd> G;
 	std::shared_ptr<std::vector<multipole>> M_ptr;
 	std::shared_ptr<std::vector<real>> mon_ptr;
@@ -198,7 +199,7 @@ public:
 	real get_dx() {
 		return dx;
 	}
-	std::vector<std::vector<real>>& get_X() {
+	std::vector<std::vector<safe_real>>& get_X() {
 		return X;
 	}
 
@@ -213,16 +214,16 @@ public:
 	}
 	static std::vector<std::pair<std::string,std::string>> get_scalar_expressions();
 	static std::vector<std::pair<std::string,std::string>> get_vector_expressions();
-	std::vector<real>& get_field(integer f) {
+	std::vector<safe_real>& get_field(integer f) {
 		return U[f];
 	}
-	const std::vector<real>& get_field(integer f) const {
+	const std::vector<safe_real>& get_field(integer f) const {
 		return U[f];
 	}
-	void set_field(std::vector<real>&& data, integer f) {
+	void set_field(std::vector<safe_real>&& data, integer f) {
 		U[f] = std::move(data);
 	}
-	void set_field(const std::vector<real>& data, integer f) {
+	void set_field(const std::vector<safe_real>& data, integer f) {
 		U[f] = data;
 	}
 	analytic_t compute_analytic(real);

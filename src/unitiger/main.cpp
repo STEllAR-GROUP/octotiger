@@ -122,7 +122,7 @@ int main(int, char*[]) {
 
 //	run_test<1, 1000>(physics<2>::SOD, true);
 
-		run_test<2, 100>(physics<2>::BLAST, true);
+	run_test<3, 8>(physics<3>::SOD, false);
 //	run_test<2, 110>(physics<2>::BLAST, true);
 //	run_test<2, 130>(physics<2>::BLAST, true);
 //	run_test<2, 160>(physics<2>::BLAST, true);

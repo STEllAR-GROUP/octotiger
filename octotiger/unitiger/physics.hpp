@@ -25,6 +25,7 @@ struct physics {
 	static constexpr int zy_i = 5 + NDIM;
 	static constexpr int zz_i = 6 + NDIM;
 	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+	static bool angmom_;
 
 	enum test_type {
 		SOD, BLAST, KH
@@ -46,8 +47,10 @@ struct physics {
 			ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 		}
 		if constexpr (NDIM > 1) {
-			for (int n = 0; n < std::pow<int, int>(3, NDIM - 2); n++) {
-				ek += pow(u[zx_i + n], 2) * safe_real(0.5) * rhoinv / (dx * dx);
+			if (angmom_) {
+				for (int n = 0; n < std::pow<int, int>(3, NDIM - 2); n++) {
+					ek += pow(u[zx_i + n], 2) * safe_real(0.5) * rhoinv / (dx * dx);
+				}
 			}
 		}
 		auto ein = std::max(u[egas_i] - ek, 0.0);
@@ -76,8 +79,6 @@ struct physics {
 		}
 	}
 
-
-
 	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
 			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg, safe_real dx) {
 
@@ -89,10 +90,10 @@ struct physics {
 		flux(UR, FR, dim, amr, apr, vg, dx, finda);
 		flux(UL, FL, dim, aml, apl, vg, dx, finda);
 		if (finda) {
-			ap = std::max(std::max(apr, apl),0.0);
-			am = std::min(std::min(amr, aml),0.0);
+			ap = std::max(std::max(apr, apl), safe_real(0.0));
+			am = std::min(std::min(amr, aml), safe_real(0.0));
 		}
-		const auto a = std::max(-am,ap);
+		const auto a = std::max(-am, ap);
 		for (int f = 0; f < nf_; f++) {
 //			F[f] = 0.5 * FL[f] + 0.5 * FR[f] - 0.5 * a * (UR[f] - UL[f]);
 			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
@@ -138,9 +139,10 @@ struct physics {
 			for (int dim = 0; dim < NDIM; dim++) {
 				ek += U[sx_i + dim][i] * U[sx_i + dim][i];
 			}
+			if( angmom_) {
 			for (int n = 0; n < geo.NANGMOM; n++) {
 				ek += pow(U[zx_i + n][i], 2) / (dx * dx);
-			}
+			}}
 			ek *= 0.5 * INVERSE(U[rho_i][i]);
 			auto egas_max = U[egas_i][i];
 			for (int d = 0; d < geo.NDIR; d++) {
@@ -304,6 +306,10 @@ struct physics {
 		n_species_ = n;
 	}
 
+	static void set_angmom() {
+		angmom_ = true;
+	}
+
 private:
 	static int nf_;
 	static int n_species_;
@@ -347,7 +353,7 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 		int k = i;
 		int j = 0;
 		for (int dim = 0; dim < NDIM; dim++) {
-			X[j][i] = (((k % geo.H_NX) - geo.H_BW) + 0.5) * dx - 0.5;
+			X[NDIM - 1 - dim][i] = (((k % geo.H_NX) - geo.H_BW) + 0.5) * dx - 0.5;
 			k /= geo.H_NX;
 			j++;
 		}
@@ -433,6 +439,9 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 
 	return bc;
 }
+
+template<int NDIM>
+bool physics<NDIM>::angmom_ = false;
 
 template<int NDIM>
 int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + 5;

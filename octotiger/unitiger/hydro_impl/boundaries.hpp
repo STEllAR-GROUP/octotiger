@@ -21,7 +21,7 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 		} else if constexpr(NDIM == 2) {
 
 			const auto index = [](int i, int j) {
-				return i + geo::H_NX * j;
+				return j + geo::H_NX * i;
 			};
 
 			for (int i = 0; i < geo::H_BW; i++) {
@@ -58,7 +58,7 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 			}
 		} else {
 			const auto index = [](int i, int j, int k) {
-				return i + geo::H_NX * j + k * geo::H_NX * geo::H_NX;
+				return k + geo::H_NX * j + i * geo::H_NX * geo::H_NX;
 			};
 
 			for (int i = 0; i < geo::H_BW; i++) {
