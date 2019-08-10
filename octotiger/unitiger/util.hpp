@@ -22,6 +22,8 @@ template<int a, int b>
 static constexpr int int_pow() {
 	if constexpr (b == 0) {
 		return 1;
+	} else if constexpr (b < 0) {
+		return 0;
 	} else {
 		return a * int_pow<a, b - 1>();
 	}

@@ -19,10 +19,10 @@ static constexpr int pot_i = 3;
 static constexpr int sx_i = 4;
 static constexpr int sy_i = 5;
 static constexpr int sz_i = 6;
-static constexpr int zx_i = 4 + NDIM;
-static constexpr int zy_i = 5 + NDIM;
-static constexpr int zz_i = 6 + NDIM;
-static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+static constexpr int zx_i = 7;
+static constexpr int zy_i = 8;
+static constexpr int zz_i = 9;
+static constexpr int spc_i = 10;
 
 static constexpr int INX = OCTOTIGER_GRIDDIM;
 static constexpr int H_BW = 3;

@@ -25,6 +25,7 @@
 template<int NDIM, int INX>
 hydro_computer<NDIM, INX>::hydro_computer() {
 	nf_ = physics<NDIM>::field_count();
+
 	angmom_count_ = 0;
 	D1 = decltype(D1)(geo::H_N3);
 	Q = decltype(Q)(nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));

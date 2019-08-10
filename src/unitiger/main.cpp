@@ -7,7 +7,7 @@
 #include "../../octotiger/unitiger/hydro.hpp"
 #include "../../octotiger/unitiger/safe_real.hpp"
 
-static constexpr double tmax = 1.0e-2;
+static constexpr double tmax = 1.0e-1;
 static constexpr safe_real dt_out = tmax / 250;
 
 #define H_BW 3
@@ -120,9 +120,9 @@ int main(int, char*[]) {
 	feenableexcept(FE_OVERFLOW);
 
 
-	run_test<2, 150>(physics<2>::BLAST, true);
+//	run_test<1, 1000>(physics<2>::SOD, true);
 
-	//	run_test<2, 100>(physics<2>::BLAST, true);
+		run_test<2, 100>(physics<2>::BLAST, true);
 //	run_test<2, 110>(physics<2>::BLAST, true);
 //	run_test<2, 130>(physics<2>::BLAST, true);
 //	run_test<2, 160>(physics<2>::BLAST, true);

@@ -54,114 +54,53 @@ struct physics {
 		if (ein < safe_real(0.001) * u[egas_i]) {
 			ein = pow(u[tau_i], fgamma_);
 		}
+
 		v = u[sx_i + dim] * rhoinv;
 		p = (fgamma_ - 1.0) * ein;
 	}
 
+	static safe_real flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg,
+			safe_real dx, bool finda) {
+		safe_real p, v, v0;
+		to_prim(U, p, v0, dim, dx);
+		v = v0 - vg[dim];
+		for (int f = 0; f < nf_; f++) {
+			F[f] = v * U[f];
+		}
+		F[sx_i + dim] += p;
+		F[egas_i] += v0 * p + v * U[pot_i];
+		if (finda) {
+			const safe_real c = std::sqrt(fgamma_ * p / U[rho_i]);
+			am = v - c;
+			ap = v + c;
+		}
+	}
 
-//	static safe_real flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
-//			std::array<safe_real, NDIM> &vg, safe_real dx, bool finda = false) {
-//		safe_real p, v, v0;
-//		to_prim(U, p, v0, dim, dx);
-//		v = v0 - vg[dim];
-//		for (int f = 0; f < nf_; f++) {
-//			F[f] = v * U[f];
-//		}
-//		F[sx_i + dim] += p;
-//		F[egas_i] += v * (p + U[pot_i]);
-//		if (finda) {
-//			const safe_real c = std::sqrt(fgamma_ * p / U[rho_i]);
-//			am = v - c;
-//			ap = v + c;
-//		}
-//	}
-//
-//	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
-//			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg, safe_real dx) {
-//
-//		safe_real pr, vr, pl, vl, vr0, vl0, amr, apr, aml, apl;
-//
-//		static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
-//
-//		const bool finda = ap < 0.0;
-//		flux(UR, FR, dim, amr, apr, vg, finda);
-//		flux(UL, FL, dim, aml, apl, vg, finda);
-//		if (finda) {
-//			ap = std::max(apr, apl);
-//			am = std::max(amr, aml);
-//		}
-//		for (int f = 0; f < nf_; f++) {
-//			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
-//		}
-//		constexpr static int npos = 3;
-//		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i, egas_i };
-//
-//		constexpr safe_real max_change = 1.0e-6;
-//		safe_real theta = 1.0;
-//		for (int fi = 0; fi < npos; fi++) {
-//			const int f = pos_fields[fi];
-//			safe_real thetaR = 1.0, thetaL = 1.0;
-//			const auto umin = max_change * std::max(UR0[f], UL0[f]);
-//			if (UR[f] < umin && UR0[f] != UR[f]) {
-//				thetaR = (UR0[f] - umin) / (UR0[f] - UR[f]);
-//			}
-//			if (UL[f] < umin && UL0[f] != UL[f]) {
-//				thetaL = (UL0[f] - umin) / (UL0[f] - UL[f]);
-//			}
-//			theta = std::min(theta, std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0)));
-//		}
-//		if (theta < 1.0) {
-//			for (int f = 0; f < nf_; f++) {
-//				F[f] *= theta;
-//			}
-//			const auto c0 = 1.0 - theta;
-//			flux(UR, FR, dim, amr, apr, vg, false);
-//			flux(UL, FL, dim, aml, apl, vg, false);
-//			for (int f = 0; f < nf_; f++) {
-//				F[f] += c0 * 0.5 * (FR[f] + FL[f]);
-//				F[f] += c0 * safe_real(0.5) * ((-ap) * UR0[f] + (+ap) * UL0[f]);
-//			}
-//		}
-//	}
-	static void flux(const std::vector<safe_real> &UL,
-			const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0,
-			const std::vector<safe_real> &UR0, std::vector<safe_real> &F,
-			int dim, safe_real &am, safe_real &ap,
-			std::array<safe_real, NDIM> &vg, safe_real dx) {
 
-		safe_real pr, vr, pl, vl, vr0, vl0;
+
+	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
+			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg, safe_real dx) {
+
+		safe_real pr, vr, pl, vl, vr0, vl0, amr, apr, aml, apl;
 
 		static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
-		to_prim(UR, pr, vr0, dim, dx);
-		to_prim(UL, pl, vl0, dim, dx);
-		vr = vr0 - vg[dim];
-		vl = vl0 - vg[dim];
-		if (ap < 0.0) {
-			safe_real cr, cl;
-			cr = sqrt(fgamma_ * pr / (UR[rho_i]));
-			cl = sqrt(fgamma_ * pl / (UL[rho_i]));
-			ap = std::max(vr + cr, vl + cl);
-			am = std::min(vr - cr, vl - cl);
-			ap = std::max(ap, safe_real(0.0));
-			am = std::min(am, safe_real(0.0));
+
+		const bool finda = ap < 0.0;
+		flux(UR, FR, dim, amr, apr, vg, dx, finda);
+		flux(UL, FL, dim, aml, apl, vg, dx, finda);
+		if (finda) {
+			ap = std::max(std::max(apr, apl),0.0);
+			am = std::min(std::min(amr, aml),0.0);
 		}
+		const auto a = std::max(-am,ap);
 		for (int f = 0; f < nf_; f++) {
-			FR[f] = vr * UR[f];
-			FL[f] = vl * UL[f];
-		}
-		FR[sx_i + dim] += pr;
-		FL[sx_i + dim] += pl;
-		FR[egas_i] += (UR[pot_i] + pr) * vr0;
-		FL[egas_i] += (UL[pot_i] + pl) * vl0;
-		for (int f = 0; f < nf_; f++) {
-			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f]))
-					/ (ap - am);
+//			F[f] = 0.5 * FL[f] + 0.5 * FR[f] - 0.5 * a * (UR[f] - UL[f]);
+			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
 		}
 		constexpr static int npos = 3;
-		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i,
-				egas_i };
+		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i, egas_i };
 
-		constexpr safe_real max_change = 1.0e-12;
+		constexpr safe_real max_change = 1.0e-6;
 		safe_real theta = 1.0;
 		for (int fi = 0; fi < npos; fi++) {
 			const int f = pos_fields[fi];
@@ -173,30 +112,20 @@ struct physics {
 			if (UL[f] < umin && UL0[f] != UL[f]) {
 				thetaL = (UL0[f] - umin) / (UL0[f] - UL[f]);
 			}
-			theta = std::min(theta,
-					std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)),
-							safe_real(0.0)));
+			theta = std::min(theta, std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0)));
 		}
 		if (theta < 1.0) {
-			printf( "%e\n", theta);
 			for (int f = 0; f < nf_; f++) {
 				F[f] *= theta;
 			}
 			const auto c0 = 1.0 - theta;
-			to_prim(UR0, pr, vr0, dim, dx);
-			to_prim(UL0, pl, vl0, dim, dx);
-			vr = vr0 - vg[dim];
-			vl = vl0 - vg[dim];
+			flux(UR, FR, dim, amr, apr, vg, dx, true);
+			flux(UL, FL, dim, aml, apl, vg, dx, true);
 			for (int f = 0; f < nf_; f++) {
-				F[f] += c0 * safe_real(0.5)
-						* ((vr - ap) * UR0[f] + (vl + ap) * UL0[f]);
+				F[f] += c0 * 0.5 * (FR[f] + FL[f]);
+				F[f] -= c0 * safe_real(0.5) * a * (UR0[f] + UL0[f]);
 			}
-			F[sx_i + dim] += c0 * safe_real(0.5) * (pr + pl);
-			F[egas_i] += c0 * safe_real(0.5) * (pr * vr0 + pl * vl0);
-			F[egas_i] += c0 * safe_real(0.5)
-					* (UR[pot_i] * vr0 + UL[pot_i] * vl0);
 		}
-
 	}
 
 	template<int INX>
@@ -308,15 +237,15 @@ struct physics {
 						}
 					}
 					Q[pot_i][i][d] *= rho;
-					safe_real w = 0.0;
+//					safe_real w = 0.0;
 					for (int si = 0; si < n_species_; si++) {
-						w += Q[spc_i + si][i][d];
+//						w += Q[spc_i + si][i][d];
 						Q[spc_i + si][i][d] *= rho;
 					}
-					w = 1.0 / w;
-					for (int si = 0; si < n_species_; si++) {
-						Q[spc_i + si][i][d] *= w;
-					}
+//					w = 1.0 / w;
+//					for (int si = 0; si < n_species_; si++) {
+//						Q[spc_i + si][i][d] *= w;
+//					}
 				}
 			}
 		}
@@ -506,10 +435,10 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 }
 
 template<int NDIM>
-int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + 2;
+int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + 5;
 
 template<int NDIM>
-int physics<NDIM>::n_species_ = 2;
+int physics<NDIM>::n_species_ = 5;
 
 template<int NDIM>
 safe_real physics<NDIM>::fgamma_ = 7. / 4.;

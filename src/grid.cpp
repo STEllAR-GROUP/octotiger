@@ -2017,6 +2017,7 @@ analytic_t grid::compute_analytic(real t) {
 
 void grid::allocate() {
 	PROF_BEGIN;
+	printf( "grid::%i\n", opts().n_fields);
 	if (opts().radiation) {
 		rad_grid_ptr = std::make_shared<rad_grid>();
 		rad_grid_ptr->set_dx(dx);
@@ -2108,10 +2109,10 @@ real grid::compute_fluxes() {
 	for (int d = 0; d < NDIM; d++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {
 #pragma GCC ivdep
-			for (integer i = 0; i != INX; ++i) {
-				for (integer j = 0; j != INX; ++j) {
-					for (integer k = 0; k != INX; ++k) {
-						F[d][field][findex(i, j, k)] = f[d][field][hindex(i, j, k)];
+			for (integer i = 0; i <= INX; ++i) {
+				for (integer j = 0; j <= INX; ++j) {
+					for (integer k = 0; k <= INX; ++k) {
+						F[d][field][findex(i, j, k)] = f[2-d][field][hindex(i, j, k)];
 					}
 				}
 			}

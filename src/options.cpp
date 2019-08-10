@@ -116,7 +116,7 @@ bool options::process_options(int argc, char* argv[]) {
 			"Number of worker threads per locality that mamage cuda streams") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
-	("n_species", po::value<integer>(&(opts().n_species))->default_value(1), "number of mass species") //
+	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
 	("atomic_mass", po::value<std::vector<real>>(&(opts().atomic_mass))->multitoken(), "atomic masses") //
 	("atomic_number", po::value<std::vector<real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
 	("X", po::value<std::vector<real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //

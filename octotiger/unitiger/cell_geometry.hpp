@@ -30,9 +30,9 @@ struct cell_geometry {
 	static constexpr int H_BW = 3;
 	static constexpr int H_NX = (2 * H_BW + INX);
 	static constexpr int H_DNX = 1;
-	static constexpr int H_DN[3] = { 1, H_NX, H_NX * H_NX };
 	static constexpr int H_DNY = H_NX;
 	static constexpr int H_DNZ = (H_NX * H_NX);
+	static constexpr int H_DN[3] = { 1, H_NX, H_NX * H_NX };
 	static constexpr int H_N3 = std::pow(H_NX, NDIM);
 	static constexpr int H_DN0 = 0;
 	static constexpr int NDIR = std::pow(3, NDIM);
