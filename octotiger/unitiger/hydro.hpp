@@ -88,6 +88,6 @@ private:
 }
 ;
 
-#include "impl/hydro.hpp"
+#include "hydro_impl/hydro.hpp"
 
 #endif /* OCTOTIGER_UNITIGER_HYDRO_HPP_ */

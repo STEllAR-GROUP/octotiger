@@ -209,12 +209,12 @@ add_hpx_library(
     octotiger/unitiger/physics.hpp
     octotiger/unitiger/cell_geometry.hpp
     octotiger/unitiger/safe_real.hpp
-    octotiger/unitiger/impl/boundaries.hpp
-    octotiger/unitiger/impl/advance.hpp
-    octotiger/unitiger/impl/output.hpp
-    octotiger/unitiger/impl/hydro.hpp
-    octotiger/unitiger/impl/reconstruct.hpp
-    octotiger/unitiger/impl/flux.hpp
+    octotiger/unitiger/hydro_impl/boundaries.hpp
+    octotiger/unitiger/hydro_impl/advance.hpp
+    octotiger/unitiger/hydro_impl/output.hpp
+    octotiger/unitiger/hydro_impl/hydro.hpp
+    octotiger/unitiger/hydro_impl/reconstruct.hpp
+    octotiger/unitiger/hydro_impl/flux.hpp
 )
 
 # Enable exported functions

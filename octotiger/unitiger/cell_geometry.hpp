@@ -139,6 +139,23 @@ public:
 		return NDIR - 1 - d;
 	}
 
+	static inline int flip_dim(const int d, int flip_dim) {
+		std::array<int, NDIM> dims;
+		int k = d;
+		for (int dim = 0; dim < NDIM; dim++) {
+			dims[dim] = k % 3;
+			k /= 3;
+		}
+		k = 0;
+		dims[flip_dim] = 2 - dims[flip_dim];
+		for (int dim = 0; dim < NDIM; dim++) {
+			k *= 3;
+			k += dims[NDIM - 1 - dim];
+		}
+		return k;
+	}
+	;
+
 	static inline std::vector<int> find_indices(int lb, int ub, int d = NDIR / 2) {
 		std::vector<int> I;
 		std::array<int, NDIM> lbs;

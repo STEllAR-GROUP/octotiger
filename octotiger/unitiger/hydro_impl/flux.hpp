@@ -12,22 +12,6 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 
-	const auto flip_dim = [](const int d, int flip_dim) {
-		std::array<int, NDIM> dims;
-		int k = d;
-		for (int dim = 0; dim < NDIM; dim++) {
-			dims[dim] = k % 3;
-			k /= 3;
-		}
-		k = 0;
-		dims[flip_dim] = 2 - dims[flip_dim];
-		for (int dim = 0; dim < NDIM; dim++) {
-			k *= 3;
-			k += dims[NDIM - 1 - dim];
-		}
-		return k;
-	};
-
 	safe_real amax = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
 		std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
@@ -44,7 +28,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 					UR0[f] = U[f][i];
 					UL0[f] = U[f][i - geo.H_DN[dim]];
 					UR[f] = Q[f][i][d];
-					UL[f] = Q[f][i - geo.H_DN[dim]][flip_dim(d, dim)];
+					UL[f] = Q[f][i - geo.H_DN[dim]][geo::flip_dim(d, dim)];
 				}
 				std::array < safe_real, NDIM > vg;
 				if constexpr (NDIM > 1) {

@@ -61,6 +61,23 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				q[i + di][geo::flip(d)] = q[i][d];
 			}
 		}
+
+		for (const auto &i : indices1) {
+			for (int dim = 0; dim < NDIM; dim++) {
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					const int d2 = geo::flip_dim(d, dim);
+					if (d2 > geo::NDIR / 2) {
+						const int i2 = i - geo::H_DN[dim];
+						auto &q1 = q[i][d];
+						auto &q2 = q[i2][d2];
+						q1 += q2;
+						q1 *= 0.5;
+						q2 = q1;
+					}
+				}
+			}
+		}
+
 		if (!smooth) {
 			for (const auto i : indices2) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {

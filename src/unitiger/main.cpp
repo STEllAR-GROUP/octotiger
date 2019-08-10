@@ -7,8 +7,8 @@
 #include "../../octotiger/unitiger/hydro.hpp"
 #include "../../octotiger/unitiger/safe_real.hpp"
 
-static constexpr double tmax = 0.5e-1;
-static constexpr safe_real dt_out = tmax / 100;
+static constexpr double tmax = 1.0e-2;
+static constexpr safe_real dt_out = tmax / 250;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -110,7 +110,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	fclose(fp2);
 	fclose(fpinf);
 	FILE* fp = fopen( "time.dat", "wt");
-	fprintf( fp, "%i %e\n", INX, tstop -tstart);
+	fprintf( fp, "%i %lli\n", INX, tstop -tstart);
 	fclose(fp);
 }
 
@@ -120,28 +120,22 @@ int main(int, char*[]) {
 	feenableexcept(FE_OVERFLOW);
 
 
-	run_test<2, 100>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 130>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 166>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 216>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 278>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 360>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 464>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 600>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 774>(physics<2>::BLAST, true);
-	system( "rm *.silo");
-	run_test<2, 1000>(physics<2>::BLAST, true);
-	system( "rm *.silo");
+	run_test<2, 150>(physics<2>::BLAST, true);
 
-
+	//	run_test<2, 100>(physics<2>::BLAST, true);
+//	run_test<2, 110>(physics<2>::BLAST, true);
+//	run_test<2, 130>(physics<2>::BLAST, true);
+//	run_test<2, 160>(physics<2>::BLAST, true);
+//	run_test<2, 250>(physics<2>::BLAST, true);
+//	run_test<2, 300>(physics<2>::BLAST, true);
+//	run_test<2, 350>(physics<2>::BLAST, true);
+//	run_test<2, 350>(physics<2>::BLAST, true);
+//	run_test<2, 420>(physics<2>::BLAST, true);
+//	run_test<2, 500>(physics<2>::BLAST, true);
+//	run_test<2, 600>(physics<2>::BLAST, true);
+//	run_test<2, 7>(physics<2>::BLAST, true);
+//	run_test<2, 840>(physics<2>::BLAST, true);
+//	run_test<2, 1000>(physics<2>::BLAST, true);
 
 	return 0;
 }
