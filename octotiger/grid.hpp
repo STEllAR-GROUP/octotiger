@@ -343,6 +343,7 @@ public:
 	void store();
 	void restore();
 	real compute_fluxes();
+	real old_compute_fluxes();
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
 	void next_u(integer rk, real t, real dt);

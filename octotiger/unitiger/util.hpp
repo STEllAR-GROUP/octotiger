@@ -29,16 +29,17 @@ static constexpr int int_pow() {
 	}
 }
 
-static inline void limit_slope(safe_real &ql, safe_real q0, safe_real &qr) {
-	const safe_real tmp1 = qr - ql;
-	const safe_real tmp2 = qr + ql;
+template<class T>
+static inline void limit_slope(T &ql, T q0, T &qr) {
+	const T tmp1 = qr - ql;
+	const T tmp2 = qr + ql;
 
 	if (bool(qr < q0) != bool(q0 < ql)) {
 		qr = ql = q0;
 		return;
 	}
-	const safe_real tmp3 = tmp1 * tmp1 / 6.0;
-	const safe_real tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	const T tmp3 = tmp1 * tmp1 / 6.0;
+	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
 	if (tmp4 > tmp3) {
 		ql = 3.0 * q0 - 2.0 * qr;
 	} else if (-tmp3 > tmp4) {

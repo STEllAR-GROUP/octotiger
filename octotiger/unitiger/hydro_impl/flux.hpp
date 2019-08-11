@@ -22,7 +22,12 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 		for (const auto &i : indices) {
 			safe_real ap = -1.0;
 			safe_real am = +1.0;
+#ifdef FACES_ONLY
+#warning "Compiling with only face center fluxes"
+			for (int fi = 0; fi < 1; fi++) {
+#else
 			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
+#endif
 				const auto d = faces[dim][fi];
 				for (int f = 0; f < nf_; f++) {
 					UR0[f] = U[f][i];
@@ -54,10 +59,16 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 			for (const auto &i : indices) {
 				F[dim][f][i] = 0.0;
 				for (int fi = 0; fi < geo.NFACEDIR; fi++) {
-					F[dim][f][i] += weights[fi] * fluxes[dim][f][i][fi];
+#ifdef FACES_ONLY
+					constexpr auto w = 1.0;
+#else
+					const auto& w = weights[fi];
+#endif
+					F[dim][f][i] += w * fluxes[dim][f][i][fi];
 				}
 			}
 		}
+#ifndef FACES_ONLY
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			const int sx_i = angmom_index_ + angmom_pair * (NDIM + geo.NANGMOM);
 			const int zx_i = sx_i + NDIM;
@@ -76,6 +87,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 				}
 			}
 		}
+#endif
 	}
 //	printf( "%i %i %e\n", max_speed[0],  max_speed[1], (double) amax);
 	return amax;

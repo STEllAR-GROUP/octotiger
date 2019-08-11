@@ -53,7 +53,7 @@ struct physics {
 				}
 			}
 		}
-		auto ein = std::max(u[egas_i] - ek, 0.0);
+		auto ein = u[egas_i] - ek;
 		if (ein < safe_real(0.001) * u[egas_i]) {
 			ein = pow(u[tau_i], fgamma_);
 		}
@@ -95,9 +95,14 @@ struct physics {
 		}
 		const auto a = std::max(-am, ap);
 		for (int f = 0; f < nf_; f++) {
-//			F[f] = 0.5 * FL[f] + 0.5 * FR[f] - 0.5 * a * (UR[f] - UL[f]);
+#ifdef KURGANOV_TADMOR
+#warning "Compiling with Kurganov Tadmor scheme"
+			F[f] = 0.5 * FL[f] + 0.5 * FR[f] - 0.5 * a * (UR[f] - UL[f]);
+#else
 			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
+#endif
 		}
+#ifndef NO_POS_ENFORCE
 		constexpr static int npos = 3;
 		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i, egas_i };
 
@@ -127,6 +132,9 @@ struct physics {
 				F[f] -= c0 * safe_real(0.5) * a * (UR0[f] + UL0[f]);
 			}
 		}
+#else
+#warning "Compiling without positivity enforcement"
+#endif
 	}
 
 	template<int INX>
@@ -395,8 +403,16 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 				}
 				r = sqrt(x2);
 				double v;
-				sedov::solution(7e-4, r, std::sqrt(3) + 5.0 * dx, rho, v, p, NDIM);
-				p = std::max((fgamma_ - 1.0) * 1.0e-20, p);
+	//			sedov::solution(7e-4, r, std::sqrt(3) + 5.0 * dx, rho, v, p, NDIM);
+				/***************/
+				if( r < 1.5*dx ) {
+					p = 1.0e+3;
+				} else {
+					p = 1.0e-3;
+				}
+				/**************/
+				rho = 1.0;
+		//		p = std::max((fgamma_ - 1.0) * 1.0e-20, p);
 				vx = v * X[0][i] / r;
 				if constexpr (NDIM >= 2) {
 					vy = v * X[1][i] / r;
