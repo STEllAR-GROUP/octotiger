@@ -923,8 +923,6 @@ void grid::velocity_inc(const space_vector &dv) {
 
 }
 
-
-
 std::vector<real> grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, const geo::dimension &dim) const {
 	PROF_BEGIN;
 	std::vector<real> data;
@@ -1241,8 +1239,8 @@ std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				for (integer field = 0; field != opts().n_fields; ++field) {
-					minmax.first[field] = std::min(minmax.first[field], (double)U[field][iii]);
-					minmax.second[field] = std::max(minmax.second[field], (double)U[field][iii]);
+					minmax.first[field] = std::min(minmax.first[field], (double) U[field][iii]);
+					minmax.second[field] = std::max(minmax.second[field], (double) U[field][iii]);
 				}
 			}
 		}
@@ -1618,13 +1616,13 @@ void grid::rho_move(real x) {
 				for (integer si = spc_i; si != opts().n_species + spc_i; ++si) {
 					U[si][hindex(i, j, k)] += w * U0[si][hindex(i + 1, j, k)];
 					U[si][hindex(i, j, k)] -= w * U0[si][hindex(i - 1, j, k)];
-					U[si][hindex(i, j, k)] = std::max((double)U[si][hindex(i, j, k)], 0.0);
+					U[si][hindex(i, j, k)] = std::max((double) U[si][hindex(i, j, k)], 0.0);
 				}
 				U[rho_i][hindex(i, j, k)] = 0.0;
 				for (integer si = 0; si != opts().n_species; ++si) {
 					U[rho_i][hindex(i, j, k)] += U[spc_i + si][hindex(i, j, k)];
 				}
-				U[rho_i][hindex(i, j, k)] = std::max((double)U[rho_i][hindex(i, j, k)], rho_floor);
+				U[rho_i][hindex(i, j, k)] = std::max((double) U[rho_i][hindex(i, j, k)], rho_floor);
 			}
 		}
 	}
@@ -2017,7 +2015,6 @@ analytic_t grid::compute_analytic(real t) {
 
 void grid::allocate() {
 	PROF_BEGIN;
-	printf( "grid::%i\n", opts().n_fields);
 	if (opts().radiation) {
 		rad_grid_ptr = std::make_shared<rad_grid>();
 		rad_grid_ptr->set_dx(dx);
@@ -2112,7 +2109,7 @@ real grid::compute_fluxes() {
 			for (integer i = 0; i <= INX; ++i) {
 				for (integer j = 0; j <= INX; ++j) {
 					for (integer k = 0; k <= INX; ++k) {
-						F[d][field][findex(i, j, k)] = f[d][field][hindex(i, j, k)];
+						F[d][field][findex(i, j, k)] = f[d][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
 					}
 				}
 			}
@@ -2583,6 +2580,9 @@ void grid::next_u(integer rk, real t, real dt) {
 }
 
 void grid::dual_energy_update() {
+
+	return;
+
 	PROF_BEGIN;
 //	bool in_bnd;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -2602,11 +2602,11 @@ void grid::dual_energy_update() {
 				}
 				real et = U[egas_i][iii];
 				et = std::max(et, (double) U[egas_i][iii + H_DNX]);
-				et = std::max(et,(double)  U[egas_i][iii - H_DNX]);
-				et = std::max(et,(double)  U[egas_i][iii + H_DNY]);
+				et = std::max(et, (double) U[egas_i][iii - H_DNX]);
+				et = std::max(et, (double) U[egas_i][iii + H_DNY]);
 				et = std::max(et, (double) U[egas_i][iii - H_DNY]);
-				et = std::max(et,(double)  U[egas_i][iii + H_DNZ]);
-				et = std::max(et,(double)  U[egas_i][iii - H_DNZ]);
+				et = std::max(et, (double) U[egas_i][iii + H_DNZ]);
+				et = std::max(et, (double) U[egas_i][iii - H_DNZ]);
 				if (ei > de_switch1 * et) {
 					U[tau_i][iii] = std::pow(ei, ONE / fgamma);
 				}

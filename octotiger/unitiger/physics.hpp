@@ -139,10 +139,11 @@ struct physics {
 			for (int dim = 0; dim < NDIM; dim++) {
 				ek += U[sx_i + dim][i] * U[sx_i + dim][i];
 			}
-			if( angmom_) {
-			for (int n = 0; n < geo.NANGMOM; n++) {
-				ek += pow(U[zx_i + n][i], 2) / (dx * dx);
-			}}
+			if (angmom_) {
+				for (int n = 0; n < geo.NANGMOM; n++) {
+					ek += pow(U[zx_i + n][i], 2) / (dx * dx);
+				}
+			}
 			ek *= 0.5 * INVERSE(U[rho_i][i]);
 			auto egas_max = U[egas_i][i];
 			for (int d = 0; d < geo.NDIR; d++) {
