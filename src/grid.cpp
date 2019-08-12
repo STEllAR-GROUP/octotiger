@@ -2103,8 +2103,9 @@ real grid::compute_fluxes() {
 	/******************************/
 //	hydro.set_low_order();
 	/******************************/
-
-//	hydro.use_angmom_correction(sx_i,1);
+	if (opts().angmom) {
+		hydro.use_angmom_correction(sx_i, 1);
+	}
 	hydro.use_smooth_recon(pot_i);
 	auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM, std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto q = hydro.reconstruct(U, X, omega);

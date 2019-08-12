@@ -151,8 +151,17 @@ constexpr real SIXTH = real(real(1) / real(6));
 constexpr real TWELFTH = real(real(1) / real(12));
 
 constexpr real ei_floor = 1.0e-15;
+
+#define USE_RK3
+
+#ifdef USE_RK3
+constexpr integer NRK = 3;
+constexpr real rk_beta[3] = { 1.0, 1.0/4.0, 2.0/3.0 };
+#else
 constexpr integer NRK = 2;
 constexpr real rk_beta[2] = { ONE, HALF };
+#endif
+
 
 constexpr integer MAX_LEVEL = 21;
 
