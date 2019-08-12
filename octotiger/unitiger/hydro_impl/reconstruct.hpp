@@ -47,6 +47,14 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 	};
 
 	const auto reconstruct = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
+#ifdef CONSTANT_RECONSTRUCTION
+		for (const auto &i : indices1) {
+			for (int d = 0; d < geo::NDIR / 2; d++) {
+				const auto di = dir[d];
+				q[i][d] = u[i];
+			}
+		}
+#else
 		for (const auto &i : indices1) {
 			for (int d = 0; d < geo::NDIR / 2; d++) {
 				const auto di = dir[d];
@@ -61,44 +69,29 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				q[i + di][geo::flip(d)] = q[i][d];
 			}
 		}
-		for (const auto &i : indices1) {
-			for (int dim = 0; dim < NDIM; dim++) {
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					const int d2 = geo::flip_dim(d, dim);
-					if (d2 > geo::NDIR / 2) {
-						const int i2 = i - geo::H_DN[dim];
-						auto &q1 = q[i][d];
-						auto &q2 = q[i2][d2];
-						q1 += q2;
-						q1 *= 0.5;
-						q2 = q1;
-					}
-				}
-			}
-		}
 
-		for (const auto i : indices2) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
-			}
-		}
-		if (smooth) {
-			for (const auto &i : indices1) {
-				for (int dim = 0; dim < NDIM; dim++) {
-					for (int d = 0; d < geo::NDIR / 2; d++) {
-						const int d2 = geo::flip_dim(d, dim);
-						if (d2 > geo::NDIR / 2) {
-							const int i2 = i - geo::H_DN[dim];
-							auto &q1 = q[i][d];
-							auto &q2 = q[i2][d2];
-							q1 += q2;
-							q1 *= 0.5;
-							q2 = q1;
-						}
-					}
+		for (const auto &i : indices1) {
+			for (int gi = 0; gi < geo::group_count(); gi++) {
+				safe_real sum = 0.0;
+				for (int n = 0; n < geo::group_size(gi); n++) {
+					const auto pair = geo::group_pair(gi, n);
+					sum += q[i + pair.first][pair.second];
+				}
+				sum /= safe_real(geo::group_size(gi));
+				for (int n = 0; n < geo::group_size(gi); n++) {
+					const auto pair = geo::group_pair(gi, n);
+					q[i + pair.first][pair.second] = sum;
 				}
 			}
 		}
+		if (!smooth) {
+			for (const auto i : indices2) {
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
+				}
+			}
+		}
+#endif
 	};
 
 	if (angmom_count_ == 0) {

@@ -105,6 +105,9 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 using xpoint_type = real;
 using zone_int_type = int;
 
+template<int,int>
+class hydro_computer;
+
 class grid {
 public:
 	using xpoint = std::array<xpoint_type, NDIM>;

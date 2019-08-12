@@ -125,15 +125,15 @@ struct physics {
 				F[f] *= theta;
 			}
 			const auto c0 = 1.0 - theta;
-			flux(UR, FR, dim, amr, apr, vg, dx, true);
-			flux(UL, FL, dim, aml, apl, vg, dx, true);
+			flux(UR, FR, dim, amr, apr, vg, dx, false);
+			flux(UL, FL, dim, aml, apl, vg, dx, false);
 			for (int f = 0; f < nf_; f++) {
 				F[f] += c0 * 0.5 * (FR[f] + FL[f]);
 				F[f] -= c0 * safe_real(0.5) * a * (UR0[f] + UL0[f]);
 			}
 		}
 #else
-#warning "Compiling without positivity enforcement"
+//#warning "Compiling without positivity enforcement"
 #endif
 	}
 
@@ -403,16 +403,16 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 				}
 				r = sqrt(x2);
 				double v;
-	//			sedov::solution(7e-4, r, std::sqrt(3) + 5.0 * dx, rho, v, p, NDIM);
-				/***************/
-				if( r < 1.5*dx ) {
-					p = 1.0e+3;
-				} else {
-					p = 1.0e-3;
-				}
-				/**************/
-				rho = 1.0;
-		//		p = std::max((fgamma_ - 1.0) * 1.0e-20, p);
+				sedov::solution(7e-4, r, std::sqrt(3) + 5.0 * dx, rho, v, p, NDIM);
+				p = std::max((fgamma_ - 1.0) * 1.0e-20, p);
+//				/***************/
+//				if( r < 1.5*dx ) {
+//					p = 1.0e+3;
+//				} else {
+//					p = 1.0e-3;
+//				}
+//				rho = 1.0;
+//				/**************/
 				vx = v * X[0][i] / r;
 				if constexpr (NDIM >= 2) {
 					vy = v * X[1][i] / r;

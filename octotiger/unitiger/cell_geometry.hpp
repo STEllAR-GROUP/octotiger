@@ -39,7 +39,59 @@ struct cell_geometry {
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 
+	static constexpr int group_count() {
+		return ngroups_[NDIM] - 1;
+	}
+
+	static int group_size(int gi) {
+		return group_size_[NDIM - 1][gi];
+	}
+
+	static std::pair<int, int> group_pair(int gi, int ni) {
+		return groups3d_[NDIM - 1][gi][ni];
+	}
+
 private:
+
+	static constexpr int ngroups_[3] = { 0, 1, 4 };
+	static constexpr int group_size_[3][4] = { { }, { 4 }, { 8, 4, 4, 4 } };
+	static constexpr std::pair<int, int> groups3d_[3][4][8] = { { { } }, { {
+	/**/{ -H_DNX - H_DNY, 8 },
+	/**/{ -H_DNX, 2 },
+	/**/{ -H_DNY, 6 },
+	/**/{ -H_DN0, 0 } } },
+	/**/{{
+	/**/{ (-H_DNX - H_DNY - H_DNZ), 26 },
+	/**/{ (-H_DNY - H_DNZ), 8 },
+	/**/{ (-H_DNX - H_DNZ), 20 },
+	/**/{ (-H_DNX - H_DNY), 24 },
+	/**/{ -H_DNX, 18 },
+	/**/{ -H_DNX, 6 },
+	/**/{ -H_DNX, 2 },
+	/**/{ -H_DN0, 0 } },
+	/**/{
+	/**/{ (-H_DNY - H_DNZ), 17 },
+	/**/{ -H_DNZ, 11 },
+	/**/{ -H_DNY, 15 },
+	/**/{ -H_DN0, 9 }, },
+	/**/{
+	/**/{ (-H_DNX - H_DNZ), 23 },
+	/**/{ -H_DNZ, 5 },
+	/**/{ -H_DNX, 21 },
+	/**/{ -H_DN0, 3 }, },
+	/**/{
+	/**/{ (-H_DNX - H_DNY), 25 },
+	/**/{ -H_DNY, 7 },
+	/**/{ -H_DNX, 19 },
+	/**/{ -H_DN0, 1 }}}
+	};
+
+	static constexpr bool is_lower_face[3][3][27] = { { 1, 0, 0 },
+	/**/{ { 1, 0, 0, 1, 0, 0, 1, 0, 0 }, { 1, 1, 1, 0, 0, 0, 0, 0, 0 } }, {
+	/**/{ 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 },
+	/**/{ 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+	/**/{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } } };
+
 	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
 			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
 	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18, 21, 24 }, { 10, 0, 1, 2, 9, 11,
@@ -95,11 +147,42 @@ private:
 
 	static std::array<std::array<std::vector<int>, NDIR>, H_BW> all_indices;
 
+	static void verify_3d_constdefs() {
+		for (int i = -1; i < 2; i++) {
+			for (int j = -1; j < 2; j++) {
+				for (int k = -1; k < 2; k++) {
+					const int index = (i + 1) + 3 * (j + 1) + 9 * (k + 1);
+					safe_real sum = H_DN[0] * i;
+					sum += H_DN[1] * j;
+					sum += H_DN[2] * k;
+					if (directions[2][index] != sum) {
+						printf("directions failed verification at %i %i %i\n", i, j, k);
+						abort();
+					}
+					bool cond = false;
+					cond = cond || (face_locs[2][index][0] != i);
+					cond = cond || (face_locs[2][index][1] != j);
+					cond = cond || (face_locs[2][index][2] != k);
+					if (cond) {
+						printf("xlocs failed verification at %i %i %i %i\n", index, i, j, k);
+						for (int dim = 0; dim < NDIM; dim++) {
+							printf("%i ", face_locs[2][index][dim]);
+						}
+						printf("\n");
+						abort();
+					}
+				}
+			}
+		}
+		printf("3D geometry constdefs passed verification\n");
+	}
+
 public:
 
 	cell_geometry() {
 		static std::once_flag flag;
 		std::call_once(flag, []() {
+			verify_3d_constdefs();
 			for (int bw = 1; bw <= H_BW; bw++) {
 				for (int d = 0; d < NDIR; d++) {
 					all_indices[bw - 1][d] = find_indices(bw, H_NX - bw, d);
@@ -121,6 +204,10 @@ public:
 
 	inline static constexpr auto xloc() {
 		return face_locs[NDIM - 1];
+	}
+
+	inline static constexpr auto is_lface(int dim, int d) {
+		return is_lower_face[NDIM - 1][dim][d];
 	}
 
 	inline static constexpr auto volume_weight() {

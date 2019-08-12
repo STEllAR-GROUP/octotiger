@@ -116,6 +116,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	fclose(fp);
 }
 
+
 int main(int, char*[]) {
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
@@ -125,8 +126,8 @@ int main(int, char*[]) {
 //	run_test<1, 1000>(physics<2>::SOD, true);
 
 //	run_test<3, 8>(physics<3>::SOD, false);
-	run_test<3, 32>(physics<3>::BLAST, false);
-//	run_test<2, 130>(physics<2>::BLAST, true);
+//	run_test<3, 32>(physics<3>::BLAST, false);
+	run_test<2, 200>(physics<2>::BLAST, true);
 //	run_test<2, 160>(physics<2>::BLAST, true);
 //	run_test<2, 250>(physics<2>::BLAST, true);
 //	run_test<2, 300>(physics<2>::BLAST, true);

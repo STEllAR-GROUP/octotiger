@@ -10,6 +10,7 @@
 #include "octotiger/profiler.hpp"
 #include "octotiger/silo.hpp"
 #include "octotiger/taylor.hpp"
+#include "octotiger/unitiger/hydro.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
@@ -2103,6 +2104,7 @@ real grid::compute_fluxes() {
 //	hydro.set_low_order();
 	/******************************/
 
+//	hydro.use_angmom_correction(sx_i,1);
 	hydro.use_smooth_recon(pot_i);
 	auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM, std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto q = hydro.reconstruct(U, X, omega);
@@ -2121,7 +2123,7 @@ real grid::compute_fluxes() {
 		}
 	}
 
-#define CHECK_FLUXES
+//#define CHECK_FLUXES
 #ifdef CHECK_FLUXES
 	auto F0 = F;
 	auto old_lambda = old_compute_fluxes();
