@@ -46,13 +46,6 @@ struct physics {
 		for (int dim = 0; dim < NDIM; dim++) {
 			ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 		}
-		if constexpr (NDIM > 1) {
-			if (angmom_) {
-				for (int n = 0; n < std::pow<int, int>(3, NDIM - 2); n++) {
-					ek += pow(u[zx_i + n], 2) * safe_real(0.5) * rhoinv / (dx * dx);
-				}
-			}
-		}
 		auto ein = u[egas_i] - ek;
 		if (ein < safe_real(0.001) * u[egas_i]) {
 			ein = pow(u[tau_i], fgamma_);
@@ -71,7 +64,7 @@ struct physics {
 			F[f] = v * U[f];
 		}
 		F[sx_i + dim] += p;
-		F[egas_i] += v0 * p + v * U[pot_i];
+		F[egas_i] += v0 * p;
 		if (finda) {
 			const safe_real c = std::sqrt(fgamma_ * p / U[rho_i]);
 			am = v - c;
@@ -147,11 +140,6 @@ struct physics {
 			for (int dim = 0; dim < NDIM; dim++) {
 				ek += U[sx_i + dim][i] * U[sx_i + dim][i];
 			}
-			if (angmom_) {
-				for (int n = 0; n < geo.NANGMOM; n++) {
-					ek += pow(U[zx_i + n][i], 2) / (dx * dx);
-				}
-			}
 			ek *= 0.5 * INVERSE(U[rho_i][i]);
 			auto egas_max = U[egas_i][i];
 			for (int d = 0; d < geo.NDIR; d++) {
@@ -210,13 +198,6 @@ struct physics {
 				V[egas_i][i] -= 0.5 * s * s * rhoinv;
 				s *= rhoinv;
 			}
-			if (angmom) {
-				for (int n = 0; n < geo.NANGMOM; n++) {
-					auto &z = V[zx_i + n][i];
-					V[egas_i][i] -= 0.5 * z * z * rhoinv / (dx * dx);
-					z *= rhoinv;
-				}
-			}
 			for (int si = 0; si < n_species_; si++) {
 				V[spc_i + si][i] *= rhoinv;
 			}
@@ -240,23 +221,21 @@ struct physics {
 						Q[egas_i][i][d] += 0.5 * v * v * rho;
 						v *= rho;
 					}
-					if (angmom) {
-						for (int n = 0; n < geo.NANGMOM; n++) {
-							auto &z = Q[zx_i + n][i][d];
-							Q[egas_i][i][d] += 0.5 * z * z * rho / (dx * dx);
-							z *= rho;
-						}
-					}
 					Q[pot_i][i][d] *= rho;
-//					safe_real w = 0.0;
+					safe_real w = 0.0;
 					for (int si = 0; si < n_species_; si++) {
-//						w += Q[spc_i + si][i][d];
+						w += Q[spc_i + si][i][d];
 						Q[spc_i + si][i][d] *= rho;
 					}
-//					w = 1.0 / w;
-//					for (int si = 0; si < n_species_; si++) {
-//						Q[spc_i + si][i][d] *= w;
-//					}
+					if( w == 0.0 ) {
+						printf( "NO SPECIES\n");
+				//		sleep(10);
+						abort();
+					}
+					w = 1.0 / w;
+					for (int si = 0; si < n_species_; si++) {
+						Q[spc_i + si][i][d] *= w;
+					}
 				}
 			}
 		}

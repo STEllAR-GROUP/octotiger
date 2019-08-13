@@ -2136,8 +2136,8 @@ real grid::compute_fluxes() {
 					for (integer k = 0; k <= INX; ++k) {
 						auto f1 = F[d][field][findex(i, j, k)];
 						auto f2 = F0[d][field][findex(i, j, k)];
-						if (std::abs(f1 - f2) > 1.0e-10) {
-		//					printf("%i %e %e %i %i %i %i\n", field, f1, f2, i, j, k, d);
+						if (std::abs(f1 - f2) > 1.0e-6) {
+							printf("%i %e %e %i %i %i %i\n", field, f1, f2, i, j, k, d);
 						}
 					}
 				}
