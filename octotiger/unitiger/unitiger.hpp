@@ -16,12 +16,12 @@
 #include <limits>
 #include <silo.h>
 
-#define NO_POS_ENFORCE
 
-//#define CONSTANT_RECONSTRUCTION
+#define NO_POS_ENFORCE
 //#define FACES_ONLY
-//#define FIRST_ORDER_TIME
 //#define KURGANOV_TADMOR
+//#define CONSTANT_RECONSTRUCTION
+//#define FIRST_ORDER_TIME
 
 #ifdef OCTOTIGER_GRIDDIM
 #include "octotiger/hydro_defs.hpp"

@@ -74,14 +74,24 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
 			}
 		}
-		if (smooth) {
+		for (const auto &i : indices1) {
+			for (int gi = 0; gi < geo::group_count(); gi++) {
+				safe_real sum = 0.0;
+				for (int n = 0; n < geo::group_size(gi); n++) {
+					const auto pair = geo::group_pair(gi, n);
+					sum += q[i + pair.first][pair.second];
+				}
+				sum /= safe_real(geo::group_size(gi));
+				for (int n = 0; n < geo::group_size(gi); n++) {
+					const auto pair = geo::group_pair(gi, n);
+					q[i + pair.first][pair.second] = sum;
+				}
+			}
+		}
+		if (!smooth) {
 			for (const auto i : indices2) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {
-					auto& qr = q[i][d];
-					auto& ql = q[i+dir[d]][geo::flip(d)];
-					qr += ql;
-					qr *= 0.5;
-					ql = qr;
+					limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
 				}
 			}
 		}

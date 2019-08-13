@@ -40,8 +40,52 @@ struct cell_geometry {
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 
 
+	static constexpr int group_count() {
+		return ngroups_[NDIM] - 1;
+	}
+
+	static int group_size(int gi) {
+		return group_size_[NDIM - 1][gi];
+	}
+
+	static std::pair<int, int> group_pair(int gi, int ni) {
+		return groups3d_[NDIM - 1][gi][ni];
+	}
+
 private:
 
+	static constexpr int ngroups_[3] = { 0, 1, 4 };
+	static constexpr int group_size_[3][4] = { { }, { 4 }, { 8, 4, 4, 4 } };
+	static constexpr std::pair<int, int> groups3d_[3][4][8] = { { { } }, { {
+	/**/{ -H_DNX - H_DNY, 8 },
+	/**/{ -H_DNX, 2 },
+	/**/{ -H_DNY, 6 },
+	/**/{ -H_DN0, 0 } } },
+	/**/{{
+	/**/{ (-H_DNX - H_DNY - H_DNZ), 26 },
+	/**/{ (-H_DNY - H_DNZ), 8 },
+	/**/{ (-H_DNX - H_DNZ), 20 },
+	/**/{ (-H_DNX - H_DNY), 24 },
+	/**/{ -H_DNX, 18 },
+	/**/{ -H_DNX, 6 },
+	/**/{ -H_DNX, 2 },
+	/**/{ -H_DN0, 0 } },
+	/**/{
+	/**/{ (-H_DNY - H_DNZ), 17 },
+	/**/{ -H_DNZ, 11 },
+	/**/{ -H_DNY, 15 },
+	/**/{ -H_DN0, 9 }, },
+	/**/{
+	/**/{ (-H_DNX - H_DNZ), 23 },
+	/**/{ -H_DNZ, 5 },
+	/**/{ -H_DNX, 21 },
+	/**/{ -H_DN0, 3 }, },
+	/**/{
+	/**/{ (-H_DNX - H_DNY), 25 },
+	/**/{ -H_DNY, 7 },
+	/**/{ -H_DNX, 19 },
+	/**/{ -H_DN0, 1 }}}
+	};
 	static constexpr bool is_lower_face[3][3][27] = { { 1, 0, 0 },
 	/**/{ { 1, 0, 0, 1, 0, 0, 1, 0, 0 }, { 1, 1, 1, 0, 0, 0, 0, 0, 0 } }, {
 	/**/{ 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 },
