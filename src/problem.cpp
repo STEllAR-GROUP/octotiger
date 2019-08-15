@@ -35,7 +35,7 @@ analytic_func_type analytic = nullptr;
 refine_test_type refine_test_function = refine_test;
 
 bool radiation_test_refine(integer level, integer max_level, real x, real y, real z, std::vector<real> U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	return level < max_level;
 	// return refine_blast(level, max_level, x, y, z, U, dudx);
 	//
@@ -54,7 +54,6 @@ bool radiation_test_refine(integer level, integer max_level, real x, real y, rea
 	// return rc;
 
 }
-
 
 std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 //	return blast_wave(x,y,z,dx);
@@ -84,8 +83,8 @@ std::vector<real> radiation_test_problem(real x, real y, real z, real dx) {
 	return u;
 }
 
-bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_sod(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	for (integer i = 0; i != NDIM; ++i) {
 		if (std::abs(dudx[i][rho_i] / U[rho_i]) >= 0.1) {
 			return level < max_level;
@@ -94,13 +93,13 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 	return false;
 }
 
-bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
-	if( level < 2 ) {
+	if (level < 2) {
 		rc = true;
 	}
-	if( !rc ) {
+	if (!rc) {
 		for (integer i = 0; i != NDIM; ++i) {
 			if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.01) {
 				rc = rc || (level < max_level);
@@ -113,16 +112,16 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 	return rc;
 }
 
-bool refine_test_center(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
-	if( x*x + y*y + z*z < ssr0) {
+bool refine_test_center(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
+	if (x * x + y * y + z * z < ssr0) {
 		return level < max_level;
 	}
 	return false;
 }
 
-bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_test(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
 	real dx = (opts().xscale / INX) / real(1 << level);
 	if (level < max_level / 2) {
@@ -156,8 +155,8 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	return rc;
 }
 
-bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
+bool refine_test_moving_star(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
 	bool rc = false;
 	real den_floor = opts().refinement_floor;
 	integer test_level = max_level;
@@ -177,11 +176,9 @@ bool refine_test_moving_star(integer level, integer max_level, real x, real y, r
 
 }
 
-
-
-bool refine_test_marshak(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
-		std::array<std::vector<real>, NDIM> const& dudx) {
-	if( level >= max_level ) {
+bool refine_test_marshak(integer level, integer max_level, real x, real y, real z, std::vector<real> const &U,
+		std::array<std::vector<real>, NDIM> const &dudx) {
+	if (level >= max_level) {
 		return false;
 	} else {
 		return true;
@@ -189,7 +186,7 @@ bool refine_test_marshak(integer level, integer max_level, real x, real y, real 
 
 }
 
-void set_refine_test(const refine_test_type& rt) {
+void set_refine_test(const refine_test_type &rt) {
 	refine_test_function = rt;
 }
 
@@ -197,7 +194,7 @@ refine_test_type get_refine_test() {
 	return refine_test_function;
 }
 
-void set_problem(const init_func_type& p) {
+void set_problem(const init_func_type &p) {
 	problem = p;
 }
 
@@ -205,7 +202,7 @@ init_func_type get_problem() {
 	return problem;
 }
 
-void set_analytic(const init_func_type& p) {
+void set_analytic(const init_func_type &p) {
 	analytic = p;
 }
 
@@ -254,7 +251,6 @@ std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift)
 	return g;
 }
 
-
 std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 	std::vector<real> u(opts().n_fields, real(0));
 	auto u1 = solid_sphere(x0, y0, z0, dx, dxs);
@@ -276,12 +272,12 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 //	y0 -= +0.345;
 //	z0 -= -.2565;
 	const auto mm = [](real a, real b) {
-		if( a * b < ZERO ) {
+		if (a * b < ZERO) {
 			return ZERO;
-		} else if( a > ZERO ) {
-			return std::min(a,b);
+		} else if (a > ZERO) {
+			return std::min(a, b);
 		} else {
-			return std::max(a,b);
+			return std::max(a, b);
 		}
 	};
 	const real xmax = std::max(std::abs(x0 + dx / 2.0), std::abs(x0 - dx / 2.0));

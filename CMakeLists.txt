@@ -63,6 +63,7 @@ set(source_files
     src/compute_factor.cpp
     src/eos.cpp
     src/geometry.cpp
+    src/grid_amr.cpp
     src/grid.cpp
     src/grid_fmm.cpp
     src/grid_output.cpp
@@ -108,6 +109,7 @@ set(source_files
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
+    src/test_problems/amr/amr.cpp
 )
 
 # Octotiger library headers

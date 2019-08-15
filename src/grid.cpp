@@ -11,6 +11,7 @@
 #include "octotiger/silo.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/hydro.hpp"
+#include "octotiger/test_problems/amr/amr.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>
@@ -20,7 +21,6 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
-
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
@@ -217,6 +217,9 @@ std::vector<silo_var_t> grid::var_data() const {
 	std::vector<silo_var_t> s;
 	real unit;
 //	if (opts().hydro) {
+	const auto &x0 = opts().silo_offset_x;
+	const auto &y0 = opts().silo_offset_y;
+	const auto &z0 = opts().silo_offset_z;
 	for (auto l : str_to_index_hydro) {
 		unit = convert_hydro_units(l.second);
 		const int f = l.second;
@@ -227,7 +230,7 @@ std::vector<silo_var_t> grid::var_data() const {
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
-					const int iii = hindex(k + H_BW, j + H_BW, i + H_BW);
+					const int iii = hindex(k + H_BW - x0, j + H_BW - y0, i + H_BW - z0);
 					this_s(jjj) = U[f][iii] * unit;
 					this_s.set_range(this_s(jjj));
 					jjj++;
@@ -474,7 +477,8 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						i = -1;
 					}
 					if (i != -1) {
-						const real dX[NDIM] = { (x - diags.com[i][XDIM]), (y - diags.com[i][YDIM]), (z - diags.com[i][ZDIM]) };
+						const real dX[NDIM] = { (x - diags.com[i][XDIM]), (y - diags.com[i][YDIM]), (z
+								- diags.com[i][ZDIM]) };
 						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
 						rc.js[i] -= dX[1] * U[sx_i][iii] * dV;
 						rc.gt[i] += dX[0] * G[iiig][gy_i] * dV * rho0;
@@ -752,6 +756,173 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	c[YDIM] = X[XDIM][iii0] + (j) * dx;
 	c[ZDIM] = X[XDIM][iii0] + (k) * dx;
 	return c;
+}
+
+std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+		bool etot_only) {
+	PROF_BEGIN;
+	auto &dUdx = TLS_dUdx();
+	auto &tmpz = TLS_zz();
+	std::vector<real> data;
+
+	integer size = opts().n_fields;
+	for (integer dim = 0; dim != NDIM; ++dim) {
+		size *= (ub[dim] - lb[dim]);
+	}
+	data.reserve(size);
+	auto lb0 = lb;
+	auto ub0 = ub;
+	for (integer d = 0; d != NDIM; ++d) {
+		lb0[d] /= 2;
+		ub0[d] = (ub[d] - 1) / 2 + 1;
+	}
+	compute_primitives(lb0, ub0, etot_only);
+	compute_primitive_slopes(1.0, lb0, ub0, etot_only);
+	compute_conserved_slopes(lb0, ub0, etot_only);
+
+	if (opts().angmom) {
+
+		if (!etot_only) {
+// #if !defined(HPX_HAVE_DATAPAR)
+			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
+				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
+#pragma GCC ivdep
+					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
+						const integer iii = hindex(i, j, k);
+						tmpz[XDIM][iii] = U[zx_i][iii];
+						tmpz[YDIM][iii] = U[zy_i][iii];
+						tmpz[ZDIM][iii] = U[zz_i][iii];
+					}
+				}
+			}
+// #else
+// #endif
+		}
+	}
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		if (!etot_only || (etot_only && field == egas_i)) {
+			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+				const real xsgn = (i % 2) ? +1 : -1;
+				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+					const real ysgn = (j % 2) ? +1 : -1;
+#pragma GCC ivdep
+					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+						const integer iii = hindex(i / 2, j / 2, k / 2);
+						const real zsgn = (k % 2) ? +1 : -1;
+						real value = U[field][iii];
+						value += xsgn * dUdx[XDIM][field][iii] * 0.25;
+						value += ysgn * dUdx[YDIM][field][iii] * 0.25;
+						value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
+						if (opts().angmom) {
+							if (field == sx_i) {
+								U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
+								U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
+							} else if (field == sy_i) {
+								U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
+								U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
+							} else if (field == sz_i) {
+								U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
+								U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
+							}
+						}
+						data.push_back(value);
+					}
+				}
+			}
+		}
+	}
+
+	if (opts().angmom) {
+		if (!etot_only) {
+			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
+				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
+#pragma GCC ivdep
+					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
+						const integer iii = hindex(i, j, k);
+						U[zx_i][iii] = tmpz[XDIM][iii];
+						U[zy_i][iii] = tmpz[YDIM][iii];
+						U[zz_i][iii] = tmpz[ZDIM][iii];
+					}
+				}
+			}
+		}
+	}PROF_END;
+	return data;
+}
+
+std::vector<real> grid::get_restrict() const {
+	PROF_BEGIN;
+	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
+	std::vector<real> data;
+	data.reserve(Size);
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer i = H_BW; i < H_NX - H_BW; i += 2) {
+			for (integer j = H_BW; j < H_NX - H_BW; j += 2) {
+				for (integer k = H_BW; k < H_NX - H_BW; k += 2) {
+					const integer iii = hindex(i, j, k);
+					real pt = ZERO;
+					for (integer x = 0; x != 2; ++x) {
+						for (integer y = 0; y != 2; ++y) {
+							for (integer z = 0; z != 2; ++z) {
+								const integer jjj = iii + x * H_DNX + y * H_DNY + z * H_DNZ;
+								pt += U[field][jjj];
+								if (opts().angmom) {
+									if (field == zx_i) {
+										pt += X[YDIM][jjj] * U[sz_i][jjj];
+										pt -= X[ZDIM][jjj] * U[sy_i][jjj];
+									} else if (field == zy_i) {
+										pt -= X[XDIM][jjj] * U[sz_i][jjj];
+										pt += X[ZDIM][jjj] * U[sx_i][jjj];
+									} else if (field == zz_i) {
+										pt += X[XDIM][jjj] * U[sy_i][jjj];
+										pt -= X[YDIM][jjj] * U[sx_i][jjj];
+									}
+								}
+							}
+						}
+					}
+					pt /= real(NCHILD);
+					data.push_back(pt);
+				}
+			}
+		}
+	}
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		data.push_back(U_out[field]);
+	}PROF_END;
+	return data;
+}
+
+void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant) {
+	PROF_BEGIN;
+	integer index = 0;
+	const integer i0 = octant.get_side(XDIM) * (INX / 2);
+	const integer j0 = octant.get_side(YDIM) * (INX / 2);
+	const integer k0 = octant.get_side(ZDIM) * (INX / 2);
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		for (integer i = H_BW; i != H_NX / 2; ++i) {
+			for (integer j = H_BW; j != H_NX / 2; ++j) {
+				for (integer k = H_BW; k != H_NX / 2; ++k) {
+					const integer iii = (i + i0) * H_DNX + (j + j0) * H_DNY + (k + k0) * H_DNZ;
+					auto &v = U[field][iii];
+					v = data[index];
+					if (opts().angmom) {
+						if (field == zx_i) {
+							v -= X[YDIM][iii] * U[sz_i][iii];
+							v += X[ZDIM][iii] * U[sy_i][iii];
+						} else if (field == zy_i) {
+							v += X[XDIM][iii] * U[sz_i][iii];
+							v -= X[ZDIM][iii] * U[sx_i][iii];
+						} else if (field == zz_i) {
+							v -= X[XDIM][iii] * U[sy_i][iii];
+							v += X[YDIM][iii] * U[sx_i][iii];
+						}
+					}
+					++index;
+				}
+			}
+		}
+	}PROF_END;
 }
 
 void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, integer width, bool etot_only) {
@@ -1060,172 +1231,6 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 	}PROF_END;
 }
 
-std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool etot_only) {
-	PROF_BEGIN;
-	auto &dUdx = TLS_dUdx();
-	auto &tmpz = TLS_zz();
-	std::vector<real> data;
-
-	integer size = opts().n_fields;
-	for (integer dim = 0; dim != NDIM; ++dim) {
-		size *= (ub[dim] - lb[dim]);
-	}
-	data.reserve(size);
-	auto lb0 = lb;
-	auto ub0 = ub;
-	for (integer d = 0; d != NDIM; ++d) {
-		lb0[d] /= 2;
-		ub0[d] = (ub[d] - 1) / 2 + 1;
-	}
-	compute_primitives(lb0, ub0, etot_only);
-	compute_primitive_slopes(1.0, lb0, ub0, etot_only);
-	compute_conserved_slopes(lb0, ub0, etot_only);
-
-	if (opts().angmom) {
-
-		if (!etot_only) {
-// #if !defined(HPX_HAVE_DATAPAR)
-			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
-				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
-#pragma GCC ivdep
-					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
-						const integer iii = hindex(i, j, k);
-						tmpz[XDIM][iii] = U[zx_i][iii];
-						tmpz[YDIM][iii] = U[zy_i][iii];
-						tmpz[ZDIM][iii] = U[zz_i][iii];
-					}
-				}
-			}
-// #else
-// #endif
-		}
-	}
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		if (!etot_only || (etot_only && field == egas_i)) {
-			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-				const real xsgn = (i % 2) ? +1 : -1;
-				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-					const real ysgn = (j % 2) ? +1 : -1;
-#pragma GCC ivdep
-					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-						const integer iii = hindex(i / 2, j / 2, k / 2);
-						const real zsgn = (k % 2) ? +1 : -1;
-						real value = U[field][iii];
-						value += xsgn * dUdx[XDIM][field][iii] * 0.25;
-						value += ysgn * dUdx[YDIM][field][iii] * 0.25;
-						value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
-						if (opts().angmom) {
-							if (field == sx_i) {
-								U[zy_i][iii] -= 0.25 * zsgn * value * dx / 8.0;
-								U[zz_i][iii] += 0.25 * ysgn * value * dx / 8.0;
-							} else if (field == sy_i) {
-								U[zx_i][iii] += 0.25 * zsgn * value * dx / 8.0;
-								U[zz_i][iii] -= 0.25 * xsgn * value * dx / 8.0;
-							} else if (field == sz_i) {
-								U[zx_i][iii] -= 0.25 * ysgn * value * dx / 8.0;
-								U[zy_i][iii] += 0.25 * xsgn * value * dx / 8.0;
-							}
-						}
-						data.push_back(value);
-					}
-				}
-			}
-		}
-	}
-
-	if (opts().angmom) {
-		if (!etot_only) {
-			for (integer i = lb0[XDIM]; i != ub0[XDIM]; ++i) {
-				for (integer j = lb0[YDIM]; j != ub0[YDIM]; ++j) {
-#pragma GCC ivdep
-					for (integer k = lb0[ZDIM]; k != ub0[ZDIM]; ++k) {
-						const integer iii = hindex(i, j, k);
-						U[zx_i][iii] = tmpz[XDIM][iii];
-						U[zy_i][iii] = tmpz[YDIM][iii];
-						U[zz_i][iii] = tmpz[ZDIM][iii];
-					}
-				}
-			}
-		}
-	}PROF_END;
-	return data;
-}
-
-std::vector<real> grid::get_restrict() const {
-	PROF_BEGIN;
-	integer Size = opts().n_fields * INX * INX * INX / NCHILD + opts().n_fields;
-	std::vector<real> data;
-	data.reserve(Size);
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		for (integer i = H_BW; i < H_NX - H_BW; i += 2) {
-			for (integer j = H_BW; j < H_NX - H_BW; j += 2) {
-				for (integer k = H_BW; k < H_NX - H_BW; k += 2) {
-					const integer iii = hindex(i, j, k);
-					real pt = ZERO;
-					for (integer x = 0; x != 2; ++x) {
-						for (integer y = 0; y != 2; ++y) {
-							for (integer z = 0; z != 2; ++z) {
-								const integer jjj = iii + x * H_DNX + y * H_DNY + z * H_DNZ;
-								pt += U[field][jjj];
-								if (opts().angmom) {
-									if (field == zx_i) {
-										pt += X[YDIM][jjj] * U[sz_i][jjj];
-										pt -= X[ZDIM][jjj] * U[sy_i][jjj];
-									} else if (field == zy_i) {
-										pt -= X[XDIM][jjj] * U[sz_i][jjj];
-										pt += X[ZDIM][jjj] * U[sx_i][jjj];
-									} else if (field == zz_i) {
-										pt += X[XDIM][jjj] * U[sy_i][jjj];
-										pt -= X[YDIM][jjj] * U[sx_i][jjj];
-									}
-								}
-							}
-						}
-					}
-					pt /= real(NCHILD);
-					data.push_back(pt);
-				}
-			}
-		}
-	}
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		data.push_back(U_out[field]);
-	}PROF_END;
-	return data;
-}
-
-void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant) {
-	PROF_BEGIN;
-	integer index = 0;
-	const integer i0 = octant.get_side(XDIM) * (INX / 2);
-	const integer j0 = octant.get_side(YDIM) * (INX / 2);
-	const integer k0 = octant.get_side(ZDIM) * (INX / 2);
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		for (integer i = H_BW; i != H_NX / 2; ++i) {
-			for (integer j = H_BW; j != H_NX / 2; ++j) {
-				for (integer k = H_BW; k != H_NX / 2; ++k) {
-					const integer iii = (i + i0) * H_DNX + (j + j0) * H_DNY + (k + k0) * H_DNZ;
-					auto &v = U[field][iii];
-					v = data[index];
-					if (opts().angmom) {
-						if (field == zx_i) {
-							v -= X[YDIM][iii] * U[sz_i][iii];
-							v += X[ZDIM][iii] * U[sy_i][iii];
-						} else if (field == zy_i) {
-							v += X[XDIM][iii] * U[sz_i][iii];
-							v -= X[ZDIM][iii] * U[sx_i][iii];
-						} else if (field == zz_i) {
-							v -= X[XDIM][iii] * U[sy_i][iii];
-							v += X[YDIM][iii] * U[sx_i][iii];
-						}
-					}
-					++index;
-				}
-			}
-		}
-	}PROF_END;
-}
-
 std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
 	PROF_BEGIN;
 	std::pair<std::vector<real>, std::vector<real> > minmax;
@@ -1311,11 +1316,11 @@ void grid::set_omega(real omega, bool bcast) {
 				}
 			}
 			if (remotes.size() > 0) {
-				hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
+				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
 			}
 		}
 	}
-	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
+	std::unique_lock < hpx::lcos::local::spinlock > l(grid::omega_mtx, std::try_to_lock);
 // if someone else has the lock, it's fine, we just return and have it set
 // by the other thread
 	if (!l)
@@ -1667,7 +1672,8 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-		U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true) {
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -1847,7 +1853,8 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 						const integer iii = hindex(i, j, k);
 						dU[rho_i][iii] = 0.0;
 						for (integer si = 0; si != opts().n_species; ++si) {
-							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
+							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii]
+									+ dV[spc_i + si][iii] * V[rho_i][iii];
 							dU[rho_i][iii] += dU[spc_i + si][iii];
 						}
 						if (opts().gravity) {
@@ -1856,11 +1863,12 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 						//						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
 						dU[egas_i][iii] = dV[egas_i][iii];
 						for (integer d1 = 0; d1 != NDIM; ++d1) {
-							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii] + dV[sx_i + d1][iii] * V[rho_i][iii];
+							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii]
+									+ dV[sx_i + d1][iii] * V[rho_i][iii];
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
 							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
 							if (opts().angmom) {
-								dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];	// + dV[zx_i + d1][iii] * V[rho_i][iii];
+								dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];// + dV[zx_i + d1][iii] * V[rho_i][iii];
 							}
 						}
 						if (opts().eos == WD) {
@@ -2027,9 +2035,12 @@ void grid::allocate() {
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		X[dim].resize(H_N3);
 	}
+
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		U0[field].resize(INX * INX * INX);
+
 		U[field].resize(H_N3, 0.0);
+		Ushad[field].resize(HS_N3,std::numeric_limits<real>::signaling_NaN());
 		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(F_N3);
@@ -2043,20 +2054,22 @@ void grid::allocate() {
 	set_coordinates();
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-	L_mtx.reset(new hpx::lcos::local::spinlock);
+		L_mtx.reset(new hpx::lcos::local::spinlock);
 #endif
 
 	PROF_END;
 }
 
 grid::grid() :
-		U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(false), is_leaf(true), U_out(
-				opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
+				opts().n_fields, ZERO) {
 //	allocate();
 }
 
 grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) :
-		U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
 				opts().n_fields, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
@@ -2078,6 +2091,9 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 			}
 		}
 	}
+	if( opts().angmom) {
+		init_z_field();
+	}
 	if (opts().radiation) {
 		if (init_func != nullptr) {
 			rad_init();
@@ -2090,6 +2106,26 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 			}
 		}
 	}PROF_END;
+}
+
+void grid::init_z_field() {
+	for( int j = H_BW; j < H_NX - H_BW; j++) {
+	for( int k = H_BW; k < H_NX - H_BW; k++) {
+	for( int l = H_BW; l < H_NX - H_BW; l++) {
+		const int i = hindex(j,k,l);
+		auto dsx_dy = U[sx_i][i+H_DNY] - U[sx_i][i-H_DNY];
+		auto dsx_dz = U[sx_i][i+H_DNZ] - U[sx_i][i-H_DNZ];
+
+		auto dsy_dx = U[sy_i][i+H_DNX] - U[sy_i][i-H_DNX];
+		auto dsy_dz = U[sy_i][i+H_DNZ] - U[sy_i][i-H_DNZ];
+
+		auto dsz_dy = U[sz_i][i+H_DNY] - U[sz_i][i-H_DNY];
+		auto dsz_dx = U[sz_i][i+H_DNX] - U[sz_i][i-H_DNX];
+
+		U[zx_i][i] = (dx / 12.0) * (dsz_dy - dsy_dz);
+		U[zy_i][i] = (dx / 12.0) * (dsx_dz - dsz_dx);
+		U[zz_i][i] = (dx / 12.0) * (dsy_dx - dsx_dy);
+		}}}
 }
 
 void grid::rad_init() {
@@ -2195,7 +2231,19 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 	const integer jlb = 0;
 	const integer jub = H_NX;
 
-	if (opts().problem == SOD) {
+	if (opts().problem == AMR_TEST) {
+		for (integer k = klb; k != kub; ++k) {
+			for (integer j = jlb; j != jub; ++j) {
+				for (integer i = ilb; i != iub; ++i) {
+					const auto iii = hindex(i,j,k);
+					const auto u = amr_test(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], dx);
+					for (int f = 0; f < opts().n_fields; f++) {
+						U[f][iii] = u[f];
+					}
+				}
+			}
+		}
+	} else if (opts().problem == SOD) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = jlb; j != jub; ++j) {
 				for (integer i = ilb; i != iub; ++i) {
@@ -2253,18 +2301,20 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 								ref = -value;
 								break;
 							case OUTFLOW:
-								const real before = value;
-								if (side == geo::MINUS) {
-									ref = s0 + std::min(value - s0, ZERO);
-								} else {
-									ref = s0 + std::max(value - s0, ZERO);
-								}
-								const real after = ref;
-								assert(rho_i < field);
-								assert(egas_i < field);
-								real this_rho = U[rho_i][iii];
-								if (this_rho != ZERO) {
-									U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
+								if (opts().problem != AMR_TEST) {
+									const real before = value;
+									if (side == geo::MINUS) {
+										ref = s0 + std::min(value - s0, ZERO);
+									} else {
+										ref = s0 + std::max(value - s0, ZERO);
+									}
+									const real after = ref;
+									assert(rho_i < field);
+									assert(egas_i < field);
+									real this_rho = U[rho_i][iii];
+									if (this_rho != ZERO) {
+										U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
+									}
 								}
 								break;
 							}

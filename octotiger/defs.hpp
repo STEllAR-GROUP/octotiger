@@ -92,7 +92,10 @@ enum boundary_type {
 #include "hydro_defs.hpp"
 
 constexpr integer R_BW = 2;
+
+constexpr integer HS_NX = (2 * H_BW + INX/2);
 constexpr integer G_NX = INX;
+constexpr integer HS_N3 = HS_NX * HS_NX * HS_NX;
 constexpr integer F_N3 = ((INX+1)*(INX+1)*(INX+1));
 constexpr integer G_N3 = G_NX * G_NX * G_NX;
 
@@ -102,6 +105,10 @@ constexpr integer F_DNY = (INX+1);
 
 
 constexpr integer NDIR = 27;
+constexpr integer HS_DNX = HS_NX * HS_NX;
+constexpr integer HS_DNY = HS_NX;
+constexpr integer HS_DNZ = 1;
+constexpr integer HS_DN[NDIM] = { HS_NX * HS_NX, HS_NX, 1 };
 constexpr integer F_DN[NDIM] = {(INX+1)*(INX+1),INX+1,1 };
 constexpr integer G_DNX = G_NX * G_NX;
 constexpr integer G_DNY = G_NX;
@@ -184,6 +191,12 @@ constexpr inline integer h0index(integer i, integer j, integer k)
 constexpr inline integer hindex(integer i, integer j, integer k)
 {
     return i * H_DNX + j * H_DNY + k * H_DNZ;
+}
+
+// #define hindex(i,j,k) ((i)*H_DNX + (j)*H_DNY + (k)*H_DNZ)
+constexpr inline integer hSindex(integer i, integer j, integer k)
+{
+    return i * HS_DNX + j * HS_DNY + k * HS_DNZ;
 }
 
 // #define findex(i,j,k) ((i)*(INX+1)*(INX+1) + (j)*(INX+1) + (k))

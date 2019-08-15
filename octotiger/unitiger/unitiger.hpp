@@ -19,7 +19,7 @@
 
 #define NO_POS_ENFORCE
 //#define FACES_ONLY
-#define KURGANOV_TADMOR
+//#define KURGANOV_TADMOR
 //#define CONSTANT_RECONSTRUCTION
 //#define FIRST_ORDER_TIME
 

@@ -77,6 +77,7 @@ public:
     future<void> check_channels() const;
     future<real> scf_update(
         real, real, real, real, real, real, real, struct_eos, struct_eos) const;
+    future<std::pair<real,real>> amr_error() const;
     void send_hydro_children(
         std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
@@ -105,6 +106,8 @@ public:
         std::size_t cycle) const;
     void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
+    void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+        std::size_t cycle) const;
     void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
         bool monopole, std::size_t cycle) const;
     void send_gravity_multipoles(
@@ -118,6 +121,7 @@ public:
     void set_local_timestep(integer, real) const;
     future<void> velocity_inc(const space_vector&) const;
     future<void> check_for_refinement(real omega, real) const;
+    future<void> enforce_bc() const;
     future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
     void report_timing() const;
     future<void> change_units(real, real, real, real) const;
