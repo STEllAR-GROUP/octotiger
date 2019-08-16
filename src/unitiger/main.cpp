@@ -7,8 +7,8 @@
 #include "../../octotiger/unitiger/hydro.hpp"
 #include "../../octotiger/unitiger/safe_real.hpp"
 
-static constexpr double tmax = 1.0e-1;
-static constexpr safe_real dt_out = tmax / 250;
+static constexpr double tmax = 5.0;
+static constexpr safe_real dt_out = tmax / 1000;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -35,11 +35,12 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 
 	safe_real t = 0.0;
 	int iter = 0;
+	int oiter = 0;
 
 	physics<NDIM> phys;
 	computer.set_bc(phys.template initialize<INX>(problem, U, X));
 	const safe_real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
-	computer.output(U, X, iter++, 0);
+	computer.output(U, X, oiter++, 0);
 //	const safe_real omega = 2.0 * M_PI / tmax / 10.0;
 	const safe_real omega = 0.0;
 	printf("omega = %e\n", (double) omega);
@@ -53,8 +54,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U);
-#ifdef FIRST_ORDER_TIME
-#warning "Compiling with First order Time integrator"
+#ifndef FIRST_ORDER_TIME
 		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
@@ -62,20 +62,22 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
+#else
+#warning "Compiling with First order Time integrator"
 #endif
 		computer.boundaries(U);
 		computer.post_process(U, dx);
 		t += dt;
 		computer.boundaries(U);
 		if (int(t / dt_out) != int((t - dt) / dt_out))
-			computer.output(U, X, iter, t);
+			computer.output(U, X, oiter++, t);
 		iter++;
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
 	const auto tstop = time(NULL);
 	U0 = U;
 	physics<NDIM>::template analytic_solution<INX>(problem, U, X, t);
-	computer.output(U, X, iter++, t);
+	computer.output(U, X, oiter++, t);
 
 	phys.template pre_recon<INX>(U0, X, omega, with_correction);
 	phys.template pre_recon<INX>(U, X, omega, with_correction);
@@ -109,7 +111,6 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	fprintf(fp2, "\n");
 	fprintf(fpinf, "\n");
 	fclose(fp1);
-	fclose(fp2);
 	fclose(fpinf);
 	FILE* fp = fopen( "time.dat", "wt");
 	fprintf( fp, "%i %lli\n", INX, tstop -tstart);
@@ -117,17 +118,19 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 }
 
 
-int main(int, char*[]) {
+int main(int argc, char*[]) {
+
+
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
 
-//	run_test<1, 1000>(physics<2>::SOD, true);
+	run_test<2, 512>(physics<2>::KH, argc > 1);
 
 //	run_test<3, 8>(physics<3>::SOD, false);
 //	run_test<3, 32>(physics<3>::BLAST, false);
-	run_test<2, 200>(physics<2>::BLAST, true);
+//	run_test<2, 200>(physics<2>::BLAST, true);
 //	run_test<2, 160>(physics<2>::BLAST, true);
 //	run_test<2, 250>(physics<2>::BLAST, true);
 //	run_test<2, 300>(physics<2>::BLAST, true);

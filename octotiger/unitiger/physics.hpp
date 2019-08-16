@@ -39,6 +39,10 @@ struct physics {
 		fgamma_ = fg;
 	}
 
+	static hydro::face_eval_type minmax_speeds_at(const hydro::recon_type<NDIM> &Q, int dim, int i, safe_real dx, safe_real omega) {
+
+	}
+
 	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, int dim, safe_real dx) {
 		const auto rho = u[rho_i];
 		const auto rhoinv = safe_real(1.) / rho;
@@ -227,9 +231,9 @@ struct physics {
 						w += Q[spc_i + si][i][d];
 						Q[spc_i + si][i][d] *= rho;
 					}
-					if( w == 0.0 ) {
-						printf( "NO SPECIES\n");
-				//		sleep(10);
+					if (w == 0.0) {
+						printf("NO SPECIES\n");
+						//		sleep(10);
 						abort();
 					}
 					w = 1.0 / w;
@@ -392,27 +396,38 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 //				}
 //				rho = 1.0;
 //				/**************/
-				vx = v * X[0][i] / r;
-				if constexpr (NDIM >= 2) {
-					vy = v * X[1][i] / r;
-				}
-				if constexpr (NDIM == 3) {
-					vz = v * X[2][i] / r;
+				if (r > 0.0) {
+					vx = v * X[0][i] / r;
+					if constexpr (NDIM >= 2) {
+						vy = v * X[1][i] / r;
+					}
+					if constexpr (NDIM == 3) {
+						vz = v * X[2][i] / r;
+					}
+				} else {
+					vx = 0;
+					if constexpr (NDIM >= 2) {
+						vy = 0;
+					}
+					if constexpr (NDIM == 3) {
+						vz = 0;
+					}
 				}
 				break;
 			case KH:
 				const auto eps = []() {
-					return (rand() + 0.5) / RAND_MAX * 1.0e-3;
+					const auto one = (rand() + 0.5) / RAND_MAX;
+					return (2.0 * one - 1.0) * 1.0e-3;
 				};
 
 				U[physics<NDIM>::tau_i][i] = 1.0;
-				p = 1.0;
-				if (x[1] < 0.0) {
-					rho = 1.0 + eps();
-					vx = -0.5;
+				p = 2.5;
+				if (std::abs(x[1]) > 0.25) {
+					rho = 1.0;
+					vx = -0.5 + eps();
 				} else {
-					rho = 2.0 + eps();
-					vx = +0.5;
+					rho = 2.0;
+					vx = +0.5 + eps();
 				}
 				break;
 			}

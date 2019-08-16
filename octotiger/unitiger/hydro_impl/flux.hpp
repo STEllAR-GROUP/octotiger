@@ -1,7 +1,24 @@
 #include "../physics.hpp"
 
 template<int NDIM, int INX>
-safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega) {
+const hydro::evalue_type<NDIM> eigen_range(hydro::recon_type<NDIM> &Q, const hydro::x_type &X, safe_real omega) {
+	hydro::evalue_type<NDIM> apam;
+	static const cell_geometry<NDIM, INX> geo;
+	static const auto indices = geo.find_indices(1,geo.H_NX-1);
+	static constexpr auto faces = geo.face_pts();
+	const auto dx = X[0][geo.H_DNX] - X[0][0];
+	for (int dim = 0; dim < NDIM; dim++) {
+		apam[dim].resize(geo.H_N3);
+		const int d = faces[dim][0]; // first face point on a face is always the center point
+		for (const auto &i : indices) {
+			apam = physics<NDIM>::minmax_speeds_at(Q, dim, i, dx, omega);
+		}
+	}
+}
+
+template<int NDIM, int INX>
+safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
+		safe_real omega) {
 
 	static const cell_geometry<NDIM, INX> geo;
 
@@ -62,7 +79,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 #ifdef FACES_ONLY
 					constexpr auto w = 1.0;
 #else
-					const auto& w = weights[fi];
+					const auto &w = weights[fi];
 #endif
 					F[dim][f][i] += w * fluxes[dim][f][i][fi];
 				}

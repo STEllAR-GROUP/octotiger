@@ -30,61 +30,71 @@ using x_type = std::vector<std::vector<safe_real>>;
 
 using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
 
-
 template<int NDIM>
 using recon_type =std::vector<std::vector<std::array<safe_real, int_pow<3,NDIM>()>>>;
 
-
 using state_type = std::vector<std::vector<safe_real>>;
+
+struct face_eval_type {
+	safe_real p, m;
+};
+
+template<int NDIM>
+using evalue_type = std::array<std::vector<face_eval_type>,NDIM>;
+
 }
 
 template<int NDIM, int INX>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
-	using geo = cell_geometry<NDIM,INX>;
+using geo = cell_geometry<NDIM,INX>;
 
-	enum bc_type {OUTFLOW, PERIODIC};
+enum bc_type {
+	OUTFLOW, PERIODIC
+};
 
-	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, const hydro::x_type&, safe_real );
+const hydro::evalue_type<NDIM> eigen_range(hydro::state_type &U, const hydro::x_type&, safe_real);
 
-	safe_real flux(const hydro::state_type& U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
+const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, const hydro::x_type&, safe_real);
 
-	void post_process(hydro::state_type &U, safe_real dx);
+safe_real flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
-	void boundaries(hydro::state_type &U);
+void post_process(hydro::state_type &U, safe_real dx);
 
-	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt,
-			safe_real beta, safe_real omega);
+void boundaries(hydro::state_type &U);
 
-	void output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real);
+void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt, safe_real beta,
+		safe_real omega);
 
-	void use_angmom_correction(int index, int count);
+void output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real);
 
-	void use_smooth_recon(int field);
+void use_angmom_correction(int index, int count);
 
-	std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
+void use_smooth_recon(int field);
 
-	std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
+std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
 
-	hydro_computer();
+std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
 
-	void set_bc( int face, bc_type bc) {
-		bc_[face] = bc;
-	}
+hydro_computer();
 
-	void set_bc( std::vector<bc_type>&& bc) {
-		bc_ = std::move(bc);
-	}
+void set_bc(int face, bc_type bc) {
+	bc_[face] = bc;
+}
+
+void set_bc(std::vector<bc_type> &&bc) {
+	bc_ = std::move(bc);
+}
 
 private:
 
-	int nf_;
-	int angmom_index_;
-	int angmom_count_;
-	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
-	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
-	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
-	std::vector<bool> smooth_field_;
-	std::vector<bc_type> bc_;
+int nf_;
+int angmom_index_;
+int angmom_count_;
+std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
+std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
+std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
+std::vector<bool> smooth_field_;
+std::vector<bc_type> bc_;
 }
 ;
 

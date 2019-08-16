@@ -43,6 +43,7 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 			}
 		}
 	}
+
 	assert(l == data.size());
 }
 
@@ -58,9 +59,7 @@ void grid::complete_hydro_amr_boundary() {
 					const int iii0 = hSindex(i0, j0, k0);
 					const int iiir = hindex(ir, jr, kr);
 					if (is_coarse[iii0]) {
-						assert(
-								ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW
-										|| kr >= H_NX - H_BW);
+						assert(ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW || kr >= H_NX - H_BW);
 						U[f][iiir] = Ushad[f][iii0];
 					}
 				}
@@ -72,7 +71,7 @@ void grid::complete_hydro_amr_boundary() {
 		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp;
 		for (int d = 0; d < NDIM; d++) {
 			slp[d].resize(opts().n_fields);
-			for( int f = 0; f < opts().n_fields; f++) {
+			for (int f = 0; f < opts().n_fields; f++) {
 				slp[d][f].resize(HS_N3, std::numeric_limits<real>::signaling_NaN());
 			}
 		}
@@ -148,6 +147,18 @@ void grid::complete_hydro_amr_boundary() {
 							value -= 0.25 * isgn * slp[XDIM][f][iii0];
 							value -= 0.25 * jsgn * slp[YDIM][f][iii0];
 							value -= 0.25 * ksgn * slp[ZDIM][f][iii0];
+							if (opts().angmom) {
+								if (f == sx_i) {
+									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
+									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
+								} else if (f == sy_i) {
+									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
+									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
+								} else if (f == sz_i) {
+									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
+									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
+								}
+							}
 						}
 					}
 				}

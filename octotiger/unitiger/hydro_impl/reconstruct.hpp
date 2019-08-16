@@ -1,5 +1,9 @@
 #include "../util.hpp"
 
+
+
+
+
 template<int NDIM, int INX>
 const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 
@@ -69,11 +73,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				q[i + di][geo::flip(d)] = q[i][d];
 			}
 		}
-		for (const auto i : indices2) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
-			}
-		}
 		for (const auto &i : indices1) {
 			for (int gi = 0; gi < geo::group_count(); gi++) {
 				safe_real sum = 0.0;
@@ -137,7 +136,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 					for (int d = 0; d < geo::NDIR; d++) {
 						if (d != geo::NDIR / 2) {
 							auto &s = S[dim][d];
-							const auto &q = 0.5 * Q[sx_i + dim][i][d];
+							const auto &q = Q[sx_i + dim][i][d];
 							const auto &u0 = U[sx_i + dim][i];
 							const auto M = std::max(u0, q);
 							const auto m = std::min(u0, q);
