@@ -202,14 +202,27 @@ set_property(TARGET octolib PROPERTY FOLDER "Octotiger")
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
 
 # Octotiger executable
-add_hpx_executable(
-  octotiger
-  DEPENDENCIES
-    octolib
-  SOURCES
-    frontend/main.cpp
-)
-set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
+#add_hpx_executable(
+#  octotiger
+#  DEPENDENCIES
+#    octolib 
+#  SOURCES
+#    frontend/main.cpp
+#)
+add_executable(octotiger frontend/main.cpp)
+target_include_directories(octotiger PUBLIC ".") 
+string(REPLACE "/lib/cmake/HPX" "" HPX_ROOTPATH ${HPX_DIR})
+target_include_directories(octotiger PUBLIC "${HPX_ROOTPATH}/include") 
+string(REPLACE "/lib/cmake/Vc" "" Vc_ROOTPATH ${Vc_DIR})
+target_include_directories(octotiger PUBLIC "${Vc_ROOTPATH}/include") 
+target_include_directories(octotiger PUBLIC "${Silo_DIR}/include") 
+target_link_libraries(octotiger hpx boost_system boost_program_options boost_thread boost_regex boost_chrono boost_date_time boost_filesystem boost_atomic octolib)
+target_link_libraries(octotiger "-L/${CMAKE_CURRENT_BINARY_DIR}")
+if(OCTOTIGER_WITH_CUDA)
+  string(REPLACE "/include" "" CUDA_ROOTPATH ${CUDA_INCLUDE_DIRS})
+  target_link_libraries(octotiger "-L${CUDA_ROOTPATH}/lib64")
+endif()
+#set_property(TARGET octotiger PROPERTY FOLDER "octotiger")
 
 if(MSVC)
   # Enable solution folders for MSVC
@@ -303,8 +316,13 @@ endif()
 # Handle CUDA
 if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_CUDA)
-  set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+  set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION OFF)
   set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+
+
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
+  set_property(TARGET octotiger PROPERTY CUDA_SEPARABLE_COMPILATION OFF)
+  set_property(TARGET octotiger PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 endif()
 
 # Handle other options
@@ -319,6 +337,7 @@ endif()
 # Grid size
 message(STATUS "Octotiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
+target_compile_definitions(octotiger PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
