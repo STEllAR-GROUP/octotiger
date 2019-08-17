@@ -20,8 +20,8 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 		const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
 
 		for (const auto &i : indices) {
-			safe_real ap = -1.0;
-			safe_real am = +1.0;
+			safe_real ap = 0.0, am = 0.0;
+			safe_real this_ap, this_am;
 #ifdef FACES_ONLY
 #warning "Compiling with only face center fluxes"
 			for (int fi = 0; fi < 1; fi++) {
@@ -45,7 +45,9 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 				} else {
 					vg[0] = 0.0;
 				}
-				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, am, ap, vg, dx);
+				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, this_am, this_ap, vg, dx);
+				am = std::min(am,this_am);
+				ap = std::max(ap,this_ap);
 				for (int f = 0; f < nf_; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}

@@ -55,21 +55,19 @@ struct physics {
 		p = (fgamma_ - 1.0) * ein;
 	}
 
-	static safe_real flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg,
-			safe_real dx, bool finda) {
-		safe_real p, v, v0;
+	static safe_real physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
+			std::array<safe_real, NDIM> &vg, safe_real dx) {
+		safe_real p, v, v0, c;
 		to_prim(U, p, v0, dim, dx);
 		v = v0 - vg[dim];
+		c = std::sqrt(fgamma_ * p / U[rho_i]);
+		am = v - c;
+		ap = v + c;
 		for (int f = 0; f < nf_; f++) {
 			F[f] = v * U[f];
 		}
 		F[sx_i + dim] += p;
 		F[egas_i] += v0 * p;
-		if (finda) {
-			const safe_real c = std::sqrt(fgamma_ * p / U[rho_i]);
-			am = v - c;
-			ap = v + c;
-		}
 	}
 
 	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
@@ -79,55 +77,13 @@ struct physics {
 
 		static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
 
-		const bool finda = ap < 0.0;
-		flux(UR, FR, dim, amr, apr, vg, dx, finda);
-		flux(UL, FL, dim, aml, apl, vg, dx, finda);
-		if (finda) {
-			ap = std::max(std::max(apr, apl), safe_real(0.0));
-			am = std::min(std::min(amr, aml), safe_real(0.0));
-		}
-		const auto a = std::max(-am, ap);
+		physical_flux(UR, FR, dim, amr, apr, vg, dx);
+		physical_flux(UL, FL, dim, aml, apl, vg, dx);
+		ap = std::max(std::max(apr, apl), safe_real(0.0));
+		am = std::min(std::min(amr, aml), safe_real(0.0));
 		for (int f = 0; f < nf_; f++) {
-#ifdef KURGANOV_TADMOR
-#warning "Compiling with Kurganov Tadmor scheme"
-			F[f] = 0.5 * FL[f] + 0.5 * FR[f] - 0.5 * a * (UR[f] - UL[f]);
-#else
 			F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
-#endif
 		}
-#ifndef NO_POS_ENFORCE
-		constexpr static int npos = 3;
-		constexpr static std::array<int, npos> pos_fields = { rho_i, tau_i, egas_i };
-
-		constexpr safe_real max_change = 1.0e-6;
-		safe_real theta = 1.0;
-		for (int fi = 0; fi < npos; fi++) {
-			const int f = pos_fields[fi];
-			safe_real thetaR = 1.0, thetaL = 1.0;
-			const auto umin = max_change * std::max(UR0[f], UL0[f]);
-			if (UR[f] < umin && UR0[f] != UR[f]) {
-				thetaR = (UR0[f] - umin) / (UR0[f] - UR[f]);
-			}
-			if (UL[f] < umin && UL0[f] != UL[f]) {
-				thetaL = (UL0[f] - umin) / (UL0[f] - UL[f]);
-			}
-			theta = std::min(theta, std::max(std::min(std::min(thetaL, thetaR), safe_real(1.0)), safe_real(0.0)));
-		}
-		if (theta < 1.0) {
-			for (int f = 0; f < nf_; f++) {
-				F[f] *= theta;
-			}
-			const auto c0 = 1.0 - theta;
-			flux(UR, FR, dim, amr, apr, vg, dx, false);
-			flux(UL, FL, dim, aml, apl, vg, dx, false);
-			for (int f = 0; f < nf_; f++) {
-				F[f] += c0 * 0.5 * (FR[f] + FL[f]);
-				F[f] -= c0 * safe_real(0.5) * a * (UR0[f] + UL0[f]);
-			}
-		}
-#else
-//#warning "Compiling without positivity enforcement"
-#endif
 	}
 
 	template<int INX>
