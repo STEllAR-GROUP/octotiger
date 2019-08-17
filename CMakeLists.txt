@@ -108,7 +108,6 @@ set(source_files
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
-    src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
 )
 
@@ -184,7 +183,6 @@ set(header_files
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
-    octotiger/test_problems/exact_sod.hpp
 )
 
 # Octotiger library
@@ -206,6 +204,7 @@ add_hpx_library(
   SOURCES
    src/unitiger/hydro.cpp
    src/test_problems/blast/sedovf_c.cpp
+   src/test_problems/sod/exact_sod.cpp
   HEADERS
     octotiger/unitiger/hydro.hpp
     octotiger/unitiger/physics.hpp
@@ -217,6 +216,7 @@ add_hpx_library(
     octotiger/unitiger/hydro_impl/hydro.hpp
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
+    octotiger/test_problems/exact_sod.hpp
 )
 
 # Enable exported functions

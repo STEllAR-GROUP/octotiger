@@ -101,7 +101,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 #endif
 	};
 
-	if (angmom_count_ == 0) {
+	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			reconstruct(Q[f], U[f], smooth_field_[f]);
 		}

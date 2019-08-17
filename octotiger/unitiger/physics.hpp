@@ -7,6 +7,7 @@
 
 #include "./safe_real.hpp"
 #include "../test_problems/blast.hpp"
+#include "../test_problems/exact_sod.hpp"
 
 #ifndef OCTOTIGER_UNITIGER_PHYSICS_HPP_
 #define OCTOTIGER_UNITIGER_PHYSICS_HPP_
@@ -183,9 +184,9 @@ struct physics {
 						w += Q[spc_i + si][i][d];
 						Q[spc_i + si][i][d] *= rho;
 					}
-					if( w == 0.0 ) {
-						printf( "NO SPECIES\n");
-				//		sleep(10);
+					if (w == 0.0) {
+						printf("NO SPECIES %i\n", i);
+						//		sleep(10);
 						abort();
 					}
 					w = 1.0 / w;
@@ -230,18 +231,32 @@ struct physics {
 
 		for (int i = 0; i < geo.H_N3; i++) {
 			safe_real r = 0.0;
+			safe_real rsum = 0.0;
 			for (int dim = 0; dim < NDIM; dim++) {
 				r += X[dim][i] * X[dim][i];
+				rsum += X[dim][i];
 			}
 			r = sqrt(r);
-			double den, vel, pre;
-			sedov::solution(time + 7e-4, r, rmax, den, vel, pre, NDIM);
+			double den = 0, vel = 0, pre = 0;
+
+			if (test == BLAST) {
+				sedov::solution(time + 7e-4, r, rmax, den, vel, pre, NDIM);
+				for (int dim = 0; dim < NDIM; dim++) {
+					U[sx_i + dim][i] = den * vel * X[dim][i] / r;
+				}
+			} else if (test == SOD) {
+				sod_state_t sod_state;
+				exact_sod(&sod_state, &sod_init, rsum / std::sqrt(NDIM), time);
+				den = sod_state.rho;
+				vel = sod_state.v;
+				for (int dim = 0; dim < NDIM; dim++) {
+					U[sx_i + dim][i] = den * vel / std::sqrt(NDIM);
+				}
+			}
+
 			U[rho_i][i] = den;
 			U[tau_i][i] = pow(pre / (fgamma_ - 1.0), 1.0 / fgamma_);
 			U[egas_i][i] = pre / (fgamma_ - 1.0) + 0.5 * den * vel * vel;
-			for (int dim = 0; dim < NDIM; dim++) {
-				U[sx_i + dim][i] = den * vel * X[dim][i] / r;
-			}
 			U[spc_i][i] = den;
 		}
 	}
@@ -396,7 +411,7 @@ template<int NDIM>
 bool physics<NDIM>::angmom_ = false;
 
 template<int NDIM>
-int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + 5;
+int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + physics<NDIM>::n_species_;
 
 template<int NDIM>
 int physics<NDIM>::n_species_ = 5;
