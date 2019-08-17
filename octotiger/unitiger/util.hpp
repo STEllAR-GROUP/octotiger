@@ -5,6 +5,8 @@
  *      Author: dmarce1
  */
 
+
+
 #ifndef OCTOTIGER_UNITIGER_UTI1L_HPP_
 #define OCTOTIGER_UNITIGER_UTI1L_HPP_
 
@@ -20,13 +22,11 @@ std::array<int, NDIM> index_to_dims(int i) {
 
 template<int a, int b>
 static constexpr int int_pow() {
-	if constexpr (b == 0) {
-		return 1;
-	} else if constexpr (b < 0) {
-		return 0;
-	} else {
-		return a * int_pow<a, b - 1>();
+	int c = 1;
+	for( int i = 0; i < b; i++) {
+		c *= a;
 	}
+	return a;
 }
 
 template<class T>

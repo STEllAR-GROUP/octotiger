@@ -2,7 +2,7 @@ template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 
 	for (int f = 0; f < nf_; f++) {
-		if constexpr(NDIM == 1) {
+		if CONSTEXPR(NDIM == 1) {
 			for (int i = 0; i < geo::H_BW + 20; i++) {
 				if (bc_[0] == OUTFLOW) {
 					U[f][i] = U[f][geo::H_BW];
@@ -18,7 +18,7 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 
 			}
 
-		} else if constexpr(NDIM == 2) {
+		} else if CONSTEXPR(NDIM == 2) {
 
 			const auto index = [](int i, int j) {
 				return j + geo::H_NX * i;

@@ -112,7 +112,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	fclose(fp2);
 	fclose(fpinf);
 	FILE* fp = fopen( "time.dat", "wt");
-	fprintf( fp, "%i %lli\n", INX, tstop -tstart);
+	fprintf( fp, "%i %li\n", INX, tstop -tstart);
 	fclose(fp);
 }
 

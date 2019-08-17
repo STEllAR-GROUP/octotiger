@@ -16,6 +16,7 @@
 #include <limits>
 #include <silo.h>
 
+#define CONSTEXPR
 
 #define NO_POS_ENFORCE
 //#define FACES_ONLY

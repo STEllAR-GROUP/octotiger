@@ -43,10 +43,10 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 					UL[f] = Q[f][i - geo.H_DN[dim]][geo::flip_dim(d, dim)];
 				}
 				std::array < safe_real, NDIM > vg;
-				if constexpr (NDIM > 1) {
+				if CONSTEXPR (NDIM > 1) {
 					vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
 					vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-					if constexpr (NDIM == 3) {
+					if CONSTEXPR (NDIM == 3) {
 						vg[2] = 0.0;
 					}
 				} else {

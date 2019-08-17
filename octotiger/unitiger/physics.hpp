@@ -6,6 +6,7 @@
  */
 
 #include "./safe_real.hpp"
+#include "./util.hpp"
 #include "../test_problems/blast.hpp"
 #include "../test_problems/exact_sod.hpp"
 
@@ -126,11 +127,11 @@ struct physics {
 			}
 		}
 		for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
-			if constexpr (NDIM == 3) {
+			if CONSTEXPR (NDIM == 3) {
 				dudt[zx_i][i] -= omega * X[2][i] * U[sx_i][i];
 				dudt[zy_i][i] -= omega * X[2][i] * U[sy_i][i];
 			}
-			if constexpr (NDIM >= 2) {
+			if CONSTEXPR (NDIM >= 2) {
 				dudt[zx_i][i] += omega * (X[0][i] * U[sx_i][i] + X[1][i] * U[sy_i][i]);
 			}
 		}
@@ -364,10 +365,10 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 //				rho = 1.0;
 //				/**************/
 				vx = v * X[0][i] / r;
-				if constexpr (NDIM >= 2) {
+				if CONSTEXPR (NDIM >= 2) {
 					vy = v * X[1][i] / r;
 				}
-				if constexpr (NDIM == 3) {
+				if CONSTEXPR (NDIM == 3) {
 					vz = v * X[2][i] / r;
 				}
 				break;
@@ -393,11 +394,11 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 			U[sx_i][i] += w * (rho * vx);
 			U[egas_i][i] += w * (p / (fgamma_ - 1.0) + 0.5 * rho * vx * vx);
 			U[tau_i][i] += w * (std::pow(p / (fgamma_ - 1.0), 1.0 / fgamma_));
-			if constexpr (NDIM >= 2) {
+			if CONSTEXPR (NDIM >= 2) {
 				U[sy_i][i] += w * rho * vy;
 				U[egas_i][i] += w * 0.5 * rho * vy * vy;
 			}
-			if constexpr (NDIM >= 3) {
+			if CONSTEXPR (NDIM >= 3) {
 				U[sz_i][i] += w * rho * vz;
 				U[egas_i][i] += w * 0.5 * rho * vz * vz;
 			}
