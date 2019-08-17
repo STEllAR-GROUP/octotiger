@@ -477,7 +477,8 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						i = -1;
 					}
 					if (i != -1) {
-						const real dX[NDIM] = { (x - diags.com[i][XDIM]), (y - diags.com[i][YDIM]), (z - diags.com[i][ZDIM]) };
+						const real dX[NDIM] = { (x - diags.com[i][XDIM]), (y - diags.com[i][YDIM]), (z
+								- diags.com[i][ZDIM]) };
 						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
 						rc.js[i] -= dX[1] * U[sx_i][iii] * dV;
 						rc.gt[i] += dX[0] * G[iiig][gy_i] * dV * rho0;
@@ -757,7 +758,8 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	return c;
 }
 
-std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool etot_only) {
+std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+		bool etot_only) {
 	PROF_BEGIN;
 	auto &dUdx = TLS_dUdx();
 	auto &tmpz = TLS_zz();
@@ -1314,11 +1316,11 @@ void grid::set_omega(real omega, bool bcast) {
 				}
 			}
 			if (remotes.size() > 0) {
-				hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
+				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
 			}
 		}
 	}
-	std::unique_lock<hpx::lcos::local::spinlock> l(grid::omega_mtx, std::try_to_lock);
+	std::unique_lock < hpx::lcos::local::spinlock > l(grid::omega_mtx, std::try_to_lock);
 // if someone else has the lock, it's fine, we just return and have it set
 // by the other thread
 	if (!l)
@@ -1670,8 +1672,8 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
-				true) {
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -1851,7 +1853,8 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 						const integer iii = hindex(i, j, k);
 						dU[rho_i][iii] = 0.0;
 						for (integer si = 0; si != opts().n_species; ++si) {
-							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
+							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii]
+									+ dV[spc_i + si][iii] * V[rho_i][iii];
 							dU[rho_i][iii] += dU[spc_i + si][iii];
 						}
 						if (opts().gravity) {
@@ -1860,11 +1863,12 @@ void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const st
 						//						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
 						dU[egas_i][iii] = dV[egas_i][iii];
 						for (integer d1 = 0; d1 != NDIM; ++d1) {
-							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii] + dV[sx_i + d1][iii] * V[rho_i][iii];
+							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii]
+									+ dV[sx_i + d1][iii] * V[rho_i][iii];
 							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
 							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
 							if (opts().angmom) {
-								dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];	// + dV[zx_i + d1][iii] * V[rho_i][iii];
+								dU[zx_i + d1][iii] = V[zx_i + d1][iii] * dV[rho_i][iii];// + dV[zx_i + d1][iii] * V[rho_i][iii];
 							}
 						}
 						if (opts().eos == WD) {
@@ -2036,7 +2040,7 @@ void grid::allocate() {
 		U0[field].resize(INX * INX * INX);
 
 		U[field].resize(H_N3, 0.0);
-		Ushad[field].resize(HS_N3, std::numeric_limits<real>::signaling_NaN());
+		Ushad[field].resize(HS_N3,std::numeric_limits<real>::signaling_NaN());
 		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(F_N3);
@@ -2057,14 +2061,16 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(
-				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
+				opts().n_fields, ZERO) {
 //	allocate();
 }
 
 grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
-				true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
+		is_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(
+				NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(
+				opts().n_fields, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
 	xmin = _xmin;
@@ -2085,7 +2091,7 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 			}
 		}
 	}
-	if (opts().angmom) {
+	if( opts().angmom) {
 		init_z_field();
 	}
 	if (opts().radiation) {
@@ -2103,25 +2109,23 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 }
 
 void grid::init_z_field() {
-	for (int j = H_BW; j < H_NX - H_BW; j++) {
-		for (int k = H_BW; k < H_NX - H_BW; k++) {
-			for (int l = H_BW; l < H_NX - H_BW; l++) {
-				const int i = hindex(j, k, l);
-				auto dsx_dy = (U[sx_i][i + H_DNY] - U[sx_i][i - H_DNY])*0.5;
-				auto dsx_dz = (U[sx_i][i + H_DNZ] - U[sx_i][i - H_DNZ])*0.5;
+	for( int j = H_BW; j < H_NX - H_BW; j++) {
+	for( int k = H_BW; k < H_NX - H_BW; k++) {
+	for( int l = H_BW; l < H_NX - H_BW; l++) {
+		const int i = hindex(j,k,l);
+		auto dsx_dy = U[sx_i][i+H_DNY] - U[sx_i][i-H_DNY];
+		auto dsx_dz = U[sx_i][i+H_DNZ] - U[sx_i][i-H_DNZ];
 
-				auto dsy_dx = (U[sy_i][i + H_DNX] - U[sy_i][i - H_DNX])*0.5;
-				auto dsy_dz = (U[sy_i][i + H_DNZ] - U[sy_i][i - H_DNZ])*0.5;
+		auto dsy_dx = U[sy_i][i+H_DNX] - U[sy_i][i-H_DNX];
+		auto dsy_dz = U[sy_i][i+H_DNZ] - U[sy_i][i-H_DNZ];
 
-				auto dsz_dy = (U[sz_i][i + H_DNY] - U[sz_i][i - H_DNY])*0.5;
-				auto dsz_dx = (U[sz_i][i + H_DNX] - U[sz_i][i - H_DNX])*0.5;
+		auto dsz_dy = U[sz_i][i+H_DNY] - U[sz_i][i-H_DNY];
+		auto dsz_dx = U[sz_i][i+H_DNX] - U[sz_i][i-H_DNX];
 
-				U[zx_i][i] = (dx / 12.0) * (dsz_dy - dsy_dz);
-				U[zy_i][i] = (dx / 12.0) * (dsx_dz - dsz_dx);
-				U[zz_i][i] = (dx / 12.0) * (dsy_dx - dsx_dy);
-			}
-		}
-	}
+		U[zx_i][i] = (dx / 12.0) * (dsz_dy - dsy_dz);
+		U[zy_i][i] = (dx / 12.0) * (dsx_dz - dsz_dx);
+		U[zz_i][i] = (dx / 12.0) * (dsy_dx - dsx_dy);
+		}}}
 }
 
 void grid::rad_init() {
@@ -2231,7 +2235,7 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = jlb; j != jub; ++j) {
 				for (integer i = ilb; i != iub; ++i) {
-					const auto iii = hindex(i, j, k);
+					const auto iii = hindex(i,j,k);
 					const auto u = amr_test(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], dx);
 					for (int f = 0; f < opts().n_fields; f++) {
 						U[f][iii] = u[f];

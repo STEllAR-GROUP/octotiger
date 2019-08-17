@@ -1,9 +1,10 @@
 #include "../unitiger.hpp"
 
+
 template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real t) {
-	printf("Output %i\n", num);
-	const auto dx = X[0][geo::H_DNX] - X[0][0];
+
+	const auto dx = X[0][1] - X[0][0];
 	FILE *fp = fopen("sums.dat", "at");
 	auto sums = get_field_sums(U, dx);
 	fprintf(fp, "%e ", (double) t);
@@ -42,12 +43,10 @@ void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::
 
 		auto db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Uni-tiger", DB_PDB);
 
-		auto opts = DBMakeOptlist(3);
+		auto opts = DBMakeOptlist(1);
 		float ft = t;
-		int one = 1;
 		DBAddOption(opts, DBOPT_TIME, &ft);
 		DBAddOption(opts, DBOPT_DTIME, &t);
-		DBAddOption(opts, DBOPT_MAJORORDER, &one);
 
 		const char *coord_names[] = { "x", "y", "z" };
 		safe_real coords[NDIM][geo::H_NX + 1];
