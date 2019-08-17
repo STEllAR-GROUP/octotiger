@@ -1,7 +1,14 @@
 #include "../physics.hpp"
 
 template<int NDIM, int INX>
-safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega) {
+safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
+		safe_real omega) {
+
+	static thread_local auto fluxes =
+	std::vector < std::vector
+			< std::vector<std::array<safe_real, geo::NFACEDIR>>
+					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>>
+							> (nf_, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
 
 	static const cell_geometry<NDIM, INX> geo;
 
@@ -46,8 +53,8 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 					vg[0] = 0.0;
 				}
 				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, this_am, this_ap, vg, dx);
-				am = std::min(am,this_am);
-				ap = std::max(ap,this_ap);
+				am = std::min(am, this_am);
+				ap = std::max(ap, this_ap);
 				for (int f = 0; f < nf_; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
@@ -64,7 +71,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 #ifdef FACES_ONLY
 					constexpr auto w = 1.0;
 #else
-					const auto& w = weights[fi];
+					const auto &w = weights[fi];
 #endif
 					F[dim][f][i] += w * fluxes[dim][f][i][fi];
 				}

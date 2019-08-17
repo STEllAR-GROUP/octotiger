@@ -80,9 +80,6 @@ private:
 	int nf_;
 	int angmom_index_;
 	int angmom_count_;
-	std::vector<std::array<safe_real, geo::NDIR / 2>> D1;
-	std::vector<std::vector<std::array<safe_real, geo::NDIR>>> Q;
-	std::vector<std::vector<std::vector<std::array<safe_real, geo::NFACEDIR>>>> fluxes;
 	std::vector<bool> smooth_field_;
 	std::vector<bc_type> bc_;
 }

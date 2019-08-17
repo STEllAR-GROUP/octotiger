@@ -33,16 +33,7 @@ hydro_computer<NDIM, INX>::hydro_computer() {
 	nf_ = physics<NDIM>::field_count();
 
 	angmom_count_ = 0;
-	D1 = decltype(D1)(geo::H_N3);
-	Q = decltype(Q)(nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
-	fluxes = decltype(fluxes)(NDIM,
-			std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>> > (nf_, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
 
-	for (const auto &i : geo::find_indices(0, geo::H_NX)) {
-		for (int d = 0; d < geo::NDIR / 2; d++) {
-			D1[i][d] = NAN;
-		}
-	}
 	for( int f = 0; f < nf_; f++) {
 		smooth_field_.push_back(false);
 	}
