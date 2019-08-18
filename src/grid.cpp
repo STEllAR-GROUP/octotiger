@@ -2092,7 +2092,7 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 		}
 	}
 	if( opts().angmom) {
-		init_z_field();
+//		init_z_field();
 	}
 	if (opts().radiation) {
 		if (init_func != nullptr) {
