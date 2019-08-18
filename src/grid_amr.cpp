@@ -54,9 +54,7 @@ void grid::complete_hydro_amr_boundary() {
 					const int iii0 = hSindex(i0, j0, k0);
 					const int iiir = hindex(ir, jr, kr);
 					if (is_coarse[iii0]) {
-						assert(
-								ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW
-										|| kr >= H_NX - H_BW);
+						assert(ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW || kr >= H_NX - H_BW);
 						U[f][iiir] = Ushad[f][iii0];
 					}
 				}
@@ -64,12 +62,11 @@ void grid::complete_hydro_amr_boundary() {
 		}
 	}
 	if (opts().amrbnd_order > 0) {
-		static thread_local std::array<std::vector<double>, NDIM> slp;
+		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp;
 		for (int d = 0; d < NDIM; d++) {
-			slp[d].resize(opts().n_fields);
-			slp[d].resize(HS_N3, std::numeric_limits<real>::signaling_NaN());
+			slp[d].resize(opts().n_fields, std::vector<double>(HS_N3));
 		}
-		for (int f = 0; f < opts().n_fields; f++) {
+		const auto slopes = [this](int f) {
 			for (int i0 = 2; i0 < HS_NX - 2; i0++) {
 				for (int j0 = 2; j0 < HS_NX - 2; j0++) {
 					for (int k0 = 2; k0 < HS_NX - 2; k0++) {
@@ -79,8 +76,6 @@ void grid::complete_hydro_amr_boundary() {
 						const int iii0 = hSindex(i0, j0, k0);
 						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
-							//		printf( "%i\n", int(is_coarse[iii0]));
-
 							const auto u0 = Ushad[f][iii0];
 							for (int d = 0; d < NDIM; d++) {
 								const int da = d == XDIM ? YDIM : XDIM;
@@ -114,12 +109,15 @@ void grid::complete_hydro_amr_boundary() {
 									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
 									slpm /= 3.0;
 								}
-								slp[d][iii0] = minmod(slpp, -slpm);
+								slp[d][f][iii0] = minmod(slpp, -slpm);
 							}
 						}
 					}
 				}
 			}
+		};
+
+		const auto interps = [this](int f) {
 			for (int ir = 1; ir < H_NX - 1; ir++) {
 				for (int jr = 1; jr < H_NX - 1; jr++) {
 					for (int kr = 1; kr < H_NX - 1; kr++) {
@@ -133,9 +131,9 @@ void grid::complete_hydro_amr_boundary() {
 						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
 							auto &value = U[f][iiir];
-							value -= 0.25 * isgn * slp[XDIM][iii0];
-							value -= 0.25 * jsgn * slp[YDIM][iii0];
-							value -= 0.25 * ksgn * slp[ZDIM][iii0];
+							value -= 0.25 * isgn * slp[XDIM][f][iii0];
+							value -= 0.25 * jsgn * slp[YDIM][f][iii0];
+							value -= 0.25 * ksgn * slp[ZDIM][f][iii0];
 							if (opts().angmom) {
 								if (f == sx_i) {
 									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
@@ -151,6 +149,60 @@ void grid::complete_hydro_amr_boundary() {
 						}
 					}
 				}
+			}
+		};
+
+		for (int f = sx_i; f <= sz_i; f++) {
+			slopes(f);
+		}
+
+
+
+		for (int i0 = 2; i0 < HS_NX - 2; i0++) {
+			for (int j0 = 2; j0 < HS_NX - 2; j0++) {
+				for (int k0 = 2; k0 < HS_NX - 2; k0++) {
+					const int ir = 2 * i0 - H_BW;
+					const int jr = 2 * j0 - H_BW;
+					const int kr = 2 * k0 - H_BW;
+					const int iii0 = hSindex(i0, j0, k0);
+					const int iiir = hindex(ir, jr, kr);
+					if (is_coarse[iii0]) {
+
+						real dV_sym[3][3];
+						real dV_ant[3][3];
+
+						for (integer d0 = 0; d0 != NDIM; ++d0) {
+							for (integer d1 = 0; d1 != NDIM; ++d1) {
+								dV_sym[d1][d0] = (slp[d0][sx_i + d1][iii0] + slp[d1][sx_i + d0][iii0]) / 2.0;
+								dV_ant[d1][d0] = 0.0;
+							}
+						}
+						dV_ant[XDIM][YDIM] = +6.0 * Ushad[zz_i][iii0] / dx;
+						dV_ant[XDIM][ZDIM] = -6.0 * Ushad[zy_i][iii0] / dx;
+						dV_ant[YDIM][ZDIM] = +6.0 * Ushad[zx_i][iii0] / dx;
+						dV_ant[YDIM][XDIM] = -dV_ant[XDIM][YDIM];
+						dV_ant[ZDIM][XDIM] = -dV_ant[XDIM][ZDIM];
+						dV_ant[ZDIM][YDIM] = -dV_ant[YDIM][ZDIM];
+						for (integer d0 = 0; d0 != NDIM; ++d0) {
+							for (integer d1 = 0; d1 != NDIM; ++d1) {
+								const real tmp = dV_sym[d0][d1] + dV_ant[d0][d1];
+								slp[d0][sx_i + d1][iii0] = minmod(tmp, slp[d0][sx_i + d1][iii0]);
+							}
+						}
+
+					}
+				}
+			}
+		}
+
+
+		for (int f = sx_i; f <= sz_i; f++) {
+			interps(f);
+		}
+		for (int f = 0; f < opts().n_fields; f++) {
+			if (f < sx_i || f > sz_i) {
+				slopes(f);
+				interps(f);
 			}
 		}
 	}
