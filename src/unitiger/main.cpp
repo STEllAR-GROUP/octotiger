@@ -53,8 +53,6 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U);
-#ifdef FIRST_ORDER_TIME
-#warning "Compiling with First order Time integrator"
 		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
@@ -62,7 +60,6 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
-#endif
 		computer.boundaries(U);
 		computer.post_process(U, dx);
 		t += dt;
@@ -122,17 +119,8 @@ int main(int, char*[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-
-	run_test<1, 32>(physics<1>::SOD, false);
-	run_test<1, 64>(physics<1>::SOD, false);
-	run_test<1, 128>(physics<1>::SOD, false);
-	run_test<1, 256>(physics<1>::SOD, false);
-	run_test<1, 512>(physics<1>::SOD, false);
 	run_test<1, 1024>(physics<1>::SOD, false);
-	run_test<1, 2028>(physics<1>::SOD, false);
-	run_test<1, 4096>(physics<1>::SOD, false);
-
-//	run_test<3, 8>(physics<3>::SOD, false);
+	//	run_test<3, 8>(physics<3>::SOD, false);
 //	run_test<3, 32>(physics<3>::BLAST, false);
 //	run_test<2, 200>(physics<2>::BLAST, true);
 //	run_test<2, 160>(physics<2>::BLAST, true);
