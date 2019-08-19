@@ -57,7 +57,7 @@ struct physics {
 		p = (fgamma_ - 1.0) * ein;
 	}
 
-	static safe_real physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
+	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
 			std::array<safe_real, NDIM> &vg, safe_real dx) {
 		safe_real p, v, v0, c;
 		to_prim(U, p, v0, dim, dx);
