@@ -418,6 +418,6 @@ template<int NDIM>
 int physics<NDIM>::n_species_ = 5;
 
 template<int NDIM>
-safe_real physics<NDIM>::fgamma_ = 7. / 4.;
+safe_real physics<NDIM>::fgamma_ = 7. / 5.;
 
 #endif /* OCTOTIGER_UNITIGER_PHYSICS_HPP_ */
