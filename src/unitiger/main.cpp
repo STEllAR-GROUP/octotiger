@@ -35,11 +35,11 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 
 	safe_real t = 0.0;
 	int iter = 0;
-
+	int oter = 0;
 	physics<NDIM> phys;
 	computer.set_bc(phys.template initialize<INX>(problem, U, X));
 	const safe_real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
-	computer.output(U, X, iter++, 0);
+	computer.output(U, X, oter++, 0);
 //	const safe_real omega = 2.0 * M_PI / tmax / 10.0;
 	const safe_real omega = 0.0;
 	printf("omega = %e\n", (double) omega);
@@ -65,7 +65,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		t += dt;
 		computer.boundaries(U);
 		if (int(t / dt_out) != int((t - dt) / dt_out))
-			computer.output(U, X, iter, t);
+			computer.output(U, X, oter++, t);
 		iter++;
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
@@ -119,7 +119,7 @@ int main(int, char*[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-	run_test<1, 1024>(physics<1>::SOD, false);
+	run_test<1, 1024>(physics<1>::CONTACT, false);
 	//	run_test<3, 8>(physics<3>::SOD, false);
 //	run_test<3, 32>(physics<3>::BLAST, false);
 //	run_test<2, 200>(physics<2>::BLAST, true);

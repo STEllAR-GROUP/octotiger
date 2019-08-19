@@ -3,7 +3,7 @@ void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 
 	for (int f = 0; f < nf_; f++) {
 		if CONSTEXPR(NDIM == 1) {
-			for (int i = 0; i < geo::H_BW + 20; i++) {
+			for (int i = 0; i < geo::H_BW; i++) {
 				if (bc_[0] == OUTFLOW) {
 					U[f][i] = U[f][geo::H_BW];
 				} else {
