@@ -29,10 +29,10 @@ void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::
 		FILE *fp = fopen(filename.c_str(), "wt");
 		for (int i = 0; i < geo::H_NX; i++) {
 			for (int dim = 0; dim < NDIM; dim++) {
-				fprintf(fp, "%13.6e ", double(X[dim][i]));
+				fprintf(fp, "%17.10e ", double(X[dim][i]));
 			}
 			for (int f = 0; f < nf_; f++) {
-				fprintf(fp, "%13.6e ", double(U[f][i]));
+				fprintf(fp, "%17.10e ", double(U[f][i]));
 			}
 			fprintf(fp, "\n");
 		}

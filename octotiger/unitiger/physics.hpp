@@ -253,6 +253,10 @@ static void analytic_solution(test_type test, hydro::state_type &U, const hydro:
 			for (int dim = 0; dim < NDIM; dim++) {
 				U[sx_i + dim][i] = den * vel / std::sqrt(NDIM);
 			}
+		} else if( test == CONTACT ) {
+			pre = 1.0;
+			vel = 10.0;
+			den = 1.0 + 1.0e-6 * sin( 2.0 * M_PI * (X[0][i] - vel * time));
 		}
 
 		U[rho_i][i] = den;
@@ -339,12 +343,8 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 		switch (t) {
 		case CONTACT:
 			p = 1.0;
-			vx = 1.0;
-			if (xsum < 0) {
-				rho = 1.0;
-			} else {
-				rho = 0.125;
-			}
+			vx = 10.0;
+			rho = 1.0 + 1.0e-6 * sin( 2.0 * M_PI * x[0]);
 			break;
 		case SOD:
 			if (xsum < 0) {
