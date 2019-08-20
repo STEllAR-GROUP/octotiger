@@ -273,4 +273,40 @@ public:
 template<int NDIM, int INX>
 std::array<std::array<std::vector<int>, cell_geometry<NDIM, INX>::NDIR>, cell_geometry<NDIM, INX>::H_BW> cell_geometry<NDIM, INX>::all_indices;
 
+
+
+
+
+
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM,INX>::ngroups_[3];
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM,INX>::group_size_[3][4];
+
+template<int NDIM, int INX>
+constexpr std::pair<int, int> cell_geometry<NDIM,INX>::groups3d_[3][4][8];
+
+template<int NDIM, int INX>
+constexpr bool cell_geometry<NDIM,INX>::is_lower_face[3][3][27];
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM,INX>::kdeltas[3][3][3][3];
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM,INX>::lower_face_members[3][3][9];
+
+template<int NDIM, int INX>
+constexpr safe_real cell_geometry<NDIM,INX>::quad_weights[3][9];
+
+template<int NDIM, int INX>
+constexpr safe_real cell_geometry<NDIM,INX>::vol_weights[3][27];
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM,INX>::face_locs [3][27][3];
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM,INX>::directions[3][27];
+
 #endif /* OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_ */
