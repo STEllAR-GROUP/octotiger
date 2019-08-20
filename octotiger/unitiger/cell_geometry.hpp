@@ -309,4 +309,7 @@ constexpr int cell_geometry<NDIM,INX>::face_locs [3][27][3];
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM,INX>::directions[3][27];
 
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM,INX>::H_DN[3];
+
 #endif /* OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_ */
