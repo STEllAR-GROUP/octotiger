@@ -47,7 +47,7 @@ namespace octotiger { namespace fmm {
         {
             T* data;
             util::cuda_helper::cuda_error(
-                cudaMallocHost(static_cast<void**>(&data), n * sizeof(T)));
+                cudaMallocHost(reinterpret_cast<void**>(&data), n * sizeof(T)));
             return data;
         }
         void deallocate(T* p, std::size_t n)
