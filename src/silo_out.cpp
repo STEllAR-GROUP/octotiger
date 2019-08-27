@@ -253,7 +253,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
-	std::string this_fname = fname + "." + std::to_string(gn) + std::string(".silo");
+	std::string this_fname = fname + ".data/" + std::to_string(gn) + std::string(".silo");
 	double dtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn](integer cycle) {
 		DBfile *db;
@@ -342,7 +342,7 @@ void output_stage4(std::string fname, int cycle) {
 	double dtime = silo_output_rotation_time();
 	double rtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, fname, nfields, &rtime](int cycle) {
-		auto *db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
+		auto *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		double dtime = silo_output_time();
 		float ftime = dtime;
 		std::vector<std::pair<int, node_location>> node_locs;
@@ -361,7 +361,7 @@ void output_stage4(std::string fname, int cycle) {
 		for (int f = 0; f < nfields; f++)
 			field_names[f].reserve(node_locs.size());
 		for (int i = 0; i < node_locs.size(); i++) {
-			const auto prefix = fname + "." + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
+			const auto prefix = fname + ".data/" + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
 			const auto str = prefix + "quadmesh";
 			char *ptr = new char[str.size() + 1];
 			std::strcpy(ptr, str.c_str());
@@ -593,6 +593,9 @@ void output_all(std::string fname, int cycle, bool block) {
 		printf("Skipping SILO output\n");
 		return;
 	}
+
+	std::string command = "mkdir -p " + fname + "." + std::to_string(cycle) + ".silo.data\n";
+	system(command.c_str());
 
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
