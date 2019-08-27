@@ -26,6 +26,7 @@ HPX_PLAIN_ACTION(output_stage3, output_stage3_action);
 
 struct node_list_t {
 	std::vector<node_location::node_id> silo_leaves;
+	std::vector<int> group_num;
 	std::vector<node_location::node_id> all;
 	std::vector<integer> positions;
 	std::vector<std::vector<double>> extents;
@@ -340,31 +341,33 @@ void output_stage4(std::string fname, int cycle) {
 	std::string this_fname = fname + std::string(".silo");
 	double dtime = silo_output_rotation_time();
 	double rtime = silo_output_rotation_time();
-	hpx::threads::run_as_os_thread([&this_fname, nfields, &rtime](int cycle) {
+	hpx::threads::run_as_os_thread([&this_fname, fname, nfields, &rtime](int cycle) {
 		auto *db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 		double dtime = silo_output_time();
 		float ftime = dtime;
-		std::vector<node_location> node_locs;
+		std::vector<std::pair<int, node_location>> node_locs;
 		std::vector<char*> mesh_names;
 		std::vector<std::vector<char*>> field_names(nfields);
 		node_locs.reserve(node_list_.silo_leaves.size());
+		int j = 0;
 		for (auto &i : node_list_.silo_leaves) {
 			node_location nloc;
 			nloc.from_id(i);
-			node_locs.push_back(nloc);
+			node_locs.push_back(std::make_pair(node_list_.group_num[j], nloc));
+			j++;
 		}
 		const auto top_field_names = grid::get_field_names();
 		mesh_names.reserve(node_locs.size());
 		for (int f = 0; f < nfields; f++)
 			field_names[f].reserve(node_locs.size());
 		for (int i = 0; i < node_locs.size(); i++) {
-			const auto suffix = oct_to_str(node_locs[i].to_id());
-			const auto str = "/" + suffix + "/quadmesh";
+			const auto prefix = fname + "." + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
+			const auto str = prefix + "quadmesh";
 			char *ptr = new char[str.size() + 1];
 			std::strcpy(ptr, str.c_str());
 			mesh_names.push_back(ptr);
 			for (int f = 0; f < nfields; f++) {
-				const auto str = "/" + suffix + "/" + top_field_names[f];
+				const auto str = prefix + top_field_names[f];
 				char *ptr = new char[str.size() + 1];
 				strcpy(ptr, str.c_str());
 				field_names[f].push_back(ptr);
@@ -381,7 +384,8 @@ void output_stage4(std::string fname, int cycle) {
 		assert(n_total_domains > 0);
 		std::vector<double> extents;
 		extents.reserve(node_locs.size() * 6);
-		for (const auto &n : node_locs) {
+		for (const auto &n0 : node_locs) {
+			const auto &n = n0.second;
 			const real scale = opts().xscale * opts().code_to_cm;
 			const double xmin = n.x_location(0) * scale;
 			const double ymin = n.x_location(1) * scale;
@@ -483,8 +487,8 @@ void output_stage4(std::string fname, int cycle) {
 		for (int n = 0; n < nleaves; n++) {
 			for (int m = n + 1; m < nleaves; m++) {
 				range_type rn, rm, i;
-				rn = node_locs[n].abs_range();
-				rm = node_locs[m].abs_range();
+				rn = node_locs[n].second.abs_range();
+				rm = node_locs[m].second.abs_range();
 				i = intersection(rn, rm);
 				if (i[0].first != -1) {
 					neighbor_count[n]++;
@@ -609,11 +613,18 @@ void output_all(std::string fname, int cycle, bool block) {
 		id_futs.push_back(hpx::async<output_stage2_action>(id, fname, cycle));
 	}
 	node_list_.silo_leaves.clear();
+	node_list_.group_num.clear();
 	node_list_.all.clear();
 	node_list_.positions.clear();
 	node_list_.extents.clear();
+	int id = 0;
 	for (auto &f : id_futs) {
+		const int gn = id * opts().silo_num_groups / localities.size();
 		node_list_t this_list = GET(f);
+		const int leaf_cnt = this_list.silo_leaves.size();
+		for (auto i = 0; i < leaf_cnt; i++) {
+			node_list_.group_num.push_back(gn);
+		}
 		node_list_.silo_leaves.insert(node_list_.silo_leaves.end(), this_list.silo_leaves.begin(), this_list.silo_leaves.end());
 		node_list_.all.insert(node_list_.all.end(), this_list.all.begin(), this_list.all.end());
 		node_list_.positions.insert(node_list_.positions.end(), this_list.positions.begin(), this_list.positions.end());
@@ -623,6 +634,7 @@ void output_all(std::string fname, int cycle, bool block) {
 		for (int f = 0; f < this_list.extents.size(); f++) {
 			node_list_.extents[f].insert(node_list_.extents[f].end(), this_list.extents[f].begin(), this_list.extents[f].end());
 		}
+		id++;
 	}
 	const auto ng = opts().silo_num_groups;
 
