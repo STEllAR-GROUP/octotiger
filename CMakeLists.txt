@@ -85,6 +85,8 @@ set(source_files
     src/roe.cpp
     src/scf_data.cpp
     src/scf_data.cpp
+    src/silo_in.cpp
+    src/silo_out.cpp
     src/silo.cpp
     src/stack_trace.cpp
     src/taylor.cpp
