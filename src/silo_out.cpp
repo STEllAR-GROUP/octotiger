@@ -253,7 +253,7 @@ node_list_t output_stage2(std::string fname, int cycle) {
 void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
-	std::string this_fname = fname + ".data/" + std::to_string(gn) + std::string(".silo");
+	std::string this_fname = fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
 	double dtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn](integer cycle) {
 		DBfile *db;
@@ -594,7 +594,7 @@ void output_all(std::string fname, int cycle, bool block) {
 		return;
 	}
 
-	std::string command = "mkdir -p " + fname + "." + std::to_string(cycle) + ".silo.data\n";
+	std::string command = "mkdir -p " + fname + ".silo.data\n";
 	system(command.c_str());
 
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
