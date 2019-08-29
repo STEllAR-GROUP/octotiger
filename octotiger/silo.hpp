@@ -25,8 +25,8 @@
 #include <silo.h>
 
 
-#define SILO_DRIVER DB_PDB
-#define SILO_VERSION 102
+#define SILO_DRIVER DB_HDF5
+#define SILO_VERSION 110
 
 
 class node_server;

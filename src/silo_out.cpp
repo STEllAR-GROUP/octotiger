@@ -257,7 +257,9 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	double dtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn](integer cycle) {
 		DBfile *db;
-		if (gn == gb) {
+		if (this_id == gb) {
+			printf( "%s\n", this_fname.c_str());
+			sleep(10);
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		} else {
 			db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
@@ -332,7 +334,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	}, cycle).get();
 	if (this_id < ge - 1) {
 		output_stage3_action func;
-		func(localities[this_id + 1], fname, cycle, gn + 1, gb, ge);
+		func(localities[this_id + 1], fname, cycle, gn, gb, ge);
 	}
 }
 
@@ -361,7 +363,7 @@ void output_stage4(std::string fname, int cycle) {
 		for (int f = 0; f < nfields; f++)
 			field_names[f].reserve(node_locs.size());
 		for (int i = 0; i < node_locs.size(); i++) {
-			const auto prefix = fname + ".data/" + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
+			const auto prefix = fname + ".silo.data/" + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
 			const auto str = prefix + "quadmesh";
 			char *ptr = new char[str.size() + 1];
 			std::strcpy(ptr, str.c_str());
@@ -645,7 +647,7 @@ void output_all(std::string fname, int cycle, bool block) {
 	for (int i = 0; i < ng; i++) {
 		int gb = (i * localities.size()) / ng;
 		int ge = ((i + 1) * localities.size()) / ng;
-		futs.push_back(hpx::async<output_stage3_action>(localities[0], fname, cycle, gb, gb, ge));
+		futs.push_back(hpx::async<output_stage3_action>(localities[0], fname, cycle, i, gb, ge));
 	}
 
 	barrier = hpx::async([&futs, fname, cycle]() {
