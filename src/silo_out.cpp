@@ -255,13 +255,13 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
 	double dtime = silo_output_rotation_time();
-	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn](integer cycle) {
+	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
-		if (this_id == gb) {
-			printf( "%s\n", this_fname.c_str());
-			sleep(10);
+		if (this_id == gn) {
+			printf( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		} else {
+			printf( "Open %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 		}
 		float ftime = dtime;
@@ -647,7 +647,7 @@ void output_all(std::string fname, int cycle, bool block) {
 	for (int i = 0; i < ng; i++) {
 		int gb = (i * localities.size()) / ng;
 		int ge = ((i + 1) * localities.size()) / ng;
-		futs.push_back(hpx::async<output_stage3_action>(localities[0], fname, cycle, i, gb, ge));
+		futs.push_back(hpx::async<output_stage3_action>(localities[gb], fname, cycle, i, gb, ge));
 	}
 
 	barrier = hpx::async([&futs, fname, cycle]() {

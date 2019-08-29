@@ -1927,8 +1927,8 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	}
 	rho += '0';
 	rc.push_back(std::make_pair(std::string("rho"), std::move(rho)));
-	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * mesh(quadmesh)[0]", omega)));
-	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * mesh(quadmesh)[1]", omega)));
+	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * coord(quadmesh)[0]", omega)));
+	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * coord(quadmesh)[1]", omega)));
 	rc.push_back(std::make_pair(std::string("vz"), std::string("sz / rho")));
 
 	std::string n;
