@@ -27,7 +27,7 @@ RUN apt-get update \
         libgoogle-perftools-dev \
         ninja-build \
         vim \
-        linux-perf-4.9 \
+        linux-perf-4.* \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -JL https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz \
