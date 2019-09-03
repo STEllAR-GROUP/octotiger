@@ -1,3 +1,8 @@
+//  Copyright (c) 2019
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/multipole_interactions/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"

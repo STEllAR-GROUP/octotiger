@@ -1,4 +1,8 @@
-//Copyright (c) 2019 Dominic C. Marcello
+//  Copyright (c) 2019
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #include "1d_polytrope.hpp"
 #include "cubic_table.hpp"
 #include <memory>
