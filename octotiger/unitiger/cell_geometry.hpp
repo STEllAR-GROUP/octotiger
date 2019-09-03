@@ -1,9 +1,4 @@
-/*
- * cell_geometry.hpp
- *
- *  Created on: Aug 5, 2019
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_
 #define OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_

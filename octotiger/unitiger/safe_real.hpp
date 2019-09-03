@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #ifndef __SAFE_REAL_HPPP
 #define __SAFE_REAL_HPPP
 

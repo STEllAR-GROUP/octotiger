@@ -1,17 +1,4 @@
-/*
- * stack_trace.cpp
- *
 
- *  Created on: Sep 23, 2015
- *      Author: dmarce1
- */
-
-/*
- * stack_trace.cpp
- *
- *  Created on: Jul 28, 2015
- *      Author: dmarce1
- */
 
 /* MODIFIED FROM THIS ORIGINAL SOURCE : http://stackoverflow.com/questions/77005/how-to-generate-a-stacktrace-when-my-gcc-c-app-crashes */
 

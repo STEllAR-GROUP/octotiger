@@ -1,9 +1,4 @@
-/*
- * grid.hpp
- *
- *  Created on: May 26, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef GRID_HPP_
 #define GRID_HPP_

@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"

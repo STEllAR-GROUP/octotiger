@@ -1,9 +1,4 @@
-/*
- * grid_fmm.cpp
- *
- *  Created on: Jun 3, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"

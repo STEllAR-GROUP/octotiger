@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #include "octotiger/node_registry.hpp"
 #include "octotiger/options.hpp"
 

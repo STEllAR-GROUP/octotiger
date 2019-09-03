@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #include "../physics.hpp"
 
 template<int NDIM, int INX>

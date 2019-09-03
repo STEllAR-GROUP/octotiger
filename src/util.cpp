@@ -1,9 +1,6 @@
-/*
- * util.cpp
- *
- *  Created on: Apr 20, 2016
- *      Author: dmarce1
- */
+
+//Copyright (C) 2019 Dominic C Marcello
+
 
 #include "octotiger/defs.hpp"
 #include "octotiger/real.hpp"

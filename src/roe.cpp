@@ -1,9 +1,4 @@
-/*
- * roe.cpp
- *
- *  Created on: May 28, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/roe.hpp"
 #include "octotiger/defs.hpp"

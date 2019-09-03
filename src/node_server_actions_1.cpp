@@ -1,9 +1,4 @@
-/*
- * node_server_actions_1.cpp
- *
- *  Created on: Sep 23, 2016
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/config.hpp"
 

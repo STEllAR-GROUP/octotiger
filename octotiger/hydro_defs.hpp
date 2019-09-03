@@ -1,9 +1,4 @@
-/*
- * field_defs.hpp
- *
- *  Created on: Jul 29, 2019
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef OCTOTIGER_HYDRO_DEFS_HPP_
 #define OCTOTIGER_HYDRO_DEFS_HPP_

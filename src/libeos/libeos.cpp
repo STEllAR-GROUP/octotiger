@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #include "libeos.hpp"
 
 void eos::set_eos_type(eos_type type, double fgamma) {

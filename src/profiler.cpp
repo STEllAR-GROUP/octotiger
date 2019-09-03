@@ -1,9 +1,4 @@
-/*
- * profiler.cpp
- *
- *  Created on: Sep 13, 2016
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/profiler.hpp"
 #include "octotiger/real.hpp"

@@ -1,9 +1,4 @@
-/*
- * unitiger.hpp
- *
- *  Created on: Jul 29, 2019
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef UNITIGER_HPP_
 #define UNITIGER_HPP_

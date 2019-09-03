@@ -1,9 +1,4 @@
-/*
- * future.hpp
- *
- *  Created on: Sep 14, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef FUTURE3_HPP_
 #define FUTURE3_HPP_

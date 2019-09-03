@@ -1,9 +1,4 @@
-/*
- * diagnostics.hpp
- *
- *  Created on: Apr 20, 2016
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef DIAGNOSTICS_HPP_
 #define DIAGNOSTICS_HPP_

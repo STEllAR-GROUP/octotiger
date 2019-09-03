@@ -1,9 +1,4 @@
-/*
- * node_client.hpp
- *
- *  Created on: Jun 11, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef NODE_CLIENT_HPP_
 #define NODE_CLIENT_HPP_

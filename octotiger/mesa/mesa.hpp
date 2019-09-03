@@ -1,3 +1,6 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
+
 #include <string>
 #include <functional>
 

@@ -1,9 +1,4 @@
-/*
- * physcon().cpp
- *
- *  Created on: Mar 10, 2017
- *      Author: dminacore
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #define __NPHYSCON__
 #include "octotiger/future.hpp"

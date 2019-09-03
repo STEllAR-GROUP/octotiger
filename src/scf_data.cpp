@@ -1,10 +1,4 @@
-/*
- * scf_data.cpp
- *
- *  Created on: Oct 20, 2016
- *      Author: dmarce1
- */
-
+//Copyright (c) 2019 Dominic C. Marcello
 #include "octotiger/scf_data.hpp"
 
 #include <cmath>

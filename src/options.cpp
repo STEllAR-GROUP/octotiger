@@ -1,9 +1,4 @@
-/*
- * options.cpp
- *
- *  Created on: Nov 13, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"

@@ -1,9 +1,4 @@
-/*
- * node_client.cpp
- *
- *  Created on: Jun 12, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/future.hpp"
 #include "octotiger/node_server.hpp"

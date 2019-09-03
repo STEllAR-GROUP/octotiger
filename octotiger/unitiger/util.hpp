@@ -1,9 +1,4 @@
-/*
- * util.hpp
- *
- *  Created on: Aug 5, 2019
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 
 

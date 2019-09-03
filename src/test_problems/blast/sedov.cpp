@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #include "octotiger/grid.hpp"
 
 #include <hpx/runtime/threads/run_as_os_thread.hpp>

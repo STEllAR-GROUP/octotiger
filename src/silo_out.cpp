@@ -1,3 +1,4 @@
+//Copyright (c) 2019 Dominic C. Marcello
 #include "octotiger/silo.hpp"
 #include "octotiger/node_registry.hpp"
 

@@ -1,3 +1,6 @@
+
+//Copyright (c) 2019 Dominic C. Marcello
+
 template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
 

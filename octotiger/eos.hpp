@@ -1,9 +1,4 @@
-/*
- * polytrope.hpp
- *
- *  Created on: Feb 22, 2016
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef POLYTROPE_HPP_
 #define POLYTROPE_HPP_

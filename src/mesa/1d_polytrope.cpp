@@ -1,10 +1,4 @@
-/*
- * 1d_polytrope.cpp
- *
- *  Created on: Jun 6, 2018
- *      Author: dmarce1
- */
-
+//Copyright (c) 2019 Dominic C. Marcello
 #include "1d_polytrope.hpp"
 #include "cubic_table.hpp"
 #include <memory>

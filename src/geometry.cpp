@@ -1,9 +1,4 @@
-/*
- * geometry.cpp
- *
- *  Created on: Oct 12, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef GEOMETRY_CPP_
 #define GEOMETRY_CPP_

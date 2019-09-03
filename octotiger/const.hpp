@@ -1,3 +1,5 @@
+// Source: http://www.astro.wisc.edu/~dolan/constants.html
+
 #ifndef __CONST___H
 #define __CONST___H
 

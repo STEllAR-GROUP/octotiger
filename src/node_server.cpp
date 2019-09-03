@@ -1,9 +1,4 @@
-/*
- * node_server.cpp
- *
- *  Created on: Jun 11, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"

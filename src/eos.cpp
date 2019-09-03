@@ -1,9 +1,4 @@
-/*
- * struct_eos.cpp
- *
- *  Created on: Feb 22, 2016
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/eos.hpp"
 #include "octotiger/grid.hpp"

@@ -1,9 +1,8 @@
-/*
- * channel.hpp
- *
- *  Created on: Jun 19, 2015
- *      Author: dmarce1
- */
+
+// Copyright (c) 2019 Dominic C. Marcello
+
+
+
 
 #ifndef CHANNEL_HPP_
 #define CHANNEL_HPP_

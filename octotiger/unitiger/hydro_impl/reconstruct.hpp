@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #include "../util.hpp"
 
 template<int NDIM, int INX>

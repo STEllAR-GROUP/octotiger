@@ -1,10 +1,5 @@
-/*
- * sedov.c
- *
- *  Created on: Dec 4, 2018
- *      Author: dmarce1
- */
 
+// Original Fortran source: http://cococubed.asu.edu/research_pages/sedov.shtml
 
 
 

@@ -1,12 +1,4 @@
-
-
-/*
- * silo.cpp
- *
- *  Created on: Oct 16, 2018
- *      Author: dmarce1
- */
-
+//Copyright (c) 2019 Dominic C. Marcello
 
 //101 - fixed units bug in momentum
 

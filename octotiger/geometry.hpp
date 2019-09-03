@@ -1,9 +1,4 @@
-/*
- * geometry.hpp
- *
- *  Created on: Oct 13, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef GEOMETRY_HPP_
 #define GEOMETRY_HPP_

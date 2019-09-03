@@ -1,3 +1,6 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
+
 #include <silo.h>
 #include <memory>
 #include <string>

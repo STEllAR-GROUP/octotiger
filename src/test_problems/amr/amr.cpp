@@ -1,9 +1,4 @@
-/*
- * amr_test.cpp
- *
- *  Created on: Oct 12, 2018
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/test_problems/amr/amr.hpp"
 

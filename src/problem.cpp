@@ -1,9 +1,4 @@
-/*
- * problem.cpp
- *
- *  Created on: May 29, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #include "octotiger/defs.hpp"
 #include "octotiger/eos.hpp"

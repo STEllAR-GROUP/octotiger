@@ -1,3 +1,5 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
 #include "octotiger/config.hpp"
 
 #include "octotiger/diagnostics.hpp"

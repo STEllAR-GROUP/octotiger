@@ -1,9 +1,5 @@
-/*
- * lane_emden.cpp
- *
- *  Created on: Feb 6, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
+
 
 #include "octotiger/lane_emden.hpp"
 #include "octotiger/real.hpp"

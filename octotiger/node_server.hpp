@@ -1,9 +1,4 @@
-/*
- * node_server.hpp
- *
- *  Created on: Jun 11, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_

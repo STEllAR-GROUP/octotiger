@@ -1,9 +1,6 @@
-/*
- * rotating_star.cpp
- *
- *  Created on: Oct 12, 2018
- *      Author: dmarce1
- */
+
+//Copyright (C) 2019 Dominic C Marcello
+
 
 #include "octotiger/test_problems/rotating_star.hpp"
 

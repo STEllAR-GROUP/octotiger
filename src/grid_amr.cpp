@@ -1,3 +1,4 @@
+//Copyright (c) 2019 Dominic C. Marcello
 #include "octotiger/grid.hpp"
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/util.hpp"

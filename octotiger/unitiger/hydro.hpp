@@ -1,9 +1,4 @@
-/*
- * hydro.hpp
- *
- *  Created on: Jul 31, 2019
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef OCTOTIGER_UNITIGER_HYDRO_HPP_
 #define OCTOTIGER_UNITIGER_HYDRO_HPP_

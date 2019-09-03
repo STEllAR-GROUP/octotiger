@@ -1,9 +1,4 @@
-/*
- * util.hpp
- *
- *  Created on: Apr 20, 2016
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef UTILAA_HPP_
 #define UTILAA_HPP_

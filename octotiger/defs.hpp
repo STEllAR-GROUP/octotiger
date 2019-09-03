@@ -1,9 +1,4 @@
-/*
- * types.hpp
- *
- *  Created on: May 26, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #if !defined(DEFS_HPP_)
 #define DEFS_HPP_

@@ -1,9 +1,4 @@
-/*
- * impl.hpp
- *
- *  Created on: Aug 3, 2019
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef HYDRO_IMPL_HPP_
 #define HYDRO_IMPL_HPP_

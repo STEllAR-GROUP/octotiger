@@ -1,7 +1,5 @@
-﻿/*----------------------------------------------------------------
- Laplace Inversion Source Code
- Copyright � 2010 James R. Craig, University of Waterloo
- ----------------------------------------------------------------*/
+﻿
+//Copyright (C) 2019 Dominic C Marcello
 
 #ifndef TESTME
 #include "octotiger/defs.hpp"

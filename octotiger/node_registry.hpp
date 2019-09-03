@@ -1,3 +1,6 @@
+//Copyright (c) 2019 Dominic C. Marcello
+
+
 #ifndef ___NODE_REGISTRY_H
 #define ___NODE_REGISTRY_H
 

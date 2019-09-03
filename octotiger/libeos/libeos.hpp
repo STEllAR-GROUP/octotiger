@@ -1,3 +1,4 @@
+//Copyright (c) 2019 Dominic C. Marcello
 #ifndef __LIBEOS__H
 #define __LIBEOS__H
 

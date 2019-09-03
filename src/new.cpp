@@ -1,9 +1,4 @@
-/*
- * new.cpp
- *
- *  Created on: Oct 1, 2015
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 #include <hpx/config/defines.hpp>
 
 #include <cstdio>

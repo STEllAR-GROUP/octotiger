@@ -1,10 +1,5 @@
-//============================================================================
-// Name        : hydro.cpp
-// Author      : 
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
-//============================================================================
+
+//Copyright (C) 2019 Dominic C Marcello
 
 
 #include "../../octotiger/unitiger/unitiger.hpp"

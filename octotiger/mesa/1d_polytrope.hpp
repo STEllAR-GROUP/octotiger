@@ -1,9 +1,4 @@
-/*
- * 1d_polytrope.hpp
- *
- *  Created on: Jun 6, 2018
- *      Author: dmarce1
- */
+//Copyright (c) 2019 Dominic C. Marcello
 
 #ifndef _1D_POLYTROPE_HPP_
 #define _1D_POLYTROPE_HPP_

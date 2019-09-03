@@ -1,10 +1,4 @@
-/*
- * options_enum.hpp
- *
- *  Created on: Oct 10, 2018
- *      Author: dmarce1
- */
-
+//Copyright (c) 2019 Dominic C. Marcello
 #ifndef SRC_OPTIONS_ENUM_HPP_
 #define SRC_OPTIONS_ENUM_HPP_
 
