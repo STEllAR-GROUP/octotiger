@@ -1,9 +1,7 @@
-/*
- * safe_math.hpp
- *
- *  Created on: Sep 25, 2018
- *      Author: dmarce1
- */
+//  Copyright (c) 2019
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef SRC_RADIATION_SAFE_MATH_HPP_
 #define SRC_RADIATION_SAFE_MATH_HPP_
