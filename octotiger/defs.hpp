@@ -89,15 +89,13 @@ enum boundary_type {
 	OUTFLOW, REFLECT
 };
 
-constexpr integer NDIM = 3;
+#include "hydro_defs.hpp"
 
-constexpr integer INX = OCTOTIGER_GRIDDIM;
-constexpr integer H_BW = 3;
 constexpr integer R_BW = 2;
 
-constexpr integer H_NX = 2 * H_BW + INX;
+constexpr integer HS_NX = (2 * H_BW + INX/2);
 constexpr integer G_NX = INX;
-constexpr integer H_N3 = H_NX * H_NX * H_NX;
+constexpr integer HS_N3 = HS_NX * HS_NX * HS_NX;
 constexpr integer F_N3 = ((INX+1)*(INX+1)*(INX+1));
 constexpr integer G_N3 = G_NX * G_NX * G_NX;
 
@@ -107,10 +105,10 @@ constexpr integer F_DNY = (INX+1);
 
 
 constexpr integer NDIR = 27;
-constexpr integer H_DNX = H_NX * H_NX;
-constexpr integer H_DNY = H_NX;
-constexpr integer H_DNZ = 1;
-constexpr integer H_DN[NDIM] = { H_NX * H_NX, H_NX, 1 };
+constexpr integer HS_DNX = HS_NX * HS_NX;
+constexpr integer HS_DNY = HS_NX;
+constexpr integer HS_DNZ = 1;
+constexpr integer HS_DN[NDIM] = { HS_NX * HS_NX, HS_NX, 1 };
 constexpr integer F_DN[NDIM] = {(INX+1)*(INX+1),INX+1,1 };
 constexpr integer G_DNX = G_NX * G_NX;
 constexpr integer G_DNY = G_NX;
@@ -127,18 +125,6 @@ constexpr inline integer rindex(integer x, integer y, integer z)
     return z + RAD_NX * (y + RAD_NX * x);
 }
 // }}}
-
-constexpr integer rho_i = 0;
-constexpr integer egas_i = 1;
-constexpr integer sx_i = 2;
-constexpr integer sy_i = 3;
-constexpr integer sz_i = 4;
-constexpr integer tau_i = 5;
-constexpr integer pot_i = 6;
-constexpr integer zx_i = 7;
-constexpr integer zy_i = 8;
-constexpr integer zz_i = 9;
-constexpr integer spc_i = 10;
 
 
 constexpr integer vx_i = sx_i;
@@ -172,8 +158,17 @@ constexpr real SIXTH = real(real(1) / real(6));
 constexpr real TWELFTH = real(real(1) / real(12));
 
 constexpr real ei_floor = 1.0e-15;
+
+#define USE_RK3
+
+#ifdef USE_RK3
+constexpr integer NRK = 3;
+constexpr real rk_beta[3] = { 1.0, 1.0/4.0, 2.0/3.0 };
+#else
 constexpr integer NRK = 2;
 constexpr real rk_beta[2] = { ONE, HALF };
+#endif
+
 
 constexpr integer MAX_LEVEL = 21;
 
@@ -196,6 +191,12 @@ constexpr inline integer h0index(integer i, integer j, integer k)
 constexpr inline integer hindex(integer i, integer j, integer k)
 {
     return i * H_DNX + j * H_DNY + k * H_DNZ;
+}
+
+// #define hindex(i,j,k) ((i)*H_DNX + (j)*H_DNY + (k)*H_DNZ)
+constexpr inline integer hSindex(integer i, integer j, integer k)
+{
+    return i * HS_DNX + j * HS_DNY + k * HS_DNZ;
 }
 
 // #define findex(i,j,k) ((i)*(INX+1)*(INX+1) + (j)*(INX+1) + (k))

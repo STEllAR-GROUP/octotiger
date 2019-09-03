@@ -2,8 +2,12 @@
 # Rotating Star
 ##############################################################################
 download_test_reference("Rotating star test"
-  "phys.lsu.edu/~dmarcel/rotating_star.5.silo"
+  "phys.lsu.edu/~dmarcel/rotating_star.6.silo"
   ${PROJECT_BINARY_DIR}/rotating_star.silo)
+
+download_test_reference("Rotating initialization file"
+  "phys.lsu.edu/~dmarcel/rotating_star.init.silo"
+  ${PROJECT_BINARY_DIR}/rotating_star.init.silo)
 
 # Rotating Star - CPU
 add_test(NAME test_problems.cpu.rotating_star.init COMMAND gen_rotating_star_init)
@@ -12,7 +16,7 @@ add_test(NAME test_problems.cpu.rotating_star
     --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini)
 add_test(NAME test_problems.cpu.rotating_star.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-    ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.silo)
+    ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/test_problems/rotating_star/final.silo)
 
 set_tests_properties(test_problems.cpu.rotating_star.init PROPERTIES
   FIXTURES_SETUP test_problems.cpu.rotating_star.init)

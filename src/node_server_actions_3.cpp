@@ -69,6 +69,21 @@ void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::dire
 	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
 }
 
+
+using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
+HPX_REGISTER_ACTION(send_hydro_amr_boundary_action_type);
+
+void node_client::send_hydro_amr_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
+	hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+}
+
+void node_server::recv_hydro_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
+	sibling_hydro_type tmp;
+	tmp.data = std::move(bdata);
+	tmp.direction = dir;
+	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
+}
+
 using send_flux_check_action_type = node_server::send_flux_check_action;
 HPX_REGISTER_ACTION(send_flux_check_action_type);
 
@@ -519,7 +534,6 @@ future<void> node_server::nonrefined_step() {
 								[rk, cfl0, this, dt_fut](future<void> f)
 								{
 									GET(f);
-									grid_ptr->reconstruct();
 									real a = grid_ptr->compute_fluxes();
 									future<void> fut_flux = exchange_flux_corrections();
 									if (rk == 0) {

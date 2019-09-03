@@ -15,6 +15,24 @@
 #include <cstdio>
 #include <functional>
 
+
+
+/*OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
+//	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
+	bool a_is_neg = a < 0;
+	bool b_is_neg = b < 0;
+	if (a_is_neg != b_is_neg)
+		return ZERO;
+
+	real val = std::min(std::abs(a), std::abs(b));
+	return a_is_neg ? -val : val;
+}*/
+
+OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real c, real theta) {
+	return minmod(theta * minmod(a, b), c);
+}
+
+
 real LambertW(real z);
 
 inline integer refinement_freq() {

@@ -18,7 +18,6 @@
 #include "octotiger/util.hpp"
 
 #include <hpx/lcos/broadcast.hpp>
-#include <hpx/util/format.hpp>
 #include <hpx/util/io_service_pool.hpp>
 
 #include <future>

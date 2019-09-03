@@ -8,6 +8,7 @@
 #ifndef RAD_GRID_HPP_
 #define RAD_GRID_HPP_
 
+#include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/physcon.hpp"
@@ -55,11 +56,11 @@ public:
 		arc & dx;
 		arc & U;
 	}
-	void compute_mmw(const std::vector<std::vector<real>>& U);
+	void compute_mmw(const std::vector<std::vector<safe_real>>& U);
 	void change_units(real m, real l, real t, real k);
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
 	void sanity_check();
-	void initialize_erad(const std::vector<real> rho, const std::vector<real> tau);
+	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
 	void set_dx(real dx);
 	//void compute_fEdd();
 	void compute_flux();

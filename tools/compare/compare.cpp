@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <set>
+#include <cassert>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -54,7 +55,9 @@ struct silo_file {
 		auto other = DBOpenReal(name.c_str(), SILO_DRIVER, DB_READ);
 		std::string copy = std::string("cp ") + name + std::string(" diff.silo\n");
 		std::cout << copy;
-		std::system(copy.c_str());
+		if( std::system(copy.c_str()) != 0) {
+			assert(false);
+		}
 		auto diff = DBOpenReal("diff.silo", SILO_DRIVER, DB_APPEND);
 
 		for (auto const& vn : var_names) {

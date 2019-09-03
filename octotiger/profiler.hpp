@@ -9,7 +9,7 @@
 #define PROFILER_HPP_
 
 #include <hpx/include/serialization.hpp>
-#include <hpx/util/high_resolution_timer.hpp>
+//#include <hpx/util/high_resolution_timer.hpp>
 
 #include <algorithm>
 #include <array>

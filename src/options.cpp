@@ -70,7 +70,11 @@ bool options::process_options(int argc, char* argv[]) {
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "entropy loss driving rate")      //
-	("entropy_driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "entropy driving rate time")      //
+	("silo_offset_x", po::value<integer>(&(opts().silo_offset_x))->default_value(0), "")      //
+	("silo_offset_y", po::value<integer>(&(opts().silo_offset_y))->default_value(0), "")      //
+	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
+	("old_amrbnd", po::value<bool>(&(opts().old_amrbnd))->default_value(false), "use old amr boundary interpolation")           //
+	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
@@ -116,7 +120,7 @@ bool options::process_options(int argc, char* argv[]) {
 			"Number of worker threads per locality that mamage cuda streams") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
-	("n_species", po::value<integer>(&(opts().n_species))->default_value(1), "number of mass species") //
+	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
 	("atomic_mass", po::value<std::vector<real>>(&(opts().atomic_mass))->multitoken(), "atomic masses") //
 	("atomic_number", po::value<std::vector<real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
 	("X", po::value<std::vector<real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //
@@ -179,6 +183,8 @@ bool options::process_options(int argc, char* argv[]) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
+		SHOW(old_amrbnd);
+		SHOW(amrbnd_order);
 		SHOW(angmom);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);
