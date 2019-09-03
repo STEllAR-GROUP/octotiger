@@ -10,7 +10,6 @@ cmake_policy(VERSION 3.10)
 
 # Libraries linked via full path no longer produce linker search paths.
 cmake_policy(SET CMP0003 NEW)
-cmake_policy(SET CMP0074 NEW)
 
 project(octotiger CXX)
 
