@@ -119,7 +119,7 @@ int main(int, char*[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-	run_test<2, 64>(physics<2>::CONTACT, false);
+	run_test<2, 64>(physics<2>::BLAST, false);
 //	run_test<2, 128>(physics<2>::CONTACT, false);
 //	run_test<2, 256>(physics<2>::CONTACT, false);
 //	run_test<2, 512>(physics<2>::CONTACT, false);
