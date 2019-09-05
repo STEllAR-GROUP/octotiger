@@ -1,5 +1,7 @@
 #include "../util.hpp"
 
+#define NEW_LIMITER
+
 template<int NDIM, int INX>
 const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X,
 		safe_real omega) {
@@ -52,53 +54,82 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 			};
 
+	static const auto center_value = [](const double u0, const std::array<double,geo::NDIR>& q) {
+		double sum = 0.0;
+		for( int d = 0; d < geo::NDIR; d++) {
+			if( d != geo::NDIR/2 ) {
+				sum += vw[d] * q[d];
+			}
+		}
+		return (u0 - sum) / vw[geo::NDIR/2];
+	};
+
+	static const auto limit_slope2 = [](double &ql, double qc, double &qr) {
+
+		const auto q0 = (2.0/3.0)*qc + (1.0/6.0)*(ql + qr);
+
+		const double tmp1 = qr - ql;
+		const double tmp2 = qr + ql;
+
+		if (bool(qr < q0) != bool(q0 < ql)) {
+			qr = ql = q0;
+			return;
+		}
+		const double tmp3 = tmp1 * tmp1 / 6.0;
+		const double tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+		if (tmp4 > tmp3) {
+			ql = 3.0 * q0 - 2.0 * qr;
+		} else if (-tmp3 > tmp4) {
+			qr = 3.0 * q0 - 2.0 * ql;
+		}
+	};
+
 	const auto reconstruct =
 			[this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
-#ifdef CONSTANT_RECONSTRUCTION
-			for (const auto &i : indices1) {
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					const auto di = dir[d];
-					q[i][d] = u[i];
-				}
-			}
-#else
-			for (const auto &i : indices1) {
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					const auto di = dir[d];
-					D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
-				}
-			}
-			for (const auto &i : indices1) {
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					const auto di = dir[d];
-					q[i][d] = 0.5 * (u[i] + u[i + di]);
-					q[i][d] += (1.0 / 6.0) * (D1[i][d] - D1[i + di][d]);
-					q[i + di][geo::flip(d)] = q[i][d];
-				}
-			}
-			for (const auto &i : indices1) {
-				for (int gi = 0; gi < geo::group_count(); gi++) {
-					safe_real sum = 0.0;
-					for (int n = 0; n < geo::group_size(gi); n++) {
-						const auto pair = geo::group_pair(gi, n);
-						sum += q[i + pair.first][pair.second];
-					}
-					sum /= safe_real(geo::group_size(gi));
-					for (int n = 0; n < geo::group_size(gi); n++) {
-						const auto pair = geo::group_pair(gi, n);
-						q[i + pair.first][pair.second] = sum;
-					}
-				}
-			}
-			if (!smooth) {
-				for (const auto i : indices2) {
+				for (const auto &i : indices1) {
 					for (int d = 0; d < geo::NDIR / 2; d++) {
-						limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
+						const auto di = dir[d];
+						D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
 					}
 				}
-			}
+				for (const auto &i : indices1) {
+					for (int d = 0; d < geo::NDIR / 2; d++) {
+						const auto di = dir[d];
+						q[i][d] = 0.5 * (u[i] + u[i + di]);
+						q[i][d] += (1.0 / 6.0) * (D1[i][d] - D1[i + di][d]);
+						q[i + di][geo::flip(d)] = q[i][d];
+					}
+				}
+				for (const auto &i : indices1) {
+					for (int gi = 0; gi < geo::group_count(); gi++) {
+						safe_real sum = 0.0;
+						for (int n = 0; n < geo::group_size(gi); n++) {
+							const auto pair = geo::group_pair(gi, n);
+							sum += q[i + pair.first][pair.second];
+						}
+						sum /= safe_real(geo::group_size(gi));
+						for (int n = 0; n < geo::group_size(gi); n++) {
+							const auto pair = geo::group_pair(gi, n);
+							q[i + pair.first][pair.second] = sum;
+						}
+					}
+				}
+				if (!smooth) {
+					for (const auto i : indices2) {
+						const auto qc = center_value(u[i], q[i]);
+						for (int d = 0; d < geo::NDIR / 2; d++) {
+							auto& qp = q[i][geo::flip(d)];
+							auto& qm = q[i][d];
+							const auto avg = (2./3.)*qc + (1./6.0)*(qp+qm);
+#ifdef NEW_LIMITER
+							limit_slope2(qm, qc, qp);
+#else
+							limit_slope(qm, u[i], qp);
 #endif
-		};
+						}
+					}
+				}
+		}	;
 
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
@@ -150,8 +181,13 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 				for (int f = sx_i; f < sx_i + NDIM; f++) {
 					const auto dim = f - sx_i;
+					const auto qc = center_value(U[sx_i + dim][i], S[dim]);
 					for (int d = 0; d < geo::NDIR / 2; d++) {
+#ifdef NEW_LIMITER
+						limit_slope2(S[dim][d], qc, S[dim][geo::flip(d)]);
+#else
 						limit_slope(S[dim][d], U[f][i], S[dim][geo::flip(d)]);
+#endif
 					}
 				}
 				am2 = measure_angmom(S);
