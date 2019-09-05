@@ -1,10 +1,12 @@
 #include "../util.hpp"
 
 template<int NDIM, int INX>
-const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X,
+		safe_real omega) {
 
 	static thread_local auto D1 = std::vector<std::array<safe_real, geo::NDIR / 2>>(geo::H_N3);
-	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
+	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>>
+			> (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
@@ -34,67 +36,69 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 		return L;
 	};
 
-	const auto add_angmom = [dx](std::array<std::array<safe_real, geo::NDIR>, NDIM> &C, std::array<safe_real, geo::NANGMOM> &Z) {
-		for (int d = 0; d < geo::NDIR; d++) {
-			if (d != geo::NDIR / 2) {
-				for (int n = 0; n < geo::NANGMOM; n++) {
-					for (int m = 0; m < NDIM; m++) {
-						for (int l = 0; l < NDIM; l++) {
-							const auto tmp = 6.0 * Z[n] / dx;
-							C[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
+	const auto add_angmom =
+			[dx](std::array<std::array<safe_real, geo::NDIR>, NDIM> &C, std::array<safe_real, geo::NANGMOM> &Z) {
+				for (int d = 0; d < geo::NDIR; d++) {
+					if (d != geo::NDIR / 2) {
+						for (int n = 0; n < geo::NANGMOM; n++) {
+							for (int m = 0; m < NDIM; m++) {
+								for (int l = 0; l < NDIM; l++) {
+									const auto tmp = 6.0 * Z[n] / dx;
+									C[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
+								}
+							}
 						}
 					}
 				}
-			}
-		}
-	};
+			};
 
-	const auto reconstruct = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
+	const auto reconstruct =
+			[this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
 #ifdef CONSTANT_RECONSTRUCTION
-		for (const auto &i : indices1) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				const auto di = dir[d];
-				q[i][d] = u[i];
-			}
-		}
-#else
-		for (const auto &i : indices1) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				const auto di = dir[d];
-				D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
-			}
-		}
-		for (const auto &i : indices1) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				const auto di = dir[d];
-				q[i][d] = 0.5 * (u[i] + u[i + di]);
-				q[i][d] += (1.0 / 6.0) * (D1[i][d] - D1[i + di][d]);
-				q[i + di][geo::flip(d)] = q[i][d];
-			}
-		}
-		for (const auto &i : indices1) {
-			for (int gi = 0; gi < geo::group_count(); gi++) {
-				safe_real sum = 0.0;
-				for (int n = 0; n < geo::group_size(gi); n++) {
-					const auto pair = geo::group_pair(gi, n);
-					sum += q[i + pair.first][pair.second];
-				}
-				sum /= safe_real(geo::group_size(gi));
-				for (int n = 0; n < geo::group_size(gi); n++) {
-					const auto pair = geo::group_pair(gi, n);
-					q[i + pair.first][pair.second] = sum;
-				}
-			}
-		}
-		if (!smooth) {
-			for (const auto i : indices2) {
+			for (const auto &i : indices1) {
 				for (int d = 0; d < geo::NDIR / 2; d++) {
-					limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
+					const auto di = dir[d];
+					q[i][d] = u[i];
 				}
 			}
-		}
+#else
+			for (const auto &i : indices1) {
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					const auto di = dir[d];
+					D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
+				}
+			}
+			for (const auto &i : indices1) {
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					const auto di = dir[d];
+					q[i][d] = 0.5 * (u[i] + u[i + di]);
+					q[i][d] += (1.0 / 6.0) * (D1[i][d] - D1[i + di][d]);
+					q[i + di][geo::flip(d)] = q[i][d];
+				}
+			}
+			for (const auto &i : indices1) {
+				for (int gi = 0; gi < geo::group_count(); gi++) {
+					safe_real sum = 0.0;
+					for (int n = 0; n < geo::group_size(gi); n++) {
+						const auto pair = geo::group_pair(gi, n);
+						sum += q[i + pair.first][pair.second];
+					}
+					sum /= safe_real(geo::group_size(gi));
+					for (int n = 0; n < geo::group_size(gi); n++) {
+						const auto pair = geo::group_pair(gi, n);
+						q[i + pair.first][pair.second] = sum;
+					}
+				}
+			}
+			if (!smooth) {
+				for (const auto i : indices2) {
+					for (int d = 0; d < geo::NDIR / 2; d++) {
+						limit_slope(q[i][d], u[i], q[i][geo::flip(d)]);
+					}
+				}
+			}
 #endif
-	};
+		};
 
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
@@ -166,7 +170,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
-		for (int f = zx_i + 1 - geo::NANGMOM - NDIM; f < nf_; f++) {
+		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
 			reconstruct(Q[f], U[f], smooth_field_[f]);
 		}
 
