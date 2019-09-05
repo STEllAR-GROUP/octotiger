@@ -1,4 +1,4 @@
-//  Copyright (c) 2019 Dominic C Marcello
+//  Copyright (c) 2019 AUTHORS
 //                2019 Parsa Amini
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
