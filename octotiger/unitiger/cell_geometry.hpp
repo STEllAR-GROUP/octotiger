@@ -41,7 +41,7 @@ struct cell_geometry {
 
 
 	static constexpr int group_count() {
-		return ngroups_[NDIM] - 1;
+		return ngroups_[NDIM - 1];
 	}
 
 	static int group_size(int gi) {
