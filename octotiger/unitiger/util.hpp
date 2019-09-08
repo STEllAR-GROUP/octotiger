@@ -1,10 +1,7 @@
-/*
- * util.hpp
- *
- *  Created on: Aug 5, 2019
- *      Author: dmarce1
- */
-
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 
 #ifndef OCTOTIGER_UNITIGER_UTI1L_HPP_

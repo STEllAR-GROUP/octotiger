@@ -1,9 +1,7 @@
-/*
- * opacities.hpp
- *
- *  Created on: Sep 25, 2018
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef SRC_RADIATION_OPACITIES_HPP_
 #define SRC_RADIATION_OPACITIES_HPP_

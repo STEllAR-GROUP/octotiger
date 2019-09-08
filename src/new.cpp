@@ -1,9 +1,8 @@
-/*
- * new.cpp
- *
- *  Created on: Oct 1, 2015
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #include <hpx/config/defines.hpp>
 
 #include <cstdio>

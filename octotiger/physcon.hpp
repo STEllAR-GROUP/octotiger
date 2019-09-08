@@ -1,9 +1,7 @@
-/*
- * physcon.hpp
- *
- *  Created on: Mar 10, 2017
- *      Author: dminacore
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef SRC_PHYSCON444_HPP_
 #define SRC_PHYSCON444_HPP_

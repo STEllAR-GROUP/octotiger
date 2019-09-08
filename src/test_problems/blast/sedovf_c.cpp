@@ -1,10 +1,9 @@
-/*
- * sedov.c
- *
- *  Created on: Dec 4, 2018
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+// Original Fortran source: http://cococubed.asu.edu/research_pages/sedov.shtml
 
 
 
