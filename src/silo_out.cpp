@@ -334,7 +334,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	}, cycle).get();
 	if (this_id < ge - 1) {
 		output_stage3_action func;
-		func(localities[this_id + 1], fname, cycle, gn, gb, ge);
+		func(localities[this_id + 1], fname, cycle, gn + 1, gb, ge);
 	}
 }
 
@@ -363,7 +363,7 @@ void output_stage4(std::string fname, int cycle) {
 		for (int f = 0; f < nfields; f++)
 			field_names[f].reserve(node_locs.size());
 		for (int i = 0; i < node_locs.size(); i++) {
-			const auto prefix = fname + ".silo.data/" + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
+			const auto prefix = fname + ".data/" + std::to_string(node_locs[i].first) + ".silo:/" + oct_to_str(node_locs[i].second.to_id()) + "/";
 			const auto str = prefix + "quadmesh";
 			char *ptr = new char[str.size() + 1];
 			std::strcpy(ptr, str.c_str());
