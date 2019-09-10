@@ -99,11 +99,16 @@ inline T debug_get(const hpx::shared_future<T> & f, const char* file, int line) 
 	}
 	return f.get();
 }
-
+/*
 #ifndef NDEBUG
 #define GET(fut) debug_get(fut,__FILE__,__LINE__)
 #else
 #define GET(fut) ((fut).get())
 #endif
+*/
+
+
+#define GET(fut) debug_get(fut,__FILE__,__LINE__)
+
 
 #endif /* FUTURE_HPP_ */

@@ -390,7 +390,7 @@ void output_stage3(std::string fname, int cycle) {
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".silo");
 	double dtime = output_time;
-	hpx::threads::run_as_os_thread([&this_fname,this_id,&dtime](integer cycle) {
+//	hpx::threads::run_as_os_thread([&this_fname,this_id,&dtime](integer cycle) {
 		DBfile *db;
 		if (this_id == 0) {
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
@@ -480,7 +480,7 @@ void output_stage3(std::string fname, int cycle) {
 		}
 		DBFreeOptlist( optlist_mesh);
 		DBClose( db);
-	}, cycle).get();
+//	}, cycle).get();
 	if (this_id < integer(localities.size()) - 1) {
 		output_stage3_action func;
 		func(localities[this_id + 1], fname, cycle);
@@ -488,8 +488,8 @@ void output_stage3(std::string fname, int cycle) {
 
 	double rtime = output_rotation_count;
 	if (this_id == 0) {
-		hpx::threads::run_as_os_thread(
-				[&this_fname,nfields,&rtime](int cycle) {
+//		hpx::threads::run_as_os_thread(
+//				[&this_fname,nfields,&rtime](int cycle) {
 					auto* db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 					double dtime = output_time;
 					float ftime = dtime;
@@ -758,7 +758,7 @@ void output_stage3(std::string fname, int cycle) {
 						delete[] s;
 					}
 				}
-			}, cycle).get();
+//			}, cycle).get();
 	}
 }
 
@@ -812,7 +812,7 @@ void output_all(std::string fname, int cycle, bool block) {
 	barrier = hpx::async([cycle,fname]() {
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
 	});
-
+	block = true;
 	if (block) {
 		GET(barrier);
 		barrier = hpx::make_ready_future<void>();
