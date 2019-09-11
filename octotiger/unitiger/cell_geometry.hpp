@@ -69,14 +69,17 @@ private:
 	/**/{ -H_DNY, 6 },
 	/**/{ -H_DNZ, 18 },
 	/**/{ -H_DN0, 0 } }, {
+
 	/**/{ (-H_DNX - H_DNY), 17 },
 	/**/{ -H_DNX, 11 },
 	/**/{ -H_DNY, 15 },
 	/**/{ -H_DN0, 9 }, }, {
+
 	/**/{ (-H_DNX - H_DNZ), 23 },
 	/**/{ -H_DNX, 5 },
 	/**/{ -H_DNZ, 21 },
 	/**/{ -H_DN0, 3 }, }, {
+
 	/**/{ (-H_DNZ - H_DNY), 25 },
 	/**/{ -H_DNY, 7 },
 	/**/{ -H_DNZ, 19 },
@@ -169,26 +172,57 @@ private:
 				}
 			}
 		}
-		/*		bool fail = false;
-		 for (int gi = 0; gi < group_count(); gi++) {
-		 for (int n = 0; n < group_size(gi); n++) {
-		 const auto pair = group_pair(gi, n);
-		 std::array<int,NDIM> dir;
-		 const auto d = direction()[pair.second];
-		 for( int i = 0; i < NDIM; i++) {
-		 dir = d % 3;
-		 d /= 3;
-		 }
-		 if( direction()[pair.second] != -pair.first ) {
-		 printf( "groups failed %i %i %i %i\n", gi, n, direction()[pair.second], -pair.first );
-		 fail = true;
-		 }
-		 }
-		 }
-		 if( fail) {
-		 abort();
-		 }*/
 
+		bool fail = false;
+		/* corners */
+		int gi = 0;
+		for (int n = 0; n < group_size_[2][0]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((x / 2) * H_DNX + (y / 2) * H_DNY + (z / 2) * H_DNZ);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		gi = 1;
+		for (int n = 0; n < group_size_[2][1]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((x / 2) * H_DNX + (y / 2) * H_DNY);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		gi = 2;
+		for (int n = 0; n < group_size_[2][2]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((x / 2) * H_DNX + (z / 2) * H_DNZ);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		gi = 3;
+		for (int n = 0; n < group_size_[2][2]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((y / 2) * H_DNY + (z / 2) * H_DNZ);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		if (fail) {
+			printf("Corners/edges indexes failed\n");
+			abort();
+		}
 		printf("3D geometry constdefs passed verification\n");
 	}
 
