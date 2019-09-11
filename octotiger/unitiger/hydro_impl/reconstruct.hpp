@@ -55,7 +55,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			};
 
 	
-	const auto reconstruct =
+	const auto reconstruct_ppm =
 			[this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
 				for (const auto &i : indices1) {
 					for (int d = 0; d < geo::NDIR / 2; d++) {
@@ -96,14 +96,33 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 		}	;
 
+
+
+	const auto reconstruct_minmod =
+			[this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u) {
+				for (const auto &i : indices1) {
+					for (int d = 0; d < geo::NDIR / 2; d++) {
+						const auto di = dir[d];
+						D1[i][d] = minmod(u[i + di] - u[i], u[i] - u[i - di]);
+					}
+				}
+				for (const auto &i : indices1) {
+					for (int d = 0; d < geo::NDIR / 2; d++) {
+						const auto di = dir[d];
+						q[i][d] = u[i] + 0.5 * D1[i][d];
+						q[i + di][geo::flip(d)] = u[i] - 0.5 * D1[i][d];
+					}
+				}
+		}	;
+
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			reconstruct(Q[f], U[f], smooth_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct(Q[f], U[f], smooth_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 		int sx_i = angmom_index_;
@@ -111,7 +130,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct(Q[f], U[f], false);
+				reconstruct_ppm(Q[f], U[f], false);
 			}
 
 			for (const auto &i : indices2) {
@@ -161,13 +180,13 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct(Q[f], U[f], false);
+				reconstruct_minmod(Q[f], U[f]);
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
-			reconstruct(Q[f], U[f], smooth_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 	}
