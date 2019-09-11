@@ -8,18 +8,6 @@
 
 #include <mutex>
 
-/* 0  1  2 */
-/* 3  4  5 */
-/* 6  7  8 */
-
-/* 9 10 11 */
-/*12 13 14 */
-/*15 16 17 */
-
-/*18 19 20 */
-/*21 22 23 */
-/*24 25 26 */
-
 #include "./util.hpp"
 
 template<int NDIM, int INX>
@@ -37,9 +25,8 @@ struct cell_geometry {
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 
-
 	static constexpr int group_count() {
-		return ngroups_[NDIM] - 1;
+		return ngroups_[NDIM - 1];
 	}
 
 	static int group_size(int gi) {
@@ -59,31 +46,42 @@ private:
 	/**/{ -H_DNX, 2 },
 	/**/{ -H_DNY, 6 },
 	/**/{ -H_DN0, 0 } } },
-	/**/{{
+	/**/{ {
+	/* 0  1  2 */
+	/* 3  4  5 */
+	/* 6  7  8 */
+
+	/* 9 10 11 */
+	/*12 13 14 */
+	/*15 16 17 */
+
+	/*18 19 20 */
+	/*21 22 23 */
+	/*24 25 26 */
+
 	/**/{ (-H_DNX - H_DNY - H_DNZ), 26 },
-	/**/{ (-H_DNY - H_DNZ), 8 },
+	/**/{ (-H_DNY - H_DNZ), 24 },
 	/**/{ (-H_DNX - H_DNZ), 20 },
-	/**/{ (-H_DNX - H_DNY), 24 },
-	/**/{ -H_DNX, 18 },
-	/**/{ -H_DNX, 6 },
+	/**/{ (-H_DNX - H_DNY), 8 },
 	/**/{ -H_DNX, 2 },
-	/**/{ -H_DN0, 0 } },
-	/**/{
-	/**/{ (-H_DNY - H_DNZ), 17 },
-	/**/{ -H_DNZ, 11 },
+	/**/{ -H_DNY, 6 },
+	/**/{ -H_DNZ, 18 },
+	/**/{ -H_DN0, 0 } }, {
+
+	/**/{ (-H_DNX - H_DNY), 17 },
+	/**/{ -H_DNX, 11 },
 	/**/{ -H_DNY, 15 },
-	/**/{ -H_DN0, 9 }, },
-	/**/{
+	/**/{ -H_DN0, 9 }, }, {
+
 	/**/{ (-H_DNX - H_DNZ), 23 },
-	/**/{ -H_DNZ, 5 },
-	/**/{ -H_DNX, 21 },
-	/**/{ -H_DN0, 3 }, },
-	/**/{
-	/**/{ (-H_DNX - H_DNY), 25 },
+	/**/{ -H_DNX, 5 },
+	/**/{ -H_DNZ, 21 },
+	/**/{ -H_DN0, 3 }, }, {
+
+	/**/{ (-H_DNZ - H_DNY), 25 },
 	/**/{ -H_DNY, 7 },
-	/**/{ -H_DNX, 19 },
-	/**/{ -H_DN0, 1 }}}
-	};
+	/**/{ -H_DNZ, 19 },
+	/**/{ -H_DN0, 1 } } } };
 	static constexpr bool is_lower_face[3][3][27] = { { 1, 0, 0 },
 	/**/{ { 1, 0, 0, 1, 0, 0, 1, 0, 0 }, { 1, 1, 1, 0, 0, 0, 0, 0, 0 } }, {
 	/**/{ 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 },
@@ -99,7 +97,7 @@ private:
 			/ 36., 1. / 36., 4. / 36., 1. / 36. } };
 
 	static constexpr safe_real vol_weights[3][27] = {
-	/**/{ 1.0 },
+	/**/{ 1. / 6., 4. / 6., 1. / 6. },
 	/**/{ 1. / 36., 4. / 36., 1. / 36., 4. / 36., 16. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36. },
 	/**/{ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216., 1. / 216.,
 	/****/4. / 216., 16. / 216., 4. / 216., 16. / 216., 64. / 216., 16. / 216., 4. / 216., 16. / 216., 4. / 216.,
@@ -171,6 +169,57 @@ private:
 					}
 				}
 			}
+		}
+
+		bool fail = false;
+		/* corners */
+		int gi = 0;
+		for (int n = 0; n < group_size_[2][0]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((x / 2) * H_DNX + (y / 2) * H_DNY + (z / 2) * H_DNZ);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		gi = 1;
+		for (int n = 0; n < group_size_[2][1]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((x / 2) * H_DNX + (y / 2) * H_DNY);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		gi = 2;
+		for (int n = 0; n < group_size_[2][2]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((x / 2) * H_DNX + (z / 2) * H_DNZ);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		gi = 3;
+		for (int n = 0; n < group_size_[2][2]; n++) {
+			const auto pair = group_pair(gi, n);
+			const int x = pair.second % 3;
+			const int y = (pair.second / 3) % 3;
+			const int z = pair.second / 9;
+			const int index = -((y / 2) * H_DNY + (z / 2) * H_DNZ);
+			if (index != pair.first) {
+				fail = true;
+			}
+		}
+		if (fail) {
+			printf("Corners/edges indexes failed\n");
+			abort();
 		}
 		printf("3D geometry constdefs passed verification\n");
 	}
@@ -271,43 +320,37 @@ public:
 template<int NDIM, int INX>
 std::array<std::array<std::vector<int>, cell_geometry<NDIM, INX>::NDIR>, cell_geometry<NDIM, INX>::H_BW> cell_geometry<NDIM, INX>::all_indices;
 
-
-
-
-
-
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::ngroups_[3];
 
 template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM,INX>::ngroups_[3];
+constexpr int cell_geometry<NDIM, INX>::group_size_[3][4];
 
 template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM,INX>::group_size_[3][4];
+constexpr std::pair<int, int> cell_geometry<NDIM, INX>::groups3d_[3][4][8];
 
 template<int NDIM, int INX>
-constexpr std::pair<int, int> cell_geometry<NDIM,INX>::groups3d_[3][4][8];
+constexpr bool cell_geometry<NDIM, INX>::is_lower_face[3][3][27];
 
 template<int NDIM, int INX>
-constexpr bool cell_geometry<NDIM,INX>::is_lower_face[3][3][27];
+constexpr int cell_geometry<NDIM, INX>::kdeltas[3][3][3][3];
 
 template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM,INX>::kdeltas[3][3][3][3];
+constexpr int cell_geometry<NDIM, INX>::lower_face_members[3][3][9];
 
 template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM,INX>::lower_face_members[3][3][9];
+constexpr safe_real cell_geometry<NDIM, INX>::quad_weights[3][9];
 
 template<int NDIM, int INX>
-constexpr safe_real cell_geometry<NDIM,INX>::quad_weights[3][9];
+constexpr safe_real cell_geometry<NDIM, INX>::vol_weights[3][27];
 
 template<int NDIM, int INX>
-constexpr safe_real cell_geometry<NDIM,INX>::vol_weights[3][27];
+constexpr int cell_geometry<NDIM, INX>::face_locs[3][27][3];
 
 template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM,INX>::face_locs [3][27][3];
+constexpr int cell_geometry<NDIM, INX>::directions[3][27];
 
 template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM,INX>::directions[3][27];
-
-template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM,INX>::H_DN[3];
+constexpr int cell_geometry<NDIM, INX>::H_DN[3];
 
 #endif /* OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_ */
