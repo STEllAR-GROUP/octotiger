@@ -155,7 +155,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	double dtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
-		if (this_id == gn) {
+		if (this_id == gb) {
 			printf( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		} else {
