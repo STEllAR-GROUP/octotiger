@@ -535,7 +535,7 @@ future<void> node_server::nonrefined_step() {
 
 		fut =
 				fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
-						hpx::util::annotated_function(
+						//hpx::util::annotated_function(
 								[rk, cfl0, this, dt_fut](future<void> f)
 								{
 									GET(f);
@@ -569,7 +569,7 @@ future<void> node_server::nonrefined_step() {
 																all_hydro_bounds();
 															}, "node_server::nonrefined_step::compute_fmm"
 													)));
-								}, "node_server::nonrefined_step::compute_fluxes"));
+								}/*, "node_server::nonrefined_step::compute_fluxes")*/);
 	}
 
 	return fut.then(hpx::launch::sync, [this](future<void>&& f)
@@ -693,7 +693,7 @@ future<void> node_server::timestep_driver_descend() {
 			futs[index++] = local_timestep.get_future();
 		}
 
-		return hpx::dataflow(hpx::launch::sync, hpx::util::annotated_function([this](std::array<future<real>, NCHILD+1> dts_fut)
+		return hpx::dataflow(hpx::launch::sync, /*hpx::util::annotated_function(*/[this](std::array<future<real>, NCHILD+1> dts_fut)
 		{
 
 			auto dts = hpx::util::unwrap(dts_fut);
@@ -709,7 +709,7 @@ future<void> node_server::timestep_driver_descend() {
 			}
 
 			return;
-		}, "node_server::timestep_driver_descend"), futs);
+		}/*, "node_server::timestep_driver_descend")*/, futs);
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, [this](future<real>&& f)
 		{
