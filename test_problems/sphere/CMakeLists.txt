@@ -2,7 +2,7 @@
 # Sphere
 ##############################################################################
 download_test_reference("Solid sphere test"
-  "phys.lsu.edu/~dmarcel/sphere.2.silo"
+  "phys.lsu.edu/~dmarcel/sphere.6.silo"
   ${PROJECT_BINARY_DIR}/sphere.silo)
 
 # Sphere - CPU
