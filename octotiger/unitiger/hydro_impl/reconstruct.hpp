@@ -98,23 +98,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 
 
-	const auto reconstruct_minmod =
-			[this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u) {
-				for (const auto &i : indices1) {
-					for (int d = 0; d < geo::NDIR / 2; d++) {
-						const auto di = dir[d];
-						D1[i][d] = minmod(u[i + di] - u[i], u[i] - u[i - di]);
-					}
-				}
-				for (const auto &i : indices1) {
-					for (int d = 0; d < geo::NDIR / 2; d++) {
-						const auto di = dir[d];
-						q[i][d] = u[i] + 0.5 * D1[i][d];
-						q[i + di][geo::flip(d)] = u[i] - 0.5 * D1[i][d];
-					}
-				}
-		}	;
-
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
@@ -130,7 +113,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q[f], U[f], false);
+				reconstruct_ppm(Q[f], U[f], true);
 			}
 
 			for (const auto &i : indices2) {
@@ -180,7 +163,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_minmod(Q[f], U[f]);
+				reconstruct_ppm(Q[f], U[f], false);
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
