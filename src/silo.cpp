@@ -812,7 +812,6 @@ void output_all(std::string fname, int cycle, bool block) {
 	barrier = hpx::async([cycle,fname]() {
 		GET(hpx::async<output_stage3_action>(localities[0], fname, cycle));
 	});
-	block = true;
 	if (block) {
 		GET(barrier);
 		barrier = hpx::make_ready_future<void>();
