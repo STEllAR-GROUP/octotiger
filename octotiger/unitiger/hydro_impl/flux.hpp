@@ -4,8 +4,7 @@ template<int NDIM, int INX>
 safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
 		safe_real omega) {
 
-	static thread_local auto fluxes =
-	std::vector < std::vector
+	static thread_local auto fluxes = std::vector < std::vector
 			< std::vector<std::array<safe_real, geo::NFACEDIR>>
 					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>>
 							> (nf_, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
@@ -82,6 +81,9 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 			const int sx_i = angmom_index_ + angmom_pair * (NDIM + geo.NANGMOM);
 			const int zx_i = sx_i + NDIM;
 			for (int n = 0; n < geo.NANGMOM; n++) {
+				for (const auto &i : indices) {
+					F[dim][zx_i + n][i] = fluxes[dim][zx_i + n][i][0];
+				}
 				for (int m = 0; m < NDIM; m++) {
 					if (dim != m) {
 						for (int l = 0; l < NDIM; l++) {

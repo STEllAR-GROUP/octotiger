@@ -2,6 +2,36 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/util.hpp"
 
+double generalized_reconstruct_ppm(double am1, double am0, double ap1, double ap2, double xm1, double xm0, double xp1, double xp2) {
+//Woodward & Collela 1984
+
+
+	double delta_p1, delta_m0;
+
+	delta_m0 += ((2 * xm1 + xm0) / (xp1 + xm0)) * (ap1 - am0);
+	delta_m0 += ((2 * xp1 + xm0) / (xm1 + xm0)) * (am0 - am1);
+	delta_m0 *= xm0 / (xm1 + xm0 + xp1);
+	delta_m0 = minmod(delta_m0, 2 * minmod(am0 - am1, ap1 - am0));
+
+	delta_p1 += ((2 * xm0 + xp1) / (xp2 + xp1)) * (ap2 - ap1);
+	delta_p1 += ((2 * xp2 + xp1) / (xm0 + xp1)) * (ap1 - am0);
+	delta_p1 *= xp1 / (xm0 + xp1 + xp2);
+	delta_p1 = minmod(delta_p1, 2 * minmod(ap1 - am0, ap2 - ap1));
+
+	const auto c0 = xm0 / (xm0 + xp1);
+	const auto c1 = 1.0 / (xm1 + xm0 + xp1 + xp2);
+	const auto c2 = (2 * xp1 + xm0) / (xm0 + xp1);
+	const auto c3 = (xm1 + xm0) / (2 * xm0 + xp1);
+	const auto c4 = (xp2 + xp1) / (2 * xp1 + xm0);
+	const auto c5 = xm0 * (xm1 + xm0) / (2 * xm0 + xp1);
+	const auto c6 = xp1 * (xp1 + xp2) / (2 * xp1 + xm0);
+
+	const auto dif = ap1 - am0;
+
+	return am0 + c0 * dif + c1 * (c2 * (c3 - c4) * dif - c5 * delta_p1 + c6 * delta_m0);
+
+}
+
 std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
 	std::vector<real> data;
 	for (int f = 0; f < opts().n_fields; f++) {
@@ -93,7 +123,7 @@ void grid::complete_hydro_amr_boundary() {
 									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
 									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
 									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 1 * H_DN[db]] - u0;
 									slpp /= 3.0;
 								}
 								if (is_coarse[iiim]) {
@@ -106,10 +136,11 @@ void grid::complete_hydro_amr_boundary() {
 									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
 									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
 									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
+									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 1 * H_DN[db]] - u0;
 									slpm /= 3.0;
 								}
-								slp[d][f][iii0] = minmod(slpp, -slpm);
+								const auto theta = (f != rho_i && f != tau_i) ? 1.0 : 1.0;
+								slp[d][f][iii0] = minmod_theta(slpp, -slpm, theta);
 							}
 						}
 					}
@@ -156,8 +187,6 @@ void grid::complete_hydro_amr_boundary() {
 			slopes(f);
 		}
 
-
-
 		for (int i0 = 2; i0 < HS_NX - 2; i0++) {
 			for (int j0 = 2; j0 < HS_NX - 2; j0++) {
 				for (int k0 = 2; k0 < HS_NX - 2; k0++) {
@@ -194,7 +223,6 @@ void grid::complete_hydro_amr_boundary() {
 				}
 			}
 		}
-
 
 		for (int f = sx_i; f <= sz_i; f++) {
 			interps(f);

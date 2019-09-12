@@ -2092,7 +2092,7 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 		}
 	}
 	if( opts().angmom) {
-//		init_z_field();
+		init_z_field();
 	}
 	if (opts().radiation) {
 		if (init_func != nullptr) {
@@ -2122,9 +2122,9 @@ void grid::init_z_field() {
 		auto dsz_dy = U[sz_i][i+H_DNY] - U[sz_i][i-H_DNY];
 		auto dsz_dx = U[sz_i][i+H_DNX] - U[sz_i][i-H_DNX];
 
-		U[zx_i][i] = (dx / 12.0) * (dsz_dy - dsy_dz);
-		U[zy_i][i] = (dx / 12.0) * (dsx_dz - dsz_dx);
-		U[zz_i][i] = (dx / 12.0) * (dsy_dx - dsx_dy);
+		U[zx_i][i] = 0.5*(dx / 12.0) * (dsz_dy - dsy_dz);
+		U[zy_i][i] = 0.5*(dx / 12.0) * (dsx_dz - dsz_dx);
+		U[zz_i][i] = 0.5*(dx / 12.0) * (dsy_dx - dsx_dy);
 		}}}
 }
 

@@ -255,9 +255,9 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
 	double dtime = silo_output_rotation_time();
-	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
+	//hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
-		if (this_id == gn) {
+		if (this_id == gb) {
 			printf( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		} else {
@@ -331,7 +331,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 			}
 			DBFreeOptlist(optlist_mesh);
 			DBClose(db);
-		}, cycle).get();
+//		}, cycle).get();
 	if (this_id < ge - 1) {
 		output_stage3_action func;
 		func(localities[this_id + 1], fname, cycle, gn, gb, ge);
@@ -341,10 +341,10 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 void output_stage4(std::string fname, int cycle) {
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".silo");
-	double dtime = silo_output_rotation_time();
+//	double dtime = silo_output_rotation_time();
 	double rtime = silo_output_rotation_time();
-	hpx::threads::run_as_os_thread(
-			[&this_fname, fname, nfields, &rtime](int cycle) {
+//	hpx::threads::run_as_os_thread(
+		//	[&this_fname, fname, nfields, &rtime](int cycle) {
 				auto *db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 				double dtime = silo_output_time();
 				float ftime = dtime;
@@ -587,7 +587,7 @@ void output_stage4(std::string fname, int cycle) {
 						delete[] s;
 					}
 				}
-			}, cycle).get();
+	//		}, cycle).get();
 }
 
 void output_all(std::string fname, int cycle, bool block) {
@@ -608,11 +608,15 @@ void output_all(std::string fname, int cycle, bool block) {
 	time_elapsed = time(nullptr) - start_time;
 	start_time = timestamp;
 	start_step = nsteps;
+
+	printf( "Stage 1\n");
+
 	std::vector<hpx::future<void>> futs1;
 	for (auto &id : localities) {
 		futs1.push_back(hpx::async<output_stage1_action>(id, fname, cycle));
 	}
 	GET(hpx::when_all(futs1));
+	printf( "Stage 2\n");
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {
@@ -647,6 +651,8 @@ void output_all(std::string fname, int cycle, bool block) {
 	}
 	const auto ng = opts().silo_num_groups;
 
+	printf( "Stage 3\n");
+
 	std::vector<hpx::future<void>> futs;
 	for (int i = 0; i < ng; i++) {
 		int gb = (i * localities.size()) / ng;
@@ -654,12 +660,16 @@ void output_all(std::string fname, int cycle, bool block) {
 		futs.push_back(hpx::async<output_stage3_action>(localities[gb], fname, cycle, i, gb, ge));
 	}
 
+
+	printf( "Stage 4\n");
+
 	barrier = hpx::async([fname, cycle](std::vector<hpx::future<void>>&& futs) {
 		for (auto &f : futs) {
 			GET(f);
 		}
 		output_stage4(fname, cycle);
 	}, std::move(futs));
+
 
 	if (block) {
 		GET(barrier);

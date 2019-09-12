@@ -143,6 +143,39 @@ struct physics {
 }
 
 template<int INX>
+static void pre_angmom(const hydro::state_type &U,const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
+		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
+	static const cell_geometry<NDIM, INX> geo;
+	static const auto indices = geo.find_indices(1, geo.H_NX - 1);
+	for (int d = 0; d < geo.NDIR; d++) {
+		if (d != geo.NDIR / 2) {
+			const auto rho = Q[rho_i][i][d];
+			for (int f = 0; f < NDIM; f++) {
+				S[f][d] *= rho;
+			}
+		}
+	}
+	for (int f = 0; f < geo.NANGMOM; f++) {
+		const auto rho = U[rho_i][i];
+		Z[f] *= rho;
+	}
+}
+
+template<int INX>
+static void post_angmom(const hydro::recon_type<NDIM> &Q, std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
+	static const cell_geometry<NDIM, INX> geo;
+	static const auto indices = geo.find_indices(1, geo.H_NX - 1);
+	for (int d = 0; d < geo.NDIR; d++) {
+		if (d != geo.NDIR / 2) {
+			const auto rho = Q[rho_i][i][d];
+			for (int f = 0; f < NDIM; f++) {
+				S[f][d] /= rho;
+			}
+		}
+	}
+}
+
+template<int INX>
 static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
@@ -253,10 +286,10 @@ static void analytic_solution(test_type test, hydro::state_type &U, const hydro:
 			for (int dim = 0; dim < NDIM; dim++) {
 				U[sx_i + dim][i] = den * vel / std::sqrt(NDIM);
 			}
-		} else if( test == CONTACT ) {
+		} else if (test == CONTACT) {
 			pre = 1.0;
 			vel = 10.0;
-			den = 1.0 + 1.0e-6 * sin( 2.0 * M_PI * (X[0][i] - vel * time));
+			den = 1.0 + 1.0e-6 * sin(2.0 * M_PI * (X[0][i] - vel * time));
 		}
 
 		U[rho_i][i] = den;
@@ -344,7 +377,7 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 		case CONTACT:
 			p = 1.0;
 			vx = 10.0;
-			rho = 1.0 + 1.0e-6 * sin( 2.0 * M_PI * x[0]);
+			rho = 1.0 + 1.0e-6 * sin(2.0 * M_PI * x[0]);
 			break;
 		case SOD:
 			if (xsum < 0) {
