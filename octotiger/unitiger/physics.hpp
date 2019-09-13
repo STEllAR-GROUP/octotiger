@@ -162,7 +162,7 @@ static void pre_angmom(const hydro::state_type &U,const hydro::recon_type<NDIM> 
 }
 
 template<int INX>
-static void post_angmom(const hydro::recon_type<NDIM> &Q, std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
+static void post_angmom(const hydro::state_type &U,const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z, std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(1, geo.H_NX - 1);
 	for (int d = 0; d < geo.NDIR; d++) {
@@ -172,6 +172,10 @@ static void post_angmom(const hydro::recon_type<NDIM> &Q, std::array<std::array<
 				S[f][d] /= rho;
 			}
 		}
+	}
+	for (int f = 0; f < geo.NANGMOM; f++) {
+		const auto rho = U[rho_i][i];
+		Z[f] /= rho;
 	}
 }
 

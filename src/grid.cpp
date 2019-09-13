@@ -2040,7 +2040,7 @@ void grid::allocate() {
 		U0[field].resize(INX * INX * INX);
 
 		U[field].resize(H_N3, 0.0);
-		Ushad[field].resize(HS_N3,std::numeric_limits<real>::signaling_NaN());
+		Ushad[field].resize(HS_N3,0.0);
 		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(F_N3);

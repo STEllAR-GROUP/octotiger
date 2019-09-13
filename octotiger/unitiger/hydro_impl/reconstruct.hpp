@@ -139,15 +139,13 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 
 				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
-
 				auto am1 = measure_angmom(S);
 				decltype(Z) am2;
 				for (int dim = 0; dim < geo::NANGMOM; dim++) {
 					am2[dim] = Z[dim] - am1[dim];
 				}
 				add_angmom(S, am2);
-
-				physics < NDIM > ::template post_angmom<INX>(Q, S, i, dx);
+				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
 
 				for (int dim = 0; dim < NDIM; dim++) {
 					for (int d = 0; d < geo::NDIR; d++) {
@@ -170,10 +168,13 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 						limit_slope(S[dim][d], U[f][i], S[dim][geo::flip(d)]);
 					}
 				}
+
+				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
 				am2 = measure_angmom(S);
 				for (int n = 0; n < geo::NANGMOM; n++) {
 					U[zx_i + n][i] = Z[n] - am2[n];
 				}
+				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
 				for (int dim = 0; dim < NDIM; dim++) {
 					for (int d = 0; d < geo::NDIR; d++) {
 						Q[sx_i + dim][i][d] = S[dim][d];
