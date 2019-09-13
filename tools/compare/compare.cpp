@@ -1,15 +1,14 @@
-/*
- * compare.cpp
- *
- *  Created on: Jan 7, 2019
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <set>
+#include <cassert>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -54,7 +53,9 @@ struct silo_file {
 		auto other = DBOpenReal(name.c_str(), SILO_DRIVER, DB_READ);
 		std::string copy = std::string("cp ") + name + std::string(" diff.silo\n");
 		std::cout << copy;
-		std::system(copy.c_str());
+		if( std::system(copy.c_str()) != 0) {
+			assert(false);
+		}
 		auto diff = DBOpenReal("diff.silo", SILO_DRIVER, DB_APPEND);
 
 		for (auto const& vn : var_names) {

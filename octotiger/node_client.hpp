@@ -1,9 +1,7 @@
-/*
- * node_client.hpp
- *
- *  Created on: Jun 11, 2015
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef NODE_CLIENT_HPP_
 #define NODE_CLIENT_HPP_
@@ -77,6 +75,7 @@ public:
     future<void> check_channels() const;
     future<real> scf_update(
         real, real, real, real, real, real, real, struct_eos, struct_eos) const;
+    future<std::pair<real,real>> amr_error() const;
     void send_hydro_children(
         std::vector<real>&&, const geo::octant& ci, std::size_t cycle) const;
     void send_hydro_flux_correct(std::vector<real>&&, const geo::face& face,
@@ -105,6 +104,8 @@ public:
         std::size_t cycle) const;
     void send_hydro_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
+    void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+        std::size_t cycle) const;
     void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
         bool monopole, std::size_t cycle) const;
     void send_gravity_multipoles(
@@ -118,6 +119,7 @@ public:
     void set_local_timestep(integer, real) const;
     future<void> velocity_inc(const space_vector&) const;
     future<void> check_for_refinement(real omega, real) const;
+    future<void> enforce_bc() const;
     future<void> force_nodes_to_exist(std::vector<node_location>&& loc) const;
     void report_timing() const;
     future<void> change_units(real, real, real, real) const;

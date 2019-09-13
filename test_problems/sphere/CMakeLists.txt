@@ -1,8 +1,13 @@
+# Copyright (c) 2019 AUTHORS
+#
+# Distributed under the Boost Software License, Version 1.0. (See accompanying
+# file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 ##############################################################################
 # Sphere
 ##############################################################################
 download_test_reference("Solid sphere test"
-  "phys.lsu.edu/~dmarcel/sphere.2.silo"
+  "phys.lsu.edu/~dmarcel/sphere.6.silo"
   ${PROJECT_BINARY_DIR}/sphere.silo)
 
 # Sphere - CPU
@@ -11,7 +16,7 @@ add_test(NAME test_problems.cpu.sphere
     --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini)
 add_test(NAME test_problems.cpu.sphere.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-    ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.${OCTOTIGER_WITH_GRIDDIM}.silo)
+    ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/X.${OCTOTIGER_WITH_GRIDDIM}.silo)
 
 set_tests_properties(test_problems.cpu.sphere PROPERTIES
   FIXTURES_SETUP test_problems.cpu.sphere)

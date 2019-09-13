@@ -1,9 +1,7 @@
-/*
- * node_server.hpp
- *
- *  Created on: Jun 11, 2015
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_
@@ -196,6 +194,9 @@ public:
 	void recv_hydro_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
 
+	void recv_hydro_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
+	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_amr_boundary, send_hydro_amr_boundary_action);
+
 	void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
@@ -249,6 +250,9 @@ public:
 	analytic_t compare_analytic();/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, compare_analytic, compare_analytic_action);
 
+	std::pair<real,real> amr_error();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, amr_error, amr_error_action);
+
 	diagnostics_t diagnostics(const diagnostics_t&);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
@@ -262,6 +266,9 @@ public:
 
 	void check_for_refinement(real omega, real new_floor);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, check_for_refinement, check_for_refinement_action);
+
+	void enforce_bc();/**/
+	HPX_DEFINE_COMPONENT_ACTION(node_server, enforce_bc, enforce_bc_action);
 
 	void force_nodes_to_exist(std::vector<node_location>&& loc);/**/
 	HPX_DEFINE_COMPONENT_ACTION(node_server, force_nodes_to_exist, force_nodes_to_exist_action);
@@ -339,6 +346,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::scf_update_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::force_nodes_to_exist_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::check_for_refinement_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::enforce_bc_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_child_aunt_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_children_action);
@@ -347,6 +355,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_gather_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_scatter_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_flux_check_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_amr_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);
@@ -364,6 +373,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_children_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_flux_correct_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::set_rad_grid_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::erad_init_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::amr_error_action);
 //HPX_REGISTER_ACTION_DECLARATION(node_server::set_parent_action);
 
 #endif /* NODE_SERVER_HPP_ */

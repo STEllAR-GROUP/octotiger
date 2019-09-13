@@ -1,9 +1,7 @@
-/*
- * util.hpp
- *
- *  Created on: Apr 20, 2016
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef UTILAA_HPP_
 #define UTILAA_HPP_
@@ -14,6 +12,24 @@
 
 #include <cstdio>
 #include <functional>
+
+
+
+/*OCTOTIGER_FORCEINLINE real minmod(real a, real b) {
+//	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
+	bool a_is_neg = a < 0;
+	bool b_is_neg = b < 0;
+	if (a_is_neg != b_is_neg)
+		return ZERO;
+
+	real val = std::min(std::abs(a), std::abs(b));
+	return a_is_neg ? -val : val;
+}*/
+
+OCTOTIGER_FORCEINLINE real minmod_theta(real a, real b, real c, real theta) {
+	return minmod(theta * minmod(a, b), c);
+}
+
 
 real LambertW(real z);
 

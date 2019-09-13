@@ -1,9 +1,7 @@
-/*
- * silo.hpp
- *
- *  Created on: Oct 16, 2018
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef SRC_SILO_HPP_
 #define SRC_SILO_HPP_
@@ -11,6 +9,7 @@
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/real.hpp"
+#include "octotiger/node_location.hpp"
 
 #include <hpx/include/naming.hpp>
 
@@ -19,7 +18,14 @@
 #include <utility>
 #include <vector>
 
+
+
 #include <silo.h>
+
+
+#define SILO_DRIVER DB_HDF5
+#define SILO_VERSION 110
+
 
 class node_server;
 
@@ -82,5 +88,48 @@ void output_all(std::string fname, int cycle, bool);
 void load_options_from_silo(std::string fname, DBfile* = nullptr);
 
 OCTOTIGER_EXPORT void load_data_from_silo(std::string fname, node_server*, hpx::id_type);
+
+
+template<class T>
+struct db_type {
+	static constexpr int d = DB_UNKNOWN;
+};
+
+template<>
+struct db_type<integer> {
+	static constexpr int d = DB_LONG_LONG;
+};
+
+template<>
+struct db_type<real> {
+	static constexpr int d = DB_DOUBLE;
+};
+
+template<>
+struct db_type<char> {
+	static constexpr int d = DB_CHAR;
+};
+
+template<>
+struct db_type<std::int8_t> {
+	static constexpr int d = DB_CHAR;
+};
+
+
+static inline std::string oct_to_str(node_location::node_id n) {
+	return hpx::util::format("{:llo}", n);
+}
+
+
+static inline std::string outflow_name(const std::string& varname) {
+	return varname + std::string("_outflow");
+}
+
+
+
+int& silo_epoch();
+double& silo_output_time();
+double& silo_output_rotation_time();
+
 
 #endif /* SRC_SILO_HPP_ */

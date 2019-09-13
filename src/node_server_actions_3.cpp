@@ -1,3 +1,8 @@
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/node_client.hpp"
@@ -63,6 +68,21 @@ void node_client::send_hydro_boundary(std::vector<real>&& data, const geo::direc
 }
 
 void node_server::recv_hydro_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
+	sibling_hydro_type tmp;
+	tmp.data = std::move(bdata);
+	tmp.direction = dir;
+	sibling_hydro_channels[dir].set_value(std::move(tmp), cycle);
+}
+
+
+using send_hydro_amr_boundary_action_type = node_server::send_hydro_amr_boundary_action;
+HPX_REGISTER_ACTION(send_hydro_amr_boundary_action_type);
+
+void node_client::send_hydro_amr_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
+	hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+}
+
+void node_server::recv_hydro_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
@@ -515,11 +535,10 @@ future<void> node_server::nonrefined_step() {
 
 		fut =
 				fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
-						hpx::util::annotated_function(
+						//hpx::util::annotated_function(
 								[rk, cfl0, this, dt_fut](future<void> f)
 								{
 									GET(f);
-									grid_ptr->reconstruct();
 									real a = grid_ptr->compute_fluxes();
 									future<void> fut_flux = exchange_flux_corrections();
 									if (rk == 0) {
@@ -550,7 +569,7 @@ future<void> node_server::nonrefined_step() {
 																all_hydro_bounds();
 															}, "node_server::nonrefined_step::compute_fmm"
 													)));
-								}, "node_server::nonrefined_step::compute_fluxes"));
+								}/*, "node_server::nonrefined_step::compute_fluxes")*/);
 	}
 
 	return fut.then(hpx::launch::sync, [this](future<void>&& f)
@@ -674,7 +693,7 @@ future<void> node_server::timestep_driver_descend() {
 			futs[index++] = local_timestep.get_future();
 		}
 
-		return hpx::dataflow(hpx::launch::sync, hpx::util::annotated_function([this](std::array<future<real>, NCHILD+1> dts_fut)
+		return hpx::dataflow(hpx::launch::sync, /*hpx::util::annotated_function(*/[this](std::array<future<real>, NCHILD+1> dts_fut)
 		{
 
 			auto dts = hpx::util::unwrap(dts_fut);
@@ -690,7 +709,7 @@ future<void> node_server::timestep_driver_descend() {
 			}
 
 			return;
-		}, "node_server::timestep_driver_descend"), futs);
+		}/*, "node_server::timestep_driver_descend")*/, futs);
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, [this](future<real>&& f)
 		{

@@ -1,9 +1,7 @@
-/*
- * future.hpp
- *
- *  Created on: Sep 14, 2015
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef FUTURE3_HPP_
 #define FUTURE3_HPP_
@@ -99,11 +97,16 @@ inline T debug_get(const hpx::shared_future<T> & f, const char* file, int line) 
 	}
 	return f.get();
 }
-
+/*
 #ifndef NDEBUG
 #define GET(fut) debug_get(fut,__FILE__,__LINE__)
 #else
 #define GET(fut) ((fut).get())
 #endif
+*/
+
+
+#define GET(fut) debug_get(fut,__FILE__,__LINE__)
+
 
 #endif /* FUTURE_HPP_ */

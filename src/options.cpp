@@ -1,9 +1,7 @@
-/*
- * options.cpp
- *
- *  Created on: Nov 13, 2015
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
@@ -31,38 +29,37 @@ options& opts() {
 	return opts_;
 }
 
-inline std::string to_string(const std::string& str) {
+inline std::string to_string(const std::string &str) {
 	return str;
 }
 
-inline std::string to_string(const real& num) {
+inline std::string to_string(const real &num) {
 	std::ostringstream strm;
 	strm << std::scientific << num;
 	return strm.str();
 }
 
-inline std::string to_string(const integer& num) {
+inline std::string to_string(const integer &num) {
 	return std::to_string(num);
 }
 
-inline std::string to_string(const size_t& num) {
+inline std::string to_string(const size_t &num) {
 	return std::to_string(num);
 }
 
-inline std::string to_string(const bool& b) {
+inline std::string to_string(const bool &b) {
 	return b ? "T" : "F";
 }
 
-bool options::process_options(int argc, char* argv[]) {
+bool options::process_options(int argc, char *argv[]) {
 	namespace po = boost::program_options;
 	code_to_s = code_to_g = code_to_cm = 1.0;
 
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
-	("help", "produce help message")
-	("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
-	("cfl", po::value<real>(&(opts().cfl))->default_value(2./15.), "cfl factor")           //
+	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
+	("cfl", po::value<real>(&(opts().cfl))->default_value(2. / 15.), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("compress_silo", po::value<bool>(&(opts().compress_silo))->default_value(true), "compress SILO files to fewer grids")    //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
@@ -70,15 +67,19 @@ bool options::process_options(int argc, char* argv[]) {
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "entropy loss driving rate")      //
-	("entropy_driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "entropy driving rate time")      //
+	("silo_offset_x", po::value<integer>(&(opts().silo_offset_x))->default_value(0), "")      //
+	("silo_offset_y", po::value<integer>(&(opts().silo_offset_y))->default_value(0), "")      //
+	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
+	("old_amrbnd", po::value<bool>(&(opts().old_amrbnd))->default_value(false), "use old amr boundary interpolation")           //
+	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
+	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
 	("donor_refine", po::value<integer>(&(opts().donor_refine))->default_value(0), "number of extra levels for donor")      //
 	("ngrids", po::value<integer>(&(opts().ngrids))->default_value(-1), "fix numbger of grids")                             //
 	("refinement_floor", po::value<real>(&(opts().refinement_floor))->default_value(1.0e-3), "density refinement floor")      //
-	("theta", po::value<real>(&(opts().theta))->default_value(0.5),
-			"controls nearness determination for FMM, must be between 1/3 and 1/2")                                           //
+	("theta", po::value<real>(&(opts().theta))->default_value(0.5), "controls nearness determination for FMM, must be between 1/3 and 1/2")                   //
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
@@ -97,26 +98,19 @@ bool options::process_options(int argc, char* argv[]) {
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics))->default_value(true), "disable diagnostics") //
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
 	("restart_filename", po::value<std::string>(&(opts().restart_filename))->default_value(""), "restart filename")         //
-	("stop_time", po::value<real>(&(opts().stop_time))->default_value(std::numeric_limits<real>::max()),
-			"time to end simulation") //
-	("stop_step", po::value<integer>(&(opts().stop_step))->default_value(std::numeric_limits<integer>::max() - 1),
-			"number of timesteps to run")                                //
+	("stop_time", po::value<real>(&(opts().stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
+	("stop_step", po::value<integer>(&(opts().stop_step))->default_value(std::numeric_limits<integer>::max() - 1), "number of timesteps to run")              //
 	("max_level", po::value<integer>(&(opts().max_level))->default_value(1), "maximum number of refinement levels")         //
-	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts().m2m_kernel_type))->default_value(SOA_CPU),
-			"boundary multipole-multipole kernel type") //
-	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(OLD),
-			"boundary particle-particle kernel type")   //
-	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(SOA_CPU),
-			"boundary particle-multipole kernel type")  //
-	("cuda_streams_per_locality", po::value<size_t>(&(opts().cuda_streams_per_locality))->default_value(size_t(0)),
-			"cuda streams per HPX locality") //
-	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)),
-			"cuda streams per GPU (per locality)") //
+	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts().m2m_kernel_type))->default_value(SOA_CPU), "boundary multipole-multipole kernel type") //
+	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(OLD), "boundary particle-particle kernel type")   //
+	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(SOA_CPU), "boundary particle-multipole kernel type")  //
+	("cuda_streams_per_locality", po::value<size_t>(&(opts().cuda_streams_per_locality))->default_value(size_t(0)), "cuda streams per HPX locality") //
+	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_scheduling_threads", po::value<size_t>(&(opts().cuda_scheduling_threads))->default_value(size_t(0)),
 			"Number of worker threads per locality that mamage cuda streams") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
-	("n_species", po::value<integer>(&(opts().n_species))->default_value(1), "number of mass species") //
+	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
 	("atomic_mass", po::value<std::vector<real>>(&(opts().atomic_mass))->multitoken(), "atomic masses") //
 	("atomic_number", po::value<std::vector<real>>(&(opts().atomic_number))->multitoken(), "atomic numbers") //
 	("X", po::value<std::vector<real>>(&(opts().X))->multitoken(), "X - hydrogen mass fraction") //
@@ -129,26 +123,21 @@ bool options::process_options(int argc, char* argv[]) {
 	boost::program_options::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, command_opts), vm);
 	po::notify(vm);
-    if (vm.count("help"))
-    {
-        std::cout << command_opts << "\n";
-        return false;
-    }
-    if (!config_file.empty())
-    {
-        std::ifstream cfg_fs{vm["config_file"].as<std::string>()};
-        if (cfg_fs)
-        {
-            po::store(po::parse_config_file(cfg_fs, command_opts), vm);
-        }
-        else
-        {
-            printf("Configuration file %s not found!\n", config_file.c_str());
-            return false;
-        }
-    }
-    po::notify(vm);
-	if (opts().problem == DWD || opts().problem == ROTATING_STAR ) {
+	if (vm.count("help")) {
+		std::cout << command_opts << "\n";
+		return false;
+	}
+	if (!config_file.empty()) {
+		std::ifstream cfg_fs { vm["config_file"].as<std::string>() };
+		if (cfg_fs) {
+			po::store(po::parse_config_file(cfg_fs, command_opts), vm);
+		} else {
+			printf("Configuration file %s not found!\n", config_file.c_str());
+			return false;
+		}
+	}
+	po::notify(vm);
+	if (opts().problem == DWD || opts().problem == ROTATING_STAR) {
 		opts().n_species = std::max(int(5), int(opts().n_species));
 	}
 	n_fields = n_species + 10;
@@ -179,6 +168,14 @@ bool options::process_options(int argc, char* argv[]) {
 			std::cout << std::to_string(r) << ',';
 		}
 		std::cout << '\n';
+		const auto num_loc = hpx::find_all_localities().size();
+		if (silo_num_groups > num_loc) {
+			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
+			silo_num_groups = num_loc;
+		}
+		SHOW(silo_num_groups);
+		SHOW(old_amrbnd);
+		SHOW(amrbnd_order);
 		SHOW(angmom);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);

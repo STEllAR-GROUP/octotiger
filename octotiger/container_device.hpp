@@ -1,10 +1,10 @@
-//  Copyright (c) 2007-2011 Hartmut Kaiser
+//  Copyright (c) 2019 AUTHORS
+//                
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 //  Parts of this code were taken from the Boost.IoStreams library
 //  Copyright (c) 2004 Jonathan Turkanis
-//
-//  Distributed under the Boost Software License, Version 1.0. (See accompanying
-//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #if !defined(HPX_UTIL_CONTAINER_DEVICE_MAR_24_2008_0955AM)
 #define HPX_UTIL_CONTAINER_DEVICE_MAR_24_2008_0955AM

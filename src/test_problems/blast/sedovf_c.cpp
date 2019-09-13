@@ -1,10 +1,9 @@
-/*
- * sedov.c
- *
- *  Created on: Dec 4, 2018
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+// Original Fortran source: http://cococubed.asu.edu/research_pages/sedov.shtml
 
 
 
@@ -1121,3 +1120,135 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
     L90: ret_val = b;
     return ret_val;
 } /* zeroin_ */
+
+
+
+#include <functional>
+#include <mutex>
+
+#ifndef NO_HPX
+#include <hpx/lcos/local/spinlock.hpp>
+using mutex_type = hpx::lcos::local::spinlock;
+#else
+#include <unordered_map>
+#include <memory>
+#include <cassert>
+using mutex_type = std::mutex;
+#endif
+
+namespace sedov {
+
+void solution(double time, double r, double rmax, double& d, double& v, double& p, int ndim) {
+	int nstep = 10000;
+	constexpr int bw = 2;
+	using function_type = std::function<void(double,double&,double&,double&)>;
+	using map_type = std::unordered_map<double,std::shared_ptr<function_type>>;
+
+	static map_type map;
+	static mutex_type mutex;
+
+
+	sed_real rho0 = 1.0;
+	sed_real vel0 = 0.0;
+	sed_real ener0 = 0.0;
+	sed_real pres0 = 0.0;
+	sed_real cs0 = 0.0;
+	sed_real gamma = 7.0/5.0;
+	sed_real omega = 0.0;
+	sed_real eblast = 1.0;
+	sed_real xgeom = sed_real(ndim);
+
+	std::vector<sed_real> xpos(nstep+2*bw);
+	std::vector<sed_real> den(nstep+2*bw);
+	std::vector<sed_real> ener(nstep+2*bw);
+	std::vector<sed_real> pres(nstep+2*bw);
+	std::vector<sed_real> vel(nstep+2*bw);
+	std::vector<sed_real> cs(nstep+2*bw);
+
+	std::vector<double> den1(nstep+2*bw);
+	std::vector<double> pres1(nstep+2*bw);
+	std::vector<double> vel1(nstep+2*bw);
+
+	std::shared_ptr<function_type> ptr;
+
+	for( int i = 0; i < nstep + 2*bw; i++) {
+		xpos[i] = (i - bw + 0.5)*rmax/(nstep);
+	}
+	nstep += bw;
+
+	std::unique_lock<mutex_type> lock(mutex);
+	auto iter = map.find(time);
+	if (iter == map.end()) {
+		sed_real sed_time = time;
+		printf( "Computing sedov solution\n");
+		sed_1d__(&sed_time, &nstep, xpos.data() + bw, &eblast, &omega, &xgeom, &rho0,
+				&vel0, &ener0, &pres0, &cs0, &gamma, den.data() + bw, ener.data() + bw,
+				pres.data() + bw, vel.data() + bw, cs.data() + bw);
+
+		xpos[0] = -xpos[3];
+		den[0] = den[3];
+		ener[0] = ener[3];
+		pres[0] = pres[3];
+		vel[0] = -vel[3];
+		cs[0] = cs[3];
+
+		xpos[1] = -xpos[2];
+		den[1] = den[2];
+		ener[1] = ener[2];
+		pres[1] = pres[2];
+		vel[1] = -vel[2];
+		cs[1] = cs[2];
+
+#if defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
+		std::transform(den.begin(), den.end(), den1.begin(),
+			[](sed_real v) { return v.convert_to<double>(); });
+		std::transform(vel.begin(), vel.end(), vel1.begin(),
+			[](sed_real v) { return v.convert_to<double>(); });
+		std::transform(pres.begin(), pres.end(), pres1.begin(),
+			[](sed_real v) { return v.convert_to<double>(); });
+#else
+		std::copy(den.begin(), den.end(), den1.begin());
+		std::copy(vel.begin(), vel.end(), vel1.begin());
+		std::copy(pres.begin(), pres.end(), pres1.begin());
+#endif
+
+		function_type func = [nstep,rmax,den1,pres1,vel1,bw](double r, double& d, double& v, double & p) {
+			double dr = rmax / (nstep);
+			std::array<int,4> i;
+			i[1] = (r + (bw - 0.5)*dr) / dr;
+			i[0] = i[1] - 1;
+			i[2] = i[1] + 1;
+			i[3] = i[1] + 2;
+			double r0 = (r - (i[1]-bw + 0.5)*dr)/dr;
+	//		printf( "%i %e\n", i[0], r, dr );
+			assert( i[0] >= 0 );
+			assert( i[3] < int(vel1.size()));
+			const auto interp = [r0,i](const std::vector<double>& data) {
+				double sum = 0.0;
+				sum += (-0.5 * data[i[0]] + 1.5 * data[i[1]] - 1.5 * data[i[2]] + 0.5 * data[i[3]]) * r0 * r0 * r0;
+				sum += (+1.0 * data[i[0]] - 2.5 * data[i[1]] + 2.0 * data[i[2]] - 0.5 * data[i[3]]) * r0 * r0;
+				sum += (-0.5 * data[i[0]]                   +  0.5 * data[i[2]]) * r0;
+				sum += data[i[1]];
+				return sum;
+			};
+
+			d = interp(den1);
+			v = interp(vel1);
+			p = interp(pres1);
+
+		};
+
+		ptr = std::make_shared<function_type>(std::move(func));
+		map[time] = ptr;
+		lock.unlock();
+	} else {
+		lock.unlock();
+		ptr = iter->second;
+	}
+
+	const auto& func = *(ptr);
+
+	func(r, d, v, p);
+}
+
+}

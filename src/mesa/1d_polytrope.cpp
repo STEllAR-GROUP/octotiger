@@ -1,9 +1,7 @@
-/*
- * 1d_polytrope.cpp
- *
- *  Created on: Jun 6, 2018
- *      Author: dmarce1
- */
+//  Copyright (c) 2019 AUTHORS
+//
+//  Distributed under the Boost Software License, Version 1.0. (See accompanying
+//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "1d_polytrope.hpp"
 #include "cubic_table.hpp"
