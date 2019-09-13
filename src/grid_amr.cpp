@@ -5,6 +5,7 @@
 double generalized_ppm_face(double am1, double am0, double ap1, double ap2, double xm1, double xm0, double xp1, double xp2) {
 //Woodward & Collela 1984
 
+
 	double delta_p1, delta_m0;
 
 	delta_m0 += ((2 * xm1 + xm0) / (xp1 + xm0)) * (ap1 - am0);
@@ -31,13 +32,14 @@ double generalized_ppm_face(double am1, double am0, double ap1, double ap2, doub
 
 }
 
-std::pair<double, double> generalized_ppm(double am2, double am1, double a0, double ap1, double ap2, double xm2, double xm1, double x0, double xp1,
-		double xp2) {
+
+std::pair<double,double> generalized_ppm(double am2, double am1, double a0, double ap1, double ap2, double xm2, double xm1, double x0, double xp1, double xp2) {
 //Woodward & Collela 1984
-	std::pair<double, double> p;
+	std::pair<double,double> p;
 	p.first = generalized_ppm_face(am1, a0, ap1, ap2, xm1, x0, xp1, xp2);
 	p.second = generalized_ppm_face(am2, am1, a0, ap1, xm2, xm1, x0, xp1);
 	return p;
+
 
 }
 
@@ -100,23 +102,6 @@ void grid::complete_hydro_amr_boundary() {
 			}
 		}
 	}
-
-	// pre-condition
-	for (int f = 0; f < opts().n_fields; f++) {
-		if (f != rho_i && f != egas_i && f != tau_i) {
-			for (int i = 0; i < Ushad[f].size(); i++) {
-				if (Ushad[rho_i][i] != 0.0) {
-					Ushad[f][i] /= Ushad[rho_i][i];
-				}
-			}
-			for (int i = 0; i < U[f].size(); i++) {
-				if( U[rho_i][i] != 0.0 ) {
-					U[f][i] /= U[rho_i][i];
-				}
-			}
-		}
-	}
-
 	if (opts().amrbnd_order > 0) {
 		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp;
 		for (int d = 0; d < NDIM; d++) {
@@ -191,21 +176,18 @@ void grid::complete_hydro_amr_boundary() {
 							value -= 0.25 * isgn * slp[XDIM][f][iii0];
 							value -= 0.25 * jsgn * slp[YDIM][f][iii0];
 							value -= 0.25 * ksgn * slp[ZDIM][f][iii0];
-							if( f >= zx_i && f <= zz_i) {
-								value /= 4.0;
+							if (opts().angmom) {
+								if (f == sx_i) {
+									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
+									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
+								} else if (f == sy_i) {
+									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
+									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
+								} else if (f == sz_i) {
+									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
+									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
+								}
 							}
-//							if (opts().angmom) {
-//								if (f == sx_i) {
-//									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
-//									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
-//								} else if (f == sy_i) {
-//									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
-//									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
-//								} else if (f == sz_i) {
-//									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
-//									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
-//								}
-//							}
 						}
 					}
 				}
@@ -216,42 +198,42 @@ void grid::complete_hydro_amr_boundary() {
 			slopes(f);
 		}
 
-//		for (int i0 = 2; i0 < HS_NX - 2; i0++) {
-//			for (int j0 = 2; j0 < HS_NX - 2; j0++) {
-//				for (int k0 = 2; k0 < HS_NX - 2; k0++) {
-//					const int ir = 2 * i0 - H_BW;
-//					const int jr = 2 * j0 - H_BW;
-//					const int kr = 2 * k0 - H_BW;
-//					const int iii0 = hSindex(i0, j0, k0);
-//					const int iiir = hindex(ir, jr, kr);
-//					if (is_coarse[iii0]) {
-//
-//						real dV_sym[3][3];
-//						real dV_ant[3][3];
-//
-//						for (integer d0 = 0; d0 != NDIM; ++d0) {
-//							for (integer d1 = 0; d1 != NDIM; ++d1) {
-//								dV_sym[d1][d0] = (slp[d0][sx_i + d1][iii0] + slp[d1][sx_i + d0][iii0]) / 2.0;
-//								dV_ant[d1][d0] = 0.0;
-//							}
-//						}
-//						dV_ant[XDIM][YDIM] = +6.0 * Ushad[zz_i][iii0] / dx;
-//						dV_ant[XDIM][ZDIM] = -6.0 * Ushad[zy_i][iii0] / dx;
-//						dV_ant[YDIM][ZDIM] = +6.0 * Ushad[zx_i][iii0] / dx;
-//						dV_ant[YDIM][XDIM] = -dV_ant[XDIM][YDIM];
-//						dV_ant[ZDIM][XDIM] = -dV_ant[XDIM][ZDIM];
-//						dV_ant[ZDIM][YDIM] = -dV_ant[YDIM][ZDIM];
-//						for (integer d0 = 0; d0 != NDIM; ++d0) {
-//							for (integer d1 = 0; d1 != NDIM; ++d1) {
-//								const real tmp = dV_sym[d0][d1] + dV_ant[d0][d1];
-//								slp[d0][sx_i + d1][iii0] = minmod(tmp, slp[d0][sx_i + d1][iii0]);
-//							}
-//						}
-//
-//					}
-//				}
-//			}
-//		}
+		for (int i0 = 2; i0 < HS_NX - 2; i0++) {
+			for (int j0 = 2; j0 < HS_NX - 2; j0++) {
+				for (int k0 = 2; k0 < HS_NX - 2; k0++) {
+					const int ir = 2 * i0 - H_BW;
+					const int jr = 2 * j0 - H_BW;
+					const int kr = 2 * k0 - H_BW;
+					const int iii0 = hSindex(i0, j0, k0);
+					const int iiir = hindex(ir, jr, kr);
+					if (is_coarse[iii0]) {
+
+						real dV_sym[3][3];
+						real dV_ant[3][3];
+
+						for (integer d0 = 0; d0 != NDIM; ++d0) {
+							for (integer d1 = 0; d1 != NDIM; ++d1) {
+								dV_sym[d1][d0] = (slp[d0][sx_i + d1][iii0] + slp[d1][sx_i + d0][iii0]) / 2.0;
+								dV_ant[d1][d0] = 0.0;
+							}
+						}
+						dV_ant[XDIM][YDIM] = +6.0 * Ushad[zz_i][iii0] / dx;
+						dV_ant[XDIM][ZDIM] = -6.0 * Ushad[zy_i][iii0] / dx;
+						dV_ant[YDIM][ZDIM] = +6.0 * Ushad[zx_i][iii0] / dx;
+						dV_ant[YDIM][XDIM] = -dV_ant[XDIM][YDIM];
+						dV_ant[ZDIM][XDIM] = -dV_ant[XDIM][ZDIM];
+						dV_ant[ZDIM][YDIM] = -dV_ant[YDIM][ZDIM];
+						for (integer d0 = 0; d0 != NDIM; ++d0) {
+							for (integer d1 = 0; d1 != NDIM; ++d1) {
+								const real tmp = dV_sym[d0][d1] + dV_ant[d0][d1];
+								slp[d0][sx_i + d1][iii0] = minmod(tmp, slp[d0][sx_i + d1][iii0]);
+							}
+						}
+
+					}
+				}
+			}
+		}
 
 		for (int f = sx_i; f <= sz_i; f++) {
 			interps(f);
@@ -260,18 +242,6 @@ void grid::complete_hydro_amr_boundary() {
 			if (f < sx_i || f > sz_i) {
 				slopes(f);
 				interps(f);
-			}
-		}
-	}
-
-	// post-condition
-	for (int f = 0; f < opts().n_fields; f++) {
-		if (f != rho_i && f != egas_i && f != tau_i) {
-			for (int i = 0; i < Ushad[f].size(); i++) {
-				Ushad[f][i] *= Ushad[rho_i][i];
-			}
-			for (int i = 0; i < U[f].size(); i++) {
-				U[f][i] *= U[rho_i][i];
 			}
 		}
 	}
