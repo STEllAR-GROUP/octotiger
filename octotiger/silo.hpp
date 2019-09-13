@@ -115,15 +115,10 @@ struct db_type<std::int8_t> {
 	static constexpr int d = DB_CHAR;
 };
 
-constexpr int db_type<integer>::d;
-constexpr int db_type<char>::d;
-constexpr int db_type<real>::d;
-
 
 static inline std::string oct_to_str(node_location::node_id n) {
 	return hpx::util::format("{:llo}", n);
 }
-
 
 
 static inline std::string outflow_name(const std::string& varname) {

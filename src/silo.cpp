@@ -5,6 +5,9 @@
 
 #include "octotiger/silo.hpp"
 
+constexpr int db_type<integer>::d;
+constexpr int db_type<char>::d;
+constexpr int db_type<real>::d;
 
 
 double& silo_output_time() {
