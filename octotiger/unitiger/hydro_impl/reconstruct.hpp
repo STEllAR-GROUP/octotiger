@@ -91,18 +91,18 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 		}
 	};
 
-	const auto reconstruct_minmod = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
+	const auto reconstruct_minmod = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u) {
 		for (const auto &i : indices1) {
 			for (int d = 0; d < geo::NDIR / 2; d++) {
 				const auto di = dir[d];
-				D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 1.0);
+				D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 1.);
 			}
 		}
 		for (const auto &i : indices1) {
 			for (int d = 0; d < geo::NDIR / 2; d++) {
 				const auto di = dir[d];
 				q[i][d] = u[i] + 0.5 * D1[i][d];
-				q[i + di][geo::flip(d)] = u[i] - 0.5 * D1[i][d];
+				q[i][geo::flip(d)] = u[i] - 0.5 * D1[i][d];
 			}
 		}
 	};
@@ -151,9 +151,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 					for (int d = 0; d < geo::NDIR; d++) {
 						if (d != geo::NDIR / 2) {
 							auto &s = S[dim][d];
-							const auto &qp = Q[sx_i + dim][i + dir[d]][geo::flip(d)];
-							const auto &qm = Q[sx_i + dim][i][d];
-							const auto q = 0.5 * (qp + qm);
+							const auto &q = U[sx_i + dim][i + dir[d]];
 							const auto &u0 = U[sx_i + dim][i];
 							const auto M = std::max(u0, q);
 							const auto m = std::min(u0, q);
@@ -182,7 +180,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_minmod(Q[f], U[f], false);
+				reconstruct_minmod(Q[f], U[f]);
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
