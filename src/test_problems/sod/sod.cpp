@@ -1,9 +1,3 @@
-/*
- * rotating_star.cpp
- *
- *  Created on: Oct 12, 2018
- *      Author: dmarce1
- */
 
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"

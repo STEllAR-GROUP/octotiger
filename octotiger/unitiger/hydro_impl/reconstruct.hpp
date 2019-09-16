@@ -3,7 +3,7 @@
 #define NEW_LIMITER
 
 template<int NDIM, int INX>
-const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 
 	static thread_local auto D1 = std::vector<std::array<safe_real, geo::NDIR / 2>>(geo::H_N3);
 	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
@@ -90,23 +90,6 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 			}
 		}
 	};
-
-	const auto reconstruct_minmod = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u) {
-		for (const auto &i : indices1) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				const auto di = dir[d];
-				D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 1.);
-			}
-		}
-		for (const auto &i : indices1) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				const auto di = dir[d];
-				q[i][d] = u[i] + 0.5 * D1[i][d];
-				q[i][geo::flip(d)] = u[i] - 0.5 * D1[i][d];
-			}
-		}
-	};
-
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
@@ -148,16 +131,31 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
 
 				for (int dim = 0; dim < NDIM; dim++) {
-					for (int d = 0; d < geo::NDIR; d++) {
-						if (d != geo::NDIR / 2) {
-							auto &s = S[dim][d];
-							const auto &q = U[sx_i + dim][i + dir[d]];
-							const auto &u0 = U[sx_i + dim][i];
-							const auto M = std::max(u0, q);
-							const auto m = std::min(u0, q);
-							s = std::min(s, M);
-							s = std::max(s, m);
-						}
+					for (int d = 0; d < geo::NDIR / 2; d++) {
+						const auto f = sx_i + dim;
+						const auto& up = U[f][i + dir[d]];
+						const auto& u0 = U[f][i];
+						const auto& um = U[f][i - dir[d]];
+						const auto& dp = d;
+						const auto dm = geo::flip(d);
+						const auto slp1 = Q[f][i][dp] - Q[f][i][dm];
+						const auto slp2 = S[dim][dp] - S[dim][dm];
+						const auto avg = 0.5 * (S[dim][dp] + S[dim][dm]);
+						const auto slp = minmod(slp1, slp2);
+						S[dim][dp] = avg + 0.5 * slp;
+						S[dim][dm] = avg - 0.5 * slp;
+//					for (int d = 0; d < geo::NDIR; d++) {
+//						if (d != geo::NDIR / 2) {
+//							auto &s = S[dim][d];
+//							const auto &q = U[sx_i + dim][i + dir[d]];
+//							const auto &u0 = U[sx_i + dim][i];
+//							const auto M = std::max(u0, q);
+//							const auto m = std::min(u0, q);
+//							const auto s0 = s;
+//							s = std::min(s, M);
+//							s = std::max(s, m);
+//							S[dim][geo::flip(d)] += s0 - s;
+//						}
 					}
 				}
 				for (int f = sx_i; f < sx_i + NDIM; f++) {
@@ -167,12 +165,15 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 					}
 				}
 
-				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
-				am2 = measure_angmom(S);
+//				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
+//				am2 = measure_angmom(S);
+//				for (int n = 0; n < geo::NANGMOM; n++) {
+//					Z[n] -= am2[n];
+//				}
+//				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
 				for (int n = 0; n < geo::NANGMOM; n++) {
-					U[zx_i + n][i] = Z[n] - am2[n];
+					U[zx_i + n][i] = Z[n];
 				}
-				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
 				for (int dim = 0; dim < NDIM; dim++) {
 					for (int d = 0; d < geo::NDIR; d++) {
 						Q[sx_i + dim][i][d] = S[dim][d];
@@ -180,7 +181,7 @@ const hydro::recon_type<NDIM> hydro_computer<NDIM, INX>::reconstruct(hydro::stat
 				}
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_minmod(Q[f], U[f]);
+				reconstruct_ppm(Q[f], U[f], false);
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;

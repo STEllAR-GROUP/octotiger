@@ -103,9 +103,11 @@ void grid::complete_hydro_amr_boundary() {
 		}
 	}
 	if (opts().amrbnd_order > 0) {
-		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp;
+		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp1;
+		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp2;
 		for (int d = 0; d < NDIM; d++) {
-			slp[d].resize(opts().n_fields, std::vector<double>(HS_N3));
+			slp1[d].resize(opts().n_fields, std::vector<double>(HS_N3));
+			slp2[d].resize(opts().n_fields, std::vector<double>(HS_N3));
 		}
 		const auto slopes = [this](int f) {
 			for (int i0 = 2; i0 < HS_NX - 2; i0++) {
@@ -150,8 +152,8 @@ void grid::complete_hydro_amr_boundary() {
 									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 1 * H_DN[db]] - u0;
 									slpm /= 3.0;
 								}
-								const auto theta = (f != rho_i && f != tau_i) ? 1.0 : 1.0;
-								slp[d][f][iii0] = minmod_theta(slpp, -slpm, theta);
+								slp1[d][f][iii0] = minmod_theta(slpp, -slpm, 1.0);
+								slp2[d][f][iii0] = minmod_theta(slpp, -slpm, 2.0);
 							}
 						}
 					}
@@ -173,9 +175,9 @@ void grid::complete_hydro_amr_boundary() {
 						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
 							auto &value = U[f][iiir];
-							value -= 0.25 * isgn * slp[XDIM][f][iii0];
-							value -= 0.25 * jsgn * slp[YDIM][f][iii0];
-							value -= 0.25 * ksgn * slp[ZDIM][f][iii0];
+							value -= 0.25 * isgn * slp1[XDIM][f][iii0];
+							value -= 0.25 * jsgn * slp1[YDIM][f][iii0];
+							value -= 0.25 * ksgn * slp1[ZDIM][f][iii0];
 							if (opts().angmom) {
 								if (f == sx_i) {
 									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
@@ -213,7 +215,7 @@ void grid::complete_hydro_amr_boundary() {
 
 						for (integer d0 = 0; d0 != NDIM; ++d0) {
 							for (integer d1 = 0; d1 != NDIM; ++d1) {
-								dV_sym[d1][d0] = (slp[d0][sx_i + d1][iii0] + slp[d1][sx_i + d0][iii0]) / 2.0;
+								dV_sym[d1][d0] = (slp2[d0][sx_i + d1][iii0] + slp2[d1][sx_i + d0][iii0]) / 2.0;
 								dV_ant[d1][d0] = 0.0;
 							}
 						}
@@ -226,10 +228,9 @@ void grid::complete_hydro_amr_boundary() {
 						for (integer d0 = 0; d0 != NDIM; ++d0) {
 							for (integer d1 = 0; d1 != NDIM; ++d1) {
 								const real tmp = dV_sym[d0][d1] + dV_ant[d0][d1];
-								slp[d0][sx_i + d1][iii0] = minmod(tmp, slp[d0][sx_i + d1][iii0]);
+								slp1[d0][sx_i + d1][iii0] = minmod(tmp, slp2[d0][sx_i + d1][iii0]);
 							}
 						}
-
 					}
 				}
 			}
