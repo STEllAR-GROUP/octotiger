@@ -7,8 +7,8 @@
 #include "../../octotiger/unitiger/hydro.hpp"
 #include "../../octotiger/unitiger/safe_real.hpp"
 
-static constexpr double tmax = 1;
-static constexpr safe_real dt_out = 1000.0;
+static constexpr double tmax = 2.0e-2;
+static constexpr safe_real dt_out = tmax / 250;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -25,8 +25,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
 	}
 	const auto nf = physics<NDIM>::field_count();
-	std::vector<std::vector<std::vector<safe_real>>> F(NDIM,
-			std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
+	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(nf, std::vector<safe_real>(H_N3));
 	hydro::x_type X(NDIM);
@@ -65,7 +64,8 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		computer.post_process(U, dx);
 		t += dt;
 		computer.boundaries(U);
-		computer.output(U, X, oter++, t);
+		if (int(t / dt_out) != int((t - dt) / dt_out))
+			computer.output(U, X, oter++, t);
 		iter++;
 		printf("%i %e %e\n", iter, double(t), double(dt));
 	}
@@ -108,17 +108,18 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	fclose(fp1);
 	fclose(fp2);
 	fclose(fpinf);
-	FILE* fp = fopen("time.dat", "wt");
-	fprintf(fp, "%i %li\n", INX, tstop - tstart);
+	FILE* fp = fopen( "time.dat", "wt");
+	fprintf( fp, "%i %li\n", INX, tstop -tstart);
 	fclose(fp);
 }
+
 
 int main(int, char*[]) {
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-	run_test<2, 200>(physics<2>::KH, true);
+	run_test<2, 100>(physics<2>::BLAST, true);
 //	run_test<2, 128>(physics<2>::CONTACT, false);
 //	run_test<2, 256>(physics<2>::CONTACT, false);
 //	run_test<2, 512>(physics<2>::CONTACT, false);
