@@ -425,12 +425,12 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 
 			U[physics<NDIM>::tau_i][i] = 1.0;
 			p = 1.0;
-			if (x[1] < 0.0) {
+			if (x[0] < 0.0) {
 				rho = 1.0 + eps();
-				vx = -0.5;
+				vy = -0.5;
 			} else {
 				rho = 2.0 + eps();
-				vx = +0.5;
+				vy = +0.5;
 			}
 			break;
 		}
