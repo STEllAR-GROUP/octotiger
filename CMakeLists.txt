@@ -59,9 +59,6 @@ endif()
 
 
 # Octotiger library headers
-
-
-# Octotiger library headers
 set(source_files
     src/compute_factor.cpp
     src/eos.cpp
