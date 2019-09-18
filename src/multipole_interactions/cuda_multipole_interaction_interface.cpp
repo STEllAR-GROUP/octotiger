@@ -79,7 +79,7 @@ namespace octotiger { namespace fmm { namespace multipole_interactions {
                     &(env.device_potential_expansions),
                     &(env.device_angular_corrections), &theta, &second_phase};
                 gpu_interface.execute(
-                    static_cast<void const*>(&cuda_multipole_interactions_kernel_rho),
+                    reinterpret_cast<void const*>(&cuda_multipole_interactions_kernel_rho),
                     grid_spec, threads_per_block, args, 0);
                 // second_phase = true;
                 // gpu_interface.execute(&cuda_multipole_interactions_kernel_rho, grid_spec,
@@ -96,7 +96,7 @@ namespace octotiger { namespace fmm { namespace multipole_interactions {
                     &(env.device_local_expansions),
                     &(env.device_potential_expansions), &theta, &second_phase};
                 gpu_interface.execute(
-                    static_cast<void const*>(&cuda_multipole_interactions_kernel_non_rho),
+                    reinterpret_cast<void const*>(&cuda_multipole_interactions_kernel_non_rho),
                     grid_spec, threads_per_block, args, 0);
                 // second_phase = true;
                 // gpu_interface.execute(&cuda_multipole_interactions_kernel_non_rho, grid_spec,
