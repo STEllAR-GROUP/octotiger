@@ -140,31 +140,18 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
 
 				for (int dim = 0; dim < NDIM; dim++) {
-					for (int d = 0; d < geo::NDIR / 2; d++) {
-						const auto f = sx_i + dim;
-						const auto& up = U[f][i + dir[d]];
-						const auto& u0 = U[f][i];
-						const auto& um = U[f][i - dir[d]];
-						const auto& dp = d;
-						const auto dm = geo::flip(d);
-						const auto slp1 = Q[f][i][dp] - Q[f][i][dm];
-						const auto slp2 = S[dim][dp] - S[dim][dm];
-						const auto avg = 0.5 * (S[dim][dp] + S[dim][dm]);
-						const auto slp = minmod(slp1, slp2);
-						S[dim][dp] = avg + 0.5 * slp;
-						S[dim][dm] = avg - 0.5 * slp;
-//					for (int d = 0; d < geo::NDIR; d++) {
-//						if (d != geo::NDIR / 2) {
-//							auto &s = S[dim][d];
-//							const auto &q = U[sx_i + dim][i + dir[d]];
-//							const auto &u0 = U[sx_i + dim][i];
-//							const auto M = std::max(u0, q);
-//							const auto m = std::min(u0, q);
-//							const auto s0 = s;
-//							s = std::min(s, M);
-//							s = std::max(s, m);
-//							S[dim][geo::flip(d)] += s0 - s;
-//						}
+					for (int d = 0; d < geo::NDIR; d++) {
+						if (d != geo::NDIR / 2) {
+							auto &s = S[dim][d];
+							const auto &q = U[sx_i + dim][i + dir[d]];
+							const auto &u0 = U[sx_i + dim][i];
+							const auto M = std::max(u0, q);
+							const auto m = std::min(u0, q);
+							const auto s0 = s;
+							s = std::min(s, M);
+							s = std::max(s, m);
+							S[dim][geo::flip(d)] += s0 - s;
+						}
 					}
 				}
 				for (int f = sx_i; f < sx_i + NDIM; f++) {
