@@ -51,18 +51,9 @@ struct mesh_vars_t {
 	std::array<int, NDIM> var_dims;
 	node_location location;
 	mesh_vars_t(mesh_vars_t&&) = default;
-	int compression_level() {
-		int lev = 0;
-		int i = var_dims[0];
-		while (i > INX) {
-			i >>= 1;
-			lev++;
-		}
-		return lev;
-	}
-	mesh_vars_t(const node_location &loc, int compression = 0) :
+	mesh_vars_t(const node_location &loc) :
 			X(NDIM), location(loc) {
-		const int nx = (INX << compression);
+		const int nx = INX;
 		X_dims[0] = X_dims[1] = X_dims[2] = nx + 1;
 		var_dims[0] = var_dims[1] = var_dims[2] = nx;
 		const real dx = 2.0 * opts().xscale / nx / (1 << loc.level());
@@ -92,96 +83,6 @@ static int timestamp;
 static int steps_elapsed;
 static const int HOST_NAME_LEN = 100;
 
-std::vector<mesh_vars_t> compress(std::vector<mesh_vars_t> &&mesh_vars) {
-
-//	printf("Compressing %i grids...\n", int(mesh_vars.size()));
-
-	using table_type = std::unordered_map<node_location::node_id, std::shared_ptr<mesh_vars_t>>;
-	table_type table;
-	std::vector<mesh_vars_t> done;
-	for (auto &mv : mesh_vars) {
-		table.insert(std::make_pair(mv.location.to_id(), std::make_shared<mesh_vars_t>(std::move(mv))));
-	}
-	int ll = 0;
-	std::vector<table_type::iterator> iters;
-	while (table.size()) {
-		iters.clear();
-		auto i = table.begin();
-		node_location tmp;
-		tmp.from_id(i->first);
-		int first_nx = i->second->X_dims[0];
-		const integer shift = (tmp.level() - 1) * NDIM;
-		if (shift > 0) {
-			auto loc_bits = i->first & node_location::node_id(~(0x7 << shift));
-			bool levels_match = true;
-			for (int j = 0; j < NCHILD; j++) {
-				auto this_iter = table.find(loc_bits | (j << shift));
-				if (this_iter != table.end()) {
-					levels_match = levels_match && (this_iter->second->X_dims[0] == first_nx);
-					iters.push_back(this_iter);
-				}
-			}
-			const auto field_names = grid::get_field_names();
-			const int nfields = field_names.size();
-			if (iters.size() == NCHILD && levels_match) {
-				node_location ploc;
-				ploc.from_id(loc_bits);
-				ploc = ploc.get_parent();
-				auto new_mesh_ptr = std::make_shared<mesh_vars_t>(ploc, iters[0]->second->compression_level() + 1);
-				for (int f = 0; f < nfields; f++) {
-					const bool is_hydro = grid::is_hydro_field(field_names[f]);
-					if (is_hydro) {
-						new_mesh_ptr->outflow.push_back(std::make_pair(field_names[f], 0.0));
-					}
-					silo_var_t new_var(field_names[f], new_mesh_ptr->var_dims[0]);
-					for (integer ci = 0; ci != NCHILD; ci++) {
-						if (is_hydro) {
-							new_mesh_ptr->outflow[f].second += iters[ci]->second->outflow[f].second;
-						}
-						const auto &old_var = iters[ci]->second->vars[f];
-						const int nx = new_mesh_ptr->var_dims[0] / 2;
-						const int ib = ((ci >> 0) & 1) * nx;
-						const int jb = ((ci >> 1) & 1) * nx;
-						const int kb = ((ci >> 2) & 1) * nx;
-						const int ie = ib + nx;
-						const int je = jb + nx;
-						const int ke = kb + nx;
-						for (int i = ib; i < ie; i++) {
-							for (int j = jb; j < je; j++) {
-								for (int k = kb; k < ke; k++) {
-									const int iiip = i * (4 * nx * nx) + j * 2 * nx + k;
-									const int iiic = (i - ib) * (nx * nx) + (j - jb) * nx + (k - kb);
-									new_var(iiip) = old_var(iiic);
-								}
-							}
-						}
-						new_var.set_range(old_var.min());
-						new_var.set_range(old_var.max());
-					}
-					new_mesh_ptr->vars.push_back(std::move(new_var));
-				}
-				for (auto this_iter : iters) {
-					table.erase(this_iter);
-				}
-				table.insert(std::make_pair(ploc.to_id(), new_mesh_ptr));
-			} else {
-				for (auto this_iter : iters) {
-					node_location loc;
-					loc.from_id(this_iter->first);
-					done.push_back(std::move(*this_iter->second));
-					table.erase(this_iter);
-				}
-			}
-		} else {
-			done.push_back(std::move(*table.begin()->second));
-			table.erase(table.begin());
-		}
-	}
-
-//	printf("Compressed to %i grids...\n", int(done.size()));
-
-	return std::move(done);
-}
 
 void output_stage1(std::string fname, int cycle) {
 	std::vector<node_location::node_id> ids;
@@ -217,9 +118,6 @@ node_list_t output_stage2(std::string fname, int cycle) {
 		all_mesh_vars.push_back(std::move(GET(this_fut)));
 	}
 	std::vector<node_location::node_id> ids;
-	if (opts().compress_silo) {
-		all_mesh_vars = compress(std::move(all_mesh_vars));
-	}
 	node_list_t nl;
 	nl.extents.resize(nfields);
 	ids.reserve(all_mesh_vars.size());

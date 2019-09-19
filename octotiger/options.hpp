@@ -39,7 +39,6 @@ public:
 	bool hydro;
 	bool radiation;
 	bool variable_omega;
-	bool compress_silo;
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
@@ -131,7 +130,6 @@ public:
 		arc & driving_time;
 		arc & refinement_floor;
 		arc & ngrids;
-		arc & compress_silo;
 		arc & v1309;
 		arc & variable_omega;
 		arc & stop_time;
