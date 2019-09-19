@@ -42,7 +42,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	enum bc_type {OUTFLOW, PERIODIC};
 
-	const hydro::recon_type<NDIM> reconstruct(hydro::state_type &U, const hydro::x_type&, safe_real );
+	const hydro::recon_type<NDIM>& reconstruct(hydro::state_type &U, const hydro::x_type&, safe_real );
 
 	safe_real flux(const hydro::state_type& U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
