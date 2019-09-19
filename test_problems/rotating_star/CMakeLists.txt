@@ -7,7 +7,7 @@
 # Rotating Star
 ##############################################################################
 download_test_reference("Rotating star test"
-  "phys.lsu.edu/~dmarcel/rotating_star.6.silo"
+  "phys.lsu.edu/~dmarcel/rotating_star.7.silo"
   ${PROJECT_BINARY_DIR}/rotating_star.silo)
 
 # Rotating Star - CPU

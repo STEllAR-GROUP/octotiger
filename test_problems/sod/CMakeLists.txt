@@ -7,7 +7,7 @@
 # Sod Shock Tube
 ##############################################################################
 download_test_reference("Sod shock tube test"
-  "phys.lsu.edu/~dmarcel/sod.6.silo"
+  "phys.lsu.edu/~dmarcel/sod.7.silo"
   ${PROJECT_BINARY_DIR}/sod.silo)
 
 # Sod Shock Tube - CPU
