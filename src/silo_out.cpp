@@ -3,6 +3,8 @@
 
 #include <hpx/runtime/threads/run_as_os_thread.hpp>
 
+#include <sys/stat.h>
+
 static const auto &localities = options::all_localities;
 
 template<class T>
@@ -91,9 +93,10 @@ void output_stage1(std::string fname, int cycle) {
 	silo_output_time() = node_ptr_->get_time() * opts().code_to_s;
 	silo_output_rotation_time() = node_ptr_->get_rotation_count();
 	for (auto i = node_registry::begin(); i != node_registry::end(); ++i) {
-		const auto *node_ptr_ = i->second.get_ptr().get();
+		const auto *node_ptr_ = GET(i->second.get_ptr());
 		if (!node_ptr_->refined()) {
-			futs_.push_back(hpx::async([](node_location loc, node_registry::node_ptr ptr) {
+			futs_.push_back(hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost),
+			   [](node_location loc, node_registry::node_ptr ptr) {
 				const auto *this_ptr = ptr.get_ptr().get();
 				assert(this_ptr);
 				const real dx = TWO / real(1 << loc.level()) / real(INX);
@@ -229,10 +232,10 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 			}
 			DBFreeOptlist(optlist_mesh);
 			DBClose(db);
-		}, cycle).get();
+	}, cycle).get();
 	if (this_id < ge - 1) {
-		output_stage3_action func;
-		func(localities[this_id + 1], fname, cycle, gn, gb, ge);
+		auto f = hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost),localities[this_id + 1], fname, cycle, gn, gb, ge);
+		GET(f);
 	}
 }
 
@@ -490,17 +493,20 @@ void output_stage4(std::string fname, int cycle) {
 
 void output_all(std::string fname, int cycle, bool block) {
 
+	static hpx::mutex mtx;
+	auto lock_ptr = std::make_shared<std::lock_guard<hpx::mutex>>(mtx);	
+
 	if (opts().disable_output) {
 		printf("Skipping SILO output\n");
 		return;
 	}
 
-	std::string command = "mkdir -p " + fname + ".silo.data\n";
-	system(command.c_str());
+	std::string dir = fname + ".silo.data";
+	mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
-	nsteps = node_registry::begin()->second.get_ptr().get()->get_step_num();
+	nsteps = GET(node_registry::begin()->second.get_ptr())->get_step_num();
 	timestamp = time(nullptr);
 	steps_elapsed = nsteps - start_step;
 	time_elapsed = time(nullptr) - start_time;
@@ -508,13 +514,13 @@ void output_all(std::string fname, int cycle, bool block) {
 	start_step = nsteps;
 	std::vector<hpx::future<void>> futs1;
 	for (auto &id : localities) {
-		futs1.push_back(hpx::async<output_stage1_action>(id, fname, cycle));
+		futs1.push_back(hpx::async<output_stage1_action>(hpx::launch::async(hpx::threads::thread_priority_boost),id, fname, cycle));
 	}
 	GET(hpx::when_all(futs1));
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {
-		id_futs.push_back(hpx::async<output_stage2_action>(id, fname, cycle));
+		id_futs.push_back(hpx::async<output_stage2_action>(hpx::launch::async(hpx::threads::thread_priority_boost),id, fname, cycle));
 	}
 	node_list_.silo_leaves.clear();
 	node_list_.group_num.clear();
@@ -523,6 +529,7 @@ void output_all(std::string fname, int cycle, bool block) {
 	node_list_.extents.clear();
 	int id = 0;
 	for (auto &f : id_futs) {
+//		printf( "---%i\n", id) ;
 		const int gn = id * opts().silo_num_groups / localities.size();
 		node_list_t this_list = GET(f);
 		const int leaf_cnt = this_list.silo_leaves.size();
@@ -549,16 +556,17 @@ void output_all(std::string fname, int cycle, bool block) {
 	for (int i = 0; i < ng; i++) {
 		int gb = (i * localities.size()) / ng;
 		int ge = ((i + 1) * localities.size()) / ng;
-		futs.push_back(hpx::async<output_stage3_action>(localities[gb], fname, cycle, i, gb, ge));
+		futs.push_back(hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost),localities[gb], fname, cycle, i, gb, ge));
 	}
 
-	barrier = hpx::async([fname, cycle](std::vector<hpx::future<void>>&& futs) {
+	barrier = hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost),[fname, cycle](std::vector<hpx::future<void>>&& futs, decltype(lock_ptr) lock) {
 		for (auto &f : futs) {
 			GET(f);
 		}
 		output_stage4(fname, cycle);
-	}, std::move(futs));
+	}, std::move(futs), lock_ptr);
 
+//	block = true;
 	if (block) {
 		GET(barrier);
 		barrier = hpx::make_ready_future<void>();
