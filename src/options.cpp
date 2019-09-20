@@ -61,7 +61,6 @@ bool options::process_options(int argc, char *argv[]) {
 	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
 	("cfl", po::value<real>(&(opts().cfl))->default_value(2. / 15.), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
-	("compress_silo", po::value<bool>(&(opts().compress_silo))->default_value(true), "compress SILO files to fewer grids")    //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
 	("variable_omega", po::value<bool>(&(opts().variable_omega))->default_value(false), "use variable omega")                 //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
@@ -72,6 +71,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
 	("old_amrbnd", po::value<bool>(&(opts().old_amrbnd))->default_value(false), "use old amr boundary interpolation")           //
 	("amrbnd_order", po::value<integer>(&(opts().amrbnd_order))->default_value(1), "amr boundary interpolation order")        //
+	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
@@ -168,6 +168,11 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 		std::cout << '\n';
 		const auto num_loc = hpx::find_all_localities().size();
+		if (silo_num_groups > num_loc) {
+			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
+			silo_num_groups = num_loc;
+		}
+		SHOW(silo_num_groups);
 		SHOW(old_amrbnd);
 		SHOW(amrbnd_order);
 		SHOW(angmom);
@@ -177,7 +182,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(bench);
 		SHOW(disable_output);
 		SHOW(v1309);
-		SHOW(compress_silo);
 		SHOW(core_refine);
 		SHOW(gravity);
 		SHOW(hydro);
