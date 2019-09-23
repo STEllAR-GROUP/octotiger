@@ -502,7 +502,9 @@ void output_all(std::string fname, int cycle, bool block) {
 	}
 
 	std::string dir = fname + ".silo.data";
-	mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+	hpx::threads::run_as_os_thread([&]() {
+		mkdir( dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+	}).get();
 
 	static hpx::future<void> barrier(hpx::make_ready_future<void>());
 	GET(barrier);
