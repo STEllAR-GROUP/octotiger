@@ -166,15 +166,15 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 					}
 				}
 
-				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
-				am2 = measure_angmom(S);
-				for (int n = 0; n < geo::NANGMOM; n++) {
-			//		Z[n] -= am2[n];
-				}
-				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
-				for (int n = 0; n < geo::NANGMOM; n++) {
-					U[zx_i + n][i] = Z[n];
-				}
+//				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
+//				am2 = measure_angmom(S);
+//				for (int n = 0; n < geo::NANGMOM; n++) {
+//					Z[n] -= am2[n];
+//				}
+//				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
+//				for (int n = 0; n < geo::NANGMOM; n++) {
+//					U[zx_i + n][i] = Z[n];
+//				}
 				for (int dim = 0; dim < NDIM; dim++) {
 					for (int d = 0; d < geo::NDIR; d++) {
 						Q[sx_i + dim][i][d] = S[dim][d];
