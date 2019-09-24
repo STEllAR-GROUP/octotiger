@@ -169,7 +169,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
 				am2 = measure_angmom(S);
 				for (int n = 0; n < geo::NANGMOM; n++) {
-					Z[n] -= am2[n];
+			//		Z[n] -= am2[n];
 				}
 				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
 				for (int n = 0; n < geo::NANGMOM; n++) {
@@ -182,7 +182,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				}
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_constant(Q[f], U[f]);
+				reconstruct_ppm(Q[f], U[f], false);
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
