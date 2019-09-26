@@ -19,43 +19,43 @@
 struct diagnostics_t {
 	static constexpr integer nspec = 2;
 	bool failed;
+	integer stage;
+	real a;
 	real l1_phi;
 	real l2_phi;
 	real l3_phi;
 	real omega;
-	real m[nspec];
-	real gt[nspec];
-	real phi_eff_min[nspec];
-	space_vector grid_com;
-	space_vector com[nspec];
-	space_vector com_dot[nspec];
-	real js[nspec];
 	real jorb;
-	real rL[nspec];
-	taylor<3> mom[nspec];
-	integer stage;
-	real tidal[nspec];
-	real a;
-	real roche_vol[nspec];
-	real stellar_vol[nspec];
 	real virial;
 	real virial_norm;
-	real z_moment[nspec];
 	real z_mom_orb;
-	real rho_max[nspec];
+	space_vector grid_com;
+	std::array<real,nspec> m;
+	std::array<real,nspec> gt;
+	std::array<real,nspec> phi_eff_min;
+	std::array<real,nspec> js;
+	std::array<real,nspec> rL;
+	std::array<real,nspec> tidal;
+	std::array<real,nspec> roche_vol;
+	std::array<real,nspec> stellar_vol;
+	std::array<real,nspec> z_moment;
+	std::array<real,nspec> rho_max;
+	std::array<space_vector,nspec> com;
+	std::array<space_vector,nspec> com_dot;
+	std::array<taylor<3>,nspec> mom;
 	hydro_state_t<> grid_sum;
 	hydro_state_t<> grid_out;
-	std::array<real,NDIM> lsum;
+	std::array<real, NDIM> lsum;
 	diagnostics_t() {
 		failed = false;
 		stage = 1;
 		omega = -1.0;
 		grid_com = 0.0;
-		for( integer f = 0; f != opts().n_fields; ++f) {
+		for (integer f = 0; f != opts().n_fields; ++f) {
 			grid_sum[f] = 0.0;
 			grid_out[f] = 0.0;
 		}
-		for( integer s = 0; s != nspec; ++s) {
+		for (integer s = 0; s != nspec; ++s) {
 			phi_eff_min[s] = std::numeric_limits<real>::max();
 			m[s] = 0.0;
 			roche_vol[s] = 0.0;
@@ -69,7 +69,7 @@ struct diagnostics_t {
 			tidal[s] = 0.0;
 			z_moment[s] = 0.0;
 			rho_max[s] = 0.0;
-			}
+		}
 		lsum[0] = lsum[1] = lsum[2] = 0.0;
 		virial_norm = 0.0;
 		z_mom_orb = 0.0;
@@ -79,26 +79,26 @@ struct diagnostics_t {
 		l2_phi = -std::numeric_limits<real>::max();
 		l3_phi = -std::numeric_limits<real>::max();
 	}
-	static inline real RL_radius(real q ) {
-		const real q13 = std::pow(q,1.0/3.0);
+	static inline real RL_radius(real q) {
+		const real q13 = std::pow(q, 1.0 / 3.0);
 		const real q23 = q13 * q13;
 		const real n = 0.49 * q23;
 		const real d = 0.6 * q23 + std::log(1.0 + q13);
 		return n / d;
 	}
 	const diagnostics_t& compute();
-	diagnostics_t& operator+=(const diagnostics_t& other) {
+	diagnostics_t& operator+=(const diagnostics_t &other) {
 		failed = failed || other.failed;
 		l1_phi = std::max(l1_phi, other.l1_phi);
 		l2_phi = std::max(l2_phi, other.l2_phi);
 		l3_phi = std::max(l3_phi, other.l3_phi);
-		for( integer f = 0; f != opts().n_fields; ++f) {
+		for (integer f = 0; f != opts().n_fields; ++f) {
 			grid_sum[f] += other.grid_sum[f];
 			grid_out[f] += other.grid_out[f];
 		}
-		for( integer s = 0; s != nspec; ++s) {
+		for (integer s = 0; s != nspec; ++s) {
 			z_moment[s] += other.z_moment[s];
-			for( integer d = 0; d != nspec; ++d) {
+			for (integer d = 0; d < NDIM; ++d) {
 				com[s][d] *= m[s];
 				com[s][d] += other.com[s][d] * other.m[s];
 				com_dot[s][d] *= m[s];
@@ -113,8 +113,8 @@ struct diagnostics_t {
 			js[s] += other.js[s];
 			rho_max[s] = std::max(rho_max[s], other.rho_max[s]);
 			mom[s] += other.mom[s];
-			for( integer d = 0; d != NDIM; ++d) {
-				if( m[s] > 0.0 ) {
+			for (integer d = 0; d < NDIM; ++d) {
+				if (m[s] > 0.0) {
 					com[s][d] /= m[s];
 					com_dot[s][d] /= m[s];
 				}
@@ -125,15 +125,14 @@ struct diagnostics_t {
 		lsum[2] += other.lsum[2];
 		return *this;
 	}
-	friend diagnostics_t operator+(const diagnostics_t& lhs, const diagnostics_t& rhs)
-    {
-        diagnostics_t res(lhs);
-        return res += rhs;
-    }
-	diagnostics_t& operator=(const diagnostics_t& other) = default;
+	friend diagnostics_t operator+(const diagnostics_t &lhs, const diagnostics_t &rhs) {
+		diagnostics_t res(lhs);
+		return res += rhs;
+	}
+	diagnostics_t& operator=(const diagnostics_t &other) = default;
 
 	template<class Arc>
-	void serialize(Arc& arc, const unsigned) {
+	void serialize(Arc &arc, const unsigned) {
 		arc & failed;
 		arc & lsum;
 		arc & l1_phi;
@@ -162,7 +161,6 @@ struct diagnostics_t {
 		arc & rho_max;
 		arc & grid_sum;
 		arc & grid_out;
-
 
 	}
 
