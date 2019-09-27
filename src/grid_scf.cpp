@@ -34,23 +34,44 @@ const real w0 = 1.0 / 8.0;
 
 namespace scf_options {
 
+
+/********** V1309 SCO ****************/
 static real async1 = -0.0e-2;
 static real async2 = -0.0e-2;
-static bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
-static real M1 = 1.00; // Mass of primary
-static real M2 = 0.70; // Mass of secondaries
-static real nc1 = 1.5; // Primary core polytropic index
-static real nc2 = 1.5; // Secondary core polytropic index
-static real ne1 = 1.5; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
+static bool equal_struct_eos = false; // If true, EOS of accretor will be set to that of donor
+static real M1 = 1.54; // Mass of primary
+static real M2 = 0.17; // Mass of secondaries
+static real nc1 = 5.0; // Primary core polytropic index
+static real nc2 = 5.0; // Secondary core polytropic index
+static real ne1 = 3.0; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
 static real ne2 = 1.5; // Secondary envelope polytropic index
-static real mu1 = 1; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
-static real mu2 = 1; // Primary ratio of molecular weights
-static real a = 1.0; // approx. orbital sep
+static real mu1 = 2.1598; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
+static real mu2 = 2.1598; // Primary ratio of molecular weights
+static real a = 6.36; // approx. orbital sep
 static real core_frac1 = 1.0 / 10.0; // Desired core fraction of primary // Ignored if equal_struct_eos=true
 static real core_frac2 = 2.0 / 3.0; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
 static real fill1 = 0.99; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
 static real fill2 = 0.99; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
-static real contact_fill = 0.0; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
+static real contact_fill = 0.1; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
+
+
+//static real async1 = -0.0e-2;
+//static real async2 = -0.0e-2;
+//static bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
+//static real M1 = 1.00; // Mass of primary
+//static real M2 = 0.70; // Mass of secondaries
+//static real nc1 = 1.5; // Primary core polytropic index
+//static real nc2 = 1.5; // Secondary core polytropic index
+//static real ne1 = 1.5; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
+//static real ne2 = 1.5; // Secondary envelope polytropic index
+//static real mu1 = 1; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
+//static real mu2 = 1; // Primary ratio of molecular weights
+//static real a = 1.0; // approx. orbital sep
+//static real core_frac1 = 1.0 / 10.0; // Desired core fraction of primary // Ignored if equal_struct_eos=true
+//static real core_frac2 = 2.0 / 3.0; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
+//static real fill1 = 0.99; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
+//static real fill2 = 0.99; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+//static real contact_fill = 0.0; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
 
 
 //namespace scf_options {
