@@ -66,6 +66,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "entropy loss driving rate")      //
+	("future_wait_time", po::value<integer>(&(opts().future_wait_time))->default_value(-1), "")      //
 	("silo_offset_x", po::value<integer>(&(opts().silo_offset_x))->default_value(0), "")      //
 	("silo_offset_y", po::value<integer>(&(opts().silo_offset_y))->default_value(0), "")      //
 	("silo_offset_z", po::value<integer>(&(opts().silo_offset_z))->default_value(0), "")      //
@@ -220,6 +221,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(code_to_g);
 		SHOW(code_to_s);
 		SHOW(code_to_cm);
+		SHOW(future_wait_time);
 
 	}
 	while (atomic_number.size() < opts().n_species) {

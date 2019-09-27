@@ -55,6 +55,7 @@ public:
 	integer silo_offset_x;
 	integer silo_offset_y;
 	integer silo_offset_z;
+	integer future_wait_time;
 
 	real dual_energy_sw2;
 	real dual_energy_sw1;
@@ -101,6 +102,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc & future_wait_time;
 		arc & silo_offset_x;
 		arc & silo_offset_y;
 		arc & silo_offset_z;
