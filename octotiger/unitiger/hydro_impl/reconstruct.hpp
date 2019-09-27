@@ -96,13 +96,13 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 		}
 	};
 
-        const auto reconstruct_constant = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u) {
-                for (const auto &i : indices1) {
-                        for (int d = 0; d < geo::NDIR; d++) {
-                                q[i][d] = u[i];
-                        }
-                }
-        };
+//        const auto reconstruct_constant = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u) {
+//                for (const auto &i : indices1) {
+//                        for (int d = 0; d < geo::NDIR; d++) {
+//                                q[i][d] = u[i];
+//                        }
+//                }
+//        };
 
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
@@ -152,10 +152,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 							const auto &u0 = U[sx_i + dim][i];
 							const auto M = std::max(u0, q);
 							const auto m = std::min(u0, q);
-							const auto s0 = s;
+//							const auto s0 = s;
 							s = std::min(s, M);
 							s = std::max(s, m);
-							S[dim][geo::flip(d)] += s0 - s;
+//							S[dim][geo::flip(d)] += s0 - s;
 						}
 					}
 				}
@@ -166,15 +166,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 					}
 				}
 
-//				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
-//				am2 = measure_angmom(S);
-//				for (int n = 0; n < geo::NANGMOM; n++) {
-//					Z[n] -= am2[n];
-//				}
-//				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
-//				for (int n = 0; n < geo::NANGMOM; n++) {
-//					U[zx_i + n][i] = Z[n];
-//				}
+				for (int n = 0; n < geo::NANGMOM; n++) {
+					U[zx_i + n][i] = Z[n];
+				}
 				for (int dim = 0; dim < NDIM; dim++) {
 					for (int d = 0; d < geo::NDIR; d++) {
 						Q[sx_i + dim][i][d] = S[dim][d];
