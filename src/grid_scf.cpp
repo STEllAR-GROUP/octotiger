@@ -29,10 +29,11 @@ constexpr integer spc_de_i = spc_i + 3;
 constexpr integer spc_vac_i = spc_i + 4;
 
 // w0 = speed of convergence. Adjust lower if nan
-const real w0 = 1.0 / 4.0;
+const real w0 = 1.0 / 8.0;
 
 
 namespace scf_options {
+
 
 /********** V1309 SCO ****************/
 static real async1 = -0.0e-2;
@@ -52,6 +53,25 @@ static real core_frac2 = 2.0 / 3.0; // Desired core fraction of secondary - IGNO
 static real fill1 = 0.99; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
 static real fill2 = 0.99; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
 static real contact_fill = 0.1; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
+
+
+//static real async1 = -0.0e-2;
+//static real async2 = -0.0e-2;
+//static bool equal_struct_eos = true; // If true, EOS of accretor will be set to that of donor
+//static real M1 = 1.00; // Mass of primary
+//static real M2 = 0.70; // Mass of secondaries
+//static real nc1 = 1.5; // Primary core polytropic index
+//static real nc2 = 1.5; // Secondary core polytropic index
+//static real ne1 = 1.5; // Primary envelope polytropic index // Ignored if equal_struct_eos=true
+//static real ne2 = 1.5; // Secondary envelope polytropic index
+//static real mu1 = 1; // Primary ratio of molecular weights // Ignored if equal_struct_eos=true
+//static real mu2 = 1; // Primary ratio of molecular weights
+//static real a = 1.0; // approx. orbital sep
+//static real core_frac1 = 1.0 / 10.0; // Desired core fraction of primary // Ignored if equal_struct_eos=true
+//static real core_frac2 = 2.0 / 3.0; // Desired core fraction of secondary - IGNORED FOR CONTACT binaries
+//static real fill1 = 0.99; // 1d Roche fill factor for primary (ignored if contact fill is > 0.0) //  - IGNORED FOR CONTACT binaries  // Ignored if equal_struct_eos=true
+//static real fill2 = 0.99; // 1d Roche fill factor for secondary (ignored if contact fill is > 0.0) // - IGNORED FOR CONTACT binaries
+//static real contact_fill = 0.0; //  Degree of contact - IGNORED FOR NON-CONTACT binaries // SET to ZERO for equal_struct_eos=true
 
 
 //namespace scf_options {
@@ -430,6 +450,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 }
 
 
+
 void node_server::run_scf(std::string const& data_dir) {
 	solve_gravity(false, false);
 	real omega = initial_params().omega;
@@ -444,12 +465,12 @@ void node_server::run_scf(std::string const& data_dir) {
 		sprintf(buffer, "X.scf.%i", int(i));
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
-		auto diags = diagnostics();
-		if (i % 25 == 0) {
+		if (i % 10 == 0) {
 			if (!opts().disable_output) {
-				output_all(buffer, i,false);
+				output_all(buffer, i,true);
 			}
 		}
+		auto diags = diagnostics();
 		real f0 = scf_options::M1 * INVERSE (diags.m[0]);
 		real f1 = scf_options::M2 * INVERSE (diags.m[1]);
 		real f = (scf_options::M1 + scf_options::M2) * INVERSE (diags.m[0] + diags.m[1]);
@@ -663,6 +684,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	real rho = 0;
 //	const real R0 = this_struct_eos->get_R0();
 	int M = std::max(std::min(int(10.0 * dx), 2), 1);
+	M = 1;
 	int nsamp = 0;
 	for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx / 2.0; x0 += dx / M) {
 		for (double y0 = y - dx / 2.0 + dx / 2.0 / M; y0 < y + dx / 2.0; y0 += dx / M) {
