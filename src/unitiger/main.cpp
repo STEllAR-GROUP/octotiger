@@ -9,10 +9,18 @@
 
 //#include <hpx/hpx_init.hpp>
 
-#include "../../octotiger/unitiger/unitiger.hpp"
-#include "../../octotiger/unitiger/hydro.hpp"
-#include "../../octotiger/unitiger/safe_real.hpp"
-#include <octotiger/unitiger/hydro_impl/reconstruct.hpp>
+
+#include "octotiger/unitiger/unitiger.hpp"
+#include "octotiger/unitiger/hydro.hpp"
+#include "octotiger/unitiger/physics.hpp"
+#include "octotiger/unitiger/physics_impl.hpp"
+#include "octotiger/unitiger/safe_real.hpp"
+#include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
+#include "octotiger/unitiger/hydro_impl/flux.hpp"
+#include "octotiger/unitiger/hydro_impl/boundaries.hpp"
+#include "octotiger/unitiger/hydro_impl/advance.hpp"
+#include "octotiger/unitiger/hydro_impl/output.hpp"
+
 
 
 static constexpr double tmax = 2.49;

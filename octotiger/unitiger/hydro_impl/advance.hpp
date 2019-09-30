@@ -2,6 +2,10 @@
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+#pragma once
+
+#include "octotiger/unitiger/physics.hpp"
+#include "octotiger/unitiger/physics_impl.hpp"
 
 template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X,

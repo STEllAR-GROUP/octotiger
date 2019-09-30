@@ -8,7 +8,7 @@
 
 #include <mutex>
 
-#include "./util.hpp"
+#include "octotiger/unitiger/util.hpp"
 
 template<int NDIM, int INX>
 struct cell_geometry {

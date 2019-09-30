@@ -3,11 +3,19 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include "octotiger/unitiger/unitiger.hpp"
+#include "octotiger/unitiger/hydro.hpp"
+#include "octotiger/unitiger/physics.hpp"
+#include "octotiger/unitiger/physics_impl.hpp"
+#include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
+#include "octotiger/unitiger/hydro_impl/flux.hpp"
+#include "octotiger/unitiger/hydro_impl/boundaries.hpp"
+#include "octotiger/unitiger/hydro_impl/advance.hpp"
+#include "octotiger/unitiger/hydro_impl/output.hpp"
 
-#include "../../octotiger/unitiger/unitiger.hpp"
-#include "../../octotiger/unitiger/hydro.hpp"
 
 #include <functional>
+
 
 namespace hydro {
 

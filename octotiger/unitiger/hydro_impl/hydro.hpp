@@ -8,22 +8,8 @@
 
 
 
-
-
 #include "octotiger/unitiger/unitiger.hpp"
-
-#ifndef NOHPX
-//#include <hpx/include/async.hpp>
-//#include <hpx/include/future.hpp>
-//#include <hpx/lcos/when_all.hpp>
-
-//using namespace hpx;
-#endif
-
-#include "./flux.hpp"
-#include "./boundaries.hpp"
-#include "./advance.hpp"
-#include "./output.hpp"
+#include "octotiger/unitiger/physics.hpp"
 
 template<int NDIM, int INX>
 hydro_computer<NDIM, INX>::hydro_computer() {

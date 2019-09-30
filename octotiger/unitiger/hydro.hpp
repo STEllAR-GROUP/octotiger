@@ -19,8 +19,8 @@ using std::async;
 using std::launch;
 #endif
 
-#include "./cell_geometry.hpp"
-#include "./util.hpp"
+#include "octotiger/unitiger/cell_geometry.hpp"
+#include "octotiger/unitiger/util.hpp"
 
 namespace hydro {
 
@@ -83,6 +83,6 @@ private:
 }
 ;
 
-#include "hydro_impl/hydro.hpp"
+#include <octotiger/unitiger/hydro_impl/hydro.hpp>
 
 #endif /* OCTOTIGER_UNITIGER_HYDRO_HPP_ */

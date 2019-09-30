@@ -3,7 +3,13 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "../physics.hpp"
+#ifndef OCTOTIGER____FLUX____HPP123
+#define OCTOTIGER____FLUX____HPP123
+
+#include "octotiger/unitiger/physics.hpp"
+#include "octotiger/unitiger/physics_impl.hpp"
+
+
 
 template<int NDIM, int INX>
 safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
@@ -108,3 +114,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 //	printf( "%i %i %e\n", max_speed[0],  max_speed[1], (double) amax);
 	return amax;
 }
+
+
+
+#endif
