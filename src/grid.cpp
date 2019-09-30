@@ -17,6 +17,9 @@
 #include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/test_problems/amr/amr.hpp"
+#include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
+#include "octotiger/unitiger/hydro_impl/flux.hpp"
+
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/lcos/broadcast.hpp>

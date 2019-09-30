@@ -15,8 +15,9 @@
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/rotating_star.hpp"
 #include "octotiger/test_problems/blast.hpp"
-
 #include "octotiger/unitiger/physics.hpp"
+#include "octotiger/unitiger/physics_impl.hpp"
+
 #include "octotiger/test_problems/amr/amr.hpp"
 
 #ifdef OCTOTIGER_HAVE_CUDA

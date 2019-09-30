@@ -210,6 +210,7 @@ add_hpx_library(
   HEADERS
     octotiger/unitiger/hydro.hpp
     octotiger/unitiger/physics.hpp
+    octotiger/unitiger/physics_impl.hpp
     octotiger/unitiger/cell_geometry.hpp
     octotiger/unitiger/safe_real.hpp
     octotiger/unitiger/hydro_impl/boundaries.hpp
