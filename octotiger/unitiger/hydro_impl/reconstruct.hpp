@@ -136,6 +136,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				reconstruct_ppm(Q[f], U[f], true);
 			}
 
+
+
+
+
 			for (int j = 0; j < geo::H_NX - 4; j++) {
 				for (int k = 0; k < geo::H_NX - 4; k++) {
 					for (int l = 0; l < geo::H_NX - 4; l++) {
