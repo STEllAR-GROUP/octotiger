@@ -202,7 +202,7 @@ add_hpx_library(
 add_hpx_library(
   hydrolib
   DEPENDENCIES
-    Silo::silo Vc::Vc Boost::boost quadmath
+    Silo::silo Vc::Vc Boost::boost quadmath octolib
   SOURCES
    src/unitiger/hydro.cpp
    src/test_problems/blast/sedovf_c.cpp
