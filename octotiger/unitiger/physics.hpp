@@ -3,6 +3,11 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+/***********************************************************************************/
+/* cmake doesn't like this file for some reason. make clean if you change this file
+ *
+ ************************************************************************************/
+
 #include "./safe_real.hpp"
 #include "./util.hpp"
 #include "../test_problems/blast.hpp"
@@ -140,11 +145,11 @@ struct physics {
 
 }
 
+/*** Reconstruct uses this - GPUize****/
 template<int INX>
-static void pre_angmom(const hydro::state_type &U,const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
+static void pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
 		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
 	static const cell_geometry<NDIM, INX> geo;
-	static const auto indices = geo.find_indices(1, geo.H_NX - 1);
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
 			const auto rho = Q[rho_i][i][d];
@@ -159,10 +164,11 @@ static void pre_angmom(const hydro::state_type &U,const hydro::recon_type<NDIM> 
 	}
 }
 
+/*** Reconstruct uses this - GPUize****/
 template<int INX>
-static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z, std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
+static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
+		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
 	static const cell_geometry<NDIM, INX> geo;
-	static const auto indices = geo.find_indices(1, geo.H_NX - 1);
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
 			const auto rho = Q[rho_i][i][d];
@@ -177,57 +183,69 @@ static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM
 	}
 }
 
+/*** Reconstruct uses this - GPUize****/
 template<int INX>
 static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	auto V = U;
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
-	for (const auto &i : indices) {
-		const auto rho = V[rho_i][i];
-		const auto rhoinv = 1.0 / rho;
-		for (int dim = 0; dim < NDIM; dim++) {
-			auto &s = V[sx_i + dim][i];
-			V[egas_i][i] -= 0.5 * s * s * rhoinv;
-			s *= rhoinv;
+	for (int j = 0; j < geo.H_NX; j++) {
+		for (int k = 0; k < geo.H_NX; k++) {
+			for (int l = 0; l < geo.H_NX; l++) {
+				const int i = geo.to_index(j, k, l);
+				const auto rho = V[rho_i][i];
+				const auto rhoinv = 1.0 / rho;
+				for (int dim = 0; dim < NDIM; dim++) {
+					auto &s = V[sx_i + dim][i];
+					V[egas_i][i] -= 0.5 * s * s * rhoinv;
+					s *= rhoinv;
+				}
+				for (int si = 0; si < n_species_; si++) {
+					V[spc_i + si][i] *= rhoinv;
+				}
+				V[pot_i][i] *= rhoinv;
+			}
 		}
-		for (int si = 0; si < n_species_; si++) {
-			V[spc_i + si][i] *= rhoinv;
-		}
-		V[pot_i][i] *= rhoinv;
 	}
 	return V;
 }
 
+/*** Reconstruct uses this - GPUize****/
 template<int INX>
 static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, const hydro::x_type X, safe_real omega, bool angmom) {
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 	auto Q = P;
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
-	for (const auto &i : indices) {
-		for (int d = 0; d < geo.NDIR; d++) {
-			if (d != geo.NDIR / 2) {
-				const auto rho = Q[rho_i][i][d];
-				for (int dim = 0; dim < NDIM; dim++) {
-					auto &v = Q[sx_i + dim][i][d];
-					Q[egas_i][i][d] += 0.5 * v * v * rho;
-					v *= rho;
-				}
-				Q[pot_i][i][d] *= rho;
-				safe_real w = 0.0;
-				for (int si = 0; si < n_species_; si++) {
-					w += Q[spc_i + si][i][d];
-					Q[spc_i + si][i][d] *= rho;
-				}
-				if (w == 0.0) {
-					printf("NO SPECIES %i\n", i);
-					//		sleep(10);
-					abort();
-				}
-				w = 1.0 / w;
-				for (int si = 0; si < n_species_; si++) {
-					Q[spc_i + si][i][d] *= w;
+	for (int j = 0; j < geo.H_NX - 4; j++) {
+		for (int k = 0; k < geo.H_NX - 4; k++) {
+			for (int l = 0; l < geo.H_NX - 4; l++) {
+				const int i = geo.to_index(j + 2, k + 2, l + 2);
+				for (int d = 0; d < geo.NDIR; d++) {
+					if (d != geo.NDIR / 2) {
+						const auto rho = Q[rho_i][i][d];
+						for (int dim = 0; dim < NDIM; dim++) {
+							auto &v = Q[sx_i + dim][i][d];
+							Q[egas_i][i][d] += 0.5 * v * v * rho;
+							v *= rho;
+						}
+						Q[pot_i][i][d] *= rho;
+						safe_real w = 0.0;
+						for (int si = 0; si < n_species_; si++) {
+							w += Q[spc_i + si][i][d];
+							Q[spc_i + si][i][d] *= rho;
+						}
+						if (w == 0.0) {
+							printf("NO SPECIES %i\n", i);
+							//		sleep(10);
+							abort();
+						}
+						w = 1.0 / w;
+						for (int si = 0; si < n_species_; si++) {
+							Q[spc_i + si][i][d] *= w;
+						}
+					}
 				}
 			}
 		}

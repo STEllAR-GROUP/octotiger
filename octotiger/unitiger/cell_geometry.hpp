@@ -288,7 +288,10 @@ public:
 		}
 		return k;
 	}
-	;
+
+	static auto to_index(int j, int k, int l) {
+		return (j * H_NX + k) * H_NX + l;
+	}
 
 	static inline std::vector<int> find_indices(int lb, int ub, int d = NDIR / 2) {
 		std::vector<int> I;

@@ -18,9 +18,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 	static constexpr auto vw = geo::volume_weight();
 	static constexpr auto dir = geo::direction();
 
-	static const auto indices1 = geo::find_indices(1, geo::H_NX - 1);
-	static const auto indices2 = geo::find_indices(2, geo::H_NX - 2);
-
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
 	auto U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 
@@ -57,40 +54,65 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 	};
 
 	const auto reconstruct_ppm = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
-		for (const auto &i : indices1) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				const auto di = dir[d];
-				D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
-			}
-		}
-		for (const auto &i : indices1) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				const auto di = dir[d];
-				q[i][d] = 0.5 * (u[i] + u[i + di]);
-				q[i][d] += (1.0 / 6.0) * (D1[i][d] - D1[i + di][d]);
-				q[i + di][geo::flip(d)] = q[i][d];
-			}
-		}
-		for (const auto &i : indices1) {
-			for (int gi = 0; gi < geo::group_count(); gi++) {
-				safe_real sum = 0.0;
-				for (int n = 0; n < geo::group_size(gi); n++) {
-					const auto pair = geo::group_pair(gi, n);
-					sum += q[i + pair.first][pair.second];
-				}
-				sum /= safe_real(geo::group_size(gi));
-				for (int n = 0; n < geo::group_size(gi); n++) {
-					const auto pair = geo::group_pair(gi, n);
-					q[i + pair.first][pair.second] = sum;
+
+		for (int j = 0; j < geo::H_NX - 2; j++) {
+			for (int k = 0; k < geo::H_NX - 2; k++) {
+				for (int l = 0; l < geo::H_NX - 2; l++) {
+					const int i = geo::to_index(j + 1, k + 1, l + 1);
+					for (int d = 0; d < geo::NDIR / 2; d++) {
+						const auto di = dir[d];
+						D1[i][d] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
+					}
 				}
 			}
 		}
+
+		for (int j = 0; j < geo::H_NX - 2; j++) {
+			for (int k = 0; k < geo::H_NX - 2; k++) {
+				for (int l = 0; l < geo::H_NX - 2; l++) {
+					const int i = geo::to_index(j + 1, k + 1, l + 1);
+					for (int d = 0; d < geo::NDIR / 2; d++) {
+						const auto di = dir[d];
+						q[i][d] = 0.5 * (u[i] + u[i + di]);
+						q[i][d] += (1.0 / 6.0) * (D1[i][d] - D1[i + di][d]);
+						q[i + di][geo::flip(d)] = q[i][d];
+					}
+				}
+			}
+		}
+
+		for (int j = 0; j < geo::H_NX - 2; j++) {
+			for (int k = 0; k < geo::H_NX - 2; k++) {
+				for (int l = 0; l < geo::H_NX - 2; l++) {
+					const int i = geo::to_index(j + 1, k + 1, l + 1);
+					for (int gi = 0; gi < geo::group_count(); gi++) {
+						safe_real sum = 0.0;
+						for (int n = 0; n < geo::group_size(gi); n++) {
+							const auto pair = geo::group_pair(gi, n);
+							sum += q[i + pair.first][pair.second];
+						}
+						sum /= safe_real(geo::group_size(gi));
+						for (int n = 0; n < geo::group_size(gi); n++) {
+							const auto pair = geo::group_pair(gi, n);
+							q[i + pair.first][pair.second] = sum;
+						}
+					}
+				}
+			}
+		}
+
 		if (!smooth) {
-			for (const auto i : indices2) {
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					auto &qp = q[i][geo::flip(d)];
-					auto &qm = q[i][d];
-					limit_slope(qm, u[i], qp);
+
+			for (int j = 0; j < geo::H_NX - 4; j++) {
+				for (int k = 0; k < geo::H_NX - 4; k++) {
+					for (int l = 0; l < geo::H_NX - 4; l++) {
+						const int i = geo::to_index(j + 2, k + 2, l + 2);
+						for (int d = 0; d < geo::NDIR / 2; d++) {
+							auto &qp = q[i][geo::flip(d)];
+							auto &qm = q[i][d];
+							limit_slope(qm, u[i], qp);
+						}
+					}
 				}
 			}
 		}
@@ -114,51 +136,56 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				reconstruct_ppm(Q[f], U[f], true);
 			}
 
-			for (const auto &i : indices2) {
+			for (int j = 0; j < geo::H_NX - 4; j++) {
+				for (int k = 0; k < geo::H_NX - 4; k++) {
+					for (int l = 0; l < geo::H_NX - 4; l++) {
+						const int i = geo::to_index(j + 2, k + 2, l + 2);
 
-				std::array < safe_real, geo::NANGMOM > Z;
-				std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
-				for (int dim = 0; dim < geo::NANGMOM; dim++) {
-					Z[dim] = U[zx_i + dim][i];
-				}
-				for (int dim = 0; dim < NDIM; dim++) {
-					for (int d = 0; d < geo::NDIR; d++) {
-						S[dim][d] = Q[sx_i + dim][i][d];
-					}
-				}
-
-				physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
-				auto am1 = measure_angmom(S);
-				decltype(Z) am2;
-				for (int dim = 0; dim < geo::NANGMOM; dim++) {
-					am2[dim] = Z[dim] - am1[dim];
-				}
-				add_angmom(S, am2);
-				physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
-
-				for (int dim = 0; dim < NDIM; dim++) {
-					for (int d = 0; d < geo::NDIR; d++) {
-						if (d != geo::NDIR / 2) {
-							auto &s = S[dim][d];
-							const auto &q = U[sx_i + dim][i + dir[d]];
-							const auto &u0 = U[sx_i + dim][i];
-							const auto M = std::max(u0, q);
-							const auto m = std::min(u0, q);
-							s = std::min(s, M);
-							s = std::max(s, m);
+						std::array < safe_real, geo::NANGMOM > Z;
+						std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
+						for (int dim = 0; dim < geo::NANGMOM; dim++) {
+							Z[dim] = U[zx_i + dim][i];
 						}
-					}
-				}
-				for (int f = sx_i; f < sx_i + NDIM; f++) {
-					const auto dim = f - sx_i;
-					for (int d = 0; d < geo::NDIR / 2; d++) {
-						limit_slope(S[dim][d], U[f][i], S[dim][geo::flip(d)]);
-					}
-				}
+						for (int dim = 0; dim < NDIM; dim++) {
+							for (int d = 0; d < geo::NDIR; d++) {
+								S[dim][d] = Q[sx_i + dim][i][d];
+							}
+						}
 
-				for (int dim = 0; dim < NDIM; dim++) {
-					for (int d = 0; d < geo::NDIR; d++) {
-						Q[sx_i + dim][i][d] = S[dim][d];
+						physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
+						auto am1 = measure_angmom(S);
+						decltype(Z) am2;
+						for (int dim = 0; dim < geo::NANGMOM; dim++) {
+							am2[dim] = Z[dim] - am1[dim];
+						}
+						add_angmom(S, am2);
+						physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
+
+						for (int dim = 0; dim < NDIM; dim++) {
+							for (int d = 0; d < geo::NDIR; d++) {
+								if (d != geo::NDIR / 2) {
+									auto &s = S[dim][d];
+									const auto &q = U[sx_i + dim][i + dir[d]];
+									const auto &u0 = U[sx_i + dim][i];
+									const auto M = std::max(u0, q);
+									const auto m = std::min(u0, q);
+									s = std::min(s, M);
+									s = std::max(s, m);
+								}
+							}
+						}
+						for (int f = sx_i; f < sx_i + NDIM; f++) {
+							const auto dim = f - sx_i;
+							for (int d = 0; d < geo::NDIR / 2; d++) {
+								limit_slope(S[dim][d], U[f][i], S[dim][geo::flip(d)]);
+							}
+						}
+
+						for (int dim = 0; dim < NDIM; dim++) {
+							for (int d = 0; d < geo::NDIR; d++) {
+								Q[sx_i + dim][i][d] = S[dim][d];
+							}
+						}
 					}
 				}
 			}
