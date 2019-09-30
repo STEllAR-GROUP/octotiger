@@ -9,6 +9,7 @@
 
 #include <octotiger/cuda_util/cuda_helper.hpp>
 #include <octotiger/cuda_util/cuda_scheduler.hpp>
+#include <octotiger/common_kernel/struct_of_array_data.hpp>
 
 
 template<int NDIM, int INX>
@@ -17,12 +18,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 	static thread_local auto D1 = std::vector<std::array<safe_real, geo::NDIR / 2>>(geo::H_N3);
 	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 
-	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, real, geo::NDIR, geo::H_N3, 19,
-		std::vector<real, octotiger::fmm::cuda_pinned_allocator<real>>>
+	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
 		D1_SoA;
 
-	static thread_local std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, real, geo::NDIR, geo::H_N3, 19,
-		std::vector<real, octotiger::fmm::cuda_pinned_allocator<real>>>> Q_SoA(nf_);
+	static thread_local std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>> Q_SoA(nf_);
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
