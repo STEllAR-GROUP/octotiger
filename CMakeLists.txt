@@ -109,7 +109,10 @@ set(source_files
     src/radiation/rad_grid.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
     src/test_problems/sod/sod.cpp
+    src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
 )
 
@@ -202,7 +205,7 @@ add_hpx_library(
 add_hpx_library(
   hydrolib
   DEPENDENCIES
-    Silo::silo Vc::Vc Boost::boost quadmath
+    Silo::silo Vc::Vc Boost::boost quadmath octolib
   SOURCES
    src/unitiger/hydro.cpp
    src/test_problems/blast/sedovf_c.cpp
