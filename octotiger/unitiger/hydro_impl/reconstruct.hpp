@@ -11,6 +11,34 @@
 #include <octotiger/cuda_util/cuda_scheduler.hpp>
 #include <octotiger/common_kernel/struct_of_array_data.hpp>
 
+//#ifdef OCTOTIGER_WITH_CUDA
+template<int NDIM, int INX>
+const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+
+//	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
+//		D1_SoA;
+	static thread_local auto D1 = std::vector<std::array<safe_real, geo::NDIR / 2>>(geo::H_N3);
+	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
+
+	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
+	D1_SoA;
+	static thread_local std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>> Q_SoA(nf_);
+
+	std::cout << " U_ " << U_.size();
+	for (int i = 0; i < U_.size(); i++) {
+		std::cout << U_[i].size() << " ";
+	}
+	std::cout << std::endl;
+	std::cout << " X " << X.size();
+	for (int i = 0; i < X.size(); i++) {
+		std::cout << X[i].size() << " ";
+	}
+	std::cout << std::endl;
+	std::cout << "Constants: NDIR:" << geo::NDIR << " H_N3:" << geo::H_N3 << std::endl;
+	return Q;
+}
+//#endif
+
 template<int NDIM, int INX>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 
@@ -27,6 +55,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 
 //	static thread_local std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>> Q_SoA(nf_);
 //>>>>>>> 2892c925aac72d66021855e7c34cdff2c064393e
+reconstruct_cuda(U_,X, omega);
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
