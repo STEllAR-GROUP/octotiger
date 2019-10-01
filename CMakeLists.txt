@@ -318,7 +318,8 @@ if(OCTOTIGER_WITH_Vc)
   target_compile_definitions(octolib PUBLIC
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
-    HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC
+    # This just spits out lots of warnings
+    # HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC 
   )
 endif()
 
