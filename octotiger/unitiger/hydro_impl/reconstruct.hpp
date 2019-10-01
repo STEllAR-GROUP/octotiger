@@ -36,6 +36,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
 	auto U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 
+
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
 		for (int n = 0; n < geo::NANGMOM; n++) {
@@ -70,9 +71,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 
 	const auto reconstruct_ppm = [this](std::vector<std::array<safe_real, geo::NDIR>> &q, const std::vector<safe_real> &u, bool smooth) {
 
-		for (int j = 0; j < geo::H_NX - 2; j++) {
-			for (int k = 0; k < geo::H_NX - 2; k++) {
-				for (int l = 0; l < geo::H_NX - 2; l++) {
+		for (int j = 0; j < geo::H_NX_XM2; j++) {
+			for (int k = 0; k < geo::H_NX_YM2; k++) {
+				for (int l = 0; l < geo::H_NX_ZM2; l++) {
 					const int i = geo::to_index(j + 1, k + 1, l + 1);
 					for (int d = 0; d < geo::NDIR / 2; d++) {
 						const auto di = dir[d];
@@ -82,9 +83,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 			}
 		}
 
-		for (int j = 0; j < geo::H_NX - 2; j++) {
-			for (int k = 0; k < geo::H_NX - 2; k++) {
-				for (int l = 0; l < geo::H_NX - 2; l++) {
+		for (int j = 0; j < geo::H_NX_XM2; j++) {
+			for (int k = 0; k < geo::H_NX_YM2; k++) {
+				for (int l = 0; l < geo::H_NX_ZM2; l++) {
 					const int i = geo::to_index(j + 1, k + 1, l + 1);
 					for (int d = 0; d < geo::NDIR / 2; d++) {
 						const auto di = dir[d];
@@ -96,9 +97,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 			}
 		}
 
-		for (int j = 0; j < geo::H_NX - 2; j++) {
-			for (int k = 0; k < geo::H_NX - 2; k++) {
-				for (int l = 0; l < geo::H_NX - 2; l++) {
+		for (int j = 0; j < geo::H_NX_XM2; j++) {
+			for (int k = 0; k < geo::H_NX_YM2; k++) {
+				for (int l = 0; l < geo::H_NX_ZM2; l++) {
 					const int i = geo::to_index(j + 1, k + 1, l + 1);
 					for (int gi = 0; gi < geo::group_count(); gi++) {
 						safe_real sum = 0.0;
@@ -118,9 +119,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 
 		if (!smooth) {
 
-			for (int j = 0; j < geo::H_NX - 4; j++) {
-				for (int k = 0; k < geo::H_NX - 4; k++) {
-					for (int l = 0; l < geo::H_NX - 4; l++) {
+			for (int j = 0; j < geo::H_NX_XM4; j++) {
+				for (int k = 0; k < geo::H_NX_YM4; k++) {
+					for (int l = 0; l < geo::H_NX_ZM4; l++) {
 						const int i = geo::to_index(j + 2, k + 2, l + 2);
 						for (int d = 0; d < geo::NDIR / 2; d++) {
 							auto &qp = q[i][geo::flip(d)];
@@ -151,9 +152,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				reconstruct_ppm(Q[f], U[f], true);
 			}
 
-			for (int j = 0; j < geo::H_NX - 4; j++) {
-				for (int k = 0; k < geo::H_NX - 4; k++) {
-					for (int l = 0; l < geo::H_NX - 4; l++) {
+			for (int j = 0; j < geo::H_NX_XM4; j++) {
+				for (int k = 0; k < geo::H_NX_YM4; k++) {
+					for (int l = 0; l < geo::H_NX_ZM4; l++) {
 						const int i = geo::to_index(j + 2, k + 2, l + 2);
 
 						std::array < safe_real, geo::NANGMOM > Z;

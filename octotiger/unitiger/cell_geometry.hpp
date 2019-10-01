@@ -15,6 +15,19 @@ struct cell_geometry {
 
 	static constexpr int H_BW = 3;
 	static constexpr int H_NX = (2 * H_BW + INX);
+
+	static constexpr int H_NX_X = H_NX;
+	static constexpr int H_NX_Y = NDIM > 1 ? H_NX : 1;
+	static constexpr int H_NX_Z = NDIM > 2 ? H_NX : 1;
+
+	static constexpr int H_NX_XM2 = H_NX - 2;
+	static constexpr int H_NX_YM2 = NDIM > 1 ? H_NX - 2 : 1;
+	static constexpr int H_NX_ZM2 = NDIM > 2 ? H_NX - 2 : 1;
+
+	static constexpr int H_NX_XM4 = H_NX - 4;
+	static constexpr int H_NX_YM4 = NDIM > 1 ? H_NX - 4 : 1;
+	static constexpr int H_NX_ZM4 = NDIM > 2 ? H_NX - 4 : 1;
+
 	static constexpr int H_DNX = NDIM == 3 ? H_NX * H_NX : (NDIM == 2 ? H_NX : 1);
 	static constexpr int H_DNY = NDIM == 3 ? H_NX : 1;
 	static constexpr int H_DNZ = 1;
@@ -290,7 +303,13 @@ public:
 	}
 
 	static auto to_index(int j, int k, int l) {
-		return (j * H_NX + k) * H_NX + l;
+		if constexpr (NDIM ==1 ) {
+			return j;
+		} else if constexpr( NDIM ==2 ){
+			return (j * H_NX + k);
+		} else {
+			return (j * H_NX + k) * H_NX + l;
+		}
 	}
 
 	static inline std::vector<int> find_indices(int lb, int ub, int d = NDIR / 2) {

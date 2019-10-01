@@ -186,9 +186,9 @@ const hydro::state_type physics<NDIM>::pre_recon(const hydro::state_type &U, con
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	auto V = U;
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
-	for (int j = 0; j < geo.H_NX; j++) {
-		for (int k = 0; k < geo.H_NX; k++) {
-			for (int l = 0; l < geo.H_NX; l++) {
+	for (int j = 0; j < geo.H_NX_X; j++) {
+		for (int k = 0; k < geo.H_NX_Y; k++) {
+			for (int l = 0; l < geo.H_NX_Z; l++) {
 				const int i = geo.to_index(j, k, l);
 				const auto rho = V[rho_i][i];
 				const auto rhoinv = 1.0 / rho;
@@ -216,9 +216,9 @@ hydro::recon_type<NDIM> physics<NDIM>::post_recon(const hydro::recon_type<NDIM> 
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 	auto Q = P;
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
-	for (int j = 0; j < geo.H_NX - 4; j++) {
-		for (int k = 0; k < geo.H_NX - 4; k++) {
-			for (int l = 0; l < geo.H_NX - 4; l++) {
+	for (int j = 0; j < geo.H_NX_XM4; j++) {
+		for (int k = 0; k < geo.H_NX_YM4; k++) {
+			for (int l = 0; l < geo.H_NX_ZM4; l++) {
 				const int i = geo.to_index(j + 2, k + 2, l + 2);
 				for (int d = 0; d < geo.NDIR; d++) {
 					if (d != geo.NDIR / 2) {
