@@ -38,6 +38,11 @@ namespace octotiger { namespace fmm {
         4 * P2P_PADDED_STENCIL_SIZE * sizeof(real);
     constexpr std::size_t full_stencil_size = FULL_STENCIL_SIZE * sizeof(real);
 
+    // TODO exhange with template parameters
+    constexpr std::size_t NDIR = 27;
+    constexpr std::size_t NF = 15;
+    constexpr std::size_t H_N3 = 2744;
+
     // Custom allocator for host-side CUDA vectors
     template <class T>
     struct cuda_pinned_allocator
@@ -77,6 +82,31 @@ namespace octotiger { namespace fmm {
 
     template <typename T>
     using pinned_vector = std::vector<T, cuda_pinned_allocator<T>>;
+
+    template <typename T>
+    using hydro_tmp_t = octotiger::fmm::struct_of_array_data<std::array<T, NDIR>, T, NDIR, H_N3, 19>;
+    template <typename T>
+    using hydro_input_t = octotiger::fmm::struct_of_array_data<std::array<T, NF>, T, NF, H_N3, 19>;
+
+    // Contains references to all data needed for one Hydro kernel run
+    class hydro_staging_area 
+    {
+        public:
+        hydro_staging_area(hydro_tmp_t<double> &D1,
+            std::vector<hydro_tmp_t<double>> &Q1,
+            hydro_input_t<double> &U,
+            hydro_input_t<double> &X)
+            : D1_SoA(D1)
+            , Q1_SoA(Q1)
+            , U_SoA(U)
+            , X_SoA(X)
+            {}
+            // Hydro Buffers
+            hydro_tmp_t<double> &D1_SoA;
+            std::vector<hydro_tmp_t<double>> &Q1_SoA;
+            hydro_input_t<double> &U_SoA;
+            hydro_input_t<double> &X_SoA;
+    };
 
     // Contains references to all data needed for one FMM interaction kernel run
     class kernel_staging_area
@@ -188,6 +218,12 @@ namespace octotiger { namespace fmm {
         std::vector<pinned_vector<real>> local_monopole_slots;
         // Struct container pointers to all CUDA device buffers per stream
         std::vector<kernel_device_enviroment> kernel_device_enviroments;
+
+        // Hydro
+        hydro_tmp_t<double> D1_SoA;
+        std::vector<hydro_tmp_t<double>> Q1_SoA;
+        hydro_input_t<double> U_SoA;
+        hydro_input_t<double> X_SoA;
     };
 }}
 #endif
