@@ -24,7 +24,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro
 	D1_SoA;
 	static thread_local std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>> Q_SoA(nf_);
 
-	std::cout << " U_ " << U_.size();
+/* 	std::cout << " U_ " << U_.size();
 	for (int i = 0; i < U_.size(); i++) {
 		std::cout << U_[i].size() << " ";
 	}
@@ -34,7 +34,12 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro
 		std::cout << X[i].size() << " ";
 	}
 	std::cout << std::endl;
-	std::cout << "Constants: NDIR:" << geo::NDIR << " H_N3:" << geo::H_N3 << std::endl;
+	std::cout << "Constants: NDIR:" << geo::NDIR << " H_N3:" << geo::H_N3 << std::endl; */
+
+octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
+	U_SoA;
+	U_SoA.concatenate_vectors(U_);
+
 	return Q;
 }
 //#endif

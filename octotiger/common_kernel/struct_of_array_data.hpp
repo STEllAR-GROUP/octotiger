@@ -61,6 +61,15 @@ namespace fmm {
             }
         }
 
+        template <typename T>
+        void concatenate_vectors(std::vector<std::vector<T>> &input) {
+            size_t result_size = input.size() * input[0].size();
+            auto iter = data.begin();
+            for (size_t i = 0; i < input.size(); i++) {
+                iter = std::copy(input[i].begin(), input[i].end(), iter);
+            }
+        }
+
         struct_of_array_data(const std::vector<AoS_type>& org)
           : data(num_components * padded_entries_per_component) {
             for (size_t component = 0; component < num_components; component++) {
