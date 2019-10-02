@@ -141,6 +141,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 			}
 		}
 
+#ifndef DISABLE_VERTEX_AVG
 		for (int j = 0; j < geo::H_NX_XM2; j++) {
 			for (int k = 0; k < geo::H_NX_YM2; k++) {
 				for (int l = 0; l < geo::H_NX_ZM2; l++) {
@@ -160,6 +161,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				}
 			}
 		}
+#endif
 
 		if (!smooth) {
 			for (int d = 0; d < geo::NDIR / 2; d++) {

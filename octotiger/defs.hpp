@@ -12,6 +12,8 @@
 //#include <cstddef>
 //#include <iostream>
 
+//#define FACES_ONLY
+
 constexpr double MARSHAK_OPAC = 1.0e+2;
 //#define OCTOTIGER_RESTART_LOAD_SEQ
 
@@ -46,6 +48,10 @@ constexpr int NRF = 4;
 
 //#define USE_PPM
 //#define USE_MINMOD
+
+
+#define DISABLE_VERTEX_AVG
+
 
 #if !defined(OCTOTIGER_FORCEINLINE)
 #   if defined(__NVCC__) || defined(__CUDACC__)

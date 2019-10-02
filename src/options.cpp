@@ -90,7 +90,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("bench", po::value<bool>(&(opts().bench))->default_value(false), "run benchmark") //
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
 	("output", po::value<std::string>(&(opts().output_filename))->default_value(""), "filename for output") //
-	("odt", po::value<real>(&(opts().output_dt))->default_value(1.0 / 25.0), "output frequency") //
+	("odt", po::value<real>(&(opts().output_dt))->default_value(1.0 / 100.0), "output frequency") //
 	("dual_energy_sw1", po::value<real>(&(opts().dual_energy_sw1))->default_value(0.1), "dual energy switch 1") //
 	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.001), "dual energy switch 2") //
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
