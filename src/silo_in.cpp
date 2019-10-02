@@ -1,4 +1,3 @@
-
 /*
  * silo.cpp
  *
@@ -20,12 +19,12 @@
 
 #include <future>
 #include <mutex>
-#include <set>
+#include <map>
 #include <vector>
 
 static int version_;
 
-static const auto& localities = options::all_localities;
+static const auto &localities = options::all_localities;
 
 static std::mutex silo_mtx_;
 
@@ -34,7 +33,7 @@ static std::mutex silo_mtx_;
 
 template<class T>
 struct read_silo_var {
-	T operator()(DBfile* db, const char* name) const {
+	T operator()(DBfile *db, const char *name) const {
 		int one = 1;
 		T var;
 		if (DBReadVar(db, name, &var) != 0) {
@@ -48,11 +47,13 @@ struct node_entry_t {
 	bool load;
 	integer position;
 	integer locality_id;
+	std::string filename;
 	template<class Arc>
-	void serialize(Arc& arc, unsigned) {
+	void serialize(Arc &arc, unsigned) {
 		arc & load;
 		arc & position;
 		arc & locality_id;
+		arc & filename;
 	}
 };
 
@@ -62,71 +63,62 @@ static time_t start_time = time(nullptr);
 static integer start_step = 0;
 static int timestamp;
 static int steps_elapsed;
-static DBfile* db_;
+static DBfile *db_;
 static dir_map_type node_dir_;
 
 #define SILO_TEST(i) \
 	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
-void load_options_from_silo(std::string fname, DBfile* db) {
-	const auto func =
-			[&fname,&db]()
-			{
-				bool leaveopen;
-				if( db == nullptr )
-				{
-					db = DBOpenReal( fname.c_str(),DB_UNKNOWN, DB_READ);
-					leaveopen = false;
-				}
-				else
-				{
-					leaveopen = true;
-				}
-				if (db != nullptr)
-				{
+void load_options_from_silo(std::string fname, DBfile *db) {
+	const auto func = [&fname, &db]() {
+		bool leaveopen;
+		if (db == nullptr) {
+			db = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
+			leaveopen = false;
+		} else {
+			leaveopen = true;
+		}
+		if (db != nullptr) {
 
-					read_silo_var<integer> ri;
-					read_silo_var<real> rr;
-					integer version = ri( db, "version");
-					if( version > SILO_VERSION) {
-						printf( "WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
-					}
-					if( version == 100 ) {
-						printf( "Reading version 100 SILO - correcting momentum units\n" );
-					}
-					version_ = version;
-					opts().code_to_g = rr(db, "code_to_g");
-					opts().code_to_s = rr(db, "code_to_s");
-					opts().code_to_cm = rr(db, "code_to_cm");
-					opts().n_species = ri(db, "n_species");
-					opts().eos = eos_type(ri(db, "eos"));
-					opts().gravity = ri(db, "gravity");
-					opts().hydro = ri(db, "hydro");
-					opts().omega = rr(db, "omega") * opts().code_to_s;
-					opts().output_dt = rr(db, "output_frequency");
-					opts().problem = problem_type(ri(db, "problem"));
-					opts().radiation = ri(db, "radiation");
-					opts().refinement_floor = rr(db, "refinement_floor");
-					opts().xscale = rr(db, "xscale");
-					opts().atomic_number.resize(opts().n_species);
-					opts().atomic_mass.resize(opts().n_species);
-					opts().X.resize(opts().n_species);
-					opts().Z.resize(opts().n_species);
-					SILO_TEST(DBReadVar(db, "atomic_number", opts().atomic_number.data()));
-					SILO_TEST(DBReadVar(db, "atomic_mass", opts().atomic_mass.data()));
-					SILO_TEST(DBReadVar(db, "X", opts().X.data()));
-					SILO_TEST(DBReadVar(db, "Z", opts().Z.data()));
-					if( !leaveopen)
-					{
-						DBClose(db);
-					}
-				}
-				else
-				{
-					std::cout << "Could not load " << fname;
-					throw;
-				}
-			};
+			read_silo_var<integer> ri;
+			read_silo_var<real> rr;
+			integer version = ri(db, "version");
+			if (version > SILO_VERSION) {
+				printf("WARNING: Attempting to load a version %i SILO file, maximum version allowed for this Octo-tiger is %i\n", int(version), SILO_VERSION);
+			}
+			if (version == 100) {
+				printf("Reading version 100 SILO - correcting momentum units\n");
+			}
+			version_ = version;
+			opts().code_to_g = rr(db, "code_to_g");
+			opts().code_to_s = rr(db, "code_to_s");
+			opts().code_to_cm = rr(db, "code_to_cm");
+			opts().n_species = ri(db, "n_species");
+			opts().eos = eos_type(ri(db, "eos"));
+			opts().gravity = ri(db, "gravity");
+			opts().hydro = ri(db, "hydro");
+			opts().omega = rr(db, "omega") * opts().code_to_s;
+			opts().output_dt = rr(db, "output_frequency");
+			opts().problem = problem_type(ri(db, "problem"));
+			opts().radiation = ri(db, "radiation");
+			opts().refinement_floor = rr(db, "refinement_floor");
+			opts().xscale = rr(db, "xscale");
+			opts().atomic_number.resize(opts().n_species);
+			opts().atomic_mass.resize(opts().n_species);
+			opts().X.resize(opts().n_species);
+			opts().Z.resize(opts().n_species);
+			SILO_TEST(DBReadVar(db, "atomic_number", opts().atomic_number.data()));
+			SILO_TEST(DBReadVar(db, "atomic_mass", opts().atomic_mass.data()));
+			SILO_TEST(DBReadVar(db, "X", opts().X.data()));
+			SILO_TEST(DBReadVar(db, "Z", opts().Z.data()));
+			if (!leaveopen) {
+				DBClose(db);
+			}
+		} else {
+			std::cout << "Could not load " << fname;
+			throw;
+		}
+	};
 	if (db == nullptr) {
 		GET(hpx::threads::run_as_os_thread(func));
 	} else {
@@ -141,16 +133,16 @@ void load_open(std::string fname, dir_map_type map) {
 	printf("LOAD OPENED on proc %i\n", hpx::get_locality_id());
 	load_options_from_silo(fname, db_); /**/
 	hpx::threads::run_as_os_thread([&]() {
-		db_ = DBOpenReal( fname.c_str(), DB_UNKNOWN, DB_READ);
+		db_ = DBOpenReal(fname.c_str(), DB_UNKNOWN, DB_READ);
 		read_silo_var<real> rr;
 		silo_output_time() = rr(db_, "cgs_time"); /**/
 		silo_output_rotation_time() = 2 * M_PI * rr(db_, "rotational_time"); /**/
-		printf( "rotational_time = %e\n", silo_output_rotation_time());
+		printf("rotational_time = %e\n", silo_output_rotation_time());
 		silo_output_time() /= opts().code_to_s;
 		node_dir_ = std::move(map);
-		printf( "%e\n", silo_output_time() );
+		printf("%e\n", silo_output_time());
 //		sleep(100);
-		}).get();
+	}).get();
 }
 
 void load_close() {
@@ -160,9 +152,9 @@ void load_close() {
 HPX_PLAIN_ACTION(load_close, load_close_action);
 HPX_PLAIN_ACTION(load_open, load_open_action);
 
-node_server::node_server(const node_location& loc) :
+node_server::node_server(const node_location &loc) :
 		my_location(loc) {
-	const auto& localities = opts().all_localities;
+	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
 
@@ -192,27 +184,34 @@ node_server::node_server(const node_location& loc) :
 		}
 		assert(nc == 0 || nc == NCHILD);
 	} else {
-//		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
+		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
 		silo_load_t load;
 		static const auto hydro_names = grid::get_hydro_field_names();
 		load.vars.resize(hydro_names.size());
 		load.outflows.resize(hydro_names.size());
 		hpx::threads::run_as_os_thread([&]() {
+			const auto this_file = iter->second.filename;
+			DBfile *db = DBOpenReal(this_file.c_str(), DB_UNKNOWN, DB_READ);
+			if (db == NULL) {
+				printf("Unable to open SILO file %s\n", this_file.c_str());
+				abort();
+			}
 			static std::mutex mtx;
 			std::lock_guard<std::mutex> lock(mtx);
 			const std::string suffix = oct_to_str(loc.to_id());
-			for( int f = 0; f != hydro_names.size(); f++) {
-				const auto this_name = std::string( "/") + suffix + std::string( "/") + hydro_names[f]; /**/
-				auto var = DBGetQuadvar(db_,this_name.c_str());
+			for (int f = 0; f != hydro_names.size(); f++) {
+				const auto this_name = suffix + std::string("/") + hydro_names[f]; /**/
+				auto var = DBGetQuadvar(db, this_name.c_str());
 				load.nx = var->dims[0];
 				const int nvar = load.nx * load.nx * load.nx;
 				load.outflows[f].first = load.vars[f].first = hydro_names[f];
 				load.vars[f].second.resize(nvar);
 				read_silo_var<real> rd;
-				load.outflows[f].second = rd(db_, outflow_name(this_name).c_str());
-				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real)*nvar);
+				load.outflows[f].second = rd(db, outflow_name(this_name).c_str());
+				std::memcpy(load.vars[f].second.data(), var->vals[0], sizeof(real) * nvar);
 				DBFreeQuadvar(var);
 			}
+			DBClose(db);
 		}).get();
 		is_refined = false;
 		for (integer f = 0; f < hydro_names.size(); f++) {
@@ -225,10 +224,10 @@ node_server::node_server(const node_location& loc) :
 	rotational_time = silo_output_rotation_time();
 }
 
-node_server::node_server(const node_location& loc, silo_load_t load) :
+node_server::node_server(const node_location &loc, silo_load_t load) :
 		my_location(loc) {
 //	printf("Distributing %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
-	const auto& localities = opts().all_localities;
+	const auto &localities = opts().all_localities;
 	initialize(0.0, 0.0);
 	step_num = gcycle = hcycle = rcycle = 0;
 	int nc = 0;
@@ -244,11 +243,27 @@ node_server::node_server(const node_location& loc, silo_load_t load) :
 	assert(nc == 0 || nc == NCHILD);
 }
 
-void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type root) {
+auto split_mesh_id(const std::string id) {
+	std::pair<node_location::node_id, std::string> rc;
+	int i = 0;
+	for (i = 0; id[i] != ':'; i++) {
+		rc.second.push_back(id[i]);
+	}
+	i += 2;
+	std::string tmp;
+	for (; i != id.size(); i++) {
+		tmp.push_back(id[i]);
+	}
+	rc.first = std::strtoll(tmp.c_str(), nullptr, 8);
+	printf("%li %s\n", rc.first, rc.second.c_str());
+	return rc;
+}
+
+void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type root) {
 	timings::scope ts(root_ptr->timings_, timings::time_total);
 	const integer nprocs = opts().all_localities.size();
 	static int sz = localities.size();
-	DBfile* db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_UNKNOWN, DB_READ));
+	DBfile *db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_UNKNOWN, DB_READ));
 	silo_epoch() = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
 	silo_epoch()++;std
 	::vector<node_location::node_id> node_list;
@@ -256,31 +271,34 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 	std::vector<hpx::future<void>> futs;
 	int node_count;
 	if (db != nullptr) {
-		DBmultimesh* master_mesh = GET(hpx::threads::run_as_os_thread([&]()
-		{
-			return DBGetMultimesh( db, "quadmesh");
+		DBmultimesh *master_mesh = GET(hpx::threads::run_as_os_thread([&]() {
+			return DBGetMultimesh(db, "quadmesh");
 		}));
 		const int chunk_size = std::ceil(real(master_mesh->nblocks) / real(sz));
 		hpx::threads::run_as_os_thread([&]() {
 			const read_silo_var<integer> ri;
-			node_count = ri(db,"node_count");
+			node_count = ri(db, "node_count");
 			node_list.resize(node_count);
 			positions.resize(node_count);
 			DBReadVar(db, "node_list", node_list.data());
 			DBReadVar(db, "node_positions", positions.data());
 		}).get();
 		GET(hpx::threads::run_as_os_thread(DBClose, db));
-		std::set<node_location::node_id> load_locs;
+		std::map<node_location::node_id, std::string> load_locs;
 		for (int i = 0; i < master_mesh->nblocks; i++) {
-			const node_location::node_id num = std::strtoll(master_mesh->meshnames[i] + 1, nullptr, 8);
-//			printf("%lli\n", num);
-			load_locs.insert(num);
+			load_locs.insert(split_mesh_id(master_mesh->meshnames[i]));
 		}
 		for (int i = 0; i < node_list.size(); i++) {
 			node_entry_t entry;
 			entry.position = positions[i];
-			entry.load = bool(load_locs.find(node_list[i]) != load_locs.end());
+			const auto tmp = load_locs.find(node_list[i]);
+			entry.load = bool(tmp != load_locs.end());
 			entry.locality_id = positions[i] * nprocs / positions.size();
+			if (entry.load) {
+				entry.filename = tmp->second;
+			} else {
+				entry.filename = "";
+			}
 			node_dir_[node_list[i]] = entry;
 		}
 		auto this_dir = std::move(node_dir_);
@@ -289,7 +307,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 			futs.push_back(hpx::async<load_open_action>(opts().all_localities[i], fname, this_dir));
 		}
 		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));
-		for (auto& f : futs) {
+		for (auto &f : futs) {
 			GET(f);
 		}
 	} else {
@@ -302,7 +320,7 @@ void load_data_from_silo(std::string fname, node_server* root_ptr, hpx::id_type 
 	for (int i = 0; i < nprocs; i++) {
 		futs.push_back(hpx::async<load_close_action>(opts().all_localities[i]));
 	}
-	for (auto& f : futs) {
+	for (auto &f : futs) {
 		GET(f);
 	}
 }
@@ -318,7 +336,7 @@ void node_server::reconstruct_tree() {
 	rotational_time = silo_output_rotation_time();
 }
 
-silo_var_t::silo_var_t(const std::string& name, std::size_t nx) :
+silo_var_t::silo_var_t(const std::string &name, std::size_t nx) :
 		name_(name), data_(nx * nx * nx) {
 	range_.first = +std::numeric_limits<real>::max();
 	range_.second = -std::numeric_limits<real>::max();
