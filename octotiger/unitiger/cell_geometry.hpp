@@ -303,9 +303,9 @@ public:
 	}
 
 	static auto to_index(int j, int k, int l) {
-		if CONSTEXPR (NDIM ==1 ) {
+		if /*constexpr*/ (NDIM ==1 ) {
 			return j;
-		} else if CONSTEXPR( NDIM ==2 ){
+		} else if /*constexpr*/( NDIM ==2 ){
 			return (j * H_NX + k);
 		} else {
 			return (j * H_NX + k) * H_NX + l;
