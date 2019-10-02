@@ -50,7 +50,7 @@ constexpr int NRF = 4;
 //#define USE_MINMOD
 
 
-#define DISABLE_VERTEX_AVG
+//#define DISABLE_VERTEX_AVG
 
 
 #if !defined(OCTOTIGER_FORCEINLINE)

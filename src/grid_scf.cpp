@@ -439,10 +439,11 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[egas_i][iiih] = eint + (sx * sx + sy * sy) / 2.0 * INVERSE( rho );
 				U[zx_i][iiih] = 0.0;
 				U[zy_i][iiih] = 0.0;
-				U[zz_i][iiih] = dx * dx * omega * rho / 6.0;
+				U[zz_i][iiih] = 0.0;
 			}
 		}
 	}
+	init_z_field();
 	if (opts().radiation) {
 		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 	} PROF_END;
