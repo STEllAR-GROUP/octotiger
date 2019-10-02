@@ -330,7 +330,7 @@ void node_server::reconstruct_tree() {
 		is_refined = true;
 		auto cloc = my_location.get_child(ci);
 		auto iter = node_dir_.find(cloc.to_id());
-		children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc).get();
+		children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc);
 	}
 	current_time = silo_output_time();
 	rotational_time = silo_output_rotation_time();
