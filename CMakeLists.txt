@@ -210,6 +210,7 @@ add_hpx_library(
    src/unitiger/hydro.cpp
    src/test_problems/blast/sedovf_c.cpp
    src/test_problems/sod/exact_sod.cpp
+   src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu
   HEADERS
     octotiger/unitiger/hydro.hpp
     octotiger/unitiger/physics.hpp
@@ -223,6 +224,7 @@ add_hpx_library(
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
     octotiger/test_problems/exact_sod.hpp
+    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp
 )
 
 # Enable exported functions
@@ -316,7 +318,8 @@ if(OCTOTIGER_WITH_Vc)
   target_compile_definitions(octolib PUBLIC
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
-    HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC
+    # This just spits out lots of warnings
+     HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC 
   )
 endif()
 

@@ -23,8 +23,8 @@
 
 
 
-static constexpr double tmax = 2.49;
-static constexpr safe_real dt_out = tmax / 249;
+static constexpr double tmax = 2.5;
+static constexpr safe_real dt_out = tmax / 100;
 
 #define H_BW 3
 #define H_NX (INX + 2 * H_BW)
@@ -135,7 +135,7 @@ int main(int, char*[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 
-	run_test<2, 200>(physics<2>::KH, false);
+	run_test<2, 128>(physics<2>::KH, true);
 //	run_test<2, 128>(physics<2>::CONTACT, false);
 //	run_test<2, 256>(physics<2>::CONTACT, false);
 //	run_test<2, 512>(physics<2>::CONTACT, false);

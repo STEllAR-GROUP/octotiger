@@ -64,7 +64,7 @@ struct physics {
 	static const hydro::state_type pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static hydro::recon_type<NDIM> post_recon(const hydro::recon_type<NDIM> &P, const hydro::x_type X, safe_real omega, bool angmom);
+	static std::vector<std::vector<std::vector<safe_real>>> post_recon(const std::vector<std::vector<std::vector<safe_real>>> &P, const hydro::x_type X, safe_real omega, bool angmom);
 	template<int INX>
 	using comp_type = hydro_computer<NDIM, INX>;
 
