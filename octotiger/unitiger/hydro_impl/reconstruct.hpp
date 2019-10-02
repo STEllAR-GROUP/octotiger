@@ -20,24 +20,22 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro
 	static thread_local auto D1 = std::vector<std::array<safe_real, geo::NDIR / 2>>(geo::H_N3);
 	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 
-	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
-	D1_SoA;
+	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19> D1_SoA;
 	static thread_local std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>> Q_SoA(nf_);
 
-/* 	std::cout << " U_ " << U_.size();
-	for (int i = 0; i < U_.size(); i++) {
-		std::cout << U_[i].size() << " ";
-	}
-	std::cout << std::endl;
-	std::cout << " X " << X.size();
-	for (int i = 0; i < X.size(); i++) {
-		std::cout << X[i].size() << " ";
-	}
-	std::cout << std::endl;
-	std::cout << "Constants: NDIR:" << geo::NDIR << " H_N3:" << geo::H_N3 << std::endl; */
+	/* 	std::cout << " U_ " << U_.size();
+	 for (int i = 0; i < U_.size(); i++) {
+	 std::cout << U_[i].size() << " ";
+	 }
+	 std::cout << std::endl;
+	 std::cout << " X " << X.size();
+	 for (int i = 0; i < X.size(); i++) {
+	 std::cout << X[i].size() << " ";
+	 }
+	 std::cout << std::endl;
+	 std::cout << "Constants: NDIR:" << geo::NDIR << " H_N3:" << geo::H_N3 << std::endl; */
 
-octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
-	U_SoA;
+	octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19> U_SoA;
 	U_SoA.concatenate_vectors(U_);
 
 	return Q;
@@ -161,6 +159,22 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				}
 			}
 		}
+		for (int d = 0; d < geo::NDIR; d++) {
+			if (d != geo::NDIR / 2) {
+				const auto di = dir[d];
+				for (int j = 0; j < geo::H_NX_XM2; j++) {
+					for (int k = 0; k < geo::H_NX_YM2; k++) {
+						for (int l = 0; l < geo::H_NX_ZM2; l++) {
+							const int i = geo::to_index(j + 1, k + 1, l + 1);
+							const auto M = std::max(u[i], u[i + di]);
+							const auto m = std::min(u[i], u[i + di]);
+							q[d][i] = std::max(q[d][i], m);
+							q[d][i] = std::min(q[d][i], M);
+						}
+					}
+				}
+			}
+		}
 #endif
 
 		if (!smooth) {
@@ -254,7 +268,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				}
 			}
 
-			AoS2SoA(sx_i, zx_i + geo::NANGMOM );
+			AoS2SoA(sx_i, zx_i + geo::NANGMOM);
 
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 				reconstruct_ppm(Q_SoA[f], U[f], false);
