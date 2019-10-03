@@ -532,7 +532,7 @@ void output_all(std::string fname, int cycle, bool block) {
 	int id = 0;
 	for (auto &f : id_futs) {
 //		printf( "---%i\n", id) ;
-		const int gn = id * opts().silo_num_groups / localities.size();
+		const int gn = ((id + 1) * opts().silo_num_groups -1) / localities.size();
 		node_list_t this_list = GET(f);
 		const int leaf_cnt = this_list.silo_leaves.size();
 		for (auto i = 0; i < leaf_cnt; i++) {
