@@ -58,6 +58,18 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real);
 
+        void outputU(const hydro::state_type &U, int num, std::string test_type);
+
+        void outputQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type);
+
+        void outputF(const hydro::flux_type &Fl, int num, std::string test_type);
+
+        int compareU(const hydro::state_type &U, int num, std::string test_type);
+
+        int compareQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type);
+
+        int compareF(const hydro::flux_type &Fl, int num, std::string test_type);
+
 	void use_angmom_correction(int index, int count);
 
 	void use_smooth_recon(int field);

@@ -74,3 +74,152 @@ void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::
 	}
 
 }
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::outputQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
+{       
+        std::string filename;
+        
+        if (num > 0)
+                filename = test_type + "_Q_test_" + std::to_string(num) + ".data";
+        else    
+                filename = test_type + "_Q_test_final.data";
+        FILE *fp = fopen(filename.c_str(), "wb");
+        for (int f = 0; f < nf_; f++) {
+                for (int i = 0; i < geo::H_NX; i++) {
+                                fwrite(Q[f][i].data(), sizeof(double), geo::NDIR, fp);
+                        }
+                }
+        fclose(fp);
+}
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::outputU(const hydro::state_type &U, int num, std::string test_type){
+        std::string filename;
+
+        if (num > 0)
+                filename = test_type + "_U_test_" + std::to_string(num) + ".data";
+        else
+                filename = test_type + "_U_test_final.data";
+        FILE *fp = fopen(filename.c_str(), "wb");
+        for (int f = 0; f < nf_; f++) {
+                fwrite(U[f].data(), sizeof(double), geo::H_NX, fp);
+        }
+        fclose(fp);
+}
+template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::outputF(const hydro::flux_type &Fl, int num, std::string test_type){
+        std::string filename;
+
+        if (num > 0)
+                filename = test_type + "_F_test_" + std::to_string(num) + ".data";
+        else
+                filename = test_type + "_F_test_final.data";
+        FILE *fp = fopen(filename.c_str(), "wb");
+        for (int i=0; i < NDIM; i++)
+        {
+                for (int f = 0; f < nf_; f++) {
+                fwrite(Fl[i][f].data(), sizeof(double), geo::H_N3, fp);
+                }
+        }
+        fclose(fp);
+}
+template<int NDIM, int INX>
+int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
+{
+        double dline[geo::NDIR];
+        std::string filename;
+
+        if (num > 0)
+                filename = test_type + "_Q_test_" + std::to_string(num) + ".data";
+        else
+                filename = test_type + "_Q_test_final.data";
+        FILE *fp = fopen(filename.c_str(), "rb");
+        if (fp != nullptr)
+        {
+                for (int f = 0; f < nf_; f++) {
+                        for (int i = 0; i < geo::H_NX; i++) {
+                                fread(&dline, sizeof(double), geo::NDIR, fp);
+                                for (int j = 0; j < geo::NDIR; j++)
+                                {
+                                        if ((Q[f][i][j] - dline[j])/std::max(1e-12,(dline[j]+Q[f][i][j])) > 1e-12)
+                                        {
+                                                printf("differnt Q values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
+                                                                f, nf_, i, geo::H_NX, j, geo::NDIR, dline[j], Q[f][i][j]);
+                                                fclose(fp);
+                                                return 0;
+                                        }
+                                }
+                        }
+                }
+                fclose(fp);
+        }
+        else
+                return -1;
+        return 1;
+}
+template<int NDIM, int INX>
+int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std::string test_type)
+{
+        double dline[geo::H_N3];
+        std::string filename;
+
+        if (num > 0)
+                filename = test_type + "_F_test_" + std::to_string(num) + ".data";
+        else
+                filename = test_type + "_F_test_final.data";
+        FILE *fp = fopen(filename.c_str(), "rb");
+        if (fp != nullptr)
+        {
+                for (int i = 0; i < NDIM; i++) {
+                        for (int f = 0; f < nf_; f++) {
+                                fread(&dline, sizeof(double), geo::H_N3, fp);
+                                for (int j = 0; j < geo::H_N3; j++)
+                                {
+                                        if ((Fl[i][f][j] - dline[j])/std::max(1e-12,(dline[j]+Fl[i][f][j])) > 1e-12)
+                                        {
+                                                 printf("differnt F values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
+                                                                i, NDIM, f, nf_, j, geo::H_N3, dline[j], Fl[i][f][j]);
+                                                fclose(fp);
+                                                return 0;
+                                        }
+                                }
+                        }
+                }
+                fclose(fp);
+        }
+        else
+                return -1;
+        return 1;
+}
+template<int NDIM, int INX>
+int hydro_computer<NDIM, INX>::compareU(const hydro::state_type &U, int num, std::string test_type){
+        hydro::state_type V;
+        double dline[geo::H_NX];
+        std::string filename;
+
+        if (num > 0)
+                filename = test_type + "_U_test_" + std::to_string(num) + ".data";
+        else
+                filename = test_type + "_U_test_final.data";
+        FILE *fp = fopen(filename.c_str(), "rb");
+        if (fp != nullptr)
+        {
+                for (int f = 0; f < nf_; f++) {
+                        fread(&dline, sizeof(double), geo::H_NX, fp);
+                        for (int i = 0; i < geo::H_NX; i++)
+                        {
+                                if ((U[f][i] - dline[i])/std::max(1e-12,(U[f][i]+dline[i])) > 1e-12)
+                                {
+                                        printf("differnt U values in: (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
+                                                                f, nf_, i, geo::H_NX, dline[i], U[f][i]);
+                                        fclose(fp);
+                                        return 0;
+                                }
+                        }
+                }
+                fclose(fp);
+        }
+        else
+                return -1;
+        return 1;
+}
+
