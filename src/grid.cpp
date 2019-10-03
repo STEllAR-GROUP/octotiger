@@ -161,7 +161,7 @@ real grid::convert_hydro_units(int i) {
 			val *= g / (cm * cm * cm);
 		} else if (i >= sx_i && i <= sz_i) {
 			val *= g / (s * cm * cm);
-		} else if (i == egas_i || (i >= zx_i && i <= zz_i)) {
+		} else if (i == egas_i || (i >= zx_i && i <= zz_i) || i == pot_i) {
 			val *= g / (s * s * cm);
 		} else if (i == tau_i) {
 			val *= POWER(g / (s * s * cm), 1.0 / fgamma);
