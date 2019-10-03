@@ -23,7 +23,7 @@
 
 
 
-static constexpr double tmax = 2.5;
+static constexpr double tmax = 0.25;
 static constexpr safe_real dt_out = tmax / 100;
 
 #define H_BW 3
@@ -66,7 +66,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction, b
 	const auto tstart = time(NULL);
 	while (t < tmax) {
 		U0 = U;
-		auto q = computer.reconstruct(U, X, omega);
+		q = computer.reconstruct(U, X, omega);
 		auto a = computer.flux(U, q, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
@@ -85,6 +85,8 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction, b
 		computer.boundaries(U);
 		if (int(t / dt_out) != int((t - dt) / dt_out))
 			computer.output(U, X, oter++, t);
+                iter++;
+                printf("%i %e %e\n", iter, double(t), double(dt));		
 		if(writingForTest)
                 {       
                         computer.outputU(U, iter, type_test_string);
@@ -97,28 +99,11 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction, b
                         int testQ = computer.compareQ(q, iter, type_test_string);
                         int testF = computer.compareF(F, iter, type_test_string);
                         if ((testU == -1) or (testQ == -1) or (testF == -1))
-                                printf("Could not test, output file to don't exist!\n");
+                                printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
                        if (testU*testQ*testF == 1)
                                 printf("%s tests are OK!\n", type_test_string.c_str());
                 }
-                iter++;
-                printf("%i %e %e\n", iter, double(t), double(dt));
         }
-        if (writingForTest)
-        {
-                computer.outputU(U, -1, type_test_string);
-                computer.outputQ(q, -1, type_test_string);
-                computer.outputF(F, -1, type_test_string);
-        }
-        const auto tstop = time(NULL);
-        int testU = computer.compareU(U, -1, type_test_string);
-        int testQ = computer.compareQ(q, -1, type_test_string);
-        int testF = computer.compareF(F, -1, type_test_string);
-        if ((testU == -1) or (testQ == -1) or (testF == -1))
-                printf("Could not test, output file to don't exist!\n");
-        if (testU*testF*testQ == 1)
-                printf("Final %s tests are OK!!\n", type_test_string.c_str());
-
 //      U0 = U;
 //      physics<NDIM>::template analytic_solution<INX>(problem, U, X, t);
 //      computer.output(U, X, iter++, t);
@@ -146,9 +131,23 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction, b
 //      fprintf(fp1, "%i ", INX);
 //      fprintf(fp2, "%i ", INX);
 //      fprintf(fpinf, "%i ", INX);
+        const auto tstop = time(NULL);
 	FILE* fp = fopen( "time.dat", "wt");
 	fprintf( fp, "%i %li\n", INX, tstop -tstart);
 	fclose(fp);
+        if (writingForTest)
+        {
+                computer.outputU(U, -1, type_test_string);
+                computer.outputQ(q, -1, type_test_string);
+                computer.outputF(F, -1, type_test_string);
+        }
+        int testU = computer.compareU(U, -1, type_test_string);
+        int testQ = computer.compareQ(q, -1, type_test_string);
+        int testF = computer.compareF(F, -1, type_test_string);
+        if ((testU == -1) or (testQ == -1) or (testF == -1))
+                printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
+        if (testU*testF*testQ == 1)
+                printf("Final %s tests are OK!!\n", type_test_string.c_str());
 }
 
 int main(int argc, char* argv[]) {
@@ -168,10 +167,10 @@ int main(int argc, char* argv[]) {
         }
 
         srand(123);
-        run_test<2, 200>(physics<2>::KH, false, createTests);
-        run_test<2, 256>(physics<2>::CONTACT, false, createTests);
+        run_test<2, 50>(physics<2>::KH, false, createTests);
+        run_test<2, 64>(physics<2>::CONTACT, false, createTests);
         run_test<3, 8>(physics<3>::SOD, false, createTests);
-        run_test<2, 200>(physics<2>::BLAST, true, createTests);
+        run_test<2, 50>(physics<2>::BLAST, true, createTests);
 
         return 0;
 }
