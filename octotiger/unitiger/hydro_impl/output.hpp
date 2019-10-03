@@ -75,6 +75,23 @@ void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::
 
 }
 template<int NDIM, int INX>
+void hydro_computer<NDIM, INX>::outputQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
+{       
+        std::string filename;
+        
+        if (num > 0)
+                filename = test_type + "_Q_test_" + std::to_string(num) + ".data";
+        else    
+                filename = test_type + "_Q_test_final.data";
+        FILE *fp = fopen(filename.c_str(), "wb");
+        for (int f = 0; f < nf_; f++) {
+                for (int i = 0; i < geo::H_NX; i++) {
+                                fwrite(Q[f][i].data(), sizeof(double), geo::NDIR, fp);
+                        }
+                }
+        fclose(fp);
+}
+template<int NDIM, int INX>
 void hydro_computer<NDIM, INX>::outputU(const hydro::state_type &U, int num, std::string test_type){
         std::string filename;
 
