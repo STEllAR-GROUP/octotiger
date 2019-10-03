@@ -31,10 +31,10 @@ static constexpr safe_real dt_out = tmax / 100;
 #define H_N3 std::pow(INX+2*H_BW,NDIM)
 
 template<int NDIM, int INX>
-void run_test(typename physics<NDIM>::test_type problem, bool with_correction);
+void run_test(typename physics<NDIM>::test_type problem, bool with_correction, bool writingForTest);
 
 template<int NDIM, int INX>
-void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
+void run_test(typename physics<NDIM>::test_type problem, bool with_correction, bool writingForTest) {
 	static constexpr safe_real CFL = (0.4 / NDIM);
 	hydro_computer<NDIM, INX> computer;
 	if (with_correction) {
@@ -52,6 +52,9 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 	safe_real t = 0.0;
 	int iter = 0;
 	int oter = 0;
+        bool printEachTimeStep = true;
+        std::string type_test_string = physics<NDIM>::get_test_type_string(problem);
+        hydro::recon_type<NDIM> q;
 	physics<NDIM> phys;
 	computer.set_bc(phys.template initialize<INX>(problem, U, X));
 	const safe_real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
@@ -82,78 +85,93 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction) {
 		computer.boundaries(U);
 		if (int(t / dt_out) != int((t - dt) / dt_out))
 			computer.output(U, X, oter++, t);
-		iter++;
-		printf("%i %e %e\n", iter, double(t), double(dt));
-	}
-	const auto tstop = time(NULL);
-	U0 = U;
-	physics<NDIM>::template analytic_solution<INX>(problem, U, X, t);
-	computer.output(U, X, iter++, t);
+		if(writingForTest)
+                {       
+                        computer.outputU(U, iter, type_test_string);
+                        computer.outputQ(q, iter, type_test_string);
+                        computer.outputF(F, iter, type_test_string);
+                }
+                if(printEachTimeStep)
+                {       
+                        int testU = computer.compareU(U, iter, type_test_string);
+                        int testQ = computer.compareQ(q, iter, type_test_string);
+                        int testF = computer.compareF(F, iter, type_test_string);
+                        if ((testU == -1) or (testQ == -1) or (testF == -1))
+                                printf("Could not test, output file to don't exist!\n");
+                       if (testU*testQ*testF == 1)
+                                printf("%s tests are OK!\n", type_test_string.c_str());
+                }
+                iter++;
+                printf("%i %e %e\n", iter, double(t), double(dt));
+        }
+        if (writingForTest)
+        {
+                computer.outputU(U, -1, type_test_string);
+                computer.outputQ(q, -1, type_test_string);
+                computer.outputF(F, -1, type_test_string);
+        }
+        const auto tstop = time(NULL);
+        int testU = computer.compareU(U, -1, type_test_string);
+        int testQ = computer.compareQ(q, -1, type_test_string);
+        int testF = computer.compareF(F, -1, type_test_string);
+        if ((testU == -1) or (testQ == -1) or (testF == -1))
+                printf("Could not test, output file to don't exist!\n");
+        if (testU*testF*testQ == 1)
+                printf("Final %s tests are OK!!\n", type_test_string.c_str());
 
-	phys.template pre_recon<INX>(U0, X, omega, with_correction);
-	phys.template pre_recon<INX>(U, X, omega, with_correction);
-	std::vector<safe_real> L1(nf);
-	std::vector<safe_real> L2(nf);
-	std::vector<safe_real> Linf(nf);
-	for (int f = 0; f < nf; f++) {
-		L1[f] = L2[f] = Linf[f];
-		for (int i = 0; i < H_N3; i++) {
-			L1[f] += std::abs(U0[f][i] - U[f][i]);
-			L2[f] += std::pow(U0[f][i] - U[f][i], 2);
-			Linf[f] = std::max((double) Linf[f], std::abs(U0[f][i] - U[f][i]));
-		}
-		L2[f] = sqrt(L2[f]);
-		L1[f] /= INX * INX;
-		L2[f] /= INX * INX;
-	}
+//      U0 = U;
+//      physics<NDIM>::template analytic_solution<INX>(problem, U, X, t);
+//      computer.output(U, X, iter++, t);
+//
+//      phys.template pre_recon<INX>(U0, X, omega, with_correction);
+//      phys.template pre_recon<INX>(U, X, omega, with_correction);
+//      std::vector<safe_real> L1(nf);
+//      std::vector<safe_real> L2(nf);
+//      std::vector<safe_real> Linf(nf);
+//      for (int f = 0; f < nf; f++) {
+//              L1[f] = L2[f] = Linf[f];
+//              for (int i = 0; i < H_N3; i++) {
+//                      L1[f] += std::abs(U0[f][i] - U[f][i]);
+//                      L2[f] += std::pow(U0[f][i] - U[f][i], 2);
+//                      Linf[f] = std::max((double) Linf[f], std::abs(U0[f][i] - U[f][i]));
+//              }
+//              L2[f] = sqrt(L2[f]);
+//              L1[f] /= INX * INX;
+//              L2[f] /= INX * INX;
+//      }
 
-	FILE *fp1 = fopen("L1.dat", "at");
-	FILE *fp2 = fopen("L2.dat", "at");
-	FILE *fpinf = fopen("Linf.dat", "at");
-	fprintf(fp1, "%i ", INX);
-	fprintf(fp2, "%i ", INX);
-	fprintf(fpinf, "%i ", INX);
-	for (int f = 0; f < nf; f++) {
-		fprintf(fp1, "%e ", (double) L1[f]);
-		fprintf(fp2, "%e ", (double) L2[f]);
-		fprintf(fpinf, "%e ", (double) Linf[f]);
-	}
-	fprintf(fp1, "\n");
-	fprintf(fp2, "\n");
-	fprintf(fpinf, "\n");
-	fclose(fp1);
-	fclose(fp2);
-	fclose(fpinf);
+//      FILE *fp1 = fopen("L1.dat", "at");
+//      FILE *fp2 = fopen("L2.dat", "at");
+//      FILE *fpinf = fopen("Linf.dat", "at");
+//      fprintf(fp1, "%i ", INX);
+//      fprintf(fp2, "%i ", INX);
+//      fprintf(fpinf, "%i ", INX);
 	FILE* fp = fopen( "time.dat", "wt");
 	fprintf( fp, "%i %li\n", INX, tstop -tstart);
 	fclose(fp);
 }
 
+int main(int argc, char* argv[]) {
+        feenableexcept(FE_DIVBYZERO);
+        feenableexcept(FE_INVALID);
+        feenableexcept(FE_OVERFLOW);
 
-int main(int, char*[]) {
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
+        bool createTests = false;
 
-	run_test<2, 128>(physics<2>::KH, true);
-//	run_test<2, 128>(physics<2>::CONTACT, false);
-//	run_test<2, 256>(physics<2>::CONTACT, false);
-//	run_test<2, 512>(physics<2>::CONTACT, false);
-//	run_test<1, 1024>(physics<1>::CONTACT, false);
-	//	run_test<3, 8>(physics<3>::SOD, false);
-//	run_test<3, 32>(physics<3>::BLAST, false);
-//	run_test<2, 200>(physics<2>::BLAST, true);
-//	run_test<2, 160>(physics<2>::BLAST, true);
-//	run_test<2, 250>(physics<2>::BLAST, true);
-//	run_test<2, 300>(physics<2>::BLAST, true);
-//	run_test<2, 350>(physics<2>::BLAST, true);
-//	run_test<2, 350>(physics<2>::BLAST, true);
-//	run_test<2, 420>(physics<2>::BLAST, true);
-//	run_test<2, 500>(physics<2>::BLAST, true);
-//	run_test<2, 600>(physics<2>::BLAST, true);
-//	run_test<2, 7>(physics<2>::BLAST, true);
-//	run_test<2, 840>(physics<2>::BLAST, true);
-//	run_test<2, 1000>(physics<2>::BLAST, true);
+        if (argc > 1){
+                std::string input = argv[1];
+                if (input == "-C")
+                {
+                        printf("Creating Tests.\n");
+                        createTests = true;
+                }
+        }
 
-	return 0;
+        srand(123);
+        run_test<2, 200>(physics<2>::KH, false, createTests);
+        run_test<2, 256>(physics<2>::CONTACT, false, createTests);
+        run_test<3, 8>(physics<3>::SOD, false, createTests);
+        run_test<2, 200>(physics<2>::BLAST, true, createTests);
+
+        return 0;
 }

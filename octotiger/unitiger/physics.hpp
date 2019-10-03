@@ -30,6 +30,22 @@ struct physics {
 		SOD, BLAST, KH, CONTACT
 	};
 
+        static std::string get_test_type_string(test_type t){
+                switch (t)
+                {
+                        case SOD:
+                                return "SOD";
+                        case BLAST:
+                                return "BLAST";
+                        case KH:
+                                return "KH";
+                        case CONTACT:
+                                return "CONTACT";
+                        default:
+                                return "OCTOTIGER";
+                }
+        }
+
 	static int field_count();
 
 	static void set_fgamma(safe_real fg);
