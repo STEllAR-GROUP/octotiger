@@ -466,7 +466,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		sprintf(buffer, "X.scf.%i", int(i));
 		auto& params = initial_params();
 		//	set_omega_and_pivot();
-		if (i % 10 == 0) {
+		if (i % 25 == 0) {
 			if (!opts().disable_output) {
 				output_all(buffer, i,true);
 			}
