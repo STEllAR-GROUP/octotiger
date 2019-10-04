@@ -6,6 +6,8 @@
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
 
+#include <fenv.h>
+
 #include "octotiger/diagnostics.hpp"
 #include "octotiger/future.hpp"
 #include "octotiger/grid.hpp"
@@ -284,6 +286,10 @@ std::vector<silo_var_t> grid::var_data() const {
 // MSVC needs this variable to be in the global namespace
 constexpr integer nspec = 2;
 diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
+	fedisableexcept(FE_DIVBYZERO);
+	fedisableexcept(FE_INVALID);
+	fedisableexcept(FE_OVERFLOW);
+
 	diagnostics_t rc;
 	if (opts().disable_diagnostics) {
 		return rc;
@@ -604,6 +610,10 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		rc.grid_out[f] += U_out[f];
 	}
 	rc.grid_out[egas_i] += U_out[pot_i];
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
+
 	return rc;
 }
 
