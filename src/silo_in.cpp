@@ -190,14 +190,14 @@ node_server::node_server(const node_location &loc) :
 		load.vars.resize(hydro_names.size());
 		load.outflows.resize(hydro_names.size());
 		hpx::threads::run_as_os_thread([&]() {
+			static std::mutex mtx;
+			std::lock_guard<std::mutex> lock(mtx);
 			const auto this_file = iter->second.filename;
 			DBfile *db = DBOpenReal(this_file.c_str(), DB_UNKNOWN, DB_READ);
 			if (db == NULL) {
 				printf("Unable to open SILO file %s\n", this_file.c_str());
 				abort();
 			}
-			static std::mutex mtx;
-			std::lock_guard<std::mutex> lock(mtx);
 			const std::string suffix = oct_to_str(loc.to_id());
 			for (int f = 0; f != hydro_names.size(); f++) {
 				const auto this_name = suffix + std::string("/") + hydro_names[f]; /**/
@@ -327,17 +327,17 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 
 void node_server::reconstruct_tree() {
 	std::vector<hpx::future<void>> futs;
+	is_refined = true;
 	for (integer ci = 0; ci < NCHILD; ci++) {
-		is_refined = true;
-		auto cloc = my_location.get_child(ci);
-		auto iter = node_dir_.find(cloc.to_id());
-		futs.push_back( 
-			hpx::async(  [this,cloc,ci,iter]() {
+		futs.push_back(
+			hpx::async(  [this,ci]() {
+				auto cloc = my_location.get_child(ci);
+				auto iter = node_dir_.find(cloc.to_id());
 				children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc);
 			})
 		);
 	}
-	hpx::wait_all(futs);
+	hpx::when_all(futs).get();
 	current_time = silo_output_time();
 	rotational_time = silo_output_rotation_time();
 }
