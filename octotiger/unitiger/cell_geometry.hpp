@@ -31,12 +31,12 @@ struct cell_geometry {
 	static constexpr int H_DNX = NDIM == 3 ? H_NX * H_NX : (NDIM == 2 ? H_NX : 1);
 	static constexpr int H_DNY = NDIM == 3 ? H_NX : 1;
 	static constexpr int H_DNZ = 1;
-	static constexpr int H_DN[3] = { H_DNX, H_DNY, H_DNZ };
 	static constexpr int H_N3 = std::pow(H_NX, NDIM);
 	static constexpr int H_DN0 = 0;
 	static constexpr int NDIR = std::pow(3, NDIM);
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
+	static constexpr int H_DN[3] = { H_DNX, H_DNY, H_DNZ };
 
 	static constexpr int group_count() {
 		return ngroups_[NDIM - 1];
@@ -374,5 +374,63 @@ constexpr int cell_geometry<NDIM, INX>::directions[3][27];
 
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::H_DN[3];
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_BW;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_X;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_Y;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_Z;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_XM2;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_YM2;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_ZM2;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_XM4;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_YM4;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_ZM4;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_DNX;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_DNY;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_DNZ;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_N3;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_DN0;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::NDIR;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::NANGMOM;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::NFACEDIR;
+
 
 #endif /* OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_ */
