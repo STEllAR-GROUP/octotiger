@@ -326,12 +326,18 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 }
 
 void node_server::reconstruct_tree() {
+	std::vector<hpx::future<void>> futs;
 	for (integer ci = 0; ci < NCHILD; ci++) {
 		is_refined = true;
 		auto cloc = my_location.get_child(ci);
 		auto iter = node_dir_.find(cloc.to_id());
-		children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc);
+		futs.push_back( 
+			hpx::async(  [this,cloc,ci,iter]() {
+				children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc);
+			})
+		);
 	}
+	hpx::wait_all(futs);
 	current_time = silo_output_time();
 	rotational_time = silo_output_rotation_time();
 }
