@@ -570,12 +570,12 @@ void output_all(std::string fname, int cycle, bool block) {
 		}
 		output_stage4(fname, cycle);
 		const auto tstop = clock() / double(CLOCKS_PER_SEC);
-		printf( "Write took %e seconds\n", tstop - tstart);
 	}, std::move(futs), lock_ptr);
 
 //	block = true;
 	if (block) {
 		GET(barrier);
+		printf( "Write took %e seconds\n", tstop - tstart);
 		barrier = hpx::make_ready_future<void>();
 	}
 
