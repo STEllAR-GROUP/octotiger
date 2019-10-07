@@ -1,4 +1,4 @@
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 #include "octotiger/node_registry.hpp"
 
 #include <hpx/runtime/threads/run_as_os_thread.hpp>

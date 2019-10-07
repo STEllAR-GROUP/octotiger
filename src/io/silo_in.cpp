@@ -6,7 +6,7 @@
  */
 
 //101 - fixed units bug in momentum
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"

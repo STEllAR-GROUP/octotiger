@@ -86,9 +86,9 @@ set(source_files
     src/roe.cpp
     src/scf_data.cpp
     src/scf_data.cpp
-    src/silo.cpp
-    src/silo_out.cpp
-    src/silo_in.cpp
+    src/io/silo.cpp
+    src/io/silo_out.cpp
+    src/io/silo_in.cpp
     src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
@@ -149,7 +149,7 @@ set(header_files
     octotiger/roe.hpp
     octotiger/safe_math.hpp
     octotiger/scf_data.hpp
-    octotiger/silo.hpp
+    octotiger/io/silo.hpp
     octotiger/simd.hpp
     octotiger/space_vector.hpp
     octotiger/state.hpp

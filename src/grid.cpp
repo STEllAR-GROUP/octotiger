@@ -15,7 +15,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/problem.hpp"
 #include "octotiger/profiler.hpp"
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/test_problems/amr/amr.hpp"
