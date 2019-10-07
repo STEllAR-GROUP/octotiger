@@ -159,10 +159,10 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
 		if (this_id == gb) {
-			printf( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
+//			printf( "Create %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBCreateReal(this_fname.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-tiger", SILO_DRIVER);
 		} else {
-			printf( "Open %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
+//			printf( "Open %s %i %i %i %i\n", this_fname.c_str(), this_id, gn, gb, ge);
 			db = DBOpenReal(this_fname.c_str(), SILO_DRIVER, DB_APPEND);
 		}
 		float ftime = dtime;
@@ -318,7 +318,7 @@ void output_stage4(std::string fname, int cycle) {
 				DBAddOption(optlist, DBOPT_DISJOINT_MODE, &dj);
 				DBAddOption(optlist, DBOPT_TOPO_DIM, &three);
 				DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
-				printf("Putting %i\n", n_total_domains);
+				printf("Writing %i total sub-grids\n", n_total_domains);
 				DBPutMultimesh(db, "quadmesh", n_total_domains, mesh_names.data(), nullptr, optlist);
 				DBFreeOptlist(optlist);
 				char mmesh[] = "quadmesh";
@@ -496,6 +496,9 @@ void output_all(std::string fname, int cycle, bool block) {
 	static hpx::mutex mtx;
 	auto lock_ptr = std::make_shared<std::lock_guard<hpx::mutex>>(mtx);	
 
+	printf( "Writing %s\n", fname.c_str());
+	const auto tstart = clock() / double(CLOCKS_PER_SEC);
+
 	if (opts().disable_output) {
 		printf("Skipping SILO output\n");
 		return;
@@ -571,6 +574,11 @@ void output_all(std::string fname, int cycle, bool block) {
 //	block = true;
 	if (block) {
 		GET(barrier);
+		const auto tstop = clock() / double(CLOCKS_PER_SEC);
+		printf( "Write took %e seconds\n", tstop - tstart);
 		barrier = hpx::make_ready_future<void>();
 	}
+
+
+
 }
