@@ -69,34 +69,6 @@ static dir_map_type node_dir_;
 #define SILO_TEST(i) \
 	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
-struct silo_read_open {
-	DBfile* read_open(const std::string &filename) {
-		std::lock_guard<hpx::mutex> lock(mtx_);
-		const auto iter = open_files_.find(filename);
-		if (iter == open_files_.end()) {
-			auto *db = DBOpenReal(filename.c_str(), DB_UNKNOWN, DB_READ);
-			open_files_[filename] = db;
-			return db;
-		} else {
-			return iter->second;
-		}
-	}
-
-	void close_all() {
-		for (auto iter = open_files_.begin(); iter != open_files_.end(); iter++) {
-			DBClose(iter->second);
-		}
-		open_files_.clear();
-	}
-
-private:
-	std::unordered_map<std::string, DBfile*> open_files_;
-	hpx::mutex mtx_;
-
-};
-
-static silo_read_open silo_files_;
-
 void load_options_from_silo(std::string fname, DBfile *db) {
 	const auto func = [&fname, &db]() {
 		bool leaveopen;
@@ -285,7 +257,7 @@ auto split_mesh_id(const std::string id) {
 void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type root) {
 	timings::scope ts(root_ptr->timings_, timings::time_total);
 	printf( "Reading %s\n", fname.c_str());
-	const auto tstart = clock() / double(CLOCKS_PER_SEC);
+	const auto tstart = time(NULL);
 
 	const integer nprocs = opts().all_localities.size();
 	static int sz = localities.size();
@@ -350,8 +322,8 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 		GET(f);
 	}
 
-	const auto tstop = clock() / double(CLOCKS_PER_SEC);
-	printf( "Read took %e seconds\n", tstop - tstart);
+	const auto tstop = time(NULL);
+	printf( "Read took %li seconds\n", tstop - tstart);
 }
 
 void node_server::reconstruct_tree() {

@@ -1,6 +1,7 @@
 #include "octotiger/io/silo.hpp"
 #include "octotiger/node_registry.hpp"
 
+#include <ctime>
 #include <hpx/runtime/threads/run_as_os_thread.hpp>
 
 #include <sys/stat.h>
@@ -496,8 +497,8 @@ void output_all(std::string fname, int cycle, bool block) {
 	static hpx::mutex mtx;
 	auto lock_ptr = std::make_shared<std::lock_guard<hpx::mutex>>(mtx);	
 
-	printf( "Writing %s\n", fname.c_str());
-	const auto tstart = clock() / double(CLOCKS_PER_SEC);
+	printf( "Writing %s.silo\n", fname.c_str());
+	const auto tstart = time(NULL);
 
 	if (opts().disable_output) {
 		printf("Skipping SILO output\n");
@@ -564,18 +565,18 @@ void output_all(std::string fname, int cycle, bool block) {
 		futs.push_back(hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost),localities[gb], fname, cycle, i, gb, ge));
 	}
 
-	barrier = hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost),[fname, cycle](std::vector<hpx::future<void>>&& futs, decltype(lock_ptr) lock) {
+	barrier = hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost),[tstart,fname, cycle](std::vector<hpx::future<void>>&& futs, decltype(lock_ptr) lock) {
 		for (auto &f : futs) {
 			GET(f);
 		}
 		output_stage4(fname, cycle);
+		const auto tstop = time(NULL);
+		printf( "Write took %li seconds\n", tstop - tstart);
 	}, std::move(futs), lock_ptr);
 
 //	block = true;
 	if (block) {
 		GET(barrier);
-		const auto tstop = clock() / double(CLOCKS_PER_SEC);
-		printf( "Write took %e seconds\n", tstop - tstart);
 		barrier = hpx::make_ready_future<void>();
 	}
 
