@@ -140,7 +140,7 @@ int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int nu
                                 fread(&dline, sizeof(double), geo::NDIR, fp);
                                 for (int j = 0; j < geo::NDIR; j++)
                                 {
-                                        if ((Q[f][i][j] - dline[j])/std::max(1e-12,(dline[j]+Q[f][i][j])) > 1e-12)
+                                        if (std::abs(Q[f][i][j] - dline[j])/(1e-12+dline[j]+Q[f][i][j]) > 1e-12)
                                         {
                                                 printf("differnt Q values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
                                                                 f, nf_, i, geo::H_NX, j, geo::NDIR, dline[j], Q[f][i][j]);
@@ -174,7 +174,7 @@ int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std
                                 fread(&dline, sizeof(double), geo::H_N3, fp);
                                 for (int j = 0; j < geo::H_N3; j++)
                                 {
-                                        if ((Fl[i][f][j] - dline[j])/std::max(1e-12,(dline[j]+Fl[i][f][j])) > 1e-12)
+                                        if (std::abs(Fl[i][f][j] - dline[j])/(1e-12+dline[j]+Fl[i][f][j]) > 1e-12)
                                         {
                                                  printf("differnt F values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
                                                                 i, NDIM, f, nf_, j, geo::H_N3, dline[j], Fl[i][f][j]);
@@ -207,7 +207,7 @@ int hydro_computer<NDIM, INX>::compareU(const hydro::state_type &U, int num, std
                         fread(&dline, sizeof(double), geo::H_NX, fp);
                         for (int i = 0; i < geo::H_NX; i++)
                         {
-                                if ((U[f][i] - dline[i])/std::max(1e-12,(U[f][i]+dline[i])) > 1e-12)
+                                if (std::abs(U[f][i] - dline[i])/(1e-12+U[f][i]+dline[i]) > 1e-12)
                                 {
                                         printf("differnt U values in: (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
                                                                 f, nf_, i, geo::H_NX, dline[i], U[f][i]);
