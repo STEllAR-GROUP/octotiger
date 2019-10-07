@@ -69,13 +69,12 @@ static dir_map_type node_dir_;
 #define SILO_TEST(i) \
 	if( i != 0 ) printf( "SILO call failed at %i\n", __LINE__ );
 
-
 struct silo_read_open {
-	DBfile* read_open(const std::string& filename) {
+	DBfile* read_open(const std::string &filename) {
 		std::lock_guard<hpx::mutex> lock(mtx_);
 		const auto iter = open_files_.find(filename);
-		if( iter == open_files_.end()) {
-			auto* db = DBOpenReal(filename.c_str(), DB_UNKNOWN, DB_READ);
+		if (iter == open_files_.end()) {
+			auto *db = DBOpenReal(filename.c_str(), DB_UNKNOWN, DB_READ);
 			open_files_[filename] = db;
 			return db;
 		} else {
@@ -84,20 +83,19 @@ struct silo_read_open {
 	}
 
 	void close_all() {
-		for( auto iter = open_files_.begin(); iter != open_files_.end(); iter++) {
+		for (auto iter = open_files_.begin(); iter != open_files_.end(); iter++) {
 			DBClose(iter->second);
 		}
 		open_files_.clear();
 	}
 
 private:
-	std::unordered_map<std::string,DBfile*> open_files_;
+	std::unordered_map<std::string, DBfile*> open_files_;
 	hpx::mutex mtx_;
 
 };
 
 static silo_read_open silo_files_;
-
 
 void load_options_from_silo(std::string fname, DBfile *db) {
 	const auto func = [&fname, &db]() {
@@ -193,25 +191,20 @@ node_server::node_server(const node_location &loc) :
 
 	if (!iter->second.load) {
 //		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
-		int nc = 0;
+		std::atomic<int> nc = 0;
+		std::vector<hpx::future<void>> futs;
 		for (int ci = 0; ci < NCHILD; ci++) {
-			auto cloc = loc.get_child(ci);
-			auto iter = node_dir_.find(cloc.to_id());
-			if (iter != node_dir_.end() && iter->second.locality_id != hpx::get_locality_id()) {
-				is_refined = true;
-				children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc);
-				nc++;
-			}
+			futs.push_back(hpx::async([this, ci, &nc, &loc, &localities]() {
+				auto cloc = loc.get_child(ci);
+				auto iter = node_dir_.find(cloc.to_id());
+				if (iter != node_dir_.end()) {
+					is_refined = true;
+					children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
+					nc++;
+				}
+			}));
 		}
-		for (int ci = 0; ci < NCHILD; ci++) {
-			auto cloc = loc.get_child(ci);
-			auto iter = node_dir_.find(cloc.to_id());
-			if (iter != node_dir_.end() && iter->second.locality_id == hpx::get_locality_id()) {
-				is_refined = true;
-				children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc);
-				nc++;
-			}
-		}
+		GET(hpx::when_all(futs));
 		assert(nc == 0 || nc == NCHILD);
 	} else {
 		printf("Loading %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
@@ -334,7 +327,7 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 		auto this_dir = std::move(node_dir_);
 		for (int i = 0; i < nprocs; i++) {
 			printf("Sending LOAD OPEN to %i\n", i);
-			futs.push_back(hpx::async<load_open_action>(opts().all_localities[i], fname, this_dir));
+			futs.push_back(hpx::async < load_open_action > (opts().all_localities[i], fname, this_dir));
 		}
 		GET(hpx::threads::run_as_os_thread(DBFreeMultimesh, master_mesh));
 		for (auto &f : futs) {
@@ -348,7 +341,7 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 	node_registry::clear();
 	futs.clear();
 	for (int i = 0; i < nprocs; i++) {
-		futs.push_back(hpx::async<load_close_action>(opts().all_localities[i]));
+		futs.push_back(hpx::async < load_close_action > (opts().all_localities[i]));
 	}
 	for (auto &f : futs) {
 		GET(f);
@@ -359,12 +352,11 @@ void node_server::reconstruct_tree() {
 	std::vector<hpx::future<void>> futs;
 	is_refined = true;
 	for (integer ci = 0; ci < NCHILD; ci++) {
-		futs.push_back(
-			hpx::async(  [this,ci]() {
-				auto cloc = my_location.get_child(ci);
-				auto iter = node_dir_.find(cloc.to_id());
-				children[ci] = hpx::new_ < node_server > (localities[iter->second.locality_id], cloc);
-			})
+		futs.push_back(hpx::async([this, ci]() {
+			auto cloc = my_location.get_child(ci);
+			auto iter = node_dir_.find(cloc.to_id());
+			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc);
+		})
 		);
 	}
 	hpx::when_all(futs).get();
