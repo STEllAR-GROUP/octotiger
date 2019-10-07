@@ -564,17 +564,17 @@ void output_all(std::string fname, int cycle, bool block) {
 		futs.push_back(hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost),localities[gb], fname, cycle, i, gb, ge));
 	}
 
-	barrier = hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost),[tstart,fname, cycle](std::vector<hpx::future<void>>&& futs, decltype(lock_ptr) lock) {
+	barrier = hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost),[fname, cycle](std::vector<hpx::future<void>>&& futs, decltype(lock_ptr) lock) {
 		for (auto &f : futs) {
 			GET(f);
 		}
 		output_stage4(fname, cycle);
-		const auto tstop = clock() / double(CLOCKS_PER_SEC);
 	}, std::move(futs), lock_ptr);
 
 //	block = true;
 	if (block) {
 		GET(barrier);
+		const auto tstop = clock() / double(CLOCKS_PER_SEC);
 		printf( "Write took %e seconds\n", tstop - tstart);
 		barrier = hpx::make_ready_future<void>();
 	}
