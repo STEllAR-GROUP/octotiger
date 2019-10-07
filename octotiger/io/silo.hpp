@@ -78,6 +78,7 @@ struct  silo_load_t {
 		arc & vars;
 		arc & outflows;
 	}
+	std::vector<silo_load_t> decompress();
 };
 
 
