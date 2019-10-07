@@ -404,6 +404,10 @@ HPX_REGISTER_BROADCAST_ACTION(initialize_action);
 
 real OMEGA;
 int hpx_main(int argc, char* argv[]) {
+    // The ascii logo was created by combining, modifying and extending the ascii arts from:
+    // http://ascii.co.uk/art/octopus (Author "jgs")
+    // and
+    // http://www.ascii-art.de/ascii/t/tiger.txt (Author "fL")
     const char *logo = R"(
 
 
