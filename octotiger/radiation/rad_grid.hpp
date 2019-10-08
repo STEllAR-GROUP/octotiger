@@ -11,7 +11,7 @@
 #include "octotiger/geometry.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/real.hpp"
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 //#include "octotiger/sphere_points.hpp"
 
 #include <array>

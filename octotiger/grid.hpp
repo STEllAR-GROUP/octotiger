@@ -19,7 +19,7 @@
 #include "octotiger/real.hpp"
 #include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"

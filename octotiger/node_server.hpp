@@ -20,7 +20,7 @@
 #include "octotiger/node_client.hpp"
 #include "octotiger/node_location.hpp"
 #include "octotiger/profiler.hpp"
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 //#include "octotiger/struct_eos.hpp"
 
 #include <hpx/include/components.hpp>

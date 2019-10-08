@@ -234,7 +234,7 @@ private:
 			printf("Corners/edges indexes failed\n");
 			abort();
 		}
-		printf("3D geometry constdefs passed verification\n");
+//		printf("3D geometry constdefs passed verification\n");
 	}
 
 public:
