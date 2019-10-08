@@ -35,6 +35,11 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 		}
 	}
 
+	for (int dim = 0; dim < NDIM; dim++) {
+		lb[dim] = std::max(lb[dim] - 1, integer(0));
+		ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
+	}
+
 	for (int f = 0; f < opts().n_fields; f++) {
 		for (int i = lb[0]; i < ub[0]; i++) {
 			for (int j = lb[1]; j < ub[1]; j++) {
@@ -48,6 +53,31 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 }
 
 void grid::complete_hydro_amr_boundary() {
+	if (opts().angmom) {
+		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+
+					const int iii0 = hSindex(i0, j0, k0);
+					if (is_coarse[iii0]) {
+
+						auto dsx_dy = Ushad[sx_i][iii0 + HS_DNY] - Ushad[sx_i][iii0 - HS_DNY];
+						auto dsx_dz = Ushad[sx_i][iii0 + HS_DNZ] - Ushad[sx_i][iii0 - HS_DNZ];
+
+						auto dsy_dx = Ushad[sy_i][iii0 + HS_DNX] - Ushad[sy_i][iii0 - HS_DNX];
+						auto dsy_dz = Ushad[sy_i][iii0 + HS_DNZ] - Ushad[sy_i][iii0 - HS_DNZ];
+
+						auto dsz_dy = Ushad[sz_i][iii0 + HS_DNY] - Ushad[sz_i][iii0 - HS_DNY];
+						auto dsz_dx = Ushad[sz_i][iii0 + HS_DNX] - Ushad[sz_i][iii0 - HS_DNX];
+
+						Ushad[zx_i][iii0] -= 0.5 * (dx / 12.0) * (dsz_dy - dsy_dz);
+						Ushad[zy_i][iii0] -= 0.5 * (dx / 12.0) * (dsx_dz - dsz_dx);
+						Ushad[zz_i][iii0] -= 0.5 * (dx / 12.0) * (dsy_dx - dsx_dy);
+					}
+				}
+			}
+		}
+	}
 
 	if (opts().amrbnd_order == 0) {
 		for (int f = 0; f < opts().n_fields; f++) {
@@ -184,18 +214,18 @@ void grid::complete_hydro_amr_boundary() {
 //							value -= 0.25 * isgn * slp[XDIM][f][iii0];
 //							value -= 0.25 * jsgn * slp[YDIM][f][iii0];
 //							value -= 0.25 * ksgn * slp[ZDIM][f][iii0];
-//							if (opts().angmom) {
-//								if (f == sx_i) {
-//									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
-//									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
-//								} else if (f == sy_i) {
-//									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
-//									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
-//								} else if (f == sz_i) {
-//									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
-//									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
-//								}
-//							}
+	//							if (opts().angmom) {
+	//								if (f == sx_i) {
+	//									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
+	//									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
+	//								} else if (f == sy_i) {
+	//									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
+	//									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
+	//								} else if (f == sz_i) {
+	//									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
+	//									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
+	//								}
+	//							}
 //						}
 //					}
 //				}
