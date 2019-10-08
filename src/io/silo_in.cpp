@@ -5,12 +5,14 @@
  *      Author: dmarce1
  */
 
+
 //101 - fixed units bug in momentum
 #include "octotiger/io/silo.hpp"
 #include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/util.hpp"
+
 
 #include "octotiger/node_registry.hpp"
 
@@ -24,7 +26,7 @@
 
 static int version_;
 
-static const auto &localities = options::all_localities;
+static const auto& localities = options::all_localities;
 
 static std::mutex silo_mtx_;
 
@@ -43,6 +45,7 @@ struct read_silo_var {
 	}
 };
 
+
 struct node_entry_t {
 	bool load;
 	integer position;
@@ -56,6 +59,8 @@ struct node_entry_t {
 		arc & filename;
 	}
 };
+
+
 
 using dir_map_type = std::unordered_map<node_location::node_id, node_entry_t>;
 
@@ -125,7 +130,7 @@ void load_options_from_silo(std::string fname, DBfile *db) {
 		func();
 	}
 	grid::set_omega(opts().omega, false);
-	set_units(1. / opts().code_to_g, 1. / opts().code_to_cm, 1. / opts().code_to_s, 1); /**/
+	set_units(1./opts().code_to_g, 1./opts().code_to_cm, 1./opts().code_to_s, 1); /**/
 
 }
 
@@ -208,12 +213,22 @@ node_server::node_server(const node_location &loc) :
 			}
 			DBClose(db);
 		}).get();
-		is_refined = false;
-		for (integer f = 0; f < hydro_names.size(); f++) {
-			grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
-			grid_ptr->set_outflow(std::move(load.outflows[f]));
+		if (load.nx == INX) {
+			is_refined = false;
+			for (integer f = 0; f < hydro_names.size(); f++) {
+				grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
+				grid_ptr->set_outflow(std::move(load.outflows[f]));
+			}
+			grid_ptr->rho_from_species();
+		} else {
+			is_refined = true;
+			auto child_loads = load.decompress();
+			for (integer ci = 0; ci < NCHILD; ci++) {
+				auto cloc = loc.get_child(ci);
+				auto iter = node_dir_.find(cloc.to_id());
+				children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc, child_loads[ci]);
+			}
 		}
-		grid_ptr->rho_from_species();
 	}
 	current_time = silo_output_time();
 	rotational_time = silo_output_rotation_time();
@@ -227,12 +242,22 @@ node_server::node_server(const node_location &loc, silo_load_t load) :
 	step_num = gcycle = hcycle = rcycle = 0;
 	int nc = 0;
 	static const auto hydro_names = grid::get_hydro_field_names();
-	is_refined = false;
-	for (integer f = 0; f < hydro_names.size(); f++) {
-		grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
-		grid_ptr->set_outflow(std::move(load.outflows[f]));
+	if (load.nx == INX) {
+		is_refined = false;
+		for (integer f = 0; f < hydro_names.size(); f++) {
+			grid_ptr->set(load.vars[f].first, load.vars[f].second.data(), version_);
+			grid_ptr->set_outflow(std::move(load.outflows[f]));
+		}
+		grid_ptr->rho_from_species();
+	} else {
+		is_refined = true;
+		auto child_loads = load.decompress();
+		for (integer ci = 0; ci < NCHILD; ci++) {
+			auto cloc = loc.get_child(ci);
+			auto iter = node_dir_.find(cloc.to_id());
+			children[ci] = hpx::new_<node_server>(localities[iter->second.locality_id], cloc, child_loads[ci]);
+		}
 	}
-	grid_ptr->rho_from_species();
 	current_time = silo_output_time();
 	rotational_time = silo_output_rotation_time();
 	assert(nc == 0 || nc == NCHILD);
@@ -263,8 +288,8 @@ void load_data_from_silo(std::string fname, node_server *root_ptr, hpx::id_type 
 	static int sz = localities.size();
 	DBfile *db = GET(hpx::threads::run_as_os_thread(DBOpenReal, fname.c_str(), DB_UNKNOWN, DB_READ));
 	silo_epoch() = GET(hpx::threads::run_as_os_thread(read_silo_var<integer>(), db, "epoch"));
-	silo_epoch()++;std
-	::vector<node_location::node_id> node_list;
+	silo_epoch()++;
+	std::vector<node_location::node_id> node_list;
 	std::vector<integer> positions;
 	std::vector<hpx::future<void>> futs;
 	int node_count;
@@ -355,4 +380,37 @@ silo_var_t::operator()(int i) {
 
 double silo_var_t::operator()(int i) const {
 	return data_[i];
+}
+
+std::vector<silo_load_t> silo_load_t::decompress() {
+	std::vector<silo_load_t> children;
+	assert(nx > INX);
+	for (int ci = 0; ci < NCHILD; ci++) {
+		silo_load_t child;
+		child.nx = nx / 2;
+		child.vars.resize(vars.size());
+		child.outflows.resize(vars.size());
+		const integer xo = (ci & (1 << XDIM)) ? child.nx : 0;
+		const integer yo = (ci & (1 << YDIM)) ? child.nx : 0;
+		const integer zo = (ci & (1 << ZDIM)) ? child.nx : 0;
+		for (int f = 0; f < vars.size(); f++) {
+			child.vars[f].second.resize(child.nx * child.nx * child.nx);
+			child.outflows[f].first = child.vars[f].first = vars[f].first;
+			child.outflows[f].second = outflows[f].second / NCHILD;
+			for (integer cx = 0; cx < child.nx; cx++) {
+				for (integer cy = 0; cy < child.nx; cy++) {
+					for (integer cz = 0; cz < child.nx; cz++) {
+						const integer child_index = cx + child.nx * (cy + child.nx * cz);
+						const integer parent_index = (cx + xo) + nx * ((cy + yo) + nx * (cz + zo));
+						child.vars[f].second[child_index] = vars[f].second[parent_index];
+					}
+				}
+			}
+		}
+
+		children.push_back(std::move(child));
+	}
+	vars.clear();
+	outflows.clear();
+	return std::move(children);
 }
