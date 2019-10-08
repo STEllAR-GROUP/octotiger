@@ -377,73 +377,73 @@ void output_stage4(std::string fname, int cycle) {
 				write_silo_var<integer>()(db, "step_count", nsteps);
 				write_silo_var<integer>()(db, "time_elapsed", time_elapsed);
 				write_silo_var<integer>()(db, "steps_elapsed", steps_elapsed);
-
-				// mesh adjacency information
-				int nleaves = node_locs.size();
-				std::vector<int> neighbor_count(nleaves, 0);
-				std::vector<std::vector<int>> neighbor_lists(nleaves);
-				std::vector<std::vector<int>> back_lists(nleaves);
-				std::vector<int> linear_neighbor_list;
-				std::vector<int> linear_back_list;
-				std::vector<std::vector<int*>> connections(nleaves);
-				std::vector<int*> linear_connections;
-				std::vector<std::vector<int>> tmp;
-				tmp.reserve(nleaves);
-				for (int n = 0; n < nleaves; n++) {
-					for (int m = n + 1; m < nleaves; m++) {
-						range_type rn, rm, i;
-						rn = node_locs[n].second.abs_range();
-						rm = node_locs[m].second.abs_range();
-						i = intersection(rn, rm);
-						if (i[0].first != -1) {
-							neighbor_count[n]++;
-							neighbor_count[m]++;
-							back_lists[m].push_back(neighbor_lists[n].size());
-							back_lists[n].push_back(neighbor_lists[m].size());
-							neighbor_lists[m].push_back(n); //
-							neighbor_lists[n].push_back(m);
-							std::vector<int> adj1(15);
-							std::vector<int> adj2(15);
-							for (int d = 0; d < NDIM; d++) {
-								int d0 = NDIM - d - 1;
-								adj1[2 * d + 0] = rn[d].first;
-								adj1[2 * d + 1] = rn[d].second;
-								adj1[2 * d + 6] = i[d].first;
-								adj1[2 * d + 7] = i[d].second;
-								adj1[12 + d] = d + 1;
-								adj2[2 * d + 0] = rm[d].first;
-								adj2[2 * d + 1] = rm[d].second;
-								adj2[2 * d + 6] = i[d].first;
-								adj2[2 * d + 7] = i[d].second;
-								adj2[12 + d] = d + 1;
-							}
-							tmp.push_back(std::move(adj1));
-							tmp.push_back(std::move(adj2));
-							connections[n].push_back(tmp[tmp.size() - 2].data());
-							connections[m].push_back(tmp[tmp.size() - 1].data());
-						}
-					}
-				}
-				linear_neighbor_list.reserve(nleaves);
-				linear_back_list.reserve(nleaves);
-				linear_connections.reserve(nleaves);
-				for (int n = 0; n < nleaves; n++) {
-					for (int m = 0; m < neighbor_count[n]; m++) {
-						linear_neighbor_list.push_back(neighbor_lists[n][m]);
-						linear_back_list.push_back(back_lists[n][m]);
-						linear_connections.push_back(connections[n][m]);
-					}
-				}
-				std::vector<int> fifteen(linear_connections.size(), 15);
-				std::vector<int> mesh_types(nleaves, mesh_type);
-				int isTimeVarying = 1;
-				int n = 1;
-				DBWrite(db, "ConnectivityIsTimeVarying", &isTimeVarying, &n, 1, DB_INT);
-				DBMkDir(db, "Decomposition");
-				DBSetDir(db, "Decomposition");
-				DBPutMultimeshadj(db, "Domain_Decomposition", nleaves, mesh_types.data(), neighbor_count.data(), linear_neighbor_list.data(), linear_back_list.data(),
-						fifteen.data(), linear_connections.data(), nullptr, nullptr, nullptr);
-				DBWrite(db, "NumDomains", &nleaves, &one, 1, DB_INT);
+//
+//				// mesh adjacency information
+//				int nleaves = node_locs.size();
+//				std::vector<int> neighbor_count(nleaves, 0);
+//				std::vector<std::vector<int>> neighbor_lists(nleaves);
+//				std::vector<std::vector<int>> back_lists(nleaves);
+//				std::vector<int> linear_neighbor_list;
+//				std::vector<int> linear_back_list;
+//				std::vector<std::vector<int*>> connections(nleaves);
+//				std::vector<int*> linear_connections;
+//				std::vector<std::vector<int>> tmp;
+//				tmp.reserve(nleaves);
+//				for (int n = 0; n < nleaves; n++) {
+//					for (int m = n + 1; m < nleaves; m++) {
+//						range_type rn, rm, i;
+//						rn = node_locs[n].second.abs_range();
+//						rm = node_locs[m].second.abs_range();
+//						i = intersection(rn, rm);
+//						if (i[0].first != -1) {
+//							neighbor_count[n]++;
+//							neighbor_count[m]++;
+//							back_lists[m].push_back(neighbor_lists[n].size());
+//							back_lists[n].push_back(neighbor_lists[m].size());
+//							neighbor_lists[m].push_back(n); //
+//							neighbor_lists[n].push_back(m);
+//							std::vector<int> adj1(15);
+//							std::vector<int> adj2(15);
+//							for (int d = 0; d < NDIM; d++) {
+//								int d0 = NDIM - d - 1;
+//								adj1[2 * d + 0] = rn[d].first;
+//								adj1[2 * d + 1] = rn[d].second;
+//								adj1[2 * d + 6] = i[d].first;
+//								adj1[2 * d + 7] = i[d].second;
+//								adj1[12 + d] = d + 1;
+//								adj2[2 * d + 0] = rm[d].first;
+//								adj2[2 * d + 1] = rm[d].second;
+//								adj2[2 * d + 6] = i[d].first;
+//								adj2[2 * d + 7] = i[d].second;
+//								adj2[12 + d] = d + 1;
+//							}
+//							tmp.push_back(std::move(adj1));
+//							tmp.push_back(std::move(adj2));
+//							connections[n].push_back(tmp[tmp.size() - 2].data());
+//							connections[m].push_back(tmp[tmp.size() - 1].data());
+//						}
+//					}
+//				}
+//				linear_neighbor_list.reserve(nleaves);
+//				linear_back_list.reserve(nleaves);
+//				linear_connections.reserve(nleaves);
+//				for (int n = 0; n < nleaves; n++) {
+//					for (int m = 0; m < neighbor_count[n]; m++) {
+//						linear_neighbor_list.push_back(neighbor_lists[n][m]);
+//						linear_back_list.push_back(back_lists[n][m]);
+//						linear_connections.push_back(connections[n][m]);
+//					}
+//				}
+//				std::vector<int> fifteen(linear_connections.size(), 15);
+//				std::vector<int> mesh_types(nleaves, mesh_type);
+//				int isTimeVarying = 1;
+//				int n = 1;
+//				DBWrite(db, "ConnectivityIsTimeVarying", &isTimeVarying, &n, 1, DB_INT);
+//				DBMkDir(db, "Decomposition");
+//				DBSetDir(db, "Decomposition");
+//				DBPutMultimeshadj(db, "Domain_Decomposition", nleaves, mesh_types.data(), neighbor_count.data(), linear_neighbor_list.data(), linear_back_list.data(),
+//						fifteen.data(), linear_connections.data(), nullptr, nullptr, nullptr);
+//				DBWrite(db, "NumDomains", &nleaves, &one, 1, DB_INT);
 
 				// Expressions
 

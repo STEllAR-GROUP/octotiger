@@ -87,7 +87,7 @@ void these_units(real &m, real &l, real &t, real &k) {
 		k = 1.0;
 	}
 
-	printf("%e %e %e %e\n", l, m, t, k);
+//	printf("%e %e %e %e\n", l, m, t, k);
 	if (opts().problem == MARSHAK) {
 		opts().code_to_g = 1.0;
 		opts().code_to_s = 1.0;
@@ -138,10 +138,12 @@ void set_units(real m, real l, real t, real k) {
 	physcon().mh = 1.6733e-24 * m;
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
-	printf("----------Normalized constants\n");
-	printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
-	printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb, physcon().c,
-			physcon().mh, physcon().sigma, physcon().h);
+	if (hpx::get_locality_id() == 0) {
+		printf("----------Normalized constants\n");
+		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
+		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
+				physcon().c, physcon().mh, physcon().sigma, physcon().h);
+	}
 }
 
 struct call_normalize_constants {
@@ -193,7 +195,7 @@ void node_server::set_cgs(bool change) {
 	physcon_t tmp = physcon();
 	auto f1 = set_physcon(tmp);
 	if (change) {
-		printf("%e %e %e %e\n", m, l, t, k);
+//		printf("%e %e %e %e\n", m, l, t, k);
 		change_units(m, l, t, k);
 		auto f3 = grid::static_change_units(m, l, t, k);
 		f3.get();
@@ -229,7 +231,7 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION(static_change_units_action);
 HPX_REGISTER_BROADCAST_ACTION(static_change_units_action);
 
 hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
-	printf("%e %e %e %e\n", m, l, t, k);
+//	printf("%e %e %e %e\n", m, l, t, k);
 	hpx::future<void> f;
 	if (hpx::get_locality_id() == 0 && options::all_localities.size() > 1) {
 		std::vector<hpx::id_type> remotes;
