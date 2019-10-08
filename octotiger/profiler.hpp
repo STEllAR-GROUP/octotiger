@@ -8,6 +8,7 @@
 
 #include <hpx/include/serialization.hpp>
 //#include <hpx/util/high_resolution_timer.hpp>
+#include <hpx/timing.hpp>
 
 #include <algorithm>
 #include <array>

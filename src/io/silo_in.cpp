@@ -163,7 +163,7 @@ node_server::node_server(const node_location &loc) :
 
 	if (!iter->second.load) {
 //		printf("Creating %s on %i\n", loc.to_str().c_str(), int(hpx::get_locality_id()));
-		std::atomic<int> nc = 0;
+		std::atomic<int> nc(0);
 		std::vector<hpx::future<void>> futs;
 		for (int ci = 0; ci < NCHILD; ci++) {
 			futs.push_back(hpx::async([this, ci, &nc, &loc, &localities]() {
