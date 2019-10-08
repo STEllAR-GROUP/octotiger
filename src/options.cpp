@@ -58,10 +58,9 @@ bool options::process_options(int argc, char *argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
-	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
-	("cfl", po::value<real>(&(opts().cfl))->default_value(2. / 15.), "cfl factor")           //
-	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
-	("compress_silo", po::value<bool>(&(opts().compress_silo))->default_value(true), "compress SILO files to fewer grids")    //
+	("help", "produce help message")("xscale", po::value < real > (&(opts().xscale))->default_value(1.0), "grid scale")           //
+	("cfl", po::value < real > (&(opts().cfl))->default_value(2. / 15.), "cfl factor")           //
+	("omega", po::value < real > (&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
 	("variable_omega", po::value<bool>(&(opts().variable_omega))->default_value(false), "use variable omega")                 //
 	("driving_rate", po::value < real > (&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
@@ -191,7 +190,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(bench);
 		SHOW(disable_output);
 		SHOW(v1309);
-		SHOW(compress_silo);
 		SHOW(core_refine);
 		SHOW(gravity);
 		SHOW(hydro);
