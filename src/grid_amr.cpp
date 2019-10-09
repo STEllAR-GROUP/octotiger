@@ -53,31 +53,6 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 }
 
 void grid::complete_hydro_amr_boundary() {
-	if (opts().angmom) {
-		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
-			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
-				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
-
-					const int iii0 = hSindex(i0, j0, k0);
-					if (is_coarse[iii0]) {
-
-						auto dsx_dy = Ushad[sx_i][iii0 + HS_DNY] - Ushad[sx_i][iii0 - HS_DNY];
-						auto dsx_dz = Ushad[sx_i][iii0 + HS_DNZ] - Ushad[sx_i][iii0 - HS_DNZ];
-
-						auto dsy_dx = Ushad[sy_i][iii0 + HS_DNX] - Ushad[sy_i][iii0 - HS_DNX];
-						auto dsy_dz = Ushad[sy_i][iii0 + HS_DNZ] - Ushad[sy_i][iii0 - HS_DNZ];
-
-						auto dsz_dy = Ushad[sz_i][iii0 + HS_DNY] - Ushad[sz_i][iii0 - HS_DNY];
-						auto dsz_dx = Ushad[sz_i][iii0 + HS_DNX] - Ushad[sz_i][iii0 - HS_DNX];
-
-						Ushad[zx_i][iii0] -= 0.5 * (dx / 12.0) * (dsz_dy - dsy_dz);
-						Ushad[zy_i][iii0] -= 0.5 * (dx / 12.0) * (dsx_dz - dsz_dx);
-						Ushad[zz_i][iii0] -= 0.5 * (dx / 12.0) * (dsy_dx - dsx_dy);
-					}
-				}
-			}
-		}
-	}
 
 	if (opts().amrbnd_order == 0) {
 		for (int f = 0; f < opts().n_fields; f++) {
@@ -98,190 +73,155 @@ void grid::complete_hydro_amr_boundary() {
 			}
 		}
 	} else {
-		for (int f = 0; f < opts().n_fields; f++) {
-			for (int ir = 0; ir < H_NX; ir++) {
-				for (int jr = 0; jr < H_NX; jr++) {
-					for (int kr = 0; kr < H_NX; kr++) {
-						const int i0 = (ir + H_BW) / 2;
-						const int j0 = (jr + H_BW) / 2;
-						const int k0 = (kr + H_BW) / 2;
+		using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
+		static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
+		static thread_local std::vector<std::vector<double>> slpx(opts().n_fields, std::vector<double>(HS_N3));
+		static thread_local std::vector<std::vector<double>> slpy(opts().n_fields, std::vector<double>(HS_N3));
+		static thread_local std::vector<std::vector<double>> slpz(opts().n_fields, std::vector<double>(HS_N3));
+
+		const auto slopes1 = [this](int f) {
+			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+				for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+					for (int k0 = 1; k0 < HS_NX - 1; k0++) {
 						const int iii0 = hSindex(i0, j0, k0);
-						const int iiir = hindex(ir, jr, kr);
 						if (is_coarse[iii0]) {
-							std::array<double, NDIM> slp;
-							const auto u0 = Ushad[f][iii0];
-							for (int dim = 0; dim < NDIM; dim++) {
-								const int iiip = iii0 + HS_DN[dim];
-								const int iiim = iii0 - HS_DN[dim];
-								double slpp, slpm, difp, difm;
-								if (is_coarse[iiip]) {
-									difp = slpp = Ushad[f][iiip] - u0;
-								} else {
-									const int iiirp = iiir + H_DN[dim];
-									difp = U[f][iiirp] - Ushad[f][iii0];
-									slpp = 4.0 / 3.0 * difp;
+							const auto &u0 = Ushad[f][iii0];
+							const auto &uc = Ushad[f];
+							constexpr auto theta = 2.0;
+							const auto s_x = minmod_theta(uc[iii0 + HS_DNX] - u0, u0 - uc[iii0 - HS_DNX], theta);
+							const auto s_y = minmod_theta(uc[iii0 + HS_DNY] - u0, u0 - uc[iii0 - HS_DNY], theta);
+							const auto s_z = minmod_theta(uc[iii0 + HS_DNZ] - u0, u0 - uc[iii0 - HS_DNZ], theta);
+							slpx[f][iii0] = s_x;
+							slpy[f][iii0] = s_y;
+							slpz[f][iii0] = s_z;
+						}
+					}
+				}
+			}
+		};
+
+		const auto slopes2 = [this](int f) {
+			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+				for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+					for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+						const int iii0 = hSindex(i0, j0, k0);
+						if (is_coarse[iii0]) {
+							for (int ir = 0; ir < 2; ir++) {
+								for (int jr = 0; jr < 2; jr++) {
+									for (int kr = 0; kr < 2; kr++) {
+										const auto is = ir % 2 ? +1 : -1;
+										const auto js = jr % 2 ? +1 : -1;
+										const auto ks = kr % 2 ? +1 : -1;
+										const auto &u0 = Ushad[f][iii0];
+										const auto &uc = Ushad[f];
+										constexpr auto theta = 1.0;
+										const auto s_x = is * slpx[f][iii0];
+										const auto s_y = js * slpy[f][iii0];
+										const auto s_z = ks * slpz[f][iii0];
+										const auto s_xy = minmod_theta(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY],
+												theta);
+										const auto s_xz = minmod_theta(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ],
+												theta);
+										const auto s_yz = minmod_theta(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ],
+												theta);
+										const auto s_xyz = minmod_theta(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
+												u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ], theta);
+										auto &uf = Uf[f][iii0][ir][jr][kr];
+										uf = u0;
+										uf += (9.0 / 64.0) * (s_x + s_y + s_z);
+										uf += (3.0 / 64.0) * (s_xy + s_yz + s_xz);
+										uf += (1.0 / 64.0) * s_xyz;
+									}
 								}
-								if (is_coarse[iiim]) {
-									difm = slpm = u0 - Ushad[f][iiim];
-								} else {
-									const int iiirm = iiir - H_DN[dim];
-									difm = u0 - U[f][iiirm];
-									slpm = 4.0 / 3.0 * difm;
-								}
-								slp[dim] = minmod(minmod(difp, difm), 0.5 * (slpp + slpm));
 							}
-							U[f][iiir] = u0;
-							for (int dim = 0; dim < NDIM; dim++) {
-								U[f][iiir] += 0.25 * slp[dim];
+						}
+					}
+				}
+			}
+		};
+
+		for (int f = 0; f < sx_i; f++) {
+			slopes1(f);
+			slopes2(f);
+		}
+
+		for (int f = sx_i; f <= sz_i; f++) {
+			slopes1(f);
+		}
+
+		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+					const int iii0 = hSindex(i0, j0, k0);
+					if (is_coarse[iii0]) {
+						const auto sym_xy = 0.5 * (slpx[sy_i][iii0] + slpy[sx_i][iii0]);
+						const auto sym_xz = 0.5 * (slpx[sz_i][iii0] + slpz[sx_i][iii0]);
+						const auto sym_yz = 0.5 * (slpy[sz_i][iii0] + slpz[sy_i][iii0]);
+						const auto ant_xy = +3.0 * Ushad[zz_i][iii0] / (dx);
+						const auto ant_xz = -3.0 * Ushad[zy_i][iii0] / (dx);
+						const auto ant_yz = +3.0 * Ushad[zx_i][iii0] / (dx);
+						slpx[sy_i][iii0] = minmod(sym_xy + ant_xy, slpx[sy_i][iii0]);
+						slpy[sx_i][iii0] = minmod(sym_xy - ant_xy, slpy[sx_i][iii0]);
+						slpx[sz_i][iii0] = minmod(sym_xz + ant_xz, slpx[sz_i][iii0]);
+						slpz[sx_i][iii0] = minmod(sym_xz - ant_xz, slpz[sx_i][iii0]);
+						slpy[sz_i][iii0] = minmod(sym_yz + ant_yz, slpy[sz_i][iii0]);
+						slpz[sy_i][iii0] = minmod(sym_yz - ant_yz, slpz[sy_i][iii0]);
+					}
+				}
+			}
+		}
+
+		for (int f = sx_i; f <= sz_i; f++) {
+			slopes2(f);
+		}
+
+		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+					const int iii0 = hSindex(i0, j0, k0);
+					if (is_coarse[iii0]) {
+						for (int i = 0; i < 2; i++) {
+							for (int j = 0; j < 2; j++) {
+								for (int k = 0; k < 2; k++) {
+									const auto xsgn = 2 * (i % 2) - 1;
+									const auto ysgn = 2 * (j % 2) - 1;
+									const auto zsgn = 2 * (k % 2) - 1;
+									Ushad[zx_i][iii0] += 0.5 * zsgn * Uf[sy_i][iii0][i][j][k] * dx / 8.0;
+									Ushad[zx_i][iii0] -= 0.5 * ysgn * Uf[sz_i][iii0][i][j][k] * dx / 8.0;
+									Ushad[zy_i][iii0] -= 0.5 * zsgn * Uf[sx_i][iii0][i][j][k] * dx / 8.0;
+									Ushad[zy_i][iii0] += 0.5 * xsgn * Uf[sz_i][iii0][i][j][k] * dx / 8.0;
+									Ushad[zz_i][iii0] += 0.5 * ysgn * Uf[sx_i][iii0][i][j][k] * dx / 8.0;
+									Ushad[zz_i][iii0] -= 0.5 * xsgn * Uf[sy_i][iii0][i][j][k] * dx / 8.0;
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-	}
 
-//	if (opts().amrbnd_order > 0) {
-//		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp;
-//		for (int d = 0; d < NDIM; d++) {
-//			slp[d].resize(opts().n_fields, std::vector<double>(HS_N3));
-//		}
-//		const auto slopes = [this](int f) {
-//			for (int i0 = 2; i0 < HS_NX - 2; i0++) {
-//				for (int j0 = 2; j0 < HS_NX - 2; j0++) {
-//					for (int k0 = 2; k0 < HS_NX - 2; k0++) {
-//						const int ir = 2 * i0 - H_BW;
-//						const int jr = 2 * j0 - H_BW;
-//						const int kr = 2 * k0 - H_BW;
-//						const int iii0 = hSindex(i0, j0, k0);
-//						const int iiir = hindex(ir, jr, kr);
-//						if (is_coarse[iii0]) {
-//							const auto u0 = Ushad[f][iii0];
-//							for (int d = 0; d < NDIM; d++) {
-//								const int da = d == XDIM ? YDIM : XDIM;
-//								const int db = d == ZDIM ? YDIM : ZDIM;
-//								const int iiip = iii0 + HS_DN[d];
-//								const int iiim = iii0 - HS_DN[d];
-//								double slpp, slpm;
-//								if (is_coarse[iiip]) {
-//									slpp = Ushad[f][iiip] - u0;
-//								} else {
-//									const int iiir0 = iiir + 2 * H_DN[d];
-//									assert(iiir0 >= 0);
-//									assert(iiir0 < H_N3);
-//									slpp = 0.0;
-//									slpp += U[f][iiir0 + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpp += U[f][iiir0 + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpp += U[f][iiir0 + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpp += U[f][iiir0 + 1 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpp /= 3.0;
-//								}
-//								if (is_coarse[iiim]) {
-//									slpm = Ushad[f][iiim] - u0;
-//								} else {
-//									const int iiir0 = iiir - H_DN[d];
-//									assert(iiir0 >= 0);
-//									assert(iiir0 < H_N3);
-//									slpm = 0.0;
-//									slpm += U[f][iiir0 + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpm += U[f][iiir0 + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpm += U[f][iiir0 + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-//									slpm += U[f][iiir0 + 1 * H_DN[da] + 1 * H_DN[db]] - u0;
-//									slpm /= 3.0;
-//								}
-//								slp[d][f][iii0] = minmod_theta(slpp, -slpm, 1.0);
-//							}
-//						}
-//					}
-//				}
-//			}
-//		};
-//
-//		const auto interps = [this](int f) {
-//			for (int ir = 1; ir < H_NX - 1; ir++) {
-//				for (int jr = 1; jr < H_NX - 1; jr++) {
-//					for (int kr = 1; kr < H_NX - 1; kr++) {
-//						const int isgn = ir % 2 ? 1 : -1;
-//						const int jsgn = jr % 2 ? 1 : -1;
-//						const int ksgn = kr % 2 ? 1 : -1;
-//						const int i0 = (ir + H_BW) / 2;
-//						const int j0 = (jr + H_BW) / 2;
-//						const int k0 = (kr + H_BW) / 2;
-//						const int iii0 = hSindex(i0, j0, k0);
-//						const int iiir = hindex(ir, jr, kr);
-//						if (is_coarse[iii0]) {
-//							auto &value = U[f][iiir];
-//							value -= 0.25 * isgn * slp[XDIM][f][iii0];
-//							value -= 0.25 * jsgn * slp[YDIM][f][iii0];
-//							value -= 0.25 * ksgn * slp[ZDIM][f][iii0];
-	//							if (opts().angmom) {
-	//								if (f == sx_i) {
-	//									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
-	//									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
-	//								} else if (f == sy_i) {
-	//									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
-	//									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
-	//								} else if (f == sz_i) {
-	//									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
-	//									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
-	//								}
-	//							}
-//						}
-//					}
-//				}
-//			}
-//		};
-//
-//		for (int f = sx_i; f <= sz_i; f++) {
-//			slopes(f);
-//		}
-//
-//		for (int i0 = 2; i0 < HS_NX - 2; i0++) {
-//			for (int j0 = 2; j0 < HS_NX - 2; j0++) {
-//				for (int k0 = 2; k0 < HS_NX - 2; k0++) {
-//					const int ir = 2 * i0 - H_BW;
-//					const int jr = 2 * j0 - H_BW;
-//					const int kr = 2 * k0 - H_BW;
-//					const int iii0 = hSindex(i0, j0, k0);
-//					const int iiir = hindex(ir, jr, kr);
-//					if (is_coarse[iii0]) {
-//
-//						real dV_sym[3][3];
-//						real dV_ant[3][3];
-//
-//						for (integer d0 = 0; d0 != NDIM; ++d0) {
-//							for (integer d1 = 0; d1 != NDIM; ++d1) {
-//								dV_sym[d1][d0] = (slp[d0][sx_i + d1][iii0] + slp[d1][sx_i + d0][iii0]) / 2.0;
-//								dV_ant[d1][d0] = 0.0;
-//							}
-//						}
-//						dV_ant[XDIM][YDIM] = +6.0 * Ushad[zz_i][iii0] / dx;
-//						dV_ant[XDIM][ZDIM] = -6.0 * Ushad[zy_i][iii0] / dx;
-//						dV_ant[YDIM][ZDIM] = +6.0 * Ushad[zx_i][iii0] / dx;
-//						dV_ant[YDIM][XDIM] = -dV_ant[XDIM][YDIM];
-//						dV_ant[ZDIM][XDIM] = -dV_ant[XDIM][ZDIM];
-//						dV_ant[ZDIM][YDIM] = -dV_ant[YDIM][ZDIM];
-//						for (integer d0 = 0; d0 != NDIM; ++d0) {
-//							for (integer d1 = 0; d1 != NDIM; ++d1) {
-//								const real tmp = dV_sym[d0][d1] + dV_ant[d0][d1];
-//								slp[d0][sx_i + d1][iii0] = minmod(tmp, slp[d0][sx_i + d1][iii0]);
-//							}
-//						}
-//					}
-//				}
-//			}
-//		}
-//
-//		for (int f = sx_i; f <= sz_i; f++) {
-//			interps(f);
-//		}
-//		for (int f = 0; f < opts().n_fields; f++) {
-//			if (f < sx_i || f > sz_i) {
-//				slopes(f);
-//				interps(f);
-//			}
-//		}
-//	}
+		for (int f = sz_i + 1; f < opts().n_fields; f++) {
+			slopes1(f);
+			slopes2(f);
+		}
+
+		for (int f = 0; f < opts().n_fields; f++) {
+			for (int i = 0; i < H_NX; i++) {
+				for (int j = 0; j < H_NX; j++) {
+					for (int k = 0; k < H_NX; k++) {
+						const int i0 = (i + H_BW) / 2;
+						const int j0 = (j + H_BW) / 2;
+						const int k0 = (k + H_BW) / 2;
+						const int iii0 = hSindex(i0, j0, k0);
+						const int iiir = hindex(i, j, k);
+						if (is_coarse[iii0]) {
+							U[f][iiir] = Uf[f][iii0][1 - (i % 2)][1 - (j % 2)][1 - (k % 2)];
+						}
+					}
+				}
+			}
+		}
+	}
 
 }
 
