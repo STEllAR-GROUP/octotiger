@@ -30,6 +30,7 @@
 
 class options {
 public:
+	bool old_amrbnd;
 	bool disable_diagnostics;
 	bool bench;
 	bool disable_output;
@@ -106,6 +107,7 @@ public:
 		arc & silo_offset_y;
 		arc & silo_offset_z;
 		arc & silo_num_groups;
+		arc & old_amrbnd;
 		arc & amrbnd_order;
 		arc & dual_energy_sw1;
 		arc & dual_energy_sw2;

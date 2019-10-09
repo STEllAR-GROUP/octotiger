@@ -139,7 +139,9 @@ void node_server::exchange_interlevel_hydro_data() {
 }
 
 void node_server::collect_hydro_boundaries(bool tau_only) {
-	grid_ptr->clear_amr();
+	if (!opts().old_amrbnd) {
+		grid_ptr->clear_amr();
+	}
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			const integer width = H_BW;
@@ -155,7 +157,13 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
 			/*hpx::util::annotated_function(*/[this, tau_only, dir](future<sibling_hydro_type> &&f) -> void {
 				auto &&tmp = GET(f);
-				grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction);
+				if (opts().old_amrbnd || !neighbors[dir].empty()) {
+					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, H_BW, tau_only);
+				} else {
+
+					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction);
+
+				}
 			}/*, "node_server::collect_hydro_boundaries::set_hydro_boundary")*/);
 		}
 	}
@@ -172,7 +180,9 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 			grid_ptr->set_physical_boundaries(face, current_time);
 		}
 	}
-	grid_ptr->complete_hydro_amr_boundary();
+	if (!opts().old_amrbnd) {
+		grid_ptr->complete_hydro_amr_boundary();
+	}
 }
 
 void node_server::send_hydro_amr_boundaries(bool tau_only) {
@@ -185,15 +195,26 @@ void node_server::send_hydro_amr_boundaries(bool tau_only) {
 				if (flags[dir]) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
-					get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
-					for (integer dim = 0; dim != NDIM; ++dim) {
-						lb[dim] = std::max(lb[dim] - 1, integer(0));
-						ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
-						lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
-						ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
+//						const integer width = dir.is_face() ? H_BW : 1;
+					if (opts().old_amrbnd) {
+						get_boundary_size(lb, ub, dir, OUTER, INX, H_BW);
+						for (integer dim = 0; dim != NDIM; ++dim) {
+							lb[dim] = ((lb[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
+							ub[dim] = ((ub[dim] - H_BW)) + 2 * H_BW + ci.get_side(dim) * (INX);
+						}
+						data = grid_ptr->get_prolong(lb, ub, tau_only);
+						children[ci].send_hydro_boundary(std::move(data), dir, hcycle);
+					} else {
+						get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
+						for (integer dim = 0; dim != NDIM; ++dim) {
+							lb[dim] = std::max(lb[dim] - 1, integer(0));
+							ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
+							lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
+							ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
+						}
+						data = grid_ptr->get_subset(lb, ub);
+						children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);
 					}
-					data = grid_ptr->get_subset(lb, ub);
-					children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);
 				}
 			}
 //			}
