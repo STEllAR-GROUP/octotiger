@@ -71,7 +71,7 @@ void grid::static_init() {
 	str_to_index_hydro[std::string("sx")] = sx_i;
 	str_to_index_hydro[std::string("sy")] = sy_i;
 	str_to_index_hydro[std::string("sz")] = sz_i;
-	str_to_index_hydro[std::string("pot_i")] = pot_i;
+	str_to_index_hydro[std::string("pot")] = pot_i;
 	if (opts().angmom) {
 		str_to_index_hydro[std::string("zx")] = zx_i;
 		str_to_index_hydro[std::string("zy")] = zy_i;
