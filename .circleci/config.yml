@@ -20,7 +20,7 @@ jobs:
             - checkout:
                 path: /octotiger
             - run:
-                name: Configure Octotiger
+                name: Configure Octo-Tiger
                 command: |
                     cmake -H/octotiger -B/octotiger/build \
                           -DCMAKE_BUILD_TYPE=Release \

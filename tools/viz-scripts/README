@@ -9,7 +9,7 @@ The restart file provided by Dominic that works with the
 "make-silo-viz-paper.sh" script is X.1260.chk.  I usually put that 
 file in a different directory, and make a simlink to it with
 the name "restart.chk" - otherwise, 
-Octotiger will overwrite it as soon as it reads the restart file.
+Octo-Tiger will overwrite it as soon as it reads the restart file.
 
 Note: this slurm script is what is required for the Talapas cluster
 at UO.  If you want to use it, you will likely have to make modifications.

@@ -45,17 +45,17 @@ current_commit=`git rev-parse HEAD`
 
 # Log configuration
 echo "Using scenarion file: $1" | tee "$result_folder/LOG.txt"
-echo "Using Octotiger commit: $current_commit" | tee -a "$result_folder/LOG.txt"
-echo "Octotiger arguments: $octotiger_args" | tee -a "$result_folder/LOG.txt"
+echo "Using Octo-Tiger commit: $current_commit" | tee -a "$result_folder/LOG.txt"
+echo "Octo-Tiger arguments: $octotiger_args" | tee -a "$result_folder/LOG.txt"
 
 # Create result files
 cd "$result_folder"
-echo "# Octotiger commit: $current_commit " > computation_time_results.txt
+echo "# Octo-Tiger commit: $current_commit " > computation_time_results.txt
 echo "# Date of run $today" >> computation_time_results.txt
 echo "# Measuring computation time" >> computation_time_results.txt
 echo "#" >> computation_time_results.txt
 echo "#Number HPX threads,All off,m2m on,m2p on,p2p on,p2m on,All on,All on except p2m" >> computation_time_results.txt
-echo "# Octotiger commit: $current_commit " > total_time_results.txt
+echo "# Octo-Tiger commit: $current_commit " > total_time_results.txt
 echo "# Date of run $today" >> total_time_results.txt
 echo "# Measuring total time" >> total_time_results.txt
 echo "#" >> total_time_results.txt
