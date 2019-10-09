@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Parsa Amini
+# Copyright (c) 2018-2019 Parsa Amini
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -10,8 +10,8 @@
 #   [-build-arg CMAKE_VERSION=version] [...]
 #
 # DESCRIPTION
-# This is a Docker file that is used for building Octotiger on CircleCI. It can
-# be configured to use GCC 6, 7, or 8, a desired CMake version, with desired
+# This is a Docker file that is used for building Octo-Tiger on CircleCI. It can
+# be configured to use Clang 7, 8, or 9, a desired CMake version, with desired
 # build types for Boost, Vc, and HPX
 
 ARG UBUNTU_RELEASE=18.04
@@ -21,7 +21,7 @@ ARG UBUNTU_RELEASE
 ARG LLVM_RELEASE=7.0.1
 ARG BUILD_TYPE=Release
 ARG HPX_BRANCH=master
-ARG CMAKE_VERSION=3.10.0
+ARG CMAKE_VERSION=3.12.4
 
 RUN apt-get update \
     && apt-get install --no-install-recommends --yes \
@@ -47,14 +47,14 @@ RUN curl -JL https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION
     && rm -rf ${CMAKE_VERSION}
 
 #            https://download.open-mpi.org/release/hwloc/v1.11/hwloc-1.11.12.tar.gz
-RUN curl -JL https://download.open-mpi.org/release/hwloc/v2.0/hwloc-2.0.3.tar.gz \
+RUN curl -JL https://download.open-mpi.org/release/hwloc/v2.0/hwloc-2.0.4.tar.gz \
         | tar xz \
     && ( \
-        cd hwloc-2.0.3 \
+        cd hwloc-2.0.4 \
         && ./configure --prefix=/local/hwloc \
         && make -j22 && make install \
     ) \
-    && rm -rf hwloc-2.0.3
+    && rm -rf hwloc-2.0.4
 
 RUN git clone https://github.com/live-clones/hdf5.git --depth=1 --branch=hdf5-1_10_4 \
     && cmake -Hhdf5 -Bhdf5/build \
