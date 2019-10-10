@@ -10,7 +10,7 @@
 #include "octotiger/geometry.hpp"
 
 #include <hpx/include/components.hpp>
-#include <hpx/traits/is_bitwise_serializable.hpp>
+#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 #include <array>
 

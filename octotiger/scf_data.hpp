@@ -9,7 +9,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/real.hpp"
 
-#include <hpx/traits/is_bitwise_serializable.hpp>
+#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 struct scf_data_t {
 	real m_x;

@@ -18,7 +18,7 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
 #include <hpx/runtime/get_colocation_id.hpp>
-#include <hpx/runtime/serialization/list.hpp>
+#include <hpx/serialization/list.hpp>
 
 #include <cstdint>
 #include <cstdio>
