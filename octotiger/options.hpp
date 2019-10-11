@@ -79,7 +79,7 @@ public:
 	size_t cuda_streams_per_gpu;
 	size_t cuda_scheduling_threads;
 
-	std::string input_file;
+	std::string input;
 	std::string config_file;
 	std::string data_dir;
 	std::string output_filename;
@@ -117,7 +117,7 @@ public:
 		arc & rad_implicit;
 		arc & n_fields;
 		arc & n_species;
-		arc & input_file;
+		arc & input;
 		arc & config_file;
 		arc & hydro;
 		arc & gravity;

@@ -58,7 +58,7 @@ bool options::process_options(int argc, char *argv[]) {
 	po::options_description command_opts("options");
 
 	command_opts.add_options() //
-	("help", "produce help message")("xscale", po::value < real > (&(opts().xscale))->default_value(1.0), "grid scale")           //
+			("help", "produce help message")("xscale", po::value < real > (&(opts().xscale))->default_value(1.0), "grid scale")           //
 	("cfl", po::value < real > (&(opts().cfl))->default_value(2. / 15.), "cfl factor")           //
 	("omega", po::value < real > (&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
@@ -109,7 +109,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cuda_streams_per_gpu", po::value < size_t > (&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_scheduling_threads", po::value < size_t > (&(opts().cuda_scheduling_threads))->default_value(size_t(0)),
 			"Number of worker threads per locality that mamage cuda streams") //
-	("input_file", po::value < std::string > (&(opts().input_file))->default_value(""), "input file for test problems") //
+	("input_file", po::value < std::string > (&(opts().input))->default_value(""), "input file for test problems") //
 	("config_file", po::value < std::string > (&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value < integer > (&(opts().n_species))->default_value(5), "number of mass species") //
 	("atomic_mass", po::value < std::vector < real >> (&(opts().atomic_mass))->multitoken(), "atomic masses") //
@@ -216,7 +216,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(cuda_streams_per_gpu);
 		SHOW(config_file);
 		SHOW(data_dir);
-		SHOW(input_file);
+		SHOW(input);
 		SHOW(output_filename);
 		SHOW(restart_filename);
 		SHOW(problem);
