@@ -29,7 +29,7 @@ constexpr integer spc_de_i = spc_i + 3;
 constexpr integer spc_vac_i = spc_i + 4;
 
 // w0 = speed of convergence. Adjust lower if nan
-const real w0 = 1.0 / 4.0;
+const real w0 = 1.0 / 10.0;
 
 
 namespace scf_options {
