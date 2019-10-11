@@ -24,6 +24,8 @@ struct physics {
 	static constexpr int zy_i = 5 + NDIM;
 	static constexpr int zz_i = 6 + NDIM;
 	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+	static safe_real de_switch_1;
+	static safe_real de_switch_2;
 	static bool angmom_;
 
 	enum test_type {
@@ -55,7 +57,11 @@ struct physics {
 			std::array<safe_real, NDIM> &vg);
 
 	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
+<<<<<<< Updated upstream
 			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg);
+=======
+			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg, safe_real dx);
+>>>>>>> Stashed changes
 
 	template<int INX>
 	static void post_process(hydro::state_type &U, safe_real dx);
@@ -66,12 +72,12 @@ struct physics {
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
 	static void pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx);
+			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
 	static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx);
+			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
@@ -93,12 +99,23 @@ struct physics {
 
 	static void set_angmom();
 
+	static void set_dual_energy_switches(safe_real one, safe_real two) {
+		de_switch_1 = one;
+		de_switch_2 = two;
+	}
+
 private:
 	static int nf_;
 	static int n_species_;
 	static safe_real fgamma_;
 
 };
+
+template<int NDIM>
+safe_real physics<NDIM>::de_switch_1 = 1e-3;
+
+template<int NDIM>
+safe_real physics<NDIM>::de_switch_2 = 1e-1;
 
 template<int NDIM>
 bool physics<NDIM>::angmom_ = false;
