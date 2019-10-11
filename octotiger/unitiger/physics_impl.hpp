@@ -59,12 +59,12 @@ void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<s
 	}
 	F[sx_i + dim] += p;
 	F[egas_i] += v0 * p;
-	for( int n = 0; n < geo.NANGMOM; n++) {
-		for( int m = 0; m < NDIM; m++) {
+	for (int n = 0; n < geo.NANGMOM; n++) {
+		for (int m = 0; m < NDIM; m++) {
 			const auto kd = kdelta[n][m][dim];
-			if( kd == 1) {
+			if (kd == 1) {
 				F[zx_i + n] += x[m] * p;
-			} else if( kd == -1) {
+			} else if (kd == -1) {
 				F[zx_i + n] -= x[m] * p;
 			}
 		}
@@ -152,7 +152,6 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 template<int NDIM>
 template<int INX>
 void physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-<<<<<<< Updated upstream
 		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
 	static const cell_geometry<NDIM, INX> geo;
 	for (int d = 0; d < geo.NDIR; d++) {
@@ -161,15 +160,6 @@ void physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_ty
 			for (int f = 0; f < NDIM; f++) {
 				S[f][d] *= rho;
 			}
-=======
-	std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-static const cell_geometry<NDIM, INX> geo;
-for (int d = 0; d < geo.NDIR; d++) {
-	if (d != geo.NDIR / 2) {
-		const auto rho = Q[rho_i][i][d];
-		for (int f = 0; f < NDIM; f++) {
-			S[f][d] *= rho;
->>>>>>> Stashed changes
 		}
 	}
 	for (int f = 0; f < geo.NANGMOM; f++) {
@@ -183,7 +173,6 @@ for (int d = 0; d < geo.NDIR; d++) {
 template<int NDIM>
 template<int INX>
 void physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-<<<<<<< Updated upstream
 		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, double dx) {
 	static const cell_geometry<NDIM, INX> geo;
 	for (int d = 0; d < geo.NDIR; d++) {
@@ -192,15 +181,6 @@ void physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_t
 			for (int f = 0; f < NDIM; f++) {
 				S[f][d] /= rho;
 			}
-=======
-	std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-static const cell_geometry<NDIM, INX> geo;
-for (int d = 0; d < geo.NDIR; d++) {
-	if (d != geo.NDIR / 2) {
-		const auto rho = Q[rho_i][i][d];
-		for (int f = 0; f < NDIM; f++) {
-			S[f][d] /= rho;
->>>>>>> Stashed changes
 		}
 	}
 	for (int f = 0; f < geo.NANGMOM; f++) {
@@ -319,7 +299,6 @@ void physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, cons
 		r = sqrt(r);
 		double den = 0, vel = 0, pre = 0;
 
-<<<<<<< Updated upstream
 		if (test == BLAST) {
 			sedov::solution(time + 7e-4, r, rmax, den, vel, pre, NDIM);
 			for (int dim = 0; dim < NDIM; dim++) {
@@ -337,30 +316,6 @@ void physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, cons
 			pre = 1.0;
 			vel = 10.0;
 			den = 1.0 + 1.0e-6 * sin(2.0 * M_PI * (X[0][i] - vel * time));
-=======
-for (int i = 0; i < geo.H_N3; i++) {
-	safe_real r = 0.0;
-	safe_real rsum = 0.0;
-	for (int dim = 0; dim < NDIM; dim++) {
-		r += X[dim][i] * X[dim][i];
-		rsum += X[dim][i];
-	}
-	r = sqrt(r);
-	safe_real den = 0, vel = 0, pre = 0;
-
-	if (test == BLAST) {
-		sedov::solution(time + 7e-4, r, rmax, den, vel, pre, NDIM);
-		for (int dim = 0; dim < NDIM; dim++) {
-			U[sx_i + dim][i] = den * vel * X[dim][i] / r;
-		}
-	} else if (test == SOD) {
-		sod_state_t sod_state;
-		exact_sod(&sod_state, &sod_init, rsum / std::sqrt(NDIM), time);
-		den = sod_state.rho;
-		vel = sod_state.v;
-		for (int dim = 0; dim < NDIM; dim++) {
-			U[sx_i + dim][i] = den * vel / std::sqrt(NDIM);
->>>>>>> Stashed changes
 		}
 
 		U[rho_i][i] = den;
@@ -403,15 +358,11 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 		}
 		break;
 	}
-<<<<<<< Updated upstream
-	U.resize(nf_);
-=======
 	const auto xlocs = geo.xloc();
 	const auto weights = geo.volume_weight();
 	std::array < safe_real, NDIM > x;
 	safe_real rho = 0, vx = 0, vy = 0, vz = 0, p = 0, r;
 	safe_real x2, xsum;
->>>>>>> Stashed changes
 	for (int dim = 0; dim < NDIM; dim++) {
 		X[dim].resize(geo.H_N3);
 	}
@@ -447,7 +398,6 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 		for (int dim = 0; dim < NDIM; dim++) {
 			xsum += x[dim];
 		}
-<<<<<<< Updated upstream
 		switch (t) {
 		case CONTACT:
 			p = 1.0;
@@ -473,12 +423,6 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 			double v;
 			sedov::solution(7e-4, r, std::sqrt(3) + 5.0 * dx, rho, v, p, NDIM);
 			p = std::max((fgamma_ - 1.0) * 1.0e-20, p);
-=======
-		r = sqrt(x2);
-		safe_real v;
-		sedov::solution(7e-4, r, std::sqrt(3) + 5.0 * dx, rho, v, p, NDIM);
-		p = std::max((fgamma_ - 1.0) * 1.0e-20, p);
->>>>>>> Stashed changes
 //				/***************/
 //				if( r < 1.5*dx ) {
 //					p = 1.0e+3;

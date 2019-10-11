@@ -57,11 +57,7 @@ struct physics {
 			std::array<safe_real, NDIM> &vg);
 
 	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
-<<<<<<< Updated upstream
 			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg);
-=======
-			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &vg, safe_real dx);
->>>>>>> Stashed changes
 
 	template<int INX>
 	static void post_process(hydro::state_type &U, safe_real dx);
