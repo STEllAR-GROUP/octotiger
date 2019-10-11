@@ -330,7 +330,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (!opts().disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			diagnostics();
 			static bool first_call = true;
-			if (opts().rewrite_silo ||(opts().restart_filename == "")) {
+			if (opts().rewrite_silo || !first_call ||(opts().restart_filename == "")) {
 				printf("doing silo out...\n");
 				std::string fname = "X." + std::to_string(int(output_cnt));
 				output_all(fname, output_cnt, first_call);
