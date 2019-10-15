@@ -12,7 +12,8 @@
 //#include <cstddef>
 //#include <iostream>
 
-//#define FACES_ONLY
+#define FACES_ONLY
+#define CHECK_FLUXES
 
 constexpr double MARSHAK_OPAC = 1.0e+2;
 //#define OCTOTIGER_RESTART_LOAD_SEQ

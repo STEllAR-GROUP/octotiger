@@ -81,10 +81,11 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 		for (int f = 0; f < nf_; f++) {
 			for (const auto &i : indices) {
 				F[dim][f][i] = 0.0;
-				for (int fi = 0; fi < geo.NFACEDIR; fi++) {
 #ifdef FACES_ONLY
+				for (int fi = 0; fi < 1; fi++) {
 					constexpr auto w = 1.0;
 #else
+				for (int fi = 0; fi < geo.NFACEDIR; fi++) {
 					const auto &w = weights[fi];
 #endif
 					F[dim][f][i] += w * fluxes[dim][f][i][fi];
