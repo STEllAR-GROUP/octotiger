@@ -117,31 +117,6 @@ void grid::complete_hydro_amr_boundary() {
 			prolong(f);
 		}
 
-		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
-			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
-				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
-					const int iii0 = hSindex(i0, j0, k0);
-					if (is_coarse[iii0]) {
-						for (int i = 0; i < 2; i++) {
-							for (int j = 0; j < 2; j++) {
-								for (int k = 0; k < 2; k++) {
-									const auto xsgn = 2 * (i % 2) - 1;
-									const auto ysgn = 2 * (j % 2) - 1;
-									const auto zsgn = 2 * (k % 2) - 1;
-									Ushad[zx_i][iii0] += 0.5 * zsgn * Uf[sy_i][iii0][i][j][k] * dx / 8.0;
-									Ushad[zx_i][iii0] -= 0.5 * ysgn * Uf[sz_i][iii0][i][j][k] * dx / 8.0;
-									Ushad[zy_i][iii0] -= 0.5 * zsgn * Uf[sx_i][iii0][i][j][k] * dx / 8.0;
-									Ushad[zy_i][iii0] += 0.5 * xsgn * Uf[sz_i][iii0][i][j][k] * dx / 8.0;
-									Ushad[zz_i][iii0] += 0.5 * ysgn * Uf[sx_i][iii0][i][j][k] * dx / 8.0;
-									Ushad[zz_i][iii0] -= 0.5 * xsgn * Uf[sy_i][iii0][i][j][k] * dx / 8.0;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
 		for (int f = sz_i + 1; f < opts().n_fields; f++) {
 			prolong(f);
 		}

@@ -20,9 +20,9 @@ struct physics {
 	static constexpr int sx_i = 4;
 	static constexpr int sy_i = 5;
 	static constexpr int sz_i = 6;
-	static constexpr int zx_i = 4 + NDIM;
-	static constexpr int zy_i = 5 + NDIM;
-	static constexpr int zz_i = 6 + NDIM;
+	static constexpr int lx_i = 4 + NDIM;
+	static constexpr int ly_i = 5 + NDIM;
+	static constexpr int lz_i = 6 + NDIM;
 	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 	static safe_real de_switch_1;
 	static safe_real de_switch_2;
