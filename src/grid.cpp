@@ -286,10 +286,6 @@ std::vector<silo_var_t> grid::var_data() const {
 // MSVC needs this variable to be in the global namespace
 constexpr integer nspec = 2;
 diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
-	fedisableexcept(FE_DIVBYZERO);
-	fedisableexcept(FE_INVALID);
-	fedisableexcept(FE_OVERFLOW);
-
 	diagnostics_t rc;
 	if (opts().disable_diagnostics) {
 		return rc;
@@ -349,6 +345,12 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		rc.grid_out[egas_i] += U_out[pot_i];
 		return rc;
 	}
+
+
+	fedisableexcept(FE_DIVBYZERO);
+	fedisableexcept(FE_INVALID);
+	fedisableexcept(FE_OVERFLOW);
+
 
 	const auto is_loc = [this, diags](integer j, integer k, integer l) {
 		const integer iii = hindex(j, k, l);
@@ -482,9 +484,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						rc.failed = true;
 						return rc;
 					}
-					const real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
-					const real phi_eff = phi_g + phi_r;
-					const real rho0 = U[rho_i][iii];
+					const safe_real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
+					const safe_real phi_eff = phi_g + phi_r;
+					const safe_real rho0 = U[rho_i][iii];
 					integer i;
 					if (rho[1] > 0.5 * rho0) {
 						i = 1;
@@ -515,7 +517,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						}
 					}
 
-					rc.rho_max[i] = std::max(rc.rho_max[i], rho0);
+					rc.rho_max[i] = std::max(rc.rho_max[i], safe_real(rho0));
 					auto &rl = roche_lobe[h0index(j - H_BW, k - H_BW, l - H_BW)];
 
 					auto lmin23 = std::min(diags.l2_phi, diags.l3_phi);

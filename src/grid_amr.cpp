@@ -204,7 +204,7 @@ std::pair<real, real> grid::amr_error() const {
 						const double v1 = U[rho_i][iii];
 						sum += std::pow(v0 - v1, 2) * dV;
 						FILE *fp = fopen("error.txt", "at");
-						fprintf(fp, "%e %e %e\n", y, v0, v1);
+						fprintf(fp, "%e %e %e\n", double(y), double(v0), double(v1));
 						fclose(fp);
 						V += dV;
 					}

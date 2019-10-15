@@ -134,9 +134,9 @@ private:
 	std::vector<roche_type> roche_lobe;
 	std::vector<std::atomic<int>> is_coarse;
 	std::vector<std::vector<real>> Ushad;
-	std::vector<std::vector<real>> U;
-	std::vector<std::vector<real>> U0;
-	std::vector<std::vector<real>> dUdt;
+	std::vector<std::vector<safe_real>> U;
+	std::vector<std::vector<safe_real>> U0;
+	std::vector<std::vector<safe_real>> dUdt;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F;
 	std::vector<std::vector<safe_real>> X;
 	std::vector<v4sd> G;
