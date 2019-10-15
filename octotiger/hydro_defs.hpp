@@ -17,9 +17,9 @@ static constexpr int pot_i = 3;
 static constexpr int sx_i = 4;
 static constexpr int sy_i = 5;
 static constexpr int sz_i = 6;
-static constexpr int zx_i = 7;
-static constexpr int zy_i = 8;
-static constexpr int zz_i = 9;
+static constexpr int lx_i = 7;
+static constexpr int ly_i = 8;
+static constexpr int lz_i = 9;
 static constexpr int spc_i = 10;
 
 static constexpr int INX = OCTOTIGER_GRIDDIM;

@@ -223,8 +223,13 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 
 						std::array < safe_real, geo::NANGMOM > Z;
 						std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
-						for (int dim = 0; dim < geo::NANGMOM; dim++) {
-							Z[dim] = U[zx_i + dim][i];
+						for (int n = 0; n < geo::NANGMOM; n++) {
+							Z[n] = U[zx_i + n][i];
+							for (int m = 0; m < NDIM; m++) {
+								for (int l = 0; l < NDIM; l++) {
+									Z[n] -= kdelta[n][m][l] * X[m][i] * U[sx_i + l][i];
+								}
+							}
 						}
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
@@ -245,7 +250,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 							for (int d = 0; d < geo::NDIR; d++) {
 								if (d != geo::NDIR / 2) {
 									auto &s = S[dim][d];
-									const auto &q = U[sx_i + dim][i + dir[d]];
+									const auto &q = Q[sx_i + dim][i][d];
 									const auto &u0 = U[sx_i + dim][i];
 									const auto M = std::max(u0, q);
 									const auto m = std::min(u0, q);
