@@ -19,6 +19,8 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 			< std::vector<std::array<safe_real, geo::NFACEDIR>>
 					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>>
 							> (nf_, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
+	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
+	static thread_local std::vector<safe_real> UR0(nf_), UL0(nf_);
 
 	static const cell_geometry<NDIM, INX> geo;
 
@@ -31,8 +33,6 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 
 	safe_real amax = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
-		std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
-		std::vector<safe_real> UR0(nf_), UL0(nf_);
 
 		const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
 
