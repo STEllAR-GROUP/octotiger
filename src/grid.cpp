@@ -663,102 +663,6 @@ real grid::scaling_factor = 1.0;
 
 integer grid::max_level = 0;
 
-struct tls_data_t {
-	std::vector<std::vector<real>> v;
-	std::vector<std::vector<std::vector<real>>> dvdx;
-	std::vector<std::vector<std::vector<real>>> dudx;
-	std::vector<std::vector<std::vector<real>>> uf;
-	std::vector<std::vector<real>> zz;
-};
-
-#if !defined(_MSC_VER)
-
-#include <boost/thread/tss.hpp>
-
-class tls_t {
-private:
-	pthread_key_t key;
-public:
-	static void cleanup(void *ptr) {
-		tls_data_t *_ptr = (tls_data_t*) ptr;
-		delete _ptr;
-	}
-	tls_t() {
-		pthread_key_create(&key, cleanup);
-	}
-	tls_data_t* get_ptr() {
-		tls_data_t *ptr = (tls_data_t*) pthread_getspecific(key);
-		if (ptr == nullptr) {
-			ptr = new tls_data_t;
-			ptr->v.resize(opts().n_fields, std::vector<real>(H_N3));
-			ptr->zz.resize(NDIM, std::vector<real>(H_N3));
-			ptr->dvdx.resize(NDIM, std::vector<std::vector<real>>(opts().n_fields, std::vector<real>(H_N3)));
-			ptr->dudx.resize(NDIM, std::vector<std::vector<real>>(opts().n_fields, std::vector<real>(H_N3)));
-			ptr->uf.resize(NFACE, std::vector<std::vector<real>>(opts().n_fields, std::vector<real>(H_N3)));
-			pthread_setspecific(key, ptr);
-		}
-		return ptr;
-	}
-};
-
-#else
-#include <hpx/util/thread_specific_ptr.hpp>
-
-class tls_t
-{
-private:
-	struct tls_data_tag {};
-	static hpx::util::thread_specific_ptr<tls_data_t, tls_data_tag> data;
-
-public:
-//	 static void cleanup(void* ptr)
-//	 {
-//		 tls_data_t* _ptr = (tls_data_t*) ptr;
-//		 delete _ptr;
-//	 }
-
-	tls_data_t* get_ptr()
-	{
-		tls_data_t* ptr = data.get();
-		if (ptr == nullptr) {
-			ptr = new tls_data_t;
-			ptr->v.resize(opts().n_fields, std::vector < real > (H_N3));
-			ptr->zz.resize(NDIM, std::vector < real > (H_N3));
-			ptr->dvdx.resize(NDIM, std::vector < std::vector < real >> (opts().n_fields, std::vector < real > (H_N3)));
-			ptr->dudx.resize(NDIM, std::vector < std::vector < real >> (opts().n_fields, std::vector < real > (H_N3)));
-			ptr->uf.resize(NFACE, std::vector < std::vector < real >> (opts().n_fields, std::vector < real > (H_N3)));
-			data.reset(ptr);
-		}
-		return ptr;
-	}
-};
-
-hpx::util::thread_specific_ptr<tls_data_t, tls_t::tls_data_tag> tls_t::data;
-
-#endif
-
-static tls_t tls;
-
-std::vector<std::vector<real>>& TLS_V() {
-	return tls.get_ptr()->v;
-}
-
-static std::vector<std::vector<std::vector<real>>>& TLS_dVdx() {
-	return tls.get_ptr()->dvdx;
-}
-
-static std::vector<std::vector<std::vector<real>>>& TLS_dUdx() {
-	return tls.get_ptr()->dudx;
-}
-
-static std::vector<std::vector<real>>& TLS_zz() {
-	return tls.get_ptr()->zz;
-}
-
-static std::vector<std::vector<std::vector<real>>>& TLS_Uf() {
-	return tls.get_ptr()->uf;
-}
-
 space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	const integer iii0 = hindex(H_BW, H_BW, H_BW);
 	space_vector c;
@@ -769,9 +673,6 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 }
 
 std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool etot_only) {
-	PROF_BEGIN;
-	auto &dUdx = TLS_dUdx();
-	auto &tmpz = TLS_zz();
 	std::vector<real> data;
 
 	integer size = opts().n_fields;
@@ -779,35 +680,30 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 		size *= (ub[dim] - lb[dim]);
 	}
 	data.reserve(size);
-	auto lb0 = lb;
-	auto ub0 = ub;
-	for (integer d = 0; d != NDIM; ++d) {
-		lb0[d] /= 2;
-		ub0[d] = (ub[d] - 1) / 2 + 1;
-	}
-	compute_primitives(lb0, ub0, etot_only);
-	compute_primitive_slopes(1.0, lb0, ub0, etot_only);
-	compute_conserved_slopes(lb0, ub0, etot_only);
-	for (integer field = 0; field != opts().n_fields; ++field) {
-		if (!etot_only || (etot_only && field == egas_i)) {
-			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-				const real xsgn = (i % 2) ? +1 : -1;
-				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-					const real ysgn = (j % 2) ? +1 : -1;
-#pragma GCC ivdep
-					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-						const integer iii = hindex(i / 2, j / 2, k / 2);
-						const real zsgn = (k % 2) ? +1 : -1;
-						real value = U[field][iii];
-						value += xsgn * dUdx[XDIM][field][iii] * 0.25;
-						value += ysgn * dUdx[YDIM][field][iii] * 0.25;
-						value += zsgn * dUdx[ZDIM][field][iii] * 0.25;
-						data.push_back(value);
-					}
+
+	for (integer f = 0; f < opts().n_fields; f++) {
+		const auto &u = U[f];
+		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
+			const real x = (i % 2) ? +1 : -1;
+			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
+				const real y = (j % 2) ? +1 : -1;
+				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
+					const integer iii = hindex(i / 2, j / 2, k / 2);
+					const real z = (k % 2) ? +1 : -1;
+					const auto u0 = u[iii];
+					real value = u0;
+					value += (9. / 64.) * minmod_theta(u[iii + x * H_DNX] - u0, u0 - u[iii - x * H_DNX], 2.0);
+					value += (9. / 64.) * minmod_theta(u[iii + y * H_DNY] - u0, u0 - u[iii - y * H_DNY], 2.0);
+					value += (9. / 64.) * minmod_theta(u[iii + z * H_DNZ] - u0, u0 - u[iii - z * H_DNZ], 2.0);
+					value += (3. / 64.) * minmod(u[iii + x * H_DNX + y * H_DNY] - u0, u0 - u[iii - x * H_DNX - y * H_DNY]);
+					value += (3. / 64.) * minmod(u[iii + x * H_DNX + z * H_DNZ] - u0, u0 - u[iii - x * H_DNX - z * H_DNZ]);
+					value += (3. / 64.) * minmod(u[iii + y * H_DNY + z * H_DNZ] - u0, u0 - u[iii - y * H_DNY - z * H_DNZ]);
+					value += (1. / 64.) * minmod(u[iii + x * H_DNX + y * H_DNY + z * H_DNZ] - u0, u0 - u[iii - x * H_DNX - y * H_DNY - z * H_DNZ]);
+					data.push_back(value);
 				}
 			}
 		}
-	} PROF_END;
+	}
 	return data;
 }
 
@@ -1540,182 +1436,6 @@ grid::grid(real _dx, std::array<real, NDIM> _xmin) :
 
 }
 
-void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) const {
-	PROF_BEGIN;
-	auto &V = TLS_V();
-	if (!etot_only) {
-		for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
-			for (integer j = lb[YDIM] - 1; j != ub[YDIM] + 1; ++j) {
-#pragma GCC ivdep
-				for (integer k = lb[ZDIM] - 1; k != ub[ZDIM] + 1; ++k) {
-					const integer iii = hindex(i, j, k);
-					V[rho_i][iii] = U[rho_i][iii];
-					V[tau_i][iii] = U[tau_i][iii];
-					const real rho = V[rho_i][iii];
-					if (rho <= 0.0) {
-						printf("%i %i %i %e\n", int(i), int(j), int(k), rho);
-						abort_error()
-						;
-					}
-					const real rhoinv = 1.0 / rho;
-
-					if (opts().eos == WD) {
-						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii]));	// * rhoinv;
-					} else {
-						V[egas_i][iii] = (U[egas_i][iii]);	// * rhoinv;
-					}
-					for (integer si = 0; si != opts().n_species; ++si) {
-						V[spc_i + si][iii] = U[spc_i + si][iii] * rhoinv;
-					}
-					if (opts().gravity) {
-						V[pot_i][iii] = U[pot_i][iii] * rhoinv;
-					}
-					for (integer d = 0; d != NDIM; ++d) {
-						auto &v = V[sx_i + d][iii];
-						v = U[sx_i + d][iii] * rhoinv;
-						V[egas_i][iii] -= 0.5 * v /** v;*/* U[sx_i + d][iii];
-						V[lx_i + d][iii] = U[lx_i + d][iii] * rhoinv;
-					}
-
-					V[sx_i][iii] += X[YDIM][iii] * omega;
-					V[sy_i][iii] -= X[XDIM][iii] * omega;
-				}
-			}
-		}
-	} else {
-		for (integer i = lb[XDIM] - 1; i != ub[XDIM] + 1; ++i) {
-			for (integer j = lb[YDIM] - 1; j != ub[YDIM] + 1; ++j) {
-#pragma GCC ivdep
-				for (integer k = lb[ZDIM] - 1; k != ub[ZDIM] + 1; ++k) {
-					const integer iii = hindex(i, j, k);
-					V[rho_i][iii] = U[rho_i][iii];
-					const real rhoinv = 1.0 / V[rho_i][iii];
-					if (opts().eos == WD) {
-						V[egas_i][iii] = (U[egas_i][iii] - ztwd_energy(U[rho_i][iii]));	// * rhoinv;
-					} else {
-						V[egas_i][iii] = (U[egas_i][iii]);	// * rhoinv;
-					}
-					for (integer d = 0; d != NDIM; ++d) {
-						auto &v = V[sx_i + d][iii];
-						v = U[sx_i + d][iii] * rhoinv;
-						V[egas_i][iii] -= 0.5 * v /** v;*/* U[sx_i + d][iii];
-						V[lx_i + d][iii] = U[lx_i + d][iii] * rhoinv;
-					}
-					V[sx_i][iii] += X[YDIM][iii] * omega;
-					V[sy_i][iii] -= X[XDIM][iii] * omega;
-				}
-			}
-		}
-	}PROF_END;
-}
-
-void grid::compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) {
-	PROF_BEGIN;
-	auto &dVdx = TLS_dVdx();
-	auto &V = TLS_V();
-	for (integer f = 0; f != opts().n_fields; ++f) {
-		if (etot_only && (f == tau_i || f == pot_i || (f >= spc_i && f < spc_i + opts().n_species))) {
-			continue;
-		}
-		const auto &v = V[f];
-		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-#pragma GCC ivdep
-				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-					const integer iii = hindex(i, j, k);
-					if (f != pot_i) {
-						const auto v0 = v[iii];
-						dVdx[XDIM][f][iii] = minmod_theta(v[iii + H_DNX] - v0, v0 - v[iii - H_DNX], theta);
-						dVdx[YDIM][f][iii] = minmod_theta(v[iii + H_DNY] - v0, v0 - v[iii - H_DNY], theta);
-						dVdx[ZDIM][f][iii] = minmod_theta(v[iii + H_DNZ] - v0, v0 - v[iii - H_DNZ], theta);
-					} else {
-						dVdx[XDIM][f][iii] = (v[iii + H_DNX] - v[iii - H_DNX]) * 0.5;
-						dVdx[YDIM][f][iii] = (v[iii + H_DNY] - v[iii - H_DNY]) * 0.5;
-						dVdx[ZDIM][f][iii] = (v[iii + H_DNZ] - v[iii - H_DNZ]) * 0.5;
-					}
-				}
-			}
-		}
-	}
-
-	PROF_END;
-}
-
-void grid::compute_conserved_slopes(const std::array<integer, NDIM> lb, const std::array<integer, NDIM> ub, bool etot_only) {
-	PROF_BEGIN;
-	auto &dVdx = TLS_dVdx();
-	auto &dUdx = TLS_dUdx();
-	auto &V = TLS_V();
-	const real theta = 1.0;
-	if (!etot_only) {
-		for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-			for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-#pragma GCC ivdep
-				for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-					const integer iii = hindex(i, j, k);
-					V[sx_i][iii] -= X[YDIM][iii] * omega;
-					V[sy_i][iii] += X[XDIM][iii] * omega;
-					dVdx[YDIM][sx_i][iii] -= dx * omega;
-					dVdx[XDIM][sy_i][iii] += dx * omega;
-				}
-			}
-		}
-		for (integer d0 = 0; d0 != NDIM; ++d0) {
-			auto &dV = dVdx[d0];
-			auto &dU = dUdx[d0];
-			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-#pragma GCC ivdep
-					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-						const integer iii = hindex(i, j, k);
-						dU[rho_i][iii] = 0.0;
-						for (integer si = 0; si != opts().n_species; ++si) {
-							dU[spc_i + si][iii] = V[spc_i + si][iii] * dV[rho_i][iii] + dV[spc_i + si][iii] * V[rho_i][iii];
-							dU[rho_i][iii] += dU[spc_i + si][iii];
-						}
-						if (opts().gravity) {
-							dU[pot_i][iii] = V[pot_i][iii] * dV[rho_i][iii] + dV[pot_i][iii] * V[rho_i][iii];
-						}
-						//						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
-						dU[egas_i][iii] = dV[egas_i][iii];
-						for (integer d1 = 0; d1 != NDIM; ++d1) {
-							dU[sx_i + d1][iii] = V[sx_i + d1][iii] * dV[rho_i][iii] + dV[sx_i + d1][iii] * V[rho_i][iii];
-							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
-							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
-							dU[lx_i + d1][iii] = V[lx_i + d1][iii] * dV[rho_i][iii] + dV[lx_i + d1][iii] * V[rho_i][iii];
-						}
-						if (opts().eos == WD) {
-							dU[egas_i][iii] += ztwd_enthalpy(V[rho_i][iii]) * dV[rho_i][iii];
-						}
-						dU[tau_i][iii] = dV[tau_i][iii];
-					}
-				}
-			}
-		}
-	} else {
-		for (integer d0 = 0; d0 != NDIM; ++d0) {
-			auto &dV = dVdx[d0];
-			auto &dU = dUdx[d0];
-			for (integer i = lb[XDIM]; i != ub[XDIM]; ++i) {
-				for (integer j = lb[YDIM]; j != ub[YDIM]; ++j) {
-#pragma GCC ivdep
-					for (integer k = lb[ZDIM]; k != ub[ZDIM]; ++k) {
-						const integer iii = hindex(i, j, k);
-						//						dU[egas_i][iii] = V[egas_i][iii] * dV[rho_i][iii] + dV[egas_i][iii] * V[rho_i][iii];
-						dU[egas_i][iii] = dV[egas_i][iii];
-						for (integer d1 = 0; d1 != NDIM; ++d1) {
-							dU[egas_i][iii] += V[rho_i][iii] * (V[sx_i + d1][iii] * dV[sx_i + d1][iii]);
-							dU[egas_i][iii] += dV[rho_i][iii] * 0.5 * sqr(V[sx_i + d1][iii]);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	PROF_END;
-}
-
 real grid::fgamma = 5.0 / 3.0;
 
 void grid::set_coordinates() {
@@ -1953,7 +1673,7 @@ real grid::compute_fluxes() {
 	}
 	hydro.use_smooth_recon(pot_i);
 	auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM, std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-	const auto q = hydro.reconstruct(U, X, omega);
+	const auto &q = hydro.reconstruct(U, X, omega);
 	const auto max_lambda = hydro.flux(U, q, f, X, omega);
 
 	for (int d = 0; d < NDIM; d++) {
@@ -1968,29 +1688,6 @@ real grid::compute_fluxes() {
 			}
 		}
 	}
-
-//#define CHECK_FLUXES
-#ifdef CHECK_FLUXES
-	auto F0 = F;
-	auto old_lambda = old_compute_fluxes();
-	for (int d = 0; d < NDIM; d++) {
-		for (integer field = 0; field != opts().n_fields; ++field) {
-#pragma GCC ivdep
-			for (integer i = 0; i <= INX; ++i) {
-				for (integer j = 0; j <= INX; ++j) {
-					for (integer k = 0; k <= INX; ++k) {
-						auto f1 = F[d][field][findex(i, j, k)];
-						auto f2 = F0[d][field][findex(i, j, k)];
-						if (std::abs(f1 - f2) > 1.0e-6) {
-							printf("%i %e %e %i %i %i %i\n", field, f1, f2, i, j, k, d);
-						}
-					}
-				}
-			}
-		}
-	}
-	F = F0;
-#endif
 
 	return max_lambda;
 }
