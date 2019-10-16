@@ -75,24 +75,34 @@ void grid::complete_hydro_amr_boundary() {
 	} else {
 		using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
 		static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
-//		std::array<safe_real, NDIM> xmin;
-//		for (int dim = 0; dim < NDIM; dim++) {
-//			xmin[dim] = X[dim][hindex(H_BW,H_BW,H_BW)] - 0.5 * dx;
-//		}
-//		const auto dx0 = 2.0 * dx;
-//		for (int i0 = 0; i0 < HS_NX; i0++) {
-//			for (int j0 = 0; j0 < HS_NX; j0++) {
-//				for (int k0 = 0; k0 < HS_NX; k0++) {
-//					const int iii0 = hSindex(i0, j0, k0);
-//					const auto x = xmin[XDIM] + (i0 + 0.5 - H_BW) * dx0;
-//					const auto y = xmin[YDIM] + (j0 + 0.5 - H_BW) * dx0;
-//					const auto z = xmin[ZDIM] + (k0 + 0.5 - H_BW) * dx0;
-//					if (is_coarse[iii0]) {
-//						Ushad[lz_i][iii0] -= x * Ushad[sy_i][iii0] - y * Ushad[sx_i][iii0];
-//					}
-//				}
-//			}
-//		}
+		std::array<safe_real, NDIM> xmin;
+		for (int dim = 0; dim < NDIM; dim++) {
+			xmin[dim] = X[dim][hindex(H_BW, H_BW, H_BW)] - 0.5 * dx;
+		}
+		const auto dx0 = 2.0 * dx;
+		for (int i0 = 0; i0 < HS_NX; i0++) {
+			for (int j0 = 0; j0 < HS_NX; j0++) {
+				for (int k0 = 0; k0 < HS_NX; k0++) {
+					const int iii0 = hSindex(i0, j0, k0);
+					const auto x = xmin[XDIM] + (i0 + 0.5 - H_BW) * dx0;
+					const auto y = xmin[YDIM] + (j0 + 0.5 - H_BW) * dx0;
+					const auto z = xmin[ZDIM] + (k0 + 0.5 - H_BW) * dx0;
+					if (is_coarse[iii0]) {
+						for (int f = 0; f < opts().n_fields; f++) {
+							if (f != rho_i && f != tau_i && f != egas_i) {
+								Ushad[f][iii0] /= Ushad[rho_i][iii0];
+							}
+						}
+						for (int dim = 0; dim < NDIM; dim++) {
+							Ushad[egas_i][iii0] -= 0.5 * sqr(Ushad[sx_i + dim][iii0]) * Ushad[rho_i][iii0];
+						}
+						Ushad[lx_i][iii0] -= y * Ushad[sz_i][iii0] - z * Ushad[sy_i][iii0];
+						Ushad[ly_i][iii0] += x * Ushad[sz_i][iii0] - z * Ushad[sx_i][iii0];
+						Ushad[lz_i][iii0] -= x * Ushad[sy_i][iii0] - y * Ushad[sx_i][iii0];
+					}
+				}
+			}
+		}
 
 		for (int f = 0; f < opts().n_fields; f++) {
 			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
@@ -108,14 +118,15 @@ void grid::complete_hydro_amr_boundary() {
 										const auto ks = kr % 2 ? +1 : -1;
 										const auto &u0 = Ushad[f][iii0];
 										const auto &uc = Ushad[f];
-										const auto s_x = minmod(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
-										const auto s_y = minmod(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
-										const auto s_z = minmod(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
-										const auto s_xy = minmod(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
-										const auto s_xz = minmod(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
-										const auto s_yz = minmod(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
-										const auto s_xyz = minmod(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
-												u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
+										constexpr safe_real theta = 0.999 * 64.0 / 37.0;
+										const auto s_x = minmod_theta(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX], theta);
+										const auto s_y = minmod_theta(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY], theta);
+										const auto s_z = minmod_theta(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ], theta);
+										const auto s_xy = minmod_theta(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY], theta);
+										const auto s_xz = minmod_theta(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ], theta);
+										const auto s_yz = minmod_theta(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ], theta);
+										const auto s_xyz = minmod_theta(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
+												u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ], theta);
 										auto &uf = Uf[f][iii0][ir][jr][kr];
 										uf = u0;
 										uf += (9.0 / 64.0) * (s_x + s_y + s_z);
@@ -146,20 +157,30 @@ void grid::complete_hydro_amr_boundary() {
 				}
 			}
 		}
-//		for (int i = 0; i < H_NX; i++) {
-//			for (int j = 0; j < H_NX; j++) {
-//				for (int k = 0; k < H_NX; k++) {
-//					const int i0 = (i + H_BW) / 2;
-//					const int j0 = (j + H_BW) / 2;
-//					const int k0 = (k + H_BW) / 2;
-//					const int iii0 = hSindex(i0, j0, k0);
-//					const int iiir = hindex(i, j, k);
-//					if (is_coarse[iii0]) {
-//						U[lz_i][iiir] += X[XDIM][iiir] * U[sy_i][iiir] - X[YDIM][iiir] * U[sx_i][iiir];
-//					}
-//				}
-//			}
-//		}
+		for (int i = 0; i < H_NX; i++) {
+			const int i0 = (i + H_BW) / 2;
+			for (int j = 0; j < H_NX; j++) {
+				const int j0 = (j + H_BW) / 2;
+				for (int k = 0; k < H_NX; k++) {
+					const int k0 = (k + H_BW) / 2;
+					const int iii0 = hSindex(i0, j0, k0);
+					if (is_coarse[iii0]) {
+						const int iiir = hindex(i, j, k);
+						U[lx_i][iiir] += X[YDIM][iiir] * U[sz_i][iiir] - X[ZDIM][iiir] * U[sy_i][iiir];
+						U[ly_i][iiir] -= X[XDIM][iiir] * U[sz_i][iiir] - X[ZDIM][iiir] * U[sx_i][iiir];
+						U[lz_i][iiir] += X[XDIM][iiir] * U[sy_i][iiir] - X[YDIM][iiir] * U[sx_i][iiir];
+						for (int dim = 0; dim < NDIM; dim++) {
+							U[egas_i][iiir] += 0.5 * sqr(U[sx_i + dim][iiir]) * U[rho_i][iiir];
+						}
+						for (int f = 0; f < opts().n_fields; f++) {
+							if (f != rho_i && f != tau_i && f != egas_i) {
+								U[f][iiir] *= U[rho_i][iiir];
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 }
