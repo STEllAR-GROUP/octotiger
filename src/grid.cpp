@@ -72,11 +72,9 @@ void grid::static_init() {
 	str_to_index_hydro[std::string("sy")] = sy_i;
 	str_to_index_hydro[std::string("sz")] = sz_i;
 	str_to_index_hydro[std::string("pot")] = pot_i;
-	if (opts().angmom) {
-		str_to_index_hydro[std::string("lx")] = lx_i;
-		str_to_index_hydro[std::string("ly")] = ly_i;
-		str_to_index_hydro[std::string("lz")] = lz_i;
-	}
+	str_to_index_hydro[std::string("lx")] = lx_i;
+	str_to_index_hydro[std::string("ly")] = ly_i;
+	str_to_index_hydro[std::string("lz")] = lz_i;
 	str_to_index_gravity[std::string("gx")] = gx_i;
 	str_to_index_gravity[std::string("gy")] = gy_i;
 	str_to_index_gravity[std::string("gz")] = gz_i;
@@ -163,8 +161,10 @@ real grid::convert_hydro_units(int i) {
 			val *= g / (cm * cm * cm);
 		} else if (i >= sx_i && i <= sz_i) {
 			val *= g / (s * cm * cm);
-		} else if (i == egas_i || (i >= lx_i && i <= lz_i) || i == pot_i) {
+		} else if (i == egas_i || i == pot_i) {
 			val *= g / (s * s * cm);
+		} else if ((i >= lx_i && i <= lz_i)) {
+			val *= g / (s * cm);
 		} else if (i == tau_i) {
 			val *= POWER(g / (s * s * cm), 1.0 / fgamma);
 		} else {
@@ -341,11 +341,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		return rc;
 	}
 
-
 	fedisableexcept(FE_DIVBYZERO);
 	fedisableexcept(FE_INVALID);
 	fedisableexcept(FE_OVERFLOW);
-
 
 	const auto is_loc = [this, diags](integer j, integer k, integer l) {
 		const integer iii = hindex(j, k, l);
@@ -809,8 +807,7 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 				}
 			}
 		}
-	}
-	PROF_END;
+	} PROF_END;
 	return data;
 }
 
@@ -1151,9 +1148,9 @@ void grid::change_units(real m, real l, real t, real k) {
 		U[sx_i][i] *= (m * l * tinv) * l3inv;
 		U[sy_i][i] *= (m * l * tinv) * l3inv;
 		U[sz_i][i] *= (m * l * tinv) * l3inv;
-			U[lx_i][i] *= (m * l2 * tinv) * l3inv;
-			U[ly_i][i] *= (m * l2 * tinv) * l3inv;
-			U[lz_i][i] *= (m * l2 * tinv) * l3inv;
+		U[lx_i][i] *= (m * l2 * tinv) * l3inv;
+		U[ly_i][i] *= (m * l2 * tinv) * l3inv;
+		U[lz_i][i] *= (m * l2 * tinv) * l3inv;
 		X[XDIM][i] *= l;
 		X[YDIM][i] *= l;
 		X[ZDIM][i] *= l;
@@ -1173,8 +1170,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1187,7 +1184,7 @@ void grid::set_omega(real omega, bool bcast) {
 				}
 			}
 			if (remotes.size() > 0) {
-				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
+				hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
 			}
 		}
 	}
@@ -1577,7 +1574,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 						auto &v = V[sx_i + d][iii];
 						v = U[sx_i + d][iii] * rhoinv;
 						V[egas_i][iii] -= 0.5 * v /** v;*/* U[sx_i + d][iii];
-							V[lx_i + d][iii] = U[lx_i + d][iii] * rhoinv;
+						V[lx_i + d][iii] = U[lx_i + d][iii] * rhoinv;
 					}
 
 					V[sx_i][iii] += X[YDIM][iii] * omega;
@@ -1602,7 +1599,7 @@ void grid::compute_primitives(const std::array<integer, NDIM> lb, const std::arr
 						auto &v = V[sx_i + d][iii];
 						v = U[sx_i + d][iii] * rhoinv;
 						V[egas_i][iii] -= 0.5 * v /** v;*/* U[sx_i + d][iii];
-							V[lx_i + d][iii] = U[lx_i + d][iii] * rhoinv;
+						V[lx_i + d][iii] = U[lx_i + d][iii] * rhoinv;
 					}
 					V[sx_i][iii] += X[YDIM][iii] * omega;
 					V[sy_i][iii] -= X[XDIM][iii] * omega;
@@ -1746,6 +1743,9 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * coord(quadmesh)[0]", omega)));
 	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * coord(quadmesh)[1]", omega)));
 	rc.push_back(std::make_pair(std::string("vz"), std::string("sz / rho")));
+	rc.push_back(std::make_pair(std::string("zx"), "lx - coord(quadmesh)[1]*sz + coord(quadmesh)[2]*sy"));
+	rc.push_back(std::make_pair(std::string("zy"), "ly + coord(quadmesh)[0]*sz - coord(quadmesh)[2]*sx"));
+	rc.push_back(std::make_pair(std::string("zz"), "lz - coord(quadmesh)[0]*sy + coord(quadmesh)[1]*sx"));
 
 	std::string n;
 	std::string X = "(";
@@ -1782,7 +1782,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	} else {
 		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
 	}
-	rc.push_back(std::make_pair(std::string("phi"), std::string( "pot/rho")));
+	rc.push_back(std::make_pair(std::string("phi"), std::string("pot/rho")));
 	rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
 	rc.push_back(
 			std::make_pair(std::string("B_p"), hpx::util::format("{:e} * T^4", physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
@@ -1906,9 +1906,7 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 			}
 		}
 	}
-	if (opts().angmom) {
-		init_z_field();
-	}
+	init_z_field();
 	if (opts().radiation) {
 		if (init_func != nullptr) {
 			rad_init();
@@ -1928,19 +1926,6 @@ void grid::init_z_field() {
 		for (int k = H_BW; k < H_NX - H_BW; k++) {
 			for (int l = H_BW; l < H_NX - H_BW; l++) {
 				const int i = hindex(j, k, l);
-				auto dsx_dy = U[sx_i][i + H_DNY] - U[sx_i][i - H_DNY];
-				auto dsx_dz = U[sx_i][i + H_DNZ] - U[sx_i][i - H_DNZ];
-
-				auto dsy_dx = U[sy_i][i + H_DNX] - U[sy_i][i - H_DNX];
-				auto dsy_dz = U[sy_i][i + H_DNZ] - U[sy_i][i - H_DNZ];
-
-				auto dsz_dy = U[sz_i][i + H_DNY] - U[sz_i][i - H_DNY];
-				auto dsz_dx = U[sz_i][i + H_DNX] - U[sz_i][i - H_DNX];
-
-				U[lx_i][i] = 0.5 * (dx / 12.0) * (dsz_dy - dsy_dz);
-				U[ly_i][i] = 0.5 * (dx / 12.0) * (dsx_dz - dsz_dx);
-				U[lz_i][i] = 0.5 * (dx / 12.0) * (dsy_dx - dsx_dy);
-
 				U[lx_i][i] += X[YDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sy_i][i];
 				U[ly_i][i] -= X[XDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sx_i][i];
 				U[lz_i][i] += X[XDIM][i] * U[sy_i][i] - X[YDIM][i] * U[sx_i][i];
