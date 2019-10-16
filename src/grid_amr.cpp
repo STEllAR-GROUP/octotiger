@@ -90,10 +90,9 @@ void grid::complete_hydro_amr_boundary() {
 										const auto ks = kr % 2 ? +1 : -1;
 										const auto &u0 = Ushad[f][iii0];
 										const auto &uc = Ushad[f];
-										constexpr auto theta = 2.0;
-										const auto s_x = minmod_theta(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX], theta);
-										const auto s_y = minmod_theta(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY], theta);
-										const auto s_z = minmod_theta(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ], theta);
+										const auto s_x = minmod(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
+										const auto s_y = minmod(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
+										const auto s_z = minmod(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
 										const auto s_xy = minmod(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
 										const auto s_xz = minmod(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
 										const auto s_yz = minmod(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);

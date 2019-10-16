@@ -274,12 +274,6 @@ public:
 	static void set_omega(real, bool bcast = true);
 	static OCTOTIGER_EXPORT real& get_omega();
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
-	void compute_conserved_slopes(const std::array<integer, NDIM> lb = { 1, 1, 1 },
-			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
-	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = { 1, 1, 1 },
-			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
-	void compute_primitives(const std::array<integer, NDIM> lb = { 1, 1, 1 },
-			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false) const;
 	void set_coordinates();
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
@@ -352,7 +346,6 @@ public:
 	void store();
 	void restore();
 	real compute_fluxes();
-	real old_compute_fluxes();
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
 	void next_u(integer rk, real t, real dt);
