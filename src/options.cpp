@@ -92,8 +92,8 @@ bool options::process_options(int argc, char *argv[]) {
 	("datadir", po::value<std::string>(&(opts().data_dir))->default_value("./"), "directory for output") //
 	("output", po::value<std::string>(&(opts().output_filename))->default_value(""), "filename for output") //
 	("odt", po::value<real>(&(opts().output_dt))->default_value(1.0 / 100.0), "output frequency") //
-	("dual_energy_sw1", po::value<real>(&(opts().dual_energy_sw1))->default_value(0.1), "dual energy switch 1") //
-	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.001), "dual energy switch 2") //
+	("dual_energy_sw1", po::value<real>(&(opts().dual_energy_sw1))->default_value(0.001), "dual energy switch 1") //
+	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.1), "dual energy switch 2") //
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
 	("disable_output", po::value<bool>(&(opts().disable_output))->default_value(false), "disable silo output") //
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics))->default_value(false), "disable diagnostics") //
@@ -257,8 +257,6 @@ bool options::process_options(int argc, char *argv[]) {
 			abort();
 		}
 	}
-
-	physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
 
 	return true;
 }

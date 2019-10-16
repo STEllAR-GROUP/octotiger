@@ -2156,6 +2156,9 @@ void grid::rad_init() {
 
 real grid::compute_fluxes() {
 	physics<NDIM>::set_fgamma(fgamma);
+
+	physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
+
 	/******************************/
 //	hydro.set_low_order();
 	/******************************/

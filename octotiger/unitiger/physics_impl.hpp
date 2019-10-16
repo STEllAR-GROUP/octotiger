@@ -35,7 +35,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 	}
 	auto ein = u[egas_i] - ek;
-	if (ein < de_switch_2 * u[egas_i]) {
+	if (ein < de_switch_1 * u[egas_i]) {
 		ein = pow(u[tau_i], fgamma_);
 	}
 
@@ -107,7 +107,7 @@ void physics<NDIM>::post_process(hydro::state_type &U, safe_real dx) {
 			egas_max = std::max(egas_max, U[egas_i][i + dir[d]]);
 		}
 		safe_real ein = U[egas_i][i] - ek;
-		if (ein > de_switch_1 * egas_max) {
+		if (ein > de_switch_2 * egas_max) {
 			U[tau_i][i] = POWER(ein, 1.0 / fgamma_);
 		}
 	}
