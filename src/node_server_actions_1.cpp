@@ -138,7 +138,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			if (ci == 0) {
 				outflows = grid_ptr->get_outflows_raw();
 			}
-			if (current_time > ZERO) {
+			if (current_time > ZERO || opts().restart_filename != "") {
 				std::vector<real> prolong;
 				{
 					std::unique_lock < hpx::lcos::local::spinlock > lk(prolong_mtx);
