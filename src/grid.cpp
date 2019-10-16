@@ -692,9 +692,9 @@ std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const s
 					const real z = (k % 2) ? +1 : -1;
 					const auto u0 = u[iii];
 					real value = u0;
-					value += (9. / 64.) * minmod_theta(u[iii + x * H_DNX] - u0, u0 - u[iii - x * H_DNX], 2.0);
-					value += (9. / 64.) * minmod_theta(u[iii + y * H_DNY] - u0, u0 - u[iii - y * H_DNY], 2.0);
-					value += (9. / 64.) * minmod_theta(u[iii + z * H_DNZ] - u0, u0 - u[iii - z * H_DNZ], 2.0);
+					value += (9. / 64.) * minmod(u[iii + x * H_DNX] - u0, u0 - u[iii - x * H_DNX]);
+					value += (9. / 64.) * minmod(u[iii + y * H_DNY] - u0, u0 - u[iii - y * H_DNY]);
+					value += (9. / 64.) * minmod(u[iii + z * H_DNZ] - u0, u0 - u[iii - z * H_DNZ]);
 					value += (3. / 64.) * minmod(u[iii + x * H_DNX + y * H_DNY] - u0, u0 - u[iii - x * H_DNX - y * H_DNY]);
 					value += (3. / 64.) * minmod(u[iii + x * H_DNX + z * H_DNZ] - u0, u0 - u[iii - x * H_DNX - z * H_DNZ]);
 					value += (3. / 64.) * minmod(u[iii + y * H_DNY + z * H_DNZ] - u0, u0 - u[iii - y * H_DNY - z * H_DNZ]);
