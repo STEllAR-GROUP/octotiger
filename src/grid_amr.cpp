@@ -75,8 +75,26 @@ void grid::complete_hydro_amr_boundary() {
 	} else {
 		using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
 		static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
+//		std::array<safe_real, NDIM> xmin;
+//		for (int dim = 0; dim < NDIM; dim++) {
+//			xmin[dim] = X[dim][hindex(H_BW,H_BW,H_BW)] - 0.5 * dx;
+//		}
+//		const auto dx0 = 2.0 * dx;
+//		for (int i0 = 0; i0 < HS_NX; i0++) {
+//			for (int j0 = 0; j0 < HS_NX; j0++) {
+//				for (int k0 = 0; k0 < HS_NX; k0++) {
+//					const int iii0 = hSindex(i0, j0, k0);
+//					const auto x = xmin[XDIM] + (i0 + 0.5 - H_BW) * dx0;
+//					const auto y = xmin[YDIM] + (j0 + 0.5 - H_BW) * dx0;
+//					const auto z = xmin[ZDIM] + (k0 + 0.5 - H_BW) * dx0;
+//					if (is_coarse[iii0]) {
+//						Ushad[lz_i][iii0] -= x * Ushad[sy_i][iii0] - y * Ushad[sx_i][iii0];
+//					}
+//				}
+//			}
+//		}
 
-		const auto prolong = [this](int f) {
+		for (int f = 0; f < opts().n_fields; f++) {
 			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
 				for (int j0 = 1; j0 < HS_NX - 1; j0++) {
 					for (int k0 = 1; k0 < HS_NX - 1; k0++) {
@@ -110,14 +128,6 @@ void grid::complete_hydro_amr_boundary() {
 					}
 				}
 			}
-		};
-
-		for (int f = 0; f <= sz_i; f++) {
-			prolong(f);
-		}
-
-		for (int f = sz_i + 1; f < opts().n_fields; f++) {
-			prolong(f);
 		}
 
 		for (int f = 0; f < opts().n_fields; f++) {
@@ -136,6 +146,20 @@ void grid::complete_hydro_amr_boundary() {
 				}
 			}
 		}
+//		for (int i = 0; i < H_NX; i++) {
+//			for (int j = 0; j < H_NX; j++) {
+//				for (int k = 0; k < H_NX; k++) {
+//					const int i0 = (i + H_BW) / 2;
+//					const int j0 = (j + H_BW) / 2;
+//					const int k0 = (k + H_BW) / 2;
+//					const int iii0 = hSindex(i0, j0, k0);
+//					const int iiir = hindex(i, j, k);
+//					if (is_coarse[iii0]) {
+//						U[lz_i][iiir] += X[XDIM][iiir] * U[sy_i][iiir] - X[YDIM][iiir] * U[sx_i][iiir];
+//					}
+//				}
+//			}
+//		}
 	}
 
 }

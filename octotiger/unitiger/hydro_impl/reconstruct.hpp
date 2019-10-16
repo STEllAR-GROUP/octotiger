@@ -208,6 +208,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
 				reconstruct_ppm(Q_SoA[f], U[f], true);
 			}
+			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
+				reconstruct_ppm(Q_SoA[f], U[f], false);
+			}
 
 			SoA2AoS(rho_i, rho_i + 1);
 			SoA2AoS(sx_i, sx_i + NDIM);
@@ -266,11 +269,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 				}
 			}
 
-			AoS2SoA(sx_i, zx_i + geo::NANGMOM);
-
-			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_ppm(Q_SoA[f], U[f], false);
-			}
+			AoS2SoA(sx_i, sx_i + NDIM);
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
