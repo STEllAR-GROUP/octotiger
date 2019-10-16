@@ -219,6 +219,7 @@ std::vector<std::vector<std::vector<safe_real>>> physics<NDIM>::post_recon(const
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 	auto Q = P;
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
+	const auto xloc = geo.xloc();
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
 			for (int j = 0; j < geo.H_NX_XM4; j++) {
@@ -230,7 +231,7 @@ std::vector<std::vector<std::vector<safe_real>>> physics<NDIM>::post_recon(const
 						for (int n = 0; n < geo.NANGMOM; n++) {
 							for (int m = 0; m < NDIM; m++) {
 								for (int l = 0; l < NDIM; l++) {
-									Q[lx_i + n][d][i] += kdelta[n][m][l] * X[m][i] * Q[sx_i + l][d][i];
+									Q[lx_i + n][d][i] += kdelta[n][m][l] * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[sx_i + l][d][i];
 								}
 							}
 							Q[lx_i + n][d][i] *= rho;
