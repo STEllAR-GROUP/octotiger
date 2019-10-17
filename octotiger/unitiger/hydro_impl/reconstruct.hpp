@@ -43,7 +43,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro
 //#endif
 
 template<int NDIM, int INX>
-const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 
 	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 
@@ -77,7 +77,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 	static constexpr auto dir = geo::direction();
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
-	auto U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
+	const auto& U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
@@ -204,12 +204,16 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 		int sx_i = angmom_index_;
 		int zx_i = sx_i + NDIM;
 
+		SoA2AoS(rho_i, rho_i + 1);
+
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
 				reconstruct_ppm(Q_SoA[f], U[f], true);
 			}
+			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
+				reconstruct_ppm(Q_SoA[f], U[f], false);
+			}
 
-			SoA2AoS(rho_i, rho_i + 1);
 			SoA2AoS(sx_i, sx_i + NDIM);
 
 			for (int j = 0; j < geo::H_NX_XM4; j++) {
@@ -259,17 +263,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
-								Q[sx_i + dim][i][d] = S[dim][d];
+								Q_SoA[sx_i + dim][d][i] = S[dim][d];
 							}
 						}
 					}
 				}
-			}
-
-			AoS2SoA(sx_i, zx_i + geo::NANGMOM);
-
-			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_ppm(Q_SoA[f], U[f], false);
 			}
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
@@ -280,7 +278,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(hydro::sta
 
 	}
 
-	Q_SoA = physics < NDIM > ::template post_recon<INX>(Q_SoA, X, omega, angmom_count_ > 0);
+	physics < NDIM > ::template post_recon<INX>(Q_SoA, X, omega, angmom_count_ > 0);
 
 	SoA2AoS(0, nf_);
 	return Q;

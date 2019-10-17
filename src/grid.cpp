@@ -1672,7 +1672,7 @@ real grid::compute_fluxes() {
 		hydro.use_angmom_correction(sx_i, 1);
 	}
 	hydro.use_smooth_recon(pot_i);
-	auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM, std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM, std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
 	const auto max_lambda = hydro.flux(U, q, f, X, omega);
 
