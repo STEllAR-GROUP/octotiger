@@ -76,7 +76,18 @@ void grid::complete_hydro_amr_boundary() {
 		using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
 		static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
 
-		const auto prolong = [this](int f) {
+		const auto limiter = [](double a, double b) {
+			if (a * b <= 0.0) {
+				return 0.0;
+			} else {
+				constexpr double theta = 64. / 37.;
+				constexpr double gamma = 2.0 * (theta - 1.0);
+				return theta * (a * a * b + b * b * a) / (a * a + gamma * a * b + b * b);
+			}
+
+		};
+
+		const auto prolong = [this, limiter](int f) {
 			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
 				for (int j0 = 1; j0 < HS_NX - 1; j0++) {
 					for (int k0 = 1; k0 < HS_NX - 1; k0++) {
@@ -90,13 +101,13 @@ void grid::complete_hydro_amr_boundary() {
 										const auto ks = kr % 2 ? +1 : -1;
 										const auto &u0 = Ushad[f][iii0];
 										const auto &uc = Ushad[f];
-										const auto s_x = minmod(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
-										const auto s_y = minmod(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
-										const auto s_z = minmod(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
-										const auto s_xy = minmod(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
-										const auto s_xz = minmod(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
-										const auto s_yz = minmod(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
-										const auto s_xyz = minmod(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
+										const auto s_x = limiter(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
+										const auto s_y = limiter(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
+										const auto s_z = limiter(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
+										const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
+										const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
+										const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
+										const auto s_xyz = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
 												u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
 										auto &uf = Uf[f][iii0][ir][jr][kr];
 										uf = u0;
