@@ -32,6 +32,9 @@ private:
 	DBfile *db;
 	std::vector<char*> mesh_names;
 	std::map<std::string, std::vector<char*>> var_names;
+	double dtime;
+	float time;
+	int cycle;
 public:
 
 	plain_silo(const std::string filename) {
@@ -39,6 +42,9 @@ public:
 	}
 
 	void add_mesh(std::string dir, DBquadmesh *mesh) {
+		dtime = mesh->dtime;
+		time = mesh->time;
+		cycle = mesh->cycle;
 		DBMkDir(db, dir.c_str());
 		DBSetDir(db, dir.c_str());
 		DBPutQuadmesh(db, mesh->name, mesh->labels, mesh->coords, mesh->dims, mesh->ndims, mesh->datatype, mesh->coordtype, NULL);
@@ -59,8 +65,11 @@ public:
 
 	~plain_silo() {
 		int mesh_type = DB_QUADMESH;
-		auto optlist = DBMakeOptlist(1);
+		auto optlist = DBMakeOptlist(4);
 		DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
+		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
+		DBAddOption(optlist, DBOPT_TIME, &time);
+		DBAddOption(optlist, DBOPT_DTIME, &dtime);
 		DBPutMultimesh(db, "quadmesh", mesh_names.size(), mesh_names.data(), NULL, optlist);
 		DBFreeOptlist(optlist);
 		for (auto *ptr : mesh_names) {
@@ -154,6 +163,7 @@ int main(int argc, char *argv[]) {
 	printf("Reading table of contents\n");
 	auto db = DBOpenReal(opts.input.c_str(), SILO_DRIVER, DB_READ);
 	auto toc = DBGetToc(db);
+
 	printf("Variable names:\n");
 	for (int i = 0; i < toc->nmultivar; ++i) {
 		auto name = std::string(toc->multivar_names[i]);
@@ -176,9 +186,8 @@ int main(int argc, char *argv[]) {
 		const auto &name = split_name.second;
 		auto db = DBOpenReal(filename.c_str(), SILO_DRIVER, DB_READ);
 		auto mesh = DBGetQuadmesh(db, name.c_str());
-//		printf("\r%s                              ", mesh_name.c_str());
+		printf("\r%s                              ", mesh_name.c_str());
 		const auto dir = mesh_to_dirname(name);
-		printf("%s\n", dir.c_str());
 
 		output.add_mesh(dir, mesh);
 
@@ -193,7 +202,7 @@ int main(int argc, char *argv[]) {
 		DBClose(db);
 		counter++;
 	}
-	printf("\r                                                          \n");
+	printf("\rDone!                                                          \n");
 
 	DBClose(db);
 
