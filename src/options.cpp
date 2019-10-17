@@ -217,7 +217,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(cuda_streams_per_gpu);
 		SHOW(config_file);
 		SHOW(data_dir);
-		SHOW(input_file);
+		SHOW(input);
 		SHOW(output_filename);
 		SHOW(restart_filename);
 		SHOW(problem);
