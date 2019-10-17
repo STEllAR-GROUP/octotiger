@@ -52,17 +52,21 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 					UR[f] = Q[f][i][d];
 					UL[f] = Q[f][i - geo.H_DN[dim]][geo::flip_dim(d, dim)];
 				}
+				std::array < safe_real, NDIM > x;
 				std::array < safe_real, NDIM > vg;
-				if CONSTEXPR (NDIM > 1) {
+				for( int dim = 0; dim < NDIM; dim++ ) {
+					x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
+				}
+				if constexpr (NDIM > 1) {
 					vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
 					vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-					if CONSTEXPR (NDIM == 3) {
+					if constexpr (NDIM == 3) {
 						vg[2] = 0.0;
 					}
 				} else {
 					vg[0] = 0.0;
 				}
-				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, this_am, this_ap, vg, dx);
+				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, this_am, this_ap, x,vg);
 				am = std::min(am, this_am);
 				ap = std::max(ap, this_ap);
 				for (int f = 0; f < nf_; f++) {
@@ -77,41 +81,18 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 		for (int f = 0; f < nf_; f++) {
 			for (const auto &i : indices) {
 				F[dim][f][i] = 0.0;
-				for (int fi = 0; fi < geo.NFACEDIR; fi++) {
 #ifdef FACES_ONLY
+				for (int fi = 0; fi < 1; fi++) {
 					constexpr auto w = 1.0;
 #else
+				for (int fi = 0; fi < geo.NFACEDIR; fi++) {
 					const auto &w = weights[fi];
 #endif
 					F[dim][f][i] += w * fluxes[dim][f][i][fi];
 				}
 			}
 		}
-#ifndef FACES_ONLY
-		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
-			const int sx_i = angmom_index_ + angmom_pair * (NDIM + geo.NANGMOM);
-			const int zx_i = sx_i + NDIM;
-			for (int n = 0; n < geo.NANGMOM; n++) {
-				for (const auto &i : indices) {
-					F[dim][zx_i + n][i] = fluxes[dim][zx_i + n][i][0];
-				}
-				for (int m = 0; m < NDIM; m++) {
-					if (dim != m) {
-						for (int l = 0; l < NDIM; l++) {
-							for (int fi = 0; fi < geo.NFACEDIR; fi++) {
-								const auto d = faces[dim][fi];
-								for (const auto &i : indices) {
-									F[dim][zx_i + n][i] += weights[fi] * kdelta[n][m][l] * xloc[d][m] * 0.5 * dx * fluxes[dim][sx_i + l][i][fi];
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-#endif
 	}
-//	printf( "%i %i %e\n", max_speed[0],  max_speed[1], (double) amax);
 	return amax;
 }
 

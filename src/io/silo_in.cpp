@@ -14,7 +14,7 @@
 
 #include "octotiger/node_registry.hpp"
 
-#include <hpx/lcos/broadcast.hpp>
+#include <hpx/collectives/broadcast.hpp>
 #include <hpx/util/io_service_pool.hpp>
 
 #include <future>
@@ -137,10 +137,10 @@ void load_open(std::string fname, dir_map_type map) {
 		read_silo_var<real> rr;
 		silo_output_time() = rr(db_, "cgs_time"); /**/
 		silo_output_rotation_time() = 2 * M_PI * rr(db_, "rotational_time"); /**/
-		printf("rotational_time = %e\n", silo_output_rotation_time());
+//		printf("rotational_time = %e\n", silo_output_rotation_time());
 		silo_output_time() /= opts().code_to_s;
 		node_dir_ = std::move(map);
-		printf("%e\n", silo_output_time());
+	//	printf("%e\n", silo_output_time());
 //		sleep(100);
 	}).get();
 }

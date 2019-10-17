@@ -143,7 +143,7 @@ int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int nu
                                         if ((Q[f][i][j] - dline[j])/std::max(1e-12,(dline[j]+Q[f][i][j])) > 1e-12)
                                         {
                                                 printf("differnt Q values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
-                                                                f, nf_, i, geo::H_NX, j, geo::NDIR, dline[j], Q[f][i][j]);
+                                                                f, nf_, i, geo::H_NX, j, geo::NDIR, dline[j], double(Q[f][i][j]));
                                                 fclose(fp);
                                                 return 0;
                                         }
@@ -177,7 +177,7 @@ int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std
                                         if ((Fl[i][f][j] - dline[j])/std::max(1e-12,(dline[j]+Fl[i][f][j])) > 1e-12)
                                         {
                                                  printf("differnt F values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
-                                                                i, NDIM, f, nf_, j, geo::H_N3, dline[j], Fl[i][f][j]);
+                                                                i, NDIM, f, nf_, j, geo::H_N3, dline[j], double(Fl[i][f][j]));
                                                 fclose(fp);
                                                 return 0;
                                         }
@@ -210,7 +210,7 @@ int hydro_computer<NDIM, INX>::compareU(const hydro::state_type &U, int num, std
                                 if ((U[f][i] - dline[i])/std::max(1e-12,(U[f][i]+dline[i])) > 1e-12)
                                 {
                                         printf("differnt U values in: (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
-                                                                f, nf_, i, geo::H_NX, dline[i], U[f][i]);
+                                                                f, nf_, i, geo::H_NX, dline[i], double(U[f][i]));
                                         fclose(fp);
                                         return 0;
                                 }

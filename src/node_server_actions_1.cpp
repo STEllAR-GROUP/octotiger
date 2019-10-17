@@ -18,7 +18,7 @@
 
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
-#include <hpx/lcos/broadcast.hpp>
+#include <hpx/collectives/broadcast.hpp>
 
 #include <boost/iostreams/stream.hpp>
 
@@ -138,7 +138,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			if (ci == 0) {
 				outflows = grid_ptr->get_outflows_raw();
 			}
-			if (current_time > ZERO) {
+			if (current_time > ZERO || opts().restart_filename != "") {
 				std::vector<real> prolong;
 				{
 					std::unique_lock < hpx::lcos::local::spinlock > lk(prolong_mtx);
