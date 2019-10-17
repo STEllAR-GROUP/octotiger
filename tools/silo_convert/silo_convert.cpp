@@ -30,6 +30,8 @@ auto split_silo_id(const std::string str) {
 class plain_silo {
 private:
 	DBfile *db;
+	std::vector<char*> mesh_names;
+	std::map<std::string, std::vector<char*>> var_names;
 public:
 
 	plain_silo(const std::string filename) {
@@ -41,18 +43,45 @@ public:
 		DBSetDir(db, dir.c_str());
 		DBPutQuadmesh(db, mesh->name, mesh->labels, mesh->coords, mesh->dims, mesh->ndims, mesh->datatype, mesh->coordtype, NULL);
 		DBSetDir(db, "/");
+		char *new_name = new char[dir.size() + strlen(mesh->name) + 1];
+		strcpy(new_name, (dir + mesh->name).c_str());
+		mesh_names.push_back(new_name);
 	}
 
-	void add_var(std::string dir, std::string name, DBquadvar *var) {
+	void add_var(std::string dir, DBquadvar *var) {
 		DBSetDir(db, dir.c_str());
-		DBPutQuadvar1(db, var->name, var->meshname, var->vals, var->dims, var->ndims, var->mixvals, var->mixlen, var->datatype, var->centering, NULL);
+		DBPutQuadvar1(db, var->name, var->meshname, var->vals[0], var->dims, var->ndims, var->mixvals, var->mixlen, var->datatype, var->centering, NULL);
 		DBSetDir(db, "/");
+		char *new_name = new char[dir.size() + strlen(var->name) + 1];
+		strcpy(new_name, (dir + var->name).c_str());
+		var_names[std::string(var->name)].push_back(new_name);
 	}
 
 	~plain_silo() {
+		int mesh_type = DB_QUADMESH;
+		auto optlist = DBMakeOptlist(1);
+		DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
+		DBPutMultimesh(db, "quadmesh", mesh_names.size(), mesh_names.data(), NULL, optlist);
+		DBFreeOptlist(optlist);
+		for (auto *ptr : mesh_names) {
+			delete[] ptr;
+		}
+		optlist = DBMakeOptlist(1);
+		char mmesh[] = "quadmesh";
+		DBAddOption(optlist, DBOPT_MMESH_NAME, mmesh);
+		for (auto &these_names : var_names) {
+			const auto sz = these_names.second.size();
+			DBPutMultivar(db, these_names.first.c_str(), sz, these_names.second.data(), std::vector<int>(sz, DB_QUADVAR).data(), optlist);
+			for (auto *ptr : these_names.second) {
+				delete[] ptr;
+			}
+		}
+		DBFreeOptlist(optlist);
 		DBClose(db);
 	}
 };
+
+using output_type = plain_silo;
 
 struct options {
 	std::string input;
@@ -138,7 +167,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	DBFreeMultimesh(mesh);
-
+	output_type output(opts.output);
 	int counter = 0;
 	printf("Converting %i meshes\n", mesh_names.size());
 	for (const auto &mesh_name : mesh_names) {
@@ -149,11 +178,14 @@ int main(int argc, char *argv[]) {
 		auto mesh = DBGetQuadmesh(db, name.c_str());
 //		printf("\r%s                              ", mesh_name.c_str());
 		const auto dir = mesh_to_dirname(name);
-		printf( "%s\n", dir.c_str());
+		printf("%s\n", dir.c_str());
+
+		output.add_mesh(dir, mesh);
+
 		for (const auto &base_name : var_names) {
 			const auto var_name = mesh_to_varname(name, base_name);
 			auto var = DBGetQuadvar(db, var_name.c_str());
-
+			output.add_var(dir, var);
 			DBFreeQuadvar(var);
 		}
 
@@ -161,7 +193,7 @@ int main(int argc, char *argv[]) {
 		DBClose(db);
 		counter++;
 	}
-	printf("\r                                                          ");
+	printf("\r                                                          \n");
 
 	DBClose(db);
 
