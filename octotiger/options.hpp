@@ -43,6 +43,7 @@ public:
 	bool rad_implicit;
 	bool rewrite_silo;
 	bool angmom;
+	bool rotating_star_amr;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -58,6 +59,7 @@ public:
 	integer silo_offset_z;
 	integer future_wait_time;
 
+	real rotating_star_x;
 	real dual_energy_sw2;
 	real dual_energy_sw1;
 	real hard_dt;
@@ -103,6 +105,8 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc & rotating_star_amr;
+		arc & rotating_star_x;
 		arc & future_wait_time;
 		arc & silo_offset_x;
 		arc & silo_offset_y;
