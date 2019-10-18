@@ -244,13 +244,16 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
 								if (d != geo::NDIR / 2) {
-									auto &s = S[dim][d];
-									const auto &q = Q[sx_i + dim][i][d];
+									auto s = S[dim][d];
+									auto s0 = (S[dim][geo::flip(d)] + s) / 2.0;
+									const auto &q = U[sx_i + dim][i + dir[d]];;
 									const auto &u0 = U[sx_i + dim][i];
 									const auto M = std::max(u0, q);
 									const auto m = std::min(u0, q);
 									s = std::min(s, M);
 									s = std::max(s, m);
+									S[dim][d] = s;
+									S[dim][geo::flip(d)] += S[dim][d] - s;
 								}
 							}
 						}
