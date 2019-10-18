@@ -119,6 +119,8 @@ bool options::process_options(int argc, char *argv[]) {
 	("code_to_g", po::value<real>(&(opts().code_to_g))->default_value(1), "code units to grams") //
 	("code_to_cm", po::value<real>(&(opts().code_to_cm))->default_value(1), "code units to centimeters") //
 	("code_to_s", po::value<real>(&(opts().code_to_s))->default_value(1), "code units to seconds") //
+	("rotating_star_amr", po::value<bool>(&(opts().rotating_star_amr))->default_value(false), "rotating star with AMR boundary in star") //
+	("rotating_star_x", po::value<real>(&(opts().rotating_star_x))->default_value(0.0), "x center of rotating_star") //
 			;
 
 	boost::program_options::variables_map vm;
@@ -230,6 +232,8 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(code_to_s);
 		SHOW(code_to_cm);
 		SHOW(future_wait_time);
+		SHOW(rotating_star_amr);
+		SHOW(rotating_star_x);
 
 	}
 	while (atomic_number.size() < opts().n_species) {
