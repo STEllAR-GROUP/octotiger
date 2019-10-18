@@ -1646,6 +1646,18 @@ void grid::init_z_field() {
 		for (int k = H_BW; k < H_NX - H_BW; k++) {
 			for (int l = H_BW; l < H_NX - H_BW; l++) {
 				const int i = hindex(j, k, l);
+				auto dsx_dy = U[sx_i][i + H_DNY] - U[sx_i][i - H_DNY];
+				auto dsx_dz = U[sx_i][i + H_DNZ] - U[sx_i][i - H_DNZ];
+
+				auto dsy_dx = U[sy_i][i + H_DNX] - U[sy_i][i - H_DNX];
+				auto dsy_dz = U[sy_i][i + H_DNZ] - U[sy_i][i - H_DNZ];
+
+				auto dsz_dy = U[sz_i][i + H_DNY] - U[sz_i][i - H_DNY];
+				auto dsz_dx = U[sz_i][i + H_DNX] - U[sz_i][i - H_DNX];
+
+				U[lx_i][i] = 0.5 * (dx / 12.0) * (dsz_dy - dsy_dz);
+				U[ly_i][i] = 0.5 * (dx / 12.0) * (dsx_dz - dsz_dx);
+				U[lz_i][i] = 0.5 * (dx / 12.0) * (dsy_dx - dsx_dy);
 				U[lx_i][i] += X[YDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sy_i][i];
 				U[ly_i][i] -= X[XDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sx_i][i];
 				U[lz_i][i] += X[XDIM][i] * U[sy_i][i] - X[YDIM][i] * U[sx_i][i];

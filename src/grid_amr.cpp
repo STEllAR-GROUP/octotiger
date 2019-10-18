@@ -112,62 +112,62 @@ void grid::complete_hydro_amr_boundary() {
 			}
 		};
 
-		std::array<double, NDIM> xmin;
-		for (int dim = 0; dim < NDIM; dim++) {
-			xmin[dim] = X[dim][hindex(H_BW, H_BW, H_BW)] - 0.5 * dx;
-		}
-		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
-			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
-				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
-					const int iii0 = hSindex(i0, j0, k0);
-					if (is_coarse[iii0]) {
-						double &lx0 = Ushad[lx_i][iii0];
-						double &ly0 = Ushad[ly_i][iii0];
-						double &lz0 = Ushad[lz_i][iii0];
-						double lx = 0.0;
-						double ly = 0.0;
-						double lz = 0.0;
-						for (int ir = 0; ir < 2; ir++) {
-							for (int jr = 0; jr < 2; jr++) {
-								for (int kr = 0; kr < 2; kr++) {
-									const auto &sx = Uf[sx_i][iii0][ir][jr][kr];
-									const auto &sy = Uf[sy_i][iii0][ir][jr][kr];
-									const auto &sz = Uf[sz_i][iii0][ir][jr][kr];
-									const auto x = (2 * i0 - H_BW + ir + 0.5) * dx + xmin[XDIM];
-									const auto y = (2 * j0 - H_BW + jr + 0.5) * dx + xmin[YDIM];
-									const auto z = (2 * k0 - H_BW + kr + 0.5) * dx + xmin[ZDIM];
-									lx += (y * sz - z * sy) * 0.125;
-									ly -= (x * sz - z * sx) * 0.125;
-									lz += (x * sy - y * sx) * 0.125;
-								}
-							}
-						}
-						if (lz0 != 0.0) {
-//							printf("%e %e %e ", lz, lz0, lz - lz0);
-						}
-						const auto dlx = lx - lx0;
-						const auto dly = ly - ly0;
-						const auto dlz = lz - lz0;
-						for (int ir = 0; ir < 2; ir++) {
-							for (int jr = 0; jr < 2; jr++) {
-								for (int kr = 0; kr < 2; kr++) {
-									const auto is = ir % 2 ? +1 : -1;
-									const auto js = jr % 2 ? +1 : -1;
-									const auto ks = kr % 2 ? +1 : -1;
-									auto &sx = Uf[sx_i][iii0][ir][jr][kr];
-									auto &sy = Uf[sy_i][iii0][ir][jr][kr];
-									auto &sz = Uf[sz_i][iii0][ir][jr][kr];
-									const auto x = is * dx;
-									const auto y = js * dx;
-									const auto z = ks * dx;
-									sx += (y * dlz - z * dly) / (dx * dx) * 3.0 / 4.0;
-									sy -= (x * dlz - z * dlx) / (dx * dx) * 3.0 / 4.0;
-									sz += (x * dly - y * dlx) / (dx * dx) * 3.0 / 4.0;
-
-
-								}
-							}
-						}
+//		std::array<double, NDIM> xmin;
+//		for (int dim = 0; dim < NDIM; dim++) {
+//			xmin[dim] = X[dim][hindex(H_BW, H_BW, H_BW)] - 0.5 * dx;
+//		}
+//		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+//			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+//				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+//					const int iii0 = hSindex(i0, j0, k0);
+//					if (is_coarse[iii0]) {
+//						double &lx0 = Ushad[lx_i][iii0];
+//						double &ly0 = Ushad[ly_i][iii0];
+//						double &lz0 = Ushad[lz_i][iii0];
+//						double lx = 0.0;
+//						double ly = 0.0;
+//						double lz = 0.0;
+//						for (int ir = 0; ir < 2; ir++) {
+//							for (int jr = 0; jr < 2; jr++) {
+//								for (int kr = 0; kr < 2; kr++) {
+//									const auto &sx = Uf[sx_i][iii0][ir][jr][kr];
+//									const auto &sy = Uf[sy_i][iii0][ir][jr][kr];
+//									const auto &sz = Uf[sz_i][iii0][ir][jr][kr];
+//									const auto x = (2 * i0 - H_BW + ir + 0.5) * dx + xmin[XDIM];
+//									const auto y = (2 * j0 - H_BW + jr + 0.5) * dx + xmin[YDIM];
+//									const auto z = (2 * k0 - H_BW + kr + 0.5) * dx + xmin[ZDIM];
+//									lx += (y * sz - z * sy) * 0.125;
+//									ly -= (x * sz - z * sx) * 0.125;
+//									lz += (x * sy - y * sx) * 0.125;
+//								}
+//							}
+//						}
+//						if (lz0 != 0.0) {
+////							printf("%e %e %e ", lz, lz0, lz - lz0);
+//						}
+//						const auto dlx = lx - lx0;
+//						const auto dly = ly - ly0;
+//						const auto dlz = lz - lz0;
+//						for (int ir = 0; ir < 2; ir++) {
+//							for (int jr = 0; jr < 2; jr++) {
+//								for (int kr = 0; kr < 2; kr++) {
+//									const auto is = ir % 2 ? +1 : -1;
+//									const auto js = jr % 2 ? +1 : -1;
+//									const auto ks = kr % 2 ? +1 : -1;
+//									auto &sx = Uf[sx_i][iii0][ir][jr][kr];
+//									auto &sy = Uf[sy_i][iii0][ir][jr][kr];
+//									auto &sz = Uf[sz_i][iii0][ir][jr][kr];
+//									const auto x = is * dx;
+//									const auto y = js * dx;
+//									const auto z = ks * dx;
+//									sx += (y * dlz - z * dly) / (dx * dx) * 3.0 / 4.0;
+//									sy -= (x * dlz - z * dlx) / (dx * dx) * 3.0 / 4.0;
+//									sz += (x * dly - y * dlx) / (dx * dx) * 3.0 / 4.0;
+//
+//
+//								}
+//							}
+//						}
 //						lx = 0.0;
 //						ly = 0.0;
 //						lz = 0.0;
@@ -189,10 +189,10 @@ void grid::complete_hydro_amr_boundary() {
 //						if (lz0 != 0.0) {
 //							printf("%e\n",lz - lz0);
 //						}
-					}
-				}
-			}
-		}
+//					}
+//				}
+//			}
+//		}
 
 		for (int f = 0; f < opts().n_fields; f++) {
 			for (int i = 0; i < H_NX; i++) {
