@@ -17,11 +17,12 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro
 
 //	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
 //		D1_SoA;
-	/*static thread_local*/ auto D1 = std::vector<std::array<safe_real, geo::NDIR / 2>>(geo::H_N3);
-	/*static thread_local*/ auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
+	/*static thread_local*/auto D1 = std::vector<std::array<safe_real, geo::NDIR / 2>>(geo::H_N3);
+	/*static thread_local*/auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>>
+			> (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 
-	/*static thread_local*/ octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19> D1_SoA;
-	/*static thread_local*/ std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>> Q_SoA(nf_);
+	/*static thread_local*/octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19> D1_SoA;
+	/*static thread_local*/std::vector<octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>> Q_SoA(nf_);
 
 	/* 	std::cout << " U_ " << U_.size();
 	 for (int i = 0; i < U_.size(); i++) {
@@ -49,7 +50,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 
 	static thread_local auto Q_SoA = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
-	static thread_local auto D1 =  std::vector < safe_real > (geo::H_N3, 0.0);
+	static thread_local auto D1 = std::vector < safe_real > (geo::H_N3, 0.0);
 
 	static const auto SoA2AoS = [](int f1, int f2) {
 		for (int f = f1; f < f2; f++) {
@@ -77,7 +78,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 	static constexpr auto dir = geo::direction();
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
-	const auto& U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
+	const auto &U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;

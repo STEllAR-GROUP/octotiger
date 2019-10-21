@@ -133,6 +133,7 @@ private:
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<std::atomic<int>> is_coarse;
+	std::vector<std::atomic<int>> has_coarse;
 	std::vector<std::vector<real>> Ushad;
 	std::vector<std::vector<safe_real>> U;
 	std::vector<std::vector<safe_real>> U0;
