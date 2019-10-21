@@ -8,9 +8,8 @@
 #include <boost/program_options.hpp>
 #include <stdio.h>
 #include <iostream>
-#include <silo.h>
 
-#define SILO_DRIVER DB_HDF5
+#include "./silo_convert.hpp"
 
 auto split_silo_id(const std::string str) {
 	std::pair<std::string, std::string> split;
@@ -26,71 +25,6 @@ auto split_silo_id(const std::string str) {
 	}
 	return split;
 }
-
-class plain_silo {
-private:
-	DBfile *db;
-	std::vector<char*> mesh_names;
-	std::map<std::string, std::vector<char*>> var_names;
-	double dtime;
-	float time;
-	int cycle;
-public:
-
-	plain_silo(const std::string filename) {
-		db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-Tiger", SILO_DRIVER);
-	}
-
-	void add_mesh(std::string dir, DBquadmesh *mesh) {
-		dtime = mesh->dtime;
-		time = mesh->time;
-		cycle = mesh->cycle;
-		DBMkDir(db, dir.c_str());
-		DBSetDir(db, dir.c_str());
-		DBPutQuadmesh(db, mesh->name, mesh->labels, mesh->coords, mesh->dims, mesh->ndims, mesh->datatype, mesh->coordtype, NULL);
-		DBSetDir(db, "/");
-		char *new_name = new char[dir.size() + strlen(mesh->name) + 1];
-		strcpy(new_name, (dir + mesh->name).c_str());
-		mesh_names.push_back(new_name);
-	}
-
-	void add_var(std::string dir, DBquadvar *var) {
-		DBSetDir(db, dir.c_str());
-		DBPutQuadvar1(db, var->name, var->meshname, var->vals[0], var->dims, var->ndims, var->mixvals, var->mixlen, var->datatype, var->centering, NULL);
-		DBSetDir(db, "/");
-		char *new_name = new char[dir.size() + strlen(var->name) + 1];
-		strcpy(new_name, (dir + var->name).c_str());
-		var_names[std::string(var->name)].push_back(new_name);
-	}
-
-	~plain_silo() {
-		int mesh_type = DB_QUADMESH;
-		auto optlist = DBMakeOptlist(4);
-		DBAddOption(optlist, DBOPT_MB_BLOCK_TYPE, &mesh_type);
-		DBAddOption(optlist, DBOPT_CYCLE, &cycle);
-		DBAddOption(optlist, DBOPT_TIME, &time);
-		DBAddOption(optlist, DBOPT_DTIME, &dtime);
-		DBPutMultimesh(db, "quadmesh", mesh_names.size(), mesh_names.data(), NULL, optlist);
-		DBFreeOptlist(optlist);
-		for (auto *ptr : mesh_names) {
-			delete[] ptr;
-		}
-		optlist = DBMakeOptlist(1);
-		char mmesh[] = "quadmesh";
-		DBAddOption(optlist, DBOPT_MMESH_NAME, mmesh);
-		for (auto &these_names : var_names) {
-			const auto sz = these_names.second.size();
-			DBPutMultivar(db, these_names.first.c_str(), sz, these_names.second.data(), std::vector<int>(sz, DB_QUADVAR).data(), optlist);
-			for (auto *ptr : these_names.second) {
-				delete[] ptr;
-			}
-		}
-		DBFreeOptlist(optlist);
-		DBClose(db);
-	}
-};
-
-using output_type = plain_silo;
 
 struct options {
 	std::string input;
@@ -177,8 +111,26 @@ int main(int argc, char *argv[]) {
 	}
 
 	DBFreeMultimesh(mesh);
-	output_type output(opts.output);
+
+	silo_output* output = dynamic_cast<silo_output*>(new plain_silo(opts.output));
+
 	int counter = 0;
+	long long int n_species, cycle;
+	double omega;
+	DBReadVar(db, "n_species", &n_species);
+	DBReadVar(db, "omega", &omega);
+
+	std::vector<double> atomic_number(n_species);
+	std::vector<double> atomic_mass(n_species);
+	DBReadVar(db, "atomic_number", atomic_number.data());
+	DBReadVar(db, "atomic_mass", atomic_mass.data());
+	printf("cycle = %i\n", cycle);
+	printf("n_species = %i\n", n_species);
+	printf("omega     = %e\n", omega);
+	printf("atomic number | atomic mass \n");
+	for (int s = 0; s < n_species; s++) {
+		printf("%e | %e\n", atomic_number[s], atomic_mass[s]);
+	}
 	printf("Converting %i meshes\n", mesh_names.size());
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
@@ -189,12 +141,12 @@ int main(int argc, char *argv[]) {
 		printf("\r%s                              ", mesh_name.c_str());
 		const auto dir = mesh_to_dirname(name);
 
-		output.add_mesh(dir, mesh);
+		output->add_mesh(dir, mesh);
 
 		for (const auto &base_name : var_names) {
 			const auto var_name = mesh_to_varname(name, base_name);
 			auto var = DBGetQuadvar(db, var_name.c_str());
-			output.add_var(dir, var);
+			output->add_var(dir, var);
 			DBFreeQuadvar(var);
 		}
 
@@ -202,9 +154,13 @@ int main(int argc, char *argv[]) {
 		DBClose(db);
 		counter++;
 	}
+	output->set_vars(omega, n_species, atomic_mass, atomic_number);
+
 	printf("\rDone!                                                          \n");
 
 	DBClose(db);
+
+	delete output;
 
 	return 0;
 }
