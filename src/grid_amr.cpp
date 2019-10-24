@@ -105,27 +105,27 @@ void grid::complete_hydro_amr_boundary() {
 
 		};
 
-		for (int i0 = 0; i0 < HS_NX; i0++) {
-			for (int j0 = 0; j0 < HS_NX; j0++) {
-				for (int k0 = 0; k0 < HS_NX; k0++) {
-					const int iii0 = hSindex(i0, j0, k0);
-					if (has_coarse[iii0]) {
-						for (int f = 0; f < opts().n_fields; f++) {
-							if (f != rho_i && f != tau_i && f != egas_i) {
-								Ushad[f][iii0] /= Ushad[rho_i][iii0];
-							}
-						}
-					}
-//
-					const auto x = ((i0 - H_BW) + 0.5) * dx0 + xmin[XDIM];
-					const auto y = ((j0 - H_BW) + 0.5) * dx0 + xmin[YDIM];
-					const auto z = ((k0 - H_BW) + 0.5) * dx0 + xmin[ZDIM];
-					Ushad[lx_i][iii0] -= x * Ushad[sy_i][iii0] - y * Ushad[sx_i][iii0];
-					Ushad[ly_i][iii0] += x * Ushad[sz_i][iii0] - z * Ushad[sx_i][iii0];
-					Ushad[lz_i][iii0] -= y * Ushad[sz_i][iii0] - z * Ushad[sy_i][iii0];
-				}
-			}
-		}
+//		for (int i0 = 0; i0 < HS_NX; i0++) {
+//			for (int j0 = 0; j0 < HS_NX; j0++) {
+//				for (int k0 = 0; k0 < HS_NX; k0++) {
+//					const int iii0 = hSindex(i0, j0, k0);
+//					if (has_coarse[iii0]) {
+//						for (int f = 0; f < opts().n_fields; f++) {
+//							if (f != rho_i && f != tau_i && f != egas_i) {
+//								Ushad[f][iii0] /= Ushad[rho_i][iii0];
+//							}
+//						}
+//					}
+////
+//					const auto x = ((i0 - H_BW) + 0.5) * dx0 + xmin[XDIM];
+//					const auto y = ((j0 - H_BW) + 0.5) * dx0 + xmin[YDIM];
+//					const auto z = ((k0 - H_BW) + 0.5) * dx0 + xmin[ZDIM];
+//					Ushad[lx_i][iii0] -= x * Ushad[sy_i][iii0] - y * Ushad[sx_i][iii0];
+//					Ushad[ly_i][iii0] += x * Ushad[sz_i][iii0] - z * Ushad[sx_i][iii0];
+//					Ushad[lz_i][iii0] -= y * Ushad[sz_i][iii0] - z * Ushad[sy_i][iii0];
+//				}
+//			}
+//		}
 
 		for (int f = 0; f < opts().n_fields; f++) {
 			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
@@ -180,30 +180,30 @@ void grid::complete_hydro_amr_boundary() {
 			}
 		}
 
-		for (int i = 0; i < H_NX; i++) {
-			for (int j = 0; j < H_NX; j++) {
-				for (int k = 0; k < H_NX; k++) {
-					const int i0 = (i + H_BW) / 2;
-					const int j0 = (j + H_BW) / 2;
-					const int k0 = (k + H_BW) / 2;
-					const int iii0 = hSindex(i0, j0, k0);
-					const int iiir = hindex(i, j, k);
-					if (is_coarse[iii0]) {
-						const auto x = X[XDIM][iiir];
-						const auto y = X[YDIM][iiir];
-						const auto z = X[ZDIM][iiir];
-						U[lx_i][iiir] += x * U[sy_i][iiir] - y * U[sx_i][iiir];
-						U[ly_i][iiir] -= x * U[sz_i][iiir] - z * U[sx_i][iiir];
-						U[lz_i][iiir] += y * U[sz_i][iiir] - z * U[sy_i][iiir];
-						for (int f = 0; f < opts().n_fields; f++) {
-							if (f != rho_i && f != tau_i && f != egas_i) {
-								U[f][iiir] *= U[rho_i][iiir];
-							}
-						}
-					}
-				}
-			}
-		}
+//		for (int i = 0; i < H_NX; i++) {
+//			for (int j = 0; j < H_NX; j++) {
+//				for (int k = 0; k < H_NX; k++) {
+//					const int i0 = (i + H_BW) / 2;
+//					const int j0 = (j + H_BW) / 2;
+//					const int k0 = (k + H_BW) / 2;
+//					const int iii0 = hSindex(i0, j0, k0);
+//					const int iiir = hindex(i, j, k);
+//					if (is_coarse[iii0]) {
+//						const auto x = X[XDIM][iiir];
+//						const auto y = X[YDIM][iiir];
+//						const auto z = X[ZDIM][iiir];
+//						U[lx_i][iiir] += x * U[sy_i][iiir] - y * U[sx_i][iiir];
+//						U[ly_i][iiir] -= x * U[sz_i][iiir] - z * U[sx_i][iiir];
+//						U[lz_i][iiir] += y * U[sz_i][iiir] - z * U[sy_i][iiir];
+//						for (int f = 0; f < opts().n_fields; f++) {
+//							if (f != rho_i && f != tau_i && f != egas_i) {
+////								U[f][iiir] *= U[rho_i][iiir];
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
 	}
 
 }
