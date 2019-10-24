@@ -175,7 +175,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 		}
 	};
 
-	const auto reconstruct = reconstruct_minmod;
+	const auto reconstruct = reconstruct_ppm;
 
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
@@ -197,15 +197,15 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 				reconstruct(Q_SoA[f], U[f], true);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct(Q_SoA[f], U[f], true);
+				reconstruct(Q_SoA[f], U[f], false);
 			}
 
 			SoA2AoS(sx_i, sx_i + NDIM);
 
-			for (int j = 0; j < geo::H_NX_XM2; j++) {
-				for (int k = 0; k < geo::H_NX_YM2; k++) {
-					for (int l = 0; l < geo::H_NX_ZM2; l++) {
-						const int i = geo::to_index(j + 1, k + 1, l + 1);
+			for (int j = 0; j < geo::H_NX_XM4; j++) {
+				for (int k = 0; k < geo::H_NX_YM4; k++) {
+					for (int l = 0; l < geo::H_NX_ZM4; l++) {
+						const int i = geo::to_index(j + 2, k + 2, l + 2);
 
 						std::array < safe_real, geo::NANGMOM > Z;
 						std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
@@ -248,11 +248,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 					}
 				}
 			}
-			for (int j = 0; j < geo::H_NX_XM2; j++) {
-				for (int k = 0; k < geo::H_NX_YM2; k++) {
-					for (int l = 0; l < geo::H_NX_ZM2; l++) {
-						const int i = geo::to_index(j + 1, k + 1, l + 1);
-						for (int f = sx_i; f < sx_i + NDIM; f++) {
+			for (int f = sx_i; f < sx_i + NDIM; f++) {
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
 							for (int d = 0; d < geo::NDIR / 2; d++) {
 								const auto up = U[f][i];
 								const auto um = U[f][i - dir[d]];
@@ -265,12 +265,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 						}
 					}
 				}
-			}
-			for (int j = 0; j < geo::H_NX_XM2; j++) {
-				for (int k = 0; k < geo::H_NX_YM2; k++) {
-					for (int l = 0; l < geo::H_NX_ZM2; l++) {
-						const int i = geo::to_index(j + 1, k + 1, l + 1);
-						for (int f = sx_i; f < sx_i + NDIM; f++) {
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
 							for (int d = 0; d < geo::NDIR / 2; d++) {
 								limit_slope(Q[f][i][d], U[f][i], Q[f][i][geo::flip(d)]);
 							}

@@ -8,6 +8,8 @@
 
 #include <cmath>
 
+#define OCTOTIGER_BW 4
+
 static constexpr int NDIM = 3;
 
 static constexpr int rho_i = 0;
@@ -23,7 +25,7 @@ static constexpr int lz_i = 9;
 static constexpr int spc_i = 10;
 
 static constexpr int INX = OCTOTIGER_GRIDDIM;
-static constexpr int H_BW = 3;
+static constexpr int H_BW = OCTOTIGER_BW;
 static constexpr int H_NX = 2 * H_BW + INX;
 static constexpr int H_DNX = H_NX * H_NX;
 static constexpr int H_DNY = H_NX;
