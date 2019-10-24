@@ -255,9 +255,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 							const int i = geo::to_index(j + 2, k + 2, l + 2);
 							for (int d = 0; d < geo::NDIR / 2; d++) {
 								const auto up = U[f][i];
-								const auto um = U[f][i - dir[d]];
+								const auto um = U[f][i + dir[d]];
 								auto& qp = Q[f][i][d];
-								auto& qm = Q[f][i - dir[d]][geo::flip(d)];
+								auto& qm = Q[f][i + dir[d]][geo::flip(d)];
 								if ((up - um) * (qp - qm) < 0.0) {
 									qp = qm = 0.5 * (qp + qm);
 								}
