@@ -21,10 +21,15 @@ namespace fmm {
 
             // used to check the radii of the outer and inner sphere
             const real theta0 = opts().theta;
+            // const real theta0 = 1/6;
 
             // int64_t i0 = 0;
             // int64_t i1 = 0;
             // int64_t i2 = 0;
+            int predicted_max = 2.0/(theta0) + 1;
+            if (predicted_max % 2 == 0)
+                predicted_max--;
+            std::cout << "Predicted max : " << predicted_max << std::endl;
 
             for (int64_t i0 = 0; i0 < 2; ++i0) {
                 for (int64_t i1 = 0; i1 < 2; ++i1) {
@@ -95,6 +100,55 @@ namespace fmm {
                 four[3] = z / r3;
                 four_constants.push_back(four);
             }
+
+            std::cout << superimposed_stencil.size() << std::endl;
+            int i = 0;
+            int minx = 0;
+            int maxx = 0;
+            int miny = 0;
+            int maxy = 0;
+            int minz = 0;
+            int maxz = 0;
+            for (auto &element : superimposed_stencil) {
+                if (element.x < minx)
+                    minx = element.x;
+                if (element.x > maxx)
+                    maxx = element.x;
+                if (element.y < miny)
+                    miny = element.y;
+                if (element.y > maxy)
+                    maxy = element.y;
+                if (element.z < minz)
+                    minz = element.z;
+                if (element.z > maxz)
+                    maxz = element.z;
+                i++;
+            }
+            if (maxz != maxy || maxy != maxx || minz != miny || miny != minx || minz != -maxz) {
+                std::stringstream error_string;
+                error_string << "ERROR: Stencil should be symetrical but it is not." << std::endl;
+                error_string << "This indicates that something went wrong during the creation of the stencil!" << std::endl;
+                error_string << "Please use another value for theta and contact the developer about this." << std::endl;
+                std::cerr << error_string.str();
+                // TODO Why do these exceptions not work?
+                //throw std::logic_error(error_string.str());
+                // since the exceptions do not stop the execution use this for now to avoid hanging large jobs...
+                exit(EXIT_FAILURE);
+            }
+            if (predicted_max != maxx) {
+                std::stringstream error_string;
+                error_string << "ERROR: Maximum stencil size seems to be wrong. " << std::endl;
+                error_string << "Please recompile with an appropriate minumal value for theta" << std::endl;
+                std::cerr << error_string.str();
+                // TODO Why do these exceptions not work?
+                // throw std::logic_error(error_string.str());
+                // since the exceptions do not stop the execution use this for now to avoid hanging large jobs...
+                exit(EXIT_FAILURE);
+
+            }
+            std::cout << "x range " << minx << " - " << maxx << std::endl;
+            std::cout << "x range " << miny << " - " << maxy << std::endl;
+            std::cout << "z range " << minz << " - " << maxz << std::endl;
 
             return std::pair<std::vector<multiindex<>>, std::vector<std::array<real, 4>>>(
                 superimposed_stencil, four_constants);
