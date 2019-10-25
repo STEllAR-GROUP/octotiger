@@ -219,8 +219,9 @@ void grid::complete_hydro_amr_boundary() {
 			}
 		}
 	}
-
 }
+
+
 
 std::pair<real, real> grid::amr_error() const {
 
