@@ -994,7 +994,57 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 				}
 			}
 		}
-	}PROF_END;
+	}
+	for (int i = H_BW; i < H_NX - H_BW; i += 2) {
+		for (int j = H_BW; j < H_NX - H_BW; j += 2) {
+			for (int k = H_BW; k < H_NX - H_BW; k += 2) {
+				double zx = 0.0, zy = 0.0, zz = 0.0;
+				for (int i1 = 0; i1 < 2; i1++) {
+					for (int j1 = 0; j1 < 2; j1++) {
+						for (int k1 = 0; k1 < 2; k1++) {
+							const int iii = hindex(i + i1, j + j1, k + k1);
+							U[lx_i][iii] -= X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii];
+							U[ly_i][iii] += X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii];
+							U[lz_i][iii] -= X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii];
+						}
+					}
+				}
+				for (int i1 = 0; i1 < 2; i1++) {
+					for (int j1 = 0; j1 < 2; j1++) {
+						for (int k1 = 0; k1 < 2; k1++) {
+							const int iii = hindex(i + i1, j + j1, k + k1);
+							zx += U[lx_i][iii] / 8.0;
+							zy += U[ly_i][iii] / 8.0;
+							zz += U[lz_i][iii] / 8.0;
+						}
+					}
+				}
+				for (int i1 = 0; i1 < 2; i1++) {
+					for (int j1 = 0; j1 < 2; j1++) {
+						for (int k1 = 0; k1 < 2; k1++) {
+							const int iii = hindex(i + i1, j + j1, k + k1);
+							U[lx_i][iii] = zx;
+							U[ly_i][iii] = zy;
+							U[lz_i][iii] = zz;
+						}
+					}
+				}
+
+				for (int i1 = 0; i1 < 2; i1++) {
+					for (int j1 = 0; j1 < 2; j1++) {
+						for (int k1 = 0; k1 < 2; k1++) {
+							const int iii = hindex(i + i1, j + j1, k + k1);
+							U[lx_i][iii] += X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii];
+							U[ly_i][iii] -= X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii];
+							U[lz_i][iii] += X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii];
+						}
+					}
+				}
+			}
+		}
+	}
+
+	PROF_END;
 }
 
 std::pair<std::vector<real>, std::vector<real> > grid::field_range() const {
@@ -1428,8 +1478,8 @@ space_vector grid::center_of_mass() const {
 }
 
 grid::grid(real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
-				true) {
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+				false), is_leaf(true) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -1577,7 +1627,7 @@ void grid::allocate() {
 		U0[field].resize(INX * INX * INX);
 
 		U[field].resize(H_N3, 0.0);
-		Ushad[field].resize(HS_N3,1.0);
+		Ushad[field].resize(HS_N3, 1.0);
 		dUdt[field].resize(INX * INX * INX);
 		for (integer dim = 0; dim != NDIM; ++dim) {
 			F[dim][field].resize(F_N3);
@@ -1598,14 +1648,14 @@ void grid::allocate() {
 }
 
 grid::grid() :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(H_N3), is_root(
-				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), dphi_dt(
+				H_N3), is_root(false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO) {
 //	allocate();
 }
 
 grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xmin) :
-		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(false), is_leaf(
-				true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
+		is_coarse(H_N3), has_coarse(H_N3), Ushad(opts().n_fields), U(opts().n_fields), U0(opts().n_fields), dUdt(opts().n_fields), F(NDIM), X(NDIM), G(NGF), is_root(
+				false), is_leaf(true), U_out(opts().n_fields, ZERO), U_out0(opts().n_fields, ZERO), dphi_dt(H_N3) {
 	PROF_BEGIN;
 	dx = _dx;
 	xmin = _xmin;
@@ -1646,21 +1696,10 @@ void grid::init_z_field() {
 		for (int k = H_BW; k < H_NX - H_BW; k++) {
 			for (int l = H_BW; l < H_NX - H_BW; l++) {
 				const int i = hindex(j, k, l);
-				auto dsx_dy = U[sx_i][i + H_DNY] - U[sx_i][i - H_DNY];
-				auto dsx_dz = U[sx_i][i + H_DNZ] - U[sx_i][i - H_DNZ];
 
-				auto dsy_dx = U[sy_i][i + H_DNX] - U[sy_i][i - H_DNX];
-				auto dsy_dz = U[sy_i][i + H_DNZ] - U[sy_i][i - H_DNZ];
-
-				auto dsz_dy = U[sz_i][i + H_DNY] - U[sz_i][i - H_DNY];
-				auto dsz_dx = U[sz_i][i + H_DNX] - U[sz_i][i - H_DNX];
-
-				U[lx_i][i] = 0.5 * (dx / 12.0) * (dsz_dy - dsy_dz);
-				U[ly_i][i] = 0.5 * (dx / 12.0) * (dsx_dz - dsz_dx);
-				U[lz_i][i] = 0.5 * (dx / 12.0) * (dsy_dx - dsx_dy);
-				U[lx_i][i] += X[YDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sy_i][i];
-				U[ly_i][i] -= X[XDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sx_i][i];
-				U[lz_i][i] += X[XDIM][i] * U[sy_i][i] - X[YDIM][i] * U[sx_i][i];
+				U[lx_i][i] = X[YDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sy_i][i];
+				U[ly_i][i] = -X[XDIM][i] * U[sz_i][i] + X[ZDIM][i] * U[sx_i][i];
+				U[lz_i][i] = X[XDIM][i] * U[sy_i][i] - X[YDIM][i] * U[sx_i][i];
 			}
 		}
 	}
@@ -1684,7 +1723,8 @@ real grid::compute_fluxes() {
 		hydro.use_angmom_correction(sx_i, 1);
 	}
 	hydro.use_smooth_recon(pot_i);
-	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM, std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
+			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
 	const auto max_lambda = hydro.flux(U, q, f, X, omega);
 
@@ -1868,8 +1908,6 @@ void grid::compute_sources(real t, real rotational_time) {
 					src[sy_i][iii0] += rho * G[iiig][gy_i];
 					src[sz_i][iii0] += rho * G[iiig][gz_i];
 				}
-				src[sx_i][iii0] += omega * U[sy_i][iii];
-				src[sy_i][iii0] -= omega * U[sx_i][iii];
 				if (opts().gravity) {
 					src[egas_i][iii0] -= omega * X[YDIM][iii] * rho * G[iiig][gx_i];
 					src[egas_i][iii0] += omega * X[XDIM][iii] * rho * G[iiig][gy_i];
@@ -1933,6 +1971,10 @@ void grid::compute_sources(real t, real rotational_time) {
 				src[lx_i][iii0] += X[YDIM][iii] * src[sz_i][iii0] - X[ZDIM][iii] * src[sy_i][iii0];
 				src[ly_i][iii0] -= X[XDIM][iii] * src[sz_i][iii0] - X[ZDIM][iii] * src[sx_i][iii0];
 				src[lz_i][iii0] += X[XDIM][iii] * src[sy_i][iii0] - X[YDIM][iii] * src[sx_i][iii0];
+				src[sx_i][iii0] += omega * U[sy_i][iii];
+				src[sy_i][iii0] -= omega * U[sx_i][iii];
+				src[lx_i][iii0] += omega * U[ly_i][iii];
+				src[ly_i][iii0] -= omega * U[lx_i][iii];
 			}
 		}
 	}PROF_END;
