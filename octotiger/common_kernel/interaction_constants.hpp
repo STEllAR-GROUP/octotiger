@@ -31,15 +31,6 @@ namespace fmm {
     // number of expansions in each cell (inner cells)
     constexpr uint64_t INNER_CELLS = detail::const_pow(INNER_CELLS_PER_DIRECTION, DIMENSION);
 
-    constexpr uint64_t INNER_CELLS_PADDING_DEPTH = INX;
-    constexpr uint64_t PADDING_OFFSET = INNER_CELLS_PADDING_DEPTH - 5;
-
-constexpr uint64_t PADDED_STRIDE = INNER_CELLS_PER_DIRECTION + 2 * (5);
-
-    constexpr uint64_t ENTRIES = PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE;
-
-    constexpr uint64_t EXPANSION_COUNT_PADDED = detail::const_pow(PADDED_STRIDE, DIMENSION);
-    constexpr uint64_t EXPANSION_COUNT_NOT_PADDED = INNER_CELLS;
 
     constexpr uint64_t SOA_PADDING = 19;    // to prevent some of the 4k aliasing
 
@@ -54,6 +45,16 @@ constexpr uint64_t PADDED_STRIDE = INNER_CELLS_PER_DIRECTION + 2 * (5);
     constexpr int STENCIL_MIN = -STENCIL_WIDTH;
     constexpr int STENCIL_MAX = STENCIL_WIDTH;
     constexpr int FULL_STENCIL_SIZE = STENCIL_INX * STENCIL_INX * STENCIL_INX;
+
+    constexpr uint64_t INNER_CELLS_PADDING_DEPTH = INX;
+    constexpr uint64_t PADDING_OFFSET = INNER_CELLS_PADDING_DEPTH - STENCIL_MAX;
+
+constexpr uint64_t PADDED_STRIDE = INNER_CELLS_PER_DIRECTION + 2 * (STENCIL_MAX);
+
+    constexpr uint64_t ENTRIES = PADDED_STRIDE * PADDED_STRIDE * PADDED_STRIDE;
+
+    constexpr uint64_t EXPANSION_COUNT_PADDED = detail::const_pow(PADDED_STRIDE, DIMENSION);
+    constexpr uint64_t EXPANSION_COUNT_NOT_PADDED = INNER_CELLS;
 
 //constexpr uint64_t STENCIL_SIZE = 982;
     constexpr size_t NUMBER_LOCAL_MONOPOLE_VALUES = 1 * (ENTRIES);
