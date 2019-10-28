@@ -116,14 +116,13 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 	static constexpr auto kdelta = geo.kronecker_delta();
 	for (const auto &i : geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW)) {
 		if constexpr (NDIM == 3) {
-			dudt[lx_i][i] -= omega * X[2][i] * U[sx_i][i];
-			dudt[ly_i][i] -= omega * X[2][i] * U[sy_i][i];
+			dudt[lx_i][i] += U[ly_i][i] * omega;
+			dudt[ly_i][i] -= U[lx_i][i] * omega;
 		}
 		if constexpr (NDIM >= 2) {
-			dudt[lx_i][i] += omega * (X[0][i] * U[sx_i][i] + X[1][i] * U[sy_i][i]);
+			dudt[sx_i][i] += U[sy_i][i] * omega;
+			dudt[sy_i][i] -= U[sx_i][i] * omega;
 		}
-		dudt[sx_i][i] += U[sy_i][i] * omega;
-		dudt[sy_i][i] -= U[sx_i][i] * omega;
 	}
 
 }

@@ -1002,17 +1002,17 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 				for (int i1 = 0; i1 < 2; i1++) {
 					for (int j1 = 0; j1 < 2; j1++) {
 						for (int k1 = 0; k1 < 2; k1++) {
-							const int iii = hindex(i+i1,j+j1,k+k1);
-							U[lx_i][iii] -= X[YDIM][iii] * U[sz_i][iii] -  X[ZDIM][iii] * U[sy_i][iii];
-							U[ly_i][iii] += X[XDIM][iii] * U[sz_i][iii] -  X[ZDIM][iii] * U[sx_i][iii];
-							U[lz_i][iii] -= X[XDIM][iii] * U[sy_i][iii] -  X[YDIM][iii] * U[sx_i][iii];
+							const int iii = hindex(i + i1, j + j1, k + k1);
+							U[lx_i][iii] -= X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii];
+							U[ly_i][iii] += X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii];
+							U[lz_i][iii] -= X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii];
 						}
 					}
 				}
 				for (int i1 = 0; i1 < 2; i1++) {
 					for (int j1 = 0; j1 < 2; j1++) {
 						for (int k1 = 0; k1 < 2; k1++) {
-							const int iii = hindex(i+i1,j+j1,k+k1);
+							const int iii = hindex(i + i1, j + j1, k + k1);
 							zx += U[lx_i][iii] / 8.0;
 							zy += U[ly_i][iii] / 8.0;
 							zz += U[lz_i][iii] / 8.0;
@@ -1022,7 +1022,7 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 				for (int i1 = 0; i1 < 2; i1++) {
 					for (int j1 = 0; j1 < 2; j1++) {
 						for (int k1 = 0; k1 < 2; k1++) {
-							const int iii = hindex(i+i1,j+j1,k+k1);
+							const int iii = hindex(i + i1, j + j1, k + k1);
 							U[lx_i][iii] = zx;
 							U[ly_i][iii] = zy;
 							U[lz_i][iii] = zz;
@@ -1033,10 +1033,10 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 				for (int i1 = 0; i1 < 2; i1++) {
 					for (int j1 = 0; j1 < 2; j1++) {
 						for (int k1 = 0; k1 < 2; k1++) {
-							const int iii = hindex(i+i1,j+j1,k+k1);
-							U[lx_i][iii] += X[YDIM][iii] * U[sz_i][iii] -  X[ZDIM][iii] * U[sy_i][iii];
-							U[ly_i][iii] -= X[XDIM][iii] * U[sz_i][iii] -  X[ZDIM][iii] * U[sx_i][iii];
-							U[lz_i][iii] += X[XDIM][iii] * U[sy_i][iii] -  X[YDIM][iii] * U[sx_i][iii];
+							const int iii = hindex(i + i1, j + j1, k + k1);
+							U[lx_i][iii] += X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii];
+							U[ly_i][iii] -= X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii];
+							U[lz_i][iii] += X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii];
 						}
 					}
 				}
@@ -1696,21 +1696,10 @@ void grid::init_z_field() {
 		for (int k = H_BW; k < H_NX - H_BW; k++) {
 			for (int l = H_BW; l < H_NX - H_BW; l++) {
 				const int i = hindex(j, k, l);
-				auto dsx_dy = U[sx_i][i + H_DNY] - U[sx_i][i - H_DNY];
-				auto dsx_dz = U[sx_i][i + H_DNZ] - U[sx_i][i - H_DNZ];
 
-				auto dsy_dx = U[sy_i][i + H_DNX] - U[sy_i][i - H_DNX];
-				auto dsy_dz = U[sy_i][i + H_DNZ] - U[sy_i][i - H_DNZ];
-
-				auto dsz_dy = U[sz_i][i + H_DNY] - U[sz_i][i - H_DNY];
-				auto dsz_dx = U[sz_i][i + H_DNX] - U[sz_i][i - H_DNX];
-
-				U[lx_i][i] = 0.5 * (dx / 12.0) * (dsz_dy - dsy_dz);
-				U[ly_i][i] = 0.5 * (dx / 12.0) * (dsx_dz - dsz_dx);
-				U[lz_i][i] = 0.5 * (dx / 12.0) * (dsy_dx - dsx_dy);
-				U[lx_i][i] += X[YDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sy_i][i];
-				U[ly_i][i] -= X[XDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sx_i][i];
-				U[lz_i][i] += X[XDIM][i] * U[sy_i][i] - X[YDIM][i] * U[sx_i][i];
+				U[lx_i][i] = X[YDIM][i] * U[sz_i][i] - X[ZDIM][i] * U[sy_i][i];
+				U[ly_i][i] = -X[XDIM][i] * U[sz_i][i] + X[ZDIM][i] * U[sx_i][i];
+				U[lz_i][i] = X[XDIM][i] * U[sy_i][i] - X[YDIM][i] * U[sx_i][i];
 			}
 		}
 	}
@@ -1919,8 +1908,6 @@ void grid::compute_sources(real t, real rotational_time) {
 					src[sy_i][iii0] += rho * G[iiig][gy_i];
 					src[sz_i][iii0] += rho * G[iiig][gz_i];
 				}
-				src[sx_i][iii0] += omega * U[sy_i][iii];
-				src[sy_i][iii0] -= omega * U[sx_i][iii];
 				if (opts().gravity) {
 					src[egas_i][iii0] -= omega * X[YDIM][iii] * rho * G[iiig][gx_i];
 					src[egas_i][iii0] += omega * X[XDIM][iii] * rho * G[iiig][gy_i];
@@ -1984,6 +1971,10 @@ void grid::compute_sources(real t, real rotational_time) {
 				src[lx_i][iii0] += X[YDIM][iii] * src[sz_i][iii0] - X[ZDIM][iii] * src[sy_i][iii0];
 				src[ly_i][iii0] -= X[XDIM][iii] * src[sz_i][iii0] - X[ZDIM][iii] * src[sx_i][iii0];
 				src[lz_i][iii0] += X[XDIM][iii] * src[sy_i][iii0] - X[YDIM][iii] * src[sx_i][iii0];
+				src[sx_i][iii0] += omega * U[sy_i][iii];
+				src[sy_i][iii0] -= omega * U[sx_i][iii];
+				src[lx_i][iii0] += omega * U[ly_i][iii];
+				src[ly_i][iii0] -= omega * U[lx_i][iii];
 			}
 		}
 	}PROF_END;
