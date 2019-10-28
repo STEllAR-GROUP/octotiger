@@ -93,14 +93,14 @@ void grid::complete_hydro_amr_boundary() {
 		}
 
 		const auto limiter = [](double a, double b) {
-//			return minmod_theta(a, b, 1.5);
-			if (a * b <= 0.0) {
-				return 0.0;
-			} else {
-				constexpr double theta = 64. / 37.;
-				constexpr double gamma = 2.0 * (theta - 1.0);
-				return theta * (a * a * b + b * b * a) / (a * a + gamma * a * b + b * b);
-			}
+			return minmod_theta(a, b, 64./37.);
+//			if (a * b <= 0.0) {
+//				return 0.0;
+//			} else {
+//				constexpr double theta = 64. / 37.;
+//				constexpr double gamma = 2.0 * (theta - 1.0);
+//				return theta * (a * a * b + b * b * a) / (a * a + gamma * a * b + b * b);
+//			}
 
 		};
 
@@ -212,7 +212,17 @@ void grid::complete_hydro_amr_boundary() {
 						const int iii0 = hSindex(i0, j0, k0);
 						const int iiir = hindex(i, j, k);
 						if (is_coarse[iii0]) {
-							U[f][iiir] = Uf[f][iii0][1 - (i % 2)][1 - (j % 2)][1 - (k % 2)];
+							int ir, jr, kr;
+							if constexpr (H_BW % 2 == 0) {
+								ir = i % 2;
+								jr = j % 2;
+								kr = k % 2;
+							} else {
+								ir = 1 - (i % 2);
+								jr = 1 - (j % 2);
+								kr = 1 - (k % 2);
+							}
+							U[f][iiir] = Uf[f][iii0][ir][jr][kr];
 						}
 					}
 				}
