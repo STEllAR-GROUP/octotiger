@@ -175,6 +175,20 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 		}
 	};
 
+	const auto reconstruct_constant = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
+		for (int d = 0; d < geo::NDIR; d++) {
+			const auto di = dir[d];
+			for (int j = 0; j < geo::H_NX_XM2; j++) {
+				for (int k = 0; k < geo::H_NX_YM2; k++) {
+					for (int l = 0; l < geo::H_NX_ZM2; l++) {
+						const int i = geo::to_index(j + 1, k + 1, l + 1);
+						q[d][i] = u[i];
+					}
+				}
+			}
+		}
+	};
+
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f]);
@@ -195,7 +209,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 				reconstruct_ppm(Q_SoA[f], U[f], true);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_ppm(Q_SoA[f], U[f], false);
+				reconstruct_constant(Q_SoA[f], U[f]);
 			}
 
 			SoA2AoS(sx_i, sx_i + NDIM);
