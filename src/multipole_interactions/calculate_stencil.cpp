@@ -156,10 +156,10 @@ namespace fmm {
             std::vector<bool> inner_stencil_masks(FULL_STENCIL_SIZE, false);
             auto inner_index = 0;
             for (auto stencil_element : superimposed_stencil.stencil_elements) {
-                const int x = stencil_element.x + 5;
-                const int y = stencil_element.y + 5;
-                const int z = stencil_element.z + 5;
-                size_t index = x * 11 * 11 + y * 11 + z;
+                const int x = stencil_element.x + STENCIL_MAX;
+                const int y = stencil_element.y + STENCIL_MAX;
+                const int z = stencil_element.z + STENCIL_MAX;
+                size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + z;
                 stencil_masks[index] = true;
                 if (superimposed_stencil.stencil_phase_indicator[inner_index])
                     inner_stencil_masks[index] = true;

@@ -160,10 +160,10 @@ namespace fmm {
             std::vector<bool> stencil_masks(FULL_STENCIL_SIZE, false);
             std::vector<std::array<real, 4>> four_constants_stencil(FULL_STENCIL_SIZE, four_constants_defaults);
             for (auto stencil_element : superimposed_stencil) {
-                const int x = stencil_element.x + 5;
-                const int y = stencil_element.y + 5;
-                const int z = stencil_element.z + 5;
-                size_t index = x * 11 * 11 + y * 11 + z;
+                const int x = stencil_element.x + STENCIL_MAX;
+                const int y = stencil_element.y + STENCIL_MAX;
+                const int z = stencil_element.z + STENCIL_MAX;
+                size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + z;
                 stencil_masks[index] = true;
             }
             for (auto stencil_element : superimposed_stencil) {
@@ -178,7 +178,7 @@ namespace fmm {
                 four[1] = x / r3;
                 four[2] = y / r3;
                 four[3] = z / r3;
-                size_t index = (x + 5) * 11 * 11 + (y + 5) * 11 + (z + 5);
+                size_t index = (x + STENCIL_MAX) * STENCIL_INX * STENCIL_INX + (y + STENCIL_MAX) * STENCIL_INX + (z + STENCIL_MAX);
                 four_constants_stencil[index] = four;
             }
             return std::pair<std::vector<bool>, std::vector<std::array<real, 4>>>(stencil_masks, four_constants_stencil);
