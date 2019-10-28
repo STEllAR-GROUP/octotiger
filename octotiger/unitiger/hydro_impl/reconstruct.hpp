@@ -151,7 +151,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 		}
 	};
 
-	const auto reconstruct_minmod = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
+	const auto reconstruct_minmod = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool) {
 
 		for (int d = 0; d < geo::NDIR / 2; d++) {
 			const auto di = dir[d];
@@ -175,6 +175,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 		}
 	};
 
+
 	const auto reconstruct_constant = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
 		for (int d = 0; d < geo::NDIR; d++) {
 			const auto di = dir[d];
@@ -188,15 +189,16 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 			}
 		}
 	};
+	const auto reconstruct = reconstruct_ppm;
 
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f]);
+			reconstruct(Q_SoA[f], U[f], smooth_field_[f]);
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f]);
+			reconstruct(Q_SoA[f], U[f], smooth_field_[f]);
 		}
 
 		int sx_i = angmom_index_;
@@ -206,7 +208,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q_SoA[f], U[f], true);
+				reconstruct(Q_SoA[f], U[f], true);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 				reconstruct_constant(Q_SoA[f], U[f]);
@@ -242,37 +244,60 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
 								if (d != geo::NDIR / 2) {
-									auto s = S[dim][d];
-									const auto &q = Q[sx_i + dim][i][d];
+									auto& s = S[dim][d];
+									const auto &up = U[sx_i + dim][i + dir[d]];
 									const auto &u0 = U[sx_i + dim][i];
-									const auto M = std::max(u0, q);
-									const auto m = std::min(u0, q);
+									const auto M = std::max(u0, up);
+									const auto m = std::min(u0, up);
 									s = std::min(s, M);
 									s = std::max(s, m);
-									S[dim][d] = s;
 								}
 							}
 						}
-						for (int f = sx_i; f < sx_i + NDIM; f++) {
-							const auto dim = f - sx_i;
-							for (int d = 0; d < geo::NDIR / 2; d++) {
-								limit_slope(S[dim][d], U[f][i], S[dim][geo::flip(d)]);
-							}
-						}
-
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
-								Q_SoA[sx_i + dim][d][i] = S[dim][d];
+								Q[sx_i + dim][i][d] = S[dim][d];
 							}
 						}
 					}
 				}
 			}
+			for (int f = sx_i; f < sx_i + NDIM; f++) {
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
+							for (int d = 0; d < geo::NDIR / 2; d++) {
+								const auto up = U[f][i];
+								const auto um = U[f][i + dir[d]];
+								auto& qp = Q[f][i][d];
+								auto& qm = Q[f][i + dir[d]][geo::flip(d)];
+								if ((up - um) * (qp - qm) < 0.0) {
+									qp = qm = 0.5 * (qp + qm);
+								}
+							}
+						}
+					}
+				}
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
+							for (int d = 0; d < geo::NDIR / 2; d++) {
+								limit_slope(Q[f][i][d], U[f][i], Q[f][i][geo::flip(d)]);
+							}
+						}
+					}
+				}
+			}
+
+			AoS2SoA(sx_i, sx_i + NDIM);
+
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f]);
+			reconstruct(Q_SoA[f], U[f], smooth_field_[f]);
 		}
 
 	}

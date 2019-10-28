@@ -13,7 +13,7 @@
 template<int NDIM, int INX>
 struct cell_geometry {
 
-	static constexpr int H_BW = 3;
+	static constexpr int H_BW = OCTOTIGER_BW;
 	static constexpr int H_NX = (2 * H_BW + INX);
 
 	static constexpr int H_NX_X = H_NX;
