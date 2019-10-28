@@ -1734,6 +1734,15 @@ real grid::compute_fluxes() {
 		hydro.use_angmom_correction(sx_i, 1);
 	}
 	hydro.use_smooth_recon(pot_i);
+	hydro.use_slim_recon(tau_i);
+	hydro.use_slim_recon(egas_i);
+	hydro.use_slim_recon(pot_i);
+	hydro.use_slim_recon(lx_i);
+	hydro.use_slim_recon(ly_i);
+	hydro.use_slim_recon(lz_i);
+	for( int s = 0; s < opts().n_species; s++) {
+		hydro.use_slim_recon(spc_i + s);
+	}
 	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
 			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
