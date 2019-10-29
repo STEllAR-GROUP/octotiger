@@ -221,10 +221,10 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 	const auto xloc = geo.xloc();
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
-			for (int j = 0; j < geo.H_NX_XM4; j++) {
-				for (int k = 0; k < geo.H_NX_YM4; k++) {
-					for (int l = 0; l < geo.H_NX_ZM4; l++) {
-						const int i = geo.to_index(j + 2, k + 2, l + 2);
+			for (int j = 0; j < geo.H_NX_XM6; j++) {
+				for (int k = 0; k < geo.H_NX_YM6; k++) {
+					for (int l = 0; l < geo.H_NX_ZM6; l++) {
+						const int i = geo.to_index(j + 3, k + 3, l + 3);
 						const auto rho = Q[rho_i][d][i];
 						static constexpr auto kdelta = geo.kronecker_delta();
 						for (int n = 0; n < geo.NANGMOM; n++) {

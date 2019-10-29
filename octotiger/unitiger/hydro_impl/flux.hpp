@@ -34,7 +34,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 	safe_real amax = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
 
-		const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
+		const auto indices = geo.get_indexes(4, geo.face_pts()[dim][0]);
 
 		for (const auto &i : indices) {
 			safe_real ap = 0.0, am = 0.0;
