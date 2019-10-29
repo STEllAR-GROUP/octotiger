@@ -12,8 +12,8 @@
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        extern __constant__ float device_stencil_indicator_const[FULL_STENCIL_SIZE];
-        extern __constant__ float device_constant_stencil_masks[FULL_STENCIL_SIZE];
+        extern __constant__ bool device_stencil_indicator_const[FULL_STENCIL_SIZE];
+        extern __constant__ bool device_constant_stencil_masks[FULL_STENCIL_SIZE];
         __host__ void copy_stencil_to_m2m_constant_memory(const float *stencil, const size_t stencil_size);
         __host__ void copy_indicator_to_m2m_constant_memory(const float *indicator, const size_t indicator_size);
         __global__ void cuda_multipole_interactions_kernel_rho(
