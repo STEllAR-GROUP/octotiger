@@ -71,7 +71,7 @@ future<void> node_server::exchange_flux_corrections() {
 					const auto face_dim = f.get_dimension();
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
-					case XDIM:
+						case XDIM:
 						lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
 						lb[YDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
@@ -79,7 +79,7 @@ future<void> node_server::exchange_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + (INX / 2);
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-					case YDIM:
+						case YDIM:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[YDIM] = f.get_side() == geo::MINUS ? 0 : INX;
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
@@ -87,7 +87,7 @@ future<void> node_server::exchange_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + 1;
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-					case ZDIM:
+						case ZDIM:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[YDIM] = quadrant.get_side(1) * (INX / 2);
 						lb[ZDIM] = f.get_side() == geo::MINUS ? 0 : INX;
@@ -119,7 +119,7 @@ void node_server::all_hydro_bounds() {
 void node_server::energy_hydro_bounds() {
 	exchange_interlevel_hydro_data();
 	collect_hydro_boundaries(true);
-	send_hydro_amr_boundaries();
+	send_hydro_amr_boundaries(true);
 	++hcycle;
 }
 
@@ -165,7 +165,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 				if (!neighbors[dir].empty()) {
 					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only);
 				} else {
-					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction);
+					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction, energy_only);
 
 				}
 			}/*, "node_server::collect_hydro_boundaries::set_hydro_boundary")*/);
@@ -184,10 +184,10 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 			grid_ptr->set_physical_boundaries(face, current_time);
 		}
 	}
-	grid_ptr->complete_hydro_amr_boundary();
+	grid_ptr->complete_hydro_amr_boundary(energy_only);
 }
 
-void node_server::send_hydro_amr_boundaries() {
+void node_server::send_hydro_amr_boundaries(bool energy_only) {
 	if (is_refined) {
 		constexpr auto full_set = geo::octant::full_set();
 		for (auto &ci : full_set) {
@@ -203,7 +203,7 @@ void node_server::send_hydro_amr_boundaries() {
 						lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
 						ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
 					}
-					data = grid_ptr->get_subset(lb, ub);
+					data = grid_ptr->get_subset(lb, ub, energy_only);
 					children[ci].send_hydro_amr_boundary(std::move(data), dir, hcycle);
 				}
 			}

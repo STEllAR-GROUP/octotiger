@@ -130,7 +130,7 @@ private:
 	static bool static_initialized;
 	static std::atomic<integer> static_initializing;
 	void initialize(real, real);
-	void send_hydro_amr_boundaries();
+	void send_hydro_amr_boundaries(bool energy_only=false);
 	void collect_hydro_boundaries(bool energy_only=false);
 	static void static_initialize();
 	void clear_family();
