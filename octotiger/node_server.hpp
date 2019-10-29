@@ -130,8 +130,8 @@ private:
 	static bool static_initialized;
 	static std::atomic<integer> static_initializing;
 	void initialize(real, real);
-	void send_hydro_amr_boundaries(bool tau_only = false);
-	void collect_hydro_boundaries(bool tau_only = false);
+	void send_hydro_amr_boundaries(bool energy_only=false);
+	void collect_hydro_boundaries(bool energy_only=false);
 	static void static_initialize();
 	void clear_family();
 	hpx::future<void> exchange_flux_corrections();
@@ -149,7 +149,8 @@ public:
 		return step_num;
 	}
 	void exchange_interlevel_hydro_data();
-	void all_hydro_bounds(bool tau_only = false);
+	void all_hydro_bounds();
+	void energy_hydro_bounds();
 	static bool child_is_on_face(integer ci, integer face) {
 		return (((ci >> (face / 2)) & 1) == (face & 1));
 	}

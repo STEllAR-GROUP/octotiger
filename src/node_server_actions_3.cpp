@@ -500,17 +500,17 @@ void node_server::refined_step() {
 
 		compute_fmm(DRHODT, false);
 		compute_fmm(RHO, true);
-		all_hydro_bounds();
+		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 
 	}
 
 	dt_ = GET(dt_fut);
+	update();
 	if (opts().radiation) {
 		compute_radiation(dt_);
 		all_hydro_bounds();
 	}
 
-	update();
 }
 
 future<void> node_server::nonrefined_step() {
@@ -566,7 +566,7 @@ future<void> node_server::nonrefined_step() {
 																}
 																grid_ptr->next_u(rk, current_time, dt_);
 																compute_fmm(RHO, true);
-																all_hydro_bounds();
+																rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 															}, "node_server::nonrefined_step::compute_fmm"
 													)));
 								}/*, "node_server::nonrefined_step::compute_fluxes")*/);
@@ -576,12 +576,12 @@ future<void> node_server::nonrefined_step() {
 	{
 
 		GET(f);
+		update();
 		if( opts().radiation) {
 			compute_radiation(dt_);
 			all_hydro_bounds();
 		}
 
-		update();
 	});
 }
 

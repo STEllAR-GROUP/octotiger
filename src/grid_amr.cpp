@@ -17,13 +17,15 @@ double ppm_slope(double am2, double am1, double a00, double ap1, double ap2) {
 	return ap - am;
 }
 
-std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
+std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool energy_only) {
 	std::vector<real> data;
 	for (int f = 0; f < opts().n_fields; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					data.push_back(U[f][hindex(i, j, k)]);
+		if (!energy_only || f == egas_i) {
+			for (int i = lb[0]; i < ub[0]; i++) {
+				for (int j = lb[1]; j < ub[1]; j++) {
+					for (int k = lb[2]; k < ub[2]; k++) {
+						data.push_back(U[f][hindex(i, j, k)]);
+					}
 				}
 			}
 		}
@@ -31,7 +33,7 @@ std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const st
 	return std::move(data);
 }
 
-void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir) {
+void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
 
 	std::array<integer, NDIM> lb, ub;
 	int l = 0;
@@ -51,11 +53,13 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 	}
 
 	for (int f = 0; f < opts().n_fields; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					has_coarse[hSindex(i, j, k)]++;
-					Ushad[f][hSindex(i, j, k)] = data[l++];
+		if (!energy_only || f == egas_i) {
+			for (int i = lb[0]; i < ub[0]; i++) {
+				for (int j = lb[1]; j < ub[1]; j++) {
+					for (int k = lb[2]; k < ub[2]; k++) {
+						has_coarse[hSindex(i, j, k)]++;
+						Ushad[f][hSindex(i, j, k)] = data[l++];
+					}
 				}
 			}
 		}
@@ -63,48 +67,23 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 	assert(l == data.size());
 }
 
-void grid::complete_hydro_amr_boundary() {
+void grid::complete_hydro_amr_boundary(bool energy_only) {
 
-	if (opts().amrbnd_order == 0) {
-		for (int f = 0; f < opts().n_fields; f++) {
-			for (int ir = 0; ir < H_NX; ir++) {
-				for (int jr = 0; jr < H_NX; jr++) {
-					for (int kr = 0; kr < H_NX; kr++) {
-						const int i0 = (ir + H_BW) / 2;
-						const int j0 = (jr + H_BW) / 2;
-						const int k0 = (kr + H_BW) / 2;
-						const int iii0 = hSindex(i0, j0, k0);
-						const int iiir = hindex(ir, jr, kr);
-						if (is_coarse[iii0]) {
-							assert(ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW || kr >= H_NX - H_BW);
-							U[f][iiir] = Ushad[f][iii0];
-						}
-					}
-				}
-			}
-		}
-	} else {
-		using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
-		static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
+	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
+	static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
 
-		std::array<double, NDIM> xmin;
-		for (int dim = 0; dim < NDIM; dim++) {
-			xmin[dim] = X[dim][0];
-		}
+	std::array<double, NDIM> xmin;
+	for (int dim = 0; dim < NDIM; dim++) {
+		xmin[dim] = X[dim][0];
+	}
 
-		const auto limiter = [](double a, double b) {
-			return minmod_theta(a, b, 64./37.);
-//			if (a * b <= 0.0) {
-//				return 0.0;
-//			} else {
-//				constexpr double theta = 64. / 37.;
-//				constexpr double gamma = 2.0 * (theta - 1.0);
-//				return theta * (a * a * b + b * b * a) / (a * a + gamma * a * b + b * b);
-//			}
+	const auto limiter = [](double a, double b) {
+		return minmod_theta(a, b, 64./37.);
+	};
 
-		};
+	for (int f = 0; f < opts().n_fields; f++) {
+		if (!energy_only || f == egas_i) {
 
-		for (int f = 0; f < opts().n_fields; f++) {
 			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
 				for (int j0 = 1; j0 < HS_NX - 1; j0++) {
 					for (int k0 = 1; k0 < HS_NX - 1; k0++) {
@@ -139,7 +118,9 @@ void grid::complete_hydro_amr_boundary() {
 				}
 			}
 		}
+	}
 
+	if (!energy_only) {
 		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
 			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
 				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
@@ -167,14 +148,14 @@ void grid::complete_hydro_amr_boundary() {
 									zx += Uf[lx_i][iii0][ir][jr][kr] / 8.0;
 									zy += Uf[ly_i][iii0][ir][jr][kr] / 8.0;
 									zz += Uf[lz_i][iii0][ir][jr][kr] / 8.0;
-						//			rho += Uf[rho_i][iii0][ir][jr][kr] / 8.0;
+									//			rho += Uf[rho_i][iii0][ir][jr][kr] / 8.0;
 								}
 							}
 						}
 						for (int ir = 0; ir < 2; ir++) {
 							for (int jr = 0; jr < 2; jr++) {
 								for (int kr = 0; kr < 2; kr++) {
-				//					const auto factor = Uf[rho_i][iii0][ir][jr][kr] / rho;
+									//					const auto factor = Uf[rho_i][iii0][ir][jr][kr] / rho;
 									const auto factor = 1.0;
 									Uf[lx_i][iii0][ir][jr][kr] = zx * factor;
 									Uf[ly_i][iii0][ir][jr][kr] = zy * factor;
@@ -201,8 +182,9 @@ void grid::complete_hydro_amr_boundary() {
 				}
 			}
 		}
-
-		for (int f = 0; f < opts().n_fields; f++) {
+	}
+	for (int f = 0; f < opts().n_fields; f++) {
+		if (!energy_only || f == egas_i) {
 			for (int i = 0; i < H_NX; i++) {
 				for (int j = 0; j < H_NX; j++) {
 					for (int k = 0; k < H_NX; k++) {
@@ -230,8 +212,6 @@ void grid::complete_hydro_amr_boundary() {
 		}
 	}
 }
-
-
 
 std::pair<real, real> grid::amr_error() const {
 

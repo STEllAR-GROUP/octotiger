@@ -120,6 +120,8 @@ public:
 	}
 	using roche_type = char;
 private:
+	static std::vector<int> field_bw;
+	static std::vector<int> energy_bw;
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;
 	static std::unordered_map<std::string, int> str_to_index_gravity;
@@ -278,10 +280,10 @@ public:
 	void set_coordinates();
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
-	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
-	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&);
-	void complete_hydro_amr_boundary();
-	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
+	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
+	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
+	void complete_hydro_amr_boundary(bool energy_only);
+	std::vector<real> get_hydro_boundary(const geo::direction& face, bool energy_only);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
@@ -289,9 +291,8 @@ public:
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&) const;
-	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only =
-			false);
-	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool energy_only);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
