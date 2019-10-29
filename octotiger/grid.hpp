@@ -121,6 +121,7 @@ public:
 	using roche_type = char;
 private:
 	static std::vector<int> field_bw;
+	static std::vector<int> energy_bw;
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;
 	static std::unordered_map<std::string, int> str_to_index_gravity;
@@ -279,10 +280,10 @@ public:
 	void set_coordinates();
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
-	void set_hydro_boundary(const std::vector<real>&, const geo::direction&);
+	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
 	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&);
 	void complete_hydro_amr_boundary();
-	std::vector<real> get_hydro_boundary(const geo::direction& face);
+	std::vector<real> get_hydro_boundary(const geo::direction& face, bool energy_only);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;

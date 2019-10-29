@@ -32,6 +32,7 @@
 #include <unordered_map>
 
 std::vector<int> grid::field_bw;
+std::vector<int> grid::energy_bw;
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
@@ -66,6 +67,8 @@ void grid::set_outflow(std::pair<std::string, real> &&p) {
 
 void grid::static_init() {
 	field_bw.resize(opts().n_fields, 3);
+	energy_bw.resize(opts().n_fields, 0);
+	energy_bw[egas_i] = 1;
 	field_bw[rho_i] = 4;
 	for( int dim = 0; dim < NDIM; dim++) {
 		field_bw[lx_i + dim] = 2;
@@ -767,13 +770,14 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 	}PROF_END;
 }
 
-void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir) {
+void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
 	integer iter = 0;
+	const auto& bw = energy_only ? energy_bw : field_bw;
 
 	for (integer field = 0; field != opts().n_fields; ++field) {
-		get_boundary_size(lb, ub, dir, OUTER, INX, H_BW, field_bw[field]);
+		get_boundary_size(lb, ub, dir, OUTER, INX, H_BW, bw[field]);
 		auto &Ufield = U[field];
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
@@ -786,21 +790,22 @@ void grid::set_hydro_boundary(const std::vector<real> &data, const geo::directio
 	}PROF_END;
 }
 
-std::vector<real> grid::get_hydro_boundary(const geo::direction &dir) {
+std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energy_only) {
 	PROF_BEGIN;
 
 
+	const auto& bw = energy_only ? energy_bw : field_bw;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	integer size = 0;
 
 	for (integer field = 0; field != opts().n_fields; ++field) {
-		size += get_boundary_size(lb, ub, dir, INNER, INX, H_BW, field_bw[field]);
+		size += get_boundary_size(lb, ub, dir, INNER, INX, H_BW, bw[field]);
 	}
 	data.resize(size);
 	integer iter = 0;
 	for (integer field = 0; field != opts().n_fields; ++field) {
-		get_boundary_size(lb, ub, dir, INNER, INX, H_BW, field_bw[field]);
+		get_boundary_size(lb, ub, dir, INNER, INX, H_BW, bw[field]);
 		auto &Ufield = U[field];
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {

@@ -116,6 +116,13 @@ void node_server::all_hydro_bounds() {
 	++hcycle;
 }
 
+void node_server::energy_hydro_bounds() {
+	exchange_interlevel_hydro_data();
+	collect_hydro_boundaries(true);
+	send_hydro_amr_boundaries();
+	++hcycle;
+}
+
 void node_server::exchange_interlevel_hydro_data() {
 
 	if (is_refined) {
@@ -138,12 +145,12 @@ void node_server::exchange_interlevel_hydro_data() {
 	}
 }
 
-void node_server::collect_hydro_boundaries() {
+void node_server::collect_hydro_boundaries(bool energy_only) {
 	grid_ptr->clear_amr();
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			const integer width = H_BW;
-			auto bdata = grid_ptr->get_hydro_boundary(dir);
+			auto bdata = grid_ptr->get_hydro_boundary(dir, energy_only);
 			neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
 		}
 	}
@@ -153,10 +160,10 @@ void node_server::collect_hydro_boundaries() {
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
-			/*hpx::util::annotated_function(*/[this, dir](future<sibling_hydro_type> &&f) -> void {
+			/*hpx::util::annotated_function(*/[this, energy_only, dir](future<sibling_hydro_type> &&f) -> void {
 				auto &&tmp = GET(f);
 				if (!neighbors[dir].empty()) {
-					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction);
+					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, energy_only);
 				} else {
 					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction);
 
