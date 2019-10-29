@@ -30,6 +30,8 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
+
+std::vector<int> grid::field_bw;
 std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
@@ -63,6 +65,13 @@ void grid::set_outflow(std::pair<std::string, real> &&p) {
 }
 
 void grid::static_init() {
+	field_bw.resize(opts().n_fields, 3);
+	field_bw[rho_i] = 4;
+	for( int dim = 0; dim < NDIM; dim++) {
+		field_bw[lx_i + dim] = 2;
+		field_bw[sx_i + dim] = 4;
+	}
+
 	str_to_index_hydro[std::string("egas")] = egas_i;
 	str_to_index_hydro[std::string("tau")] = tau_i;
 	for (integer s = 0; s < opts().n_species; s++) {
@@ -672,7 +681,7 @@ space_vector grid::get_cell_center(integer i, integer j, integer k) {
 	return c;
 }
 
-std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool etot_only) {
+std::vector<real> grid::get_prolong(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
 	std::vector<real> data;
 
 	integer size = opts().n_fields;
@@ -758,53 +767,46 @@ void grid::set_restrict(const std::vector<real> &data, const geo::octant &octant
 	}PROF_END;
 }
 
-void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir, integer width, bool etot_only) {
+void grid::set_hydro_boundary(const std::vector<real> &data, const geo::direction &dir) {
 	PROF_BEGIN;
 	std::array<integer, NDIM> lb, ub;
-	if (!etot_only) {
-		get_boundary_size(lb, ub, dir, OUTER, INX, width);
-	} else {
-		get_boundary_size(lb, ub, dir, OUTER, INX, width);
-	}
 	integer iter = 0;
 
 	for (integer field = 0; field != opts().n_fields; ++field) {
+		get_boundary_size(lb, ub, dir, OUTER, INX, H_BW, field_bw[field]);
 		auto &Ufield = U[field];
-		if (!etot_only || (etot_only && field == egas_i)) {
-			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-						Ufield[hindex(i, j, k)] = data[iter];
-						++iter;
-					}
+		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+					Ufield[hindex(i, j, k)] = data[iter];
+					++iter;
 				}
 			}
 		}
 	}PROF_END;
 }
 
-std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, integer width, bool etot_only) {
+std::vector<real> grid::get_hydro_boundary(const geo::direction &dir) {
 	PROF_BEGIN;
+
+
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	integer size;
-	if (!etot_only) {
-		size = opts().n_fields * get_boundary_size(lb, ub, dir, INNER, INX, width);
-	} else {
-		size = get_boundary_size(lb, ub, dir, INNER, INX, width);
+	integer size = 0;
+
+	for (integer field = 0; field != opts().n_fields; ++field) {
+		size += get_boundary_size(lb, ub, dir, INNER, INX, H_BW, field_bw[field]);
 	}
 	data.resize(size);
 	integer iter = 0;
-
 	for (integer field = 0; field != opts().n_fields; ++field) {
+		get_boundary_size(lb, ub, dir, INNER, INX, H_BW, field_bw[field]);
 		auto &Ufield = U[field];
-		if (!etot_only || (etot_only && field == egas_i)) {
-			for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-				for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-					for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-						data[iter] = Ufield[hindex(i, j, k)];
-						++iter;
-					}
+		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+					data[iter] = Ufield[hindex(i, j, k)];
+					++iter;
 				}
 			}
 		}

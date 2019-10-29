@@ -109,10 +109,10 @@ future<void> node_server::exchange_flux_corrections() {
 	});
 }
 
-void node_server::all_hydro_bounds(bool tau_only) {
+void node_server::all_hydro_bounds() {
 	exchange_interlevel_hydro_data();
-	collect_hydro_boundaries(tau_only);
-	send_hydro_amr_boundaries(tau_only);
+	collect_hydro_boundaries();
+	send_hydro_amr_boundaries();
 	++hcycle;
 }
 
@@ -138,12 +138,12 @@ void node_server::exchange_interlevel_hydro_data() {
 	}
 }
 
-void node_server::collect_hydro_boundaries(bool tau_only) {
+void node_server::collect_hydro_boundaries() {
 	grid_ptr->clear_amr();
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
 			const integer width = H_BW;
-			auto bdata = grid_ptr->get_hydro_boundary(dir, width, tau_only);
+			auto bdata = grid_ptr->get_hydro_boundary(dir);
 			neighbors[dir].send_hydro_boundary(std::move(bdata), dir.flip(), hcycle);
 		}
 	}
@@ -153,10 +153,10 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
 			results[index++] = sibling_hydro_channels[dir].get_future(hcycle).then(
-			/*hpx::util::annotated_function(*/[this, tau_only, dir](future<sibling_hydro_type> &&f) -> void {
+			/*hpx::util::annotated_function(*/[this, dir](future<sibling_hydro_type> &&f) -> void {
 				auto &&tmp = GET(f);
 				if (!neighbors[dir].empty()) {
-					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction, H_BW, tau_only);
+					grid_ptr->set_hydro_boundary(tmp.data, tmp.direction);
 				} else {
 					grid_ptr->set_hydro_amr_boundary(tmp.data, tmp.direction);
 
@@ -180,7 +180,7 @@ void node_server::collect_hydro_boundaries(bool tau_only) {
 	grid_ptr->complete_hydro_amr_boundary();
 }
 
-void node_server::send_hydro_amr_boundaries(bool tau_only) {
+void node_server::send_hydro_amr_boundaries() {
 	if (is_refined) {
 		constexpr auto full_set = geo::octant::full_set();
 		for (auto &ci : full_set) {
