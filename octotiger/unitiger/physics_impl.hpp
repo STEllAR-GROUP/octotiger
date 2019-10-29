@@ -246,9 +246,8 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 							w += Q[spc_i + si][d][i];
 							Q[spc_i + si][d][i] *= rho;
 						}
-						if (w == 0.0) {
+						if (w < 0.0) {
 							printf("NO SPECIES %i\n", i);
-							//		sleep(10);
 							abort();
 						}
 						w = 1.0 / w;

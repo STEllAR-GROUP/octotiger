@@ -1754,13 +1754,19 @@ real grid::compute_fluxes() {
 	const auto &q = hydro.reconstruct(U, X, omega);
 	const auto max_lambda = hydro.flux(U, q, f, X, omega);
 
-	for (int d = 0; d < NDIM; d++) {
+	for (int dim = 0; dim < NDIM; dim++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {
 #pragma GCC ivdep
 			for (integer i = 0; i <= INX; ++i) {
 				for (integer j = 0; j <= INX; ++j) {
 					for (integer k = 0; k <= INX; ++k) {
-						F[d][field][findex(i, j, k)] = f[d][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+						const auto i0 = findex(i, j, k);
+						F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+						real rho_tot = 0.0;
+						for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
+							rho_tot += F[dim][field][i0];
+						}
+						F[dim][rho_i][i0] = rho_tot;
 					}
 				}
 			}
