@@ -1691,7 +1691,6 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 	}PROF_END;
 }
 
-
 void grid::init_z_field() {
 	for (int j = H_BW; j < H_NX - H_BW; j++) {
 		for (int k = H_BW; k < H_NX - H_BW; k++) {
@@ -1740,7 +1739,7 @@ real grid::compute_fluxes() {
 	hydro.use_slim_recon(lx_i);
 	hydro.use_slim_recon(ly_i);
 	hydro.use_slim_recon(lz_i);
-	for( int s = 0; s < opts().n_species; s++) {
+	for (int s = 0; s < opts().n_species; s++) {
 		hydro.use_slim_recon(spc_i + s);
 	}
 	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
@@ -2177,9 +2176,6 @@ void grid::next_u(integer rk, real t, real dt) {
 }
 
 void grid::dual_energy_update() {
-
-	return;
-
 	PROF_BEGIN;
 //	bool in_bnd;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -2198,12 +2194,13 @@ void grid::dual_energy_update() {
 					ei = U[egas_i][iii] - ek;
 				}
 				real et = U[egas_i][iii];
-				et = std::max(et, (double) U[egas_i][iii + H_DNX]);
-				et = std::max(et, (double) U[egas_i][iii - H_DNX]);
-				et = std::max(et, (double) U[egas_i][iii + H_DNY]);
-				et = std::max(et, (double) U[egas_i][iii - H_DNY]);
-				et = std::max(et, (double) U[egas_i][iii + H_DNZ]);
-				et = std::max(et, (double) U[egas_i][iii - H_DNZ]);
+				for (integer x = -1; x <= 1; x++) {
+					for (integer y = -1; y <= 1; y++) {
+						for (integer z = -1; z <= 1; z++) {
+							et = std::max(et, (double) U[egas_i][iii + x * H_DNX + y * H_DNY + z * H_DNZ]);
+						}
+					}
+				}
 				if (ei > de_switch1 * et) {
 					U[tau_i][iii] = std::pow(ei, ONE / fgamma);
 				}
