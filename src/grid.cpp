@@ -2217,6 +2217,13 @@ void grid::dual_energy_update() {
 				if (ei > de_switch1 * et) {
 					U[tau_i][iii] = std::pow(ei, ONE / fgamma);
 				}
+
+				double rho_tot = 0.0;
+				for( int s = 0; s < opts().n_species; s++) {
+					rho_tot += U[spc_i + s][iii];
+				}
+				U[rho_i][iii] = rho_tot;
+
 			}
 		}
 	}PROF_END;
