@@ -90,8 +90,9 @@ std::size_t init_thread_local_worker(std::size_t desired)
             multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil())
                 .second;
         std::cout << "Subgrid side-length is " << INX << std::endl;
-        std::cout << "Stencil max half side-length is " << STENCIL_WIDTH << " (Total length " << 2 * STENCIL_WIDTH + 1 << std::endl;
-        if (STENCIL_WIDTH > INX) {
+        std::cout << "Minimal allowed theta is " << octotiger::fmm::THETA_FLOOR << std::endl;
+        std::cout << "Stencil maximal allowed half side-length is " << octotiger::fmm::STENCIL_WIDTH << " (Total length " << 2 * octotiger::fmm::STENCIL_WIDTH + 1 << std::endl;
+        if (octotiger::fmm::STENCIL_WIDTH > INX) {
                 std::stringstream error_string;
                 error_string << "ERROR: Stencil is too wide for the subgrid size" << std::endl;
                 error_string << "Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file)" << std::endl;

@@ -374,6 +374,10 @@ endif()
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
+# Theta minimum
+message(STATUS "Octo-Tiger minimal allowed theta: ${OCTOTIGER_THETA_MINIMUM}")
+target_compile_definitions(octolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
+
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
