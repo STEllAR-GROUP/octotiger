@@ -35,7 +35,7 @@ namespace fmm {
     constexpr uint64_t SOA_PADDING = 19;    // to prevent some of the 4k aliasing
 
 
-    constexpr real THETA_FLOOR = 0.16;
+    constexpr real THETA_FLOOR = OCTOTIGER_THETA_MINIMUM;
     constexpr int STENCIL_WIDTH_HELPER = static_cast<int>(2.0 / THETA_FLOOR);
     constexpr int STENCIL_WIDTH = (STENCIL_WIDTH_HELPER % 2 == 0) ? STENCIL_WIDTH_HELPER + 1 : STENCIL_WIDTH_HELPER;
 
