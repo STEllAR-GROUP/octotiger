@@ -13,7 +13,7 @@
 template<int NDIM, int INX>
 struct cell_geometry {
 
-	static constexpr int H_BW = 3;
+	static constexpr int H_BW = OCTOTIGER_BW;
 	static constexpr int H_NX = (2 * H_BW + INX);
 
 	static constexpr int H_NX_X = H_NX;
@@ -27,6 +27,10 @@ struct cell_geometry {
 	static constexpr int H_NX_XM4 = H_NX - 4;
 	static constexpr int H_NX_YM4 = NDIM > 1 ? H_NX - 4 : 1;
 	static constexpr int H_NX_ZM4 = NDIM > 2 ? H_NX - 4 : 1;
+
+	static constexpr int H_NX_XM6 = H_NX - 6;
+	static constexpr int H_NX_YM6 = NDIM > 1 ? H_NX - 6 : 1;
+	static constexpr int H_NX_ZM6 = NDIM > 2 ? H_NX - 6 : 1;
 
 	static constexpr int H_DNX = NDIM == 3 ? H_NX * H_NX : (NDIM == 2 ? H_NX : 1);
 	static constexpr int H_DNY = NDIM == 3 ? H_NX : 1;
@@ -234,7 +238,7 @@ private:
 			printf("Corners/edges indexes failed\n");
 			abort();
 		}
-		printf("3D geometry constdefs passed verification\n");
+//		printf("3D geometry constdefs passed verification\n");
 	}
 
 public:
@@ -407,6 +411,15 @@ constexpr int cell_geometry<NDIM, INX>::H_NX_YM4;
 
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::H_NX_ZM4;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_XM6;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_YM6;
+
+template<int NDIM, int INX>
+constexpr int cell_geometry<NDIM, INX>::H_NX_ZM6;
 
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::H_DNX;

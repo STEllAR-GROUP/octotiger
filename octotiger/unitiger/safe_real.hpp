@@ -7,10 +7,10 @@
 #define __SAFE_REAL_HPPP
 
 #include <cmath>
-//
+////
 //struct safe_real {
 //	inline constexpr safe_real() :
-//			r_(0) {
+//			r_(std::numeric_limits<double>::signaling_NaN()) {
 //	}
 //	inline constexpr safe_real(double r) :
 //			r_(r) {
@@ -37,7 +37,7 @@
 //	inline safe_real operator+() const {
 //		return *this;
 //	}
-//	inline  operator double() const {
+//	inline constexpr operator double() const {
 //		return r_;
 //	}
 //

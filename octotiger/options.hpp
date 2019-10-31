@@ -30,7 +30,6 @@
 
 class options {
 public:
-	bool old_amrbnd;
 	bool disable_diagnostics;
 	bool bench;
 	bool disable_output;
@@ -43,7 +42,9 @@ public:
 	bool rad_implicit;
 	bool rewrite_silo;
 	bool angmom;
+	bool rotating_star_amr;
 
+	integer scf_output_frequency;
 	integer silo_num_groups;
 	integer amrbnd_order;
 	integer extra_regrid;
@@ -57,6 +58,7 @@ public:
 	integer silo_offset_z;
 	integer future_wait_time;
 
+	real rotating_star_x;
 	real dual_energy_sw2;
 	real dual_energy_sw1;
 	real hard_dt;
@@ -102,12 +104,14 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc & rotating_star_amr;
+		arc & rotating_star_x;
 		arc & future_wait_time;
 		arc & silo_offset_x;
 		arc & silo_offset_y;
 		arc & silo_offset_z;
+		arc & scf_output_frequency;
 		arc & silo_num_groups;
-		arc & old_amrbnd;
 		arc & amrbnd_order;
 		arc & dual_energy_sw1;
 		arc & dual_energy_sw2;

@@ -6,8 +6,8 @@
 #include "../unitiger.hpp"
 
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real t) {
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real t) {
 
 	const auto dx = X[0][1] - X[0][0];
 	FILE *fp = fopen("sums.dat", "at");
@@ -74,8 +74,8 @@ void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::
 	}
 
 }
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::outputQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::outputQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
 {       
         std::string filename;
         
@@ -91,8 +91,8 @@ void hydro_computer<NDIM, INX>::outputQ(const hydro::recon_type<NDIM> &Q, int nu
                 }
         fclose(fp);
 }
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::outputU(const hydro::state_type &U, int num, std::string test_type){
+template<int NDIM, int INX,class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::outputU(const hydro::state_type &U, int num, std::string test_type){
         std::string filename;
 
         if (num > 0)
@@ -105,8 +105,8 @@ void hydro_computer<NDIM, INX>::outputU(const hydro::state_type &U, int num, std
         }
         fclose(fp);
 }
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::outputF(const hydro::flux_type &Fl, int num, std::string test_type){
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::outputF(const hydro::flux_type &Fl, int num, std::string test_type){
         std::string filename;
 
         if (num > 0)
@@ -122,8 +122,8 @@ void hydro_computer<NDIM, INX>::outputF(const hydro::flux_type &Fl, int num, std
         }
         fclose(fp);
 }
-template<int NDIM, int INX>
-int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
+template<int NDIM, int INX,class PHYS>
+int hydro_computer<NDIM, INX, PHYS>::compareQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
 {
         double dline[geo::NDIR];
         std::string filename;
@@ -140,10 +140,10 @@ int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int nu
                                 fread(&dline, sizeof(double), geo::NDIR, fp);
                                 for (int j = 0; j < geo::NDIR; j++)
                                 {
-                                        if ((Q[f][i][j] - dline[j])/std::max(1e-12,(dline[j]+Q[f][i][j])) > 1e-12)
+                                        if (std::abs(Q[f][i][j] - dline[j])/(1e-12+dline[j]+Q[f][i][j]) > 1e-12)
                                         {
                                                 printf("differnt Q values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
-                                                                f, nf_, i, geo::H_NX, j, geo::NDIR, dline[j], Q[f][i][j]);
+                                                                f, nf_, i, geo::H_NX, j, geo::NDIR, dline[j], double(Q[f][i][j]));
                                                 fclose(fp);
                                                 return 0;
                                         }
@@ -156,8 +156,8 @@ int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int nu
                 return -1;
         return 1;
 }
-template<int NDIM, int INX>
-int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std::string test_type)
+template<int NDIM, int INX, class PHYS>
+int hydro_computer<NDIM, INX, PHYS>::compareF(const hydro::flux_type &Fl, int num, std::string test_type)
 {
         double dline[geo::H_N3];
         std::string filename;
@@ -174,10 +174,10 @@ int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std
                                 fread(&dline, sizeof(double), geo::H_N3, fp);
                                 for (int j = 0; j < geo::H_N3; j++)
                                 {
-                                        if ((Fl[i][f][j] - dline[j])/std::max(1e-12,(dline[j]+Fl[i][f][j])) > 1e-12)
+                                        if (std::abs(Fl[i][f][j] - dline[j])/(1e-12+dline[j]+Fl[i][f][j]) > 1e-12)
                                         {
                                                  printf("differnt F values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
-                                                                i, NDIM, f, nf_, j, geo::H_N3, dline[j], Fl[i][f][j]);
+                                                                i, NDIM, f, nf_, j, geo::H_N3, dline[j], double(Fl[i][f][j]));
                                                 fclose(fp);
                                                 return 0;
                                         }
@@ -190,8 +190,8 @@ int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std
                 return -1;
         return 1;
 }
-template<int NDIM, int INX>
-int hydro_computer<NDIM, INX>::compareU(const hydro::state_type &U, int num, std::string test_type){
+template<int NDIM, int INX, class PHYS>
+int hydro_computer<NDIM, INX, PHYS>::compareU(const hydro::state_type &U, int num, std::string test_type){
         hydro::state_type V;
         double dline[geo::H_NX];
         std::string filename;
@@ -207,10 +207,10 @@ int hydro_computer<NDIM, INX>::compareU(const hydro::state_type &U, int num, std
                         fread(&dline, sizeof(double), geo::H_NX, fp);
                         for (int i = 0; i < geo::H_NX; i++)
                         {
-                                if ((U[f][i] - dline[i])/std::max(1e-12,(U[f][i]+dline[i])) > 1e-12)
+                                if (std::abs(U[f][i] - dline[i])/(1e-12+U[f][i]+dline[i]) > 1e-12)
                                 {
                                         printf("differnt U values in: (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
-                                                                f, nf_, i, geo::H_NX, dline[i], U[f][i]);
+                                                                f, nf_, i, geo::H_NX, dline[i], double(U[f][i]));
                                         fclose(fp);
                                         return 0;
                                 }

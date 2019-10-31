@@ -5,8 +5,8 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-cmake_minimum_required(VERSION 3.10)
-cmake_policy(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12.4)
+cmake_policy(VERSION 3.12.4)
 
 # Libraries linked via full path no longer produce linker search paths.
 cmake_policy(SET CMP0003 NEW)
@@ -54,12 +54,11 @@ if(OCTOTIGER_WITH_CUDA)
 endif()
 
 ################################################################################
-# Set up Octotiger target
+# Set up Octo-Tiger target
 ################################################################################
-# Octotiger library sources
+# Octo-Tiger library sources
 
-
-# Octotiger library headers
+# Octo-Tiger library headers
 set(source_files
     src/compute_factor.cpp
     src/eos.cpp
@@ -86,9 +85,9 @@ set(source_files
     src/roe.cpp
     src/scf_data.cpp
     src/scf_data.cpp
-    src/silo.cpp
-    src/silo_out.cpp
-    src/silo_in.cpp
+    src/io/silo.cpp
+    src/io/silo_out.cpp
+    src/io/silo_in.cpp
     src/stack_trace.cpp
     src/taylor.cpp
     src/util.cpp
@@ -117,7 +116,7 @@ set(source_files
     src/test_problems/amr/amr.cpp
 )
 
-# Octotiger library headers
+# Octo-Tiger library headers
 set(header_files
     octotiger/config/export_definitions.hpp
     octotiger/channel.hpp
@@ -149,7 +148,7 @@ set(header_files
     octotiger/roe.hpp
     octotiger/safe_math.hpp
     octotiger/scf_data.hpp
-    octotiger/silo.hpp
+    octotiger/io/silo.hpp
     octotiger/simd.hpp
     octotiger/space_vector.hpp
     octotiger/state.hpp
@@ -191,7 +190,7 @@ set(header_files
     octotiger/test_problems/rotating_star.hpp
 )
 
-# Octotiger library
+# Octo-Tiger library
 add_hpx_library(
   octolib
   DEPENDENCIES
@@ -224,6 +223,8 @@ add_hpx_library(
     octotiger/unitiger/hydro_impl/hydro.hpp
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
+    octotiger/unitiger/radiation/radiation_physics.hpp
+    octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
     octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp
 )
@@ -231,13 +232,13 @@ add_hpx_library(
 # Enable exported functions
 target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
 # Header files
-set_property(TARGET octolib PROPERTY FOLDER "Octotiger")
+set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 
-# Octotiger executable
+# Octo-Tiger executable
 add_hpx_executable(
   octotiger
   DEPENDENCIES
@@ -246,7 +247,7 @@ add_hpx_executable(
   SOURCES
     frontend/main.cpp
 )
-set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
+set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 
 # Unitiger executable
 add_hpx_executable(
@@ -258,7 +259,7 @@ add_hpx_executable(
   HEADERS
     ${hydro_header_files}
 )
-set_property(TARGET octotiger PROPERTY FOLDER "Octotiger")
+set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 
 if(MSVC)
   # Enable solution folders for MSVC
@@ -293,7 +294,7 @@ if(MSVC)
     /wd4996
   )
   target_compile_options(octolib PUBLIC ${MSVC_WARNING_SILENCERS})
-  # HACK: Silencing warnings in octolib does not propagate to Octotiger. No clue why.
+  # HACK: Silencing warnings in octolib does not propagate to Octo-Tiger. No clue why.
   target_compile_options(octotiger PRIVATE ${MSVC_WARNING_SILENCERS})
 
   target_compile_options(octolib PUBLIC /EHsc)
@@ -370,13 +371,11 @@ if(OCTOTIGER_WITH_RADIATION)
 endif()
 
 # Grid size
-message(STATUS "Octotiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
+message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
-
-
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
     src/test_problems/blast/sedov.cpp
@@ -384,7 +383,6 @@ if(OCTOTIGER_WITH_BLAST_TEST)
   target_sources(octolib PRIVATE ${blast_sources})
   source_group(TREE ${PROJECT_SOURCE_DIR}
     PREFIX "Source Files" FILES ${blast_sources})
-
 
   if(OCTOTIGER_WITH_BOOST_MULTIPRECISION)
     target_compile_definitions(octolib PUBLIC
@@ -404,7 +402,7 @@ if(OCTOTIGER_WITH_BLAST_TEST)
     target_link_libraries(octolib PRIVATE quadmath)
 
   else()
-      message(FATAL_ERROR "Octotiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
+      message(FATAL_ERROR "Octo-Tiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
         "be built without quadmath or Boost.Multiprecision")
   endif()
 endif()

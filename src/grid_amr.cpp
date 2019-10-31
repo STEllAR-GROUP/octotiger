@@ -5,56 +5,27 @@
 
 #include "octotiger/grid.hpp"
 #include "octotiger/test_problems/amr/amr.hpp"
-#include "octotiger/util.hpp"
+#include "octotiger/unitiger/util.hpp"
 
-double generalized_ppm_face(double am1, double am0, double ap1, double ap2, double xm1, double xm0, double xp1, double xp2) {
-//Woodward & Collela 1984
-
-
-	double delta_p1, delta_m0;
-
-	delta_m0 += ((2 * xm1 + xm0) / (xp1 + xm0)) * (ap1 - am0);
-	delta_m0 += ((2 * xp1 + xm0) / (xm1 + xm0)) * (am0 - am1);
-	delta_m0 *= xm0 / (xm1 + xm0 + xp1);
-	delta_m0 = minmod(delta_m0, 2 * minmod(am0 - am1, ap1 - am0));
-
-	delta_p1 += ((2 * xm0 + xp1) / (xp2 + xp1)) * (ap2 - ap1);
-	delta_p1 += ((2 * xp2 + xp1) / (xm0 + xp1)) * (ap1 - am0);
-	delta_p1 *= xp1 / (xm0 + xp1 + xp2);
-	delta_p1 = minmod(delta_p1, 2 * minmod(ap1 - am0, ap2 - ap1));
-
-	const auto c0 = xm0 / (xm0 + xp1);
-	const auto c1 = 1.0 / (xm1 + xm0 + xp1 + xp2);
-	const auto c2 = (2 * xp1 + xm0) / (xm0 + xp1);
-	const auto c3 = (xm1 + xm0) / (2 * xm0 + xp1);
-	const auto c4 = (xp2 + xp1) / (2 * xp1 + xm0);
-	const auto c5 = xm0 * (xm1 + xm0) / (2 * xm0 + xp1);
-	const auto c6 = xp1 * (xp1 + xp2) / (2 * xp1 + xm0);
-
-	const auto dif = ap1 - am0;
-
-	return am0 + c0 * dif + c1 * (c2 * (c3 - c4) * dif - c5 * delta_p1 + c6 * delta_m0);
-
+double ppm_slope(double am2, double am1, double a00, double ap1, double ap2) {
+	const double sm1 = minmod_theta(am1 - am2, a00 - am1, 2.0);
+	const double s00 = minmod_theta(a00 - am1, ap1 - a00, 2.0);
+	const double sp1 = minmod_theta(ap1 - a00, ap2 - ap1, 2.0);
+	double ap = 0.5 * (a00 + ap1) - (1.0 / 6.0) * (sp1 - s00);
+	double am = 0.5 * (a00 + am1) - (1.0 / 6.0) * (s00 - sm1);
+	limit_slope(am, a00, ap);
+	return ap - am;
 }
 
-
-std::pair<double,double> generalized_ppm(double am2, double am1, double a0, double ap1, double ap2, double xm2, double xm1, double x0, double xp1, double xp2) {
-//Woodward & Collela 1984
-	std::pair<double,double> p;
-	p.first = generalized_ppm_face(am1, a0, ap1, ap2, xm1, x0, xp1, xp2);
-	p.second = generalized_ppm_face(am2, am1, a0, ap1, xm2, xm1, x0, xp1);
-	return p;
-
-
-}
-
-std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
+std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool energy_only) {
 	std::vector<real> data;
 	for (int f = 0; f < opts().n_fields; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					data.push_back(U[f][hindex(i, j, k)]);
+		if (!energy_only || f == egas_i) {
+			for (int i = lb[0]; i < ub[0]; i++) {
+				for (int j = lb[1]; j < ub[1]; j++) {
+					for (int k = lb[2]; k < ub[2]; k++) {
+						data.push_back(U[f][hindex(i, j, k)]);
+					}
 				}
 			}
 		}
@@ -62,7 +33,7 @@ std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const st
 	return std::move(data);
 }
 
-void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir) {
+void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
 
 	std::array<integer, NDIM> lb, ub;
 	int l = 0;
@@ -76,11 +47,19 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 		}
 	}
 
+	for (int dim = 0; dim < NDIM; dim++) {
+		lb[dim] = std::max(lb[dim] - 1, integer(0));
+		ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
+	}
+
 	for (int f = 0; f < opts().n_fields; f++) {
-		for (int i = lb[0]; i < ub[0]; i++) {
-			for (int j = lb[1]; j < ub[1]; j++) {
-				for (int k = lb[2]; k < ub[2]; k++) {
-					Ushad[f][hSindex(i, j, k)] = data[l++];
+		if (!energy_only || f == egas_i) {
+			for (int i = lb[0]; i < ub[0]; i++) {
+				for (int j = lb[1]; j < ub[1]; j++) {
+					for (int k = lb[2]; k < ub[2]; k++) {
+						has_coarse[hSindex(i, j, k)]++;
+						Ushad[f][hSindex(i, j, k)] = data[l++];
+					}
 				}
 			}
 		}
@@ -88,170 +67,150 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 	assert(l == data.size());
 }
 
-void grid::complete_hydro_amr_boundary() {
+void grid::complete_hydro_amr_boundary(bool energy_only) {
+
+	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
+	static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
+
+	std::array<double, NDIM> xmin;
+	for (int dim = 0; dim < NDIM; dim++) {
+		xmin[dim] = X[dim][0];
+	}
+
+	const auto limiter = [](double a, double b) {
+		return minmod_theta(a, b, 64./37.);
+	};
 
 	for (int f = 0; f < opts().n_fields; f++) {
-		for (int ir = 0; ir < H_NX; ir++) {
-			for (int jr = 0; jr < H_NX; jr++) {
-				for (int kr = 0; kr < H_NX; kr++) {
-					const int i0 = (ir + H_BW) / 2;
-					const int j0 = (jr + H_BW) / 2;
-					const int k0 = (kr + H_BW) / 2;
-					const int iii0 = hSindex(i0, j0, k0);
-					const int iiir = hindex(ir, jr, kr);
-					if (is_coarse[iii0]) {
-						assert(ir < H_BW || ir >= H_NX - H_BW || jr < H_BW || jr >= H_NX - H_BW || kr < H_BW || kr >= H_NX - H_BW);
-						U[f][iiir] = Ushad[f][iii0];
+		if (!energy_only || f == egas_i) {
+
+			for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+				for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+					for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+						const int iii0 = hSindex(i0, j0, k0);
+						if (is_coarse[iii0]) {
+							for (int ir = 0; ir < 2; ir++) {
+								for (int jr = 0; jr < 2; jr++) {
+									for (int kr = 0; kr < 2; kr++) {
+										const auto is = ir % 2 ? +1 : -1;
+										const auto js = jr % 2 ? +1 : -1;
+										const auto ks = kr % 2 ? +1 : -1;
+										const auto &u0 = Ushad[f][iii0];
+										const auto &uc = Ushad[f];
+										const auto s_x = limiter(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
+										const auto s_y = limiter(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
+										const auto s_z = limiter(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
+										const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
+										const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
+										const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
+										const auto s_xyz = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
+												u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
+										auto &uf = Uf[f][iii0][ir][jr][kr];
+										uf = u0;
+										uf += (9.0 / 64.0) * (s_x + s_y + s_z);
+										uf += (3.0 / 64.0) * (s_xy + s_yz + s_xz);
+										uf += (1.0 / 64.0) * s_xyz;
+									}
+								}
+							}
+						}
 					}
 				}
 			}
 		}
 	}
-	if (opts().amrbnd_order > 0) {
-		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp1;
-		static thread_local std::array<std::vector<std::vector<double>>, NDIM> slp2;
-		for (int d = 0; d < NDIM; d++) {
-			slp1[d].resize(opts().n_fields, std::vector<double>(HS_N3));
-			slp2[d].resize(opts().n_fields, std::vector<double>(HS_N3));
-		}
-		const auto slopes = [this](int f) {
-			for (int i0 = 2; i0 < HS_NX - 2; i0++) {
-				for (int j0 = 2; j0 < HS_NX - 2; j0++) {
-					for (int k0 = 2; k0 < HS_NX - 2; k0++) {
-						const int ir = 2 * i0 - H_BW;
-						const int jr = 2 * j0 - H_BW;
-						const int kr = 2 * k0 - H_BW;
-						const int iii0 = hSindex(i0, j0, k0);
-						const int iiir = hindex(ir, jr, kr);
-						if (is_coarse[iii0]) {
-							const auto u0 = Ushad[f][iii0];
-							for (int d = 0; d < NDIM; d++) {
-								const int da = d == XDIM ? YDIM : XDIM;
-								const int db = d == ZDIM ? YDIM : ZDIM;
-								const int iiip = iii0 + HS_DN[d];
-								const int iiim = iii0 - HS_DN[d];
-								double slpp, slpm;
-								if (is_coarse[iiip]) {
-									slpp = Ushad[f][iiip] - u0;
-								} else {
-									const int iiir0 = iiir + 2 * H_DN[d];
-									assert(iiir0 >= 0);
-									assert(iiir0 < H_N3);
-									slpp = 0.0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpp += U[f][iiir + 2 * H_DN[d] + 1 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpp /= 3.0;
-								}
-								if (is_coarse[iiim]) {
-									slpm = Ushad[f][iiim] - u0;
-								} else {
-									const int iiir0 = iiir - H_DN[d];
-									assert(iiir0 >= 0);
-									assert(iiir0 < H_N3);
-									slpm = 0.0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 0 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 0 * H_DN[db]] - u0;
-									slpm += U[f][iiir - H_DN[d] + 1 * H_DN[da] + 1 * H_DN[db]] - u0;
-									slpm /= 3.0;
-								}
-								slp1[d][f][iii0] = minmod_theta(slpp, -slpm, 1.0);
-								slp2[d][f][iii0] = minmod_theta(slpp, -slpm, 2.0);
-							}
-						}
-					}
-				}
-			}
-		};
 
-		const auto interps = [this](int f) {
-			for (int ir = 1; ir < H_NX - 1; ir++) {
-				for (int jr = 1; jr < H_NX - 1; jr++) {
-					for (int kr = 1; kr < H_NX - 1; kr++) {
-						const int isgn = ir % 2 ? 1 : -1;
-						const int jsgn = jr % 2 ? 1 : -1;
-						const int ksgn = kr % 2 ? 1 : -1;
-						const int i0 = (ir + H_BW) / 2;
-						const int j0 = (jr + H_BW) / 2;
-						const int k0 = (kr + H_BW) / 2;
-						const int iii0 = hSindex(i0, j0, k0);
-						const int iiir = hindex(ir, jr, kr);
-						if (is_coarse[iii0]) {
-							auto &value = U[f][iiir];
-							value -= 0.25 * isgn * slp1[XDIM][f][iii0];
-							value -= 0.25 * jsgn * slp1[YDIM][f][iii0];
-							value -= 0.25 * ksgn * slp1[ZDIM][f][iii0];
-							if (opts().angmom) {
-								if (f == sx_i) {
-									Ushad[zy_i][iii0] -= 0.25 * ksgn * value * dx / 8.0;
-									Ushad[zz_i][iii0] += 0.25 * jsgn * value * dx / 8.0;
-								} else if (f == sy_i) {
-									Ushad[zx_i][iii0] += 0.25 * ksgn * value * dx / 8.0;
-									Ushad[zz_i][iii0] -= 0.25 * isgn * value * dx / 8.0;
-								} else if (f == sz_i) {
-									Ushad[zx_i][iii0] -= 0.25 * jsgn * value * dx / 8.0;
-									Ushad[zy_i][iii0] += 0.25 * isgn * value * dx / 8.0;
-								}
-							}
-						}
-					}
-				}
-			}
-		};
-
-		for (int f = sx_i; f <= sz_i; f++) {
-			slopes(f);
-		}
-
-		for (int i0 = 2; i0 < HS_NX - 2; i0++) {
-			for (int j0 = 2; j0 < HS_NX - 2; j0++) {
-				for (int k0 = 2; k0 < HS_NX - 2; k0++) {
-					const int ir = 2 * i0 - H_BW;
-					const int jr = 2 * j0 - H_BW;
-					const int kr = 2 * k0 - H_BW;
+	if (!energy_only) {
+		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
 					const int iii0 = hSindex(i0, j0, k0);
-					const int iiir = hindex(ir, jr, kr);
 					if (is_coarse[iii0]) {
-
-						real dV_sym[3][3];
-						real dV_ant[3][3];
-
-						for (integer d0 = 0; d0 != NDIM; ++d0) {
-							for (integer d1 = 0; d1 != NDIM; ++d1) {
-								dV_sym[d1][d0] = (slp2[d0][sx_i + d1][iii0] + slp2[d1][sx_i + d0][iii0]) / 2.0;
-								dV_ant[d1][d0] = 0.0;
+						for (int ir = 0; ir < 2; ir++) {
+							for (int jr = 0; jr < 2; jr++) {
+								for (int kr = 0; kr < 2; kr++) {
+									const auto i1 = 2 * i0 - H_BW + ir;
+									const auto j1 = 2 * j0 - H_BW + jr;
+									const auto k1 = 2 * k0 - H_BW + kr;
+									const auto x = (i1) * dx + xmin[XDIM];
+									const auto y = (j1) * dx + xmin[YDIM];
+									const auto z = (k1) * dx + xmin[ZDIM];
+									Uf[lx_i][iii0][ir][jr][kr] -= y * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sy_i][iii0][ir][jr][kr];
+									Uf[ly_i][iii0][ir][jr][kr] += x * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sx_i][iii0][ir][jr][kr];
+									Uf[lz_i][iii0][ir][jr][kr] -= x * Uf[sy_i][iii0][ir][jr][kr] - y * Uf[sx_i][iii0][ir][jr][kr];
+								}
 							}
 						}
-						dV_ant[XDIM][YDIM] = +6.0 * Ushad[zz_i][iii0] / dx;
-						dV_ant[XDIM][ZDIM] = -6.0 * Ushad[zy_i][iii0] / dx;
-						dV_ant[YDIM][ZDIM] = +6.0 * Ushad[zx_i][iii0] / dx;
-						dV_ant[YDIM][XDIM] = -dV_ant[XDIM][YDIM];
-						dV_ant[ZDIM][XDIM] = -dV_ant[XDIM][ZDIM];
-						dV_ant[ZDIM][YDIM] = -dV_ant[YDIM][ZDIM];
-						for (integer d0 = 0; d0 != NDIM; ++d0) {
-							for (integer d1 = 0; d1 != NDIM; ++d1) {
-								const real tmp = dV_sym[d0][d1] + dV_ant[d0][d1];
-								slp1[d0][sx_i + d1][iii0] = minmod(tmp, slp2[d0][sx_i + d1][iii0]);
+						double zx = 0, zy = 0, zz = 0, rho = 0;
+						for (int ir = 0; ir < 2; ir++) {
+							for (int jr = 0; jr < 2; jr++) {
+								for (int kr = 0; kr < 2; kr++) {
+									zx += Uf[lx_i][iii0][ir][jr][kr] / 8.0;
+									zy += Uf[ly_i][iii0][ir][jr][kr] / 8.0;
+									zz += Uf[lz_i][iii0][ir][jr][kr] / 8.0;
+									//			rho += Uf[rho_i][iii0][ir][jr][kr] / 8.0;
+								}
+							}
+						}
+						for (int ir = 0; ir < 2; ir++) {
+							for (int jr = 0; jr < 2; jr++) {
+								for (int kr = 0; kr < 2; kr++) {
+									//					const auto factor = Uf[rho_i][iii0][ir][jr][kr] / rho;
+									const auto factor = 1.0;
+									Uf[lx_i][iii0][ir][jr][kr] = zx * factor;
+									Uf[ly_i][iii0][ir][jr][kr] = zy * factor;
+									Uf[lz_i][iii0][ir][jr][kr] = zz * factor;
+								}
+							}
+						}
+						for (int ir = 0; ir < 2; ir++) {
+							for (int jr = 0; jr < 2; jr++) {
+								for (int kr = 0; kr < 2; kr++) {
+									const auto i1 = 2 * i0 - H_BW + ir;
+									const auto j1 = 2 * j0 - H_BW + jr;
+									const auto k1 = 2 * k0 - H_BW + kr;
+									const auto x = (i1) * dx + xmin[XDIM];
+									const auto y = (j1) * dx + xmin[YDIM];
+									const auto z = (k1) * dx + xmin[ZDIM];
+									Uf[lx_i][iii0][ir][jr][kr] += y * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sy_i][iii0][ir][jr][kr];
+									Uf[ly_i][iii0][ir][jr][kr] -= x * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sx_i][iii0][ir][jr][kr];
+									Uf[lz_i][iii0][ir][jr][kr] += x * Uf[sy_i][iii0][ir][jr][kr] - y * Uf[sx_i][iii0][ir][jr][kr];
+								}
 							}
 						}
 					}
 				}
-			}
-		}
-
-		for (int f = sx_i; f <= sz_i; f++) {
-			interps(f);
-		}
-		for (int f = 0; f < opts().n_fields; f++) {
-			if (f < sx_i || f > sz_i) {
-				slopes(f);
-				interps(f);
 			}
 		}
 	}
-
+	for (int f = 0; f < opts().n_fields; f++) {
+		if (!energy_only || f == egas_i) {
+			for (int i = 0; i < H_NX; i++) {
+				for (int j = 0; j < H_NX; j++) {
+					for (int k = 0; k < H_NX; k++) {
+						const int i0 = (i + H_BW) / 2;
+						const int j0 = (j + H_BW) / 2;
+						const int k0 = (k + H_BW) / 2;
+						const int iii0 = hSindex(i0, j0, k0);
+						const int iiir = hindex(i, j, k);
+						if (is_coarse[iii0]) {
+							int ir, jr, kr;
+							if constexpr (H_BW % 2 == 0) {
+								ir = i % 2;
+								jr = j % 2;
+								kr = k % 2;
+							} else {
+								ir = 1 - (i % 2);
+								jr = 1 - (j % 2);
+								kr = 1 - (k % 2);
+							}
+							U[f][iiir] = Uf[f][iii0][ir][jr][kr];
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 std::pair<real, real> grid::amr_error() const {
@@ -292,7 +251,7 @@ std::pair<real, real> grid::amr_error() const {
 						const double v1 = U[rho_i][iii];
 						sum += std::pow(v0 - v1, 2) * dV;
 						FILE *fp = fopen("error.txt", "at");
-						fprintf(fp, "%e %e %e\n", y, v0, v1);
+						fprintf(fp, "%e %e %e\n", double(y), double(v0), double(v1));
 						fclose(fp);
 						V += dV;
 					}
@@ -305,4 +264,5 @@ std::pair<real, real> grid::amr_error() const {
 
 void grid::clear_amr() {
 	std::fill(is_coarse.begin(), is_coarse.end(), 0);
+	std::fill(has_coarse.begin(), has_coarse.end(), 0);
 }

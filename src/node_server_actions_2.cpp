@@ -18,7 +18,7 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
 #include <hpx/runtime/get_colocation_id.hpp>
-#include <hpx/runtime/serialization/list.hpp>
+#include <hpx/serialization/list.hpp>
 
 #include <cstdint>
 #include <cstdio>
@@ -246,28 +246,28 @@ diagnostics_t node_server::diagnostics() {
 		FILE* fp = fopen("binary.dat", "at");
 		if (fp) {
 			fprintf(fp, "%13e ", current_time);
-			fprintf(fp, "%13e ", diags.a);
-			fprintf(fp, "%13e ", diags.omega);
-			fprintf(fp, "%13e ", diags.jorb);
+			fprintf(fp, "%13e ", (double) diags.a);
+			fprintf(fp, "%13e ", (double) diags.omega);
+			fprintf(fp, "%13e ", (double) diags.jorb);
 			for (integer s = 0; s != 2; ++s) {
-				fprintf(fp, "%13e ", diags.m[s]);
-				fprintf(fp, "%13e ", diags.js[s]);
-				fprintf(fp, "%13e ", diags.rL[s]);
-				fprintf(fp, "%13e ", diags.gt[s]);
-				fprintf(fp, "%13e ", diags.z_moment[s]);
+				fprintf(fp, "%13e ", (double) diags.m[s]);
+				fprintf(fp, "%13e ", (double) diags.js[s]);
+				fprintf(fp, "%13e ", (double) diags.rL[s]);
+				fprintf(fp, "%13e ", (double) diags.gt[s]);
+				fprintf(fp, "%13e ", (double) diags.z_moment[s]);
 			}
-			fprintf(fp, "%13e ", diags.rho_max[0]);
-			fprintf(fp, "%13e ", diags.rho_max[1]);
+			fprintf(fp, "%13e ",(double)  diags.rho_max[0]);
+			fprintf(fp, "%13e ", (double) diags.rho_max[1]);
 			fprintf(fp, "\n");
 			fclose(fp);
         		fp = fopen("sums.dat", "at");
         		fprintf(fp, "%.13e ", current_time);
         		for (integer i = 0; i != opts().n_fields; ++i) {
-                		fprintf(fp, "%.13e ", diags.grid_sum[i] + diags.grid_out[i]);
-                		fprintf(fp, "%.13e ", diags.grid_out[i]);
+                		fprintf(fp, "%.13e ", (double) diags.grid_sum[i] +(double)  diags.grid_out[i]);
+                		fprintf(fp, "%.13e ", (double) diags.grid_out[i]);
         		}
         		for (integer i = 0; i != 3; ++i) {
-                		fprintf(fp, "%.13e ", diags.lsum[i]);
+                		fprintf(fp, "%.13e ", (double) diags.lsum[i]);
         		}
         		fprintf(fp, "\n");
         		fclose (fp);

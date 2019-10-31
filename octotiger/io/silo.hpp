@@ -24,7 +24,7 @@
 
 
 #define SILO_DRIVER DB_HDF5
-#define SILO_VERSION 110
+#define SILO_VERSION 112
 
 
 class node_server;

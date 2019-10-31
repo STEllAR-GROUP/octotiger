@@ -19,14 +19,14 @@
 #include "octotiger/real.hpp"
 #include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 
-#include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/traits/is_bitwise_serializable.hpp>
+#include <hpx/serialization/serialize.hpp>
+#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 #include <functional>
 #include <memory>
@@ -103,7 +103,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 using xpoint_type = real;
 using zone_int_type = int;
 
-template<int,int>
+template<int,int,class>
 class hydro_computer;
 
 class grid {
@@ -120,6 +120,8 @@ public:
 	}
 	using roche_type = char;
 private:
+	static std::vector<int> field_bw;
+	static std::vector<int> energy_bw;
 	static std::unordered_map<std::string, int> str_to_index_hydro;
 	static std::unordered_map<int, std::string> index_to_str_hydro;
 	static std::unordered_map<std::string, int> str_to_index_gravity;
@@ -129,14 +131,15 @@ private:
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;
-	hydro_computer<NDIM,INX> hydro;
+	hydro_computer<NDIM,INX,physics<NDIM>> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<std::atomic<int>> is_coarse;
+	std::vector<std::atomic<int>> has_coarse;
 	std::vector<std::vector<real>> Ushad;
-	std::vector<std::vector<real>> U;
-	std::vector<std::vector<real>> U0;
-	std::vector<std::vector<real>> dUdt;
+	std::vector<std::vector<safe_real>> U;
+	std::vector<std::vector<safe_real>> U0;
+	std::vector<std::vector<safe_real>> dUdt;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F;
 	std::vector<std::vector<safe_real>> X;
 	std::vector<v4sd> G;
@@ -274,19 +277,13 @@ public:
 	static void set_omega(real, bool bcast = true);
 	static OCTOTIGER_EXPORT real& get_omega();
 	line_of_centers_t line_of_centers(const std::pair<space_vector, space_vector>& line);
-	void compute_conserved_slopes(const std::array<integer, NDIM> lb = { 1, 1, 1 },
-			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
-	void compute_primitive_slopes(real theta, const std::array<integer, NDIM> lb = { 1, 1, 1 },
-			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false);
-	void compute_primitives(const std::array<integer, NDIM> lb = { 1, 1, 1 },
-			const std::array<integer, NDIM> ub = { H_NX - 1, H_NX - 1, H_NX - 1 }, bool tau_only = false) const;
 	void set_coordinates();
 	std::vector<real> get_flux_check(const geo::face&);
 	void set_flux_check(const std::vector<real>&, const geo::face&);
-	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, integer width, bool tau_only = false);
-	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&);
-	void complete_hydro_amr_boundary();
-	std::vector<real> get_hydro_boundary(const geo::direction& face, integer width, bool tau_only = false);
+	void set_hydro_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
+	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&, bool energy_only);
+	void complete_hydro_amr_boundary(bool energy_only);
+	std::vector<real> get_hydro_boundary(const geo::direction& face, bool energy_only);
 	scf_data_t scf_params();
 	real scf_update(real, real, real, real, real, real, real, struct_eos, struct_eos);
 	std::pair<std::vector<real>, std::vector<real> > field_range() const;
@@ -294,9 +291,8 @@ public:
 	std::vector<real> get_restrict() const;
 	std::vector<real> get_flux_restrict(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
 			const geo::dimension&) const;
-	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool tau_only =
-			false);
-	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<real> get_prolong(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
+	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub, bool energy_only);
 	void set_prolong(const std::vector<real>&, std::vector<real>&&);
 	void set_restrict(const std::vector<real>&, const geo::octant&);
 	void set_flux_restrict(const std::vector<real>&, const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub,
@@ -352,7 +348,6 @@ public:
 	void store();
 	void restore();
 	real compute_fluxes();
-	real old_compute_fluxes();
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
 	void next_u(integer rk, real t, real dt);

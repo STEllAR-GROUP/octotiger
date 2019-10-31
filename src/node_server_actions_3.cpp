@@ -15,7 +15,7 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/run_as.hpp>
 #include <hpx/include/util.hpp>
-#include <hpx/lcos/broadcast.hpp>
+#include <hpx/collectives/broadcast.hpp>
 
 #include <algorithm>
 #include <array>
@@ -330,7 +330,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (!opts().disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			diagnostics();
 			static bool first_call = true;
-			if (opts().rewrite_silo || !first_call || (opts().restart_filename == "")) {
+			if (opts().rewrite_silo || !first_call ||(opts().restart_filename == "")) {
 				printf("doing silo out...\n");
 				std::string fname = "X." + std::to_string(int(output_cnt));
 				output_all(fname, output_cnt, first_call);
@@ -500,17 +500,17 @@ void node_server::refined_step() {
 
 		compute_fmm(DRHODT, false);
 		compute_fmm(RHO, true);
-		all_hydro_bounds();
+		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 
 	}
 
 	dt_ = GET(dt_fut);
+	update();
 	if (opts().radiation) {
 		compute_radiation(dt_);
 		all_hydro_bounds();
 	}
 
-	update();
 }
 
 future<void> node_server::nonrefined_step() {
@@ -566,7 +566,7 @@ future<void> node_server::nonrefined_step() {
 																}
 																grid_ptr->next_u(rk, current_time, dt_);
 																compute_fmm(RHO, true);
-																all_hydro_bounds();
+																rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 															}, "node_server::nonrefined_step::compute_fmm"
 													)));
 								}/*, "node_server::nonrefined_step::compute_fluxes")*/);
@@ -576,12 +576,12 @@ future<void> node_server::nonrefined_step() {
 	{
 
 		GET(f);
+		update();
 		if( opts().radiation) {
 			compute_radiation(dt_);
 			all_hydro_bounds();
 		}
 
-		update();
 	});
 }
 

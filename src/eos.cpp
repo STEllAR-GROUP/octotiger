@@ -529,7 +529,7 @@ real struct_eos::density_at(real R, real dr) {
 	real r;
 	real h = h0();
 	real hdot = 0.0;
-	const int N = std::max(int(R / dr + 1.0), 100);
+	const int N = std::max(int(R / dr + 1.0), 32);
 	dr = R / real(N);
 	for (integer i = 0; i < N; ++i) {
 		//	printf("%e %e %e\n", r, h, dr);

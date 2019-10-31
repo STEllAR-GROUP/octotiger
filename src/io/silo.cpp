@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "octotiger/silo.hpp"
+#include "octotiger/io/silo.hpp"
 
 constexpr int db_type<integer>::d;
 constexpr int db_type<char>::d;
