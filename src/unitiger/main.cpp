@@ -33,10 +33,10 @@ static constexpr safe_real dt_out = tmax / 100;
 template<int NDIM, int INX>
 void run_test(typename physics<NDIM>::test_type problem, bool with_correction, bool writingForTest);
 
-template<int NDIM, int INX>
+template<int NDIM, int INX, class PHYS>
 void run_test(typename physics<NDIM>::test_type problem, bool with_correction, bool writingForTest) {
 	static constexpr safe_real CFL = (0.4 / NDIM);
-	hydro_computer<NDIM, INX> computer;
+	hydro_computer<NDIM, INX, PHYS> computer;
 	if (with_correction) {
 		computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
 	}
@@ -167,10 +167,10 @@ int main(int argc, char* argv[]) {
         }
 
         srand(123);
-        run_test<2, 50>(physics<2>::KH, false, createTests);
-        run_test<2, 64>(physics<2>::CONTACT, false, createTests);
-        run_test<3, 8>(physics<3>::SOD, false, createTests);
-        run_test<2, 50>(physics<2>::BLAST, true, createTests);
+        run_test<2, 50, physics<2>>(physics<2>::KH, false, createTests);
+        run_test<2, 64, physics<2>>(physics<2>::CONTACT, false, createTests);
+        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
+        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
 
         return 0;
 }

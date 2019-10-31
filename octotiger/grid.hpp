@@ -103,7 +103,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 using xpoint_type = real;
 using zone_int_type = int;
 
-template<int,int>
+template<int,int,class>
 class hydro_computer;
 
 class grid {
@@ -131,7 +131,7 @@ private:
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;
-	hydro_computer<NDIM,INX> hydro;
+	hydro_computer<NDIM,INX,physics<NDIM>> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
 	std::vector<std::atomic<int>> is_coarse;

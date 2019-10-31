@@ -83,7 +83,7 @@ struct physics {
 	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
 			safe_real omega, bool angmom);
 	template<int INX>
-	using comp_type = hydro_computer<NDIM, INX>;
+	using comp_type = hydro_computer<NDIM, INX, physics<NDIM>>;
 
 	template<int INX>
 	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);

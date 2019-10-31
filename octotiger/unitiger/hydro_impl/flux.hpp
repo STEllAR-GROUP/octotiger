@@ -9,10 +9,8 @@
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
 
-
-
-template<int NDIM, int INX>
-safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
+template<int NDIM, int INX, class PHYS>
+safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
 		safe_real omega) {
 
 	static thread_local auto fluxes = std::vector < std::vector
@@ -54,7 +52,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 				}
 				std::array < safe_real, NDIM > x;
 				std::array < safe_real, NDIM > vg;
-				for( int dim = 0; dim < NDIM; dim++ ) {
+				for (int dim = 0; dim < NDIM; dim++) {
 					x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
 				}
 				if constexpr (NDIM > 1) {
@@ -66,7 +64,7 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 				} else {
 					vg[0] = 0.0;
 				}
-				physics < NDIM > ::flux(UL, UR, UL0, UR0, this_flux, dim, this_am, this_ap, x,vg);
+				PHYS::flux(UL, UR, UL0, UR0, this_flux, dim, this_am, this_ap, x, vg);
 				am = std::min(am, this_am);
 				ap = std::max(ap, this_ap);
 				for (int f = 0; f < nf_; f++) {
@@ -95,7 +93,5 @@ safe_real hydro_computer<NDIM, INX>::flux(const hydro::state_type &U, const hydr
 	}
 	return amax;
 }
-
-
 
 #endif

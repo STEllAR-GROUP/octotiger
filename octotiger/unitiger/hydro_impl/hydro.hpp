@@ -11,9 +11,9 @@
 #include "octotiger/unitiger/unitiger.hpp"
 #include "octotiger/unitiger/physics.hpp"
 
-template<int NDIM, int INX>
-hydro_computer<NDIM, INX>::hydro_computer() {
-	nf_ = physics<NDIM>::field_count();
+template<int NDIM, int INX, class PHYS>
+hydro_computer<NDIM, INX, PHYS>::hydro_computer() {
+	nf_ = PHYS::field_count();
 
 	angmom_count_ = 0;
 
@@ -24,31 +24,31 @@ hydro_computer<NDIM, INX>::hydro_computer() {
 	bc_.resize(2*NDIM,OUTFLOW);
 }
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::use_smooth_recon(int field) {
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::use_smooth_recon(int field) {
 	smooth_field_[field] = true;
 }
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::use_slim_recon(int field) {
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::use_slim_recon(int field) {
 	slim_field_[field] = true;
 }
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::use_angmom_correction(int index, int count) {
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::use_angmom_correction(int index, int count) {
 	angmom_index_ = index;
 	angmom_count_ = count;
-	physics<NDIM>::set_angmom();
+	PHYS::set_angmom();
 }
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::post_process(hydro::state_type &U, safe_real dx) {
-	physics < NDIM > p;
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::post_process(hydro::state_type &U, safe_real dx) {
+	PHYS p;
 	p.template post_process < NDIM > (U, dx);
 }
 
-template<int NDIM, int INX>
-std::vector<safe_real>  hydro_computer<NDIM, INX>::get_field_sums(const hydro::state_type &U, safe_real dx) {
+template<int NDIM, int INX, class PHYS>
+std::vector<safe_real>  hydro_computer<NDIM, INX, PHYS>::get_field_sums(const hydro::state_type &U, safe_real dx) {
 	std::vector<safe_real> sums(nf_,0.0);
 	static const auto indices = geo::find_indices(geo::H_BW,geo::H_NX-geo::H_BW);
 	for( int f = 0; f < nf_; f++) {
@@ -59,8 +59,8 @@ std::vector<safe_real>  hydro_computer<NDIM, INX>::get_field_sums(const hydro::s
 	return sums;
 }
 
-template<int NDIM, int INX>
-std::vector<safe_real>  hydro_computer<NDIM, INX>::get_field_mags(const hydro::state_type &U, safe_real dx) {
+template<int NDIM, int INX, class PHYS>
+std::vector<safe_real>  hydro_computer<NDIM, INX, PHYS>::get_field_mags(const hydro::state_type &U, safe_real dx) {
 	std::vector<safe_real> sums(nf_,0.0);
 	static const auto indices = geo::find_indices(geo::H_BW,geo::H_NX-geo::H_BW);
 	for( int f = 0; f < nf_; f++) {

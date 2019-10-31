@@ -334,13 +334,13 @@ void physics<NDIM>::set_angmom() {
 
 template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
+std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
-	std::vector<typename hydro_computer<NDIM, INX>::bc_type> bc(2 * NDIM);
+	std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> bc(2 * NDIM);
 
 	for (int i = 0; i < 2 * NDIM; i++) {
-		bc[i] = hydro_computer<NDIM, INX>::OUTFLOW;
+		bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::OUTFLOW;
 	}
 
 	switch (t) {
@@ -351,7 +351,7 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 	case KH:
 	case CONTACT:
 		for (int i = 0; i < 2 * NDIM; i++) {
-			bc[i] = hydro_computer<NDIM, INX>::PERIODIC;
+			bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::PERIODIC;
 		}
 		break;
 	}

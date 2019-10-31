@@ -34,7 +34,7 @@ using recon_type =std::vector<std::vector<std::array<safe_real, NDIM == 1 ? 3 : 
 using state_type = std::vector<std::vector<safe_real>>;
 }
 
-template<int NDIM, int INX>
+template<int NDIM, int INX, class PHYSICS>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
 	using geo = cell_geometry<NDIM,INX>;
 
