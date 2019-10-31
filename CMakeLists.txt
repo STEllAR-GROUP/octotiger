@@ -223,6 +223,8 @@ add_hpx_library(
     octotiger/unitiger/hydro_impl/hydro.hpp
     octotiger/unitiger/hydro_impl/reconstruct.hpp
     octotiger/unitiger/hydro_impl/flux.hpp
+    octotiger/unitiger/radiation/radiation_physics.hpp
+    octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
     octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp
 )

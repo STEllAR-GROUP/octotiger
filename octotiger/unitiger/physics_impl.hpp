@@ -67,24 +67,6 @@ void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<s
 }
 
 template<int NDIM>
-void physics<NDIM>::flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0,
-		const std::vector<safe_real> &UR0, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
-		std::array<safe_real, NDIM> &vg) {
-
-	safe_real pr, vr, pl, vl, vr0, vl0, amr, apr, aml, apl;
-
-	static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
-
-	physical_flux(UR, FR, dim, amr, apr, x, vg);
-	physical_flux(UL, FL, dim, aml, apl, x, vg);
-	ap = std::max(std::max(apr, apl), safe_real(0.0));
-	am = std::min(std::min(amr, aml), safe_real(0.0));
-	for (int f = 0; f < nf_; f++) {
-		F[f] = (ap * FL[f] - am * FR[f] + ap * am * (UR[f] - UL[f])) / (ap - am);
-	}
-}
-
-template<int NDIM>
 template<int INX>
 void physics<NDIM>::post_process(hydro::state_type &U, safe_real dx) {
 	static const cell_geometry<NDIM, INX> geo;
@@ -328,19 +310,14 @@ void physics<NDIM>::set_n_species(int n) {
 }
 
 template<int NDIM>
-void physics<NDIM>::set_angmom() {
-	angmom_ = true;
-}
-
-template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
+std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
-	std::vector<typename hydro_computer<NDIM, INX>::bc_type> bc(2 * NDIM);
+	std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> bc(2 * NDIM);
 
 	for (int i = 0; i < 2 * NDIM; i++) {
-		bc[i] = hydro_computer<NDIM, INX>::OUTFLOW;
+		bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::OUTFLOW;
 	}
 
 	switch (t) {
@@ -351,7 +328,7 @@ std::vector<typename hydro_computer<NDIM, INX>::bc_type> physics<NDIM>::initiali
 	case KH:
 	case CONTACT:
 		for (int i = 0; i < 2 * NDIM; i++) {
-			bc[i] = hydro_computer<NDIM, INX>::PERIODIC;
+			bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::PERIODIC;
 		}
 		break;
 	}

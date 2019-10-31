@@ -5,8 +5,8 @@
 
 #pragma once
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::boundaries(hydro::state_type &U) {
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U) {
 
 	for (int f = 0; f < nf_; f++) {
 		if CONSTEXPR(NDIM == 1) {
