@@ -7,8 +7,8 @@
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X,
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X,
 		safe_real dx, safe_real dt, safe_real beta, safe_real omega) {
 	static thread_local std::vector<std::vector<safe_real>> dudt(nf_, std::vector < safe_real > (geo::H_N3));
 	for (int f = 0; f < nf_; f++) {
@@ -25,7 +25,7 @@ void hydro_computer<NDIM, INX>::advance(const hydro::state_type &U0, hydro::stat
 			}
 		}
 	}
-	physics < NDIM > ::template source<INX>(dudt, U, F, X, omega, dx);
+	PHYS ::template source<INX>(dudt, U, F, X, omega, dx);
 	for (int f = 0; f < nf_; f++) {
 		for (const auto &i : geo::find_indices(geo::H_BW, geo::H_NX - geo::H_BW)) {
 			safe_real u0 = U0[f][i];

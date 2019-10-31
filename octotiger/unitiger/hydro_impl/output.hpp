@@ -6,8 +6,8 @@
 #include "../unitiger.hpp"
 
 
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real t) {
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const hydro::x_type &X, int num, safe_real t) {
 
 	const auto dx = X[0][1] - X[0][0];
 	FILE *fp = fopen("sums.dat", "at");
@@ -74,8 +74,8 @@ void hydro_computer<NDIM, INX>::output(const hydro::state_type &U, const hydro::
 	}
 
 }
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::outputQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::outputQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
 {       
         std::string filename;
         
@@ -91,8 +91,8 @@ void hydro_computer<NDIM, INX>::outputQ(const hydro::recon_type<NDIM> &Q, int nu
                 }
         fclose(fp);
 }
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::outputU(const hydro::state_type &U, int num, std::string test_type){
+template<int NDIM, int INX,class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::outputU(const hydro::state_type &U, int num, std::string test_type){
         std::string filename;
 
         if (num > 0)
@@ -105,8 +105,8 @@ void hydro_computer<NDIM, INX>::outputU(const hydro::state_type &U, int num, std
         }
         fclose(fp);
 }
-template<int NDIM, int INX>
-void hydro_computer<NDIM, INX>::outputF(const hydro::flux_type &Fl, int num, std::string test_type){
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::outputF(const hydro::flux_type &Fl, int num, std::string test_type){
         std::string filename;
 
         if (num > 0)
@@ -122,8 +122,8 @@ void hydro_computer<NDIM, INX>::outputF(const hydro::flux_type &Fl, int num, std
         }
         fclose(fp);
 }
-template<int NDIM, int INX>
-int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
+template<int NDIM, int INX,class PHYS>
+int hydro_computer<NDIM, INX, PHYS>::compareQ(const hydro::recon_type<NDIM> &Q, int num, std::string test_type)
 {
         double dline[geo::NDIR];
         std::string filename;
@@ -156,8 +156,8 @@ int hydro_computer<NDIM, INX>::compareQ(const hydro::recon_type<NDIM> &Q, int nu
                 return -1;
         return 1;
 }
-template<int NDIM, int INX>
-int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std::string test_type)
+template<int NDIM, int INX, class PHYS>
+int hydro_computer<NDIM, INX, PHYS>::compareF(const hydro::flux_type &Fl, int num, std::string test_type)
 {
         double dline[geo::H_N3];
         std::string filename;
@@ -190,8 +190,8 @@ int hydro_computer<NDIM, INX>::compareF(const hydro::flux_type &Fl, int num, std
                 return -1;
         return 1;
 }
-template<int NDIM, int INX>
-int hydro_computer<NDIM, INX>::compareU(const hydro::state_type &U, int num, std::string test_type){
+template<int NDIM, int INX, class PHYS>
+int hydro_computer<NDIM, INX, PHYS>::compareU(const hydro::state_type &U, int num, std::string test_type){
         hydro::state_type V;
         double dline[geo::H_NX];
         std::string filename;

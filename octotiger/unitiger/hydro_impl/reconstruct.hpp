@@ -12,8 +12,8 @@
 #include <octotiger/common_kernel/struct_of_array_data.hpp>
 
 //#ifdef OCTOTIGER_WITH_CUDA
-template<int NDIM, int INX>
-const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+template<int NDIM, int INX, class PHYS>
+const hydro::recon_type<NDIM>& hydro_computer<NDIM,INX,PHYS>::reconstruct_cuda(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 
 //	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
 //		D1_SoA;
@@ -43,8 +43,8 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct_cuda(hydro
 }
 //#endif
 
-template<int NDIM, int INX>
-const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+template<int NDIM, int INX, class PHYS>
+const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 
 	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 	static thread_local auto QS = std::vector < std::vector<std::array<safe_real, geo::NDIR>>
@@ -80,7 +80,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 	static constexpr auto dir = geo::direction();
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
-	const auto &U = physics < NDIM > ::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
+	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 
 	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
 		std::array < safe_real, geo::NANGMOM > L;
@@ -174,7 +174,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 		}
 	};
 
-
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
@@ -216,14 +215,14 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 							}
 						}
 
-						physics < NDIM > ::template pre_angmom<INX>(U, Q, Z, S, i, dx);
+						PHYS::template pre_angmom<INX>(U, Q, Z, S, i, dx);
 						auto am1 = measure_angmom(S);
 						decltype(Z) am2;
 						for (int dim = 0; dim < geo::NANGMOM; dim++) {
 							am2[dim] = Z[dim] - am1[dim];
 						}
 						add_angmom(S, am2);
-						physics < NDIM > ::template post_angmom<INX>(U, Q, Z, S, i, dx);
+						PHYS::template post_angmom<INX>(U, Q, Z, S, i, dx);
 
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
@@ -323,7 +322,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX>::reconstruct(const hydr
 
 	}
 
-	physics < NDIM > ::template post_recon<INX>(Q_SoA, X, omega, angmom_count_ > 0);
+	PHYS::template post_recon<INX>(Q_SoA, X, omega, angmom_count_ > 0);
 
 	SoA2AoS(0, nf_);
 	return Q;

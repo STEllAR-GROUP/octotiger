@@ -26,7 +26,6 @@ struct physics {
 	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 	static safe_real de_switch_1;
 	static safe_real de_switch_2;
-	static bool angmom_;
 
 	enum test_type {
 		SOD, BLAST, KH, CONTACT
@@ -56,9 +55,6 @@ struct physics {
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
 			std::array<safe_real, NDIM> &vg);
 
-	static void flux(const std::vector<safe_real> &UL, const std::vector<safe_real> &UR, const std::vector<safe_real> &UL0, const std::vector<safe_real> &UR0,
-			std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg);
-
 	template<int INX>
 	static void post_process(hydro::state_type &U, safe_real dx);
 
@@ -83,7 +79,7 @@ struct physics {
 	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
 			safe_real omega, bool angmom);
 	template<int INX>
-	using comp_type = hydro_computer<NDIM, INX>;
+	using comp_type = hydro_computer<NDIM, INX, physics<NDIM>>;
 
 	template<int INX>
 	std::vector<typename comp_type<INX>::bc_type> initialize(test_type t, hydro::state_type &U, hydro::x_type &X);
@@ -93,11 +89,13 @@ struct physics {
 
 	static void set_n_species(int n);
 
-	static void set_angmom();
-
 	static void set_dual_energy_switches(safe_real one, safe_real two) {
 		de_switch_1 = one;
 		de_switch_2 = two;
+	}
+
+	static int get_angmom_index() {
+		return sx_i;
 	}
 
 private:
@@ -112,9 +110,6 @@ safe_real physics<NDIM>::de_switch_1 = 1e-3;
 
 template<int NDIM>
 safe_real physics<NDIM>::de_switch_2 = 1e-1;
-
-template<int NDIM>
-bool physics<NDIM>::angmom_ = false;
 
 template<int NDIM>
 int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + physics<NDIM>::n_species_;
