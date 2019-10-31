@@ -98,7 +98,6 @@ namespace fmm {
                 four_constants.push_back(four);
             }
 
-            std::cout << superimposed_stencil.size() << std::endl;
             int i = 0;
             int minx = 0;
             int maxx = 0;
@@ -132,10 +131,11 @@ namespace fmm {
                 // since the exceptions do not stop the execution use this for now to avoid hanging large jobs...
                 exit(EXIT_FAILURE);
             }
-            if (predicted_max != maxx) {
+            if (predicted_max < maxx) {
                 std::stringstream error_string;
                 error_string << "ERROR: Maximum stencil size seems to be wrong. " << std::endl;
                 error_string << "Please recompile with an appropriate minumal value for theta" << std::endl;
+                error_string << "Max stencil length is " << predicted_max << ", actual stencil length is " << maxx << std::endl;
                 std::cerr << error_string.str();
                 // TODO Why do these exceptions not work?
                 // throw std::logic_error(error_string.str());
