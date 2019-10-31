@@ -94,6 +94,10 @@ struct physics {
 		de_switch_2 = two;
 	}
 
+	static int get_angmom_index() {
+		return sx_i;
+	}
+
 private:
 	static int nf_;
 	static int n_species_;

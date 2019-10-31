@@ -14,6 +14,8 @@
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
+#include "octotiger/unitiger/radiation/radiation_physics.hpp"
+#include "octotiger/unitiger/radiation/radiation_physics_impl.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
@@ -30,17 +32,17 @@ static constexpr safe_real dt_out = tmax / 100;
 #define H_NX (INX + 2 * H_BW)
 #define H_N3 std::pow(INX+2*H_BW,NDIM)
 
-template<int NDIM, int INX>
-void run_test(typename physics<NDIM>::test_type problem, bool with_correction, bool writingForTest);
+template<int NDIM, int INX, class PHYS>
+void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest);
 
 template<int NDIM, int INX, class PHYS>
-void run_test(typename physics<NDIM>::test_type problem, bool with_correction, bool writingForTest) {
+void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest) {
 	static constexpr safe_real CFL = (0.4 / NDIM);
 	hydro_computer<NDIM, INX, PHYS> computer;
 	if (with_correction) {
-		computer.use_angmom_correction(physics<NDIM>::sx_i, 1);
+		computer.use_angmom_correction(PHYS::get_angmom_index(), 1);
 	}
-	const auto nf = physics<NDIM>::field_count();
+	const auto nf = PHYS::field_count();
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(nf, std::vector<safe_real>(H_N3));
@@ -53,9 +55,9 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction, b
 	int iter = 0;
 	int oter = 0;
         bool printEachTimeStep = true;
-        std::string type_test_string = physics<NDIM>::get_test_type_string(problem);
+        std::string type_test_string = PHYS::get_test_type_string(problem);
         hydro::recon_type<NDIM> q;
-	physics<NDIM> phys;
+	PHYS phys;
 	computer.set_bc(phys.template initialize<INX>(problem, U, X));
 	const safe_real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
 	computer.output(U, X, oter++, 0);
@@ -105,7 +107,7 @@ void run_test(typename physics<NDIM>::test_type problem, bool with_correction, b
                 }
         }
 //      U0 = U;
-//      physics<NDIM>::template analytic_solution<INX>(problem, U, X, t);
+//      PHYS::template analytic_solution<INX>(problem, U, X, t);
 //      computer.output(U, X, iter++, t);
 //
 //      phys.template pre_recon<INX>(U0, X, omega, with_correction);
@@ -171,6 +173,7 @@ int main(int argc, char* argv[]) {
         run_test<2, 64, physics<2>>(physics<2>::CONTACT, false, createTests);
         run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
         run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
+        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
 
         return 0;
 }
