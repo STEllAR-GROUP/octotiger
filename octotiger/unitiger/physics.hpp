@@ -26,7 +26,6 @@ struct physics {
 	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
 	static safe_real de_switch_1;
 	static safe_real de_switch_2;
-	static bool angmom_;
 
 	enum test_type {
 		SOD, BLAST, KH, CONTACT
@@ -90,8 +89,6 @@ struct physics {
 
 	static void set_n_species(int n);
 
-	static void set_angmom();
-
 	static void set_dual_energy_switches(safe_real one, safe_real two) {
 		de_switch_1 = one;
 		de_switch_2 = two;
@@ -109,9 +106,6 @@ safe_real physics<NDIM>::de_switch_1 = 1e-3;
 
 template<int NDIM>
 safe_real physics<NDIM>::de_switch_2 = 1e-1;
-
-template<int NDIM>
-bool physics<NDIM>::angmom_ = false;
 
 template<int NDIM>
 int physics<NDIM>::nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + physics<NDIM>::n_species_;
