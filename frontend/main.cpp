@@ -26,6 +26,7 @@
 #include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
 #endif
+#include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
 #include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
@@ -88,6 +89,15 @@ std::size_t init_thread_local_worker(std::size_t desired)
         multi_inter_p2p::inner_stencil_masks() =
             multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil())
                 .second;
+        std::cout << "Subgrid side-length is " << INX << std::endl;
+        std::cout << "Stencil max half side-length is " << STENCIL_WIDTH << " (Total length " << 2 * STENCIL_WIDTH + 1 << std::endl;
+        if (STENCIL_WIDTH > INX) {
+                std::stringstream error_string;
+                error_string << "ERROR: Stencil is too wide for the subgrid size" << std::endl;
+                error_string << "Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file)" << std::endl;
+                std::cerr << error_string.str();
+                throw std::logic_error(error_string.str());
+        }
 
         std::cout << "OS-thread " << current << " on locality "
                   << hpx::get_locality_id()

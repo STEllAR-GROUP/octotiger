@@ -30,10 +30,7 @@ namespace fmm {
             // int64_t i1 = 0;
             // int64_t i2 = 0;
 
-            int predicted_max = 2.0/(theta0) + 1;
-            if (predicted_max % 2 == 0)
-                predicted_max--;
-            std::cout << "Predicted max : " << predicted_max << std::endl;
+            int predicted_max = STENCIL_WIDTH;
 
             for (int64_t i0 = 0; i0 < 2; ++i0) {
                 for (int64_t i1 = 0; i1 < 2; ++i1) {
@@ -145,9 +142,6 @@ namespace fmm {
                 exit(EXIT_FAILURE);
 
             }
-            std::cout << "x range " << minx << " - " << maxx << std::endl;
-            std::cout << "x range " << miny << " - " << maxy << std::endl;
-            std::cout << "z range " << minz << " - " << maxz << std::endl;
             return superimposed_stencil;
         }
         std::pair<std::vector<bool>, std::vector<bool>>
