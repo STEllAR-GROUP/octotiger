@@ -32,14 +32,14 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 	const auto *fr = &U[fx_i];
 	std::array<double, NDIM> n;
 	std::array<double, NDIM> T;
-	for (int this_dim = 0; this_dim < NDIM; this_dim++) {
-		fmag += fr[fx_i + this_dim] * fr[fx_i + this_dim];
+	for (int d = 0; d < NDIM; d++) {
+		fmag += fr[fx_i + d] * fr[fx_i + d];
 	}
 	fmag = std::sqrt(fmag);
 	const auto fedd = fmag / (c * er);
 	const auto fmaginv = 1.0 / fmag;
-	for (int this_dim = 0; this_dim < NDIM; this_dim++) {
-		n[this_dim] = fr[this_dim] * fmaginv;
+	for (int d = 0; d < NDIM; d++) {
+		n[d] = fr[d] * fmaginv;
 	}
 
 	const auto f2 = fedd * fedd;
@@ -50,18 +50,18 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 	const auto den = (pow(5 + 2 * s4m3f2, 2) * s4m3f2);
 	const auto lam_s = (-12 * f3 + fedd * (41 + 20 * s4m3f2)) / den;
 	const auto lam_d = (2 * sqrt(3) * sqrt(-48 * f6 + 8 * f4 * (61 + 16 * s4m3f2) - f2 * (787 + 328 * s4m3f2) + (365 + 182 * s4m3f2))) / den;
-	ap = lam_s * n[dim] + lam_d;
-	am = lam_s * n[dim] - lam_d;
+	ap = lam_s * n[dim] + lam_d - vg[dim];
+	am = lam_s * n[dim] - lam_d - vg[dim];
 
 	const auto chi = (3 + 4 * fedd * fedd) / (5 + 2 * s4m3f2);
-	for (int this_dim = 0; this_dim < NDIM; this_dim++) {
-		T[this_dim] = (3 * chi - 1) / 2. * n[dim] * n[this_dim];
+	for (int d = 0; d < NDIM; d++) {
+		T[d] = (3 * chi - 1) / 2. * n[dim] * n[d];
 	}
 	T[dim] += (1 - chi) / 2.;
 
-	F[er_i] = fr[fx_i + dim];
-	for (int this_dim = 0; this_dim < NDIM; this_dim++) {
-		F[fx_i + this_dim] = er * T[this_dim];
+	F[er_i] = fr[fx_i + dim] - vg[dim] * er;
+	for (int d = 0; d < NDIM; d++) {
+		F[fx_i + d] = er * T[d] - vg[dim] * fr[fx_i + d];
 	}
 
 }
