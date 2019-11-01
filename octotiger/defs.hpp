@@ -183,8 +183,8 @@ constexpr integer gx_i = 1;
 constexpr integer gy_i = 2;
 constexpr integer gz_i = 3;
 
-constexpr std::array<boundary_type, NFACE> boundary_types = {
-    OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW};
+constexpr std::array<boundary_type, NFACE> boundary_types = {{
+    OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW}};
 
 // #define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
 constexpr inline integer h0index(integer i, integer j, integer k)
