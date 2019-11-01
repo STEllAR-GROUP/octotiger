@@ -30,6 +30,7 @@
 
 class options {
 public:
+	bool unigrid;
 	bool disable_diagnostics;
 	bool bench;
 	bool disable_output;
@@ -104,6 +105,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc & unigrid;
 		arc & rotating_star_amr;
 		arc & rotating_star_x;
 		arc & future_wait_time;

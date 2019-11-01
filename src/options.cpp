@@ -94,6 +94,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("dual_energy_sw1", po::value<real>(&(opts().dual_energy_sw1))->default_value(0.001), "dual energy switch 1") //
 	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.1), "dual energy switch 2") //
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
+	("unigrid", po::value<bool>(&(opts().unigrid))->default_value(false), "unigrid") //
 	("disable_output", po::value<bool>(&(opts().disable_output))->default_value(false), "disable silo output") //
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics))->default_value(false), "disable diagnostics") //
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
@@ -181,6 +182,7 @@ bool options::process_options(int argc, char *argv[]) {
 			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
 			silo_num_groups = num_loc;
 		}
+		SHOW(unigrid);
 		SHOW(scf_output_frequency);
 		SHOW(silo_num_groups);
 		SHOW(amrbnd_order);
