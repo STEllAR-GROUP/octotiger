@@ -17,9 +17,9 @@ struct radiation_physics {
 	static constexpr int fx_i = 1;
 	static constexpr int fy_i = 2;
 	static constexpr int fz_i = 3;
-	static constexpr int lx_i = 4;
-	static constexpr int ly_i = 5;
-	static constexpr int lz_i = 6;
+	static constexpr int wx_i = 1 + NDIM;
+	static constexpr int wy_i = 1 + NDIM;
+	static constexpr int wz_i = 1 + NDIM;
 	static bool angmom_;
 
 	enum test_type {
@@ -37,8 +37,6 @@ struct radiation_physics {
 
 	static int field_count();
 
-
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, int dim);
 
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
 			std::array<safe_real, NDIM> &vg);
