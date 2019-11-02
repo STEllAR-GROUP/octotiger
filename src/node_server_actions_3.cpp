@@ -327,8 +327,8 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (step_num > opts().stop_step)
 			break;
 		auto time_start = std::chrono::high_resolution_clock::now();
+		auto diags = diagnostics();
 		if (!opts().disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
-			diagnostics();
 			static bool first_call = true;
 			if (opts().rewrite_silo || !first_call ||(opts().restart_filename == "")) {
 				printf("doing silo out...\n");
@@ -357,7 +357,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			if( !opts().disable_diagnostics) {
 				printf("diagnostics...\n");
 			}
-			auto diags = diagnostics();
 			omega = grid::get_omega();
 
 			const real dx = diags.com[1][XDIM] - diags.com[0][XDIM];
@@ -366,7 +365,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			const real dy_dot = diags.com_dot[1][YDIM] - diags.com_dot[0][YDIM];
 			theta = atan2(dy, dx);
 			omega = grid::get_omega();
-			printf("Old Omega = %e\n", omega);
 			if (opts().variable_omega) {
 				theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
 				const real w0 = grid::get_omega() * 10.0;
