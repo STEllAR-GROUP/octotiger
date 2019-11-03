@@ -118,33 +118,13 @@ template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 	PROF_BEGIN
 	;
-	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
-	static thread_local auto QS = std::vector < std::vector<std::array<safe_real, geo::NDIR>>
-			> (NDIM, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 	static thread_local auto AM = std::vector < std::vector < safe_real >> (geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
-	static thread_local auto Q_SoA = std::vector < std::vector<std::vector<safe_real>>
+	static thread_local auto Q = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
+	static thread_local auto QS = std::vector < std::vector<std::vector<safe_real>>
+			> (NDIM, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
 
-	static const auto SoA2AoS = [](int f1, int f2) {
-		for (int f = f1; f < f2; f++) {
-			for (int i = 0; i < geo::H_N3; i++) {
-				for (int d = 0; d < geo::NDIR; d++) {
-					Q[f][i][d] = Q_SoA[f][d][i];
-				}
-			}
-		}
-	};
-
-	static const auto AoS2SoA = [](int f1, int f2) {
-		for (int f = f1; f < f2; f++) {
-			for (int i = 0; i < geo::H_N3; i++) {
-				for (int d = 0; d < geo::NDIR; d++) {
-					Q_SoA[f][d][i] = Q[f][i][d];
-				}
-			}
-		}
-	};
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
@@ -155,41 +135,35 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f], slim_field_[f]);
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f], slim_field_[f]);
 		}
 
 		int sx_i = angmom_index_;
 		int zx_i = sx_i + NDIM;
 
-		SoA2AoS(rho_i, rho_i + 1);
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q_SoA[f], U[f], false, false);
+				reconstruct_ppm(Q[f], U[f], false, false);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_constant(Q_SoA[f], U[f]);
+				reconstruct_constant(Q[f], U[f]);
 			}
 
-			SoA2AoS(sx_i, sx_i + NDIM);
 
 			for (int j = 0; j < geo::H_NX_XM4; j++) {
 				for (int k = 0; k < geo::H_NX_YM4; k++) {
 					for (int l = 0; l < geo::H_NX_ZM4; l++) {
 						const int i = geo::to_index(j + 2, k + 2, l + 2);
 
-						std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
-						for (int n = 0; n < geo::NANGMOM; n++) {
-							AM[n][i] = U[zx_i + n][i];
-						}
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
-								S[dim][d] = Q[sx_i + dim][i][d] * Q[0][i][d];
+								QS[dim][d][i] = Q[sx_i + dim][d][i] * Q[0][d][i];
 							}
 						}
 
@@ -199,7 +173,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								for (int q = 0; q < NDIM; q++) {
 									for (int d = 0; d < geo::NDIR; d++) {
 										if (d != geo::NDIR / 2) {
-											AM[n][i] += vw[d] * kdelta[n][m][q] * 0.5 * xloc[d][m] * S[q][d] * dx;
+											AM[n][i] += vw[d] * kdelta[n][m][q] * 0.5 * xloc[d][m] * QS[q][d][i] * dx;
 										}
 									}
 								}
@@ -214,7 +188,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 									for (int m = 0; m < NDIM; m++) {
 										for (int l = 0; l < NDIM; l++) {
 											const auto tmp = 6.0 * AM[n][i] / dx;
-											S[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
+											QS[l][d][i] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
 										}
 									}
 								}
@@ -224,25 +198,22 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
 								if (d != geo::NDIR / 2) {
-									auto s = S[dim][d] / Q[0][i][d];
+									auto s = QS[dim][d][i] / Q[0][d][i];
 									const auto &up = U[sx_i + dim][i + dir[d]];
 									const auto &u0 = U[sx_i + dim][i];
 									const auto M = std::max(u0, up);
 									const auto m = std::min(u0, up);
 									s = std::min(s, M);
-									S[dim][d] = std::max(s, m);
+									QS[dim][d][i] = std::max(s, m);
 								}
 							}
 						}
 
 						for (int dim = 0; dim < NDIM; dim++) {
-							for (int d = 0; d < geo::NDIR; d++) {
-								QS[dim][i][d] = S[dim][d];
-							}
 							for (int d = 0; d < geo::NDIR / 2; d++) {
 								const auto dp = d;
 								const auto dm = geo::flip(d);
-								limit_slope(QS[dim][i][dm], U[sx_i + dim][i], QS[dim][i][dp]);
+								limit_slope(QS[dim][dm][i], U[sx_i + dim][i], QS[dim][dp][i]);
 							}
 						}
 					}
@@ -260,14 +231,14 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								const auto ur = U[f][i + dir[d]];
 								const auto u0 = U[f][i];
 								const auto ul = U[f][i - dir[d]];
-								const auto qr = (Q[f][i][dp] + Q[f][i + dir[d]][dm]) / 2.0;
-								const auto ql = (Q[f][i][dm] + Q[f][i - dir[d]][dp]) / 2.0;
-								const auto Mr = std::max(qr, QS[dim][i + dir[d]][dm]);
-								const auto mr = std::min(qr, QS[dim][i + dir[d]][dm]);
-								const auto Ml = std::max(ql, QS[dim][i - dir[d]][dp]);
-								const auto ml = std::min(ql, QS[dim][i - dir[d]][dp]);
-								const auto M = std::max(QS[dim][i][dp], QS[dim][i][dm]);
-								const auto m = std::min(QS[dim][i][dp], QS[dim][i][dm]);
+								const auto qr = (Q[f][dp][i] + Q[f][dm][i + dir[d]]) / 2.0;
+								const auto ql = (Q[f][dm][i] + Q[f][dp][i - dir[d]]) / 2.0;
+								const auto Mr = std::max(qr, QS[dim][dm][i + dir[d]]);
+								const auto mr = std::min(qr, QS[dim][dm][i + dir[d]]);
+								const auto Ml = std::max(ql, QS[dim][dp][i - dir[d]]);
+								const auto ml = std::min(ql, QS[dim][dp][i - dir[d]]);
+								const auto M = std::max(QS[dim][dp][i], QS[dim][dm][i]);
+								const auto m = std::min(QS[dim][dp][i], QS[dim][dm][i]);
 								double theta = 1.0;
 								if (ur > u0 && u0 > ul) {
 									if (M - u0 != 0.0) {
@@ -299,8 +270,8 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								const auto dm = geo::flip(d);
 								for (int d = 0; d < geo::NDIR / 2; d++) {
 									const auto &theta = Theta[i];
-									Q[f][i][dp] = theta * QS[dim][i][dp] + (1.0 - theta) * Q[f][i][dp];
-									Q[f][i][dm] = theta * QS[dim][i][dm] + (1.0 - theta) * Q[f][i][dm];
+									Q[f][dp][i] = theta * QS[dim][dp][i] + (1.0 - theta) * Q[f][dp][i];
+									Q[f][dm][i] = theta * QS[dim][dm][i] + (1.0 - theta) * Q[f][dm][i];
 								}
 							}
 						}
@@ -308,20 +279,19 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 				}
 			}
 
-			AoS2SoA(sx_i, sx_i + NDIM);
 
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f], slim_field_[f]);
 		}
 
 	}
 
-	PHYS::template post_recon<INX>(Q_SoA, X, omega, angmom_count_ > 0);
+	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
 
 	PROF_END;
-	return Q_SoA;
+	return Q;
 }
 
