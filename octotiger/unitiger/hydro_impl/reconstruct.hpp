@@ -10,6 +10,7 @@
 #include <octotiger/cuda_util/cuda_helper.hpp>
 #include <octotiger/cuda_util/cuda_scheduler.hpp>
 #include <octotiger/common_kernel/struct_of_array_data.hpp>
+#include <octotiger/profiler.hpp>
 
 //#ifdef OCTOTIGER_WITH_CUDA
 template<int NDIM, int INX, class PHYS>
@@ -43,15 +44,85 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM,INX,PHYS>::reconstruct_cuda(h
 }
 //#endif
 
+
+void reconstruct_constant(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto dir = geo.direction();
+	for (int d = 0; d < geo.NDIR; d++) {
+		const auto di = dir[d];
+		for (int j = 0; j < geo.H_NX_XM6; j++) {
+			for (int k = 0; k < geo.H_NX_YM6; k++) {
+				for (int l = 0; l < geo.H_NX_ZM6; l++) {
+					const int i = geo.to_index(j + 3, k + 3, l + 3);
+					q[d][i] = u[i];
+				}
+			}
+		}
+	}
+}
+
+
+void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool slim) {
+	PROF_BEGIN;
+
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto dir = geo.direction();
+	static thread_local auto D1 = std::vector < safe_real > (geo.H_N3, 0.0);
+	const int xb1 = slim ? geo.H_NX_XM4 : geo.H_NX_XM2;
+	const int yb1 = slim ? geo.H_NX_YM4 : geo.H_NX_YM2;
+	const int zb1 = slim ? geo.H_NX_ZM4 : geo.H_NX_ZM2;
+	const int xb2 = slim ? geo.H_NX_XM6 : geo.H_NX_XM4;
+	const int yb2 = slim ? geo.H_NX_YM6 : geo.H_NX_YM4;
+	const int zb2 = slim ? geo.H_NX_ZM6 : geo.H_NX_ZM4;
+	const int o1 = slim ? 2 : 1;
+	const int o2 = slim ? 3 : 2;
+	for (int d = 0; d < geo.NDIR / 2; d++) {
+		const auto di = dir[d];
+		for (int j = 0; j < xb1; j++) {
+			for (int k = 0; k < yb1; k++) {
+				for (int l = 0; l < zb1; l++) {
+					const int i = geo.to_index(j + o1, k + o1, l + o1);
+					D1[i] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
+				}
+			}
+		}
+		for (int j = 0; j < xb1; j++) {
+			for (int k = 0; k < yb1; k++) {
+				for (int l = 0; l < zb1; l++) {
+					const int i = geo.to_index(j + o1, k + o1, l + o1);
+					q[d][i] = 0.5 * (u[i] + u[i + di]);
+					q[d][i] += (1.0 / 6.0) * (D1[i] - D1[i + di]);
+					q[geo.flip(d)][i + di] = q[d][i];
+				}
+			}
+		}
+	}
+	if (!smooth) {
+		for (int d = 0; d < geo.NDIR / 2; d++) {
+			for (int j = 0; j < xb2; j++) {
+				for (int k = 0; k < yb2; k++) {
+					for (int l = 0; l < zb2; l++) {
+						const int i = geo.to_index(j + o2, k + o2, l + o2);
+						auto &qp = q[geo.flip(d)][i];
+						auto &qm = q[d][i];
+						limit_slope(qm, u[i], qp);
+					}
+				}
+			}
+		}
+	}
+	PROF_END;
+};
+
+
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
-
+	PROF_BEGIN;
 	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 	static thread_local auto QS = std::vector < std::vector<std::array<safe_real, geo::NDIR>>
 			> (NDIM, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 	static thread_local auto Q_SoA = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
-	static thread_local auto D1 = std::vector < safe_real > (geo::H_N3, 0.0);
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
 
 	static const auto SoA2AoS = [](int f1, int f2) {
@@ -114,65 +185,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 		}
 	};
 
-	const auto reconstruct_ppm = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool slim) {
-		const int xb1 = slim ? geo::H_NX_XM4 : geo::H_NX_XM2;
-		const int yb1 = slim ? geo::H_NX_YM4 : geo::H_NX_YM2;
-		const int zb1 = slim ? geo::H_NX_ZM4 : geo::H_NX_ZM2;
-		const int xb2 = slim ? geo::H_NX_XM6 : geo::H_NX_XM4;
-		const int yb2 = slim ? geo::H_NX_YM6 : geo::H_NX_YM4;
-		const int zb2 = slim ? geo::H_NX_ZM6 : geo::H_NX_ZM4;
-		const int o1 = slim ? 2 : 1;
-		const int o2 = slim ? 3 : 2;
-		for (int d = 0; d < geo::NDIR / 2; d++) {
-			const auto di = dir[d];
-			for (int j = 0; j < xb1; j++) {
-				for (int k = 0; k < yb1; k++) {
-					for (int l = 0; l < zb1; l++) {
-						const int i = geo::to_index(j + o1, k + o1, l + o1);
-						D1[i] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
-					}
-				}
-			}
-			for (int j = 0; j < xb1; j++) {
-				for (int k = 0; k < yb1; k++) {
-					for (int l = 0; l < zb1; l++) {
-						const int i = geo::to_index(j + o1, k + o1, l + o1);
-						q[d][i] = 0.5 * (u[i] + u[i + di]);
-						q[d][i] += (1.0 / 6.0) * (D1[i] - D1[i + di]);
-						q[geo::flip(d)][i + di] = q[d][i];
-					}
-				}
-			}
-		}
-		if (!smooth) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				for (int j = 0; j < xb2; j++) {
-					for (int k = 0; k < yb2; k++) {
-						for (int l = 0; l < zb2; l++) {
-							const int i = geo::to_index(j + o2, k + o2, l + o2);
-							auto &qp = q[geo::flip(d)][i];
-							auto &qm = q[d][i];
-							limit_slope(qm, u[i], qp);
-						}
-					}
-				}
-			}
-		}
-	};
-
-	const auto reconstruct_constant = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
-		for (int d = 0; d < geo::NDIR; d++) {
-			const auto di = dir[d];
-			for (int j = 0; j < geo::H_NX_XM6; j++) {
-				for (int k = 0; k < geo::H_NX_YM6; k++) {
-					for (int l = 0; l < geo::H_NX_ZM6; l++) {
-						const int i = geo::to_index(j + 3, k + 3, l + 3);
-						q[d][i] = u[i];
-					}
-				}
-			}
-		}
-	};
 
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
@@ -325,6 +337,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	PHYS::template post_recon<INX>(Q_SoA, X, omega, angmom_count_ > 0);
 
 	SoA2AoS(0, nf_);
+	PROF_END;
 	return Q;
 }
 

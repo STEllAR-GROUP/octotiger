@@ -703,7 +703,7 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 
 void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
 		const geo::dimension &dim) {
-	PROF_BEGIN;
+
 	integer index = 0;
 	for (integer field = 0; field != NRF; ++field) {
 		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
@@ -715,11 +715,11 @@ void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array
 				}
 			}
 		}
-	}PROF_END;
+	}
 }
 
 std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, const geo::dimension &dim) const {
-	PROF_BEGIN;
+
 	std::vector<real> data;
 	integer size = 1;
 	for (auto &dim : geo::dimension::full_set()) {
@@ -815,7 +815,7 @@ std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &l
 				}
 			}
 		}
-	}PROF_END;
+	}
 	return data;
 }
 
@@ -903,7 +903,7 @@ rad_grid::rad_grid() {
 }
 
 void rad_grid::set_boundary(const std::vector<real> &data, const geo::direction &dir) {
-	PROF_BEGIN;
+
 	std::array<integer, NDIM> lb, ub;
 	get_boundary_size(lb, ub, dir, OUTER, INX, RAD_BW);
 	integer iter = 0;
@@ -918,11 +918,11 @@ void rad_grid::set_boundary(const std::vector<real> &data, const geo::direction 
 				}
 			}
 		}
-	}PROF_END;
+	}
 }
 
 std::vector<real> rad_grid::get_boundary(const geo::direction &dir) {
-	PROF_BEGIN;
+
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	integer size = NRF * get_boundary_size(lb, ub, dir, INNER, INX, RAD_BW);
@@ -941,7 +941,7 @@ std::vector<real> rad_grid::get_boundary(const geo::direction &dir) {
 		}
 	}
 
-	PROF_END;
+
 	return data;
 }
 

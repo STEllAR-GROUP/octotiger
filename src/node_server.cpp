@@ -324,6 +324,7 @@ node_server::node_server(const node_location &_my_location, integer _step_num, b
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {
+	timings::scope ts(timings_, timings::time_fmm);
 	if (!opts().gravity) {
 		return;
 	}

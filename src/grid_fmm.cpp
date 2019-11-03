@@ -69,7 +69,7 @@ void load_multipole(taylor<4, T>& m, space_vector& c, const gravity_boundary_typ
 }
 
 void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
-    PROF_BEGIN;
+
     real b0[3], b1[3], A, bdif;
     int iter = 0;
     for (int l = 0; l < 3; l++) {
@@ -102,11 +102,11 @@ void find_eigenvectors(real q[3][3], real e[3][3], real lambda[3]) {
         }
         lambda[l] = sqrt(A) / sqrt(sqr(e[l][0]) + sqr(e[l][1]) + sqr(e[l][2]));
     }
-    PROF_END;
+
 }
 
 std::pair<space_vector, space_vector> grid::find_axis() const {
-    PROF_BEGIN;
+
     real quad_moment[NDIM][NDIM];
     real eigen[NDIM][NDIM];
     real lambda[NDIM];
@@ -166,7 +166,7 @@ std::pair<space_vector, space_vector> grid::find_axis() const {
         rc[j] = eigen[index][j];
     }
     std::pair<space_vector, space_vector> pair{rc, this_com};
-    PROF_END;
+
     return pair;
 }
 
@@ -213,7 +213,7 @@ void grid::solve_gravity(gsolve_type type) {
 // };
 
 void grid::compute_interactions(gsolve_type type) {
-    PROF_BEGIN;
+
 
     // calculating the contribution of all the inner cells
     // calculating the interaction
@@ -502,7 +502,7 @@ void grid::compute_interactions(gsolve_type type) {
 
         }
     }
-    PROF_END;
+
 }
 
 void grid::compute_boundary_interactions(gsolve_type type, const geo::direction& dir,
@@ -525,7 +525,7 @@ void grid::compute_boundary_interactions(gsolve_type type, const geo::direction&
 void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
-    PROF_BEGIN;
+
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
@@ -691,13 +691,13 @@ void grid::compute_boundary_interactions_multipole_multipole(gsolve_type type,
                 }
             }
         });
-    PROF_END;
+
 }
 
 void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
-    PROF_BEGIN;
+
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
@@ -830,13 +830,13 @@ void grid::compute_boundary_interactions_multipole_monopole(gsolve_type type,
                 }
             }
         });
-    PROF_END;
+
 }
 
 void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
-    PROF_BEGIN;
+
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
@@ -949,13 +949,13 @@ void grid::compute_boundary_interactions_monopole_multipole(gsolve_type type,
                 }
             }
         });
-    PROF_END;
+
 }
 
 void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
     const std::vector<boundary_interaction_type>& ilist_n_bnd,
     const gravity_boundary_type& mpoles) {
-    PROF_BEGIN;
+
     auto& M = *M_ptr;
     auto& mon = *mon_ptr;
 
@@ -984,7 +984,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type,
                 }
             }
         });
-    PROF_END;
+
 }
 
 void compute_ilist() {
@@ -1417,7 +1417,7 @@ void compute_ilist() {
 // }
 expansion_pass_type grid::compute_expansions(
     gsolve_type type, const expansion_pass_type* parent_expansions) {
-    PROF_BEGIN;
+
     expansion_pass_type exp_ret;
     if (!is_leaf) {
         exp_ret.first.resize(INX * INX * INX);
@@ -1525,13 +1525,13 @@ expansion_pass_type grid::compute_expansions(
 				}
 			}
 		}
-	} PROF_END;
+	}
     return exp_ret;
 }
 
 multipole_pass_type grid::compute_multipoles(
     gsolve_type type, const multipole_pass_type* child_poles) {
-    PROF_BEGIN;
+
     integer lev = 0;
     const real dx3 = dx * dx * dx;
     M_ptr = std::make_shared<std::vector<multipole>>();
@@ -1691,14 +1691,14 @@ multipole_pass_type grid::compute_multipoles(
         ++lev;
         index = 0;
     }
-    PROF_END;
+
 
 
     return mret;
 }
 
 gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool is_local) {
-    PROF_BEGIN;
+
     //	std::array<integer, NDIM> lb, ub;
     gravity_boundary_type data;
     auto& M = *M_ptr;
@@ -1745,7 +1745,7 @@ gravity_boundary_type grid::get_gravity_boundary(const geo::direction& dir, bool
             data.x = com_ptr[0];
         }
     }
-    PROF_END;
+
     return data;
 }
 
