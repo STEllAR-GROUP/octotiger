@@ -15,6 +15,7 @@
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
+#include "octotiger/profiler.hpp"
 
 template<int NDIM>
 int physics<NDIM>::field_count() {
@@ -156,6 +157,7 @@ void physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_t
 template<int NDIM>
 template<int INX>
 const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
+	PROF_BEGIN;
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
@@ -188,6 +190,7 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 			}
 		}
 	}
+	PROF_END;
 	return V;
 }
 
@@ -197,6 +200,7 @@ template<int NDIM>
 template<int INX>
 void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
 		safe_real omega, bool angmom) {
+	PROF_BEGIN;
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
@@ -241,6 +245,7 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 			}
 		}
 	}
+	PROF_END;
 }
 
 template<int NDIM>

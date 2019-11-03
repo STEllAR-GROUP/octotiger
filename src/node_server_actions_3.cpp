@@ -261,6 +261,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 
 void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
+	timings_.times_[timings::time_fmm] = 0.0;
 	timings::scope ts(timings_, timings::time_total);
 	integer output_cnt{};
 //	output_all("X", 0, false);
@@ -320,7 +321,6 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 	output_cnt = root_ptr->get_rotation_count() / output_dt;
 	printf( "%e %e\n", root_ptr->get_rotation_count(), output_dt );
-	profiler_output(stdout);
 
 	real bench_start, bench_stop;
 	while (current_time < opts().stop_time) {
