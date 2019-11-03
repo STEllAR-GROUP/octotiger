@@ -1514,7 +1514,7 @@ expansion_pass_type grid::compute_expansions(
 						G[iii][phi_i] = physcon().G * L[iii]();
 						for (integer d = 0; d < NDIM; ++d) {
 							G[iii][gx_i + d] = -physcon().G * L[iii](d);
-							if( opts().angmom) {
+							if( opts().correct_am_grav) {
 								G[iii][gx_i + d] -= physcon().G * L_c[iii][d];
 							}
 						}

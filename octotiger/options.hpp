@@ -42,7 +42,8 @@ public:
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
-	bool angmom;
+	bool correct_am_grav;
+	bool correct_am_hydro;
 	bool rotating_star_amr;
 
 	integer scf_output_frequency;
@@ -118,7 +119,8 @@ public:
 		arc & dual_energy_sw1;
 		arc & dual_energy_sw2;
 		arc & hard_dt;
-		arc & angmom;
+		arc & correct_am_grav;
+		arc & correct_am_hydro;
 		arc & rewrite_silo;
 		arc & rad_implicit;
 		arc & n_fields;

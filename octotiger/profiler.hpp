@@ -29,7 +29,7 @@ struct timings
         time_regrid = 2,
         time_compare_analytic = 3,
         time_find_localities = 4,
-        time_last = 5
+	    time_last = 5
     };
 
     struct scope
