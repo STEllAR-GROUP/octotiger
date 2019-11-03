@@ -121,6 +121,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
 	static thread_local auto QS = std::vector < std::vector<std::array<safe_real, geo::NDIR>>
 			> (NDIM, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
+	static thread_local auto AM = std::vector < std::vector < safe_real >> (geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local auto Q_SoA = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
@@ -152,39 +153,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
 	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
-
-	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
-		std::array < safe_real, geo::NANGMOM > L;
-		for (int n = 0; n < geo::NANGMOM; n++) {
-			L[n] = 0.0;
-			for (int m = 0; m < NDIM; m++) {
-				for (int l = 0; l < NDIM; l++) {
-					for (int d = 0; d < geo::NDIR; d++) {
-						if (d != geo::NDIR / 2) {
-							L[n] += vw[d] * kdelta[n][m][l] * 0.5 * xloc[d][m] * C[l][d] * dx;
-						}
-					}
-				}
-			}
-		}
-		return L;
-	};
-
-	const auto add_angmom = [dx](std::array<std::array<safe_real, geo::NDIR>, NDIM> &C, std::array<safe_real, geo::NANGMOM> &Z) {
-		for (int d = 0; d < geo::NDIR; d++) {
-			if (d != geo::NDIR / 2) {
-				for (int n = 0; n < geo::NANGMOM; n++) {
-					for (int m = 0; m < NDIM; m++) {
-						for (int l = 0; l < NDIM; l++) {
-							const auto tmp = 6.0 * Z[n] / dx;
-							C[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
-						}
-					}
-				}
-			}
-		}
-	};
-
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
@@ -215,10 +183,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 					for (int l = 0; l < geo::H_NX_ZM4; l++) {
 						const int i = geo::to_index(j + 2, k + 2, l + 2);
 
-						std::array < safe_real, geo::NANGMOM > Z;
 						std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
 						for (int n = 0; n < geo::NANGMOM; n++) {
-							Z[n] = U[zx_i + n][i];
+							AM[n][i] = U[zx_i + n][i];
 						}
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
@@ -226,12 +193,33 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 							}
 						}
 
-						auto am1 = measure_angmom(S);
-						decltype(Z) am2;
-						for (int dim = 0; dim < geo::NANGMOM; dim++) {
-							am2[dim] = Z[dim] * U[0][i] - am1[dim];
+						for (int n = 0; n < geo::NANGMOM; n++) {
+							AM[n][i] = 0.0;
+							for (int m = 0; m < NDIM; m++) {
+								for (int q = 0; q < NDIM; q++) {
+									for (int d = 0; d < geo::NDIR; d++) {
+										if (d != geo::NDIR / 2) {
+											AM[n][i] += vw[d] * kdelta[n][m][q] * 0.5 * xloc[d][m] * S[q][d] * dx;
+										}
+									}
+								}
+							}
 						}
-						add_angmom(S, am2);
+						for (int n = 0; n < geo::NANGMOM; n++) {
+							AM[n][i] = U[zx_i + n][i] * U[0][i] - AM[n][i];
+						}
+						for (int d = 0; d < geo::NDIR; d++) {
+							if (d != geo::NDIR / 2) {
+								for (int n = 0; n < geo::NANGMOM; n++) {
+									for (int m = 0; m < NDIM; m++) {
+										for (int l = 0; l < NDIM; l++) {
+											const auto tmp = 6.0 * AM[n][i] / dx;
+											S[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
+										}
+									}
+								}
+							}
+						}
 
 						for (int dim = 0; dim < NDIM; dim++) {
 							for (int d = 0; d < geo::NDIR; d++) {
