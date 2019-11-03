@@ -19,7 +19,6 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>>
 							> (nf_, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
 	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
-	static thread_local std::vector<safe_real> UR0(nf_), UL0(nf_);
 
 	static const cell_geometry<NDIM, INX> geo;
 
@@ -46,10 +45,8 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 #endif
 				const auto d = faces[dim][fi];
 				for (int f = 0; f < nf_; f++) {
-					UR0[f] = U[f][i];
-					UL0[f] = U[f][i - geo.H_DN[dim]];
-					UR[f] = Q[f][i][d];
-					UL[f] = Q[f][i - geo.H_DN[dim]][geo::flip_dim(d, dim)];
+					UR[f] = Q[f][d][i];
+					UL[f] = Q[f][geo::flip_dim(d, dim)][i - geo.H_DN[dim]];
 				}
 				std::array < safe_real, NDIM > x;
 				std::array < safe_real, NDIM > vg;
