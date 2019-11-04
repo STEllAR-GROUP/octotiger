@@ -33,7 +33,7 @@ option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
-set(OCTOTIGER_THETA_MINIMUM "0.16" CACHE STRING "Minimal allowed theta value - important for optimizations")
+set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 
 ################################################################################
 # Find required packages
