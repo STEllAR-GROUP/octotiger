@@ -13,8 +13,7 @@ template<int NDIM, int INX, class PHYS>
 safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
 		safe_real omega) {
 
-	PROF_BEGIN
-	;
+	PROFILE();
 	static thread_local auto fluxes = std::vector < std::vector
 			< std::vector<std::array<safe_real, geo::NFACEDIR>>
 					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>>
@@ -101,7 +100,6 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 			}
 		}
 	}
-	PROF_END;
 	return amax;
 }
 

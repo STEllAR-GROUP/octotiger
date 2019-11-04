@@ -61,7 +61,7 @@ void reconstruct_constant(std::vector<std::vector<safe_real>> &q, const std::vec
 }
 
 void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool slim) {
-	PROF_BEGIN
+	PROFILE()
 	;
 
 	static const cell_geometry<NDIM, INX> geo;
@@ -113,13 +113,13 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 			}
 		}
 	}
-	PROF_END;
+
 }
 ;
 
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
-	PROF_BEGIN
+	PROFILE()
 	;
 	static thread_local auto AM = std::vector < std::vector < safe_real >> (geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local auto Q = std::vector < std::vector<std::vector<safe_real>>
@@ -320,7 +320,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
 
-	PROF_END;
+
 	return Q;
 }
 

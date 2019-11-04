@@ -96,14 +96,21 @@ struct timings
     std::array<double, timer::time_last> times_;
 };
 
+struct profiler_scope {
+	profiler_scope(const char* function, int line) {
+		profiler_enter(function, line);
+	}
+	~profiler_scope() {
+		profiler_exit();
+	}
+};
+#define PROFILE_OFF
 
 #ifdef PROFILE_OFF
-#define PROF_BEGIN
-#define PROF_END
+#define PROFILE()
 #else
-#define PROF_BEGIN static profiler_register prof_reg(__FUNCTION__, __LINE__); \
-	                       profiler_enter(__FUNCTION__, __LINE__)
-#define PROF_END profiler_exit()
+#define PROFILE() static profiler_register prof_reg(__FUNCTION__, __LINE__); \
+	             profiler_scope __profile_object__(__FUNCTION__, __LINE__)
 #endif
 
 
