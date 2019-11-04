@@ -187,8 +187,22 @@ bool refine_test_marshak(integer level, integer max_level, real x, real y, real 
 
 }
 
+bool refine_test_unigrid(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
+		std::array<std::vector<real>, NDIM> const& dudx) {
+	if( level >= max_level ) {
+		return false;
+	} else {
+		return true;
+	}
+
+}
+
 void set_refine_test(const refine_test_type& rt) {
-	refine_test_function = rt;
+	if( opts().unigrid) {
+		refine_test_function = refine_test_unigrid;
+	} else {
+		refine_test_function = rt;
+	}
 }
 
 refine_test_type get_refine_test() {

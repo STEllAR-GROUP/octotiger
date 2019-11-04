@@ -286,7 +286,7 @@ public:
 		return lower_face_members[NDIM - 1];
 	}
 
-	inline constexpr int flip(const int d) {
+	inline constexpr int flip(const int d) const {
 		return NDIR - 1 - d;
 	}
 

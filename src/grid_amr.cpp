@@ -7,17 +7,8 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/util.hpp"
 
-double ppm_slope(double am2, double am1, double a00, double ap1, double ap2) {
-	const double sm1 = minmod_theta(am1 - am2, a00 - am1, 2.0);
-	const double s00 = minmod_theta(a00 - am1, ap1 - a00, 2.0);
-	const double sp1 = minmod_theta(ap1 - a00, ap2 - ap1, 2.0);
-	double ap = 0.5 * (a00 + ap1) - (1.0 / 6.0) * (sp1 - s00);
-	double am = 0.5 * (a00 + am1) - (1.0 / 6.0) * (s00 - sm1);
-	limit_slope(am, a00, ap);
-	return ap - am;
-}
-
 std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, bool energy_only) {
+	PROFILE();
 	std::vector<real> data;
 	for (int f = 0; f < opts().n_fields; f++) {
 		if (!energy_only || f == egas_i) {
@@ -34,6 +25,7 @@ std::vector<real> grid::get_subset(const std::array<integer, NDIM> &lb, const st
 }
 
 void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::direction &dir, bool energy_only) {
+	PROFILE();
 
 	std::array<integer, NDIM> lb, ub;
 	int l = 0;
@@ -68,6 +60,7 @@ void grid::set_hydro_amr_boundary(const std::vector<real> &data, const geo::dire
 }
 
 void grid::complete_hydro_amr_boundary(bool energy_only) {
+	PROFILE();
 
 	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
 	static thread_local std::vector<std::vector<oct_array>> Uf(opts().n_fields, std::vector<oct_array>(HS_N3));
@@ -263,6 +256,7 @@ std::pair<real, real> grid::amr_error() const {
 }
 
 void grid::clear_amr() {
+	PROFILE();
 	std::fill(is_coarse.begin(), is_coarse.end(), 0);
 	std::fill(has_coarse.begin(), has_coarse.end(), 0);
 }

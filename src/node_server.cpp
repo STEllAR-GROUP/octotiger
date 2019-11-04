@@ -71,7 +71,7 @@ future<void> node_server::exchange_flux_corrections() {
 					const auto face_dim = f.get_dimension();
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
-						case XDIM:
+					case XDIM:
 						lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
 						lb[YDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
@@ -79,7 +79,7 @@ future<void> node_server::exchange_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + (INX / 2);
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-						case YDIM:
+					case YDIM:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[YDIM] = f.get_side() == geo::MINUS ? 0 : INX;
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
@@ -87,7 +87,7 @@ future<void> node_server::exchange_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + 1;
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-						case ZDIM:
+					case ZDIM:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[YDIM] = quadrant.get_side(1) * (INX / 2);
 						lb[ZDIM] = f.get_side() == geo::MINUS ? 0 : INX;
@@ -178,13 +178,12 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	for (auto &f : results) {
 		GET(f);
 	}
-
+	grid_ptr->complete_hydro_amr_boundary(energy_only);
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
 			grid_ptr->set_physical_boundaries(face, current_time);
 		}
 	}
-	grid_ptr->complete_hydro_amr_boundary(energy_only);
 }
 
 void node_server::send_hydro_amr_boundaries(bool energy_only) {
@@ -324,6 +323,7 @@ node_server::node_server(const node_location &_my_location, integer _step_num, b
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {
+	timings::scope ts(timings_, timings::time_fmm);
 	if (!opts().gravity) {
 		return;
 	}

@@ -63,16 +63,6 @@ struct physics {
 
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
-
-	/*** Reconstruct uses this - GPUize****/
-	template<int INX>
-	static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
-
-	/*** Reconstruct uses this - GPUize****/
-	template<int INX>
 	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>

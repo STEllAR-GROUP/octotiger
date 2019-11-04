@@ -15,6 +15,7 @@
 #include "octotiger/unitiger/safe_real.hpp"
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
+#include "octotiger/profiler.hpp"
 
 template<int NDIM>
 int physics<NDIM>::field_count() {
@@ -54,12 +55,14 @@ void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<s
 	c = std::sqrt(fgamma_ * p / U[rho_i]);
 	am = v - c;
 	ap = v + c;
+#pragma ivdep
 	for (int f = 0; f < nf_; f++) {
 		F[f] = v * U[f];
 	}
 	F[sx_i + dim] += p;
 	F[egas_i] += v0 * p;
 	for (int n = 0; n < geo.NANGMOM; n++) {
+#pragma ivdep
 		for (int m = 0; m < NDIM; m++) {
 			F[lx_i + n] += kdelta[n][m][dim] * x[m] * p;
 		}
@@ -113,49 +116,9 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto rho = Q[rho_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] *= rho;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto rho = U[rho_i][i];
-		Z[f] *= rho;
-	}
-}
-
-/*** Reconstruct uses this - GPUize****/
-
-template<int NDIM>
-template<int INX>
-void physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto rho = Q[rho_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] /= rho;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto rho = U[rho_i][i];
-		Z[f] /= rho;
-	}
-}
-
-/*** Reconstruct uses this - GPUize****/
-
-template<int NDIM>
-template<int INX>
 const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
+	PROFILE()
+	;
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
@@ -163,6 +126,7 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 	for (int j = 0; j < geo.H_NX_X; j++) {
 		for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
 			for (int l = 0; l < geo.H_NX_Z; l++) {
 				const int i = geo.to_index(j, k, l);
 				const auto rho = V[rho_i][i];
@@ -172,19 +136,40 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 					V[egas_i][i] -= 0.5 * s * s * rhoinv;
 					s *= rhoinv;
 				}
-				static constexpr auto kdelta = geo.kronecker_delta();
-				for (int n = 0; n < geo.NANGMOM; n++) {
-					V[lx_i + n][i] *= rhoinv;
-					for (int m = 0; m < NDIM; m++) {
-						for (int l = 0; l < NDIM; l++) {
-							V[lx_i + n][i] -= kdelta[n][m][l] * X[m][i] * V[sx_i + l][i];
-						}
-					}
-				}
 				for (int si = 0; si < n_species_; si++) {
 					V[spc_i + si][i] *= rhoinv;
 				}
 				V[pot_i][i] *= rhoinv;
+			}
+		}
+	}
+	for (int n = 0; n < geo.NANGMOM; n++) {
+		for (int j = 0; j < geo.H_NX_X; j++) {
+			for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+				for (int l = 0; l < geo.H_NX_Z; l++) {
+					const int i = geo.to_index(j, k, l);
+					const auto rho = V[rho_i][i];
+					const auto rhoinv = 1.0 / rho;
+					V[lx_i + n][i] *= rhoinv;
+				}
+			}
+		}
+		static constexpr auto kdelta = geo.kronecker_delta();
+		for (int m = 0; m < NDIM; m++) {
+			for (int q = 0; q < NDIM; q++) {
+				const auto kd = kdelta[n][m][q];
+				if (kd != 0) {
+					for (int j = 0; j < geo.H_NX_X; j++) {
+						for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+							for (int l = 0; l < geo.H_NX_Z; l++) {
+								const int i = geo.to_index(j, k, l);
+								V[lx_i + n][i] -= kd * X[m][i] * V[sx_i + q][i];
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -195,34 +180,75 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
-		safe_real omega, bool angmom) {
+void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom) {
+	PROFILE()
+	;
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 	const auto xloc = geo.xloc();
+	static constexpr auto kdelta = geo.kronecker_delta();
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
-			for (int j = 0; j < geo.H_NX_XM6; j++) {
-				for (int k = 0; k < geo.H_NX_YM6; k++) {
-					for (int l = 0; l < geo.H_NX_ZM6; l++) {
-						const int i = geo.to_index(j + 3, k + 3, l + 3);
-						const auto rho = Q[rho_i][d][i];
-						static constexpr auto kdelta = geo.kronecker_delta();
-						for (int n = 0; n < geo.NANGMOM; n++) {
-							for (int m = 0; m < NDIM; m++) {
-								for (int l = 0; l < NDIM; l++) {
-									Q[lx_i + n][d][i] += kdelta[n][m][l] * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[sx_i + l][d][i];
+			for (int n = 0; n < geo.NANGMOM; n++) {
+				for (int q = 0; q < NDIM; q++) {
+					for (int m = 0; m < NDIM; m++) {
+						const auto kd = kdelta[n][m][q];
+						if (kd != 0) {
+							for (int j = 0; j < geo.H_NX_XM6; j++) {
+								for (int k = 0; k < geo.H_NX_YM6; k++) {
+#pragma ivdep
+									for (int l = 0; l < geo.H_NX_ZM6; l++) {
+										const int i = geo.to_index(j + 3, k + 3, l + 3);
+										const auto rho = Q[rho_i][d][i];
+										Q[lx_i + n][d][i] += kd * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[sx_i + q][d][i];
+									}
 								}
 							}
+						}
+					}
+				}
+				for (int j = 0; j < geo.H_NX_XM6; j++) {
+					for (int k = 0; k < geo.H_NX_YM6; k++) {
+#pragma ivdep
+						for (int l = 0; l < geo.H_NX_ZM6; l++) {
+							const int i = geo.to_index(j + 3, k + 3, l + 3);
+							const auto rho = Q[rho_i][d][i];
 							Q[lx_i + n][d][i] *= rho;
 						}
-						for (int dim = 0; dim < NDIM; dim++) {
+					}
+				}
+			}
+			for (int dim = 0; dim < NDIM; dim++) {
+				for (int j = 0; j < geo.H_NX_XM6; j++) {
+					for (int k = 0; k < geo.H_NX_YM6; k++) {
+#pragma ivdep
+						for (int l = 0; l < geo.H_NX_ZM6; l++) {
+							const int i = geo.to_index(j + 3, k + 3, l + 3);
+							const auto rho = Q[rho_i][d][i];
 							auto &v = Q[sx_i + dim][d][i];
 							Q[egas_i][d][i] += 0.5 * v * v * rho;
 							v *= rho;
 						}
+					}
+				}
+			}
+			for (int j = 0; j < geo.H_NX_XM6; j++) {
+				for (int k = 0; k < geo.H_NX_YM6; k++) {
+#pragma ivdep
+					for (int l = 0; l < geo.H_NX_ZM6; l++) {
+						const int i = geo.to_index(j + 3, k + 3, l + 3);
+						const auto rho = Q[rho_i][d][i];
 						Q[pot_i][d][i] *= rho;
+					}
+				}
+			}
+			for (int j = 0; j < geo.H_NX_XM6; j++) {
+				for (int k = 0; k < geo.H_NX_YM6; k++) {
+#pragma ivdep
+					for (int l = 0; l < geo.H_NX_ZM6; l++) {
+						const int i = geo.to_index(j + 3, k + 3, l + 3);
+						const auto rho = Q[rho_i][d][i];
 						safe_real w = 0.0;
 						for (int si = 0; si < n_species_; si++) {
 							w += Q[spc_i + si][d][i];
@@ -241,6 +267,7 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 			}
 		}
 	}
+
 }
 
 template<int NDIM>
@@ -311,13 +338,14 @@ void physics<NDIM>::set_n_species(int n) {
 
 template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
+std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U,
+		hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
-	std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> bc(2 * NDIM);
+	std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> bc(2 * NDIM);
 
 	for (int i = 0; i < 2 * NDIM; i++) {
-		bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::OUTFLOW;
+		bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::OUTFLOW;
 	}
 
 	switch (t) {
@@ -328,7 +356,7 @@ std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> physics<ND
 	case KH:
 	case CONTACT:
 		for (int i = 0; i < 2 * NDIM; i++) {
-			bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::PERIODIC;
+			bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::PERIODIC;
 		}
 		break;
 	}

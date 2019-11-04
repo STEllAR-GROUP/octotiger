@@ -29,7 +29,8 @@ struct timings
         time_regrid = 2,
         time_compare_analytic = 3,
         time_find_localities = 4,
-        time_last = 5
+		time_fmm = 5,
+	    time_last = 6
     };
 
     struct scope
@@ -80,26 +81,36 @@ struct timings
 
     void report(std::string const& name)
     {
+    	const auto tinv = 1.0/ times_[time_total];
+    	const auto thydro = times_[time_computation] - times_[time_fmm];
         std::cout << name << ":\n";
         std::cout << "   Total: "             << times_[time_total] << '\n';
-        std::cout << "   Computation: "       << times_[time_computation] << '\n';
-        std::cout << "   Regrid: "            << times_[time_regrid] << '\n';
-        std::cout << "   Compare Analytic: "  << times_[time_compare_analytic] << '\n';
-        std::cout << "   Find Localities: "   << times_[time_find_localities] << '\n';
+        std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << "\%)\n";
+        std::cout << "   Gravity:     "       << times_[time_fmm]  << " (" <<  100*times_[time_fmm] * tinv << "\%)\n";
+        std::cout << "   Hydro: "             << thydro  << " (" <<  thydro * tinv << "\%)\n";
+        std::cout << "   Regrid: "            << times_[time_regrid]  << " (" <<  100*times_[time_regrid] * tinv << "\%)\n";
+        std::cout << "   Compare Analytic: "  << times_[time_compare_analytic]  << " (" <<  100*times_[time_compare_analytic] * tinv << "\%)\n";
+        std::cout << "   Find Localities: "   << times_[time_find_localities]  << " (" <<  100*times_[time_find_localities] * tinv << "\%)\n";
     }
 
     std::array<double, timer::time_last> times_;
 };
 
+struct profiler_scope {
+	profiler_scope(const char* function, int line) {
+		profiler_enter(function, line);
+	}
+	~profiler_scope() {
+		profiler_exit();
+	}
+};
 #define PROFILE_OFF
 
 #ifdef PROFILE_OFF
-#define PROF_BEGIN
-#define PROF_END
+#define PROFILE()
 #else
-#define PROF_BEGIN static profiler_register prof_reg(__FUNCTION__, __LINE__); \
-	                       profiler_enter(__FUNCTION__, __LINE__)
-#define PROF_END profiler_exit()
+#define PROFILE() static profiler_register prof_reg(__FUNCTION__, __LINE__); \
+	             profiler_scope __profile_object__(__FUNCTION__, __LINE__)
 #endif
 
 

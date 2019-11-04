@@ -527,6 +527,9 @@ int hpx_main(int argc, char* argv[]) {
 		throw;
 	}
 	printf("Exiting...\n");
+	FILE* fp = fopen( "profile.txt", "wt");
+	profiler_output(fp);
+	fclose(fp);
 	return hpx::finalize();
 }
 
