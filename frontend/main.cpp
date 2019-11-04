@@ -98,13 +98,9 @@ std::size_t init_thread_local_worker(std::size_t desired)
         std::cout << "Total number of stencil elements (stencil size): " 
                   <<  mono_inter::calculate_stencil().first.size() << std::endl << std::endl;
         }
-        if (octotiger::fmm::STENCIL_WIDTH > INX) {
-                std::stringstream error_string;
-                error_string << "ERROR: Stencil is too wide for the subgrid size" << std::endl;
-                error_string << "Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file)" << std::endl;
-                std::cerr << error_string.str();
-                throw std::logic_error(error_string.str());
-        }
+        static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
+            ERROR: Stencil is too wide for the subgrid size. 
+            Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
 
         std::cout << "OS-thread " << current << " on locality "
                   << hpx::get_locality_id()
