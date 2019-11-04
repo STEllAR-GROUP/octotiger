@@ -110,47 +110,7 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 
 }
 
-/*** Reconstruct uses this - GPUize****/
 
-template<int NDIM>
-template<int INX>
-void physics<NDIM>::pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto rho = Q[rho_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] *= rho;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto rho = U[rho_i][i];
-		Z[f] *= rho;
-	}
-}
-
-/*** Reconstruct uses this - GPUize****/
-
-template<int NDIM>
-template<int INX>
-void physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
-		std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx) {
-	static const cell_geometry<NDIM, INX> geo;
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto rho = Q[rho_i][i][d];
-			for (int f = 0; f < NDIM; f++) {
-				S[f][d] /= rho;
-			}
-		}
-	}
-	for (int f = 0; f < geo.NANGMOM; f++) {
-		const auto rho = U[rho_i][i];
-		Z[f] /= rho;
-	}
-}
 
 /*** Reconstruct uses this - GPUize****/
 

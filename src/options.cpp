@@ -104,7 +104,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("stop_step", po::value<integer>(&(opts().stop_step))->default_value(std::numeric_limits<integer>::max() - 1), "number of timesteps to run")          //
 	("max_level", po::value<integer>(&(opts().max_level))->default_value(1), "maximum number of refinement levels")         //
 	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts().m2m_kernel_type))->default_value(SOA_CPU), "boundary multipole-multipole kernel type") //
-	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(OLD), "boundary particle-particle kernel type")   //
+	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(SOA_CPU), "boundary particle-particle kernel type")   //
 	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(SOA_CPU), "boundary particle-multipole kernel type") //
 	("cuda_streams_per_locality", po::value<size_t>(&(opts().cuda_streams_per_locality))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //

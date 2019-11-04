@@ -219,7 +219,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 				for (int d = 0; d < geo::NDIR / 2; d++) {
 					const auto dp = d;
 					const auto dm = geo::flip(d);
-					for( int p = 0; p < 2; p++) {
+					for (int p = 0; p < 2; p++) {
 						const auto d0 = p == 0 ? dp : dm;
 						for (int j = 0; j < geo::H_NX_XM4; j++) {
 							for (int k = 0; k < geo::H_NX_YM4; k++) {
@@ -289,11 +289,9 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								const int i = geo::to_index(j + 3, k + 3, l + 3);
 								const auto dp = d;
 								const auto dm = geo::flip(d);
-								for (int d = 0; d < geo::NDIR / 2; d++) {
-									const auto &theta = Theta[i];
-									Q[f][dp][i] = theta * QS[dim][dp][i] + (1.0 - theta) * Q[f][dp][i];
-									Q[f][dm][i] = theta * QS[dim][dm][i] + (1.0 - theta) * Q[f][dm][i];
-								}
+								const auto &theta = Theta[i];
+								Q[f][dp][i] = theta * QS[dim][dp][i] + (1.0 - theta) * Q[f][dp][i];
+								Q[f][dm][i] = theta * QS[dim][dm][i] + (1.0 - theta) * Q[f][dm][i];
 							}
 						}
 					}
