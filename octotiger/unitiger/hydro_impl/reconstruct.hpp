@@ -125,7 +125,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			> (NDIM, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
 
-
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
 	static constexpr auto vw = geo::volume_weight();
@@ -146,7 +145,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 		int sx_i = angmom_index_;
 		int zx_i = sx_i + NDIM;
 
-
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
 				reconstruct_ppm(Q[f], U[f], false, false);
@@ -155,75 +153,98 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 				reconstruct_constant(Q[f], U[f]);
 			}
 
-
-			for (int j = 0; j < geo::H_NX_XM4; j++) {
-				for (int k = 0; k < geo::H_NX_YM4; k++) {
-					for (int l = 0; l < geo::H_NX_ZM4; l++) {
-						const int i = geo::to_index(j + 2, k + 2, l + 2);
-
-						for (int dim = 0; dim < NDIM; dim++) {
-							for (int d = 0; d < geo::NDIR; d++) {
+			for (int dim = 0; dim < NDIM; dim++) {
+				for (int d = 0; d < geo::NDIR; d++) {
+					for (int j = 0; j < geo::H_NX_XM4; j++) {
+						for (int k = 0; k < geo::H_NX_YM4; k++) {
+							for (int l = 0; l < geo::H_NX_ZM4; l++) {
+								const int i = geo::to_index(j + 2, k + 2, l + 2);
 								QS[dim][d][i] = Q[sx_i + dim][d][i] * Q[0][d][i];
-							}
-						}
-
-						for (int n = 0; n < geo::NANGMOM; n++) {
-							AM[n][i] = 0.0;
-							for (int m = 0; m < NDIM; m++) {
-								for (int q = 0; q < NDIM; q++) {
-									for (int d = 0; d < geo::NDIR; d++) {
-										if (d != geo::NDIR / 2) {
-											AM[n][i] += vw[d] * kdelta[n][m][q] * 0.5 * xloc[d][m] * QS[q][d][i] * dx;
-										}
-									}
-								}
-							}
-						}
-						for (int n = 0; n < geo::NANGMOM; n++) {
-							AM[n][i] = U[zx_i + n][i] * U[0][i] - AM[n][i];
-						}
-						for (int d = 0; d < geo::NDIR; d++) {
-							if (d != geo::NDIR / 2) {
-								for (int n = 0; n < geo::NANGMOM; n++) {
-									for (int m = 0; m < NDIM; m++) {
-										for (int l = 0; l < NDIM; l++) {
-											const auto tmp = 6.0 * AM[n][i] / dx;
-											QS[l][d][i] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
-										}
-									}
-								}
-							}
-						}
-
-						for (int dim = 0; dim < NDIM; dim++) {
-							for (int d = 0; d < geo::NDIR; d++) {
-								if (d != geo::NDIR / 2) {
-									auto s = QS[dim][d][i] / Q[0][d][i];
-									const auto &up = U[sx_i + dim][i + dir[d]];
-									const auto &u0 = U[sx_i + dim][i];
-									const auto M = std::max(u0, up);
-									const auto m = std::min(u0, up);
-									s = std::min(s, M);
-									QS[dim][d][i] = std::max(s, m);
-								}
-							}
-						}
-
-						for (int dim = 0; dim < NDIM; dim++) {
-							for (int d = 0; d < geo::NDIR / 2; d++) {
-								const auto dp = d;
-								const auto dm = geo::flip(d);
-								limit_slope(QS[dim][dm][i], U[sx_i + dim][i], QS[dim][dp][i]);
 							}
 						}
 					}
 				}
 			}
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				for (int f = sx_i; f < sx_i + NDIM; f++) {
-					const auto dim = f - sx_i;
+			for (int n = 0; n < geo::NANGMOM; n++) {
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
+							AM[n][i] = U[zx_i + n][i] * U[0][i];
+						}
+					}
+				}
+				for (int m = 0; m < NDIM; m++) {
+					for (int q = 0; q < NDIM; q++) {
+						const auto kd = kdelta[n][m][q];
+						if (kd != 0) {
+							for (int d = 0; d < geo::NDIR; d++) {
+								if (d != geo::NDIR / 2) {
+									for (int j = 0; j < geo::H_NX_XM4; j++) {
+										for (int k = 0; k < geo::H_NX_YM4; k++) {
+											for (int l = 0; l < geo::H_NX_ZM4; l++) {
+												const int i = geo::to_index(j + 2, k + 2, l + 2);
+												AM[n][i] -= vw[d] * kd * 0.5 * xloc[d][m] * QS[q][d][i] * dx;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				for (int m = 0; m < NDIM; m++) {
+					for (int q = 0; q < NDIM; q++) {
+						const auto kd = kdelta[n][m][q];
+						if (kd != 0) {
+							for (int d = 0; d < geo::NDIR; d++) {
+								if (d != geo::NDIR / 2) {
+									for (int j = 0; j < geo::H_NX_XM4; j++) {
+										for (int k = 0; k < geo::H_NX_YM4; k++) {
+											for (int l = 0; l < geo::H_NX_ZM4; l++) {
+												const int i = geo::to_index(j + 2, k + 2, l + 2);
+												const auto tmp = 6.0 * AM[n][i] / dx;
+												QS[q][d][i] += kd * 0.5 * xloc[d][m] * tmp;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			for (int dim = 0; dim < NDIM; dim++) {
+				const auto f = sx_i + dim;
+				for (int d = 0; d < geo::NDIR / 2; d++) {
 					const auto dp = d;
 					const auto dm = geo::flip(d);
+					for( int p = 0; p < 2; p++) {
+						const auto d0 = p == 0 ? dp : dm;
+						for (int j = 0; j < geo::H_NX_XM4; j++) {
+							for (int k = 0; k < geo::H_NX_YM4; k++) {
+								for (int l = 0; l < geo::H_NX_ZM4; l++) {
+									const int i = geo::to_index(j + 2, k + 2, l + 2);
+									auto s = QS[dim][d0][i] / Q[0][d0][i];
+									const auto &up = U[sx_i + dim][i + dir[d0]];
+									const auto &u0 = U[sx_i + dim][i];
+									const auto M = std::max(u0, up);
+									const auto m = std::min(u0, up);
+									s = std::min(s, M);
+									QS[dim][d0][i] = std::max(s, m);
+								}
+							}
+						}
+					}
+					for (int j = 0; j < geo::H_NX_XM4; j++) {
+						for (int k = 0; k < geo::H_NX_YM4; k++) {
+							for (int l = 0; l < geo::H_NX_ZM4; l++) {
+								const int i = geo::to_index(j + 2, k + 2, l + 2);
+								limit_slope(QS[dim][dm][i], U[sx_i + dim][i], QS[dim][dp][i]);
+							}
+						}
+					}
+					const auto dim = f - sx_i;
 					for (int j = 0; j < geo::H_NX_XM6; j++) {
 						for (int k = 0; k < geo::H_NX_YM6; k++) {
 							for (int l = 0; l < geo::H_NX_ZM6; l++) {
@@ -278,7 +299,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 					}
 				}
 			}
-
 
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;

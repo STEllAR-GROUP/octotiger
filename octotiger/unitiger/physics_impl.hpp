@@ -157,7 +157,8 @@ void physics<NDIM>::post_angmom(const hydro::state_type &U, const hydro::recon_t
 template<int NDIM>
 template<int INX>
 const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
-	PROF_BEGIN;
+	PROF_BEGIN
+	;
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
@@ -198,9 +199,9 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
-		safe_real omega, bool angmom) {
-	PROF_BEGIN;
+void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom) {
+	PROF_BEGIN
+	;
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
@@ -221,12 +222,36 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 							}
 							Q[lx_i + n][d][i] *= rho;
 						}
+					}
+				}
+			}
+			for (int j = 0; j < geo.H_NX_XM6; j++) {
+				for (int k = 0; k < geo.H_NX_YM6; k++) {
+					for (int l = 0; l < geo.H_NX_ZM6; l++) {
+						const int i = geo.to_index(j + 3, k + 3, l + 3);
+						const auto rho = Q[rho_i][d][i];
 						for (int dim = 0; dim < NDIM; dim++) {
 							auto &v = Q[sx_i + dim][d][i];
 							Q[egas_i][d][i] += 0.5 * v * v * rho;
 							v *= rho;
 						}
+					}
+				}
+			}
+			for (int j = 0; j < geo.H_NX_XM6; j++) {
+				for (int k = 0; k < geo.H_NX_YM6; k++) {
+					for (int l = 0; l < geo.H_NX_ZM6; l++) {
+						const int i = geo.to_index(j + 3, k + 3, l + 3);
+						const auto rho = Q[rho_i][d][i];
 						Q[pot_i][d][i] *= rho;
+					}
+				}
+			}
+			for (int j = 0; j < geo.H_NX_XM6; j++) {
+				for (int k = 0; k < geo.H_NX_YM6; k++) {
+					for (int l = 0; l < geo.H_NX_ZM6; l++) {
+						const int i = geo.to_index(j + 3, k + 3, l + 3);
+						const auto rho = Q[rho_i][d][i];
 						safe_real w = 0.0;
 						for (int si = 0; si < n_species_; si++) {
 							w += Q[spc_i + si][d][i];
@@ -245,6 +270,7 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 			}
 		}
 	}
+
 	PROF_END;
 }
 
@@ -316,13 +342,14 @@ void physics<NDIM>::set_n_species(int n) {
 
 template<int NDIM>
 template<int INX>
-std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U, hydro::x_type &X) {
+std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U,
+		hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
-	std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> bc(2 * NDIM);
+	std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> bc(2 * NDIM);
 
 	for (int i = 0; i < 2 * NDIM; i++) {
-		bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::OUTFLOW;
+		bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::OUTFLOW;
 	}
 
 	switch (t) {
@@ -333,7 +360,7 @@ std::vector<typename hydro_computer<NDIM,INX,physics<NDIM>>::bc_type> physics<ND
 	case KH:
 	case CONTACT:
 		for (int i = 0; i < 2 * NDIM; i++) {
-			bc[i] = hydro_computer<NDIM,INX,physics<NDIM>>::PERIODIC;
+			bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::PERIODIC;
 		}
 		break;
 	}
