@@ -29,7 +29,7 @@ using x_type = std::vector<std::vector<safe_real>>;
 using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
 
 template<int NDIM>
-using recon_type =std::vector<std::vector<std::array<safe_real, NDIM == 1 ? 3 : (NDIM == 2 ? 9 : 27)>>>;
+using recon_type =std::vector<std::vector<std::vector<safe_real>>>;
 
 using state_type = std::vector<std::vector<safe_real>>;
 }
