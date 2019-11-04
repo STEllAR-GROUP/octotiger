@@ -55,12 +55,14 @@ void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<s
 	c = std::sqrt(fgamma_ * p / U[rho_i]);
 	am = v - c;
 	ap = v + c;
+#pragma ivdep
 	for (int f = 0; f < nf_; f++) {
 		F[f] = v * U[f];
 	}
 	F[sx_i + dim] += p;
 	F[egas_i] += v0 * p;
 	for (int n = 0; n < geo.NANGMOM; n++) {
+#pragma ivdep
 		for (int m = 0; m < NDIM; m++) {
 			F[lx_i + n] += kdelta[n][m][dim] * x[m] * p;
 		}

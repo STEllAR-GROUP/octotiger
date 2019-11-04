@@ -13,7 +13,8 @@ template<int NDIM, int INX, class PHYS>
 safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
 		safe_real omega) {
 
-	PROF_BEGIN;
+	PROF_BEGIN
+	;
 	static thread_local auto fluxes = std::vector < std::vector
 			< std::vector<std::array<safe_real, geo::NFACEDIR>>
 					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>>
@@ -70,11 +71,13 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 				PHYS::physical_flux(UL, FL, dim, aml, apl, x, vg);
 				this_ap = std::max(std::max(apr, apl), safe_real(0.0));
 				this_am = std::min(std::min(amr, aml), safe_real(0.0));
+#pragma ivdep
 				for (int f = 0; f < nf_; f++) {
 					this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
 				}
 				am = std::min(am, this_am);
 				ap = std::max(ap, this_ap);
+#pragma ivdep
 				for (int f = 0; f < nf_; f++) {
 					fluxes[dim][f][i][fi] = this_flux[f];
 				}
@@ -84,22 +87,19 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 				amax = this_amax;
 			}
 		}
-		PROF_BEGIN;
 		for (int f = 0; f < nf_; f++) {
+#pragma ivdep
 			for (const auto &i : indices) {
 				F[dim][f][i] = 0.0;
-#ifdef FACES_ONLY
-				for (int fi = 0; fi < 1; fi++) {
-					constexpr auto w = 1.0;
-#else
-				for (int fi = 0; fi < geo.NFACEDIR; fi++) {
-					const auto &w = weights[fi];
-#endif
+			}
+			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
+				const auto &w = weights[fi];
+#pragma ivdep
+				for (const auto &i : indices) {
 					F[dim][f][i] += w * fluxes[dim][f][i][fi];
 				}
 			}
 		}
-		PROF_END;
 	}
 	PROF_END;
 	return amax;
