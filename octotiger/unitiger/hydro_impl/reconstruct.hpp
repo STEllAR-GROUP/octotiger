@@ -79,6 +79,7 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 		const auto di = dir[d];
 		for (int j = 0; j < xb1; j++) {
 			for (int k = 0; k < yb1; k++) {
+#pragma ivdep
 				for (int l = 0; l < zb1; l++) {
 					const int i = geo.to_index(j + o1, k + o1, l + o1);
 					D1[i] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
@@ -87,6 +88,7 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 		}
 		for (int j = 0; j < xb1; j++) {
 			for (int k = 0; k < yb1; k++) {
+#pragma ivdep
 				for (int l = 0; l < zb1; l++) {
 					const int i = geo.to_index(j + o1, k + o1, l + o1);
 					q[d][i] = 0.5 * (u[i] + u[i + di]);
@@ -100,6 +102,7 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 		for (int d = 0; d < geo.NDIR / 2; d++) {
 			for (int j = 0; j < xb2; j++) {
 				for (int k = 0; k < yb2; k++) {
+#pragma ivdep
 					for (int l = 0; l < zb2; l++) {
 						const int i = geo.to_index(j + o2, k + o2, l + o2);
 						auto &qp = q[geo.flip(d)][i];
@@ -157,6 +160,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 				for (int d = 0; d < geo::NDIR; d++) {
 					for (int j = 0; j < geo::H_NX_XM4; j++) {
 						for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
 							for (int l = 0; l < geo::H_NX_ZM4; l++) {
 								const int i = geo::to_index(j + 2, k + 2, l + 2);
 								QS[dim][d][i] = Q[sx_i + dim][d][i] * Q[0][d][i];
@@ -168,6 +172,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			for (int n = 0; n < geo::NANGMOM; n++) {
 				for (int j = 0; j < geo::H_NX_XM4; j++) {
 					for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
 						for (int l = 0; l < geo::H_NX_ZM4; l++) {
 							const int i = geo::to_index(j + 2, k + 2, l + 2);
 							AM[n][i] = U[zx_i + n][i] * U[0][i];
@@ -182,6 +187,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								if (d != geo::NDIR / 2) {
 									for (int j = 0; j < geo::H_NX_XM4; j++) {
 										for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
 											for (int l = 0; l < geo::H_NX_ZM4; l++) {
 												const int i = geo::to_index(j + 2, k + 2, l + 2);
 												AM[n][i] -= vw[d] * kd * 0.5 * xloc[d][m] * QS[q][d][i] * dx;
@@ -201,6 +207,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								if (d != geo::NDIR / 2) {
 									for (int j = 0; j < geo::H_NX_XM4; j++) {
 										for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
 											for (int l = 0; l < geo::H_NX_ZM4; l++) {
 												const int i = geo::to_index(j + 2, k + 2, l + 2);
 												const auto tmp = 6.0 * AM[n][i] / dx;
@@ -223,6 +230,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 						const auto d0 = p == 0 ? dp : dm;
 						for (int j = 0; j < geo::H_NX_XM4; j++) {
 							for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
 								for (int l = 0; l < geo::H_NX_ZM4; l++) {
 									const int i = geo::to_index(j + 2, k + 2, l + 2);
 									auto s = QS[dim][d0][i] / Q[0][d0][i];
@@ -238,6 +246,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 					}
 					for (int j = 0; j < geo::H_NX_XM4; j++) {
 						for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
 							for (int l = 0; l < geo::H_NX_ZM4; l++) {
 								const int i = geo::to_index(j + 2, k + 2, l + 2);
 								limit_slope(QS[dim][dm][i], U[sx_i + dim][i], QS[dim][dp][i]);
@@ -247,6 +256,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 					const auto dim = f - sx_i;
 					for (int j = 0; j < geo::H_NX_XM6; j++) {
 						for (int k = 0; k < geo::H_NX_YM6; k++) {
+#pragma ivdep
 							for (int l = 0; l < geo::H_NX_ZM6; l++) {
 								const int i = geo::to_index(j + 3, k + 3, l + 3);
 								const auto ur = U[f][i + dir[d]];
@@ -285,6 +295,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 					}
 					for (int j = 0; j < geo::H_NX_XM6; j++) {
 						for (int k = 0; k < geo::H_NX_YM6; k++) {
+#pragma ivdep
 							for (int l = 0; l < geo::H_NX_ZM6; l++) {
 								const int i = geo::to_index(j + 3, k + 3, l + 3);
 								const auto dp = d;
