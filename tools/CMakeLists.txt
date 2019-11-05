@@ -31,14 +31,17 @@ endif()
 ################################################################################
 # Set up silo_convert
 ################################################################################
-add_executable(silo_convert silo_convert/plain_silo.cpp silo_convert/restart_silo.cpp silo_convert/silo_convert.cpp silo_convert/silo_convert.hpp)
-target_link_libraries(silo_convert Silo::silo boost_program_options)
-set_property(TARGET silo_convert PROPERTY FOLDER "Tools")
-if(MSVC)
-  target_compile_definitions(silo_convert PRIVATE
-    _CRT_SECURE_NO_WARNINGS)
-  target_compile_options(silo_convert PRIVATE /EHsc)
-endif()
+add_hpx_executable(
+  silo_convert
+  DEPENDENCIES
+    Silo::silo Boost::boost
+  SOURCES
+    silo_convert/plain_silo.cpp
+    silo_convert/silo_convert.cpp 
+    silo_convert/silo_convert.hpp    
+    silo_convert/restart_silo.cpp 
+)
+
 
 ################################################################################
 # Set up gen_rotating_star_init target
