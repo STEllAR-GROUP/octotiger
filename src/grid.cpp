@@ -1186,116 +1186,6 @@ bool grid::is_in_star(const std::pair<space_vector, space_vector> &axis, const s
 	return use;
 }
 
-real grid::z_moments(const std::pair<space_vector, space_vector> &axis, const std::pair<real, real> &l1, integer frac, real rho_cut) const {
-
-	real mom = 0.0;
-	const real dV = dx * dx * dx;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				if (is_in_star(axis, l1, frac, iii, rho_cut)) {
-					mom += (sqr(X[XDIM][iii]) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
-					mom += (sqr(X[YDIM][iii]) + sqr(dx) / 6.0) * U[rho_i][iii] * dV;
-				}
-			}
-		}
-	}
-	return mom;
-}
-
-std::vector<real> grid::conserved_sums(space_vector &com, space_vector &com_dot, const std::pair<space_vector, space_vector> &axis,
-		const std::pair<real, real> &l1, integer frac, real rho_cut) const {
-
-	std::vector<real> sum(opts().n_fields, ZERO);
-	com[0] = com[1] = com[2] = 0.0;
-	com_dot[0] = com_dot[1] = com_dot[2] = 0.0;
-	const real dV = dx * dx * dx;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				if (is_in_star(axis, l1, frac, iii, rho_cut)) {
-					com[0] += X[XDIM][iii] * U[rho_i][iii] * dV;
-					com[1] += X[YDIM][iii] * U[rho_i][iii] * dV;
-					com[2] += X[ZDIM][iii] * U[rho_i][iii] * dV;
-					com_dot[0] += U[sx_i][iii] * dV;
-					com_dot[1] += U[sy_i][iii] * dV;
-					com_dot[2] += U[sz_i][iii] * dV;
-					for (integer field = 0; field != opts().n_fields; ++field) {
-						sum[field] += U[field][iii] * dV;
-					}
-					if (opts().gravity) {
-						sum[egas_i] += U[pot_i][iii] * HALF * dV;
-					}
-				}
-			}
-		}
-	}
-	if (sum[rho_i] > 0.0) {
-		for (integer d = 0; d != NDIM; ++d) {
-			com[d] /= sum[rho_i];
-			com_dot[d] /= sum[rho_i];
-		}
-	}
-	return sum;
-}
-
-std::vector<real> grid::gforce_sum(bool torque) const {
-
-	std::vector<real> sum(NDIM, ZERO);
-	const real dV = dx * dx * dx;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const auto D = 0 - H_BW;
-				const integer iii = hindex(i, j, k);
-				const integer iiig = gindex(i + D, j + D, k + D);
-				const real &rho = U[rho_i][iii];
-				const real x = X[XDIM][iii];
-				const real y = X[YDIM][iii];
-				const real z = X[ZDIM][iii];
-				const real fx = rho * G[iiig][gx_i] * dV;
-				const real fy = rho * G[iiig][gy_i] * dV;
-				const real fz = rho * G[iiig][gz_i] * dV;
-				if (!torque) {
-					sum[XDIM] += fx;
-					sum[YDIM] += fy;
-					sum[ZDIM] += fz;
-				} else {
-					sum[XDIM] -= z * fy - y * fz;
-					sum[YDIM] += z * fx - x * fz;
-					sum[ZDIM] -= y * fx - x * fy;
-				}
-			}
-		}
-	}
-	return sum;
-}
-
-std::vector<real> grid::l_sums() const {
-
-	std::vector<real> sum(NDIM);
-	const real dV = dx * dx * dx;
-	std::fill(sum.begin(), sum.end(), ZERO);
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				sum[XDIM] += X[YDIM][iii] * U[sz_i][iii] * dV;
-				sum[XDIM] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
-
-				sum[YDIM] -= X[XDIM][iii] * U[sz_i][iii] * dV;
-				sum[YDIM] += X[ZDIM][iii] * U[sx_i][iii] * dV;
-
-				sum[ZDIM] += X[XDIM][iii] * U[sy_i][iii] * dV;
-				sum[ZDIM] -= X[YDIM][iii] * U[sx_i][iii] * dV;
-
-			}
-		}
-	}
-	return sum;
-}
 
 bool grid::refine_me(integer lev, integer last_ngrids) const {
 	PROFILE();
@@ -1749,20 +1639,6 @@ void grid::store() {
 	U_out0 = U_out;
 }
 
-void grid::restore() {
-	for (integer field = 0; field != opts().n_fields; ++field) {
-#pragma GCC ivdep
-		for (integer i = 0; i != INX; ++i) {
-			for (integer j = 0; j != INX; ++j) {
-				for (integer k = 0; k != INX; ++k) {
-					U[field][h0index(i, j, k)] = U0[field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-				}
-			}
-		}
-	}
-	U_out = U_out0;
-}
-
 void grid::set_physical_boundaries(const geo::face &face, real t) {
 	PROFILE();
 	const auto dim = face.get_dimension();
@@ -2187,42 +2063,6 @@ void grid::dual_energy_update() {
 			}
 		}
 	}
-}
-
-std::pair<real, real> grid::virial() const {
-	const auto de_switch2 = opts().dual_energy_sw2;
-//	bool in_bnd;
-	std::pair<real, real> v;
-	v.first = v.second = 0.0;
-	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
-		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-#pragma GCC ivdep
-			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
-				const integer iii = hindex(i, j, k);
-				real ek = ZERO;
-				ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
-				ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
-				ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
-				real ei;
-				if (opts().eos == WD) {
-					ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
-				} else {
-					ei = U[egas_i][iii] - ek;
-				}
-				real et = U[egas_i][iii];
-				if (ei < de_switch2 * et) {
-					ei = std::pow(U[tau_i][iii], fgamma);
-				}
-				real p = (fgamma - 1.0) * ei;
-				if (opts().eos == WD) {
-					p += ztwd_pressure(U[rho_i][iii]);
-				}
-				v.first += (2.0 * ek + 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
-				v.second += (2.0 * ek - 0.5 * U[pot_i][iii] + 3.0 * p) * (dx * dx * dx);
-			}
-		}
-	}
-	return v;
 }
 
 std::vector<real> grid::conserved_outflows() const {
