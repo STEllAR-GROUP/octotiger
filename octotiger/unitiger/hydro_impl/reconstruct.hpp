@@ -318,6 +318,49 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	}
 
+	/**** ENSURE TVD TEST***/
+	for (int f = 0; f < nf_; f++) {
+		if (!smooth_field_[f]) {
+			for (int d = 0; d < geo::NDIR / 2; d++) {
+				for (int j = 0; j < geo::H_NX_XM6; j++) {
+					for (int k = 0; k < geo::H_NX_YM6; k++) {
+#pragma ivdep
+						for (int l = 0; l < geo::H_NX_ZM6; l++) {
+							const int i = geo::to_index(j + 3, k + 3, l + 3);
+							const auto ur = U[f][i + dir[d]];
+							const auto ul = U[f][i - dir[d]];
+							const auto qp = Q[f][d][i];
+							const auto qm = Q[f][geo::flip(d)][i];
+							if ((qp - qm) * (ur - ul) < 0) {
+								printf("TVD fail 1 %e %e %e %e\n", qp, qm, ur, ul);
+							}
+						}
+					}
+				}
+			}
+			for (int d = 0; d < geo::NDIR; d++) {
+				if (d != geo::NDIR / 2) {
+					for (int j = 0; j < geo::H_NX_XM8; j++) {
+						for (int k = 0; k < geo::H_NX_YM8; k++) {
+#pragma ivdep
+							for (int l = 0; l < geo::H_NX_ZM8; l++) {
+								const int i = geo::to_index(j + 4, k + 4, l + 4);
+								const auto ur = U[f][i + dir[d]];
+								const auto ul = U[f][i];
+								const auto qp = Q[f][geo::flip(d)][i + dir[d]];
+								const auto qm = Q[f][d][i];
+								const auto norm = std::max(std::abs(ur), std::abs(ul));
+								if ((qp - qm) * (ur - ul) < 0) {
+									printf("TVD fail 2 %e\n", (qp - qm) / norm);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
 
 
