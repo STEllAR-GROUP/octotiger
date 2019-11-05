@@ -32,6 +32,10 @@ struct cell_geometry {
 	static constexpr int H_NX_YM6 = NDIM > 1 ? H_NX - 6 : 1;
 	static constexpr int H_NX_ZM6 = NDIM > 2 ? H_NX - 6 : 1;
 
+	static constexpr int H_NX_XM8 = H_NX - 8;
+	static constexpr int H_NX_YM8 = NDIM > 1 ? H_NX - 8 : 1;
+	static constexpr int H_NX_ZM8 = NDIM > 2 ? H_NX - 8 : 1;
+
 	static constexpr int H_DNX = NDIM == 3 ? H_NX * H_NX : (NDIM == 2 ? H_NX : 1);
 	static constexpr int H_DNY = NDIM == 3 ? H_NX : 1;
 	static constexpr int H_DNZ = 1;
