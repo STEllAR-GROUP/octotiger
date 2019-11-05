@@ -82,7 +82,6 @@ set(source_files
     src/problem.cpp
     src/profiler.cpp
     src/real.cpp
-    src/roe.cpp
     src/scf_data.cpp
     src/scf_data.cpp
     src/io/silo.cpp
@@ -145,7 +144,6 @@ set(header_files
     octotiger/problem.hpp
     octotiger/profiler.hpp
     octotiger/real.hpp
-    octotiger/roe.hpp
     octotiger/safe_math.hpp
     octotiger/scf_data.hpp
     octotiger/io/silo.hpp
@@ -188,6 +186,7 @@ set(header_files
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
+    octotiger/ztwd.hpp
 )
 
 # Octo-Tiger library

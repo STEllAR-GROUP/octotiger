@@ -300,6 +300,7 @@ std::vector<silo_var_t> grid::var_data() const {
 constexpr integer nspec = 2;
 diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 	PROFILE();
+	const auto de_switch2 = opts().dual_energy_sw2;
 	diagnostics_t rc;
 	if (opts().disable_diagnostics) {
 		return rc;
@@ -1876,6 +1877,8 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 }
 
 void grid::compute_sources(real t, real rotational_time) {
+	const auto de_switch2 = opts().dual_energy_sw2;
+
 	PROFILE();
 	auto &src = dUdt;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
@@ -2146,7 +2149,7 @@ void grid::next_u(integer rk, real t, real dt) {
 
 void grid::dual_energy_update() {
 	PROFILE();
-
+	const auto de_switch1 = opts().dual_energy_sw1;
 //	bool in_bnd;
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2187,7 +2190,7 @@ void grid::dual_energy_update() {
 }
 
 std::pair<real, real> grid::virial() const {
-
+	const auto de_switch2 = opts().dual_energy_sw2;
 //	bool in_bnd;
 	std::pair<real, real> v;
 	v.first = v.second = 0.0;

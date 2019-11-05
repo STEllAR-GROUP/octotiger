@@ -17,7 +17,6 @@
 #include "octotiger/problem.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/real.hpp"
-#include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
 #include "octotiger/io/silo.hpp"
 #include "octotiger/simd.hpp"

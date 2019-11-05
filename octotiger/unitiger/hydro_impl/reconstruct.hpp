@@ -60,21 +60,21 @@ void reconstruct_constant(std::vector<std::vector<safe_real>> &q, const std::vec
 	}
 }
 
-void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool slim) {
-	PROFILE()
-	;
+template<bool SLIM>
+void reconstruct_ppm_(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth) {
+	PROFILE();
 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
 	static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
-	const int xb1 = slim ? geo.H_NX_XM4 : geo.H_NX_XM2;
-	const int yb1 = slim ? geo.H_NX_YM4 : geo.H_NX_YM2;
-	const int zb1 = slim ? geo.H_NX_ZM4 : geo.H_NX_ZM2;
-	const int xb2 = slim ? geo.H_NX_XM6 : geo.H_NX_XM4;
-	const int yb2 = slim ? geo.H_NX_YM6 : geo.H_NX_YM4;
-	const int zb2 = slim ? geo.H_NX_ZM6 : geo.H_NX_ZM4;
-	const int o1 = slim ? 2 : 1;
-	const int o2 = slim ? 3 : 2;
+	constexpr int xb1 = SLIM ? geo.H_NX_XM4 : geo.H_NX_XM2;
+	constexpr int yb1 = SLIM ? geo.H_NX_YM4 : geo.H_NX_YM2;
+	constexpr int zb1 = SLIM ? geo.H_NX_ZM4 : geo.H_NX_ZM2;
+	constexpr int xb2 = SLIM ? geo.H_NX_XM6 : geo.H_NX_XM4;
+	constexpr int yb2 = SLIM ? geo.H_NX_YM6 : geo.H_NX_YM4;
+	constexpr int zb2 = SLIM ? geo.H_NX_ZM6 : geo.H_NX_ZM4;
+	constexpr int o1 = SLIM ? 2 : 1;
+	constexpr int o2 = SLIM ? 3 : 2;
 	for (int d = 0; d < geo.NDIR / 2; d++) {
 		const auto di = dir[d];
 		for (int j = 0; j < xb1; j++) {
@@ -117,10 +117,18 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 }
 ;
 
+void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool slim) {
+	PROFILE();
+	if (slim) {
+		reconstruct_ppm_<true>(q, u, smooth);
+	} else {
+		reconstruct_ppm_<false>(q, u, smooth);
+	}
+}
+
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
-	PROFILE()
-	;
+	PROFILE();
 	static thread_local auto AM = std::vector < std::vector < safe_real >> (geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local auto Q = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
@@ -319,7 +327,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	}
 
 	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
-
 
 	return Q;
 }

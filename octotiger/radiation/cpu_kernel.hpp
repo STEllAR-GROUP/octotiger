@@ -12,7 +12,6 @@
 #include "octotiger/radiation/implicit.hpp"
 #include "octotiger/radiation/opacities.hpp"
 #include "octotiger/real.hpp"
-#include "octotiger/roe.hpp"
 #include "octotiger/safe_math.hpp"
 #include "octotiger/space_vector.hpp"
 
@@ -161,6 +160,9 @@ namespace octotiger { namespace radiation {
         real dt,
         real const clightinv)
     {
+       	const auto de_switch2 = opts().dual_energy_sw2;
+       	const auto de_switch1 = opts().dual_energy_sw1;
+
         for (integer i = RAD_BW; i != RAD_NX - RAD_BW; ++i)
         {
             for (integer j = RAD_BW; j != RAD_NX - RAD_BW; ++j)

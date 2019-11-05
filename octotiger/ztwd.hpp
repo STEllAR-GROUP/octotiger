@@ -1,28 +1,14 @@
-//  Copyright (c) 2019 AUTHORS
-//
-//  Distributed under the Boost Software License, Version 1.0. (See accompanying
-//  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+/*
+ * ztwd.hpp
+ *
+ *  Created on: Nov 4, 2019
+ *      Author: dmarce1
+ */
 
-#ifndef ROE_HPP_
-#define ROE_HPP_
+#ifndef OCTOTIGER_ZTWD_HPP_
+#define OCTOTIGER_ZTWD_HPP_
 
-#include "octotiger/defs.hpp"
-#include "octotiger/options.hpp"
-#include "octotiger/physcon.hpp"
-#include "octotiger/real.hpp"
-#include "octotiger/safe_math.hpp"
-#include "octotiger/space_vector.hpp"
-
-#include <algorithm>
-#include <vector>
-
-
-#define de_switch1 (opts().dual_energy_sw1)
-#define de_switch2 (opts().dual_energy_sw2)
-
-real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<real>>& UL,
-		hydro_state_t<std::vector<real>>& UR,  const std::vector<space_vector>& X, real omega, integer dimension, real dx);
-
+#include <octotiger/safe_math.hpp>
 
 inline real ztwd_pressure(real d, real A = physcon().A, real B = physcon().B) {
     const real x = POWER(d / B, 1.0 / 3.0);
@@ -56,6 +42,6 @@ OCTOTIGER_FORCEINLINE real ztwd_energy(real d, real A = physcon().A, real B = ph
     return std::max(ztwd_enthalpy(d) * d - ztwd_pressure(d), real(0));
 }
 
-real ztwd_sound_speed(real d, real ei);
 
-#endif /* ROE_HPP_ */
+
+#endif /* OCTOTIGER_ZTWD_HPP_ */

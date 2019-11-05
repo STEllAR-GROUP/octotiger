@@ -12,7 +12,6 @@
 #include "octotiger/radiation/opacities.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/real.hpp"
-#include "octotiger/roe.hpp"
 #include "octotiger/space_vector.hpp"
 
 #include <hpx/include/future.hpp>
