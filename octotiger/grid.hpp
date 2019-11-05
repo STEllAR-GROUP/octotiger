@@ -318,7 +318,6 @@ public:
 	std::vector<real> frac_volumes() const;
 	real roche_volume(const std::pair<space_vector, space_vector>& axis, const std::pair<real, real>& l1, real,
 			bool donor) const;
-	std::vector<real> conserved_outflows() const;
 	void init_z_field();
 	grid(const init_func_type&, real dx, std::array<real, NDIM> xmin);
 	grid(real dx, std::array<real, NDIM>);
@@ -354,8 +353,6 @@ public:
 	template<class Archive>
 	void save(Archive& arc, const unsigned) const;HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
-	std::pair<real, real> virial() const;
-
 	std::vector<silo_var_t> var_data() const;
 	void set(const std::string name, real* data, int);
 	friend class node_server;
