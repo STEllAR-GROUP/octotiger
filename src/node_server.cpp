@@ -394,31 +394,28 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			}
 		}
 	}
+
+	/****************************************************************************/
+	// data managemenet for old and new version of interaction computation
+	// all neighbors and placeholder for yourself
 	bool contains_multipole = false;
 	std::vector<neighbor_gravity_type> all_neighbor_interaction_data;
-	std::array<bool, geo::direction::count()> is_direction_empty;
-	{
-		/****************************************************************************/
-		// data managemenet for old and new version of interaction computation
-		// all neighbors and placeholder for yourself
-		for (geo::direction const &dir : geo::direction::full_set()) {
-			if (!neighbors[dir].empty()) {
-				auto tmp = neighbor_gravity_channels[dir].get_future(gcycle).get();
-				PROFILE();
-				all_neighbor_interaction_data.push_back(tmp);
-				if (!all_neighbor_interaction_data[dir].is_monopole)
-					contains_multipole = true;
-			} else {
-				all_neighbor_interaction_data.emplace_back();
-			}
+	for (geo::direction const &dir : geo::direction::full_set()) {
+		if (!neighbors[dir].empty()) {
+			all_neighbor_interaction_data.push_back(neighbor_gravity_channels[dir].get_future(gcycle).get());
+			if (!all_neighbor_interaction_data[dir].is_monopole)
+				contains_multipole = true;
+		} else {
+			all_neighbor_interaction_data.emplace_back();
 		}
+	}
 
-		for (geo::direction const &dir : geo::direction::full_set()) {
-			if (neighbors[dir].empty()) {
-				is_direction_empty[dir] = true;
-			} else {
-				is_direction_empty[dir] = false;
-			}
+	std::array<bool, geo::direction::count()> is_direction_empty;
+	for (geo::direction const &dir : geo::direction::full_set()) {
+		if (neighbors[dir].empty()) {
+			is_direction_empty[dir] = true;
+		} else {
+			is_direction_empty[dir] = false;
 		}
 	}
 
@@ -441,7 +438,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 
 		// Check if we are a multipole
 		if (!grid_ptr->get_leaf()) {
-			PROFILE();
 			// Input structure, needed for multipole-monopole interactions
 			std::array<real, NDIM> Xbase = { grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)], grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
 					grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
@@ -453,7 +449,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			multipole_interactor.compute_multipole_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
 					is_direction_empty, Xbase);
 		} else { // ... we are a monopole
-			PROFILE();
 			p2p_interactor.set_grid_ptr(grid_ptr);
 			p2p_interactor.compute_p2p_interactions(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty);
 			if (contains_multipole) {
@@ -462,7 +457,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			}
 		}
 	} else {
-		PROFILE();
 		// old-style interaction calculation
 		// computes inner interactions
 		grid_ptr->compute_interactions(type);

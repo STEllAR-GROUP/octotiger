@@ -23,8 +23,6 @@ constexpr real struct_eos::G;
 
 constexpr real T0 = 0.0;
 
-#include <octotiger/ztwd.hpp>
-
 real poly_K(real rho0, real mu) {
 	const auto& c = physcon();
 	if (opts().radiation) {

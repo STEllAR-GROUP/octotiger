@@ -9,7 +9,7 @@
 
 #include "safe_real.hpp"
 
-//#define SAFE_MATH_ON
+#define SAFE_MATH_ON
 #include "../../octotiger/safe_math.hpp"
 
 #ifdef NOHPX

@@ -13,7 +13,7 @@
 #include "octotiger/real.hpp"
 #include "octotiger/io/silo.hpp"
 //#include "octotiger/sphere_points.hpp"
-#include <octotiger/ztwd.hpp>
+
 #include <array>
 #include <cstddef>
 #include <string>
