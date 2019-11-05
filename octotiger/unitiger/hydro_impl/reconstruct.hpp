@@ -4,6 +4,9 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #pragma once
+
+//#define TVD_TEST
+
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
 
@@ -11,6 +14,58 @@
 #include <octotiger/cuda_util/cuda_scheduler.hpp>
 #include <octotiger/common_kernel/struct_of_array_data.hpp>
 #include <octotiger/profiler.hpp>
+
+template<class T>
+static inline void limit_slope(T &ql, T q0, T &qr) {
+	const T tmp1 = qr - ql;
+	const T tmp2 = qr + ql;
+
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		qr = ql = q0;
+		return;
+	}
+	const T tmp3 = tmp1 * tmp1 / 6.0;
+	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	constexpr auto eps = 1.0e-12;
+	if (tmp4 > tmp3) {
+		ql = (3.0 * q0 - 2.0 * qr);
+	} else if (-tmp3 > tmp4) {
+		qr = (3.0 * q0 - 2.0 * ql);
+	}
+}
+
+template<class T>
+static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
+	const T tmp1 = qr - ql;
+	const T tmp2 = qr + ql;
+	const T tmp3 = tmp1 * tmp1 / 6.0;
+	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	const auto eps = std::max(std::abs(tmp3), std::abs(tmp4)) * 1.0e-12;
+	bool rc;
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		rc = false;
+	} else {
+		if (tmp4 > tmp3 + eps) {
+			rc = false;
+		} else if (-tmp3 > tmp4 + eps) {
+			rc = false;
+		} else {
+			rc = true;
+		}
+	}
+	if (!rc) {
+		if (qr != 0.0 || ql != 0.0) {
+			if (std::log(std::abs(qr - ql) / (0.5 * (std::abs(qr) + std::abs(ql)))) < 1.0e-12) {
+				rc = true;
+			}
+		}
+	}
+	if (!rc) {
+		printf("%e %e %e %e %e\n", ql, q0, qr, tmp4, tmp3);
+	}
+
+	return rc;
+}
 
 //#ifdef OCTOTIGER_WITH_CUDA
 template<int NDIM, int INX, class PHYS>
@@ -124,8 +179,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	static thread_local auto AM = std::vector < std::vector < safe_real >> (geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local auto Q = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
-	static thread_local auto QS = std::vector < std::vector<std::vector<safe_real>>
-			> (NDIM, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
 
 	static constexpr auto xloc = geo::xloc();
@@ -150,7 +203,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q[f], U[f], false, false);
+				reconstruct_ppm(Q[f], U[f], true, false);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 				reconstruct_constant(Q[f], U[f]);
@@ -163,7 +216,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 							for (int l = 0; l < geo::H_NX_ZM4; l++) {
 								const int i = geo::to_index(j + 2, k + 2, l + 2);
-								QS[dim][d][i] = Q[sx_i + dim][d][i] * Q[0][d][i];
+								Q[sx_i + dim][d][i] *= Q[0][d][i];
 							}
 						}
 					}
@@ -190,7 +243,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 											for (int l = 0; l < geo::H_NX_ZM4; l++) {
 												const int i = geo::to_index(j + 2, k + 2, l + 2);
-												AM[n][i] -= vw[d] * kd * 0.5 * xloc[d][m] * QS[q][d][i] * dx;
+												AM[n][i] -= vw[d] * kd * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * dx;
 											}
 										}
 									}
@@ -211,7 +264,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 											for (int l = 0; l < geo::H_NX_ZM4; l++) {
 												const int i = geo::to_index(j + 2, k + 2, l + 2);
 												const auto tmp = 6.0 * AM[n][i] / dx;
-												QS[q][d][i] += kd * 0.5 * xloc[d][m] * tmp;
+												Q[sx_i + q][d][i] += kd * 0.5 * xloc[d][m] * tmp;
 											}
 										}
 									}
@@ -223,86 +276,75 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			}
 			for (int dim = 0; dim < NDIM; dim++) {
 				const auto f = sx_i + dim;
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					const auto dp = d;
-					const auto dm = geo::flip(d);
-					for (int p = 0; p < 2; p++) {
-						const auto d0 = p == 0 ? dp : dm;
-						for (int j = 0; j < geo::H_NX_XM4; j++) {
-							for (int k = 0; k < geo::H_NX_YM4; k++) {
-#pragma ivdep
-								for (int l = 0; l < geo::H_NX_ZM4; l++) {
-									const int i = geo::to_index(j + 2, k + 2, l + 2);
-									auto s = QS[dim][d0][i] / Q[0][d0][i];
-									const auto &up = U[sx_i + dim][i + dir[d0]];
-									const auto &u0 = U[sx_i + dim][i];
-									const auto M = std::max(u0, up);
-									const auto m = std::min(u0, up);
-									s = std::min(s, M);
-									QS[dim][d0][i] = std::max(s, m);
-								}
-							}
-						}
+				for (int d = 0; d < geo::NDIR; d++) {
+					if (d == geo::NDIR / 2) {
+						continue;
 					}
 					for (int j = 0; j < geo::H_NX_XM4; j++) {
 						for (int k = 0; k < geo::H_NX_YM4; k++) {
 #pragma ivdep
 							for (int l = 0; l < geo::H_NX_ZM4; l++) {
 								const int i = geo::to_index(j + 2, k + 2, l + 2);
-								limit_slope(QS[dim][dm][i], U[sx_i + dim][i], QS[dim][dp][i]);
+								Q[sx_i + dim][d][i] /= Q[0][d][i];
 							}
 						}
 					}
-					const auto dim = f - sx_i;
-					for (int j = 0; j < geo::H_NX_XM6; j++) {
-						for (int k = 0; k < geo::H_NX_YM6; k++) {
+				}
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					for (int j = 0; j < geo::H_NX_XM4; j++) {
+						for (int k = 0; k < geo::H_NX_YM4; k++) {
 #pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM6; l++) {
-								const int i = geo::to_index(j + 3, k + 3, l + 3);
+							for (int l = 0; l < geo::H_NX_ZM4; l++) {
+								const int i = geo::to_index(j + 2, k + 2, l + 2);
 								const auto ur = U[f][i + dir[d]];
-								const auto u0 = U[f][i];
-								const auto ul = U[f][i - dir[d]];
-								const auto qr = (Q[f][dp][i] + Q[f][dm][i + dir[d]]) / 2.0;
-								const auto ql = (Q[f][dm][i] + Q[f][dp][i - dir[d]]) / 2.0;
-								const auto Mr = std::max(qr, QS[dim][dm][i + dir[d]]);
-								const auto mr = std::min(qr, QS[dim][dm][i + dir[d]]);
-								const auto Ml = std::max(ql, QS[dim][dp][i - dir[d]]);
-								const auto ml = std::min(ql, QS[dim][dp][i - dir[d]]);
-								const auto M = std::max(QS[dim][dp][i], QS[dim][dm][i]);
-								const auto m = std::min(QS[dim][dp][i], QS[dim][dm][i]);
-								double theta = 1.0;
-								if (ur > u0 && u0 > ul) {
-									if (M - u0 != 0.0) {
-										theta = std::min(theta, (Mr - u0) / (M - u0));
-									}
-									if (m - u0 != 0.0) {
-										theta = std::min(theta, (ml - u0) / (m - u0));
-									}
-								} else if (ur < u0 && u0 < ul) {
-									if (M - u0 != 0.0) {
-										theta = std::min(theta, (Ml - u0) / (M - u0));
-									}
-									if (m - u0 != 0.0) {
-										theta = std::min(theta, (mr - u0) / (m - u0));
-									}
+								const auto ul = U[f][i];
+								auto &qr = Q[f][geo::flip(d)][i + dir[d]];
+								auto &ql = Q[f][d][i];
+								if ((qr - ql) * (ur - ul) < 0) {
+									qr = ql = 0.5 * (qr + ql);
 								}
-								theta = std::min(theta, 1.0);
-								if (theta < 0.0)
-									printf("%e\n", theta);
-								Theta[i] = theta;
 							}
 						}
 					}
+				}
+				for (int d = 0; d < geo::NDIR; d++) {
+					if (d == geo::NDIR / 2) {
+						continue;
+					}
+					for (int j = 0; j < geo::H_NX_XM4; j++) {
+						for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
+							for (int l = 0; l < geo::H_NX_ZM4; l++) {
+								const int i = geo::to_index(j + 2, k + 2, l + 2);
+								auto s = Q[sx_i + dim][d][i];
+								const auto &ur = U[sx_i + dim][i + dir[d]];
+								const auto &ul = U[sx_i + dim][i];
+								const auto M = std::max(ul, ur);
+								const auto m = std::min(ul, ur);
+								s = std::min(s, M);
+								Q[sx_i + dim][d][i] = std::max(s, m);
+							}
+						}
+					}
+				}
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					const auto dp = d;
+					const auto dm = geo::flip(d);
 					for (int j = 0; j < geo::H_NX_XM6; j++) {
 						for (int k = 0; k < geo::H_NX_YM6; k++) {
 #pragma ivdep
 							for (int l = 0; l < geo::H_NX_ZM6; l++) {
 								const int i = geo::to_index(j + 3, k + 3, l + 3);
-								const auto dp = d;
-								const auto dm = geo::flip(d);
-								const auto &theta = Theta[i];
-								Q[f][dp][i] = theta * QS[dim][dp][i] + (1.0 - theta) * Q[f][dp][i];
-								Q[f][dm][i] = theta * QS[dim][dm][i] + (1.0 - theta) * Q[f][dm][i];
+								const auto up = U[f][i + dir[d]];
+								const auto u0 = U[f][i];
+								const auto um = U[f][i - dir[d]];
+								auto &qp = Q[f][d][i];
+								auto &qm = Q[f][geo::flip(d)][i];
+								if ((qp - qm) * (up - um) < 0) {
+									qp = qm = u0;
+								} else {
+									limit_slope(qp, u0, qm);
+								}
 							}
 						}
 					}
@@ -318,6 +360,8 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	}
 
+#ifdef TVD_TEST
+
 	/**** ENSURE TVD TEST***/
 	for (int f = 0; f < nf_; f++) {
 		if (!smooth_field_[f]) {
@@ -327,12 +371,17 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 						for (int l = 0; l < geo::H_NX_ZM6; l++) {
 							const int i = geo::to_index(j + 3, k + 3, l + 3);
-							const auto ur = U[f][i + dir[d]];
-							const auto ul = U[f][i - dir[d]];
+							const auto up = U[f][i + dir[d]];
+							const auto u0 = U[f][i];
+							const auto um = U[f][i - dir[d]];
 							const auto qp = Q[f][d][i];
 							const auto qm = Q[f][geo::flip(d)][i];
-							if ((qp - qm) * (ur - ul) < 0) {
-								printf("TVD fail 1 %e %e %e %e\n", qp, qm, ur, ul);
+							const auto norm = 0.25 * (std::abs(qp) + std::abs(qm)) * (std::abs(up) + std::abs(um));
+							if ((qp - qm) * (up - um) < 0) {
+								printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
+							}
+							if (!PPM_test(qp, u0, qm)) {
+								printf("TVD fail 4\n");
 							}
 						}
 					}
@@ -347,11 +396,14 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								const int i = geo::to_index(j + 4, k + 4, l + 4);
 								const auto ur = U[f][i + dir[d]];
 								const auto ul = U[f][i];
-								const auto qp = Q[f][geo::flip(d)][i + dir[d]];
-								const auto qm = Q[f][d][i];
-								const auto norm = std::max(std::abs(ur), std::abs(ul));
-								if ((qp - qm) * (ur - ul) < 0) {
-									printf("TVD fail 2 %e\n", (qp - qm) / norm);
+								const auto ql = Q[f][geo::flip(d)][i + dir[d]];
+								const auto qr = Q[f][d][i];
+								const auto norm = 0.25 * (std::abs(ql) + std::abs(qr)) * (std::abs(ur) + std::abs(ul));
+								if ((ql - qr) * (ur - ul) < 0) {
+									printf("TVD fail 2 %e\n", (ql - qr) * (ur - ul) / norm);
+								}
+								if ((qr - ul) * (ur - qr) < 0.0 || (ql - ul) * (ur - ql) < 0.0) {
+									printf("TVD fail3\n");
 								}
 							}
 						}
@@ -360,7 +412,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			}
 		}
 	}
-
+#endif
 	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
 
 
