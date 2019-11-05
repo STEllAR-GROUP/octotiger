@@ -5,7 +5,7 @@
 
 #pragma once
 
-//#define TVD_TEST
+#define TVD_TEST
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
@@ -203,25 +203,12 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q[f], U[f], true, false);
+				reconstruct_ppm(Q[f], U[f], false, false);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 				reconstruct_constant(Q[f], U[f]);
 			}
 
-			for (int dim = 0; dim < NDIM; dim++) {
-				for (int d = 0; d < geo::NDIR; d++) {
-					for (int j = 0; j < geo::H_NX_XM4; j++) {
-						for (int k = 0; k < geo::H_NX_YM4; k++) {
-#pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM4; l++) {
-								const int i = geo::to_index(j + 2, k + 2, l + 2);
-								Q[sx_i + dim][d][i] *= Q[0][d][i];
-							}
-						}
-					}
-				}
-			}
 			for (int n = 0; n < geo::NANGMOM; n++) {
 				for (int j = 0; j < geo::H_NX_XM4; j++) {
 					for (int k = 0; k < geo::H_NX_YM4; k++) {
@@ -243,7 +230,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 											for (int l = 0; l < geo::H_NX_ZM4; l++) {
 												const int i = geo::to_index(j + 2, k + 2, l + 2);
-												AM[n][i] -= vw[d] * kd * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * dx;
+												AM[n][i] -= vw[d] * kd * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
 											}
 										}
 									}
@@ -264,7 +251,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 											for (int l = 0; l < geo::H_NX_ZM4; l++) {
 												const int i = geo::to_index(j + 2, k + 2, l + 2);
 												const auto tmp = 6.0 * AM[n][i] / dx;
-												Q[sx_i + q][d][i] += kd * 0.5 * xloc[d][m] * tmp;
+												Q[sx_i + q][d][i] += kd * 0.5 * xloc[d][m] * tmp / Q[0][d][i];
 											}
 										}
 									}
@@ -276,37 +263,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			}
 			for (int dim = 0; dim < NDIM; dim++) {
 				const auto f = sx_i + dim;
-				for (int d = 0; d < geo::NDIR; d++) {
-					if (d == geo::NDIR / 2) {
-						continue;
-					}
-					for (int j = 0; j < geo::H_NX_XM4; j++) {
-						for (int k = 0; k < geo::H_NX_YM4; k++) {
-#pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM4; l++) {
-								const int i = geo::to_index(j + 2, k + 2, l + 2);
-								Q[sx_i + dim][d][i] /= Q[0][d][i];
-							}
-						}
-					}
-				}
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					for (int j = 0; j < geo::H_NX_XM4; j++) {
-						for (int k = 0; k < geo::H_NX_YM4; k++) {
-#pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM4; l++) {
-								const int i = geo::to_index(j + 2, k + 2, l + 2);
-								const auto ur = U[f][i + dir[d]];
-								const auto ul = U[f][i];
-								auto &qr = Q[f][geo::flip(d)][i + dir[d]];
-								auto &ql = Q[f][d][i];
-								if ((qr - ql) * (ur - ul) < 0) {
-									qr = ql = 0.5 * (qr + ql);
-								}
-							}
-						}
-					}
-				}
 				for (int d = 0; d < geo::NDIR; d++) {
 					if (d == geo::NDIR / 2) {
 						continue;
@@ -330,6 +286,21 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 				for (int d = 0; d < geo::NDIR / 2; d++) {
 					const auto dp = d;
 					const auto dm = geo::flip(d);
+					for (int j = 0; j < geo::H_NX_XM4; j++) {
+						for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
+							for (int l = 0; l < geo::H_NX_ZM4; l++) {
+								const int i = geo::to_index(j + 2, k + 2, l + 2);
+								const auto ur = U[f][i + dir[d]];
+								const auto ul = U[f][i];
+								auto &qr = Q[f][geo::flip(d)][i + dir[d]];
+								auto &ql = Q[f][d][i];
+								if ((qr - ql) * (ur - ul) < 0) {
+									qr = ql = 0.5 * (qr + ql);
+								}
+							}
+						}
+					}
 					for (int j = 0; j < geo::H_NX_XM6; j++) {
 						for (int k = 0; k < geo::H_NX_YM6; k++) {
 #pragma ivdep
@@ -338,8 +309,8 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								const auto up = U[f][i + dir[d]];
 								const auto u0 = U[f][i];
 								const auto um = U[f][i - dir[d]];
-								auto &qp = Q[f][d][i];
-								auto &qm = Q[f][geo::flip(d)][i];
+								auto &qp = Q[f][dp][i];
+								auto &qm = Q[f][dm][i];
 								if ((qp - qm) * (up - um) < 0) {
 									qp = qm = u0;
 								} else {
