@@ -99,53 +99,45 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct_cuda
 }
 //#endif
 
-void reconstruct_constant(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
+void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
 	for (int d = 0; d < geo.NDIR; d++) {
 		const auto di = dir[d];
-		for (int j = 0; j < geo.H_NX_XM6; j++) {
-			for (int k = 0; k < geo.H_NX_YM6; k++) {
-				for (int l = 0; l < geo.H_NX_ZM6; l++) {
-					const int i = geo.to_index(j + 3, k + 3, l + 3);
-					q[d][i] = u[i];
+		for (int j = 0; j < geo.H_NX_XM2; j++) {
+			for (int k = 0; k < geo.H_NX_YM2; k++) {
+				for (int l = 0; l < geo.H_NX_ZM2; l++) {
+					const int i = geo.to_index(j + 1, k + 1, l + 1);
+					q[d][i] = u[i] + 0.5 * minmod(u[i + di] - u[i], u[i] - u[i - di]);
 				}
 			}
 		}
 	}
 }
 
-void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool slim) {
+void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth) {
 	PROFILE()
 	;
 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
 	static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
-	const int xb1 = slim ? geo.H_NX_XM4 : geo.H_NX_XM2;
-	const int yb1 = slim ? geo.H_NX_YM4 : geo.H_NX_YM2;
-	const int zb1 = slim ? geo.H_NX_ZM4 : geo.H_NX_ZM2;
-	const int xb2 = slim ? geo.H_NX_XM6 : geo.H_NX_XM4;
-	const int yb2 = slim ? geo.H_NX_YM6 : geo.H_NX_YM4;
-	const int zb2 = slim ? geo.H_NX_ZM6 : geo.H_NX_ZM4;
-	const int o1 = slim ? 2 : 1;
-	const int o2 = slim ? 3 : 2;
 	for (int d = 0; d < geo.NDIR / 2; d++) {
 		const auto di = dir[d];
-		for (int j = 0; j < xb1; j++) {
-			for (int k = 0; k < yb1; k++) {
+		for (int j = 0; j < geo.H_NX_XM2; j++) {
+			for (int k = 0; k < geo.H_NX_YM2; k++) {
 #pragma ivdep
-				for (int l = 0; l < zb1; l++) {
-					const int i = geo.to_index(j + o1, k + o1, l + o1);
+				for (int l = 0; l < geo.H_NX_ZM2; l++) {
+					const int i = geo.to_index(j + 1, k + 1, l + 1);
 					D1[i] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
 				}
 			}
 		}
-		for (int j = 0; j < xb1; j++) {
-			for (int k = 0; k < yb1; k++) {
+		for (int j = 0; j < geo.H_NX_XM2; j++) {
+			for (int k = 0; k < geo.H_NX_YM2; k++) {
 #pragma ivdep
-				for (int l = 0; l < zb1; l++) {
-					const int i = geo.to_index(j + o1, k + o1, l + o1);
+				for (int l = 0; l < geo.H_NX_ZM2; l++) {
+					const int i = geo.to_index(j + 1, k + 1, l + 1);
 					q[d][i] = 0.5 * (u[i] + u[i + di]);
 					q[d][i] += (1.0 / 6.0) * (D1[i] - D1[i + di]);
 					q[geo.flip(d)][i + di] = q[d][i];
@@ -155,11 +147,11 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 	}
 	if (!smooth) {
 		for (int d = 0; d < geo.NDIR / 2; d++) {
-			for (int j = 0; j < xb2; j++) {
-				for (int k = 0; k < yb2; k++) {
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-					for (int l = 0; l < zb2; l++) {
-						const int i = geo.to_index(j + o2, k + o2, l + o2);
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						auto &qp = q[geo.flip(d)][i];
 						auto &qm = q[d][i];
 						limit_slope(qm, u[i], qp);
@@ -171,6 +163,21 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 
 }
 ;
+double vanleer(double a, double b) {
+	if (a * b > 0.0) {
+		return 2.0 * std::abs(a) * std::abs(b) / (a + b);
+	} else {
+		return 0.0;
+	}
+}
+
+double maxmod(double a, double b) {
+	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::max(std::abs(a), std::abs(b));
+}
+
+double superbee(double a, double b) {
+	return maxmod(minmod(a, 2 * b), minmod(2 * a, b));
+}
 
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
@@ -190,12 +197,12 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 		int sx_i = angmom_index_;
@@ -203,10 +210,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q[f], U[f], false, false);
+				reconstruct_ppm(Q[f], U[f], true);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_constant(Q[f], U[f]);
+				reconstruct_minmod(Q[f], U[f]);
 			}
 
 			for (int n = 0; n < geo::NANGMOM; n++) {
@@ -241,18 +248,52 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 				}
 				for (int m = 0; m < NDIM; m++) {
 					for (int q = 0; q < NDIM; q++) {
+						const auto f = sx_i + q;
 						const auto kd = kdelta[n][m][q];
 						if (kd != 0) {
-							for (int d = 0; d < geo::NDIR; d++) {
-								if (d != geo::NDIR / 2) {
-									for (int j = 0; j < geo::H_NX_XM4; j++) {
-										for (int k = 0; k < geo::H_NX_YM4; k++) {
+							for (int d = 0; d < geo::NDIR / 2; d++) {
+								const auto di = dir[d];
+								for (int j = 0; j < geo::H_NX_XM4; j++) {
+									for (int k = 0; k < geo::H_NX_YM4; k++) {
 #pragma ivdep
-											for (int l = 0; l < geo::H_NX_ZM4; l++) {
-												const int i = geo::to_index(j + 2, k + 2, l + 2);
-												const auto tmp = 6.0 * AM[n][i] / dx;
-												Q[sx_i + q][d][i] += kd * 0.5 * xloc[d][m] * tmp / Q[0][d][i];
+										for (int l = 0; l < geo::H_NX_ZM4; l++) {
+											const int i = geo::to_index(j + 2, k + 2, l + 2);
+											const auto tmp = 6.0 * AM[n][i] / dx;
+											const auto rho_r = Q[0][d][i];
+											const auto rho_l = Q[0][geo::flip(d)][i];
+											auto &qr = Q[f][d][i];
+											auto &ql = Q[f][geo::flip(d)][i];
+											const auto &ur = U[f][i + di];
+											const auto &u0 = U[f][i];
+											const auto &ul = U[f][i - di];
+											auto b = 2.0 * kd * xloc[d][m] * tmp / (rho_l + rho_r) + (qr - ql);
+											auto c = 6.0 * (0.5 * (qr + ql) - u0);
+											auto blim = superbee(ur - u0, u0 - ul);
+											if (b * blim <= 0.0) {
+												b = c = 0.0;
+											} else {
+												b = minmod(blim, b);
+												c /= 3.0;
+												if (blim > 0.0) {
+													if (b + c > blim) {
+														c = blim - b;
+													} else if (b - c > blim) {
+														c = b - blim;
+													}
+												} else {
+													if (b + c < blim) {
+														c = blim - b;
+													} else if (b - c < blim) {
+														c = b - blim;
+													}
+												}
+												c *= 3.0;
 											}
+											if (std::abs(c) > 0.5 * std::abs(b)) {
+												c = std::copysign(0.5 * std::abs(b), c);
+											}
+											qr = u0 + 0.5 * b + c / 6.0;
+											ql = u0 - 0.5 * b + c / 6.0;
 										}
 									}
 								}
@@ -261,72 +302,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 					}
 				}
 			}
-			for (int dim = 0; dim < NDIM; dim++) {
-				const auto f = sx_i + dim;
-				for (int d = 0; d < geo::NDIR; d++) {
-					if (d == geo::NDIR / 2) {
-						continue;
-					}
-					for (int j = 0; j < geo::H_NX_XM4; j++) {
-						for (int k = 0; k < geo::H_NX_YM4; k++) {
-#pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM4; l++) {
-								const int i = geo::to_index(j + 2, k + 2, l + 2);
-								auto s = Q[sx_i + dim][d][i];
-								const auto &ur = U[sx_i + dim][i + dir[d]];
-								const auto &ul = U[sx_i + dim][i];
-								const auto M = std::max(ul, ur);
-								const auto m = std::min(ul, ur);
-								s = std::min(s, M);
-								Q[sx_i + dim][d][i] = std::max(s, m);
-							}
-						}
-					}
-				}
-				for (int d = 0; d < geo::NDIR / 2; d++) {
-					const auto dp = d;
-					const auto dm = geo::flip(d);
-					for (int j = 0; j < geo::H_NX_XM4; j++) {
-						for (int k = 0; k < geo::H_NX_YM4; k++) {
-#pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM4; l++) {
-								const int i = geo::to_index(j + 2, k + 2, l + 2);
-								const auto ur = U[f][i + dir[d]];
-								const auto ul = U[f][i];
-								auto &qr = Q[f][geo::flip(d)][i + dir[d]];
-								auto &ql = Q[f][d][i];
-								if ((qr - ql) * (ur - ul) < 0) {
-									qr = ql = 0.5 * (qr + ql);
-								}
-							}
-						}
-					}
-					for (int j = 0; j < geo::H_NX_XM6; j++) {
-						for (int k = 0; k < geo::H_NX_YM6; k++) {
-#pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM6; l++) {
-								const int i = geo::to_index(j + 3, k + 3, l + 3);
-								const auto up = U[f][i + dir[d]];
-								const auto u0 = U[f][i];
-								const auto um = U[f][i - dir[d]];
-								auto &qp = Q[f][dp][i];
-								auto &qm = Q[f][dm][i];
-								if ((qp - qm) * (up - um) < 0) {
-									qp = qm = u0;
-								} else {
-									limit_slope(qp, u0, qm);
-								}
-							}
-						}
-					}
-				}
-			}
-
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 	}
@@ -337,18 +317,18 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	for (int f = 0; f < nf_; f++) {
 		if (!smooth_field_[f]) {
 			for (int d = 0; d < geo::NDIR / 2; d++) {
-				for (int j = 0; j < geo::H_NX_XM6; j++) {
-					for (int k = 0; k < geo::H_NX_YM6; k++) {
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
 #pragma ivdep
-						for (int l = 0; l < geo::H_NX_ZM6; l++) {
-							const int i = geo::to_index(j + 3, k + 3, l + 3);
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
 							const auto up = U[f][i + dir[d]];
 							const auto u0 = U[f][i];
 							const auto um = U[f][i - dir[d]];
 							const auto qp = Q[f][d][i];
 							const auto qm = Q[f][geo::flip(d)][i];
 							const auto norm = 0.25 * (std::abs(qp) + std::abs(qm)) * (std::abs(up) + std::abs(um));
-							if ((qp - qm) * (up - um) < 0) {
+							if ((qp - qm) * (up - um) < -1.0e-12 * norm) {
 								printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
 							}
 							if (!PPM_test(qp, u0, qm)) {
@@ -360,21 +340,21 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			}
 			for (int d = 0; d < geo::NDIR; d++) {
 				if (d != geo::NDIR / 2) {
-					for (int j = 0; j < geo::H_NX_XM8; j++) {
-						for (int k = 0; k < geo::H_NX_YM8; k++) {
+					for (int j = 0; j < geo::H_NX_XM6; j++) {
+						for (int k = 0; k < geo::H_NX_YM6; k++) {
 #pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM8; l++) {
-								const int i = geo::to_index(j + 4, k + 4, l + 4);
+							for (int l = 0; l < geo::H_NX_ZM6; l++) {
+								const int i = geo::to_index(j + 3, k + 3, l + 3);
 								const auto ur = U[f][i + dir[d]];
 								const auto ul = U[f][i];
 								const auto ql = Q[f][geo::flip(d)][i + dir[d]];
 								const auto qr = Q[f][d][i];
 								const auto norm = 0.25 * (std::abs(ql) + std::abs(qr)) * (std::abs(ur) + std::abs(ul));
-								if ((ql - qr) * (ur - ul) < 0) {
-									printf("TVD fail 2 %e\n", (ql - qr) * (ur - ul) / norm);
+								if ((qr - ul) * (ur - qr) < -1.0e-12 * norm) {
+									printf("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
 								}
-								if ((qr - ul) * (ur - qr) < 0.0 || (ql - ul) * (ur - ql) < 0.0) {
-									printf("TVD fail3\n");
+								if ((ql - ul) * (ur - ql) < -1.0e-12 * norm) {
+									printf("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
 								}
 							}
 						}
@@ -385,7 +365,6 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	}
 #endif
 	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
-
 
 	return Q;
 }

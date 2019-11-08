@@ -195,11 +195,11 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 					for (int m = 0; m < NDIM; m++) {
 						const auto kd = kdelta[n][m][q];
 						if (kd != 0) {
-							for (int j = 0; j < geo.H_NX_XM6; j++) {
-								for (int k = 0; k < geo.H_NX_YM6; k++) {
+							for (int j = 0; j < geo.H_NX_XM4; j++) {
+								for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-									for (int l = 0; l < geo.H_NX_ZM6; l++) {
-										const int i = geo.to_index(j + 3, k + 3, l + 3);
+									for (int l = 0; l < geo.H_NX_ZM4; l++) {
+										const int i = geo.to_index(j + 2, k + 2, l + 2);
 										const auto rho = Q[rho_i][d][i];
 										Q[lx_i + n][d][i] += kd * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[sx_i + q][d][i];
 									}
@@ -208,11 +208,11 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 						}
 					}
 				}
-				for (int j = 0; j < geo.H_NX_XM6; j++) {
-					for (int k = 0; k < geo.H_NX_YM6; k++) {
+				for (int j = 0; j < geo.H_NX_XM4; j++) {
+					for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-						for (int l = 0; l < geo.H_NX_ZM6; l++) {
-							const int i = geo.to_index(j + 3, k + 3, l + 3);
+						for (int l = 0; l < geo.H_NX_ZM4; l++) {
+							const int i = geo.to_index(j + 2, k + 2, l + 2);
 							const auto rho = Q[rho_i][d][i];
 							Q[lx_i + n][d][i] *= rho;
 						}
@@ -220,11 +220,11 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 				}
 			}
 			for (int dim = 0; dim < NDIM; dim++) {
-				for (int j = 0; j < geo.H_NX_XM6; j++) {
-					for (int k = 0; k < geo.H_NX_YM6; k++) {
+				for (int j = 0; j < geo.H_NX_XM4; j++) {
+					for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-						for (int l = 0; l < geo.H_NX_ZM6; l++) {
-							const int i = geo.to_index(j + 3, k + 3, l + 3);
+						for (int l = 0; l < geo.H_NX_ZM4; l++) {
+							const int i = geo.to_index(j + 2, k + 2, l + 2);
 							const auto rho = Q[rho_i][d][i];
 							auto &v = Q[sx_i + dim][d][i];
 							Q[egas_i][d][i] += 0.5 * v * v * rho;
@@ -233,21 +233,21 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 					}
 				}
 			}
-			for (int j = 0; j < geo.H_NX_XM6; j++) {
-				for (int k = 0; k < geo.H_NX_YM6; k++) {
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-					for (int l = 0; l < geo.H_NX_ZM6; l++) {
-						const int i = geo.to_index(j + 3, k + 3, l + 3);
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						const auto rho = Q[rho_i][d][i];
 						Q[pot_i][d][i] *= rho;
 					}
 				}
 			}
-			for (int j = 0; j < geo.H_NX_XM6; j++) {
-				for (int k = 0; k < geo.H_NX_YM6; k++) {
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-					for (int l = 0; l < geo.H_NX_ZM6; l++) {
-						const int i = geo.to_index(j + 3, k + 3, l + 3);
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						const auto rho = Q[rho_i][d][i];
 						safe_real w = 0.0;
 						for (int si = 0; si < n_species_; si++) {
