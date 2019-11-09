@@ -5,7 +5,7 @@
 
 #pragma once
 
-#define TVD_TEST
+//#define TVD_TEST
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
@@ -100,6 +100,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct_cuda
 //#endif
 
 void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
+	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
 	for (int d = 0; d < geo.NDIR; d++) {
@@ -116,8 +117,7 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 }
 
 void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth) {
-	PROFILE()
-	;
+	PROFILE();
 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
@@ -162,28 +162,19 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 	}
 
 }
-;
-double vanleer(double a, double b) {
-	if (a * b > 0.0) {
-		return 2.0 * std::abs(a) * std::abs(b) / (a + b);
-	} else {
-		return 0.0;
-	}
-}
 
-double maxmod(double a, double b) {
+inline safe_real maxmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::max(std::abs(a), std::abs(b));
 }
 
-double superbee(double a, double b) {
+inline safe_real superbee(safe_real a, safe_real b) {
 	return maxmod(minmod(a, 2 * b), minmod(2 * a, b));
 }
 
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
-	PROFILE()
-	;
-	static thread_local auto AM = std::vector < std::vector < safe_real >> (geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
+	PROFILE();
+	static thread_local auto AM = std::vector < safe_real > (geo::H_N3);
 	static thread_local auto Q = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
@@ -222,7 +213,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 						for (int l = 0; l < geo::H_NX_ZM4; l++) {
 							const int i = geo::to_index(j + 2, k + 2, l + 2);
-							AM[n][i] = U[zx_i + n][i] * U[0][i];
+							AM[i] = U[zx_i + n][i] * U[0][i];
 						}
 					}
 				}
@@ -237,7 +228,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 											for (int l = 0; l < geo::H_NX_ZM4; l++) {
 												const int i = geo::to_index(j + 2, k + 2, l + 2);
-												AM[n][i] -= vw[d] * kd * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
+												AM[i] -= vw[d] * kd * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
 											}
 										}
 									}
@@ -258,40 +249,19 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 										for (int l = 0; l < geo::H_NX_ZM4; l++) {
 											const int i = geo::to_index(j + 2, k + 2, l + 2);
-											const auto tmp = 6.0 * AM[n][i] / dx;
-											const auto rho_r = Q[0][d][i];
-											const auto rho_l = Q[0][geo::flip(d)][i];
+											const auto &rho_r = Q[0][d][i];
+											const auto &rho_l = Q[0][geo::flip(d)][i];
 											auto &qr = Q[f][d][i];
 											auto &ql = Q[f][geo::flip(d)][i];
 											const auto &ur = U[f][i + di];
 											const auto &u0 = U[f][i];
 											const auto &ul = U[f][i - di];
-											auto b = 2.0 * kd * xloc[d][m] * tmp / (rho_l + rho_r) + (qr - ql);
+											auto b = 12.0 * AM[i] * kd * xloc[d][m] / (dx * (rho_l + rho_r)) + (qr - ql);
 											auto c = 6.0 * (0.5 * (qr + ql) - u0);
-											auto blim = superbee(ur - u0, u0 - ul);
-											if (b * blim <= 0.0) {
-												b = c = 0.0;
-											} else {
-												b = minmod(blim, b);
-												c /= 3.0;
-												if (blim > 0.0) {
-													if (b + c > blim) {
-														c = blim - b;
-													} else if (b - c > blim) {
-														c = b - blim;
-													}
-												} else {
-													if (b + c < blim) {
-														c = blim - b;
-													} else if (b - c < blim) {
-														c = b - blim;
-													}
-												}
-												c *= 3.0;
-											}
-											if (std::abs(c) > 0.5 * std::abs(b)) {
-												c = std::copysign(0.5 * std::abs(b), c);
-											}
+											const auto blim = superbee(ur - u0, u0 - ul);
+											b = minmod(blim, b);
+											const auto clim = std::min(0.5 * std::abs(b), 3.0 * std::abs(blim - b));
+											c = std::copysign(std::min(std::abs(c), clim), c);
 											qr = u0 + 0.5 * b + c / 6.0;
 											ql = u0 - 0.5 * b + c / 6.0;
 										}
@@ -312,49 +282,51 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	}
 
 #ifdef TVD_TEST
-
-	/**** ENSURE TVD TEST***/
-	for (int f = 0; f < nf_; f++) {
-		if (!smooth_field_[f]) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				for (int j = 0; j < geo::H_NX_XM4; j++) {
-					for (int k = 0; k < geo::H_NX_YM4; k++) {
+	{
+		PROFILE();
+		/**** ENSURE TVD TEST***/
+		for (int f = 0; f < nf_; f++) {
+			if (!smooth_field_[f]) {
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					for (int j = 0; j < geo::H_NX_XM4; j++) {
+						for (int k = 0; k < geo::H_NX_YM4; k++) {
 #pragma ivdep
-						for (int l = 0; l < geo::H_NX_ZM4; l++) {
-							const int i = geo::to_index(j + 2, k + 2, l + 2);
-							const auto up = U[f][i + dir[d]];
-							const auto u0 = U[f][i];
-							const auto um = U[f][i - dir[d]];
-							const auto qp = Q[f][d][i];
-							const auto qm = Q[f][geo::flip(d)][i];
-							const auto norm = 0.25 * (std::abs(qp) + std::abs(qm)) * (std::abs(up) + std::abs(um));
-							if ((qp - qm) * (up - um) < -1.0e-12 * norm) {
-								printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
-							}
-							if (!PPM_test(qp, u0, qm)) {
-								printf("TVD fail 4\n");
+							for (int l = 0; l < geo::H_NX_ZM4; l++) {
+								const int i = geo::to_index(j + 2, k + 2, l + 2);
+								const auto up = U[f][i + dir[d]];
+								const auto u0 = U[f][i];
+								const auto um = U[f][i - dir[d]];
+								const auto qp = Q[f][d][i];
+								const auto qm = Q[f][geo::flip(d)][i];
+								const auto norm = 0.25 * (std::abs(qp) + std::abs(qm)) * (std::abs(up) + std::abs(um));
+								if ((qp - qm) * (up - um) < -1.0e-10 * norm) {
+									printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
+								}
+								if (!PPM_test(qp, u0, qm)) {
+									printf("TVD fail 4\n");
+								}
 							}
 						}
 					}
 				}
-			}
-			for (int d = 0; d < geo::NDIR; d++) {
-				if (d != geo::NDIR / 2) {
-					for (int j = 0; j < geo::H_NX_XM6; j++) {
-						for (int k = 0; k < geo::H_NX_YM6; k++) {
+				for (int d = 0; d < geo::NDIR; d++) {
+					if (d != geo::NDIR / 2) {
+						for (int j = 0; j < geo::H_NX_XM6; j++) {
+							for (int k = 0; k < geo::H_NX_YM6; k++) {
 #pragma ivdep
-							for (int l = 0; l < geo::H_NX_ZM6; l++) {
-								const int i = geo::to_index(j + 3, k + 3, l + 3);
-								const auto ur = U[f][i + dir[d]];
-								const auto ul = U[f][i];
-								const auto ql = Q[f][geo::flip(d)][i + dir[d]];
-								const auto qr = Q[f][d][i];
-								const auto norm = 0.25 * (std::abs(ql) + std::abs(qr)) * (std::abs(ur) + std::abs(ul));
-								if ((qr - ul) * (ur - qr) < -1.0e-12 * norm) {
-									printf("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
-								}
-								if ((ql - ul) * (ur - ql) < -1.0e-12 * norm) {
-									printf("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
+								for (int l = 0; l < geo::H_NX_ZM6; l++) {
+									const int i = geo::to_index(j + 3, k + 3, l + 3);
+									const auto ur = U[f][i + dir[d]];
+									const auto ul = U[f][i];
+									const auto ql = Q[f][geo::flip(d)][i + dir[d]];
+									const auto qr = Q[f][d][i];
+									const auto norm = 0.25 * (std::abs(ql) + std::abs(qr)) * (std::abs(ur) + std::abs(ul));
+									if ((qr - ul) * (ur - qr) < -1.0e-10 * norm) {
+										printf("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
+									}
+									if ((ql - ul) * (ur - ql) < -1.0e-10 * norm) {
+										printf("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
+									}
 								}
 							}
 						}

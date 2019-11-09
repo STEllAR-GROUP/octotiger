@@ -37,12 +37,7 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 		for (const auto &i : indices) {
 			safe_real ap = 0.0, am = 0.0;
 			safe_real this_ap, this_am;
-#ifdef FACES_ONLY
-#warning "Compiling with only face center fluxes"
-			for (int fi = 0; fi < 1; fi++) {
-#else
 			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
-#endif
 				const auto d = faces[dim][fi];
 				for (int f = 0; f < nf_; f++) {
 					UR[f] = Q[f][d][i];
