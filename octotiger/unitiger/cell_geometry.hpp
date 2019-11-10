@@ -24,6 +24,10 @@ struct cell_geometry {
 	static constexpr int H_NX_YM2 = NDIM > 1 ? H_NX - 2 : 1;
 	static constexpr int H_NX_ZM2 = NDIM > 2 ? H_NX - 2 : 1;
 
+	static constexpr int H_NX_XM3 = H_NX - 3;
+	static constexpr int H_NX_YM3 = NDIM > 1 ? H_NX - 3 : 1;
+	static constexpr int H_NX_ZM3 = NDIM > 2 ? H_NX - 3 : 1;
+
 	static constexpr int H_NX_XM4 = H_NX - 4;
 	static constexpr int H_NX_YM4 = NDIM > 1 ? H_NX - 4 : 1;
 	static constexpr int H_NX_ZM4 = NDIM > 2 ? H_NX - 4 : 1;
@@ -286,7 +290,7 @@ public:
 		return lower_face_members[NDIM - 1];
 	}
 
-	inline constexpr int flip(const int d) {
+	inline constexpr int flip(const int d) const {
 		return NDIR - 1 - d;
 	}
 

@@ -4,16 +4,72 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #pragma once
+
+//#define TVD_TEST
+
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
 
 #include <octotiger/cuda_util/cuda_helper.hpp>
 #include <octotiger/cuda_util/cuda_scheduler.hpp>
 #include <octotiger/common_kernel/struct_of_array_data.hpp>
+#include <octotiger/profiler.hpp>
+
+template<class T>
+static inline void limit_slope(T &ql, T q0, T &qr) {
+	const T tmp1 = qr - ql;
+	const T tmp2 = qr + ql;
+
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		qr = ql = q0;
+		return;
+	}
+	const T tmp3 = tmp1 * tmp1 / 6.0;
+	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	constexpr auto eps = 1.0e-12;
+	if (tmp4 > tmp3) {
+		ql = (3.0 * q0 - 2.0 * qr);
+	} else if (-tmp3 > tmp4) {
+		qr = (3.0 * q0 - 2.0 * ql);
+	}
+}
+
+template<class T>
+static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
+	const T tmp1 = qr - ql;
+	const T tmp2 = qr + ql;
+	const T tmp3 = tmp1 * tmp1 / 6.0;
+	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	const auto eps = std::max(std::abs(tmp3), std::abs(tmp4)) * 1.0e-12;
+	bool rc;
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		rc = false;
+	} else {
+		if (tmp4 > tmp3 + eps) {
+			rc = false;
+		} else if (-tmp3 > tmp4 + eps) {
+			rc = false;
+		} else {
+			rc = true;
+		}
+	}
+	if (!rc) {
+		if (qr != 0.0 || ql != 0.0) {
+			if (std::log(std::abs(qr - ql) / (0.5 * (std::abs(qr) + std::abs(ql)))) < 1.0e-12) {
+				rc = true;
+			}
+		}
+	}
+	if (!rc) {
+		printf("%e %e %e %e %e\n", ql, q0, qr, tmp4, tmp3);
+	}
+
+	return rc;
+}
 
 //#ifdef OCTOTIGER_WITH_CUDA
 template<int NDIM, int INX, class PHYS>
-const hydro::recon_type<NDIM>& hydro_computer<NDIM,INX,PHYS>::reconstruct_cuda(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
+const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct_cuda(hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 
 //	static thread_local octotiger::fmm::struct_of_array_data<std::array<safe_real, geo::NDIR>, safe_real, geo::NDIR, geo::H_N3, 19>
 //		D1_SoA;
@@ -43,36 +99,85 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM,INX,PHYS>::reconstruct_cuda(h
 }
 //#endif
 
+void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
+	PROFILE();
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto dir = geo.direction();
+	for (int d = 0; d < geo.NDIR; d++) {
+		const auto di = dir[d];
+		for (int j = 0; j < geo.H_NX_XM2; j++) {
+			for (int k = 0; k < geo.H_NX_YM2; k++) {
+				for (int l = 0; l < geo.H_NX_ZM2; l++) {
+					const int i = geo.to_index(j + 1, k + 1, l + 1);
+					q[d][i] = u[i] + 0.5 * minmod(u[i + di] - u[i], u[i] - u[i - di]);
+				}
+			}
+		}
+	}
+}
+
+void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth) {
+	PROFILE();
+
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto dir = geo.direction();
+	static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
+	for (int d = 0; d < geo.NDIR / 2; d++) {
+		const auto di = dir[d];
+		for (int j = 0; j < geo.H_NX_XM2; j++) {
+			for (int k = 0; k < geo.H_NX_YM2; k++) {
+#pragma ivdep
+				for (int l = 0; l < geo.H_NX_ZM2; l++) {
+					const int i = geo.to_index(j + 1, k + 1, l + 1);
+					D1[i] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
+				}
+			}
+		}
+		for (int j = 0; j < geo.H_NX_XM2; j++) {
+			for (int k = 0; k < geo.H_NX_YM2; k++) {
+#pragma ivdep
+				for (int l = 0; l < geo.H_NX_ZM2; l++) {
+					const int i = geo.to_index(j + 1, k + 1, l + 1);
+					q[d][i] = 0.5 * (u[i] + u[i + di]);
+					q[d][i] += (1.0 / 6.0) * (D1[i] - D1[i + di]);
+					q[geo.flip(d)][i + di] = q[d][i];
+				}
+			}
+		}
+	}
+	if (!smooth) {
+		for (int d = 0; d < geo.NDIR / 2; d++) {
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						const int i = geo.to_index(j + 2, k + 2, l + 2);
+						auto &qp = q[geo.flip(d)][i];
+						auto &qm = q[d][i];
+						limit_slope(qm, u[i], qp);
+					}
+				}
+			}
+		}
+	}
+
+}
+
+inline safe_real maxmod(safe_real a, safe_real b) {
+	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::max(std::abs(a), std::abs(b));
+}
+
+inline safe_real superbee(safe_real a, safe_real b) {
+	return maxmod(minmod(a, 2 * b), minmod(2 * a, b));
+}
+
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
-
-	static thread_local auto Q = std::vector < std::vector<std::array<safe_real, geo::NDIR>> > (nf_, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
-	static thread_local auto QS = std::vector < std::vector<std::array<safe_real, geo::NDIR>>
-			> (NDIM, std::vector<std::array<safe_real, geo::NDIR>>(geo::H_N3));
-	static thread_local auto Q_SoA = std::vector < std::vector<std::vector<safe_real>>
+	PROFILE();
+	static thread_local auto AM = std::vector < safe_real > (geo::H_N3);
+	static thread_local auto Q = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
-	static thread_local auto D1 = std::vector < safe_real > (geo::H_N3, 0.0);
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
-
-	static const auto SoA2AoS = [](int f1, int f2) {
-		for (int f = f1; f < f2; f++) {
-			for (int i = 0; i < geo::H_N3; i++) {
-				for (int d = 0; d < geo::NDIR; d++) {
-					Q[f][i][d] = Q_SoA[f][d][i];
-				}
-			}
-		}
-	};
-
-	static const auto AoS2SoA = [](int f1, int f2) {
-		for (int f = f1; f < f2; f++) {
-			for (int i = 0; i < geo::H_N3; i++) {
-				for (int d = 0; d < geo::NDIR; d++) {
-					Q_SoA[f][d][i] = Q[f][i][d];
-				}
-			}
-		}
-	};
 
 	static constexpr auto xloc = geo::xloc();
 	static constexpr auto kdelta = geo::kronecker_delta();
@@ -81,250 +186,158 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
 	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
-
-	const auto measure_angmom = [dx](const std::array<std::array<safe_real, geo::NDIR>, NDIM> &C) {
-		std::array < safe_real, geo::NANGMOM > L;
-		for (int n = 0; n < geo::NANGMOM; n++) {
-			L[n] = 0.0;
-			for (int m = 0; m < NDIM; m++) {
-				for (int l = 0; l < NDIM; l++) {
-					for (int d = 0; d < geo::NDIR; d++) {
-						if (d != geo::NDIR / 2) {
-							L[n] += vw[d] * kdelta[n][m][l] * 0.5 * xloc[d][m] * C[l][d] * dx;
-						}
-					}
-				}
-			}
-		}
-		return L;
-	};
-
-	const auto add_angmom = [dx](std::array<std::array<safe_real, geo::NDIR>, NDIM> &C, std::array<safe_real, geo::NANGMOM> &Z) {
-		for (int d = 0; d < geo::NDIR; d++) {
-			if (d != geo::NDIR / 2) {
-				for (int n = 0; n < geo::NANGMOM; n++) {
-					for (int m = 0; m < NDIM; m++) {
-						for (int l = 0; l < NDIM; l++) {
-							const auto tmp = 6.0 * Z[n] / dx;
-							C[l][d] += kdelta[n][m][l] * 0.5 * xloc[d][m] * tmp;
-						}
-					}
-				}
-			}
-		}
-	};
-
-	const auto reconstruct_ppm = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool slim) {
-		const int xb1 = slim ? geo::H_NX_XM4 : geo::H_NX_XM2;
-		const int yb1 = slim ? geo::H_NX_YM4 : geo::H_NX_YM2;
-		const int zb1 = slim ? geo::H_NX_ZM4 : geo::H_NX_ZM2;
-		const int xb2 = slim ? geo::H_NX_XM6 : geo::H_NX_XM4;
-		const int yb2 = slim ? geo::H_NX_YM6 : geo::H_NX_YM4;
-		const int zb2 = slim ? geo::H_NX_ZM6 : geo::H_NX_ZM4;
-		const int o1 = slim ? 2 : 1;
-		const int o2 = slim ? 3 : 2;
-		for (int d = 0; d < geo::NDIR / 2; d++) {
-			const auto di = dir[d];
-			for (int j = 0; j < xb1; j++) {
-				for (int k = 0; k < yb1; k++) {
-					for (int l = 0; l < zb1; l++) {
-						const int i = geo::to_index(j + o1, k + o1, l + o1);
-						D1[i] = minmod_theta(u[i + di] - u[i], u[i] - u[i - di], 2.0);
-					}
-				}
-			}
-			for (int j = 0; j < xb1; j++) {
-				for (int k = 0; k < yb1; k++) {
-					for (int l = 0; l < zb1; l++) {
-						const int i = geo::to_index(j + o1, k + o1, l + o1);
-						q[d][i] = 0.5 * (u[i] + u[i + di]);
-						q[d][i] += (1.0 / 6.0) * (D1[i] - D1[i + di]);
-						q[geo::flip(d)][i + di] = q[d][i];
-					}
-				}
-			}
-		}
-		if (!smooth) {
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				for (int j = 0; j < xb2; j++) {
-					for (int k = 0; k < yb2; k++) {
-						for (int l = 0; l < zb2; l++) {
-							const int i = geo::to_index(j + o2, k + o2, l + o2);
-							auto &qp = q[geo::flip(d)][i];
-							auto &qm = q[d][i];
-							limit_slope(qm, u[i], qp);
-						}
-					}
-				}
-			}
-		}
-	};
-
-	const auto reconstruct_constant = [this](std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
-		for (int d = 0; d < geo::NDIR; d++) {
-			const auto di = dir[d];
-			for (int j = 0; j < geo::H_NX_XM6; j++) {
-				for (int k = 0; k < geo::H_NX_YM6; k++) {
-					for (int l = 0; l < geo::H_NX_ZM6; l++) {
-						const int i = geo::to_index(j + 3, k + 3, l + 3);
-						q[d][i] = u[i];
-					}
-				}
-			}
-		}
-	};
-
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 		int sx_i = angmom_index_;
 		int zx_i = sx_i + NDIM;
 
-		SoA2AoS(rho_i, rho_i + 1);
-
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q_SoA[f], U[f], false, false);
+				reconstruct_ppm(Q[f], U[f], true);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_constant(Q_SoA[f], U[f]);
+				reconstruct_minmod(Q[f], U[f]);
 			}
 
-			SoA2AoS(sx_i, sx_i + NDIM);
-
-			for (int j = 0; j < geo::H_NX_XM4; j++) {
-				for (int k = 0; k < geo::H_NX_YM4; k++) {
-					for (int l = 0; l < geo::H_NX_ZM4; l++) {
-						const int i = geo::to_index(j + 2, k + 2, l + 2);
-
-						std::array < safe_real, geo::NANGMOM > Z;
-						std::array<std::array<safe_real, geo::NDIR>, NDIM> S;
-						for (int n = 0; n < geo::NANGMOM; n++) {
-							Z[n] = U[zx_i + n][i];
+			for (int n = 0; n < geo::NANGMOM; n++) {
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
+							AM[i] = U[zx_i + n][i] * U[0][i];
 						}
-						for (int dim = 0; dim < NDIM; dim++) {
-							for (int d = 0; d < geo::NDIR; d++) {
-								S[dim][d] = Q[sx_i + dim][i][d];
-							}
-						}
-
-						PHYS::template pre_angmom<INX>(U, Q, Z, S, i, dx);
-						auto am1 = measure_angmom(S);
-						decltype(Z) am2;
-						for (int dim = 0; dim < geo::NANGMOM; dim++) {
-							am2[dim] = Z[dim] - am1[dim];
-						}
-						add_angmom(S, am2);
-						PHYS::template post_angmom<INX>(U, Q, Z, S, i, dx);
-
-						for (int dim = 0; dim < NDIM; dim++) {
+					}
+				}
+				for (int m = 0; m < NDIM; m++) {
+					for (int q = 0; q < NDIM; q++) {
+						const auto kd = kdelta[n][m][q];
+						if (kd != 0) {
 							for (int d = 0; d < geo::NDIR; d++) {
 								if (d != geo::NDIR / 2) {
-									auto &s = S[dim][d];
-									const auto &up = U[sx_i + dim][i + dir[d]];
-									const auto &u0 = U[sx_i + dim][i];
-									const auto M = std::max(u0, up);
-									const auto m = std::min(u0, up);
-									s = std::min(s, M);
-									s = std::max(s, m);
+									for (int j = 0; j < geo::H_NX_XM4; j++) {
+										for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
+											for (int l = 0; l < geo::H_NX_ZM4; l++) {
+												const int i = geo::to_index(j + 2, k + 2, l + 2);
+												AM[i] -= vw[d] * kd * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
+											}
+										}
+									}
 								}
 							}
 						}
-
-						for (int dim = 0; dim < NDIM; dim++) {
-							for (int d = 0; d < geo::NDIR; d++) {
-								QS[dim][i][d] = S[dim][d];
-							}
+					}
+				}
+				for (int m = 0; m < NDIM; m++) {
+					for (int q = 0; q < NDIM; q++) {
+						const auto f = sx_i + q;
+						const auto kd = kdelta[n][m][q];
+						if (kd != 0) {
 							for (int d = 0; d < geo::NDIR / 2; d++) {
-								const auto dp = d;
-								const auto dm = geo::flip(d);
-								limit_slope(QS[dim][i][dm], U[sx_i + dim][i], QS[dim][i][dp]);
-							}
-						}
-					}
-				}
-			}
-			for (int d = 0; d < geo::NDIR / 2; d++) {
-				for (int f = sx_i; f < sx_i + NDIM; f++) {
-					const auto dim = f - sx_i;
-					const auto dp = d;
-					const auto dm = geo::flip(d);
-					for (int j = 0; j < geo::H_NX_XM6; j++) {
-						for (int k = 0; k < geo::H_NX_YM6; k++) {
-							for (int l = 0; l < geo::H_NX_ZM6; l++) {
-								const int i = geo::to_index(j + 3, k + 3, l + 3);
-								const auto ur = U[f][i + dir[d]];
-								const auto u0 = U[f][i];
-								const auto ul = U[f][i - dir[d]];
-								const auto qr = (Q[f][i][dp] + Q[f][i + dir[d]][dm]) / 2.0;
-								const auto ql = (Q[f][i][dm] + Q[f][i - dir[d]][dp]) / 2.0;
-								const auto Mr = std::max(qr, QS[dim][i + dir[d]][dm]);
-								const auto mr = std::min(qr, QS[dim][i + dir[d]][dm]);
-								const auto Ml = std::max(ql, QS[dim][i - dir[d]][dp]);
-								const auto ml = std::min(ql, QS[dim][i - dir[d]][dp]);
-								const auto M = std::max(QS[dim][i][dp], QS[dim][i][dm]);
-								const auto m = std::min(QS[dim][i][dp], QS[dim][i][dm]);
-								double theta = 1.0;
-								if (ur > u0 && u0 > ul) {
-									if (M - u0 != 0.0) {
-										theta = std::min(theta, (Mr - u0) / (M - u0));
+								const auto di = dir[d];
+								for (int j = 0; j < geo::H_NX_XM4; j++) {
+									for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
+										for (int l = 0; l < geo::H_NX_ZM4; l++) {
+											const int i = geo::to_index(j + 2, k + 2, l + 2);
+											const auto &rho_r = Q[0][d][i];
+											const auto &rho_l = Q[0][geo::flip(d)][i];
+											auto &qr = Q[f][d][i];
+											auto &ql = Q[f][geo::flip(d)][i];
+											const auto &ur = U[f][i + di];
+											const auto &u0 = U[f][i];
+											const auto &ul = U[f][i - di];
+											auto b = 12.0 * AM[i] * kd * xloc[d][m] / (dx * (rho_l + rho_r)) + (qr - ql);
+											auto c = 6.0 * (0.5 * (qr + ql) - u0);
+											const auto blim = superbee(ur - u0, u0 - ul);
+											b = minmod(blim, b);
+											const auto clim = std::min(0.5 * std::abs(b), 3.0 * std::abs(blim - b));
+											c = std::copysign(std::min(std::abs(c), clim), c);
+											qr = u0 + 0.5 * b + c / 6.0;
+											ql = u0 - 0.5 * b + c / 6.0;
+										}
 									}
-									if (m - u0 != 0.0) {
-										theta = std::min(theta, (ml - u0) / (m - u0));
-									}
-								} else if (ur < u0 && u0 < ul) {
-									if (M - u0 != 0.0) {
-										theta = std::min(theta, (Ml - u0) / (M - u0));
-									}
-									if (m - u0 != 0.0) {
-										theta = std::min(theta, (mr - u0) / (m - u0));
-									}
-								}
-								theta = std::min(theta, 1.0);
-								if (theta < 0.0)
-									printf("%e\n", theta);
-								Theta[i] = theta;
-							}
-						}
-					}
-					for (int j = 0; j < geo::H_NX_XM6; j++) {
-						for (int k = 0; k < geo::H_NX_YM6; k++) {
-							for (int l = 0; l < geo::H_NX_ZM6; l++) {
-								const int i = geo::to_index(j + 3, k + 3, l + 3);
-								const auto dp = d;
-								const auto dm = geo::flip(d);
-								for (int d = 0; d < geo::NDIR / 2; d++) {
-									const auto &theta = Theta[i];
-									Q[f][i][dp] = theta * QS[dim][i][dp] + (1.0 - theta) * Q[f][i][dp];
-									Q[f][i][dm] = theta * QS[dim][i][dm] + (1.0 - theta) * Q[f][i][dm];
 								}
 							}
 						}
 					}
 				}
 			}
-
-			AoS2SoA(sx_i, sx_i + NDIM);
-
 			sx_i += geo::NANGMOM + NDIM;
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
-			reconstruct_ppm(Q_SoA[f], U[f], smooth_field_[f], slim_field_[f]);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
 		}
 
 	}
 
-	PHYS::template post_recon<INX>(Q_SoA, X, omega, angmom_count_ > 0);
+#ifdef TVD_TEST
+	{
+		PROFILE();
+		/**** ENSURE TVD TEST***/
+		for (int f = 0; f < nf_; f++) {
+			if (!smooth_field_[f]) {
+				for (int d = 0; d < geo::NDIR / 2; d++) {
+					for (int j = 0; j < geo::H_NX_XM4; j++) {
+						for (int k = 0; k < geo::H_NX_YM4; k++) {
+#pragma ivdep
+							for (int l = 0; l < geo::H_NX_ZM4; l++) {
+								const int i = geo::to_index(j + 2, k + 2, l + 2);
+								const auto up = U[f][i + dir[d]];
+								const auto u0 = U[f][i];
+								const auto um = U[f][i - dir[d]];
+								const auto qp = Q[f][d][i];
+								const auto qm = Q[f][geo::flip(d)][i];
+								const auto norm = 0.25 * (std::abs(qp) + std::abs(qm)) * (std::abs(up) + std::abs(um));
+								if ((qp - qm) * (up - um) < -1.0e-10 * norm) {
+									printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
+								}
+								if (!PPM_test(qp, u0, qm)) {
+									printf("TVD fail 4\n");
+								}
+							}
+						}
+					}
+				}
+				for (int d = 0; d < geo::NDIR; d++) {
+					if (d != geo::NDIR / 2) {
+						for (int j = 0; j < geo::H_NX_XM6; j++) {
+							for (int k = 0; k < geo::H_NX_YM6; k++) {
+#pragma ivdep
+								for (int l = 0; l < geo::H_NX_ZM6; l++) {
+									const int i = geo::to_index(j + 3, k + 3, l + 3);
+									const auto ur = U[f][i + dir[d]];
+									const auto ul = U[f][i];
+									const auto ql = Q[f][geo::flip(d)][i + dir[d]];
+									const auto qr = Q[f][d][i];
+									const auto norm = 0.25 * (std::abs(ql) + std::abs(qr)) * (std::abs(ur) + std::abs(ul));
+									if ((qr - ul) * (ur - qr) < -1.0e-10 * norm) {
+										printf("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
+									}
+									if ((ql - ul) * (ur - ql) < -1.0e-10 * norm) {
+										printf("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
+	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
 
-	SoA2AoS(0, nf_);
 	return Q;
 }
 

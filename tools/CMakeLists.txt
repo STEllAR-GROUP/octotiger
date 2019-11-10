@@ -4,15 +4,15 @@
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 ################################################################################
-# Set up binary_params target
+# Set up bfilter target
 ################################################################################
-add_executable(binary_params binary_params/binary_params.cpp)
-target_link_libraries(binary_params Silo::silo)
-set_property(TARGET binary_params PROPERTY FOLDER "Tools")
+add_executable(bfilter bfilter/bfilter.cpp)
+target_link_libraries(bfilter Silo::silo)
+set_property(TARGET bfilter PROPERTY FOLDER "Tools")
 if(MSVC)
-  target_compile_definitions(binary_params PRIVATE
+  target_compile_definitions(bfilter PRIVATE
     _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
-  target_compile_options(binary_params PRIVATE /EHsc)
+  target_compile_options(bfilter PRIVATE /EHsc)
 endif()
 
 ################################################################################

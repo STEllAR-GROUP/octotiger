@@ -312,7 +312,7 @@ static scf_parameters& initial_params() {
 
 real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2_x, real l1_x, struct_eos struct_eos_1,
 		struct_eos struct_eos_2) {
-	PROF_BEGIN;
+
 	if (omega <= 0.0) {
 		printf("OMEGA <= 0.0\n");
 		abort();
@@ -446,7 +446,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 	init_z_field();
 	if (opts().radiation) {
 		rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
-	} PROF_END;
+	}
 	return 0.0;
 }
 

@@ -29,7 +29,7 @@ using x_type = std::vector<std::vector<safe_real>>;
 using flux_type = std::vector<std::vector<std::vector<safe_real>>>;
 
 template<int NDIM>
-using recon_type =std::vector<std::vector<std::array<safe_real, NDIM == 1 ? 3 : (NDIM == 2 ? 9 : 27)>>>;
+using recon_type =std::vector<std::vector<std::vector<safe_real>>>;
 
 using state_type = std::vector<std::vector<safe_real>>;
 }
@@ -74,8 +74,6 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void use_smooth_recon(int field);
 
-	void use_slim_recon(int field);
-
 	std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
 
 	std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
@@ -96,7 +94,6 @@ private:
 	int angmom_index_;
 	int angmom_count_;
 	std::vector<bool> smooth_field_;
-	std::vector<bool> slim_field_;
 	std::vector<bc_type> bc_;
 }
 ;

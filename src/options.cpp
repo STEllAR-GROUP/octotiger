@@ -83,7 +83,8 @@ bool options::process_options(int argc, char *argv[]) {
 	("eos", po::value<eos_type>(&(opts().eos))->default_value(IDEAL), "gas equation of state")                              //
 	("hydro", po::value<bool>(&(opts().hydro))->default_value(true), "hydro on/off")    //
 	("radiation", po::value<bool>(&(opts().radiation))->default_value(false), "radiation on/off")    //
-	("angmom", po::value<bool>(&(opts().angmom))->default_value(true), "Angular momentum correction switch")    //
+	("correct_am_hydro", po::value<bool>(&(opts().correct_am_hydro))->default_value(true), "Angular momentum correction switch for hydro")    //
+	("correct_am_grav", po::value<bool>(&(opts().correct_am_grav))->default_value(true), "Angular momentum correction switch for gravity")    //
 	("rewrite_silo", po::value<bool>(&(opts().rewrite_silo))->default_value(false), "rewrite silo and exit")    //
 	("rad_implicit", po::value<bool>(&(opts().rad_implicit))->default_value(true), "implicit radiation on/off")    //
 	("gravity", po::value<bool>(&(opts().gravity))->default_value(true), "gravity on/off")    //
@@ -103,7 +104,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("stop_step", po::value<integer>(&(opts().stop_step))->default_value(std::numeric_limits<integer>::max() - 1), "number of timesteps to run")          //
 	("max_level", po::value<integer>(&(opts().max_level))->default_value(1), "maximum number of refinement levels")         //
 	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts().m2m_kernel_type))->default_value(SOA_CPU), "boundary multipole-multipole kernel type") //
-	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(OLD), "boundary particle-particle kernel type")   //
+	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(SOA_CPU), "boundary particle-particle kernel type")   //
 	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(SOA_CPU), "boundary particle-multipole kernel type") //
 	("cuda_streams_per_locality", po::value<size_t>(&(opts().cuda_streams_per_locality))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
@@ -186,7 +187,8 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(scf_output_frequency);
 		SHOW(silo_num_groups);
 		SHOW(amrbnd_order);
-		SHOW(angmom);
+		SHOW(correct_am_grav);
+		SHOW(correct_am_hydro);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);
 		SHOW(hard_dt);
