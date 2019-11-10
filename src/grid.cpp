@@ -69,10 +69,8 @@ void grid::static_init() {
 	field_bw.resize(opts().n_fields, 3);
 	energy_bw.resize(opts().n_fields, 0);
 	energy_bw[egas_i] = 1;
-	field_bw[rho_i] = 4;
 	for( int dim = 0; dim < NDIM; dim++) {
 		field_bw[lx_i + dim] = 2;
-		field_bw[sx_i + dim] = 4;
 	}
 
 	str_to_index_hydro[std::string("egas")] = egas_i;
@@ -1694,15 +1692,6 @@ real grid::compute_fluxes() {
 		hydro.use_angmom_correction(sx_i, 1);
 	}
 	hydro.use_smooth_recon(pot_i);
-	hydro.use_slim_recon(tau_i);
-	hydro.use_slim_recon(egas_i);
-	hydro.use_slim_recon(pot_i);
-	hydro.use_slim_recon(lx_i);
-	hydro.use_slim_recon(ly_i);
-	hydro.use_slim_recon(lz_i);
-	for (int s = 0; s < opts().n_species; s++) {
-		hydro.use_slim_recon(spc_i + s);
-	}
 	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
 			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
