@@ -117,8 +117,7 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 template<int NDIM>
 template<int INX>
 const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
-	PROFILE()
-	;
+	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
@@ -180,16 +179,79 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom) {
-	PROFILE()
-	;
+void physics<NDIM>::post_recon(const hydro::state_type &U, std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega,
+		bool angmom) {
+	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 	const auto xloc = geo.xloc();
 	static constexpr auto kdelta = geo.kronecker_delta();
+	auto dir = geo.direction();
+
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
+			const auto di = dir[d];
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						constexpr auto eps = 0.01;
+						constexpr auto eta1 = 20.0;
+						constexpr auto eta2 = 0.05;
+						const int i = geo.to_index(j + 2, k + 2, l + 2);
+						const auto P_r = (fgamma_ - 1.0) * U[egas_i][i + di];
+						const auto P_l = (fgamma_ - 1.0) * U[egas_i][i - di];
+						const auto rho_r = U[0][i + di];
+						const auto rho_l = U[0][i - di];
+						constexpr auto K0 = 0.1;
+						const auto tmp1 = fgamma_ * K0 * std::abs(rho_r - rho_l) / std::min(rho_r, rho_l);
+						const auto tmp2 = std::abs(P_r - P_l) / std::min(P_r, P_l);
+
+						if (tmp1 > tmp2) {
+							for (int f = 0; f < nf_; f++) {
+								if (f != rho_i && (f < spc_i || f >= spc_i + n_species_)) {
+									continue;
+								}
+								const auto d2p = (1.0 / 6.0) * (U[0][i + 2 * di] + U[0][i] - 2.0 * U[0][i + di]);
+								const auto d2m = (1.0 / 6.0) * (U[0][i] + U[0][i - 2 * di] - 2.0 * U[0][i - di]);
+								const auto dif = U[0][i + di] - U[0][i - di];
+								double eta;
+								if (d2p * d2m < 0.0) {
+									if (std::abs(dif) > eps * std::min(U[0][i + di], U[0][i - di])) {
+										eta = -(d2p - d2m) / dif;
+									} else {
+										eta = 0.0;
+									}
+								} else {
+									eta = 0.0;
+								}
+								eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
+								if (eta > 0.0) {
+									const auto up = U[0][i + di];
+									const auto u0 = U[0][i];
+									const auto um = U[0][i - di];
+									const auto Mr = std::max(u0, up);
+									const auto mr = std::min(u0, up);
+									const auto Ml = std::max(u0, um);
+									const auto ml = std::min(u0, um);
+									auto ul = U[0][i - di] + 0.5 * minmod_theta(U[0][i] - U[0][i - di], U[0][i - di] - U[0][i - 2 * di], 2.0);
+									auto ur = U[0][i + di] - 0.5 * minmod_theta(U[0][i + 2 * di] - U[0][i + di], U[0][i + di] - U[0][i], 2.0);
+									ul = std::max(ml, std::min(Ml, ul));
+									ur = std::max(mr, std::min(Mr, ur));
+									auto &qp = Q[0][d][i];
+									auto &qm = Q[0][geo.flip(d)][i];
+									qp += eta * (ur - qp);
+									qm += eta * (ul - qm);
+									make_monotone(qp, U[0][i], qm);
+								}
+							}
+
+						}
+					}
+				}
+			}
+
 			for (int n = 0; n < geo.NANGMOM; n++) {
 				for (int q = 0; q < NDIM; q++) {
 					for (int m = 0; m < NDIM; m++) {
@@ -254,7 +316,7 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 							w += Q[spc_i + si][d][i];
 							Q[spc_i + si][d][i] *= rho;
 						}
-						if (w < 0.0) {
+						if (w <= 0.0) {
 							printf("NO SPECIES %i\n", i);
 							abort();
 						}
@@ -342,6 +404,7 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 		hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
+	printf("%i\n", INX);
 	std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> bc(2 * NDIM);
 
 	for (int i = 0; i < 2 * NDIM; i++) {

@@ -25,6 +25,27 @@ static constexpr int int_pow() {
 	return a;
 }
 
+
+template<class T>
+static inline void make_monotone(T &ql, T q0, T &qr) {
+	const T tmp1 = qr - ql;
+	const T tmp2 = qr + ql;
+
+	if (bool(qr < q0) != bool(q0 < ql)) {
+		qr = ql = q0;
+		return;
+	}
+	const T tmp3 = tmp1 * tmp1 / 6.0;
+	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+	constexpr auto eps = 1.0e-12;
+	if (tmp4 > tmp3) {
+		ql = (3.0 * q0 - 2.0 * qr);
+	} else if (-tmp3 > tmp4) {
+		qr = (3.0 * q0 - 2.0 * ql);
+	}
+}
+
+
 static inline safe_real minmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::min(std::abs(a), std::abs(b));
 }

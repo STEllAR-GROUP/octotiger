@@ -16,25 +16,6 @@
 #include <octotiger/profiler.hpp>
 
 template<class T>
-static inline void limit_slope(T &ql, T q0, T &qr) {
-	const T tmp1 = qr - ql;
-	const T tmp2 = qr + ql;
-
-	if (bool(qr < q0) != bool(q0 < ql)) {
-		qr = ql = q0;
-		return;
-	}
-	const T tmp3 = tmp1 * tmp1 / 6.0;
-	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-	constexpr auto eps = 1.0e-12;
-	if (tmp4 > tmp3) {
-		ql = (3.0 * q0 - 2.0 * qr);
-	} else if (-tmp3 > tmp4) {
-		qr = (3.0 * q0 - 2.0 * ql);
-	}
-}
-
-template<class T>
 static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
 	const T tmp1 = qr - ql;
 	const T tmp2 = qr + ql;
@@ -99,6 +80,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct_cuda
 }
 //#endif
 
+template<int NDIM, int INX>
 void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
 	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
@@ -116,6 +98,7 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 	}
 }
 
+template<int NDIM, int INX>
 void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth) {
 	PROFILE();
 
@@ -154,7 +137,7 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						auto &qp = q[geo.flip(d)][i];
 						auto &qm = q[d][i];
-						limit_slope(qm, u[i], qp);
+						make_monotone(qm, u[i], qp);
 					}
 				}
 			}
@@ -188,12 +171,16 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
+			if (f < lx_i || f > lx_i + geo::NANGMOM) {
+				reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f]);
+			} else {
+				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
+			}
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
+			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f]);
 		}
 
 		int sx_i = angmom_index_;
@@ -201,10 +188,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q[f], U[f], true);
+				reconstruct_ppm<NDIM, INX>(Q[f], U[f], true);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_minmod(Q[f], U[f]);
+				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
 			}
 
 			for (int n = 0; n < geo::NANGMOM; n++) {
@@ -276,7 +263,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
+			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f]);
 		}
 
 	}
@@ -336,7 +323,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 		}
 	}
 #endif
-	PHYS::template post_recon<INX>(Q, X, omega, angmom_count_ > 0);
+	PHYS::template post_recon<INX>(U, Q, X, omega, angmom_count_ > 0);
 
 	return Q;
 }
