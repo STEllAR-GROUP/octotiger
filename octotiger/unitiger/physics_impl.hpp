@@ -178,40 +178,36 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 template<int NDIM>
 template<int INX>
 const std::vector<std::vector<bool>>& physics<NDIM>::find_contact_discs(const hydro::state_type &U) {
-	PROFILE()
-	;
+	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	auto dir = geo.direction();
-	static thread_local std::vector<std::vector<bool>> disc(geo.NDIR/2, std::vector<bool>(H_N3));
-	for (int d = 0; d < geo.NDIR; d++) {
-		if (d != geo.NDIR / 2) {
-			const auto di = dir[d];
-			for (int j = 0; j < geo.H_NX_XM4; j++) {
-				for (int k = 0; k < geo.H_NX_YM4; k++) {
+	static thread_local std::vector<std::vector<bool>> disc(geo.NDIR / 2, std::vector<bool>(geo.H_N3));
+	for (int d = 0; d < geo.NDIR / 2; d++) {
+		const auto di = dir[d];
+		for (int j = 0; j < geo.H_NX_XM4; j++) {
+			for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-					for (int l = 0; l < geo.H_NX_ZM4; l++) {
-						constexpr auto K0 = 0.1;
-						const int i = geo.to_index(j + 2, k + 2, l + 2);
-						const auto P_r = (fgamma_ - 1.0) * U[egas_i][i + di];
-						const auto P_l = (fgamma_ - 1.0) * U[egas_i][i - di];
-						const auto rho_r = U[0][i + di];
-						const auto rho_l = U[0][i - di];
-						const auto tmp1 = fgamma_ * K0 * std::abs(rho_r - rho_l) / std::min(rho_r, rho_l);
-						const auto tmp2 = std::abs(P_r - P_l) / std::min(P_r, P_l);
-						disc[d][i] = tmp1 > tmp2;
-					}
+				for (int l = 0; l < geo.H_NX_ZM4; l++) {
+					constexpr auto K0 = 0.1;
+					const int i = geo.to_index(j + 2, k + 2, l + 2);
+					const auto P_r = (fgamma_ - 1.0) * U[egas_i][i + di];
+					const auto P_l = (fgamma_ - 1.0) * U[egas_i][i - di];
+					const auto rho_r = U[0][i + di];
+					const auto rho_l = U[0][i - di];
+					const auto tmp1 = fgamma_ * K0 * std::abs(rho_r - rho_l) / std::min(rho_r, rho_l);
+					const auto tmp2 = std::abs(P_r - P_l) / std::min(P_r, P_l);
+					disc[d][i] = tmp1 > tmp2;
 				}
 			}
 		}
 	}
 	return disc;
 }
-	/*** Reconstruct uses this - GPUize****/
+/*** Reconstruct uses this - GPUize****/
 
 template<int NDIM>
 template<int INX>
-void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega,
-		bool angmom) {
+void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom) {
 	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(2, geo.H_NX - 2);
@@ -339,16 +335,16 @@ void physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, cons
 	static std::once_flag one;
 
 	std::call_once(one, [&X]() {
-				for (int i = 0; i < geo.H_N3; i++) {
-					safe_real r = 0.0;
-					for (int dim = 0; dim < NDIM; dim++) {
-						r += X[dim][i] * X[dim][i];
-					}
-					r = sqrt(r);
-					rmax = std::max(r, rmax);
-				}
-				rmax *= 2.0;
-			});
+		for (int i = 0; i < geo.H_N3; i++) {
+			safe_real r = 0.0;
+			for (int dim = 0; dim < NDIM; dim++) {
+				r += X[dim][i] * X[dim][i];
+			}
+			r = sqrt(r);
+			rmax = std::max(r, rmax);
+		}
+		rmax *= 2.0;
+	});
 
 	for (int f = 0; f < nf_; f++) {
 		for (auto &u : U[f]) {
@@ -411,12 +407,12 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 	}
 
 	switch (t) {
-		case SOD:
-		case BLAST:
+	case SOD:
+	case BLAST:
 		break;
 		break;
-		case KH:
-		case CONTACT:
+	case KH:
+	case CONTACT:
 		for (int i = 0; i < 2 * NDIM; i++) {
 			bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::PERIODIC;
 		}
@@ -463,12 +459,12 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 			xsum += x[dim];
 		}
 		switch (t) {
-			case CONTACT:
+		case CONTACT:
 			p = 1.0;
 			vx = 10.0;
 			rho = 1.0 + 1.0e-6 * sin(2.0 * M_PI * x[0]);
 			break;
-			case SOD:
+		case SOD:
 			if (xsum < 0) {
 				rho = 1.0;
 				p = 1.0;
@@ -477,7 +473,7 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 				p = 0.1;
 			}
 			break;
-			case BLAST:
+		case BLAST:
 
 			x2 = 0.0;
 			for (int dim = 0; dim < NDIM; dim++) {
@@ -503,7 +499,7 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 				vz = v * X[2][i] / r;
 			}
 			break;
-			case KH:
+		case KH:
 			const auto eps = []() {
 				return (rand() + 0.5) / RAND_MAX * 1.0e-3;
 			};
