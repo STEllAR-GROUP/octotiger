@@ -8,7 +8,7 @@
 
 #include <cmath>
 
-#define OCTOTIGER_BW 4
+#define OCTOTIGER_BW 3
 
 static constexpr int NDIM = 3;
 

@@ -3,7 +3,6 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-
 #ifndef OCTOTIGER_UNITIGER_UTI1L_HPP_
 #define OCTOTIGER_UNITIGER_UTI1L_HPP_
 
@@ -20,28 +19,10 @@ std::array<int, NDIM> index_to_dims(int i) {
 template<int a, int b>
 static constexpr int int_pow() {
 	int c = 1;
-	for( int i = 0; i < b; i++) {
+	for (int i = 0; i < b; i++) {
 		c *= a;
 	}
 	return a;
-}
-
-template<class T>
-static inline void limit_slope(T &ql, T q0, T &qr) {
-	const T tmp1 = qr - ql;
-	const T tmp2 = qr + ql;
-
-	if (bool(qr < q0) != bool(q0 < ql)) {
-		qr = ql = q0;
-		return;
-	}
-	const T tmp3 = tmp1 * tmp1 / 6.0;
-	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-	if (tmp4 > tmp3) {
-		ql = 3.0 * q0 - 2.0 * qr;
-	} else if (-tmp3 > tmp4) {
-		qr = 3.0 * q0 - 2.0 * ql;
-	}
 }
 
 static inline safe_real minmod(safe_real a, safe_real b) {

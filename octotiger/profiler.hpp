@@ -104,7 +104,7 @@ struct profiler_scope {
 		profiler_exit();
 	}
 };
-#define PROFILE_OFF
+//#define PROFILE_OFF
 
 #ifdef PROFILE_OFF
 #define PROFILE()
