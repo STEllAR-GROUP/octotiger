@@ -32,8 +32,8 @@ option(OCTOTIGER_WITH_AVX "" OFF)
 option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
-
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
+set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 
 ################################################################################
 # Find required packages
@@ -373,6 +373,10 @@ endif()
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
+
+# Theta minimum
+message(STATUS "Octo-Tiger minimal allowed theta: ${OCTOTIGER_THETA_MINIMUM}")
+target_compile_definitions(octolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)

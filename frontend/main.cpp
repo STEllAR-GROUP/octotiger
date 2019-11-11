@@ -26,6 +26,7 @@
 #include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
 #endif
+#include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
 #include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
@@ -88,6 +89,18 @@ std::size_t init_thread_local_worker(std::size_t desired)
         multi_inter_p2p::inner_stencil_masks() =
             multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil())
                 .second;
+        // print run informations
+        if (current ==0) {
+        std::cout << "\nSubgrid side-length is " << INX << std::endl;
+        std::cout << "Minimal allowed theta is " << octotiger::fmm::THETA_FLOOR << std::endl;
+        std::cout << "Stencil maximal allowed half side-length is " << octotiger::fmm::STENCIL_WIDTH 
+                  << " (Total length " << 2 * octotiger::fmm::STENCIL_WIDTH + 1 << ")" << std::endl;
+        std::cout << "Total number of stencil elements (stencil size): " 
+                  <<  mono_inter::calculate_stencil().first.size() << std::endl << std::endl;
+        }
+        static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
+            ERROR: Stencil is too wide for the subgrid size. 
+            Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
 
         std::cout << "OS-thread " << current << " on locality "
                   << hpx::get_locality_id()

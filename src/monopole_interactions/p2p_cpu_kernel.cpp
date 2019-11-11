@@ -153,7 +153,7 @@ namespace fmm {
                             mons.data() + interaction_partner_flat_index);
                         m2m_vector monopole2;
                         Vc::where(mask2, monopole2) = m2m_vector(
-                            mons.data() + interaction_partner_flat_index + INX + 10);
+                            mons.data() + interaction_partner_flat_index + INX + 2 * STENCIL_MAX);
 
                         const m2m_vector four[4] = {
                             four_constants[index][0],

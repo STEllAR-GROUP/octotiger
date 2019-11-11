@@ -30,6 +30,8 @@ namespace fmm {
             // int64_t i1 = 0;
             // int64_t i2 = 0;
 
+            int predicted_max = STENCIL_WIDTH;
+
             for (int64_t i0 = 0; i0 < 2; ++i0) {
                 for (int64_t i1 = 0; i1 < 2; ++i1) {
                     for (int64_t i2 = 0; i2 < 2; ++i2) {
@@ -95,6 +97,51 @@ namespace fmm {
                 }
                 // std::cout << "Stencil size: " << stencils[i].stencil_elements.size() << std::endl;
             }
+            int i = 0;
+            int minx = 0;
+            int maxx = 0;
+            int miny = 0;
+            int maxy = 0;
+            int minz = 0;
+            int maxz = 0;
+            for (auto &element : superimposed_stencil.stencil_elements) {
+                if (element.x < minx)
+                    minx = element.x;
+                if (element.x > maxx)
+                    maxx = element.x;
+                if (element.y < miny)
+                    miny = element.y;
+                if (element.y > maxy)
+                    maxy = element.y;
+                if (element.z < minz)
+                    minz = element.z;
+                if (element.z > maxz)
+                    maxz = element.z;
+                i++;
+            }
+            if (maxz != maxy || maxy != maxx || minz != miny || miny != minx || minz != -maxz) {
+                std::stringstream error_string;
+                error_string << "ERROR: Stencil should be symetrical but it is not." << std::endl;
+                error_string << "This indicates that something went wrong during the creation of the stencil!" << std::endl;
+                error_string << "Please use another value for theta and contact the developer about this." << std::endl;
+                std::cerr << error_string.str();
+                // TODO Why do these exceptions not work?
+                //throw std::logic_error(error_string.str());
+                // since the exceptions do not stop the execution use this for now to avoid hanging large jobs...
+                exit(EXIT_FAILURE);
+            }
+            if (predicted_max < maxx) {
+                std::stringstream error_string;
+                error_string << "ERROR: Maximum stencil size seems to be wrong. " << std::endl;
+                error_string << "Please recompile with an appropriate minumal value for theta" << std::endl;
+                error_string << "Max stencil length is " << predicted_max << ", actual stencil length is " << maxx << std::endl;
+                std::cerr << error_string.str();
+                // TODO Why do these exceptions not work?
+                // throw std::logic_error(error_string.str());
+                // since the exceptions do not stop the execution use this for now to avoid hanging large jobs...
+                exit(EXIT_FAILURE);
+
+            }
             return superimposed_stencil;
         }
         std::pair<std::vector<bool>, std::vector<bool>>
@@ -103,10 +150,10 @@ namespace fmm {
             std::vector<bool> inner_stencil_masks(FULL_STENCIL_SIZE, false);
             auto inner_index = 0;
             for (auto stencil_element : superimposed_stencil.stencil_elements) {
-                const int x = stencil_element.x + 5;
-                const int y = stencil_element.y + 5;
-                const int z = stencil_element.z + 5;
-                size_t index = x * 11 * 11 + y * 11 + z;
+                const int x = stencil_element.x + STENCIL_MAX;
+                const int y = stencil_element.y + STENCIL_MAX;
+                const int z = stencil_element.z + STENCIL_MAX;
+                size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + z;
                 stencil_masks[index] = true;
                 if (superimposed_stencil.stencil_phase_indicator[inner_index])
                     inner_stencil_masks[index] = true;

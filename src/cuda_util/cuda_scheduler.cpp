@@ -59,8 +59,8 @@ namespace octotiger { namespace fmm {
                 monopole_interactions::calculate_stencil_masks( p2p_stencil_pair.first);
             auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
             auto p2p_four_constants = p2p_stencil_mask_pair.second;
-            std::unique_ptr<float[]> stencil_masks =
-                std::make_unique<float[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<bool[]> stencil_masks =
+                std::make_unique<bool[]>(FULL_STENCIL_SIZE);
             std::unique_ptr<real[]> four_constants_tmp =
                 std::make_unique<real[]>(4 * FULL_STENCIL_SIZE);
             for (auto i = 0; i < FULL_STENCIL_SIZE; ++i)
@@ -71,11 +71,11 @@ namespace octotiger { namespace fmm {
                 four_constants_tmp[i * 4 + 3] = p2p_four_constants[i][3];
                 if (p2p_stencil_mask[i])
                 {
-                    stencil_masks[i] = 1.0;
+                    stencil_masks[i] = true;
                 }
                 else
                 {
-                    stencil_masks[i] = 0.0;
+                    stencil_masks[i] = false;
                 }
             }
 
@@ -84,27 +84,27 @@ namespace octotiger { namespace fmm {
                 multipole_interactions::calculate_stencil_masks(stencil);
             auto multipole_stencil = multipole_stencil_pair.first;
             auto multipole_inner_stencil = multipole_stencil_pair.second;
-            std::unique_ptr<float[]> multipole_stencil_masks =
-                std::make_unique<float[]>(FULL_STENCIL_SIZE);
-            std::unique_ptr<float[]> multipole_inner_stencil_masks =
-                std::make_unique<float[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<bool[]> multipole_stencil_masks =
+                std::make_unique<bool[]>(FULL_STENCIL_SIZE);
+            std::unique_ptr<bool[]> multipole_inner_stencil_masks =
+                std::make_unique<bool[]>(FULL_STENCIL_SIZE);
             for (auto i = 0; i < FULL_STENCIL_SIZE; ++i)
             {
                 if (multipole_inner_stencil[i])
                 {
-                    multipole_inner_stencil_masks[i] = 1.0;
+                    multipole_inner_stencil_masks[i] = true;
                 }
                 else
                 {
-                    multipole_inner_stencil_masks[i] = 0.0;
+                    multipole_inner_stencil_masks[i] = false;
                 }
                 if (multipole_stencil[i])
                 {
-                    multipole_stencil_masks[i] = 1.0;
+                    multipole_stencil_masks[i] = true;
                 }
                 else
                 {
-                    multipole_stencil_masks[i] = 0.0;
+                    multipole_stencil_masks[i] = false;
                 }
             }
 
@@ -114,17 +114,17 @@ namespace octotiger { namespace fmm {
                 util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
                 util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
                     multipole_interactions::device_constant_stencil_masks,
-                    multipole_stencil_masks.get(), full_stencil_size / 2));
+                    multipole_stencil_masks.get(), full_stencil_size / sizeof(double) * sizeof(bool)));
                 util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
                     multipole_interactions::device_stencil_indicator_const,
                     multipole_inner_stencil_masks.get(),
-                    full_stencil_size / 2));
+                    full_stencil_size / sizeof(double) * sizeof(bool)));
                 util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
                     monopole_interactions::device_stencil_masks,
-                    multipole_stencil_masks.get(), full_stencil_size / 2));
-                util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
-                    monopole_interactions::device_four_constants,
-                    four_constants_tmp.get(), full_stencil_size * 4));
+                    multipole_stencil_masks.get(), full_stencil_size / sizeof(double) * sizeof(bool)));
+                // util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
+                //     monopole_interactions::device_four_constants,
+                //     four_constants_tmp.get(), full_stencil_size * 4));
             }
         }
     }

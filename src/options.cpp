@@ -8,6 +8,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/real.hpp"
+#include "octotiger/common_kernel/interaction_constants.hpp"
 
 #include <boost/program_options.hpp>
 
@@ -155,6 +156,12 @@ bool options::process_options(int argc, char *argv[]) {
 			fclose(fp);
 		}
 		load_options_from_silo(opts().restart_filename);
+	}
+	if (opts().theta < octotiger::fmm::THETA_FLOOR) {
+		std::cerr << "theta " << theta << " is too small since Octo-Tiger was compiled for a minimum of " 
+				  << octotiger::fmm::THETA_FLOOR << std::endl;
+		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
+		abort();
 	}
 	{
 #define SHOW( opt ) std::cout << std::string( #opt ) << " = " << to_string(opt) << '\n';
