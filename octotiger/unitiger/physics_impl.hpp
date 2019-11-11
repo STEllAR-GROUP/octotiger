@@ -117,8 +117,7 @@ void physics<NDIM>::source(hydro::state_type &dudt, const hydro::state_type &U, 
 template<int NDIM>
 template<int INX>
 const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom) {
-	PROFILE()
-	;
+	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
@@ -244,38 +243,6 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 //							for (int f = 0; f < nf_; f++) {
 //								if (f != rho_i && (f < spc_i || f >= spc_i + n_species_)) {
 //									continue;
-//								}
-//								const auto d2p = (1.0 / 6.0) * (U[0][i + 2 * di] + U[0][i] - 2.0 * U[0][i + di]);
-//								const auto d2m = (1.0 / 6.0) * (U[0][i] + U[0][i - 2 * di] - 2.0 * U[0][i - di]);
-//								const auto dif = U[0][i + di] - U[0][i - di];
-//								double eta;
-//								if (d2p * d2m < 0.0) {
-//									if (std::abs(dif) > eps * std::min(U[0][i + di], U[0][i - di])) {
-//										eta = -(d2p - d2m) / dif;
-//									} else {
-//										eta = 0.0;
-//									}
-//								} else {
-//									eta = 0.0;
-//								}
-//								eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
-//								if (eta > 0.0) {
-//									const auto up = U[0][i + di];
-//									const auto u0 = U[0][i];
-//									const auto um = U[0][i - di];
-//									const auto Mr = std::max(u0, up);
-//									const auto mr = std::min(u0, up);
-//									const auto Ml = std::max(u0, um);
-//									const auto ml = std::min(u0, um);
-//									auto ul = U[0][i - di] + 0.5 * minmod_theta(U[0][i] - U[0][i - di], U[0][i - di] - U[0][i - 2 * di], 2.0);
-//									auto ur = U[0][i + di] - 0.5 * minmod_theta(U[0][i + 2 * di] - U[0][i + di], U[0][i + di] - U[0][i], 2.0);
-//									ul = std::max(ml, std::min(Ml, ul));
-//									ur = std::max(mr, std::min(Mr, ur));
-//									auto &qp = Q[0][d][i];
-//									auto &qm = Q[0][geo.flip(d)][i];
-//									qp += eta * (ur - qp);
-//									qm += eta * (ul - qm);
-//									make_monotone(qp, U[0][i], qm);
 //								}
 //							}
 //

@@ -131,6 +131,57 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 			}
 		}
 	}
+	if (disc_detect) {
+		for (int d = 0; d < geo.NDIR / 2; d++) {
+			const auto di = dir[d];
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						const int i = geo.to_index(j + 2, k + 2, l + 2);
+						if (disc[d][i]) {
+							constexpr auto eps = 0.01;
+							constexpr auto eta1 = 20.0;
+							constexpr auto eta2 = 0.05;
+
+							const auto d2p = (1.0 / 6.0) * (u[i + 2 * di] + u[i] - 2.0 * u[i + di]);
+							const auto d2m = (1.0 / 6.0) * (u[i] + u[i - 2 * di] - 2.0 * u[i - di]);
+							const auto dif = u[i + di] - u[i - di];
+							double eta;
+							if (d2p * d2m < 0.0) {
+								if (std::abs(dif) > eps * std::min(u[i + di], u[i - di])) {
+									eta = -(d2p - d2m) / dif;
+								} else {
+									eta = 0.0;
+								}
+							} else {
+								eta = 0.0;
+							}
+							eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
+							if (eta > 0.0) {
+								const auto up = u[i + di];
+								const auto u0 = u[i];
+								const auto um = u[i - di];
+								const auto Mr = std::max(u0, up);
+								const auto mr = std::min(u0, up);
+								const auto Ml = std::max(u0, um);
+								const auto ml = std::min(u0, um);
+								auto ul = u[i - di] + 0.5 * minmod_theta(u[i] - u[i - di], u[i - di] - u[i - 2 * di], 2.0);
+								auto ur = u[i + di] - 0.5 * minmod_theta(u[i + 2 * di] - u[i + di], u[i + di] - u[i], 2.0);
+								ul = std::max(ml, std::min(Ml, ul));
+								ur = std::max(mr, std::min(Mr, ur));
+								auto &qp = q[d][i];
+								auto &qm = q[geo.flip(d)][i];
+								qp += eta * (ur - qp);
+								qm += eta * (ul - qm);
+							}
+
+						}
+					}
+				}
+			}
+		}
+	}
 	if (!smooth) {
 		for (int d = 0; d < geo.NDIR / 2; d++) {
 			for (int j = 0; j < geo.H_NX_XM4; j++) {
