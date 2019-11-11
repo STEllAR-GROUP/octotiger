@@ -54,6 +54,7 @@ int main()
 
     //double scf_error = 0.0;
     int scf_iter = 0;
+    printf("omega, virial, T, W, K\n");
 
     do
     {
@@ -189,7 +190,7 @@ int main()
             }
         }
         double virial = (T + W) / (T - W);
-        printf("%e %e %e %e\n", omega, virial, T, W);
+        printf("%e %e %e %e %e\n", omega, virial, T, W, K);
 
         scf_iter++;
         if (scf_iter > 20)
