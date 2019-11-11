@@ -1691,6 +1691,10 @@ real grid::compute_fluxes() {
 	if (opts().correct_am_hydro) {
 		hydro.use_angmom_correction(sx_i, 1);
 	}
+	hydro.use_disc_detect(rho_i);
+	for( int i = spc_i; i < spc_i + opts().n_species; i++) {
+		hydro.use_disc_detect(i);
+	}
 	hydro.use_smooth_recon(pot_i);
 	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
 			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));

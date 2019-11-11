@@ -19,6 +19,7 @@ hydro_computer<NDIM, INX, PHYS>::hydro_computer() {
 
 	for( int f = 0; f < nf_; f++) {
 		smooth_field_.push_back(false);
+		disc_detect_.push_back(false);
 	}
 	bc_.resize(2*NDIM,OUTFLOW);
 }
@@ -27,6 +28,13 @@ template<int NDIM, int INX, class PHYS>
 void hydro_computer<NDIM, INX, PHYS>::use_smooth_recon(int field) {
 	smooth_field_[field] = true;
 }
+
+template<int NDIM, int INX, class PHYS>
+void hydro_computer<NDIM, INX, PHYS>::use_disc_detect(int field) {
+	disc_detect_[field] = true;
+}
+
+
 
 template<int NDIM, int INX, class PHYS>
 void hydro_computer<NDIM, INX, PHYS>::use_angmom_correction(int index, int count) {
