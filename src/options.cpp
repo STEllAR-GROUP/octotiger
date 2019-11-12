@@ -97,6 +97,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("dual_energy_sw2", po::value<real>(&(opts().dual_energy_sw2))->default_value(0.1), "dual energy switch 2") //
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
 	("unigrid", po::value<bool>(&(opts().unigrid))->default_value(false), "unigrid") //
+	("cdisc_detect", po::value<bool>(&(opts().cdisc_detect))->default_value(true), "PPM contact discontinuity detection") //
 	("disable_output", po::value<bool>(&(opts().disable_output))->default_value(false), "disable silo output") //
 	("disable_diagnostics", po::value<bool>(&(opts().disable_diagnostics))->default_value(false), "disable diagnostics") //
 	("problem", po::value<problem_type>(&(opts().problem))->default_value(NONE), "problem type")                            //
@@ -190,59 +191,61 @@ bool options::process_options(int argc, char *argv[]) {
 			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
 			silo_num_groups = num_loc;
 		}
-		SHOW(unigrid);
-		SHOW(scf_output_frequency);
-		SHOW(silo_num_groups);
+		SHOW(accretor_refine);
 		SHOW(amrbnd_order);
+		SHOW(bench);
+		SHOW(cdisc_detect);
+		SHOW(cfl);
+		SHOW(config_file);
+		SHOW(core_refine);
 		SHOW(correct_am_grav);
 		SHOW(correct_am_hydro);
-		SHOW(dual_energy_sw1);
-		SHOW(dual_energy_sw2);
-		SHOW(hard_dt);
-		SHOW(bench);
-		SHOW(disable_output);
-		SHOW(v1309);
-		SHOW(core_refine);
-		SHOW(gravity);
-		SHOW(hydro);
-		SHOW(radiation);
-		SHOW(rad_implicit);
-		SHOW(variable_omega);
-		SHOW(accretor_refine);
-		SHOW(donor_refine);
-		SHOW(max_level);
-		SHOW(ngrids);
-		SHOW(stop_step);
-		SHOW(driving_rate);
-		SHOW(driving_time);
-		SHOW(entropy_driving_rate);
-		SHOW(entropy_driving_time);
-		SHOW(omega);
-		SHOW(output_dt);
-		SHOW(refinement_floor);
-		SHOW(stop_time);
-		SHOW(theta);
-		SHOW(cfl);
-		SHOW(xscale);
-		SHOW(cuda_streams_per_locality);
-		SHOW(cuda_streams_per_gpu);
-		SHOW(config_file);
-		SHOW(data_dir);
-		SHOW(input_file);
-		SHOW(output_filename);
-		SHOW(restart_filename);
-		SHOW(problem);
-		SHOW(eos);
-		SHOW(m2m_kernel_type);
-		SHOW(p2m_kernel_type);
-		SHOW(p2p_kernel_type);
-		SHOW(n_species);
+		SHOW(code_to_cm);
 		SHOW(code_to_g);
 		SHOW(code_to_s);
-		SHOW(code_to_cm);
+		SHOW(cuda_streams_per_locality);
+		SHOW(cuda_streams_per_gpu);
+		SHOW(data_dir);
+		SHOW(disable_output);
+		SHOW(driving_rate);
+		SHOW(driving_time);
+		SHOW(donor_refine);
+		SHOW(dual_energy_sw1);
+		SHOW(dual_energy_sw2);
+		SHOW(eos);
+		SHOW(entropy_driving_rate);
+		SHOW(entropy_driving_time);
 		SHOW(future_wait_time);
+		SHOW(hard_dt);
+		SHOW(hydro);
+		SHOW(input_file);
+		SHOW(m2m_kernel_type);
+		SHOW(max_level);
+		SHOW(n_species);
+		SHOW(ngrids);
+		SHOW(omega);
+		SHOW(output_dt);
+		SHOW(output_filename);
+		SHOW(p2m_kernel_type);
+		SHOW(p2p_kernel_type);
+		SHOW(problem);
+		SHOW(rad_implicit);
+		SHOW(radiation);
+		SHOW(refinement_floor);
+		SHOW(restart_filename);
 		SHOW(rotating_star_amr);
 		SHOW(rotating_star_x);
+		SHOW(scf_output_frequency);
+		SHOW(silo_num_groups);
+		SHOW(stop_step);
+		SHOW(stop_time);
+		SHOW(theta);
+		SHOW(unigrid);
+		SHOW(v1309);
+		SHOW(variable_omega);
+		SHOW(xscale);
+
+
 
 	}
 	while (atomic_number.size() < opts().n_species) {
