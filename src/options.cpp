@@ -267,11 +267,6 @@ bool options::process_options(int argc, char *argv[]) {
 			sleep(10);
 			abort();
 		}
-		if (opts().theta >= 0.334) {
-			printf("Theta should be 1/3 for DWD\n");
-			sleep(10);
-			abort();
-		}
 	}
 
 	return true;
