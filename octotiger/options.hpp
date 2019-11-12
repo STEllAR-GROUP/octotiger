@@ -30,6 +30,7 @@
 
 class options {
 public:
+	bool cdisc_detect;
 	bool unigrid;
 	bool disable_diagnostics;
 	bool bench;
@@ -106,6 +107,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc & cdisc_detect;
 		arc & unigrid;
 		arc & rotating_star_amr;
 		arc & rotating_star_x;

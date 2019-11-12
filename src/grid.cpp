@@ -69,7 +69,7 @@ void grid::static_init() {
 	field_bw.resize(opts().n_fields, 3);
 	energy_bw.resize(opts().n_fields, 0);
 	energy_bw[egas_i] = 1;
-	for( int dim = 0; dim < NDIM; dim++) {
+	for (int dim = 0; dim < NDIM; dim++) {
 		field_bw[lx_i + dim] = 2;
 	}
 
@@ -725,7 +725,7 @@ void grid::set_hydro_boundary(const std::vector<real> &data, const geo::directio
 	PROFILE();
 	std::array<integer, NDIM> lb, ub;
 	integer iter = 0;
-	const auto& bw = energy_only ? energy_bw : field_bw;
+	const auto &bw = energy_only ? energy_bw : field_bw;
 
 	for (integer field = 0; field != opts().n_fields; ++field) {
 		get_boundary_size(lb, ub, dir, OUTER, INX, H_BW, bw[field]);
@@ -744,7 +744,7 @@ void grid::set_hydro_boundary(const std::vector<real> &data, const geo::directio
 std::vector<real> grid::get_hydro_boundary(const geo::direction &dir, bool energy_only) {
 	PROFILE();
 
-	const auto& bw = energy_only ? energy_bw : field_bw;
+	const auto &bw = energy_only ? energy_bw : field_bw;
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
 	integer size = 0;
@@ -1000,7 +1000,6 @@ void grid::set_prolong(const std::vector<real> &data, std::vector<real> &&outflo
 			}
 		}
 	}
-
 
 }
 
@@ -1602,7 +1601,6 @@ void grid::allocate() {
 		L_mtx.reset(new hpx::lcos::local::spinlock);
 #endif
 
-
 }
 
 grid::grid() :
@@ -1691,9 +1689,11 @@ real grid::compute_fluxes() {
 	if (opts().correct_am_hydro) {
 		hydro.use_angmom_correction(sx_i, 1);
 	}
-	hydro.use_disc_detect(rho_i);
-	for( int i = spc_i; i < spc_i + opts().n_species; i++) {
-		hydro.use_disc_detect(i);
+	if (opts().cdisc_detect) {
+		hydro.use_disc_detect(rho_i);
+		for (int i = spc_i; i < spc_i + opts().n_species; i++) {
+			hydro.use_disc_detect(i);
+		}
 	}
 	hydro.use_smooth_recon(pot_i);
 	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
@@ -2035,7 +2035,6 @@ void grid::next_u(integer rk, real t, real dt) {
 	}
 //	return;
 
-
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
@@ -2169,7 +2168,7 @@ void grid::dual_energy_update() {
 				}
 
 				double rho_tot = 0.0;
-				for( int s = 0; s < opts().n_species; s++) {
+				for (int s = 0; s < opts().n_species; s++) {
 					rho_tot += U[spc_i + s][iii];
 				}
 				U[rho_i][iii] = rho_tot;
