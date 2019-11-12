@@ -177,11 +177,11 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 
 template<int NDIM>
 template<int INX>
-const std::vector<std::vector<bool>>& physics<NDIM>::find_contact_discs(const hydro::state_type &U) {
+const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(const hydro::state_type &U) {
 	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
 	auto dir = geo.direction();
-	static thread_local std::vector<std::vector<bool>> disc(geo.NDIR / 2, std::vector<bool>(geo.H_N3));
+	static thread_local std::vector<std::vector<double>> disc(geo.NDIR / 2, std::vector<double>(geo.H_N3));
 	for (int d = 0; d < geo.NDIR / 2; d++) {
 		const auto di = dir[d];
 		for (int j = 0; j < geo.H_NX_XM4; j++) {
@@ -192,11 +192,9 @@ const std::vector<std::vector<bool>>& physics<NDIM>::find_contact_discs(const hy
 					const int i = geo.to_index(j + 2, k + 2, l + 2);
 					const auto P_r = (fgamma_ - 1.0) * U[egas_i][i + di];
 					const auto P_l = (fgamma_ - 1.0) * U[egas_i][i - di];
-					const auto rho_r = U[0][i + di];
-					const auto rho_l = U[0][i - di];
-					const auto tmp1 = fgamma_ * K0 * std::abs(rho_r - rho_l) / std::min(rho_r, rho_l);
-					const auto tmp2 = std::abs(P_r - P_l) / std::min(P_r, P_l);
-					disc[d][i] = tmp1 > tmp2;
+					const auto tmp1 = fgamma_ * K0;
+					const auto tmp2 = std::abs(P_r - P_l) / std::min(std::abs(P_r), std::abs(P_l));
+					disc[d][i] = tmp2 / tmp1;
 				}
 			}
 		}
@@ -219,33 +217,6 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
 			const auto di = dir[d];
-//			for (int j = 0; j < geo.H_NX_XM4; j++) {
-//				for (int k = 0; k < geo.H_NX_YM4; k++) {
-//#pragma ivdep
-//					for (int l = 0; l < geo.H_NX_ZM4; l++) {
-//						constexpr auto eps = 0.01;
-//						constexpr auto eta1 = 20.0;
-//						constexpr auto eta2 = 0.05;
-//						const int i = geo.to_index(j + 2, k + 2, l + 2);
-//						const auto P_r = (fgamma_ - 1.0) * U[egas_i][i + di];
-//						const auto P_l = (fgamma_ - 1.0) * U[egas_i][i - di];
-//						const auto rho_r = U[0][i + di];
-//						const auto rho_l = U[0][i - di];
-//						constexpr auto K0 = 0.1;
-//						const auto tmp1 = fgamma_ * K0 * std::abs(rho_r - rho_l) / std::min(rho_r, rho_l);
-//						const auto tmp2 = std::abs(P_r - P_l) / std::min(P_r, P_l);
-//
-//						if (tmp1 > tmp2) {
-//							for (int f = 0; f < nf_; f++) {
-//								if (f != rho_i && (f < spc_i || f >= spc_i + n_species_)) {
-//									continue;
-//								}
-//							}
-//
-//						}
-//					}
-//				}
-//			}
 
 			for (int n = 0; n < geo.NANGMOM; n++) {
 				for (int q = 0; q < NDIM; q++) {
@@ -450,7 +421,8 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 		const auto weights = geo.volume_weight();
 		std::array < safe_real, NDIM > x;
 		double rho = 0, vx = 0, vy = 0, vz = 0, p = 0, r;
-		safe_real x2, xsum;
+		safe_real x2, xsum, xhalf;
+		xhalf = -X[0][geo.to_index(geo.H_BW, geo.H_BW, geo.H_BW)] / 2;
 		for (int dim = 0; dim < NDIM; dim++) {
 			x[dim] = X[dim][i];
 		}
@@ -463,14 +435,26 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 			p = 1.0;
 			vx = 10.0;
 			rho = 1.0 + 1.0e-6 * sin(2.0 * M_PI * x[0]);
+			U[rho_i][i] += rho;
+			U[spc_i][i] += rho;
 			break;
 		case SOD:
-			if (xsum < 0) {
+			if (xsum < -xhalf/2.0) {
 				rho = 1.0;
 				p = 1.0;
 			} else {
 				rho = 0.125;
 				p = 0.1;
+			}
+			U[rho_i][i] += rho;
+			if (xsum < -xhalf) {
+				U[spc_i + 0][i] += rho;
+			} else if (xsum < 0.0) {
+				U[spc_i + 1][i] += rho;
+			} else if (xsum < xhalf) {
+				U[spc_i + 2][i] += rho;
+			} else {
+				U[spc_i + 3][i] += rho;
 			}
 			break;
 		case BLAST:
@@ -498,6 +482,8 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 			if constexpr (NDIM == 3) {
 				vz = v * X[2][i] / r;
 			}
+			U[rho_i][i] += rho;
+			U[spc_i][i] += rho;
 			break;
 		case KH:
 			const auto eps = []() {
@@ -513,10 +499,10 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 				rho = 2.0 + eps();
 				vx = +0.5;
 			}
+			U[rho_i][i] += rho;
+			U[spc_i][i] += rho;
 			break;
 		}
-		U[rho_i][i] += rho;
-		U[spc_i][i] += rho;
 		U[sx_i][i] += (rho * vx);
 		U[egas_i][i] += (p / (fgamma_ - 1.0) + 0.5 * rho * vx * vx);
 		U[tau_i][i] += (std::pow(p / (fgamma_ - 1.0), 1.0 / fgamma_));

@@ -78,7 +78,7 @@ struct physics {
 	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time);
 
 	template<int INX>
-	static const std::vector<std::vector<bool>>& find_contact_discs( const hydro::state_type &U);
+	static const std::vector<std::vector<double>>& find_contact_discs( const hydro::state_type &U);
 
 	static void set_n_species(int n);
 
