@@ -5,7 +5,7 @@
 
 #pragma once
 
-//#define TVD_TEST
+#define TVD_TEST
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
@@ -16,31 +16,12 @@
 #include <octotiger/profiler.hpp>
 
 template<class T>
-static inline void limit_slope(T &ql, T q0, T &qr) {
-	const T tmp1 = qr - ql;
-	const T tmp2 = qr + ql;
-
-	if (bool(qr < q0) != bool(q0 < ql)) {
-		qr = ql = q0;
-		return;
-	}
-	const T tmp3 = tmp1 * tmp1 / 6.0;
-	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-	constexpr auto eps = 1.0e-12;
-	if (tmp4 > tmp3) {
-		ql = (3.0 * q0 - 2.0 * qr);
-	} else if (-tmp3 > tmp4) {
-		qr = (3.0 * q0 - 2.0 * ql);
-	}
-}
-
-template<class T>
 static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
 	const T tmp1 = qr - ql;
 	const T tmp2 = qr + ql;
 	const T tmp3 = tmp1 * tmp1 / 6.0;
 	const T tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-	const auto eps = std::max(std::abs(tmp3), std::abs(tmp4)) * 1.0e-12;
+	const auto eps = std::max(std::abs(tmp3), std::abs(tmp4)) * 1.0e-10;
 	bool rc;
 	if (bool(qr < q0) != bool(q0 < ql)) {
 		rc = false;
@@ -55,7 +36,8 @@ static inline bool PPM_test(const T &ql, const T &q0, const T &qr) {
 	}
 	if (!rc) {
 		if (qr != 0.0 || ql != 0.0) {
-			if (std::log(std::abs(qr - ql) / (0.5 * (std::abs(qr) + std::abs(ql)))) < 1.0e-12) {
+			const auto test = std::log(std::abs(qr - ql) / (0.5 * (std::abs(qr) + std::abs(ql))));
+			if (test < 1.0e-10) {
 				rc = true;
 			}
 		}
@@ -99,6 +81,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct_cuda
 }
 //#endif
 
+template<int NDIM, int INX>
 void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u) {
 	PROFILE();
 	static const cell_geometry<NDIM, INX> geo;
@@ -116,7 +99,9 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 	}
 }
 
-void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth) {
+template<int NDIM, int INX>
+void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+		const std::vector<std::vector<double>> &disc) {
 	PROFILE();
 
 	static const cell_geometry<NDIM, INX> geo;
@@ -145,6 +130,46 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 			}
 		}
 	}
+	if (disc_detect) {
+		for (int d = 0; d < geo.NDIR / 2; d++) {
+			const auto di = dir[d];
+			for (int j = 0; j < geo.H_NX_XM4; j++) {
+				for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+					for (int l = 0; l < geo.H_NX_ZM4; l++) {
+						const int i = geo.to_index(j + 2, k + 2, l + 2);
+						const auto &up = u[i + di];
+						const auto &um = u[i - di];
+						if (std::abs(up - um) > disc[d][i] * std::min(std::abs(up), std::abs(um))) {
+							constexpr auto eps = 0.01;
+							constexpr auto eta1 = 20.0;
+							constexpr auto eta2 = 0.05;
+
+							const auto d2p = (1.0 / 6.0) * (u[i + 2 * di] + u[i] - 2.0 * u[i + di]);
+							const auto d2m = (1.0 / 6.0) * (u[i] + u[i - 2 * di] - 2.0 * u[i - di]);
+							const auto dif = up - um;
+							if (d2p * d2m < 0.0) {
+								double eta = 0.0;
+								if (std::abs(dif) > eps * std::min(std::abs(up), std::abs(um))) {
+									eta = -(d2p - d2m) / dif;
+								}
+								eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
+								if (eta > 0.0) {
+									auto ul = um + 0.5 * minmod_theta(u[i] - um, um - u[i - 2 * di], 2.0);
+									auto ur = up - 0.5 * minmod_theta(u[i + 2 * di] - up, up - u[i], 2.0);
+									auto &qp = q[d][i];
+									auto &qm = q[geo.flip(d)][i];
+									qp += eta * (ur - qp);
+									qm += eta * (ul - qm);
+								}
+
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	if (!smooth) {
 		for (int d = 0; d < geo.NDIR / 2; d++) {
 			for (int j = 0; j < geo.H_NX_XM4; j++) {
@@ -154,7 +179,7 @@ void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<s
 						const int i = geo.to_index(j + 2, k + 2, l + 2);
 						auto &qp = q[geo.flip(d)][i];
 						auto &qm = q[d][i];
-						limit_slope(qm, u[i], qp);
+						make_monotone(qm, u[i], qp);
 					}
 				}
 			}
@@ -186,14 +211,19 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
 	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_count_ > 0);
+	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U);
 	if (angmom_count_ == 0 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
+			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
+				reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+			} else {
+				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
+			}
 		}
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
+			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 		}
 
 		int sx_i = angmom_index_;
@@ -201,10 +231,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 		for (int angmom_pair = 0; angmom_pair < angmom_count_; angmom_pair++) {
 			for (int f = sx_i; f < sx_i + NDIM; f++) {
-				reconstruct_ppm(Q[f], U[f], true);
+				reconstruct_ppm<NDIM, INX>(Q[f], U[f], true, false, cdiscs);
 			}
 			for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
-				reconstruct_minmod(Q[f], U[f]);
+				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
 			}
 
 			for (int n = 0; n < geo::NANGMOM; n++) {
@@ -276,7 +306,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			zx_i += geo::NANGMOM + NDIM;
 		}
 		for (int f = angmom_index_ + angmom_count_ * (geo::NANGMOM + NDIM); f < nf_; f++) {
-			reconstruct_ppm(Q[f], U[f], smooth_field_[f]);
+			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 		}
 
 	}
@@ -298,13 +328,16 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								const auto um = U[f][i - dir[d]];
 								const auto qp = Q[f][d][i];
 								const auto qm = Q[f][geo::flip(d)][i];
-								const auto norm = 0.25 * (std::abs(qp) + std::abs(qm)) * (std::abs(up) + std::abs(um));
-								if ((qp - qm) * (up - um) < -1.0e-10 * norm) {
+								auto norm = std::max(std::abs(u0), std::max(std::abs(up), std::abs(um)));
+								norm *= norm;
+								if ((qp - qm) * (up - um) < -1.0e-12 * norm) {
 									printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
+									abort();
 								}
-								if (!PPM_test(qp, u0, qm)) {
-									printf("TVD fail 4\n");
-								}
+//								if (!PPM_test(qp, u0, qm)) {
+//									printf("TVD fail 4\n");
+//									abort();
+//								}
 							}
 						}
 					}
@@ -320,12 +353,15 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 									const auto ul = U[f][i];
 									const auto ql = Q[f][geo::flip(d)][i + dir[d]];
 									const auto qr = Q[f][d][i];
-									const auto norm = 0.25 * (std::abs(ql) + std::abs(qr)) * (std::abs(ur) + std::abs(ul));
-									if ((qr - ul) * (ur - qr) < -1.0e-10 * norm) {
+									auto norm = std::max(std::abs(ur), std::abs(ul));
+									norm *= norm;
+									if ((qr - ul) * (ur - qr) < -1.0e-12 * norm) {
 										printf("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
+										abort();
 									}
-									if ((ql - ul) * (ur - ql) < -1.0e-10 * norm) {
+									if ((ql - ul) * (ur - ql) < -1.0e-12 * norm) {
 										printf("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
+										abort();
 									}
 								}
 							}

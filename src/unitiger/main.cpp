@@ -3,12 +3,10 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-
 #include <fenv.h>
 #include <time.h>
 
 //#include <hpx/hpx_init.hpp>
-
 
 #include "octotiger/unitiger/unitiger.hpp"
 #include "octotiger/unitiger/hydro.hpp"
@@ -22,8 +20,6 @@
 #include "octotiger/unitiger/hydro_impl/boundaries.hpp"
 #include "octotiger/unitiger/hydro_impl/advance.hpp"
 #include "octotiger/unitiger/hydro_impl/output.hpp"
-
-
 
 static constexpr double tmax = 0.25;
 static constexpr safe_real dt_out = tmax / 100;
@@ -42,7 +38,11 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	if (with_correction) {
 		computer.use_angmom_correction(PHYS::get_angmom_index(), 1);
 	}
+	computer.use_disc_detect(PHYS::rho_i);
 	const auto nf = PHYS::field_count();
+	for (int s = 0; s < 5; s++) {
+		computer.use_disc_detect(PHYS::spc_i + s);
+	}
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
 	std::vector<std::vector<safe_real>> U0(nf, std::vector<safe_real>(H_N3));
@@ -54,9 +54,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	safe_real t = 0.0;
 	int iter = 0;
 	int oter = 0;
-        bool printEachTimeStep = true;
-        std::string type_test_string = PHYS::get_test_type_string(problem);
-        hydro::recon_type<NDIM> q;
+	bool printEachTimeStep = true;
+	std::string type_test_string = PHYS::get_test_type_string(problem);
+	hydro::recon_type<NDIM> q;
 	PHYS phys;
 	computer.set_bc(phys.template initialize<INX>(problem, U, X));
 	const safe_real dx = X[0][cell_geometry<NDIM, INX>::H_DNX] - X[0][0];
@@ -87,25 +87,23 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 		computer.boundaries(U);
 		if (int(t / dt_out) != int((t - dt) / dt_out))
 			computer.output(U, X, oter++, t);
-                iter++;
-                printf("%i %e %e\n", iter, double(t), double(dt));		
-		if(writingForTest)
-                {       
-                        computer.outputU(U, iter, type_test_string);
-                        computer.outputQ(q, iter, type_test_string);
-                        computer.outputF(F, iter, type_test_string);
-                }
-                if(printEachTimeStep)
-                {       
-                        int testU = computer.compareU(U, iter, type_test_string);
-                        int testQ = computer.compareQ(q, iter, type_test_string);
-                        int testF = computer.compareF(F, iter, type_test_string);
-                        if ((testU == -1) or (testQ == -1) or (testF == -1))
-                                printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
-                       if (testU*testQ*testF == 1)
-                                printf("%s tests are OK!\n", type_test_string.c_str());
-                }
-        }
+		iter++;
+		printf("%i %e %e\n", iter, double(t), double(dt));
+		if (writingForTest) {
+			computer.outputU(U, iter, type_test_string);
+			computer.outputQ(q, iter, type_test_string);
+			computer.outputF(F, iter, type_test_string);
+		}
+		if (printEachTimeStep) {
+			int testU = computer.compareU(U, iter, type_test_string);
+			int testQ = computer.compareQ(q, iter, type_test_string);
+			int testF = computer.compareF(F, iter, type_test_string);
+			if ((testU == -1) or (testQ == -1) or (testF == -1))
+				printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
+			if (testU * testQ * testF == 1)
+				printf("%s tests are OK!\n", type_test_string.c_str());
+		}
+	}
 //      U0 = U;
 //      PHYS::template analytic_solution<INX>(problem, U, X, t);
 //      computer.output(U, X, iter++, t);
@@ -133,47 +131,45 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 //      fprintf(fp1, "%i ", INX);
 //      fprintf(fp2, "%i ", INX);
 //      fprintf(fpinf, "%i ", INX);
-        const auto tstop = time(NULL);
-	FILE* fp = fopen( "time.dat", "wt");
-	fprintf( fp, "%i %li\n", INX, tstop -tstart);
+	const auto tstop = time(NULL);
+	FILE *fp = fopen("time.dat", "wt");
+	fprintf(fp, "%i %li\n", INX, tstop - tstart);
 	fclose(fp);
-        if (writingForTest)
-        {
-                computer.outputU(U, -1, type_test_string);
-                computer.outputQ(q, -1, type_test_string);
-                computer.outputF(F, -1, type_test_string);
-        }
-        int testU = computer.compareU(U, -1, type_test_string);
-        int testQ = computer.compareQ(q, -1, type_test_string);
-        int testF = computer.compareF(F, -1, type_test_string);
-        if ((testU == -1) or (testQ == -1) or (testF == -1))
-                printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
-        if (testU*testF*testQ == 1)
-                printf("Final %s tests are OK!!\n", type_test_string.c_str());
+	if (writingForTest) {
+		computer.outputU(U, -1, type_test_string);
+		computer.outputQ(q, -1, type_test_string);
+		computer.outputF(F, -1, type_test_string);
+	}
+	int testU = computer.compareU(U, -1, type_test_string);
+	int testQ = computer.compareQ(q, -1, type_test_string);
+	int testF = computer.compareF(F, -1, type_test_string);
+	if ((testU == -1) or (testQ == -1) or (testF == -1))
+		printf("Could not test, output files do not exist! Create test files by running unitiger with -C\n");
+	if (testU * testF * testQ == 1)
+		printf("Final %s tests are OK!!\n", type_test_string.c_str());
 }
 
-int main(int argc, char* argv[]) {
-        feenableexcept(FE_DIVBYZERO);
-        feenableexcept(FE_INVALID);
-        feenableexcept(FE_OVERFLOW);
+int main(int argc, char *argv[]) {
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
 
-        bool createTests = false;
+	bool createTests = false;
 
-        if (argc > 1){
-                std::string input = argv[1];
-                if (input == "-C")
-                {
-                        printf("Creating Tests.\n");
-                        createTests = true;
-                }
-        }
+	if (argc > 1) {
+		std::string input = argv[1];
+		if (input == "-C") {
+			printf("Creating Tests.\n");
+			createTests = true;
+		}
+	}
 
-        srand(123);
-        run_test<2, 50, physics<2>>(physics<2>::KH, false, createTests);
-        run_test<2, 64, physics<2>>(physics<2>::CONTACT, false, createTests);
-        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
-        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
-        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
+	srand(123);
+	run_test<1, 1000, physics<1>>(physics<1>::SOD, false, createTests);
+//        run_test<2, 64, physics<2>>(physics<2>::CONTACT, false, createTests);
+//        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
+//        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
+//        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
 
-        return 0;
+	return 0;
 }
