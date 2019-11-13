@@ -6,10 +6,35 @@
 #pragma once
 
 template<int NDIM, int INX, class PHYS>
-void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U) {
+void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hydro::x_type &X) {
+
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto lc = geo.kronecker_delta();
+	if (angmom_index_ != -1) {
+		const auto sx_i = angmom_index_;
+		const auto lx_i = NDIM + angmom_index_;
+		for (int n = 0; n < geo.NANGMOM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				for (int l = 0; l < NDIM; l++) {
+					if (m != l) {
+						for (int i = 0; i < H_N3; i++) {
+							U[lx_i + n][i] -= lc[n][m][l] * X[m][i] * U[sx_i + l][i];
+						}
+					}
+				}
+			}
+		}
+	}
+	for (int n = 0; n < geo.NANGMOM; n++) {
+		for (int i = 0; i < H_N3; i++) {
+			printf("%e\n", U[lx_i + n][i]);
+
+		}
+	}
+	abort();
 
 	for (int f = 0; f < nf_; f++) {
-		if CONSTEXPR(NDIM == 1) {
+		if constexpr (NDIM == 1) {
 			for (int i = 0; i < geo::H_BW; i++) {
 				if (bc_[0] == OUTFLOW) {
 					U[f][i] = U[f][geo::H_BW];
@@ -25,7 +50,7 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U) {
 
 			}
 
-		} else if CONSTEXPR(NDIM == 2) {
+		} else if constexpr (NDIM == 2) {
 
 			const auto index = [](int i, int j) {
 				return j + geo::H_NX * i;
@@ -112,6 +137,21 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U) {
 							U[f][index(j, k, geo::H_NX - 1 - i)] = U[f][index(j0, k0, geo::H_NX - 1 - geo::H_BW)];
 						} else {
 							U[f][index(j, k, geo::H_NX - 1 - i)] = U[f][index(j0, k0, 2 * geo::H_BW - 1 - i)];
+						}
+					}
+				}
+			}
+		}
+	}
+	if (angmom_index_ != -1) {
+		const auto sx_i = angmom_index_;
+		const auto lx_i = NDIM + angmom_index_;
+		for (int n = 0; n < geo.NANGMOM; n++) {
+			for (int m = 0; m < NDIM; m++) {
+				for (int l = 0; l < NDIM; l++) {
+					if (m != l) {
+						for (int i = 0; i < H_N3; i++) {
+							U[lx_i + n][i] += lc[n][m][l] * X[m][i] * U[sx_i + l][i];
 						}
 					}
 				}

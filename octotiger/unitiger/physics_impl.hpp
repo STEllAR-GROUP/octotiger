@@ -384,7 +384,7 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 		break;
 	case KH:
 	case CONTACT:
-		for (int i = 0; i < 2 * NDIM; i++) {
+		for (int i = 0; i < NDIM; i++) {
 			bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::PERIODIC;
 		}
 		break;

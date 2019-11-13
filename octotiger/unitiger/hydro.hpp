@@ -51,7 +51,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void post_process(hydro::state_type &U, safe_real dx);
 
-	void boundaries(hydro::state_type &U);
+	void boundaries(hydro::state_type &U, const hydro::x_type &X);
 
 	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
