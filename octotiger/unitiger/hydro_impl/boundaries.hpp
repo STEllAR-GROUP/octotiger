@@ -17,7 +17,7 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hyd
 			for (int m = 0; m < NDIM; m++) {
 				for (int l = 0; l < NDIM; l++) {
 					if (m != l) {
-						for (int i = 0; i < H_N3; i++) {
+						for (int i = 0; i < geo.H_N3; i++) {
 							U[lx_i + n][i] -= lc[n][m][l] * X[m][i] * U[sx_i + l][i];
 						}
 					}
@@ -25,13 +25,6 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hyd
 			}
 		}
 	}
-	for (int n = 0; n < geo.NANGMOM; n++) {
-		for (int i = 0; i < H_N3; i++) {
-			printf("%e\n", U[lx_i + n][i]);
-
-		}
-	}
-	abort();
 
 	for (int f = 0; f < nf_; f++) {
 		if constexpr (NDIM == 1) {
@@ -150,7 +143,7 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hyd
 			for (int m = 0; m < NDIM; m++) {
 				for (int l = 0; l < NDIM; l++) {
 					if (m != l) {
-						for (int i = 0; i < H_N3; i++) {
+						for (int i = 0; i < geo.H_N3; i++) {
 							U[lx_i + n][i] += lc[n][m][l] * X[m][i] * U[sx_i + l][i];
 						}
 					}

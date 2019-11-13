@@ -370,7 +370,6 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 		hydro::x_type &X) {
 	static const cell_geometry<NDIM, INX> geo;
 
-	printf("%i\n", INX);
 	std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> bc(2 * NDIM);
 
 	for (int i = 0; i < 2 * NDIM; i++) {
@@ -379,12 +378,12 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 
 	switch (t) {
 	case SOD:
-	case BLAST:
 		break;
+	case BLAST:
 		break;
 	case KH:
 	case CONTACT:
-		for (int i = 0; i < NDIM; i++) {
+		for (int i = 0; i < 2 * NDIM; i++) {
 			bc[i] = hydro_computer<NDIM, INX, physics<NDIM>>::PERIODIC;
 		}
 		break;
