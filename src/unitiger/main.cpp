@@ -36,7 +36,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	static constexpr safe_real CFL = (0.4 / NDIM);
 	hydro_computer<NDIM, INX, PHYS> computer;
 	if (with_correction) {
-		computer.use_angmom_correction(PHYS::get_angmom_index(), 1);
+		computer.use_angmom_correction(PHYS::get_angmom_index());
 	}
 	computer.use_disc_detect(PHYS::rho_i);
 	const auto nf = PHYS::field_count();
