@@ -15,7 +15,7 @@ template<int NDIM, int INX, class PHYS>
 hydro_computer<NDIM, INX, PHYS>::hydro_computer() {
 	nf_ = PHYS::field_count();
 
-	angmom_count_ = 0;
+	angmom_index_ = -1;
 
 	for( int f = 0; f < nf_; f++) {
 		smooth_field_.push_back(false);
@@ -37,9 +37,8 @@ void hydro_computer<NDIM, INX, PHYS>::use_disc_detect(int field) {
 
 
 template<int NDIM, int INX, class PHYS>
-void hydro_computer<NDIM, INX, PHYS>::use_angmom_correction(int index, int count) {
+void hydro_computer<NDIM, INX, PHYS>::use_angmom_correction(int index) {
 	angmom_index_ = index;
-	angmom_count_ = count;
 }
 
 template<int NDIM, int INX, class PHYS>

@@ -51,7 +51,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void post_process(hydro::state_type &U, safe_real dx);
 
-	void boundaries(hydro::state_type &U);
+	void boundaries(hydro::state_type &U, const hydro::x_type &X);
 
 	void advance(const hydro::state_type &U0, hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type &X, safe_real dx, safe_real dt,
 			safe_real beta, safe_real omega);
@@ -70,7 +70,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	int compareF(const hydro::flux_type &Fl, int num, std::string test_type);
 
-	void use_angmom_correction(int index, int count);
+	void use_angmom_correction(int index);
 
 	void use_smooth_recon(int field);
 
@@ -94,7 +94,6 @@ private:
 
 	int nf_;
 	int angmom_index_;
-	int angmom_count_;
 	std::vector<bool> smooth_field_;
 	std::vector<bool> disc_detect_;
 	std::vector<bc_type> bc_;
