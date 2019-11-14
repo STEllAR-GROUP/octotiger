@@ -25,7 +25,7 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 	static constexpr auto faces = geo.face_pts();
 	static constexpr auto weights = geo.face_weight();
 	static constexpr auto xloc = geo.xloc();
-	static constexpr auto kdelta = geo.kronecker_delta();
+	static constexpr auto levi_civita = geo.levi_civita();
 
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 

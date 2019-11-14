@@ -113,8 +113,8 @@ private:
 	/**/{ 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
 	/**/{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } } };
 
-	static constexpr int kdeltas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, { 0, 0,
-			0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
+	static constexpr int levi_civitas[3][3][3][3] = { { { { } } }, { { { 0, 1 }, { -1, 0 } } }, { { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } }, { { 0, 0, -1 }, {
+			0, 0, 0 }, { 1, 0, 0 } }, { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };
 	static constexpr int lower_face_members[3][3][9] = { { { 0 } }, { { 3, 0, 6 }, { 1, 0, 2 } }, { { 12, 0, 3, 6, 9, 15, 18, 21, 24 }, { 10, 0, 1, 2, 9, 11,
 			18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } } };
 
@@ -267,8 +267,8 @@ public:
 		return all_indices[bw - 1][d];
 	}
 
-	inline static constexpr auto kronecker_delta() {
-		return kdeltas[NDIM - 1];
+	inline static constexpr auto levi_civita() {
+		return levi_civitas[NDIM - 1];
 	}
 	inline static constexpr auto direction() {
 		return directions[NDIM - 1];
@@ -315,9 +315,9 @@ public:
 	}
 
 	static auto to_index(int j, int k, int l) {
-		if /*constexpr*/ (NDIM ==1 ) {
+		if /*constexpr*/(NDIM == 1) {
 			return j;
-		} else if /*constexpr*/( NDIM ==2 ){
+		} else if /*constexpr*/(NDIM == 2) {
 			return (j * H_NX + k);
 		} else {
 			return (j * H_NX + k) * H_NX + l;
@@ -367,7 +367,7 @@ template<int NDIM, int INX>
 constexpr bool cell_geometry<NDIM, INX>::is_lower_face[3][3][27];
 
 template<int NDIM, int INX>
-constexpr int cell_geometry<NDIM, INX>::kdeltas[3][3][3][3];
+constexpr int cell_geometry<NDIM, INX>::levi_civitas[3][3][3][3];
 
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::lower_face_members[3][3][9];
@@ -452,6 +452,5 @@ constexpr int cell_geometry<NDIM, INX>::NANGMOM;
 
 template<int NDIM, int INX>
 constexpr int cell_geometry<NDIM, INX>::NFACEDIR;
-
 
 #endif /* OCTOTIGER_UNITIGER_CELL_GEOMETRY_HPP_ */

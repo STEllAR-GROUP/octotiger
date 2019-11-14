@@ -9,7 +9,7 @@ template<int NDIM, int INX, class PHYS>
 void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hydro::x_type &X) {
 
 	static const cell_geometry<NDIM, INX> geo;
-	static constexpr auto lc = geo.kronecker_delta();
+	static constexpr auto lc = geo.levi_civita();
 	if (angmom_index_ != -1) {
 		const auto sx_i = angmom_index_;
 		const auto lx_i = NDIM + angmom_index_;

@@ -207,7 +207,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
 
 	static constexpr auto xloc = geo::xloc();
-	static constexpr auto kdelta = geo::kronecker_delta();
+	static constexpr auto levi_civita = geo::levi_civita();
 	static constexpr auto vw = geo::volume_weight();
 	static constexpr auto dir = geo::direction();
 
@@ -250,8 +250,8 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			}
 			for (int m = 0; m < NDIM; m++) {
 				for (int q = 0; q < NDIM; q++) {
-					const auto kd = kdelta[n][m][q];
-					if (kd != 0) {
+					const auto lc = levi_civita[n][m][q];
+					if (lc != 0) {
 						for (int d = 0; d < geo::NDIR; d++) {
 							if (d != geo::NDIR / 2) {
 								for (int j = 0; j < geo::H_NX_XM4; j++) {
@@ -259,7 +259,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 										for (int l = 0; l < geo::H_NX_ZM4; l++) {
 											const int i = geo::to_index(j + 2, k + 2, l + 2);
-											AM[i] -= vw[d] * kd * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
+											AM[i] -= vw[d] * lc * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
 										}
 									}
 								}
@@ -271,8 +271,8 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			for (int m = 0; m < NDIM; m++) {
 				for (int q = 0; q < NDIM; q++) {
 					const auto f = sx_i + q;
-					const auto kd = kdelta[n][m][q];
-					if (kd != 0) {
+					const auto lc = levi_civita[n][m][q];
+					if (lc != 0) {
 						for (int d = 0; d < geo::NDIR / 2; d++) {
 							const auto di = dir[d];
 							for (int j = 0; j < geo::H_NX_XM4; j++) {
@@ -287,7 +287,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 										const auto &ur = U[f][i + di];
 										const auto &u0 = U[f][i];
 										const auto &ul = U[f][i - di];
-										auto b = 12.0 * AM[i] * kd * xloc[d][m] / (dx * (rho_l + rho_r)) + (qr - ql);
+										auto b = 12.0 * AM[i] * lc * xloc[d][m] / (dx * (rho_l + rho_r)) + (qr - ql);
 										auto c = 6.0 * (0.5 * (qr + ql) - u0);
 										const auto blim = superbee(ur - u0, u0 - ul);
 										b = minmod(blim, b);
