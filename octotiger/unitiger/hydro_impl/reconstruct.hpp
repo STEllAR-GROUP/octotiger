@@ -5,7 +5,7 @@
 
 #pragma once
 
-#define TVD_TEST
+//#define TVD_TEST
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
