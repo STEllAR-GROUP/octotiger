@@ -10,6 +10,8 @@
 #include <map>
 #include <vector>
 #include <math.h>
+#include <iostream>
+#include <boost/program_options.hpp>
 
 auto band_filter(double t, double Ps, double Pc) {
 	const auto x = 2.0 * M_PI * t / Pc;
@@ -43,7 +45,7 @@ auto derivative(const std::vector<std::vector<double>> &f, double omega) {
 
 }
 
-auto filter(const std::vector<std::vector<double>> &f, double omega) {
+auto filter(const std::vector<std::vector<double>> &f, double omega, double Pc, double Ps) {
 	std::vector<std::vector<double>> g;
 	std::vector<double> u(f[0].size());
 
@@ -51,12 +53,12 @@ auto filter(const std::vector<std::vector<double>> &f, double omega) {
 	const auto tmax = f[f.size() - 1][0];
 	double rt = 0.0;
 	const auto P = 2.0 * M_PI / omega;
+	Pc *= P;
+	Ps *= P;
 	for (int n = 1; n < f.size() - 1; n++) {
 		double t0 = f[n][0];
 		double dt;
 		double weight = 0.0;
-		const auto Pc = (1.0 + 2.0 / 3.0) * P;
-		double Ps = 6 * Pc;
 		if (Ps / 2.0 + tmin < t0 && t0 < tmax - Ps / 2.0) {
 			std::fill(u.begin(), u.end(), 0.0);
 			for (int m = 1; m < f.size() - 1; m++) {
@@ -79,72 +81,117 @@ auto filter(const std::vector<std::vector<double>> &f, double omega) {
 		dt = (f[n + 1][0] - f[n - 1][0]) / 2.0;
 		rt += dt / P;
 	}
-
 	return g;
 }
 
+struct options {
+	double pmin;
+	double pmax;
+	std::string input;
+
+	int read_options(int argc, char *argv[]) {
+		namespace po = boost::program_options;
+
+		po::options_description command_opts("options");
+
+		command_opts.add_options() //
+		("input", po::value<std::string>(&input)->default_value("binary.dat"), "input filename")           //
+		("pmin", po::value<double>(&pmin)->default_value(1.25), "minimum period to allow through filter")           //
+		("pmax", po::value<double>(&pmax)->default_value(4.75), "period where filter allows 100%")           //
+				;
+		boost::program_options::variables_map vm;
+		po::store(po::parse_command_line(argc, argv, command_opts), vm);
+		po::notify(vm);
+
+		FILE *fp = fopen(input.c_str(), "rb");
+		if (input == "") {
+			std::cout << command_opts << "\n";
+			return -1;
+		} else if (fp == NULL) {
+			printf("Unable to open %s\n", input.c_str());
+			return -1;
+		} else {
+			fclose(fp);
+		}
+
+		return 0;
+	}
+};
 int main(int argc, char *argv[]) {
-	FILE *fp = fopen(argv[1], "rt");
-	static char buffer[100000];
-	std::map<double, std::vector<double>> values;
+	options opts;
+	if (opts.read_options(argc, argv) == 0) {
 
-	while (!feof(fp)) {
-		fgets(buffer, 100000, fp);
-		bool done = false;
-		char *ptr = buffer;
-		double t;
-		int col = 0;
-		std::vector<double> these_values;
-		do {
-			while (isspace(*ptr)) {
-				if (*ptr == '\n') {
-					done = true;
-					break;
+		FILE *fp = fopen(opts.input.c_str(), "rt");
+		static char buffer[100000];
+		std::map<double, std::vector<double>> values;
+
+		while (!feof(fp)) {
+			fgets(buffer, 100000, fp);
+			bool done = false;
+			char *ptr = buffer;
+			double t;
+			int col = 0;
+			std::vector<double> these_values;
+			do {
+				while (isspace(*ptr)) {
+					if (*ptr == '\n') {
+						done = true;
+						break;
+					}
+					ptr++;
 				}
-				ptr++;
-			}
-			if (!done) {
-				double number = atof(ptr);
-				if (col == 0) {
-					t = number;
+				if (!done) {
+					double number = atof(ptr);
+					if (col == 0) {
+						t = number;
+					}
+					these_values.push_back(number);
+					col++;
 				}
-				these_values.push_back(number);
-				col++;
+				while (!isspace(*ptr)) {
+					ptr++;
+				}
+			} while (!done);
+			if (values.find(t) == values.end()) {
+				values.insert(std::make_pair(t, std::move(these_values)));
 			}
-			while (!isspace(*ptr)) {
-				ptr++;
+		}
+
+		std::vector<std::vector<double>> v1;
+		for (auto &v : values) {
+			v1.push_back(std::move(v.second));
+		}
+
+		auto Pc = 2.0 * opts.pmax * opts.pmin / (opts.pmax + opts.pmin);
+		auto Ps = 4.0 * opts.pmax * opts.pmin / (opts.pmax - opts.pmin);
+
+		printf("Window is +/- %e orbits\n", Ps / 2.0);
+
+		const auto v2 = filter(v1, v1[0][2], Pc, Ps);
+		if (v2.size() == 0) {
+			printf("Not enough data to produce output\n");
+		} else {
+			const auto v4 = derivative(v1, v1[0][2]);
+			const auto v3 = filter(v4, v1[0][2], Pc, Ps);
+			FILE *fp1 = fopen("avg.dat", "wt");
+			FILE *fp2 = fopen("drv.dat", "wt");
+			for (const auto &i : v2) {
+				for (const auto &j : i) {
+					fprintf(fp1, " %e ", j);
+				}
+				fprintf(fp1, "\n");
 			}
-		} while (!done);
-		if (values.find(t) == values.end()) {
-			values.insert(std::make_pair(t, std::move(these_values)));
+			for (const auto &i : v3) {
+				for (const auto &j : i) {
+					fprintf(fp2, " %e ", j);
+				}
+				fprintf(fp2, "\n");
+			}
+			fclose(fp1);
+			fclose(fp2);
+			fclose(fp);
 		}
 	}
-
-	std::vector<std::vector<double>> v1;
-	for (auto &v : values) {
-		v1.push_back(std::move(v.second));
-	}
-
-	const auto v2 = filter(v1, v1[0][2]);
-	const auto v4 = derivative(v1, v1[0][2]);
-	const auto v3 = filter(v4, v1[0][2]);
-	FILE *fp1 = fopen("avg.dat", "wt");
-	FILE *fp2 = fopen("drv.dat", "wt");
-	for (const auto &i : v2) {
-		for (const auto &j : i) {
-			fprintf(fp1, " %e ", j);
-		}
-		fprintf(fp1, "\n");
-	}
-	for (const auto &i : v3) {
-		for (const auto &j : i) {
-			fprintf(fp2, " %e ", j);
-		}
-		fprintf(fp2, "\n");
-	}
-	fclose(fp1);
-	fclose(fp2);
-	fclose(fp);
 	return 0;
 }
 

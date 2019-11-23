@@ -6,14 +6,14 @@
 ################################################################################
 # Set up bfilter target
 ################################################################################
-add_executable(bfilter bfilter/bfilter.cpp)
-target_link_libraries(bfilter Silo::silo)
-set_property(TARGET bfilter PROPERTY FOLDER "Tools")
-if(MSVC)
-  target_compile_definitions(bfilter PRIVATE
-    _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
-  target_compile_options(bfilter PRIVATE /EHsc)
-endif()
+add_hpx_executable(
+  bfilter
+  DEPENDENCIES
+    Silo::silo Boost::boost
+  SOURCES
+    bfilter/bfilter.cpp
+)
+
 
 ################################################################################
 # Set up silo_compare target
