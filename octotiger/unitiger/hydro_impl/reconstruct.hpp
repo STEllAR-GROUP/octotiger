@@ -5,7 +5,7 @@
 
 #pragma once
 
-//#define TVD_TEST
+#define TVD_TEST
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
@@ -201,7 +201,7 @@ inline safe_real superbee(safe_real a, safe_real b) {
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 	PROFILE();
-	static thread_local auto AM = std::vector < safe_real > (geo::H_N3);
+	static thread_local auto AM = std::vector < std::vector < safe_real >> (geo::NANGMOM, std::vector < safe_real > (geo::H_N3));
 	static thread_local auto Q = std::vector < std::vector<std::vector<safe_real>>
 			> (nf_, std::vector < std::vector < safe_real >> (geo::NDIR, std::vector < safe_real > (geo::H_N3)));
 	static thread_local auto Theta = std::vector < safe_real > (geo::H_N3, 0.0);
@@ -244,7 +244,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 					for (int l = 0; l < geo::H_NX_ZM4; l++) {
 						const int i = geo::to_index(j + 2, k + 2, l + 2);
-						AM[i] = U[zx_i + n][i] * U[0][i];
+						AM[n][i] = U[zx_i + n][i] * U[0][i];
 					}
 				}
 			}
@@ -259,7 +259,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 #pragma ivdep
 										for (int l = 0; l < geo::H_NX_ZM4; l++) {
 											const int i = geo::to_index(j + 2, k + 2, l + 2);
-											AM[i] -= vw[d] * lc * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
+											AM[n][i] -= vw[d] * lc * 0.5 * xloc[d][m] * Q[sx_i + q][d][i] * Q[0][d][i] * dx;
 										}
 									}
 								}
@@ -268,34 +268,51 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 					}
 				}
 			}
-			for (int m = 0; m < NDIM; m++) {
-				for (int q = 0; q < NDIM; q++) {
-					const auto f = sx_i + q;
-					const auto lc = levi_civita[n][m][q];
-					if (lc != 0) {
-						for (int d = 0; d < geo::NDIR / 2; d++) {
-							const auto di = dir[d];
-							for (int j = 0; j < geo::H_NX_XM4; j++) {
-								for (int k = 0; k < geo::H_NX_YM4; k++) {
+		}
+		for (int q = 0; q < NDIM; q++) {
+			const auto f = sx_i + q;
+			for (int d = 0; d < geo::NDIR / 2; d++) {
+				const auto di = dir[d];
+				for (int j = 0; j < geo::H_NX_XM4; j++) {
+					for (int k = 0; k < geo::H_NX_YM4; k++) {
 #pragma ivdep
-									for (int l = 0; l < geo::H_NX_ZM4; l++) {
-										const int i = geo::to_index(j + 2, k + 2, l + 2);
-										const auto &rho_r = Q[0][d][i];
-										const auto &rho_l = Q[0][geo::flip(d)][i];
-										auto &qr = Q[f][d][i];
-										auto &ql = Q[f][geo::flip(d)][i];
-										const auto &ur = U[f][i + di];
-										const auto &u0 = U[f][i];
-										const auto &ul = U[f][i - di];
-										auto b = 12.0 * AM[i] * lc * xloc[d][m] / (dx * (rho_l + rho_r)) + (qr - ql);
-										auto c = 6.0 * (0.5 * (qr + ql) - u0);
-										const auto blim = superbee(ur - u0, u0 - ul);
-										b = minmod(blim, b);
-										const auto clim = std::min(0.5 * std::abs(b), 3.0 * std::abs(blim - b));
-										c = std::copysign(std::min(std::abs(c), clim), c);
-										qr = u0 + 0.5 * b + c / 6.0;
-										ql = u0 - 0.5 * b + c / 6.0;
-									}
+						for (int l = 0; l < geo::H_NX_ZM4; l++) {
+							const int i = geo::to_index(j + 2, k + 2, l + 2);
+							const auto &rho_r = Q[0][d][i];
+							const auto &rho_l = Q[0][geo::flip(d)][i];
+							auto &qr = Q[f][d][i];
+							auto &ql = Q[f][geo::flip(d)][i];
+							const auto &ur = U[f][i + di];
+							const auto &u0 = U[f][i];
+							const auto &ul = U[f][i - di];
+							auto b = qr - ql;
+							for (int n = 0; n < geo::NANGMOM; n++) {
+								for (int m = 0; m < NDIM; m++) {
+									const auto lc = levi_civita[n][m][q];
+									b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
+								}
+							}
+							auto c = 6.0 * (0.5 * (qr + ql) - u0);
+							auto blim = superbee(ur - u0, u0 - ul);
+							b = minmod(blim, b);
+							qr = u0 + 0.5 * b + c / 6.0;
+							ql = u0 - 0.5 * b + c / 6.0;
+							make_monotone(qr, u0, ql);
+							if( ur > u0 && u0 > ul) {
+								if( qr > ur) {
+									ql -= (qr - ur);
+									qr = ur;
+								} else if( ql < ul) {
+									qr -= (ql - ul);
+									ql = ul;
+								}
+							} else if( ur < u0 && u0 < ul ) {
+								if( qr < ur) {
+									ql -= (qr - ur);
+									qr = ur;
+								} else if( ql > ul) {
+									qr -= (ql - ul);
+									ql = ul;
 								}
 							}
 						}
