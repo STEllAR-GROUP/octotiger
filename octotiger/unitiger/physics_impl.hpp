@@ -23,11 +23,6 @@ int physics<NDIM>::field_count() {
 }
 
 template<int NDIM>
-void physics<NDIM>::set_fgamma(safe_real fg) {
-	fgamma_ = fg;
-}
-
-template<int NDIM>
 void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
 	const auto rho = u[rho_i];
 	const auto rhoinv = safe_real(1.) / rho;
@@ -195,6 +190,25 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 }
 
 template<int NDIM>
+void physics<NDIM>::set_degenerate_eos(safe_real a, safe_real b) {
+	A_ = a;
+	B_ = b;
+}
+
+
+template<int NDIM>
+void physics<NDIM>::set_dual_energy_switches(safe_real one, safe_real two) {
+	de_switch_1 = one;
+	de_switch_2 = two;
+}
+
+
+template<int NDIM>
+void physics<NDIM>::set_fgamma(safe_real fg) {
+	fgamma_ = fg;
+}
+
+template<int NDIM>
 template<int INX>
 const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(const hydro::state_type &U) {
 	PROFILE();
@@ -206,7 +220,6 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 		for (int k = 0; k < geo.H_NX_YM2; k++) {
 #pragma ivdep
 			for (int l = 0; l < geo.H_NX_ZM2; l++) {
-				constexpr auto K0 = 0.1;
 				const int i = geo.to_index(j + 1, k + 1, l + 1);
 				const auto rho = U[rho_i][i];
 				const auto rhoinv = 1.0 / U[rho_i][i];

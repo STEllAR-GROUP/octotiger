@@ -58,6 +58,7 @@ struct physics {
 	template<int INX>
 	static void post_process(hydro::state_type &U, safe_real dx);
 
+	static void set_degenerate_eos(safe_real,safe_real);
 
 	template<int INX>
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
@@ -83,10 +84,8 @@ struct physics {
 
 	static void set_n_species(int n);
 
-	static void set_dual_energy_switches(safe_real one, safe_real two) {
-		de_switch_1 = one;
-		de_switch_2 = two;
-	}
+	static void set_dual_energy_switches(safe_real one, safe_real two);
+
 
 	static int get_angmom_index() {
 		return sx_i;

@@ -24,6 +24,7 @@
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/collectives/broadcast.hpp>
+#include <hpx/lcos/local/once.hpp>
 
 #include <array>
 #include <cassert>
@@ -1679,9 +1680,14 @@ void grid::rad_init() {
 
 real grid::compute_fluxes() {
 	PROFILE();
-	physics<NDIM>::set_fgamma(fgamma);
-
-	physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
+	static hpx::lcos::local::once_flag flag;
+	hpx::lcos::local::call_once(flag, [this]() {
+		physics<NDIM>::set_fgamma(fgamma);
+		if (opts().eos = WD) {
+			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
+		}
+		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
+	});
 
 	/******************************/
 //	hydro.set_low_order();
@@ -2141,7 +2147,7 @@ void grid::dual_energy_update() {
 
 //	bool in_bnd;
 
-	physics<NDIM>::post_process<INX>(U,dx);
+	physics<NDIM>::post_process<INX>(U, dx);
 
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
