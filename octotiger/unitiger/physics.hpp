@@ -50,13 +50,14 @@ struct physics {
 
 	static void set_fgamma(safe_real fg);
 
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, int dim);
+	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c,  int dim);
 
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
 			std::array<safe_real, NDIM> &vg);
 
 	template<int INX>
 	static void post_process(hydro::state_type &U, safe_real dx);
+
 
 	template<int INX>
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
@@ -95,8 +96,15 @@ private:
 	static int nf_;
 	static int n_species_;
 	static safe_real fgamma_;
-
+	static safe_real A_;
+	static safe_real B_;
 };
+
+template<int NDIM>
+safe_real physics<NDIM>::A_ = 0.0;
+
+template<int NDIM>
+safe_real physics<NDIM>::B_ = 1.0;
 
 template<int NDIM>
 safe_real physics<NDIM>::de_switch_1 = 1e-3;

@@ -2140,32 +2140,14 @@ void grid::dual_energy_update() {
 	PROFILE();
 
 //	bool in_bnd;
+
+	physics<NDIM>::post_process<INX>(U,dx);
+
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				real ek = ZERO;
-				ek += HALF * pow(U[sx_i][iii], 2) / U[rho_i][iii];
-				ek += HALF * pow(U[sy_i][iii], 2) / U[rho_i][iii];
-				ek += HALF * pow(U[sz_i][iii], 2) / U[rho_i][iii];
-				real ei;
-				if (opts().eos == WD) {
-					ei = U[egas_i][iii] - ek - ztwd_energy(U[rho_i][iii]);
-				} else {
-					ei = U[egas_i][iii] - ek;
-				}
-				real et = U[egas_i][iii];
-				for (integer x = -1; x <= 1; x++) {
-					for (integer y = -1; y <= 1; y++) {
-						for (integer z = -1; z <= 1; z++) {
-							et = std::max(et, (double) U[egas_i][iii + x * H_DNX + y * H_DNY + z * H_DNZ]);
-						}
-					}
-				}
-				if (ei > de_switch1 * et) {
-					U[tau_i][iii] = std::pow(ei, ONE / fgamma);
-				}
 
 				double rho_tot = 0.0;
 				for (int s = 0; s < opts().n_species; s++) {

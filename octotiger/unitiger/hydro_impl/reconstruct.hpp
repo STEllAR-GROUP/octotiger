@@ -213,7 +213,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	const auto dx = X[0][geo::H_DNX] - X[0][0];
 	const auto &U = PHYS::template pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
-	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U);
+	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U_);
 	if (angmom_index_ == -1 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
