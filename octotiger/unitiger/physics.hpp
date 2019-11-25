@@ -97,6 +97,9 @@ private:
 	static safe_real fgamma_;
 	static safe_real A_;
 	static safe_real B_;
+
+	static safe_real deg_pres(safe_real x);
+
 };
 
 template<int NDIM>

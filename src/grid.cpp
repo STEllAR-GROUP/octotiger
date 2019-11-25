@@ -1683,7 +1683,7 @@ real grid::compute_fluxes() {
 	static hpx::lcos::local::once_flag flag;
 	hpx::lcos::local::call_once(flag, [this]() {
 		physics<NDIM>::set_fgamma(fgamma);
-		if (opts().eos = WD) {
+		if (opts().eos == WD) {
 			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
 		}
 		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);

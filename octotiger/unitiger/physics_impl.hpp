@@ -23,17 +23,22 @@ int physics<NDIM>::field_count() {
 }
 
 template<int NDIM>
+safe_real physics<NDIM>::deg_pres(safe_real x) {
+	safe_real p;
+	if (x < 0.001) {
+		p = 1.6 * A_ * std::pow(x, 5);
+	} else {
+		p =  A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
+	}
+}
+
+template<int NDIM>
 void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
 	const auto rho = u[rho_i];
 	const auto rhoinv = safe_real(1.) / rho;
 	const auto x = std::pow(rho / B_, 1.0 / 3.0);
 	const auto hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
-	safe_real pdeg;
-	if (x < 0.001) {
-		pdeg = 1.6 * A_ * std::pow(x, 5);
-	} else {
-		pdeg = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
-	}
+	const auto pdeg = deg_pres(x);
 	const auto edeg = rho * hdeg - pdeg;
 	safe_real ek = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
@@ -83,12 +88,7 @@ void physics<NDIM>::post_process(hydro::state_type &U, safe_real dx) {
 	for (auto i : is) {
 		const auto x = std::pow(U[rho_i][i] / B_, 1.0 / 3.0);
 		const auto hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
-		safe_real pdeg;
-		if (x < 0.001) {
-			pdeg = 1.6 * std::pow(x, 5);
-		} else {
-			pdeg = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
-		}
+		const auto pdeg = deg_pres(x);
 		const auto edeg = U[rho_i][i] * hdeg - pdeg;
 
 		safe_real ek = 0.0;
@@ -195,13 +195,11 @@ void physics<NDIM>::set_degenerate_eos(safe_real a, safe_real b) {
 	B_ = b;
 }
 
-
 template<int NDIM>
 void physics<NDIM>::set_dual_energy_switches(safe_real one, safe_real two) {
 	de_switch_1 = one;
 	de_switch_2 = two;
 }
-
 
 template<int NDIM>
 void physics<NDIM>::set_fgamma(safe_real fg) {
@@ -225,12 +223,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 				const auto rhoinv = 1.0 / U[rho_i][i];
 				const auto x = std::pow(rho / B_, 1.0 / 3.0);
 				const auto hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
-				safe_real pdeg;
-				if (x < 0.001) {
-					pdeg = 1.6 * std::pow(x, 5);
-				} else {
-					pdeg = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
-				}
+				const auto pdeg = deg_pres(x);
 				const auto edeg = rho * hdeg - pdeg;
 				safe_real ek = 0.0;
 				for (int dim = 0; dim < NDIM; dim++) {
