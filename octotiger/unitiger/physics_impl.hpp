@@ -30,7 +30,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	const auto hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
 	safe_real pdeg;
 	if (x < 0.001) {
-		pdeg = 1.6 * std::pow(x, 5);
+		pdeg = 1.6 * A_ * std::pow(x, 5);
 	} else {
 		pdeg = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
 	}
