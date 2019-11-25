@@ -5,7 +5,7 @@
 
 #pragma once
 
-#define TVD_TEST
+//#define TVD_TEST
 
 #include "octotiger/unitiger/physics.hpp"
 #include "octotiger/unitiger/physics_impl.hpp"
@@ -285,36 +285,36 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 							const auto &ur = U[f][i + di];
 							const auto &u0 = U[f][i];
 							const auto &ul = U[f][i - di];
-							auto b = qr - ql;
+							const auto b0 = qr - ql;
+							auto b = b0;
 							for (int n = 0; n < geo::NANGMOM; n++) {
 								for (int m = 0; m < NDIM; m++) {
 									const auto lc = levi_civita[n][m][q];
 									b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
 								}
 							}
-							auto c = 6.0 * (0.5 * (qr + ql) - u0);
-							auto blim = superbee(ur - u0, u0 - ul);
+							auto blim = maxmod(superbee(ur - u0, u0 - ul), b0);
 							b = minmod(blim, b);
-							qr = u0 + 0.5 * b + c / 6.0;
-							ql = u0 - 0.5 * b + c / 6.0;
-							make_monotone(qr, u0, ql);
-							if( ur > u0 && u0 > ul) {
-								if( qr > ur) {
+							qr += 0.5 * (b - b0);
+							ql -= 0.5 * (b - b0);
+							if (ur > u0 && u0 > ul) {
+								if (qr > ur) {
 									ql -= (qr - ur);
 									qr = ur;
-								} else if( ql < ul) {
+								} else if (ql < ul) {
 									qr -= (ql - ul);
 									ql = ul;
 								}
-							} else if( ur < u0 && u0 < ul ) {
-								if( qr < ur) {
+							} else if (ur < u0 && u0 < ul) {
+								if (qr < ur) {
 									ql -= (qr - ur);
 									qr = ur;
-								} else if( ql > ul) {
+								} else if (ql > ul) {
 									qr -= (ql - ul);
 									ql = ul;
 								}
 							}
+							make_monotone(qr, u0, ql);
 						}
 					}
 				}

@@ -28,7 +28,7 @@ safe_real physics<NDIM>::deg_pres(safe_real x) {
 	if (x < 0.001) {
 		p = 1.6 * A_ * std::pow(x, 5);
 	} else {
-		p =  A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
+		p = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
 	}
 	return p;
 }
@@ -37,10 +37,14 @@ template<int NDIM>
 void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
 	const auto rho = u[rho_i];
 	const auto rhoinv = safe_real(1.) / rho;
-	const auto x = std::pow(rho / B_, 1.0 / 3.0);
-	const auto hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
-	const auto pdeg = deg_pres(x);
-	const auto edeg = rho * hdeg - pdeg;
+	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
+	if (A_ != 0.0) {
+		const auto x = std::pow(rho / B_, 1.0 / 3.0);
+		hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+		pdeg = deg_pres(x);
+		edeg = rho * hdeg - pdeg;
+		dpdeg_drho = 8.0 / 3.0 * A_ / B_ * x * x;
+	}
 	safe_real ek = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
 		ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
@@ -52,7 +56,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 
 	v = u[sx_i + dim] * rhoinv;
 	p = (fgamma_ - 1.0) * ein + pdeg;
-	cs = std::sqrt(fgamma_ * p * rhoinv + 8.0 / 3.0 * A_ / B_ * x * x);
+	cs = std::sqrt(fgamma_ * p * rhoinv + dpdeg_drho);
 }
 
 template<int NDIM>
@@ -87,10 +91,13 @@ void physics<NDIM>::post_process(hydro::state_type &U, safe_real dx) {
 	auto dir = geo.direction();
 	const static auto is = geo.find_indices(geo.H_BW, geo.H_NX - geo.H_BW);
 	for (auto i : is) {
-		const auto x = std::pow(U[rho_i][i] / B_, 1.0 / 3.0);
-		const auto hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
-		const auto pdeg = deg_pres(x);
-		const auto edeg = U[rho_i][i] * hdeg - pdeg;
+		double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
+		if (A_ != 0.0) {
+			const auto x = std::pow(U[rho_i][i] / B_, 1.0 / 3.0);
+			hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+			pdeg = deg_pres(x);
+			edeg = U[rho_i][i] * hdeg - pdeg;
+		}
 
 		safe_real ek = 0.0;
 		for (int dim = 0; dim < NDIM; dim++) {
@@ -222,10 +229,13 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 				const int i = geo.to_index(j + 1, k + 1, l + 1);
 				const auto rho = U[rho_i][i];
 				const auto rhoinv = 1.0 / U[rho_i][i];
-				const auto x = std::pow(rho / B_, 1.0 / 3.0);
-				const auto hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
-				const auto pdeg = deg_pres(x);
-				const auto edeg = rho * hdeg - pdeg;
+				double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
+				if (A_ != 0.0) {
+					const auto x = std::pow(rho / B_, 1.0 / 3.0);
+					hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+					pdeg = deg_pres(x);
+					edeg = rho * hdeg - pdeg;
+				}
 				safe_real ek = 0.0;
 				for (int dim = 0; dim < NDIM; dim++) {
 					ek += pow(U[sx_i + dim][i], 2) * rhoinv * safe_real(0.5);
