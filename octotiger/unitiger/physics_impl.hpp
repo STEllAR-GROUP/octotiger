@@ -30,6 +30,7 @@ safe_real physics<NDIM>::deg_pres(safe_real x) {
 	} else {
 		p =  A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
 	}
+	return p;
 }
 
 template<int NDIM>
