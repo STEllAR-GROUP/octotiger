@@ -11,6 +11,7 @@
 #include <vector>
 #include <math.h>
 #include <iostream>
+#include <complex>
 #include <boost/program_options.hpp>
 
 auto band_filter(double t, double Ps, double Pc) {
@@ -28,16 +29,42 @@ auto band_filter(double t, double Ps, double Pc) {
 	}
 }
 
+void output_spectrogram(double Ps, double Pc) {
+	double pmin = Pc / 100.0;
+	double pmax = 2.0 * Ps;
+	double dp = (pmax - pmin) / 1000.0;
+	const auto dt = Ps / 100000.0;
+	FILE *fp = fopen("filter.dat", "wt");
+	for (auto p = pmin; p <= pmax; p += dp) {
+		double w = 0.0;
+		const auto omega = 2.0 * M_PI / p;
+		double sum = 0.0;
+		constexpr std::complex<double> I(0, 1);
+		for (double t = dt / 2.0; t < Ps / 2.0; t += dt) {
+			const auto bf = band_filter(t, Ps, Pc);
+			w += 2.0 * bf * dt;
+			sum += 2.0 * bf * cos(omega * t) * dt;
+		}
+		sum /= w;
+		fprintf(fp, "%.12e %.12e\n", p, sum);
+	}
+	fclose(fp);
+
+}
+
 auto derivative(const std::vector<std::vector<double>> &f, double omega) {
 	std::vector<std::vector<double>> g;
 	std::vector<double> u(f[0].size());
 	const auto P = 2.0 * M_PI / omega;
-	for (int n = 1; n < f.size(); n++) {
-		const auto dt = (f[n][0] - f[n - 1][0]);
+	for (int n = 1; n < f.size() - 1; n++) {
+		const auto nm = n - 1;
+		const auto np = n + 1;
+		const auto h1 = (f[n][0] - f[nm][0]);
+		const auto h2 = (f[np][0] - f[n][0]);
 		for (int i = 0; i < u.size(); i++) {
-			u[i] = P * (f[n][i] - f[n - 1][i]) / dt / f[0][i];
+			u[i] = P * (f[np][i] * h1 * h1 + f[n][i] * (h2 * h2 - h1 * h1) - f[nm][i] * h2 * h2) / (f[0][i] * h1 * h2 * (h1 + h2));
 		}
-		u[0] = (f[n][0] + f[n - 1][0]) / 2.0;
+		u[0] = f[n][0];
 		g.push_back(u);
 	}
 
@@ -51,8 +78,8 @@ auto filter(const std::vector<std::vector<double>> &f, double omega, double Pc, 
 
 	const auto tmin = f[0][0];
 	const auto tmax = f[f.size() - 1][0];
-	double rt = 0.0;
 	const auto P = 2.0 * M_PI / omega;
+	double rt = tmin / P;
 	Pc *= P;
 	Ps *= P;
 	for (int n = 1; n < f.size() - 1; n++) {
@@ -65,11 +92,22 @@ auto filter(const std::vector<std::vector<double>> &f, double omega, double Pc, 
 				double t = f[m][0];
 				if (t0 - Ps / 2.0 < t && t < t0 + Ps / 2.0) {
 					dt = (f[m + 1][0] - f[m - 1][0]) / 2.0;
-					double y = band_filter(t - t0, Ps, Pc);
+					const auto h1 = f[m][0] - f[m - 1][0];
+					const auto h2 = f[m + 1][0] - f[m][0];
+					const auto w1 = (h1 + h2) * (2 * h1 - h2) / h1 / 6.0;
+					const auto w2 = std::pow(h1 + h2, 3) / h2 / h1 / 6.0;
+					const auto w3 = (h1 + h2) * (2 * h2 - h1) / h2 / 6.0;
+					double y1 = band_filter(f[m - 1][0] - t0, Ps, Pc);
+					double y2 = band_filter(f[m][0] - t0, Ps, Pc);
+					double y3 = band_filter(f[m + 1][0] - t0, Ps, Pc);
 					for (int i = 0; i < u.size(); i++) {
-						u[i] += f[m][i] * y * dt;
+						u[i] += w1 * f[m - 1][i] * y1 * dt;
+						u[i] += w2 * f[m][i] * y2 * dt;
+						u[i] += w3 * f[m + 1][i] * y3 * dt;
 					}
-					weight += y * dt;
+					weight += w1 * y1 * dt;
+					weight += w2 * y2 * dt;
+					weight += w3 * y3 * dt;
 				}
 			}
 			for (int i = 0; i < u.size(); i++) {
@@ -87,6 +125,8 @@ auto filter(const std::vector<std::vector<double>> &f, double omega, double Pc, 
 struct options {
 	double pmin;
 	double pmax;
+	bool help;
+	bool normalize;
 	std::string input;
 
 	int read_options(int argc, char *argv[]) {
@@ -97,14 +137,16 @@ struct options {
 		command_opts.add_options() //
 		("input", po::value<std::string>(&input)->default_value("binary.dat"), "input filename")           //
 		("pmin", po::value<double>(&pmin)->default_value(1.25), "minimum period to allow through filter")           //
-		("pmax", po::value<double>(&pmax)->default_value(4.75), "period where filter allows 100%")           //
+		("pmax", po::value<double>(&pmax)->default_value(5), "period where filter allows 100%")           //
+		("normalize", po::value<bool>(&normalize)->default_value(true), "normalize averages to t=0 value")           //
+		("help", po::value<bool>(&help)->default_value(false), "show the help page")           //
 				;
 		boost::program_options::variables_map vm;
 		po::store(po::parse_command_line(argc, argv, command_opts), vm);
 		po::notify(vm);
 
 		FILE *fp = fopen(input.c_str(), "rb");
-		if (input == "") {
+		if (help) {
 			std::cout << command_opts << "\n";
 			return -1;
 		} else if (fp == NULL) {
@@ -164,26 +206,36 @@ int main(int argc, char *argv[]) {
 
 		auto Pc = 2.0 * opts.pmax * opts.pmin / (opts.pmax + opts.pmin);
 		auto Ps = 4.0 * opts.pmax * opts.pmin / (opts.pmax - opts.pmin);
+		printf("sinc period      = %e\n", Pc);
+		printf("Blackmann period = %e\n", Ps);
+		const auto P = 2.0 * M_PI / v1[0][2];
 
-		printf("Window is +/- %e orbits\n", Ps / 2.0);
+		printf("Window is +/- %.12e orbits\n", Ps / 2.0);
 
-		const auto v2 = filter(v1, v1[0][2], Pc, Ps);
+		auto v2 = filter(v1, v1[0][2], Pc, Ps);
 		if (v2.size() == 0) {
 			printf("Not enough data to produce output\n");
 		} else {
+			if (opts.normalize) {
+				for (auto &line : v2) {
+					for (int i = 1; i < line.size(); i++) {
+						line[i] /= v1[0][i];
+					}
+				}
+			}
 			const auto v4 = derivative(v1, v1[0][2]);
 			const auto v3 = filter(v4, v1[0][2], Pc, Ps);
 			FILE *fp1 = fopen("avg.dat", "wt");
 			FILE *fp2 = fopen("drv.dat", "wt");
 			for (const auto &i : v2) {
 				for (const auto &j : i) {
-					fprintf(fp1, " %e ", j);
+					fprintf(fp1, " %.12e ", j);
 				}
 				fprintf(fp1, "\n");
 			}
 			for (const auto &i : v3) {
 				for (const auto &j : i) {
-					fprintf(fp2, " %e ", j);
+					fprintf(fp2, " %.12e ", j);
 				}
 				fprintf(fp2, "\n");
 			}
@@ -191,6 +243,8 @@ int main(int argc, char *argv[]) {
 			fclose(fp2);
 			fclose(fp);
 		}
+
+		output_spectrogram(Ps, Pc);
 	}
 	return 0;
 }
