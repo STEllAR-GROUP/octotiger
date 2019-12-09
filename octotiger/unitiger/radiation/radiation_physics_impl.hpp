@@ -146,11 +146,11 @@ const hydro::state_type& radiation_physics<NDIM>::pre_recon(const hydro::state_t
 					V[fx_i + dim][i] *= erinv;
 					V[wx_i + dim][i] *= erinv;
 				}
-				static constexpr auto kdelta = geo.kronecker_delta();
+				static constexpr auto lc = geo.levi_civita();
 				for (int n = 0; n < geo.NANGMOM; n++) {
 					for (int m = 0; m < NDIM; m++) {
 						for (int l = 0; l < NDIM; l++) {
-							V[wx_i + n][i] -= kdelta[n][m][l] * X[m][i] * V[fx_i + l][i];
+							V[wx_i + n][i] -= lc[n][m][l] * X[m][i] * V[fx_i + l][i];
 						}
 					}
 				}
@@ -176,11 +176,11 @@ void radiation_physics<NDIM>::post_recon(std::vector<std::vector<std::vector<saf
 					for (int l = 0; l < geo.H_NX_ZM6; l++) {
 						const int i = geo.to_index(j + 3, k + 3, l + 3);
 						const auto er = Q[er_i][d][i];
-						static constexpr auto kdelta = geo.kronecker_delta();
+						static constexpr auto lc = geo.levi_civita();
 						for (int n = 0; n < geo.NANGMOM; n++) {
 							for (int m = 0; m < NDIM; m++) {
 								for (int l = 0; l < NDIM; l++) {
-									Q[wx_i + n][d][i] += kdelta[n][m][l] * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[fx_i + l][d][i];
+									Q[wx_i + n][d][i] += lc[n][m][l] * (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[fx_i + l][d][i];
 								}
 							}
 							Q[wx_i + n][d][i] *= er;
@@ -212,6 +212,35 @@ std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type
 	for (int i = 0; i < 2 * NDIM; i++) {
 		bc[i] = hydro_computer<NDIM, INX, radiation_physics<NDIM>>::OUTFLOW;
 	}
+
+	for (int dim = 0; dim < NDIM; dim++) {
+		X[dim].resize(geo.H_N3);
+	}
+	for (int f = 0; f < nf_; f++) {
+		U[f].resize(geo.H_N3, 0.0);
+	}
+
+	const safe_real dx = 1.0 / INX;
+
+	for (int i = 0; i < geo.H_N3; i++) {
+		int k = i;
+		int j = 0;
+		for (int dim = 0; dim < NDIM; dim++) {
+			X[NDIM - 1 - dim][i] = (((k % geo.H_NX) - geo.H_BW) + 0.5) * dx - 0.5;
+			k /= geo.H_NX;
+			j++;
+		}
+	}
+	for( int i = 0; i < geo.H_N3; i++) {
+		if( X[0][i] < 0.0) {
+			U[er_i][i] = 1.0;
+		} else {
+			U[er_i][i] = 1.0e-1;
+		}
+	}
+
+
+
 
 	return bc;
 }

@@ -48,9 +48,13 @@ struct physics {
 
 	static int field_count();
 
+	static bool contact_field(int f) {
+		return (f == rho_i || (f >= spc_i && f < spc_i + n_species_));
+	}
+
 	static void set_fgamma(safe_real fg);
 
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c,  int dim);
+	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
 
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
 			std::array<safe_real, NDIM> &vg);
@@ -58,7 +62,7 @@ struct physics {
 	template<int INX>
 	static void post_process(hydro::state_type &U, safe_real dx);
 
-	static void set_degenerate_eos(safe_real,safe_real);
+	static void set_degenerate_eos(safe_real, safe_real);
 
 	template<int INX>
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
@@ -68,8 +72,7 @@ struct physics {
 	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void post_recon( std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
-			safe_real omega, bool angmom);
+	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
 	template<int INX>
 	using comp_type = hydro_computer<NDIM, INX, physics<NDIM>>;
 
@@ -80,12 +83,11 @@ struct physics {
 	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time);
 
 	template<int INX>
-	static const std::vector<std::vector<double>>& find_contact_discs( const hydro::state_type &U);
+	static const std::vector<std::vector<double>>& find_contact_discs(const hydro::state_type &U);
 
 	static void set_n_species(int n);
 
 	static void set_dual_energy_switches(safe_real one, safe_real two);
-
 
 	static int get_angmom_index() {
 		return sx_i;

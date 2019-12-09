@@ -38,10 +38,12 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	if (with_correction) {
 		computer.use_angmom_correction(PHYS::get_angmom_index());
 	}
-	computer.use_disc_detect(PHYS::rho_i);
 	const auto nf = PHYS::field_count();
-	for (int s = 0; s < 5; s++) {
-		computer.use_disc_detect(PHYS::spc_i + s);
+
+	for( int f = 0; f < PHYS::field_count(); f++) {
+		if( PHYS::contact_field(f)) {
+			computer.use_disc_detect(f);
+		}
 	}
 	std::vector<std::vector<std::vector<safe_real>>> F(NDIM, std::vector<std::vector<safe_real>>(nf, std::vector<safe_real>(H_N3)));
 	std::vector<std::vector<safe_real>> U(nf, std::vector<safe_real>(H_N3));
@@ -166,7 +168,8 @@ int main(int argc, char *argv[]) {
 
 	srand(123);
 //	run_test<1, 1000, physics<1>>(physics<1>::SOD, false, createTests);
-        run_test<2, 256, physics<2>>(physics<2>::KH, true, createTests);
+ //  run_test<2, 256, physics<2>>(physics<2>::KH, true, createTests);
+       run_test<1, 256, radiation_physics<1>>(radiation_physics<1>::CONTACT, true, createTests);
 //        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
 //        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
 //        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
