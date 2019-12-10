@@ -13,6 +13,9 @@
 template<int NDIM>
 struct radiation_physics {
 
+	static constexpr char const *field_names3[] = { "er", "fx", "fy", "fz", "wx", "wy", "wz" };
+	static constexpr char const *field_names2[] = { "er", "fx", "fy", "wz" };
+	static constexpr char const *field_names1[] = { "er", "fx" };
 	static constexpr int er_i = 0;
 	static constexpr int fx_i = 1;
 	static constexpr int fy_i = 2;

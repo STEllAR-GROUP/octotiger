@@ -61,8 +61,6 @@ void radiation_physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std
 	const auto lam_d = (2 * sqrt(3) * std::sqrt(tmp)) / den;
 	ap = lam_s * n[dim] + lam_d - vg[dim];
 	am = lam_s * n[dim] - lam_d - vg[dim];
-	ap = c - vg[dim];
-	am = -c - vg[dim];
 
 	const auto chi = (3 + 4 * fedd * fedd) / (5 + 2 * s4m3f2);
 	for (int d = 0; d < NDIM; d++) {
