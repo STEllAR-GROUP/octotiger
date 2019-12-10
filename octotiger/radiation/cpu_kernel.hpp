@@ -154,7 +154,7 @@ namespace octotiger { namespace radiation {
         std::vector<real>& egas,
         std::vector<real>& tau,
         real const fgamma,
-        std::array<std::vector<real>, NRF>& U,
+        std::vector<std::vector<real>>& U,
         std::vector<real> const& mmw,
         std::vector<real> const& X_spc,
         std::vector<real> const& Z_spc,

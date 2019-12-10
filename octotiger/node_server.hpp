@@ -305,7 +305,7 @@ private:
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
-	void compute_radiation(real dt);
+	void compute_radiation(real dt, real omega);
 	hpx::future<void> exchange_interlevel_rad_data();
 	void all_rad_bounds();
 

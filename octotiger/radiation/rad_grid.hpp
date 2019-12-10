@@ -12,6 +12,10 @@
 #include "octotiger/physcon.hpp"
 #include "octotiger/real.hpp"
 #include "octotiger/io/silo.hpp"
+#include "octotiger/unitiger/hydro.hpp"
+#include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
+#include "octotiger/unitiger/hydro_impl/flux.hpp"
+#include "octotiger/unitiger/radiation/radiation_physics.hpp"
 //#include "octotiger/sphere_points.hpp"
 
 #include <array>
@@ -26,6 +30,9 @@ public:
 	static constexpr integer fx_i = 1;
 	static constexpr integer fy_i = 2;
 	static constexpr integer fz_i = 3;
+	static constexpr integer wx_i = 4;
+	static constexpr integer wy_i = 5;
+	static constexpr integer wz_i = 6;
 private:
 	static constexpr integer DX = RAD_NX * RAD_NX;
 	static constexpr integer DY = RAD_NX;
@@ -33,13 +40,13 @@ private:
 	static std::unordered_map<std::string, int> str_to_index;
 	static std::unordered_map<int, std::string> index_to_str;
 	real dx;
-	std::array<std::vector<real>, NRF> U;
+	std::vector<std::vector<real>> U;
 	std::array<std::vector<real>, NRF> U0;
-	std::array<std::array<std::vector<real>, NRF>,NDIM> flux;
+	std::vector<std::vector<std::vector<real>>> flux;
 	std::array<std::array<std::vector<real>*, NDIM>, NDIM> P;
 	std::vector<std::vector<real>> X;
 	std::vector<real> mmw, X_spc, Z_spc;
-	void reconstruct(std::array<std::vector<real>, NRF>&,std::array<std::vector<real>, NRF>&,int dir);
+	hydro_computer<NDIM,INX,radiation_physics<NDIM>> hydro;
 public:
 	static void static_init();
 	static std::vector<std::string> get_field_names();
@@ -58,10 +65,11 @@ public:
 	void change_units(real m, real l, real t, real k);
 	real rad_imp_comoving(real& E, real& e, real rho, real mmw, real X, real Z, real dt);
 	void sanity_check();
+	void compute_flux(real);
 	void initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau);
 	void set_dx(real dx);
 	//void compute_fEdd();
-	void compute_flux();
+	void compute_fluxes();
 	void advance(real dt, real beta);
 	void rad_imp(std::vector<real>& egas, std::vector<real>& tau, std::vector<real>& sx, std::vector<real>& sy, std::vector<real>& sz,
 			const std::vector<real>& rho, real dt);

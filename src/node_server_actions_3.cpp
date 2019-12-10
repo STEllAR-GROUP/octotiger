@@ -505,7 +505,7 @@ void node_server::refined_step() {
 	dt_ = GET(dt_fut);
 	update();
 	if (opts().radiation) {
-		compute_radiation(dt_);
+		compute_radiation(dt_, grid_ptr->get_omega());
 		all_hydro_bounds();
 	}
 
@@ -576,7 +576,7 @@ future<void> node_server::nonrefined_step() {
 		GET(f);
 		update();
 		if( opts().radiation) {
-			compute_radiation(dt_);
+			compute_radiation(dt_, grid_ptr->get_omega());
 			all_hydro_bounds();
 		}
 
