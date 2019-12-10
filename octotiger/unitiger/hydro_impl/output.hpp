@@ -46,7 +46,7 @@ void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const h
 
 		filename += ".silo";
 
-		auto db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Uni-tiger", DB_PDB);
+		auto db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Uni-tiger", DB_HDF5);
 
 		auto opts = DBMakeOptlist(1);
 		float ft = t;

@@ -2147,7 +2147,7 @@ void grid::dual_energy_update() {
 
 //	bool in_bnd;
 
-	physics<NDIM>::post_process<INX>(U, dx);
+	physics<NDIM>::post_process<INX>(U, X, dx);
 
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
