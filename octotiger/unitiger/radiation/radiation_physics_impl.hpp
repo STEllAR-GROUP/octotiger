@@ -246,7 +246,11 @@ std::vector<typename hydro_computer<NDIM, INX, radiation_physics<NDIM>>::bc_type
 		}
 	}
 	for (int i = 0; i < geo.H_N3; i++) {
-		if (X[0][i] < 0.0) {
+		double xsum = 0.0;
+		for( int dim = 0; dim < NDIM; dim++) {
+			xsum += X[dim][i];
+		}
+		if (xsum < 0.000001) {
 			U[er_i][i] = 1.0;
 		} else {
 			U[er_i][i] = 1.0e-1;

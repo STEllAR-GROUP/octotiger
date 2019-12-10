@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
 	srand(123);
 //	run_test<1, 1000, physics<1>>(physics<1>::SOD, false, createTests);
  //  run_test<2, 256, physics<2>>(physics<2>::KH, true, createTests);
-       run_test<1, 256, radiation_physics<1>>(radiation_physics<1>::CONTACT, false, createTests);
+       run_test<2, 100, radiation_physics<2>>(radiation_physics<2>::CONTACT, false, createTests);
 //        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
 //        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
 //        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);
