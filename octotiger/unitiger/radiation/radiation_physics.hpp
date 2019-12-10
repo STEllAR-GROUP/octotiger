@@ -61,6 +61,9 @@ struct radiation_physics {
 	static void pre_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,
 			std::array<std::array<safe_real, cell_geometry<NDIM, INX>::NDIR>, NDIM> &S, int i, safe_real dx);
 
+	template<int INX>
+	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face);
+
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
 	static void post_angmom(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, std::array<safe_real, cell_geometry<NDIM, INX>::NANGMOM> &Z,

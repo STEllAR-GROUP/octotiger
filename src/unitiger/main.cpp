@@ -33,7 +33,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 
 template<int NDIM, int INX, class PHYS>
 void run_test(typename PHYS::test_type problem, bool with_correction, bool writingForTest) {
-	static constexpr safe_real CFL = (0.4 / NDIM);
+	static constexpr safe_real CFL = (0.2 / NDIM);
 	hydro_computer<NDIM, INX, PHYS> computer;
 	if (with_correction) {
 		computer.use_angmom_correction(PHYS::get_angmom_index());
@@ -70,16 +70,19 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 	const auto tstart = time(NULL);
 	while (t < tmax) {
 		U0 = U;
+		printf( "RK1\n");
 		q = computer.reconstruct(U, X, omega);
 		auto a = computer.flux(U, q, F, X, omega);
 		safe_real dt = CFL * dx / a;
 		dt = std::min(double(dt), tmax - t + 1.0e-20);
 		computer.advance(U0, U, F, X, dx, dt, 1.0, omega);
 		computer.boundaries(U,X);
+		printf( "RK2\n");
 		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 0.25, omega);
 		computer.boundaries(U,X);
+		printf( "RK3\n");
 		q = computer.reconstruct(U, X, omega);
 		computer.flux(U, q, F, X, omega);
 		computer.advance(U0, U, F, X, dx, dt, 2.0 / 3.0, omega);
@@ -87,7 +90,7 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 		computer.post_process(U, dx);
 		t += dt;
 		computer.boundaries(U,X);
-		if (int(t / dt_out) != int((t - dt) / dt_out))
+	//	if (int(t / dt_out) != int((t - dt) / dt_out))
 			computer.output(U, X, oter++, t);
 		iter++;
 		printf("%i %e %e\n", iter, double(t), double(dt));
@@ -169,7 +172,7 @@ int main(int argc, char *argv[]) {
 	srand(123);
 //	run_test<1, 1000, physics<1>>(physics<1>::SOD, false, createTests);
  //  run_test<2, 256, physics<2>>(physics<2>::KH, true, createTests);
-       run_test<1, 256, radiation_physics<1>>(radiation_physics<1>::CONTACT, true, createTests);
+       run_test<1, 256, radiation_physics<1>>(radiation_physics<1>::CONTACT, false, createTests);
 //        run_test<3, 8, physics<3>>(physics<3>::SOD, false, createTests);
 //        run_test<2, 50, physics<2>>(physics<2>::BLAST, true, createTests);
 //        run_test<2, 50, radiation_physics<2>>(radiation_physics<2>::CONTACT, true, createTests);

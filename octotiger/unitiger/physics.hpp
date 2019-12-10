@@ -56,6 +56,10 @@ struct physics {
 
 	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
 
+	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face) {
+
+	}
+
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
 			std::array<safe_real, NDIM> &vg);
 

@@ -136,6 +136,13 @@ void hydro_computer<NDIM, INX, PHYS>::boundaries(hydro::state_type &U, const hyd
 			}
 		}
 	}
+
+	for (int f = 0; f < 2 * NDIM; f++) {
+		if (bc_[f] == OUTFLOW) {
+			PHYS::template enforce_outflows<INX>(U, X, f);
+		}
+	}
+
 	if (angmom_index_ != -1) {
 		const auto sx_i = angmom_index_;
 		const auto lx_i = NDIM + angmom_index_;
