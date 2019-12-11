@@ -268,6 +268,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	auto &sx = grid_ptr->get_field(sx_i);
 	auto &sy = grid_ptr->get_field(sy_i);
 	auto &sz = grid_ptr->get_field(sz_i);
+	rad_grid_ptr->set_X(grid_ptr->get_X());
 
 //	if (my_location.level() == 0) {
 //		printf("Explicit\n");
