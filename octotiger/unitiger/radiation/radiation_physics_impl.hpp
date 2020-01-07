@@ -16,8 +16,6 @@
 #include "octotiger/test_problems/blast.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
 
-constexpr double clight = 1.0;
-
 template<int NDIM>
 int radiation_physics<NDIM>::field_count() {
 	return nf_;

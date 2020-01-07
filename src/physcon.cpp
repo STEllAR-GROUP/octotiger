@@ -68,7 +68,7 @@ void these_units(real &m, real &l, real &t, real &k) {
 		m = m2 / m1;
 		l = l2 / l1;
 		t = t2 / t1;
-		k = k2 / k1;
+		k = 1.0;;
 	} else if (!opts().radiation && !opts().gravity) {
 		m = opts().code_to_g;
 		l = opts().code_to_cm;

@@ -233,11 +233,6 @@ namespace octotiger { namespace radiation {
                     {
                         e = e1;
                     }
-                    if (U[er_i][iiir] <= 0.0)
-                    {
-                        printf("Er = %e %e %e %e\n", E0, E1, U[er_i][iiir], dt);
-                        abort();
-                    }
                     e = std::max(e, 0.0);
                     tau[iiih] = std::pow(e, INVERSE(fgamma));
                     if (U[er_i][iiir] <= 0.0)

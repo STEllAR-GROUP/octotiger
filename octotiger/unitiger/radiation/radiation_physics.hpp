@@ -91,10 +91,18 @@ struct radiation_physics {
 		return sx_i;
 	}
 
+	static void set_clight(safe_real r) {
+		clight = r;
+	}
+
 private:
 	static int nf_;
+	static safe_real clight;
 
 };
+
+template<int NDIM>
+safe_real radiation_physics<NDIM>::clight = 1.0;
 
 template<int NDIM>
 int radiation_physics<NDIM>::nf_ = (1 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2)));
