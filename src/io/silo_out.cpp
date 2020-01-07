@@ -492,7 +492,8 @@ void output_stage4(std::string fname, int cycle) {
 			}, cycle).get();
 }
 
-void output_all(std::string fname, int cycle, bool block) {
+void output_all(node_server* root_ptr, std::string fname, int cycle, bool block) {
+	timings::scope ts(root_ptr->timings_, timings::time_io);
 
 	printf( "Writing %s.silo\n", fname.c_str());
 	const auto tstart = time(NULL);

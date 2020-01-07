@@ -468,7 +468,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		//	set_omega_and_pivot();
 		if (i % opts().scf_output_frequency == 0) {
 			if (!opts().disable_output) {
-				output_all(buffer, i,i == 100 || i == 0);
+				output_all(this, buffer, i,i == 100 || i == 0);
 			}
 		}
 		auto diags = diagnostics();

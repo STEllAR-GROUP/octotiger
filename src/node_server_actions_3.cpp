@@ -269,7 +269,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	if (!opts().hydro && !opts().radiation) {
 //		diagnostics();
 		if (!opts().disable_output) {
-			output_all("final", output_cnt, true);
+			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
 			compare_analytic();
@@ -277,7 +277,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				solve_gravity(true, false);
 			}
 			if (!opts().disable_output) {
-				output_all("analytic", output_cnt, true);
+				output_all(this, "analytic", output_cnt, true);
 			}
 		}
 		return;
@@ -305,7 +305,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	if (!opts().output_filename.empty()) {
 		diagnostics();
 		solve_gravity(false, false);
-		output_all(opts().output_filename, output_cnt, false);
+		output_all(this, opts().output_filename, output_cnt, false);
 		return;
 	}
 
@@ -333,7 +333,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			if (opts().rewrite_silo || !first_call ||(opts().restart_filename == "")) {
 				printf("doing silo out...\n");
 				std::string fname = "X." + std::to_string(int(output_cnt));
-				output_all(fname, output_cnt, first_call);
+				output_all(this, fname, output_cnt, first_call);
 				if( opts().rewrite_silo) {
 					printf( "Exiting after rewriting SILO\n");
 					return;
@@ -445,7 +445,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 		if (!opts().disable_output) {
 			printf("doing silo out...\n");
-			output_all("final", output_cnt, true);
+			output_all(this, "final", output_cnt, true);
 		}
 
 		if (get_analytic() != nullptr) {
@@ -454,7 +454,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				solve_gravity(true, false);
 			}
 			if (!opts().disable_output) {
-				output_all("analytic", output_cnt, true);
+				output_all(this, "analytic", output_cnt, true);
 			}
 		}
 	}
