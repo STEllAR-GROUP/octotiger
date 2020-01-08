@@ -3,6 +3,9 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+
+#define retard_factor 50.0
+
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
@@ -126,8 +129,8 @@ void node_server::recv_rad_flux_correct(std::vector<real> &&data, const geo::fac
 	niece_rad_channels[face][index].set_value(std::move(data));
 }
 
-hpx::future<void> node_client::send_rad_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
-	return hpx::async<typename node_server::send_rad_boundary_action>(get_gid(), std::move(data), dir, cycle);
+void node_client::send_rad_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
+	hpx::apply<typename node_server::send_rad_boundary_action>(get_gid(), std::move(data), dir, cycle);
 }
 
 void node_server::recv_rad_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
@@ -144,8 +147,8 @@ void node_server::recv_rad_children(std::vector<real> &&data, const geo::octant 
 	child_rad_channels[ci].set_value(std::move(data), cycle);
 }
 
-hpx::future<void> node_client::send_rad_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) const {
-	return hpx::async<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
+void node_client::send_rad_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) const {
+	 hpx::apply<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
 void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy, std::vector<real> &sz,
@@ -250,7 +253,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	auto rgrid = rad_grid_ptr;
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
-	const real clight = physcon().c / 10.0;
+	const real clight = physcon().c / retard_factor;
 	const real max_dt = min_dx / clight * 0.2;
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
@@ -285,9 +288,9 @@ void node_server::compute_radiation(real dt, real omega) {
 		for (int rk = 0; rk < 3; rk++) {
 			all_rad_bounds();
 			rgrid->compute_flux(omega);
-			if( my_location.level() == 0 ) printf( "\nbounds 10\n");
+//			if( my_location.level() == 0 ) printf( "\nbounds 10\n");
 			GET(exchange_rad_flux_corrections());
-			if( my_location.level() == 0 ) printf( "\nbounds 11\n");
+//			if( my_location.level() == 0 ) printf( "\nbounds 11\n");
 			rgrid->advance(this_dt, beta[rk]);
 		}
 
@@ -358,7 +361,7 @@ void rad_grid::sanity_check() {
 void rad_grid::compute_flux(real omega) {
 	PROFILE()
 	;
-	radiation_physics<NDIM>::set_clight(physcon().c / 10.0);
+	radiation_physics<NDIM>::set_clight(physcon().c / retard_factor);
 	if (opts().correct_am_hydro) {
 		hydro.use_angmom_correction(fx_i);
 	}
@@ -597,13 +600,13 @@ std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &l
 }
 
 void node_server::all_rad_bounds() {
-	if( my_location.level() == 0 ) printf( "\nbounds 1\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 1\n");
 	GET(exchange_interlevel_rad_data());
-	if( my_location.level() == 0 ) printf( "\nbounds 2\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 2\n");
 	collect_radiation_bounds();
-	if( my_location.level() == 0 ) printf( "\nbounds 3\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 3\n");
 	send_rad_amr_bounds();
-	if( my_location.level() == 0 ) printf( "\nbounds 4\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 4\n");
 	rcycle++;
 }
 
@@ -620,9 +623,9 @@ hpx::future<void> node_server::exchange_interlevel_rad_data() {
 	}
 	if (my_location.level() > 0) {
 		auto data = rad_grid_ptr->get_restrict();
-		f = parent.send_rad_children(std::move(data), ci, rcycle);
+		parent.send_rad_children(std::move(data), ci, rcycle);
 	}
-	return std::move(f);
+	return hpx::make_ready_future();
 }
 
 void node_server::collect_radiation_bounds() {
