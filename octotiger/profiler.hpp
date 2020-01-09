@@ -29,8 +29,9 @@ struct timings
         time_regrid = 2,
         time_compare_analytic = 3,
         time_find_localities = 4,
-		time_fmm = 5,
-	    time_last = 6
+		  time_fmm = 5,
+		  time_io = 6,
+	     time_last = 7
     };
 
     struct scope
@@ -85,6 +86,7 @@ struct timings
     	const auto thydro = times_[time_computation] - times_[time_fmm];
         std::cout << name << ":\n";
         std::cout << "   Total: "             << times_[time_total] << '\n';
+        std::cout << "   I/O:         "       << times_[time_io] << " (" <<  100*times_[time_io] * tinv << "\%)\n";
         std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << "\%)\n";
         std::cout << "   Gravity:     "       << times_[time_fmm]  << " (" <<  100*times_[time_fmm] * tinv << "\%)\n";
         std::cout << "   Hydro: "             << thydro  << " (" <<  thydro * tinv << "\%)\n";

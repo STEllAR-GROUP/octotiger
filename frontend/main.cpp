@@ -518,7 +518,7 @@ int hpx_main(int argc, char* argv[]) {
 				root->enforce_bc();
 				auto e = root->amr_error();
 				printf( "AMR Error: %e %e %e\n", e.first, e.second, e.first/e.second);
-				output_all("X", 0, true);
+				output_all(root, "X", 0, true);
 			}
 			root->report_timing();
             accumulate_distributed_counters();
