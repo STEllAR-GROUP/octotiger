@@ -60,6 +60,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 }
 
 template<int NDIM>
+template<int INX>
 void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
 		std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
 	static const cell_geometry<NDIM, INX> geo;

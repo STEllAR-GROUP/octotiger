@@ -61,8 +61,8 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 				safe_real amr, apr, aml, apl;
 				static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
 
-				PHYS::physical_flux(UR, FR, dim, amr, apr, x, vg);
-				PHYS::physical_flux(UL, FL, dim, aml, apl, x, vg);
+				PHYS::template physical_flux<INX>(UR, FR, dim, amr, apr, x, vg);
+				PHYS::template physical_flux<INX>(UL, FL, dim, aml, apl, x, vg);
 				this_ap = std::max(std::max(apr, apl), safe_real(0.0));
 				this_am = std::min(std::min(amr, aml), safe_real(0.0));
 #pragma ivdep

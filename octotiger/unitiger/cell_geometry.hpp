@@ -16,34 +16,34 @@ struct cell_geometry {
 	static constexpr int H_BW = OCTOTIGER_BW;
 	static constexpr int H_NX = (2 * H_BW + INX);
 
-	static constexpr int H_NX_X = H_NX;
-	static constexpr int H_NX_Y = NDIM > 1 ? H_NX : 1;
-	static constexpr int H_NX_Z = NDIM > 2 ? H_NX : 1;
+	static constexpr int H_NX_X = cell_geometry::H_NX;
+	static constexpr int H_NX_Y = NDIM > 1 ? cell_geometry::H_NX : 1;
+	static constexpr int H_NX_Z = NDIM > 2 ? cell_geometry::H_NX : 1;
 
-	static constexpr int H_NX_XM2 = H_NX - 2;
-	static constexpr int H_NX_YM2 = NDIM > 1 ? H_NX - 2 : 1;
-	static constexpr int H_NX_ZM2 = NDIM > 2 ? H_NX - 2 : 1;
+	static constexpr int H_NX_XM2 = cell_geometry::H_NX - 2;
+	static constexpr int H_NX_YM2 = NDIM > 1 ? cell_geometry::H_NX - 2 : 1;
+	static constexpr int H_NX_ZM2 = NDIM > 2 ? cell_geometry::H_NX - 2 : 1;
 
-	static constexpr int H_NX_XM3 = H_NX - 3;
-	static constexpr int H_NX_YM3 = NDIM > 1 ? H_NX - 3 : 1;
-	static constexpr int H_NX_ZM3 = NDIM > 2 ? H_NX - 3 : 1;
+	static constexpr int H_NX_XM3 = cell_geometry::H_NX - 3;
+	static constexpr int H_NX_YM3 = NDIM > 1 ? cell_geometry::H_NX - 3 : 1;
+	static constexpr int H_NX_ZM3 = NDIM > 2 ? cell_geometry::H_NX - 3 : 1;
 
-	static constexpr int H_NX_XM4 = H_NX - 4;
-	static constexpr int H_NX_YM4 = NDIM > 1 ? H_NX - 4 : 1;
-	static constexpr int H_NX_ZM4 = NDIM > 2 ? H_NX - 4 : 1;
+	static constexpr int H_NX_XM4 = cell_geometry::H_NX - 4;
+	static constexpr int H_NX_YM4 = NDIM > 1 ? cell_geometry::H_NX - 4 : 1;
+	static constexpr int H_NX_ZM4 = NDIM > 2 ? cell_geometry::H_NX - 4 : 1;
 
-	static constexpr int H_NX_XM6 = H_NX - 6;
-	static constexpr int H_NX_YM6 = NDIM > 1 ? H_NX - 6 : 1;
-	static constexpr int H_NX_ZM6 = NDIM > 2 ? H_NX - 6 : 1;
+	static constexpr int H_NX_XM6 = cell_geometry::H_NX - 6;
+	static constexpr int H_NX_YM6 = NDIM > 1 ? cell_geometry::H_NX - 6 : 1;
+	static constexpr int H_NX_ZM6 = NDIM > 2 ? cell_geometry::H_NX - 6 : 1;
 
-	static constexpr int H_NX_XM8 = H_NX - 8;
-	static constexpr int H_NX_YM8 = NDIM > 1 ? H_NX - 8 : 1;
-	static constexpr int H_NX_ZM8 = NDIM > 2 ? H_NX - 8 : 1;
+	static constexpr int H_NX_XM8 = cell_geometry::H_NX - 8;
+	static constexpr int H_NX_YM8 = NDIM > 1 ? cell_geometry::H_NX - 8 : 1;
+	static constexpr int H_NX_ZM8 = NDIM > 2 ? cell_geometry::H_NX - 8 : 1;
 
-	static constexpr int H_DNX = NDIM == 3 ? H_NX * H_NX : (NDIM == 2 ? H_NX : 1);
-	static constexpr int H_DNY = NDIM == 3 ? H_NX : 1;
+	static constexpr int H_DNX = NDIM == 3 ? cell_geometry::H_NX * cell_geometry::H_NX : (NDIM == 2 ? cell_geometry::H_NX : 1);
+	static constexpr int H_DNY = NDIM == 3 ? cell_geometry::H_NX : 1;
 	static constexpr int H_DNZ = 1;
-	static constexpr int H_N3 = std::pow(H_NX, NDIM);
+	static constexpr int H_N3 = std::pow(cell_geometry::H_NX, NDIM);
 	static constexpr int H_DN0 = 0;
 	static constexpr int NDIR = std::pow(3, NDIM);
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
@@ -254,10 +254,12 @@ public:
 	cell_geometry() {
 		static std::once_flag flag;
 		std::call_once(flag, []() {
+			printf( "Initializing cell_geometry %i %i %i\n", NDIM, INX, cell_geometry::H_NX);
+			assert( INX != 8 );
 			verify_3d_constdefs();
 			for (int bw = 1; bw <= H_BW; bw++) {
 				for (int d = 0; d < NDIR; d++) {
-					all_indices[bw - 1][d] = find_indices(bw, H_NX - bw, d);
+					all_indices[bw - 1][d] = find_indices(bw, cell_geometry::H_NX - bw, d);
 				}
 			}
 		});
@@ -318,9 +320,9 @@ public:
 		if /*constexpr*/(NDIM == 1) {
 			return j;
 		} else if /*constexpr*/(NDIM == 2) {
-			return (j * H_NX + k);
+			return (j * cell_geometry::H_NX + k);
 		} else {
-			return (j * H_NX + k) * H_NX + l;
+			return (j * cell_geometry::H_NX + k) * cell_geometry::H_NX + l;
 		}
 	}
 
@@ -334,7 +336,7 @@ public:
 		}
 		for (int i = 0; i < H_N3; i++) {
 			bool interior = true;
-			const auto dims = index_to_dims<NDIM, H_NX>(i);
+			const auto dims = index_to_dims<NDIM, cell_geometry::H_NX>(i);
 			for (int dim = 0; dim < NDIM; dim++) {
 				int this_i = dims[dim];
 				if (this_i < lbs[dim] || this_i >= ubs[dim]) {
