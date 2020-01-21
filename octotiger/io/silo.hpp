@@ -82,7 +82,7 @@ struct  silo_load_t {
 
 
 
-void output_all(std::string fname, int cycle, bool);
+void output_all(node_server* root_ptr, std::string fname, int cycle, bool);
 
 void load_options_from_silo(std::string fname, DBfile* = nullptr);
 
