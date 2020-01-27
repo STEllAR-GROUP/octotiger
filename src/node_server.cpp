@@ -12,6 +12,7 @@
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
 
+#include <hpx/include/performance_counters.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
 
@@ -26,8 +27,40 @@
 
 HPX_REGISTER_COMPONENT(hpx::components::managed_component<node_server>, node_server);
 
+hpx::mutex node_server::node_count_mtx;
+node_count_type node_server::cumulative_node_count;
 bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
+
+std::uint16_t node_server::cumulative_nodes_count(bool reset) {
+	std::lock_guard<hpx::mutex> lock(node_count_mtx);
+	if (reset) {
+		cumulative_node_count.total = 0;
+	}
+	return cumulative_node_count.total;
+}
+
+std::uint16_t node_server::cumulative_leafs_count(bool reset) {
+	std::lock_guard<hpx::mutex> lock(node_count_mtx);
+	if (reset) {
+		cumulative_node_count.leaf = 0;
+	}
+	return cumulative_node_count.leaf;
+}
+
+std::uint16_t node_server::cumulative_amrs_count(bool reset) {
+	std::lock_guard<hpx::mutex> lock(node_count_mtx);
+	if (reset) {
+		cumulative_node_count.amr_bnd = 0;
+	}
+	return cumulative_node_count.amr_bnd;
+}
+
+void node_server::register_counters() {
+	hpx::performance_counters::install_counter_type("octotiger/subgrids", &cumulative_nodes_count, "total number of subgrids processed");
+	hpx::performance_counters::install_counter_type("octotiger/subgrid_leaves", &cumulative_nodes_count, "total number of subgrid leaves processed");
+	hpx::performance_counters::install_counter_type("octotiger/amr_bounds", &cumulative_nodes_count, "total number of amr bounds processed");
+}
 
 real node_server::get_rotation_count() const {
 	if (opts().problem == DWD) {
@@ -71,7 +104,7 @@ future<void> node_server::exchange_flux_corrections() {
 					const auto face_dim = f.get_dimension();
 					std::array<integer, NDIM> lb, ub;
 					switch (face_dim) {
-					case XDIM:
+						case XDIM:
 						lb[XDIM] = f.get_side() == geo::MINUS ? 0 : INX;
 						lb[YDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
@@ -79,7 +112,7 @@ future<void> node_server::exchange_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + (INX / 2);
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-					case YDIM:
+						case YDIM:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[YDIM] = f.get_side() == geo::MINUS ? 0 : INX;
 						lb[ZDIM] = quadrant.get_side(1) * (INX / 2);
@@ -87,7 +120,7 @@ future<void> node_server::exchange_flux_corrections() {
 						ub[YDIM] = lb[YDIM] + 1;
 						ub[ZDIM] = lb[ZDIM] + (INX / 2);
 						break;
-					case ZDIM:
+						case ZDIM:
 						lb[XDIM] = quadrant.get_side(0) * (INX / 2);
 						lb[YDIM] = quadrant.get_side(1) * (INX / 2);
 						lb[ZDIM] = f.get_side() == geo::MINUS ? 0 : INX;

@@ -44,6 +44,9 @@ struct node_count_type {
 		arc & leaf;
 		arc & amr_bnd;
 	}
+	node_count_type() {
+		total = leaf = amr_bnd = 0;
+	}
 };
 
 class OCTOTIGER_EXPORT node_server: public hpx::components::managed_component_base<node_server> {
@@ -125,8 +128,13 @@ public:
 	}
 	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
+	static std::uint16_t cumulative_nodes_count(bool);
+	static std::uint16_t cumulative_leafs_count(bool);
+	static std::uint16_t cumulative_amrs_count(bool);
+	static void register_counters();
 private:
-
+	static hpx::mutex node_count_mtx;
+	static node_count_type cumulative_node_count;
 	static bool static_initialized;
 	static std::atomic<integer> static_initializing;
 	void initialize(real, real);
