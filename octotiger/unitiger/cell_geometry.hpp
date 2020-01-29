@@ -255,7 +255,6 @@ public:
 		static std::once_flag flag;
 		std::call_once(flag, []() {
 			printf( "Initializing cell_geometry %i %i %i\n", NDIM, INX, cell_geometry::H_NX);
-			assert( INX != 8 );
 			verify_3d_constdefs();
 			for (int bw = 1; bw <= H_BW; bw++) {
 				for (int d = 0; d < NDIR; d++) {
