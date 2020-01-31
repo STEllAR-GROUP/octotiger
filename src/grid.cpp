@@ -2135,7 +2135,11 @@ void grid::next_u(integer rk, real t, real dt) {
 					abort();
 				}
 				if (opts().rho_floor > 0.0) {
-					U[rho_i][iii] = std::max(U[rho_i][iii], opts().rho_floor);
+					const auto dif = std::max(U[rho_i][iii], opts().rho_floor) - U[rho_i][iii];
+					U[rho_i][iii] += dif;
+					for (int s = 0; s < opts().n_species; s++) {
+						U[spc_i + s][iii] += dif / opts().n_species;
+					}
 				} else if (U[rho_i][iii] <= ZERO) {
 					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k), real(X[XDIM][iii]), real(X[YDIM][iii]),
 							real(X[ZDIM][iii]));
