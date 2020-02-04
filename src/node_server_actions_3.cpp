@@ -597,12 +597,14 @@ future<real> node_server::local_step(integer steps) {
 				cumulative_node_count.leaf++;
 			}
 			constexpr auto full_set = geo::octant::full_set();
-			for (auto& ci : full_set) {
-				const auto& flags = amr_flags[ci];
-				for (auto& dir : geo::direction::full_set()) {
-					if (dir.is_face()) {
-						if (flags[dir]) {
-							cumulative_node_count.amr_bnd++;
+			if (amr_flags.size()) {
+				for (auto& ci : full_set) {
+					const auto& flags = amr_flags[ci];
+					for (auto& dir : geo::direction::full_set()) {
+						if (dir.is_face()) {
+							if (flags[dir]) {
+								cumulative_node_count.amr_bnd++;
+							}
 						}
 					}
 				}
