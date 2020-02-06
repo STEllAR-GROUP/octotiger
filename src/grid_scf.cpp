@@ -685,7 +685,7 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	real rho = 0;
 //	const real R0 = this_struct_eos->get_R0();
 	int M = std::max(std::min(int(10.0 * dx), 2), 1);
-	M = 1;
+	M = 5;
 	int nsamp = 0;
 	for (double x0 = x - dx / 2.0 + dx / 2.0 / M; x0 < x + dx / 2.0; x0 += dx / M) {
 		for (double y0 = y - dx / 2.0 + dx / 2.0 / M; y0 < y + dx / 2.0; y0 += dx / M) {
