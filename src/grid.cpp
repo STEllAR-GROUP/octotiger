@@ -1502,8 +1502,9 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	rc.push_back(std::make_pair(std::string("X"), std::move(X)));
 	rc.push_back(std::make_pair(std::string("Y"), std::string("1.0 - X - Z")));
 	rc.push_back(std::make_pair(std::string("Z"), std::move(Z)));
+	rc.push_back(std::make_pair(std::string("etot_dual"), std::string("ei + ek")));
 	rc.push_back(std::make_pair(std::string("ek"), std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
-	rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,0.001*egas), egas-ek, tau^{:e})", fgamma)));
+	rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1 ,fgamma)));
 	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
 	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
