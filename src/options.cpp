@@ -64,6 +64,8 @@ bool options::process_options(int argc, char *argv[]) {
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
 	("variable_omega", po::value<bool>(&(opts().variable_omega))->default_value(false), "use variable omega")                 //
+	("rho_floor", po::value<real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
+	("tau_floor", po::value<real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "entropy loss driving rate")      //

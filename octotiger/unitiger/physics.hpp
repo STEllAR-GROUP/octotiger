@@ -28,7 +28,7 @@ struct physics {
 	static safe_real de_switch_2;
 
 	enum test_type {
-		SOD, BLAST, KH, CONTACT
+		SOD, BLAST, KH, CONTACT, KEPLER
 	};
 
 	static std::string get_test_type_string(test_type t) {
@@ -57,7 +57,7 @@ struct physics {
 			std::array<safe_real, NDIM> &vg);
 
 	template<int INX>
-	static void post_process(hydro::state_type &U, safe_real dx);
+	static void post_process(hydro::state_type &U, const hydro::x_type& X, safe_real dx);
 
 	static void set_degenerate_eos(safe_real,safe_real);
 
@@ -87,21 +87,38 @@ struct physics {
 
 	static void set_dual_energy_switches(safe_real one, safe_real two);
 
+	static void set_central_force(safe_real GM) {
+		GM_ = GM;
+	}
 
 	static int get_angmom_index() {
 		return sx_i;
 	}
 
+	template<int INX>
+	static void enforce_outflow(hydro::state_type &U, int dim, int dir);
+
 private:
+	static safe_real rho_sink_radius_;
+	static safe_real rho_sink_floor_;
 	static int nf_;
 	static int n_species_;
 	static safe_real fgamma_;
 	static safe_real A_;
 	static safe_real B_;
-
+	static safe_real GM_;
 	static safe_real deg_pres(safe_real x);
 
 };
+
+template<int NDIM>
+safe_real physics<NDIM>::rho_sink_radius_ = 0.0;
+
+template<int NDIM>
+safe_real physics<NDIM>::rho_sink_floor_ = 0.0;
+
+template<int NDIM>
+safe_real physics<NDIM>::GM_ = 0.0;
 
 template<int NDIM>
 safe_real physics<NDIM>::A_ = 0.0;

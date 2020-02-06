@@ -412,7 +412,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 			ny = ay / a;
 			nz = az / a;
 			space_vector dX[nspec];
-			real g[nspec] = { 0.0, 0.0 };
+			real g[nspec] = {0.0, 0.0};
 			for (integer s = 0; s != nspec; ++s) {
 				dX[s][XDIM] = x - diags.com[s][XDIM];
 				dX[s][YDIM] = y - diags.com[s][YDIM];
@@ -469,15 +469,15 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 				std::array<real, nspec> rho;
 				integer star;
 				if (diags.stage <= 2) {
-					rho = { U[spc_ac_i][iii], U[spc_dc_i][iii] };
+					rho = {U[spc_ac_i][iii], U[spc_dc_i][iii]};
 				} else {
 					star = in_star(j, k, l);
 					if (star == +1) {
-						rho = { U[rho_i][iii], 0.0 };
+						rho = {U[rho_i][iii], 0.0};
 					} else if (star == -1) {
-						rho = { 0.0, U[rho_i][iii] };
+						rho = {0.0, U[rho_i][iii]};
 					} else if (star != 99) {
-						rho = { 0.0, 0.0 };
+						rho = {0.0, 0.0};
 					} else {
 						rc.failed = true;
 						return rc;
@@ -1073,8 +1073,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1599,7 +1599,7 @@ void grid::allocate() {
 	set_coordinates();
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
-		L_mtx.reset(new hpx::lcos::local::spinlock);
+	L_mtx.reset(new hpx::lcos::local::spinlock);
 #endif
 
 }
@@ -2127,11 +2127,19 @@ void grid::next_u(integer rk, real t, real dt) {
 #pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-
-				if (U[tau_i][iii] < ZERO) {
-					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
-							(double) X[YDIM][iii], (double) X[ZDIM][iii]);
-					//	abort();
+				if (opts().tau_floor > 0.0) {
+					U[tau_i][iii] = std::max(U[tau_i][iii], opts().tau_floor);
+				} else if (U[tau_i][iii] < ZERO) {
+					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii], (double) X[YDIM][iii],
+							(double) X[ZDIM][iii]);
+					abort();
+				}
+				if (opts().rho_floor > 0.0) {
+					const auto dif = std::max(U[rho_i][iii], opts().rho_floor) - U[rho_i][iii];
+					U[rho_i][iii] += dif;
+					for (int s = 0; s < opts().n_species; s++) {
+						U[spc_i + s][iii] += dif / opts().n_species;
+					}
 				} else if (U[rho_i][iii] <= ZERO) {
 					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k), real(X[XDIM][iii]), real(X[YDIM][iii]),
 							real(X[ZDIM][iii]));
@@ -2147,7 +2155,7 @@ void grid::dual_energy_update() {
 
 //	bool in_bnd;
 
-	physics<NDIM>::post_process<INX>(U, dx);
+	physics<NDIM>::post_process<INX>(U, X, dx);
 
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {

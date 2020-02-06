@@ -42,9 +42,9 @@ void hydro_computer<NDIM, INX, PHYS>::use_angmom_correction(int index) {
 }
 
 template<int NDIM, int INX, class PHYS>
-void hydro_computer<NDIM, INX, PHYS>::post_process(hydro::state_type &U, safe_real dx) {
+void hydro_computer<NDIM, INX, PHYS>::post_process(hydro::state_type &U, const hydro::state_type& X, safe_real dx) {
 	PHYS p;
-	p.template post_process < INX > (U, dx);
+	p.template post_process < INX > (U, X, dx);
 }
 
 template<int NDIM, int INX, class PHYS>
