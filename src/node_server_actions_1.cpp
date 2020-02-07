@@ -61,6 +61,8 @@ future<node_count_type> node_client::regrid_gather(bool rb) const {
 	return hpx::async<typename node_server::regrid_gather_action>(get_unmanaged_gid(), rb);
 }
 
+
+
 node_count_type node_server::regrid_gather(bool rebalance_only) {
 	node_registry::delete_(my_location);
 	node_count_type count;

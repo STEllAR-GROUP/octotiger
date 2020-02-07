@@ -93,9 +93,9 @@ std::size_t init_thread_local_worker(std::size_t desired)
         if (current ==0) {
         std::cout << "\nSubgrid side-length is " << INX << std::endl;
         std::cout << "Minimal allowed theta is " << octotiger::fmm::THETA_FLOOR << std::endl;
-        std::cout << "Stencil maximal allowed half side-length is " << octotiger::fmm::STENCIL_WIDTH 
+        std::cout << "Stencil maximal allowed half side-length is " << octotiger::fmm::STENCIL_WIDTH
                   << " (Total length " << 2 * octotiger::fmm::STENCIL_WIDTH + 1 << ")" << std::endl;
-        std::cout << "Total number of stencil elements (stencil size): " 
+        std::cout << "Total number of stencil elements (stencil size): "
                   <<  mono_inter::calculate_stencil().first.size() << std::endl << std::endl;
         }
         static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
@@ -484,7 +484,7 @@ int hpx_main(int argc, char* argv[]) {
 			node_client root_client(root_id);
 			node_server* root = root_client.get_ptr().get();
 
-			node_count_type ngrids = {0,0};
+			node_count_type ngrids;
 			//		printf("1\n");
 			if (!opts().restart_filename.empty()) {
 				std::cout << "Loading from " << opts().restart_filename << " ...\n";
@@ -538,7 +538,7 @@ int main(int argc, char* argv[]) {
 			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
 			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
 			};
-
+	hpx::register_startup_function(&node_server::register_counters);
 	hpx::register_pre_shutdown_function([]() {options::all_localities.clear();});
 
 	hpx::init(argc, argv, cfg);
