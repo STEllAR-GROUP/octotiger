@@ -58,8 +58,8 @@ std::uint16_t node_server::cumulative_amrs_count(bool reset) {
 
 void node_server::register_counters() {
 	hpx::performance_counters::install_counter_type("/octotiger/subgrids", &cumulative_nodes_count, "total number of subgrids processed");
-	hpx::performance_counters::install_counter_type("/octotiger/subgrid_leaves", &cumulative_nodes_count, "total number of subgrid leaves processed");
-	hpx::performance_counters::install_counter_type("/octotiger/amr_bounds", &cumulative_nodes_count, "total number of amr bounds processed");
+	hpx::performance_counters::install_counter_type("/octotiger/subgrid_leaves", &cumulative_leafs_count, "total number of subgrid leaves processed");
+	hpx::performance_counters::install_counter_type("/octotiger/amr_bounds", &cumulative_amrs_count, "total number of amr bounds processed");
 }
 
 real node_server::get_rotation_count() const {
