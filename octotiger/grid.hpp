@@ -131,6 +131,7 @@ private:
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;
+	static double idle_rate;
 	hydro_computer<NDIM,INX,physics<NDIM>> hydro;
 	std::shared_ptr<rad_grid> rad_grid_ptr;
 	std::vector<roche_type> roche_lobe;
@@ -170,6 +171,7 @@ private:
 	void compute_boundary_interactions_multipole_monopole(gsolve_type type, const std::vector<boundary_interaction_type>&,
 			const gravity_boundary_type&);
 public:
+	static void set_idle_rate();
 	static std::string hydro_units_name(const std::string&);
 	static std::string gravity_units_name(const std::string&);
 	std::vector<roche_type> get_roche_lobe() const;

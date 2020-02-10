@@ -63,7 +63,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cfl", po::value<real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
-	("variable_omega", po::value<bool>(&(opts().variable_omega))->default_value(false), "use variable omega")                 //
+	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(true), "show idle rates and locality info in SILO")                 //
 	("rho_floor", po::value<real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
 	("tau_floor", po::value<real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
@@ -244,7 +244,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(theta);
 		SHOW(unigrid);
 		SHOW(v1309);
-		SHOW(variable_omega);
+		SHOW(idle_rates);
 		SHOW(xscale);
 
 

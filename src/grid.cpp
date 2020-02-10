@@ -38,6 +38,8 @@ std::unordered_map<std::string, int> grid::str_to_index_hydro;
 std::unordered_map<std::string, int> grid::str_to_index_gravity;
 std::unordered_map<int, std::string> grid::index_to_str_hydro;
 std::unordered_map<int, std::string> grid::index_to_str_gravity;
+double grid::idle_rate;
+
 
 bool grid::is_hydro_field(const std::string &str) {
 	return str_to_index_hydro.find(str) != str_to_index_hydro.end();
@@ -112,6 +114,10 @@ std::vector<std::string> grid::get_field_names() {
 		for (auto &n : rnames) {
 			rc.push_back(n);
 		}
+	}
+	if( opts().idle_rates) {
+		rc.push_back("locality");
+		rc.push_back("idle_rate");
 	}
 	return rc;
 }
@@ -292,7 +298,48 @@ std::vector<silo_var_t> grid::var_data() const {
 			s.push_back(std::move(r));
 		}
 	}
+
+	if (opts().idle_rates) {
+
+		const int id = hpx::get_locality_id();
+		{
+			int jjj = 0;
+			silo_var_t this_s("locality");
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						this_s(jjj) = id;
+						this_s.set_range(this_s(jjj));
+						jjj++;
+					}
+				}
+			}
+			s.push_back(std::move(this_s));
+		}
+		{
+
+			int jjj = 0;
+			silo_var_t this_s("idle_rate");
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						this_s(jjj) = id;
+						this_s.set_range(idle_rate);
+						jjj++;
+					}
+				}
+			}
+			s.push_back(std::move(this_s));
+		}
+	}
 	return std::move(s);
+}
+
+void grid::set_idle_rate() {
+	std::string counter_name = "/threads{" + std::to_string(hpx::get_locality_id()) + "/total}/idle-rate";
+	hpx::performance_counters::performance_counter count(counter_name);
+	idle_rate = count.get_value<double>().get();
+	count.reset();
 }
 
 // MSVC needs this variable to be in the global namespace
@@ -1073,8 +1120,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1504,7 +1551,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	rc.push_back(std::make_pair(std::string("Z"), std::move(Z)));
 	rc.push_back(std::make_pair(std::string("etot_dual"), std::string("ei + ek")));
 	rc.push_back(std::make_pair(std::string("ek"), std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
-	rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1 ,fgamma)));
+	rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1, fgamma)));
 	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
 	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));

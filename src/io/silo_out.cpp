@@ -88,6 +88,7 @@ static const int HOST_NAME_LEN = 100;
 
 
 void output_stage1(std::string fname, int cycle) {
+	grid::set_idle_rate();
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
 	const auto *node_ptr_ = node_registry::begin()->second.get_ptr().get();
