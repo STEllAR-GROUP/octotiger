@@ -39,13 +39,13 @@ public:
 	bool gravity;
 	bool hydro;
 	bool radiation;
-	bool variable_omega;
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
 	bool correct_am_grav;
 	bool correct_am_hydro;
 	bool rotating_star_amr;
+	bool idle_rates;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -147,7 +147,6 @@ public:
 		arc & refinement_floor;
 		arc & ngrids;
 		arc & v1309;
-		arc & variable_omega;
 		arc & stop_time;
 		arc & max_level;
 		arc & xscale;
@@ -164,6 +163,7 @@ public:
 		arc & donor_refine;
 		arc & extra_regrid;
 		arc & accretor_refine;
+		arc & idle_rates;
 		int tmp = problem;
 		arc & tmp;
 		problem = static_cast<problem_type>(tmp);

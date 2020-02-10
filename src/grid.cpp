@@ -115,8 +115,10 @@ std::vector<std::string> grid::get_field_names() {
 			rc.push_back(n);
 		}
 	}
-	rc.push_back("locality");
-	rc.push_back("idle_rate");
+	if( opts().idle_rates) {
+		rc.push_back("locality");
+		rc.push_back("idle_rate");
+	}
 	return rc;
 }
 
@@ -296,35 +298,39 @@ std::vector<silo_var_t> grid::var_data() const {
 			s.push_back(std::move(r));
 		}
 	}
-	const int id = hpx::get_locality_id();
-	{
-		int jjj = 0;
-		silo_var_t this_s("locality");
-		for (int i = 0; i < INX; i++) {
-			for (int j = 0; j < INX; j++) {
-				for (int k = 0; k < INX; k++) {
-					this_s(jjj) = id;
-					this_s.set_range(this_s(jjj));
-					jjj++;
-				}
-			}
-		}
-		s.push_back(std::move(this_s));
-	}
-	{
 
-		int jjj = 0;
-		silo_var_t this_s("idle_rate");
-		for (int i = 0; i < INX; i++) {
-			for (int j = 0; j < INX; j++) {
-				for (int k = 0; k < INX; k++) {
-					this_s(jjj) = id;
-					this_s.set_range(idle_rate);
-					jjj++;
+	if (opts().idle_rates) {
+
+		const int id = hpx::get_locality_id();
+		{
+			int jjj = 0;
+			silo_var_t this_s("locality");
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						this_s(jjj) = id;
+						this_s.set_range(this_s(jjj));
+						jjj++;
+					}
 				}
 			}
+			s.push_back(std::move(this_s));
 		}
-		s.push_back(std::move(this_s));
+		{
+
+			int jjj = 0;
+			silo_var_t this_s("idle_rate");
+			for (int i = 0; i < INX; i++) {
+				for (int j = 0; j < INX; j++) {
+					for (int k = 0; k < INX; k++) {
+						this_s(jjj) = id;
+						this_s.set_range(idle_rate);
+						jjj++;
+					}
+				}
+			}
+			s.push_back(std::move(this_s));
+		}
 	}
 	return std::move(s);
 }
