@@ -478,7 +478,7 @@ void node_server::run_scf(std::string const& data_dir) {
 		f = (f + 1.0) / 2.0;
 		rho_mult(f0, f1);
 		diags = diagnostics();
-		rho_move(diags.grid_com[0] / 2.0);
+		rho_move(diags.grid_com[0]);
 		real iorb = diags.z_mom_orb;
 		real is1 = diags.z_moment[0];
 		real is2 = diags.z_moment[1];

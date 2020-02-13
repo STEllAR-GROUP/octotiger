@@ -83,16 +83,12 @@ struct timings
     void report(std::string const& name)
     {
     	const auto tinv = 1.0/ times_[time_total];
-    	const auto thydro = times_[time_computation] - times_[time_fmm];
+    	const auto tcr = times_[time_computation] + times_[time_regrid];
         std::cout << name << ":\n";
         std::cout << "   Total: "             << times_[time_total] << '\n';
-        std::cout << "   I/O:         "       << times_[time_io] << " (" <<  100*times_[time_io] * tinv << "\%)\n";
         std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << "\%)\n";
-        std::cout << "   Gravity:     "       << times_[time_fmm]  << " (" <<  100*times_[time_fmm] * tinv << "\%)\n";
-        std::cout << "   Hydro: "             << thydro  << " (" <<  thydro * tinv << "\%)\n";
         std::cout << "   Regrid: "            << times_[time_regrid]  << " (" <<  100*times_[time_regrid] * tinv << "\%)\n";
-        std::cout << "   Compare Analytic: "  << times_[time_compare_analytic]  << " (" <<  100*times_[time_compare_analytic] * tinv << "\%)\n";
-        std::cout << "   Find Localities: "   << times_[time_find_localities]  << " (" <<  100*times_[time_find_localities] * tinv << "\%)\n";
+        std::cout << "   Computation + Regrid: "       << tcr << " (" <<  100*tcr * tinv << "\%)\n";
     }
 
     std::array<double, timer::time_last> times_;

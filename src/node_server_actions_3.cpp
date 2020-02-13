@@ -257,7 +257,7 @@ void line_of_centers_analyze(const line_of_centers_t& loc, real omega, std::pair
 void node_server::execute_solver(bool scf, node_count_type ngrids) {
 	timings_.times_[timings::time_regrid] = 0.0;
 	timings_.times_[timings::time_fmm] = 0.0;
-	timings::scope ts(timings_, timings::time_total);
+	timings_.times_[timings::time_total] = 0.0;
 	integer output_cnt { };
 //	output_all("X", 0, false);
 
@@ -319,6 +319,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 
 	real bench_start, bench_stop;
 	while (current_time < opts().stop_time) {
+		timings::scope ts(timings_, timings::time_total);
 		if (step_num > opts().stop_step)
 			break;
 		auto time_start = std::chrono::high_resolution_clock::now();
@@ -490,8 +491,11 @@ void node_server::refined_step() {
 
 	for (integer rk = 0; rk < NRK; ++rk) {
 
-		compute_fmm(DRHODT, false);
-		compute_fmm(RHO, true);
+		{
+			timings::scope ts(timings_, timings::time_fmm);
+			compute_fmm(DRHODT, false);
+			compute_fmm(RHO, true);
+		}
 		rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
 
 	}
