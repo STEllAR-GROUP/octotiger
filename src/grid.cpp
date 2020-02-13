@@ -446,8 +446,8 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		const integer iii = hindex(j, k, l);
 		const integer iiig = gindex(j - H_BW, k - H_BW, l - H_BW);
 		integer rc = 0;
-		const real x = X[XDIM][iii];
-		const real y = X[YDIM][iii];
+		const real x = X[XDIM][iii] - diags.grid_com[0];
+		const real y = X[YDIM][iii] - diags.grid_com[1];
 		const real z = X[ZDIM][iii];
 		real ax = G[iiig][gx_i] + x * diags.omega * diags.omega;
 		real ay = G[iiig][gy_i] + y * diags.omega * diags.omega;
