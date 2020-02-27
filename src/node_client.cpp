@@ -8,7 +8,7 @@
 #include "octotiger/options.hpp"
 
 #include <hpx/include/naming.hpp>
-#include <hpx/collectives/broadcast.hpp>
+#include <hpx/lcos/broadcast.hpp>
 
 bool node_client::is_local() const {
 	return local;
