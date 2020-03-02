@@ -23,7 +23,7 @@
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
 
 #include <hpx/include/runtime.hpp>
-#include <hpx/collectives/broadcast.hpp>
+#include <hpx/lcos/broadcast.hpp>
 #include <hpx/lcos/local/once.hpp>
 
 #include <array>
