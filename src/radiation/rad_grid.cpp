@@ -3,7 +3,6 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-
 #define retard_factor 50.0
 
 #include "octotiger/defs.hpp"
@@ -104,7 +103,7 @@ constexpr auto _4 = real(4);
 constexpr auto _5 = real(5);
 
 using set_rad_grid_action_type = node_server::set_rad_grid_action;
-HPX_REGISTER_ACTION(set_rad_grid_action_type);
+HPX_REGISTER_ACTION (set_rad_grid_action_type);
 
 hpx::future<void> node_client::set_rad_grid(std::vector<real> &&g/*, std::vector<real>&& o*/) const {
 	return hpx::async<typename node_server::set_rad_grid_action>(get_unmanaged_gid(), g/*, o*/);
@@ -115,10 +114,10 @@ void node_server::set_rad_grid(const std::vector<real> &data/*, std::vector<real
 }
 
 using send_rad_boundary_action_type = node_server::send_rad_boundary_action;
-HPX_REGISTER_ACTION(send_rad_boundary_action_type);
+HPX_REGISTER_ACTION (send_rad_boundary_action_type);
 
 using send_rad_flux_correct_action_type = node_server::send_rad_flux_correct_action;
-HPX_REGISTER_ACTION(send_rad_flux_correct_action_type);
+HPX_REGISTER_ACTION (send_rad_flux_correct_action_type);
 
 void node_client::send_rad_flux_correct(std::vector<real> &&data, const geo::face &face, const geo::octant &ci) const {
 	hpx::apply<typename node_server::send_rad_flux_correct_action>(get_unmanaged_gid(), std::move(data), face, ci);
@@ -141,14 +140,14 @@ void node_server::recv_rad_boundary(std::vector<real> &&bdata, const geo::direct
 }
 
 using send_rad_children_action_type = node_server::send_rad_children_action;
-HPX_REGISTER_ACTION(send_rad_children_action_type);
+HPX_REGISTER_ACTION (send_rad_children_action_type);
 
 void node_server::recv_rad_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) {
 	child_rad_channels[ci].set_value(std::move(data), cycle);
 }
 
 void node_client::send_rad_children(std::vector<real> &&data, const geo::octant &ci, std::size_t cycle) const {
-	 hpx::apply<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
+	hpx::apply<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
 void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy, std::vector<real> &sz,
@@ -314,6 +313,7 @@ T minmod(T a, T b) {
 void rad_grid::allocate() {
 	rad_grid::dx = dx;
 	U.resize(NRF);
+	Ushad.resize(NRF);
 	flux.resize(NDIM);
 	for (int d = 0; d < NDIM; d++) {
 		flux[d].resize(NRF);
@@ -321,6 +321,7 @@ void rad_grid::allocate() {
 	for (integer f = 0; f != NRF; ++f) {
 		U0[f].resize(RAD_N3);
 		U[f].resize(RAD_N3);
+		Ushad[f].resize(RAD_N3);
 		for (integer d = 0; d != NDIM; ++d) {
 			flux[d][f].resize(RAD_N3);
 		}
@@ -678,11 +679,12 @@ void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vect
 }
 
 rad_grid::rad_grid(real _dx) :
-		dx(_dx) {
+		dx(_dx), is_coarse(RAD_N3), has_coarse(RAD_N3) {
 	allocate();
 }
 
-rad_grid::rad_grid() {
+rad_grid::rad_grid() :
+		is_coarse(RAD_N3), has_coarse(RAD_N3) {
 	allocate();
 }
 
@@ -849,7 +851,7 @@ void node_server::send_rad_amr_bounds() {
 }
 
 using erad_init_action_type = node_server::erad_init_action;
-HPX_REGISTER_ACTION(erad_init_action_type);
+HPX_REGISTER_ACTION (erad_init_action_type);
 
 hpx::future<void> node_client::erad_init() const {
 	return hpx::async<typename node_server::erad_init_action>(get_unmanaged_gid());
@@ -868,3 +870,200 @@ void node_server::erad_init() {
 		hpx::wait_all(futs);
 	}
 }
+
+void rad_grid::clear_amr() {
+	std::fill(is_coarse.begin(), is_coarse.end(), 0);
+	std::fill(has_coarse.begin(), has_coarse.end(), 0);
+}
+
+void rad_grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
+	PROFILE();
+
+	std::array<integer, NDIM> lb, ub;
+	int l = 0;
+	get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
+	for (int i = lb[0]; i < ub[0]; i++) {
+		for (int j = lb[1]; j < ub[1]; j++) {
+			for (int k = lb[2]; k < ub[2]; k++) {
+				is_coarse[hSindex(i, j, k)]++;
+				assert(i < H_BW || i >= HS_NX - H_BW || j < H_BW || j >= HS_NX - H_BW || k < H_BW || k >= HS_NX - H_BW);
+			}
+		}
+	}
+
+	for (int dim = 0; dim < NDIM; dim++) {
+		lb[dim] = std::max(lb[dim] - 1, integer(0));
+		ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
+	}
+
+	for (int f = 0; f < NRF; f++) {
+		for (int i = lb[0]; i < ub[0]; i++) {
+			for (int j = lb[1]; j < ub[1]; j++) {
+				for (int k = lb[2]; k < ub[2]; k++) {
+					has_coarse[hSindex(i, j, k)]++;
+					Ushad[f][hSindex(i, j, k)] = data[l++];
+				}
+			}
+		}
+	}
+	assert(l == data.size());
+}
+
+void rad_grid::complete_hydro_amr_boundary() {
+	PROFILE();
+
+	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
+	static thread_local std::vector<std::vector<oct_array>> Uf(NRF, std::vector<oct_array>(HS_N3));
+
+	std::array<double, NDIM> xmin;
+	for (int dim = 0; dim < NDIM; dim++) {
+		xmin[dim] = X[dim][0];
+	}
+
+	const auto limiter = [](double a, double b) {
+		return minmod_theta(a, b, 64./37.);
+	};
+
+	for (int f = 0; f < NRF; f++) {
+
+		for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+			for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+				for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+					const int iii0 = hSindex(i0, j0, k0);
+					if (is_coarse[iii0]) {
+						for (int ir = 0; ir < 2; ir++) {
+							for (int jr = 0; jr < 2; jr++) {
+								for (int kr = 0; kr < 2; kr++) {
+									const auto is = ir % 2 ? +1 : -1;
+									const auto js = jr % 2 ? +1 : -1;
+									const auto ks = kr % 2 ? +1 : -1;
+									const auto &u0 = Ushad[f][iii0];
+									const auto &uc = Ushad[f];
+									const auto s_x = limiter(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
+									const auto s_y = limiter(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
+									const auto s_z = limiter(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
+									const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
+									const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
+									const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
+									const auto s_xyz = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
+											u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
+									auto &uf = Uf[f][iii0][ir][jr][kr];
+									uf = u0;
+									uf += (9.0 / 64.0) * (s_x + s_y + s_z);
+									uf += (3.0 / 64.0) * (s_xy + s_yz + s_xz);
+									uf += (1.0 / 64.0) * s_xyz;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (int i0 = 1; i0 < HS_NX - 1; i0++) {
+		for (int j0 = 1; j0 < HS_NX - 1; j0++) {
+			for (int k0 = 1; k0 < HS_NX - 1; k0++) {
+				const int iii0 = hSindex(i0, j0, k0);
+				if (is_coarse[iii0]) {
+					for (int ir = 0; ir < 2; ir++) {
+						for (int jr = 0; jr < 2; jr++) {
+							for (int kr = 0; kr < 2; kr++) {
+								const auto i1 = 2 * i0 - H_BW + ir;
+								const auto j1 = 2 * j0 - H_BW + jr;
+								const auto k1 = 2 * k0 - H_BW + kr;
+								const auto x = (i1) * dx + xmin[XDIM];
+								const auto y = (j1) * dx + xmin[YDIM];
+								const auto z = (k1) * dx + xmin[ZDIM];
+								Uf[wx_i][iii0][ir][jr][kr] -= y * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sy_i][iii0][ir][jr][kr];
+								Uf[wy_i][iii0][ir][jr][kr] += x * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sx_i][iii0][ir][jr][kr];
+								Uf[wz_i][iii0][ir][jr][kr] -= x * Uf[sy_i][iii0][ir][jr][kr] - y * Uf[sx_i][iii0][ir][jr][kr];
+							}
+						}
+					}
+					double zx = 0, zy = 0, zz = 0, rho = 0;
+					for (int ir = 0; ir < 2; ir++) {
+						for (int jr = 0; jr < 2; jr++) {
+							for (int kr = 0; kr < 2; kr++) {
+								zx += Uf[wx_i][iii0][ir][jr][kr] / 8.0;
+								zy += Uf[wy_i][iii0][ir][jr][kr] / 8.0;
+								zz += Uf[wz_i][iii0][ir][jr][kr] / 8.0;
+								//			rho += Uf[rho_i][iii0][ir][jr][kr] / 8.0;
+							}
+						}
+					}
+					for (int ir = 0; ir < 2; ir++) {
+						for (int jr = 0; jr < 2; jr++) {
+							for (int kr = 0; kr < 2; kr++) {
+								//					const auto factor = Uf[rho_i][iii0][ir][jr][kr] / rho;
+								const auto factor = 1.0;
+								Uf[wx_i][iii0][ir][jr][kr] = zx * factor;
+								Uf[wy_i][iii0][ir][jr][kr] = zy * factor;
+								Uf[wz_i][iii0][ir][jr][kr] = zz * factor;
+							}
+						}
+					}
+					for (int ir = 0; ir < 2; ir++) {
+						for (int jr = 0; jr < 2; jr++) {
+							for (int kr = 0; kr < 2; kr++) {
+								const auto i1 = 2 * i0 - H_BW + ir;
+								const auto j1 = 2 * j0 - H_BW + jr;
+								const auto k1 = 2 * k0 - H_BW + kr;
+								const auto x = (i1) * dx + xmin[XDIM];
+								const auto y = (j1) * dx + xmin[YDIM];
+								const auto z = (k1) * dx + xmin[ZDIM];
+								Uf[wx_i][iii0][ir][jr][kr] += y * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sy_i][iii0][ir][jr][kr];
+								Uf[wy_i][iii0][ir][jr][kr] -= x * Uf[sz_i][iii0][ir][jr][kr] - z * Uf[sx_i][iii0][ir][jr][kr];
+								Uf[wz_i][iii0][ir][jr][kr] += x * Uf[sy_i][iii0][ir][jr][kr] - y * Uf[sx_i][iii0][ir][jr][kr];
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	for (int f = 0; f < NRF; f++) {
+		for (int i = 0; i < H_NX; i++) {
+			for (int j = 0; j < H_NX; j++) {
+				for (int k = 0; k < H_NX; k++) {
+					const int i0 = (i + H_BW) / 2;
+					const int j0 = (j + H_BW) / 2;
+					const int k0 = (k + H_BW) / 2;
+					const int iii0 = hSindex(i0, j0, k0);
+					const int iiir = hindex(i, j, k);
+					if (is_coarse[iii0]) {
+						int ir, jr, kr;
+						if constexpr (H_BW % 2 == 0) {
+							ir = i % 2;
+							jr = j % 2;
+							kr = k % 2;
+						} else {
+							ir = 1 - (i % 2);
+							jr = 1 - (j % 2);
+							kr = 1 - (k % 2);
+						}
+						U[f][iiir] = Uf[f][iii0][ir][jr][kr];
+					}
+				}
+			}
+		}
+	}
+
+}
+
+std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
+	PROFILE();
+	std::vector<real> data;
+	for (int f = 0; f < NRF; f++) {
+		for (int i = lb[0]; i < ub[0]; i++) {
+			for (int j = lb[1]; j < ub[1]; j++) {
+				for (int k = lb[2]; k < ub[2]; k++) {
+					data.push_back(U[f][hindex(i, j, k)]);
+				}
+			}
+		}
+	}
+	return std::move(data);
+
+}
+

@@ -40,6 +40,9 @@ private:
 	static std::unordered_map<std::string, int> str_to_index;
 	static std::unordered_map<int, std::string> index_to_str;
 	real dx;
+	std::vector<std::atomic<int>> is_coarse;
+	std::vector<std::atomic<int>> has_coarse;
+	std::vector<std::vector<real>> Ushad;
 	std::vector<std::vector<real>> U;
 	std::array<std::vector<real>, NRF> U0;
 	std::vector<std::vector<std::vector<real>>> flux;
@@ -93,6 +96,11 @@ public:
 
 	real hydro_signal_speed(const std::vector<real>& egas, const std::vector<real>& tau, const std::vector<real>& sx, const std::vector<real>& sy, const std::vector<real>& sz,
 			const std::vector<real>& rho);
+
+	void clear_amr();
+	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&);
+	void complete_hydro_amr_boundary();
+	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 
 	friend class node_server;
 };
