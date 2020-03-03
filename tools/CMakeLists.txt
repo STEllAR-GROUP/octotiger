@@ -42,6 +42,17 @@ add_hpx_executable(
     silo_convert/restart_silo.cpp 
 )
 
+################################################################################
+# Set up silo_post
+################################################################################
+add_hpx_executable(
+  silo_post
+  DEPENDENCIES
+    Silo::silo Boost::boost
+  SOURCES
+    silo_post/silo_post.cpp 
+)
+
 
 ################################################################################
 # Set up gen_rotating_star_init target
