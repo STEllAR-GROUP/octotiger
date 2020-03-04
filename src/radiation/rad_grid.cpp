@@ -3,7 +3,6 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#define retard_factor 50.0
 
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
@@ -252,7 +251,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	auto rgrid = rad_grid_ptr;
 	rad_grid_ptr->compute_mmw(grid_ptr->U);
 	const real min_dx = TWO * grid::get_scaling_factor() / real(INX << opts().max_level);
-	const real clight = physcon().c / retard_factor;
+	const real clight = physcon().c / opts().clight_retard;
 	const real max_dt = min_dx / clight * 0.2;
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
@@ -362,7 +361,7 @@ void rad_grid::sanity_check() {
 void rad_grid::compute_flux(real omega) {
 	PROFILE()
 	;
-	radiation_physics<NDIM>::set_clight(physcon().c / retard_factor);
+	radiation_physics<NDIM>::set_clight(physcon().c / opts().clight_retard);
 	if (opts().correct_am_hydro) {
 		hydro.use_angmom_correction(fx_i);
 	}

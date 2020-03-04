@@ -63,7 +63,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cfl", po::value<real>(&(opts().cfl))->default_value(2. / 15.), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
-	("variable_omega", po::value<bool>(&(opts().variable_omega))->default_value(false), "use variable omega")                 //
+	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(10.0), "retardation factor for speed of light")                 //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "entropy loss driving rate")      //
@@ -196,6 +196,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(bench);
 		SHOW(cdisc_detect);
 		SHOW(cfl);
+		SHOW(clight_retard);
 		SHOW(config_file);
 		SHOW(core_refine);
 		SHOW(correct_am_grav);
@@ -242,7 +243,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(theta);
 		SHOW(unigrid);
 		SHOW(v1309);
-		SHOW(variable_omega);
 		SHOW(xscale);
 
 

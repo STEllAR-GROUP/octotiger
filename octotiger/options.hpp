@@ -39,7 +39,7 @@ public:
 	bool gravity;
 	bool hydro;
 	bool radiation;
-	bool variable_omega;
+	real clight_retard;
 	bool v1309;
 	bool rad_implicit;
 	bool rewrite_silo;
@@ -143,7 +143,7 @@ public:
 		arc & refinement_floor;
 		arc & ngrids;
 		arc & v1309;
-		arc & variable_omega;
+		arc & clight_retard;
 		arc & stop_time;
 		arc & max_level;
 		arc & xscale;

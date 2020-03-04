@@ -366,13 +366,13 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			const real dy_dot = diags.com_dot[1][YDIM] - diags.com_dot[0][YDIM];
 			theta = atan2(dy, dx);
 			omega = grid::get_omega();
-			if (opts().variable_omega) {
-				theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
-				const real w0 = grid::get_omega() * 10.0;
-				const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
-				omega_dot = theta_dot_dot;
-				omega += omega_dot * dt;
-			}
+//			if (opts().variable_omega) {
+//				theta_dot = (dy_dot * dx - dx_dot * dy) / (dx * dx + dy * dy) - omega;
+//				const real w0 = grid::get_omega() * 10.0;
+//				const real theta_dot_dot = (2.0 * w0 * theta_dot + w0 * w0 * theta);
+//				omega_dot = theta_dot_dot;
+//				omega += omega_dot * dt;
+//			}
 			printf("New Omega = %e\n", omega);
 		} else {
 			printf("normal step...\n");
