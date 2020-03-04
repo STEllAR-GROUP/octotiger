@@ -82,6 +82,7 @@ void node_client::send_hydro_amr_boundary(std::vector<real>&& data, const geo::d
 	hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
+
 void node_server::recv_hydro_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);

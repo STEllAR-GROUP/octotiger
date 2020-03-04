@@ -106,6 +106,8 @@ public:
         std::size_t cycle) const;
     void send_hydro_amr_boundary(std::vector<real>&&, const geo::direction& dir,
         std::size_t cycle) const;
+    void send_rad_amr_boundary(std::vector<real>&&, const geo::direction& dir,
+        std::size_t cycle) const;
     void send_gravity_boundary(gravity_boundary_type&&, const geo::direction&,
         bool monopole, std::size_t cycle) const;
     void send_gravity_multipoles(

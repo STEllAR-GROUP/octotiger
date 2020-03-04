@@ -837,13 +837,15 @@ void node_server::send_rad_amr_bounds() {
 				if (flags[dir]) {
 					std::array<integer, NDIM> lb, ub;
 					std::vector<real> data;
-					get_boundary_size(lb, ub, dir, OUTER, INX, RAD_BW);
+					get_boundary_size(lb, ub, dir, OUTER, INX / 2, H_BW);
 					for (integer dim = 0; dim != NDIM; ++dim) {
-						lb[dim] = ((lb[dim] - RAD_BW)) + 2 * RAD_BW + ci.get_side(dim) * (INX);
-						ub[dim] = ((ub[dim] - RAD_BW)) + 2 * RAD_BW + ci.get_side(dim) * (INX);
+						lb[dim] = std::max(lb[dim] - 1, integer(0));
+						ub[dim] = std::min(ub[dim] + 1, integer(HS_NX));
+						lb[dim] = lb[dim] + ci.get_side(dim) * (INX / 2);
+						ub[dim] = ub[dim] + ci.get_side(dim) * (INX / 2);
 					}
-					data = rad_grid_ptr->get_prolong(lb, ub);
-					children[ci].send_rad_boundary(std::move(data), dir, rcycle);
+					data = rad_grid_ptr->get_subset(lb, ub);
+					children[ci].send_rad_amr_boundary(std::move(data), dir, rcycle);
 				}
 			}
 		}
@@ -1066,4 +1068,21 @@ std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM>& lb, cons
 	return std::move(data);
 
 }
+
+using  send_rad_amr_boundary_action_type = node_server:: send_rad_amr_boundary_action;
+HPX_REGISTER_ACTION ( send_rad_amr_boundary_action_type);
+
+
+void node_server::recv_rad_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
+	sibling_real tmp;
+	tmp.data = std::move(bdata);
+	tmp.direction = dir;
+	sibling_rad_channels[dir].set_value(std::move(tmp), cycle);
+}
+
+
+void node_client::send_rad_amr_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
+	hpx::apply<typename node_server::send_rad_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
+}
+
 
