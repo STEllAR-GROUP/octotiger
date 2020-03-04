@@ -37,7 +37,7 @@ constexpr int REFINE_BW = 2;
 
 
 //#define EXPERIMENT
-constexpr int NRF = 4;
+constexpr int NRF = 7;
 
 #define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
 

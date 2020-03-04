@@ -64,7 +64,7 @@ void hydro_computer<NDIM, INX, PHYS>::output(const hydro::state_type &U, const h
 		void *coords_[] = { coords, coords + 1, coords + 2 };
 		int dims1[] = { geo::H_NX + 1, geo::H_NX + 1, geo::H_NX + 1 };
 		int dims2[] = { geo::H_NX, geo::H_NX, geo::H_NX };
-		const auto &field_names = NDIM == 2 ? field_names2 : field_names3;
+		const auto &field_names = NDIM == 2 ? PHYS::field_names2 : PHYS::field_names3;
 		DBPutQuadmesh(db, "quadmesh", coord_names, coords_, dims1, NDIM, DB_DOUBLE, DB_COLLINEAR, opts);
 		for (int f = 0; f < nf_; f++) {
 			DBPutQuadvar1(db, field_names[f], "quadmesh", U[f].data(), dims2, NDIM, NULL, 0, DB_DOUBLE, DB_ZONECENT, opts);

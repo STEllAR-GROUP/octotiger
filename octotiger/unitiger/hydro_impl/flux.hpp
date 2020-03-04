@@ -16,8 +16,7 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 	PROFILE();
 	static thread_local auto fluxes = std::vector < std::vector
 			< std::vector<std::array<safe_real, geo::NFACEDIR>>
-					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>>
-							> (nf_, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
+					>> (NDIM, std::vector < std::vector<std::array<safe_real, geo::NFACEDIR>> > (nf_, std::vector<std::array<safe_real, geo::NFACEDIR>>(geo::H_N3)));
 	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
 
 	static const cell_geometry<NDIM, INX> geo;
@@ -67,7 +66,11 @@ safe_real hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, cons
 				this_am = std::min(std::min(amr, aml), safe_real(0.0));
 #pragma ivdep
 				for (int f = 0; f < nf_; f++) {
-					this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
+					if (this_ap - this_am != 0.0) {
+						this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
+					} else {
+						this_flux[f] = (FL[f] + FR[f]) / 2.0;
+					}
 				}
 				am = std::min(am, this_am);
 				ap = std::max(ap, this_ap);

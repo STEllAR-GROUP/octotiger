@@ -154,7 +154,7 @@ namespace octotiger { namespace radiation {
         std::vector<real>& egas,
         std::vector<real>& tau,
         real const fgamma,
-        std::array<std::vector<real>, NRF>& U,
+        std::vector<std::vector<real>>& U,
         std::vector<real> const& mmw,
         std::vector<real> const& X_spc,
         std::vector<real> const& Z_spc,
@@ -232,11 +232,6 @@ namespace octotiger { namespace radiation {
                     if (e < de_switch1 * egas[iiih])
                     {
                         e = e1;
-                    }
-                    if (U[er_i][iiir] <= 0.0)
-                    {
-                        printf("Er = %e %e %e %e\n", E0, E1, U[er_i][iiir], dt);
-                        abort();
                     }
                     e = std::max(e, 0.0);
                     tau[iiih] = std::pow(e, INVERSE(fgamma));
