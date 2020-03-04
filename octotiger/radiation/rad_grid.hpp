@@ -98,8 +98,8 @@ public:
 			const std::vector<real>& rho);
 
 	void clear_amr();
-	void set_hydro_amr_boundary(const std::vector<real>&, const geo::direction&);
-	void complete_hydro_amr_boundary();
+	void set_rad_amr_boundary(const std::vector<real>&, const geo::direction&);
+	void complete_rad_amr_boundary();
 	std::vector<real> get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub);
 
 	friend class node_server;

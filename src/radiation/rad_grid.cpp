@@ -133,7 +133,7 @@ void node_client::send_rad_boundary(std::vector<real> &&data, const geo::directi
 }
 
 void node_server::recv_rad_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
-	sibling_real tmp;
+	sibling_rad_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
 	sibling_rad_channels[dir].set_value(std::move(tmp), cycle);
@@ -630,36 +630,46 @@ hpx::future<void> node_server::exchange_interlevel_rad_data() {
 }
 
 void node_server::collect_radiation_bounds() {
+
+	rad_grid_ptr->clear_amr();
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!neighbors[dir].empty()) {
+			const integer width = H_BW;
 			auto bdata = rad_grid_ptr->get_boundary(dir);
 			neighbors[dir].send_rad_boundary(std::move(bdata), dir.flip(), rcycle);
 		}
 	}
 
-	std::array<hpx::future<void>, geo::direction::count()> results;
-	for (auto &r : results) {
-		r = hpx::make_ready_future();
-	}
+	std::array<future<void>, geo::direction::count()> results;
 	integer index = 0;
 	for (auto const &dir : geo::direction::full_set()) {
 		if (!(neighbors[dir].empty() && my_location.level() == 0)) {
-			results[index++] = sibling_rad_channels[dir].get_future(rcycle).then([this](hpx::future<sibling_real> &&f) -> void {
+			results[index++] = sibling_rad_channels[dir].get_future(rcycle).then(
+			/*hpx::util::annotated_function(*/[this, dir](future<sibling_rad_type> &&f) -> void {
 				auto &&tmp = GET(f);
-				rad_grid_ptr->set_boundary(tmp.data, tmp.direction);
-			});
+				if (!neighbors[dir].empty()) {
+					rad_grid_ptr->set_boundary(tmp.data, tmp.direction);
+				} else {
+					rad_grid_ptr->set_rad_amr_boundary(tmp.data, tmp.direction);
+
+				}
+			}/*, "node_server::collect_rad_boundaries::set_rad_boundary")*/);
 		}
 	}
+	while (index < geo::direction::count()) {
+		results[index++] = hpx::make_ready_future();
+	}
+//	wait_all_and_propagate_exceptions(std::move(results));
 	for (auto &f : results) {
 		GET(f);
 	}
-//	wait_all_and_propagate_exceptions(std::move(results));
-
+	rad_grid_ptr->complete_rad_amr_boundary();
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
 			rad_grid_ptr->set_physical_boundaries(face, current_time);
 		}
 	}
+
 }
 
 void rad_grid::initialize_erad(const std::vector<safe_real> rho, const std::vector<safe_real> tau) {
@@ -878,7 +888,7 @@ void rad_grid::clear_amr() {
 	std::fill(has_coarse.begin(), has_coarse.end(), 0);
 }
 
-void rad_grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
+void rad_grid::set_rad_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
 	PROFILE();
 
 	std::array<integer, NDIM> lb, ub;
@@ -911,7 +921,7 @@ void rad_grid::set_hydro_amr_boundary(const std::vector<real>& data, const geo::
 	assert(l == data.size());
 }
 
-void rad_grid::complete_hydro_amr_boundary() {
+void rad_grid::complete_rad_amr_boundary() {
 	PROFILE();
 
 	using oct_array = std::array<std::array<std::array<double, 2>, 2>, 2>;
@@ -1069,20 +1079,17 @@ std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM>& lb, cons
 
 }
 
-using  send_rad_amr_boundary_action_type = node_server:: send_rad_amr_boundary_action;
-HPX_REGISTER_ACTION ( send_rad_amr_boundary_action_type);
-
+using send_rad_amr_boundary_action_type = node_server:: send_rad_amr_boundary_action;
+HPX_REGISTER_ACTION (send_rad_amr_boundary_action_type);
 
 void node_server::recv_rad_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
-	sibling_real tmp;
+	sibling_rad_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
 	sibling_rad_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-
 void node_client::send_rad_amr_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_rad_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
-
 

@@ -298,12 +298,12 @@ public:
 	void run_scf(std::string const& data_dir);
 
 private:
-	struct sibling_real {
+	struct sibling_rad_type {
 		std::vector<real> data;
 		geo::direction direction;
 	};
 
-	std::array<unordered_channel<sibling_real>, geo::direction::count()> sibling_rad_channels;
+	std::array<unordered_channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
 	std::array<unordered_channel<std::vector<real>>, NCHILD> child_rad_channels;
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
