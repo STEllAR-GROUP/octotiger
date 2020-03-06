@@ -9,7 +9,7 @@
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/real.hpp"
 
-#include <hpx/traits/is_bitwise_serializable.hpp>
+#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 #define V1309
 
