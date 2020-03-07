@@ -1130,7 +1130,7 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 #include <mutex>
 
 #ifndef NO_HPX
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/synchronization/spinlock.hpp>
 using mutex_type = hpx::lcos::local::spinlock;
 #else
 #include <unordered_map>

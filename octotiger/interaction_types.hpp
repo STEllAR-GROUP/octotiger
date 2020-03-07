@@ -10,7 +10,7 @@
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
 
-#include <hpx/lcos/local/counting_semaphore.hpp>
+#include <hpx/synchronization/counting_semaphore.hpp>
 
 #include <Vc/Vc>
 

@@ -13,7 +13,7 @@
 //#define DEBUG_CHANNEL
 
 
-#include <hpx/lcos/local/receive_buffer.hpp>
+#include <hpx/local_lcos/receive_buffer.hpp>
 
 #include <boost/atomic.hpp>
 

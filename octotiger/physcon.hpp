@@ -9,7 +9,7 @@
 #include "octotiger/options.hpp"
 #include "octotiger/real.hpp"
 
-#include <hpx/traits/is_bitwise_serializable.hpp>
+#include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
 #include <initializer_list>
 #include <vector>
