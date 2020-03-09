@@ -66,7 +66,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(true), "show idle rates and locality info in SILO")                 //
 	("rho_floor", po::value<real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
 	("tau_floor", po::value<real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
-	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(10.0), "retardation factor for speed of light")                 //
+	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
 	("entropy_driving_time", po::value<real>(&(opts().entropy_driving_time))->default_value(0.0), "entropy driving rate time")                 //
