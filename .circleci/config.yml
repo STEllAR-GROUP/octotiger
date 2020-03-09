@@ -70,7 +70,7 @@ jobs:
             - run:
                 name: Blast test
                 command: ctest --output-on-failure -R test_problems.cpu.blast.diff
-                no_output_timeout: 25m
+                no_output_timeout: 50m
             - run:
                 name: Move artifacts
                 command: |
