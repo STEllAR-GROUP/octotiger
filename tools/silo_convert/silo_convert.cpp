@@ -124,14 +124,14 @@ int main(int argc, char *argv[]) {
 	std::vector<double> atomic_mass(n_species);
 	DBReadVar(db, "atomic_number", atomic_number.data());
 	DBReadVar(db, "atomic_mass", atomic_mass.data());
-	printf("cycle = %i\n", cycle);
-	printf("n_species = %i\n", n_species);
+	printf("cycle = %lli\n", cycle);
+	printf("n_species = %lli\n", n_species);
 	printf("omega     = %e\n", omega);
 	printf("atomic number | atomic mass \n");
 	for (int s = 0; s < n_species; s++) {
 		printf("%e | %e\n", atomic_number[s], atomic_mass[s]);
 	}
-	printf("Converting %i meshes\n", mesh_names.size());
+	printf("Converting %li meshes\n", mesh_names.size());
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
 		const auto &filename = split_name.first;

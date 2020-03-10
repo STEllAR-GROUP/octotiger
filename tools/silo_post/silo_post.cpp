@@ -120,14 +120,14 @@ int main(int argc, char *argv[]) {
 	std::vector<double> atomic_mass(n_species);
 	DBReadVar(db, "atomic_number", atomic_number.data());
 	DBReadVar(db, "atomic_mass", atomic_mass.data());
-	printf("cycle = %i\n", cycle);
-	printf("n_species = %i\n", n_species);
+	printf("cycle = %lli\n", cycle);
+	printf("n_species = %lli\n", n_species);
 	printf("omega     = %e\n", omega);
 	printf("atomic number | atomic mass \n");
 	for (int s = 0; s < n_species; s++) {
 		printf("%e | %e\n", atomic_number[s], atomic_mass[s]);
 	}
-	printf("Reading %i meshes\n", mesh_names.size());
+	printf("Reading %li meshes\n", mesh_names.size());
 	double sum1 = 0.0;
 	double sum2 = 0.0;
 	double t;
