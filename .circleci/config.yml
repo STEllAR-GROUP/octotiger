@@ -49,7 +49,7 @@ jobs:
             - run:
                 name: Marshak wave test
                 command: ctest --output-on-failure -R test_problems.cpu.marshak.diff
-                no_output_timeout: 50m
+                no_output_timeout: 100m
             - run:
                 name: Move artifacts
                 command: |
@@ -70,7 +70,7 @@ jobs:
             - run:
                 name: Blast test
                 command: ctest --output-on-failure -R test_problems.cpu.blast.diff
-                no_output_timeout: 100m
+                no_output_timeout: 200m
             - run:
                 name: Move artifacts
                 command: |
