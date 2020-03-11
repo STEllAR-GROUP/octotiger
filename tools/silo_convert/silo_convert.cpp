@@ -117,15 +117,15 @@ int main(int argc, char *argv[]) {
 	int counter = 0;
 	long long int n_species, cycle;
 	double omega;
-	DBReadVar(db, "n_species", &n_species);
-	DBReadVar(db, "omega", &omega);
-
 	std::vector<double> atomic_number(n_species);
 	std::vector<double> atomic_mass(n_species);
+
+	DBReadVar(db, "n_species", &n_species);
+	DBReadVar(db, "omega", &omega);
 	DBReadVar(db, "atomic_number", atomic_number.data());
 	DBReadVar(db, "atomic_mass", atomic_mass.data());
-	printf("cycle = %i\n", cycle);
-	printf("n_species = %i\n", n_species);
+	printf("cycle = %lli\n", cycle);
+	printf("n_species = %lli\n", n_species);
 	printf("omega     = %e\n", omega);
 	printf("atomic number | atomic mass \n");
 	for (int s = 0; s < n_species; s++) {
