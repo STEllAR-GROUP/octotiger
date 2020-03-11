@@ -154,7 +154,7 @@ void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vec
 	PROFILE()
 	;
 	const integer d = H_BW - RAD_BW;
-	const real clight = physcon().c;
+	const real clight = physcon().c / opts().clight_retard;
 	const real clightinv = INVERSE(clight);
 	const real fgamma = grid::get_fgamma();
 	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
