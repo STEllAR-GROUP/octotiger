@@ -305,9 +305,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		return;
 	}
 
-	printf("Solving gravity\n");
-	solve_gravity(false, false);
 	if( opts().stop_step != 0 ) {
+		printf("Solving gravity\n");
+		solve_gravity(false, false);
 		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
 	}
 
