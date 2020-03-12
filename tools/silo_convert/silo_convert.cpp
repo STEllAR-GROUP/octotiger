@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
 	for (int s = 0; s < n_species; s++) {
 		printf("%e | %e\n", atomic_number[s], atomic_mass[s]);
 	}
-	printf("Converting %i meshes\n", mesh_names.size());
+	printf("Converting %li meshes\n", mesh_names.size());
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
 		const auto &filename = split_name.first;
