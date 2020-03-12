@@ -84,7 +84,7 @@ std::string mesh_to_dirname(std::string mesh_name) {
 }
 
 int main(int argc, char *argv[]) {
-
+	silo_vars_t vars;
 	std::set<std::string> var_names;
 	std::set<std::string> mesh_names;
 
@@ -115,22 +115,84 @@ int main(int argc, char *argv[]) {
 	silo_output* output = dynamic_cast<silo_output*>(new plain_silo(opts.output));
 
 	int counter = 0;
-	long long int n_species, cycle;
-	double omega;
-	std::vector<double> atomic_number(n_species);
-	std::vector<double> atomic_mass(n_species);
 
-	DBReadVar(db, "n_species", &n_species);
-	DBReadVar(db, "omega", &omega);
-	DBReadVar(db, "atomic_number", atomic_number.data());
-	DBReadVar(db, "atomic_mass", atomic_mass.data());
-	printf("cycle = %lli\n", cycle);
-	printf("n_species = %lli\n", n_species);
-	printf("omega     = %e\n", omega);
-	printf("atomic number | atomic mass \n");
-	for (int s = 0; s < n_species; s++) {
-		printf("%e | %e\n", atomic_number[s], atomic_mass[s]);
+
+
+	DBReadVar(db, "n_species", &vars.n_species);
+	DBReadVar(db, "node_count", &vars.node_count);
+	DBReadVar(db, "leaf_count", &vars.leaf_count);
+	vars.atomic_number.resize(vars.n_species);
+	vars.atomic_mass.resize(vars.n_species);
+	vars.X.resize(vars.n_species);
+	vars.Z.resize(vars.n_species);
+	vars.node_list.resize(vars.node_count);
+	vars.node_positions.resize(vars.node_count);
+	DBReadVar(db, "node_list", vars.node_list.data());
+	DBReadVar(db, "node_positions", vars.node_positions.data());
+	DBReadVar(db, "omega", &vars.omega);
+	DBReadVar(db, "atomic_number", vars.atomic_number.data());
+	DBReadVar(db, "atomic_mass", vars.atomic_mass.data());
+	DBReadVar(db, "X", vars.X.data());
+	DBReadVar(db, "Z", vars.Z.data());
+	DBReadVar(db, "version", &vars.version);
+	DBReadVar(db, "code_to_g", &vars.code_to_g);
+	DBReadVar(db, "code_to_s", &vars.code_to_s);
+	DBReadVar(db, "code_to_cm", &vars.code_to_cm);
+	DBReadVar(db, "eos", &vars.eos);
+	DBReadVar(db, "gravity", &vars.gravity);
+	DBReadVar(db, "hydro", &vars.hydro);
+	DBReadVar(db, "radiation", &vars.radiation);
+	DBReadVar(db, "output_frequency", &vars.output_frequency);
+	DBReadVar(db, "problem", &vars.problem);
+	DBReadVar(db, "refinement_floor", &vars.refinement_floor);
+	DBReadVar(db, "cgs_time", &vars.cgs_time);
+	DBReadVar(db, "rotational_time", &vars.rotational_time);
+	DBReadVar(db, "xscale", &vars.xscale);
+	DBReadVar(db, "cycle", &vars.cycle);
+	DBReadVar(db, "hostname", vars.hostname);
+	DBReadVar(db, "timestamp", &vars.timestamp);
+	DBReadVar(db, "epoch", &vars.epoch);
+	DBReadVar(db, "locality_count", &vars.locality_count);
+	DBReadVar(db, "thread_count", &vars.thread_count);
+	DBReadVar(db, "step_count", &vars.step_count);
+	DBReadVar(db, "time_elapsed", &vars.time_elapsed);
+	DBReadVar(db, "steps_elapsed", &vars.steps_elapsed);
+	printf("atomic number| atomic mass | X             | Z\n");
+	for (int s = 0; s < vars.n_species; s++) {
+		printf("%e | %e | %e | %e\n", vars.atomic_number[s], vars.atomic_mass[s], vars.X[s], vars.Z[s]);
 	}
+	printf("n_species        = %lli\n", vars.n_species);
+	printf("node_count       = %lli\n", vars.node_count);
+	printf("leaf_count       = %lli\n", vars.leaf_count);
+	printf("omega            = %e\n", vars.omega);
+	printf("SILO version     = %lli\n", vars.version);
+	printf("code_to_g        = %e\n", vars.code_to_g);
+	printf("code_to_s        = %e\n", vars.code_to_s);
+	printf("code_to_cm       = %e\n", vars.code_to_cm);
+	printf("eos              = %lli\n", vars.eos);
+	printf("gravity          = %lli\n", vars.gravity);
+	printf("hydro            = %lli\n", vars.hydro);
+	printf("radiation        = %lli\n", vars.radiation);
+	printf("output frequency = %e\n", vars.output_frequency);
+	printf("problem          = %lli\n", vars.problem);
+	printf("refinement_floor = %e\n", vars.refinement_floor);
+	printf("cgs_time         = %e\n", vars.cgs_time);
+	printf("rotational_time  = %e\n", vars.rotational_time);
+	printf("xscale           = %e\n", vars.xscale);
+	printf("cycle            = %lli\n", vars.cycle);
+	printf("hostname         = %s\n", vars.hostname);
+	printf("timestamp        = %lli\n", vars.timestamp);
+	printf("locality_count   = %lli\n", vars.locality_count);
+	printf("thread_count     = %lli\n", vars.thread_count);
+	printf("step_count       = %lli\n", vars.step_count);
+	printf("time_elapsed     = %lli\n", vars.time_elapsed);
+	printf("steps_elapsed    = %lli\n", vars.steps_elapsed);
+	printf("epoch            = %lli\n", vars.epoch);
+
+//	for (int i = 0; i < node_count; i++) {
+//		printf("%16llx %lli\n", node_list[i], node_positions[i]);
+//	}
+
 	printf("Converting %li meshes\n", mesh_names.size());
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
@@ -154,7 +216,7 @@ int main(int argc, char *argv[]) {
 		DBClose(db);
 		counter++;
 	}
-	output->set_vars(omega, n_species, atomic_mass, atomic_number);
+	output->set_vars(vars);
 
 	printf("\rDone!                                                          \n");
 
