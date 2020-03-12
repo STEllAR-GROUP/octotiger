@@ -507,7 +507,7 @@ int hpx_main(int argc, char* argv[]) {
 				ngrids = root->regrid(root_client.get_gid(), grid::get_omega(), -1, false, false);
 			}
 
-			if (opts().gravity) {
+			if (opts().gravity && opts().stop_step != 0) {
 				printf("solving gravity------------\n");
 				root->solve_gravity(false, false);
 				printf("...done\n");
