@@ -30,6 +30,7 @@ protected:
 public:
 	virtual void add_mesh(std::string dir, DBquadmesh *mesh) = 0;
 	virtual void add_var(std::string dir, DBquadvar *var) = 0;
+	virtual void add_var_outflow(std::string dir, std::string var_name, double outflow) = 0;
 	void set_vars(silo_vars_t vars);
 	void set_mesh_count(int);
 	virtual ~silo_output() {
@@ -48,6 +49,7 @@ public:
 	plain_silo(const std::string filename);
 	virtual void add_mesh(std::string dir, DBquadmesh *mesh);
 	virtual void add_var(std::string dir, DBquadvar *var);
+	virtual void add_var_outflow(std::string dir, std::string var_name, double outflow);
 
 	virtual ~plain_silo();
 };
@@ -68,6 +70,7 @@ public:
 	split_silo(const std::string filename, int);
 	virtual void add_mesh(std::string dir, DBquadmesh* mesh);
 	virtual void add_var(std::string dir, DBquadvar* var);
+	virtual void add_var_outflow(std::string dir, std::string var_name, double outflow);
 	virtual ~split_silo();
 };
 

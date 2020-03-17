@@ -18,6 +18,11 @@ void plain_silo::add_mesh(std::string dir, DBquadmesh *mesh) {
 	mesh_names.push_back(new_name);
 }
 
+
+void plain_silo::add_var_outflow(std::string dir, std::string var_name, double outflow) {
+}
+
+
 void plain_silo::add_var(std::string dir, DBquadvar *var) {
 	DBSetDir(db, dir.c_str());
 	DBPutQuadvar1(db, var->name, var->meshname, var->vals[0], var->dims, var->ndims, var->mixvals, var->mixlen, var->datatype, var->centering, NULL);

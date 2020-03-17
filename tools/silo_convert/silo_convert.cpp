@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
 	DBFreeMultimesh(mesh);
 
 	silo_output *output;
-	if( opts.num_groups == 0 ) {
+	if (opts.num_groups == 0) {
 		output = dynamic_cast<silo_output*>(new plain_silo(opts.output));
 	} else {
 		output = dynamic_cast<silo_output*>(new split_silo(opts.output, opts.num_groups));
@@ -214,6 +214,12 @@ int main(int argc, char *argv[]) {
 
 		for (const auto &base_name : var_names) {
 			const auto var_name = mesh_to_varname(name, base_name);
+			double outflow;
+			const auto outflow_name = var_name + "_outflow";
+			if (base_name != "gx" && base_name != "gy" && base_name != "gz") {
+				DBReadVar(db, outflow_name.c_str(), &outflow);
+				output->add_var_outflow(dir, outflow_name, outflow);
+			}
 			auto var = DBGetQuadvar(db, var_name.c_str());
 			output->add_var(dir, var);
 			DBFreeQuadvar(var);
@@ -225,7 +231,6 @@ int main(int argc, char *argv[]) {
 	}
 	output->set_vars(vars);
 
-
 	delete output;
 
 	printf("\rDone!                                                          \n");
@@ -234,5 +239,4 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
 

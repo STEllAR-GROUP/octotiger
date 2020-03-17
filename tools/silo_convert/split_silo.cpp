@@ -58,6 +58,16 @@ void split_silo::add_var(std::string dir, DBquadvar *var) {
 
 }
 
+void split_silo::add_var_outflow(std::string dir, std::string var_name, double outflow) {
+	const int one = 1;
+	const auto group_num = dir_to_group[dir];
+	DBfile *this_db = db_ptrs[group_num];
+	DBSetDir(this_db, "/");
+	DBSetDir(this_db, dir.c_str());
+	DBWrite(this_db, var_name.c_str(), &outflow, &one, 1, DB_DOUBLE);
+
+}
+
 split_silo::~split_silo() {
 	int mesh_type = DB_QUADMESH;
 	auto optlist = DBMakeOptlist(4);
