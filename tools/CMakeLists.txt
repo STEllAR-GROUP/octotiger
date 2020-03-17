@@ -39,7 +39,8 @@ add_hpx_executable(
     silo_convert/plain_silo.cpp
     silo_convert/silo_convert.cpp 
     silo_convert/silo_convert.hpp    
-    silo_convert/restart_silo.cpp 
+    silo_convert/silo_out.cpp    
+    silo_convert/split_silo.cpp 
 )
 
 ################################################################################

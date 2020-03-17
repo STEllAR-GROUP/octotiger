@@ -18,6 +18,11 @@ void plain_silo::add_mesh(std::string dir, DBquadmesh *mesh) {
 	mesh_names.push_back(new_name);
 }
 
+
+void plain_silo::add_var_outflow(std::string dir, std::string var_name, double outflow) {
+}
+
+
 void plain_silo::add_var(std::string dir, DBquadvar *var) {
 	DBSetDir(db, dir.c_str());
 	DBPutQuadvar1(db, var->name, var->meshname, var->vals[0], var->dims, var->ndims, var->mixvals, var->mixlen, var->datatype, var->centering, NULL);
@@ -52,14 +57,3 @@ plain_silo::~plain_silo() {
 	DBFreeOptlist(optlist);
 	DBClose(db);
 }
-
-void plain_silo::set_vars( double omega, int n_species, const std::vector<double>& atomic_mass, const std::vector<double>& atomic_number) {
-	int one = 1;
-	long long int _nspecies = n_species;
-	DBWrite( db, "omega", &omega, &one, 1, DB_DOUBLE);
-	DBWrite( db, "n_species", &_nspecies, &one, 1, DB_LONG_LONG);
-	DBWrite( db, "atomic_mass", atomic_mass.data(), &n_species, 1, DB_DOUBLE);
-	DBWrite( db, "atomic_number", atomic_number.data(), &n_species, 1, DB_DOUBLE);
-
-}
-

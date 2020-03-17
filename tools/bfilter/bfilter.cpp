@@ -168,10 +168,7 @@ int main(int argc, char *argv[]) {
 		std::map<double, std::vector<double>> values;
 
 		while (!feof(fp)) {
-			if (fgets(buffer, 100000, fp) == 0) {
-				printf("Error reading file\n");
-				abort();
-			}
+			const char* b = fgets(buffer, 100000, fp);
 			bool done = false;
 			char *ptr = buffer;
 			double t;
