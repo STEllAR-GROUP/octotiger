@@ -19,14 +19,15 @@ split_silo::split_silo(const std::string filename, int _num_groups) {
 	for (int i = 0; i < num_groups; i++) {
 		std::string filename = base_filename + ".data/" + std::to_string(i) + ".silo";
 		DBfile *this_db = DBCreateReal(filename.c_str(), DB_CLOBBER, DB_LOCAL, "Octo-Tiger", SILO_DRIVER);
-		db_ptrs.push_back(this_db);
+		DBClose(this_db);
 	}
 }
 
 void split_silo::add_mesh(std::string dir, DBquadmesh *mesh) {
 	const auto group_num = mesh_num * num_groups / mesh_count;
 	dir_to_group[dir] = group_num;
-	DBfile *this_db = db_ptrs[group_num];
+	const auto filename = base_filename + ".data/" + std::to_string(group_num) + ".silo";
+	DBfile *this_db = DBOpen(filename.c_str(), SILO_DRIVER, DB_APPEND);
 	mesh_num++;
 	dtime = mesh->dtime;
 	time = mesh->time;
@@ -40,11 +41,13 @@ void split_silo::add_mesh(std::string dir, DBquadmesh *mesh) {
 	char *new_name = new char[dir.size() + strlen(mesh->name) + 1];
 	strcpy(new_name, (dir + mesh->name).c_str());
 	mesh_names.push_back(new_name);
+	DBClose(this_db);
 }
 
 void split_silo::add_var(std::string dir, DBquadvar *var) {
 	const auto group_num = dir_to_group[dir];
-	DBfile *this_db = db_ptrs[group_num];
+	const auto filename = base_filename + ".data/" + std::to_string(group_num) + ".silo";
+	DBfile *this_db = DBOpen(filename.c_str(), SILO_DRIVER, DB_APPEND);
 	DBSetDir(this_db, "/");
 	DBSetDir(this_db, dir.c_str());
 	auto tmp = dir;
@@ -55,17 +58,18 @@ void split_silo::add_var(std::string dir, DBquadvar *var) {
 	char *new_name = new char[dir.size() + strlen(var->name) + 1];
 	strcpy(new_name, (dir + var->name).c_str());
 	var_names[std::string(var->name)].push_back(new_name);
-
+	DBClose(this_db);
 }
 
 void split_silo::add_var_outflow(std::string dir, std::string var_name, double outflow) {
 	const int one = 1;
 	const auto group_num = dir_to_group[dir];
-	DBfile *this_db = db_ptrs[group_num];
+	const auto filename = base_filename + ".data/" + std::to_string(group_num) + ".silo";
+	DBfile *this_db = DBOpen(filename.c_str(), SILO_DRIVER, DB_APPEND);
 	DBSetDir(this_db, "/");
 	DBSetDir(this_db, dir.c_str());
 	DBWrite(this_db, var_name.c_str(), &outflow, &one, 1, DB_DOUBLE);
-
+	DBClose(this_db);
 }
 
 split_silo::~split_silo() {
@@ -92,7 +96,4 @@ split_silo::~split_silo() {
 	}
 	DBFreeOptlist(optlist);
 	DBClose(db);
-	for (int i = 0; i < num_groups; i++) {
-		DBClose(db_ptrs[i]);
-	}
 }

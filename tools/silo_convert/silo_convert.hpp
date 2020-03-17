@@ -64,7 +64,6 @@ class split_silo: public silo_output {
 	float time;
 	int cycle;
 	int mesh_num;
-	std::vector<DBfile*> db_ptrs;
 	std::unordered_map<std::string,int> dir_to_group;
 public:
 	split_silo(const std::string filename, int);
