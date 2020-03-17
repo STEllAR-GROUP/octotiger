@@ -51,3 +51,10 @@ void silo_output::set_vars(silo_vars_t vars) {
 
 }
 
+
+void silo_output::set_mesh_count(int n) {
+	mesh_count = n;
+}
+
+
+

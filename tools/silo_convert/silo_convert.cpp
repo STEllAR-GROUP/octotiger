@@ -8,6 +8,7 @@
 #include <boost/program_options.hpp>
 #include <stdio.h>
 #include <iostream>
+#include <map>
 
 #include "./silo_convert.hpp"
 
@@ -29,6 +30,7 @@ auto split_silo_id(const std::string str) {
 struct options {
 	std::string input;
 	std::string output;
+	int num_groups;
 
 	int read_options(int argc, char *argv[]) {
 		namespace po = boost::program_options;
@@ -36,8 +38,9 @@ struct options {
 		po::options_description command_opts("options");
 
 		command_opts.add_options() //
-		("output", po::value<std::string>(&output)->default_value(""), "output filename")           //
-		("input", po::value<std::string>(&input)->default_value(""), "input filename")           //
+		("output", po::value<std::string>(&output)->default_value(""), "output filename")      //
+		("input", po::value<std::string>(&input)->default_value(""), "input filename")         //
+		("num_groups", po::value<int>(&num_groups)->default_value(0), "number of silo groups") //
 				;
 		boost::program_options::variables_map vm;
 		po::store(po::parse_command_line(argc, argv, command_opts), vm);
@@ -112,11 +115,14 @@ int main(int argc, char *argv[]) {
 
 	DBFreeMultimesh(mesh);
 
-	silo_output* output = dynamic_cast<silo_output*>(new plain_silo(opts.output));
+	silo_output *output;
+	if( opts.num_groups == 0 ) {
+		output = dynamic_cast<silo_output*>(new plain_silo(opts.output));
+	} else {
+		output = dynamic_cast<silo_output*>(new split_silo(opts.output, opts.num_groups));
+	}
 
 	int counter = 0;
-
-
 
 	DBReadVar(db, "n_species", &vars.n_species);
 	DBReadVar(db, "node_count", &vars.node_count);
@@ -194,6 +200,7 @@ int main(int argc, char *argv[]) {
 //	}
 
 	printf("Converting %li meshes\n", mesh_names.size());
+	output->set_mesh_count(mesh_names.size());
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
 		const auto &filename = split_name.first;
@@ -218,11 +225,14 @@ int main(int argc, char *argv[]) {
 	}
 	output->set_vars(vars);
 
+
+	delete output;
+
 	printf("\rDone!                                                          \n");
 
 	DBClose(db);
 
-	delete output;
-
 	return 0;
 }
+
+

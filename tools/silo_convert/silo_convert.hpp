@@ -3,6 +3,7 @@
 #include <silo.h>
 #include <vector>
 #include <map>
+#include <unordered_map>
 
 #define SILO_DRIVER DB_HDF5
 static const int HOST_NAME_LEN = 100;
@@ -25,10 +26,12 @@ struct silo_vars_t {
 class silo_output {
 protected:
 	DBfile *db;
+	int mesh_count;
 public:
 	virtual void add_mesh(std::string dir, DBquadmesh *mesh) = 0;
 	virtual void add_var(std::string dir, DBquadvar *var) = 0;
 	void set_vars(silo_vars_t vars);
+	void set_mesh_count(int);
 	virtual ~silo_output() {
 	}
 };
@@ -48,3 +51,23 @@ public:
 
 	virtual ~plain_silo();
 };
+
+
+class split_silo: public silo_output {
+	int num_groups;
+	std::string base_filename;
+	std::vector<char*> mesh_names;
+	std::map<std::string, std::vector<char*>> var_names;
+	double dtime;
+	float time;
+	int cycle;
+	int mesh_num;
+	std::vector<DBfile*> db_ptrs;
+	std::unordered_map<std::string,int> dir_to_group;
+public:
+	split_silo(const std::string filename, int);
+	virtual void add_mesh(std::string dir, DBquadmesh* mesh);
+	virtual void add_var(std::string dir, DBquadvar* var);
+	virtual ~split_silo();
+};
+
