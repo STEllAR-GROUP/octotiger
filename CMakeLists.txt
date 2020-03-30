@@ -67,6 +67,16 @@ option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 
+# silence warnings for deprecated HPX includes
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
+
+# add -fPIC option to avoid this error:
+# https://cmake.org/pipermail/cmake/2015-January/059513.html 
+# in case of relocatable device code
+# (modifying CMAKE_CUDA_(CXX_)_FLAGS did not help, 
+# so we keep this flag at the cost of duplicating it for host code)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 ################################################################################
 # Find required packages
 ################################################################################
