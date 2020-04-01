@@ -243,17 +243,9 @@ add_hpx_library(
     ${header_files}
 )
 
-# Hydro library
-add_hpx_library(
-  hydrolib
-  DEPENDENCIES
-    Silo::silo Vc::Vc Boost::boost quadmath octolib
-  SOURCES
-   src/unitiger/hydro.cpp
-   src/test_problems/blast/sedovf_c.cpp
-   src/test_problems/sod/exact_sod.cpp
-   src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu
-  HEADERS
+set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS --host-only)
+
+set(hydro_header_files
     octotiger/unitiger/hydro.hpp
     octotiger/unitiger/physics.hpp
     octotiger/unitiger/physics_impl.hpp
@@ -268,8 +260,26 @@ add_hpx_library(
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
-    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp
+    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp)
+
+set(hydro_source_files
+   src/unitiger/hydro.cpp
+   src/test_problems/blast/sedovf_c.cpp
+   src/test_problems/sod/exact_sod.cpp
+   src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
+
+# Hydro library
+add_hpx_library(
+  hydrolib
+  DEPENDENCIES
+    Silo::silo Vc::Vc Boost::boost quadmath octolib
+  SOURCES
+    ${hydro_source_files}
+  HEADERS
+    ${hydro_header_files}
 )
+
+set_source_files_properties(${hydro_source_files} ${hydro_header_files} PROPERTIES COMPILE_FLAGS --host-only)
 
 # Enable exported functions
 target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
@@ -290,6 +300,7 @@ add_hpx_executable(
     frontend/main.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
+set_source_files_properties(frontend/main.cpp PROPERTIES COMPILE_FLAGS --host-only)
 
 # Unitiger executable
 add_hpx_executable(
@@ -302,6 +313,7 @@ add_hpx_executable(
     ${hydro_header_files}
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
+set_source_files_properties(src/unitiger/main.cpp PROPERTIES COMPILE_FLAGS --host-only)
 
 if(MSVC)
   # Enable solution folders for MSVC
