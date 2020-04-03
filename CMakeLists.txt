@@ -48,28 +48,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 ################################################################################
-# Find required packages
-################################################################################
-find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
-find_package(Silo REQUIRED)
-find_package(Boost REQUIRED)
-if(NOT MSVC)
-  find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
-endif()
-
-if(OCTOTIGER_WITH_CUDA)
-  enable_language(CUDA)
-  include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-  #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
-  #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
-  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
-endif()
-
-if(OCTOTIGER_WITH_KOKKOS)
-  find_package(Kokkos REQUIRED)
-endif()
-
-################################################################################
 # Spack setup
 ################################################################################
 # see https://spack.readthedocs.io/en/latest/workflows.html#write-the-cmake-build
@@ -84,6 +62,27 @@ if (OCTOTIGER_SPACK_BUILD)
   endif("${isSystemDir}" STREQUAL "-1")
   include_directories($ENV{SPACK_TRANSITIVE_INCLUDE_PATH})
 endif()
+################################################################################
+# Find required packages
+################################################################################
+find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
+find_package(Silo REQUIRED)
+find_package(Boost REQUIRED)
+if(NOT MSVC)
+  find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
+endif()
+
+if(OCTOTIGER_WITH_CUDA)
+  enable_language(CUDA)
+  #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
+  #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
+  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
+endif()
+
+if(OCTOTIGER_WITH_KOKKOS)
+  find_package(Kokkos REQUIRED)
+endif()
+
 ################################################################################
 # Set up Octo-Tiger target
 ################################################################################
@@ -332,7 +331,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     octotiger/common_kernel/kernel_simd_types.hpp
     octotiger/common_kernel/kernel_taylor_set_basis.hpp
   )
-  set_source_files_properties(${vc_tainted_source_files} ${vc_tainted_header_files} PROPERTIES COMPILE_FLAGS --host-only)
+  set_source_files_properties(${vc_tainted_source_files} ${vc_tainted_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
 endif()
 
 # Enable exported functions
