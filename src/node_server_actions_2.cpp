@@ -250,9 +250,10 @@ diagnostics_t node_server::diagnostics() {
 			fprintf(fp, "%13e ", (double) diags.omega);
 			fprintf(fp, "%13e ", (double) diags.jorb);
 			for (integer s = 0; s != 2; ++s) {
+				const auto radius = std::pow(diags.roche_vol[s] / (4.0/3.0*M_PI), 1./3.);
 				fprintf(fp, "%13e ", (double) diags.m[s]);
 				fprintf(fp, "%13e ", (double) diags.js[s]);
-				fprintf(fp, "%13e ", (double) diags.rL[s]);
+				fprintf(fp, "%13e ", (double) radius);
 				fprintf(fp, "%13e ", (double) diags.gt[s]);
 				fprintf(fp, "%13e ", (double) diags.z_moment[s]);
 			}

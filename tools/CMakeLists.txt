@@ -39,7 +39,19 @@ add_hpx_executable(
     silo_convert/plain_silo.cpp
     silo_convert/silo_convert.cpp 
     silo_convert/silo_convert.hpp    
-    silo_convert/restart_silo.cpp 
+    silo_convert/silo_out.cpp    
+    silo_convert/split_silo.cpp 
+)
+
+################################################################################
+# Set up silo_post
+################################################################################
+add_hpx_executable(
+  silo_post
+  DEPENDENCIES
+    Silo::silo Boost::boost
+  SOURCES
+    silo_post/silo_post.cpp 
 )
 
 

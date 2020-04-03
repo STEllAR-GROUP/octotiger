@@ -25,11 +25,10 @@ cmake -DCMAKE_PREFIX_PATH="$HOME/local/$1/hpx" -DCMAKE_CXX_FLAGS="-DBOOST_USE_VA
       -DBOOST_ROOT=$HOME/local/boost \
       -DHDF5_ROOT=$HOME/local/hdf5 \
       -DSilo_DIR=$HOME/local/silo \
-      -DOCTOTIGER_BUILD_TESTS=off \
+      -DOCTOTIGER_WITH_TESTS=OFF \
       ..
 
 
-make -j VERBOSE=1
-make test VERBOSE=1
+make -j
 
 

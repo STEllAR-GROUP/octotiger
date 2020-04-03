@@ -7,7 +7,7 @@
 # Sphere
 ##############################################################################
 download_test_reference("Solid sphere test"
-  "phys.lsu.edu/~dmarcel/sphere.6.silo"
+  "phys.lsu.edu/~dmarcel/sphere.13.silo"
   ${PROJECT_BINARY_DIR}/sphere.silo)
 
 # Sphere - CPU
@@ -16,7 +16,7 @@ add_test(NAME test_problems.cpu.sphere
     --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini)
 add_test(NAME test_problems.cpu.sphere.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-    ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/X.${OCTOTIGER_WITH_GRIDDIM}.silo)
+    ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/X.${OCTOTIGER_WITH_GRIDDIM}.silo.data/0.silo)
 
 set_tests_properties(test_problems.cpu.sphere PROPERTIES
   FIXTURES_SETUP test_problems.cpu.sphere)

@@ -79,6 +79,7 @@ void node_client::send_hydro_amr_boundary(std::vector<real>&& data, const geo::d
 	hpx::apply<typename node_server::send_hydro_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
+
 void node_server::recv_hydro_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
 	sibling_hydro_type tmp;
 	tmp.data = std::move(bdata);
@@ -304,9 +305,11 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		return;
 	}
 
-	printf("Solving gravity\n");
-	solve_gravity(false, false);
-	ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
+	if( opts().stop_step != 0 ) {
+		printf("Solving gravity\n");
+		solve_gravity(false, false);
+		ngrids = regrid(me.get_gid(), grid::get_omega(), -1, false);
+	}
 
 	real output_dt = opts().output_dt;
 
@@ -324,6 +327,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			break;
 		auto time_start = std::chrono::high_resolution_clock::now();
 		auto diags = diagnostics();
+		if( opts().stop_step == 0 ) {
+			return;
+		}
 		if (!opts().disable_output && root_ptr->get_rotation_count() / output_dt >= output_cnt) {
 			static bool first_call = true;
 			if (opts().rewrite_silo || !first_call || (opts().restart_filename == "")) {
@@ -503,7 +509,7 @@ void node_server::refined_step() {
 	dt_ = GET(dt_fut);
 	update();
 	if (opts().radiation) {
-		compute_radiation(dt_);
+		compute_radiation(dt_, grid_ptr->get_omega());
 		all_hydro_bounds();
 	}
 
@@ -573,7 +579,7 @@ future<void> node_server::nonrefined_step() {
 		GET(f);
 		update();
 		if( opts().radiation) {
-			compute_radiation(dt_);
+			compute_radiation(dt_, grid_ptr->get_omega());
 			all_hydro_bounds();
 		}
 

@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
 		std::map<double, std::vector<double>> values;
 
 		while (!feof(fp)) {
-			fgets(buffer, 100000, fp);
+			const char* b = fgets(buffer, 100000, fp);
 			bool done = false;
 			char *ptr = buffer;
 			double t;

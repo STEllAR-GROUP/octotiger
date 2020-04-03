@@ -66,9 +66,11 @@ bool options::process_options(int argc, char *argv[]) {
 	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(true), "show idle rates and locality info in SILO")                 //
 	("rho_floor", po::value<real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
 	("tau_floor", po::value<real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
+	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
-	("entropy_driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "entropy loss driving rate")      //
+	("entropy_driving_time", po::value<real>(&(opts().entropy_driving_time))->default_value(0.0), "entropy driving rate time")                 //
+	("entropy_driving_rate", po::value<real>(&(opts().entropy_driving_rate))->default_value(0.0), "entropy loss driving rate")      //
 	("future_wait_time", po::value<integer>(&(opts().future_wait_time))->default_value(-1), "")      //
 	("silo_offset_x", po::value<integer>(&(opts().silo_offset_x))->default_value(0), "")      //
 	("silo_offset_y", po::value<integer>(&(opts().silo_offset_y))->default_value(0), "")      //
@@ -198,6 +200,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(bench);
 		SHOW(cdisc_detect);
 		SHOW(cfl);
+		SHOW(clight_retard);
 		SHOW(config_file);
 		SHOW(core_refine);
 		SHOW(correct_am_grav);

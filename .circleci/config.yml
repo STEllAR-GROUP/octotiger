@@ -49,6 +49,7 @@ jobs:
             - run:
                 name: Marshak wave test
                 command: ctest --output-on-failure -R test_problems.cpu.marshak.diff
+                no_output_timeout: 100m
             - run:
                 name: Move artifacts
                 command: |
@@ -69,6 +70,7 @@ jobs:
             - run:
                 name: Blast test
                 command: ctest --output-on-failure -R test_problems.cpu.blast.diff
+                no_output_timeout: 200m
             - run:
                 name: Move artifacts
                 command: |
@@ -89,6 +91,7 @@ jobs:
             - run:
                 name: Sod shock tube test
                 command: ctest --output-on-failure -R test_problems.cpu.sod.diff
+                no_output_timeout: 25m
             - run:
                 name: Move artifacts
                 command: |
@@ -109,6 +112,7 @@ jobs:
             - run:
                 name: Solid sphere test
                 command: ctest --output-on-failure -R test_problems.cpu.sphere.diff
+                no_output_timeout: 25m
             - run:
                 name: Move artifacts
                 command: |
@@ -129,6 +133,7 @@ jobs:
             - run:
                 name: Rotating star test
                 command: ctest --output-on-failure -R test_problems.cpu.rotating_star.diff
+                no_output_timeout: 25m
             - run:
                 name: Move artifacts
                 command: |

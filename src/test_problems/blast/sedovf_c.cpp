@@ -23,8 +23,8 @@
 #include <vector>
 #include <unordered_map>
 #include <assert.h>
-//#include "f2c.h"
 #include <memory>
+//#include "f2c.h"
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>
 using sed_real = __float128;
@@ -1130,7 +1130,7 @@ sed_real zeroin_(sed_real *ax, sed_real *bx, D_fp f, sed_real *tol) {
 #include <mutex>
 
 #ifndef NO_HPX
-#include <hpx/lcos/local/spinlock.hpp>
+#include <hpx/synchronization/spinlock.hpp>
 using mutex_type = hpx::lcos::local::spinlock;
 #else
 #include <unordered_map>

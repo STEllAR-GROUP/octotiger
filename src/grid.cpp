@@ -24,7 +24,7 @@
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/collectives/broadcast.hpp>
-#include <hpx/lcos/local/once.hpp>
+#include <hpx/synchronization/once.hpp>
 
 #include <array>
 #include <cassert>
@@ -323,7 +323,7 @@ std::vector<silo_var_t> grid::var_data() const {
 			for (int i = 0; i < INX; i++) {
 				for (int j = 0; j < INX; j++) {
 					for (int k = 0; k < INX; k++) {
-						this_s(jjj) = id;
+						this_s(jjj) = idle_rate;
 						this_s.set_range(idle_rate);
 						jjj++;
 					}

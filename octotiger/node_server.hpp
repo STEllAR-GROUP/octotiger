@@ -206,6 +206,9 @@ public:
 	void recv_hydro_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_amr_boundary, send_hydro_amr_boundary_action);
 
+	void recv_rad_amr_boundary(std::vector<real>&&, const geo::direction&, std::size_t cycle);
+	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_rad_amr_boundary, send_rad_amr_boundary_action);
+
 	void recv_hydro_children(std::vector<real>&&, const geo::octant& ci, std::size_t cycle);
 	/**/HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
@@ -303,17 +306,17 @@ public:
 	void run_scf(std::string const& data_dir);
 
 private:
-	struct sibling_real {
+	struct sibling_rad_type {
 		std::vector<real> data;
 		geo::direction direction;
 	};
 
-	std::array<unordered_channel<sibling_real>, geo::direction::count()> sibling_rad_channels;
+	std::array<unordered_channel<sibling_rad_type>, geo::direction::count()> sibling_rad_channels;
 	std::array<unordered_channel<std::vector<real>>, NCHILD> child_rad_channels;
 	unordered_channel<expansion_pass_type> parent_rad_channel;
 public:
 	hpx::future<void> exchange_rad_flux_corrections();
-	void compute_radiation(real dt);
+	void compute_radiation(real dt, real omega);
 	hpx::future<void> exchange_interlevel_rad_data();
 	void all_rad_bounds();
 
@@ -365,6 +368,7 @@ HPX_REGISTER_ACTION_DECLARATION(node_server::regrid_scatter_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_flux_check_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_hydro_amr_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION(node_server::send_rad_amr_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION(node_server::send_gravity_expansions_action);

@@ -7,7 +7,7 @@
 # Sod Shock Tube
 ##############################################################################
 download_test_reference("Sod shock tube test"
-  "phys.lsu.edu/~dmarcel/sod.7.silo"
+  "phys.lsu.edu/~dmarcel/sod.13.silo"
   ${PROJECT_BINARY_DIR}/sod.silo)
 
 # Sod Shock Tube - CPU
@@ -16,7 +16,7 @@ add_test(NAME test_problems.cpu.sod
     --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini)
 add_test(NAME test_problems.cpu.sod.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-    ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo)
+    ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
 
 set_tests_properties(test_problems.cpu.sod PROPERTIES
   FIXTURES_SETUP test_problems.cpu.sod)

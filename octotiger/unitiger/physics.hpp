@@ -12,7 +12,9 @@
 
 template<int NDIM>
 struct physics {
-
+	static constexpr char const *field_names3[] = { "rho", "egas", "tau", "pot", "sx", "sy", "sz", "zx", "zy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
+	static constexpr char const *field_names2[] = { "rho", "egas", "tau", "pot", "sx", "sy", "zz", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
+	static constexpr char const *field_names1[] = { "rho", "egas", "tau", "pot", "sx", "spc_1", "spc_2", "spc_3", "spc_4", "spc_5" };
 	static constexpr int rho_i = 0;
 	static constexpr int egas_i = 1;
 	static constexpr int tau_i = 2;
@@ -48,9 +50,17 @@ struct physics {
 
 	static int field_count();
 
+	static bool contact_field(int f) {
+		return (f == rho_i || (f >= spc_i && f < spc_i + n_species_));
+	}
+
 	static void set_fgamma(safe_real fg);
 
-	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c,  int dim);
+	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
+
+	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face) {
+
+	}
 
 	template<int INX>
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
@@ -59,7 +69,7 @@ struct physics {
 	template<int INX>
 	static void post_process(hydro::state_type &U, const hydro::x_type& X, safe_real dx);
 
-	static void set_degenerate_eos(safe_real,safe_real);
+	static void set_degenerate_eos(safe_real, safe_real);
 
 	template<int INX>
 	static void source(hydro::state_type &dudt, const hydro::state_type &U, const hydro::flux_type &F, const hydro::x_type X, safe_real omega, safe_real dx);
@@ -69,8 +79,7 @@ struct physics {
 	static const hydro::state_type& pre_recon(const hydro::state_type &U, const hydro::x_type X, safe_real omega, bool angmom);
 	/*** Reconstruct uses this - GPUize****/
 	template<int INX>
-	static void post_recon( std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X,
-			safe_real omega, bool angmom);
+	static void post_recon(std::vector<std::vector<std::vector<safe_real>>> &Q, const hydro::x_type X, safe_real omega, bool angmom);
 	template<int INX>
 	using comp_type = hydro_computer<NDIM, INX, physics<NDIM>>;
 
@@ -81,7 +90,7 @@ struct physics {
 	static void analytic_solution(test_type test, hydro::state_type &U, const hydro::x_type &X, safe_real time);
 
 	template<int INX>
-	static const std::vector<std::vector<double>>& find_contact_discs( const hydro::state_type &U);
+	static const std::vector<std::vector<double>>& find_contact_discs(const hydro::state_type &U);
 
 	static void set_n_species(int n);
 
@@ -90,7 +99,6 @@ struct physics {
 	static void set_central_force(safe_real GM) {
 		GM_ = GM;
 	}
-
 	static int get_angmom_index() {
 		return sx_i;
 	}
