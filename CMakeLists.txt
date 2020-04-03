@@ -320,6 +320,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/unitiger/hydro.cpp
+    frontend/main.cpp
+    src/unitiger/main.cpp
   )
   set(vc_tainted_header_files
     octotiger/grid.hpp
@@ -352,7 +354,6 @@ add_hpx_executable(
     frontend/main.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
-set_source_files_properties(frontend/main.cpp PROPERTIES COMPILE_FLAGS --host-only)
 
 # Unitiger executable
 add_hpx_executable(
@@ -365,7 +366,6 @@ add_hpx_executable(
     ${hydro_header_files}
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
-set_source_files_properties(src/unitiger/main.cpp PROPERTIES COMPILE_FLAGS --host-only)
 
 if(MSVC)
   # Enable solution folders for MSVC
