@@ -1,0 +1,6 @@
+spack:
+  specs:
+  - cmake
+  - hpx@1.4.0 +cuda cuda_arch=61 cxxstd=14 ^hwloc@1.11.11 ^boost@1.70.0
+  - vc
+  - silo
