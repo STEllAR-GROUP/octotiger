@@ -22,6 +22,7 @@
 #include <cmath>
 #include <vector>
 #include <unordered_map>
+#include <assert.h>
 //#include "f2c.h"
 #include <memory>
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
