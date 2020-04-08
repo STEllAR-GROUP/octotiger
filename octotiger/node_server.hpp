@@ -128,9 +128,9 @@ public:
 	}
 	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
-	static std::uint16_t cumulative_nodes_count(bool);
-	static std::uint16_t cumulative_leafs_count(bool);
-	static std::uint16_t cumulative_amrs_count(bool);
+	static int cumulative_nodes_count(bool);
+	static int cumulative_leafs_count(bool);
+	static int cumulative_amrs_count(bool);
 	static void register_counters();
 private:
 	static hpx::mutex node_count_mtx;
