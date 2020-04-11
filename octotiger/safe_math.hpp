@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+//#define SAFE_MATH_ON
+
 template<class T, class U>
 inline T safe_power(const T& a, const U& b, const char* file, const int line) {
 #ifdef SAFE_MATH_ON

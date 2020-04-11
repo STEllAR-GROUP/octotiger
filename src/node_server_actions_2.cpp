@@ -196,6 +196,7 @@ const diagnostics_t& diagnostics_t::compute() {
 		return *this;
 	}
 	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) * INVERSE(sep2));
+//	printf( "%e %e %e %e %e\n", dX[XDIM], V[XDIM], dX[YDIM], V[YDIM], omega);
 	a = std::sqrt(sep2);
 	real mu = m[0] * m[1] / (m[1] + m[0]);
 	jorb = mu * omega * sep2;
@@ -232,6 +233,7 @@ diagnostics_t node_server::diagnostics() {
 
 	diagnostics_t diags;
 	for (integer i = 1; i != (opts().problem == DWD ? 6 : 2); ++i) {
+//		printf( "%i\n", i );
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
 		if (opts().gravity) {
