@@ -35,9 +35,9 @@
 
 
 struct node_count_type {
-	int total;
-	int leaf;
-	int amr_bnd;
+	std::uint64_t total;
+	std::uint64_t leaf;
+	std::uint64_t amr_bnd;
 	template<class A>
 	void serialize(A& arc, unsigned) {
 		arc & total;
@@ -45,7 +45,7 @@ struct node_count_type {
 		arc & amr_bnd;
 	}
 	node_count_type() {
-		total = leaf = amr_bnd = 0;
+		total = leaf = amr_bnd = std::uint64_t(0);
 	}
 };
 
@@ -128,9 +128,9 @@ public:
 	}
 	real get_rotation_count() const;
 	node_server& operator=(node_server&&) = default;
-	static int cumulative_nodes_count(bool);
-	static int cumulative_leafs_count(bool);
-	static int cumulative_amrs_count(bool);
+	static std::uint64_t cumulative_nodes_count(bool);
+	static std::uint64_t cumulative_leafs_count(bool);
+	static std::uint64_t cumulative_amrs_count(bool);
 	static void register_counters();
 private:
 	static hpx::mutex node_count_mtx;
