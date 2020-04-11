@@ -12,6 +12,8 @@
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
 
+#include "safe_math.hpp"
+
 #include <array>
 #include <limits>
 #include <vector>
@@ -117,9 +119,9 @@ struct diagnostics_t {
 				rho_max[s] = std::max(rho_max[s], other.rho_max[s]);
 				mom[s] += other.mom[s];
 				for (integer d = 0; d < NDIM; ++d) {
-					if (m[s] > 0.0) {
-						com[s][d] /= m[s];
-						com_dot[s][d] /= m[s];
+					if (m[s] > std::numeric_limits<double>::min()) {
+						com[s][d] = com[s][d] * INVERSE(m[s]);
+						com_dot[s][d] = com_dot[s][d] * INVERSE(m[s]);
 					}
 				}
 			}

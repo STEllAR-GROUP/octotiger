@@ -401,10 +401,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		return rc;
 	}
 
-	fedisableexcept(FE_DIVBYZERO);
-	fedisableexcept(FE_INVALID);
-	fedisableexcept(FE_OVERFLOW);
-
 	const auto is_loc = [this, diags](integer j, integer k, integer l) {
 		const integer iii = hindex(j, k, l);
 		const real ax = X[XDIM][iii] - diags.com[0][XDIM];
@@ -646,7 +642,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		}
 	}
 	for (integer s = 0; s != nspec; ++s) {
-		if (rc.m[s] > 0.0) {
+		if (rc.m[s] >= std::numeric_limits<double>::min()) {
 			const auto tmp = INVERSE(rc.m[s]);
 			rc.com[s][XDIM] *= tmp;
 			rc.com[s][YDIM] *= tmp;
@@ -660,9 +656,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 		rc.grid_out[f] += U_out[f];
 	}
 	rc.grid_out[egas_i] += U_out[pot_i];
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
 
 	return rc;
 }
