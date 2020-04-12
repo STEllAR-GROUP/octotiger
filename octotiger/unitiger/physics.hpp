@@ -119,6 +119,14 @@ private:
 
 };
 
+//definitions of the declarations (and initializations) of the static constexpr variables
+template<int NDIM>
+constexpr char const * physics<NDIM>::field_names1[];
+template<int NDIM>
+constexpr char const * physics<NDIM>::field_names2[];
+template<int NDIM>
+constexpr char const * physics<NDIM>::field_names3[];
+
 template<int NDIM>
 safe_real physics<NDIM>::rho_sink_radius_ = 0.0;
 

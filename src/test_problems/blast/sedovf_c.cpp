@@ -22,9 +22,10 @@
 #include <cmath>
 #include <vector>
 #include <unordered_map>
-#include <assert.h>
 #include <memory>
 //#include "f2c.h"
+#include <memory>
+#include <assert.h>
 #if !defined(OCTOTIGER_HAVE_BOOST_MULTIPRECISION)
 #include <quadmath.h>
 using sed_real = __float128;

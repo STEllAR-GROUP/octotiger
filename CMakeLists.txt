@@ -16,13 +16,15 @@ project(octotiger CXX)
 
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-
+set(CMAKE_CXX_STANDARD 14)
 ################################################################################
 # Options
 ################################################################################
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
+option(OCTOTIGER_WITH_KOKKOS "Enable the build with Kokkos" OFF)
+option(OCTOTIGER_SPACK_BUILD "Project is build with the spack package" OFF)
 option(OCTOTIGER_WITH_BLAST_TEST "Enable the Blast test" ON)
 option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
@@ -35,6 +37,31 @@ option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 
+# silence warnings for deprecated HPX includes
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
+
+# add -fPIC option to avoid this error:
+# https://cmake.org/pipermail/cmake/2015-January/059513.html 
+# in case of relocatable device code
+# (modifying CMAKE_CUDA_(CXX_)_FLAGS did not help, 
+# so we keep this flag at the cost of duplicating it for host code)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
+################################################################################
+# Spack setup
+################################################################################
+# see https://spack.readthedocs.io/en/latest/workflows.html#write-the-cmake-build
+if (OCTOTIGER_SPACK_BUILD)
+  set(CMAKE_MACOSX_RPATH 1)
+  set(CMAKE_SKIP_BUILD_RPATH  FALSE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+  if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  endif("${isSystemDir}" STREQUAL "-1")
+  include_directories($ENV{SPACK_TRANSITIVE_INCLUDE_PATH})
+endif()
 ################################################################################
 # Find required packages
 ################################################################################
@@ -47,10 +74,13 @@ endif()
 
 if(OCTOTIGER_WITH_CUDA)
   enable_language(CUDA)
-
   #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
   #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
   string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
+endif()
+
+if(OCTOTIGER_WITH_KOKKOS)
+  find_package(Kokkos REQUIRED)
 endif()
 
 ################################################################################
@@ -190,28 +220,23 @@ set(header_files
     octotiger/test_problems/rotating_star.hpp
 )
 
+list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost)
+if(OCTOTIGER_WITH_KOKKOS)
+  list(APPEND octo_dependencies Kokkos::kokkos)
+endif()
+
 # Octo-Tiger library
 add_hpx_library(
   octolib
   DEPENDENCIES
-    Silo::silo Vc::Vc Boost::boost
+    ${octo_dependencies}
   SOURCES
     ${source_files}
   HEADERS
     ${header_files}
 )
 
-# Hydro library
-add_hpx_library(
-  hydrolib
-  DEPENDENCIES
-    Silo::silo Vc::Vc Boost::boost quadmath octolib
-  SOURCES
-   src/unitiger/hydro.cpp
-   src/test_problems/blast/sedovf_c.cpp
-   src/test_problems/sod/exact_sod.cpp
-   src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu
-  HEADERS
+set(hydro_header_files
     octotiger/unitiger/hydro.hpp
     octotiger/unitiger/physics.hpp
     octotiger/unitiger/physics_impl.hpp
@@ -226,8 +251,88 @@ add_hpx_library(
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
-    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp
+    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp)
+
+set(hydro_source_files
+   src/unitiger/hydro.cpp
+   src/test_problems/blast/sedovf_c.cpp
+   src/test_problems/sod/exact_sod.cpp
+   src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
+
+list(APPEND hydro_dependencies Silo::silo Vc::Vc Boost::boost quadmath octolib)
+if(OCTOTIGER_WITH_KOKKOS)
+  list(APPEND hydro_dependencies Kokkos::kokkos)
+endif()
+
+# Hydro library
+add_hpx_library(
+  hydrolib
+  DEPENDENCIES
+    ${hydro_dependencies}
+  SOURCES
+    ${hydro_source_files}
+  HEADERS
+    ${hydro_header_files}
 )
+
+# Deal with the incompatibility of Kokkos+Cuda and Vc
+if(OCTOTIGER_WITH_KOKKOS)
+  set(vc_tainted_source_files
+    src/compute_factor.cpp
+    src/eos.cpp
+    src/grid.cpp
+    src/grid_amr.cpp
+    src/grid_fmm.cpp
+    src/grid_output.cpp
+    src/grid_scf.cpp
+    src/node_client.cpp
+    src/node_location.cpp
+    src/node_registry.cpp
+    src/node_server.cpp
+    src/node_server_actions_1.cpp
+    src/node_server_actions_2.cpp
+    src/node_server_actions_3.cpp
+    src/options.cpp
+    src/physcon.cpp
+    src/problem.cpp
+    src/roe.cpp
+    src/taylor.cpp
+    src/common_kernel/interactions_iterators.cpp
+    src/cuda_util/cuda_scheduler.cpp
+    src/io/silo_out.cpp
+    src/io/silo_in.cpp
+    src/monopole_interactions/calculate_stencil.cpp
+    src/monopole_interactions/cuda_p2p_interaction_interface.cpp
+    src/monopole_interactions/p2m_kernel.cpp
+    src/monopole_interactions/p2m_interaction_interface.cpp
+    src/monopole_interactions/p2p_cpu_kernel.cpp
+    src/monopole_interactions/p2p_interaction_interface.cpp
+    src/multipole_interactions/calculate_stencil.cpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
+    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/multipole_interactions/multipole_interaction_interface.cpp
+    src/radiation/rad_grid.cpp
+    src/test_problems/amr/amr.cpp
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
+    src/test_problems/marshak/marshak.cpp
+    src/test_problems/rotating_star/rotating_star.cpp
+    src/test_problems/sod/sod.cpp
+    src/unitiger/hydro.cpp
+    frontend/main.cpp
+    src/unitiger/main.cpp
+  )
+  set(vc_tainted_header_files
+    octotiger/grid.hpp
+    octotiger/interaction_types.hpp
+    octotiger/simd.hpp
+    octotiger/space_vector.hpp
+    octotiger/taylor.hpp
+    octotiger/common_kernel/kernel_simd_types.hpp
+    octotiger/common_kernel/kernel_taylor_set_basis.hpp
+  )
+  set_source_files_properties(${vc_tainted_source_files} ${vc_tainted_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
+endif()
 
 # Enable exported functions
 target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
