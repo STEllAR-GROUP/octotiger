@@ -86,11 +86,12 @@ auto filter(const std::vector<std::vector<double>> &f, double omega, double Pc, 
 		double t0 = f[n][0];
 		double dt;
 		double weight = 0.0;
-		if (Ps / 2.0 + tmin < t0 && t0 < tmax - Ps / 2.0) {
+
+		if (Pc / 2.0 + tmin < t0 && t0 < tmax - Pc / 2.0) {
 			std::fill(u.begin(), u.end(), 0.0);
 			for (int m = 1; m < f.size() - 1; m++) {
 				double t = f[m][0];
-				if (t0 - Ps / 2.0 < t && t < t0 + Ps / 2.0) {
+				if (t0 - Pc / 2.0 < t && t < t0 + Pc / 2.0) {
 					dt = (f[m + 1][0] - f[m - 1][0]) / 2.0;
 					const auto h1 = f[m][0] - f[m - 1][0];
 					const auto h2 = f[m + 1][0] - f[m][0];
@@ -131,6 +132,7 @@ struct options {
 
 	int read_options(int argc, char *argv[]) {
 		namespace po = boost::program_options;
+
 
 		po::options_description command_opts("options");
 
@@ -210,7 +212,7 @@ int main(int argc, char *argv[]) {
 		printf("Blackmann period = %e\n", Ps);
 		const auto P = 2.0 * M_PI / v1[0][2];
 
-		printf("Window is +/- %.12e orbits\n", Ps / 2.0);
+		printf("Window is +/- %.12e orbits\n", Pc / 2.0);
 
 		auto v2 = filter(v1, v1[0][2], Pc, Ps);
 		if (v2.size() == 0) {

@@ -692,9 +692,9 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 			for (double z0 = z - dx / 2.0 + dx / 2.0 / M; z0 < z + dx / 2.0; z0 += dx / M) {
 				++nsamp;
 				if (x < params.l1_x) {
-					r = SQRT(POWER(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
+					r = SQRT(std::pow(x0 - params.c1_x, 2) + y0 * y0 + z0 * z0);
 				} else {
-					r = SQRT(POWER(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
+					r = SQRT(std::pow(x0 - params.c2_x, 2) + y0 * y0 + z0 * z0);
 				}
 				if (r <= R0) {
 					rho += this_struct_eos->density_at(r, dx);
