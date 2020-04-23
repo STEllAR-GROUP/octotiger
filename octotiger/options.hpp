@@ -30,7 +30,7 @@
 
 class options {
 public:
-	bool experiment;
+	int experiment;
 	bool cdisc_detect;
 	bool unigrid;
 	bool disable_diagnostics;

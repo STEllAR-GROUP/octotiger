@@ -16,7 +16,7 @@ hydro_computer<NDIM, INX, PHYS>::hydro_computer() {
 	nf_ = PHYS::field_count();
 
 	angmom_index_ = -1;
-	experiment = false;
+	experiment = 0;
 	for( int f = 0; f < nf_; f++) {
 		smooth_field_.push_back(false);
 		disc_detect_.push_back(false);
