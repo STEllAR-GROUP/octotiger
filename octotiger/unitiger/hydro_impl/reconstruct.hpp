@@ -99,10 +99,15 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 	}
 }
 
-template<int NDIM, int INX>
-void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+template<int NDIM, int INX, class PHYSICS>
+void hydro_computer<NDIM,INX,PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
 		const std::vector<std::vector<double>> &disc) {
 	PROFILE();
+
+	if( experiment == 2 ) {
+		reconstruct_minmod(q,u);
+		return;
+	}
 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
@@ -238,7 +243,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	if (angmom_index_ == -1 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
-				reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+				reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 			} else {
 				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
 			}
@@ -246,14 +251,14 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 		}
 
 		int sx_i = angmom_index_;
 		int zx_i = sx_i + NDIM;
 
 		for (int f = sx_i; f < sx_i + NDIM; f++) {
-			reconstruct_ppm<NDIM, INX>(Q[f], U[f], true, false, cdiscs);
+			reconstruct_ppm(Q[f], U[f], true, false, cdiscs);
 		}
 		for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 			reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
@@ -351,7 +356,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			}
 		}
 		for (int f = angmom_index_ + geo::NANGMOM + NDIM; f < nf_; f++) {
-			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 		}
 
 	}

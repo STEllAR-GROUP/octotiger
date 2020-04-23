@@ -36,6 +36,11 @@ using state_type = std::vector<std::vector<safe_real>>;
 
 template<int NDIM, int INX, class PHYSICS>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
+
+	void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+			const std::vector<std::vector<double>> &disc);
+
+
 	using geo = cell_geometry<NDIM,INX>;
 
 	enum bc_type {
@@ -93,6 +98,8 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	void set_bc(std::vector<bc_type> &&bc) {
 		bc_ = std::move(bc);
 	}
+
+
 
 private:
 	bool experiment;
