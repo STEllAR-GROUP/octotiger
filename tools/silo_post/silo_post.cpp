@@ -131,6 +131,30 @@ int main(int argc, char *argv[]) {
 	double sum1 = 0.0;
 	double sum2 = 0.0;
 	double t;
+	double dxmin = 1.0d+99;
+	for (const auto &mesh_name : mesh_names) {
+		auto split_name = split_silo_id(mesh_name);
+		const auto &filename = split_name.first;
+		const auto &name = split_name.second;
+		auto db = DBOpenReal(filename.c_str(), SILO_DRIVER, DB_READ);
+		auto mesh = DBGetQuadmesh(db, name.c_str());
+		printf("\r%s                              ", mesh_name.c_str());
+		const auto dir = mesh_to_dirname(name);
+		t = mesh->time;
+		const auto dx = (((double*) mesh->coords[0])[1] - ((double*) mesh->coords[0])[0]);
+		dxmin = std::min(dxmin,dx);
+		DBFreeQuadmesh(mesh);
+		DBClose(db);
+	}
+
+	double rmax = 1.5;
+	int NBIN = rmax / dxmin;
+	double dR = (rmax) / NBIN;
+	std::vector<double> Ibin(NBIN);
+	std::vector<double> Lbin(NBIN);
+
+
+
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
 		const auto &filename = split_name.first;
@@ -142,15 +166,15 @@ int main(int argc, char *argv[]) {
 		t = mesh->time;
 		const auto dx = (((double*) mesh->coords[0])[1] - ((double*) mesh->coords[0])[0]);
 		const auto dV = dx * dx * dx;
-		const auto var_name = mesh_to_varname(name, "rho_1");
+		auto var_name = mesh_to_varname(name, "rho_1");
 		auto var = DBGetQuadvar(db, var_name.c_str());
 
-		for( int i = 0; i < var->nels; i++) {
-			const double rho1 = ((double*)(var->vals[0]))[i];
-			if( rho1 < pow(10.0,5.0)) {
+		for (int i = 0; i < var->nels; i++) {
+			const double rho1 = ((double*) (var->vals[0]))[i];
+			if (rho1 < pow(10.0, 5.0)) {
 				sum1 += dV * rho1;
 			}
-			if( rho1 < pow(10.0,5.2)) {
+			if (rho1 < pow(10.0, 5.2)) {
 				sum2 += dV * rho1;
 			}
 
@@ -158,13 +182,62 @@ int main(int argc, char *argv[]) {
 
 		DBFreeQuadvar(var);
 
+		var_name = mesh_to_varname(name, "rho_1");
+		auto rho1 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_2");
+		auto rho2 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_3");
+		auto rho3 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_4");
+		auto rho4 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_5");
+		auto rho5 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "sx");
+		auto sx = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "sy");
+		auto sy = DBGetQuadvar(db, var_name.c_str());
+		const int NX = mesh->dims[0] - 1;
+		for (int i = 0; i < NX; i++) {
+			for (int j = 0; j < NX; j++) {
+				for (int k = 0; k < NX; k++) {
+					const auto iii = k * NX * NX + j * NX + i;
+					const auto rho = ((double*) rho1->vals[0])[iii] + ((double*) rho2->vals[0])[iii] + ((double*) rho3->vals[0])[iii]
+							+ ((double*) rho4->vals[0])[iii] + ((double*) rho5->vals[0])[iii];
+					const auto vx = ((double*) sx->vals[0])[iii] / rho;
+					const auto vy = ((double*) sy->vals[0])[iii] / rho;
+					const auto x = (((double*) mesh->coords[0])[i] + ((double*) mesh->coords[0])[i + 1]) / 2.0;
+					const auto y = (((double*) mesh->coords[1])[j] + ((double*) mesh->coords[1])[j + 1]) / 2.0;
+					const auto R = std::sqrt(x * x + y * y);
+					const auto omega = (-y * vx + x * vy) / (R * R);
+					int I = R / dR;
+					if (I < NBIN) {
+						Lbin[I] += rho * R * R * omega * dx * dx * dx;
+						Ibin[I] += rho * R * R * dx * dx * dx;
+					}
+				}
+			}
+		}
+		DBFreeQuadvar(rho1);
+		DBFreeQuadvar(rho2);
+		DBFreeQuadvar(rho3);
+		DBFreeQuadvar(rho4);
+		DBFreeQuadvar(rho5);
+		DBFreeQuadvar(sx);
+		DBFreeQuadvar(sy);
+
 		DBFreeQuadmesh(mesh);
 		DBClose(db);
 		counter++;
 	}
+	FILE *fp = fopen("omega.dat", "wt");
+	for (int i = 0; i < NBIN; i++) {
+		fprintf(fp, "%e %e\n", (i + 0.5) * dR, Lbin[i] / Ibin[i]);
+	}
+	fclose(fp);
+
 	const auto Msol = 1.989e+33;
-	FILE* fp = fopen( "dredge.dat", "at");
-	fprintf( fp, "%e %e %e\n", t, sum1 / Msol, sum2/ Msol);
+	fp = fopen("dredge.dat", "at");
+	fprintf(fp, "%e %e %e\n", t, sum1 / Msol, sum2 / Msol);
 	fclose(fp);
 	printf("\rDone!                                                          \n");
 

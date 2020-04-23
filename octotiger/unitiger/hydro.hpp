@@ -76,6 +76,10 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void use_disc_detect(int field);
 
+	void use_experiment() {
+		experiment = true;
+	}
+
 	std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
 
 	std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
@@ -91,7 +95,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	}
 
 private:
-
+	bool experiment;
 	int nf_;
 	int angmom_index_;
 	std::vector<bool> smooth_field_;

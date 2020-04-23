@@ -194,6 +194,17 @@ inline safe_real maxmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::max(std::abs(a), std::abs(b));
 }
 
+inline safe_real vanleer(safe_real a, safe_real b){
+	const auto abs_a = std::abs(a);
+	const auto abs_b = std::abs(b);
+	const auto den = abs_a + abs_b;
+	if( den > 0.0 ) {
+		return (a * abs_b + b * abs_a) / den;
+	} else {
+		return 0.0;
+	}
+}
+
 inline safe_real superbee(safe_real a, safe_real b) {
 	return maxmod(minmod(a, 2 * b), minmod(2 * a, b));
 }
@@ -293,7 +304,12 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 									b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
 								}
 							}
-							auto blim = maxmod(superbee(ur - u0, u0 - ul), b0);
+							double blim;
+							if( experiment ) {
+								blim = maxmod(vanleer(ur - u0, u0 - ul), b0);
+							} else {
+								blim = maxmod(superbee(ur - u0, u0 - ul), b0);
+							}
 							b = minmod(blim, b);
 							qr += 0.5 * (b - b0);
 							ql -= 0.5 * (b - b0);

@@ -30,6 +30,7 @@
 
 class options {
 public:
+	bool experiment;
 	bool cdisc_detect;
 	bool unigrid;
 	bool disable_diagnostics;
@@ -113,6 +114,7 @@ public:
 		arc & rho_floor;
 		arc & tau_floor;
 		arc & cdisc_detect;
+		arc & experiment;
 		arc & unigrid;
 		arc & rotating_star_amr;
 		arc & rotating_star_x;
