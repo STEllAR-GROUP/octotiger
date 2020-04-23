@@ -316,9 +316,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 							}
 							double blim;
 							if (experiment == 1) {
-								blim = maxmod(vanleer(ur - u0, u0 - ul), b0);
-							} else if (experiment == 2) {
-								blim = maxmod(ospre(ur - u0, u0 - ul), b0);
+								if( (ur-u0)*(u0-ul) <= 0.0 ) {
+									blim = 0.0;
+								} else {
+									blim = b0;
+								}
 							} else {
 								blim = maxmod(superbee(ur - u0, u0 - ul), b0);
 							}
