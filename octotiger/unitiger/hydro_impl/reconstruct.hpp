@@ -105,7 +105,7 @@ void hydro_computer<NDIM,INX,PHYSICS>::reconstruct_ppm(std::vector<std::vector<s
 	PROFILE();
 
 	if( experiment == 2 ) {
-		reconstruct_minmod(q,u);
+		reconstruct_minmod<NDIM,INX>(q,u);
 		return;
 	}
 
