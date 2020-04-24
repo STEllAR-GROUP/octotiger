@@ -40,7 +40,6 @@ std::unordered_map<int, std::string> grid::index_to_str_hydro;
 std::unordered_map<int, std::string> grid::index_to_str_gravity;
 double grid::idle_rate;
 
-
 bool grid::is_hydro_field(const std::string &str) {
 	return str_to_index_hydro.find(str) != str_to_index_hydro.end();
 }
@@ -115,7 +114,7 @@ std::vector<std::string> grid::get_field_names() {
 			rc.push_back(n);
 		}
 	}
-	if( opts().idle_rates) {
+	if (opts().idle_rates) {
 		rc.push_back("locality");
 		rc.push_back("idle_rate");
 	}
@@ -455,7 +454,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 			ny = ay / a;
 			nz = az / a;
 			space_vector dX[nspec];
-			real g[nspec] = {0.0, 0.0};
+			real g[nspec] = { 0.0, 0.0 };
 			for (integer s = 0; s != nspec; ++s) {
 				dX[s][XDIM] = x - diags.com[s][XDIM];
 				dX[s][YDIM] = y - diags.com[s][YDIM];
@@ -512,15 +511,15 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 				std::array<real, nspec> rho;
 				integer star;
 				if (diags.stage <= 2) {
-					rho = {U[spc_ac_i][iii], U[spc_dc_i][iii]};
+					rho = { U[spc_ac_i][iii], U[spc_dc_i][iii] };
 				} else {
 					star = in_star(j, k, l);
 					if (star == +1) {
-						rho = {U[rho_i][iii], 0.0};
+						rho = { U[rho_i][iii], 0.0 };
 					} else if (star == -1) {
-						rho = {0.0, U[rho_i][iii]};
+						rho = { 0.0, U[rho_i][iii] };
 					} else if (star != 99) {
-						rho = {0.0, 0.0};
+						rho = { 0.0, 0.0 };
 					} else {
 						rc.failed = true;
 						return rc;
@@ -1829,29 +1828,38 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 				}
 			}
 		}
-	} else if (opts().problem == SOD) {
-		for (integer k = klb; k != kub; ++k) {
-			for (integer j = jlb; j != jub; ++j) {
-				for (integer i = ilb; i != iub; ++i) {
-					const integer iii = i * dni + j * dnj + k * dnk;
-					for (integer f = 0; f != opts().n_fields; ++f) {
-						U[f][iii] = 0.0;
-					}
-					sod_state_t s;
-					real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
-					exact_sod(&s, &sod_init, x, t);
-					U[rho_i][iii] = s.rho;
-					U[egas_i][iii] = s.p / (fgamma - 1.0);
-					U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
-					U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
-					U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
-					U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
-					U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
-					U[spc_i][iii] = s.rho;
-					integer k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
-				}
-			}
-		}
+//	} else if (opts().problem == SOD) {
+//		for (integer k = klb; k != kub; ++k) {
+//			for (integer j = jlb; j != jub; ++j) {
+//				for (integer i = ilb; i != iub; ++i) {
+//					const integer iii = i * dni + j * dnj + k * dnk;
+//					for (integer f = 0; f != opts().n_fields; ++f) {
+//						U[f][iii] = 0.0;
+//					}
+//					sod_state_t s;
+//					//			real x = (X[XDIM][iii] + X[YDIM][iii] + X[ZDIM][iii]) / std::sqrt(3.0);
+//					real x = X[XDIM][iii];
+//					real y = X[YDIM][iii];
+//					real z = X[ZDIM][iii];
+//					exact_sod(&s, &sod_init, x, t);
+//					U[rho_i][iii] = s.rho;
+//					U[egas_i][iii] = s.p / (fgamma - 1.0);
+////					U[sx_i][iii] = s.rho * s.v / std::sqrt(3.0);
+////					U[sy_i][iii] = s.rho * s.v / std::sqrt(3.0);
+////					U[sz_i][iii] = s.rho * s.v / std::sqrt(3.0);
+//					U[sx_i][iii] = s.rho * s.v;
+//					U[sy_i][iii] = 0.0;
+//					U[sz_i][iii] = 0.0;
+//					U[lx_i][iii] = +y * U[sz_i][iii] - z * U[sy_i][iii];
+//					U[ly_i][iii] = -x * U[sz_i][iii] + z * U[sx_i][iii];
+//					U[lz_i][iii] = +x * U[sy_i][iii] - y * U[sx_i][iii];
+//					U[tau_i][iii] = std::pow(U[egas_i][iii], 1.0 / fgamma);
+//					U[egas_i][iii] += s.rho * s.v * s.v / 2.0;
+//					U[spc_i][iii] = s.rho;
+//					integer k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
+//				}
+//			}
+//		}
 	} else {
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			for (integer k = klb; k != kub; ++k) {
@@ -1870,9 +1878,16 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 							assert(false);
 							abort();
 						}
-						const real value = U[field][i * dni + j * dnj + k0 * dnk];
+						const integer iii0 = i * dni + j * dnj + k0 * dnk;
+						const real value = U[field][iii0];
 						const integer iii = i * dni + j * dnj + k * dnk;
 						safe_real &ref = U[field][iii];
+						real x = X[XDIM][iii];
+						real y = X[YDIM][iii];
+						real z = X[ZDIM][iii];
+						real x0 = X[XDIM][iii0];
+						real y0 = X[YDIM][iii0];
+						real z0 = X[ZDIM][iii0];
 						if (field == sx_i + dim) {
 							real s0;
 							if (field == sx_i) {
@@ -1906,6 +1921,18 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 							}
 //						} else if (field == rho_i) {
 //							ref = std::max(rho_floor,value);
+						} else if (field == lx_i) {
+							ref = +value;
+							U[lx_i][iii] += +y * U[sz_i][iii] - z * U[sy_i][iii];
+							U[lx_i][iii] -= +y0 * U[sz_i][iii0] - z0 * U[sy_i][iii0];
+						} else if (field == ly_i) {
+							ref = +value;
+							U[ly_i][iii] += -x * U[sz_i][iii] + z * U[sx_i][iii];
+							U[ly_i][iii] -= -x0 * U[sz_i][iii0] + z0 * U[sx_i][iii0];
+						} else if (field == lz_i) {
+							ref = +value;
+							U[lz_i][iii] += +x * U[sy_i][iii] - y * U[sx_i][iii];
+							U[lz_i][iii] -= +x0 * U[sy_i][iii0] - y0 * U[sx_i][iii0];
 						} else {
 							ref = +value;
 						}
@@ -2172,8 +2199,8 @@ void grid::next_u(integer rk, real t, real dt) {
 				if (opts().tau_floor > 0.0) {
 					U[tau_i][iii] = std::max(U[tau_i][iii], opts().tau_floor);
 				} else if (U[tau_i][iii] < ZERO) {
-					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii], (double) X[YDIM][iii],
-							(double) X[ZDIM][iii]);
+					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
+							(double) X[YDIM][iii], (double) X[ZDIM][iii]);
 					abort();
 				}
 				if (opts().rho_floor > 0.0) {
