@@ -77,6 +77,7 @@ public:
 			}
 		}
 		std::cout << "Done reading rotating_star.bin\n";
+		printf( "Omega = %e\n", omega_);
 	}
 	void state_at(double& rho, double& ene, double& sx, double& sy, double x, double y, double z) const {
 		const double R = std::sqrt(x * x + y * y);

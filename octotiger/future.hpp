@@ -10,7 +10,6 @@
 
 #include <hpx/include/lcos.hpp>
 
-
 #include <array>
 #include <vector>
 
@@ -25,7 +24,7 @@ inline void propagate_exceptions(hpx::future<T> &f) {
 
 template<typename T>
 inline void propagate_exceptions(hpx::future<T> const &f) {
-	typename hpx::traits::detail::shared_state_ptr_for<hpx::future<T> >::type state = hpx::traits::future_access < hpx::future<T> > ::get_shared_state(f);
+	typename hpx::traits::detail::shared_state_ptr_for<hpx::future<T> >::type state = hpx::traits::future_access<hpx::future<T> >::get_shared_state(f);
 	if (state->has_exception())
 		state->get_result();     // will rethrow exception
 }
@@ -93,21 +92,23 @@ inline T debug_get(const hpx::shared_future<T> &f, const char *file, int line) {
 	if (f.valid() == false) {
 		printf("get on invalid future file %s line %i\n", file, line);
 	}
-	constexpr int timeout = 60;
-	int count = 0;
-	while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
-		count++;
-		printf("shared_future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
-	}
+// something wrong with hpx::future::wait_for
+//	constexpr int timeout = 10;
+//	int count = 0;
+//	if (!f.is_ready()) {
+//		while (f.wait_for(std::chrono::duration<int>(timeout)) == hpx::lcos::future_status::timeout) {
+//			count++;
+//			printf("shared_future::get in file %s on line %i is taking a while - %i seconds so far.\n", file, line, 60 * count);
+//		}
+//	}
 	return f.get();
 }
-/*
- #ifndef NDEBUG
- #define GET(fut) debug_get(fut,__FILE__,__LINE__)
- #else
- #define GET(fut) ((fut).get())
- #endif
- */
+
+//#ifndef NDEBUG
+//#define GET(fut) debug_get(fut,__FILE__,__LINE__)
+//#else
+//#define GET(fut) ((fut).get())
+//#endif
 
 #define GET(fut) debug_get(fut,__FILE__,__LINE__)
 

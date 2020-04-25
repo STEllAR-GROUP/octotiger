@@ -99,14 +99,14 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 	}
 }
 
-template<int NDIM, int INX>
-void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+template<int NDIM, int INX, class PHYSICS>
+void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
 		const std::vector<std::vector<double>> &disc) {
 	PROFILE();
 
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
-	static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
+	static thread_local auto D1 = std::vector < safe_real > (geo.H_N3, 0.0);
 	for (int d = 0; d < geo.NDIR / 2; d++) {
 		const auto di = dir[d];
 		for (int j = 0; j < geo.H_NX_XM2; j++) {
@@ -194,8 +194,25 @@ inline safe_real maxmod(safe_real a, safe_real b) {
 	return (std::copysign(0.5, a) + std::copysign(0.5, b)) * std::max(std::abs(a), std::abs(b));
 }
 
-inline safe_real superbee(safe_real a, safe_real b) {
-	return maxmod(minmod(a, 2 * b), minmod(2 * a, b));
+inline safe_real vanleer(safe_real a, safe_real b) {
+	const auto abs_a = std::abs(a);
+	const auto abs_b = std::abs(b);
+	const auto den = abs_a + abs_b;
+	if (den > 0.0) {
+		return (a * abs_b + b * abs_a) / den;
+	} else {
+		return 0.0;
+	}
+}
+
+inline safe_real ospre(safe_real a, safe_real b) {
+	const auto a2 = a * a;
+	const auto b2 = b * b;
+	if (a * b <= 0.0) {
+		return 0.0;
+	} else {
+		return 1.5 * (a2 * b + b2 * a) / (a2 + b2 + a * b);
+	}
 }
 
 template<int NDIM, int INX, class PHYS>
@@ -217,7 +234,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	if (angmom_index_ == -1 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
 			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
-				reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+				reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 			} else {
 				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
 			}
@@ -225,14 +242,14 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 
 	} else {
 		for (int f = 0; f < angmom_index_; f++) {
-			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 		}
 
 		int sx_i = angmom_index_;
 		int zx_i = sx_i + NDIM;
 
 		for (int f = sx_i; f < sx_i + NDIM; f++) {
-			reconstruct_ppm<NDIM, INX>(Q[f], U[f], true, false, cdiscs);
+			reconstruct_ppm(Q[f], U[f], true, false, cdiscs);
 		}
 		for (int f = zx_i; f < zx_i + geo::NANGMOM; f++) {
 			reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
@@ -293,7 +310,12 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 									b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
 								}
 							}
-							auto blim = maxmod(superbee(ur - u0, u0 - ul), b0);
+							double blim;
+							if ((ur - u0) * (u0 - ul) <= 0.0) {
+								blim = 0.0;
+							} else {
+								blim = b0;
+							}
 							b = minmod(blim, b);
 							qr += 0.5 * (b - b0);
 							ql -= 0.5 * (b - b0);
@@ -321,7 +343,7 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 			}
 		}
 		for (int f = angmom_index_ + geo::NANGMOM + NDIM; f < nf_; f++) {
-			reconstruct_ppm<NDIM, INX>(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+			reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
 		}
 
 	}

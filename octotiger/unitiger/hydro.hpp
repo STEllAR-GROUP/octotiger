@@ -36,6 +36,11 @@ using state_type = std::vector<std::vector<safe_real>>;
 
 template<int NDIM, int INX, class PHYSICS>
 struct hydro_computer: public cell_geometry<NDIM, INX> {
+
+	void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+			const std::vector<std::vector<double>> &disc);
+
+
 	using geo = cell_geometry<NDIM,INX>;
 
 	enum bc_type {
@@ -76,6 +81,10 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 	void use_disc_detect(int field);
 
+	void use_experiment(int num) {
+		experiment = num;
+	}
+
 	std::vector<safe_real> get_field_sums(const hydro::state_type &U, safe_real dx);
 
 	std::vector<safe_real> get_field_mags(const hydro::state_type &U, safe_real dx);
@@ -90,8 +99,10 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 		bc_ = std::move(bc);
 	}
 
-private:
 
+
+private:
+	bool experiment;
 	int nf_;
 	int angmom_index_;
 	std::vector<bool> smooth_field_;
