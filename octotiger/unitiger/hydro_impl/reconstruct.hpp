@@ -100,18 +100,13 @@ void reconstruct_minmod(std::vector<std::vector<safe_real>> &q, const std::vecto
 }
 
 template<int NDIM, int INX, class PHYSICS>
-void hydro_computer<NDIM,INX,PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
+void hydro_computer<NDIM, INX, PHYSICS>::reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
 		const std::vector<std::vector<double>> &disc) {
 	PROFILE();
 
-	if( experiment == 2 ) {
-		reconstruct_minmod<NDIM,INX>(q,u);
-		return;
-	}
-
 	static const cell_geometry<NDIM, INX> geo;
 	static constexpr auto dir = geo.direction();
-	static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
+	static thread_local auto D1 = std::vector < safe_real > (geo.H_N3, 0.0);
 	for (int d = 0; d < geo.NDIR / 2; d++) {
 		const auto di = dir[d];
 		for (int j = 0; j < geo.H_NX_XM2; j++) {
@@ -220,10 +215,6 @@ inline safe_real ospre(safe_real a, safe_real b) {
 	}
 }
 
-inline safe_real superbee(safe_real a, safe_real b) {
-	return maxmod(minmod(a, 2 * b), minmod(2 * a, b));
-}
-
 template<int NDIM, int INX, class PHYS>
 const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(const hydro::state_type &U_, const hydro::x_type &X, safe_real omega) {
 	PROFILE();
@@ -320,14 +311,10 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 								}
 							}
 							double blim;
-							if (experiment == 1) {
-								if( (ur-u0)*(u0-ul) <= 0.0 ) {
-									blim = 0.0;
-								} else {
-									blim = b0;
-								}
+							if ((ur - u0) * (u0 - ul) <= 0.0) {
+								blim = 0.0;
 							} else {
-								blim = maxmod(superbee(ur - u0, u0 - ul), b0);
+								blim = b0;
 							}
 							b = minmod(blim, b);
 							qr += 0.5 * (b - b0);
