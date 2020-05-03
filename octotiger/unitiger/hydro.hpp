@@ -102,7 +102,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 
 
 private:
-	bool experiment;
+	int experiment;
 	int nf_;
 	int angmom_index_;
 	std::vector<bool> smooth_field_;
