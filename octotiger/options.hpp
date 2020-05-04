@@ -84,6 +84,14 @@ public:
 	real rho_floor;
 	real tau_floor;
 
+        real sod_rhol;
+        real sod_rhor;
+        real sod_pl;
+        real sod_pr;
+        real sod_theta;
+        real sod_phi;
+        real sod_gamma;
+
 	size_t cuda_streams_per_locality;
 	size_t cuda_streams_per_gpu;
 	size_t cuda_scheduling_threads;
@@ -113,6 +121,15 @@ public:
 	void serialize(Arc &arc, unsigned) {
 		arc & rho_floor;
 		arc & tau_floor;
+
+                arc & sod_rhol;
+                arc & sod_rhor;
+                arc & sod_pl;
+                arc & sod_pr;
+                arc & sod_theta;
+                arc & sod_phi;
+                arc & sod_gamma;
+
 		arc & cdisc_detect;
 		arc & experiment;
 		arc & unigrid;
