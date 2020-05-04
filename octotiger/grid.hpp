@@ -110,6 +110,7 @@ class grid {
 public:
 	using xpoint = std::array<xpoint_type, NDIM>;
 	struct node_point;
+        OCTOTIGER_EXPORT static void set_min_level(integer l);
 	OCTOTIGER_EXPORT static void set_max_level(integer l);
 	OCTOTIGER_EXPORT static void set_fgamma(real fg) {
 		fgamma = fg;
@@ -128,6 +129,7 @@ private:
 	static std::unordered_map<int, std::string> index_to_str_gravity;
 	static real omega;
 	static real fgamma;
+        static integer min_level;
 	static integer max_level;
 	static hpx::lcos::local::spinlock omega_mtx;
 	static OCTOTIGER_EXPORT real scaling_factor;

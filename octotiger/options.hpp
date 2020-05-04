@@ -55,6 +55,7 @@ public:
 	integer extra_regrid;
 	integer accretor_refine;
 	integer donor_refine;
+	integer min_level;
 	integer max_level;
 	integer ngrids;
 	integer stop_step;
@@ -152,6 +153,7 @@ public:
 		arc & v1309;
 		arc & clight_retard;
 		arc & stop_time;
+                arc & min_level;
 		arc & max_level;
 		arc & xscale;
 		arc & cfl;

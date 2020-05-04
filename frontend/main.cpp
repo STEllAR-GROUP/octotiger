@@ -164,6 +164,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 	_controlfp(_EM_INEXACT | _EM_DENORMAL | _EM_INVALID, _MCW_EM);
 #endif
 	grid::set_scaling_factor(opts().xscale);
+        grid::set_min_level(opts().min_level);
 	grid::set_max_level(opts().max_level);
 	if (opts().problem == RADIATION_TEST) {
 		assert(opts().radiation);
