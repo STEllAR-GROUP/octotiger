@@ -175,7 +175,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_problem(scf_binary);
 		set_refine_test(refine_test);
 	} else if (opts().problem == SOD) {
-		grid::set_fgamma(7.0 / 5.0);
+		grid::set_fgamma(opts().sod_gamma);
+		//grid::set_fgamma(7.0 / 5.0);
 //		opts().gravity = false;
 		set_problem(sod_shock_tube_init);
 		set_refine_test(refine_sod);
