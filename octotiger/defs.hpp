@@ -90,10 +90,6 @@ constexpr real DEFAULT_OMEGA = 0.0;
 
 //const integer MAX_LEVEL = 5;
 
-enum boundary_type {
-	OUTFLOW, REFLECT
-};
-
 #include "hydro_defs.hpp"
 
 constexpr integer R_BW = 2;
@@ -182,9 +178,6 @@ constexpr integer phi_i = 0;
 constexpr integer gx_i = 1;
 constexpr integer gy_i = 2;
 constexpr integer gz_i = 3;
-
-constexpr std::array<boundary_type, NFACE> boundary_types = {{
-    OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW}};
 
 // #define h0index(i,j,k) ((i)*INX*INX+(j)*INX+(k))
 constexpr inline integer h0index(integer i, integer j, integer k)

@@ -1871,17 +1871,10 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 				for (integer j = jlb; j != jub; ++j) {
 					for (integer i = ilb; i != iub; ++i) {
 						integer k0;
-						switch (boundary_types[face]) {
-						case REFLECT:
+						if (opts().reflect_bc) {
 							k0 = side == geo::MINUS ? (2 * H_BW - k - 1) : (2 * (H_NX - H_BW) - k - 1);
-							break;
-						case OUTFLOW:
+						} else {
 							k0 = side == geo::MINUS ? H_BW : H_NX - H_BW - 1;
-							break;
-						default:
-							k0 = -1;
-							assert(false);
-							abort();
 						}
 						const integer iii0 = i * dni + j * dnj + k0 * dnk;
 						const real value = U[field][iii0];
@@ -1902,11 +1895,9 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 							} else {
 								s0 = ZERO;
 							}
-							switch (boundary_types[face]) {
-							case REFLECT:
+							if (opts().reflect_bc) {
 								ref = -value;
-								break;
-							case OUTFLOW:
+							} else {
 								if (opts().problem != AMR_TEST) {
 									const real before = value;
 									if (side == geo::MINUS) {
@@ -1922,7 +1913,6 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 										U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
 									}
 								}
-								break;
 							}
 //						} else if (field == rho_i) {
 //							ref = std::max(rho_floor,value);
