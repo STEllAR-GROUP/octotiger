@@ -663,6 +663,7 @@ hpx::lcos::local::spinlock grid::omega_mtx;
 real grid::omega = ZERO;
 real grid::scaling_factor = 1.0;
 
+integer grid::min_level = 0;
 integer grid::max_level = 0;
 
 space_vector grid::get_cell_center(integer i, integer j, integer k) {
@@ -1337,7 +1338,7 @@ bool grid::refine_me(integer lev, integer last_ngrids) const {
 	PROFILE();
 
 	auto test = get_refine_test();
-	if (lev < 1) {
+	if (lev < min_level) {
 
 		return true;
 	}
@@ -1767,6 +1768,10 @@ real grid::compute_fluxes() {
 		}
 	}
 	return max_lambda;
+}
+
+void grid::set_min_level(integer l) {
+        min_level = l;
 }
 
 void grid::set_max_level(integer l) {
