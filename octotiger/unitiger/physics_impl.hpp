@@ -120,7 +120,7 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 			}
 			r = std::sqrt(r);
 			if (r < rho_sink_radius_) {
-				for( int s = 0; s < spc_i; s++) {
+				for (int s = 0; s < spc_i; s++) {
 					U[spc_i + s][i] = rho_sink_floor_ / n_species_;
 				}
 				U[rho_i][i] = rho_sink_floor_;
@@ -185,7 +185,6 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 	static const auto indices = geo.find_indices(0, geo.H_NX);
 	static thread_local hydro::state_type V;
 	V = U;
-	const auto dx = X[0][geo.H_DNX] - X[0][0];
 	for (int j = 0; j < geo.H_NX_X; j++) {
 		for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
@@ -231,6 +230,18 @@ const hydro::state_type& physics<NDIM>::pre_recon(const hydro::state_type &U, co
 							}
 						}
 					}
+				}
+			}
+		}
+	}
+	if (NDIM >= 2) {
+		for (int j = 0; j < geo.H_NX_X; j++) {
+			for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+				for (int l = 0; l < geo.H_NX_Z; l++) {
+					const int i = geo.to_index(j, k, l);
+					V[sx_i][i] += omega * X[1][i];
+					V[sy_i][i] -= omega * X[0][i];
 				}
 			}
 		}
@@ -324,7 +335,18 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 
 	for (int d = 0; d < geo.NDIR; d++) {
 		if (d != geo.NDIR / 2) {
-			const auto di = dir[d];
+			if (NDIM >= 2) {
+				for (int j = 0; j < geo.H_NX_XM4; j++) {
+					for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+						for (int l = 0; l < geo.H_NX_ZM4; l++) {
+							const int i = geo.to_index(j + 2, k + 2, l + 2);
+							Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+							Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+						}
+					}
+				}
+			}
 
 			for (int n = 0; n < geo.NANGMOM; n++) {
 				for (int q = 0; q < NDIM; q++) {
