@@ -1767,6 +1767,11 @@ real grid::compute_fluxes() {
 			}
 		}
 	}
+	return max_lambda;
+}
+
+real grid::compute_positivity_speed_limit() const {
+	double max_lambda = 0.0;
 	for (integer i = 0; i < INX; ++i) {
 		for (integer j = 0; j < INX; ++j) {
 			for (integer k = 0; k < INX; ++k) {
@@ -1785,6 +1790,7 @@ real grid::compute_fluxes() {
 	}
 	return max_lambda;
 }
+
 
 void grid::set_min_level(integer l) {
 	min_level = l;
