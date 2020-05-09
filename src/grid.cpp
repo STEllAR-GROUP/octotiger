@@ -1747,7 +1747,7 @@ real grid::compute_fluxes() {
 	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
 			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
-	const auto max_lambda = hydro.flux(U, q, f, X, omega);
+	auto max_lambda = hydro.flux(U, q, f, X, omega);
 
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {
@@ -1770,8 +1770,30 @@ real grid::compute_fluxes() {
 	return max_lambda;
 }
 
+real grid::compute_positivity_speed_limit() const {
+	double max_lambda = 0.0;
+	for (integer i = 0; i < INX; ++i) {
+		for (integer j = 0; j < INX; ++j) {
+			for (integer k = 0; k < INX; ++k) {
+				double drho_dt = 0.0;
+				double dtau_dt = 0.0;
+				drho_dt -= (F[0][rho_i][findex(i + 1, j, k)] - F[0][rho_i][findex(i, j, k)]) / dx;
+				drho_dt -= (F[1][rho_i][findex(i, j + 1, k)] - F[1][rho_i][findex(i, j, k)]) / dx;
+				drho_dt -= (F[2][rho_i][findex(i, j, k + 1)] - F[2][rho_i][findex(i, j, k)]) / dx;
+				dtau_dt -= (F[0][tau_i][findex(i + 1, j, k)] - F[0][tau_i][findex(i, j, k)]) / dx;
+				dtau_dt -= (F[1][tau_i][findex(i, j + 1, k)] - F[1][tau_i][findex(i, j, k)]) / dx;
+				dtau_dt -= (F[2][tau_i][findex(i, j, k + 1)] - F[2][tau_i][findex(i, j, k)]) / dx;
+				max_lambda = std::max(max_lambda, -drho_dt * dx / U[rho_i][hindex(i + H_BW, j + H_BW, k + H_BW)]);
+				max_lambda = std::max(max_lambda, -dtau_dt * dx / U[tau_i][hindex(i + H_BW, j + H_BW, k + H_BW)]);
+			}
+		}
+	}
+	return max_lambda;
+}
+
+
 void grid::set_min_level(integer l) {
-        min_level = l;
+	min_level = l;
 }
 
 void grid::set_max_level(integer l) {
