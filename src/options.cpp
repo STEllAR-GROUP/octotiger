@@ -60,6 +60,7 @@ bool options::process_options(int argc, char *argv[]) {
 
 	command_opts.add_options() //
 	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
+	("dt_max", po::value<real>(&(opts().dt_max))->default_value(0.333333), "max allowed pct change for positive fields in a timestep")           //
 	("cfl", po::value<real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
@@ -227,6 +228,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(disable_output);
 		SHOW(driving_rate);
 		SHOW(driving_time);
+		SHOW(dt_max);
 		SHOW(donor_refine);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);
