@@ -470,7 +470,7 @@ void physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, cons
 			}
 		} else if (test == SOD) {
 			sod_state_t sod_state;
-			exact_sod(&sod_state, &sod_init, rsum / std::sqrt(NDIM), time);
+			exact_sod(&sod_state, &sod_init, rsum / std::sqrt(NDIM), time, 1.0 / INX);
 			den = sod_state.rho;
 			vel = sod_state.v;
 			for (int dim = 0; dim < NDIM; dim++) {
