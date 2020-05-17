@@ -24,9 +24,9 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
- COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR,MARSHAK,AMR_TEST);
+COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST);
 
- COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
+COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
 class options {
 public:
@@ -64,6 +64,7 @@ public:
 	integer silo_offset_z;
 	integer future_wait_time;
 
+	real eblast0;
 	real rotating_star_x;
 	real dual_energy_sw2;
 	real dual_energy_sw1;
@@ -85,13 +86,13 @@ public:
 	real rho_floor;
 	real tau_floor;
 
-        real sod_rhol;
-        real sod_rhor;
-        real sod_pl;
-        real sod_pr;
-        real sod_theta;
-        real sod_phi;
-        real sod_gamma;
+	real sod_rhol;
+	real sod_rhor;
+	real sod_pl;
+	real sod_pr;
+	real sod_theta;
+	real sod_phi;
+	real sod_gamma;
 
 	size_t cuda_streams_per_locality;
 	size_t cuda_streams_per_gpu;
@@ -120,16 +121,17 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc &eblast0;
 		arc & rho_floor;
 		arc & tau_floor;
 
-                arc & sod_rhol;
-                arc & sod_rhor;
-                arc & sod_pl;
-                arc & sod_pr;
-                arc & sod_theta;
-                arc & sod_phi;
-                arc & sod_gamma;
+		arc & sod_rhol;
+		arc & sod_rhor;
+		arc & sod_pl;
+		arc & sod_pr;
+		arc & sod_theta;
+		arc & sod_phi;
+		arc & sod_gamma;
 
 		arc & cdisc_detect;
 		arc & experiment;
@@ -170,7 +172,7 @@ public:
 		arc & v1309;
 		arc & clight_retard;
 		arc & stop_time;
-                arc & min_level;
+		arc & min_level;
 		arc & max_level;
 		arc & xscale;
 		arc & cfl;

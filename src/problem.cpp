@@ -95,7 +95,7 @@ bool refine_sod(integer level, integer max_level, real x, real y, real z, std::v
 bool refine_blast(integer level, integer max_level, real x, real y, real z, std::vector<real> const& U,
 		std::array<std::vector<real>, NDIM> const& dudx) {
 	bool rc = false;
-	if( level < 2 ) {
+	if( level < 1 ) {
 		rc = true;
 	}
 	if( !rc ) {
