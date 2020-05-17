@@ -15,7 +15,7 @@ typedef struct {
 	double rho, v, p;
 } sod_state_t;
 
-void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t);
+void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t, double dx);
 
 
 constexpr sod_init_t sod_init = { 1.0, 0.125, 1.0, 0.1, 7.0 / 5.0 };
