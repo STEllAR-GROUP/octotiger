@@ -100,10 +100,7 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 	}
 	if( !rc ) {
 		for (integer i = 0; i != NDIM; ++i) {
-			if (std::abs(dudx[i][rho_i] / U[rho_i]) > 0.01) {
-				rc = rc || (level < max_level);
-			}
-			if (std::abs(dudx[i][tau_i]) > 0.01) {
+			if (std::abs(dudx[i][rho_i]) > 0.1) {
 				rc = rc || (level < max_level);
 			}
 		}
