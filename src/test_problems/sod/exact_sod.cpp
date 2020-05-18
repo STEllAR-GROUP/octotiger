@@ -17,16 +17,19 @@ static double pl, pr, rhol, rhor, cl, cr, Gamma;
 static double func(double pm);
 static double rtbis(double x1, double x2, double xacc);
 
-void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t) {
-	if (t == 0.0) {
-		out->v = 0.0;
-		if( x > 0.0) {
-			out->p = in->pr;
-			out->rho = in->rhor;
-		} else {
-			out->p = in->pl;
-			out->rho = in->rhol;
-		}
+void exact_sod(sod_state_t* out, const sod_init_t* in, double x, double t, double dx) {
+        if (t == 0.0) {
+                out->v = 0.0;
+                if (x + 0.5 * dx <= 0.0) {
+                        out->p = in->pl;
+                        out->rho = in->rhol;
+                } else if (x - 0.5 * dx >= 0.0) {
+                        out->p = in->pr;
+                        out->rho = in->rhor;
+                } else {
+                        out->p = 0.5 * (in->pr + in->pl);
+                        out->rho = 0.5 * (in->rhor + in->rhol);
+                }
 	} else {
 		Gamma = in->gamma;
 		const double mu2 = (Gamma - 1.) / (Gamma + 1.);
