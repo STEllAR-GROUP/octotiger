@@ -64,6 +64,7 @@ public:
 	integer silo_offset_z;
 	integer future_wait_time;
 
+	real dt_max;
 	real eblast0;
 	real rotating_star_x;
 	real dual_energy_sw2;
@@ -175,6 +176,7 @@ public:
 		arc & min_level;
 		arc & max_level;
 		arc & xscale;
+		arc & dt_max;
 		arc & cfl;
 		arc & omega;
 		arc & restart_filename;
