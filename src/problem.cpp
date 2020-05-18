@@ -103,6 +103,9 @@ bool refine_blast(integer level, integer max_level, real x, real y, real z, std:
 			if (std::abs(dudx[i][rho_i]) > 0.1) {
 				rc = rc || (level < max_level);
 			}
+			if (std::abs(dudx[i][tau_i]) > 0.1) {
+				rc = rc || (level < max_level);
+			}
 		}
 	}
 	return rc;
