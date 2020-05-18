@@ -36,6 +36,8 @@ option(OCTOTIGER_WITH_AVX512 "" OFF)
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
+option(OCTOTIHER_WITH_DOCU "Enable the target to build the documentation" OFF)
+
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
@@ -81,6 +83,10 @@ endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   find_package(Kokkos REQUIRED)
+endif()
+
+if(OCTOTIGER_WITH_DOCU)
+  find_package(Doxygen)
 endif()
 
 ################################################################################
@@ -515,6 +521,11 @@ if(OCTOTIGER_WITH_BLAST_TEST)
         "be built without quadmath or Boost.Multiprecision")
   endif()
 endif()
+
+if(OCTOTIGER_WITH_DOCU)
+  add_subdirectory(doc)    
+endif()
+
 
 ################################################################################
 # Tool targets
