@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
 			const auto var_name = mesh_to_varname(name, base_name);
 			double outflow;
 			const auto outflow_name = var_name + "_outflow";
-			if (base_name != "gx" && base_name != "gy" && base_name != "gz") {
+			if (base_name != "gx" && base_name != "gy" && base_name != "gz" && base_name != "locality" && base_name != "idle_rate") {
 				DBReadVar(db, outflow_name.c_str(), &outflow);
 				output->add_var_outflow(dir, outflow_name, outflow);
 			}
