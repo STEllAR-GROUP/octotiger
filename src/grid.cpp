@@ -1578,7 +1578,21 @@ analytic_t grid::compute_analytic(real t) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j)
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				const auto A = func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], t);
+				constexpr auto M = 2;
+				std::vector<real> A(opts().n_fields, 0.0);
+				for (int i0 = 0; i0 < M; i0++) {
+					const auto x = X[XDIM][iii] + ((real(i0) + 0.5) / real(M) - 0.5) * dx;
+					for (int j0 = 0; j0 < M; j0++) {
+						const auto y = X[YDIM][iii] + ((real(j0) + 0.5) / real(M) - 0.5) * dx;
+						for (int k0 = 0; k0 < M; k0++) {
+							const auto z = X[ZDIM][iii] + ((real(k0) + 0.5) / real(M) - 0.5) * dx;
+							const auto a = func(x, y, z, t);
+							for (int f0 = 0; f0 < opts().n_fields; f0++) {
+								A[f0] += a[f0] / (M * M * M);
+							}
+						}
+					}
+				}
 				for (integer field = 0; field != opts().n_fields; ++field) {
 					real dif = std::abs(A[field] - U[field][iii]);
 					a.l1[field] += dif * dv;
@@ -1790,7 +1804,6 @@ real grid::compute_positivity_speed_limit() const {
 	}
 	return max_lambda;
 }
-
 
 void grid::set_min_level(integer l) {
 	min_level = l;
