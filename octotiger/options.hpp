@@ -65,6 +65,8 @@ public:
 	integer silo_offset_z;
 	integer future_wait_time;
 
+	real dt_max;
+	real eblast0;
 	real rotating_star_x;
 	real dual_energy_sw2;
 	real dual_energy_sw1;
@@ -121,6 +123,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc &eblast0;
 		arc & rho_floor;
 		arc & tau_floor;
 		arc & sod_rhol;
@@ -173,6 +176,7 @@ public:
 		arc & min_level;
 		arc & max_level;
 		arc & xscale;
+		arc & dt_max;
 		arc & cfl;
 		arc & omega;
 		arc & restart_filename;

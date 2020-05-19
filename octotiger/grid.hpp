@@ -90,7 +90,7 @@ public:
 	}
 };
 
-HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
+//HPX_IS_BITWISE_SERIALIZABLE(analytic_t);  commenting this line because it causes failures when futures return analytic_t type from one locality to another
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 
@@ -352,6 +352,7 @@ public:
 	void store();
 	void restore();
 	real compute_fluxes();
+	real compute_positivity_speed_limit() const;
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
 	void next_u(integer rk, real t, real dt);

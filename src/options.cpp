@@ -60,19 +60,21 @@ bool options::process_options(int argc, char *argv[]) {
 
 	command_opts.add_options() //
 	("help", "produce help message")("xscale", po::value<real>(&(opts().xscale))->default_value(1.0), "grid scale")           //
+	("dt_max", po::value<real>(&(opts().dt_max))->default_value(0.333333), "max allowed pct change for positive fields in a timestep")           //
 	("cfl", po::value<real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
 	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(true), "show idle rates and locality info in SILO")                 //
+	("eblast0", po::value<real>(&(opts().eblast0))->default_value(1.0), "energy for blast wave")     //
 	("rho_floor", po::value<real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
 	("tau_floor", po::value<real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
-        ("sod_rhol", po::value<real>(&(opts().sod_rhol))->default_value(1.0), "density in the left part of the grid")     //
-        ("sod_rhor", po::value<real>(&(opts().sod_rhor))->default_value(0.125), "density in the right part of the grid")     //
-        ("sod_pl", po::value<real>(&(opts().sod_pl))->default_value(1.0), "pressure in the left part of the grid")     //
-        ("sod_pr", po::value<real>(&(opts().sod_pr))->default_value(0.1), "pressure in the right part of the grid")     //
-        ("sod_theta", po::value<real>(&(opts().sod_theta))->default_value(0.0), "angle made by diaphragm normal w/x-axis (deg)")     //
-        ("sod_phi", po::value<real>(&(opts().sod_phi))->default_value(90.0), "angle made by diaphragm normal w/z-axis (deg)")     //
-        ("sod_gamma", po::value<real>(&(opts().sod_gamma))->default_value(1.4), "ratio of specific heats for gas")     //
+	("sod_rhol", po::value<real>(&(opts().sod_rhol))->default_value(1.0), "density in the left part of the grid")     //
+	("sod_rhor", po::value<real>(&(opts().sod_rhor))->default_value(0.125), "density in the right part of the grid")     //
+	("sod_pl", po::value<real>(&(opts().sod_pl))->default_value(1.0), "pressure in the left part of the grid")     //
+	("sod_pr", po::value<real>(&(opts().sod_pr))->default_value(0.1), "pressure in the right part of the grid")     //
+	("sod_theta", po::value<real>(&(opts().sod_theta))->default_value(0.0), "angle made by diaphragm normal w/x-axis (deg)")     //
+	("sod_phi", po::value<real>(&(opts().sod_phi))->default_value(90.0), "angle made by diaphragm normal w/z-axis (deg)")     //
+	("sod_gamma", po::value<real>(&(opts().sod_gamma))->default_value(1.4), "ratio of specific heats for gas")     //
 	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
@@ -117,7 +119,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("restart_filename", po::value<std::string>(&(opts().restart_filename))->default_value(""), "restart filename")         //
 	("stop_time", po::value<real>(&(opts().stop_time))->default_value(std::numeric_limits<real>::max()), "time to end simulation") //
 	("stop_step", po::value<integer>(&(opts().stop_step))->default_value(std::numeric_limits<integer>::max() - 1), "number of timesteps to run")          //
-        ("min_level", po::value<integer>(&(opts().min_level))->default_value(1), "minimum number of refinement levels")         //
+	("min_level", po::value<integer>(&(opts().min_level))->default_value(1), "minimum number of refinement levels")         //
 	("max_level", po::value<integer>(&(opts().max_level))->default_value(1), "maximum number of refinement levels")         //
 	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts().m2m_kernel_type))->default_value(SOA_CPU), "boundary multipole-multipole kernel type") //
 	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(SOA_CPU), "boundary particle-particle kernel type")   //
@@ -157,7 +159,7 @@ bool options::process_options(int argc, char *argv[]) {
 		}
 	}
 	po::notify(vm);
-	if( opts().silo_num_groups == -1 ) {
+	if (opts().silo_num_groups == -1) {
 		opts().silo_num_groups = hpx::find_all_localities().size();
 
 	}
@@ -177,8 +179,7 @@ bool options::process_options(int argc, char *argv[]) {
 		load_options_from_silo(opts().restart_filename);
 	}
 	if (opts().theta < octotiger::fmm::THETA_FLOOR) {
-		std::cerr << "theta " << theta << " is too small since Octo-Tiger was compiled for a minimum of " 
-				  << octotiger::fmm::THETA_FLOOR << std::endl;
+		std::cerr << "theta " << theta << " is too small since Octo-Tiger was compiled for a minimum of " << octotiger::fmm::THETA_FLOOR << std::endl;
 		std::cerr << "Either increase theta or recompile with a new theta minimum using the cmake parameter OCTOTIGER_THETA_MINIMUM";
 		abort();
 	}
@@ -228,9 +229,11 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(disable_output);
 		SHOW(driving_rate);
 		SHOW(driving_time);
+		SHOW(dt_max);
 		SHOW(donor_refine);
 		SHOW(dual_energy_sw1);
 		SHOW(dual_energy_sw2);
+		SHOW(eblast0);
 		SHOW(eos);
 		SHOW(entropy_driving_rate);
 		SHOW(entropy_driving_time);
@@ -239,7 +242,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(hydro);
 		SHOW(input_file);
 		SHOW(m2m_kernel_type);
-                SHOW(min_level);
+		SHOW(min_level);
 		SHOW(max_level);
 		SHOW(n_species);
 		SHOW(ngrids);
@@ -264,8 +267,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(v1309);
 		SHOW(idle_rates);
 		SHOW(xscale);
-
-
 
 	}
 	while (atomic_number.size() < opts().n_species) {
