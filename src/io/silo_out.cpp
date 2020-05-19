@@ -241,6 +241,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	}, cycle).get();
 	if (this_id < ge - 1) {
 		auto f = hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost), localities[this_id + 1], fname, cycle, gn, gb, ge);
+
 		GET(f);
 	}
 	printf("Closing output stage 3 on locality %i\n", hpx::get_locality_id());
