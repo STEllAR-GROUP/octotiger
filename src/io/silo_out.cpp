@@ -88,6 +88,7 @@ static int steps_elapsed;
 static const int HOST_NAME_LEN = 100;
 
 void output_stage1(std::string fname, int cycle) {
+	printf("Opening output stage 1 on locality %i\n", hpx::get_locality_id());
 	grid::set_idle_rate();
 	std::vector<node_location::node_id> ids;
 	futs_.clear();
@@ -110,9 +111,11 @@ void output_stage1(std::string fname, int cycle) {
 			}, i->first, i->second));
 		}
 	}
+	printf("Closing output stage 1 on locality %i\n", hpx::get_locality_id());
 }
 
 node_list_t output_stage2(std::string fname, int cycle) {
+	printf("Opening output stage 2 on locality %i\n", hpx::get_locality_id());
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".") + std::to_string(INX) + std::string(".silo");
@@ -149,10 +152,12 @@ node_list_t output_stage2(std::string fname, int cycle) {
 	nl.silo_leaves = std::move(ids);
 	nl.all = std::move(all);
 	nl.positions = std::move(positions);
+	printf("Closing output stage 2 on locality %i\n", hpx::get_locality_id());
 	return std::move(nl);
 }
 
 void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
+	printf("Opening output stage 3 on locality %i\n", hpx::get_locality_id());
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
@@ -238,9 +243,11 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 		auto f = hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost), localities[this_id + 1], fname, cycle, gn, gb, ge);
 		GET(f);
 	}
+	printf("Closing output stage 3 on locality %i\n", hpx::get_locality_id());
 }
 
 void output_stage4(std::string fname, int cycle) {
+	printf("Opening output stage 4 on locality %i\n", hpx::get_locality_id());
 	const int nfields = grid::get_field_names().size();
 	std::string this_fname = fname + std::string(".silo");
 	double dtime = silo_output_rotation_time();
@@ -489,6 +496,7 @@ void output_stage4(std::string fname, int cycle) {
 			}
 		}
 	}, cycle).get();
+	printf("Closing output stage 4 on locality %i\n", hpx::get_locality_id());
 }
 
 void output_all(node_server *root_ptr, std::string fname, int cycle, bool block) {
