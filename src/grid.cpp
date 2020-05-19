@@ -1581,11 +1581,11 @@ analytic_t grid::compute_analytic(real t) {
 				constexpr auto M = 2;
 				std::vector<real> A(opts().n_fields, 0.0);
 				for (int i0 = 0; i0 < M; i0++) {
-					const auto x = X[XDIM][iii] + ((real(i0) + 0.5) / real(M) - 0.5) * dx;
+					const auto x = X[XDIM][iii] + (real(i0) / sqrt(3) - 0.5 / sqrt(3)) * dx;
 					for (int j0 = 0; j0 < M; j0++) {
-						const auto y = X[YDIM][iii] + ((real(j0) + 0.5) / real(M) - 0.5) * dx;
+						const auto y = X[YDIM][iii] + (real(j0) / sqrt(3) - 0.5 / sqrt(3)) * dx;
 						for (int k0 = 0; k0 < M; k0++) {
-							const auto z = X[ZDIM][iii] + ((real(k0) + 0.5) / real(M) - 0.5) * dx;
+							const auto z = X[ZDIM][iii] + (real(k0) / sqrt(3) - 0.5 / sqrt(3)) * dx;
 							const auto a = func(x, y, z, t);
 							for (int f0 = 0; f0 < opts().n_fields; f0++) {
 								A[f0] += a[f0] / (M * M * M);
