@@ -24,12 +24,13 @@
  COMMAND_LINE_ENUM(eos_type,IDEAL,WD);
  */
 
-COMMAND_LINE_ENUM(problem_type, DWD, SOD, BLAST, NONE, SOLID_SPHERE, STAR, MOVING_STAR, RADIATION_TEST, ROTATING_STAR, MARSHAK, AMR_TEST);
+COMMAND_LINE_ENUM(problem_type,DWD,SOD,BLAST,NONE,SOLID_SPHERE,STAR,MOVING_STAR,RADIATION_TEST,ROTATING_STAR,MARSHAK,AMR_TEST,ADVECTION);
 
 COMMAND_LINE_ENUM(eos_type, IDEAL, WD);
 
 class options {
 public:
+	bool reflect_bc;
 	int experiment;
 	bool cdisc_detect;
 	bool unigrid;
@@ -125,7 +126,6 @@ public:
 		arc &eblast0;
 		arc & rho_floor;
 		arc & tau_floor;
-
 		arc & sod_rhol;
 		arc & sod_rhor;
 		arc & sod_pl;
@@ -133,7 +133,7 @@ public:
 		arc & sod_theta;
 		arc & sod_phi;
 		arc & sod_gamma;
-
+		arc & reflect_bc;
 		arc & cdisc_detect;
 		arc & experiment;
 		arc & unigrid;

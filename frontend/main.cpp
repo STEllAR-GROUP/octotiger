@@ -204,6 +204,11 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 //		grid::set_analytic_func(moving_star_analytic);
 		set_problem(moving_star);
 		set_refine_test(refine_test_moving_star);
+	} else if (opts().problem == ADVECTION) {
+		grid::set_fgamma(5.0 / 3.0);
+		set_analytic(advection_test_analytic);
+		set_problem(advection_test_init);
+		set_refine_test(refine_test_moving_star);
 	} else if (opts().problem == AMR_TEST) {
 		grid::set_fgamma(5.0 / 3.0);
 //		grid::set_analytic_func(moving_star_analytic);

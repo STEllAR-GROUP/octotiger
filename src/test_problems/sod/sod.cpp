@@ -3,7 +3,6 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-
 #include "octotiger/problem.hpp"
 #include "octotiger/test_problems/exact_sod.hpp"
 
@@ -13,6 +12,28 @@
 #include "octotiger/real.hpp"
 
 #include <cmath>
+
+OCTOTIGER_EXPORT std::vector<real> advection_test_init(real x, real y, real z, real dx) {
+	return advection_test_analytic(x, y, z, 0.0);
+}
+
+OCTOTIGER_EXPORT std::vector<real> advection_test_analytic(real x, real y, real z, real t) {
+	std::vector<real> U(opts().n_fields, 0.0);
+	const real fgamma = grid::get_fgamma();
+	const auto r0 = 1.0/3.0;
+	constexpr auto x0 = 0.5;
+	constexpr auto y0 = 0.0;
+	constexpr auto z0 = 0.0;
+	const auto dx = x - x0;
+	const auto dy = y - y0;
+	const auto dz = z - z0;
+	const auto r = std::sqrt(dx * dx + dy * dy + dz * dz);
+	U[rho_i] = r < r0 ? std::max(sin(M_PI * (r / r0)) / (M_PI * (r / r0)),1e-6) : 1.0e-6;
+	U[egas_i] = 1.0e-6;
+	U[tau_i] = std::pow(U[egas_i], 1.0 / fgamma);
+	U[spc_i] = U[rho_i];
+	return U;
+}
 
 std::vector<real> sod_shock_tube_init(real x, real y, real z, real dx) {
 	return sod_shock_tube_analytic(x,y,z,-dx);
