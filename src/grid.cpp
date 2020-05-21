@@ -1578,27 +1578,40 @@ analytic_t grid::compute_analytic(real t) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j)
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
-				constexpr auto M = 2;
-				std::vector<real> A(opts().n_fields, 0.0);
-				for (int i0 = 0; i0 < M; i0++) {
-					const auto x = X[XDIM][iii] + (real(i0) / sqrt(3) - 0.5 / sqrt(3)) * dx;
-					for (int j0 = 0; j0 < M; j0++) {
-						const auto y = X[YDIM][iii] + (real(j0) / sqrt(3) - 0.5 / sqrt(3)) * dx;
-						for (int k0 = 0; k0 < M; k0++) {
-							const auto z = X[ZDIM][iii] + (real(k0) / sqrt(3) - 0.5 / sqrt(3)) * dx;
-							const auto a = func(x, y, z, t);
-							for (int f0 = 0; f0 < opts().n_fields; f0++) {
-								A[f0] += a[f0] / (M * M * M);
+				auto A = func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], t);
+				const auto nrho = U[rho_i][iii];
+				for (int M = 2; ; M++) {
+					auto last_rho = A[rho_i];
+					if (last_rho == nrho) {
+						break;
+					}
+					for (int f = 0; f < opts().n_fields; f++) {
+						A[f] = 0.0;
+					}
+					for (int i0 = 0; i0 < M; i0++) {
+						const auto x = X[XDIM][iii] + ((real(i0) + 0.5) / real(M) - 0.5) * dx;
+						for (int j0 = 0; j0 < M; j0++) {
+							const auto y = X[YDIM][iii] + ((real(j0) + 0.5) / real(M) - 0.5) * dx;
+							for (int k0 = 0; k0 < M; k0++) {
+								const auto z = X[ZDIM][iii] + ((real(k0) + 0.5) / real(M) - 0.5) * dx;
+								const auto a = func(x, y, z, t);
+								for (int f0 = 0; f0 < opts().n_fields; f0++) {
+									A[f0] += a[f0] / (M * M * M);
+								}
 							}
 						}
+					}
+					const auto this_rho = A[rho_i];
+					const auto err = std::abs(std::abs((nrho - this_rho) / (nrho - last_rho)) - 1.0);
+					if (err < 0.1) {
+						break;
 					}
 				}
 				for (integer field = 0; field != opts().n_fields; ++field) {
 					real dif = std::abs(A[field] - U[field][iii]);
 					a.l1[field] += dif * dv;
 					a.l2[field] += dif * dif * dv;
-					a.l1a[field] += std::abs(A[field]) * dv;
-					a.l2a[field] += A[field] * A[field] * dv;
+					a.linf[field] = std::max(dif, a.linf[field]);
 					U[field][iii] = A[field];
 				}
 				if (opts().radiation) {
@@ -1607,8 +1620,6 @@ analytic_t grid::compute_analytic(real t) {
 						real dif = std::abs(A[field] - tmp);
 						a.l1[field] += dif * dv;
 						a.l2[field] += dif * dif * dv;
-						a.l1a[field] += std::abs(A[field]) * dv;
-						a.l2a[field] += A[field] * A[field] * dv;
 						rad_grid_ptr->set_field(A[field], field - opts().n_fields, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
 					}
 				}

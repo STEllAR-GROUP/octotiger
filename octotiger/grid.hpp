@@ -39,7 +39,6 @@ class struct_eos;
 class analytic_t {
 public:
 	std::vector<real> l1, l2, linf;
-	std::vector<real> l1a, l2a, linfa;
 	integer nfields_;
 	template<class Arc>
 	void serialize(Arc& a, unsigned) {
@@ -47,15 +46,9 @@ public:
 		l1.resize(nfields_);
 		l2.resize(nfields_);
 		linf.resize(nfields_);
-		l1a.resize(nfields_);
-		l2a.resize(nfields_);
-		linfa.resize(nfields_);
 		a & l1;
 		a & l2;
 		a & linf;
-		a & l1a;
-		a & l2a;
-		a & linfa;
 	}
 	analytic_t() {
 		nfields_ = 0;
@@ -65,26 +58,17 @@ public:
 		l1.resize(nfields_);
 		l2.resize(nfields_);
 		linf.resize(nfields_);
-		l1a.resize(nfields_);
-		l2a.resize(nfields_);
-		linfa.resize(nfields_);
 		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] = 0.0;
 			l2[field] = 0.0;
-			l1a[field] = 0.0;
-			l2a[field] = 0.0;
 			linf[field] = 0.0;
-			linfa[field] = 0.0;
 		}
 	}
 	analytic_t& operator+=(const analytic_t& other) {
 		for (integer field = 0; field != nfields_; ++field) {
 			l1[field] += other.l1[field];
 			l2[field] += other.l2[field];
-			l1a[field] += other.l1a[field];
-			l2a[field] += other.l2a[field];
 			linf[field] = std::max(linf[field], other.linf[field]);
-			linfa[field] = std::max(linfa[field], other.linfa[field]);
 		}
 		return *this;
 	}

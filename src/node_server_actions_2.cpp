@@ -171,6 +171,32 @@ analytic_t node_server::compare_analytic() {
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			printf("%16s %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
 		}
+
+		const auto ml = opts().max_level;
+		const auto dxmin = 2.0 * opts().xscale / INX / double(1 << ml);
+		FILE *fp = fopen("L1.dat", "at");
+		fprintf(fp, "%e %i ", dxmin, int(ml));
+		for (integer field = 0; field != opts().n_fields; ++field) {
+			fprintf(fp, "%e ", a.l1[field] / vol);
+		}
+		fprintf(fp, "\n");
+		fclose(fp);
+
+		fp = fopen("L2.dat", "at");
+		fprintf(fp, "%e %i ", dxmin, int(ml));
+		for (integer field = 0; field != opts().n_fields; ++field) {
+			fprintf(fp, "%e ", std::sqrt(a.l2[field] / vol));
+		}
+		fprintf(fp, "\n");
+		fclose(fp);
+
+		fp = fopen("Linf.dat", "at");
+		fprintf(fp, "%e %i ", dxmin, int(ml));
+		for (integer field = 0; field != opts().n_fields; ++field) {
+			fprintf(fp, "%e ", a.linf[field]);
+		}
+		fprintf(fp, "\n");
+		fclose(fp);
 	}
 	return a;
 }

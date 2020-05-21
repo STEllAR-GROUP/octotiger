@@ -32,7 +32,9 @@ using sed_real = boost::multiprecision::cpp_bin_float_quad;
 constexpr real blast_wave_t0 = 7e-4;
 
 std::vector<real> blast_wave_analytic(real x, real y, real z, real t) {
+	static const auto dxmin = 2.0 * opts().xscale / INX / double(1 << opts().max_level);
 	real r = std::sqrt(x * x + y * y + z * z);
+	r = std::max(r, dxmin * 1.0e-3);
 	t += blast_wave_t0;
 	real rmax = 3.0 * opts().xscale;
 	real d, v, p;
