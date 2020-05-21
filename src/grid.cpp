@@ -1580,7 +1580,7 @@ analytic_t grid::compute_analytic(real t) {
 				const integer iii = hindex(i, j, k);
 				auto A = func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii], t);
 				const auto nrho = U[rho_i][iii];
-				for (int M = 2; ; M++) {
+				for (int M = 2;; M = std::max(M + 1, int(1.26 * M))) {
 					auto last_rho = A[rho_i];
 					if (last_rho == nrho) {
 						break;
