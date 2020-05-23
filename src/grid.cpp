@@ -2245,17 +2245,41 @@ void grid::next_u(integer rk, real t, real dt) {
 				} else if (U[tau_i][iii] < ZERO) {
 					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
 							(double) X[YDIM][iii], (double) X[ZDIM][iii]);
+					printf("Use tau_floor option\n");
 					abort();
 				}
 				if (opts().rho_floor > 0.0) {
-					const auto dif = std::max(U[rho_i][iii], opts().rho_floor) - U[rho_i][iii];
-					U[rho_i][iii] += dif;
+					double x;
+					x = 0.0;
 					for (int s = 0; s < opts().n_species; s++) {
-						U[spc_i + s][iii] += dif / opts().n_species;
+						U[spc_i + s][iii] = std::max(U[spc_i + s][iii], 0.0);
+						x += U[spc_i + s][iii];
 					}
+					if (x != 0.0) {
+						for (int s = 0; s < opts().n_species; s++) {
+							U[spc_i + s][iii] /= x;
+						}
+					} else {
+						U[spc_i + opts().n_species - 1][iii] = 1.0;
+					}
+					if (U[rho_i][iii] < opts().rho_floor) {
+						x = 1.0 - std::max(U[rho_i][iii], 0.0) / opts().rho_floor;
+						U[rho_i][iii] = rho_floor;
+						U[tau_i][iii] += x * (opts().tau_floor - U[tau_i][iii]);
+						U[egas_i][iii] += x * (std::pow(opts().tau_floor, 1.0 / fgamma) - U[egas_i][iii]);
+						U[sx_i][iii] -= x * U[sx_i][iii];
+						U[sy_i][iii] -= x * U[sy_i][iii];
+						U[sz_i][iii] -= x * U[sz_i][iii];
+
+					}
+					for (int s = 0; s < opts().n_species; s++) {
+						U[spc_i + s][iii] *= U[rho_i][iii];
+					}
+
 				} else if (U[rho_i][iii] <= ZERO) {
 					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k), real(X[XDIM][iii]), real(X[YDIM][iii]),
 							real(X[ZDIM][iii]));
+					printf("Use rho_floor option\n");
 					abort();
 				}
 			}
