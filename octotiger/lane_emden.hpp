@@ -8,7 +8,7 @@
 
 #include "octotiger/real.hpp"
 
-real lane_emden(real r0, real dr, real* m_enc = nullptr);
+real lane_emden(real r0, real dr, real n, real* m_enc = nullptr);
 real wd_radius(double mass, double* rho0);
 real binary_separation( real accretor_mass, real donor_mass, real donor_radius, real fill_factor = 1.0);
 

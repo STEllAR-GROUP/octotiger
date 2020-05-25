@@ -90,7 +90,7 @@ public:
 	}
 };
 
-HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
+//HPX_IS_BITWISE_SERIALIZABLE(analytic_t);
 
 using line_of_centers_t = std::vector<std::pair<real,std::vector<real>>>;
 

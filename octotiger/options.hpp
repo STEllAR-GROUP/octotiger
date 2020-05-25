@@ -93,6 +93,16 @@ public:
         real sod_phi;
         real sod_gamma;
 
+	real star_xcenter;
+	real star_ycenter;
+	real star_zcenter;
+	real star_rmax;
+	real star_alpha;
+	real star_rho_out;
+	real star_dr;
+	real star_n;
+	real star_rho_center;
+
 	size_t cuda_streams_per_locality;
 	size_t cuda_streams_per_gpu;
 	size_t cuda_scheduling_threads;
@@ -130,6 +140,16 @@ public:
                 arc & sod_theta;
                 arc & sod_phi;
                 arc & sod_gamma;
+
+                arc & star_xcenter;
+                arc & star_ycenter;
+                arc & star_zcenter;
+                arc & star_rmax;
+                arc & star_alpha;
+                arc & star_dr;
+                arc & star_n;
+                arc & star_rho_center;
+                arc & star_rho_out;		
 
 		arc & cdisc_detect;
 		arc & experiment;
