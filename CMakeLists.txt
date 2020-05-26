@@ -319,6 +319,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/unitiger/hydro.cpp
     frontend/main.cpp
     src/unitiger/main.cpp
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
   )
   set(vc_tainted_header_files
     octotiger/grid.hpp
