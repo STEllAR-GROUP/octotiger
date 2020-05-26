@@ -261,6 +261,9 @@ if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND hydro_dependencies Kokkos::kokkos)
 endif()
 if(OCTOTIGER_WITH_BLAST_TEST)
+  list(APPEND hydro_source_files 
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp)
   list(APPEND hydro_dependencies quadmath)
 endif()
 
