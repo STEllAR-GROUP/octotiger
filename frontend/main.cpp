@@ -182,13 +182,16 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 		set_problem(sod_shock_tube_init);
 		set_refine_test(refine_sod);
 		set_analytic(sod_shock_tube_analytic);
-#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 	} else if (opts().problem == BLAST) {
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 		grid::set_fgamma(7.0 / 5.0);
 //		opts().gravity = false;
 		set_problem(blast_wave);
 		set_refine_test(refine_blast);
 		set_analytic(blast_wave_analytic);
+# else
+                std::cout << "Error! Octotiger has been compiled without BLAST test support!" << std::endl;
+                exit(EXIT_FAILURE);
 #endif
 	} else if (opts().problem == STAR) {
 		grid::set_fgamma(5.0 / 3.0);
