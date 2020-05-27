@@ -331,15 +331,9 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 	return u;
 }
 
-const real x0 = 0.0;
-const real y0_ = 0.0;
-const real z0 = 0.0;
-const real rmax = 3.7;
-const real dr = rmax / 128.0;
-const real alpha = 1.0;
-
 std::vector<real> star(real x, real y, real z, real) {
 	const real fgamma = grid::get_fgamma();
+	const real rho_out = opts().star_rho_out;
 	std::vector<real> u(opts().n_fields, real(0));
 	if (opts().eos == WD) {
 		const real r = std::sqrt(x * x + y * y + z * z);
@@ -347,7 +341,7 @@ std::vector<real> star(real x, real y, real z, real) {
 		physcon().A = eos.A;
 		physcon().B = eos.B();
 		normalize_constants();
-		const real rho = std::max(eos.density_at(r, 0.01), 1.0e-10);
+		const real rho = std::max(eos.density_at(r, 0.01), rho_out);
 		const real ei = eos.energy(rho);
 		u[rho_i] = rho;
 		u[egas_i] = ei;
@@ -356,29 +350,38 @@ std::vector<real> star(real x, real y, real z, real) {
 		return u;
 	} else {
 
-		x -= 0.0;
-		y -= 0.0;
-		z -= 0.0;
-//	real menc;
+                const real xshift = opts().star_xcenter;
+                const real yshift = opts().star_ycenter;
+                const real zshift = opts().star_zcenter;
+                const real rho_c = opts().star_rho_center;
+                const real alpha = opts().star_alpha;
+                const real rmax = opts().star_rmax;
+                const real dr = opts().star_dr;
+                const real n = opts().star_n;
+
+                x -= xshift;
+                y -= yshift;
+                z -= zshift;
+
 		const real r = std::sqrt(x * x + y * y + z * z);
 		real theta;
-		const real n = real(1) / (fgamma - real(1));
-		const real rho_min = 1.0e-10;
-		const real theta_min = std::pow(rho_min, real(1) / n);
-		const auto c0 = real(4) * real(M_PI) / (n + real(1));
+		//const real n = real(1) / (fgamma - real(1));
+		//const real rho_min = 1.0e-10;
+                const real theta_min = std::pow(rho_out / rho_c, real(1) / n);
+                const auto c0 = real(4) * real(M_PI) * std::pow(alpha, 2) * std::pow(rho_c, (n - real(1))/n) / (n + real(1));
 		if (r <= rmax) {
-			theta = lane_emden(r, dr);
+			theta = lane_emden(r/alpha, dr/alpha, n);
 			theta = std::max(theta, theta_min);
 		} else {
 			theta = theta_min;
 		}
-		u[rho_i] = std::max(std::pow(theta, n), 1.0e-10);
+		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
 		u[spc_i] = u[rho_i];
-		u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
+		u[egas_i] = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0 * n;
 		if (theta <= theta_min) {
 			u[egas_i] *= real(100);
 		}
-		u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+		u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
 
 		/*		const real r = std::sqrt(x * x + y * y + z * z);
 		 static struct_eos eos(0.0040083, 0.33593, 3.0, 1.5, 0.1808, 2.0);
@@ -433,6 +436,8 @@ std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
 
 std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 
+        const real rmax = 1.0 / 3.0;
+        const real dr = rmax / 128.0;
 	const integer don_i = spc_ac_i;
 	const integer acc_i = spc_dc_i;
 	const real fgamma = grid::get_fgamma();
@@ -458,7 +463,7 @@ std::vector<real> equal_mass_binary(real x, real y, real z, real) {
 
 	if (r1 <= rmax || r2 <= rmax) {
 		real r = std::min(r1, r2);
-		theta = lane_emden(r, dr);
+		theta = lane_emden(r, dr, n);
 		theta = std::max(theta, theta_min);
 	} else {
 		theta = theta_min;
