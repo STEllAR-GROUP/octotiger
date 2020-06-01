@@ -139,8 +139,6 @@ set(source_files
     src/radiation/rad_grid.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
@@ -255,13 +253,18 @@ set(hydro_header_files
 
 set(hydro_source_files
    src/unitiger/hydro.cpp
-   src/test_problems/blast/sedovf_c.cpp
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
-list(APPEND hydro_dependencies Silo::silo Vc::Vc Boost::boost quadmath octolib)
+list(APPEND hydro_dependencies Silo::silo Vc::Vc Boost::boost octolib)
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND hydro_dependencies Kokkos::kokkos)
+endif()
+if(OCTOTIGER_WITH_BLAST_TEST)
+  list(APPEND hydro_source_files 
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp)
+  list(APPEND hydro_dependencies quadmath)
 endif()
 
 # Hydro library
@@ -313,14 +316,14 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/multipole_interactions/multipole_interaction_interface.cpp
     src/radiation/rad_grid.cpp
     src/test_problems/amr/amr.cpp
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/unitiger/hydro.cpp
     frontend/main.cpp
     src/unitiger/main.cpp
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
   )
   set(vc_tainted_header_files
     octotiger/grid.hpp
@@ -488,6 +491,7 @@ if(OCTOTIGER_WITH_BLAST_TEST)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
     src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
     )
   target_sources(octolib PRIVATE ${blast_sources})
   source_group(TREE ${PROJECT_SOURCE_DIR}
