@@ -85,9 +85,6 @@ if(OCTOTIGER_WITH_KOKKOS)
   find_package(Kokkos REQUIRED)
 endif()
 
-if(OCTOTIGER_WITH_DOCU)
-  find_package(Doxygen)
-endif()
 
 ################################################################################
 # Set up Octo-Tiger target
@@ -536,7 +533,7 @@ add_subdirectory(tools)
 # Tests
 ################################################################################
 if(OCTOTIGER_WITH_TESTS)
-  enable_testing()
+    enable_testing()
 
   add_subdirectory(test_problems)
 endif()
