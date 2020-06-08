@@ -1,4 +1,4 @@
-# Octo-Tiger
+# Octo-Tiger [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade)
 ```
           ___       _      _____ _                 
          / _ \  ___| |_ __|_   _(_) __ _  ___ _ __ 
@@ -38,7 +38,7 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
 Current status of the [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) continuous
 integration service for the master branch:
-[![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=svg)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)
+[![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)
 
 > Note for maintainers: The base Docker image used by CircleCI needs to be built
 > and updated manually. Neither HPX or any of the other dependencies update
