@@ -81,6 +81,7 @@ endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   find_package(Kokkos REQUIRED)
+  find_package(Kokkos REQUIRED)
 endif()
 
 ################################################################################
@@ -218,7 +219,7 @@ set(header_files
     octotiger/test_problems/rotating_star.hpp
 )
 
-list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost)
+list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost buffer_manager)
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND octo_dependencies Kokkos::kokkos)
 endif()

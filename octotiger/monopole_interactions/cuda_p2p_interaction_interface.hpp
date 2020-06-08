@@ -38,9 +38,9 @@ namespace fmm {
         protected:
             real theta;
             /// Host-side pinned memory buffer for potential expansions results
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                std::vector<real, cuda_pinned_allocator<real>>>
-                potential_expansions_SoA;
+            // struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+            //     std::vector<real, cuda_pinned_allocator<real>>>
+            //     potential_expansions_SoA;
         };
 
     }    // namespace monopole_interactions

@@ -14,6 +14,10 @@
 #include <array>
 #include <vector>
 
+#include <cuda_runtime.h>
+#include <buffer_manager.hpp>
+#include <cuda_buffer_util.hpp>
+
 namespace octotiger { namespace fmm { namespace multipole_interactions {
 
     cuda_multipole_interaction_interface::cuda_multipole_interaction_interface()
@@ -45,12 +49,14 @@ namespace octotiger { namespace fmm { namespace multipole_interactions {
                 cuda_launch_counter()++;
             else
                 cuda_launch_counter_non_rho()++;
+
             // Move data into SoA arrays
             auto staging_area =
                 kernel_scheduler::scheduler().get_staging_area(slot);
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                 staging_area.local_monopoles, staging_area.local_expansions_SoA,
                 staging_area.center_of_masses_SoA);
+
 
             // Queue moving of input data to device
             util::cuda_helper& gpu_interface =
@@ -66,6 +72,13 @@ namespace octotiger { namespace fmm { namespace multipole_interactions {
             gpu_interface.copy_async(env.device_center_of_masses,
                 staging_area.center_of_masses_SoA.get_pod(),
                 center_of_masses_size, cudaMemcpyHostToDevice);
+
+            struct_of_array_data<space_vector, double, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<double, recycler::recycle_allocator_cuda_host<double>>>
+                angular_corrections_SoA;
+            struct_of_array_data<expansion, double, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<double, recycler::recycle_allocator_cuda_host<double>>>
+                potential_expansions_SoA;
 
             // Launch kernel and queue copying of results
             dim3 const grid_spec(INX, 1, 1);

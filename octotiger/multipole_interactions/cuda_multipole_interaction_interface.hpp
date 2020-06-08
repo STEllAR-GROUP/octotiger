@@ -41,13 +41,13 @@ namespace fmm {
             real theta;
 
             /// Host-side pinned memory buffer for angular corrections results
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, cuda_pinned_allocator<real>>>
-                angular_corrections_SoA;
-            /// Host-side pinned memory buffer for potential expansions results
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                std::vector<real, cuda_pinned_allocator<real>>>
-                potential_expansions_SoA;
+            // struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+            //     std::vector<real, cuda_pinned_allocator<real>>>
+            //     angular_corrections_SoA;
+            // /// Host-side pinned memory buffer for potential expansions results
+            // struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+            //     std::vector<real, cuda_pinned_allocator<real>>>
+            //     potential_expansions_SoA;
         };
 
     }    // namespace multipole_interactions

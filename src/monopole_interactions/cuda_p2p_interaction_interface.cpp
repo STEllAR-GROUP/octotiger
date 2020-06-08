@@ -12,6 +12,10 @@
 #include <array>
 #include <vector>
 
+#include <cuda_runtime.h>
+#include <buffer_manager.hpp>
+#include <cuda_buffer_util.hpp>
+
 namespace octotiger { namespace fmm { namespace monopole_interactions {
     cuda_p2p_interaction_interface::cuda_p2p_interaction_interface()
       : p2p_interaction_interface()
@@ -35,6 +39,12 @@ namespace octotiger { namespace fmm { namespace monopole_interactions {
         }
         else
         {
+
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<double, recycler::recycle_allocator_cuda_host<double>>>
+                potential_expansions_SoA;
+            // std::vector<double, recycler::recycle_allocator_cuda_host<double>> test;
+
             // run on CUDA device
             cuda_launch_counter()++;
             // Move data into staging arrays
