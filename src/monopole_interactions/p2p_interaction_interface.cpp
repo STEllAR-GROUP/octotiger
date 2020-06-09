@@ -12,6 +12,9 @@
 #include <array>
 #include <vector>
 
+#include <buffer_manager.hpp>
+#include <aligned_buffer_util.hpp>
+
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -55,8 +58,8 @@ namespace fmm {
                         .second;
             return stencil_four_constants_;
         }
-        thread_local std::vector<real> p2p_interaction_interface::local_monopoles_staging_area(
-            ENTRIES);
+        // thread_local std::vector<real> p2p_interaction_interface::local_monopoles_staging_area(
+        //     ENTRIES);
 
         p2p_interaction_interface::p2p_interaction_interface()
           : neighbor_empty_monopoles(27)
@@ -69,14 +72,18 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             cpu_launch_counter()++;
+            std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> local_monopoles_staging_area(ENTRIES);
+
             update_input(monopoles, neighbors, type, local_monopoles_staging_area);
-            compute_interactions(type, is_direction_empty, neighbors, dx);
+            compute_interactions(type, is_direction_empty, neighbors, dx, local_monopoles_staging_area);
         }
 
         void p2p_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx) {
+            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &local_monopoles_staging_area) {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
+                // TODO(daissgr) This buffer seems like a great recycle target!
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
                     potential_expansions_SoA;
                 kernel_monopoles.apply_stencil(

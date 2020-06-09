@@ -45,7 +45,8 @@ namespace fmm {
                 monopole_container& local_monopoles);
             void compute_interactions(gsolve_type type,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx);
+                std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
+                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &local_monopoles_staging_area);
 
             std::shared_ptr<grid> grid_ptr;
             interaction_kernel_type p2p_type;
@@ -58,13 +59,14 @@ namespace fmm {
             static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
             static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& four();
             static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& stencil_four_constants();
-            static thread_local std::vector<real> local_monopoles_staging_area;
-            static thread_local bool is_initialized;
+            // static thread_local std::vector<real> local_monopoles_staging_area;
+            // static thread_local bool is_initialized;
             std::vector<bool> neighbor_empty_monopoles;
 
             p2p_cpu_kernel kernel_monopoles;
         };
 
+        // TODO(daissgr) Shouldn't mons be a const reference?
         template <typename monopole_container>
         void p2p_interaction_interface::update_input(std::vector<real>& mons,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
