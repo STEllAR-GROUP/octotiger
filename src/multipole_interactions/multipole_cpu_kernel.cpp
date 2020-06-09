@@ -28,13 +28,16 @@ namespace fmm {
             }
         }
 
-        void multipole_cpu_kernel::apply_stencil(const struct_of_array_data<expansion, real, 20, ENTRIES,
-                                           SOA_PADDING>& local_expansions_SoA,
+        void multipole_cpu_kernel::apply_stencil(
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 angular_corrections_SoA,
             const std::vector<real>& mons, const two_phase_stencil& stencil, gsolve_type type) {
             for (size_t outer_stencil_index = 0;
@@ -82,68 +85,73 @@ namespace fmm {
                 }
             }
         }
-        void multipole_cpu_kernel::apply_stencil_non_blocked(const struct_of_array_data<expansion, real, 20, ENTRIES,
-                                   SOA_PADDING>& local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-                    center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
-                    potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
-                    angular_corrections_SoA,
-                const std::vector<real>& mons, const std::vector<bool> &stencil, const std::vector<bool>&
-                inner_stencil, gsolve_type type) {
-                for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-                    for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
-                        // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
-                        for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION;
-                             i2 += m2m_vector::size()) {
-                            const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
-                                i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
-                            // BUG: indexing has to be done with uint32_t because of Vc limitation
-                            const int64_t cell_flat_index =
-                                to_flat_index_padded(cell_index);    // iii0...
-                            const multiindex<> cell_index_unpadded(i0, i1, i2);
-                            const int64_t cell_flat_index_unpadded =
-                                to_inner_flat_index_not_padded(cell_index_unpadded);
+        void multipole_cpu_kernel::apply_stencil_non_blocked(
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                local_expansions_SoA,
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+                center_of_masses_SoA,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
+                potential_expansions_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
+                angular_corrections_SoA,
+            const std::vector<real>& mons, const std::vector<bool>& stencil,
+            const std::vector<bool>& inner_stencil, gsolve_type type) {
+            for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
+                for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
+                    // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
+                    for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2 += m2m_vector::size()) {
+                        const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
+                            i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
+                        // BUG: indexing has to be done with uint32_t because of Vc limitation
+                        const int64_t cell_flat_index =
+                            to_flat_index_padded(cell_index);    // iii0...
+                        const multiindex<> cell_index_unpadded(i0, i1, i2);
+                        const int64_t cell_flat_index_unpadded =
+                            to_inner_flat_index_not_padded(cell_index_unpadded);
 
-                            // indices on coarser level (for outer stencil boundary)
-                            // implicitly broadcasts to vector
-                            multiindex<m2m_int_vector> cell_index_coarse(cell_index);
-                            for (size_t j = 0; j < m2m_int_vector::size(); j++) {
-                                cell_index_coarse.z[j] += j;
-                            }
-                            // note that this is the same for groups of 2x2x2 elements
-                            // -> maps to the same for some SIMD lanes
-                            cell_index_coarse.transform_coarse();
+                        // indices on coarser level (for outer stencil boundary)
+                        // implicitly broadcasts to vector
+                        multiindex<m2m_int_vector> cell_index_coarse(cell_index);
+                        for (size_t j = 0; j < m2m_int_vector::size(); j++) {
+                            cell_index_coarse.z[j] += j;
+                        }
+                        // note that this is the same for groups of 2x2x2 elements
+                        // -> maps to the same for some SIMD lanes
+                        cell_index_coarse.transform_coarse();
 
-                            if (type == RHO) {
-                                this->non_blocked_interaction_rho(local_expansions_SoA,
-                                    center_of_masses_SoA, potential_expansions_SoA,
-                                    angular_corrections_SoA, mons, cell_index, cell_flat_index,
-                                    cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, inner_stencil, 0);
-                            } else {
-                                this->non_blocked_interaction_non_rho(local_expansions_SoA,
-                                    center_of_masses_SoA, potential_expansions_SoA,
-                                    angular_corrections_SoA, mons, cell_index, cell_flat_index,
-                                    cell_index_coarse, cell_index_unpadded,
-                                    cell_flat_index_unpadded, stencil, inner_stencil, 0);
-                            }
+                        if (type == RHO) {
+                            this->non_blocked_interaction_rho(local_expansions_SoA,
+                                center_of_masses_SoA, potential_expansions_SoA,
+                                angular_corrections_SoA, mons, cell_index, cell_flat_index,
+                                cell_index_coarse, cell_index_unpadded, cell_flat_index_unpadded,
+                                stencil, inner_stencil, 0);
+                        } else {
+                            this->non_blocked_interaction_non_rho(local_expansions_SoA,
+                                center_of_masses_SoA, potential_expansions_SoA,
+                                angular_corrections_SoA, mons, cell_index, cell_flat_index,
+                                cell_index_coarse, cell_index_unpadded, cell_flat_index_unpadded,
+                                stencil, inner_stencil, 0);
                         }
                     }
                 }
+            }
         }
-
 
         void multipole_cpu_kernel::blocked_interaction_rho(
             const struct_of_array_data<expansion, real, 20, ENTRIES,
                 SOA_PADDING>& __restrict__ local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, ENTRIES,
                 SOA_PADDING>& __restrict__ center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS,
-                SOA_PADDING>& __restrict__ potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS,
-                SOA_PADDING>& __restrict__ angular_corrections_SoA,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real,
+                    recycler::aggressive_recycle_aligned<real,
+                        32>>>& __restrict__ potential_expansions_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real,
+                    recycler::aggressive_recycle_aligned<real,
+                        32>>>& __restrict__ angular_corrections_SoA,
             const std::vector<real>& mons, const multiindex<>& __restrict__ cell_index,
             const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
@@ -365,9 +373,12 @@ namespace fmm {
                 local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
-                potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real,
+                    recycler::aggressive_recycle_aligned<real,
+                        32>>>& __restrict__ potential_expansions_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 angular_corrections_SoA,
             const std::vector<real>& mons, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
@@ -548,19 +559,22 @@ namespace fmm {
         }
 
         void multipole_cpu_kernel::non_blocked_interaction_rho(
-            const struct_of_array_data<expansion, real, 20, ENTRIES,
-            SOA_PADDING>& local_expansions_SoA,
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-            center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
-            potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
-            angular_corrections_SoA,
+                center_of_masses_SoA,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real,
+                    recycler::aggressive_recycle_aligned<real,
+                        32>>>& __restrict__ potential_expansions_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
+                angular_corrections_SoA,
             const std::vector<real>& mons, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<bool>& stencil, const
-            std::vector<bool>& inner_mask, const size_t outer_stencil_index) {
+            const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
+            const size_t outer_stencil_index) {
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
@@ -785,19 +799,22 @@ namespace fmm {
         }
 
         void multipole_cpu_kernel::non_blocked_interaction_non_rho(
-            const struct_of_array_data<expansion, real, 20,
-            ENTRIES, SOA_PADDING>& local_expansions_SoA,
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+                local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
-            center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
-            potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
-            angular_corrections_SoA,
+                center_of_masses_SoA,
+            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real,
+                    recycler::aggressive_recycle_aligned<real,
+                        32>>>& __restrict__ potential_expansions_SoA,
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
+                angular_corrections_SoA,
             const std::vector<real>& mons, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<bool>& stencil, const
-            std::vector<bool>& inner_mask, const size_t outer_stencil_index) {
+            const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
+            const size_t outer_stencil_index) {
             m2m_vector X[3];
             X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
             X[1] = center_of_masses_SoA.value<1>(cell_flat_index);

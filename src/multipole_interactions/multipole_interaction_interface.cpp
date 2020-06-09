@@ -15,6 +15,9 @@
 #include <array>
 #include <vector>
 
+#include <buffer_manager.hpp>
+#include <aligned_buffer_util.hpp>
+
 // Big picture questions:
 // - use any kind of tiling?
 
@@ -102,9 +105,11 @@ namespace fmm {
             const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
                 center_of_masses_SoA) {
             if (m2m_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
                     potential_expansions_SoA;
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
+                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
                     angular_corrections_SoA;
 
                 multipole_cpu_kernel kernel;
