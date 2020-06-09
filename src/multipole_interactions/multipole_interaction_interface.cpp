@@ -15,8 +15,8 @@
 #include <array>
 #include <vector>
 
-#include <buffer_manager.hpp>
 #include <aligned_buffer_util.hpp>
+#include <buffer_manager.hpp>
 
 // Big picture questions:
 // - use any kind of tiling?
@@ -24,58 +24,45 @@
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        size_t& multipole_interaction_interface::cpu_launch_counter()
-        {
+        size_t& multipole_interaction_interface::cpu_launch_counter() {
             static thread_local size_t cpu_launch_counter_ = 0;
             return cpu_launch_counter_;
         }
-        size_t& multipole_interaction_interface::cuda_launch_counter()
-        {
+        size_t& multipole_interaction_interface::cuda_launch_counter() {
             static thread_local size_t cuda_launch_counter_ = 0;
             return cuda_launch_counter_;
         }
-        size_t& multipole_interaction_interface::cpu_launch_counter_non_rho()
-        {
+        size_t& multipole_interaction_interface::cpu_launch_counter_non_rho() {
             static thread_local size_t cpu_launch_counter_non_rho_ = 0;
             return cpu_launch_counter_non_rho_;
         }
-        size_t& multipole_interaction_interface::cuda_launch_counter_non_rho()
-        {
+        size_t& multipole_interaction_interface::cuda_launch_counter_non_rho() {
             static thread_local size_t cuda_launch_counter_non_rho_ = 0;
             return cuda_launch_counter_non_rho_;
         }
 
-        two_phase_stencil& multipole_interaction_interface::stencil()
-        {
+        two_phase_stencil& multipole_interaction_interface::stencil() {
             static thread_local two_phase_stencil stencil_ = calculate_stencil();
             return stencil_;
         }
-        thread_local std::vector<real>
-            multipole_interaction_interface::local_monopoles_staging_area(EXPANSION_COUNT_PADDED);
-        thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-        multipole_interaction_interface::local_expansions_staging_area;
-        thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-        multipole_interaction_interface::center_of_masses_staging_area;
-        std::vector<bool>& multipole_interaction_interface::stencil_masks()
-        {
+        // thread_local std::vector<real>
+        //     multipole_interaction_interface::local_monopoles_staging_area(EXPANSION_COUNT_PADDED);
+        // thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
+        // multipole_interaction_interface::local_expansions_staging_area;
+        // thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
+        // multipole_interaction_interface::center_of_masses_staging_area;
+        std::vector<bool>& multipole_interaction_interface::stencil_masks() {
             static thread_local std::vector<bool> stencil_masks_ =
-                calculate_stencil_masks(
-                    multipole_interaction_interface::stencil())
-                    .first;
+                calculate_stencil_masks(multipole_interaction_interface::stencil()).first;
             return stencil_masks_;
         }
-        std::vector<bool>& multipole_interaction_interface::inner_stencil_masks()
-        {
+        std::vector<bool>& multipole_interaction_interface::inner_stencil_masks() {
             static thread_local std::vector<bool> inner_stencil_masks_ =
-                calculate_stencil_masks(
-                    multipole_interaction_interface::stencil())
-                    .second;
+                calculate_stencil_masks(multipole_interaction_interface::stencil()).second;
             return inner_stencil_masks_;
         }
 
-
         multipole_interaction_interface::multipole_interaction_interface() {
-            local_monopoles_staging_area = std::vector<real>(ENTRIES);
             this->m2m_type = opts().m2m_kernel_type;
         }
 
@@ -89,6 +76,16 @@ namespace fmm {
                 cpu_launch_counter()++;
             else
                 cpu_launch_counter_non_rho()++;
+
+            std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>
+                local_monopoles_staging_area(EXPANSION_COUNT_PADDED);
+            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
+                local_expansions_staging_area;
+            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
+                center_of_masses_staging_area;
+
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                 local_monopoles_staging_area, local_expansions_staging_area,
                 center_of_masses_staging_area);
@@ -99,24 +96,26 @@ namespace fmm {
         void multipole_interaction_interface::compute_interactions(
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
-            const std::vector<real>& local_monopoles,
-            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>&
+                local_monopoles,
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 center_of_masses_SoA) {
             if (m2m_type == interaction_kernel_type::SOA_CPU) {
                 struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
+                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
                     potential_expansions_SoA;
                 struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
+                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
                     angular_corrections_SoA;
 
                 multipole_cpu_kernel kernel;
-                kernel.apply_stencil_non_blocked(local_expansions_SoA,
-                    center_of_masses_SoA, potential_expansions_SoA,
-                    angular_corrections_SoA, local_monopoles, stencil_masks(),
-                    inner_stencil_masks(), type);
+                kernel.apply_stencil_non_blocked(local_expansions_SoA, center_of_masses_SoA,
+                    potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
+                    stencil_masks(), inner_stencil_masks(), type);
 
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());

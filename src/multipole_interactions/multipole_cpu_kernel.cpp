@@ -29,9 +29,11 @@ namespace fmm {
         }
 
         void multipole_cpu_kernel::apply_stencil(
-            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
@@ -39,7 +41,8 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 angular_corrections_SoA,
-            const std::vector<real>& mons, const two_phase_stencil& stencil, gsolve_type type) {
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            const two_phase_stencil& stencil, gsolve_type type) {
             for (size_t outer_stencil_index = 0;
                  outer_stencil_index < stencil.stencil_elements.size();
                  outer_stencil_index += STENCIL_BLOCKING) {
@@ -86,9 +89,11 @@ namespace fmm {
             }
         }
         void multipole_cpu_kernel::apply_stencil_non_blocked(
-            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
@@ -96,8 +101,9 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 angular_corrections_SoA,
-            const std::vector<real>& mons, const std::vector<bool>& stencil,
-            const std::vector<bool>& inner_stencil, gsolve_type type) {
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            const std::vector<bool>& stencil, const std::vector<bool>& inner_stencil,
+            gsolve_type type) {
             for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
                 for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
                     // for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2++) {
@@ -140,10 +146,12 @@ namespace fmm {
         }
 
         void multipole_cpu_kernel::blocked_interaction_rho(
-            const struct_of_array_data<expansion, real, 20, ENTRIES,
-                SOA_PADDING>& __restrict__ local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES,
-                SOA_PADDING>& __restrict__ center_of_masses_SoA,
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>& __restrict__
+                local_expansions_SoA,
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
+                center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
                 std::vector<real,
                     recycler::aggressive_recycle_aligned<real,
@@ -152,8 +160,8 @@ namespace fmm {
                 std::vector<real,
                     recycler::aggressive_recycle_aligned<real,
                         32>>>& __restrict__ angular_corrections_SoA,
-            const std::vector<real>& mons, const multiindex<>& __restrict__ cell_index,
-            const size_t cell_flat_index,
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
             const size_t cell_flat_index_unpadded, const two_phase_stencil& __restrict__ stencil,
@@ -232,8 +240,8 @@ namespace fmm {
 
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
-                Vc::where(mask, m_partner[0]) = m2m_vector(
-                    mons.data() + interaction_partner_flat_index);
+                Vc::where(mask, m_partner[0]) =
+                    m2m_vector(mons.data() + interaction_partner_flat_index);
                 mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
                     m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
@@ -332,26 +340,16 @@ namespace fmm {
                 tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
                 tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
                 tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
-                tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
-                tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
-                tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
-                tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
-                tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
-                tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
-                tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
-                tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
-                tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
-                tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
+                tmpstore[10].store(potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
+                tmpstore[11].store(potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
+                tmpstore[12].store(potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
+                tmpstore[13].store(potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
+                tmpstore[14].store(potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
+                tmpstore[15].store(potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
+                tmpstore[16].store(potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
+                tmpstore[17].store(potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
+                tmpstore[18].store(potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
+                tmpstore[19].store(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
 
                 tmp_corrections[0] =
                     tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
@@ -369,9 +367,11 @@ namespace fmm {
         }
 
         void multipole_cpu_kernel::blocked_interaction_non_rho(
-            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
                 std::vector<real,
@@ -380,8 +380,9 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 angular_corrections_SoA,
-            const std::vector<real>& mons, const multiindex<>& cell_index,
-            const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            const multiindex<>& cell_index, const size_t cell_flat_index,
+            const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const two_phase_stencil& stencil, const size_t outer_stencil_index) {
             m2m_vector X[3];
@@ -435,8 +436,8 @@ namespace fmm {
 
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
-                Vc::where(mask, m_partner[0]) = m2m_vector(
-                    mons.data() + interaction_partner_flat_index);
+                Vc::where(mask, m_partner[0]) =
+                    m2m_vector(mons.data() + interaction_partner_flat_index);
                 mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
                     m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
@@ -535,33 +536,25 @@ namespace fmm {
                 tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
                 tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
                 tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
-                tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
-                tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
-                tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
-                tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
-                tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
-                tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
-                tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
-                tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
-                tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
-                tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
+                tmpstore[10].store(potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
+                tmpstore[11].store(potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
+                tmpstore[12].store(potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
+                tmpstore[13].store(potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
+                tmpstore[14].store(potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
+                tmpstore[15].store(potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
+                tmpstore[16].store(potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
+                tmpstore[17].store(potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
+                tmpstore[18].store(potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
+                tmpstore[19].store(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
             }
         }
 
         void multipole_cpu_kernel::non_blocked_interaction_rho(
-            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
                 std::vector<real,
@@ -570,8 +563,9 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 angular_corrections_SoA,
-            const std::vector<real>& mons, const multiindex<>& cell_index,
-            const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            const multiindex<>& cell_index, const size_t cell_flat_index,
+            const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
             const size_t outer_stencil_index) {
@@ -615,18 +609,18 @@ namespace fmm {
                 for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                     int y = stencil_y - STENCIL_MIN;
                     for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
-                        const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + (stencil_z - STENCIL_MIN);
+                        const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
+                            (stencil_z - STENCIL_MIN);
                         if (!stencil[index]) {
                             skipped++;
                             continue;
                         }
                         calculated++;
-                        const bool phase_one =
-                            inner_mask[index];
+                        const bool phase_one = inner_mask[index];
                         const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
-                        const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
-                                                                     cell_index.y + stencil_element.y,
-                                                                     cell_index.z + stencil_element.z);
+                        const multiindex<> interaction_partner_index(
+                            cell_index.x + stencil_element.x, cell_index.y + stencil_element.y,
+                            cell_index.z + stencil_element.z);
 
                         const size_t interaction_partner_flat_index =
                             to_flat_index_padded(interaction_partner_index);    // iii1n
@@ -639,8 +633,9 @@ namespace fmm {
                         // -> maps to the same for some SIMD lanes
                         interaction_partner_index_coarse.transform_coarse();
 
-                        m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
-                            cell_index_coarse, interaction_partner_index_coarse);
+                        m2m_int_vector theta_c_rec_squared_int =
+                            detail::distance_squared_reciprocal(
+                                cell_index_coarse, interaction_partner_index_coarse);
 
                         m2m_vector theta_c_rec_squared =
                             // Vc::static_datapar_cast<double>(theta_c_rec_squared_int);
@@ -660,11 +655,12 @@ namespace fmm {
 
                         m2m_vector::mask_type mask_phase_one(phase_one);
 
-                        Vc::where(mask, m_partner[0]) = m2m_vector(
-                            mons.data() + interaction_partner_flat_index);
-                        mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                         Vc::where(mask, m_partner[0]) =
-                            m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                            m2m_vector(mons.data() + interaction_partner_flat_index);
+                        mask = mask &
+                            mask_phase_one;    // do not load multipoles outside the inner stencil
+                        Vc::where(mask, m_partner[0]) = m_partner[0] +
+                            local_expansions_SoA.value<0>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[1]) =
                             local_expansions_SoA.value<1>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[2]) =
@@ -705,9 +701,9 @@ namespace fmm {
                             local_expansions_SoA.value<19>(interaction_partner_flat_index);
 
                         compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
-                                           [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
-                                               return Vc::max(one, two);
-                                           });
+                            [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
+                                return Vc::max(one, two);
+                            });
                     }
                 }
             }
@@ -762,26 +758,16 @@ namespace fmm {
                 tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
                 tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
                 tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
-                tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
-                tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
-                tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
-                tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
-                tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
-                tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
-                tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
-                tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
-                tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
-                tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
+                tmpstore[10].store(potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
+                tmpstore[11].store(potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
+                tmpstore[12].store(potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
+                tmpstore[13].store(potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
+                tmpstore[14].store(potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
+                tmpstore[15].store(potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
+                tmpstore[16].store(potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
+                tmpstore[17].store(potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
+                tmpstore[18].store(potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
+                tmpstore[19].store(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
 
                 tmp_corrections[0] =
                     tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
@@ -799,9 +785,11 @@ namespace fmm {
         }
 
         void multipole_cpu_kernel::non_blocked_interaction_non_rho(
-            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 local_expansions_SoA,
-            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>&
+            const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 center_of_masses_SoA,
             struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
                 std::vector<real,
@@ -810,8 +798,9 @@ namespace fmm {
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                 angular_corrections_SoA,
-            const std::vector<real>& mons, const multiindex<>& cell_index,
-            const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            const multiindex<>& cell_index, const size_t cell_flat_index,
+            const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
             const size_t outer_stencil_index) {
@@ -833,7 +822,7 @@ namespace fmm {
                     int y = stencil_y - STENCIL_MIN;
                     for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
                         const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
-                                             (stencil_z - STENCIL_MIN);
+                            (stencil_z - STENCIL_MIN);
                         if (!stencil[index]) {
                             skipped++;
                             continue;
@@ -841,9 +830,9 @@ namespace fmm {
                         calculated++;
 
                         const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
-                        const multiindex<> interaction_partner_index(cell_index.x + stencil_element.x,
-                                                                     cell_index.y + stencil_element.y,
-                                                                     cell_index.z + stencil_element.z);
+                        const multiindex<> interaction_partner_index(
+                            cell_index.x + stencil_element.x, cell_index.y + stencil_element.y,
+                            cell_index.z + stencil_element.z);
 
                         const bool phase_one = inner_mask[index];
 
@@ -858,8 +847,9 @@ namespace fmm {
                         // -> maps to the same for some SIMD lanes
                         interaction_partner_index_coarse.transform_coarse();
 
-                        m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
-                            cell_index_coarse, interaction_partner_index_coarse);
+                        m2m_int_vector theta_c_rec_squared_int =
+                            detail::distance_squared_reciprocal(
+                                cell_index_coarse, interaction_partner_index_coarse);
 
                         m2m_vector theta_c_rec_squared =
                             // Vc::static_datapar_cast<double>(theta_c_rec_squared_int);
@@ -879,11 +869,12 @@ namespace fmm {
 
                         m2m_vector::mask_type mask_phase_one(phase_one);
 
-                        Vc::where(mask, m_partner[0]) = m2m_vector(
-                            mons.data() + interaction_partner_flat_index);
-                        mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                         Vc::where(mask, m_partner[0]) =
-                            m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                            m2m_vector(mons.data() + interaction_partner_flat_index);
+                        mask = mask &
+                            mask_phase_one;    // do not load multipoles outside the inner stencil
+                        Vc::where(mask, m_partner[0]) = m_partner[0] +
+                            local_expansions_SoA.value<0>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[1]) =
                             local_expansions_SoA.value<1>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[2]) =
@@ -924,9 +915,9 @@ namespace fmm {
                             local_expansions_SoA.value<19>(interaction_partner_flat_index);
 
                         compute_kernel_non_rho(X, Y, m_partner, tmpstore,
-                                               [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
-                                                   return Vc::max(one, two);
-                                               });
+                            [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
+                                return Vc::max(one, two);
+                            });
                     }
                 }
             }
@@ -981,26 +972,16 @@ namespace fmm {
                 tmpstore[7].store(potential_expansions_SoA.pointer<7>(cell_flat_index_unpadded));
                 tmpstore[8].store(potential_expansions_SoA.pointer<8>(cell_flat_index_unpadded));
                 tmpstore[9].store(potential_expansions_SoA.pointer<9>(cell_flat_index_unpadded));
-                tmpstore[10].store(
-                    potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
-                tmpstore[11].store(
-                    potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
-                tmpstore[12].store(
-                    potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
-                tmpstore[13].store(
-                    potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
-                tmpstore[14].store(
-                    potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
-                tmpstore[15].store(
-                    potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
-                tmpstore[16].store(
-                    potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
-                tmpstore[17].store(
-                    potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
-                tmpstore[18].store(
-                    potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
-                tmpstore[19].store(
-                    potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
+                tmpstore[10].store(potential_expansions_SoA.pointer<10>(cell_flat_index_unpadded));
+                tmpstore[11].store(potential_expansions_SoA.pointer<11>(cell_flat_index_unpadded));
+                tmpstore[12].store(potential_expansions_SoA.pointer<12>(cell_flat_index_unpadded));
+                tmpstore[13].store(potential_expansions_SoA.pointer<13>(cell_flat_index_unpadded));
+                tmpstore[14].store(potential_expansions_SoA.pointer<14>(cell_flat_index_unpadded));
+                tmpstore[15].store(potential_expansions_SoA.pointer<15>(cell_flat_index_unpadded));
+                tmpstore[16].store(potential_expansions_SoA.pointer<16>(cell_flat_index_unpadded));
+                tmpstore[17].store(potential_expansions_SoA.pointer<17>(cell_flat_index_unpadded));
+                tmpstore[18].store(potential_expansions_SoA.pointer<18>(cell_flat_index_unpadded));
+                tmpstore[19].store(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
             }
         }
     }    // namespace multipole_interactions
