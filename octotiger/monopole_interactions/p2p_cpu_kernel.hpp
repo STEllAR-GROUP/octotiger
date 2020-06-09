@@ -30,8 +30,6 @@ namespace fmm {
         class p2p_cpu_kernel
         {
         private:
-            std::vector<bool>& neighbor_empty;
-
             // so skip non-existing interaction partners faster, one entry per vector variable
             std::vector<bool> vector_is_empty;
 
@@ -52,7 +50,7 @@ namespace fmm {
                 const size_t outer_stencil_index, real dx);
 
         public:
-            p2p_cpu_kernel(std::vector<bool>& neighbor_empty);
+            p2p_cpu_kernel();
 
             p2p_cpu_kernel(p2p_cpu_kernel& other) = delete;
 

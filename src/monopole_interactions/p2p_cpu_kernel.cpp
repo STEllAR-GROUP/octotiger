@@ -21,9 +21,8 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        p2p_cpu_kernel::p2p_cpu_kernel(std::vector<bool>& neighbor_empty)
-          : neighbor_empty(neighbor_empty)
-          , theta_rec_squared(sqr(1.0 / opts().theta))
+        p2p_cpu_kernel::p2p_cpu_kernel()
+          : theta_rec_squared(sqr(1.0 / opts().theta))
         {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;

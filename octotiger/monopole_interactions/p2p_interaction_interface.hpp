@@ -30,7 +30,7 @@ namespace fmm {
             p2p_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
               * stores results in L */
-            void compute_p2p_interactions(std::vector<real>& monopoles,
+            void compute_p2p_interactions(const std::vector<real>& monopoles,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty);
             /// Sets the grid pointer - usually only required once
@@ -40,7 +40,7 @@ namespace fmm {
 
         protected:
             template <typename monopole_container>
-            void update_input(std::vector<real>& mons,
+            void update_input(const std::vector<real>& mons,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
                 monopole_container& local_monopoles);
             void compute_interactions(gsolve_type type,
@@ -59,16 +59,13 @@ namespace fmm {
             static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
             static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& four();
             static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& stencil_four_constants();
-            // static thread_local std::vector<real> local_monopoles_staging_area;
-            // static thread_local bool is_initialized;
             std::vector<bool> neighbor_empty_monopoles;
 
             p2p_cpu_kernel kernel_monopoles;
         };
 
-        // TODO(daissgr) Shouldn't mons be a const reference?
         template <typename monopole_container>
-        void p2p_interaction_interface::update_input(std::vector<real>& mons,
+        void p2p_interaction_interface::update_input(const std::vector<real>& mons,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             monopole_container& local_monopoles) {
             iterate_inner_cells_padded(

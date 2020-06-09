@@ -58,17 +58,15 @@ namespace fmm {
                         .second;
             return stencil_four_constants_;
         }
-        // thread_local std::vector<real> p2p_interaction_interface::local_monopoles_staging_area(
-        //     ENTRIES);
 
         p2p_interaction_interface::p2p_interaction_interface()
           : neighbor_empty_monopoles(27)
-          , kernel_monopoles(neighbor_empty_monopoles) {
+          , kernel_monopoles() {
             this->p2p_type = opts().p2p_kernel_type;
         }
 
 
-        void p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
+        void p2p_interaction_interface::compute_p2p_interactions(const std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             cpu_launch_counter()++;
