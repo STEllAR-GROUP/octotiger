@@ -39,7 +39,7 @@ namespace fmm {
             void cell_interactions(
                 const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>& mons,
                 struct_of_array_data<expansion, real, 20, INNER_CELLS,
-                    SOA_PADDING>& __restrict__ potential_expansions_SoA,    // L
+                    SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>& __restrict__ potential_expansions_SoA,    // L
                 const multiindex<>& __restrict__ cell_index,
                 const size_t cell_flat_index,    /// iii0
                 const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
@@ -59,7 +59,8 @@ namespace fmm {
             p2p_cpu_kernel operator=(const p2p_cpu_kernel& other) = delete;
 
             void apply_stencil(const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>& mons,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING, 
+                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
                     potential_expansions_SoA,
                 const std::vector<bool>& stencil, const
                 std::vector<std::array<real, 4>>& four,

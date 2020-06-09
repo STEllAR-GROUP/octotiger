@@ -81,8 +81,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
             const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &local_monopoles_staging_area) {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
-                // TODO(daissgr) This buffer seems like a great recycle target!
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
+                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
                     potential_expansions_SoA;
                 kernel_monopoles.apply_stencil(
                     local_monopoles_staging_area, potential_expansions_SoA,
