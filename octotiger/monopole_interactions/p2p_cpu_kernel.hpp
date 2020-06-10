@@ -19,8 +19,8 @@
 #include <cstdint>
 #include <vector>
 
-#include <buffer_manager.hpp>
 #include <aligned_buffer_util.hpp>
+#include <buffer_manager.hpp>
 
 namespace octotiger {
 namespace fmm {
@@ -36,10 +36,8 @@ namespace fmm {
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
 
-            void cell_interactions(
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>& mons,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS,
-                    SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>& __restrict__ potential_expansions_SoA,    // L
+            void cell_interactions(const cpu_monopole_buffer_t& __restrict__ mons,
+                cpu_expansion_result_buffer_t& __restrict__ potential_expansions_SoA,    // L
                 const multiindex<>& __restrict__ cell_index,
                 const size_t cell_flat_index,    /// iii0
                 const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
@@ -58,12 +56,9 @@ namespace fmm {
 
             p2p_cpu_kernel operator=(const p2p_cpu_kernel& other) = delete;
 
-            void apply_stencil(const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>& mons,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING, 
-                std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    potential_expansions_SoA,
-                const std::vector<bool>& stencil, const
-                std::vector<std::array<real, 4>>& four,
+            void apply_stencil(const cpu_monopole_buffer_t& local_expansions,
+                cpu_expansion_result_buffer_t& potential_expansions_SoA,
+                const std::vector<bool>& stencil, const std::vector<std::array<real, 4>>& four,
                 real dx);
         };
 

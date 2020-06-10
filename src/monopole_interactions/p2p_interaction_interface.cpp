@@ -3,59 +3,47 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
-#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
 #include "octotiger/options.hpp"
 
 #include <algorithm>
 #include <array>
 #include <vector>
 
-#include <buffer_manager.hpp>
 #include <aligned_buffer_util.hpp>
+#include <buffer_manager.hpp>
 
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        size_t& p2p_interaction_interface::cpu_launch_counter()
-        {
+        size_t& p2p_interaction_interface::cpu_launch_counter() {
             static thread_local size_t cpu_launch_counter_ = 0;
             return cpu_launch_counter_;
         }
-        size_t& p2p_interaction_interface::cuda_launch_counter()
-        {
+        size_t& p2p_interaction_interface::cuda_launch_counter() {
             static thread_local size_t cuda_launch_counter_ = 0;
             return cuda_launch_counter_;
         }
 
-        std::vector<multiindex<>>& p2p_interaction_interface::stencil()
-        {
-            static thread_local std::vector<multiindex<>> stencil_ =
-                calculate_stencil().first;
+        std::vector<multiindex<>>& p2p_interaction_interface::stencil() {
+            static thread_local std::vector<multiindex<>> stencil_ = calculate_stencil().first;
             return stencil_;
         }
 
-        std::vector<bool>& p2p_interaction_interface::stencil_masks()
-        {
+        std::vector<bool>& p2p_interaction_interface::stencil_masks() {
             static thread_local std::vector<bool> stencil_masks_ =
-                calculate_stencil_masks(p2p_interaction_interface::stencil())
-                    .first;
+                calculate_stencil_masks(p2p_interaction_interface::stencil()).first;
             return stencil_masks_;
         }
-        std::vector<std::array<real, 4>>& p2p_interaction_interface::four()
-        {
-            static thread_local std::vector<std::array<real, 4>> four_ =
-                calculate_stencil().second;
+        std::vector<std::array<real, 4>>& p2p_interaction_interface::four() {
+            static thread_local std::vector<std::array<real, 4>> four_ = calculate_stencil().second;
             return four_;
         }
-        std::vector<std::array<real, 4>>&
-        p2p_interaction_interface::stencil_four_constants()
-        {
-            static thread_local std::vector<std::array<real, 4>>
-                stencil_four_constants_ =
-                    calculate_stencil_masks(p2p_interaction_interface::stencil())
-                        .second;
+        std::vector<std::array<real, 4>>& p2p_interaction_interface::stencil_four_constants() {
+            static thread_local std::vector<std::array<real, 4>> stencil_four_constants_ =
+                calculate_stencil_masks(p2p_interaction_interface::stencil()).second;
             return stencil_four_constants_;
         }
 
@@ -65,27 +53,26 @@ namespace fmm {
             this->p2p_type = opts().p2p_kernel_type;
         }
 
-
         void p2p_interaction_interface::compute_p2p_interactions(const std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             cpu_launch_counter()++;
-            std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> local_monopoles_staging_area(ENTRIES);
+            cpu_monopole_buffer_t local_monopoles_staging_area(ENTRIES);
 
             update_input(monopoles, neighbors, type, local_monopoles_staging_area);
-            compute_interactions(type, is_direction_empty, neighbors, dx, local_monopoles_staging_area);
+            compute_interactions(
+                type, is_direction_empty, neighbors, dx, local_monopoles_staging_area);
         }
 
         void p2p_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
-            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &local_monopoles_staging_area) {
+            const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>&
+                local_monopoles_staging_area) {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>
-                    potential_expansions_SoA;
-                kernel_monopoles.apply_stencil(
-                    local_monopoles_staging_area, potential_expansions_SoA,
-                    stencil_masks(), stencil_four_constants(), dx);
+                cpu_expansion_result_buffer_t potential_expansions_SoA;
+                kernel_monopoles.apply_stencil(local_monopoles_staging_area,
+                    potential_expansions_SoA, stencil_masks(), stencil_four_constants(), dx);
                 potential_expansions_SoA.to_non_SoA(grid_ptr->get_L());
             } else {
                 grid_ptr->compute_interactions(type);

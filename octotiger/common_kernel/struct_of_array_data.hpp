@@ -10,7 +10,6 @@
 #include "../cuda_util/cuda_helper.hpp"
 #endif
 
-
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
 #include "../taylor.hpp"
@@ -48,8 +47,7 @@ namespace fmm {
         inline m2m_vector value(const size_t flat_index) const {
             constexpr size_t component_array_offset =
                 component_access * padded_entries_per_component;
-            return m2m_vector(
-                data.data() + flat_index + component_array_offset);
+            return m2m_vector(data.data() + flat_index + component_array_offset);
         }
 
         template <typename AoS_temp_type>
@@ -67,7 +65,7 @@ namespace fmm {
         }
 
         template <typename T>
-        void concatenate_vectors(std::vector<std::vector<T>> &input) {
+        void concatenate_vectors(std::vector<std::vector<T>>& input) {
             size_t result_size = input.size() * input[0].size();
             auto iter = data.begin();
             for (size_t i = 0; i < input.size(); i++) {
@@ -128,18 +126,21 @@ namespace fmm {
         }
     };
 
-constexpr uint64_t SIMD_LENGTH_BYTES = 32;
+    constexpr uint64_t SIMD_LENGTH_BYTES = 32;
 
-using cpu_expansion_buffer_t = struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-    std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
-using cpu_space_vector_buffer_t = struct_of_array_data<space_vector, real, 3, ENTRIES,
-    SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
-using cpu_expansion_result_buffer_t = struct_of_array_data<expansion, real, 20, INNER_CELLS,
-    SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
-using cpu_angular_result_t = struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-    std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
-using cpu_monopole_buffer_t =
-    std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>;
+    using cpu_expansion_buffer_t = struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+        std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+    using cpu_space_vector_buffer_t =
+        struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+    using cpu_expansion_result_buffer_t =
+        struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+    using cpu_angular_result_t =
+        struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+    using cpu_monopole_buffer_t =
+        std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>;
 
 }    // namespace fmm
 }    // namespace octotiger
