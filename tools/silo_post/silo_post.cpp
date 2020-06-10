@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
 	double sum1 = 0.0;
 	double sum2 = 0.0;
 	double t;
-	double dxmin = 1.0d+99;
+	double dxmin = DBL_MAX;
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
 		const auto &filename = split_name.first;
