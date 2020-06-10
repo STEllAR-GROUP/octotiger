@@ -29,5 +29,6 @@ using m2m_vector = Vc::Vector<double, Vc::VectorAbi::Scalar>;
 using m2m_int_vector = Vc::Vector<std::int32_t, Vc::VectorAbi::Scalar>;
 #endif
 
+
 // using multipole_v = taylor<4, m2m_vector>;
 // using expansion_v = taylor<4, m2m_vector>;

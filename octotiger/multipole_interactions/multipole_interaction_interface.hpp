@@ -63,14 +63,9 @@ namespace fmm {
             /// Calls FMM kernels with SoA data (assumed to be stored in the static members)
             void compute_interactions(std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>&
-                    local_monopoles,
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    center_of_masses_SoA);
+                const cpu_monopole_buffer_t& local_monopoles,
+                const cpu_expansion_buffer_t& local_expansions_SoA,
+                const cpu_space_vector_buffer_t& center_of_masses_SoA);
 
         protected:
             gsolve_type type;

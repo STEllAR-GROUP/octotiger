@@ -36,20 +36,10 @@ namespace fmm {
             m2m_int_vector offset_vector;
 
             /// Executes a small block of RHO interactions (size is controlled by STENCIL_BLOCKING)
-            void blocked_interaction_rho(
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    angular_corrections_SoA,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            void blocked_interaction_rho(const cpu_expansion_buffer_t& local_expansions_SoA,
+                const cpu_space_vector_buffer_t& center_of_masses_SoA,
+                cpu_expansion_result_buffer_t& potential_expansions_SoA,
+                cpu_angular_result_t& angular_corrections_SoA, const cpu_monopole_buffer_t& mons,
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
@@ -57,59 +47,29 @@ namespace fmm {
 
             /// Executes a small block of non-RHO interactions (size is controlled by
             /// STENCIL_BLOCKING)
-            void blocked_interaction_non_rho(
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    angular_corrections_SoA,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            void blocked_interaction_non_rho(const cpu_expansion_buffer_t& local_expansions_SoA,
+                const cpu_space_vector_buffer_t& center_of_masses_SoA,
+                cpu_expansion_result_buffer_t& potential_expansions_SoA,
+                cpu_angular_result_t& angular_corrections_SoA, const cpu_monopole_buffer_t& mons,
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
                 const two_phase_stencil& stencil, const size_t outer_stencil_index);
 
-            void non_blocked_interaction_rho(
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    angular_corrections_SoA,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            void non_blocked_interaction_rho(const cpu_expansion_buffer_t& local_expansions_SoA,
+                const cpu_space_vector_buffer_t& center_of_masses_SoA,
+                cpu_expansion_result_buffer_t& potential_expansions_SoA,
+                cpu_angular_result_t& angular_corrections_SoA, const cpu_monopole_buffer_t& mons,
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
                 const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
                 const size_t outer_stencil_index);
 
-            void non_blocked_interaction_non_rho(
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    angular_corrections_SoA,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            void non_blocked_interaction_non_rho(const cpu_expansion_buffer_t& local_expansions_SoA,
+                const cpu_space_vector_buffer_t& center_of_masses_SoA,
+                cpu_expansion_result_buffer_t& potential_expansions_SoA,
+                cpu_angular_result_t& angular_corrections_SoA, const cpu_monopole_buffer_t& mons,
                 const multiindex<>& cell_index, const size_t cell_flat_index,
                 const multiindex<m2m_int_vector>& cell_index_coarse,
                 const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
@@ -126,36 +86,16 @@ namespace fmm {
             multipole_cpu_kernel operator=(const multipole_cpu_kernel& other) = delete;
 
             /// Calculate all multipole interactions for this kernel (runs the kernel)
-            void apply_stencil(
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    angular_corrections_SoA,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            void apply_stencil(const cpu_expansion_buffer_t& local_expansions_SoA,
+                const cpu_space_vector_buffer_t& center_of_masses_SoA,
+                cpu_expansion_result_buffer_t& potential_expansions_SoA,
+                cpu_angular_result_t& angular_corrections_SoA, const cpu_monopole_buffer_t& mons,
                 const two_phase_stencil& stencil, gsolve_type type);
 
-            void apply_stencil_non_blocked(
-                const struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    local_expansions_SoA,
-                const struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    center_of_masses_SoA,
-                struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    potential_expansions_SoA,
-                struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
-                    std::vector<real, recycler::aggressive_recycle_aligned<real, 32>>>&
-                    angular_corrections_SoA,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &mons,
+            void apply_stencil_non_blocked(const cpu_expansion_buffer_t& local_expansions_SoA,
+                const cpu_space_vector_buffer_t& center_of_masses_SoA,
+                cpu_expansion_result_buffer_t& potential_expansions_SoA,
+                cpu_angular_result_t& angular_corrections_SoA, const cpu_monopole_buffer_t& mons,
                 const std::vector<bool>& stencil, const std::vector<bool>& inner_stencil,
                 gsolve_type type);
         };

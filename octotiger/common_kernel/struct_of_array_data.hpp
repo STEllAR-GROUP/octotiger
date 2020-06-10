@@ -10,6 +10,11 @@
 #include "../cuda_util/cuda_helper.hpp"
 #endif
 
+
+#include <aligned_buffer_util.hpp>
+#include <buffer_manager.hpp>
+#include "../taylor.hpp"
+
 // #include "interaction_constants.hpp"
 
 namespace octotiger {
@@ -122,5 +127,19 @@ namespace fmm {
             }
         }
     };
+
+constexpr uint64_t SIMD_LENGTH_BYTES = 32;
+
+using cpu_expansion_buffer_t = struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+    std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+using cpu_space_vector_buffer_t = struct_of_array_data<space_vector, real, 3, ENTRIES,
+    SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+using cpu_expansion_result_buffer_t = struct_of_array_data<expansion, real, 20, INNER_CELLS,
+    SOA_PADDING, std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+using cpu_angular_result_t = struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+    std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
+using cpu_monopole_buffer_t =
+    std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>;
+
 }    // namespace fmm
 }    // namespace octotiger
