@@ -47,19 +47,20 @@ namespace octotiger { namespace fmm { namespace monopole_interactions {
 
             // run on CUDA device
             cuda_launch_counter()++;
+
+            std::vector<double, recycler::recycle_allocator_cuda_host<double>> local_monopoles(ENTRIES);
+            recycler::cuda_device_buffer<double> device_local_monopoles(ENTRIES);
+            recycler::cuda_device_buffer<double> erg(NUMBER_POT_EXPANSIONS_SMALL);
+
             // Move data into staging arrays
-            auto staging_area =
-                kernel_scheduler::scheduler().get_staging_area(slot);
             update_input(
-                monopoles, neighbors, type, staging_area.local_monopoles);
+                monopoles, neighbors, type, local_monopoles);
 
             // Queue moving of input data to device
             util::cuda_helper& gpu_interface =
                 kernel_scheduler::scheduler().get_launch_interface(slot);
-            kernel_device_enviroment& env =
-                kernel_scheduler::scheduler().get_device_enviroment(slot);
-            gpu_interface.copy_async(env.device_local_monopoles,
-                staging_area.local_monopoles.data(), local_monopoles_size,
+            gpu_interface.copy_async(device_local_monopoles.device_side_buffer,
+                local_monopoles.data(), local_monopoles_size,
                 cudaMemcpyHostToDevice);
 
             // Launch kernel and queue copying of results
@@ -68,8 +69,8 @@ namespace octotiger { namespace fmm { namespace monopole_interactions {
             dim3 const threads_per_block(1, INX, INX);
             // void* args[] = {&(env.device_local_monopoles), &(env.device_blocked_monopoles),
             //                 &theta, &dx};
-            void* args[] = {&(env.device_local_monopoles),
-                &(env.device_blocked_monopoles), &theta, &dx};
+            void* args[] = {&(device_local_monopoles.device_side_buffer),
+                &(erg.device_side_buffer), &theta, &dx};
             gpu_interface.execute(reinterpret_cast<void const*>(&cuda_p2p_interactions_kernel),
                 grid_spec, threads_per_block, args, 0);
             // void* sum_args[] = {&(env.device_blocked_monopoles)};
@@ -78,7 +79,7 @@ namespace octotiger { namespace fmm { namespace monopole_interactions {
             // gpu_interface.execute(
             //     &cuda_add_pot_blocks, sum_spec, threads, sum_args, 0);
             gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
-                env.device_blocked_monopoles, potential_expansions_small_size,
+                erg.device_side_buffer, potential_expansions_small_size,
                 cudaMemcpyDeviceToHost);
 
             // Wait for stream to finish and allow thread to jump away in the meantime
