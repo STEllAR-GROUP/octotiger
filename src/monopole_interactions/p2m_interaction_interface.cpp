@@ -3,9 +3,9 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
-#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/real.hpp"
 
@@ -19,18 +19,10 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        std::vector<multiindex<>>& p2m_interaction_interface::stencil()
-        {
-            static thread_local std::vector<multiindex<>> stencil_ =
-                calculate_stencil().first;
+        std::vector<multiindex<>>& p2m_interaction_interface::stencil() {
+            static thread_local std::vector<multiindex<>> stencil_ = calculate_stencil().first;
             return stencil_;
         }
-        thread_local std::vector<real> p2m_interaction_interface::local_monopoles_staging_area(
-            ENTRIES);
-        thread_local struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>
-            p2m_interaction_interface::local_expansions_staging_area;
-        thread_local struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>
-            p2m_interaction_interface::center_of_masses_staging_area;
 
         p2m_interaction_interface::p2m_interaction_interface()
           : neighbor_empty_multipoles(27)
@@ -43,20 +35,26 @@ namespace fmm {
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
+            cpu_monopole_buffer_t local_monopoles_staging_area(ENTRIES);
+            cpu_expansion_buffer_t local_expansions_staging_area;
+            cpu_space_vector_buffer_t center_of_masses_staging_area;
+
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, local_monopoles_staging_area,
                 local_expansions_staging_area, center_of_masses_staging_area);
-            compute_interactions(type, is_direction_empty, neighbors);
+            compute_interactions(type, is_direction_empty, neighbors, local_monopoles_staging_area,
+                local_expansions_staging_area, center_of_masses_staging_area);
         }
 
         void p2m_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data) {
+            std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
+            const cpu_monopole_buffer_t& local_monopoles_staging_area,
+            const cpu_expansion_buffer_t& local_expansions_staging_area,
+            const cpu_space_vector_buffer_t& center_of_masses_staging_area) {
             if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 if (multipole_neighbors_exist) {
-                    struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>
-                        potential_expansions_SoA;
-                    struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>
-                        angular_corrections_SoA;
+                    cpu_expansion_result_buffer_t potential_expansions_SoA;
+                    cpu_angular_result_t angular_corrections_SoA;
                     kernel.apply_stencil(local_expansions_staging_area,
                         center_of_masses_staging_area, potential_expansions_SoA,
                         angular_corrections_SoA, stencil(), type, x_skip, y_skip, z_skip);

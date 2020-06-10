@@ -35,15 +35,11 @@ namespace fmm {
             }
         }
 
-        void p2m_kernel::apply_stencil(
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
-                potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
-                angular_corrections_SoA,
-            const std::vector<multiindex<>>& stencil, gsolve_type type, bool (&z_skip)[3][3][3],
-            bool (&y_skip)[3][3], bool (&x_skip)[3]) {
+        void p2m_kernel::apply_stencil(const cpu_expansion_buffer_t& local_expansions_SoA,
+            const cpu_space_vector_buffer_t& center_of_masses_SoA,
+            cpu_expansion_result_buffer_t& potential_expansions_SoA,
+            cpu_angular_result_t& angular_corrections_SoA, const std::vector<multiindex<>>& stencil,
+            gsolve_type type, bool (&z_skip)[3][3][3], bool (&y_skip)[3][3], bool (&x_skip)[3]) {
             // for(auto i = 0; i < local_expansions.size(); i++)
             //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
@@ -154,8 +150,10 @@ namespace fmm {
             //                 (cell_index.y / INNER_CELLS_PER_DIRECTION) - 1,
             //                 (cell_index.z / INNER_CELLS_PER_DIRECTION) - 1);
 
-            //             const multiindex<> in_boundary_end(in_boundary_start.x, in_boundary_start.y,
-            //                 ((cell_index.z + m2m_int_vector::size()) / INNER_CELLS_PER_DIRECTION) -
+            //             const multiindex<> in_boundary_end(in_boundary_start.x,
+            //             in_boundary_start.y,
+            //                 ((cell_index.z + m2m_int_vector::size()) / INNER_CELLS_PER_DIRECTION)
+            //                 -
             //                     1);
 
             //             geo::direction dir_start;
@@ -177,15 +175,10 @@ namespace fmm {
             // }
         }
 
-        void p2m_kernel::blocked_interaction_rho(
-            struct_of_array_data<expansion, real, 20, ENTRIES,
-                SOA_PADDING>& __restrict__ local_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES,
-                SOA_PADDING>& __restrict__ center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS,
-                SOA_PADDING>& __restrict__ potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS,
-                SOA_PADDING>& __restrict__ angular_corrections_SoA,
+        void p2m_kernel::blocked_interaction_rho(const cpu_expansion_buffer_t& local_expansions_SoA,
+            const cpu_space_vector_buffer_t& center_of_masses_SoA,
+            cpu_expansion_result_buffer_t& potential_expansions_SoA,
+            cpu_angular_result_t& angular_corrections_SoA,
             const multiindex<>& __restrict__ cell_index, const size_t cell_flat_index,
             const multiindex<m2m_int_vector>& __restrict__ cell_index_coarse,
             const multiindex<>& __restrict__ cell_index_unpadded,
@@ -420,24 +413,18 @@ namespace fmm {
                 tmp_corrections[1] + angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
             tmp_corrections[2] =
                 tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
-            tmp_corrections[0].store(
-                angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
-            tmp_corrections[1].store(
-                angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded));
-            tmp_corrections[2].store(
-                angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded));
+            tmp_corrections[0].store(angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
+            tmp_corrections[1].store(angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded));
+            tmp_corrections[2].store(angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded));
             // }
         }
 
         void p2m_kernel::blocked_interaction_non_rho(
-            struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING>& local_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING>& center_of_masses_SoA,
-            struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING>&
-                potential_expansions_SoA,
-            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING>&
-                angular_corrections_SoA,
-            const multiindex<>& cell_index, const size_t cell_flat_index,
-            const multiindex<m2m_int_vector>& cell_index_coarse,
+            const cpu_expansion_buffer_t& local_expansions_SoA,
+            const cpu_space_vector_buffer_t& center_of_masses_SoA,
+            cpu_expansion_result_buffer_t& potential_expansions_SoA,
+            cpu_angular_result_t& angular_corrections_SoA, const multiindex<>& cell_index,
+            const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const multiindex<>& interaction_partner_index,
             const size_t interaction_partner_flat_index,
