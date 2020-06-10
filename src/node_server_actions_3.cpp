@@ -269,7 +269,16 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (get_analytic() != nullptr) {
 			compare_analytic();
 			if (opts().gravity) {
-				solve_gravity(true, false);
+				timings::scope ts(timings_, timings::time_total);
+				timings::scope cs(timings_, timings::time_computation);
+
+				// Repeat running gravity for longer runtime (useful to analyse performance)
+				int steps = opts().stop_step;
+				if (steps < 1) steps = 1;
+				for (int i = 0; i < steps; i++) { 
+					printf("Solving gravity - Repetitions: %i / %i:\n", i+1, steps);
+					solve_gravity(true, false);
+				}
 			}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);
