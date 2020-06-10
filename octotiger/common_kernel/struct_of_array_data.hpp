@@ -6,13 +6,15 @@
 #pragma once
 
 #include "kernel_simd_types.hpp"
+#include "../taylor.hpp"
+
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "../cuda_util/cuda_helper.hpp"
+#include <cuda_buffer_util.hpp>
 #endif
-
 #include <aligned_buffer_util.hpp>
 #include <buffer_manager.hpp>
-#include "../taylor.hpp"
+
 
 // #include "interaction_constants.hpp"
 
@@ -141,6 +143,22 @@ namespace fmm {
             std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>;
     using cpu_monopole_buffer_t =
         std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>;
+
+#ifdef OCTOTIGER_HAVE_CUDA
+    using cuda_expansion_buffer_t = struct_of_array_data<expansion, real, 20, ENTRIES, SOA_PADDING,
+        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+    using cuda_space_vector_buffer_t =
+        struct_of_array_data<space_vector, real, 3, ENTRIES, SOA_PADDING,
+            std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+    using cuda_expansion_result_buffer_t =
+        struct_of_array_data<expansion, real, 20, INNER_CELLS, SOA_PADDING,
+            std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+    using cuda_angular_result_t =
+        struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+            std::vector<real, recycler::recycle_allocator_cuda_host<real>>>;
+    using cuda_monopole_buffer_t =
+        std::vector<real, recycler::recycle_allocator_cuda_host<real>>;
+#endif
 
 }    // namespace fmm
 }    // namespace octotiger
