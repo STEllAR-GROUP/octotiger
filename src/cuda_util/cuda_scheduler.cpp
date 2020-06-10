@@ -193,27 +193,6 @@ namespace octotiger { namespace fmm {
                 number_cuda_streams_managed = number_of_streams_managed;
                 number_slots = number_cuda_streams_managed * slots_per_cuda_stream;
 
-                // Get one slot per stream to handle the data on the cpu
-                local_expansions_slots =
-                    std::vector<struct_of_array_data<expansion, real, 20,
-                        ENTRIES, SOA_PADDING,
-                        std::vector<real, cuda_pinned_allocator<real>>>>( number_slots);
-                center_of_masses_slots =
-                    std::vector<struct_of_array_data<space_vector, real, 3,
-                        ENTRIES, SOA_PADDING,
-                        std::vector<real, cuda_pinned_allocator<real>>>>( number_slots);
-                local_monopole_slots =
-                    std::vector<std::vector<real, cuda_pinned_allocator<real>>>(
-                        number_slots);
-                for (std::vector<real, cuda_pinned_allocator<real>>& mons :
-                    local_monopole_slots)
-                {
-                    mons = std::vector<real, cuda_pinned_allocator<real>>(ENTRIES);
-                }
-
-                // Get one kernel enviroment per stream to handle the data on the gpu
-                kernel_device_enviroments =
-                    std::vector<kernel_device_enviroment>(number_slots);
                 std::size_t cur_interface = 0;
                 // Todo: Remove slots
                 std::size_t cur_slot = 0;
@@ -221,33 +200,12 @@ namespace octotiger { namespace fmm {
                 // Allocate buffers on the gpus - once per stream
                 std::size_t local_stream_id = 0;
                 stream_interfaces.reserve(number_cuda_streams_managed);
-                for (kernel_device_enviroment& env : kernel_device_enviroments)
+                for (size_t i = 0; i < number_slots; i++)
                 {
                     std::size_t const worker_gpu_id =
                         (worker_stream_id + local_stream_id) / streams_per_gpu;
                     util::cuda_helper::cuda_error(cudaSetDevice(worker_gpu_id));
                     stream_interfaces.emplace_back(worker_gpu_id);
-
-                    // Allocate memory on device
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc(reinterpret_cast<void**>(&(env.device_local_monopoles)),
-                            local_monopoles_size));
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc(reinterpret_cast<void**>(&(env.device_local_expansions)),
-                            local_expansions_size));
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc(reinterpret_cast<void**>(&(env.device_center_of_masses)),
-                            center_of_masses_size));
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc(reinterpret_cast<void**>(&(env.device_potential_expansions)),
-                            potential_expansions_size));
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc(reinterpret_cast<void**>(&(env.device_angular_corrections)),
-                            angular_corrections_size));
-
-                    util::cuda_helper::cuda_error(
-                        cudaMalloc(reinterpret_cast<void**>(&(env.device_blocked_monopoles)),
-                            3 * potential_expansions_small_size));
 
                     // Change stream interface if necessary
                     ++local_stream_id;
@@ -267,22 +225,7 @@ namespace octotiger { namespace fmm {
     }
 
     kernel_scheduler::~kernel_scheduler()
-    {
-        // Deallocate device buffers
-        for (kernel_device_enviroment& env : kernel_device_enviroments)
-        {
-            util::cuda_helper::cuda_error(
-                cudaFree(static_cast<void*>(env.device_local_monopoles)));
-            util::cuda_helper::cuda_error(
-                cudaFree(static_cast<void*>(env.device_local_expansions)));
-            util::cuda_helper::cuda_error(
-                cudaFree(static_cast<void*>(env.device_center_of_masses)));
-            util::cuda_helper::cuda_error(
-                cudaFree(static_cast<void*>(env.device_potential_expansions)));
-            util::cuda_helper::cuda_error(
-                cudaFree(static_cast<void*>(env.device_angular_corrections)));
-       }
-    }
+    {}
 
     int kernel_scheduler::get_launch_slot()
     {
@@ -308,18 +251,6 @@ namespace octotiger { namespace fmm {
         }
         // No slots available
         return -1;
-    }
-
-    kernel_staging_area kernel_scheduler::get_staging_area(std::size_t slot)
-    {
-        return kernel_staging_area(local_monopole_slots[slot],
-            local_expansions_slots[slot], center_of_masses_slots[slot]);
-    }
-
-    kernel_device_enviroment& kernel_scheduler::get_device_enviroment(
-        std::size_t slot)
-    {
-        return kernel_device_enviroments[slot];
     }
 
     util::cuda_helper& kernel_scheduler::get_launch_interface(std::size_t slot)
