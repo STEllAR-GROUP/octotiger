@@ -38,43 +38,6 @@ namespace octotiger { namespace fmm {
         4 * P2P_PADDED_STENCIL_SIZE * sizeof(real);
     constexpr std::size_t full_stencil_size = FULL_STENCIL_SIZE * sizeof(real);
 
-    // Custom allocator for host-side CUDA vectors
-    template <class T>
-    struct cuda_pinned_allocator
-    {
-        using value_type = T;
-        cuda_pinned_allocator() noexcept {}
-        template <class U>
-        cuda_pinned_allocator(cuda_pinned_allocator<U> const&) noexcept
-        {
-        }
-        T* allocate(std::size_t n)
-        {
-            T* data;
-            util::cuda_helper::cuda_error(
-                cudaMallocHost(reinterpret_cast<void**>(&data), n * sizeof(T)));
-            return data;
-        }
-        void deallocate(T* p, std::size_t n)
-        {
-            util::cuda_helper::cuda_error(cudaFreeHost(p));
-        }
-    };
-
-    template <class T, class U>
-    constexpr bool operator==(cuda_pinned_allocator<T> const&,
-        cuda_pinned_allocator<U> const&) noexcept
-    {
-        return true;
-    }
-
-    template <class T, class U>
-    constexpr bool operator!=(cuda_pinned_allocator<T> const&,
-        cuda_pinned_allocator<U> const&) noexcept
-    {
-        return false;
-    }
-
     // Scheduler which decides on what device to launch kernel and what memory to use
     class kernel_scheduler
     {
