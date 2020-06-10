@@ -46,7 +46,7 @@ namespace fmm {
             void compute_interactions(gsolve_type type,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
-                const std::vector<real, recycler::aggressive_recycle_aligned<real, 32>> &local_monopoles_staging_area);
+                const cpu_monopole_buffer_t &local_monopoles_staging_area);
 
             std::shared_ptr<grid> grid_ptr;
             interaction_kernel_type p2p_type;
