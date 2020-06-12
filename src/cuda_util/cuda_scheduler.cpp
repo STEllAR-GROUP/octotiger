@@ -229,6 +229,7 @@ namespace octotiger { namespace fmm {
 
     int kernel_scheduler::get_launch_slot()
     {
+        static thread_local int round_robin_current = 0;
         for (std::size_t slot_id = 0; slot_id < number_cuda_streams_managed;
              ++slot_id)
         {
@@ -250,7 +251,9 @@ namespace octotiger { namespace fmm {
             }
         }
         // No slots available
-        return -1;
+        //return -1;
+        round_robin_current = round_robin_current%number_cuda_streams_managed;
+        return round_robin_current++;
     }
 
     util::cuda_helper& kernel_scheduler::get_launch_interface(std::size_t slot)
