@@ -120,6 +120,7 @@ void struct_eos::set_frac(real f) {
 	real mu = f_E * INVERSE( f_C );
 	f_C = f;
 	f_E = mu * f_C;
+//	printf( "%e %e %e\n", f_E, f_C, mu);
 }
 real struct_eos::get_frac() const {
 	return f_C;
@@ -212,7 +213,7 @@ void struct_eos::set_d0_using_struct_eos(real newd, const struct_eos& other) {
 		real min_h = 1.0e-10;
 		real max_h = h0() * 100.0;
 		if (!find_root(fff, min_h, max_h, new_h)) {
-			printf("Error in struct_eos line %i\n", __LINE__);
+			printf("Error in eos line %i\n", __LINE__);
 			abort();
 		}
 	}
@@ -392,6 +393,7 @@ void struct_eos::initialize(real& mass, real& radius) {
 			if (hdot != 0.0) {
 				dr = std::max(std::min(dr0, std::abs(h * INVERSE( hdot )) / 2.0), dr0 * 1.0e-6);
 			}
+			dr = dr0;
 			d = this->enthalpy_to_density(h);
 			//	printf("%e %e %e\n", r, d, h);
 			//	printf("%e %e %e %e %e\n", r, m, h, d, dr);
@@ -529,8 +531,8 @@ real struct_eos::density_at(real R, real dr) {
 	real r;
 	real h = h0();
 	real hdot = 0.0;
-	const int N = std::max(int(R / dr + 1.0), 32);
-	dr = R / real(N);
+	const int N = std::max(int(R / dr + 1.0), 2);
+	dr = R / real(N-1);
 	for (integer i = 0; i < N; ++i) {
 		//	printf("%e %e %e\n", r, h, dr);
 		r = i * dr;
