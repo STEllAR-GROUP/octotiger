@@ -1113,8 +1113,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1127,7 +1127,7 @@ void grid::set_omega(real omega, bool bcast) {
 				}
 			}
 			if (remotes.size() > 0) {
-				hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
+				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
 			}
 		}
 	}
@@ -1946,6 +1946,8 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 							}
 							if (opts().reflect_bc) {
 								ref = -value;
+							} else if (opts().inflow_bc) {
+								ref = value;
 							} else {
 								if (opts().problem != AMR_TEST) {
 									const real before = value;

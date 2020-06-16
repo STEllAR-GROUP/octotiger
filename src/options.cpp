@@ -120,6 +120,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
 	("experiment", po::value<int>(&(opts().experiment))->default_value(0), "experiment") //
 	("unigrid", po::value<bool>(&(opts().unigrid))->default_value(false), "unigrid") //
+	("inflow_bc", po::value<bool>(&(opts().inflow_bc))->default_value(false), "Inflow Boundary Conditions") //
 	("reflect_bc", po::value<bool>(&(opts().reflect_bc))->default_value(false), "Reflecting Boundary Conditions") //
 	("cdisc_detect", po::value<bool>(&(opts().cdisc_detect))->default_value(true), "PPM contact discontinuity detection") //
 	("disable_output", po::value<bool>(&(opts().disable_output))->default_value(false), "disable silo output") //
@@ -249,6 +250,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(future_wait_time);
 		SHOW(hard_dt);
 		SHOW(hydro);
+		SHOW(inflow_bc);
 		SHOW(input_file);
 		SHOW(m2m_kernel_type);
 		SHOW(min_level);
@@ -264,6 +266,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(rad_implicit);
 		SHOW(radiation);
 		SHOW(refinement_floor);
+		SHOW(reflect_bc);
 		SHOW(restart_filename);
 		SHOW(rotating_star_amr);
 		SHOW(rotating_star_x);
