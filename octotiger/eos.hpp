@@ -6,6 +6,7 @@
 #ifndef POLYTROPE_HPP_
 #define POLYTROPE_HPP_
 
+
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/real.hpp"
 
@@ -36,9 +37,9 @@ public:
 	}
 	real B() const;
 	real A, d0_, my_radius;
-	void conversion_factors(real& m, real& l, real& t) const;
+	void conversion_factors(real &m, real &l, real &t) const;
 	struct_eos(real M, real R);
-	struct_eos(real M, const struct_eos& other);
+	struct_eos(real M, const struct_eos &other);
 	real energy(real d) const;
 	real d0() const;
 	template<typename Archive>
@@ -56,11 +57,13 @@ public:
 //		class bipolytropic_struct_eos: public struct_eos {
 public:
 	real M0, R0;
+	real wd_eps, wd_T0;
 private:
 	real n_C, n_E;
 	real f_C, f_E;
 	real rho_cut;
 public:
+	void set_wd_T0(double t, double abar, double zbar);
 	void set_cutoff_density(real d) {
 		rho_cut = d;
 	}
@@ -74,10 +77,10 @@ public:
 	real get_R0() const;
 	real dC() const;
 
-	void set_d0_using_struct_eos(real newd, const struct_eos& other);
+	void set_d0_using_struct_eos(real newd, const struct_eos &other);
 	struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu);
-	struct_eos(real M, real R, real _n_C, real _n_E, real mu, const struct_eos& other);
-	struct_eos(real M, real _n_C, const struct_eos& other);
+	struct_eos(real M, real R, real _n_C, real _n_E, real mu, const struct_eos &other);
+	struct_eos(real M, real _n_C, const struct_eos &other);
 	void set_entropy(real other_s0);
 	~struct_eos() = default;
 	real enthalpy_to_density(real h) const;
@@ -95,9 +98,5 @@ public:
 	real pressure(real d) const;
 
 };
-
-
-
-HPX_IS_BITWISE_SERIALIZABLE (struct_eos);
 
 #endif /* POLYTROPE_HPP_ */

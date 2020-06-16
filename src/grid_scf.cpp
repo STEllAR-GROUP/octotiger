@@ -28,9 +28,11 @@ constexpr integer spc_de_i = spc_i + 3;
 constexpr integer spc_vac_i = spc_i + 4;
 
 // w0 = speed of convergence. Adjust lower if nan
-real w0init = 1.0 / 16.0;
-real w0max = 1.0 / 4.0;
-real w0 = w0init;
+const real w0init = 1.0 / 10.0;
+const real w0max = 0.25;
+const real iter2max = 25.0;
+const int itermax = 100;
+ real w0 = w0init;
 
 namespace scf_options {
 
@@ -171,8 +173,8 @@ void node_server::rho_move(real x) {
 			futs[index++] = child.rho_move(x);
 		}
 	}
-	const auto min_dx = 2.0 * opts().xscale / (H_NX * (1 << opts().max_level));
-	grid_ptr->rho_move(std::min(std::min(w0 / 2.0, 1.0) * x, min_dx / 10.0));
+	const auto dx_min = 2.0 * opts().xscale / H_NX / (1 << opts().max_level);
+	grid_ptr->rho_move(std::min(w0 * x / 2.0, dx_min / 10.0));
 	all_hydro_bounds();
 	if (is_refined) {
 		for (auto &f : futs) {
@@ -360,7 +362,6 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				phi_eff -= omega * ti_omega * R * R;
 				phi_eff += (omega + ti_omega) * ti_omega * cx * x;
 				real new_rho, eint;
-				const auto smallest = 1.0e-20;
 				if (g <= 0.0) {
 					ASSERT_NONAN(phi_eff);
 					ASSERT_NONAN(C);
@@ -370,11 +371,6 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				}
 				ASSERT_NONAN(new_rho);
 				rho = std::max((1.0 - w0) * rho + w0 * new_rho, rho_floor);
-				if (opts().eos == WD) {
-					eint = ztwd_energy(rho);
-				} else {
-					eint = std::max(0.0, this_struct_eos.pressure(rho) / (fgamma - 1.0));
-				}
 				if (new_rho < rho_int) {
 					rho = rho_floor;
 				}
@@ -386,13 +382,25 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 					U[spc_ae_i][iiih] = 0.0;
 					U[spc_de_i][iiih] = 0.0;
 				} else {
-					U[spc_ac_i][iiih] = new_rho > this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-					U[spc_dc_i][iiih] = new_rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
-					U[spc_ae_i][iiih] = new_rho <= this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
-					U[spc_de_i][iiih] = new_rho <= this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+					U[spc_ac_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+					U[spc_dc_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
+					U[spc_ae_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
+					U[spc_de_i][iiih] = rho <= this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
 				}
 				real sx, sy;
 				U[spc_vac_i][iiih] = rho_floor;
+				if (opts().eos == WD) {
+					double abar = 0.0, zbar = 0.0;
+					for (int s = 0; s < opts().n_species; s++) {
+						abar += U[spc_i + s][iiih] / opts().atomic_mass[s];
+						zbar += U[spc_i + s][iiih] * opts().atomic_number[s] / opts().atomic_mass[s];
+					}
+					abar = rho / abar;
+					zbar *= abar / rho;
+					eint = this_struct_eos.energy(rho);
+				} else {
+					eint = std::max(0.0, this_struct_eos.pressure(rho) / (fgamma - 1.0));
+				}
 				if (opts().v1309) {
 					if (rho0 < this_struct_eos.get_cutoff_density()) {
 						U[spc_de_i][iiih] = U[spc_ae_i][iiih] = U[spc_dc_i][iiih] = U[spc_ac_i][iiih] = 0.0;
@@ -425,7 +433,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 
 				U[sx_i][iiih] = sx;
 				U[sy_i][iiih] = sy;
-				U[tau_i][iiih] = POWER(etherm, 1.0 / fgamma);
+				U[tau_i][iiih] = POWER(etherm, 3.0 / 5.0);
 				U[egas_i][iiih] = eint + (sx * sx + sy * sy) / 2.0 * INVERSE(rho);
 				U[lx_i][iiih] = -z * sy;
 				U[ly_i][iiih] = +z * sx;
@@ -448,7 +456,7 @@ void node_server::run_scf(std::string const &data_dir) {
 	grid::set_omega(omega);
 	printf("Starting SCF\n");
 	real l1_phi = 0.0, l2_phi, l3_phi;
-	for (integer i = 0; i != 256; ++i) {
+	for (integer i = 0; i != itermax; ++i) {
 //		profiler_output(stdout);
 		char buffer[33];    // 21 bytes for int (max) + some leeway
 		sprintf(buffer, "X.scf.%i", int(i));
@@ -479,7 +487,6 @@ void node_server::run_scf(std::string const &data_dir) {
 			jorb0 = jorb;
 		}
 		real spin_ratio = (j1 + j2) * INVERSE(jorb);
-		real this_m = (diags.m[0] + diags.m[1]);
 		solve_gravity(false, false);
 		auto axis = grid_ptr->find_axis();
 		auto loc = line_of_centers(axis);
@@ -513,6 +520,11 @@ void node_server::run_scf(std::string const &data_dir) {
 
 		//	printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
 		params.struct_eos2->set_d0(rho2 * f1);
+		if (opts().eos == WD) {
+			params.struct_eos1->set_wd_T0(10000, opts().atomic_mass[0], opts().atomic_number[0]);
+			params.struct_eos2->set_wd_T0(10000, opts().atomic_mass[3], opts().atomic_number[3]);
+///			printf("wd_eps = %e %e\n", params.struct_eos1->wd_eps, params.struct_eos2->wd_eps);
+		}
 		if (scf_options::equal_struct_eos) {
 			//	printf( "%e %e \n", rho1, rho1*f0);
 			params.struct_eos1->set_d0_using_struct_eos(rho1 * f0, *(params.struct_eos2));
@@ -521,14 +533,10 @@ void node_server::run_scf(std::string const &data_dir) {
 		}
 		static real rhoc1 = 1.0e-3 * rho1;
 		if (opts().v1309) {
-			const real rho_min = 0.5 * std::min(rhoc1, params.struct_eos2->dE());
 			rhoc1 *= INVERSE(POWER(spin_ratio * 3.0, w0));
 			params.struct_eos1->set_cutoff_density(rhoc1);
 			params.struct_eos2->set_cutoff_density(rhoc1);
 		}
-
-		real h_1 = params.struct_eos1->h0();
-		real h_2 = params.struct_eos2->h0();
 
 		real c_1, c_2;
 		if (scf_options::equal_struct_eos) {
@@ -584,9 +592,8 @@ void node_server::run_scf(std::string const &data_dir) {
 				} else {
 					e2f = (1.0 - w0) * e2f + w0 * POWER(e2f, scf_options::core_frac2 * INVERSE(core_frac_2));
 				}
-				e2->set_frac(e2f);
-				if (scf_options::equal_struct_eos) {
-					e1->set_frac(e2f);
+				if (!scf_options::equal_struct_eos) {
+					e2->set_frac(e2f);
 				}
 			} else {
 				if (opts().v1309) {
@@ -617,10 +624,10 @@ void node_server::run_scf(std::string const &data_dir) {
 		if (i % 5 == 0) {
 			printf("   %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s %13s\n", "rho1", "rho2", "M1", "M2",
 					"is1", "is2", "omega", "virial", "core_frac_1", "core_frac_2", "jorb", "jmin", "amin", "jtot", "com", "spin_ratio", "iorb", "R1", "R2",
-					"fill1", "fill2", "w0");
+					"fill1", "fill2");
 		}
 		lprintf((opts().data_dir + "log.txt").c_str(),
-				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2, M1, M2,
+				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e\ %13e\n", i, rho1, rho2, M1, M2,
 				is1, is2, omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, iorb, r0, r1, fi0, fi1, w0);
 		if (i % 10 == 0) {
 			regrid(me.get_unmanaged_gid(), omega, -1, false);
@@ -631,11 +638,11 @@ void node_server::run_scf(std::string const &data_dir) {
 			set_AB(e2->A, e2->B());
 		}
 //		printf( "%e %e\n", grid::get_A(), grid::get_B());
-		const real dx = axis.second[0];
 		//	printf( "%e %e %e\n", rho1_max.first, rho2_max.first, l1_x);
 		scf_update(com, omega, c_1, c_2, rho1_max.first, rho2_max.first, l1_x, *e1, *e2);
 		solve_gravity(false, false);
-		w0 = std::min(w0max, w0 * POWER(w0max / w0init, 1.0 / 16.0));
+		w0 = std::min(w0max, w0 * POWER(w0max / w0init, 1.0 / iter2max));
+
 	}
 	if (opts().radiation) {
 		if (opts().eos == WD) {
@@ -711,10 +718,11 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[sx_i] = -y * params.omega * rho;
 	u[sy_i] = +x * params.omega * rho;
 	u[sz_i] = 0.0;
-	if (opts().eos != WD) {
-		u[tau_i] = POWER(ei, 1.0 / fgamma);
-	} else {
-		u[tau_i] = POWER(1.0e-15, 1.0 / fgamma);
+	real etherm = ei;
+	if (opts().eos == WD) {
+		etherm -= ztwd_energy(rho);
+		etherm = std::max(1.0e-10, etherm);
 	}
+	u[tau_i] = POWER(etherm, 3.0 / 5.0);
 	return u;
 }

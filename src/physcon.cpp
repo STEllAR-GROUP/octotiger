@@ -112,10 +112,10 @@ void normalize_constants() {
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
 	if (hpx::get_locality_id() == 0) {
-		printf("Normalized constants\n");
-		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
-		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
-				physcon().c, physcon().mh, physcon().sigma, physcon().h);
+//		printf("Normalized constants\n");
+//		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
+//		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
+//				physcon().c, physcon().mh, physcon().sigma, physcon().h);
 	}
 	if (opts().problem == MARSHAK) {
 		opts().code_to_g = 1.0;
