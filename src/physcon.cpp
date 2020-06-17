@@ -68,7 +68,8 @@ void these_units(real &m, real &l, real &t, real &k) {
 		m = m2 / m1;
 		l = l2 / l1;
 		t = t2 / t1;
-		k = 1.0;;
+		k = 1.0;
+		;
 	} else if (!opts().radiation && !opts().gravity) {
 		m = opts().code_to_g;
 		l = opts().code_to_cm;
@@ -111,12 +112,12 @@ void normalize_constants() {
 	physcon().mh = 1.6733e-24 * m;
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
-	if (hpx::get_locality_id() == 0) {
+//	if (hpx::get_locality_id() == 0) {
 //		printf("Normalized constants\n");
 //		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
 //		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
 //				physcon().c, physcon().mh, physcon().sigma, physcon().h);
-	}
+//	}
 	if (opts().problem == MARSHAK) {
 		opts().code_to_g = 1.0;
 		opts().code_to_s = 1.0;
@@ -133,13 +134,17 @@ void set_units(real m, real l, real t, real k) {
 //	l = 1.0 / l;
 //	t = 1.0 / t;
 //	k = 1.0 / k;
+	const real Acgs = 6.00228e+22;
+	physcon().A = 6.00233345657677e+22 * m / l / (t * t);
+	physcon().B = 2 * 9.81011e+05 * m
+			/ (l * l * l);
 	physcon().kb = 1.380658e-16 * (m * l * l) / (t * t) / k;
 	physcon().c = 2.99792458e+10 * (l / t);
 	physcon().mh = 1.6733e-24 * m;
 	physcon().sigma = 5.67051e-5 * m / (t * t * t) / (k * k * k * k);
 	physcon().h = 6.6260755e-27 * m * l * l / t;
 	if (hpx::get_locality_id() == 0) {
-		printf("----------Normalized constants\n");
+		printf("normalized constants\n");
 		printf("%e %e %e %e\n", 1.0 / m, 1.0 / l, 1.0 / t, 1.0 / k);
 		printf("A = %e | B = %e | G = %e | kb = %e | c = %e | mh = %e | sigma = %e | h = %e\n", physcon().A, physcon().B, physcon().G, physcon().kb,
 				physcon().c, physcon().mh, physcon().sigma, physcon().h);
@@ -158,8 +163,8 @@ hpx::future<void> set_physcon(const physcon_t &p);
 
 HPX_PLAIN_ACTION(set_physcon, set_physcon_action);
 
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_physcon_action);
-HPX_REGISTER_BROADCAST_ACTION(set_physcon_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_physcon_action);
+HPX_REGISTER_BROADCAST_ACTION (set_physcon_action);
 
 hpx::future<void> set_physcon(const physcon_t &p) {
 	hpx::future<void> f;
@@ -170,7 +175,7 @@ hpx::future<void> set_physcon(const physcon_t &p) {
 			if (id != hpx::find_here())
 				remotes.push_back(id);
 		}
-		f = hpx::lcos::broadcast<set_physcon_action>(remotes, p);
+		f = hpx::lcos::broadcast < set_physcon_action > (remotes, p);
 	} else {
 		f = hpx::make_ready_future();
 	}
@@ -206,8 +211,8 @@ void node_server::set_cgs(bool change) {
 
 HPX_PLAIN_ACTION(set_AB, set_AB_action);
 
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_AB_action);
-HPX_REGISTER_BROADCAST_ACTION(set_AB_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_AB_action);
+HPX_REGISTER_BROADCAST_ACTION (set_AB_action);
 
 void set_AB(real a, real b) {
 	if (hpx::get_locality_id() == 0) {
@@ -218,7 +223,7 @@ void set_AB(real a, real b) {
 				remotes.push_back(id);
 		}
 		if (remotes.size() > 0) {
-			hpx::lcos::broadcast<set_AB_action>(remotes, a, b).get();
+			hpx::lcos::broadcast < set_AB_action > (remotes, a, b).get();
 		}
 	}
 	physcon().A = a;
@@ -227,8 +232,8 @@ void set_AB(real a, real b) {
 }
 
 HPX_PLAIN_ACTION(grid::static_change_units, static_change_units_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(static_change_units_action);
-HPX_REGISTER_BROADCAST_ACTION(static_change_units_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (static_change_units_action);
+HPX_REGISTER_BROADCAST_ACTION (static_change_units_action);
 
 hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 //	printf("%e %e %e %e\n", m, l, t, k);
@@ -240,7 +245,7 @@ hpx::future<void> grid::static_change_units(real m, real l, real t, real k) {
 			if (id != hpx::find_here())
 				remotes.push_back(id);
 		}
-		f = hpx::lcos::broadcast<static_change_units_action>(remotes, m, l, t, k);
+		f = hpx::lcos::broadcast < static_change_units_action > (remotes, m, l, t, k);
 	} else {
 		f = hpx::make_ready_future();
 	}
@@ -267,7 +272,7 @@ void mean_ion_weight(const specie_state_t<> species, real &mmw, real &X, real &Z
 }
 
 using change_units_action_type = node_server::change_units_action;
-HPX_REGISTER_ACTION(change_units_action_type);
+HPX_REGISTER_ACTION (change_units_action_type);
 
 hpx::future<void> node_client::change_units(real a, real b, real c, real d) const {
 	return hpx::async<typename node_server::change_units_action>(get_unmanaged_gid(), a, b, c, d);

@@ -22,19 +22,20 @@ const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
 real ztwd_sound_speed(real d, real ei) {
-    const real A = physcon().A;
-    const real B = physcon().B;
-    real x, dp_depsilon, dp_drho, cs2;
-    const real fgamma = grid::get_fgamma();
-    x = pow(d / B, 1.0 / 3.0);
-    dp_drho = ((8.0 * A) / (3.0 * B)) * sqr(x) / sqrt(sqr(x) + 1.0) + (fgamma - 1.0) * ei / d;
-    dp_depsilon = (fgamma - 1.0) * d;
-    cs2 = std::max(((fgamma - 1.0) * ei / sqr(d)) * dp_depsilon + dp_drho, real(0));
-    return sqrt(cs2);
+	const real A = physcon().A;
+	const real B = physcon().B;
+	real x, dp_depsilon, dp_drho, cs2;
+	const real fgamma = grid::get_fgamma();
+	x = pow(d / B, 1.0 / 3.0);
+	dp_drho = ((8.0 * A) / (3.0 * B)) * sqr(x) / sqrt(sqr(x) + 1.0) + (fgamma - 1.0) * ei / d;
+	dp_depsilon = (fgamma - 1.0) * d;
+	const real p = ztwd_pressure(d) + (fgamma - 1.0) * ei;
+	cs2 = std::max((p / sqr(d)) * dp_depsilon + dp_drho, real(0));
+	return sqrt(cs2);
 }
 
-real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<real>>& UL, hydro_state_t<std::vector<real>>& UR,
-	const std::vector<space_vector>& X, real omega, integer dimension, real dx) {
+real roe_fluxes(hydro_state_t<std::vector<real>> &F, hydro_state_t<std::vector<real>> &UL, hydro_state_t<std::vector<real>> &UR,
+		const std::vector<space_vector> &X, real omega, integer dimension, real dx) {
 
 	const real fgamma = grid::get_fgamma();
 	const std::size_t sz = UL[0].size();
@@ -64,7 +65,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 		simd_vector ei_r = ur[egas_i] - HALF * (ur[u_i] * ur[u_i] + ur[v_i] * ur[v_i] + ur[w_i] * ur[w_i]) / ur[rho_i];
 
 		for (integer j = 0; j != this_simd_len; ++j) {
-			if( opts().eos == WD) {
+			if (opts().eos == WD) {
 				ei_r[j] -= ztwd_energy(ur[rho_i][j]);
 			}
 			if (ei_r[j] < de_switch2 * ur[egas_i][j]) {
@@ -126,7 +127,7 @@ real roe_fluxes(hydro_state_t<std::vector<real>>& F, hydro_state_t<std::vector<r
 			}
 		}
 #if !defined(HPX_HAVE_DATAPAR_VC) || (defined(Vc_IS_VERSION_1) && Vc_IS_VERSION_1)
-        max_lambda = std::max(max_lambda, a.max());
+		max_lambda = std::max(max_lambda, a.max());
 #else
         using Vc::max;
         using std::max;

@@ -42,8 +42,12 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		const auto x = std::pow(rho / B_, 1.0 / 3.0);
 		hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
 		pdeg = deg_pres(x);
-		edeg = rho * hdeg - pdeg;
-		dpdeg_drho = 8.0 / 3.0 * A_ / B_ * x * x;
+		if (x > 0.001) {
+			edeg = rho * hdeg - pdeg;
+		} else {
+			edeg = 2.4 * A_ * std::pow(x, 5);
+		}
+		dpdeg_drho = 8.0 / 3.0 * A_ / B_ * x * x / std::sqrt(x * x + 1.0);
 	}
 	safe_real ek = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
@@ -53,10 +57,11 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	if (ein < de_switch_1 * u[egas_i]) {
 		ein = pow(u[tau_i], fgamma_);
 	}
-
+	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein / rho;
+	const double dp_deps = (fgamma_ - 1.0) * rho;
 	v = u[sx_i + dim] * rhoinv;
 	p = (fgamma_ - 1.0) * ein + pdeg;
-	cs = std::sqrt(fgamma_ * p * rhoinv + dpdeg_drho);
+	cs = std::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
 }
 
 template<int NDIM>
