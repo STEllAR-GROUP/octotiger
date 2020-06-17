@@ -6,7 +6,6 @@
 #ifndef POLYTROPE_HPP_
 #define POLYTROPE_HPP_
 
-
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/real.hpp"
 
@@ -52,12 +51,16 @@ public:
 		arc & n_E;
 		arc & f_C;
 		arc & f_E;
+		arc & wd_eps;
+		arc & wd_T0;
+		arc & wd_core_cut;
 	}
 
 //		class bipolytropic_struct_eos: public struct_eos {
 public:
 	real M0, R0;
 	real wd_eps, wd_T0;
+	real wd_core_cut;
 private:
 	real n_C, n_E;
 	real f_C, f_E;

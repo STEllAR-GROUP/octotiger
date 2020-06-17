@@ -230,7 +230,7 @@ void struct_eos::set_d0_using_struct_eos(real newd, const struct_eos &other) {
 }
 
 struct_eos::struct_eos(real M, real R) :
-		rho_cut(0.0), wd_eps(0) {
+		rho_cut(0.0), wd_eps(0), wd_core_cut(0.5) {
 //B = 1.0;
 	real m, r;
 	d0_ = M * INVERSE(R * R * R);
@@ -252,7 +252,7 @@ struct_eos::struct_eos(real M, real R) :
 }
 
 struct_eos::struct_eos(real M, const struct_eos &other) :
-		rho_cut(0.0), wd_eps(0) {
+		rho_cut(0.0), wd_eps(0), wd_core_cut(0.5) {
 	d0_ = other.d0_;
 //B = 1.0;
 //	printf("!!!!!!!!!!!!!!!!!!!\n");
@@ -329,7 +329,7 @@ real struct_eos::dh_dr(real h, real hdot, real r) const {
 }
 
 struct_eos::struct_eos(real M, real R, real _n_C, real _n_E, real core_frac, real mu) :
-		M0(1.0), R0(1.0), n_C(_n_C), n_E(_n_E), rho_cut(0.0), wd_eps(0) {
+		M0(1.0), R0(1.0), n_C(_n_C), n_E(_n_E), rho_cut(0.0), wd_eps(0), wd_core_cut(0.5) {
 	real m, r, cm;
 	real interface_core_density;
 	const auto func = [&](real icd) {

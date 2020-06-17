@@ -32,7 +32,7 @@ const real w0init = 1.0 / 10.0;
 const real w0max = 0.25;
 const real iter2max = 25.0;
 const int itermax = 100;
- real w0 = w0init;
+real w0 = w0init;
 
 namespace scf_options {
 
@@ -377,10 +377,10 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				U[rho_i][iiih] = rho;
 				const real rho0 = rho - rho_floor;
 				if (opts().eos == WD) {
-					U[spc_ac_i][iiih] = (is_donor_side ? 0.0 : rho0);
-					U[spc_dc_i][iiih] = (is_donor_side ? rho0 : 0.0);
-					U[spc_ae_i][iiih] = 0.0;
-					U[spc_de_i][iiih] = 0.0;
+					U[spc_ac_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
+					U[spc_dc_i][iiih] = rho > this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
+					U[spc_ae_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? 0.0 : rho) : 0.0;
+					U[spc_de_i][iiih] = rho <= this_struct_eos.wd_core_cut ? (is_donor_side ? rho : 0.0) : 0.0;
 				} else {
 					U[spc_ac_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? 0.0 : rho0) : 0.0;
 					U[spc_dc_i][iiih] = rho > this_struct_eos.dE() ? (is_donor_side ? rho0 : 0.0) : 0.0;
@@ -573,8 +573,25 @@ void node_server::run_scf(std::string const &data_dir) {
 		real core_frac_1 = diags.grid_sum[spc_ac_i] * INVERSE(M1);
 		real core_frac_2 = diags.grid_sum[spc_dc_i] * INVERSE(M2);
 		const real virial = diags.virial;
-		real e1f;
-		if (opts().eos != WD) {
+		real e1f, e2f;
+		if (opts().eos == WD) {
+			e1f = e1->wd_core_cut;
+			e2f = e2->wd_core_cut;
+			auto relerr = 2.0 * (scf_options::core_frac1 - core_frac_1) / (scf_options::core_frac1 + core_frac_1);
+			if (relerr < 0.0) {
+				e1f = (1.0 - w0) * e1f + w0 * e1f * (1.0 - 10.0 * relerr);
+			} else {
+				e1f = (1.0 - w0) * e1f + w0 * e1f / (1.0 + 10.0 * relerr);
+			}
+			relerr = 2.0 * (scf_options::core_frac2 - core_frac_2) / (scf_options::core_frac2 + core_frac_2);
+			if (relerr < 0.0) {
+				e2f = (1.0 - w0) * e2f + w0 * e2f * (1.0 - 10.0 * relerr);
+			} else {
+				e2f = (1.0 - w0) * e2f + w0 * e2f / (1.0 + 10.0 * relerr);
+			}
+			e1->wd_core_cut = e1f;
+			e2->wd_core_cut = e2f;
+		} else {
 			if (!scf_options::equal_struct_eos) {
 				e1f = e1->get_frac();
 				if (core_frac_1 == 0.0) {
@@ -584,7 +601,7 @@ void node_server::run_scf(std::string const &data_dir) {
 				}
 				e1->set_frac(e1f);
 			}
-			real e2f = e2->get_frac();
+			e2f = e2->get_frac();
 
 			if (scf_options::contact_fill <= 0.0) {
 				if (core_frac_2 == 0.0) {
@@ -627,8 +644,9 @@ void node_server::run_scf(std::string const &data_dir) {
 					"fill1", "fill2");
 		}
 		lprintf((opts().data_dir + "log.txt").c_str(),
-				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e\ %13e\n", i, rho1, rho2, M1, M2,
-				is1, is2, omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, iorb, r0, r1, fi0, fi1, w0);
+				"%i %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e  %13e %13e %13e %13e %13e %13e %13e %13e %13e %13e\n", i, rho1, rho2,
+				M1, M2, is1, is2, omega, virial, core_frac_1, core_frac_2, jorb, jmin, amin, j1 + j2 + jorb, com, spin_ratio, iorb, r0, r1, fi0, fi1, w0, e1f,
+				e2f);
 		if (i % 10 == 0) {
 			regrid(me.get_unmanaged_gid(), omega, -1, false);
 		} else {
@@ -704,10 +722,10 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[rho_i] = rho;
 
 	if (opts().eos == WD) {
-		u[spc_ac_i] = x > params.l1_x ? 0.0 : rho;
-		u[spc_dc_i] = x > params.l1_x ? rho : 0.0;
-		u[spc_ae_i] = 0.0;
-		u[spc_de_i] = 0.0;
+		u[spc_ac_i] = rho > this_struct_eos->wd_core_cut ? (x > params.l1_x ? 0.0 : rho) : 0.0;
+		u[spc_dc_i] = rho > this_struct_eos->wd_core_cut ? (x > params.l1_x ? rho : 0.0) : 0.0;
+		u[spc_ae_i] = rho <= this_struct_eos->wd_core_cut ? (x > params.l1_x ? 0.0 : rho) : 0.0;
+		u[spc_de_i] = rho <= this_struct_eos->wd_core_cut ? (x > params.l1_x ? rho : 0.0) : 0.0;
 	} else {
 		u[spc_ac_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? 0.0 : rho) : 0.0;
 		u[spc_dc_i] = rho > this_struct_eos->dE() ? (x > params.l1_x ? rho : 0.0) : 0.0;
