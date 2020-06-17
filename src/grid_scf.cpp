@@ -521,8 +521,8 @@ void node_server::run_scf(std::string const &data_dir) {
 		//	printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
 		params.struct_eos2->set_d0(rho2 * f1);
 		if (opts().eos == WD) {
-			params.struct_eos1->set_wd_T0(10000, opts().atomic_mass[0], opts().atomic_number[0]);
-			params.struct_eos2->set_wd_T0(10000, opts().atomic_mass[3], opts().atomic_number[3]);
+			params.struct_eos1->set_wd_T0(0.0, opts().atomic_mass[0], opts().atomic_number[0]);
+			params.struct_eos2->set_wd_T0(0.0, opts().atomic_mass[3], opts().atomic_number[3]);
 ///			printf("wd_eps = %e %e\n", params.struct_eos1->wd_eps, params.struct_eos2->wd_eps);
 		}
 		if (scf_options::equal_struct_eos) {
