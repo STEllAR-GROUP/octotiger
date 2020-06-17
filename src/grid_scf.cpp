@@ -31,7 +31,7 @@ constexpr integer spc_vac_i = spc_i + 4;
 const real w0init = 1.0 / 10.0;
 const real w0max = 0.25;
 const real iter2max = 25.0;
-const int itermax = 100;
+const int itermax = 256;
 real w0 = w0init;
 
 namespace scf_options {
