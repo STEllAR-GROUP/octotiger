@@ -428,7 +428,7 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				real etherm = eint;
 				if (opts().eos == WD) {
 					etherm -= ztwd_energy(rho);
-					etherm = std::max(1.0e-10, etherm);
+					etherm = std::max(1.0e-20, etherm);
 				}
 
 				U[sx_i][iiih] = sx;
