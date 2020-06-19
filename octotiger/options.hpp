@@ -107,6 +107,10 @@ public:
 	real star_n;
 	real star_rho_center;
 
+	real moving_star_xvelocity;
+        real moving_star_yvelocity;
+        real moving_star_zvelocity;
+
 	size_t cuda_streams_per_locality;
 	size_t cuda_streams_per_gpu;
 	size_t cuda_scheduling_threads;
@@ -153,6 +157,9 @@ public:
 		arc & star_n;
 		arc & star_rho_center;
 		arc & star_rho_out;
+    arc & moving_star_xvelocity;
+    arc & moving_star_yvelocity;
+    arc & moving_star_zvelocity;
 		arc & inflow_bc;
 		arc & reflect_bc;
 		arc & cdisc_detect;
