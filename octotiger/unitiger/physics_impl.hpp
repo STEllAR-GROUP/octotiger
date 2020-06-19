@@ -464,10 +464,15 @@ void physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, cons
 		double den = 0, vel = 0, pre = 0;
 
 		if (test == BLAST) {
+#if defined(OCTOTIGER_HAVE_BLAT_TEST)
 			sedov::solution(time + 7e-4, r, rmax, den, vel, pre, NDIM);
 			for (int dim = 0; dim < NDIM; dim++) {
 				U[sx_i + dim][i] = den * vel * X[dim][i] / r;
 			}
+#else
+			std::cout << "ERROR! Octo-Tiger was not compiled with BLAST test support!" << std::endl;
+			exit(EXIT_FAILURE);
+#endif
 		} else if (test == SOD) {
 			sod_state_t sod_state;
 			exact_sod(&sod_state, &sod_init, rsum / std::sqrt(NDIM), time, 1.0 / INX);
@@ -612,6 +617,7 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 			}
 			break;
 		case BLAST:
+#if defined(OCTOTIGER_HAVE_BLAT_TEST)
 
 			double v;
 			sedov::solution(7e-4, r, std::sqrt(3) + 5.0 * dx, rho, v, p, NDIM);
@@ -634,6 +640,10 @@ std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<
 			U[rho_i][i] += rho;
 			U[spc_i][i] += rho;
 			break;
+#else
+			std::cout << "ERROR! Octo-Tiger was not compiled with BLAST test support!" << std::endl;
+			exit(EXIT_FAILURE);
+#endif
 		case KH:
 
 			U[physics < NDIM > ::tau_i][i] = 1.0;
