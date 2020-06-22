@@ -94,6 +94,8 @@ struct physics {
 
 	static void set_n_species(int n);
 
+	static void update_n_field();
+
 	static void set_dual_energy_switches(safe_real one, safe_real two);
 
 	static void set_central_force(safe_real GM) {

@@ -173,8 +173,11 @@ bool options::process_options(int argc, char *argv[]) {
 		opts().silo_num_groups = hpx::find_all_localities().size();
 
 	}
-	if (opts().problem == DWD || opts().problem == ROTATING_STAR) {
+	if (opts().problem == DWD) {
 		opts().n_species = std::max(int(5), int(opts().n_species));
+	}
+        if (opts().problem == MOVING_STAR || opts().problem == ROTATING_STAR) {
+                opts().n_species = std::max(int(2), int(opts().n_species));
 	}
 	n_fields = n_species + 10;
 	if (!opts().restart_filename.empty()) {
