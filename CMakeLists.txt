@@ -219,7 +219,7 @@ set(header_files
     octotiger/test_problems/rotating_star.hpp
 )
 
-list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost buffer_manager)
+list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost buffer_manager stream_manager)
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND octo_dependencies Kokkos::kokkos)
 endif()

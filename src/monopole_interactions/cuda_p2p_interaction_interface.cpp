@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <buffer_manager.hpp>
+#include <stream_manager.hpp>
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
 
@@ -21,7 +22,10 @@ namespace fmm {
     namespace monopole_interactions {
         cuda_p2p_interaction_interface::cuda_p2p_interaction_interface()
           : p2p_interaction_interface()
-          , theta(opts().theta) {}
+          , theta(opts().theta) {
+            stream_pool::init<cuda_helper,
+                priority_pool_multi_gpu<cuda_helper, priority_pool<cuda_helper>>>(1, 8);
+        }
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
@@ -46,10 +50,14 @@ namespace fmm {
                 update_input(monopoles, neighbors, type, local_monopoles);
 
                 // Queue moving of input data to device
-                util::cuda_helper& gpu_interface =
-                    kernel_scheduler::scheduler().get_launch_interface(slot);
+                // util::cuda_helper& gpu_interface =
+                //     kernel_scheduler::scheduler().get_launch_interface(slot);
+
+
+                hpx_stream_interface_mgpq gpu_interface(0);
                 gpu_interface.copy_async(device_local_monopoles.device_side_buffer,
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
+
 
                 // Launch kernel and queue copying of results
                 dim3 const grid_spec(INX / 2, 1, 1);
@@ -62,7 +70,7 @@ namespace fmm {
                     potential_expansions_small_size, cudaMemcpyDeviceToHost);
 
                 // Wait for stream to finish and allow thread to jump away in the meantime
-                auto fut = gpu_interface.get_future();
+                auto fut = gpu_interface.get_future<hpx::future<void>>();
                 fut.get();
 
                 // Copy results back into non-SoA array
