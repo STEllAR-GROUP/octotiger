@@ -29,7 +29,7 @@ if(OCTOTIGER_WITH_CUDA)
   add_test(NAME test_problems.gpu.sphere
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini
-      --cuda_streams_per_locality=1 --cuda_streams_per_gpu=1)
+      --cuda_number_gpus=1 --cuda_streams_per_gpu=8)
   add_test(NAME test_problems.gpu.sphere.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.${OCTOTIGER_WITH_GRIDDIM}.silo)

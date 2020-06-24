@@ -21,6 +21,9 @@
 #include <utility>
 #include <vector>
 
+#include <stream_manager.hpp>
+using pool_strategy = multi_gpu_round_robin_pool<cuda_helper, round_robin_pool<cuda_helper>>;
+
 namespace octotiger { namespace util {
     struct cuda_helper
     {

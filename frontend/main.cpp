@@ -61,7 +61,7 @@ std::size_t init_thread_local_worker(std::size_t desired)
     {
 #ifdef OCTOTIGER_HAVE_CUDA
         // Initialize CUDA/CPU scheduler
-        stream_pool::init<cuda_helper, round_robin_pool<cuda_helper>>(0, 8);
+        stream_pool::init<cuda_helper, pool_strategy>(1, 8);
 #endif
 
         namespace mono_inter = octotiger::fmm::monopole_interactions;
@@ -244,6 +244,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "CUDA is enabled! Available CUDA targets on this locality: " << std::endl;
 	octotiger::util::cuda_helper::print_local_targets();
+    stream_pool::init<cuda_helper, pool_strategy>(opts().cuda_number_gpus, opts().cuda_streams_per_gpu);
     octotiger::fmm::kernel_scheduler::init_constants();
 #endif
 	grid::static_init();

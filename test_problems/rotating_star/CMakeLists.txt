@@ -37,7 +37,7 @@ if(OCTOTIGER_WITH_CUDA)
   add_test(NAME test_problems.gpu.rotating_star
     COMMAND octotiger
       --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini
-      --cuda_streams_per_locality=1 --cuda_streams_per_gpu=1)
+      --cuda_number_gpus=1 --cuda_streams_per_gpu=8)
   add_test(NAME test_problems.gpu.rotating_star.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.silo)

@@ -29,8 +29,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             // Check where we want to run this:
-            bool avail = stream_pool::interface_available<cuda_helper,
-                round_robin_pool<cuda_helper>>(8);
+            bool avail = stream_pool::interface_available<cuda_helper, pool_strategy>(opts().cuda_buffer_capacity);
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(
@@ -51,7 +50,7 @@ namespace fmm {
                 // util::cuda_helper& gpu_interface =
                 //     kernel_scheduler::scheduler().get_launch_interface(slot);
 
-                hpx_stream_interface_rr gpu_interface(0);
+                stream_interface<cuda_helper, pool_strategy> gpu_interface;
 
                 gpu_interface.copy_async(device_local_monopoles.device_side_buffer,
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);

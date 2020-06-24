@@ -27,7 +27,7 @@ namespace fmm {
     }
     kernel_scheduler::kernel_scheduler() {}
     void kernel_scheduler::init_constants() {
-        std::size_t gpu_count = 1;
+        std::size_t gpu_count = opts().cuda_number_gpus;
         // Create necessary data and add padding
         two_phase_stencil const stencil = multipole_interactions::calculate_stencil();
         auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
