@@ -362,7 +362,7 @@ set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 add_hpx_executable(
   unitiger
   DEPENDENCIES
-    Silo::silo hydrolib
+    Silo::silo hydrolib 
   SOURCES
     src/unitiger/main.cpp
   HEADERS

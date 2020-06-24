@@ -133,7 +133,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts().m2m_kernel_type))->default_value(SOA_CPU), "boundary multipole-multipole kernel type") //
 	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(SOA_CPU), "boundary particle-particle kernel type")   //
 	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(SOA_CPU), "boundary particle-multipole kernel type") //
-	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(1)), "cuda streams per HPX locality") //
+	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
@@ -185,6 +185,9 @@ bool options::process_options(int argc, char *argv[]) {
 			fclose(fp);
 		}
 		load_options_from_silo(opts().restart_filename);
+	}
+    if (opts().cuda_streams_per_gpu > 0 && opts().cuda_number_gpus == 0) {
+        opts().cuda_number_gpus = 1;
 	}
 	if (opts().theta < octotiger::fmm::THETA_FLOOR) {
 		std::cerr << "theta " << theta << " is too small since Octo-Tiger was compiled for a minimum of " << octotiger::fmm::THETA_FLOOR << std::endl;
