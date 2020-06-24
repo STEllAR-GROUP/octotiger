@@ -42,13 +42,6 @@ namespace octotiger { namespace fmm {
     class kernel_scheduler
     {
     public:
-        // Get a slot on any device to run a FMM kernel.
-        // Return -1 if CPU slot, otherwise the slot number
-        int get_launch_slot();
-        // Get the CUDA interface for a slot
-        // Throws if a CPU slot (-1) is given
-        util::cuda_helper& get_launch_interface(std::size_t slot);
-        // Global scheduler instance for this HPX thread
         static OCTOTIGER_EXPORT kernel_scheduler& scheduler();
 
         OCTOTIGER_EXPORT void init();
@@ -64,18 +57,6 @@ namespace octotiger { namespace fmm {
     private:
         // Constructs number of streams indicated by the options
         kernel_scheduler();
-
-        // How many CUDA streams does scheduler manage
-        std::size_t number_cuda_streams_managed;
-        // How many slots are there per stram - basically the queue length per stream
-        std::size_t const slots_per_cuda_stream;
-        // How many slots are there
-        std::size_t number_slots;
-        bool is_initialized;
-
-        // Contains number_cuda_streams_managed CUDA interfaces
-        std::vector<util::cuda_helper> stream_interfaces;
-
     };
 }}
 #endif

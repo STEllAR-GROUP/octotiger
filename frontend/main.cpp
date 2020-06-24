@@ -25,6 +25,7 @@
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
+#include <stream_manager.hpp>
 #endif
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
@@ -60,7 +61,7 @@ std::size_t init_thread_local_worker(std::size_t desired)
     {
 #ifdef OCTOTIGER_HAVE_CUDA
         // Initialize CUDA/CPU scheduler
-        octotiger::fmm::kernel_scheduler::scheduler().init();
+        stream_pool::init<cuda_helper, round_robin_pool<cuda_helper>>(0, 8);
 #endif
 
         namespace mono_inter = octotiger::fmm::monopole_interactions;

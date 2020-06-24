@@ -23,17 +23,15 @@ namespace fmm {
         cuda_p2p_interaction_interface::cuda_p2p_interaction_interface()
           : p2p_interaction_interface()
           , theta(opts().theta) {
-            stream_pool::init<cuda_helper,
-                priority_pool_multi_gpu<cuda_helper, priority_pool<cuda_helper>>>(1, 8);
         }
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
-            kernel_scheduler::scheduler().init();
             // Check where we want to run this:
-            int slot = kernel_scheduler::scheduler().get_launch_slot();
-            if (slot == -1 || p2p_type == interaction_kernel_type::OLD) {
+            bool avail = stream_pool::interface_available<cuda_helper,
+                round_robin_pool<cuda_helper>>(8);
+            if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(
                     monopoles, neighbors, type, dx, is_direction_empty);
@@ -53,8 +51,8 @@ namespace fmm {
                 // util::cuda_helper& gpu_interface =
                 //     kernel_scheduler::scheduler().get_launch_interface(slot);
 
+                hpx_stream_interface_rr gpu_interface(0);
 
-                hpx_stream_interface_mgpq gpu_interface(0);
                 gpu_interface.copy_async(device_local_monopoles.device_side_buffer,
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
 
@@ -70,7 +68,7 @@ namespace fmm {
                     potential_expansions_small_size, cudaMemcpyDeviceToHost);
 
                 // Wait for stream to finish and allow thread to jump away in the meantime
-                auto fut = gpu_interface.get_future<hpx::future<void>>();
+                auto fut = gpu_interface.get_future();
                 fut.get();
 
                 // Copy results back into non-SoA array

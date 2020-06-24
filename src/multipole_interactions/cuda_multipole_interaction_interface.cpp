@@ -16,6 +16,7 @@
 
 #include <buffer_manager.hpp>
 #include <cuda_buffer_util.hpp>
+#include <stream_manager.hpp>
 #include <cuda_runtime.h>
 
 namespace octotiger {
@@ -32,10 +33,9 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            kernel_scheduler::scheduler().init();
-            // Check where we want to run this:
-            int slot = kernel_scheduler::scheduler().get_launch_slot();
-            if (slot == -1 || m2m_type == interaction_kernel_type::OLD) {
+            bool avail = stream_pool::interface_available<cuda_helper,
+                round_robin_pool<cuda_helper>>(8);
+            if (!avail || m2m_type == interaction_kernel_type::OLD) {
                 // Run fallback CPU implementation
                 multipole_interaction_interface::compute_multipole_interactions(
                     monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
@@ -61,9 +61,7 @@ namespace fmm {
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
                     local_expansions_SoA, center_of_masses_SoA);
 
-                // Queue moving of input data to device
-                util::cuda_helper& gpu_interface =
-                    kernel_scheduler::scheduler().get_launch_interface(slot);
+                hpx_stream_interface_rr gpu_interface(0);
                 gpu_interface.copy_async(device_local_monopoles.device_side_buffer,
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
                 gpu_interface.copy_async(device_local_expansions.device_side_buffer,
