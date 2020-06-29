@@ -93,6 +93,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				ts.x = X[0][i];
 				ts.y = X[1][i];
 				ts.z = X[2][i];
+				ts.ur = UL;
+				ts.ul = UR;
 				ts.dim = dim;
 			}
 		}

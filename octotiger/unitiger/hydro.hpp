@@ -29,6 +29,8 @@ struct timestep_t {
 	double x, y, z;
 	double dt;
 	int dim;
+	std::vector<double> ur;
+	std::vector<double> ul;
 	template<class A>
 	void serialize(A &&arc, unsigned) {
 		arc & a;
@@ -37,6 +39,8 @@ struct timestep_t {
 		arc & z;
 		arc & dim;
 		arc & dt;
+		arc & ur;
+		arc & ul;
 	}
 };
 

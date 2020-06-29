@@ -386,15 +386,15 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		if (!opts().disable_output) {
 			hpx::threads::run_as_os_thread([=]() {
 				FILE *fp = fopen((opts().data_dir + "step.dat").c_str(), "at");
-				fprintf(fp, "%i %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time, dt_.x, dt_.y, dt_.z, dt_.a, dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
+				fprintf(fp, "%i %e %e %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time, dt_.x, dt_.y, dt_.z, dt_.a, dt_.ur[0], dt_.ul[0], dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
 				fclose(fp);
 			});     // do not wait for it to finish
 		}
 
 		hpx::threads::run_as_os_thread(
 				[=]() {
-					printf("%i %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time, dt_.x,
-							dt_.y, dt_.z, dt_.a, dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
+					printf("%i %e %e %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time,
+							dt_.x, dt_.y, dt_.z, dt_.a, dt_.ur[0], dt_.ul[0], dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
 				});     // do not wait for output to finish
 
 		step_num = next_step;
