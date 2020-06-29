@@ -372,10 +372,12 @@ std::vector<real> star(real x, real y, real z, real) {
 		if (r <= rmax) {
 			theta = lane_emden(r/alpha, dr/alpha, n);
 			theta = std::max(theta, theta_min);
+			u[rho_i] = rho_c * std::pow(theta, n);
 		} else {
 			theta = theta_min;
+			u[rho_i] = rho_out;
 		}
-		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
+//		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
 		u[spc_i] = u[rho_i];
 		u[egas_i] = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0 * n;
 		if (theta <= theta_min) {
@@ -400,24 +402,28 @@ std::vector<real> star(real x, real y, real z, real) {
 }
 
 std::vector<real> moving_star(real x, real y, real z, real dx) {
-	real vx = 1.0;
-	real vy = 1.0;
-	real vz = 0.0;
-//	x += x0 + vx * t;
-//	y += y0 + vy * t;
-//	z += z0 + vz * t;
+	const real vx = opts().moving_star_xvelocity;
+	const real vy = opts().moving_star_yvelocity;
+	const real vz = opts().moving_star_zvelocity;
+	const real rho_out = opts().star_rho_out;
 	auto u = star(x, y, z, dx);
-	u[sx_i] = u[rho_i] * vx;
-	u[sy_i] = u[rho_i] * vy;
-	u[sz_i] = u[rho_i] * vz;
-	u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
+        if (u[rho_i] > rho_out) {
+                u[sx_i] = u[rho_i] * vx;
+                u[sy_i] = u[rho_i] * vy;
+                u[sz_i] = u[rho_i] * vz;
+                u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
+                u[spc_i+1] = ZERO;
+        } else {
+                u[spc_i] = ZERO;
+                u[spc_i+1] = u[rho_i];
+        }
 	return u;
 }
 
 std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
-	real vx = 1.0;
-	real vy = 1.0;
-	real vz = 0.0;
+        const real vx = opts().moving_star_xvelocity;
+        const real vy = opts().moving_star_yvelocity;
+        const real vz = opts().moving_star_zvelocity;
 	const real omega = grid::get_omega();
 	const real x0 = x;
 	const real y0 = y;
