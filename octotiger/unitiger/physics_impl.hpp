@@ -515,6 +515,12 @@ void physics<NDIM>::set_n_species(int n) {
 }
 
 template<int NDIM>
+void physics<NDIM>::update_n_field() {
+        nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;;
+}
+
+
+template<int NDIM>
 template<int INX>
 std::vector<typename hydro_computer<NDIM, INX, physics<NDIM>>::bc_type> physics<NDIM>::initialize(physics<NDIM>::test_type t, hydro::state_type &U,
 		hydro::x_type &X) {
