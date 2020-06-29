@@ -1759,7 +1759,7 @@ void grid::rad_init() {
 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 }
 
-real grid::compute_fluxes() {
+timestep_t grid::compute_fluxes() {
 	PROFILE();
 	static hpx::lcos::local::once_flag flag;
 	hpx::lcos::local::call_once(flag, [this]() {
