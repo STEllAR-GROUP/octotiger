@@ -335,7 +335,7 @@ public:
 	void allocate();
 	void store();
 	void restore();
-	real compute_fluxes();
+	timestep_t compute_fluxes();
 	real compute_positivity_speed_limit() const;
 	void compute_sources(real t, real);
 	void set_physical_boundaries(const geo::face&, real t);
