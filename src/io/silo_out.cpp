@@ -536,7 +536,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 
 	std::vector<hpx::future<node_list_t>> id_futs;
 	for (auto &id : localities) {
-		id_futs.push_back(hpx::async<output_stage2_action>(hpx::launch::async(hpx::threads::thread_priority_boost), id, fname, cycle));
+		id_futs.push_back(hpx::async < output_stage2_action > (hpx::launch::async(hpx::threads::thread_priority_boost), id, fname, cycle));
 	}
 	node_list_.silo_leaves.clear();
 	node_list_.group_num.clear();
@@ -569,7 +569,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 	for (int i = 0; i < ng; i++) {
 		int gb = (i * localities.size()) / ng;
 		int ge = ((i + 1) * localities.size()) / ng;
-		futs.push_back(hpx::async<output_stage3_action>(hpx::launch::async(hpx::threads::thread_priority_boost), localities[gb], fname, cycle, i, gb, ge));
+		futs.push_back(hpx::async < output_stage3_action > (hpx::launch::async(hpx::threads::thread_priority_boost), localities[gb], fname, cycle, i, gb, ge));
 	}
 
 	barrier = hpx::async(hpx::launch::async(hpx::threads::thread_priority_boost), [tstart, fname, cycle](std::vector<hpx::future<void>> &&futs) {
