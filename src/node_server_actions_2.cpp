@@ -20,6 +20,7 @@
 #include <hpx/runtime/get_colocation_id.hpp>
 #include <hpx/serialization/list.hpp>
 
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 
@@ -305,7 +306,7 @@ diagnostics_t node_server::diagnostics() {
 			fclose(fp);
 
 		} else {
-			printf("Failed to write binary.dat\n");
+			printf("Failed to write binary.dat %s\n", std::strerror(errno));
 		}
 	} else {
 		printf("Failed to compute Roche geometry\n");
