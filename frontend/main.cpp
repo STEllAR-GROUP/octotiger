@@ -238,7 +238,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
 #ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "CUDA is enabled! Available CUDA targets on this locality: " << std::endl;
-    stream_pool::init<hpx::cuda::cuda_executor, pool_strategy>(opts().cuda_streams_per_gpu,opts().cuda_number_gpus);
+    stream_pool::init<hpx::cuda::cuda_executor, pool_strategy>(opts().cuda_streams_per_gpu,opts().cuda_number_gpus, false);
     octotiger::fmm::kernel_scheduler::init_constants();
 #endif
 	grid::static_init();
