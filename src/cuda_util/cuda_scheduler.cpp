@@ -75,15 +75,15 @@ namespace fmm {
 
         // Move data to constant memory, once per gpu
         for (std::size_t gpu_id = 0; gpu_id < gpu_count; ++gpu_id) {
-            util::cuda_helper::cuda_error(cudaSetDevice(gpu_id));
-            util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
+            cuda_error(cudaSetDevice(gpu_id));
+            cuda_error(cudaMemcpyToSymbol(
                 multipole_interactions::device_constant_stencil_masks,
                 multipole_stencil_masks.get(), full_stencil_size / sizeof(double) * sizeof(bool)));
-            util::cuda_helper::cuda_error(
+            cuda_error(
                 cudaMemcpyToSymbol(multipole_interactions::device_stencil_indicator_const,
                     multipole_inner_stencil_masks.get(),
                     full_stencil_size / sizeof(double) * sizeof(bool)));
-            util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
+            cuda_error(cudaMemcpyToSymbol(
                 monopole_interactions::device_stencil_masks, multipole_stencil_masks.get(),
                 full_stencil_size / sizeof(double) * sizeof(bool)));
             // util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
