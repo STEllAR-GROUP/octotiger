@@ -38,7 +38,7 @@
 #include <hpx/include/actions.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
-#include <hpx/collectives/broadcast.hpp>
+#include <hpx/collectives/broadcast_direct.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -238,8 +238,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
 #ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "CUDA is enabled! Available CUDA targets on this locality: " << std::endl;
-	octotiger::util::cuda_helper::print_local_targets();
-    stream_pool::init<cuda_helper, pool_strategy>(opts().cuda_streams_per_gpu,opts().cuda_number_gpus);
+    stream_pool::init<hpx::cuda::cuda_executor, pool_strategy>(opts().cuda_streams_per_gpu,opts().cuda_number_gpus);
     octotiger::fmm::kernel_scheduler::init_constants();
 #endif
 	grid::static_init();
