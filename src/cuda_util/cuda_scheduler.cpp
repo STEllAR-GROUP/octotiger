@@ -21,6 +21,13 @@
 
 namespace octotiger {
 namespace fmm {
+    void cuda_error(cudaError_t err) {
+        if (err != cudaSuccess) {
+            std::stringstream temp;
+            temp << "CUDA function returned error code " << cudaGetErrorString(err);
+            throw std::runtime_error(temp.str());
+        }
+    }
     kernel_scheduler& kernel_scheduler::scheduler() {
         static thread_local kernel_scheduler scheduler_;
         return scheduler_;

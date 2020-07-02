@@ -23,12 +23,5 @@
 #include <stream_manager.hpp>
 using pool_strategy = multi_gpu_round_robin_pool<hpx::cuda::cuda_executor, round_robin_pool<hpx::cuda::cuda_executor>>;
 
-void cuda_error(cudaError_t err) {
-    if (err != cudaSuccess) {
-        std::stringstream temp;
-        temp << "CUDA function returned error code " << cudaGetErrorString(err);
-        throw std::runtime_error(temp.str());
-    }
-}
 
 #endif

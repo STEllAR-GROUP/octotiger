@@ -33,7 +33,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            bool avail = stream_pool::interface_available<cuda_helper, pool_strategy>(opts().cuda_buffer_capacity);
+            bool avail = stream_pool::interface_available<hpx::cuda::cuda_executor, pool_strategy>(opts().cuda_buffer_capacity);
             if (!avail || m2m_type == interaction_kernel_type::OLD) {
                 // Run fallback CPU implementation
                 multipole_interaction_interface::compute_multipole_interactions(
@@ -60,12 +60,12 @@ namespace fmm {
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
                     local_expansions_SoA, center_of_masses_SoA);
 
-                stream_interface<cuda_helper, pool_strategy> gpu_interface;
-                gpu_interface.copy_async(device_local_monopoles.device_side_buffer,
+                stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
+                executor.post(cudaMemcpyAsync, device_local_monopoles.device_side_buffer,
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(device_local_expansions.device_side_buffer,
+                executor.post(cudaMemcpyAsync, device_local_expansions.device_side_buffer,
                     local_expansions_SoA.get_pod(), local_expansions_size, cudaMemcpyHostToDevice);
-                gpu_interface.copy_async(device_centers.device_side_buffer,
+                executor.post(cudaMemcpyAsync, device_centers.device_side_buffer,
                     center_of_masses_SoA.get_pod(), center_of_masses_size, cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
@@ -80,10 +80,10 @@ namespace fmm {
                         &(device_local_expansions.device_side_buffer),
                         &(device_erg_exp.device_side_buffer),
                         &(device_erg_corrs.device_side_buffer), &theta, &second_phase};
-                    gpu_interface.execute(
-                        reinterpret_cast<void const*>(&cuda_multipole_interactions_kernel_rho),
+                    executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>, 
+                        cuda_multipole_interactions_kernel_rho,
                         grid_spec, threads_per_block, args, 0);
-                    gpu_interface.copy_async(angular_corrections_SoA.get_pod(),
+                    executor.post(cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                         device_erg_corrs.device_side_buffer, angular_corrections_size,
                         cudaMemcpyDeviceToHost);
                 } else {
@@ -92,16 +92,15 @@ namespace fmm {
                         &(device_centers.device_side_buffer),
                         &(device_local_expansions.device_side_buffer),
                         &(device_erg_exp.device_side_buffer), &theta, &second_phase};
-                    gpu_interface.execute(
-                        reinterpret_cast<void const*>(&cuda_multipole_interactions_kernel_non_rho),
+                    executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
+                        cuda_multipole_interactions_kernel_non_rho,
                         grid_spec, threads_per_block, args, 0);
                 }
-                gpu_interface.copy_async(potential_expansions_SoA.get_pod(),
+                auto fut = executor.async_execute(cudaMemcpyAsync, potential_expansions_SoA.get_pod(),
                     device_erg_exp.device_side_buffer, potential_expansions_size,
                     cudaMemcpyDeviceToHost);
 
                 // Wait for stream to finish and allow thread to jump away in the meantime
-                auto fut = gpu_interface.get_future();
                 fut.get();
 
                 // Copy results back into non-SoA array
