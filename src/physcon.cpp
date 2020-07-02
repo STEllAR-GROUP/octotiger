@@ -14,7 +14,7 @@
 #include "octotiger/util.hpp"
 
 #include <hpx/hpx.hpp>
-#include <hpx/collectives/broadcast.hpp>
+#include <hpx/collectives/broadcast_direct.hpp>
 
 #include <array>
 #include <cmath>

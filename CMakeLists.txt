@@ -12,7 +12,7 @@ cmake_policy(VERSION 3.12.4)
 cmake_policy(SET CMP0003 NEW)
 cmake_policy(SET CMP0074 NEW)
 
-project(octotiger CXX)
+project(octotiger CXX C)
 
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
@@ -305,6 +305,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/cuda_util/cuda_scheduler.cpp
     src/io/silo_out.cpp
     src/io/silo_in.cpp
+    src/profiler.cpp
     src/monopole_interactions/calculate_stencil.cpp
     src/monopole_interactions/cuda_p2p_interaction_interface.cpp
     src/monopole_interactions/p2m_kernel.cpp
