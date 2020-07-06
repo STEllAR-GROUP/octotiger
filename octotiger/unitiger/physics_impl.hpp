@@ -40,7 +40,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
 	if (A_ != 0.0) {
 		const auto x = std::pow(rho / B_, 1.0 / 3.0);
-		hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+		hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 		pdeg = deg_pres(x);
 		if (x > 0.001) {
 			edeg = rho * hdeg - pdeg;
@@ -100,7 +100,7 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 		double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
 		if (A_ != 0.0) {
 			const auto x = std::pow(U[rho_i][i] / B_, 1.0 / 3.0);
-			hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+			hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 			pdeg = deg_pres(x);
 			edeg = U[rho_i][i] * hdeg - pdeg;
 		}
@@ -289,7 +289,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 				double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
 				if (A_ != 0.0) {
 					const auto x = std::pow(rho / B_, 1.0 / 3.0);
-					hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+					hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 					pdeg = deg_pres(x);
 					edeg = rho * hdeg - pdeg;
 				}
@@ -516,9 +516,9 @@ void physics<NDIM>::set_n_species(int n) {
 
 template<int NDIM>
 void physics<NDIM>::update_n_field() {
-        nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;;
+	nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;
+	;
 }
-
 
 template<int NDIM>
 template<int INX>
