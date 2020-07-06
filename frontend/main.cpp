@@ -504,7 +504,7 @@ int hpx_main(int argc, char* argv[]) {
 				ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true, false);
 				printf("Done. \n");
 
-
+				set_AB(physcon().A, physcon().B);
 
 			} else {
 				for (integer l = 0; l < opts().max_level; ++l) {
