@@ -238,7 +238,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 
 #ifdef OCTOTIGER_HAVE_CUDA
 	std::cout << "CUDA is enabled! Available CUDA targets on this locality: " << std::endl;
-    stream_pool::init<hpx::cuda::cuda_executor, pool_strategy>(opts().cuda_streams_per_gpu,opts().cuda_number_gpus, false);
+    stream_pool::init<hpx::cuda::cuda_executor, pool_strategy>(
+        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, opts().cuda_polling_executor);
     octotiger::fmm::kernel_scheduler::init_constants();
 #endif
 	grid::static_init();
@@ -489,6 +490,10 @@ int hpx_main(int argc, char* argv[]) {
 			hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
 			node_client root_client(root_id);
 			node_server* root = root_client.get_ptr().get();
+
+#ifdef OCTOTIGER_HAVE_CUDA
+            hpx::cuda::enable_user_polling polling_scope("default");
+#endif
 
 			node_count_type ngrids;
 			//		printf("1\n");

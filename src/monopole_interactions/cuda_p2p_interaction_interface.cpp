@@ -13,23 +13,23 @@
 #include <vector>
 
 #include <buffer_manager.hpp>
-#include <stream_manager.hpp>
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
+#include <stream_manager.hpp>
 
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
         cuda_p2p_interaction_interface::cuda_p2p_interaction_interface()
           : p2p_interaction_interface()
-          , theta(opts().theta) {
-        }
+          , theta(opts().theta) {}
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             // Check where we want to run this:
-            bool avail = stream_pool::interface_available<hpx::cuda::cuda_executor, pool_strategy>(opts().cuda_buffer_capacity);
+            bool avail = stream_pool::interface_available<hpx::cuda::cuda_executor, pool_strategy>(
+                opts().cuda_buffer_capacity);
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(
@@ -46,25 +46,22 @@ namespace fmm {
                 // Move data into staging buffers
                 update_input(monopoles, neighbors, type, local_monopoles);
 
-                // Queue moving of input data to device
-                // util::cuda_helper& gpu_interface =
-                //     kernel_scheduler::scheduler().get_launch_interface(slot);
-
                 stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
 
-                executor.post(cudaMemcpyAsync, device_local_monopoles.device_side_buffer,
-                    local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
-
+                hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
+                    device_local_monopoles.device_side_buffer, local_monopoles.data(),
+                    local_monopoles_size, cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
                 dim3 const grid_spec(INX / 2, 1, 1);
                 dim3 const threads_per_block(1, INX, INX);
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
                     &(erg.device_side_buffer), &theta, &dx};
-                executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
+                hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor),
+                    cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
-                auto fut = executor.async_execute(cudaMemcpyAsync,
-                    potential_expansions_SoA.get_pod(), erg.device_side_buffer,
+                auto fut = hpx::async(static_cast<hpx::cuda::cuda_executor>(executor),
+                    cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
                     potential_expansions_small_size, cudaMemcpyDeviceToHost);
 
                 // Wait for stream to finish and allow thread to jump away in the meantime
