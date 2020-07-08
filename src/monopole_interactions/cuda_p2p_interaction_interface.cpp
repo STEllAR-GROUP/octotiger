@@ -38,15 +38,18 @@ namespace fmm {
                 // run on CUDA device
                 cuda_launch_counter()++;
 
+                // Pick device and stream
+                size_t device_id = stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
+                stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
+
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
-                recycler::cuda_device_buffer<double> device_local_monopoles(ENTRIES);
-                recycler::cuda_device_buffer<double> erg(NUMBER_POT_EXPANSIONS_SMALL);
+                recycler::cuda_device_buffer<double> device_local_monopoles(ENTRIES, device_id);
+                recycler::cuda_device_buffer<double> erg(NUMBER_POT_EXPANSIONS_SMALL, device_id);
 
                 // Move data into staging buffers
                 update_input(monopoles, neighbors, type, local_monopoles);
 
-                stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
 
                 hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
                     device_local_monopoles.device_side_buffer, local_monopoles.data(),

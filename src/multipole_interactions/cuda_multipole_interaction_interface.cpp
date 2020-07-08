@@ -45,23 +45,25 @@ namespace fmm {
                 else
                     cuda_launch_counter_non_rho()++;
 
+                size_t device_id = stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
+                stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
+
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
                 cuda_expansion_buffer_t local_expansions_SoA;
                 cuda_space_vector_buffer_t center_of_masses_SoA;
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_angular_result_t angular_corrections_SoA;
 
-                recycler::cuda_device_buffer<double> device_local_monopoles(ENTRIES);
+                recycler::cuda_device_buffer<double> device_local_monopoles(ENTRIES, device_id);
                 recycler::cuda_device_buffer<double> device_local_expansions(
-                    NUMBER_LOCAL_EXPANSION_VALUES);
-                recycler::cuda_device_buffer<double> device_centers(NUMBER_MASS_VALUES);
-                recycler::cuda_device_buffer<double> device_erg_exp(NUMBER_POT_EXPANSIONS);
+                    NUMBER_LOCAL_EXPANSION_VALUES, device_id);
+                recycler::cuda_device_buffer<double> device_centers(NUMBER_MASS_VALUES, device_id);
+                recycler::cuda_device_buffer<double> device_erg_exp(NUMBER_POT_EXPANSIONS, device_id);
 
                 // Move data into SoA arrays
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
                     local_expansions_SoA, center_of_masses_SoA);
 
-                stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
                 hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
                     device_local_monopoles.device_side_buffer, local_monopoles.data(),
                     local_monopoles_size, cudaMemcpyHostToDevice);
