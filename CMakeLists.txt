@@ -126,6 +126,7 @@ set(source_files
     src/cuda_util/cuda_scheduler.cpp
     src/monopole_interactions/cuda_p2p_interaction_interface.cpp
     src/monopole_interactions/p2p_cuda_kernel.cu
+    src/monopole_interactions/p2p_kokkos_kernel.cpp
     src/monopole_interactions/p2p_cpu_kernel.cpp
     src/monopole_interactions/p2p_interaction_interface.cpp
     src/monopole_interactions/calculate_stencil.cpp
@@ -203,6 +204,7 @@ set(header_files
     octotiger/monopole_interactions/p2m_kernel.hpp
     octotiger/monopole_interactions/p2p_cpu_kernel.hpp
     octotiger/monopole_interactions/p2p_cuda_kernel.hpp
+    octotiger/monopole_interactions/p2p_kokkos_kernel.hpp
     octotiger/monopole_interactions/p2p_interaction_interface.hpp
     octotiger/multipole_interactions/calculate_stencil.hpp
     octotiger/multipole_interactions/compute_kernel_templates.hpp

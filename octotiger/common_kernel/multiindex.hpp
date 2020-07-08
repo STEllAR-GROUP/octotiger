@@ -129,7 +129,7 @@ namespace fmm {
 
     CUDA_CALLABLE_METHOD inline int32_t distance_squared_reciprocal(
         const multiindex<>& i, const multiindex<>& j) {
-        return (sqr(i.x - j.x) + sqr(i.y - j.y) + sqr(i.z - j.z));
+        return ((i.x - j.x) * (i.x - j.x) + (i.y - j.y) * (i.y - j.y) + (i.z - j.z) * (i.z - j.z));
     }
 
     struct two_phase_stencil
