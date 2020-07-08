@@ -324,7 +324,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/unitiger/hydro.cpp
-    frontend/main.cpp
+    frontend/frontend-helper.cpp
     src/unitiger/main.cpp
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp
@@ -358,6 +358,7 @@ add_hpx_executable(
     hydrolib
   SOURCES
     frontend/main.cpp
+    frontend/frontend-helper.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 

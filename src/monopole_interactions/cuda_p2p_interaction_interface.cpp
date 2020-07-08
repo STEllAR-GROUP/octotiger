@@ -6,6 +6,7 @@
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
+#include "octotiger/monopole_interactions/p2p_kokkos_kernel.hpp"
 
 #include "octotiger/monopole_interactions/p2p_kokkos_kernel.hpp"
 
@@ -40,6 +41,7 @@ namespace fmm {
                 // run on CUDA device
                 cuda_launch_counter()++;
 
+                kokkos_sample_kernel();
                 // Pick device and stream
                 size_t device_id = stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
                 stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
