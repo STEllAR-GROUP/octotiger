@@ -127,7 +127,7 @@ namespace fmm {
         z = ((z + patch_size) >> 1) - subtract;
     }
 
-    CUDA_CALLABLE_METHOD inline int32_t distance_squared_reciprocal(
+    CUDA_GLOBAL_METHOD inline int32_t distance_squared_reciprocal(
         const multiindex<>& i, const multiindex<>& j) {
         return ((i.x - j.x) * (i.x - j.x) + (i.y - j.y) * (i.y - j.y) + (i.z - j.z) * (i.z - j.z));
     }
