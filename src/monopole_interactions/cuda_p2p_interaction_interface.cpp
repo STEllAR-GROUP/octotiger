@@ -33,15 +33,21 @@ namespace fmm {
             // Check where we want to run this:
             bool avail = stream_pool::interface_available<hpx::cuda::cuda_executor, pool_strategy>(
                 opts().cuda_buffer_capacity);
+            bool run_dummy = true;
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(
                     monopoles, neighbors, type, dx, is_direction_empty);
+            } else if (run_dummy) {
+                std::vector<real, recycler::recycle_std<real>> local_monopoles(ENTRIES);
+                std::vector<real, recycler::recycle_std<real>> potential_expansions(NUMBER_POT_EXPANSIONS_SMALL);
+                update_input(monopoles, neighbors, type, local_monopoles);
+                kokkos_p2p_interactions(local_monopoles, potential_expansions);
             } else {
                 // run on CUDA device
                 cuda_launch_counter()++;
 
-                kokkos_sample_kernel();
+
                 // Pick device and stream
                 size_t device_id = stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
                 stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
