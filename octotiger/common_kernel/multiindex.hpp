@@ -25,7 +25,7 @@ namespace fmm {
         T y;
         T z;
 
-        CUDA_CALLABLE_METHOD multiindex(T x, T y, T z)
+        CUDA_GLOBAL_METHOD multiindex(T x, T y, T z)
           : x(x)
           , y(y)
           , z(z) {
@@ -34,12 +34,12 @@ namespace fmm {
         }
 
         template <typename U>
-        CUDA_CALLABLE_METHOD multiindex(const multiindex<U>& other) {
+        CUDA_GLOBAL_METHOD multiindex(const multiindex<U>& other) {
             x = other.x;
             y = other.y;
             z = other.z;
         }
-        CUDA_CALLABLE_METHOD multiindex() {
+        CUDA_GLOBAL_METHOD multiindex() {
             /* do not initialise anything in here! If a value is touched in the default
             constructor, we cannot use the class within cuda constant memory (and we want to) */
         }
@@ -50,11 +50,11 @@ namespace fmm {
         //   , y(y)
         //   , z(z) {}
 
-        CUDA_CALLABLE_METHOD inline double length() const {
+        CUDA_GLOBAL_METHOD inline double length() const {
             return sqrt(static_cast<double>(x * x + y * y + z * z));
         }
 
-        CUDA_CALLABLE_METHOD inline bool compare(multiindex& other) {
+        CUDA_GLOBAL_METHOD inline bool compare(multiindex& other) {
             if (this->x == other.x && this->y == other.y && this->z == other.z) {
                 return true;
             } else {
@@ -62,7 +62,7 @@ namespace fmm {
             }
         }
 
-        CUDA_CALLABLE_METHOD inline bool operator == (const multiindex& other) const {
+        CUDA_GLOBAL_METHOD inline bool operator == (const multiindex& other) const {
             if (this->x == other.x && this->y == other.y && this->z == other.z) {
                 return true;
             } else {
@@ -71,7 +71,7 @@ namespace fmm {
         }
 
         // set this multiindex to the next coarser level index
-        CUDA_CALLABLE_METHOD void transform_coarse() {
+        CUDA_GLOBAL_METHOD void transform_coarse() {
             const T patch_size = static_cast<typename T::value_type>(INX);
             const T subtract = static_cast<typename T::value_type>(INX / 2);
 
@@ -81,7 +81,7 @@ namespace fmm {
         }
     };
 
-    CUDA_CALLABLE_METHOD inline multiindex<> flat_index_to_multiindex_not_padded(
+    CUDA_GLOBAL_METHOD inline multiindex<> flat_index_to_multiindex_not_padded(
         size_t flat_index) {
         size_t x = flat_index / (INNER_CELLS_PER_DIRECTION * INNER_CELLS_PER_DIRECTION);
         flat_index %= (INNER_CELLS_PER_DIRECTION * INNER_CELLS_PER_DIRECTION);
@@ -92,7 +92,7 @@ namespace fmm {
         return m;
     }
 
-    CUDA_CALLABLE_METHOD inline multiindex<> flat_index_to_multiindex_padded(size_t flat_index) {
+    CUDA_GLOBAL_METHOD inline multiindex<> flat_index_to_multiindex_padded(size_t flat_index) {
         size_t x = flat_index / (PADDED_STRIDE * PADDED_STRIDE);
         flat_index %= (PADDED_STRIDE * PADDED_STRIDE);
         size_t y = flat_index / PADDED_STRIDE;
@@ -103,7 +103,7 @@ namespace fmm {
     }
 
     template <typename T>
-    CUDA_CALLABLE_METHOD inline T to_flat_index_padded(const multiindex<T>& m) {
+    CUDA_GLOBAL_METHOD inline T to_flat_index_padded(const multiindex<T>& m) {
       return (m.x - PADDING_OFFSET) * PADDED_STRIDE * PADDED_STRIDE + (m.y - PADDING_OFFSET) *
       PADDED_STRIDE + (m.z - PADDING_OFFSET);
     }
@@ -112,14 +112,14 @@ namespace fmm {
      * Note: for m2m_int_vector and integer
      * Note: returns uint32_t vector because of Vc limitation */
     template <typename T>
-    CUDA_CALLABLE_METHOD inline T to_inner_flat_index_not_padded(const multiindex<T>& m) {
+    CUDA_GLOBAL_METHOD inline T to_inner_flat_index_not_padded(const multiindex<T>& m) {
         return m.x * INNER_CELLS_PER_DIRECTION * INNER_CELLS_PER_DIRECTION +
             m.y * INNER_CELLS_PER_DIRECTION + m.z;
     }
 
     // This specialization is only required on cuda devices since T::value_type is not supported!
     template <>
-    CUDA_CALLABLE_METHOD inline void multiindex<int32_t>::transform_coarse() {
+    CUDA_GLOBAL_METHOD inline void multiindex<int32_t>::transform_coarse() {
         const int32_t patch_size = static_cast<int32_t>(INX);
         const int32_t subtract = static_cast<int32_t>(INX / 2);
         x = ((x + patch_size) >> 1) - subtract;

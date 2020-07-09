@@ -11,8 +11,10 @@
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 #endif
 #define CUDA_CALLABLE_METHOD __device__
+#define CUDA_GLOBAL_METHOD __host__ __device__
 #else
 #define CUDA_CALLABLE_METHOD
+#define CUDA_GLOBAL_METHOD
 #endif
 #else
 #define CUDA_CALLABLE_METHOD

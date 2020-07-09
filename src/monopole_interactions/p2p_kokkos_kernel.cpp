@@ -64,6 +64,16 @@ namespace fmm {
                 "kernel p2p", policy_1, KOKKOS_LAMBDA(int x, int y, int z) {
                     int index = x * 8 * 8 + y * 8 + z;
                     deviceResultView[index] = deviceView[index] + x + y + z;
+
+                const octotiger::fmm::multiindex<> cell_index(x + INNER_CELLS_PADDING_DEPTH,
+                                                              y + INNER_CELLS_PADDING_DEPTH,
+                                                              z + INNER_CELLS_PADDING_DEPTH);
+                octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
+                // cell_index_coarse.transform_coarse();
+                // const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
+                // octotiger::fmm::multiindex<> cell_index_unpadded(x, y, z);
+                // const size_t cell_flat_index_unpadded =
+                //     octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
                 });
 
             auto fut = hpx::kokkos::deep_copy_async(stream_space, pinnedResultView, deviceResultView);
