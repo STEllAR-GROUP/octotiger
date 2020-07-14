@@ -45,17 +45,17 @@ namespace fmm {
         const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
         void kokkos_p2p_interactions(std::vector<real, recycler::recycle_std<real>>& buffer,
             std::vector<real, recycler::recycle_std<real>>& output, const double dx,
-            const double theta) {
+            const double theta, bool *masks) {
             recycled_pinned_view<double> pinnedView(NUMBER_LOCAL_MONOPOLE_VALUES);
             recycled_device_view<double> deviceView(NUMBER_LOCAL_MONOPOLE_VALUES);
             for (auto i = 0; i < NUMBER_LOCAL_MONOPOLE_VALUES; i++) {
                 pinnedView[i] = buffer[i];
             }
-            // recycled_pinned_view<double> hostmasks(FULL_STENCIL_SIZE);
-            // recycled_device_view<double> devicemasks(FULL_STENCIL_SIZE);
-            // for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
-            //     hostmasks[i] = masks[i];
-            // }
+            recycled_pinned_view<bool> hostmasks(FULL_STENCIL_SIZE);
+            recycled_device_view<bool> devicemasks(FULL_STENCIL_SIZE);
+            for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
+                hostmasks[i] = masks[i];
+            }
 
             recycled_pinned_view<double> pinnedResultView(NUMBER_POT_EXPANSIONS_SMALL);
             recycled_device_view<double> deviceResultView(NUMBER_POT_EXPANSIONS_SMALL);
@@ -70,10 +70,10 @@ namespace fmm {
             // Kokkos:::MDRangePolicy<Rank<3>> policy_1({0,0,0},{8,8,8});
 
             hpx::kokkos::deep_copy_async(stream_space, deviceView, pinnedView);
-            // hpx::kokkos::deep_copy_async(stream_space, devicemasks, hostmasks);
+            hpx::kokkos::deep_copy_async(stream_space, devicemasks, hostmasks);
 
             Kokkos::parallel_for("kernel p2p", policy_1,
-                [deviceView, deviceResultView, dx, theta] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {
+                [deviceView, deviceResultView, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {
                     const octotiger::fmm::multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
                         idy + INNER_CELLS_PADDING_DEPTH, idz + INNER_CELLS_PADDING_DEPTH);
                     octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
@@ -100,12 +100,9 @@ namespace fmm {
                                 const size_t index = x * STENCIL_INX * STENCIL_INX +
                                     y * STENCIL_INX + (stencil_z - STENCIL_MIN);
 
-                                // if (devicemasks[index] == 0.0) {
-                                //     // element not needed according to the stencil ->
-                                //     skip
-                                //     // Note: that this will happen to all threads of the
-                                //     wrap continue;
-                                // }
+                                if (!devicemasks[index]) {
+                                    continue;
+                                }
 
                                 // partner index
                                 const multiindex<> partner_index1(cell_index.x + stencil_x,

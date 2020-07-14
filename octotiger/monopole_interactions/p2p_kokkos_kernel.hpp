@@ -21,7 +21,7 @@ namespace fmm {
         //     const double theta, const double dx);
         void kokkos_p2p_interactions(std::vector<real, recycler::recycle_std<real>>& buffer,
             std::vector<real, recycler::recycle_std<real>>& output, const double dx,
-            const double theta);
+            const double theta, bool *masks);
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

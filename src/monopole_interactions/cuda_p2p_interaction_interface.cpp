@@ -28,19 +28,19 @@ namespace fmm {
           : p2p_interaction_interface()
           , theta(opts().theta) {
             // TODO(daissgr) Replace this
-            // kokkos_stencil_masks = new bool[14*14*14];
-            // auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
-            // auto p2p_stencil_mask_pair =
-            //     monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
-            // auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
-            // auto p2p_four_constants = p2p_stencil_mask_pair.second;
-            // for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
-            //     if (p2p_stencil_mask[i]) {
-            //         kokkos_stencil_masks[i] = true;
-            //     } else {
-            //         kokkos_stencil_masks[i] = false;
-            //     }
-            // }
+            kokkos_stencil_masks = new bool[14*14*14];
+            auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
+            auto p2p_stencil_mask_pair =
+                monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
+            auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
+            auto p2p_four_constants = p2p_stencil_mask_pair.second;
+            for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
+                if (p2p_stencil_mask[i]) {
+                    kokkos_stencil_masks[i] = true;
+                } else {
+                    kokkos_stencil_masks[i] = false;
+                }
+            }
         }
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
@@ -58,7 +58,7 @@ namespace fmm {
                 std::vector<real, recycler::recycle_std<real>> local_monopoles(ENTRIES);
                 std::vector<real, recycler::recycle_std<real>> result(NUMBER_POT_EXPANSIONS_SMALL);
                 update_input(monopoles, neighbors, type, local_monopoles);
-                kokkos_p2p_interactions(local_monopoles, result, dx, theta);
+                kokkos_p2p_interactions(local_monopoles, result, dx, theta, kokkos_stencil_masks);
 
                 auto org = grid_ptr->get_L();
                 auto padded_entries_per_component = NUMBER_POT_EXPANSIONS_SMALL;
