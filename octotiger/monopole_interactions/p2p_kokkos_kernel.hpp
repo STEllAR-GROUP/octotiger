@@ -14,14 +14,14 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        //extern bool device_stencil_masks[FULL_STENCIL_SIZE];
         // extern __constant__ double device_four_constants[4 * FULL_STENCIL_SIZE];
         // void kokkos_p2p_interactions_kernel(
         //     const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
         //     double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL],
         //     const double theta, const double dx);
         void kokkos_p2p_interactions(std::vector<real, recycler::recycle_std<real>>& buffer,
-            std::vector<real, recycler::recycle_std<real>>& output);
+            std::vector<real, recycler::recycle_std<real>>& output, const double dx,
+            const double theta);
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

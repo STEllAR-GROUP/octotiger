@@ -28,6 +28,7 @@ namespace fmm {
         class cuda_p2p_interaction_interface : public p2p_interaction_interface
         {
         public:
+            bool *kokkos_stencil_masks;
             cuda_p2p_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
               * stores results in L */

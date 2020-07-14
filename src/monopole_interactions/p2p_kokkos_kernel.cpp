@@ -44,9 +44,18 @@ namespace fmm {
     namespace monopole_interactions {
         const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
         void kokkos_p2p_interactions(std::vector<real, recycler::recycle_std<real>>& buffer,
-            std::vector<real, recycler::recycle_std<real>>& output) {
+            std::vector<real, recycler::recycle_std<real>>& output, const double dx,
+            const double theta) {
             recycled_pinned_view<double> pinnedView(NUMBER_LOCAL_MONOPOLE_VALUES);
             recycled_device_view<double> deviceView(NUMBER_LOCAL_MONOPOLE_VALUES);
+            for (auto i = 0; i < NUMBER_LOCAL_MONOPOLE_VALUES; i++) {
+                pinnedView[i] = buffer[i];
+            }
+            // recycled_pinned_view<double> hostmasks(FULL_STENCIL_SIZE);
+            // recycled_device_view<double> devicemasks(FULL_STENCIL_SIZE);
+            // for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
+            //     hostmasks[i] = masks[i];
+            // }
 
             recycled_pinned_view<double> pinnedResultView(NUMBER_POT_EXPANSIONS_SMALL);
             recycled_device_view<double> deviceResultView(NUMBER_POT_EXPANSIONS_SMALL);
@@ -61,12 +70,10 @@ namespace fmm {
             // Kokkos:::MDRangePolicy<Rank<3>> policy_1({0,0,0},{8,8,8});
 
             hpx::kokkos::deep_copy_async(stream_space, deviceView, pinnedView);
+            // hpx::kokkos::deep_copy_async(stream_space, devicemasks, hostmasks);
 
-            Kokkos::parallel_for(
-                "kernel p2p", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-                    const double theta = 0.34;
-                    const double dx = 0.34;
-
+            Kokkos::parallel_for("kernel p2p", policy_1,
+                [deviceView, deviceResultView, dx, theta] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {
                     const octotiger::fmm::multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
                         idy + INNER_CELLS_PADDING_DEPTH, idz + INNER_CELLS_PADDING_DEPTH);
                     octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
@@ -76,26 +83,28 @@ namespace fmm {
                     const size_t cell_flat_index_unpadded =
                         octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
-                    const double theta_rec_squared = sqr(1.0 / theta);
+                    const double theta_rec_squared = (1.0 / theta) * (1.0 / theta);
                     const double d_components[2] = {1.0 / dx, -1.0 / dx};
                     double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
 
-                    // Go through all possible stance elements for the two cells this thread is
-                    // responsible for
+                    // Go through all possible stance elements for the two cells this thread
+                    // is responsible for
                     for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
                         int x = stencil_x - STENCIL_MIN;
                         for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                             int y = stencil_y - STENCIL_MIN;
                             for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX;
                                  stencil_z++) {
-                                // Overall index (required for accessing stencil related arrays)
+                                // Overall index (required for accessing stencil related
+                                // arrays)
                                 const size_t index = x * STENCIL_INX * STENCIL_INX +
                                     y * STENCIL_INX + (stencil_z - STENCIL_MIN);
 
-                                // if (!device_stencil_masks[index]) {
-                                //     // element not needed according to the stencil -> skip
-                                //     // Note: that this will happen to all threads of the wrap
-                                //     continue;
+                                // if (devicemasks[index] == 0.0) {
+                                //     // element not needed according to the stencil ->
+                                //     skip
+                                //     // Note: that this will happen to all threads of the
+                                //     wrap continue;
                                 // }
 
                                 // partner index
@@ -145,6 +154,10 @@ namespace fmm {
             auto fut =
                 hpx::kokkos::deep_copy_async(stream_space, pinnedResultView, deviceResultView);
             fut.get();
+
+            for (auto i = 0; i < NUMBER_POT_EXPANSIONS_SMALL; i++) {
+                output[i] = pinnedResultView[i];
+            }
         }
 
     }    // namespace monopole_interactions
