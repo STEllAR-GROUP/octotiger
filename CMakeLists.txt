@@ -30,6 +30,8 @@ option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 option(OCTOTIGER_WITH_Vc "" ON)
+# Re-enables Vc datatypes in the octotiger parts - use with caution
+option(OCTOTIGER_WITH_LEGACY_Vc "" OFF)
 option(OCTOTIGER_WITH_AVX "" OFF)
 option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
@@ -77,11 +79,17 @@ if(OCTOTIGER_WITH_CUDA)
   #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
   #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
   string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
+
+  if (OCTOTIGER_WITH_LEGACY_Vc)
+    message(FATAL_ERROR " CUDA cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
+  endif()
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   find_package(Kokkos REQUIRED)
-  find_package(Kokkos REQUIRED)
+  if (OCTOTIGER_WITH_LEGACY_Vc)
+    message(FATAL_ERROR " Kokkos cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
+  endif()
 endif()
 
 ################################################################################
@@ -283,7 +291,7 @@ add_hpx_library(
 
 # Deal with the incompatibility of Kokkos+Cuda and Vc
 if(OCTOTIGER_WITH_KOKKOS)
-  set(vc_tainted_source_files
+  set(host_only_source_files
     src/compute_factor.cpp
     src/eos.cpp
     src/grid.cpp
@@ -328,17 +336,11 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp
   )
-   # src/monopole_interactions/cuda_p2p_interaction_interface.cpp
-  set(vc_tainted_header_files
-    octotiger/grid.hpp
-    octotiger/interaction_types.hpp
+  set(host_only_header_files
     octotiger/simd.hpp
-    octotiger/space_vector.hpp
-    octotiger/taylor.hpp
     octotiger/common_kernel/kernel_simd_types.hpp
-    octotiger/common_kernel/kernel_taylor_set_basis.hpp
   )
-  set_source_files_properties(${vc_tainted_source_files} ${vc_tainted_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
+  set_source_files_properties(${host_only_source_files} ${host_only_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
 endif()
 
 # Enable exported functions
@@ -434,9 +436,15 @@ if(OCTOTIGER_WITH_Vc)
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
     # This just spits out lots of warnings
-    #HPX_HAVE_DATAPAR
-    #HPX_HAVE_DATAPAR_VC 
   )
+  if (OCTOTIGER_WITH_LEGACY_Vc)
+     target_compile_definitions(octolib PUBLIC OCTOTIGER_LEGACY_VC
+       # Need serialization support from HPX
+       # This just spits out lots of warnings
+       HPX_HAVE_DATAPAR
+       HPX_HAVE_DATAPAR_VC 
+     )
+  endif()
 endif()
 
 if(OCTOTIGER_WITH_Vc AND USE_AVX512 AND OCTOTIGER_WITH_AVX512)
@@ -470,9 +478,12 @@ endif()
 
 # Handle CUDA
 if(OCTOTIGER_WITH_CUDA)
+  message(INFO " CUDA support is turned on!")
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_CUDA)
   set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
   set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+
+
 endif()
 
 # Handle other options

@@ -598,17 +598,20 @@ void grid::compute_interactions(gsolve_type type) {
 		for (integer li = 0; li < dsize; ++li) {
 			// Retrieve the interaction description for the current body (David)
 			const auto &ele = ilist_d[li];
-
-            v4sd four{ele.four[0], ele.four[1], ele.four[2], ele.four[3]};
-
 			// Extract the indices of the two interacting bodies (David)
 			const integer iii0 = ele.first;
 			const integer iii1 = ele.second;
+
 			// fetch both interacting bodies (monopoles) (David)
 			// broadcasts a single value
+#if defined(OCTOTIGER_LEGACY_VC)
+			L[iii0] += mon[iii1] * ele.four * d0;
+			L[iii1] += mon[iii0] * ele.four * d1;
+#else
+            v4sd four{ele.four[0], ele.four[1], ele.four[2], ele.four[3]};
 			L[iii0] += mon[iii1] * four * d0;
 			L[iii1] += mon[iii0] * four * d1;
-
+#endif
 		}
 	}
 
@@ -1071,8 +1074,12 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 
 		for (integer li = 0; li < dsize; ++li) {
 			const integer iii0 = bnd.first[li];
+#if defined(OCTOTIGER_LEGACY_VC)
+            auto tmp1 = m0 * bnd.four[li];
+#else
             v4sd four{bnd.four[li][0], bnd.four[li][1], bnd.four[li][2], bnd.four[li][3]};
 			auto tmp1 = m0 * four;
+#endif
 			expansion &Liii0 = L[iii0];
 			for (integer i = 0; i != 4; ++i) {
 				Liii0[i] += tmp1[i];
@@ -1168,7 +1175,11 @@ void compute_ilist() {
 							const real tmp = sqr(x) + sqr(y) + sqr(z);
 							const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
 							const real r3 = r * r * r;
+#if defined(OCTOTIGER_LEGACY_VC)
+                            v4sd four;
+#else
 							std::array<real, 4> four;
+#endif
 							if (r > 0.0) {
 								four[0] = -1.0 / r;
 								four[1] = x / r3;

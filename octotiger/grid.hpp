@@ -129,8 +129,11 @@ private:
 	std::vector<std::vector<safe_real>> dUdt;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F;
 	std::vector<std::vector<safe_real>> X;
-	// std::vector<v4sd> G;
+#if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
+	std::vector<v4sd> G;
+#else
 	std::vector<std::array<real,4>> G;
+#endif
 	std::shared_ptr<std::vector<multipole>> M_ptr;
 	std::shared_ptr<std::vector<real>> mon_ptr;
 	std::vector<expansion> L;

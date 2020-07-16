@@ -21,10 +21,10 @@
 
 // #if defined(Vc_HAVE_AVX512F) || defined(Vc_HAVE_AVX)
 
-//#ifdef __AVX2__
-// #include <Vc/Vc>
-//using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
-//#else
+#if defined(__AVX2__) && defined(OCTOTIGER_LEGACY_VC)
+#include <Vc/Vc>
+using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
+#else
 //using floatv = Vc::float_v;
  template<class T = real>
  class space_vector_gen : public std::array<T, NDIM> {
@@ -126,7 +126,7 @@
 using space_vector = space_vector_gen<real>;
 
 //using space_vector = Vc::Vector<real, Vc::VectorAbi::Scalar>;
-//#endif
+#endif
 // #else
 // using space_vector = hpx::parallel::traits::vector_pack_type<real, 4>::type;
 // #endif
