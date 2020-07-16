@@ -268,9 +268,9 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		}
 		if (get_analytic() != nullptr) {
 			compare_analytic();
-			if (opts().gravity) {
-				solve_gravity(true, false);
-			}
+	//		if (opts().gravity) {
+	//			solve_gravity(true, false);
+	//		}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);
 			}
