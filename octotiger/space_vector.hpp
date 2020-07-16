@@ -13,7 +13,6 @@
 #include <hpx/runtime/serialization/datapar.hpp>
 #include <hpx/serialization/traits/is_bitwise_serializable.hpp>
 
-#include <Vc/Vc>
 
 // #if !defined(HPX_HAVE_DATAPAR)
 
@@ -22,10 +21,11 @@
 
 // #if defined(Vc_HAVE_AVX512F) || defined(Vc_HAVE_AVX)
 
-#ifdef __AVX2__
-using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
-#else
-using floatv = Vc::float_v;
+//#ifdef __AVX2__
+// #include <Vc/Vc>
+//using space_vector = Vc::Vector<real, Vc::VectorAbi::Avx>;
+//#else
+//using floatv = Vc::float_v;
  template<class T = real>
  class space_vector_gen : public std::array<T, NDIM> {
  public:
@@ -126,7 +126,7 @@ using floatv = Vc::float_v;
 using space_vector = space_vector_gen<real>;
 
 //using space_vector = Vc::Vector<real, Vc::VectorAbi::Scalar>;
-#endif
+//#endif
 // #else
 // using space_vector = hpx::parallel::traits::vector_pack_type<real, 4>::type;
 // #endif

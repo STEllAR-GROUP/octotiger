@@ -6,6 +6,7 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
+#include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/grid_flattened_indices.hpp"
 #include "octotiger/grid_fmm.hpp"
@@ -27,6 +28,117 @@
 extern taylor<4, real> factor;
 extern taylor<4, m2m_vector> factor_half_v;
 extern taylor<4, m2m_vector> factor_sixth_v;
+
+template <>
+inline void taylor<5, simd_vector>::set_basis(const std::array<simd_vector, NDIM>& X) {
+    constexpr integer N = 5;
+    using T = simd_vector;
+    // PROF_BEGIN;
+
+    // also highly optimized
+
+    // A is D in the paper in formula (6)
+    taylor<N, T>& A = *this;
+
+    const T r2 = sqr(X[0]) + sqr(X[1]) + sqr(X[2]);
+    T r2inv = 0.0;
+    for (volatile integer i = 0; i != simd_len; ++i) {
+        if (r2[i] > 0.0) {
+            r2inv[i] = ONE / std::max(r2[i], 1.0e-20);
+        }
+    }
+
+    // parts of formula (6)
+    const T d0 = -sqrt(r2inv);
+    // parts of formula (7)
+    const T d1 = -d0 * r2inv;
+    // parts of formula (8)
+    const T d2 = T(-3) * d1 * r2inv;
+    // parts of  formula (9)
+    const T d3 = T(-5) * d2 * r2inv;
+    //     const T d4 = -T(7) * d3 * r2inv;
+
+    // formula (6)
+    A[0] = d0;
+
+    // formula (7)
+    for (integer i = taylor_sizes[0], a = 0; a != NDIM; ++a, ++i) {
+        A[i] = X[a] * d1;
+    }
+    // formula (8)
+    for (integer i = taylor_sizes[1], a = 0; a != NDIM; ++a) {
+        T const Xad2 = X[a] * d2;
+        for (integer b = a; b != NDIM; ++b, ++i) {
+            A[i] = Xad2 * X[b];
+        }
+    }
+    // formula (9)
+    for (integer i = taylor_sizes[2], a = 0; a != NDIM; ++a) {
+        T const Xad3 = X[a] * d3;
+        for (integer b = a; b != NDIM; ++b) {
+            T const Xabd3 = Xad3 * X[b];
+            for (integer c = b; c != NDIM; ++c, ++i) {
+                A[i] = Xabd3 * X[c];
+            }
+        }
+    }
+
+    // formula (19)
+
+    // set the coefficients to zero that are calculated next
+    for (integer i = taylor_sizes[3]; i != taylor_sizes[4]; ++i) {
+        A[i] = ZERO;
+    }
+
+    auto const d22 = 2.0 * d2;
+//     for (integer a = 0; a != NDIM; a++) {
+//         auto const Xad2 = X[a] * d2;
+//         auto const Xad3 = X[a] * d3;
+//         A(a, a) += d1;
+//         A(a, a, a) += Xad2;
+//         A(a, a, a, a) += Xad3 * X[a] + d22;
+//         for (integer b = a; b != NDIM; b++) {
+//             auto const Xabd3 = Xad3 * X[b];
+//             auto const Xbd3 = X[b] * d3;
+//             A(a, a, b) += X[b] * d2;
+//             A(a, b, b) += Xad2;
+//             A(a, a, a, b) += Xabd3;
+//             A(a, b, b, b) += Xabd3;
+//             A(a, a, b, b) += d2;
+//             for (integer c = b; c != NDIM; c++) {
+//                 A(a, a, b, c) += Xbd3 * X[c];
+//                 A(a, b, b, c) += Xad3 * X[c];
+//                 A(a, b, c, c) += Xabd3;
+//             }
+//         }
+//     }
+    for (integer i = taylor_sizes[0]; i != taylor_sizes[1]; ++i) {
+        A[to_aa[i]] += d1;
+        integer const to_a_idx = to_a[i];
+        A[to_aaa[i]] += X[to_a_idx] * d2;
+        A[to_aaaa[i]] += sqr(X[to_a_idx]) * d3 + d22;
+    }
+    for (integer i = taylor_sizes[1]; i != taylor_sizes[2]; ++i) {
+        integer const to_a_idx = to_a[i];
+        integer const to_b_idx = to_b[i];
+        auto const Xabd3 = X[to_a_idx] * X[to_b_idx] * d3;
+        A[to_aab[i]] += X[to_b_idx] * d2;
+        A[to_abb[i]] += X[to_a_idx] * d2;
+        A[to_aaab[i]] += Xabd3;
+        A[to_abbb[i]] += Xabd3;
+        A[to_aabb[i]] += d2;
+    }
+    for (integer i = taylor_sizes[2]; i != taylor_sizes[3]; ++i) {
+        integer const to_a_idx = to_a[i];
+        integer const to_c_idx = to_c[i];
+        auto const Xbd3 = X[to_b[i]] * d3;
+        A[to_aabc[i]] += Xbd3 * X[to_c_idx];
+        A[to_abbc[i]] += X[to_a_idx] * X[to_c_idx] * d3;
+        A[to_abcc[i]] += X[to_a_idx] * Xbd3;
+    }
+
+    // PROF_END;
+}
 
 #ifdef OCTOTIGER_HAVE_GRAV_PAR
 const auto for_loop_policy = hpx::parallel::execution::par;
@@ -486,13 +598,16 @@ void grid::compute_interactions(gsolve_type type) {
 		for (integer li = 0; li < dsize; ++li) {
 			// Retrieve the interaction description for the current body (David)
 			const auto &ele = ilist_d[li];
+
+            v4sd four{ele.four[0], ele.four[1], ele.four[2], ele.four[3]};
+
 			// Extract the indices of the two interacting bodies (David)
 			const integer iii0 = ele.first;
 			const integer iii1 = ele.second;
 			// fetch both interacting bodies (monopoles) (David)
 			// broadcasts a single value
-			L[iii0] += mon[iii1] * ele.four * d0;
-			L[iii1] += mon[iii0] * ele.four * d1;
+			L[iii0] += mon[iii1] * four * d0;
+			L[iii1] += mon[iii0] * four * d1;
 
 		}
 	}
@@ -956,7 +1071,8 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 
 		for (integer li = 0; li < dsize; ++li) {
 			const integer iii0 = bnd.first[li];
-			auto tmp1 = m0 * bnd.four[li];
+            v4sd four{bnd.four[li][0], bnd.four[li][1], bnd.four[li][2], bnd.four[li][3]};
+			auto tmp1 = m0 * four;
 			expansion &Liii0 = L[iii0];
 			for (integer i = 0; i != 4; ++i) {
 				Liii0[i] += tmp1[i];
@@ -1052,7 +1168,7 @@ void compute_ilist() {
 							const real tmp = sqr(x) + sqr(y) + sqr(z);
 							const real r = (tmp == 0) ? 0 : std::sqrt(tmp);
 							const real r3 = r * r * r;
-							v4sd four;
+							std::array<real, 4> four;
 							if (r > 0.0) {
 								four[0] = -1.0 / r;
 								four[1] = x / r3;

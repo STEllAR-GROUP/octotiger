@@ -45,7 +45,8 @@ struct cell_geometry {
 	static constexpr int H_DNZ = 1;
 	static constexpr int H_N3 = std::pow(cell_geometry::H_NX, NDIM);
 	static constexpr int H_DN0 = 0;
-	static constexpr int NDIR = std::pow(3, NDIM);
+	//static constexpr int NDIR = std::pow(3, NDIM);
+	static constexpr int NDIR = 27;
 	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
 	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 	static constexpr int H_DN[3] = { H_DNX, H_DNY, H_DNZ };

@@ -51,4 +51,7 @@
 
 using safe_real = double;
 
+//TODO (daissgr) Enable constexpr branches in host code
+#define HOST_CONSTEXPR 
+
 #endif

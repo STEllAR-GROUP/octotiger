@@ -6,7 +6,6 @@
 #pragma once
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"

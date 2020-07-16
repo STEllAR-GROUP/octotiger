@@ -74,15 +74,15 @@ namespace fmm {
             const size_t outer_stencil_index, real dx) {
             const m2m_vector d_components[2] = {1.0 / dx, -1.0 / sqr(dx)};
             m2m_vector tmpstore1[4];
-            tmpstore1[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore1[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore1[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore1[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            tmpstore1[0] = potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore1[1] = potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore1[2] = potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore1[3] = potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
             m2m_vector tmpstore2[4];
-            tmpstore1[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore1[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore1[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore1[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            tmpstore1[0] = potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore1[1] = potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore1[2] = potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore1[3] = potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
 
             bool data_changed = true;
             size_t skipped = 0;

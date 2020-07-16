@@ -5,8 +5,9 @@
 
 #pragma once
 
-#include "kernel_simd_types.hpp"
+//#include "kernel_simd_types.hpp"
 #include "../taylor.hpp"
+#include "../space_vector.hpp"
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "../cuda_util/cuda_helper.hpp"
@@ -45,11 +46,11 @@ namespace fmm {
         }
 
         // careful, this returns a copy!
-        template <size_t component_access>
-        inline m2m_vector value(const size_t flat_index) const {
+        template <size_t component_access, typename VectorType>
+        inline VectorType value(const size_t flat_index) const {
             constexpr size_t component_array_offset =
                 component_access * padded_entries_per_component;
-            return m2m_vector(data.data() + flat_index + component_array_offset);
+            return VectorType(data.data() + flat_index + component_array_offset);
         }
 
         template <typename AoS_temp_type>

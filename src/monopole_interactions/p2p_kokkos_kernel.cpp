@@ -1,7 +1,6 @@
 #ifdef OCTOTIGER_HAVE_CUDA
 #include <iostream>
 
-#include <Kokkos_Complex.hpp>
 #include <Kokkos_Core.hpp>
 #include <hpx/kokkos.hpp>
 

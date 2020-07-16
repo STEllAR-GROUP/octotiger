@@ -20,7 +20,7 @@
 #include "octotiger/roe.hpp"
 #include "octotiger/scf_data.hpp"
 #include "octotiger/io/silo.hpp"
-#include "octotiger/simd.hpp"
+// #include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 //#include "octotiger/taylor.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
@@ -32,7 +32,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
-#include "octotiger/unitiger/hydro.hpp"
+//#include "octotiger/unitiger/hydro.hpp"
 
 class struct_eos;
 
@@ -129,7 +129,8 @@ private:
 	std::vector<std::vector<safe_real>> dUdt;
 	std::vector<hydro_state_t<std::vector<safe_real>>> F;
 	std::vector<std::vector<safe_real>> X;
-	std::vector<v4sd> G;
+	// std::vector<v4sd> G;
+	std::vector<std::array<real,4>> G;
 	std::shared_ptr<std::vector<multipole>> M_ptr;
 	std::shared_ptr<std::vector<real>> mon_ptr;
 	std::vector<expansion> L;

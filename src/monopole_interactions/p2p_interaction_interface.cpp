@@ -1,4 +1,3 @@
-//  Copyright (c) 2019 AUTHORS
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -6,6 +5,7 @@
 #include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/p2p_cpu_kernel.hpp"    //VC ?
 #include "octotiger/options.hpp"
 
 #include <algorithm>
@@ -48,8 +48,7 @@ namespace fmm {
         }
 
         p2p_interaction_interface::p2p_interaction_interface()
-          : neighbor_empty_monopoles(27)
-          , kernel_monopoles() {
+          : neighbor_empty_monopoles(27) {
             this->p2p_type = opts().p2p_kernel_type;
         }
 
@@ -69,6 +68,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
             const cpu_monopole_buffer_t& local_monopoles_staging_area) {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
+                p2p_cpu_kernel kernel_monopoles;
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
                 kernel_monopoles.apply_stencil(local_monopoles_staging_area,
                     potential_expansions_SoA, stencil_masks(), stencil_four_constants(), dx);

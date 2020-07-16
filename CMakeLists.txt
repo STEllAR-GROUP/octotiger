@@ -309,7 +309,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_in.cpp
     src/profiler.cpp
     src/monopole_interactions/calculate_stencil.cpp
-    src/monopole_interactions/cuda_p2p_interaction_interface.cpp
     src/monopole_interactions/p2m_kernel.cpp
     src/monopole_interactions/p2m_interaction_interface.cpp
     src/monopole_interactions/p2p_cpu_kernel.cpp
@@ -329,6 +328,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp
   )
+   # src/monopole_interactions/cuda_p2p_interaction_interface.cpp
   set(vc_tainted_header_files
     octotiger/grid.hpp
     octotiger/interaction_types.hpp
@@ -434,7 +434,8 @@ if(OCTOTIGER_WITH_Vc)
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
     # This just spits out lots of warnings
-     HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC 
+    #HPX_HAVE_DATAPAR
+    #HPX_HAVE_DATAPAR_VC 
   )
 endif()
 

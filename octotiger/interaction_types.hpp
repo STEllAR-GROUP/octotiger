@@ -6,13 +6,13 @@
 #pragma once
 
 #include "octotiger/geometry.hpp"
-#include "octotiger/simd.hpp"
+//#include "octotiger/simd.hpp"
 #include "octotiger/space_vector.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <hpx/synchronization/counting_semaphore.hpp>
 
-#include <Vc/Vc>
+//#include <Vc/Vc>
 
 #include <cstdint>
 #include <memory>
@@ -52,14 +52,14 @@ struct gravity_boundary_type
         local_semaphore = reinterpret_cast<decltype(local_semaphore)>(tmp);
     }
 };
-Vc_DECLARE_ALLOCATOR(gravity_boundary_type)
+//Vc_DECLARE_ALLOCATOR(gravity_boundary_type)
 
 struct neighbor_gravity_type {
     gravity_boundary_type data;
     bool is_monopole;
     geo::direction direction;
 };
-Vc_DECLARE_ALLOCATOR(neighbor_gravity_type)
+//Vc_DECLARE_ALLOCATOR(neighbor_gravity_type)
 
 // struct neighbor_gravity_type
 // {
@@ -86,7 +86,7 @@ class interaction_type
     // index vector in cell
     alignas(32) space_vector x;
     // precomputed values: (-1.0/r, (i0-j0)/r^3, (i1-j1)/r^3, (i2-j2)/r^3), r - distance(i - j)
-    alignas(32) v4sd four;
+    alignas(32) std::array<real, 4> four;
     // // helper variable for vectorization
     // std::uint32_t inner_loop_stop;
 
@@ -118,7 +118,7 @@ class interaction_type
     //     four = other.four;
     // }
 };
-Vc_DECLARE_ALLOCATOR(interaction_type)
+//Vc_DECLARE_ALLOCATOR(interaction_type)
 
 struct boundary_interaction_type
 {
@@ -128,11 +128,11 @@ struct boundary_interaction_type
     // all interaction partners, if second.size() == 1, else the current index
     std::vector<std::uint16_t> first;
     // precomputed values, as in interaction_type
-    std::vector<v4sd> four;
+    std::vector<std::array<real, 4>> four;
     // index vector in cell
     space_vector x;
 };
-Vc_DECLARE_ALLOCATOR(boundary_interaction_type)
+//Vc_DECLARE_ALLOCATOR(boundary_interaction_type)
 
 
 #include "options_enum.hpp"

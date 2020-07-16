@@ -186,19 +186,19 @@ namespace fmm {
             const size_t interaction_partner_flat_index,
             multiindex<m2m_int_vector>& interaction_partner_index_coarse) {
             std::array<m2m_vector, NDIM> X;
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
+            X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
+            X[2] = center_of_masses_SoA.value<2, m2m_vector>(cell_flat_index);
             std::array<m2m_vector, 4> tmpstore;
-            // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            // tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            // tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            // tmpstore[0] = potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
+            // tmpstore[1] = potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
+            // tmpstore[2] = potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
+            // tmpstore[3] = potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
             std::array<m2m_vector, 3> tmp_corrections;
-            // tmp_corrections[0] = angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
-            // tmp_corrections[1] = angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
-            // tmp_corrections[2] = angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
-            // tmp_corrections[3] = angular_corrections_SoA.value<3>(cell_flat_index_unpadded);
+            // tmp_corrections[0] = angular_corrections_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
+            // tmp_corrections[1] = angular_corrections_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
+            // tmp_corrections[2] = angular_corrections_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
+            // tmp_corrections[3] = angular_corrections_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
             // bool data_changed = false;
 
             m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
@@ -216,9 +216,9 @@ namespace fmm {
             // data_changed = true;
 
             std::array<m2m_vector, NDIM> Y;
-            Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-            Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-            Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+            Y[0] = center_of_masses_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
+            Y[1] = center_of_masses_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
+            Y[2] = center_of_masses_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
             std::array<m2m_vector, NDIM> dX;
             dX[0] = X[0] - Y[0];
             dX[1] = X[1] - Y[1];
@@ -232,14 +232,14 @@ namespace fmm {
 
             // Array to store the temporary result - was called A in the old style
             std::array<m2m_vector, 4> cur_pot;
-            m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
+            m_partner[0] = local_expansions_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] = m_partner[0] * D_lower[0];
             cur_pot[1] = m_partner[0] * D_lower[1];
             cur_pot[2] = m_partner[0] * D_lower[2];
             cur_pot[3] = m_partner[0] * D_lower[3];
 
-            m_partner[1] = local_expansions_SoA.value<4>(interaction_partner_flat_index);
-            m_partner[2] = local_expansions_SoA.value<5>(interaction_partner_flat_index);
+            m_partner[1] = local_expansions_SoA.value<4, m2m_vector>(interaction_partner_flat_index);
+            m_partner[2] = local_expansions_SoA.value<5, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] += m_partner[1] * (D_lower[4] * factor_half_v[4]);
             cur_pot[1] += m_partner[1] * (D_lower[10] * factor_half_v[4]);
             cur_pot[2] += m_partner[1] * (D_lower[11] * factor_half_v[4]);
@@ -250,8 +250,8 @@ namespace fmm {
             cur_pot[2] += m_partner[2] * (D_lower[13] * factor_half_v[5]);
             cur_pot[3] += m_partner[2] * (D_lower[14] * factor_half_v[5]);
 
-            m_partner[3] = local_expansions_SoA.value<6>(interaction_partner_flat_index);
-            m_partner[4] = local_expansions_SoA.value<7>(interaction_partner_flat_index);
+            m_partner[3] = local_expansions_SoA.value<6, m2m_vector>(interaction_partner_flat_index);
+            m_partner[4] = local_expansions_SoA.value<7, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] += m_partner[3] * (D_lower[6] * factor_half_v[6]);
             cur_pot[1] += m_partner[3] * (D_lower[12] * factor_half_v[6]);
             cur_pot[2] += m_partner[3] * (D_lower[14] * factor_half_v[6]);
@@ -262,8 +262,8 @@ namespace fmm {
             cur_pot[2] += m_partner[4] * (D_lower[16] * factor_half_v[7]);
             cur_pot[3] += m_partner[4] * (D_lower[17] * factor_half_v[7]);
 
-            m_partner[5] = local_expansions_SoA.value<8>(interaction_partner_flat_index);
-            m_partner[6] = local_expansions_SoA.value<9>(interaction_partner_flat_index);
+            m_partner[5] = local_expansions_SoA.value<8, m2m_vector>(interaction_partner_flat_index);
+            m_partner[6] = local_expansions_SoA.value<9, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] += m_partner[5] * (D_lower[8] * factor_half_v[8]);
             cur_pot[1] += m_partner[5] * (D_lower[14] * factor_half_v[8]);
             cur_pot[2] += m_partner[5] * (D_lower[17] * factor_half_v[8]);
@@ -274,24 +274,24 @@ namespace fmm {
             cur_pot[2] += m_partner[6] * (D_lower[18] * factor_half_v[9]);
             cur_pot[3] += m_partner[6] * (D_lower[19] * factor_half_v[9]);
 
-            m_partner[7] = local_expansions_SoA.value<10>(interaction_partner_flat_index);
-            m_partner[8] = local_expansions_SoA.value<11>(interaction_partner_flat_index);
+            m_partner[7] = local_expansions_SoA.value<10, m2m_vector>(interaction_partner_flat_index);
+            m_partner[8] = local_expansions_SoA.value<11, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[7] * (D_lower[10] * factor_sixth_v[10]);
             cur_pot[0] -= m_partner[8] * (D_lower[11] * factor_sixth_v[11]);
-            m_partner[9] = local_expansions_SoA.value<12>(interaction_partner_flat_index);
-            m_partner[10] = local_expansions_SoA.value<13>(interaction_partner_flat_index);
+            m_partner[9] = local_expansions_SoA.value<12, m2m_vector>(interaction_partner_flat_index);
+            m_partner[10] = local_expansions_SoA.value<13, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[9] * (D_lower[12] * factor_sixth_v[12]);
             cur_pot[0] -= m_partner[10] * (D_lower[13] * factor_sixth_v[13]);
-            m_partner[11] = local_expansions_SoA.value<14>(interaction_partner_flat_index);
-            m_partner[12] = local_expansions_SoA.value<15>(interaction_partner_flat_index);
+            m_partner[11] = local_expansions_SoA.value<14, m2m_vector>(interaction_partner_flat_index);
+            m_partner[12] = local_expansions_SoA.value<15, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[11] * (D_lower[14] * factor_sixth_v[14]);
             cur_pot[0] -= m_partner[12] * (D_lower[15] * factor_sixth_v[15]);
-            m_partner[13] = local_expansions_SoA.value<16>(interaction_partner_flat_index);
-            m_partner[14] = local_expansions_SoA.value<17>(interaction_partner_flat_index);
+            m_partner[13] = local_expansions_SoA.value<16, m2m_vector>(interaction_partner_flat_index);
+            m_partner[14] = local_expansions_SoA.value<17, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[13] * (D_lower[16] * factor_sixth_v[16]);
             cur_pot[0] -= m_partner[14] * (D_lower[17] * factor_sixth_v[17]);
-            m_partner[15] = local_expansions_SoA.value<18>(interaction_partner_flat_index);
-            m_partner[16] = local_expansions_SoA.value<19>(interaction_partner_flat_index);
+            m_partner[15] = local_expansions_SoA.value<18, m2m_vector>(interaction_partner_flat_index);
+            m_partner[16] = local_expansions_SoA.value<19, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[15] * (D_lower[18] * factor_sixth_v[18]);
             cur_pot[0] -= m_partner[16] * (D_lower[19] * factor_sixth_v[19]);
 
@@ -398,21 +398,21 @@ namespace fmm {
             Vc::where(mask, tmp_corrections[2]) =
                 tmp_corrections[2] + current_angular_correction[2];
             // if (data_changed) {
-            tmpstore[0] = tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore[1] = tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore[2] = tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore[3] = tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            tmpstore[0] = tmpstore[0] + potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[1] = tmpstore[1] + potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[2] = tmpstore[2] + potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[3] = tmpstore[3] + potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
             tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
             tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
             tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
             tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
 
             tmp_corrections[0] =
-                tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
+                tmp_corrections[0] + angular_corrections_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
             tmp_corrections[1] =
-                tmp_corrections[1] + angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
+                tmp_corrections[1] + angular_corrections_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
             tmp_corrections[2] =
-                tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
+                tmp_corrections[2] + angular_corrections_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
             tmp_corrections[0].store(angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
             tmp_corrections[1].store(angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded));
             tmp_corrections[2].store(angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded));
@@ -434,14 +434,14 @@ namespace fmm {
             //     center_of_masses_SoA.get_view(cell_flat_index);
 
             std::array<m2m_vector, NDIM> X;
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
+            X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
+            X[2] = center_of_masses_SoA.value<2, m2m_vector>(cell_flat_index);
             std::array<m2m_vector, 4> tmpstore;
-            // tmpstore[0] = potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            // tmpstore[1] = potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            // tmpstore[2] = potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            // tmpstore[3] = potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            // tmpstore[0] = potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
+            // tmpstore[1] = potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
+            // tmpstore[2] = potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
+            // tmpstore[3] = potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
 
             m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
                 cell_index_coarse, interaction_partner_index_coarse);
@@ -457,9 +457,9 @@ namespace fmm {
             }
 
             std::array<m2m_vector, NDIM> Y;
-            Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-            Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-            Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+            Y[0] = center_of_masses_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
+            Y[1] = center_of_masses_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
+            Y[2] = center_of_masses_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
             std::array<m2m_vector, NDIM> dX;
             dX[0] = X[0] - Y[0];
             dX[1] = X[1] - Y[1];
@@ -473,15 +473,15 @@ namespace fmm {
 
             // Array to store the temporary result - was called A in the old style
             std::array<m2m_vector, 4> cur_pot;
-            m_partner[0] = local_expansions_SoA.value<0>(interaction_partner_flat_index);
+            m_partner[0] = local_expansions_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] = m_partner[0] * D_lower[0];
             cur_pot[1] = m_partner[0] * D_lower[1];
             cur_pot[2] = m_partner[0] * D_lower[2];
             cur_pot[3] = m_partner[0] * D_lower[3];
 
-            m_partner[1] = local_expansions_SoA.value<1>(interaction_partner_flat_index);
-            m_partner[2] = local_expansions_SoA.value<2>(interaction_partner_flat_index);
-            m_partner[3] = local_expansions_SoA.value<3>(interaction_partner_flat_index);
+            m_partner[1] = local_expansions_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
+            m_partner[2] = local_expansions_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
+            m_partner[3] = local_expansions_SoA.value<3, m2m_vector>(interaction_partner_flat_index);
 
             cur_pot[0] -= m_partner[1] * D_lower[1];
             cur_pot[0] -= m_partner[2] * D_lower[2];
@@ -499,8 +499,8 @@ namespace fmm {
             cur_pot[3] -= m_partner[3] * D_lower[8];
             cur_pot[3] -= m_partner[3] * D_lower[9];
 
-            m_partner[4] = local_expansions_SoA.value<4>(interaction_partner_flat_index);
-            m_partner[5] = local_expansions_SoA.value<5>(interaction_partner_flat_index);
+            m_partner[4] = local_expansions_SoA.value<4, m2m_vector>(interaction_partner_flat_index);
+            m_partner[5] = local_expansions_SoA.value<5, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] += m_partner[4] * (D_lower[4] * factor_half_v[4]);
             cur_pot[1] += m_partner[4] * (D_lower[10] * factor_half_v[4]);
             cur_pot[2] += m_partner[4] * (D_lower[11] * factor_half_v[4]);
@@ -511,8 +511,8 @@ namespace fmm {
             cur_pot[2] += m_partner[5] * (D_lower[13] * factor_half_v[5]);
             cur_pot[3] += m_partner[5] * (D_lower[14] * factor_half_v[5]);
 
-            m_partner[6] = local_expansions_SoA.value<6>(interaction_partner_flat_index);
-            m_partner[7] = local_expansions_SoA.value<7>(interaction_partner_flat_index);
+            m_partner[6] = local_expansions_SoA.value<6, m2m_vector>(interaction_partner_flat_index);
+            m_partner[7] = local_expansions_SoA.value<7, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] += m_partner[6] * (D_lower[6] * factor_half_v[6]);
             cur_pot[1] += m_partner[6] * (D_lower[12] * factor_half_v[6]);
             cur_pot[2] += m_partner[6] * (D_lower[14] * factor_half_v[6]);
@@ -523,8 +523,8 @@ namespace fmm {
             cur_pot[2] += m_partner[7] * (D_lower[16] * factor_half_v[7]);
             cur_pot[3] += m_partner[7] * (D_lower[17] * factor_half_v[7]);
 
-            m_partner[8] = local_expansions_SoA.value<8>(interaction_partner_flat_index);
-            m_partner[9] = local_expansions_SoA.value<9>(interaction_partner_flat_index);
+            m_partner[8] = local_expansions_SoA.value<8, m2m_vector>(interaction_partner_flat_index);
+            m_partner[9] = local_expansions_SoA.value<9, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] += m_partner[8] * (D_lower[8] * factor_half_v[8]);
             cur_pot[1] += m_partner[8] * (D_lower[14] * factor_half_v[8]);
             cur_pot[2] += m_partner[8] * (D_lower[17] * factor_half_v[8]);
@@ -535,24 +535,24 @@ namespace fmm {
             cur_pot[2] += m_partner[9] * (D_lower[18] * factor_half_v[9]);
             cur_pot[3] += m_partner[9] * (D_lower[19] * factor_half_v[9]);
 
-            m_partner[10] = local_expansions_SoA.value<10>(interaction_partner_flat_index);
-            m_partner[11] = local_expansions_SoA.value<11>(interaction_partner_flat_index);
+            m_partner[10] = local_expansions_SoA.value<10, m2m_vector>(interaction_partner_flat_index);
+            m_partner[11] = local_expansions_SoA.value<11, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[10] * (D_lower[10] * factor_sixth_v[10]);
             cur_pot[0] -= m_partner[11] * (D_lower[11] * factor_sixth_v[11]);
-            m_partner[12] = local_expansions_SoA.value<12>(interaction_partner_flat_index);
-            m_partner[13] = local_expansions_SoA.value<13>(interaction_partner_flat_index);
+            m_partner[12] = local_expansions_SoA.value<12, m2m_vector>(interaction_partner_flat_index);
+            m_partner[13] = local_expansions_SoA.value<13, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[12] * (D_lower[12] * factor_sixth_v[12]);
             cur_pot[0] -= m_partner[13] * (D_lower[13] * factor_sixth_v[13]);
-            m_partner[14] = local_expansions_SoA.value<14>(interaction_partner_flat_index);
-            m_partner[15] = local_expansions_SoA.value<15>(interaction_partner_flat_index);
+            m_partner[14] = local_expansions_SoA.value<14, m2m_vector>(interaction_partner_flat_index);
+            m_partner[15] = local_expansions_SoA.value<15, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[14] * (D_lower[14] * factor_sixth_v[14]);
             cur_pot[0] -= m_partner[15] * (D_lower[15] * factor_sixth_v[15]);
-            m_partner[16] = local_expansions_SoA.value<16>(interaction_partner_flat_index);
-            m_partner[17] = local_expansions_SoA.value<17>(interaction_partner_flat_index);
+            m_partner[16] = local_expansions_SoA.value<16, m2m_vector>(interaction_partner_flat_index);
+            m_partner[17] = local_expansions_SoA.value<17, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[16] * (D_lower[16] * factor_sixth_v[16]);
             cur_pot[0] -= m_partner[17] * (D_lower[17] * factor_sixth_v[17]);
-            m_partner[18] = local_expansions_SoA.value<18>(interaction_partner_flat_index);
-            m_partner[19] = local_expansions_SoA.value<19>(interaction_partner_flat_index);
+            m_partner[18] = local_expansions_SoA.value<18, m2m_vector>(interaction_partner_flat_index);
+            m_partner[19] = local_expansions_SoA.value<19, m2m_vector>(interaction_partner_flat_index);
             cur_pot[0] -= m_partner[18] * (D_lower[18] * factor_sixth_v[18]);
             cur_pot[0] -= m_partner[19] * (D_lower[19] * factor_sixth_v[19]);
 
@@ -560,10 +560,10 @@ namespace fmm {
             Vc::where(mask, tmpstore[1]) = tmpstore[1] + cur_pot[1];
             Vc::where(mask, tmpstore[2]) = tmpstore[2] + cur_pot[2];
             Vc::where(mask, tmpstore[3]) = tmpstore[3] + cur_pot[3];
-            tmpstore[0] = tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
-            tmpstore[1] = tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
-            tmpstore[2] = tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
-            tmpstore[3] = tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+            tmpstore[0] = tmpstore[0] + potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[1] = tmpstore[1] + potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[2] = tmpstore[2] + potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[3] = tmpstore[3] + potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
             tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
             tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
             tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));

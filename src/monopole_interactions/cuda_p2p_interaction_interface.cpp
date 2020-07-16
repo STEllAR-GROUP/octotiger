@@ -7,10 +7,9 @@
 #include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/p2p_cuda_kernel.hpp"
 #include "octotiger/monopole_interactions/p2p_kokkos_kernel.hpp"
-
-#include "octotiger/monopole_interactions/p2p_kokkos_kernel.hpp"
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
 
+#include "octotiger/defs.hpp"
 #include "octotiger/options.hpp"
 
 #include <array>
@@ -21,6 +20,8 @@
 #include <cuda_runtime.h>
 #include <stream_manager.hpp>
 
+//#include <Kokkos_Core.hpp>
+// #include <hpx/kokkos.hpp>
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
@@ -43,13 +44,13 @@ namespace fmm {
             }
         }
 
-        void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
+        void __host__ cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             // Check where we want to run this:
             bool avail = stream_pool::interface_available<hpx::cuda::cuda_executor, pool_strategy>(
                 opts().cuda_buffer_capacity);
-            bool run_dummy = true;
+            bool run_dummy = false;
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(
@@ -95,7 +96,10 @@ namespace fmm {
                 dim3 const threads_per_block(1, INX, INX);
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
                     &(erg.device_side_buffer), &theta, &dx};
-                hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor),
+                // hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor),
+                //     cudalaunchkernel<decltype(cuda_p2p_interactions_kernel)>,
+                //     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
+                executor.post(
                     cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 auto fut = hpx::async(static_cast<hpx::cuda::cuda_executor>(executor),

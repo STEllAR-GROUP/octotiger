@@ -141,33 +141,33 @@ namespace fmm {
             const size_t cell_flat_index_unpadded, const two_phase_stencil& __restrict__ stencil,
             const size_t outer_stencil_index) {
             m2m_vector X[3];
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
+            X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
+            X[2] = center_of_masses_SoA.value<2, m2m_vector>(cell_flat_index);
             m2m_vector tmpstore[20];
             m2m_vector tmp_corrections[3];
 
             m2m_vector m_cell[20];
-            m_cell[0] = local_expansions_SoA.value<0>(cell_flat_index);
-            m_cell[1] = local_expansions_SoA.value<1>(cell_flat_index);
-            m_cell[2] = local_expansions_SoA.value<2>(cell_flat_index);
-            m_cell[3] = local_expansions_SoA.value<3>(cell_flat_index);
-            m_cell[4] = local_expansions_SoA.value<4>(cell_flat_index);
-            m_cell[5] = local_expansions_SoA.value<5>(cell_flat_index);
-            m_cell[6] = local_expansions_SoA.value<6>(cell_flat_index);
-            m_cell[7] = local_expansions_SoA.value<7>(cell_flat_index);
-            m_cell[8] = local_expansions_SoA.value<8>(cell_flat_index);
-            m_cell[9] = local_expansions_SoA.value<9>(cell_flat_index);
-            m_cell[10] = local_expansions_SoA.value<10>(cell_flat_index);
-            m_cell[11] = local_expansions_SoA.value<11>(cell_flat_index);
-            m_cell[12] = local_expansions_SoA.value<12>(cell_flat_index);
-            m_cell[13] = local_expansions_SoA.value<13>(cell_flat_index);
-            m_cell[14] = local_expansions_SoA.value<14>(cell_flat_index);
-            m_cell[15] = local_expansions_SoA.value<15>(cell_flat_index);
-            m_cell[16] = local_expansions_SoA.value<16>(cell_flat_index);
-            m_cell[17] = local_expansions_SoA.value<17>(cell_flat_index);
-            m_cell[18] = local_expansions_SoA.value<18>(cell_flat_index);
-            m_cell[19] = local_expansions_SoA.value<19>(cell_flat_index);
+            m_cell[0] = local_expansions_SoA.value<0, m2m_vector>(cell_flat_index);
+            m_cell[1] = local_expansions_SoA.value<1, m2m_vector>(cell_flat_index);
+            m_cell[2] = local_expansions_SoA.value<2, m2m_vector>(cell_flat_index);
+            m_cell[3] = local_expansions_SoA.value<3, m2m_vector>(cell_flat_index);
+            m_cell[4] = local_expansions_SoA.value<4, m2m_vector>(cell_flat_index);
+            m_cell[5] = local_expansions_SoA.value<5, m2m_vector>(cell_flat_index);
+            m_cell[6] = local_expansions_SoA.value<6, m2m_vector>(cell_flat_index);
+            m_cell[7] = local_expansions_SoA.value<7, m2m_vector>(cell_flat_index);
+            m_cell[8] = local_expansions_SoA.value<8, m2m_vector>(cell_flat_index);
+            m_cell[9] = local_expansions_SoA.value<9, m2m_vector>(cell_flat_index);
+            m_cell[10] = local_expansions_SoA.value<10, m2m_vector>(cell_flat_index);
+            m_cell[11] = local_expansions_SoA.value<11, m2m_vector>(cell_flat_index);
+            m_cell[12] = local_expansions_SoA.value<12, m2m_vector>(cell_flat_index);
+            m_cell[13] = local_expansions_SoA.value<13, m2m_vector>(cell_flat_index);
+            m_cell[14] = local_expansions_SoA.value<14, m2m_vector>(cell_flat_index);
+            m_cell[15] = local_expansions_SoA.value<15, m2m_vector>(cell_flat_index);
+            m_cell[16] = local_expansions_SoA.value<16, m2m_vector>(cell_flat_index);
+            m_cell[17] = local_expansions_SoA.value<17, m2m_vector>(cell_flat_index);
+            m_cell[18] = local_expansions_SoA.value<18, m2m_vector>(cell_flat_index);
+            m_cell[19] = local_expansions_SoA.value<19, m2m_vector>(cell_flat_index);
 
             m2m_vector Y[3];
 
@@ -208,9 +208,9 @@ namespace fmm {
                 changed_data = true;
 
                 m2m_vector m_partner[20];
-                Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-                Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-                Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+                Y[0] = center_of_masses_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
+                Y[1] = center_of_masses_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
+                Y[2] = center_of_masses_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
 
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
@@ -218,45 +218,45 @@ namespace fmm {
                     m2m_vector(mons.data() + interaction_partner_flat_index);
                 mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
-                    m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                    m_partner[0] + local_expansions_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[1]) =
-                    local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[2]) =
-                    local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[3]) =
-                    local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<3, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[4]) =
-                    local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<4, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[5]) =
-                    local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<5, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[6]) =
-                    local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<6, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[7]) =
-                    local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<7, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[8]) =
-                    local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<8, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[9]) =
-                    local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<9, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[10]) =
-                    local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<10, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[11]) =
-                    local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<11, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[12]) =
-                    local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<12, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[13]) =
-                    local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<13, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[14]) =
-                    local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<14, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[15]) =
-                    local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<15, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[16]) =
-                    local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<16, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[17]) =
-                    local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<17, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[18]) =
-                    local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<18, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[19]) =
-                    local_expansions_SoA.value<19>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<19, m2m_vector>(interaction_partner_flat_index);
 
                 compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
                     [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
@@ -265,45 +265,45 @@ namespace fmm {
             }
             if (changed_data) {
                 tmpstore[0] =
-                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                    tmpstore[0] + potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[1] =
-                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                    tmpstore[1] + potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[2] =
-                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                    tmpstore[2] + potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[3] =
-                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+                    tmpstore[3] + potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[4] =
-                    tmpstore[4] + potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+                    tmpstore[4] + potential_expansions_SoA.value<4, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[5] =
-                    tmpstore[5] + potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+                    tmpstore[5] + potential_expansions_SoA.value<5, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[6] =
-                    tmpstore[6] + potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+                    tmpstore[6] + potential_expansions_SoA.value<6, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[7] =
-                    tmpstore[7] + potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+                    tmpstore[7] + potential_expansions_SoA.value<7, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[8] =
-                    tmpstore[8] + potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+                    tmpstore[8] + potential_expansions_SoA.value<8, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[9] =
-                    tmpstore[9] + potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+                    tmpstore[9] + potential_expansions_SoA.value<9, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[10] =
-                    tmpstore[10] + potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+                    tmpstore[10] + potential_expansions_SoA.value<10, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[11] =
-                    tmpstore[11] + potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+                    tmpstore[11] + potential_expansions_SoA.value<11, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[12] =
-                    tmpstore[12] + potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+                    tmpstore[12] + potential_expansions_SoA.value<12, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[13] =
-                    tmpstore[13] + potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+                    tmpstore[13] + potential_expansions_SoA.value<13, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[14] =
-                    tmpstore[14] + potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+                    tmpstore[14] + potential_expansions_SoA.value<14, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[15] =
-                    tmpstore[15] + potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+                    tmpstore[15] + potential_expansions_SoA.value<15, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[16] =
-                    tmpstore[16] + potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+                    tmpstore[16] + potential_expansions_SoA.value<16, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[17] =
-                    tmpstore[17] + potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+                    tmpstore[17] + potential_expansions_SoA.value<17, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[18] =
-                    tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+                    tmpstore[18] + potential_expansions_SoA.value<18, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[19] =
-                    tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
+                    tmpstore[19] + potential_expansions_SoA.value<19, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
                 tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
@@ -326,11 +326,11 @@ namespace fmm {
                 tmpstore[19].store(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
 
                 tmp_corrections[0] =
-                    tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
+                    tmp_corrections[0] + angular_corrections_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
                 tmp_corrections[1] =
-                    tmp_corrections[1] + angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
+                    tmp_corrections[1] + angular_corrections_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
                 tmp_corrections[2] =
-                    tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
+                    tmp_corrections[2] + angular_corrections_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
                 tmp_corrections[0].store(
                     angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmp_corrections[1].store(
@@ -351,9 +351,9 @@ namespace fmm {
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const two_phase_stencil& stencil, const size_t outer_stencil_index) {
             m2m_vector X[3];
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
+            X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
+            X[2] = center_of_masses_SoA.value<2, m2m_vector>(cell_flat_index);
             m2m_vector tmpstore[20];
 
             m2m_vector Y[3];
@@ -395,9 +395,9 @@ namespace fmm {
                 changed_data = true;
 
                 m2m_vector m_partner[20];
-                Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-                Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-                Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+                Y[0] = center_of_masses_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
+                Y[1] = center_of_masses_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
+                Y[2] = center_of_masses_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
 
                 m2m_vector::mask_type mask_phase_one(phase_one);
 
@@ -405,45 +405,45 @@ namespace fmm {
                     m2m_vector(mons.data() + interaction_partner_flat_index);
                 mask = mask & mask_phase_one;    // do not load multipoles outside the inner stencil
                 Vc::where(mask, m_partner[0]) =
-                    m_partner[0] + local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                    m_partner[0] + local_expansions_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[1]) =
-                    local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[2]) =
-                    local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[3]) =
-                    local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<3, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[4]) =
-                    local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<4, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[5]) =
-                    local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<5, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[6]) =
-                    local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<6, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[7]) =
-                    local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<7, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[8]) =
-                    local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<8, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[9]) =
-                    local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<9, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[10]) =
-                    local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<10, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[11]) =
-                    local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<11, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[12]) =
-                    local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<12, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[13]) =
-                    local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<13, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[14]) =
-                    local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<14, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[15]) =
-                    local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<15, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[16]) =
-                    local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<16, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[17]) =
-                    local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<17, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[18]) =
-                    local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<18, m2m_vector>(interaction_partner_flat_index);
                 Vc::where(mask, m_partner[19]) =
-                    local_expansions_SoA.value<19>(interaction_partner_flat_index);
+                    local_expansions_SoA.value<19, m2m_vector>(interaction_partner_flat_index);
 
                 compute_kernel_non_rho(X, Y, m_partner, tmpstore,
                     [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
@@ -452,45 +452,45 @@ namespace fmm {
             }
             if (changed_data) {
                 tmpstore[0] =
-                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                    tmpstore[0] + potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[1] =
-                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                    tmpstore[1] + potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[2] =
-                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                    tmpstore[2] + potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[3] =
-                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+                    tmpstore[3] + potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[4] =
-                    tmpstore[4] + potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+                    tmpstore[4] + potential_expansions_SoA.value<4, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[5] =
-                    tmpstore[5] + potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+                    tmpstore[5] + potential_expansions_SoA.value<5, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[6] =
-                    tmpstore[6] + potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+                    tmpstore[6] + potential_expansions_SoA.value<6, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[7] =
-                    tmpstore[7] + potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+                    tmpstore[7] + potential_expansions_SoA.value<7, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[8] =
-                    tmpstore[8] + potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+                    tmpstore[8] + potential_expansions_SoA.value<8, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[9] =
-                    tmpstore[9] + potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+                    tmpstore[9] + potential_expansions_SoA.value<9, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[10] =
-                    tmpstore[10] + potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+                    tmpstore[10] + potential_expansions_SoA.value<10, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[11] =
-                    tmpstore[11] + potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+                    tmpstore[11] + potential_expansions_SoA.value<11, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[12] =
-                    tmpstore[12] + potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+                    tmpstore[12] + potential_expansions_SoA.value<12, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[13] =
-                    tmpstore[13] + potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+                    tmpstore[13] + potential_expansions_SoA.value<13, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[14] =
-                    tmpstore[14] + potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+                    tmpstore[14] + potential_expansions_SoA.value<14, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[15] =
-                    tmpstore[15] + potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+                    tmpstore[15] + potential_expansions_SoA.value<15, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[16] =
-                    tmpstore[16] + potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+                    tmpstore[16] + potential_expansions_SoA.value<16, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[17] =
-                    tmpstore[17] + potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+                    tmpstore[17] + potential_expansions_SoA.value<17, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[18] =
-                    tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+                    tmpstore[18] + potential_expansions_SoA.value<18, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[19] =
-                    tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
+                    tmpstore[19] + potential_expansions_SoA.value<19, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
                 tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
@@ -526,33 +526,33 @@ namespace fmm {
             const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
             const size_t outer_stencil_index) {
             m2m_vector X[3];
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
+            X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
+            X[2] = center_of_masses_SoA.value<2, m2m_vector>(cell_flat_index);
             m2m_vector tmpstore[20];
             m2m_vector tmp_corrections[3];
 
             m2m_vector m_cell[20];
-            m_cell[0] = local_expansions_SoA.value<0>(cell_flat_index);
-            m_cell[1] = local_expansions_SoA.value<1>(cell_flat_index);
-            m_cell[2] = local_expansions_SoA.value<2>(cell_flat_index);
-            m_cell[3] = local_expansions_SoA.value<3>(cell_flat_index);
-            m_cell[4] = local_expansions_SoA.value<4>(cell_flat_index);
-            m_cell[5] = local_expansions_SoA.value<5>(cell_flat_index);
-            m_cell[6] = local_expansions_SoA.value<6>(cell_flat_index);
-            m_cell[7] = local_expansions_SoA.value<7>(cell_flat_index);
-            m_cell[8] = local_expansions_SoA.value<8>(cell_flat_index);
-            m_cell[9] = local_expansions_SoA.value<9>(cell_flat_index);
-            m_cell[10] = local_expansions_SoA.value<10>(cell_flat_index);
-            m_cell[11] = local_expansions_SoA.value<11>(cell_flat_index);
-            m_cell[12] = local_expansions_SoA.value<12>(cell_flat_index);
-            m_cell[13] = local_expansions_SoA.value<13>(cell_flat_index);
-            m_cell[14] = local_expansions_SoA.value<14>(cell_flat_index);
-            m_cell[15] = local_expansions_SoA.value<15>(cell_flat_index);
-            m_cell[16] = local_expansions_SoA.value<16>(cell_flat_index);
-            m_cell[17] = local_expansions_SoA.value<17>(cell_flat_index);
-            m_cell[18] = local_expansions_SoA.value<18>(cell_flat_index);
-            m_cell[19] = local_expansions_SoA.value<19>(cell_flat_index);
+            m_cell[0] = local_expansions_SoA.value<0, m2m_vector>(cell_flat_index);
+            m_cell[1] = local_expansions_SoA.value<1, m2m_vector>(cell_flat_index);
+            m_cell[2] = local_expansions_SoA.value<2, m2m_vector>(cell_flat_index);
+            m_cell[3] = local_expansions_SoA.value<3, m2m_vector>(cell_flat_index);
+            m_cell[4] = local_expansions_SoA.value<4, m2m_vector>(cell_flat_index);
+            m_cell[5] = local_expansions_SoA.value<5, m2m_vector>(cell_flat_index);
+            m_cell[6] = local_expansions_SoA.value<6, m2m_vector>(cell_flat_index);
+            m_cell[7] = local_expansions_SoA.value<7, m2m_vector>(cell_flat_index);
+            m_cell[8] = local_expansions_SoA.value<8, m2m_vector>(cell_flat_index);
+            m_cell[9] = local_expansions_SoA.value<9, m2m_vector>(cell_flat_index);
+            m_cell[10] = local_expansions_SoA.value<10, m2m_vector>(cell_flat_index);
+            m_cell[11] = local_expansions_SoA.value<11, m2m_vector>(cell_flat_index);
+            m_cell[12] = local_expansions_SoA.value<12, m2m_vector>(cell_flat_index);
+            m_cell[13] = local_expansions_SoA.value<13, m2m_vector>(cell_flat_index);
+            m_cell[14] = local_expansions_SoA.value<14, m2m_vector>(cell_flat_index);
+            m_cell[15] = local_expansions_SoA.value<15, m2m_vector>(cell_flat_index);
+            m_cell[16] = local_expansions_SoA.value<16, m2m_vector>(cell_flat_index);
+            m_cell[17] = local_expansions_SoA.value<17, m2m_vector>(cell_flat_index);
+            m_cell[18] = local_expansions_SoA.value<18, m2m_vector>(cell_flat_index);
+            m_cell[19] = local_expansions_SoA.value<19, m2m_vector>(cell_flat_index);
 
             m2m_vector Y[3];
 
@@ -605,9 +605,9 @@ namespace fmm {
                         changed_data = true;
 
                         m2m_vector m_partner[20];
-                        Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-                        Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-                        Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+                        Y[0] = center_of_masses_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
+                        Y[1] = center_of_masses_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
+                        Y[2] = center_of_masses_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
 
                         m2m_vector::mask_type mask_phase_one(phase_one);
 
@@ -616,45 +616,45 @@ namespace fmm {
                         mask = mask &
                             mask_phase_one;    // do not load multipoles outside the inner stencil
                         Vc::where(mask, m_partner[0]) = m_partner[0] +
-                            local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[1]) =
-                            local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[2]) =
-                            local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[3]) =
-                            local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<3, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[4]) =
-                            local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<4, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[5]) =
-                            local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<5, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[6]) =
-                            local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<6, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[7]) =
-                            local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<7, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[8]) =
-                            local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<8, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[9]) =
-                            local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<9, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[10]) =
-                            local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<10, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[11]) =
-                            local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<11, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[12]) =
-                            local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<12, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[13]) =
-                            local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<13, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[14]) =
-                            local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<14, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[15]) =
-                            local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<15, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[16]) =
-                            local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<16, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[17]) =
-                            local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<17, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[18]) =
-                            local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<18, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[19]) =
-                            local_expansions_SoA.value<19>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<19, m2m_vector>(interaction_partner_flat_index);
 
                         compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
                             [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
@@ -665,45 +665,45 @@ namespace fmm {
             }
             if (changed_data) {
                 tmpstore[0] =
-                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                    tmpstore[0] + potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[1] =
-                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                    tmpstore[1] + potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[2] =
-                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                    tmpstore[2] + potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[3] =
-                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+                    tmpstore[3] + potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[4] =
-                    tmpstore[4] + potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+                    tmpstore[4] + potential_expansions_SoA.value<4, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[5] =
-                    tmpstore[5] + potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+                    tmpstore[5] + potential_expansions_SoA.value<5, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[6] =
-                    tmpstore[6] + potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+                    tmpstore[6] + potential_expansions_SoA.value<6, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[7] =
-                    tmpstore[7] + potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+                    tmpstore[7] + potential_expansions_SoA.value<7, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[8] =
-                    tmpstore[8] + potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+                    tmpstore[8] + potential_expansions_SoA.value<8, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[9] =
-                    tmpstore[9] + potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+                    tmpstore[9] + potential_expansions_SoA.value<9, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[10] =
-                    tmpstore[10] + potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+                    tmpstore[10] + potential_expansions_SoA.value<10, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[11] =
-                    tmpstore[11] + potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+                    tmpstore[11] + potential_expansions_SoA.value<11, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[12] =
-                    tmpstore[12] + potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+                    tmpstore[12] + potential_expansions_SoA.value<12, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[13] =
-                    tmpstore[13] + potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+                    tmpstore[13] + potential_expansions_SoA.value<13, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[14] =
-                    tmpstore[14] + potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+                    tmpstore[14] + potential_expansions_SoA.value<14, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[15] =
-                    tmpstore[15] + potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+                    tmpstore[15] + potential_expansions_SoA.value<15, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[16] =
-                    tmpstore[16] + potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+                    tmpstore[16] + potential_expansions_SoA.value<16, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[17] =
-                    tmpstore[17] + potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+                    tmpstore[17] + potential_expansions_SoA.value<17, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[18] =
-                    tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+                    tmpstore[18] + potential_expansions_SoA.value<18, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[19] =
-                    tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
+                    tmpstore[19] + potential_expansions_SoA.value<19, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
                 tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));
@@ -726,11 +726,11 @@ namespace fmm {
                 tmpstore[19].store(potential_expansions_SoA.pointer<19>(cell_flat_index_unpadded));
 
                 tmp_corrections[0] =
-                    tmp_corrections[0] + angular_corrections_SoA.value<0>(cell_flat_index_unpadded);
+                    tmp_corrections[0] + angular_corrections_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
                 tmp_corrections[1] =
-                    tmp_corrections[1] + angular_corrections_SoA.value<1>(cell_flat_index_unpadded);
+                    tmp_corrections[1] + angular_corrections_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
                 tmp_corrections[2] =
-                    tmp_corrections[2] + angular_corrections_SoA.value<2>(cell_flat_index_unpadded);
+                    tmp_corrections[2] + angular_corrections_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
                 tmp_corrections[0].store(
                     angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmp_corrections[1].store(
@@ -752,9 +752,9 @@ namespace fmm {
             const std::vector<bool>& stencil, const std::vector<bool>& inner_mask,
             const size_t outer_stencil_index) {
             m2m_vector X[3];
-            X[0] = center_of_masses_SoA.value<0>(cell_flat_index);
-            X[1] = center_of_masses_SoA.value<1>(cell_flat_index);
-            X[2] = center_of_masses_SoA.value<2>(cell_flat_index);
+            X[0] = center_of_masses_SoA.value<0, m2m_vector>(cell_flat_index);
+            X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
+            X[2] = center_of_masses_SoA.value<2, m2m_vector>(cell_flat_index);
             m2m_vector tmpstore[20];
 
             m2m_vector Y[3];
@@ -810,9 +810,9 @@ namespace fmm {
                         changed_data = true;
 
                         m2m_vector m_partner[20];
-                        Y[0] = center_of_masses_SoA.value<0>(interaction_partner_flat_index);
-                        Y[1] = center_of_masses_SoA.value<1>(interaction_partner_flat_index);
-                        Y[2] = center_of_masses_SoA.value<2>(interaction_partner_flat_index);
+                        Y[0] = center_of_masses_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
+                        Y[1] = center_of_masses_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
+                        Y[2] = center_of_masses_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
 
                         m2m_vector::mask_type mask_phase_one(phase_one);
 
@@ -821,45 +821,45 @@ namespace fmm {
                         mask = mask &
                             mask_phase_one;    // do not load multipoles outside the inner stencil
                         Vc::where(mask, m_partner[0]) = m_partner[0] +
-                            local_expansions_SoA.value<0>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[1]) =
-                            local_expansions_SoA.value<1>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[2]) =
-                            local_expansions_SoA.value<2>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[3]) =
-                            local_expansions_SoA.value<3>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<3, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[4]) =
-                            local_expansions_SoA.value<4>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<4, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[5]) =
-                            local_expansions_SoA.value<5>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<5, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[6]) =
-                            local_expansions_SoA.value<6>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<6, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[7]) =
-                            local_expansions_SoA.value<7>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<7, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[8]) =
-                            local_expansions_SoA.value<8>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<8, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[9]) =
-                            local_expansions_SoA.value<9>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<9, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[10]) =
-                            local_expansions_SoA.value<10>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<10, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[11]) =
-                            local_expansions_SoA.value<11>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<11, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[12]) =
-                            local_expansions_SoA.value<12>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<12, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[13]) =
-                            local_expansions_SoA.value<13>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<13, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[14]) =
-                            local_expansions_SoA.value<14>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<14, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[15]) =
-                            local_expansions_SoA.value<15>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<15, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[16]) =
-                            local_expansions_SoA.value<16>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<16, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[17]) =
-                            local_expansions_SoA.value<17>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<17, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[18]) =
-                            local_expansions_SoA.value<18>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<18, m2m_vector>(interaction_partner_flat_index);
                         Vc::where(mask, m_partner[19]) =
-                            local_expansions_SoA.value<19>(interaction_partner_flat_index);
+                            local_expansions_SoA.value<19, m2m_vector>(interaction_partner_flat_index);
 
                         compute_kernel_non_rho(X, Y, m_partner, tmpstore,
                             [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
@@ -870,45 +870,45 @@ namespace fmm {
             }
             if (changed_data) {
                 tmpstore[0] =
-                    tmpstore[0] + potential_expansions_SoA.value<0>(cell_flat_index_unpadded);
+                    tmpstore[0] + potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[1] =
-                    tmpstore[1] + potential_expansions_SoA.value<1>(cell_flat_index_unpadded);
+                    tmpstore[1] + potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[2] =
-                    tmpstore[2] + potential_expansions_SoA.value<2>(cell_flat_index_unpadded);
+                    tmpstore[2] + potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[3] =
-                    tmpstore[3] + potential_expansions_SoA.value<3>(cell_flat_index_unpadded);
+                    tmpstore[3] + potential_expansions_SoA.value<3, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[4] =
-                    tmpstore[4] + potential_expansions_SoA.value<4>(cell_flat_index_unpadded);
+                    tmpstore[4] + potential_expansions_SoA.value<4, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[5] =
-                    tmpstore[5] + potential_expansions_SoA.value<5>(cell_flat_index_unpadded);
+                    tmpstore[5] + potential_expansions_SoA.value<5, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[6] =
-                    tmpstore[6] + potential_expansions_SoA.value<6>(cell_flat_index_unpadded);
+                    tmpstore[6] + potential_expansions_SoA.value<6, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[7] =
-                    tmpstore[7] + potential_expansions_SoA.value<7>(cell_flat_index_unpadded);
+                    tmpstore[7] + potential_expansions_SoA.value<7, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[8] =
-                    tmpstore[8] + potential_expansions_SoA.value<8>(cell_flat_index_unpadded);
+                    tmpstore[8] + potential_expansions_SoA.value<8, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[9] =
-                    tmpstore[9] + potential_expansions_SoA.value<9>(cell_flat_index_unpadded);
+                    tmpstore[9] + potential_expansions_SoA.value<9, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[10] =
-                    tmpstore[10] + potential_expansions_SoA.value<10>(cell_flat_index_unpadded);
+                    tmpstore[10] + potential_expansions_SoA.value<10, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[11] =
-                    tmpstore[11] + potential_expansions_SoA.value<11>(cell_flat_index_unpadded);
+                    tmpstore[11] + potential_expansions_SoA.value<11, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[12] =
-                    tmpstore[12] + potential_expansions_SoA.value<12>(cell_flat_index_unpadded);
+                    tmpstore[12] + potential_expansions_SoA.value<12, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[13] =
-                    tmpstore[13] + potential_expansions_SoA.value<13>(cell_flat_index_unpadded);
+                    tmpstore[13] + potential_expansions_SoA.value<13, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[14] =
-                    tmpstore[14] + potential_expansions_SoA.value<14>(cell_flat_index_unpadded);
+                    tmpstore[14] + potential_expansions_SoA.value<14, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[15] =
-                    tmpstore[15] + potential_expansions_SoA.value<15>(cell_flat_index_unpadded);
+                    tmpstore[15] + potential_expansions_SoA.value<15, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[16] =
-                    tmpstore[16] + potential_expansions_SoA.value<16>(cell_flat_index_unpadded);
+                    tmpstore[16] + potential_expansions_SoA.value<16, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[17] =
-                    tmpstore[17] + potential_expansions_SoA.value<17>(cell_flat_index_unpadded);
+                    tmpstore[17] + potential_expansions_SoA.value<17, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[18] =
-                    tmpstore[18] + potential_expansions_SoA.value<18>(cell_flat_index_unpadded);
+                    tmpstore[18] + potential_expansions_SoA.value<18, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[19] =
-                    tmpstore[19] + potential_expansions_SoA.value<19>(cell_flat_index_unpadded);
+                    tmpstore[19] + potential_expansions_SoA.value<19, m2m_vector>(cell_flat_index_unpadded);
                 tmpstore[0].store(potential_expansions_SoA.pointer<0>(cell_flat_index_unpadded));
                 tmpstore[1].store(potential_expansions_SoA.pointer<1>(cell_flat_index_unpadded));
                 tmpstore[2].store(potential_expansions_SoA.pointer<2>(cell_flat_index_unpadded));

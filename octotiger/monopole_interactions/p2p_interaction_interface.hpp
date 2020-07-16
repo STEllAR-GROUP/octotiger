@@ -6,13 +6,12 @@
 #pragma once
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/geometry.hpp"
-#include "octotiger/grid.hpp"
+#include "octotiger/grid.hpp" //VC
 #include "octotiger/interaction_types.hpp"
-#include "octotiger/monopole_interactions/p2p_cpu_kernel.hpp"
+#include "octotiger/common_kernel/interactions_iterators.hpp"
 
 #include <array>
 #include <cstddef>
@@ -61,7 +60,6 @@ namespace fmm {
             static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& stencil_four_constants();
             std::vector<bool> neighbor_empty_monopoles;
 
-            p2p_cpu_kernel kernel_monopoles;
         };
 
         template <typename monopole_container>
