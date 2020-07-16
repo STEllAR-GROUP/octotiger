@@ -289,14 +289,14 @@ add_hpx_library(
     ${hydro_header_files}
 )
 
-# Deal with the incompatibility of Kokkos+Cuda and Vc
+# Deal with the incompatibility of Kokkos+Cuda and Vc, HPX actions and general constexpr problems
 if(OCTOTIGER_WITH_KOKKOS)
   set(host_only_source_files
     src/compute_factor.cpp
-    src/eos.cpp
     src/grid.cpp
-    src/grid_amr.cpp
     src/grid_fmm.cpp
+    src/grid_amr.cpp
+
     src/grid_output.cpp
     src/grid_scf.cpp
     src/node_client.cpp
@@ -306,29 +306,18 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
-    src/options.cpp
     src/physcon.cpp
-    src/problem.cpp
     src/roe.cpp
-    src/taylor.cpp
     src/common_kernel/interactions_iterators.cpp
-    src/cuda_util/cuda_scheduler.cpp
     src/io/silo_out.cpp
     src/io/silo_in.cpp
-    src/profiler.cpp
-    src/monopole_interactions/calculate_stencil.cpp
     src/monopole_interactions/p2m_kernel.cpp
     src/monopole_interactions/p2m_interaction_interface.cpp
     src/monopole_interactions/p2p_cpu_kernel.cpp
     src/monopole_interactions/p2p_interaction_interface.cpp
-    src/multipole_interactions/calculate_stencil.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
     src/radiation/rad_grid.cpp
-    src/test_problems/amr/amr.cpp
-    src/test_problems/marshak/marshak.cpp
-    src/test_problems/rotating_star/rotating_star.cpp
-    src/test_problems/sod/sod.cpp
     src/unitiger/hydro.cpp
     frontend/frontend-helper.cpp
     src/unitiger/main.cpp

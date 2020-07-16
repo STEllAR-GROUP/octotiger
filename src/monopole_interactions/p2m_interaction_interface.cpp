@@ -8,6 +8,7 @@
 #include "octotiger/monopole_interactions/calculate_stencil.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/real.hpp"
+#include "octotiger/monopole_interactions/p2m_kernel.hpp"
 
 #include <algorithm>
 #include <array>
@@ -25,8 +26,7 @@ namespace fmm {
         }
 
         p2m_interaction_interface::p2m_interaction_interface()
-          : neighbor_empty_multipoles(27)
-          , kernel(neighbor_empty_multipoles) {
+          : neighbor_empty_multipoles(27) {
             this->p2m_type = opts().p2m_kernel_type;
         }
 
@@ -53,6 +53,7 @@ namespace fmm {
             const cpu_space_vector_buffer_t& center_of_masses_staging_area) {
             if (p2m_type == interaction_kernel_type::SOA_CPU) {
                 if (multipole_neighbors_exist) {
+                    p2m_kernel kernel(neighbor_empty_multipoles);
                     cpu_expansion_result_buffer_t potential_expansions_SoA;
                     cpu_angular_result_t angular_corrections_SoA;
                     kernel.apply_stencil(local_expansions_staging_area,

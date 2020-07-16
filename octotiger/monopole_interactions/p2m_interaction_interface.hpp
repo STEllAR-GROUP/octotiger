@@ -6,13 +6,12 @@
 #pragma once
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
-#include "octotiger/monopole_interactions/p2m_kernel.hpp"
+#include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <array>
@@ -66,7 +65,6 @@ namespace fmm {
 
             std::shared_ptr<grid> grid_ptr;
             interaction_kernel_type p2m_type;
-            p2m_kernel kernel;
 
             bool z_skip[3];
             bool y_skip[3][3];
