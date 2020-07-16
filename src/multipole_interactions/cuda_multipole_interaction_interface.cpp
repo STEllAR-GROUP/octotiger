@@ -45,7 +45,8 @@ namespace fmm {
                 else
                     cuda_launch_counter_non_rho()++;
 
-                size_t device_id = stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
+                size_t device_id =
+                    stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
                 stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
 
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
@@ -58,7 +59,8 @@ namespace fmm {
                 recycler::cuda_device_buffer<double> device_local_expansions(
                     NUMBER_LOCAL_EXPANSION_VALUES, device_id);
                 recycler::cuda_device_buffer<double> device_centers(NUMBER_MASS_VALUES, device_id);
-                recycler::cuda_device_buffer<double> device_erg_exp(NUMBER_POT_EXPANSIONS, device_id);
+                recycler::cuda_device_buffer<double> device_erg_exp(
+                    NUMBER_POT_EXPANSIONS, device_id);
 
                 // Move data into SoA arrays
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
@@ -86,7 +88,7 @@ namespace fmm {
                         &(device_local_expansions.device_side_buffer),
                         &(device_erg_exp.device_side_buffer),
                         &(device_erg_corrs.device_side_buffer), &theta, &second_phase};
-                    hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor),
+                    executor.post(
                         cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
                         cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args,
                         0);
@@ -99,7 +101,7 @@ namespace fmm {
                         &(device_centers.device_side_buffer),
                         &(device_local_expansions.device_side_buffer),
                         &(device_erg_exp.device_side_buffer), &theta, &second_phase};
-                    hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor),
+                    executor.post(
                         cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
                         cuda_multipole_interactions_kernel_non_rho, grid_spec, threads_per_block,
                         args, 0);

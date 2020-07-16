@@ -322,7 +322,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/monopole_interactions/p2p_cpu_kernel.cpp
     src/monopole_interactions/p2p_interaction_interface.cpp
     src/multipole_interactions/calculate_stencil.cpp
-    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
     src/radiation/rad_grid.cpp
