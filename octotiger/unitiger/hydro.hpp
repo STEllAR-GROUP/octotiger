@@ -22,6 +22,28 @@ using std::launch;
 #include "octotiger/unitiger/cell_geometry.hpp"
 #include "octotiger/unitiger/util.hpp"
 
+
+
+struct timestep_t {
+	double a;
+	double x, y, z;
+	double dt;
+	int dim;
+	std::vector<double> ur;
+	std::vector<double> ul;
+	template<class A>
+	void serialize(A &&arc, unsigned) {
+		arc & a;
+		arc & x;
+		arc & y;
+		arc & z;
+		arc & dim;
+		arc & dt;
+		arc & ur;
+		arc & ul;
+	}
+};
+
 namespace hydro {
 
 using x_type = std::vector<std::vector<safe_real>>;
@@ -40,7 +62,6 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	void reconstruct_ppm(std::vector<std::vector<safe_real>> &q, const std::vector<safe_real> &u, bool smooth, bool disc_detect,
 			const std::vector<std::vector<double>> &disc);
 
-
 	using geo = cell_geometry<NDIM,INX>;
 
 	enum bc_type {
@@ -52,9 +73,9 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	const hydro::recon_type<NDIM>& reconstruct_cuda(hydro::state_type &U, const hydro::x_type&, safe_real);
 //#endif
 
-	safe_real flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
+	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
-	void post_process(hydro::state_type &U, const hydro::state_type& X, safe_real dx);
+	void post_process(hydro::state_type &U, const hydro::state_type &X, safe_real dx);
 
 	void boundaries(hydro::state_type &U, const hydro::x_type &X);
 
@@ -98,8 +119,6 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	void set_bc(std::vector<bc_type> &&bc) {
 		bc_ = std::move(bc);
 	}
-
-
 
 private:
 	int experiment;
