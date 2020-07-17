@@ -86,9 +86,9 @@ struct timings
     	const auto tcr = times_[time_computation] + times_[time_regrid];
         std::cout << name << ":\n";
         std::cout << "   Total: "             << times_[time_total] << '\n';
-        std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << "\%)\n";
-        std::cout << "   Regrid: "            << times_[time_regrid]  << " (" <<  100*times_[time_regrid] * tinv << "\%)\n";
-        std::cout << "   Computation + Regrid: "       << tcr << " (" <<  100*tcr * tinv << "\%)\n";
+        std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << " %)\n";
+        std::cout << "   Regrid: "            << times_[time_regrid]  << " (" <<  100*times_[time_regrid] * tinv << " %)\n";
+        std::cout << "   Computation + Regrid: "       << tcr << " (" <<  100*tcr * tinv << " %)\n";
     }
 
     std::array<double, timer::time_last> times_;

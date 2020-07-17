@@ -25,7 +25,9 @@ struct physics {
 	static constexpr int lx_i = 4 + NDIM;
 	static constexpr int ly_i = 5 + NDIM;
 	static constexpr int lz_i = 6 + NDIM;
-	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+    // std::pow is not constexpr in device code! Workaround with ternary operator:
+	//static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+    static constexpr int spc_i = 4 + NDIM + (NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0));
 	static safe_real de_switch_1;
 	static safe_real de_switch_2;
 

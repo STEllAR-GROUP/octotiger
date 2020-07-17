@@ -292,13 +292,22 @@ add_hpx_library(
 # Deal with the incompatibility of Kokkos+Cuda and Vc, HPX actions and general constexpr problems
 if(OCTOTIGER_WITH_KOKKOS)
   set(host_only_source_files
+    # Source files that need Vc
     src/compute_factor.cpp
+    src/roe.cpp
+    src/common_kernel/interactions_iterators.cpp
+    src/monopole_interactions/p2m_kernel.cpp
+    src/monopole_interactions/p2m_interaction_interface.cpp
+    src/monopole_interactions/p2p_cpu_kernel.cpp
+    src/monopole_interactions/p2p_interaction_interface.cpp
+    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/multipole_interactions/multipole_interaction_interface.cpp
+
+    # Other reasons for host-only compilation (include hpx actions / constexpr device issues)
     src/grid.cpp
     src/grid_fmm.cpp
-    src/grid_amr.cpp
-
     src/grid_output.cpp
-    src/grid_scf.cpp
+    src/grid_scf.cpp 
     src/node_client.cpp
     src/node_location.cpp
     src/node_registry.cpp
@@ -306,23 +315,11 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
-    src/physcon.cpp
-    src/roe.cpp
-    src/common_kernel/interactions_iterators.cpp
+    src/physcon.cpp # TODO(daissgr) Check if actions can be made to work with Kokkos
     src/io/silo_out.cpp
     src/io/silo_in.cpp
-    src/monopole_interactions/p2m_kernel.cpp
-    src/monopole_interactions/p2m_interaction_interface.cpp
-    src/monopole_interactions/p2p_cpu_kernel.cpp
-    src/monopole_interactions/p2p_interaction_interface.cpp
-    src/multipole_interactions/multipole_cpu_kernel.cpp
-    src/multipole_interactions/multipole_interaction_interface.cpp
     src/radiation/rad_grid.cpp
-    src/unitiger/hydro.cpp
     frontend/frontend-helper.cpp
-    src/unitiger/main.cpp
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp
   )
   set(host_only_header_files
     octotiger/simd.hpp

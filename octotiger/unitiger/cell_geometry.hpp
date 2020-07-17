@@ -40,15 +40,26 @@ struct cell_geometry {
 	static constexpr int H_NX_YM8 = NDIM > 1 ? cell_geometry::H_NX - 8 : 1;
 	static constexpr int H_NX_ZM8 = NDIM > 2 ? cell_geometry::H_NX - 8 : 1;
 
-	static constexpr int H_DNX = NDIM == 3 ? cell_geometry::H_NX * cell_geometry::H_NX : (NDIM == 2 ? cell_geometry::H_NX : 1);
-	static constexpr int H_DNY = NDIM == 3 ? cell_geometry::H_NX : 1;
+    static constexpr int H_DNX = NDIM == 3 ? cell_geometry::H_NX * cell_geometry::H_NX :
+                                             (NDIM == 2 ? cell_geometry::H_NX : 1);
+    static constexpr int H_DNY = NDIM == 3 ? cell_geometry::H_NX : 1;
 	static constexpr int H_DNZ = 1;
-	static constexpr int H_N3 = std::pow(cell_geometry::H_NX, NDIM);
-	static constexpr int H_DN0 = 0;
+
+
+    static constexpr int H_DN0 = 0;
+
+    // std::pow is not constexpr in device code! Workaround with ternary operator:
+	// static constexpr int H_N3 = std::pow(cell_geometry::H_NX, NDIM);
+    static constexpr int H_N3 = NDIM == 3 ?
+        cell_geometry::H_NX * cell_geometry::H_NX * cell_geometry::H_NX :
+        (NDIM == 2 ? cell_geometry::H_NX * cell_geometry::H_NX : cell_geometry::H_NX);
 	//static constexpr int NDIR = std::pow(3, NDIM);
-	static constexpr int NDIR = 27;
-	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
-	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
+    static constexpr int NDIR = NDIM == 3 ? 3 * 3 * 3 : (NDIM == 2 ? 3 * 3 : 3);
+    //static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
+    static constexpr int NANGMOM = NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0);
+	// static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
+    static constexpr int NFACEDIR = NDIM == 3 ? 3 * 3 : (NDIM == 2 ? 3 : 1);
+
 	static constexpr int H_DN[3] = { H_DNX, H_DNY, H_DNZ };
 
 	static constexpr int group_count() {
