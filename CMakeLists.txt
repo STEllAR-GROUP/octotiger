@@ -320,6 +320,9 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
     frontend/frontend-helper.cpp
+
+    #misc
+    src/cuda_util/cuda_scheduler.cpp
   )
   set(host_only_header_files
     octotiger/simd.hpp
