@@ -97,6 +97,13 @@ public:
 	real sod_phi;
 	real sod_gamma;
 
+	real solid_sphere_xcenter;
+	real solid_sphere_ycenter;
+	real solid_sphere_zcenter;
+	real solid_sphere_radius;
+	real solid_sphere_mass;
+	real solid_sphere_rho_min;
+
 	real star_xcenter;
 	real star_ycenter;
 	real star_zcenter;
@@ -148,6 +155,12 @@ public:
 		arc & sod_theta;
 		arc & sod_phi;
 		arc & sod_gamma;
+		arc & solid_sphere_xcenter;
+		arc & solid_sphere_ycenter;
+		arc & solid_sphere_zcenter;
+		arc & solid_sphere_radius;
+		arc & solid_sphere_mass;
+		arc & solid_sphere_rho_min;
 		arc & star_xcenter;
 		arc & star_ycenter;
 		arc & star_zcenter;
@@ -157,9 +170,9 @@ public:
 		arc & star_n;
 		arc & star_rho_center;
 		arc & star_rho_out;
-    arc & moving_star_xvelocity;
-    arc & moving_star_yvelocity;
-    arc & moving_star_zvelocity;
+		arc & moving_star_xvelocity;
+		arc & moving_star_yvelocity;
+		arc & moving_star_zvelocity;
 		arc & inflow_bc;
 		arc & reflect_bc;
 		arc & cdisc_detect;

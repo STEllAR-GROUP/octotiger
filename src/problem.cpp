@@ -245,13 +245,13 @@ std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
 }
 
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
-	const real r0 = ssr0;
-	const real M = 1.0;
 	std::vector<real> g(4);
-	x -= xshift;
-//	x0 -= -0.0444;
-//	y0 -= +0.345;
-//	z0 -= -.2565;
+	x -= opts().solid_sphere_xcenter;
+	y -= opts().solid_sphere_ycenter;
+	z -= opts().solid_sphere_zcenter;
+	const real r0 = opts().solid_sphere_radius;
+	const real M = opts().solid_sphere_mass;
+
 	const real r = std::sqrt(x * x + y * y + z * z);
 	const real r3 = r * r * r;
 	const real Menc = M * std::pow(std::min(r / r0, 1.0), 3);
@@ -279,14 +279,15 @@ std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 
 std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) {
 	const integer N = 25;
-	const real r0 = ssr0;
+	const real r0 = opts().solid_sphere_radius;
+	const real M = opts().solid_sphere_mass;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
-	const real drho = 1.0 / real(N * N * N) / V;
+	const real drho = M / real(N * N * N) / V;
 	std::vector<real> u(opts().n_fields, real(0));
-	x0 -= xshift;
-//	x0 -= -0.0444;
-//	y0 -= +0.345;
-//	z0 -= -.2565;
+	x0 -= opts().solid_sphere_xcenter;
+	y0 -= opts().solid_sphere_ycenter;
+	z0 -= opts().solid_sphere_zcenter;
+
 	const auto mm = [](real a, real b) {
 		if( a * b < ZERO ) {
 			return ZERO;
@@ -327,7 +328,7 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 			}
 		}
 	}
-	u[rho_i] = std::max(u[rho_i], rho_floor);
+	u[rho_i] = u[spc_i] = std::max(u[rho_i], opts().solid_sphere_rho_min);
 	return u;
 }
 

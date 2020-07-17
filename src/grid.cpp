@@ -1645,6 +1645,7 @@ analytic_t grid::compute_analytic(real t) {
 					for (int f = 0; f < 4; f++) {
 						G[gindex(i - H_BW, j - H_BW, k - H_BW)][f] = a[f];
 					}
+					U[pot_i][hindex(i, j, k)] = a[0] * U[rho_i][hindex(i, j, k)];
 				}
 			}
 	return a;
