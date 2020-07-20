@@ -269,11 +269,11 @@ const hydro::recon_type<NDIM>& hydro_computer<NDIM, INX, PHYS>::reconstruct(cons
 	const auto &cdiscs = PHYS::template find_contact_discs<INX>(U_);
 	if (angmom_index_ == -1 || NDIM == 1) {
 		for (int f = 0; f < nf_; f++) {
-			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
-				reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
-			} else {
+//			if (f < lx_i || f > lx_i + geo::NANGMOM || NDIM == 1) {
+//				reconstruct_ppm(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+//			} else {
 				reconstruct_minmod<NDIM, INX>(Q[f], U[f]);
-			}
+//			}
 		}
 
 	} else {
