@@ -160,7 +160,8 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	printf("Opening output stage 3 on locality %i\n", hpx::get_locality_id());
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
-	std::string this_fname = fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
+	const auto dir = opts().data_dir;
+	std::string this_fname = dir  + fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
 	double dtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
@@ -250,7 +251,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 void output_stage4(std::string fname, int cycle) {
 	printf("Opening output stage 4 on locality %i\n", hpx::get_locality_id());
 	const int nfields = grid::get_field_names().size();
-	std::string this_fname = fname + std::string(".silo");
+	std::string this_fname = opts().data_dir + "/" + fname + std::string(".silo");
 	double dtime = silo_output_rotation_time();
 	double rtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, fname, nfields, &rtime](int cycle) {
@@ -511,7 +512,7 @@ void output_all(node_server *root_ptr, std::string fname, int cycle, bool block)
 		return;
 	}
 
-	std::string dir = fname + ".silo.data";
+	std::string dir = opts().data_dir + "/" + fname + ".silo.data";
 	hpx::threads::run_as_os_thread([&]() {
 		auto rc = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 		if (rc != 0 && errno != EEXIST) {
