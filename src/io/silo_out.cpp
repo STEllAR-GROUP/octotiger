@@ -156,7 +156,7 @@ void output_stage3(std::string fname, int cycle, int gn, int gb, int ge) {
 	const int this_id = hpx::get_locality_id();
 	const int nfields = grid::get_field_names().size();
 	const auto dir = opts().data_dir;
-	std::string this_fname = dir + "/" + fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
+	std::string this_fname = dir  + fname + ".silo.data/" + std::to_string(gn) + std::string(".silo");
 	double dtime = silo_output_rotation_time();
 	hpx::threads::run_as_os_thread([&this_fname, this_id, &dtime, gb, gn, ge](integer cycle) {
 		DBfile *db;
