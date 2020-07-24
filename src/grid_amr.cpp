@@ -71,7 +71,7 @@ void grid::complete_hydro_amr_boundary(bool energy_only) {
 	}
 
 	const auto limiter = [](double a, double b) {
-		return minmod_theta(a, b, 1.0);
+		return minmod_theta(a, b, 64./37.);
 	};
 
 	for (int f = 0; f < opts().n_fields; f++) {
