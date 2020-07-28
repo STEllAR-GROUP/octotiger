@@ -61,7 +61,11 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	const double dp_deps = (fgamma_ - 1.0) * rho;
 	v = u[sx_i + dim] * rhoinv;
 	p = (fgamma_ - 1.0) * ein + pdeg;
-	cs = SQRT(p * rhoinv * rhoinv * dp_deps + dp_drho);
+	const auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+	if( z < 0.0 ) {
+		printf( "%e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho);
+	}
+	cs = SQRT(z);
 }
 
 template<int NDIM>
