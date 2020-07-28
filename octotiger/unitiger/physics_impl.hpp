@@ -54,7 +54,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 	}
 	auto ein = u[egas_i] - ek - edeg;
-	if (ein < de_switch_1 * u[egas_i]) {
+	if (ein <= de_switch_1 * u[egas_i]) {
 		ein = POWER(u[tau_i], fgamma_);
 	}
 	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
@@ -63,7 +63,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	p = (fgamma_ - 1.0) * ein + pdeg;
 	const auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
 	if( z < 0.0 ) {
-		printf( "%e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho);
+		printf( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
 	}
 	cs = SQRT(z);
 }
