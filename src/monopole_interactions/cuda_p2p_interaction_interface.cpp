@@ -44,11 +44,11 @@ namespace fmm {
             }
         }
 
-        void __host__ cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
+        void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             // Check where we want to run this:
-            bool avail = stream_pool::interface_available<hpx::cuda::cuda_executor, pool_strategy>(
+            bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, pool_strategy>(
                 opts().cuda_buffer_capacity);
             bool run_dummy = false;
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
@@ -75,8 +75,8 @@ namespace fmm {
 
 
                 // Pick device and stream
-                size_t device_id = stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
-                stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
+                size_t device_id = stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor, pool_strategy>();
+                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
 
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
@@ -87,7 +87,7 @@ namespace fmm {
                 update_input(monopoles, neighbors, type, local_monopoles);
 
 
-                hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
+                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
                     device_local_monopoles.device_side_buffer, local_monopoles.data(),
                     local_monopoles_size, cudaMemcpyHostToDevice);
 
@@ -96,13 +96,13 @@ namespace fmm {
                 dim3 const threads_per_block(1, INX, INX);
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
                     &(erg.device_side_buffer), &theta, &dx};
-                // hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor),
+                // hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                 //     cudalaunchkernel<decltype(cuda_p2p_interactions_kernel)>,
                 //     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 executor.post(
                     cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
-                auto fut = hpx::async(static_cast<hpx::cuda::cuda_executor>(executor),
+                auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
                     potential_expansions_small_size, cudaMemcpyDeviceToHost);
 

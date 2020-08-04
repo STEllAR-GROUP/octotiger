@@ -33,7 +33,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase) {
-            bool avail = stream_pool::interface_available<hpx::cuda::cuda_executor, pool_strategy>(
+            bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, pool_strategy>(
                 opts().cuda_buffer_capacity);
             if (!avail || m2m_type == interaction_kernel_type::OLD) {
                 // Run fallback CPU implementation
@@ -46,8 +46,8 @@ namespace fmm {
                     cuda_launch_counter_non_rho()++;
 
                 size_t device_id =
-                    stream_pool::get_next_device_id<hpx::cuda::cuda_executor, pool_strategy>();
-                stream_interface<hpx::cuda::cuda_executor, pool_strategy> executor;
+                    stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor, pool_strategy>();
+                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
 
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
                 cuda_expansion_buffer_t local_expansions_SoA;
@@ -66,13 +66,13 @@ namespace fmm {
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
                     local_expansions_SoA, center_of_masses_SoA);
 
-                hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
+                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
                     device_local_monopoles.device_side_buffer, local_monopoles.data(),
                     local_monopoles_size, cudaMemcpyHostToDevice);
-                hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
+                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
                     device_local_expansions.device_side_buffer, local_expansions_SoA.get_pod(),
                     local_expansions_size, cudaMemcpyHostToDevice);
-                hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
+                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
                     device_centers.device_side_buffer, center_of_masses_SoA.get_pod(),
                     center_of_masses_size, cudaMemcpyHostToDevice);
 
@@ -92,7 +92,7 @@ namespace fmm {
                         cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
                         cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args,
                         0);
-                    hpx::apply(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
+                    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
                         angular_corrections_SoA.get_pod(), device_erg_corrs.device_side_buffer,
                         angular_corrections_size, cudaMemcpyDeviceToHost);
                 } else {
@@ -107,7 +107,7 @@ namespace fmm {
                         args, 0);
                 }
                 auto fut =
-                    hpx::async(static_cast<hpx::cuda::cuda_executor>(executor), cudaMemcpyAsync,
+                    hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
                         potential_expansions_SoA.get_pod(), device_erg_exp.device_side_buffer,
                         potential_expansions_size, cudaMemcpyDeviceToHost);
 
