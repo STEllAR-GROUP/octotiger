@@ -68,6 +68,7 @@ endif()
 # Find required packages
 ################################################################################
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
+find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
 find_package(Boost REQUIRED)
 if(NOT MSVC)
@@ -87,6 +88,7 @@ endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   find_package(Kokkos REQUIRED)
+  find_package(HPXKokkos REQUIRED)
   if (OCTOTIGER_WITH_LEGACY_Vc)
     message(FATAL_ERROR " Kokkos cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
   endif()
@@ -231,7 +233,7 @@ set(header_files
 
 list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost buffer_manager stream_manager)
 if(OCTOTIGER_WITH_KOKKOS)
-  list(APPEND octo_dependencies Kokkos::kokkos)
+  list(APPEND octo_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
 endif()
 
 # Octo-Tiger library
@@ -269,7 +271,7 @@ set(hydro_source_files
 
 list(APPEND hydro_dependencies Silo::silo Vc::Vc Boost::boost octolib)
 if(OCTOTIGER_WITH_KOKKOS)
-  list(APPEND hydro_dependencies Kokkos::kokkos)
+  list(APPEND hydro_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
 endif()
 if(OCTOTIGER_WITH_BLAST_TEST)
   list(APPEND hydro_source_files 
@@ -303,7 +305,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
 
-    # Other reasons for host-only compilation (include hpx actions / constexpr device issues)
+    # Other reasons for host-only compilation (hpx actions)
     src/grid.cpp
     src/grid_fmm.cpp
     src/grid_output.cpp
