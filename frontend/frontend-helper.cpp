@@ -144,6 +144,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
     options::all_localities = localities;
     opts() = _opts;
     physics<NDIM>::set_n_species(opts().n_species);
+    // TODO(daissgr) Activate this once master is merged
+    //physics<NDIM>::update_n_field();
     grid::get_omega() = opts().omega;
 #if !defined(_MSC_VER) && !defined(__APPLE__)
     feenableexcept(FE_DIVBYZERO);
@@ -435,6 +437,9 @@ void start_octotiger(int argc, char* argv[]) {
                 printf("Re-grid\n");
                 ngrids = root->regrid(root_client.get_unmanaged_gid(), ZERO, -1, true, false);
                 printf("Done. \n");
+
+                // TODO(daissgr) Activate this once master is merged
+                // set_AB(physcon().A, physcon().B);
 
             } else {
                 for (integer l = 0; l < opts().max_level; ++l) {

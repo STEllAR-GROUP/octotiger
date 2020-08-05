@@ -4,7 +4,9 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include <hpx/hpx_init.hpp>
+#ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
+#endif
 
 #include "frontend-helper.hpp"
 
@@ -82,7 +84,9 @@ int hpx_main(int argc, char* argv[]) {
 	printf("###########################################################\n");
 
 	printf("Running\n");
+#ifdef OCTOTIGER_HAVE_KOKKOS
     hpx::kokkos::ScopeGuard g(argc, argv);
+#endif
 
     start_octotiger(argc, argv);
 

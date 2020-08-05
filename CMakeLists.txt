@@ -1,6 +1,9 @@
 # Copyright (c) 2015 Thomas Heller
 # Copyright (c) 2015 Dominic Marcello
 # Copyright (c) 2018-2019 Parsa Amini
+# Copyright (c) 2018-2020 Gregor Daiß
+# Copyright (c) 2018-2020 Theresa Pollinger
+
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -291,8 +294,8 @@ add_hpx_library(
     ${hydro_header_files}
 )
 
-# Deal with the incompatibility of Kokkos+Cuda and Vc, HPX actions and general constexpr problems
 if(OCTOTIGER_WITH_KOKKOS)
+  # Deal with the incompatibility of Kokkos+Cuda and Vc, HPX actions and general constexpr problems
   set(host_only_source_files
     # Source files that need Vc
     src/compute_factor.cpp
@@ -331,6 +334,10 @@ if(OCTOTIGER_WITH_KOKKOS)
     octotiger/common_kernel/kernel_simd_types.hpp
   )
   set_source_files_properties(${host_only_source_files} ${host_only_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
+
+  # Add symbols
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
 endif()
 
 # Enable exported functions
