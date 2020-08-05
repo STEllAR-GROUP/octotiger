@@ -231,7 +231,7 @@ set(header_files
     octotiger/test_problems/rotating_star.hpp
 )
 
-list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost buffer_manager stream_manager)
+list(APPEND octo_dependencies HPX::hpx Silo::silo Vc::Vc Boost::boost CPPuddle::buffer_manager CPPuddle::stream_manager)
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND octo_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
 endif()
@@ -269,7 +269,7 @@ set(hydro_source_files
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
-list(APPEND hydro_dependencies Silo::silo Vc::Vc Boost::boost octolib)
+list(APPEND hydro_dependencies HPX::hpx Silo::silo Vc::Vc Boost::boost octolib)
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND hydro_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
 endif()
@@ -346,6 +346,7 @@ target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 add_hpx_executable(
   octotiger
   DEPENDENCIES
+    HPX::hpx
     octolib
     hydrolib
   SOURCES
