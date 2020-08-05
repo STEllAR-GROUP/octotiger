@@ -40,10 +40,14 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
 	if (A_ != 0.0) {
 		const auto x = std::pow(rho / B_, 1.0 / 3.0);
-		hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+		hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 		pdeg = deg_pres(x);
-		edeg = rho * hdeg - pdeg;
-		dpdeg_drho = 8.0 / 3.0 * A_ / B_ * x * x;
+		if (x > 0.001) {
+			edeg = rho * hdeg - pdeg;
+		} else {
+			edeg = 2.4 * A_ * std::pow(x, 5);
+		}
+		dpdeg_drho = 8.0 / 3.0 * A_ / B_ * x * x / std::sqrt(x * x + 1.0);
 	}
 	safe_real ek = 0.0;
 	for (int dim = 0; dim < NDIM; dim++) {
@@ -53,10 +57,11 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	if (ein < de_switch_1 * u[egas_i]) {
 		ein = pow(u[tau_i], fgamma_);
 	}
-
+	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein / rho;
+	const double dp_deps = (fgamma_ - 1.0) * rho;
 	v = u[sx_i + dim] * rhoinv;
 	p = (fgamma_ - 1.0) * ein + pdeg;
-	cs = std::sqrt(fgamma_ * p * rhoinv + dpdeg_drho);
+	cs = std::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
 }
 
 template<int NDIM>
@@ -95,7 +100,7 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 		double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
 		if (A_ != 0.0) {
 			const auto x = std::pow(U[rho_i][i] / B_, 1.0 / 3.0);
-			hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+			hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 			pdeg = deg_pres(x);
 			edeg = U[rho_i][i] * hdeg - pdeg;
 		}
@@ -284,7 +289,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 				double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
 				if (A_ != 0.0) {
 					const auto x = std::pow(rho / B_, 1.0 / 3.0);
-					hdeg = 8.0 * A_ / B_ * std::sqrt(x * x + 1.0);
+					hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
 					pdeg = deg_pres(x);
 					edeg = rho * hdeg - pdeg;
 				}
@@ -507,6 +512,12 @@ void physics<NDIM>::analytic_solution(test_type test, hydro::state_type &U, cons
 template<int NDIM>
 void physics<NDIM>::set_n_species(int n) {
 	n_species_ = n;
+}
+
+template<int NDIM>
+void physics<NDIM>::update_n_field() {
+	nf_ = (4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2))) + n_species_;
+	;
 }
 
 template<int NDIM>

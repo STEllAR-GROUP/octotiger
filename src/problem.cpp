@@ -246,13 +246,13 @@ std::vector<real> double_solid_sphere_analytic_phi(real x0, real y0, real z0) {
 }
 
 std::vector<real> solid_sphere_analytic_phi(real x, real y, real z, real xshift) {
-	const real r0 = ssr0;
-	const real M = 1.0;
 	std::vector<real> g(4);
-	x -= xshift;
-//	x0 -= -0.0444;
-//	y0 -= +0.345;
-//	z0 -= -.2565;
+	x -= opts().solid_sphere_xcenter;
+	y -= opts().solid_sphere_ycenter;
+	z -= opts().solid_sphere_zcenter;
+	const real r0 = opts().solid_sphere_radius;
+	const real M = opts().solid_sphere_mass;
+
 	const real r = std::sqrt(x * x + y * y + z * z);
 	const real r3 = r * r * r;
 	const real Menc = M * std::pow(std::min(r / r0, 1.0), 3);
@@ -280,14 +280,15 @@ std::vector<real> double_solid_sphere(real x0, real y0, real z0, real dx) {
 
 std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) {
 	const integer N = 25;
-	const real r0 = ssr0;
+	const real r0 = opts().solid_sphere_radius;
+	const real M = opts().solid_sphere_mass;
 	const real V = 4.0 / 3.0 * M_PI * r0 * r0 * r0;
-	const real drho = 1.0 / real(N * N * N) / V;
+	const real drho = M / real(N * N * N) / V;
 	std::vector<real> u(opts().n_fields, real(0));
-	x0 -= xshift;
-//	x0 -= -0.0444;
-//	y0 -= +0.345;
-//	z0 -= -.2565;
+	x0 -= opts().solid_sphere_xcenter;
+	y0 -= opts().solid_sphere_ycenter;
+	z0 -= opts().solid_sphere_zcenter;
+
 	const auto mm = [](real a, real b) {
 		if( a * b < ZERO ) {
 			return ZERO;
@@ -328,7 +329,7 @@ std::vector<real> solid_sphere(real x0, real y0, real z0, real dx, real xshift) 
 			}
 		}
 	}
-	u[rho_i] = std::max(u[rho_i], rho_floor);
+	u[rho_i] = u[spc_i] = std::max(u[rho_i], opts().solid_sphere_rho_min);
 	return u;
 }
 
@@ -373,10 +374,12 @@ std::vector<real> star(real x, real y, real z, real) {
 		if (r <= rmax) {
 			theta = lane_emden(r/alpha, dr/alpha, n);
 			theta = std::max(theta, theta_min);
+			u[rho_i] = rho_c * std::pow(theta, n);
 		} else {
 			theta = theta_min;
+			u[rho_i] = rho_out;
 		}
-		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
+//		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
 		u[spc_i] = u[rho_i];
 		u[egas_i] = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0 * n;
 		if (theta <= theta_min) {
@@ -401,24 +404,28 @@ std::vector<real> star(real x, real y, real z, real) {
 }
 
 std::vector<real> moving_star(real x, real y, real z, real dx) {
-	real vx = 1.0;
-	real vy = 1.0;
-	real vz = 0.0;
-//	x += x0 + vx * t;
-//	y += y0 + vy * t;
-//	z += z0 + vz * t;
+	const real vx = opts().moving_star_xvelocity;
+	const real vy = opts().moving_star_yvelocity;
+	const real vz = opts().moving_star_zvelocity;
+	const real rho_out = opts().star_rho_out;
 	auto u = star(x, y, z, dx);
-	u[sx_i] = u[rho_i] * vx;
-	u[sy_i] = u[rho_i] * vy;
-	u[sz_i] = u[rho_i] * vz;
-	u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
+        if (u[rho_i] > rho_out) {
+                u[sx_i] = u[rho_i] * vx;
+                u[sy_i] = u[rho_i] * vy;
+                u[sz_i] = u[rho_i] * vz;
+                u[egas_i] += (u[sx_i] * u[sx_i] + u[sy_i] * u[sy_i] + u[sz_i] * u[sz_i]) / u[rho_i] / 2.0;
+                u[spc_i+1] = ZERO;
+        } else {
+                u[spc_i] = ZERO;
+                u[spc_i+1] = u[rho_i];
+        }
 	return u;
 }
 
 std::vector<real> moving_star_analytic(real x, real y, real z, real t) {
-	real vx = 1.0;
-	real vy = 1.0;
-	real vz = 0.0;
+        const real vx = opts().moving_star_xvelocity;
+        const real vy = opts().moving_star_yvelocity;
+        const real vz = opts().moving_star_zvelocity;
 	const real omega = grid::get_omega();
 	const real x0 = x;
 	const real y0 = y;

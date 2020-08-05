@@ -1113,8 +1113,8 @@ void grid::change_units(real m, real l, real t, real k) {
 }
 
 HPX_PLAIN_ACTION(grid::set_omega, set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION_DECLARATION(set_omega_action);
-HPX_REGISTER_BROADCAST_ACTION(set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION_DECLARATION (set_omega_action);
+HPX_REGISTER_BROADCAST_ACTION (set_omega_action);
 
 void grid::set_omega(real omega, bool bcast) {
 	if (bcast) {
@@ -1127,7 +1127,7 @@ void grid::set_omega(real omega, bool bcast) {
 				}
 			}
 			if (remotes.size() > 0) {
-				hpx::lcos::broadcast<set_omega_action>(remotes, omega, false).get();
+				hpx::lcos::broadcast < set_omega_action > (remotes, omega, false).get();
 			}
 		}
 	}
@@ -1544,17 +1544,31 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	rc.push_back(std::make_pair(std::string("Z"), std::move(Z)));
 	rc.push_back(std::make_pair(std::string("etot_dual"), std::string("ei + ek")));
 	rc.push_back(std::make_pair(std::string("ek"), std::string("(sx*sx+sy*sy+sz*sz)/2.0/rho")));
-	rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1, fgamma)));
 	const auto kb = physcon().kb * std::pow(opts().code_to_cm / opts().code_to_s, 2) * opts().code_to_g;
-	if (opts().problem == MARSHAK) {
-		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
-	} else {
-		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
-	}
 	rc.push_back(std::make_pair(std::string("phi"), std::string("pot/rho")));
-	rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
 	rc.push_back(
 			std::make_pair(std::string("B_p"), hpx::util::format("{:e} * T^4", physcon().sigma / M_PI * opts().code_to_g * std::pow(opts().code_to_cm, 3))));
+	if (opts().eos == WD) {
+		rc.push_back(std::make_pair(std::string("A"), "6.00228e+22"));
+		rc.push_back(std::make_pair(std::string("B"), "(2 * 9.81011e+5)"));
+		rc.push_back(std::make_pair(std::string("x"), "(rho/B)^(1.0/3.0)"));
+		rc.push_back(std::make_pair(std::string("Pdeg"), "A*(x*(2.0*x*x-3.0)*sqrt(x*x+1.0)+3.0*ln(x+sqrt(x*x+1)))"));
+		rc.push_back(std::make_pair(std::string("hdeg"), "8.0*A/B*(sqrt(x*x+1)-1)"));
+		rc.push_back(std::make_pair(std::string("Edeg"), "rho*hdeg - Pdeg"));
+	}
+	if (opts().problem == MARSHAK) {
+		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
+	} else if (opts().eos != WD) {
+		rc.push_back(std::make_pair(std::string("ei"), hpx::util::format("if( gt(egas-ek,{:e}*egas), egas-ek, tau^{:e})", opts().dual_energy_sw1, fgamma)));
+		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("{:e} * ei", (fgamma - 1.0))));
+		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
+	} else {
+		rc.push_back(
+				std::make_pair(std::string("ei"),
+						hpx::util::format("if( gt(egas-ek-Edeg,{:e}*egas), egas-ek-Edeg, tau^{:e})", opts().dual_energy_sw1, fgamma)));
+		rc.push_back(std::make_pair(std::string("P"), hpx::util::format("Pdeg + {:e} * ei", (fgamma - 1.0))));
+		rc.push_back(std::make_pair(std::string("T"), hpx::util::format("{:e} * ei / n", 1.0 / (kb / (fgamma - 1.0)))));
+	}
 	return std::move(rc);
 }
 
@@ -1631,6 +1645,7 @@ analytic_t grid::compute_analytic(real t) {
 					for (int f = 0; f < 4; f++) {
 						G[gindex(i - H_BW, j - H_BW, k - H_BW)][f] = a[f];
 					}
+					U[pot_i][hindex(i, j, k)] = a[0] * U[rho_i][hindex(i, j, k)];
 				}
 			}
 	return a;
@@ -1747,12 +1762,13 @@ void grid::rad_init() {
 	rad_grid_ptr->initialize_erad(U[rho_i], U[tau_i]);
 }
 
-real grid::compute_fluxes() {
+timestep_t grid::compute_fluxes() {
 	PROFILE();
 	static hpx::lcos::local::once_flag flag;
 	hpx::lcos::local::call_once(flag, [this]() {
 		physics<NDIM>::set_fgamma(fgamma);
 		if (opts().eos == WD) {
+			printf("%e %e\n", physcon().A, physcon().B);
 			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
 		}
 		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
@@ -1946,6 +1962,8 @@ void grid::set_physical_boundaries(const geo::face &face, real t) {
 							}
 							if (opts().reflect_bc) {
 								ref = -value;
+							} else if (opts().inflow_bc) {
+								ref = value;
 							} else {
 								if (opts().problem != AMR_TEST) {
 									const real before = value;
@@ -2245,17 +2263,41 @@ void grid::next_u(integer rk, real t, real dt) {
 				} else if (U[tau_i][iii] < ZERO) {
 					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
 							(double) X[YDIM][iii], (double) X[ZDIM][iii]);
+					printf("Use tau_floor option\n");
 					abort();
 				}
 				if (opts().rho_floor > 0.0) {
-					const auto dif = std::max(U[rho_i][iii], opts().rho_floor) - U[rho_i][iii];
-					U[rho_i][iii] += dif;
+					double x;
+					x = 0.0;
 					for (int s = 0; s < opts().n_species; s++) {
-						U[spc_i + s][iii] += dif / opts().n_species;
+						U[spc_i + s][iii] = std::max(U[spc_i + s][iii], 0.0);
+						x += U[spc_i + s][iii];
 					}
+					if (x != 0.0) {
+						for (int s = 0; s < opts().n_species; s++) {
+							U[spc_i + s][iii] /= x;
+						}
+					} else {
+						U[spc_i + opts().n_species - 1][iii] = 1.0;
+					}
+					if (U[rho_i][iii] < opts().rho_floor) {
+						x = 1.0 - std::max(U[rho_i][iii], 0.0) / opts().rho_floor;
+						U[rho_i][iii] = opts().rho_floor;
+						U[tau_i][iii] += x * (opts().tau_floor - U[tau_i][iii]);
+						U[egas_i][iii] += x * (std::pow(opts().tau_floor, 1.0 / fgamma) - U[egas_i][iii]);
+						U[sx_i][iii] -= x * U[sx_i][iii];
+						U[sy_i][iii] -= x * U[sy_i][iii];
+						U[sz_i][iii] -= x * U[sz_i][iii];
+
+					}
+					for (int s = 0; s < opts().n_species; s++) {
+						U[spc_i + s][iii] *= U[rho_i][iii];
+					}
+
 				} else if (U[rho_i][iii] <= ZERO) {
 					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k), real(X[XDIM][iii]), real(X[YDIM][iii]),
 							real(X[ZDIM][iii]));
+					printf("Use rho_floor option\n");
 					abort();
 				}
 			}

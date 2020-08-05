@@ -20,6 +20,7 @@
 #include <hpx/runtime/get_colocation_id.hpp>
 #include <hpx/serialization/list.hpp>
 
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 
@@ -272,7 +273,7 @@ diagnostics_t node_server::diagnostics() {
 	}
 	if (!diags.failed && !opts().disable_diagnostics) {
 
-		FILE *fp = fopen("binary.dat", "at");
+		FILE *fp = fopen((opts().data_dir + "binary.dat").c_str(), "at");
 		if (fp) {
 			fprintf(fp, "%13e ", current_time);
 			fprintf(fp, "%13e ", (double) diags.a);
@@ -292,7 +293,7 @@ diagnostics_t node_server::diagnostics() {
 			fprintf(fp, "%13e ", (double) diags.grid_com[1]);
 			fprintf(fp, "\n");
 			fclose(fp);
-			fp = fopen("sums.dat", "at");
+			fp = fopen((opts().data_dir + "sums.dat").c_str(), "at");
 			fprintf(fp, "%.13e ", current_time);
 			for (integer i = 0; i != opts().n_fields; ++i) {
 				fprintf(fp, "%.13e ", (double) diags.grid_sum[i] + (double) diags.grid_out[i]);
@@ -305,7 +306,7 @@ diagnostics_t node_server::diagnostics() {
 			fclose(fp);
 
 		} else {
-			printf("Failed to write binary.dat\n");
+			printf("Failed to write binary.dat %s\n", std::strerror(errno));
 		}
 	} else {
 		printf("Failed to compute Roche geometry\n");

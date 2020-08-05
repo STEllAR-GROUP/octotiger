@@ -75,6 +75,12 @@ bool options::process_options(int argc, char *argv[]) {
 	("sod_theta", po::value<real>(&(opts().sod_theta))->default_value(0.0), "angle made by diaphragm normal w/x-axis (deg)")     //
 	("sod_phi", po::value<real>(&(opts().sod_phi))->default_value(90.0), "angle made by diaphragm normal w/z-axis (deg)")     //
 	("sod_gamma", po::value<real>(&(opts().sod_gamma))->default_value(1.4), "ratio of specific heats for gas")     //
+        ("solid_sphere_xcenter", po::value<real>(&(opts().solid_sphere_xcenter))->default_value(0.25), "x-position of the sphere center")     //
+        ("solid_sphere_ycenter", po::value<real>(&(opts().solid_sphere_ycenter))->default_value(0.0), "y-position of the sphere center")     //
+        ("solid_sphere_zcenter", po::value<real>(&(opts().solid_sphere_zcenter))->default_value(0.0), "z-position of the sphere center")     //
+        ("solid_sphere_radius", po::value<real>(&(opts().solid_sphere_radius))->default_value(1.0 / 3.0), "radius of the sphere")     //
+        ("solid_sphere_mass", po::value<real>(&(opts().solid_sphere_mass))->default_value(1.0), "total mass enclosed inside the sphere")     //
+        ("solid_sphere_rho_min", po::value<real>(&(opts().solid_sphere_rho_min))->default_value(1.0e-12), "minimal density outside (and within) the sphere")     //
         ("star_xcenter", po::value<real>(&(opts().star_xcenter))->default_value(0.0), "x-position of the star center")     //
         ("star_ycenter", po::value<real>(&(opts().star_ycenter))->default_value(0.0), "y-position of the star center")     //
         ("star_zcenter", po::value<real>(&(opts().star_zcenter))->default_value(0.0), "z-position of the star center")     //
@@ -84,6 +90,9 @@ bool options::process_options(int argc, char *argv[]) {
         ("star_alpha", po::value<real>(&(opts().star_alpha))->default_value(1.0 / (3.0 * 3.65375)), "scaling factor for the Lane-Emden equation") // for default n=3/2, ksi_1=3.65375 and alpha=rmax/ksi_1
         ("star_rho_center", po::value<real>(&(opts().star_rho_center))->default_value(1.0), "density at the center of the star")     //
         ("star_rho_out", po::value<real>(&(opts().star_rho_out))->default_value(1.0e-10), "density outside the star")     //
+        ("moving_star_xvelocity", po::value<real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
+        ("moving_star_yvelocity", po::value<real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
+        ("moving_star_zvelocity", po::value<real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
 	("clight_retard", po::value<real>(&(opts().clight_retard))->default_value(1.0), "retardation factor for speed of light")                 //
 	("driving_rate", po::value<real>(&(opts().driving_rate))->default_value(0.0), "angular momentum loss driving rate")     //
 	("driving_time", po::value<real>(&(opts().driving_time))->default_value(0.0), "A.M. driving rate time")                 //
@@ -120,6 +129,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("hard_dt", po::value<real>(&(opts().hard_dt))->default_value(-1), "timestep size") //
 	("experiment", po::value<int>(&(opts().experiment))->default_value(0), "experiment") //
 	("unigrid", po::value<bool>(&(opts().unigrid))->default_value(false), "unigrid") //
+	("inflow_bc", po::value<bool>(&(opts().inflow_bc))->default_value(false), "Inflow Boundary Conditions") //
 	("reflect_bc", po::value<bool>(&(opts().reflect_bc))->default_value(false), "Reflecting Boundary Conditions") //
 	("cdisc_detect", po::value<bool>(&(opts().cdisc_detect))->default_value(true), "PPM contact discontinuity detection") //
 	("disable_output", po::value<bool>(&(opts().disable_output))->default_value(false), "disable silo output") //
@@ -172,8 +182,11 @@ bool options::process_options(int argc, char *argv[]) {
 		opts().silo_num_groups = hpx::find_all_localities().size();
 
 	}
-	if (opts().problem == DWD || opts().problem == ROTATING_STAR) {
+	if (opts().problem == DWD) {
 		opts().n_species = std::max(int(5), int(opts().n_species));
+	}
+        if (opts().problem == MOVING_STAR || opts().problem == ROTATING_STAR) {
+                opts().n_species = std::max(int(2), int(opts().n_species));
 	}
 	n_fields = n_species + 10;
 	if (!opts().restart_filename.empty()) {
@@ -254,6 +267,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(future_wait_time);
 		SHOW(hard_dt);
 		SHOW(hydro);
+		SHOW(inflow_bc);
 		SHOW(input_file);
 		SHOW(m2m_kernel_type);
 		SHOW(min_level);
@@ -269,6 +283,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(rad_implicit);
 		SHOW(radiation);
 		SHOW(refinement_floor);
+		SHOW(reflect_bc);
 		SHOW(restart_filename);
 		SHOW(rotating_star_amr);
 		SHOW(rotating_star_x);

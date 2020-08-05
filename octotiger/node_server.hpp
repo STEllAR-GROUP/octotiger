@@ -101,10 +101,10 @@ private:
 	std::array<unordered_channel<sibling_hydro_type>, geo::direction::count()> sibling_hydro_channels;
 	std::array<channel<multipole_pass_type>, NCHILD> child_gravity_channels;
 	std::array<std::array<channel<std::vector<real>>, 4>, NFACE> niece_hydro_channels;
-	channel<real> global_timestep_channel;
-	std::array<channel<real>, NCHILD + 1> local_timestep_channels;
+	channel<timestep_t> global_timestep_channel;
+	std::array<channel<timestep_t>, NCHILD + 1> local_timestep_channels;
 
-	real dt_;
+	timestep_t dt_;
 
 	octotiger::fmm::monopole_interactions::p2m_interaction_interface p2m_interactor;
 #ifdef OCTOTIGER_HAVE_CUDA
@@ -241,10 +241,10 @@ public:
 
 	hpx::future<void> timestep_driver_descend();
 
-	void set_local_timestep(integer i, real dt);/**/
+	void set_local_timestep(integer i, timestep_t dt);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, set_local_timestep, set_local_timestep_action);
 
-	void timestep_driver_ascend(real);/**/
+	void timestep_driver_ascend(timestep_t);/**/
 	HPX_DEFINE_COMPONENT_DIRECT_ACTION(node_server, timestep_driver_ascend, timestep_driver_ascend_action);
 
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type&);/**/

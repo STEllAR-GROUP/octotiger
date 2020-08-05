@@ -41,6 +41,8 @@ option(OCTOTIGER_WITH_AVX512 "" OFF)
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
+option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
+
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
@@ -96,6 +98,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     message(FATAL_ERROR " Kokkos cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
   endif()
 endif()
+
 
 ################################################################################
 # Set up Octo-Tiger target
@@ -535,6 +538,11 @@ if(OCTOTIGER_WITH_BLAST_TEST)
   endif()
 endif()
 
+if(OCTOTIGER_WITH_DOCU)
+  add_subdirectory(doc)    
+endif()
+
+
 ################################################################################
 # Tool targets
 ################################################################################
@@ -544,7 +552,7 @@ add_subdirectory(tools)
 # Tests
 ################################################################################
 if(OCTOTIGER_WITH_TESTS)
-  enable_testing()
+    enable_testing()
 
   add_subdirectory(test_problems)
 endif()
