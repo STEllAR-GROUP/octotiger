@@ -283,6 +283,11 @@ diagnostics_t node_server::diagnostics() {
 				const auto radius = std::pow(diags.roche_vol[s] / (4.0 / 3.0 * M_PI), 1. / 3.);
 				fprintf(fp, "%13e ", (double) diags.m[s]);
 				fprintf(fp, "%13e ", (double) diags.js[s]);
+				fprintf(fp, "%13e ", (double) diags.jslz[s]);
+				fprintf(fp, "%13e ", (double) diags.com[s][0]);
+				fprintf(fp, "%13e ", (double) diags.com[s][1]);
+				fprintf(fp, "%13e ", (double) diags.com_dot[0]);
+				fprintf(fp, "%13e ", (double) diags.com_dot[1]);
 				fprintf(fp, "%13e ", (double) radius);
 				fprintf(fp, "%13e ", (double) diags.gt[s]);
 				fprintf(fp, "%13e ", (double) diags.z_moment[s]);

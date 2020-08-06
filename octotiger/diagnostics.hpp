@@ -36,6 +36,7 @@ struct diagnostics_t {
 	std::array<safe_real, nspec> gt;
 	std::array<safe_real, nspec> phi_eff_min;
 	std::array<safe_real, nspec> js;
+	std::array<safe_real, nspec> jslz;
 	std::array<safe_real, nspec> rL;
 	std::array<safe_real, nspec> tidal;
 	std::array<safe_real, nspec> roche_vol;
@@ -64,6 +65,7 @@ struct diagnostics_t {
 			stellar_vol[s] = 0.0;
 			com[s] = 0.0;
 			com_dot[s] = 0.0;
+			jslz[s] = 0.0;
 			js[s] = 0.0;
 			gt[s] = 0.0;
 			mom[s] = 0.0;
@@ -115,6 +117,7 @@ struct diagnostics_t {
 				virial_norm += other.virial_norm;
 				m[s] += other.m[s];
 				gt[s] += other.gt[s];
+				jslz[s] += other.jslz[s];
 				js[s] += other.js[s];
 				rho_max[s] = std::max(rho_max[s], other.rho_max[s]);
 				mom[s] += other.mom[s];
@@ -151,6 +154,7 @@ struct diagnostics_t {
 		arc & grid_com;
 		arc & com;
 		arc & com_dot;
+		arc & jslz;
 		arc & js;
 		arc & jorb;
 		arc & rL;
