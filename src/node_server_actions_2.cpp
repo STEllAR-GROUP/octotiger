@@ -296,6 +296,8 @@ diagnostics_t node_server::diagnostics() {
 			fprintf(fp, "%13e ", (double) diags.rho_max[1]);
 			fprintf(fp, "%13e ", (double) diags.grid_com[0]);
 			fprintf(fp, "%13e ", (double) diags.grid_com[1]);
+			fprintf(fp, "%13e ", (double) diags.nonvacj);
+			fprintf(fp, "%13e ", (double) diags.nonvacjlz);
 			fprintf(fp, "\n");
 			fclose(fp);
 			fp = fopen((opts().data_dir + "sums.dat").c_str(), "at");

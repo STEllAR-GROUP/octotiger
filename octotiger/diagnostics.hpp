@@ -36,6 +36,9 @@ struct diagnostics_t {
 	std::array<safe_real, nspec> gt;
 	std::array<safe_real, nspec> phi_eff_min;
 	std::array<safe_real, nspec> js;
+	std::array<safe_real, nspec> ekin;
+	std::array<safe_real, nspec> epot;
+	std::array<safe_real, nspec> eint;
 	std::array<safe_real, nspec> jslz;
 	std::array<safe_real, nspec> rL;
 	std::array<safe_real, nspec> tidal;
@@ -49,6 +52,8 @@ struct diagnostics_t {
 	hydro_state_t<> grid_sum;
 	hydro_state_t<> grid_out;
 	std::array<safe_real, NDIM> lsum;
+	safe_real nonvacj;
+	safe_real nonvacjlz;
 	diagnostics_t() {
 		failed = false;
 		stage = 1;
@@ -66,6 +71,9 @@ struct diagnostics_t {
 			com[s] = 0.0;
 			com_dot[s] = 0.0;
 			jslz[s] = 0.0;
+			ekin[s] = 0.0;
+			epot[s] = 0.0;
+			eint[s] = 0.0;
 			js[s] = 0.0;
 			gt[s] = 0.0;
 			mom[s] = 0.0;
@@ -79,6 +87,8 @@ struct diagnostics_t {
 		z_mom_orb = 0.0;
 		virial = 0.0;
 		a = 0.0;
+		nonvacj = 0.0;
+		nonvacjlz = 0.0;
 		l1_phi = -std::numeric_limits<safe_real>::max();
 		l2_phi = -std::numeric_limits<safe_real>::max();
 		l3_phi = -std::numeric_limits<safe_real>::max();
@@ -117,6 +127,9 @@ struct diagnostics_t {
 				virial_norm += other.virial_norm;
 				m[s] += other.m[s];
 				gt[s] += other.gt[s];
+				ekin[s] += other.ekin[s];
+				epot[s] += other.epot[s];
+				eint[s] += other.eint[s];
 				jslz[s] += other.jslz[s];
 				js[s] += other.js[s];
 				rho_max[s] = std::max(rho_max[s], other.rho_max[s]);
@@ -132,6 +145,8 @@ struct diagnostics_t {
 		lsum[0] += other.lsum[0];
 		lsum[1] += other.lsum[1];
 		lsum[2] += other.lsum[2];
+		nonvacj += other.nonvacj;
+		nonvacjlz += other.nonvacjlz;
 		return *this;
 	}
 	friend diagnostics_t operator+(const diagnostics_t &lhs, const diagnostics_t &rhs) {
