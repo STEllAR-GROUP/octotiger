@@ -4,6 +4,7 @@
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+project(octotiger CXX)
 
 cmake_minimum_required(VERSION 3.12.4)
 cmake_policy(VERSION 3.12.4)
@@ -11,8 +12,6 @@ cmake_policy(VERSION 3.12.4)
 # Libraries linked via full path no longer produce linker search paths.
 cmake_policy(SET CMP0003 NEW)
 cmake_policy(SET CMP0074 NEW)
-
-project(octotiger CXX)
 
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
