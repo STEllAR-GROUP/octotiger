@@ -36,7 +36,7 @@ safe_real physics<NDIM>::deg_pres(safe_real x) {
 template<int NDIM>
 void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real &cs, int dim) {
 	const auto rho = u[rho_i];
-	const auto rhoinv = safe_real(1.) / rho;
+	const auto rhoinv = INVERSE(rho);
 	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
 	if (A_ != 0.0) {
 		const auto x = std::pow(rho / B_, 1.0 / 3.0);
@@ -54,14 +54,18 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 		ek += pow(u[sx_i + dim], 2) * rhoinv * safe_real(0.5);
 	}
 	auto ein = u[egas_i] - ek - edeg;
-	if (ein < de_switch_1 * u[egas_i]) {
-		ein = pow(u[tau_i], fgamma_);
+	if (ein <= de_switch_1 * u[egas_i]) {
+		ein = POWER(u[tau_i], fgamma_);
 	}
-	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein / rho;
+	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
 	const double dp_deps = (fgamma_ - 1.0) * rho;
 	v = u[sx_i + dim] * rhoinv;
 	p = (fgamma_ - 1.0) * ein + pdeg;
-	cs = std::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
+	const auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
+	if( z < 0.0 ) {
+		printf( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
+	}
+	cs = SQRT(z);
 }
 
 template<int NDIM>
