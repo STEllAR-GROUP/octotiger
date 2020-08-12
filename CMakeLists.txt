@@ -209,6 +209,7 @@ set(header_files
     octotiger/common_kernel/kernel_taylor_set_basis.hpp
     octotiger/common_kernel/multiindex.hpp
     octotiger/common_kernel/struct_of_array_data.hpp
+    octotiger/common_kernel/kokkos_util.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
@@ -340,7 +341,9 @@ if(OCTOTIGER_WITH_KOKKOS)
 
   # Add symbols
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
+  target_compile_definitions(octolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
+  target_compile_definitions(hydrolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
 endif()
 
 # Enable exported functions

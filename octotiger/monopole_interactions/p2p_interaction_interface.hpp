@@ -69,7 +69,7 @@ namespace fmm {
             iterate_inner_cells_padded(
                 [&local_monopoles, mons](const multiindex<>& i, const size_t flat_index,
                     const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                    local_monopoles.at(flat_index) = mons.at(flat_index_unpadded);
+                    local_monopoles[flat_index] = mons[flat_index_unpadded];
                 });
 
             for (size_t i = 0; i < neighbor_empty_monopoles.size(); i++) {
@@ -86,7 +86,7 @@ namespace fmm {
                     iterate_inner_cells_padding(
                         dir, [&local_monopoles](const multiindex<>& i, const size_t flat_index,
                                  const multiindex<>&,
-                                 const size_t) { local_monopoles.at(flat_index) = 0.0; });
+                                 const size_t) { local_monopoles[flat_index] = 0.0; });
                 } else {
                     if (neighbor.is_monopole) {
                         if (!neighbor.data.m) {
@@ -94,7 +94,7 @@ namespace fmm {
                                 [&local_monopoles](const multiindex<>& i, const size_t flat_index,
                                                             const multiindex<>&, const size_t) {
                                     // initializes whole expansion, relatively expansion
-                                    local_monopoles.at(flat_index) = 0.0;
+                                    local_monopoles[flat_index] = 0.0;
                                 });
                             neighbor_empty_monopoles[dir.flat_index_with_center()] = true;
                         } else {
@@ -106,8 +106,8 @@ namespace fmm {
                                              const size_t flat_index, const multiindex<>&,
                                              const size_t flat_index_unpadded) {
                                         // initializes whole expansion, relatively expansion
-                                        local_monopoles.at(flat_index) =
-                                            neighbor_mons.at(flat_index_unpadded);
+                                        local_monopoles[flat_index] =
+                                            neighbor_mons[flat_index_unpadded];
                                     });
                             } else {
                                 // Reset to default
@@ -116,7 +116,7 @@ namespace fmm {
                                              const size_t flat_index, const multiindex<>&,
                                              const size_t) {
                                         // initializes whole expansion, relatively expansion
-                                        local_monopoles.at(flat_index) = 0.0;
+                                        local_monopoles[flat_index] = 0.0;
                                     });
                                 auto list = grid_ptr->get_ilist_n_bnd(dir);
                                 size_t counter = 0;
@@ -132,7 +132,7 @@ namespace fmm {
                                         offset.z + INNER_CELLS_PADDING_DEPTH +
                                             dir[2] * INNER_CELLS_PADDING_DEPTH);
                                     const size_t flat_index = to_flat_index_padded(m);
-                                    local_monopoles.at(flat_index) = neighbor_mons.at(counter);
+                                    local_monopoles[flat_index] = neighbor_mons[counter];
                                     counter++;
                                 }
                             }
