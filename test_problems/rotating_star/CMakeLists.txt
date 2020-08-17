@@ -13,8 +13,24 @@ download_test_reference("Rotating star test"
 # Rotating Star - CPU
 add_test(NAME test_problems.cpu.rotating_star.init COMMAND gen_rotating_star_init)
 add_test(NAME test_problems.cpu.rotating_star
-  COMMAND octotiger
-    --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini)
+  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini > rotating_star_log.txt")
+
+add_test(NAME test_problems.cpu.rotating_star.rho_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.egas_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.tau_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.pot_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.sx_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.sy_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.sz_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.zx_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.zy_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.zz_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.spc1_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.spc2_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.spc3_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.spc4_regex COMMAND cat rotating_star_log.txt)
+add_test(NAME test_problems.cpu.rotating_star.spc5_regex COMMAND cat rotating_star_log.txt)
+
 add_test(NAME test_problems.cpu.rotating_star.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
     ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/test_problems/rotating_star/final.silo.data/0.silo)
@@ -23,6 +39,53 @@ set_tests_properties(test_problems.cpu.rotating_star.init PROPERTIES
   FIXTURES_SETUP test_problems.cpu.rotating_star.init)
 set_tests_properties(test_problems.cpu.rotating_star PROPERTIES
   FIXTURES_REQUIRED test_problems.cpu.rotating_star.init)
+
+set_tests_properties(test_problems.cpu.rotating_star.rho_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "rho 3.178289e-05 2.006156e-04")
+set_tests_properties(test_problems.cpu.rotating_star.egas_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "egas 5.813054e-06 4.747507e-05")
+set_tests_properties(test_problems.cpu.rotating_star.tau_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "tau 1.377203e-05 8.266311e-05")
+set_tests_properties(test_problems.cpu.rotating_star.pot_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "pot 5.264186e-03 3.940757e-02")
+set_tests_properties(test_problems.cpu.rotating_star.sx_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "sx 7.353904e-06 6.084916e-05")
+set_tests_properties(test_problems.cpu.rotating_star.sy_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "sy 7.354391e-06 6.085113e-05")
+set_tests_properties(test_problems.cpu.rotating_star.sz_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "sz 5.123306e-06 6.002162e-05")
+set_tests_properties(test_problems.cpu.rotating_star.zx_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "zx 1.460722e-04 8.854924e-04")
+set_tests_properties(test_problems.cpu.rotating_star.zy_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "zy 1.460722e-04 8.854922e-04")
+set_tests_properties(test_problems.cpu.rotating_star.zz_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "zz 5.833309e-04 3.077133e-03")
+set_tests_properties(test_problems.cpu.rotating_star.spc1_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "spc_1 0.000000e.00 0.000000e.00")
+set_tests_properties(test_problems.cpu.rotating_star.spc2_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "spc_2 3.178289e-05 2.006156e-04")
+set_tests_properties(test_problems.cpu.rotating_star.spc3_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "spc_3 0.000000e.00 0.000000e.00")
+set_tests_properties(test_problems.cpu.rotating_star.spc4_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "spc_4 0.000000e.00 0.000000e.00")
+set_tests_properties(test_problems.cpu.rotating_star.spc5_regex PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.rotating_star
+  PASS_REGULAR_EXPRESSION "spc_5 0.000000e.00 0.000000e.00")
+   
 
 set_tests_properties(test_problems.cpu.rotating_star PROPERTIES
   FIXTURES_SETUP test_problems.cpu.rotating_star
