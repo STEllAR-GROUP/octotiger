@@ -10,7 +10,7 @@
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/geometry.hpp"
-#include "octotiger/grid.hpp"    //VC
+#include "octotiger/grid.hpp"    
 #include "octotiger/interaction_types.hpp"
 
 #include <array>

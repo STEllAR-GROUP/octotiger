@@ -12,6 +12,8 @@
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
 
+#include "octotiger/monopole_interactions/p2p_kernel_interface.hpp"
+
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
@@ -481,8 +483,10 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 			multipole_interactor.compute_multipole_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
 					is_direction_empty, Xbase);
 		} else { // ... we are a monopole
-			p2p_interactor.set_grid_ptr(grid_ptr);
-			p2p_interactor.compute_p2p_interactions(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty);
+		    
+			p2p_kernel_interface(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty, grid_ptr);
+			// p2p_interactor.set_grid_ptr(grid_ptr);
+			// p2p_interactor.compute_p2p_interactions(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty);
 			if (contains_multipole) {
 				p2m_interactor.set_grid_ptr(grid_ptr);
 				p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, is_direction_empty);

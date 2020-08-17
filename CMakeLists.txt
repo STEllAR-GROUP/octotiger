@@ -140,14 +140,15 @@ set(source_files
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
     src/cuda_util/cuda_scheduler.cpp
-    src/monopole_interactions/cuda_p2p_interaction_interface.cpp
-    src/monopole_interactions/p2p_cuda_kernel.cu
-    src/monopole_interactions/p2p_kokkos_kernel.cpp
-    src/monopole_interactions/p2p_cpu_kernel.cpp
-    src/monopole_interactions/p2p_interaction_interface.cpp
-    src/monopole_interactions/calculate_stencil.cpp
-    src/monopole_interactions/p2m_interaction_interface.cpp
-    src/monopole_interactions/p2m_kernel.cpp
+    src/monopole_interactions/legacy/cuda_p2p_interaction_interface.cpp
+    src/monopole_interactions/legacy/p2p_cuda_kernel.cu
+    src/monopole_interactions/legacy/p2p_kokkos_kernel.cpp
+    src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
+    src/monopole_interactions/legacy/p2p_interaction_interface.cpp
+    src/monopole_interactions/p2p_kernel_interface.cpp
+    src/monopole_interactions/util/calculate_stencil.cpp
+    src/monopole_interactions/legacy/p2m_interaction_interface.cpp
+    src/monopole_interactions/legacy/p2m_kernel.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
     src/multipole_interactions/cuda_multipole_interaction_interface.cpp
     src/multipole_interactions/multipole_cuda_kernel.cu
@@ -214,15 +215,15 @@ set(header_files
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
     octotiger/cuda_util/cuda_scheduler.hpp
-    octotiger/monopole_interactions/calculate_stencil.hpp
-    octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp
-    octotiger/monopole_interactions/monopole_kernel_templates.hpp
-    octotiger/monopole_interactions/p2m_interaction_interface.hpp
-    octotiger/monopole_interactions/p2m_kernel.hpp
-    octotiger/monopole_interactions/p2p_cpu_kernel.hpp
-    octotiger/monopole_interactions/p2p_cuda_kernel.hpp
-    octotiger/monopole_interactions/p2p_kokkos_kernel.hpp
-    octotiger/monopole_interactions/p2p_interaction_interface.hpp
+    octotiger/monopole_interactions/util/calculate_stencil.hpp
+    octotiger/monopole_interactions/legacy/cuda_p2p_interaction_interface.hpp
+    octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp
+    octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp
+    octotiger/monopole_interactions/legacy/p2m_kernel.hpp
+    octotiger/monopole_interactions/legacy/p2p_cpu_kernel.hpp
+    octotiger/monopole_interactions/legacy/p2p_cuda_kernel.hpp
+    octotiger/monopole_interactions/legacy/p2p_kokkos_kernel.hpp
+    octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp
     octotiger/multipole_interactions/calculate_stencil.hpp
     octotiger/multipole_interactions/compute_kernel_templates.hpp
     octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp
@@ -305,10 +306,11 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/compute_factor.cpp
     src/roe.cpp
     src/common_kernel/interactions_iterators.cpp
-    src/monopole_interactions/p2m_kernel.cpp
-    src/monopole_interactions/p2m_interaction_interface.cpp
-    src/monopole_interactions/p2p_cpu_kernel.cpp
-    src/monopole_interactions/p2p_interaction_interface.cpp
+    src/monopole_interactions/legacy/p2m_kernel.cpp
+    src/monopole_interactions/legacy/p2m_interaction_interface.cpp
+    src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
+    src/monopole_interactions/legacy/p2p_interaction_interface.cpp
+    src/monopole_interactions/p2p_kernel_interface.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
 

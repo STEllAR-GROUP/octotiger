@@ -5,8 +5,8 @@
 
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/monopole_interactions/monopole_kernel_templates.hpp"
-#include "octotiger/monopole_interactions/p2p_kokkos_kernel.hpp"
+#include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
+#include "octotiger/monopole_interactions/legacy/p2p_kokkos_kernel.hpp"
 
 namespace octotiger {
 namespace fmm {

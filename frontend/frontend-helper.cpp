@@ -26,14 +26,14 @@
 #include <stream_manager.hpp>
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
-#include "octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
 
 #endif
 #include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/monopole_interactions/calculate_stencil.hpp"
-#include "octotiger/monopole_interactions/p2m_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/multipole_interaction_interface.hpp"
 
