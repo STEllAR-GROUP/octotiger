@@ -51,15 +51,21 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
             // Check where we want to run this:
-            bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-                opts().cuda_buffer_capacity);
-            bool run_dummy = true;
+            bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                pool_strategy>(opts().cuda_buffer_capacity);
+            bool run_dummy = false;
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(
                     monopoles, neighbors, type, dx, is_direction_empty);
             } else if (run_dummy) {
                 // TODO(daissgr) Use executors for this
+                hpx::kokkos::hpx_executor test1{};
+                // Kokkos cuda executor
+                hpx::kokkos::cuda_executor test2{};
+                bool avail = stream_pool::interface_available<hpx::kokkos::cuda_executor,
+                    pool_strategy>(opts().cuda_buffer_capacity);
+                stream_interface<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>> executor{};
                 // TODO(daissgr) Move executors into pools and use different streams
                 auto host_space =
                     hpx::kokkos::make_execution_space<Kokkos::DefaultHostExecutionSpace>();
@@ -67,7 +73,7 @@ namespace fmm {
 
                 recycled_pinned_view<double> pinnedMonopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
                 recycled_device_view<double> deviceMonopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
-                update_input(monopoles, neighbors, type, pinnedMonopoles);
+                update_input(monopoles, neighbors, type, pinnedMonopoles, neighbor_empty_monopoles, grid_ptr);
 
                 hpx::kokkos::deep_copy_async(stream_space, deviceMonopoles, pinnedMonopoles);
 
@@ -198,7 +204,7 @@ namespace fmm {
                 recycler::cuda_device_buffer<double> erg(NUMBER_POT_EXPANSIONS_SMALL, device_id);
 
                 // Move data into staging buffers
-                update_input(monopoles, neighbors, type, local_monopoles);
+                update_input(monopoles, neighbors, type, local_monopoles, neighbor_empty_monopoles, grid_ptr);
 
                 hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_local_monopoles.device_side_buffer,

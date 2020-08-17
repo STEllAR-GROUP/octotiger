@@ -365,6 +365,7 @@ add_hpx_executable(
   SOURCES
     frontend/main.cpp
     frontend/frontend-helper.cpp
+    frontend/init_methods.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 

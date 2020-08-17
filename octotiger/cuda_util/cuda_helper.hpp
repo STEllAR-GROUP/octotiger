@@ -22,6 +22,7 @@
 
 #include <stream_manager.hpp>
 using pool_strategy = multi_gpu_round_robin_pool<hpx::cuda::experimental::cuda_executor, round_robin_pool<hpx::cuda::experimental::cuda_executor>>;
+using kokkos_strategy = round_robin_pool<hpx::cuda::experimental::cuda_executor>;
 
 
 #endif

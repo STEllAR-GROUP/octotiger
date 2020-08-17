@@ -3,6 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include "frontend-helper.hpp"
+
 #include "octotiger/compute_factor.hpp"
 #include "octotiger/defs.hpp"
 // #include "octotiger/future.hpp"
@@ -58,43 +60,7 @@
 std::size_t init_thread_local_worker(std::size_t desired) {
     std::size_t current = hpx::get_worker_thread_num();
     if (current == desired) {
-        namespace mono_inter = octotiger::fmm::monopole_interactions;
-        using mono_inter_p2p = octotiger::fmm::monopole_interactions::p2p_interaction_interface;
-        // Initialize stencil and four constants for p2p fmm interactions
-        mono_inter_p2p::stencil() = mono_inter::calculate_stencil().first;
-        mono_inter_p2p::stencil_masks() =
-            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil()).first;
-        mono_inter_p2p::four() = mono_inter::calculate_stencil().second;
-        mono_inter_p2p::stencil_four_constants() =
-            mono_inter::calculate_stencil_masks(mono_inter_p2p::stencil()).second;
-
-        // Initialize stencil for p2m fmm interactions
-        mono_inter::p2m_interaction_interface::stencil() = mono_inter::calculate_stencil().first;
-
-        namespace multi_inter = octotiger::fmm::multipole_interactions;
-        using multi_inter_p2p =
-            octotiger::fmm::multipole_interactions::multipole_interaction_interface;
-        // Initialize stencil for multipole fmm interactions
-        multi_inter_p2p::stencil() = multi_inter::calculate_stencil();
-        multi_inter_p2p::stencil_masks() =
-            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil()).first;
-        multi_inter_p2p::inner_stencil_masks() =
-            multi_inter::calculate_stencil_masks(multi_inter_p2p::stencil()).second;
-        // print run informations
-        if (current == 0) {
-            std::cout << "\nSubgrid side-length is " << INX << std::endl;
-            std::cout << "Minimal allowed theta is " << octotiger::fmm::THETA_FLOOR << std::endl;
-            std::cout << "Stencil maximal allowed half side-length is "
-                      << octotiger::fmm::STENCIL_WIDTH << " (Total length "
-                      << 2 * octotiger::fmm::STENCIL_WIDTH + 1 << ")" << std::endl;
-            std::cout << "Total number of stencil elements (stencil size): "
-                      << mono_inter::calculate_stencil().first.size() << std::endl
-                      << std::endl;
-        }
-        static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
-            ERROR: Stencil is too wide for the subgrid size. 
-            Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
-
+        init_stencil(current);
         std::cout << "OS-thread " << current << " on locality " << hpx::get_locality_id()
                   << ": Initialized thread_local memory!\n";
         return desired;
@@ -139,101 +105,19 @@ std::array<size_t, 7> sum_counters_worker(std::size_t desired) {
 HPX_PLAIN_ACTION(sum_counters_worker, sum_counters_worker_action);
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
+
     scf_options::read_option_file();
 
     options::all_localities = localities;
     opts() = _opts;
-    physics<NDIM>::set_n_species(opts().n_species);
-    physics<NDIM>::update_n_field();
-    grid::get_omega() = opts().omega;
-#if !defined(_MSC_VER) && !defined(__APPLE__)
-    feenableexcept(FE_DIVBYZERO);
-    feenableexcept(FE_INVALID);
-    feenableexcept(FE_OVERFLOW);
-#else
-    _controlfp(_EM_INEXACT | _EM_DENORMAL | _EM_INVALID, _MCW_EM);
-#endif
-    grid::set_scaling_factor(opts().xscale);
-    grid::set_min_level(opts().min_level);
-    grid::set_max_level(opts().max_level);
-    if (opts().problem == RADIATION_TEST) {
-        assert(opts().radiation);
-        //		opts().gravity = false;
-        set_problem(radiation_test_problem);
-        set_refine_test(radiation_test_refine);
-    } else if (opts().problem == DWD) {
-        opts().n_species = 5;
-        set_problem(scf_binary);
-        set_refine_test(refine_test);
-    } else if (opts().problem == SOD) {
-        grid::set_fgamma(opts().sod_gamma);
-        // grid::set_fgamma(7.0 / 5.0);
-        //		opts().gravity = false;
-        set_problem(sod_shock_tube_init);
-        set_refine_test(refine_sod);
-        set_analytic(sod_shock_tube_analytic);
-    } else if (opts().problem == BLAST) {
-#if defined(OCTOTIGER_HAVE_BLAST_TEST)
-        grid::set_fgamma(7.0 / 5.0);
-        //		opts().gravity = false;
-        set_problem(blast_wave);
-        set_refine_test(refine_blast);
-        set_analytic(blast_wave_analytic);
-#else
-        std::cout << "Error! Octotiger has been compiled without BLAST test support!" << std::endl;
-        exit(EXIT_FAILURE);
-#endif
-    } else if (opts().problem == STAR) {
-        grid::set_fgamma(5.0 / 3.0);
-        set_problem(star);
-        set_refine_test(refine_test_moving_star);
-    } else if (opts().problem == ROTATING_STAR) {
-        grid::set_fgamma(5.0 / 3.0);
-        set_problem(rotating_star);
-        set_analytic(rotating_star_a);
-        set_refine_test(refine_test_moving_star);
-    } else if (opts().problem == MOVING_STAR) {
-        grid::set_fgamma(5.0 / 3.0);
-        //		grid::set_analytic_func(moving_star_analytic);
-        set_problem(moving_star);
-        set_refine_test(refine_test_moving_star);
-    } else if (opts().problem == ADVECTION) {
-        grid::set_fgamma(5.0 / 3.0);
-        set_analytic(advection_test_analytic);
-        set_problem(advection_test_init);
-        set_refine_test(refine_test_moving_star);
-    } else if (opts().problem == AMR_TEST) {
-        grid::set_fgamma(5.0 / 3.0);
-        //		grid::set_analytic_func(moving_star_analytic);
-        set_problem(amr_test);
-        set_refine_test(refine_test_moving_star);
-        set_refine_test(refine_test_amr);
-    } else if (opts().problem == MARSHAK) {
-        grid::set_fgamma(5.0 / 3.0);
-        set_analytic(nullptr);
-        set_analytic(marshak_wave_analytic);
-        set_problem(marshak_wave);
-        set_refine_test(refine_test_marshak);
-    } else if (opts().problem == SOLID_SPHERE) {
-        //	opts().hydro = false;
-        set_analytic(
-            [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); });
-        set_refine_test(refine_test_center);
-        set_problem(init_func_type(
-            [](real x, real y, real z, real dx) { return solid_sphere(x, y, z, dx, 0.25); }));
-    } else {
-        printf("No problem specified\n");
-        throw;
-    }
+
+    init_problem();
+
     compute_ilist();
     compute_factor();
 
-#ifdef OCTOTIGER_HAVE_CUDA
-    std::cout << "CUDA is enabled! Available CUDA targets on this locality: " << std::endl;
-    stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
-        opts().cuda_streams_per_gpu, opts().cuda_number_gpus, opts().cuda_polling_executor);
-    octotiger::fmm::kernel_scheduler::init_constants();
-#endif
+    init_executors();
+
     grid::static_init();
     normalize_constants();
 #ifdef SILO_UNITS

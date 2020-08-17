@@ -58,7 +58,7 @@ namespace fmm {
             cpu_launch_counter()++;
             cpu_monopole_buffer_t local_monopoles_staging_area(ENTRIES);
 
-            update_input(monopoles, neighbors, type, local_monopoles_staging_area);
+            update_input(monopoles, neighbors, type, local_monopoles_staging_area, neighbor_empty_monopoles, grid_ptr);
             compute_interactions(
                 type, is_direction_empty, neighbors, dx, local_monopoles_staging_area);
         }
