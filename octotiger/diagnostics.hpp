@@ -39,7 +39,8 @@ struct diagnostics_t {
 	std::array<safe_real, nspec> ekin;
 	std::array<safe_real, nspec> epot;
 	std::array<safe_real, nspec> eint;
-	std::array<safe_real, nspec> jslz;
+	std::array<safe_real, nspec> lz1;
+	std::array<safe_real, nspec> lz2;
 	std::array<safe_real, nspec> rL;
 	std::array<safe_real, nspec> tidal;
 	std::array<safe_real, nspec> roche_vol;
@@ -70,7 +71,8 @@ struct diagnostics_t {
 			stellar_vol[s] = 0.0;
 			com[s] = 0.0;
 			com_dot[s] = 0.0;
-			jslz[s] = 0.0;
+			lz1[s] = 0.0;
+			lz2[s] = 0.0;
 			ekin[s] = 0.0;
 			epot[s] = 0.0;
 			eint[s] = 0.0;
@@ -130,7 +132,8 @@ struct diagnostics_t {
 				ekin[s] += other.ekin[s];
 				epot[s] += other.epot[s];
 				eint[s] += other.eint[s];
-				jslz[s] += other.jslz[s];
+				lz1[s] += other.lz1[s];
+				lz2[s] += other.lz2[s];
 				js[s] += other.js[s];
 				rho_max[s] = std::max(rho_max[s], other.rho_max[s]);
 				mom[s] += other.mom[s];
@@ -169,7 +172,8 @@ struct diagnostics_t {
 		arc & grid_com;
 		arc & com;
 		arc & com_dot;
-		arc & jslz;
+		arc & lz1;
+		arc & lz2;
 		arc & js;
 		arc & jorb;
 		arc & rL;
