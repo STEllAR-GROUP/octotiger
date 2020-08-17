@@ -284,6 +284,9 @@ diagnostics_t node_server::diagnostics() {
 				fprintf(fp, "%13e ", (double) diags.m[s]);
 				fprintf(fp, "%13e ", (double) diags.js[s]);
 				fprintf(fp, "%13e ", (double) diags.jslz[s]);
+				fprintf(fp, "%13e ", (double) diags.ekin[s]);
+				fprintf(fp, "%13e ", (double) diags.epot[s]);
+				fprintf(fp, "%13e ", (double) diags.eint[s]);
 				fprintf(fp, "%13e ", (double) diags.com[s][0]);
 				fprintf(fp, "%13e ", (double) diags.com[s][1]);
 				fprintf(fp, "%13e ", (double) diags.com_dot[s][0]);
