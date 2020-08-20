@@ -14,12 +14,18 @@ download_test_reference("Blast test"
 add_test(NAME test_problems.cpu.blast
   COMMAND octotiger
     --config_file=${PROJECT_SOURCE_DIR}/test_problems/blast/blast.ini)
+
+add_file_size_test(test_problems.cpu.blast.filesize
+  ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo.data/0.silo)
+
 add_test(NAME test_problems.cpu.blast.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
     ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo.data/0.silo)
 
 set_tests_properties(test_problems.cpu.blast PROPERTIES
   FIXTURES_SETUP test_problems.cpu.blast)
+set_tests_properties(test_problems.cpu.blast.filesize PROPERTIES
+  FIXTURES_REQUIRED test_problems.cpu.blast)
 set_tests_properties(test_problems.cpu.blast.diff PROPERTIES
   FIXTURES_REQUIRED test_problems.cpu.blast
   FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
