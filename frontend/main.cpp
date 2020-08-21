@@ -86,6 +86,7 @@ int hpx_main(int argc, char* argv[]) {
 	printf("Running\n");
 #ifdef OCTOTIGER_HAVE_KOKKOS
     hpx::kokkos::ScopeGuard g(argc, argv);
+    Kokkos::print_configuration(std::cout);
 #endif
 
     start_octotiger(argc, argv);

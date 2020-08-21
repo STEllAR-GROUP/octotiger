@@ -310,7 +310,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/monopole_interactions/legacy/p2m_interaction_interface.cpp
     src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
     src/monopole_interactions/legacy/p2p_interaction_interface.cpp
-    src/monopole_interactions/p2p_kernel_interface.cpp
     src/multipole_interactions/multipole_cpu_kernel.cpp
     src/multipole_interactions/multipole_interaction_interface.cpp
 

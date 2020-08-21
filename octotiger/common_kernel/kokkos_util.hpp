@@ -39,4 +39,10 @@ template <typename Executor, typename ViewType>
 auto get_iteration_policy(const Executor&& executor, const ViewType& view_to_iterate) {
     return get_iteration_policy(executor, view_to_iterate);
 }
+
+template< typename T >
+struct always_false { 
+    enum { value = false };  
+};
+
 #endif
