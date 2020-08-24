@@ -43,9 +43,9 @@ option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
 
 # add -fPIC option to avoid this error:
-# https://cmake.org/pipermail/cmake/2015-January/059513.html 
+# https://cmake.org/pipermail/cmake/2015-January/059513.html
 # in case of relocatable device code
-# (modifying CMAKE_CUDA_(CXX_)_FLAGS did not help, 
+# (modifying CMAKE_CUDA_(CXX_)_FLAGS did not help,
 # so we keep this flag at the cost of duplicating it for host code)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
@@ -264,7 +264,7 @@ if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND hydro_dependencies Kokkos::kokkos)
 endif()
 if(OCTOTIGER_WITH_BLAST_TEST)
-  list(APPEND hydro_source_files 
+  list(APPEND hydro_source_files
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp)
   list(APPEND hydro_dependencies quadmath)
@@ -432,7 +432,7 @@ if(OCTOTIGER_WITH_Vc)
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
     # This just spits out lots of warnings
-     HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC 
+     HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC
   )
 endif()
 
@@ -524,7 +524,7 @@ if(OCTOTIGER_WITH_BLAST_TEST)
 endif()
 
 if(OCTOTIGER_WITH_DOCU)
-  add_subdirectory(doc)    
+  add_subdirectory(doc)
 endif()
 
 
