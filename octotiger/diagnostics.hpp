@@ -160,6 +160,9 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc &arc, const unsigned) {
+		arc & ekin;
+		arc & epot;
+		arc & eint;
 		arc & failed;
 		arc & lsum;
 		arc & l1_phi;
