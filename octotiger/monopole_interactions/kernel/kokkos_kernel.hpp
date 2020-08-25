@@ -1,34 +1,65 @@
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
+#include "octotiger/defs.hpp"
+#include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
-
-template <typename T>
-using host_buffer = recycled_pinned_view<T>;
-template <typename T>
-using device_buffer = recycled_device_view<T>;
 #endif
+
+template <typename storage>
+const storage& get_host_masks() {
+    static storage stencil_masks(octotiger::fmm::FULL_STENCIL_SIZE);
+    bool initialized = false;
+    if (!initialized) {
+        auto superimposed_stencil =
+            octotiger::fmm::monopole_interactions::calculate_stencil().first;
+        for (auto i = 0; i < octotiger::fmm::FULL_STENCIL_SIZE; i++) {
+            stencil_masks[i] = false;
+        }
+        for (auto stencil_element : superimposed_stencil) {
+            const int x = stencil_element.x + octotiger::fmm::STENCIL_MAX;
+            const int y = stencil_element.y + octotiger::fmm::STENCIL_MAX;
+            const int z = stencil_element.z + octotiger::fmm::STENCIL_MAX;
+            size_t index = x * octotiger::fmm::STENCIL_INX * octotiger::fmm::STENCIL_INX +
+                y * octotiger::fmm::STENCIL_INX + z;
+            stencil_masks[index] = true;
+        }
+        // initialized = true;
+    }
+    return stencil_masks;
+}
+
+template <typename storage, typename storage_host, typename executor_t>
+const storage& get_device_masks(executor_t& exec) {
+    static storage stencil_masks(octotiger::fmm::FULL_STENCIL_SIZE);
+    bool initialized = false;
+    if (!initialized) {
+        const storage_host& tmp = get_host_masks<storage_host>();
+        Kokkos::deep_copy(exec.instance(), stencil_masks, tmp);
+        exec.instance().fence();
+        // initialized = true;
+    }
+    return stencil_masks;
+}
 
 // --------------------------------------- Kernel implementations
 
-template <typename executor_t, typename buffer_t, typename mask_t>    
-void p2p_kernel_impl(executor_t& exec, buffer_t& deviceView,
-    mask_t& deviceMasks, buffer_t& deviceResultView, double dx,
-    double theta) {
-    static_assert(always_false<executor_t>::value, "P2P Kernel not implemented for this kind of executor!");
+template <typename executor_t, typename buffer_t, typename mask_t>
+void p2p_kernel_impl(executor_t& exec, buffer_t& deviceView, const mask_t& deviceMasks,
+    buffer_t& deviceResultView, double dx, double theta) {
+    static_assert(
+        always_false<executor_t>::value, "P2P Kernel not implemented for this kind of executor!");
 }
 
-template <typename kokkos_backend_t,
-    typename kokkos_buffer_t, typename kokkos_mask_t>    
-void p2p_kernel_impl(
-    hpx::kokkos::executor<kokkos_backend_t>& executor, kokkos_buffer_t& deviceView,
-    kokkos_mask_t& devicemasks, kokkos_buffer_t& deviceResultView, double dx,
-    double theta) {
+template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
+void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, kokkos_buffer_t& deviceView,
+    const kokkos_mask_t& devicemasks, kokkos_buffer_t& deviceResultView, double dx, double theta) {
     using namespace octotiger::fmm;
 
-    Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>> policy_1(executor.instance(), {0, 0, 0}, {8, 8, 8});
-    
+    Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>> policy_1(
+        executor.instance(), {0, 0, 0}, {INX, INX, INX});
+
     Kokkos::parallel_for("kernel p2p", policy_1,
         [deviceView, deviceResultView, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
             int idx, int idy, int idz) {
@@ -100,23 +131,22 @@ void p2p_kernel_impl(
 
 template <typename executor_t>
 void launch_interface(executor_t& exec, host_buffer<double>& monopoles,
-    host_buffer<int>& masks, host_buffer<double>& results, double dx, double theta) {
-    static_assert(always_false<executor_t>::value, "P2P launch interface implemented for this kind of executor!");
+    host_buffer<double>& results, double dx, double theta) {
+    static_assert(always_false<executor_t>::value,
+        "P2P launch interface implemented for this kind of executor!");
 }
 
 template <typename kokkos_backend_t>
-void launch_interface(
-    hpx::kokkos::executor<kokkos_backend_t>& exec, host_buffer<double>& monopoles,
-    host_buffer<int>& masks, host_buffer<double>& results, double dx, double theta) {
-
+void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, host_buffer<double>& monopoles,
+    host_buffer<double>& results, double dx, double theta) {
     // create device buffers
-    device_buffer<int> device_masks(octotiger::fmm::FULL_STENCIL_SIZE);
+    const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>,
+        host_buffer<int>, hpx::kokkos::executor<kokkos_backend_t>>(exec);
     device_buffer<double> device_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     device_buffer<double> device_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
 
     // move device buffers
     Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
-    Kokkos::deep_copy(exec.instance(), device_masks, masks);
 
     // call kernel
     p2p_kernel_impl(exec, device_monopoles, device_masks, device_results, dx, theta);
@@ -125,17 +155,16 @@ void launch_interface(
     fut.get();
 }
 template <>
-void launch_interface(
-    hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec, host_buffer<double>& monopoles,
-    host_buffer<int>& masks, host_buffer<double>& results, double dx, double theta) {
+void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec,
+    host_buffer<double>& monopoles, host_buffer<double>& results, double dx, double theta) {
+    const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
     // call kernel
-    p2p_kernel_impl(exec, monopoles, masks, results, dx, theta);
+    p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
 
-    auto fut = exec.instance().impl_get_future();
-    fut.get();
+    exec.instance().fence();
+//     auto fut = exec.instance().impl_get_future();
+//  _  fut.get();
 }
-
-
 
 // --------------------------------------- Kernel interface
 
@@ -144,7 +173,6 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::shared_ptr<grid> grid_ptr) {
     // Create host buffers
-    host_buffer<int> host_masks(octotiger::fmm::FULL_STENCIL_SIZE);
     host_buffer<double> host_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     host_buffer<double> host_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
     std::vector<bool> neighbor_empty_monopoles(27);    // TODO(daissgr) Get rid of this one
@@ -152,5 +180,5 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
     octotiger::fmm::monopole_interactions::update_input(
         monopoles, neighbors, type, host_monopoles, neighbor_empty_monopoles, grid_ptr);
 
-    launch_interface(exec, host_monopoles, host_masks, host_results, dx, dx);
+    launch_interface(exec, host_monopoles, host_results, dx, dx);
 }

@@ -31,7 +31,7 @@ enum host_kernel_type {
 };
 
 using device_executor = hpx::kokkos::cuda_executor;
-using host_executor = hpx::kokkos::hpx_executor;
+using host_executor = hpx::kokkos::serial_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>; 
 
@@ -51,20 +51,15 @@ void p2p_kernel_interface(std::vector<real>& monopoles,
             bool avail = stream_pool::interface_available<device_executor, device_pool_strategy>(opts().cuda_buffer_capacity);
             if (avail) {
                  executor_interface_t executor;
-                // call kernel
                 p2p_kernel<device_executor>(executor, monopoles, neighbors, type, dx, is_direction_empty, grid_ptr);
-
                 // return;
-
-            }  
+            } else {
+                host_executor executor{};
+                p2p_kernel<host_executor>(
+                    executor, monopoles, neighbors, type, dx, is_direction_empty, grid_ptr);
+            }
         }
     } // Nothing is available or device execution is disabled - fallback to host execution
-
-    // Try host implementation
-    
-    host_executor executor{};
-    
-    p2p_kernel<host_executor>(executor, monopoles, neighbors, type, dx, is_direction_empty, grid_ptr);
 
     // try legacy implemantation
 #ifdef OCTOTIGER_HAVE_CUDA

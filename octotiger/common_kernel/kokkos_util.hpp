@@ -16,6 +16,8 @@
 template <class T>
 using kokkos_um_device_array = Kokkos::View<T*, Kokkos::CudaSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
+using kokkos_device_array = Kokkos::View<T*, Kokkos::CudaSpace>;
+template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
     recycler::recycle_allocator_cuda_device<T>, T>;
 
@@ -23,6 +25,9 @@ using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
 template <class T>
 using kokkos_um_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
+using kokkos_host_array = Kokkos::View<T*, typename kokkos_device_array<T>::array_layout,
+    Kokkos::HostSpace>;
 template <class T>
 using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler::recycle_std<T>, T>;
 
@@ -44,5 +49,15 @@ template< typename T >
 struct always_false { 
     enum { value = false };  
 };
+
+
+template <typename T>
+using host_buffer = recycled_pinned_view<T>;
+template <typename T>
+using device_buffer = recycled_device_view<T>;
+template <typename T>
+using normal_host_buffer = kokkos_host_array<T>;
+template <typename T>
+using normal_device_buffer = kokkos_device_array<T>;
 
 #endif
