@@ -10,7 +10,7 @@
 template <typename storage>
 const storage& get_host_masks() {
     static storage stencil_masks(octotiger::fmm::FULL_STENCIL_SIZE);
-    bool initialized = false;
+    static bool initialized = false;
     if (!initialized) {
         auto superimposed_stencil =
             octotiger::fmm::monopole_interactions::calculate_stencil().first;
@@ -25,7 +25,7 @@ const storage& get_host_masks() {
                 y * octotiger::fmm::STENCIL_INX + z;
             stencil_masks[index] = true;
         }
-        // initialized = true;
+        initialized = true;
     }
     return stencil_masks;
 }
@@ -33,12 +33,12 @@ const storage& get_host_masks() {
 template <typename storage, typename storage_host, typename executor_t>
 const storage& get_device_masks(executor_t& exec) {
     static storage stencil_masks(octotiger::fmm::FULL_STENCIL_SIZE);
-    bool initialized = false;
+    static bool initialized = false;
     if (!initialized) {
         const storage_host& tmp = get_host_masks<storage_host>();
         Kokkos::deep_copy(exec.instance(), stencil_masks, tmp);
         exec.instance().fence();
-        // initialized = true;
+        initialized = true;
     }
     return stencil_masks;
 }
@@ -140,8 +140,8 @@ template <typename kokkos_backend_t>
 void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, host_buffer<double>& monopoles,
     host_buffer<double>& results, double dx, double theta) {
     // create device buffers
-    const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>,
-        host_buffer<int>, hpx::kokkos::executor<kokkos_backend_t>>(exec);
+    const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>, host_buffer<int>,
+        hpx::kokkos::executor<kokkos_backend_t>>(exec);
     device_buffer<double> device_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     device_buffer<double> device_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
 
@@ -155,22 +155,22 @@ void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, host_buffer
     fut.get();
 }
 template <>
-void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec,
-    host_buffer<double>& monopoles, host_buffer<double>& results, double dx, double theta) {
+void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec, host_buffer<double>& monopoles,
+    host_buffer<double>& results, double dx, double theta) {
     const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
     // call kernel
     p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
 
     exec.instance().fence();
-//     auto fut = exec.instance().impl_get_future();
-//  _  fut.get();
+    //     auto fut = exec.instance().impl_get_future();
+    //  _  fut.get();
 }
 
 // --------------------------------------- Kernel interface
 
 template <typename executor_t>
 void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
-    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::shared_ptr<grid> grid_ptr) {
     // Create host buffers
     host_buffer<double> host_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
@@ -180,5 +180,15 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
     octotiger::fmm::monopole_interactions::update_input(
         monopoles, neighbors, type, host_monopoles, neighbor_empty_monopoles, grid_ptr);
 
-    launch_interface(exec, host_monopoles, host_results, dx, dx);
+    launch_interface(exec, host_monopoles, host_results, dx, theta);
+
+    // Copy results back into non-SoA array
+    std::vector<expansion>& org = grid_ptr->get_L();
+    for (size_t component = 0; component < 5; component++) {
+        for (size_t entry = 0; entry < octotiger::fmm::INNER_CELLS; entry++) {
+            org[entry][component] += host_results[component *
+                    (octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) +
+                entry];
+        }
+    }
 }
