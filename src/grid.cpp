@@ -2284,7 +2284,7 @@ void grid::next_u(integer rk, real t, real dt) {
 						x = 1.0 - std::max(U[rho_i][iii], 0.0) / opts().rho_floor;
 						U[rho_i][iii] = opts().rho_floor;
 						U[tau_i][iii] += x * (opts().tau_floor - U[tau_i][iii]);
-						U[egas_i][iii] += x * (std::pow(opts().tau_floor, 1.0 / fgamma) - U[egas_i][iii]);
+						U[egas_i][iii] += x * (std::pow(opts().tau_floor, fgamma) - U[egas_i][iii]);
 						U[sx_i][iii] -= x * U[sx_i][iii];
 						U[sy_i][iii] -= x * U[sy_i][iii];
 						U[sz_i][iii] -= x * U[sz_i][iii];
