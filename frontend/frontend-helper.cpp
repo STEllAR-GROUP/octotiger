@@ -362,6 +362,9 @@ void start_octotiger(int argc, char* argv[]) {
     FILE* fp = fopen("profile.txt", "wt");
     profiler_output(fp);
     fclose(fp);
+
+    // Cleaning up of cuda buffers before the runtime gets shutdown
+    recycler::force_cleanup();
 }
 
 void register_hpx_functions(void) {
