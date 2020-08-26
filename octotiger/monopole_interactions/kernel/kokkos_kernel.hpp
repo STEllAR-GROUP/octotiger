@@ -162,8 +162,16 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec, host_buffer<d
     p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
 
     exec.instance().fence();
-    //     auto fut = exec.instance().impl_get_future();
-    //  _  fut.get();
+}
+template <>
+void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec, host_buffer<double>& monopoles,
+    host_buffer<double>& results, double dx, double theta) {
+    const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
+    // call kernel
+    p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
+
+    auto fut = exec.instance().impl_get_future();
+    fut.get();
 }
 
 // --------------------------------------- Kernel interface
