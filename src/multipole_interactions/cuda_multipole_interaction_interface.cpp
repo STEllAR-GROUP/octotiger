@@ -65,8 +65,11 @@ namespace fmm {
                 recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
 
                 // Move data into SoA arrays
-                this->update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
-                    local_expansions_SoA, center_of_masses_SoA);
+                this->dX = dx;
+                this->xBase = xbase;
+                this->type = type;
+                update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
+                    local_expansions_SoA, center_of_masses_SoA, grid_ptr);
 
                 hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_local_monopoles.device_side_buffer,

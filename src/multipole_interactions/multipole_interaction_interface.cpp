@@ -75,9 +75,13 @@ namespace fmm {
             cpu_expansion_buffer_t local_expansions_staging_area;
             cpu_space_vector_buffer_t center_of_masses_staging_area;
 
+            this->dX = dx;
+            this->xBase = xbase;
+            this->type = type;
+
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                 local_monopoles_staging_area, local_expansions_staging_area,
-                center_of_masses_staging_area);
+                center_of_masses_staging_area, grid_ptr);
             compute_interactions(is_direction_empty, neighbors, local_monopoles_staging_area,
                 local_expansions_staging_area, center_of_masses_staging_area);
         }

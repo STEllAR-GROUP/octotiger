@@ -50,15 +50,6 @@ namespace fmm {
             static OCTOTIGER_EXPORT size_t& cuda_launch_counter_non_rho();
 
         protected:
-            /// Converts AoS input data into SoA data
-            template <typename monopole_container, typename expansion_soa_container,
-                typename masses_soa_container>
-            void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
-                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
-                std::array<real, NDIM> xbase, monopole_container& local_monopoles,
-                expansion_soa_container& local_expansions_SoA,
-                masses_soa_container& center_of_masses_SoA);
             /// Calls FMM kernels with SoA data (assumed to be stored in the static members)
             void compute_interactions(std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
@@ -82,18 +73,21 @@ namespace fmm {
             static OCTOTIGER_EXPORT std::vector<bool>& inner_stencil_masks();
         };
 
+        /// Converts AoS input data into SoA data
         template <typename monopole_container, typename expansion_soa_container,
             typename masses_soa_container>
-        void multipole_interaction_interface::update_input(std::vector<real>& monopoles,
+        void update_input(std::vector<real>& monopoles,
             std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
             std::array<real, NDIM> xbase, monopole_container& local_monopoles,
             expansion_soa_container& local_expansions_SoA,
-            masses_soa_container& center_of_masses_SoA) {
-            type = t;
-            dX = dx;
-            xBase = xbase;
+            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid> &grid_ptr) {
+            
+            // TODO(daissgr) Set these manually before calling this function
+            // type = t;
+            // dX = dx;
+            // xBase = xbase;
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             iterate_inner_cells_padded(
