@@ -37,7 +37,7 @@ using host_executor = hpx::kokkos::serial_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 
-// #include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
+#include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
 
 void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
     std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
