@@ -146,6 +146,7 @@ set(source_files
     src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
     src/monopole_interactions/legacy/p2p_interaction_interface.cpp
     src/monopole_interactions/p2p_kernel_interface.cpp
+    src/multipole_interactions/multipole_kernel_interface.cpp
     src/monopole_interactions/util/calculate_stencil.cpp
     src/monopole_interactions/legacy/p2m_interaction_interface.cpp
     src/monopole_interactions/legacy/p2m_kernel.cpp

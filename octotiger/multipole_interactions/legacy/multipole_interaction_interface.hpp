@@ -32,7 +32,8 @@ namespace fmm {
         public:
             multipole_interaction_interface();
             /// Takes AoS data, converts it, calculates FMM interactions, stores results in L, L_c
-            void compute_multipole_interactions(std::vector<real>& monopoles,
+            void compute_multipole_interactions(
+                std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
