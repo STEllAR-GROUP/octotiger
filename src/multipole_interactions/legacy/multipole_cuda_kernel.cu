@@ -1,7 +1,7 @@
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/multipole_interactions/compute_kernel_templates.hpp"
-#include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
+#include "octotiger/multipole_interactions/kernel/compute_kernel_templates.hpp"
+#include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
 
 #include <sstream>
 #include <cstddef>

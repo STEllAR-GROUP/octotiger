@@ -3,8 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "octotiger/multipole_interactions/multipole_cpu_kernel.hpp"
-#include "octotiger/multipole_interactions/compute_kernel_templates.hpp"
+#include "octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp"
+#include "octotiger/multipole_interactions/kernel/compute_kernel_templates.hpp"
 
 #include "octotiger/common_kernel/helper.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"

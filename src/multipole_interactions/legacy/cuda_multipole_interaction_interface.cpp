@@ -4,9 +4,9 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifdef OCTOTIGER_HAVE_CUDA
-#include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/calculate_stencil.hpp"
-#include "octotiger/multipole_interactions/multipole_cuda_kernel.hpp"
+#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
 
 #include "octotiger/defs.hpp"
 #include "octotiger/options.hpp"

@@ -3,9 +3,9 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "octotiger/multipole_interactions/multipole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/calculate_stencil.hpp"
-#include "octotiger/multipole_interactions/multipole_cpu_kernel.hpp"
+#include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp"
 
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 
