@@ -149,11 +149,11 @@ set(source_files
     src/monopole_interactions/util/calculate_stencil.cpp
     src/monopole_interactions/legacy/p2m_interaction_interface.cpp
     src/monopole_interactions/legacy/p2m_kernel.cpp
-    src/multipole_interactions/multipole_interaction_interface.cpp
-    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
-    src/multipole_interactions/multipole_cuda_kernel.cu
-    src/multipole_interactions/calculate_stencil.cpp
-    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/multipole_interactions/legacy/multipole_interaction_interface.cpp
+    src/multipole_interactions/legacy/cuda_multipole_interaction_interface.cpp
+    src/multipole_interactions/legacy/multipole_cuda_kernel.cu
+    src/multipole_interactions/util/calculate_stencil.cpp
+    src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/radiation/cuda_kernel.cu
     src/radiation/rad_grid.cpp
     src/test_problems/marshak/marshak.cpp
@@ -224,12 +224,12 @@ set(header_files
     octotiger/monopole_interactions/legacy/p2p_cuda_kernel.hpp
     octotiger/monopole_interactions/legacy/p2p_kokkos_kernel.hpp
     octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp
-    octotiger/multipole_interactions/calculate_stencil.hpp
-    octotiger/multipole_interactions/compute_kernel_templates.hpp
-    octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp
-    octotiger/multipole_interactions/multipole_cpu_kernel.hpp
-    octotiger/multipole_interactions/multipole_cuda_kernel.hpp
-    octotiger/multipole_interactions/multipole_interaction_interface.hpp
+    octotiger/multipole_interactions/util/calculate_stencil.hpp
+    octotiger/multipole_interactions/kernel/compute_kernel_templates.hpp
+    octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp
+    octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp
+    octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp
+    octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp
     octotiger/radiation/cpu_kernel.hpp
     octotiger/radiation/cuda_kernel.hpp
     octotiger/radiation/implicit.hpp
@@ -310,8 +310,8 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/monopole_interactions/legacy/p2m_interaction_interface.cpp
     src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
     src/monopole_interactions/legacy/p2p_interaction_interface.cpp
-    src/multipole_interactions/multipole_cpu_kernel.cpp
-    src/multipole_interactions/multipole_interaction_interface.cpp
+    src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
+    src/multipole_interactions/legacy/multipole_interaction_interface.cpp
 
     # Other reasons for host-only compilation (hpx actions)
     src/grid.cpp

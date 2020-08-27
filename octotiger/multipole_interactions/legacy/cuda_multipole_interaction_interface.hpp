@@ -4,7 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #pragma once
-#include "octotiger/multipole_interactions/multipole_interaction_interface.hpp"    // will be used as fallback in non-cuda compilations
+#include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"    // will be used as fallback in non-cuda compilations
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_helper.hpp"

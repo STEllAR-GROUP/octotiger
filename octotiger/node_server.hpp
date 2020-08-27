@@ -11,7 +11,7 @@
 #include "octotiger/interaction_types.hpp"
 #include "octotiger/monopole_interactions/legacy/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp"
+#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
