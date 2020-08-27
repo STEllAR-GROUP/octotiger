@@ -80,6 +80,10 @@ void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
 
     Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>> policy_1(
         executor.instance(), {0, 0, 0}, {INX, INX, INX});
+
+    Kokkos::parallel_for("kernel multipole non-rho", policy_1,
+        [monopoles, centers_of_mass, multipoles, potential_expansions, angular_corrections, theta,
+            masks, indicators] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {});
 }
 // --------------------------------------- Kernel non rho implementations
 
@@ -102,6 +106,10 @@ void multipole_kernel_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& exec
 
     Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>> policy_1(
         executor.instance(), {0, 0, 0}, {INX, INX, INX});
+
+    Kokkos::parallel_for("kernel multipole non-rho", policy_1,
+        [monopoles, centers_of_mass, multipoles, potential_expansions, theta, masks,
+            indicators] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {});
 }
 
 // --------------------------------------- Launch Interface implementations
@@ -122,8 +130,8 @@ void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, host_buffer
     double theta, gsolve_type type) {
     const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::executor<kokkos_backend_t>>(exec, false);
-    const device_buffer<int>& device_indicators = get_device_masks<device_buffer<int>, host_buffer<int>,
-        hpx::kokkos::executor<kokkos_backend_t>>(exec, true);
+    const device_buffer<int>& device_indicators = get_device_masks<device_buffer<int>,
+        host_buffer<int>, hpx::kokkos::executor<kokkos_backend_t>>(exec, true);
     // input buffers
     device_buffer<double> device_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
@@ -155,8 +163,8 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec, host_buffer<d
     host_buffer<double>& centers_of_mass, host_buffer<double>& multipoles,
     host_buffer<double>& potential_expansions, host_buffer<double>& angular_corrections,
     double theta, gsolve_type type) {
-    const host_buffer<int> &host_masks = get_host_masks<host_buffer<int>>(false);
-    const host_buffer<int> &host_indicators = get_host_masks<host_buffer<int>>(true);
+    const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>(false);
+    const host_buffer<int>& host_indicators = get_host_masks<host_buffer<int>>(true);
     if (type == RHO) {
         // Launch kernel with angular corrections
         multipole_kernel_rho_impl<Kokkos::Serial, host_buffer<double>, host_buffer<int>>(exec,
@@ -176,8 +184,8 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
     host_buffer<double>& monopoles, host_buffer<double>& centers_of_mass,
     host_buffer<double>& multipoles, host_buffer<double>& potential_expansions,
     host_buffer<double>& angular_corrections, double theta, gsolve_type type) {
-    const host_buffer<int> &host_masks = get_host_masks<host_buffer<int>>(false);
-    const host_buffer<int> &host_indicators = get_host_masks<host_buffer<int>>(true);
+    const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>(false);
+    const host_buffer<int>& host_indicators = get_host_masks<host_buffer<int>>(true);
     if (type == RHO) {
         // Launch kernel with angular corrections
         multipole_kernel_rho_impl<Kokkos::Experimental::HPX, host_buffer<double>, host_buffer<int>>(
