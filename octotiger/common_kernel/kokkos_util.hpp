@@ -1,6 +1,6 @@
 #pragma once
 #ifdef OCTOTIGER_HAVE_KOKKOS
-
+//#define KOKKOS_OPT_RANGE_AGGRESSIVE_VECTORIZATION 
 #include <Kokkos_Core.hpp>
 #include <hpx/kokkos.hpp>
 
