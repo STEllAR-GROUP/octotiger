@@ -38,12 +38,12 @@ namespace fmm {
 	#endif
 
         template <typename T>
-        CUDA_CALLABLE_METHOD const inline T sqr(T const& val) noexcept {
+        CUDA_GLOBAL_METHOD const inline T sqr(T const& val) noexcept {
             return val * val;
         }
 
         template <typename T, typename func>
-        CUDA_CALLABLE_METHOD inline void compute_d_factors(T& d2, T& d3, T& X_00, T& X_11, T& X_22,
+        CUDA_GLOBAL_METHOD inline void compute_d_factors(T& d2, T& d3, T& X_00, T& X_11, T& X_22,
             T (&D_lower)[20], const T (&dX)[NDIM], func&& max) noexcept {
             X_00 = dX[0] * dX[0];
             X_11 = dX[1] * dX[1];
@@ -109,7 +109,7 @@ namespace fmm {
         }
 
         template <typename T>
-        CUDA_CALLABLE_METHOD inline void compute_interaction_multipole_non_rho(
+        CUDA_GLOBAL_METHOD inline void compute_interaction_multipole_non_rho(
             const T (&m_partner)[20], T (&tmpstore)[20], const T (&D_lower)[20]) noexcept {
             tmpstore[0] += m_partner[4] * (D_lower[4] * factor_half[4]);
             tmpstore[1] += m_partner[4] * (D_lower[10] * factor_half[4]);
@@ -192,7 +192,7 @@ namespace fmm {
         }
 
         template <typename T>
-        CUDA_CALLABLE_METHOD inline void compute_interaction_multipole_rho(const T& d2, const T& d3,
+        CUDA_GLOBAL_METHOD inline void compute_interaction_multipole_rho(const T& d2, const T& d3,
             const T& X_00, const T& X_11, const T& X_22, const T (&m_partner)[20],
             const T (&m_cell)[20], const T (&dX)[NDIM], T (&tmp_corrections)[NDIM]) noexcept {
             T n0_constant = m_partner[0] / m_cell[0];
@@ -304,7 +304,7 @@ namespace fmm {
         }
 
         template <typename T, typename func>
-        CUDA_CALLABLE_METHOD inline void compute_kernel_rho(T (&X)[NDIM], T (&Y)[NDIM],
+        CUDA_GLOBAL_METHOD inline void compute_kernel_rho(T (&X)[NDIM], T (&Y)[NDIM],
             T (&m_partner)[20], T (&tmpstore)[20], T (&tmp_corrections)[3], T (&m_cell)[20],
             func&& max) noexcept {
             T dX[NDIM];
@@ -329,7 +329,7 @@ namespace fmm {
         }
 
         template <typename T, typename func>
-        CUDA_CALLABLE_METHOD inline void compute_kernel_non_rho(T (&X)[NDIM], T (&Y)[NDIM],
+        CUDA_GLOBAL_METHOD inline void compute_kernel_non_rho(T (&X)[NDIM], T (&Y)[NDIM],
             T (&m_partner)[20], T (&tmpstore)[20], func&& max) noexcept {
             T dX[NDIM];
             dX[0] = X[0] - Y[0];

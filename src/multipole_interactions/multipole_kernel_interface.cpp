@@ -45,7 +45,7 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
     std::array<bool, geo::direction::count()>& is_direction_empty, std::array<real, NDIM> xbase,
     std::shared_ptr<grid> grid) {
     accelerator_kernel_type device_type = DEVICE_KOKKOS;
-    host_kernel_type host_type = HOST_VC;
+    host_kernel_type host_type = HOST_KOKKOS;
 
     // Try accelerator implementation
     if (device_type != OFF) {
@@ -71,11 +71,10 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
     }    // Nothing is available or device execution is disabled - fallback to host execution
 
     if (host_type == HOST_KOKKOS) {
-        // host_executor executor{};
-        // multipole_kernel<host_executor>(
-        //     executor, multipoles, neighbors, type, dx, opts().theta, is_direction_empty,
-        //     grid_ptr);
-        // return;
+        host_executor executor{};
+        multipole_kernel<host_executor>(executor, monopoles, M_ptr, com_ptr,
+        neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid);
+        return;
     } else {
         octotiger::fmm::multipole_interactions::multipole_interaction_interface
             multipole_interactor{};
