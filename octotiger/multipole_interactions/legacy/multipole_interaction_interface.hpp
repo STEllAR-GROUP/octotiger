@@ -32,8 +32,7 @@ namespace fmm {
         public:
             multipole_interaction_interface();
             /// Takes AoS data, converts it, calculates FMM interactions, stores results in L, L_c
-            void compute_multipole_interactions(
-                std::vector<real>& monopoles,
+            void compute_multipole_interactions(std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
@@ -74,32 +73,34 @@ namespace fmm {
             static OCTOTIGER_EXPORT std::vector<bool>& inner_stencil_masks();
         };
 
+        template <size_t padded_entries_per_component, size_t num_components, typename container_t,
+            typename AoS_temp_type>
+        void set_AoS_value(container_t& buffer, AoS_temp_type&& value, size_t flatindex) {
+            for (size_t component = 0; component < num_components; component++) {
+                buffer[component * padded_entries_per_component + flatindex] = value[component];
+            }
+        }
+
         /// Converts AoS input data into SoA data
         template <typename monopole_container, typename expansion_soa_container,
             typename masses_soa_container>
-        void update_input(std::vector<real>& monopoles,
-            std::vector<multipole>& M_ptr,
+        void update_input(std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
             std::array<real, NDIM> xbase, monopole_container& local_monopoles,
             expansion_soa_container& local_expansions_SoA,
-            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid> &grid_ptr) {
-            
-            // TODO(daissgr) Set these manually before calling this function
-            // type = t;
-            // dX = dx;
-            // xBase = xbase;
+            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr) {
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             iterate_inner_cells_padded(
                 [M_ptr, com0, &local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
                     const multiindex<>& i, const size_t flat_index, const multiindex<>& i_unpadded,
                     const size_t flat_index_unpadded) {
-                    local_expansions_SoA.set_AoS_value(
-                        std::move(M_ptr.at(flat_index_unpadded)), flat_index);
-                    center_of_masses_SoA.set_AoS_value(
+                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(
+                        local_expansions_SoA, std::move(M_ptr.at(flat_index_unpadded)), flat_index);
+                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                         std::move(com0.at(flat_index_unpadded)), flat_index);
-                    local_monopoles.at(flat_index) = 0.0;
+                    local_monopoles[flat_index] = 0.0;
                 });
 
             for (const geo::direction& dir : geo::direction::full_set()) {
@@ -113,11 +114,11 @@ namespace fmm {
                             [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
                                 const multiindex<>& i, const size_t flat_index, const multiindex<>&,
                                 const size_t) {
-                                local_expansions_SoA.set_AoS_value(
+                                set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                                     std::move(expansion()), flat_index);
-                                center_of_masses_SoA.set_AoS_value(
+                                set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                                     std::move(space_vector()), flat_index);
-                                local_monopoles.at(flat_index) = 0.0;
+                                local_monopoles[flat_index] = 0.0;
                             });
                     } else {
                         std::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
@@ -130,13 +131,13 @@ namespace fmm {
                                     neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
                                     const size_t flat_index, const multiindex<>& i_unpadded,
                                     const size_t flat_index_unpadded) {
-                                    local_expansions_SoA.set_AoS_value(
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                                         std::move(neighbor_M_ptr.at(flat_index_unpadded)),
                                         flat_index);
-                                    center_of_masses_SoA.set_AoS_value(
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                                         std::move(neighbor_com0.at(flat_index_unpadded)),
                                         flat_index);
-                                    local_monopoles.at(flat_index) = 0.0;
+                                    local_monopoles[flat_index] = 0.0;
                                 });
                         } else {
                             // Reset to default values
@@ -144,11 +145,11 @@ namespace fmm {
                                 [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
                                     const multiindex<>& i, const size_t flat_index,
                                     const multiindex<>&, const size_t) {
-                                    local_expansions_SoA.set_AoS_value(
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                                         std::move(expansion()), flat_index);
-                                    center_of_masses_SoA.set_AoS_value(
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                                         std::move(space_vector()), flat_index);
-                                    local_monopoles.at(flat_index) = 0.0;
+                                    local_monopoles[flat_index] = 0.0;
                                 });
                             auto list = grid_ptr->get_ilist_n_bnd(dir);
                             size_t counter = 0;
@@ -163,9 +164,9 @@ namespace fmm {
                                     offset.z + INNER_CELLS_PADDING_DEPTH +
                                         dir[2] * INNER_CELLS_PADDING_DEPTH);
                                 const size_t flat_index = to_flat_index_padded(m);
-                                local_expansions_SoA.set_AoS_value(
+                                set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                                     std::move(neighbor_M_ptr.at(counter)), flat_index);
-                                center_of_masses_SoA.set_AoS_value(
+                                set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                                     std::move(neighbor_com0.at(counter)), flat_index);
                                 counter++;
                             }
@@ -178,11 +179,11 @@ namespace fmm {
                             [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
                                 const multiindex<>& i, const size_t flat_index, const multiindex<>&,
                                 const size_t) {
-                                local_expansions_SoA.set_AoS_value(
+                                set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                                     std::move(expansion()), flat_index);
-                                center_of_masses_SoA.set_AoS_value(
+                                set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                                     std::move(space_vector()), flat_index);
-                                local_monopoles.at(flat_index) = 0.0;
+                                local_monopoles[flat_index] = 0.0;
                             });
                     } else {
                         // Get multipole data into our input structure
@@ -198,10 +199,10 @@ namespace fmm {
                                     e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
                                     e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
                                     e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
-                                    center_of_masses_SoA.set_AoS_value(std::move(e), flat_index);
-                                    local_expansions_SoA.set_AoS_value(
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA, std::move(e), flat_index);
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                                         std::move(expansion()), flat_index);
-                                    local_monopoles.at(flat_index) =
+                                    local_monopoles[flat_index] =
                                         neighbor_mons.at(flat_index_unpadded);
                                 });
                         } else {
@@ -214,10 +215,10 @@ namespace fmm {
                                     e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
                                     e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
                                     e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
-                                    center_of_masses_SoA.set_AoS_value(std::move(e), flat_index);
-                                    local_expansions_SoA.set_AoS_value(
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA, std::move(e), flat_index);
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                                         std::move(expansion()), flat_index);
-                                    local_monopoles.at(flat_index) = 0.0;
+                                    local_monopoles[flat_index] = 0.0;
                                 });
                             // Load relevant values
                             auto list = grid_ptr->get_ilist_n_bnd(dir);
@@ -233,7 +234,7 @@ namespace fmm {
                                     offset.z + INNER_CELLS_PADDING_DEPTH +
                                         dir[2] * INNER_CELLS_PADDING_DEPTH);
                                 const size_t flat_index = to_flat_index_padded(m);
-                                local_monopoles.at(flat_index) = neighbor_mons.at(counter);
+                                local_monopoles[flat_index] = neighbor_mons.at(counter);
                                 counter++;
                             }
                         }

@@ -44,6 +44,9 @@ namespace fmm {
             // constant
             return data.data() + flat_index + component_array_offset;
         }
+        inline component_type& operator [] (const size_t index) {
+            return data[index];
+        }
 
         // careful, this returns a copy!
         template <size_t component_access, typename VectorType>
