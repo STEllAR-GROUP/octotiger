@@ -64,11 +64,10 @@ const storage& get_device_masks(executor_t& exec, bool indicators) {
 
 // --------------------------------------- Kernel rho implementations
 
-// TODO(daissgr) Implement rho kokkos kernel
 template <typename executor_t, typename kokkos_buffer_t, typename kokkos_mask_t>
-void multipole_kernel_rho_impl(executor_t& exec, kokkos_buffer_t& monopoles,
-    kokkos_buffer_t& centers_of_mass, kokkos_buffer_t& multipoles,
-    kokkos_buffer_t& potential_expansions, kokkos_buffer_t& angular_corrections, double theta,
+void multipole_kernel_rho_impl(executor_t& exec, const kokkos_buffer_t& monopoles,
+    const kokkos_buffer_t& centers_of_mass, const kokkos_buffer_t& multipoles,
+    kokkos_buffer_t& potential_expansions, kokkos_buffer_t& angular_corrections, const double theta,
     const kokkos_mask_t& masks, const kokkos_mask_t& indicators) {
     static_assert(always_false<executor_t>::value,
         "Multipole Rho Kernel not implemented for this kind of executor!");
@@ -76,13 +75,16 @@ void multipole_kernel_rho_impl(executor_t& exec, kokkos_buffer_t& monopoles,
 
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    kokkos_buffer_t& monopoles, kokkos_buffer_t& centers_of_mass, kokkos_buffer_t& multipoles,
-    kokkos_buffer_t& potential_expansions, kokkos_buffer_t& angular_corrections, double theta,
-    const kokkos_mask_t& masks, const kokkos_mask_t& indicators) {
+    const kokkos_buffer_t& monopoles, const kokkos_buffer_t& centers_of_mass,
+    const kokkos_buffer_t& multipoles, kokkos_buffer_t& potential_expansions,
+    kokkos_buffer_t& angular_corrections, const double theta, const kokkos_mask_t& masks,
+    const kokkos_mask_t& indicators) {
     using namespace octotiger::fmm;
 
-    Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>> policy_1(
-        executor.instance(), {0, 0, 0}, {INX, INX, INX});
+    auto policy_1 = Kokkos::Experimental::require(
+        Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
+            executor.instance(), {0, 0, 0}, {INX, INX, INX}),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
     // TODO (daissgr) Which of the two lambdas to take?
 
@@ -187,24 +189,25 @@ void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
 // --------------------------------------- Kernel non rho implementations
 
 template <typename executor_t, typename kokkos_buffer_t, typename kokkos_mask_t>
-void multipole_kernel_non_rho_impl(executor_t& exec, kokkos_buffer_t& monopoles,
-    kokkos_buffer_t& centers_of_mass, kokkos_buffer_t& multipoles,
-    kokkos_buffer_t& potential_expansions, double theta, const kokkos_mask_t& masks,
+void multipole_kernel_non_rho_impl(executor_t& exec, const kokkos_buffer_t& monopoles,
+    const kokkos_buffer_t& centers_of_mass, const kokkos_buffer_t& multipoles,
+    kokkos_buffer_t& potential_expansions, const double theta, const kokkos_mask_t& masks,
     const kokkos_mask_t& indicators) {
     static_assert(always_false<executor_t>::value,
         "Mutlipole Non-Rho Kernel not implemented for this kind of executor!");
 }
 
-// TODO(daissgr) Implement non-rho kokkos kernel
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void multipole_kernel_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-    kokkos_buffer_t& monopoles, kokkos_buffer_t& centers_of_mass, kokkos_buffer_t& multipoles,
-    kokkos_buffer_t& potential_expansions, double theta, const kokkos_mask_t& masks,
-    const kokkos_mask_t& indicators) {
+    const kokkos_buffer_t& monopoles, const kokkos_buffer_t& centers_of_mass,
+    const kokkos_buffer_t& multipoles, kokkos_buffer_t& potential_expansions, const double theta,
+    const kokkos_mask_t& masks, const kokkos_mask_t& indicators) {
     using namespace octotiger::fmm;
 
-    Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>> policy_1(
-        executor.instance(), {0, 0, 0}, {INX, INX, INX});
+    auto policy_1 = Kokkos::Experimental::require(
+        Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
+            executor.instance(), {0, 0, 0}, {INX, INX, INX}),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
     // TODO (daissgr) Which of the two lambdas to take?
 
@@ -402,7 +405,7 @@ void multipole_kernel(executor_t& exec, std::vector<real>& monopoles, std::vecto
         dx, xbase, host_monopoles, host_multipoles, host_masses, grid);
     // launch kernel (and copy data to device if necessary)
     launch_interface(exec, host_monopoles, host_masses, host_multipoles, host_expansions,
-        host_corrections, theta, type);    // TODO(daissgr) this needs theta, not dx
+        host_corrections, theta, type);
     // Add results back into non-SoA array
     std::vector<expansion>& org = grid->get_L();
     for (size_t component = 0; component < 20; component++) {

@@ -46,22 +46,25 @@ const storage& get_device_masks(executor_t& exec) {
 // --------------------------------------- Kernel implementations
 
 template <typename executor_t, typename buffer_t, typename mask_t>
-void p2p_kernel_impl(executor_t& exec, buffer_t& deviceView, const mask_t& deviceMasks,
-    buffer_t& deviceResultView, double dx, double theta) {
+void p2p_kernel_impl(executor_t& exec, const buffer_t& monopoles, const mask_t& deviceMasks,
+    buffer_t& potential_expansions, const double dx, const double theta) {
     static_assert(
         always_false<executor_t>::value, "P2P Kernel not implemented for this kind of executor!");
 }
 
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
-void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, kokkos_buffer_t& deviceView,
-    const kokkos_mask_t& devicemasks, kokkos_buffer_t& deviceResultView, double dx, double theta) {
+void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    const kokkos_buffer_t& monopoles, const kokkos_mask_t& devicemasks,
+    kokkos_buffer_t& potential_expansions, const double dx, const double theta) {
     using namespace octotiger::fmm;
 
-    Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>> policy_1(
-        executor.instance(), {0, 0, 0}, {INX, INX, INX});
+    auto policy_1 = Kokkos::Experimental::require(
+        Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
+            executor.instance(), {0, 0, 0}, {INX, INX, INX}),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
     Kokkos::parallel_for("kernel p2p", policy_1,
-        [deviceView, deviceResultView, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
+        [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
             int idx, int idy, int idz) {
             // helper variables
             const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
@@ -108,7 +111,7 @@ void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, kokkos_b
                         const double four[4] = {
                             -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
                         const double monopole =
-                            deviceView[partner_flat_index1] * mask * d_components[0];
+                            monopoles[partner_flat_index1] * mask * d_components[0];
                         // Calculate the actual interactions
                         tmpstore[0] = tmpstore[0] + four[0] * monopole;
                         tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
@@ -117,12 +120,12 @@ void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, kokkos_b
                     }
                 }
             }
-            deviceResultView[cell_flat_index_unpadded] = tmpstore[0];
-            deviceResultView[1 * component_length_unpadded + cell_flat_index_unpadded] =
+            potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
+            potential_expansions[1 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[1];
-            deviceResultView[2 * component_length_unpadded + cell_flat_index_unpadded] =
+            potential_expansions[2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[2];
-            deviceResultView[3 * component_length_unpadded + cell_flat_index_unpadded] =
+            potential_expansions[3 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[3];
         });
 }
@@ -165,8 +168,8 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec, host_buffer<d
     exec.instance().fence();
 }
 template <>
-void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec, host_buffer<double>& monopoles,
-    host_buffer<double>& results, double dx, double theta) {
+void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
+    host_buffer<double>& monopoles, host_buffer<double>& results, double dx, double theta) {
     const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
     // call kernel
     p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
