@@ -54,6 +54,7 @@
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/monopole_interactions/kernel/kokkos_kernel.hpp"
+#include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
 #endif
 
 
@@ -104,6 +105,8 @@ void init_executors(void) {
         hpx::kokkos::cuda_executor mover{};
         get_device_masks<device_buffer<int>, host_buffer<int>,
             hpx::kokkos::cuda_executor>(mover);
+        get_device_masks<device_buffer<int>, host_buffer<int>,
+            hpx::kokkos::cuda_executor>(mover, true);
 #endif
 
                 std::cout

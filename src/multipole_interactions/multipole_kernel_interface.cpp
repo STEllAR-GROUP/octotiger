@@ -44,7 +44,7 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::array<real, NDIM> xbase,
     std::shared_ptr<grid> grid) {
-    accelerator_kernel_type device_type = DEVICE_CUDA;
+    accelerator_kernel_type device_type = DEVICE_KOKKOS;
     host_kernel_type host_type = HOST_VC;
 
     // Try accelerator implementation
@@ -52,15 +52,15 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
         if (device_type == DEVICE_KOKKOS) {
             bool avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
                 opts().cuda_buffer_capacity);
-            // if (avail) {
-            //     executor_interface_t executor;
-            //     multipole_kernel<device_executor>(executor, multipoles, neighbors, type, dx,
-            //     opts().theta,
-            //         is_direction_empty, grid_ptr);
-            //     return;
-            // }
+            if (avail) {
+                executor_interface_t executor;
+                multipole_kernel<device_executor>(executor, monopoles, M_ptr, com_ptr,
+                neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid);
+                return;
+            }
         }
         if (device_type == DEVICE_CUDA) {
+
             octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface
                 multipole_interactor{};
             multipole_interactor.set_grid_ptr(grid);

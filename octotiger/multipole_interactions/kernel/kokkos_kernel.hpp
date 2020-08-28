@@ -87,10 +87,11 @@ void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
     // TODO (daissgr) Which of the two lambdas to take?
 
     // Kokkos::parallel_for("kernel multipole non-rho", policy_1,
-    //     [monopoles, centers_of_mass, multipoles, potential_expansions, angular_corrections, theta,
+    //     [monopoles, centers_of_mass, multipoles, potential_expansions, angular_corrections,
+    //     theta,
     //         masks, indicators] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {
-    Kokkos::parallel_for("kernel multipole non-rho", policy_1,
-        KOKKOS_LAMBDA(int idx, int idy, int idz) {
+    Kokkos::parallel_for(
+        "kernel multipole non-rho", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
             const size_t component_length = ENTRIES + SOA_PADDING;
             const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
@@ -161,8 +162,9 @@ void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
                         }
 
                         // Do the actual calculations
-                        octotiger::fmm::multipole_interactions::compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
-                            [] (const double& one, const double& two) -> double {
+                        octotiger::fmm::multipole_interactions::compute_kernel_rho(X, Y, m_partner,
+                            tmpstore, tmp_corrections, m_cell,
+                            [](const double& one, const double& two) -> double {
                                 return max(one, two);
                             });
                     }
@@ -385,7 +387,7 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
 template <typename executor_t>
 void multipole_kernel(executor_t& exec, std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
     std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
+    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::array<real, NDIM> xbase,
     std::shared_ptr<grid> grid) {
     // input buffers
@@ -400,6 +402,25 @@ void multipole_kernel(executor_t& exec, std::vector<real>& monopoles, std::vecto
         dx, xbase, host_monopoles, host_multipoles, host_masses, grid);
     // launch kernel (and copy data to device if necessary)
     launch_interface(exec, host_monopoles, host_masses, host_multipoles, host_expansions,
-        host_corrections, dx, type);    // TODO(daissgr) this needs theta, not dx
-    // TODO (daissgr) Copy results back
+        host_corrections, theta, type);    // TODO(daissgr) this needs theta, not dx
+    // Add results back into non-SoA array
+    std::vector<expansion>& org = grid->get_L();
+    for (size_t component = 0; component < 20; component++) {
+        for (size_t entry = 0; entry < octotiger::fmm::INNER_CELLS; entry++) {
+            org[entry][component] += host_expansions[component *
+                    (octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) +
+                entry];
+        }
+    }
+    // Copy angular corrections back into non-SoA
+    if (type == RHO) {
+        std::vector<space_vector>& corrections = grid->get_L_c();
+        for (size_t component = 0; component < 3; component++) {
+            for (size_t entry = 0; entry < octotiger::fmm::INNER_CELLS; entry++) {
+                corrections[entry][component] = host_corrections[component *
+                        (octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) +
+                    entry];
+            }
+        }
+    }
 }

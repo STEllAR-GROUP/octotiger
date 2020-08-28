@@ -192,7 +192,7 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
 
     launch_interface(exec, host_monopoles, host_results, dx, theta);
 
-    // Copy results back into non-SoA array
+    // Add results back into non-SoA array
     std::vector<expansion>& org = grid_ptr->get_L();
     for (size_t component = 0; component < 5; component++) {
         for (size_t entry = 0; entry < octotiger::fmm::INNER_CELLS; entry++) {
