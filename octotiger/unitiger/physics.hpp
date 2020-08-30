@@ -59,6 +59,8 @@ struct physics {
 	static void set_fgamma(safe_real fg);
 
 	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
+	// static void to_prim_experimental(const double rho, const double sx, const double tau, const double egas, safe_real &p, safe_real &v, safe_real& c, int dim);
+	static void to_prim_experimental(const std::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept;
 
 	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face) {
 
@@ -66,6 +68,9 @@ struct physics {
 
 	template<int INX>
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
+			std::array<safe_real, NDIM> &vg);
+	template<int INX>
+	static void physical_flux_experimental(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
 			std::array<safe_real, NDIM> &vg);
 
 	template<int INX>

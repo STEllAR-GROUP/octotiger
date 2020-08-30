@@ -14,13 +14,16 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 		safe_real omega) {
 
 	PROFILE();
+	// input Q, X
+	// output F
 
 	timestep_t ts;
 	ts.a = 0.0;
+	// bunch of tmp containers
 	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
 
+    // bunch of small helpers
 	static const cell_geometry<NDIM, INX> geo;
-
 	static constexpr auto faces = geo.face_pts();
 	static constexpr auto weights = geo.face_weight();
 	static constexpr auto xloc = geo.xloc();
@@ -43,10 +46,11 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 		for (const auto &i : indices) {
 			safe_real ap = 0.0, am = 0.0;
 			safe_real this_ap, this_am;
-			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
+			for (int fi = 0; fi < geo.NFACEDIR; fi++) { // 9
 				const auto d = faces[dim][fi];
-				for (int f = 0; f < nf_; f++) {
-					UR[f] = Q[f][d][i];
+				// why store this?
+				for (int f = 0; f < nf_; f++) { 
+					UR[f] = Q[f][d][i];// not cache efficient at all - cacheline is going to be dismissed
 					UL[f] = Q[f][geo::flip_dim(d, dim)][i - geo.H_DN[dim]];
 				}
 				std::array < safe_real, NDIM > x;
@@ -73,7 +77,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				this_am = std::min(std::min(amr, aml), safe_real(0.0));
 #pragma ivdep
 				for (int f = 0; f < nf_; f++) {
-					if (this_ap - this_am != 0.0) {
+					// this isn't vectorized
+					if (this_ap - this_am != 0.0) { 
 						this_flux[f] = (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) / (this_ap - this_am);
 					} else {
 						this_flux[f] = (FL[f] + FR[f]) / 2.0;
@@ -101,5 +106,103 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 	}
 	return ts;
 }
+template<int NDIM, int INX, class PHYS>
+timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
+		safe_real omega) {
 
+	PROFILE();
+	// input Q, X
+	// output F
+
+	timestep_t ts;
+	ts.a = 0.0;
+	// bunch of tmp containers
+	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
+
+    // bunch of small helpers
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto faces = geo.face_pts();
+	static constexpr auto weights = geo.face_weight();
+	static constexpr auto xloc = geo.xloc();
+	static constexpr auto levi_civita = geo.levi_civita();
+
+	const auto dx = X[0][geo.H_DNX] - X[0][0];
+
+	for (int dim = 0; dim < NDIM; dim++) {
+
+		const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
+
+		// zero-initialize F
+		for (int f = 0; f < nf_; f++) {
+#pragma ivdep
+			for (const auto &i : indices) {
+				F[dim][f][i] = 0.0;
+			}
+		}
+
+        for (int fi = 0; fi < geo.NFACEDIR; fi++) {    // 9
+            safe_real ap = 0.0, am = 0.0; // final am ap for this i
+			safe_real this_ap, this_am; //tmps
+			safe_real this_amax;
+            for (const auto& i : indices) {
+                const auto d = faces[dim][fi];
+
+				std::array < safe_real, NDIM > x;
+				std::array < safe_real, NDIM > vg;
+				for (int dim = 0; dim < NDIM; dim++) {
+					x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
+				}
+				vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+				vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+				vg[2] = 0.0;
+
+				// why store this?
+				const auto flipped_dim = geo::flip_dim(d, dim);
+				for (int f = 0; f < nf_; f++) { 
+					UR[f] = Q[f][d][i];// not cache efficient at all - cacheline is going to be dismissed
+					UL[f] = Q[f][flipped_dim][i - geo.H_DN[dim]];
+				}
+
+				safe_real amr, apr, aml, apl;
+				static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
+
+				PHYS::template physical_flux_experimental<INX>(UR, FR, dim, amr, apr, x, vg);
+				PHYS::template physical_flux_experimental<INX>(UL, FL, dim, aml, apl, x, vg);
+				this_ap = std::max(std::max(apr, apl), safe_real(0.0));
+				this_am = std::min(std::min(amr, aml), safe_real(0.0));
+                if (this_ap - this_am != 0.0) {
+#pragma ivdep
+                    for (int f = 0; f < nf_; f++) {
+                        this_flux[f] = (this_ap * FL[f] - this_am * FR[f] +
+                                           this_ap * this_am * (UR[f] - UL[f])) /
+                            (this_ap - this_am);
+                    }
+                } else {
+#pragma ivdep
+                    for (int f = 0; f < nf_; f++) {
+                        this_flux[f] = (FL[f] + FR[f]) / 2.0;
+                    }
+                }
+                am = std::min(am, this_am);
+				ap = std::max(ap, this_ap);
+				this_amax = std::max(ap, safe_real(-am));
+				if (this_amax > ts.a) {
+					ts.a = this_amax;
+					ts.x = X[0][i];
+					ts.y = X[1][i];
+					ts.z = X[2][i];
+					ts.ur = UL;
+					ts.ul = UR;
+					ts.dim = dim;
+				}
+#pragma ivdep
+				for (int f = 0; f < nf_; f++) {
+					// field update from flux
+					F[dim][f][i] += weights[fi] * this_flux[f];
+				}
+            }
+        }
+    }
+	return ts;
+}
 #endif

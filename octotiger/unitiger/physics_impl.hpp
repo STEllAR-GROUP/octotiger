@@ -65,6 +65,47 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 }
 
 template<int NDIM>
+void physics<NDIM>::to_prim_experimental(const std::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept {
+	const auto rho = u[rho_i];
+	const auto rhoinv = (1.) / rho;
+	double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
+
+	// all workitems choose the same path
+	if (A_ != 0.0) {
+		const auto Binv = 1.0 / B_;
+		const auto x = std::pow(rho * Binv, 1.0 / 3.0);
+		const auto x_sqr = x * x;
+		const auto x_sqr_sqrt = std::sqrt(x_sqr + 1.0);
+		const auto x_pow_5 = x_sqr * x_sqr * x;
+		hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+        if (x < 0.001) {
+            pdeg = 1.6 * A_ * x_pow_5;
+        } else {
+            pdeg = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh(x));
+        }
+        if (x > 0.001) {
+			edeg = rho * hdeg - pdeg;
+		} else {
+			edeg = 2.4 * A_ * x_pow_5 ;
+		}
+		dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
+	}
+	double ek = 0.0;
+	for (int dim = 0; dim < NDIM; dim++) {
+		ek += u[sx_i + dim] * u[sx_i + dim] * rhoinv * 0.5;
+	}
+	auto ein = u[egas_i] - ek - edeg;
+	if (ein < de_switch_1 * u[egas_i]) {
+		ein = pow(u[tau_i], fgamma_);
+	}
+	const double dp_drho = dpdeg_drho + (fgamma_ - 1.0) * ein * rhoinv;
+	const double dp_deps = (fgamma_ - 1.0) * rho;
+	v = u[sx_i + dim] * rhoinv;
+	p = (fgamma_ - 1.0) * ein + pdeg;
+	cs = std::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
+}
+
+template<int NDIM>
 template<int INX>
 void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
 		std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
@@ -72,6 +113,31 @@ void physics<NDIM>::physical_flux(const std::vector<safe_real> &U, std::vector<s
 	static constexpr auto levi_civita = geo.levi_civita();
 	safe_real p, v, v0, c;
 	to_prim(U, p, v0, c, dim);
+	v = v0 - vg[dim];
+	am = v - c;
+	ap = v + c;
+#pragma ivdep
+	for (int f = 0; f < nf_; f++) {
+		F[f] = v * U[f];
+	}
+	F[sx_i + dim] += p;
+	F[egas_i] += v0 * p;
+	for (int n = 0; n < geo.NANGMOM; n++) {
+#pragma ivdep
+		for (int m = 0; m < NDIM; m++) {
+			F[lx_i + n] += levi_civita[n][m][dim] * x[m] * p;
+		}
+	}
+}
+template<int NDIM>
+template<int INX>
+void physics<NDIM>::physical_flux_experimental(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap,
+		std::array<safe_real, NDIM> &x, std::array<safe_real, NDIM> &vg) {
+	static const cell_geometry<NDIM, INX> geo;
+	static constexpr auto levi_civita = geo.levi_civita();
+	safe_real p, v, v0, c;
+	to_prim_experimental(U, p, v0, c, dim);
+	// to_prim(U, p, v0, c, dim);
 	v = v0 - vg[dim];
 	am = v - c;
 	ap = v + c;

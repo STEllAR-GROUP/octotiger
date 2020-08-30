@@ -1791,7 +1791,8 @@ timestep_t grid::compute_fluxes() {
 	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
 			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
-	auto max_lambda = hydro.flux(U, q, f, X, omega);
+	// auto max_lambda = hydro.flux(U, q, f, X, omega);
+	auto max_lambda = hydro.flux_experimental(U, q, f, X, omega);
 
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {
