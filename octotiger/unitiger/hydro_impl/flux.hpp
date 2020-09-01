@@ -117,7 +117,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state
 	timestep_t ts;
 	ts.a = 0.0;
 	// bunch of tmp containers
-	static thread_local std::vector<safe_real> UR(nf_), UL(nf_), this_flux(nf_);
+	static thread_local std::vector<double> UR(nf_), UL(nf_), this_flux(nf_);
 
     // bunch of small helpers
 	static const cell_geometry<NDIM, INX> geo;
@@ -125,6 +125,9 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state
 	static constexpr auto weights = geo.face_weight();
 	static constexpr auto xloc = geo.xloc();
 	static constexpr auto levi_civita = geo.levi_civita();
+	double p, v, v0, c;
+	const auto A_ = physics<NDIM>::A_;
+	const auto B_ = physics<NDIM>::B_;
 
 	const auto dx = X[0][geo.H_DNX] - X[0][0];
 
@@ -166,9 +169,113 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state
 				safe_real amr, apr, aml, apl;
 				static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
 
-				PHYS::template physical_flux_experimental<INX>(UR, FR, dim, amr, apr, x, vg);
-				PHYS::template physical_flux_experimental<INX>(UL, FL, dim, aml, apl, x, vg);
-				this_ap = std::max(std::max(apr, apl), safe_real(0.0));
+                auto rho = UR[rho_i];
+                auto rhoinv = (1.) / rho;
+                double hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
+
+                // all workitems choose the same path
+                if (A_ != 0.0) {
+                    const auto Binv = 1.0 / B_;
+                    const auto x = std::pow(rho * Binv, 1.0 / 3.0);
+                    const auto x_sqr = x * x;
+                    const auto x_sqr_sqrt = std::sqrt(x_sqr + 1.0);
+                    const auto x_pow_5 = x_sqr * x_sqr * x;
+                    hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+                    if (x < 0.001) {
+                        pdeg = 1.6 * A_ * x_pow_5;
+                    } else {
+                        pdeg = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh(x));
+                    }
+                    if (x > 0.001) {
+                        edeg = rho * hdeg - pdeg;
+                    } else {
+                        edeg = 2.4 * A_ * x_pow_5;
+                    }
+                    dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
+                }
+                double ek = 0.0;
+                for (int dim = 0; dim < NDIM; dim++) {
+                    ek += UR[sx_i + dim] * UR[sx_i + dim] * rhoinv * 0.5;
+                }
+                auto ein = UR[egas_i] - ek - edeg;
+                if (ein < physics<NDIM>::de_switch_1 * UR[egas_i]) {
+                    ein = pow(UR[tau_i], physics<NDIM>::fgamma_);
+                }
+                double dp_drho = dpdeg_drho + (physics<NDIM>::fgamma_ - 1.0) * ein * rhoinv;
+                double dp_deps = (physics<NDIM>::fgamma_ - 1.0) * rho;
+                v0 = UR[sx_i + dim] * rhoinv;
+                p = (physics<NDIM>::fgamma_ - 1.0) * ein + pdeg;
+                c = std::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
+                v = v0 - vg[dim];
+                amr = v - c;
+                apr = v + c;
+#pragma ivdep
+                for (int f = 0; f < nf_; f++) {
+                    FR[f] = v * UR[f];
+                }
+                FR[sx_i + dim] += p;
+                FR[egas_i] += v0 * p;
+                for (int n = 0; n < geo.NANGMOM; n++) {
+#pragma ivdep
+                    for (int m = 0; m < NDIM; m++) {
+                        FR[lx_i + n] += levi_civita[n][m][dim] * x[m] * p;
+                    }
+                }
+
+                rho = UL[rho_i];
+                rhoinv = (1.) / rho;
+                hdeg = 0.0, pdeg = 0.0, edeg = 0.0, dpdeg_drho = 0.0;
+
+                // all workitems choose the same path
+                if (A_ != 0.0) {
+                    const auto Binv = 1.0 / B_;
+                    const auto x = std::pow(rho * Binv, 1.0 / 3.0);
+                    const auto x_sqr = x * x;
+                    const auto x_sqr_sqrt = std::sqrt(x_sqr + 1.0);
+                    const auto x_pow_5 = x_sqr * x_sqr * x;
+                    hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+                    if (x < 0.001) {
+                        pdeg = 1.6 * A_ * x_pow_5;
+                    } else {
+                        pdeg = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh(x));
+                    }
+                    if (x > 0.001) {
+                        edeg = rho * hdeg - pdeg;
+                    } else {
+                        edeg = 2.4 * A_ * x_pow_5;
+                    }
+                    dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
+                }
+                ek = 0.0;
+                for (int dim = 0; dim < NDIM; dim++) {
+                    ek += UL[sx_i + dim] * UL[sx_i + dim] * rhoinv * 0.5;
+                }
+                ein = UL[egas_i] - ek - edeg;
+                if (ein < physics<NDIM>::de_switch_1 * UL[egas_i]) {
+                    ein = pow(UL[tau_i], physics<NDIM>::fgamma_);
+                }
+                dp_drho = dpdeg_drho + (physics<NDIM>::fgamma_ - 1.0) * ein * rhoinv;
+                dp_deps = (physics<NDIM>::fgamma_ - 1.0) * rho;
+                v0 = UL[sx_i + dim] * rhoinv;
+                p = (physics<NDIM>::fgamma_ - 1.0) * ein + pdeg;
+                c = std::sqrt(p * rhoinv * rhoinv * dp_deps + dp_drho);
+                v = v0 - vg[dim];
+                aml = v - c;
+                apl = v + c;
+#pragma ivdep
+                for (int f = 0; f < nf_; f++) {
+                    FL[f] = v * UL[f];
+                }
+                FL[sx_i + dim] += p;
+                FL[egas_i] += v0 * p;
+                for (int n = 0; n < geo.NANGMOM; n++) {
+#pragma ivdep
+                    for (int m = 0; m < NDIM; m++) {
+                        FL[lx_i + n] += levi_civita[n][m][dim] * x[m] * p;
+                    }
+                }
+
+                this_ap = std::max(std::max(apr, apl), safe_real(0.0));
 				this_am = std::min(std::min(amr, aml), safe_real(0.0));
                 if (this_ap - this_am != 0.0) {
 #pragma ivdep

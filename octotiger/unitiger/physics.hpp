@@ -115,7 +115,7 @@ struct physics {
 	template<int INX>
 	static void enforce_outflow(hydro::state_type &U, int dim, int dir);
 
-private:
+public:
 	static safe_real rho_sink_radius_;
 	static safe_real rho_sink_floor_;
 	static int nf_;
