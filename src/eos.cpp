@@ -389,7 +389,7 @@ void struct_eos::initialize(real &mass, real &radius) {
 		mass = m;
 		radius = r;
 	} else {
-		const real dr0 = R0 / 100.0;
+		const real dr0 = R0 / 10.0;
 
 		real h = h0();
 		real hdot = 0.0;
