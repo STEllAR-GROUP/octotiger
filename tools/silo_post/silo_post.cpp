@@ -314,9 +314,15 @@ int main(int argc, char *argv[]) {
 		counter++;
 	}
 	FILE *fp = fopen("omega.dat", "wt");
+	double omega_max = 0.0;
 	for (int i = 0; i < NBIN; i++) {
-		fprintf(fp, "%e %e %e %e\n", (i + 0.5) * dR, Lbin[i] / Ibin[i] / omega, L0bin[i] / I0bin[i] / omega, Mbin[i] / Vbin[i] * Vbin[0] / Mbin[0]);
+		double this_omega = Lbin[i] / Ibin[i] / omega;
+		omega_max = std::max(this_omega, omega_max);
+		fprintf(fp, "%e %e %e %e\n", (i + 0.5) * dR, this_omega, L0bin[i] / I0bin[i] / omega, Mbin[i] / Vbin[i] * Vbin[0] / Mbin[0]);
 	}
+	fclose(fp);
+	fp = fopen( "omega_max.dat", "at");
+	fprintf( fp, "%e\n", omega_max);
 	fclose(fp);
 
 	const auto Msol = 1.989e+33;
