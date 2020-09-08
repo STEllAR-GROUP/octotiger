@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
 						const auto vy = ((double*) sy->vals[0])[iii] / rho;
 						const auto x = (((double*) mesh->coords[0])[i] + ((double*) mesh->coords[0])[i + 1]) / 2.0;
 						const auto y = (((double*) mesh->coords[1])[j] + ((double*) mesh->coords[1])[j + 1]) / 2.0;
-						rho2_max = this_rho1;
+						rho2_max = this_rho3;
 						x2_0 = x;
 						y2_0 = y;
 						vx2_0 = vx;
@@ -217,14 +217,16 @@ int main(int argc, char *argv[]) {
 	const auto dy = y1_0 - y2_0;
 	const auto dvx = vx1_0 - vx2_0;
 	const auto dvy = vy1_0 - vy2_0;
-	double omega =(dx * dvy - dy * dvx) / (dx*dx+dy*dy);
-	printf( "Omega = %e\n", omega);
+	double omega = (dx * dvy - dy * dvx) / (dx * dx + dy * dy);
+	printf("Omega = %e\n", omega);
 	printf("NBIN = %i dxmin = %e rho1_max = %e\n", NBIN, dxmin, rho1_max);
 	printf("x0 = %e y0 = %e\n", x1_0, y1_0);
 	printf("vx0 = %e vy1_0 = %e\n", vx1_0, vy1_0);
 	double dR = (rmax) / NBIN;
 	std::vector<double> Ibin(NBIN, 0.0);
 	std::vector<double> Lbin(NBIN, 0.0);
+	std::vector<double> I0bin(NBIN, 0.0);
+	std::vector<double> L0bin(NBIN, 0.0);
 	std::vector<double> Mbin(NBIN, 0.0);
 	std::vector<double> Vbin(NBIN, 0.0);
 
@@ -286,9 +288,13 @@ int main(int argc, char *argv[]) {
 					const auto omega = (-y * vx + x * vy) / (R * R);
 					int I = R / dR;
 					if (I < NBIN && r < rmax) {
-						const double dV = dx * dx  * dx;
+						const double dV = dx * dx * dx;
 						Lbin[I] += rho * R * R * omega * dV;
 						Ibin[I] += rho * R * R * dV;
+						if (std::abs(z) < dxmin) {
+							L0bin[I] += rho * R * R * omega * dV;
+							I0bin[I] += rho * R * R * dV;
+						}
 						Mbin[I] += rho * dV;
 						Vbin[I] += dV;
 					}
@@ -309,7 +315,7 @@ int main(int argc, char *argv[]) {
 	}
 	FILE *fp = fopen("omega.dat", "wt");
 	for (int i = 0; i < NBIN; i++) {
-		fprintf(fp, "%e %e %e\n", (i + 0.5) * dR, Lbin[i] / Ibin[i] / omega, Mbin[i] / Vbin[i] * Vbin[0] / Mbin[0]);
+		fprintf(fp, "%e %e %e %e\n", (i + 0.5) * dR, Lbin[i] / Ibin[i] / omega, L0bin[i] / I0bin[i] / omega, Mbin[i] / Vbin[i] * Vbin[0] / Mbin[0]);
 	}
 	fclose(fp);
 
