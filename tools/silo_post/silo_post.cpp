@@ -39,7 +39,7 @@ struct options {
 		po::options_description command_opts("options");
 
 		command_opts.add_options() //
-		("input", po::value<std::string>(&input)->default_value(""), "input filename")           //
+		("input", po::value < std::string > (&input)->default_value(""), "input filename")           //
 				;
 		boost::program_options::variables_map vm;
 		po::store(po::parse_command_line(argc, argv, command_opts), vm);
@@ -112,9 +112,8 @@ int main(int argc, char *argv[]) {
 
 	int counter = 0;
 	long long int n_species, cycle;
-	double omega;
+
 	DBReadVar(db, "n_species", &n_species);
-	DBReadVar(db, "omega", &omega);
 
 	std::vector<double> atomic_number(n_species);
 	std::vector<double> atomic_mass(n_species);
@@ -122,7 +121,6 @@ int main(int argc, char *argv[]) {
 	DBReadVar(db, "atomic_mass", atomic_mass.data());
 	printf("cycle = %lli\n", cycle);
 	printf("n_species = %lli\n", n_species);
-	printf("omega     = %e\n", omega);
 	printf("atomic number | atomic mass \n");
 	for (int s = 0; s < n_species; s++) {
 		printf("%e | %e\n", atomic_number[s], atomic_mass[s]);
@@ -131,7 +129,14 @@ int main(int argc, char *argv[]) {
 	double sum1 = 0.0;
 	double sum2 = 0.0;
 	double t;
-	double dxmin = 1.0d+99;
+	double dxmin = 1.0e+99;
+
+	double x1_0, y1_0, rho1_max;
+	double vx1_0, vy1_0;
+	double x2_0, y2_0, rho2_max;
+	double vx2_0, vy2_0;
+	rho1_max = 0.0;
+	rho2_max = 0.0;
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
 		const auto &filename = split_name.first;
@@ -142,18 +147,86 @@ int main(int argc, char *argv[]) {
 		const auto dir = mesh_to_dirname(name);
 		t = mesh->time;
 		const auto dx = (((double*) mesh->coords[0])[1] - ((double*) mesh->coords[0])[0]);
-		dxmin = std::min(dxmin,dx);
+		dxmin = std::min(dxmin, dx);
+		const auto dV = dx * dx * dx;
+		auto var_name = mesh_to_varname(name, "rho_1");
+		auto rho1 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_2");
+		auto rho2 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_3");
+		auto rho3 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_4");
+		auto rho4 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "rho_5");
+		auto rho5 = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "sx");
+		auto sx = DBGetQuadvar(db, var_name.c_str());
+		var_name = mesh_to_varname(name, "sy");
+		auto sy = DBGetQuadvar(db, var_name.c_str());
+		const int NX = mesh->dims[0] - 1;
+		for (int i = 0; i < NX; i++) {
+			for (int j = 0; j < NX; j++) {
+				for (int k = 0; k < NX; k++) {
+					const auto iii = k * NX * NX + j * NX + i;
+					const auto this_rho1 = ((double*) rho1->vals[0])[iii];
+					const auto this_rho3 = ((double*) rho3->vals[0])[iii];
+					if (this_rho1 > rho1_max) {
+						const auto rho = ((double*) rho1->vals[0])[iii] + ((double*) rho2->vals[0])[iii] + ((double*) rho3->vals[0])[iii]
+								+ ((double*) rho4->vals[0])[iii] + ((double*) rho5->vals[0])[iii];
+						const auto vx = ((double*) sx->vals[0])[iii] / rho;
+						const auto vy = ((double*) sy->vals[0])[iii] / rho;
+						const auto x = (((double*) mesh->coords[0])[i] + ((double*) mesh->coords[0])[i + 1]) / 2.0;
+						const auto y = (((double*) mesh->coords[1])[j] + ((double*) mesh->coords[1])[j + 1]) / 2.0;
+						rho1_max = this_rho1;
+						x1_0 = x;
+						y1_0 = y;
+						vx1_0 = vx;
+						vy1_0 = vy;
+					}
+					if (this_rho3 > rho2_max) {
+						const auto rho = ((double*) rho1->vals[0])[iii] + ((double*) rho2->vals[0])[iii] + ((double*) rho3->vals[0])[iii]
+								+ ((double*) rho4->vals[0])[iii] + ((double*) rho5->vals[0])[iii];
+						const auto vx = ((double*) sx->vals[0])[iii] / rho;
+						const auto vy = ((double*) sy->vals[0])[iii] / rho;
+						const auto x = (((double*) mesh->coords[0])[i] + ((double*) mesh->coords[0])[i + 1]) / 2.0;
+						const auto y = (((double*) mesh->coords[1])[j] + ((double*) mesh->coords[1])[j + 1]) / 2.0;
+						rho2_max = this_rho1;
+						x2_0 = x;
+						y2_0 = y;
+						vx2_0 = vx;
+						vy2_0 = vy;
+					}
+				}
+			}
+		}
+		DBFreeQuadvar(rho1);
+		DBFreeQuadvar(rho2);
+		DBFreeQuadvar(rho3);
+		DBFreeQuadvar(rho4);
+		DBFreeQuadvar(rho5);
+		DBFreeQuadvar(sx);
+		DBFreeQuadvar(sy);
 		DBFreeQuadmesh(mesh);
 		DBClose(db);
+		counter++;
 	}
 
-	double rmax = 1.5;
+	double rmax = 2e9;
 	int NBIN = rmax / dxmin;
+	const auto dx = x1_0 - x2_0;
+	const auto dy = y1_0 - y2_0;
+	const auto dvx = vx1_0 - vx2_0;
+	const auto dvy = vy1_0 - vy2_0;
+	double omega =(dx * dvy - dy * dvx) / (dx*dx+dy*dy);
+	printf( "Omega = %e\n", omega);
+	printf("NBIN = %i dxmin = %e rho1_max = %e\n", NBIN, dxmin, rho1_max);
+	printf("x0 = %e y0 = %e\n", x1_0, y1_0);
+	printf("vx0 = %e vy1_0 = %e\n", vx1_0, vy1_0);
 	double dR = (rmax) / NBIN;
-	std::vector<double> Ibin(NBIN);
-	std::vector<double> Lbin(NBIN);
-
-
+	std::vector<double> Ibin(NBIN, 0.0);
+	std::vector<double> Lbin(NBIN, 0.0);
+	std::vector<double> Mbin(NBIN, 0.0);
+	std::vector<double> Vbin(NBIN, 0.0);
 
 	for (const auto &mesh_name : mesh_names) {
 		auto split_name = split_silo_id(mesh_name);
@@ -203,16 +276,21 @@ int main(int argc, char *argv[]) {
 					const auto iii = k * NX * NX + j * NX + i;
 					const auto rho = ((double*) rho1->vals[0])[iii] + ((double*) rho2->vals[0])[iii] + ((double*) rho3->vals[0])[iii]
 							+ ((double*) rho4->vals[0])[iii] + ((double*) rho5->vals[0])[iii];
-					const auto vx = ((double*) sx->vals[0])[iii] / rho;
-					const auto vy = ((double*) sy->vals[0])[iii] / rho;
-					const auto x = (((double*) mesh->coords[0])[i] + ((double*) mesh->coords[0])[i + 1]) / 2.0;
-					const auto y = (((double*) mesh->coords[1])[j] + ((double*) mesh->coords[1])[j + 1]) / 2.0;
+					const auto vx = ((double*) sx->vals[0])[iii] / rho - vx1_0;
+					const auto vy = ((double*) sy->vals[0])[iii] / rho - vy1_0;
+					const auto x = (((double*) mesh->coords[0])[i] + ((double*) mesh->coords[0])[i + 1]) / 2.0 - x1_0;
+					const auto y = (((double*) mesh->coords[1])[j] + ((double*) mesh->coords[1])[j + 1]) / 2.0 - y1_0;
+					const auto z = (((double*) mesh->coords[2])[k] + ((double*) mesh->coords[2])[k + 1]) / 2.0;
 					const auto R = std::sqrt(x * x + y * y);
+					const auto r = std::sqrt(x * x + y * y + z * z);
 					const auto omega = (-y * vx + x * vy) / (R * R);
 					int I = R / dR;
-					if (I < NBIN) {
-						Lbin[I] += rho * R * R * omega * dx * dx * dx;
-						Ibin[I] += rho * R * R * dx * dx * dx;
+					if (I < NBIN && r < rmax) {
+						const double dV = dx * dx  * dx;
+						Lbin[I] += rho * R * R * omega * dV;
+						Ibin[I] += rho * R * R * dV;
+						Mbin[I] += rho * dV;
+						Vbin[I] += dV;
 					}
 				}
 			}
@@ -231,7 +309,7 @@ int main(int argc, char *argv[]) {
 	}
 	FILE *fp = fopen("omega.dat", "wt");
 	for (int i = 0; i < NBIN; i++) {
-		fprintf(fp, "%e %e\n", (i + 0.5) * dR, Lbin[i] / Ibin[i]);
+		fprintf(fp, "%e %e %e\n", (i + 0.5) * dR, Lbin[i] / Ibin[i] / omega, Mbin[i] / Vbin[i] * Vbin[0] / Mbin[0]);
 	}
 	fclose(fp);
 
