@@ -547,8 +547,17 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						const real dX[NDIM] = { (x - diags.com[i][XDIM]), (y - diags.com[i][YDIM]), (z - diags.com[i][ZDIM]) };
 						rc.js[i] += dX[0] * U[sy_i][iii] * dV;
 						rc.js[i] -= dX[1] * U[sx_i][iii] * dV;
+						rc.lz2[i] += x * U[sy_i][iii] * dV;
+						rc.lz2[i] -= y * U[sx_i][iii] * dV;
+						rc.lz1[i] += U[lz_i][iii] * dV;
 						rc.gt[i] += dX[0] * G[iiig][gy_i] * dV * rho0;
 						rc.gt[i] -= dX[1] * G[iiig][gx_i] * dV * rho0;
+						const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) / 2.0 / U[rho_i][iii] * dV;
+						const auto eint = U[egas_i][iii] * dV - ekin;
+						const auto epot = 0.5 * U[pot_i][iii] * dV;
+						rc.ekin[i] += ekin;
+						rc.epot[i] += epot;
+						rc.eint[i] += eint;
 						const real r = SQRT(dX[0] * dX[0] + dX[1] * dX[1] + dX[2] * dX[2]);
 						for (integer n = 0; n != NDIM; ++n) {
 							for (integer m = 0; m <= n; ++m) {
@@ -623,9 +632,13 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						rc.grid_sum[f] += U[f][iii] * dV;
 					}
 					rc.grid_sum[egas_i] += 0.5 * U[pot_i][iii] * dV;
+					safe_real lz = (X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii]) * dV;
 					rc.lsum[0] += U[lx_i][iii] * dV - (X[YDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sy_i][iii]) * dV;
 					rc.lsum[1] -= U[ly_i][iii] * dV - (X[XDIM][iii] * U[sz_i][iii] - X[ZDIM][iii] * U[sx_i][iii]) * dV;
-					rc.lsum[2] += U[lz_i][iii] * dV - (X[XDIM][iii] * U[sy_i][iii] - X[YDIM][iii] * U[sx_i][iii]) * dV;
+					rc.lsum[2] += U[lz_i][iii] * dV - lz;
+					const auto nonvac = (1.0 - U[spc_i + opts().n_species - 1][iii] / U[rho_i][iii]);
+					rc.nonvacj += lz * nonvac;
+					rc.nonvacjlz == U[lz_i][iii] * nonvac * dV;
 				}
 
 				for (integer s = 0; s != nspec; ++s) {
