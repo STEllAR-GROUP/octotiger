@@ -92,6 +92,7 @@ if(OCTOTIGER_WITH_CUDA)
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
+  message(INFO " KOKKOS support is turned on!")
   find_package(Kokkos REQUIRED)
   find_package(HPXKokkos REQUIRED)
   if (OCTOTIGER_WITH_LEGACY_Vc)
@@ -255,6 +256,8 @@ add_hpx_library(
   HEADERS
     ${header_files}
 )
+# causes internal compiler error on cuda 10.0: TODO try with later version
+# set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " --expt-relaxed-constexpr")
 
 set(hydro_header_files
     octotiger/unitiger/hydro.hpp
@@ -275,6 +278,7 @@ set(hydro_header_files
 
 set(hydro_source_files
    src/unitiger/hydro.cpp
+   src/unitiger/hydro_impl/flux_kernel_interface.cpp
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
@@ -339,6 +343,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     octotiger/simd.hpp
     octotiger/common_kernel/kernel_simd_types.hpp
   )
+  message(INFO " Host-only list set!")
   set_source_files_properties(${host_only_source_files} ${host_only_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
 
   # Add symbols

@@ -21,6 +21,7 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
+#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/collectives/broadcast_direct.hpp>
@@ -31,6 +32,7 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
+
 
 std::vector<int> grid::field_bw;
 std::vector<int> grid::energy_bw;
@@ -1792,7 +1794,8 @@ timestep_t grid::compute_fluxes() {
 			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
 	const auto &q = hydro.reconstruct(U, X, omega);
 	// auto max_lambda = hydro.flux(U, q, f, X, omega);
-	auto max_lambda = hydro.flux_experimental(U, q, f, X, omega);
+	// auto max_lambda = hydro.flux_experimental(q, f, X, omega);
+	auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
 
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {

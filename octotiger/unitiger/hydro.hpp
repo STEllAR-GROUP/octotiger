@@ -74,7 +74,7 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 //#endif
 
 	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
-	timestep_t flux_experimental(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
+	timestep_t flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
 	void post_process(hydro::state_type &U, const hydro::state_type &X, safe_real dx);
 
@@ -120,6 +120,8 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	void set_bc(std::vector<bc_type> &&bc) {
 		bc_ = std::move(bc);
 	}
+
+	inline int get_nf() const {return nf_;}
 
 private:
 	int experiment;

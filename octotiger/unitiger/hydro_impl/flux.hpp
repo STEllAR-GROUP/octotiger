@@ -11,8 +11,7 @@
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
 
 template<int NDIM, int INX, class PHYS>
-timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
-		safe_real omega) {
+timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	safe_real omega) {
 
 	PROFILE();
 	// input Q, X
@@ -108,7 +107,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 	return ts;
 }
 template<int NDIM, int INX, class PHYS>
-timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
+timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
 		safe_real omega) {
 
 	PROFILE();
@@ -162,12 +161,14 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state
             const auto d = faces[dim][fi];
 
             for (size_t x = lbs[0]; x < ubs[0]; x++) {
-                for (size_t y = lbs[1]; y < ubs[1]; y++) {
-                    for (size_t z = lbs[2]; z < ubs[2]; z++) {
+                for (size_t y = lbs[1]; y < geo.H_NX; y++) {
+                    for (size_t z = lbs[2]; z < geo.H_NX; z++) {
+                        if (y >= ubs[1] || z >= ubs[2])
+                            continue;
                         const size_t i = x * geo.H_NX * geo.H_NX + y * geo.H_NX + z;
 
-                        std::array<safe_real, NDIM> x;
-                        std::array<safe_real, NDIM> vg;
+                        std::array<double, NDIM> x;
+                        std::array<double, NDIM> vg;
                         for (int dim = 0; dim < NDIM; dim++) {
                             x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
                         }
@@ -183,8 +184,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state
                             UL[f] = Q[f][flipped_dim][i - geo.H_DN[dim]];
                         }
 
-                        safe_real amr, apr, aml, apl;
-                        static thread_local std::vector<safe_real> FR(nf_), FL(nf_);
+                        double amr, apr, aml, apl;
+                        static thread_local std::vector<double> FR(nf_), FL(nf_);
 
                         auto rho = UR[rho_i];
                         auto rhoinv = (1.) / rho;
@@ -307,8 +308,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state
                             }
                         }
 
-                        this_ap = std::max(std::max(apr, apl), safe_real(0.0));
-                        this_am = std::min(std::min(amr, aml), safe_real(0.0));
+                        this_ap = std::max(std::max(apr, apl), double(0.0));
+                        this_am = std::min(std::min(amr, aml), double(0.0));
                         if (this_ap - this_am != 0.0) {
 #pragma ivdep
                             for (int f = 0; f < nf_; f++) {
@@ -324,7 +325,7 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::state
                         }
                         am = std::min(am, this_am);
                         ap = std::max(ap, this_ap);
-                        this_amax = std::max(ap, safe_real(-am));
+                        this_amax = std::max(ap, double(-am));
                         if (this_amax > current_amax) {
                             current_amax = this_amax;
                             current_max_index = i;
