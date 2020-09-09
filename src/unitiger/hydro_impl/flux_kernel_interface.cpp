@@ -1,7 +1,7 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
-timestep_t flux_kernel_interface(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,
-		safe_real omega, const size_t nf_) {
+timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
+    hydro::x_type& X, safe_real omega, const size_t nf_) {
     // input Q, X
     // output F
 
@@ -68,7 +68,13 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM> &Q, hydro::flux_t
                                                    // going to be dismissed
                             UL[f] = Q[f][flipped_dim][i - geo.H_DN[dim]];
                         }
-                        this_amax = inner_flux_loop<double>(X, omega, nf_, A_, B_, UR, UL, FR, FL,
+                        for (int dim = 0; dim < NDIM; dim++) {
+                            x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
+                        }
+                        vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+                        vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+                        vg[2] = 0.0;
+                        this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR, UL, FR, FL,
                             this_flux, x, vg, ap, am, dim, d, i, geo, dx);
                         if (this_amax > current_amax) {
                             current_amax = this_amax;
