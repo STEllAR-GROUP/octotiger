@@ -24,8 +24,8 @@ add_test(NAME test_problems.cpu.marshak.diff
 
 set_tests_properties(test_problems.cpu.marshak PROPERTIES
   FIXTURES_SETUP test_problems.cpu.marshak)
-  set_tests_properties(test_problems.cpu.marshak.filesize PROPERTIES
-  FIXTURES_REQUIRED test_problems.cpu.blast)
+set_tests_properties(test_problems.cpu.marshak.filesize PROPERTIES
+  FIXTURES_SETUP test_problems.cpu.marshak)
 set_tests_properties(test_problems.cpu.marshak.diff PROPERTIES
   FIXTURES_REQUIRED test_problems.cpu.marshak
   FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})

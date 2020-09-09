@@ -25,7 +25,7 @@ add_test(NAME test_problems.cpu.blast.diff
 set_tests_properties(test_problems.cpu.blast PROPERTIES
   FIXTURES_SETUP test_problems.cpu.blast)
 set_tests_properties(test_problems.cpu.blast.filesize PROPERTIES
-  FIXTURES_REQUIRED test_problems.cpu.blast)
+  FIXTURES_SETUP test_problems.cpu.blast)
 set_tests_properties(test_problems.cpu.blast.diff PROPERTIES
   FIXTURES_REQUIRED test_problems.cpu.blast
   FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
