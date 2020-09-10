@@ -6,13 +6,16 @@ from os import path
 
 
 def fail_if_file_sizes_differ(original, target):
-    assert path.exists(original)
-    assert path.isfile(original)
+    assert path.exists(original), '"' + original + \
+        '" does not exist. Check failed.'
+    assert path.isfile(original), '"' + original + \
+        '" is not a file. Check failed.'
 
-    assert path.exists(target)
-    assert path.isfile(target)
+    assert path.exists(target), target + ' does not exist. Check failed.'
+    assert path.isfile(target), target + ' is not a file. Check failed.'
 
-    assert path.getsize(target) == path.getsize(original)
+    assert path.getsize(target) == path.getsize(original), \
+        'File sizes differ between "{}" and "{}". Check failed.'.format(target, original)
 
 
 def main():
@@ -35,14 +38,16 @@ def main():
     tfn = path.basename(args.target) + '.data'
     tfp = path.join(path.dirname(args.target), ofn)
     if path.isdir(ofp):
-        assert path.isdir(tfp)
+        assert path.isdir(
+            tfp), 'Target silo data file does not exist. Check failed.'
 
         ossf = [path.join(ofp, f) for f in listdir(ofp) if path.isfile(
             path.join(ofp, f)) and path.splitext(path.join(ofp, f))[1] == '.silo']
         tssf = [path.join(tfp, f) for f in listdir(tfp) if path.isfile(
             path.join(tfp, f)) and path.splitext(path.join(tfp, f))[1] == '.silo']
 
-        assert len(ossf) == len(tssf)
+        assert len(ossf) == len(
+            tssf), 'Target silo data has a different number of Silo files. Check failed.'
 
         for o, t in zip(ossf, tssf):
             fail_if_file_sizes_differ(o, t)
