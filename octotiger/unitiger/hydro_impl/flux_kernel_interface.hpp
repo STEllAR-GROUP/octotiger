@@ -37,6 +37,10 @@ template <typename T>
 inline T asin_wrapper(const T& tmp1) {
     return std::asin(tmp1);
 }
+template <typename T>
+inline bool skippable(const T& tmp1) {
+    return !tmp1;
+}
 
 template <typename double_t>
 inline double_t inner_flux_loop(const double omega, const size_t nf_, const double A_,
@@ -69,7 +73,7 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
         const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asin_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-        //std::cout << "select x0001 1" << std::endl;
+        // std::cout << "select x0001 1" << std::endl;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
         select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);
 
@@ -81,22 +85,22 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
         ek += UR[sx_i + dim] * UR[sx_i + dim] * rhoinv * 0.5;
     }
     const auto ein1_tmp2 = UR[egas_i] - ek - edeg;
-    // if (ein < physics<NDIM>::de_switch_1 * UR[egas_i]) {
-    //   ein = pow_wrapper(UR[tau_i], physics<NDIM>::fgamma_);
-    //}
-    const auto ein1_tmp1 = pow_wrapper(UR[tau_i], physics<NDIM>::fgamma_);
-    ////std::cout << "select ein 1 " << ein1_tmp2 << std::endl;
+    const auto ein1_mask = (ein1_tmp2 < (physics<NDIM>::de_switch_1 * UR[egas_i]));
     double_t ein;
-    select_wrapper(ein, (ein1_tmp2 < (physics<NDIM>::de_switch_1 * UR[egas_i])),
-       ein1_tmp1 , ein1_tmp2);
+    if (!skippable(ein1_mask)) {
+        const auto ein1_tmp1 = pow_wrapper(UR[tau_i], physics<NDIM>::fgamma_);
+        select_wrapper(ein, ein1_mask, ein1_tmp1, ein1_tmp2);
+    } else {
+        ein = ein1_tmp2;
+    }
     double_t dp_drho = dpdeg_drho + (physics<NDIM>::fgamma_ - 1.0) * ein * rhoinv;
     double_t dp_deps = (physics<NDIM>::fgamma_ - 1.0) * rho;
     v0 = UR[sx_i + dim] * rhoinv;
     p = (physics<NDIM>::fgamma_ - 1.0) * ein + pdeg;
     c = sqrt_wrapper(p * rhoinv * rhoinv * dp_deps + dp_drho);
     v = v0 - vg[dim];
-    //std::cout << "v0 vg" << v0 << " " << vg[dim] << std::endl;
-    //std::cout << "c v" << c << " " << v << std::endl;
+    // std::cout << "v0 vg" << v0 << " " << vg[dim] << std::endl;
+    // std::cout << "c v" << c << " " << v << std::endl;
     amr = v - c;
     apr = v + c;
 #pragma unroll
@@ -130,7 +134,7 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
         const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asin_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-        //std::cout << "select x0001 1" << std::endl;
+        // std::cout << "select x0001 1" << std::endl;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
         select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);
         dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
@@ -141,13 +145,17 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
         ek += UL[sx_i + dim] * UL[sx_i + dim] * rhoinv * 0.5;
     }
     const auto ein2_tmp2 = UL[egas_i] - ek - edeg;
+    const auto ein2_mask = (ein2_tmp2 < (physics<NDIM>::de_switch_1 * UL[egas_i]));
     // if (ein < physics<NDIM>::de_switch_1 * UL[egas_i]) {
     //    ein = pow_wrapper(UL[tau_i], physics<NDIM>::fgamma_);
     //}
-    const auto ein2_tmp1 = pow_wrapper(UL[tau_i], physics<NDIM>::fgamma_);
-   // //std::cout << "select ein 2" << std::endl;
-    select_wrapper(ein, ein2_tmp2 < physics<NDIM>::de_switch_1 * UL[egas_i],
-       ein2_tmp1 , ein2_tmp2);
+    if (!skippable(ein2_mask)) {
+        const auto ein2_tmp1 = pow_wrapper(UL[tau_i], physics<NDIM>::fgamma_);
+        select_wrapper(
+            ein, ein2_mask, ein2_tmp1, ein2_tmp2);
+    } else {
+        ein = ein2_tmp2;
+    }
     dp_drho = dpdeg_drho + (physics<NDIM>::fgamma_ - 1.0) * ein * rhoinv;
     dp_deps = (physics<NDIM>::fgamma_ - 1.0) * rho;
     v0 = UL[sx_i + dim] * rhoinv;
@@ -167,11 +175,11 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
             FL[lx_i + n] += levi_civita[n][m][dim] * x[m] * p;
         }
     }
-    //std::cout << apr << "apr---apl" << apl << std::endl;
-    //std::cout << amr << "amr---aml" << aml << std::endl;
+    // std::cout << apr << "apr---apl" << apl << std::endl;
+    // std::cout << amr << "amr---aml" << aml << std::endl;
     this_ap = max_wrapper(max_wrapper(apr, apl), double_t(0.0));
     this_am = min_wrapper(min_wrapper(amr, aml), double_t(0.0));
-    //std::cout << this_ap << "ap---am" << this_am << std::endl;
+    // std::cout << this_ap << "ap---am" << this_am << std::endl;
     for (int f = 0; f < nf_; f++) {
         const double_t flux_tmp1 =
             (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /

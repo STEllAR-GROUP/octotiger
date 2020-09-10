@@ -31,11 +31,6 @@ inline vc_type min_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
 template <>
 inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::sqrt(tmp1);
-    /* vc_type ret = 0.0;
-     for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
-         ret[vec_i] = std::sqrt(tmp1[vec_i]);
-     }
-     return ret;*/
 }
 /// Awful workaround for missing Vc::pow
 template <>
@@ -54,12 +49,11 @@ inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
 }
 template <>
 inline vc_type asin_wrapper<vc_type>(const vc_type& tmp1) {
-    //  vc_type ret = 0.0;
-    // for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
-    //     ret[vec_i] = std::asin(tmp1[vec_i]);
-    // }
-    // return ret;
     return Vc::asin(tmp1);
+}
+template <>
+inline bool skippable<mask_type>(const mask_type& tmp1) {
+    return Vc::none_of(tmp1);
 }
 
 timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
