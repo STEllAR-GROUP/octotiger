@@ -25,6 +25,16 @@ def fail_if_file_sizes_differ(original, target):
                 'File sizes differ between "{}" and "{}".'.format(target, original))
 
 
+def get_data_dirname(p):
+    fn = path.basename(p) + '.data'
+    return path.join(path.dirname(p), fn)
+
+
+def listdir_silo(fp):
+    return [path.join(fp, f) for f in listdir(fp) if path.isfile(
+            path.join(fp, f)) and path.splitext(path.join(fp, f))[1] == '.silo']
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Check generated Silo file size(s) against original')
@@ -38,22 +48,18 @@ def main():
     fail_if_file_sizes_differ(args.original, args.target)
 
     # check for sub-silo files
-    ofn = path.basename(args.original) + '.data'
-    ofp = path.join(path.dirname(args.original), ofn)
+    ofp = get_data_dirname(args.original)
+    tfp = get_data_dirname(args.target)
 
-    tfn = path.basename(args.target) + '.data'
-    tfp = path.join(path.dirname(args.target), tfn)
     if path.isdir(ofp):
         fail_if_not(path.isdir(tfp),
                     'Target silo data directory does not exist.')
 
-        ossf = [path.join(ofp, f) for f in listdir(ofp) if path.isfile(
-            path.join(ofp, f)) and path.splitext(path.join(ofp, f))[1] == '.silo']
-        tssf = [path.join(tfp, f) for f in listdir(tfp) if path.isfile(
-            path.join(tfp, f)) and path.splitext(path.join(tfp, f))[1] == '.silo']
+        ossf = listdir_silo(ofp)
+        tssf = listdir_silo(tfp)
 
-        fail_if_not(len(ossf) == len(tssf),
-                    'Target silo data has a different number of Silo files.')
+        fail_if_not(len(ossf) == len(
+            tssf), 'Silo file count differs: {} != {}'.format(len(ossf), len(tssf)))
 
         for o, t in zip(ossf, tssf):
             fail_if_file_sizes_differ(o, t)
