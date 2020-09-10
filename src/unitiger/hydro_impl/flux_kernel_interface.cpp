@@ -7,7 +7,6 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
 
     timestep_t ts;
     ts.a = 0.0;
-    // bunch of tmp containers
 
     // bunch of small helpers
     static const cell_geometry<3, 8> geo;
@@ -76,27 +75,14 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                         vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
                         vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
                         vg[2] = 0.0;
-                        //std::cout<< "vg" << vg[0] << std::endl;
-                        //std::cout<< "vg1" << vg[1] << std::endl;
-                        //std::cout<< "vg1" << vg[2] << std::endl;
                         this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR, UL, FR, FL,
                             this_flux, x, vg, ap, am, dim, d, i, geo, dx);
-    //std::cout << " input UR 0: " << UR[0] << std::endl;
-    //std::cout << " input UL 0: " << UL[0] << std::endl;
-    //std::cout << " output FR 0: " << FR[0] << std::endl;
-    //std::cout << " output FL 0: " << FL[0] << std::endl;
-    //std::cout << " unfileted aps: " << ap << std::endl;
-    //std::cout << " unfileted mps: " << am << std::endl;
                         if (this_amax > current_amax) {
                             current_amax = this_amax;
                             current_max_index = i;
                             current_d = d;
                             current_dim = dim;
                         }
-    //std::cout << " indices: " << iz << " " << iy << " " << ix << std::endl;
-    //std::cout << " inner current amax: " << current_amax << std::endl;
-    //if (fi == 1)
-    //std::cin.get();
 #pragma ivdep
                         for (int f = 0; f < nf_; f++) {
                             // field update from flux
@@ -108,8 +94,6 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
         }                // end dirs
     }                    // end dim
     ts.a = current_amax;
-    //std::cout << "current amax: " << current_amax << std::endl;
-    std::cin.get();
     ts.x = X[0][current_max_index];
     ts.y = X[1][current_max_index];
     ts.z = X[2][current_max_index];
