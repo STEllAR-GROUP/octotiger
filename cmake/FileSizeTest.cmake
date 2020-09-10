@@ -6,8 +6,7 @@
 # Used for checking reference Silo file sizes against produced ones
 
 function(add_file_size_test name file1 file2)
-  add_test(
-      NAME ${name}
-      COMMAND sh -c "test $(wc -c <${file1}) -eq $(wc -c <${file2})"
+  add_test(NAME ${name}
+      COMMAND ${PROJECT_SOURCE_DIR}/tools/size_checker/size_checker.py ${file1} ${file2}"
   )
 endfunction()
