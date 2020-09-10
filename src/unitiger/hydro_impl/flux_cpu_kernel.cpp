@@ -121,59 +121,26 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                         if (Vc::none_of(mask))
                             continue;
                         const size_t i = ix * geo.H_NX * geo.H_NX + iy * geo.H_NX + iz;
-                        // if (!Vc::all_of(mask)) {
-                        // //std::cout << iz << " " << ubs[2] << " " << zindices << " " << mask << " "
-                        // << !mask << std::endl; std::cin.get();
-                        // }
                         vc_type this_ap = 0.0, this_am = 0.0;    // tmps
 
-                        UR[0] = 0.0;
-                        UL[0] = 0.0;
-                        Vc::where(mask, UR[0]) = vc_type(Q[0][d].data() + i);
-                        Vc::where(mask, UL[0]) =
-                            vc_type(Q[0][flipped_dim].data() + i - geo.H_DN[dim]);
 #pragma unroll
                         for (int f = 0; f < nf_; f++) {
-                        UR[f] = 0.0;
-                        UL[f] = 0.0;
-                        FR[f] = 0.0;
-                        FL[f] = 0.0;
-                            //Vc::where(mask, UR[f]) = vc_type(Q[f][d].data() + i);
-                           // Vc::where(mask, UL[f]) =
-                            //    vc_type(Q[f][flipped_dim].data() + i - geo.H_DN[dim]);
-                            // //std::cout << UR[f] << " " << UL[f] << std::endl;
-                            // std::cin.get();
                             UR[f] = vc_type(((Q[f][d]).data()) + i);
                             UL[f] = vc_type(((Q[f][flipped_dim]).data()) + i - geo.H_DN[dim]);
-                            //std::cout<< "U" << f << ":"<< UR[f] << " " << UL[f] << std::endl;
                         }
                         for (int dim = 0; dim < NDIM; dim++) {
-                           // Vc::where(mask, x[dim]) = 0.0;
-                           // Vc::where(mask, x[dim]) =
-                            //    vc_type(X[dim].data() + i) + vc_type(0.5 * xloc[d][dim] * dx);
                            x[dim] =
                             vc_type(X[dim].data() + i) +  vc_type(0.5 * xloc[d][dim] * dx);
-                            //std::cout<< "x" << x[dim] << std::endl;
                         }
                         vg[0] = -omega * (vc_type(X[1].data() + i) +  vc_type(0.5 * xloc[d][1] * dx));
                         vg[1] = +omega * (vc_type(X[0].data() + i) +  vc_type(0.5 * xloc[d][0] * dx));
                         vg[2] = 0.0;
-                        //std::cout<< "vg" << vg[0] << std::endl;
-                        //std::cout<< "vg1" << vg[1] << std::endl;
-                        //std::cout<< "vg1" << vg[2] << std::endl;
-                        // vc_type tmp_amax = 0.0;
                         inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR, UL, FR, FL, this_flux, x,
                             vg, this_ap, this_am, dim, d, i, geo, dx);
-    //std::cout << " input UR 0: " << UR[0] << std::endl;
-    //std::cout << " input UL 0: " << UL[0] << std::endl;
-    //std::cout << " output FR 0: " << FR[0] << std::endl;
-    //std::cout << " output FL 0: " << FL[0] << std::endl;
                         Vc::where(!mask, this_ap) = 0.0;
                         Vc::where(!mask, this_am) = 0.0;
                         am = min_wrapper(am, this_am);
                         ap = max_wrapper(ap, this_ap);
-    //std::cout << " unfileted aps: " << ap << std::endl;
-    //std::cout << " unfileted mps: " << am << std::endl;
                         vc_type tmp_amax = max_wrapper(ap, (-am));
 
                         for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
@@ -184,19 +151,10 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                                 current_dim = dim;
                             }
                         }
-    //std::cout << " indices: " << iz << " " << iy << " " << ix << std::endl;
-    //std::cout << " mask: " << mask << std::endl;
-    //std::cout << " inner tmp amax: " << tmp_amax << std::endl;
-    //std::cout << " inner current amax: " << current_amax << std::endl;
-  //  if (fi == 1)
- //   std::cin.get();
-                        ////std::cout << "Flux max: " << current_amax << std::endl;
 #pragma unroll
                         for (int f = 0; f < nf_; f++) {
                             // field update from flux
                             Vc::where(!mask, this_flux[f]) = 0.0;
-                            //if (!Vc::all_of(mask))
-                            ////std::cout << "--this flux " << f << " :" << this_flux[f] << std::endl;;
                             const vc_type final_f =
                                 vc_type(F[dim][f].data() + i) + weights[fi] * this_flux[f];
                             final_f.store(F[dim][f].data() + i);
