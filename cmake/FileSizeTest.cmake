@@ -7,6 +7,6 @@
 
 function(add_file_size_test name file1 file2)
   add_test(NAME ${name}
-      COMMAND ${PROJECT_SOURCE_DIR}/tools/size_checker/size_checker.py ${file1} ${file2}"
+      COMMAND ${PROJECT_SOURCE_DIR}/tools/size_checker/size_checker.py ${file1} ${file2}
   )
 endfunction()
