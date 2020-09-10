@@ -21,8 +21,10 @@ def fail_if_file_sizes_differ(original, target):
     fail_if_not(path.exists(target), '"{}" does not exist.'.format(target))
     fail_if_not(path.isfile(target), '"{}" is not a file.'.format(target))
 
-    fail_if_not(path.getsize(target) == path.getsize(original),
-                'File sizes differ between "{}" and "{}".'.format(target, original))
+    ofsz = path.getsize(original)
+    tfsz = path.getsize(target)
+    fail_if_not(tfsz == ofsz, 'File sizes differ between "{}" ({}) and "{}" ({}).'.format(
+        target, tfsz, original, ofsz))
 
 
 def get_data_dirname(p):
