@@ -14,11 +14,17 @@ download_test_reference("Sod shock tube test"
 add_test(NAME test_problems.cpu.sod
   COMMAND octotiger
     --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini)
+
+add_file_size_test(test_problems.cpu.sod.filesize
+  ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo)
+
 add_test(NAME test_problems.cpu.sod.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
     ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
 
 set_tests_properties(test_problems.cpu.sod PROPERTIES
+  FIXTURES_SETUP test_problems.cpu.sod)
+set_tests_properties(test_problems.cpu.sod.filesize PROPERTIES
   FIXTURES_SETUP test_problems.cpu.sod)
 set_tests_properties(test_problems.cpu.sod.diff PROPERTIES
   FIXTURES_REQUIRED test_problems.cpu.sod
