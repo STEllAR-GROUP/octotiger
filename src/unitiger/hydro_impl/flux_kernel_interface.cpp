@@ -56,6 +56,7 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
             const auto d = faces[dim][fi];
 
             const auto flipped_dim = geo.flip_dim(d, dim);
+            //std::cout << "--Face:" << fi << "----------------------------------" << std::endl;
             for (size_t ix = lbs[0]; ix < ubs[0]; ix++) {
                 for (size_t iy = lbs[1]; iy < geo.H_NX; iy++) {
                     for (size_t iz = lbs[2]; iz < geo.H_NX; iz++) {
@@ -67,6 +68,7 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                             UR[f] = Q[f][d][i];    // not cache efficient at all - cacheline is
                                                    // going to be dismissed
                             UL[f] = Q[f][flipped_dim][i - geo.H_DN[dim]];
+                            //std::cout<< "U" << f << ":"<< UR[f] << " " << UL[f] << std::endl;
                         }
                         for (int dim = 0; dim < NDIM; dim++) {
                             x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
@@ -74,14 +76,27 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                         vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
                         vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
                         vg[2] = 0.0;
+                        //std::cout<< "vg" << vg[0] << std::endl;
+                        //std::cout<< "vg1" << vg[1] << std::endl;
+                        //std::cout<< "vg1" << vg[2] << std::endl;
                         this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR, UL, FR, FL,
                             this_flux, x, vg, ap, am, dim, d, i, geo, dx);
+    //std::cout << " input UR 0: " << UR[0] << std::endl;
+    //std::cout << " input UL 0: " << UL[0] << std::endl;
+    //std::cout << " output FR 0: " << FR[0] << std::endl;
+    //std::cout << " output FL 0: " << FL[0] << std::endl;
+    //std::cout << " unfileted aps: " << ap << std::endl;
+    //std::cout << " unfileted mps: " << am << std::endl;
                         if (this_amax > current_amax) {
                             current_amax = this_amax;
                             current_max_index = i;
                             current_d = d;
                             current_dim = dim;
                         }
+    //std::cout << " indices: " << iz << " " << iy << " " << ix << std::endl;
+    //std::cout << " inner current amax: " << current_amax << std::endl;
+    //if (fi == 1)
+    //std::cin.get();
 #pragma ivdep
                         for (int f = 0; f < nf_; f++) {
                             // field update from flux
@@ -93,6 +108,8 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
         }                // end dirs
     }                    // end dim
     ts.a = current_amax;
+    //std::cout << "current amax: " << current_amax << std::endl;
+    std::cin.get();
     ts.x = X[0][current_max_index];
     ts.y = X[1][current_max_index];
     ts.z = X[2][current_max_index];

@@ -122,9 +122,9 @@ void init_problem(void) {
     physics<NDIM>::update_n_field();
     grid::get_omega() = opts().omega;
 #if !defined(_MSC_VER) && !defined(__APPLE__)
-    feenableexcept(FE_DIVBYZERO);
-    feenableexcept(FE_INVALID);
-    feenableexcept(FE_OVERFLOW);
+    //feenableexcept(FE_DIVBYZERO);
+    //feenableexcept(FE_INVALID);
+    //feenableexcept(FE_OVERFLOW);
 #else
     _controlfp(_EM_INEXACT | _EM_DENORMAL | _EM_INVALID, _MCW_EM);
 #endif

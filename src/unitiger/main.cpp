@@ -161,9 +161,9 @@ void run_test(typename PHYS::test_type problem, bool with_correction, bool writi
 }
 
 int main(int argc, char *argv[]) {
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
+	//feenableexcept(FE_DIVBYZERO);
+	//feenableexcept(FE_INVALID);
+	//feenableexcept(FE_OVERFLOW);
 
 	bool createTests = false;
 

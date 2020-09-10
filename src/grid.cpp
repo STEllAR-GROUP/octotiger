@@ -1795,7 +1795,8 @@ timestep_t grid::compute_fluxes() {
 	const auto &q = hydro.reconstruct(U, X, omega);
 	// auto max_lambda = hydro.flux(U, q, f, X, omega);
 	// auto max_lambda = hydro.flux_experimental(q, f, X, omega);
-	auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
+ //auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
+ auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
 
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {

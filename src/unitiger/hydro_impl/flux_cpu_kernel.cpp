@@ -1,5 +1,6 @@
 
 #include <Vc/Vc>
+#include <Vc/common/mask.h>
 #include <Vc/vector.h>
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
@@ -11,9 +12,12 @@ using index_type = Vc::Vector<int, Vc::VectorAbi::Avx>;
 // helpers for using vectortype specialization functions
 template <>
 inline void select_wrapper<vc_type, mask_type>(
-    vc_type& target, mask_type&& cond, const vc_type& tmp1, const vc_type& tmp2) {
+    vc_type& target, const mask_type cond, const vc_type& tmp1, const vc_type& tmp2) {
     target = tmp2;
     Vc::where(cond, target) = tmp1;
+    //std::cout << cond << " -- " << tmp1 << " vs " << tmp2 << " = " << target << std::endl;
+   // if (!Vc::all_of(cond) && !Vc::none_of(cond))
+   // std::cin.get();
 }
 
 template <>
@@ -27,27 +31,35 @@ inline vc_type min_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
 template <>
 inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::sqrt(tmp1);
+    /* vc_type ret = 0.0;
+     for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
+         ret[vec_i] = std::sqrt(tmp1[vec_i]);
+     }
+     return ret;*/
 }
 /// Awful workaround for missing Vc::pow
 template <>
 inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
     // TODO(daissgr) is this accurate enough?
-    // return Vc::exp(static_cast<vc_type>(tmp2))*Vc::log(tmp1);
+    return Vc::exp(static_cast<vc_type>(tmp2) * Vc::log(tmp1));
 
-    vc_type ret = 0.0;
-    for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
-        ret[vec_i] = std::pow(tmp1[vec_i], tmp2);
-    }
-    return ret;
+    //std::cout << "Pow in: " << tmp1 << " ^ " << tmp2 << std::endl;
+    //vc_type ret = 0.0;
+    //for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
+    //ret[vec_i] = std::pow(tmp1[vec_i], tmp2);
+    //}
+    // //std::cout << "Pow out: " << ret << std::endl;
+    // //std::cout << "Pow exp: " << Vc::exp(static_cast<vc_type>(tmp2)*Vc::log(tmp1)) << std::endl;
+    //return ret;
 }
 template <>
 inline vc_type asin_wrapper<vc_type>(const vc_type& tmp1) {
-    vc_type ret = 0.0;
-    for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
-        ret[vec_i] = std::asin(tmp1[vec_i]);
-    }
-    return ret;
-    //  return Vc::asin(tmp1);
+    //  vc_type ret = 0.0;
+    // for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
+    //     ret[vec_i] = std::asin(tmp1[vec_i]);
+    // }
+    // return ret;
+    return Vc::asin(tmp1);
 }
 
 timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
@@ -101,12 +113,12 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
 
         for (int fi = 0; fi < geo.NFACEDIR; fi++) {    // 9
             vc_type ap = 0.0, am = 0.0;                // final am ap for this i
-            vc_type this_ap, this_am;                  // tmps
-            safe_real this_amax;
+            safe_real this_amax = 0.0;
             const auto d = faces[dim][fi];
 
             const auto flipped_dim = geo.flip_dim(d, dim);
             const vc_type zindices = vc_type::IndexesFromZero();
+            //std::cout << "--Face:" << fi << "----------------------------------" << std::endl;
             for (size_t ix = lbs[0]; ix < ubs[0]; ix++) {
                 for (size_t iy = lbs[1]; iy < ubs[1]; iy++) {
                     for (size_t iz = lbs[2]; iz < geo.H_NX; iz += vc_type::size()) {
@@ -114,33 +126,62 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                         const mask_type mask = (zindices < border);
                         if (Vc::none_of(mask))
                             continue;
+                        const size_t i = ix * geo.H_NX * geo.H_NX + iy * geo.H_NX + iz;
                         // if (!Vc::all_of(mask)) {
-                        // std::cout << iz << " " << ubs[2] << " " << zindices << " " << mask << " "
+                        // //std::cout << iz << " " << ubs[2] << " " << zindices << " " << mask << " "
                         // << !mask << std::endl; std::cin.get();
                         // }
-                        const size_t i = ix * geo.H_NX * geo.H_NX + iy * geo.H_NX + iz;
+                        vc_type this_ap = 0.0, this_am = 0.0;    // tmps
+
+                        UR[0] = 0.0;
+                        UL[0] = 0.0;
+                        Vc::where(mask, UR[0]) = vc_type(Q[0][d].data() + i);
+                        Vc::where(mask, UL[0]) =
+                            vc_type(Q[0][flipped_dim].data() + i - geo.H_DN[dim]);
 #pragma unroll
                         for (int f = 0; f < nf_; f++) {
-                            // UR[f] = 1.0;
-                            // UL[f] = 1.0;
-                            // Vc::where(mask, UR[f]) = vc_type(Q[f][d].data()+i);
-                            // Vc::where(mask, UL[f]) = vc_type(Q[f][flipped_dim].data()+i -
-                            // geo.H_DN[dim]); std::cout << UR[f] << " " << UL[f] << std::endl;
+                        UR[f] = 0.0;
+                        UL[f] = 0.0;
+                        FR[f] = 0.0;
+                        FL[f] = 0.0;
+                            //Vc::where(mask, UR[f]) = vc_type(Q[f][d].data() + i);
+                           // Vc::where(mask, UL[f]) =
+                            //    vc_type(Q[f][flipped_dim].data() + i - geo.H_DN[dim]);
+                            // //std::cout << UR[f] << " " << UL[f] << std::endl;
                             // std::cin.get();
-                            UR[f] = vc_type(Q[f][d].data() + i);
-                            UL[f] = vc_type(Q[f][flipped_dim].data() + i - geo.H_DN[dim]);
+                            UR[f] = vc_type(((Q[f][d]).data()) + i);
+                            UL[f] = vc_type(((Q[f][flipped_dim]).data()) + i - geo.H_DN[dim]);
+                            //std::cout<< "U" << f << ":"<< UR[f] << " " << UL[f] << std::endl;
                         }
                         for (int dim = 0; dim < NDIM; dim++) {
-                            // x[dim] = 0.0;
-                            x[dim] = vc_type(X[dim].data() + i) + vc_type(0.5 * xloc[d][dim] * dx);
+                           // Vc::where(mask, x[dim]) = 0.0;
+                           // Vc::where(mask, x[dim]) =
+                            //    vc_type(X[dim].data() + i) + vc_type(0.5 * xloc[d][dim] * dx);
+                           x[dim] =
+                            vc_type(X[dim].data() + i) +  vc_type(0.5 * xloc[d][dim] * dx);
+                            //std::cout<< "x" << x[dim] << std::endl;
                         }
-                        vg[0] = -omega * vc_type(X[1].data() + i) + vc_type(0.5 * xloc[d][1] * dx);
-                        vg[1] = +omega * vc_type(X[0].data() + i) + vc_type(0.5 * xloc[d][0] * dx);
+                        vg[0] = -omega * (vc_type(X[1].data() + i) +  vc_type(0.5 * xloc[d][1] * dx));
+                        vg[1] = +omega * (vc_type(X[0].data() + i) +  vc_type(0.5 * xloc[d][0] * dx));
                         vg[2] = 0.0;
+                        //std::cout<< "vg" << vg[0] << std::endl;
+                        //std::cout<< "vg1" << vg[1] << std::endl;
+                        //std::cout<< "vg1" << vg[2] << std::endl;
                         // vc_type tmp_amax = 0.0;
-                        vc_type tmp_amax = inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR, UL, FR,
-                            FL, this_flux, x, vg, ap, am, dim, d, i, geo, dx);
-                        Vc::where(!mask, tmp_amax) = vc_type(0.0);
+                        inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR, UL, FR, FL, this_flux, x,
+                            vg, this_ap, this_am, dim, d, i, geo, dx);
+    //std::cout << " input UR 0: " << UR[0] << std::endl;
+    //std::cout << " input UL 0: " << UL[0] << std::endl;
+    //std::cout << " output FR 0: " << FR[0] << std::endl;
+    //std::cout << " output FL 0: " << FL[0] << std::endl;
+                        Vc::where(!mask, this_ap) = 0.0;
+                        Vc::where(!mask, this_am) = 0.0;
+                        am = min_wrapper(am, this_am);
+                        ap = max_wrapper(ap, this_ap);
+    //std::cout << " unfileted aps: " << ap << std::endl;
+    //std::cout << " unfileted mps: " << am << std::endl;
+                        vc_type tmp_amax = max_wrapper(ap, (-am));
+
                         for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
                             if (tmp_amax[vec_i] > current_amax) {
                                 current_amax = tmp_amax[vec_i];
@@ -149,20 +190,32 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                                 current_dim = dim;
                             }
                         }
+    //std::cout << " indices: " << iz << " " << iy << " " << ix << std::endl;
+    //std::cout << " mask: " << mask << std::endl;
+    //std::cout << " inner tmp amax: " << tmp_amax << std::endl;
+    //std::cout << " inner current amax: " << current_amax << std::endl;
+  //  if (fi == 1)
+ //   std::cin.get();
+                        ////std::cout << "Flux max: " << current_amax << std::endl;
 #pragma unroll
                         for (int f = 0; f < nf_; f++) {
                             // field update from flux
                             Vc::where(!mask, this_flux[f]) = 0.0;
+                            //if (!Vc::all_of(mask))
+                            ////std::cout << "--this flux " << f << " :" << this_flux[f] << std::endl;;
                             const vc_type final_f =
                                 vc_type(F[dim][f].data() + i) + weights[fi] * this_flux[f];
                             final_f.store(F[dim][f].data() + i);
                         }
+                        //std::cin.get();
                     }    // end z
                 }        // end y
             }            // end x
         }                // end dirs
     }                    // end dim
     static thread_local std::vector<double> URs(nf_), ULs(nf_);
+    //std::cout << "current amax: " << current_amax << std::endl;
+    //std::cin.get();
     ts.a = current_amax;
     ts.x = X[0][current_max_index];
     ts.y = X[1][current_max_index];
