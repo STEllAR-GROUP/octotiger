@@ -15,7 +15,7 @@ cmake_policy(SET CMP0074 NEW)
 
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 ################################################################################
 # Options
 ################################################################################
