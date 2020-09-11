@@ -41,6 +41,9 @@ template <typename T>
 inline bool skippable(const T& tmp1) {
     return !tmp1;
 }
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
+
 
 template <typename double_t>
 inline double_t inner_flux_loop(const double omega, const size_t nf_, const double A_,
@@ -49,8 +52,6 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     const std::array<double_t, NDIM> x, const std::array<double_t, NDIM>& vg, double_t& ap,
     double_t& am, const size_t dim, const size_t d, const size_t i, const cell_geometry<3, 8> geo,
     const double dx) {
-    thread_local constexpr auto xloc = geo.xloc();
-    thread_local constexpr auto levi_civita = geo.levi_civita();
     double_t amr, apr, aml, apl;
     double_t this_ap, this_am;    // tmps
     double_t p, v, v0, c;
@@ -153,19 +154,33 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     FR[egas_i] += v0 * p;
     FL[sx_i + dim] += p2;
     FL[egas_i] += v02 * p2;
-    for (int m = 0; m < NDIM; m++) {
-#pragma unroll
-    for (int n = 0; n < geo.NANGMOM; n++) {
-            const double_t levi = levi_civita[n][m][dim] * x[m];
-            FR[lx_i + n] += levi * p;
-            FL[lx_i + n] += levi * p2;
-        }
+
+    if (dim == 0) {
+            // levi_civita 1 2 0
+            FR[lx_i + 1] += x[2] * p;
+            FL[lx_i + 1] += x[2] * p2;
+            // levi_civita 2 1 0
+            FR[lx_i + 2] -= x[1] * p;
+            FL[lx_i + 2] -= x[1] * p2;
+    } else if (dim == 1) {
+            // levi_civita 0 2 1
+            FR[lx_i] -= x[2] * p;
+            FL[lx_i] -= x[2] * p2;
+            // 2 0 1
+            FR[lx_i + 2] += x[0] * p;
+            FL[lx_i + 2] += x[0] * p2;
+    } else if (dim == 2) {
+            // levi_civita 0 1 2
+            FR[lx_i] += x[1] * p;
+            FL[lx_i] += x[1] * p2;
+            // 1 0 2
+            FR[lx_i + 1] -= x[0] * p;
+            FL[lx_i + 1] -= x[0] * p2;
     }
     this_ap = max_wrapper(max_wrapper(apr, apl), double_t(0.0));
     this_am = min_wrapper(min_wrapper(amr, aml), double_t(0.0));
     const auto amp_mask = (this_ap - this_am == 0.0);
     if (!skippable(amp_mask)) {
-#pragma unroll
       for (int f = 0; f < nf_; f++) {
           const double_t flux_tmp1 =
               (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /
@@ -174,7 +189,6 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
           select_wrapper(this_flux[f], amp_mask , flux_tmp2, flux_tmp1);
       }
     } else {
-#pragma unroll
       for (int f = 0; f < nf_; f++) {
           this_flux[f] = 
               (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /
@@ -186,3 +200,4 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     ap = max_wrapper(ap, this_ap);
     return max_wrapper(ap, double_t(-am));
 }
+#pragma GCC pop_options

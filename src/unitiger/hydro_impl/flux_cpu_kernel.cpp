@@ -1,4 +1,7 @@
 
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
+
 #include <Vc/Vc>
 #include <Vc/common/mask.h>
 #include <Vc/vector.h>
@@ -70,7 +73,6 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
     static constexpr auto faces = geo.face_pts();
     static constexpr auto weights = geo.face_weight();
     static constexpr auto xloc = geo.xloc();
-    static constexpr auto levi_civita = geo.levi_civita();
     double p, v, v0, c;
     const auto A_ = physics<NDIM>::A_;
     const auto B_ = physics<NDIM>::B_;
@@ -96,6 +98,13 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                 (geo.H_NX - 3);
             lbs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == +1 ? (3 - 1) : 3;
         }
+        /*std::cout << "Direction dim: " << dim << std::endl;
+      for (int dim = 0; dim < NDIM; dim++) {
+        std::cout << lbs[dim] << " to " << ubs[dim] << std::endl;
+        std::cout << "Dim " << dim << " offset: " << geo.H_DN[dim] << std::endl;
+      }
+      std::cin.get();*/
+        
 
         // zero-initialize F
         for (int f = 0; f < nf_; f++) {
@@ -109,10 +118,9 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
             vc_type ap = 0.0, am = 0.0;                // final am ap for this i
             safe_real this_amax = 0.0;
             const auto d = faces[dim][fi];
-
             const auto flipped_dim = geo.flip_dim(d, dim);
+            //std::cout << dim << " flipped: " << flipped_dim << " d: " << d << std::endl;
             const vc_type zindices = vc_type::IndexesFromZero();
-            //std::cout << "--Face:" << fi << "----------------------------------" << std::endl;
             for (size_t ix = lbs[0]; ix < ubs[0]; ix++) {
                 for (size_t iy = lbs[1]; iy < ubs[1]; iy++) {
                     for (size_t iz = lbs[2]; iz < geo.H_NX; iz += vc_type::size()) {
@@ -123,7 +131,6 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                         const size_t i = ix * geo.H_NX * geo.H_NX + iy * geo.H_NX + iz;
                         vc_type this_ap = 0.0, this_am = 0.0;    // tmps
 
-#pragma unroll
                         for (int f = 0; f < nf_; f++) {
                             UR[f] = vc_type(((Q[f][d]).data()) + i);
                             UL[f] = vc_type(((Q[f][flipped_dim]).data()) + i - geo.H_DN[dim]);
@@ -151,10 +158,10 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                                 current_dim = dim;
                             }
                         }
-#pragma unroll
                         for (int f = 0; f < nf_; f++) {
+                            // mask not required
+                            // Vc::where(!mask, this_flux[f]) = 0.0;
                             // field update from flux
-                            Vc::where(!mask, this_flux[f]) = 0.0;
                             const vc_type final_f =
                                 vc_type(F[dim][f].data() + i) + weights[fi] * this_flux[f];
                             final_f.store(F[dim][f].data() + i);
@@ -182,3 +189,4 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
     ts.dim = current_dim;
     return ts;
 }
+#pragma GCC pop_options
