@@ -73,12 +73,10 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
         const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asin_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-        // std::cout << "select x0001 1" << std::endl;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
         select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);
 
         dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
-        std::cin.get();
     }
     double_t ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
@@ -99,21 +97,8 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     p = (physics<NDIM>::fgamma_ - 1.0) * ein + pdeg;
     c = sqrt_wrapper(p * rhoinv * rhoinv * dp_deps + dp_drho);
     v = v0 - vg[dim];
-    // std::cout << "v0 vg" << v0 << " " << vg[dim] << std::endl;
-    // std::cout << "c v" << c << " " << v << std::endl;
     amr = v - c;
     apr = v + c;
-#pragma unroll
-    for (int f = 0; f < nf_; f++) {
-        FR[f] = v * UR[f];
-    }
-    FR[sx_i + dim] += p;
-    FR[egas_i] += v0 * p;
-    for (int n = 0; n < geo.NANGMOM; n++) {
-        for (int m = 0; m < NDIM; m++) {
-            FR[lx_i + n] += levi_civita[n][m][dim] * x[m] * p;
-        }
-    }
 
     rho = UL[rho_i];
     rhoinv = (1.) / rho;
@@ -134,11 +119,9 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
         const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asin_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
-        // std::cout << "select x0001 1" << std::endl;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
         select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);
         dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
-        std::cin.get();
     }
     ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
@@ -146,9 +129,6 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     }
     const auto ein2_tmp2 = UL[egas_i] - ek - edeg;
     const auto ein2_mask = (ein2_tmp2 < (physics<NDIM>::de_switch_1 * UL[egas_i]));
-    // if (ein < physics<NDIM>::de_switch_1 * UL[egas_i]) {
-    //    ein = pow_wrapper(UL[tau_i], physics<NDIM>::fgamma_);
-    //}
     if (!skippable(ein2_mask)) {
         const auto ein2_tmp1 = pow_wrapper(UL[tau_i], physics<NDIM>::fgamma_);
         select_wrapper(
@@ -156,38 +136,52 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     } else {
         ein = ein2_tmp2;
     }
-    dp_drho = dpdeg_drho + (physics<NDIM>::fgamma_ - 1.0) * ein * rhoinv;
-    dp_deps = (physics<NDIM>::fgamma_ - 1.0) * rho;
-    v0 = UL[sx_i + dim] * rhoinv;
-    p = (physics<NDIM>::fgamma_ - 1.0) * ein + pdeg;
-    c = sqrt_wrapper(p * rhoinv * rhoinv * dp_deps + dp_drho);
-    v = v0 - vg[dim];
-    aml = v - c;
-    apl = v + c;
+    const auto dp_drho2 = dpdeg_drho + (physics<NDIM>::fgamma_ - 1.0) * ein * rhoinv;
+    const auto dp_deps2 = (physics<NDIM>::fgamma_ - 1.0) * rho;
+    const auto v02 = UL[sx_i + dim] * rhoinv;
+    const auto p2 = (physics<NDIM>::fgamma_ - 1.0) * ein + pdeg;
+    const auto c2 = sqrt_wrapper(p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
+    const auto v2 = v02 - vg[dim];
+    aml = v2 - c2;
+    apl = v2 + c2;
 #pragma unroll
     for (int f = 0; f < nf_; f++) {
-        FL[f] = v * UL[f];
+        FR[f] = v * UR[f];
+        FL[f] = v2 * UL[f];
     }
-    FL[sx_i + dim] += p;
-    FL[egas_i] += v0 * p;
+    FR[sx_i + dim] += p;
+    FR[egas_i] += v0 * p;
+    FL[sx_i + dim] += p2;
+    FL[egas_i] += v02 * p2;
+    for (int m = 0; m < NDIM; m++) {
+#pragma unroll
     for (int n = 0; n < geo.NANGMOM; n++) {
-        for (int m = 0; m < NDIM; m++) {
-            FL[lx_i + n] += levi_civita[n][m][dim] * x[m] * p;
+            const double_t levi = levi_civita[n][m][dim] * x[m];
+            FR[lx_i + n] += levi * p;
+            FL[lx_i + n] += levi * p2;
         }
     }
-    // std::cout << apr << "apr---apl" << apl << std::endl;
-    // std::cout << amr << "amr---aml" << aml << std::endl;
     this_ap = max_wrapper(max_wrapper(apr, apl), double_t(0.0));
     this_am = min_wrapper(min_wrapper(amr, aml), double_t(0.0));
-    // std::cout << this_ap << "ap---am" << this_am << std::endl;
-    for (int f = 0; f < nf_; f++) {
-        const double_t flux_tmp1 =
-            (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /
-            (this_ap - this_am);
-        const double_t flux_tmp2 = (FL[f] + FR[f]) / 2.0;
-        select_wrapper(this_flux[f], (this_ap - this_am != 0.0), flux_tmp1, flux_tmp2);
+    const auto amp_mask = (this_ap - this_am == 0.0);
+    if (!skippable(amp_mask)) {
+#pragma unroll
+      for (int f = 0; f < nf_; f++) {
+          const double_t flux_tmp1 =
+              (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /
+              (this_ap - this_am);
+          const double_t flux_tmp2 = (FL[f] + FR[f]) / 2.0;
+          select_wrapper(this_flux[f], amp_mask , flux_tmp2, flux_tmp1);
+      }
+    } else {
+#pragma unroll
+      for (int f = 0; f < nf_; f++) {
+          this_flux[f] = 
+              (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /
+              (this_ap - this_am);
+      }
     }
-    // TODO This loooks wrong! ... Does it?
+
     am = min_wrapper(am, this_am);
     ap = max_wrapper(ap, this_ap);
     return max_wrapper(ap, double_t(-am));
