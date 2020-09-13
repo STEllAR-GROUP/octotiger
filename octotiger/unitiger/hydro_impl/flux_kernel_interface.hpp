@@ -11,6 +11,9 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
 timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
     safe_real omega, const size_t nf_);
 
+timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
+    safe_real omega, const size_t nf_);
+
 // helpers for using vectortype specialization functions
 template <typename double_t, typename cond_t>
 inline void select_wrapper(
@@ -50,7 +53,7 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     const double B_, const std::vector<double_t>& UR, const std::vector<double_t>& UL,
     std::vector<double_t>& FR, std::vector<double_t>& FL, std::vector<double_t>& this_flux,
     const std::array<double_t, NDIM> x, const std::array<double_t, NDIM>& vg, double_t& ap,
-    double_t& am, const size_t dim, const size_t d, const size_t i, const cell_geometry<3, 8> geo,
+    double_t& am, const size_t dim, const size_t d, const size_t ixxx, const cell_geometry<3, 8> geo,
     const double dx) {
     double_t amr, apr, aml, apl;
     double_t this_ap, this_am;    // tmps
