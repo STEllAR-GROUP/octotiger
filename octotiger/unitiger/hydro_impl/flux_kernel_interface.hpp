@@ -13,8 +13,8 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
 timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
     safe_real omega, const size_t nf_);
 
-timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
-    safe_real omega, const size_t nf_);
+timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
+    hydro::x_type& X, safe_real omega, const size_t nf_);
 
 // helpers for using vectortype specialization functions
 template <typename double_t, typename cond_t>
@@ -47,19 +47,17 @@ inline bool skippable(const T& tmp1) {
     return !tmp1;
 }
 
-
 boost::container::vector<bool> create_masks();
 
 #pragma GCC push_options
-#pragma GCC optimize ("unroll-loops")
+#pragma GCC optimize("unroll-loops")
 
 template <typename double_t>
 inline double_t inner_flux_loop(const double omega, const size_t nf_, const double A_,
-    const double B_, const double_t * __restrict__ UR, const double_t * __restrict__ UL,
-    double_t * __restrict__ FR, double_t * __restrict__ FL, double_t * __restrict__ this_flux,
-    const double_t * __restrict__ x, const double_t * __restrict__ vg, double_t &ap,
-    double_t& am, const size_t dim, const size_t d,
-    const double dx) {
+    const double B_, const double_t* __restrict__ UR, const double_t* __restrict__ UL,
+    double_t* __restrict__ this_flux,
+    const double_t* __restrict__ x, const double_t* __restrict__ vg, double_t& ap, double_t& am,
+    const size_t dim, const size_t d, const double dx) {
     double_t amr, apr, aml, apl;
     double_t this_ap, this_am;    // tmps
     double_t p, v, v0, c;
@@ -140,8 +138,7 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     const auto ein2_mask = (ein2_tmp2 < (physics<NDIM>::de_switch_1 * UL[egas_i]));
     if (!skippable(ein2_mask)) {
         const auto ein2_tmp1 = pow_wrapper(UL[tau_i], physics<NDIM>::fgamma_);
-        select_wrapper(
-            ein, ein2_mask, ein2_tmp1, ein2_tmp2);
+        select_wrapper(ein, ein2_mask, ein2_tmp1, ein2_tmp2);
     } else {
         ein = ein2_tmp2;
     }
@@ -153,55 +150,64 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     const auto v2 = v02 - vg[dim];
     aml = v2 - c2;
     apl = v2 + c2;
-#pragma unroll
-    for (int f = 0; f < nf_; f++) {
-        FR[f] = v * UR[f];
-        FL[f] = v2 * UL[f];
-    }
-    FR[sx_i + dim] += p;
-    FR[egas_i] += v0 * p;
-    FL[sx_i + dim] += p2;
-    FL[egas_i] += v02 * p2;
 
-    if (dim == 0) {
-            // levi_civita 1 2 0
-            FR[lx_i + 1] += x[2] * p;
-            FL[lx_i + 1] += x[2] * p2;
-            // levi_civita 2 1 0
-            FR[lx_i + 2] -= x[1] * p;
-            FL[lx_i + 2] -= x[1] * p2;
-    } else if (dim == 1) {
-            // levi_civita 0 2 1
-            FR[lx_i] -= x[2] * p;
-            FL[lx_i] -= x[2] * p2;
-            // 2 0 1
-            FR[lx_i + 2] += x[0] * p;
-            FL[lx_i + 2] += x[0] * p2;
-    } else if (dim == 2) {
-            // levi_civita 0 1 2
-            FR[lx_i] += x[1] * p;
-            FL[lx_i] += x[1] * p2;
-            // 1 0 2
-            FR[lx_i + 1] -= x[0] * p;
-            FL[lx_i + 1] -= x[0] * p2;
-    }
     this_ap = max_wrapper(max_wrapper(apr, apl), double_t(0.0));
     this_am = min_wrapper(min_wrapper(amr, aml), double_t(0.0));
     const auto amp_mask = (this_ap - this_am == 0.0);
-    if (!skippable(amp_mask)) {
-      for (int f = 0; f < nf_; f++) {
-          const double_t flux_tmp1 =
-              (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /
-              (this_ap - this_am);
-          const double_t flux_tmp2 = (FL[f] + FR[f]) / 2.0;
-          select_wrapper(this_flux[f], amp_mask , flux_tmp2, flux_tmp1);
-      }
-    } else {
-      for (int f = 0; f < nf_; f++) {
-          this_flux[f] = 
-              (this_ap * FL[f] - this_am * FR[f] + this_ap * this_am * (UR[f] - UL[f])) /
-              (this_ap - this_am);
-      }
+#pragma unroll
+    for (int f = 0; f < nf_; f++) {
+        double_t fr = v * UR[f];
+        double_t fl = v2 * UL[f];
+
+        if (f == sx_i + dim) {
+            fr += p;
+            fl += p2;
+        } else if (f == egas_i) {
+            fr += v0 * p;
+            fl += v02 * p2;
+        }
+        if (dim == 0) {
+            // levi_civita 1 2 0
+            if (f == lx_i + 1) {
+                fr += x[2] * p;
+                fl += x[2] * p2;
+            } else if (f == lx_i + 2) {
+                // levi_civita 2 1 0
+                fr -= x[1] * p;
+                fl -= x[1] * p2;
+            }
+        } else if (dim == 1) {
+            // levi_civita 0 2 1
+            if (f == lx_i + 0) {
+                fr -= x[2] * p;
+                fl -= x[2] * p2;
+                // 2 0 1
+            } else if (f == lx_i + 2) {
+                fr += x[0] * p;
+                fl += x[0] * p2;
+            }
+        } else if (dim == 2) {
+            if (f == lx_i) {
+                // levi_civita 0 1 2
+                fr += x[1] * p;
+                fl += x[1] * p2;
+                // 1 0 2
+            } else if (f == lx_i + 1) {
+                fr -= x[0] * p;
+                fl -= x[0] * p2;
+            }
+        }
+
+        if (!skippable(amp_mask)) {
+            const double_t flux_tmp1 =
+                (this_ap * fl - this_am * fr + this_ap * this_am * (UR[f] - UL[f])) /
+                (this_ap - this_am);
+            const double_t flux_tmp2 = (fl + fr) / 2.0;
+            select_wrapper(this_flux[f], amp_mask, flux_tmp2, flux_tmp1);
+        } else {
+            this_flux[f] = (this_ap * fl - this_am * fr + this_ap * this_am * (UR[f] - UL[f])) /
+                (this_ap - this_am);
+        }
     }
 
     am = min_wrapper(am, this_am);

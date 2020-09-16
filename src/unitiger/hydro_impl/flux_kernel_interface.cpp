@@ -24,7 +24,6 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
     const auto dx = X[0][geo.H_DNX] - X[0][0];
 
     std::vector<double> UR(nf_), UL(nf_), this_flux(nf_);
-    std::vector<double> FR(nf_), FL(nf_);
     std::array<double, NDIM> x;
     std::array<double, NDIM> vg;
 
@@ -73,7 +72,7 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                         vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
                         vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
                         vg[2] = 0.0;
-                        this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR.data(), UL.data(), FR.data(), FL.data(),
+                        this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR.data(), UL.data(), 
                             this_flux.data(), x.data(), vg.data(), ap, am, dim, d, dx);
                         if (this_amax > current_amax) {
                             current_amax = this_amax;

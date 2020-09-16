@@ -108,7 +108,6 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
     const double dx = X[0][geo.H_DNX] - X[0][0];
 
     std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
-    std::vector<vc_type> FR(nf_), FL(nf_);
     std::array<vc_type, NDIM> x;
     std::array<vc_type, NDIM> vg;
 
@@ -162,7 +161,7 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                             +omega * (vc_type(X[0].data() + i) + vc_type(0.5 * xloc[d][0] * dx));
                         vg[2] = 0.0;
                         inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR.data(), UL.data(),
-                            FR.data(), FL.data(), this_flux.data(), x.data(), vg.data(), this_ap,
+                            this_flux.data(), x.data(), vg.data(), this_ap,
                             this_am, dim, d, dx);
                         Vc::where(!mask, this_ap) = 0.0;
                         Vc::where(!mask, this_am) = 0.0;
@@ -268,7 +267,6 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     const double dx = X[0][geo.H_DNX] - X[0][0];
 
     std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
-    std::vector<vc_type> FR(nf_), FL(nf_);
     std::array<vc_type, NDIM> x;
     std::array<vc_type, NDIM> vg;
 
@@ -310,8 +308,8 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                 vg[1] =
                     +omega * (vc_type(combined_x.data() + index) + vc_type(0.5 * xloc[d][0] * dx));
                 vg[2] = 0.0;
-                inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR.data(), UL.data(), FR.data(),
-                    FL.data(), this_flux.data(), x.data(), vg.data(), this_ap, this_am, dim, d, dx);
+                inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR.data(), UL.data(), 
+                    this_flux.data(), x.data(), vg.data(), this_ap, this_am, dim, d, dx);
                 Vc::where(!mask, this_ap) = 0.0;
                 Vc::where(!mask, this_am) = 0.0;
                 am = min_wrapper(am, this_am);
