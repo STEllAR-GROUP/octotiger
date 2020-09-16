@@ -53,12 +53,11 @@ boost::container::vector<bool> create_masks();
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
 
-
 template <typename double_t>
 inline double_t inner_flux_loop(const double omega, const size_t nf_, const double A_,
-    const double B_, const std::vector<double_t>& UR, const std::vector<double_t>& UL,
-    std::vector<double_t>& FR, std::vector<double_t>& FL, std::vector<double_t>& this_flux,
-    const std::array<double_t, NDIM> x, const std::array<double_t, NDIM>& vg, double_t& ap,
+    const double B_, const double_t * __restrict__ UR, const double_t * __restrict__ UL,
+    double_t * __restrict__ FR, double_t * __restrict__ FL, double_t * __restrict__ this_flux,
+    const double_t * __restrict__ x, const double_t * __restrict__ vg, double_t &ap,
     double_t& am, const size_t dim, const size_t d,
     const double dx) {
     double_t amr, apr, aml, apl;
@@ -209,4 +208,5 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     ap = max_wrapper(ap, this_ap);
     return max_wrapper(ap, double_t(-am));
 }
+
 #pragma GCC pop_options

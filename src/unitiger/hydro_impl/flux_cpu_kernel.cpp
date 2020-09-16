@@ -67,15 +67,13 @@ boost::container::vector<bool> create_masks() {
     for (int dim = 0; dim < NDIM; dim++) {
         std::array<int, NDIM> ubs = {9, 9, 9};
         for (int dimension = 0; dimension < NDIM; dimension++) {
-            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ?
-                (9 + 1) :
-                (9);
+            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (9 + 1) : (9);
         }
         for (size_t ix = 0; ix < 10; ix++) {
             for (size_t iy = 0; iy < 10; iy++) {
                 for (size_t iz = 0; iz < 10; iz++) {
                     const size_t index = ix * 10 * 10 + iy * 10 + iz + dim_offset * dim;
-                    if ( ix > 0 && iy > 0 && iz > 0 && ix < ubs[0] && iy < ubs[1] && iz < ubs[2])
+                    if (ix > 0 && iy > 0 && iz > 0 && ix < ubs[0] && iy < ubs[1] && iz < ubs[2])
                         masks[index] = true;
                     else
                         masks[index] = false;
@@ -109,10 +107,11 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
 
     const double dx = X[0][geo.H_DNX] - X[0][0];
 
-    static thread_local std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
-    static thread_local std::vector<vc_type> FR(nf_), FL(nf_);
-    static thread_local std::array<vc_type, NDIM> x;
-    static thread_local std::array<vc_type, NDIM> vg;
+    std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
+    std::vector<vc_type> FR(nf_), FL(nf_);
+    std::array<vc_type, NDIM> x;
+    std::array<vc_type, NDIM> vg;
+
     for (int dim = 0; dim < NDIM; dim++) {
         const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
 
@@ -124,12 +123,6 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                 (geo.H_NX - 3);
             lbs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == +1 ? (3 - 1) : 3;
         }
-        std::cout << "Direction dim: " << dim << std::endl;
-      for (int dim = 0; dim < NDIM; dim++) {
-        std::cout << lbs[dim] << " to " << ubs[dim] << std::endl;
-        std::cout << "Dim " << dim << " offset: " << geo.H_DN[dim] << std::endl;
-      }
-      std::cin.get();
 
         // zero-initialize F
         for (int f = 0; f < nf_; f++) {
@@ -168,8 +161,9 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                         vg[1] =
                             +omega * (vc_type(X[0].data() + i) + vc_type(0.5 * xloc[d][0] * dx));
                         vg[2] = 0.0;
-                        inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR, UL, FR, FL, this_flux, x,
-                            vg, this_ap, this_am, dim, d, dx);
+                        inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR.data(), UL.data(),
+                            FR.data(), FL.data(), this_flux.data(), x.data(), vg.data(), this_ap,
+                            this_am, dim, d, dx);
                         Vc::where(!mask, this_ap) = 0.0;
                         Vc::where(!mask, this_am) = 0.0;
                         am = min_wrapper(am, this_am);
@@ -239,25 +233,27 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
             }
         }
     }
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_x(NDIM * 1000 + 32);
+    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_x(
+        NDIM * 1000 + 32);
     auto it_x = combined_x.begin();
     for (size_t dim = 0; dim < NDIM; dim++) {
-      auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
-      for (auto ix = 2; ix < 2 + INX + 2; ix++) {
-          for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-              it_x = std::copy(X[dim].begin() + start_offset,
-                  X[dim].begin() + start_offset + 10, it_x);
-              start_offset += 14;
-          }
-          start_offset += (2 + 2) * 14;
-      }
+        auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
+        for (auto ix = 2; ix < 2 + INX + 2; ix++) {
+            for (auto iy = 2; iy < 2 + INX + 2; iy++) {
+                it_x = std::copy(
+                    X[dim].begin() + start_offset, X[dim].begin() + start_offset + 10, it_x);
+                start_offset += 14;
+            }
+            start_offset += (2 + 2) * 14;
+        }
     }
 
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_f(NDIM * 15 * 1000 + 32);
+    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_f(
+        NDIM * 15 * 1000 + 32);
     // bunch of tmp containers
 
     // bunch of small helpers
-    static const cell_geometry<3, 8> geo;
+    const cell_geometry<3, 8> geo;
     static constexpr auto faces = geo.face_pts();
     static constexpr auto weights = geo.face_weight();
     static constexpr auto xloc = geo.xloc();
@@ -271,13 +267,13 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
 
     const double dx = X[0][geo.H_DNX] - X[0][0];
 
-    thread_local std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
-    thread_local std::vector<vc_type> FR(nf_), FL(nf_);
-    thread_local std::array<vc_type, NDIM> x;
-    thread_local std::array<vc_type, NDIM> vg;
+    std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
+    std::vector<vc_type> FR(nf_), FL(nf_);
+    std::array<vc_type, NDIM> x;
+    std::array<vc_type, NDIM> vg;
 
-    static const auto masks_container = create_masks();
-    static const bool* masks = masks_container.data();
+    static thread_local const auto masks_container = create_masks();
+    static thread_local const bool* masks = masks_container.data();
     constexpr size_t dim_offset = 1000;
     constexpr size_t face_offset = 27 * 1000;
     constexpr int compressedH_DN[3] = {100, 10, 1};
@@ -289,7 +285,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
         }
 
         for (int fi = 0; fi < geo.NFACEDIR; fi++) {    // 9
-            vc_type ap = 0.0, am = 0.0;                
+            vc_type ap = 0.0, am = 0.0;
             safe_real this_amax = 0.0;
             const auto d = faces[dim][fi];
             const auto flipped_dim = geo.flip_dim(d, dim);
@@ -306,13 +302,16 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                         dim_offset * flipped_dim - compressedH_DN[dim]);
                 }
                 for (int dim = 0; dim < NDIM; dim++) {
-                    x[dim] = vc_type(combined_x.data() + dim * 1000 + index) + vc_type(0.5 * xloc[d][dim] * dx);
+                    x[dim] = vc_type(combined_x.data() + dim * 1000 + index) +
+                        vc_type(0.5 * xloc[d][dim] * dx);
                 }
-                vg[0] = -omega * (vc_type(combined_x.data() + 1000 + index) + vc_type(0.5 * xloc[d][1] * dx));
-                vg[1] = +omega * (vc_type(combined_x.data() + index) + vc_type(0.5 * xloc[d][0] * dx));
+                vg[0] = -omega *
+                    (vc_type(combined_x.data() + 1000 + index) + vc_type(0.5 * xloc[d][1] * dx));
+                vg[1] =
+                    +omega * (vc_type(combined_x.data() + index) + vc_type(0.5 * xloc[d][0] * dx));
                 vg[2] = 0.0;
-                inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR, UL, FR, FL, this_flux, x, vg,
-                    this_ap, this_am, dim, d, dx);
+                inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR.data(), UL.data(), FR.data(),
+                    FL.data(), this_flux.data(), x.data(), vg.data(), this_ap, this_am, dim, d, dx);
                 Vc::where(!mask, this_ap) = 0.0;
                 Vc::where(!mask, this_am) = 0.0;
                 am = min_wrapper(am, this_am);
@@ -329,7 +328,8 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                 }
                 for (int f = 0; f < nf_; f++) {
                     const vc_type final_f =
-                        vc_type(combined_f.data() + dim * 15 * 1000 + f * 1000 + index) + weights[fi] * this_flux[f];
+                        vc_type(combined_f.data() + dim * 15 * 1000 + f * 1000 + index) +
+                        weights[fi] * this_flux[f];
                     final_f.store(combined_f.data() + dim * 15 * 1000 + f * 1000 + index);
                 }
             }
@@ -338,20 +338,21 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
 
     // convert f
     for (size_t dim = 0; dim < NDIM; dim++) {
-      for (auto face = 0; face < 15; face++) {
-        auto face_offset = dim * 15 * 1000 + face * 1000;
-        auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
-        auto compressed_offset = 0;
-        for (auto ix = 2; ix < 2 + INX + 2; ix++) {
-            for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                std::copy(combined_f.begin() + face_offset + compressed_offset,
-                    combined_f.begin() + face_offset + compressed_offset + 10, F[dim][face].data() + start_offset);
-                compressed_offset += 10;
-                start_offset += 14;
+        for (auto face = 0; face < 15; face++) {
+            auto face_offset = dim * 15 * 1000 + face * 1000;
+            auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
+            auto compressed_offset = 0;
+            for (auto ix = 2; ix < 2 + INX + 2; ix++) {
+                for (auto iy = 2; iy < 2 + INX + 2; iy++) {
+                    std::copy(combined_f.begin() + face_offset + compressed_offset,
+                        combined_f.begin() + face_offset + compressed_offset + 10,
+                        F[dim][face].data() + start_offset);
+                    compressed_offset += 10;
+                    start_offset += 14;
+                }
+                start_offset += (2 + 2) * 14;
             }
-            start_offset += (2 + 2) * 14;
         }
-      }
     }
     static thread_local std::vector<double> URs(nf_), ULs(nf_);
     ts.a = current_amax;
@@ -361,8 +362,9 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     const auto flipped_dim = geo.flip_dim(current_d, current_dim);
     for (int f = 0; f < nf_; f++) {
         URs[f] = combined_q[current_max_index + f * face_offset + dim_offset * current_d];
-        ULs[f] = combined_q[current_max_index - compressedH_DN[current_dim] + f * face_offset + dim_offset * flipped_dim];
-    } 
+        ULs[f] = combined_q[current_max_index - compressedH_DN[current_dim] + f * face_offset +
+            dim_offset * flipped_dim];
+    }
     ts.ul = ULs;
     ts.ur = URs;
     ts.dim = current_dim;

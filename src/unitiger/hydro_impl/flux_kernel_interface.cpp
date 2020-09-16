@@ -13,7 +13,6 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
     static constexpr auto faces = geo.face_pts();
     static constexpr auto weights = geo.face_weight();
     static constexpr auto xloc = geo.xloc();
-    static constexpr auto levi_civita = geo.levi_civita();
     double p, v, v0, c;
     const auto A_ = physics<NDIM>::A_;
     const auto B_ = physics<NDIM>::B_;
@@ -24,10 +23,11 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
 
     const auto dx = X[0][geo.H_DNX] - X[0][0];
 
-    static thread_local std::vector<double> UR(nf_), UL(nf_), this_flux(nf_);
-    static thread_local std::vector<double> FR(nf_), FL(nf_);
+    std::vector<double> UR(nf_), UL(nf_), this_flux(nf_);
+    std::vector<double> FR(nf_), FL(nf_);
     std::array<double, NDIM> x;
     std::array<double, NDIM> vg;
+
     for (int dim = 0; dim < NDIM; dim++) {
         const auto indices = geo.get_indexes(3, geo.face_pts()[dim][0]);
 
@@ -64,10 +64,8 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                         const size_t i = ix * geo.H_NX * geo.H_NX + iy * geo.H_NX + iz;
                         // why store this?
                         for (int f = 0; f < nf_; f++) {
-                            UR[f] = Q[f][d][i];    // not cache efficient at all - cacheline is
-                                                   // going to be dismissed
+                            UR[f] = Q[f][d][i];    
                             UL[f] = Q[f][flipped_dim][i - geo.H_DN[dim]];
-                            //std::cout<< "U" << f << ":"<< UR[f] << " " << UL[f] << std::endl;
                         }
                         for (int dim = 0; dim < NDIM; dim++) {
                             x[dim] = X[dim][i] + 0.5 * xloc[d][dim] * dx;
@@ -75,8 +73,8 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                         vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
                         vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
                         vg[2] = 0.0;
-                        this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR, UL, FR, FL,
-                            this_flux, x, vg, ap, am, dim, d, i, geo, dx);
+                        this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR.data(), UL.data(), FR.data(), FL.data(),
+                            this_flux.data(), x.data(), vg.data(), ap, am, dim, d, dx);
                         if (this_amax > current_amax) {
                             current_amax = this_amax;
                             current_max_index = i;
