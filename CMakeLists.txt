@@ -280,6 +280,7 @@ set(hydro_source_files
    src/unitiger/hydro.cpp
    src/unitiger/hydro_impl/flux_kernel_interface.cpp
    src/unitiger/hydro_impl/flux_cpu_kernel.cpp
+   src/unitiger/hydro_impl/flux_cuda_kernel.cu
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 

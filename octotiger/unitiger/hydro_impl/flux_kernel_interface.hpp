@@ -5,6 +5,8 @@
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 
+#include <boost/container/vector.hpp>    // to get non-specialized vector<bool>
+
 timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
     hydro::x_type& X, safe_real omega, const size_t nf_);
 
@@ -44,6 +46,10 @@ template <typename T>
 inline bool skippable(const T& tmp1) {
     return !tmp1;
 }
+
+
+boost::container::vector<bool> create_masks();
+
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
 
@@ -53,7 +59,7 @@ inline double_t inner_flux_loop(const double omega, const size_t nf_, const doub
     const double B_, const std::vector<double_t>& UR, const std::vector<double_t>& UL,
     std::vector<double_t>& FR, std::vector<double_t>& FL, std::vector<double_t>& this_flux,
     const std::array<double_t, NDIM> x, const std::array<double_t, NDIM>& vg, double_t& ap,
-    double_t& am, const size_t dim, const size_t d, const size_t ixxx, const cell_geometry<3, 8> geo,
+    double_t& am, const size_t dim, const size_t d,
     const double dx) {
     double_t amr, apr, aml, apl;
     double_t this_ap, this_am;    // tmps

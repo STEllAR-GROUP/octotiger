@@ -60,7 +60,7 @@ inline bool skippable<mask_type>(const mask_type& tmp1) {
     return Vc::none_of(tmp1);
 }
 
-auto create_masks() {
+boost::container::vector<bool> create_masks() {
     boost::container::vector<bool> masks(NDIM * 10 * 10 * 10);
     constexpr size_t dim_offset = 1000;
     const cell_geometry<3, 8> geo;
@@ -93,45 +93,6 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
 
     timestep_t ts;
     ts.a = 0.0;
-    // Convert
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_q(
-        15 * 27 * 10 * 10 * 10);
-    auto it = combined_q.begin();
-    for (auto face = 0; face < 15; face++) {
-        for (auto d = 0; d < 27; d++) {
-            auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
-            for (auto ix = 2; ix < 2 + INX + 2; ix++) {
-                for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                    it = std::copy(Q[face][d].begin() + start_offset,
-                        Q[face][d].begin() + start_offset + 10, it);
-                    start_offset += 14;
-                }
-                start_offset += (2 + 2) * 14;
-            }
-        }
-    }
-    const size_t face_offset = 27 * 1000;
-    const size_t d_offset = 1000;
-    // Check conversion
-    /* auto index = 0;
-    for (auto face = 0; face < 15; face++) {
-      for (auto d = 0; d < 27; d++) {
-        auto start_offset = 3 * 14 * 14 + 3 * 14 + 3;
-        for (auto ix = 3; ix < 3 + INX + 2; ix++) {
-          for (auto iy = 3; iy < 3 + INX + 2; iy++) {
-            for (auto iz = 3; iz < 3 + INX + 2; iz++) {
-              if (combined_q[index] != Q[face][d][ix * 14 * 14 + iy * 14 + iz]) {
-                std::cout << "Missmatch at: " << index << std::endl;
-                std::cout << combined_q[index] << " vs (orig) " << Q[face][d][ix * 14 * 14 + iy * 14
-    + iz] << std::endl; std::cin.get();
-              }
-              index++;
-            }
-          }
-        }
-      }
-    } */
-    // bunch of tmp containers
 
     // bunch of small helpers
     static const cell_geometry<3, 8> geo;
@@ -208,7 +169,7 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                             +omega * (vc_type(X[0].data() + i) + vc_type(0.5 * xloc[d][0] * dx));
                         vg[2] = 0.0;
                         inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR, UL, FR, FL, this_flux, x,
-                            vg, this_ap, this_am, dim, d, i, geo, dx);
+                            vg, this_ap, this_am, dim, d, dx);
                         Vc::where(!mask, this_ap) = 0.0;
                         Vc::where(!mask, this_am) = 0.0;
                         am = min_wrapper(am, this_am);
@@ -310,10 +271,10 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
 
     const double dx = X[0][geo.H_DNX] - X[0][0];
 
-    static thread_local std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
-    static thread_local std::vector<vc_type> FR(nf_), FL(nf_);
-    static thread_local std::array<vc_type, NDIM> x;
-    static thread_local std::array<vc_type, NDIM> vg;
+    thread_local std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
+    thread_local std::vector<vc_type> FR(nf_), FL(nf_);
+    thread_local std::array<vc_type, NDIM> x;
+    thread_local std::array<vc_type, NDIM> vg;
 
     static const auto masks_container = create_masks();
     static const bool* masks = masks_container.data();
@@ -321,22 +282,10 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     constexpr size_t face_offset = 27 * 1000;
     constexpr int compressedH_DN[3] = {100, 10, 1};
     for (int dim = 0; dim < NDIM; dim++) {
-        std::array<int, NDIM> lbs = {3, 3, 3};
-        std::array<int, NDIM> ubs = {geo.H_NX - 3, geo.H_NX - 3, geo.H_NX - 3};
-        for (int dimension = 0; dimension < NDIM; dimension++) {
-            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ?
-                (geo.H_NX - 3 + 1) :
-                (geo.H_NX - 3);
-            lbs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == +1 ? (3 - 1) : 3;
-        }
-
         // zero-initialize F
         for (int f = 0; f < nf_; f++) {
-#pragma ivdep
-            for (auto i = 0; i <  1000; i++) {
-                //F[dim][f][i] = 0.0;
-                combined_f[dim * 15 * 1000 + f * 1000 + i] = 0.0;
-            }
+            auto it = combined_f.begin() + dim * 15 * 1000 + f * 1000 + 111;
+            std::fill(it, it + 889, 0.0);
         }
 
         for (int fi = 0; fi < geo.NFACEDIR; fi++) {    // 9
@@ -363,7 +312,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                 vg[1] = +omega * (vc_type(combined_x.data() + index) + vc_type(0.5 * xloc[d][0] * dx));
                 vg[2] = 0.0;
                 inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR, UL, FR, FL, this_flux, x, vg,
-                    this_ap, this_am, dim, d, index, geo, dx);
+                    this_ap, this_am, dim, d, dx);
                 Vc::where(!mask, this_ap) = 0.0;
                 Vc::where(!mask, this_am) = 0.0;
                 am = min_wrapper(am, this_am);
