@@ -1,5 +1,35 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
+template <>
+inline void select_wrapper<double, bool>(
+    double_t& target, const bool cond, const double& tmp1, const double& tmp2) {
+    target = cond ? tmp1 : tmp2;
+}
+template <>
+inline double max_wrapper<double>(const double& tmp1, const double& tmp2) {
+    return std::max(tmp1, tmp2);
+}
+template <>
+inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
+    return std::min(tmp1, tmp2);
+}
+template <>
+inline double sqrt_wrapper<double>(const double& tmp1) {
+    return std::sqrt(tmp1);
+}
+template <>
+inline double pow_wrapper<double>(const double& tmp1, const double& tmp2) {
+    return std::pow(tmp1, tmp2);
+}
+template <>
+inline double asin_wrapper<double>(const double& tmp1) {
+    return std::asin(tmp1);
+}
+template <>
+inline bool skippable<double>(const double& tmp1) {
+    return !tmp1;
+}
+
 timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
     hydro::x_type& X, safe_real omega, const size_t nf_) {
     // input Q, X
@@ -54,7 +84,7 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
             const auto d = faces[dim][fi];
 
             const auto flipped_dim = geo.flip_dim(d, dim);
-            //std::cout << "--Face:" << fi << "----------------------------------" << std::endl;
+            // std::cout << "--Face:" << fi << "----------------------------------" << std::endl;
             for (size_t ix = lbs[0]; ix < ubs[0]; ix++) {
                 for (size_t iy = lbs[1]; iy < geo.H_NX; iy++) {
                     for (size_t iz = lbs[2]; iz < geo.H_NX; iz++) {
@@ -63,7 +93,7 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                         const size_t i = ix * geo.H_NX * geo.H_NX + iy * geo.H_NX + iz;
                         // why store this?
                         for (int f = 0; f < nf_; f++) {
-                            UR[f] = Q[f][d][i];    
+                            UR[f] = Q[f][d][i];
                             UL[f] = Q[f][flipped_dim][i - geo.H_DN[dim]];
                         }
                         for (int dim = 0; dim < NDIM; dim++) {
@@ -72,8 +102,9 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
                         vg[0] = -omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
                         vg[1] = +omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
                         vg[2] = 0.0;
-                        this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR.data(), UL.data(), 
-                            this_flux.data(), x.data(), vg.data(), ap, am, dim, d, dx);
+                        this_amax = inner_flux_loop<double>(omega, nf_, A_, B_, UR.data(),
+                            UL.data(), this_flux.data(), x.data(), vg.data(), ap, am, dim, d, dx,
+                            physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1);
                         if (this_amax > current_amax) {
                             current_amax = this_amax;
                             current_max_index = i;
