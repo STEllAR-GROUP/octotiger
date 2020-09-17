@@ -342,6 +342,7 @@ if(OCTOTIGER_WITH_KOKKOS)
 
     #misc
     src/cuda_util/cuda_scheduler.cpp
+    src/unitiger/hydro_impl/flux_kernel_interface.cpp
   )
   set(host_only_header_files
     octotiger/simd.hpp

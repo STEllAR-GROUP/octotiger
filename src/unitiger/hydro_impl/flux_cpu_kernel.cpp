@@ -42,13 +42,10 @@ inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
     // TODO(daissgr) is this accurate enough?
     return Vc::exp(static_cast<vc_type>(tmp2) * Vc::log(tmp1));
 
-    // std::cout << "Pow in: " << tmp1 << " ^ " << tmp2 << std::endl;
     // vc_type ret = 0.0;
     // for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
     // ret[vec_i] = std::pow(tmp1[vec_i], tmp2);
     //}
-    // //std::cout << "Pow out: " << ret << std::endl;
-    // //std::cout << "Pow exp: " << Vc::exp(static_cast<vc_type>(tmp2)*Vc::log(tmp1)) << std::endl;
     // return ret;
 }
 template <>
@@ -58,6 +55,10 @@ inline vc_type asin_wrapper<vc_type>(const vc_type& tmp1) {
 template <>
 inline bool skippable<mask_type>(const mask_type& tmp1) {
     return Vc::none_of(tmp1);
+}
+template <>
+inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
+    return vc_type(data + index);
 }
 
 boost::container::vector<bool> create_masks() {
@@ -161,8 +162,8 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                             +omega * (vc_type(X[0].data() + i) + vc_type(0.5 * xloc[d][0] * dx));
                         vg[2] = 0.0;
                         inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR.data(), UL.data(),
-                            this_flux.data(), x.data(), vg.data(), this_ap,
-                            this_am, dim, d, dx);
+                            this_flux.data(), x.data(), vg.data(), this_ap, this_am, dim, d, dx,
+                            physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1);
                         Vc::where(!mask, this_ap) = 0.0;
                         Vc::where(!mask, this_am) = 0.0;
                         am = min_wrapper(am, this_am);
@@ -294,11 +295,11 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                     continue;
                 vc_type this_ap = 0.0, this_am = 0.0;    // tmps
 
-                for (int f = 0; f < nf_; f++) {
+                /*for (int f = 0; f < nf_; f++) {
                     UR[f] = vc_type(combined_q.data() + index + f * face_offset + dim_offset * d);
                     UL[f] = vc_type(combined_q.data() + index + f * face_offset +
                         dim_offset * flipped_dim - compressedH_DN[dim]);
-                }
+                }*/
                 for (int dim = 0; dim < NDIM; dim++) {
                     x[dim] = vc_type(combined_x.data() + dim * 1000 + index) +
                         vc_type(0.5 * xloc[d][dim] * dx);
@@ -308,8 +309,10 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                 vg[1] =
                     +omega * (vc_type(combined_x.data() + index) + vc_type(0.5 * xloc[d][0] * dx));
                 vg[2] = 0.0;
-                inner_flux_loop<vc_type>(omega, nf_, A_, B_, UR.data(), UL.data(), 
-                    this_flux.data(), x.data(), vg.data(), this_ap, this_am, dim, d, dx);
+                inner_flux_loop2<vc_type>(omega, nf_, A_, B_, combined_q.data(), this_flux.data(),
+                    x.data(), vg.data(), this_ap, this_am, dim, d, dx, physics<NDIM>::fgamma_,
+                    physics<NDIM>::de_switch_1, dim_offset * d + index,
+                    dim_offset * flipped_dim + index - compressedH_DN[dim], face_offset);
                 Vc::where(!mask, this_ap) = 0.0;
                 Vc::where(!mask, this_am) = 0.0;
                 am = min_wrapper(am, this_am);
