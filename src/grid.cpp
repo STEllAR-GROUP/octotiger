@@ -1790,47 +1790,87 @@ timestep_t grid::compute_fluxes() {
 		}
 	}
 	hydro.use_smooth_recon(pot_i);
-	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-	const auto &q = hydro.reconstruct(U, X, omega);
+  bool use_new_datastructure = true;
+  if (!use_new_datastructure) {
 
-  thread_local size_t launch_counter = 0;
-  thread_local size_t total_time = 0;
-  thread_local size_t avg_time = 0;
-  auto start = std::chrono::system_clock::now();
-	//auto max_lambda = hydro.flux(U, q, f, X, omega);
-	//auto max_lambda = hydro.flux_experimental(q, f, X, omega);
- //auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
-//auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
- //auto max_lambda = flux_unified_cpu_kernel(q, f, X, omega, hydro.get_nf());
- auto max_lambda = launch_flux_cuda(q, f, X, omega, hydro.get_nf());
-  auto end = std::chrono::system_clock::now();
-  auto elapsed =
-    std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  launch_counter++;
-  total_time += elapsed.count();
-  //std::cout << "Max: " << max_lambda.a << std::endl;
-  //std::cout << total_time / launch_counter << '\n';
+    static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
+        std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+    const auto &q = hydro.reconstruct(U, X, omega);
 
-	for (int dim = 0; dim < NDIM; dim++) {
-		for (integer field = 0; field != opts().n_fields; ++field) {
+    thread_local size_t launch_counter = 0;
+    thread_local size_t total_time = 0;
+    thread_local size_t avg_time = 0;
+    auto start = std::chrono::system_clock::now();
+    //auto max_lambda = hydro.flux(U, q, f, X, omega);
+    //auto max_lambda = hydro.flux_experimental(q, f, X, omega);
+   //auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
+    auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
+    auto end = std::chrono::system_clock::now();
+    auto elapsed =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    launch_counter++;
+    total_time += elapsed.count();
+    //std::cout << "Max: " << max_lambda.a << std::endl;
+    //std::cout << total_time / launch_counter << '\n';
+
+    for (int dim = 0; dim < NDIM; dim++) {
+      for (integer field = 0; field != opts().n_fields; ++field) {
 #pragma GCC ivdep
-			for (integer i = 0; i <= INX; ++i) {
-				for (integer j = 0; j <= INX; ++j) {
-					for (integer k = 0; k <= INX; ++k) {
-						const auto i0 = findex(i, j, k);
-						F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-						real rho_tot = 0.0;
-						for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
-							rho_tot += F[dim][field][i0];
-						}
-						F[dim][rho_i][i0] = rho_tot;
-					}
-				}
-			}
-		}
-	}
-	return max_lambda;
+        for (integer i = 0; i <= INX; ++i) {
+          for (integer j = 0; j <= INX; ++j) {
+            for (integer k = 0; k <= INX; ++k) {
+              const auto i0 = findex(i, j, k);
+              F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+              real rho_tot = 0.0;
+              for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
+                rho_tot += F[dim][field][i0];
+              }
+              F[dim][rho_i][i0] = rho_tot;
+            }
+          }
+        }
+      }
+    }
+    return max_lambda;
+  } else {
+    auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
+        std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+    const auto &q = hydro.reconstruct(U, X, omega);
+
+    thread_local size_t launch_counter = 0;
+    thread_local size_t total_time = 0;
+    thread_local size_t avg_time = 0;
+    auto start = std::chrono::system_clock::now();
+    //auto max_lambda = flux_unified_cpu_kernel(q, f, X, omega, hydro.get_nf());
+    auto max_lambda = launch_flux_cuda(q, f, X, omega, hydro.get_nf());
+    auto end = std::chrono::system_clock::now();
+    auto elapsed =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    launch_counter++;
+    total_time += elapsed.count();
+    //std::cout << "Max: " << max_lambda.a << std::endl;
+    //std::cout << total_time / launch_counter << '\n';
+
+    for (int dim = 0; dim < NDIM; dim++) {
+      for (integer field = 0; field != opts().n_fields; ++field) {
+#pragma GCC ivdep
+        for (integer i = 0; i <= INX; ++i) {
+          for (integer j = 0; j <= INX; ++j) {
+            for (integer k = 0; k <= INX; ++k) {
+              const auto i0 = findex(i, j, k);
+              F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+              real rho_tot = 0.0;
+              for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
+                rho_tot += F[dim][field][i0];
+              }
+              F[dim][rho_i][i0] = rho_tot;
+            }
+          }
+        }
+      }
+    }
+    return max_lambda;
+  }
 }
 
 real grid::compute_positivity_speed_limit() const {
