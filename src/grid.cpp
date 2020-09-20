@@ -1801,13 +1801,16 @@ timestep_t grid::compute_fluxes() {
 	//auto max_lambda = hydro.flux(U, q, f, X, omega);
 	//auto max_lambda = hydro.flux_experimental(q, f, X, omega);
  //auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
- auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
+//auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
+ //auto max_lambda = flux_unified_cpu_kernel(q, f, X, omega, hydro.get_nf());
+ auto max_lambda = launch_flux_cuda(q, f, X, omega, hydro.get_nf());
   auto end = std::chrono::system_clock::now();
   auto elapsed =
     std::chrono::duration_cast<std::chrono::microseconds>(end - start);
   launch_counter++;
   total_time += elapsed.count();
-  std::cout << total_time / launch_counter << '\n';
+  //std::cout << "Max: " << max_lambda.a << std::endl;
+  //std::cout << total_time / launch_counter << '\n';
 
 	for (int dim = 0; dim < NDIM; dim++) {
 		for (integer field = 0; field != opts().n_fields; ++field) {

@@ -291,6 +291,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
 
             for (size_t index = 111; index < 10 * 100; index += vc_type::size()) {
                 const vc_type::mask_type mask(masks + index + dim * dim_offset);
+
                 if (Vc::none_of(mask))
                     continue;
                 vc_type this_ap = 0.0, this_am = 0.0;    // tmps
@@ -309,6 +310,9 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                 vg[1] =
                     +omega * (vc_type(combined_x.data() + index) + vc_type(0.5 * xloc[d][0] * dx));
                 vg[2] = 0.0;
+    /*if (index == 111 && dim == 0) {
+      std::cout << "CPUInput: Q1i " <<dim_offset * d + index << " Q2i " << dim_offset * flipped_dim - compressedH_DN[dim] + index << " X2 " << x[2] << " X1 " << x[1] << " x0 " << x[0] << " vg2 " << vg[2] << " vg1 " << vg[1] << " vg0 " << vg[0] << " dx " << dx << std::endl;
+    }*/
                 inner_flux_loop2<vc_type>(omega, nf_, A_, B_, combined_q.data(), this_flux.data(),
                     x.data(), vg.data(), this_ap, this_am, dim, d, dx, physics<NDIM>::fgamma_,
                     physics<NDIM>::de_switch_1, dim_offset * d + index,
@@ -336,6 +340,17 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
             }
         }    // end dirs
     }        // end dim
+    /*std::cout << "Flux cpu kernel:" << std::endl;
+    for (size_t dim = 0; dim < 1; dim++) {
+        for (auto face = 0; face < 1; face++) {
+          for (auto i = 111; i < 120; i++) {
+            std::cout << combined_f[i] << " ";
+          }
+        }
+        std::cout << std::endl << std::endl;
+    }
+    std::cout << "ended Flux cpu kernel:" << std::endl;
+    std::cin.get();*/
 
     // convert f
     for (size_t dim = 0; dim < NDIM; dim++) {
