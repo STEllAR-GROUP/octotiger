@@ -217,7 +217,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     timestep_t ts;
     ts.a = 0.0;
     // Convert
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_q(
+    std::vector<double, recycler::aggressive_recycle_std<double>> combined_q(
         15 * 27 * 10 * 10 * 10 + 32);
     auto it = combined_q.begin();
     for (auto face = 0; face < 15; face++) {
@@ -233,7 +233,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
             }
         }
     }
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_x(
+    std::vector<double, recycler::aggressive_recycle_std<double>> combined_x(
         NDIM * 1000 + 32);
     auto it_x = combined_x.begin();
     for (size_t dim = 0; dim < NDIM; dim++) {
@@ -248,12 +248,12 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
         }
     }
 
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> combined_f(
+    std::vector<double, recycler::aggressive_recycle_std<double>> combined_f(
         NDIM * 15 * 1000 + 32);
     // bunch of tmp containers
 
     // bunch of small helpers
-    const cell_geometry<3, 8> geo;
+    static const cell_geometry<3, 8> geo;
     static constexpr auto faces = geo.face_pts();
     static constexpr auto weights = geo.face_weight();
     static constexpr auto xloc = geo.xloc();
@@ -267,21 +267,23 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
 
     const double dx = X[0][geo.H_DNX] - X[0][0];
 
-    std::vector<vc_type> UR(nf_), UL(nf_), this_flux(nf_);
+    std::vector<vc_type> this_flux(nf_);
     std::array<vc_type, NDIM> x;
     std::array<vc_type, NDIM> vg;
 
-    static thread_local const auto masks_container = create_masks();
-    static thread_local const bool* masks = masks_container.data();
+    const auto masks_container = create_masks();
+    const bool* masks = masks_container.data();
     constexpr size_t dim_offset = 1000;
     constexpr size_t face_offset = 27 * 1000;
     constexpr int compressedH_DN[3] = {100, 10, 1};
     for (int dim = 0; dim < NDIM; dim++) {
         // zero-initialize F
-        for (int f = 0; f < nf_; f++) {
+        /*for (int f = 0; f < nf_; f++) {
             auto it = combined_f.begin() + dim * 15 * 1000 + f * 1000 + 111;
             std::fill(it, it + 889, 0.0);
-        }
+        }*/
+        auto it = combined_f.begin() + dim * 15 * 1000;
+        std::fill(it, it + 15000, 0.0);
 
         for (int fi = 0; fi < geo.NFACEDIR; fi++) {    // 9
             vc_type ap = 0.0, am = 0.0;
@@ -296,11 +298,6 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                     continue;
                 vc_type this_ap = 0.0, this_am = 0.0;    // tmps
 
-                /*for (int f = 0; f < nf_; f++) {
-                    UR[f] = vc_type(combined_q.data() + index + f * face_offset + dim_offset * d);
-                    UL[f] = vc_type(combined_q.data() + index + f * face_offset +
-                        dim_offset * flipped_dim - compressedH_DN[dim]);
-                }*/
                 for (int dim = 0; dim < NDIM; dim++) {
                     x[dim] = vc_type(combined_x.data() + dim * 1000 + index) +
                         vc_type(0.5 * xloc[d][dim] * dx);
@@ -310,13 +307,11 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                 vg[1] =
                     +omega * (vc_type(combined_x.data() + index) + vc_type(0.5 * xloc[d][0] * dx));
                 vg[2] = 0.0;
-    /*if (index == 111 && dim == 0) {
-      std::cout << "CPUInput: Q1i " <<dim_offset * d + index << " Q2i " << dim_offset * flipped_dim - compressedH_DN[dim] + index << " X2 " << x[2] << " X1 " << x[1] << " x0 " << x[0] << " vg2 " << vg[2] << " vg1 " << vg[1] << " vg0 " << vg[0] << " dx " << dx << std::endl;
-    }*/
                 inner_flux_loop2<vc_type>(omega, nf_, A_, B_, combined_q.data(), this_flux.data(),
                     x.data(), vg.data(), this_ap, this_am, dim, d, dx, physics<NDIM>::fgamma_,
                     physics<NDIM>::de_switch_1, dim_offset * d + index,
                     dim_offset * flipped_dim + index - compressedH_DN[dim], face_offset);
+
                 Vc::where(!mask, this_ap) = 0.0;
                 Vc::where(!mask, this_am) = 0.0;
                 am = min_wrapper(am, this_am);
@@ -332,6 +327,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                     }
                 }
                 for (int f = 0; f < nf_; f++) {
+                    Vc::where(!mask, this_flux[f]) = 0.0;
                     const vc_type final_f =
                         vc_type(combined_f.data() + dim * 15 * 1000 + f * 1000 + index) +
                         weights[fi] * this_flux[f];
@@ -340,28 +336,17 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
             }
         }    // end dirs
     }        // end dim
-    /*std::cout << "Flux cpu kernel:" << std::endl;
-    for (size_t dim = 0; dim < 1; dim++) {
-        for (auto face = 0; face < 1; face++) {
-          for (auto i = 111; i < 120; i++) {
-            std::cout << combined_f[i] << " ";
-          }
-        }
-        std::cout << std::endl << std::endl;
-    }
-    std::cout << "ended Flux cpu kernel:" << std::endl;
-    std::cin.get();*/
 
     // convert f
     for (size_t dim = 0; dim < NDIM; dim++) {
         for (auto face = 0; face < 15; face++) {
-            auto face_offset = dim * 15 * 1000 + face * 1000;
+            auto face_offse_f = dim * 15 * 1000 + face * 1000;
             auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
             auto compressed_offset = 0;
             for (auto ix = 2; ix < 2 + INX + 2; ix++) {
                 for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                    std::copy(combined_f.begin() + face_offset + compressed_offset,
-                        combined_f.begin() + face_offset + compressed_offset + 10,
+                    std::copy(combined_f.begin() + face_offse_f + compressed_offset,
+                        combined_f.begin() + face_offse_f + compressed_offset + 10,
                         F[dim][face].data() + start_offset);
                     compressed_offset += 10;
                     start_offset += 14;
@@ -370,7 +355,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
             }
         }
     }
-    static thread_local std::vector<double> URs(nf_), ULs(nf_);
+    std::vector<double> URs(nf_), ULs(nf_);
     ts.a = current_amax;
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + 1000];
@@ -381,8 +366,8 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
         ULs[f] = combined_q[current_max_index - compressedH_DN[current_dim] + f * face_offset +
             dim_offset * flipped_dim];
     }
-    ts.ul = ULs;
-    ts.ur = URs;
+    ts.ul = std::move(ULs);
+    ts.ur = std::move(URs);
     ts.dim = current_dim;
     return ts;
 }

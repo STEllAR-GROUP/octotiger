@@ -21,7 +21,6 @@
 #include "octotiger/test_problems/amr/amr.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct.hpp"
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
-#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
 #include <hpx/include/runtime.hpp>
 #include <hpx/collectives/broadcast_direct.hpp>
@@ -33,6 +32,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
 std::vector<int> grid::field_bw;
 std::vector<int> grid::energy_bw;
@@ -1797,19 +1797,20 @@ timestep_t grid::compute_fluxes() {
         std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
     const auto &q = hydro.reconstruct(U, X, omega);
 
-    thread_local size_t launch_counter = 0;
-    thread_local size_t total_time = 0;
-    thread_local size_t avg_time = 0;
-    auto start = std::chrono::system_clock::now();
+    //thread_local size_t launch_counter = 0;
+    //thread_local size_t total_time = 0;
+    //thread_local size_t avg_time = 0;
+    //auto start = std::chrono::system_clock::now();
     //auto max_lambda = hydro.flux(U, q, f, X, omega);
     //auto max_lambda = hydro.flux_experimental(q, f, X, omega);
    //auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
     auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
-    auto end = std::chrono::system_clock::now();
-    auto elapsed =
-      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    launch_counter++;
-    total_time += elapsed.count();
+    //auto max_lambda = flux_unified_cpu_kernel(q, f, X, omega, hydro.get_nf());
+    //auto end = std::chrono::system_clock::now();
+    //auto elapsed =
+    //  std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    //launch_counter++;
+    //total_time += elapsed.count();
     //std::cout << "Max: " << max_lambda.a << std::endl;
     //std::cout << total_time / launch_counter << '\n';
 
@@ -1833,32 +1834,36 @@ timestep_t grid::compute_fluxes() {
     }
     return max_lambda;
   } else {
-    auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-        std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+    //auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
+    //    std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
     const auto &q = hydro.reconstruct(U, X, omega);
 
-    thread_local size_t launch_counter = 0;
-    thread_local size_t total_time = 0;
-    thread_local size_t avg_time = 0;
-    auto start = std::chrono::system_clock::now();
+
+    //thread_local size_t launch_counter = 0;
+    //thread_local size_t total_time = 0;
+    //thread_local size_t avg_time = 0;
+    //auto start = std::chrono::system_clock::now();
     //auto max_lambda = flux_unified_cpu_kernel(q, f, X, omega, hydro.get_nf());
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>> f(NDIM * 15 * 1000 + 32);
     auto max_lambda = launch_flux_cuda(q, f, X, omega, hydro.get_nf());
-    auto end = std::chrono::system_clock::now();
-    auto elapsed =
-      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    launch_counter++;
-    total_time += elapsed.count();
+    //auto end = std::chrono::system_clock::now();
+    //auto elapsed =
+    //  std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    //launch_counter++;
+    //total_time += elapsed.count();
     //std::cout << "Max: " << max_lambda.a << std::endl;
     //std::cout << total_time / launch_counter << '\n';
 
     for (int dim = 0; dim < NDIM; dim++) {
       for (integer field = 0; field != opts().n_fields; ++field) {
+      const auto dim_offset = dim * opts().n_fields * 1000 + field * 1000;
 #pragma GCC ivdep
         for (integer i = 0; i <= INX; ++i) {
           for (integer j = 0; j <= INX; ++j) {
             for (integer k = 0; k <= INX; ++k) {
               const auto i0 = findex(i, j, k);
-              F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+              const auto input_index = (i + 1) * 10 * 10 + (j + 1) * 10 + (k + 1);
+              F[dim][field][i0] = f[ dim_offset + input_index];
               real rho_tot = 0.0;
               for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
                 rho_tot += F[dim][field][i0];

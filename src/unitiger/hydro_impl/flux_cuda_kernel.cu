@@ -9,7 +9,7 @@
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
-#include <mutex>
+#include <hpx/synchronization/once.hpp>
 
 __device__ inline int flip_dim(const int d, const int flip_dim) {
 		int dims[3];
@@ -44,7 +44,7 @@ __device__ const int xloc[27][3] = {
 __device__ const double quad_weights[9] = { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4.
 			/ 36., 1. / 36., 4. / 36., 1. / 36. };
 
-std::once_flag flag1;
+hpx::lcos::local::once_flag flag1;
 
 __host__ void init_gpu_masks(bool *masks) {
   auto masks_boost = create_masks();
@@ -52,9 +52,9 @@ __host__ void init_gpu_masks(bool *masks) {
 }
 
 __host__ const bool* get_gpu_masks(void) {
-    static recycler::cuda_device_buffer<bool> masks(NDIM * 1000, 0);
-    std::call_once(flag1, init_gpu_masks, masks.device_side_buffer);
-    return masks.device_side_buffer;
+    static bool *masks = recycler::recycle_allocator_cuda_device<bool>{}.allocate(NDIM * 1000);
+    hpx::lcos::local::call_once(flag1, init_gpu_masks, masks);
+    return masks;
 }
 
 __device__ const int offset = 0;
@@ -74,6 +74,7 @@ __launch_bounds__(900, 1)
   const int dim = blockIdx.z;
   const int index = threadIdx.x * 100 + threadIdx.y * 10 + threadIdx.z + 100;
   int tid = index - 100;   
+  double mask = masks[index + dim * dim_offset];
   //if(tid == 0)
   // printf("starting...");
   const int nf = 15;
@@ -85,34 +86,32 @@ __launch_bounds__(900, 1)
       f_combined[dim * 15 * 1000 + f * 1000 + index] = 0.0;
   }
 
-  double mask = masks[index + dim * dim_offset];
   double current_amax = 0.0;
   int current_d = 0;
-  for (int fi = 0; fi < 9; fi++) {    // 9
-    double this_ap = 0.0, this_am = 0.0;    // tmps
-    const int d = faces[dim][fi];
-    const int flipped_dim = flip_dim(d, dim);
-    for (int dim = 0; dim < 3; dim++) {
-        local_x[dim] = x_combined[dim * 1000 + index] + (0.5 * xloc[d][dim] * dx);
-    }
-    local_vg[0] = -omega * (x_combined[1000 + index] + 0.5 * xloc[d][1] * dx);
-    local_vg[1] = +omega * (x_combined[index] + 0.5 * xloc[d][0] * dx);
-    local_vg[2] = 0.0;
-    /*if (index == 111 && dim == 0) {
-      printf("CUDAInput: Q1i %i Q2i %i :: X2 %f X1 %f X0 %f :: vg2 %f vg1 %f vg0 %f dx: %f\n",dim_offset * d + index,  dim_offset * flipped_dim - compressedH_DN[dim] + index, local_x[2], local_x[1], local_x[0], local_vg[2], local_vg[1], local_vg[0] ,dx);
-    }*/
-    inner_flux_loop2<double>(omega, nf, A_, B_, q_combined, local_f, local_x, local_vg,
-      this_ap, this_am, dim, d, dx, fgamma, de_switch_1, dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index, face_offset);
-    this_ap *= mask;
-    this_am *= mask;
-    const double amax_tmp = max_wrapper(this_ap, (-this_am));
-    if (amax_tmp > current_amax) {
-      current_amax = amax_tmp;
-      current_d = d;
-    }
-    for (int f = 0; f < nf; f++) {
-      f_combined[dim * 15 * 1000 + f * 1000 + index] += quad_weights[fi] * local_f[f] * mask;
-    }
+  if(mask != 0.0) {
+    for (int fi = 0; fi < 9; fi++) {    // 9
+      double this_ap = 0.0, this_am = 0.0;    // tmps
+      const int d = faces[dim][fi];
+      const int flipped_dim = flip_dim(d, dim);
+      for (int dim = 0; dim < 3; dim++) {
+          local_x[dim] = x_combined[dim * 1000 + index] + (0.5 * xloc[d][dim] * dx);
+      }
+      local_vg[0] = -omega * (x_combined[1000 + index] + 0.5 * xloc[d][1] * dx);
+      local_vg[1] = +omega * (x_combined[index] + 0.5 * xloc[d][0] * dx);
+      local_vg[2] = 0.0;
+      inner_flux_loop2<double>(omega, nf, A_, B_, q_combined, local_f, local_x, local_vg,
+        this_ap, this_am, dim, d, dx, fgamma, de_switch_1, dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index, face_offset);
+      this_ap *= mask;
+      this_am *= mask;
+      const double amax_tmp = max_wrapper(this_ap, (-this_am));
+      if (amax_tmp > current_amax) {
+        current_amax = amax_tmp;
+        current_d = d;
+      }
+      for (int f = 0; f < nf; f++) {
+        f_combined[dim * 15 * 1000 + f * 1000 + index] += quad_weights[fi] * local_f[f];
+      }
+   }
  }
 
  // Find maximum:
@@ -155,14 +154,11 @@ __launch_bounds__(900, 1)
    amax[dim] = sm_amax[0];
    amax_indices[dim] = sm_i[0];
    amax_d[dim] = sm_d[0];
- //printf("%i dim: %f %i %i \n", dim, amax[dim], amax_indices[dim], amax_d[dim]);
  }
-
-
  return;
 }
 
-timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
+timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, hydro::x_type& X,
     safe_real omega, const size_t nf_) {
     timestep_t ts;
 
@@ -170,10 +166,9 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, hydro::flux_type& 
     bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                  pool_strategy>(opts().cuda_buffer_capacity);
   
-    // Call CPU kernel as no stream is free
     if (!avail) {
-       return flux_cpu_kernel(Q, F, X, omega, nf_);
-    } else {
+      std::cerr << "Warning, high GPU load in flux detected... This shouldn't happen" << std::endl;
+    } 
 
     size_t device_id =
       stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
@@ -222,7 +217,6 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, hydro::flux_type& 
     cudaMemcpyAsync, device_x.device_side_buffer,
     combined_x.data(), (NDIM * 1000 + 32) * sizeof(double), cudaMemcpyHostToDevice);
 
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_f(NDIM * 15 * 1000 + 32);
     recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
     const bool *masks = get_gpu_masks();
 
@@ -263,37 +257,7 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, hydro::flux_type& 
                cudaMemcpyAsync, combined_f.data(), device_f.device_side_buffer,
                (NDIM * 15 * 1000 + 32) * sizeof(double), cudaMemcpyDeviceToHost);
     fut.get();
-    /*std::cout << "cuda kernel:" << std::endl;
-    for (size_t dim = 0; dim < 1; dim++) {
-        for (auto face = 0; face < 1; face++) {
-          for (auto i = 111; i < 120; i++) {
-            std::cout << combined_f[i] << " ";
-          }
-        }
-        std::cout << std::endl << std::endl;
-    } 
-    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-               cudaStreamSynchronize);
-    std::cout << "ended cuda kernel:" << std::endl;
-    std::cin.get();*/
-    // Convert data back to Octo-Tiger format
-    for (size_t dim = 0; dim < NDIM; dim++) {
-        for (auto face = 0; face < 15; face++) {
-            auto face_offset = dim * 15 * 1000 + face * 1000;
-            auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
-            auto compressed_offset = 0;
-            for (auto ix = 2; ix < 2 + INX + 2; ix++) {
-                for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                    std::copy(combined_f.begin() + face_offset + compressed_offset,
-                        combined_f.begin() + face_offset + compressed_offset + 10,
-                        F[dim][face].data() + start_offset);
-                    compressed_offset += 10;
-                    start_offset += 14;
-                }
-                start_offset += (2 + 2) * 14;
-            }
-        }
-    }
+
     // Find Maximum
     size_t current_dim = 0;
     for (size_t dim_i = 1; dim_i < NDIM; dim_i++) {
@@ -302,7 +266,7 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, hydro::flux_type& 
       }
     }
     //std::cin.get();
-    static thread_local std::vector<double> URs(nf_), ULs(nf_);
+    std::vector<double> URs(nf_), ULs(nf_);
     const size_t current_max_index = amax_indices[current_dim];
     const size_t current_d = amax_d[current_dim];
     ts.a = amax[current_dim];
@@ -316,11 +280,10 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, hydro::flux_type& 
         ULs[f] = combined_q[current_max_index - compressedH_DN[current_dim] + f * face_offset +
             dim_offset * flipped_dim];
     }
-    ts.ul = ULs;
-    ts.ur = URs;
+    ts.ul = std::move(ULs);
+    ts.ur = std::move(URs);
     ts.dim = current_dim;
     return ts;
-    }
 }
 
 
