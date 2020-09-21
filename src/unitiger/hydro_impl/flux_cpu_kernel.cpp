@@ -271,19 +271,21 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     std::array<vc_type, NDIM> x;
     std::array<vc_type, NDIM> vg;
 
-    const auto masks_container = create_masks();
-    const bool* masks = masks_container.data();
+    // TODO(daissgr) why is this only working with static?
+    static const auto masks_container = create_masks();
+    static const bool* masks = masks_container.data();
+
     constexpr size_t dim_offset = 1000;
     constexpr size_t face_offset = 27 * 1000;
     constexpr int compressedH_DN[3] = {100, 10, 1};
     for (int dim = 0; dim < NDIM; dim++) {
         // zero-initialize F
-        /*for (int f = 0; f < nf_; f++) {
+        for (int f = 0; f < nf_; f++) {
             auto it = combined_f.begin() + dim * 15 * 1000 + f * 1000 + 111;
             std::fill(it, it + 889, 0.0);
-        }*/
-        auto it = combined_f.begin() + dim * 15 * 1000;
-        std::fill(it, it + 15000, 0.0);
+        }
+        //auto it = combined_f.begin() + dim * 15 * 1000;
+        //std::fill(it, it + 15000, 0.0);
 
         for (int fi = 0; fi < geo.NFACEDIR; fi++) {    // 9
             vc_type ap = 0.0, am = 0.0;
@@ -327,7 +329,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
                     }
                 }
                 for (int f = 0; f < nf_; f++) {
-                    Vc::where(!mask, this_flux[f]) = 0.0;
+                    //Vc::where(!mask, this_flux[f]) = 0.0;
                     const vc_type final_f =
                         vc_type(combined_f.data() + dim * 15 * 1000 + f * 1000 + index) +
                         weights[fi] * this_flux[f];
