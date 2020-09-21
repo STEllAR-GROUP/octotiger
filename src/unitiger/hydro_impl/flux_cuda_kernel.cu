@@ -163,7 +163,8 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, std::vector<double
     timestep_t ts;
 
     // Check availability
-    bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+    // TODO(daissgr) Why is this segfaulting at the end of the simulation despite not being called?
+  /*  bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                  pool_strategy>(opts().cuda_buffer_capacity);
   
     if (!avail) {
@@ -172,7 +173,8 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, std::vector<double
 
     size_t device_id =
       stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
-      pool_strategy>();
+      pool_strategy>();*/
+    size_t device_id = 0;
 
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
 
