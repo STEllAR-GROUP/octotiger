@@ -1,3 +1,5 @@
+#pragma once
+
 #include <array>
 #include <vector>
 
@@ -58,6 +60,10 @@ CUDA_CALLABLE_METHOD inline bool skippable(const T& tmp1) {
 template <typename T>
 CUDA_CALLABLE_METHOD inline T load_value(const double* __restrict__ data, const size_t index) {
     return data[index];
+}
+template <typename T>
+CUDA_CALLABLE_METHOD inline void store_value(const double* __restrict__ data, const size_t index, const T &value) {
+    return data[index] = value;
 }
 
 boost::container::vector<bool> create_masks();
