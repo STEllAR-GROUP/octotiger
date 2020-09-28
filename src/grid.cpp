@@ -335,7 +335,7 @@ std::vector<silo_var_t> grid::var_data() const {
 	{
 
 		int jjj = 0;
-		silo_var_t this_s("idle_rate");
+		silo_var_t this_s("roche lobe");
 		for (int i = 0; i < INX; i++) {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
