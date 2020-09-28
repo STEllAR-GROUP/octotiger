@@ -33,26 +33,27 @@ inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t
     return vc_type(data + index);
 }
 
-inline void make_monotone_wrapper(double * __restrict__ qld, const double * __restrict__  q0d, double * __restrict__ qrd, const mask_type &mask) {
-  vc_type ql(qld);
-  vc_type qr(qrd);
-  const vc_type q0(q0d);
-	const vc_type tmp1 = qr - ql;
-	const vc_type tmp2 = qr + ql;
+inline void make_monotone_wrapper(double* __restrict__ qld, const double* __restrict__ q0d,
+    double* __restrict__ qrd, const mask_type& mask) {
+    vc_type ql(qld);
+    vc_type qr(qrd);
+    const vc_type q0(q0d);
+    const vc_type tmp1 = qr - ql;
+    const vc_type tmp2 = qr + ql;
 
-  const mask_type mask1_tmp1 = mask_type(qr < q0);
-  const mask_type mask1_tmp2 = mask_type(q0 < ql);
-  const mask_type mask1 = (mask1_tmp1 ^ mask1_tmp2);
-	const vc_type tmp3 = tmp1 * tmp1 / 6.0;
-	const vc_type tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-  const mask_type mask2 = mask_type(tmp4 > tmp3);
-  const mask_type mask3 = !mask_type(tmp4 > tmp3) && mask_type(-tmp3 > tmp4);
-  Vc::where(mask2, ql) = (3.0 * q0 - 2.0 * qr);
-  Vc::where(mask3, qr) = (3.0 * q0 - 2.0 * ql);
-  Vc::where(mask1, qr) = q0;
-  Vc::where(mask1, ql) = q0;
-  ql.store(qld);
-  qr.store(qrd);
+    const mask_type mask1_tmp1 = mask_type(qr < q0);
+    const mask_type mask1_tmp2 = mask_type(q0 < ql);
+    const mask_type mask1 = (mask1_tmp1 ^ mask1_tmp2);
+    const vc_type tmp3 = tmp1 * tmp1 / 6.0;
+    const vc_type tmp4 = tmp1 * (q0 - 0.5 * tmp2);
+    const mask_type mask2 = mask_type(tmp4 > tmp3);
+    const mask_type mask3 = !mask_type(tmp4 > tmp3) && mask_type(-tmp3 > tmp4);
+    Vc::where(mask2, ql) = (3.0 * q0 - 2.0 * qr);
+    Vc::where(mask3, qr) = (3.0 * q0 - 2.0 * ql);
+    Vc::where(mask1, qr) = q0;
+    Vc::where(mask1, ql) = q0;
+    ql.store(qld);
+    qr.store(qrd);
 }
 // template <>
 // inline void store_value<vc_type>(const double* __restrict__ data, const size_t index, const
@@ -89,16 +90,16 @@ void post_recon_experimental(std::vector<std::vector<std::vector<safe_real>>>& Q
 
     for (int d = 0; d < geo.NDIR; d++) {
         if (d != geo.NDIR / 2) {
-						for (int j = 0; j < geo.H_NX_XM4; j++) {
-								for (int k = 0; k < geo.H_NX_YM4; k++) {
+            for (int j = 0; j < geo.H_NX_XM4; j++) {
+                for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-										for (int l = 0; l < geo.H_NX_ZM4; l++) {
-												const int i = geo.to_index(j + 2, k + 2, l + 2);
-												Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
-												Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-										}
-								}
-						}
+                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                        const int i = geo.to_index(j + 2, k + 2, l + 2);
+                        Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+                        Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+                    }
+                }
+            }
 
             for (int n = 0; n < geo.NANGMOM; n++) {
                 for (int q = 0; q < NDIM; q++) {
@@ -219,7 +220,7 @@ void reconstruct_ppm_experimental(std::vector<std::vector<safe_real>>& q,
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
     // const vc_type zindices = vc_type::IndexesFromZero() + 1;
-	  static thread_local auto D1 = std::vector < safe_real > (geo.H_N3, 0.0);
+    static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
     for (int d = 0; d < geo.NDIR / 2; d++) {
         const auto di = dir[d];
         const auto flipped_di = geo.flip(d);
@@ -250,8 +251,10 @@ void reconstruct_ppm_experimental(std::vector<std::vector<safe_real>>& q,
                     const vc_type d1_plus(D1.data() + i + di);
                     const vc_type d1_minus(D1.data() + i - di);
 
-                    const vc_type results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
-                    const vc_type results_flipped = 0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
+                    const vc_type results =
+                        0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
+                    const vc_type results_flipped =
+                        0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
                     results.store(q[d].data() + i);
                     results_flipped.store(q[flipped_di].data() + i);
                 }
@@ -353,10 +356,11 @@ void reconstruct_ppm_experimental(std::vector<std::vector<safe_real>>& q,
                     for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
                         const int i = geo.to_index(j + 2, k + 2, l + 2);
                         const mask_type mask = (zindices + l < geo.H_NX_ZM4);
-                        make_monotone_wrapper(q[d].data() + i, u.data() + i , q[geo.flip(d)].data() + i, mask);
-                        //auto& qp = q[geo.flip(d)][i];
-                        //auto& qm = q[d][i];
-												// make_monotone(qm, u[i], qp);
+                        make_monotone_wrapper(
+                            q[d].data() + i, u.data() + i, q[geo.flip(d)].data() + i, mask);
+                        // auto& qp = q[geo.flip(d)][i];
+                        // auto& qm = q[d][i];
+                        // make_monotone(qm, u[i], qp);
                     }
                 }
             }
@@ -381,204 +385,130 @@ const hydro::recon_type<NDIM>& reconstruct_experimental(const hydro::state_type&
     const auto dx = X[0][geo.H_DNX] - X[0][0];
     const auto& U = physics<NDIM>::pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
     const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U_);
-    if (angmom_index_ == -1 || NDIM == 1) {
-        for (int f = 0; f < nf_; f++) {
-            if (f < lx_i || f > lx_i + geo.NANGMOM || NDIM == 1) {
-                reconstruct_ppm_experimental(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
-            } else {
-                reconstruct_minmod(Q[f], U[f]);
+    assert(angmom_index_ > -1);
+
+    for (int f = 0; f < angmom_index_; f++) {
+        reconstruct_ppm_experimental(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+    }
+
+    int sx_i = angmom_index_;
+    int zx_i = sx_i + NDIM;
+
+    for (int f = sx_i; f < sx_i + NDIM; f++) {
+        reconstruct_ppm_experimental(Q[f], U[f], true, false, cdiscs);
+    }
+    for (int f = zx_i; f < zx_i + geo.NANGMOM; f++) {
+        reconstruct_minmod(Q[f], U[f]);
+    }
+
+    for (int n = 0; n < geo.NANGMOM; n++) {
+        for (int j = 0; j < geo.H_NX_XM4; j++) {
+            for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+                for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                    const int i = geo.to_index(j + 2, k + 2, l + 2);
+                    AM[n][i] = U[zx_i + n][i] * U[0][i];
+                }
             }
         }
-
-    } else {
-        for (int f = 0; f < angmom_index_; f++) {
-            reconstruct_ppm_experimental(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+        const vc_type zindices = vc_type::IndexesFromZero();
+        for (int m = 0; m < NDIM; m++) {
+            for (int q = 0; q < NDIM; q++) {
+                const auto lc = levi_civita[n][m][q];
+                if (lc != 0) {
+                    for (int d = 0; d < geo.NDIR; d++) {
+                        if (d != geo.NDIR / 2) {
+                            for (int j = 0; j < geo.H_NX_XM4; j++) {
+                                for (int k = 0; k < geo.H_NX_YM4; k++) {
+                                    // for (int l = 0; l < geo.H_NX_ZM4; l += 1) {
+                                    // const int i = geo.to_index(j + 2, k + 2, l + 2);
+                                    for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
+                                        const int i = geo.to_index(j + 2, k + 2, l + 2);
+                                        /*const int border = geo.H_NX_ZM4 - l;
+                                        const mask_type mask = (zindices < border);
+                                        if (Vc::none_of(mask))
+                                            continue;
+                                        vc_type results = vc_type(AM[n].data() + i);
+                                        Vc::where(mask, results) = vc_type(AM[n].data() + i) -
+                                            vw[d] * lc * 0.5 * xloc[d][m] *
+                                                vc_type(Q[sx_i + q][d].data() + i) *
+                                                vc_type(Q[0][d].data() + i) * dx;*/
+                                        const vc_type results = vc_type(AM[n].data() + i) -
+                                            vw[d] * lc * 0.5 * xloc[d][m] *
+                                                vc_type(Q[sx_i + q][d].data() + i) *
+                                                vc_type(Q[0][d].data() + i) * dx;
+                                        results.store(AM[n].data() + i);
+                                        // AM[n][i] -= vw[d] * lc * 0.5 * xloc[d][m] *
+                                        //   Q[sx_i + q][d][i] * Q[0][d][i] * dx;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-
-        int sx_i = angmom_index_;
-        int zx_i = sx_i + NDIM;
-
-        for (int f = sx_i; f < sx_i + NDIM; f++) {
-            reconstruct_ppm_experimental(Q[f], U[f], true, false, cdiscs);
-        }
-        for (int f = zx_i; f < zx_i + geo.NANGMOM; f++) {
-            reconstruct_minmod(Q[f], U[f]);
-        }
-
-        for (int n = 0; n < geo.NANGMOM; n++) {
+    }
+    for (int q = 0; q < NDIM; q++) {
+        const auto f = sx_i + q;
+        for (int d = 0; d < geo.NDIR / 2; d++) {
+            const auto di = dir[d];
             for (int j = 0; j < geo.H_NX_XM4; j++) {
                 for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
                     for (int l = 0; l < geo.H_NX_ZM4; l++) {
                         const int i = geo.to_index(j + 2, k + 2, l + 2);
-                        AM[n][i] = U[zx_i + n][i] * U[0][i];
-                    }
-                }
-            }
-            const vc_type zindices = vc_type::IndexesFromZero();
-            for (int m = 0; m < NDIM; m++) {
-                for (int q = 0; q < NDIM; q++) {
-                    const auto lc = levi_civita[n][m][q];
-                    if (lc != 0) {
-                        for (int d = 0; d < geo.NDIR; d++) {
-                            if (d != geo.NDIR / 2) {
-                                for (int j = 0; j < geo.H_NX_XM4; j++) {
-                                    for (int k = 0; k < geo.H_NX_YM4; k++) {
-                                        // for (int l = 0; l < geo.H_NX_ZM4; l += 1) {
-                                        // const int i = geo.to_index(j + 2, k + 2, l + 2);
-                                        for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
-                                            const int i = geo.to_index(j + 2, k + 2, l + 2);
-                                            /*const int border = geo.H_NX_ZM4 - l;
-                                            const mask_type mask = (zindices < border);
-                                            if (Vc::none_of(mask))
-                                                continue;
-                                            vc_type results = vc_type(AM[n].data() + i);
-                                            Vc::where(mask, results) = vc_type(AM[n].data() + i) -
-                                                vw[d] * lc * 0.5 * xloc[d][m] *
-                                                    vc_type(Q[sx_i + q][d].data() + i) *
-                                                    vc_type(Q[0][d].data() + i) * dx;*/
-                                            const vc_type results = vc_type(AM[n].data() + i) -
-                                                vw[d] * lc * 0.5 * xloc[d][m] *
-                                                    vc_type(Q[sx_i + q][d].data() + i) *
-                                                    vc_type(Q[0][d].data() + i) * dx;
-                                            results.store(AM[n].data() + i);
-                                            // AM[n][i] -= vw[d] * lc * 0.5 * xloc[d][m] *
-                                            //   Q[sx_i + q][d][i] * Q[0][d][i] * dx;
-                                        }
-                                    }
-                                }
+                        const auto& rho_r = Q[0][d][i];
+                        const auto& rho_l = Q[0][geo.flip(d)][i];
+                        auto& qr = Q[f][d][i];
+                        auto& ql = Q[f][geo.flip(d)][i];
+                        const auto& ur = U[f][i + di];
+                        const auto& u0 = U[f][i];
+                        const auto& ul = U[f][i - di];
+                        const auto b0 = qr - ql;
+                        auto b = b0;
+                        for (int n = 0; n < geo.NANGMOM; n++) {
+                            for (int m = 0; m < NDIM; m++) {
+                                const auto lc = levi_civita[n][m][q];
+                                b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
                             }
                         }
-                    }
-                }
-            }
-        }
-        for (int q = 0; q < NDIM; q++) {
-            const auto f = sx_i + q;
-            for (int d = 0; d < geo.NDIR / 2; d++) {
-                const auto di = dir[d];
-                for (int j = 0; j < geo.H_NX_XM4; j++) {
-                    for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                        for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                            const int i = geo.to_index(j + 2, k + 2, l + 2);
-                            const auto& rho_r = Q[0][d][i];
-                            const auto& rho_l = Q[0][geo.flip(d)][i];
-                            auto& qr = Q[f][d][i];
-                            auto& ql = Q[f][geo.flip(d)][i];
-                            const auto& ur = U[f][i + di];
-                            const auto& u0 = U[f][i];
-                            const auto& ul = U[f][i - di];
-                            const auto b0 = qr - ql;
-                            auto b = b0;
-                            for (int n = 0; n < geo.NANGMOM; n++) {
-                                for (int m = 0; m < NDIM; m++) {
-                                    const auto lc = levi_civita[n][m][q];
-                                    b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
-                                }
-                            }
-                            double blim;
-                            if ((ur - u0) * (u0 - ul) <= 0.0) {
-                                blim = 0.0;
-                            } else {
-                                blim = b0;
-                            }
-                            b = minmod(blim, b);
-                            qr += 0.5 * (b - b0);
-                            ql -= 0.5 * (b - b0);
-                            if (ur > u0 && u0 > ul) {
-                                if (qr > ur) {
-                                    ql -= (qr - ur);
-                                    qr = ur;
-                                } else if (ql < ul) {
-                                    qr -= (ql - ul);
-                                    ql = ul;
-                                }
-                            } else if (ur < u0 && u0 < ul) {
-                                if (qr < ur) {
-                                    ql -= (qr - ur);
-                                    qr = ur;
-                                } else if (ql > ul) {
-                                    qr -= (ql - ul);
-                                    ql = ul;
-                                }
-                            }
-                            make_monotone(qr, u0, ql);
+                        double blim;
+                        if ((ur - u0) * (u0 - ul) <= 0.0) {
+                            blim = 0.0;
+                        } else {
+                            blim = b0;
                         }
-                    }
-                }
-            }
-        }
-        for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
-            reconstruct_ppm_experimental(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
-        }
-    }
-
-#ifdef TVD_TEST
-    {
-        std::cout << "shouldn't happen!!!!" << std::endll;
-        std::cin.get();
-        PROFILE();
-        /**** ENSURE TVD TEST***/
-        for (int f = 0; f < nf_; f++) {
-            if (!smooth_field_[f]) {
-                for (int d = 0; d < geo.NDIR / 2; d++) {
-                    for (int j = 0; j < geo.H_NX_XM4; j++) {
-                        for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                            for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                                const int i = geo.to_index(j + 2, k + 2, l + 2);
-                                const auto up = U[f][i + dir[d]];
-                                const auto u0 = U[f][i];
-                                const auto um = U[f][i - dir[d]];
-                                const auto qp = Q[f][d][i];
-                                const auto qm = Q[f][geo.flip(d)][i];
-                                auto norm =
-                                    std::max(std::abs(u0), std::max(std::abs(up), std::abs(um)));
-                                norm *= norm;
-                                if ((qp - qm) * (up - um) < -1.0e-12 * norm) {
-                                    printf("TVD fail 1 %e\n", (qp - qm) * (up - um) / norm);
-                                    abort();
-                                }
-                                //								if (!PPM_test(qp, u0, qm)) {
-                                //									printf("TVD fail 4\n");
-                                //									abort();
-                                //								}
+                        b = minmod(blim, b);
+                        qr += 0.5 * (b - b0);
+                        ql -= 0.5 * (b - b0);
+                        if (ur > u0 && u0 > ul) {
+                            if (qr > ur) {
+                                ql -= (qr - ur);
+                                qr = ur;
+                            } else if (ql < ul) {
+                                qr -= (ql - ul);
+                                ql = ul;
+                            }
+                        } else if (ur < u0 && u0 < ul) {
+                            if (qr < ur) {
+                                ql -= (qr - ur);
+                                qr = ur;
+                            } else if (ql > ul) {
+                                qr -= (ql - ul);
+                                ql = ul;
                             }
                         }
-                    }
-                }
-                for (int d = 0; d < geo.NDIR; d++) {
-                    if (d != geo.NDIR / 2) {
-                        for (int j = 0; j < geo.H_NX_XM6; j++) {
-                            for (int k = 0; k < geo.H_NX_YM6; k++) {
-#pragma ivdep
-                                for (int l = 0; l < geo.H_NX_ZM6; l++) {
-                                    const int i = geo.to_index(j + 3, k + 3, l + 3);
-                                    const auto ur = U[f][i + dir[d]];
-                                    const auto ul = U[f][i];
-                                    const auto ql = Q[f][geo.flip(d)][i + dir[d]];
-                                    const auto qr = Q[f][d][i];
-                                    auto norm = std::max(std::abs(ur), std::abs(ul));
-                                    norm *= norm;
-                                    if ((qr - ul) * (ur - qr) < -1.0e-12 * norm) {
-                                        printf("TVD fail 3 %e\n", (qr - ul) * (ur - qr) / norm);
-                                        abort();
-                                    }
-                                    if ((ql - ul) * (ur - ql) < -1.0e-12 * norm) {
-                                        printf("TVD fail 5 %e\n", (ql - ul) * (ur - ql) / norm);
-                                        abort();
-                                    }
-                                }
-                            }
-                        }
+                        make_monotone(qr, u0, ql);
                     }
                 }
             }
         }
     }
+    for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
+        reconstruct_ppm_experimental(Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs);
+    }
 
-#endif
     post_recon_experimental(Q, X, omega, angmom_index_ != -1);
 
     return Q;
