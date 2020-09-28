@@ -100,6 +100,9 @@ struct physics {
 	static const std::vector<std::vector<double>>& find_contact_discs(const hydro::state_type &U);
 
 	static void set_n_species(int n);
+	static int get_n_species() {
+    return n_species_;
+  }
 
 	static void update_n_field();
 
