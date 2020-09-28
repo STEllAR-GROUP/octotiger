@@ -340,7 +340,7 @@ std::vector<silo_var_t> grid::var_data() const {
 			for (int j = 0; j < INX; j++) {
 				for (int k = 0; k < INX; k++) {
 					this_s(jjj) = 	roche_lobe[h0index(i,j,k)];
-					this_s.set_range(idle_rate);
+					this_s.set_range(this_s(jjj));
 					jjj++;
 				}
 			}
