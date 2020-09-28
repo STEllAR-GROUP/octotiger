@@ -288,13 +288,13 @@ diagnostics_t node_server::diagnostics() {
 				fprintf(fp, "%13e ", (double) diags.ekin[s]);           // 9  // 23
 				fprintf(fp, "%13e ", (double) diags.epot[s]);           // 10 // 24
 				fprintf(fp, "%13e ", (double) diags.eint[s]);           // 11 // 25
-				fprintf(fp, "%13e ", (double) diags.com[s][0]);
-				fprintf(fp, "%13e ", (double) diags.com[s][1]);
+				fprintf(fp, "%13e ", (double) diags.com[s][0]);			// 12 // 26
+				fprintf(fp, "%13e ", (double) diags.com[s][1]);			// 13 // 27
 				fprintf(fp, "%13e ", (double) diags.com_dot[s][0]);
 				fprintf(fp, "%13e ", (double) diags.com_dot[s][1]);
-				fprintf(fp, "%13e ", (double) radius);
+				fprintf(fp, "%13e ", (double) radius);					// 16 // 30
 				fprintf(fp, "%13e ", (double) diags.gt[s]);
-				fprintf(fp, "%13e ", (double) diags.z_moment[s]);
+				fprintf(fp, "%13e ", (double) diags.z_moment[s]);       // 18  // 32
 			}
 			fprintf(fp, "%13e ", (double) diags.rho_max[0]); // 33
 			fprintf(fp, "%13e ", (double) diags.rho_max[1]);
