@@ -367,29 +367,15 @@ const hydro::recon_type<NDIM>& reconstruct_experimental(const hydro::state_type&
     static constexpr auto levi_civita = geo.levi_civita();
     static constexpr auto vw = geo.volume_weight();
     static constexpr auto dir = geo.direction();
+    const int n_species_ = physics<NDIM>::get_n_species();
 
     const auto dx = X[0][geo.H_DNX] - X[0][0];
     const auto& U = physics<NDIM>::pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
     const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U_);
     assert(angmom_index_ > -1);
     assert(NDIM > -1);
-
     const int sx_i = angmom_index_;
     const int zx_i = sx_i + NDIM;
-    for (int d = 0; d < geo.NDIR; d++) {
-        if (d < geo.NDIR / 2) {
-            for (int f = 0; f < angmom_index_; f++) {
-                reconstruct_ppm_experimental(
-                    Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs, d);
-            }
-            for (int f = sx_i; f < sx_i + NDIM; f++) {
-                reconstruct_ppm_experimental(Q[f], U[f], true, false, cdiscs, d);
-            }
-         }
-				for (int f = zx_i; f < zx_i + geo.NANGMOM; f++) {
-					reconstruct_minmod(Q[f], U[f], d);
-				}
-    }
 
     for (int n = 0; n < geo.NANGMOM; n++) {
         for (int j = 0; j < geo.H_NX_XM4; j++) {
@@ -401,35 +387,44 @@ const hydro::recon_type<NDIM>& reconstruct_experimental(const hydro::state_type&
                 }
             }
         }
-        const vc_type zindices = vc_type::IndexesFromZero();
-        for (int m = 0; m < NDIM; m++) {
-            for (int q = 0; q < NDIM; q++) {
-                const auto lc = levi_civita[n][m][q];
-                if (lc != 0) {
-                    for (int d = 0; d < geo.NDIR; d++) {
-                        if (d != geo.NDIR / 2) {
+    }
+
+    for (int d = 0; d < geo.NDIR; d++) {
+        if (d < geo.NDIR / 2) {
+            for (int f = 0; f < angmom_index_; f++) {
+                reconstruct_ppm_experimental(
+                    Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs, d);
+            }
+            for (int f = sx_i; f < sx_i + NDIM; f++) {
+                reconstruct_ppm_experimental(Q[f], U[f], true, false, cdiscs, d);
+            }
+        }
+        for (int f = zx_i; f < zx_i + geo.NANGMOM; f++) {
+            reconstruct_minmod(Q[f], U[f], d);
+        }
+        if (d < geo.NDIR / 2) {
+            for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
+                reconstruct_ppm_experimental(
+                    Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs, d);
+            }
+        }
+
+        if (d != geo.NDIR / 2) {
+            for (int n = 0; n < geo.NANGMOM; n++) {
+                const vc_type zindices = vc_type::IndexesFromZero();
+                for (int m = 0; m < NDIM; m++) {
+                    for (int q = 0; q < NDIM; q++) {
+                        const auto lc = levi_civita[n][m][q];
+                        if (lc != 0) {
                             for (int j = 0; j < geo.H_NX_XM4; j++) {
                                 for (int k = 0; k < geo.H_NX_YM4; k++) {
-                                    // for (int l = 0; l < geo.H_NX_ZM4; l += 1) {
-                                    // const int i = geo.to_index(j + 2, k + 2, l + 2);
                                     for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
                                         const int i = geo.to_index(j + 2, k + 2, l + 2);
-                                        /*const int border = geo.H_NX_ZM4 - l;
-                                        const mask_type mask = (zindices < border);
-                                        if (Vc::none_of(mask))
-                                            continue;
-                                        vc_type results = vc_type(AM[n].data() + i);
-                                        Vc::where(mask, results) = vc_type(AM[n].data() + i) -
-                                            vw[d] * lc * 0.5 * xloc[d][m] *
-                                                vc_type(Q[sx_i + q][d].data() + i) *
-                                                vc_type(Q[0][d].data() + i) * dx;*/
                                         const vc_type results = vc_type(AM[n].data() + i) -
                                             vw[d] * lc * 0.5 * xloc[d][m] *
                                                 vc_type(Q[sx_i + q][d].data() + i) *
                                                 vc_type(Q[0][d].data() + i) * dx;
                                         results.store(AM[n].data() + i);
-                                        // AM[n][i] -= vw[d] * lc * 0.5 * xloc[d][m] *
-                                        //   Q[sx_i + q][d][i] * Q[0][d][i] * dx;
                                     }
                                 }
                             }
@@ -439,10 +434,10 @@ const hydro::recon_type<NDIM>& reconstruct_experimental(const hydro::state_type&
             }
         }
     }
-    for (int q = 0; q < NDIM; q++) {
-        const auto f = sx_i + q;
-        for (int d = 0; d < geo.NDIR / 2; d++) {
-            const auto di = dir[d];
+    for (int d = 0; d < geo.NDIR / 2; d++) {
+        const auto di = dir[d];
+        for (int q = 0; q < NDIM; q++) {
+            const auto f = sx_i + q;
             for (int j = 0; j < geo.H_NX_XM4; j++) {
                 for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
@@ -494,18 +489,106 @@ const hydro::recon_type<NDIM>& reconstruct_experimental(const hydro::state_type&
                 }
             }
         }
-    }
-    for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
-        for (int d = 0; d < geo.NDIR; d++) {
-            if (d < geo.NDIR / 2) {
-                reconstruct_ppm_experimental(
-                    Q[f], U[f], smooth_field_[f], disc_detect_[f], cdiscs, d);
+        if (d != geo.NDIR / 2) {
+            for (int j = 0; j < geo.H_NX_XM4; j++) {
+                for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                        const int i = geo.to_index(j + 2, k + 2, l + 2);
+                        Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+                        Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+                    }
+                }
             }
         }
     }
+    //    for (int d = 0; d < geo.NDIR; d++) {
+    // }
 
-    post_recon_experimental(Q, X, omega, angmom_index_ != -1);
+    // post_recon_experimental(Q, X, omega, angmom_index_ != -1);
 
+    for (int d = 0; d < geo.NDIR; d++) {
+        if (d != geo.NDIR / 2) {
+            for (int n = 0; n < geo.NANGMOM; n++) {
+                for (int q = 0; q < NDIM; q++) {
+                    for (int m = 0; m < NDIM; m++) {
+                        const auto lc = levi_civita[n][m][q];
+                        if (lc != 0) {
+                            const vc_type xloc_tmp = vc_type(0.5 * xloc[d][m] * dx);
+                            for (int j = 0; j < geo.H_NX_XM4; j++) {
+                                for (int k = 0; k < geo.H_NX_YM4; k++) {
+                                    // for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                                    for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
+                                        const int i = geo.to_index(j + 2, k + 2, l + 2);
+                                        const vc_type rho(Q[rho_i][d].data() + i);
+                                        const vc_type q_lx_val(Q[lx_i + n][d].data() + i);
+                                        // Q[lx_i + n][d][i] += lc *
+                                        //   (X[m][i] + 0.5 * xloc[d][m] * dx) * Q[sx_i + q][d][i];
+                                        const auto result = q_lx_val +
+                                            lc * (vc_type(X[m].data() + i) + xloc_tmp) *
+                                                vc_type(Q[sx_i + q][d].data() + i);
+                                        result.store(Q[lx_i + n][d].data() + i);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                for (int j = 0; j < geo.H_NX_XM4; j++) {
+                    for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma GCC ivdep
+                        for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                            const int i = geo.to_index(j + 2, k + 2, l + 2);
+                            const auto rho = Q[rho_i][d][i];
+                            Q[lx_i + n][d][i] *= rho;
+                        }
+                    }
+                }
+            }
+            for (int dim = 0; dim < NDIM; dim++) {
+                for (int j = 0; j < geo.H_NX_XM4; j++) {
+                    for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+                        for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                            const int i = geo.to_index(j + 2, k + 2, l + 2);
+                            const auto rho = Q[rho_i][d][i];
+                            auto& v = Q[sx_i + dim][d][i];
+                            Q[egas_i][d][i] += 0.5 * v * v * rho;
+                            v *= rho;
+                        }
+                    }
+                }
+            }
+            for (int j = 0; j < geo.H_NX_XM4; j++) {
+                for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                        const int i = geo.to_index(j + 2, k + 2, l + 2);
+                        const auto rho = Q[rho_i][d][i];
+                        Q[pot_i][d][i] *= rho;
+                    }
+                }
+            }
+            for (int j = 0; j < geo.H_NX_XM4; j++) {
+                for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                        const int i = geo.to_index(j + 2, k + 2, l + 2);
+                        const auto rho = Q[rho_i][d][i];
+                        safe_real w = 0.0;
+                        for (int si = 0; si < n_species_; si++) {
+                            w += Q[spc_i + si][d][i];
+                            Q[spc_i + si][d][i] *= rho;
+                        }
+                        w = 1.0 / w;
+                        for (int si = 0; si < n_species_; si++) {
+                            Q[spc_i + si][d][i] *= w;
+                        }
+                    }
+                }
+            }
+        }
+    }
     return Q;
 }
 #pragma GCC pop_options
