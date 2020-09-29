@@ -118,6 +118,7 @@ std::vector<std::string> grid::get_field_names() {
 		rc.push_back("locality");
 		rc.push_back("idle_rate");
 	}
+	rc.push_back("roche_lobe");
 	return rc;
 }
 
