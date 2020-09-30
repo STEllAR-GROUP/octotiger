@@ -414,8 +414,8 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const 
 
 template <typename Alloc>
 void convert_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, Alloc>& combined_q) {
-    auto it = combined_q.begin() + 10 * 10 * 10 * 27;
-    for (auto face = 1; face < 2; face++) {
+    auto it = combined_q.begin();
+    for (auto face = 0; face < 15; face++) {
         for (auto d = 0; d < 27; d++) {
             auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
             for (auto ix = 2; ix < 2 + INX + 2; ix++) {
@@ -440,7 +440,7 @@ void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
                 for (auto iy = 2; iy < 2 + INX + 2; iy++) {
                     for (auto line_element = 0; line_element < 10; line_element++) {
                         if (std::abs(Q[face][d][start_offset + line_element + 2] - *(it + line_element)) > 1e-7) {
-                            /*std::cout << "Orig: " << Q[face][d][start_offset + line_element + 2]
+                            std::cout << "Orig: " << Q[face][d][start_offset + line_element + 2]
                                       << " vs: " << *(it + line_element) << std::endl;
                             std::cout << "Found error at face " << face << " with d " << d
                                       << " and grid element " << ix << "/" << iy << "/"
@@ -452,7 +452,7 @@ void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
                             for (auto line_element = 0; line_element < 10; line_element++) {
                             std::cout << *(it + line_element) << " ";
                             }
-                            std::cout << std::endl;*/
+                            std::cout << std::endl;
                             correct = false;
                         }
                     }

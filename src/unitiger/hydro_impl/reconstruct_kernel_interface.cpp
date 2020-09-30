@@ -498,7 +498,7 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                             const auto rho = combined_q[start_index_rho + q_i];
                             // auto& v = Q[sx_i + dim][d][i];
                             auto& v = combined_q[start_index_sx_d + q_i];
-                            combined_q[start_index_egas] += 0.5 * v * v * rho;
+                            combined_q[start_index_egas + q_i] += 0.5 * v * v * rho;
                             v *= rho;
                         }
                     }
