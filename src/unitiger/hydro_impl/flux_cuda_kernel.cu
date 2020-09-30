@@ -180,20 +180,8 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, std::vector<double
 
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
         15 * 27 * 10 * 10 * 10 + 32);
-    auto it = combined_q.begin();
-    for (auto face = 0; face < 15; face++) {
-        for (auto d = 0; d < 27; d++) {
-            auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
-            for (auto ix = 2; ix < 2 + INX + 2; ix++) {
-                for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                    it = std::copy(Q[face][d].begin() + start_offset,
-                        Q[face][d].begin() + start_offset + 10, it);
-                    start_offset += 14;
-                }
-                start_offset += (2 + 2) * 14;
-            }
-        }
-    }
+    convert_q_structure(Q, combined_q);
+
     recycler::cuda_device_buffer<double> device_q(15 * 27 * 10 * 10 * 10 + 32, device_id);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
     cudaMemcpyAsync, device_q.device_side_buffer,

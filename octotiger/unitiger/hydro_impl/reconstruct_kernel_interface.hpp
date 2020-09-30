@@ -33,10 +33,10 @@ CUDA_CALLABLE_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const
     return minmod_wrapper<T>(c * minmod_wrapper<T>(a, b), 0.5 * (a + b));
 }
 
-void reconstruct_ppm_experimental(std::vector<std::vector<safe_real>>& q,
+void reconstruct_ppm_experimental(double *__restrict__ combined_q,
     const std::vector<safe_real>& u, bool smooth, bool disc_detect,
     const std::vector<std::vector<double>>& disc);
 
-const hydro::recon_type<NDIM>& reconstruct_experimental(const hydro::state_type& U_,
+void reconstruct_experimental(const hydro::state_type& U_,
     const hydro::x_type& X, safe_real omega, const size_t nf_, const int angmom_index_,
-    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_);
+    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_, double *__restrict__ combined_q);

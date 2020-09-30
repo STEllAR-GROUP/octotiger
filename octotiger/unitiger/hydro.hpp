@@ -122,6 +122,9 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	}
 
 	inline int get_nf() const {return nf_;}
+	inline int get_angmom_index() const {return angmom_index_;}
+	inline const std::vector<bool>& get_smooth_field() const {return smooth_field_;}
+	inline const std::vector<bool>& get_disc_detect() const {return disc_detect_;}
 
 private:
 	int experiment;

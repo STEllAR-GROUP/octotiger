@@ -407,4 +407,22 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const 
     return max_wrapper(ap, double_t(-am));
 }
 
+template<typename Alloc>
+void convert_q_structure(const hydro::recon_type<NDIM>& Q,std::vector<double, Alloc> &combined_q) {
+    auto it = combined_q.begin();
+    for (auto face = 0; face < 15; face++) {
+        for (auto d = 0; d < 27; d++) {
+            auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
+            for (auto ix = 2; ix < 2 + INX + 2; ix++) {
+                for (auto iy = 2; iy < 2 + INX + 2; iy++) {
+                    it = std::copy(Q[face][d].begin() + start_offset,
+                        Q[face][d].begin() + start_offset + 10, it);
+                    start_offset += 14;
+                }
+                start_offset += (2 + 2) * 14;
+            }
+        }
+    }
+} 
+
 #pragma GCC pop_options
