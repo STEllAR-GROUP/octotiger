@@ -24,8 +24,10 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
 timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
     hydro::x_type& X, safe_real omega, const size_t nf_);
 
-timestep_t launch_flux_cuda(const std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, hydro::x_type& X,
-    safe_real omega, const size_t nf_);
+timestep_t launch_flux_cuda(
+    const std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_q,
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_f,
+    hydro::x_type& X, safe_real omega, const size_t nf_);
 
 // helpers for using vectortype specialization functions
 template <typename double_t, typename cond_t>
@@ -62,7 +64,8 @@ CUDA_CALLABLE_METHOD inline T load_value(const double* __restrict__ data, const 
     return data[index];
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline void store_value(const double* __restrict__ data, const size_t index, const T &value) {
+CUDA_CALLABLE_METHOD inline void store_value(
+    const double* __restrict__ data, const size_t index, const T& value) {
     return data[index] = value;
 }
 
@@ -388,16 +391,18 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const 
 
         if (!skippable(amp_mask)) {
             const double_t flux_tmp1 =
-                (this_ap * fl - this_am * fr + this_ap * this_am *
+                (this_ap * fl - this_am * fr +
+                    this_ap * this_am *
                         (load_value<double_t>(U, f * face_offset + index) -
-                         load_value<double_t>(U, f * face_offset + flipped_index))) /
+                            load_value<double_t>(U, f * face_offset + flipped_index))) /
                 (this_ap - this_am);
             const double_t flux_tmp2 = (fl + fr) / 2.0;
             select_wrapper(this_flux[f], amp_mask, flux_tmp2, flux_tmp1);
         } else {
-            this_flux[f] = (this_ap * fl - this_am * fr + this_ap * this_am *
+            this_flux[f] = (this_ap * fl - this_am * fr +
+                               this_ap * this_am *
                                    (load_value<double_t>(U, f * face_offset + index) -
-                                    load_value<double_t>(U, f * face_offset + flipped_index))) /
+                                       load_value<double_t>(U, f * face_offset + flipped_index))) /
                 (this_ap - this_am);
         }
     }
@@ -407,10 +412,10 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const 
     return max_wrapper(ap, double_t(-am));
 }
 
-template<typename Alloc>
-void convert_q_structure(const hydro::recon_type<NDIM>& Q,std::vector<double, Alloc> &combined_q) {
-    auto it = combined_q.begin();
-    for (auto face = 0; face < 15; face++) {
+template <typename Alloc>
+void convert_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, Alloc>& combined_q) {
+    auto it = combined_q.begin() + 10 * 10 * 10 * 27;
+    for (auto face = 1; face < 2; face++) {
         for (auto d = 0; d < 27; d++) {
             auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
             for (auto ix = 2; ix < 2 + INX + 2; ix++) {
@@ -423,6 +428,45 @@ void convert_q_structure(const hydro::recon_type<NDIM>& Q,std::vector<double, Al
             }
         }
     }
-} 
+}
+template <typename Alloc>
+void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, Alloc>& combined_q) {
+    auto it = combined_q.begin();
+    for (auto face = 0; face < 15; face++) {
+        bool correct = true;
+        for (auto d = 0; d < 27; d++) {
+            auto start_offset = 2 * 14 * 14 + 2 * 14;
+            for (auto ix = 2; ix < 2 + INX + 2; ix++) {
+                for (auto iy = 2; iy < 2 + INX + 2; iy++) {
+                    for (auto line_element = 0; line_element < 10; line_element++) {
+                        if (std::abs(Q[face][d][start_offset + line_element + 2] - *(it + line_element)) > 1e-7) {
+                            /*std::cout << "Orig: " << Q[face][d][start_offset + line_element + 2]
+                                      << " vs: " << *(it + line_element) << std::endl;
+                            std::cout << "Found error at face " << face << " with d " << d
+                                      << " and grid element " << ix << "/" << iy << "/"
+                                      << line_element + 2 << std::endl;
+                            for (auto line_element = 0; line_element < 10; line_element++) {
+                            std::cout << Q[face][d][start_offset + line_element + 2] << " ";
+                            }
+                            std::cout << std::endl;
+                            for (auto line_element = 0; line_element < 10; line_element++) {
+                            std::cout << *(it + line_element) << " ";
+                            }
+                            std::cout << std::endl;*/
+                            correct = false;
+                        }
+                    }
+                    start_offset += 14;
+                    it += 10;
+                }
+                start_offset += (2 + 2) * 14;
+            }
+        }
+        if(!correct) {
+           std::cout << " face " << face << " is incorrect!" << std::endl;
+           std::cin.get();
+        }
+    }
+}
 
 #pragma GCC pop_options
