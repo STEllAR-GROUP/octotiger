@@ -24,7 +24,7 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
 timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
     hydro::x_type& X, safe_real omega, const size_t nf_);
 
-timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, hydro::x_type& X,
+timestep_t launch_flux_cuda(const std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, hydro::x_type& X,
     safe_real omega, const size_t nf_);
 
 // helpers for using vectortype specialization functions

@@ -1841,7 +1841,7 @@ timestep_t grid::compute_fluxes() {
     //    std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
     15 * 27 * 10 * 10 * 10 + 32);
-    const auto &q = hydro.reconstruct(U, X, omega);
+    //const auto &q = hydro.reconstruct(U, X, omega);
     thread_local size_t launch_counter = 0;
     thread_local size_t total_time = 0;
     thread_local size_t avg_time = 0;
@@ -1857,7 +1857,7 @@ timestep_t grid::compute_fluxes() {
 
     //auto max_lambda = flux_unified_cpu_kernel(q, f, X, omega, hydro.get_nf());
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> f(NDIM * 15 * 1000 + 32);
-    auto max_lambda = launch_flux_cuda(q, f, X, omega, hydro.get_nf());
+    auto max_lambda = launch_flux_cuda(combined_q, f, X, omega, hydro.get_nf());
     
 
     for (int dim = 0; dim < NDIM; dim++) {

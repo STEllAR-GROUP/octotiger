@@ -158,7 +158,7 @@ __launch_bounds__(900, 1)
  return;
 }
 
-timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, hydro::x_type& X,
+timestep_t launch_flux_cuda(const std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, hydro::x_type& X,
     safe_real omega, const size_t nf_) {
     timestep_t ts;
 
@@ -177,10 +177,6 @@ timestep_t launch_flux_cuda(const hydro::recon_type<NDIM>& Q, std::vector<double
     size_t device_id = 0;
 
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
-        15 * 27 * 10 * 10 * 10 + 32);
-    convert_q_structure(Q, combined_q);
 
     recycler::cuda_device_buffer<double> device_q(15 * 27 * 10 * 10 * 10 + 32, device_id);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
