@@ -271,7 +271,7 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
     const auto& U = physics<NDIM>::pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
     const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U_);
     assert(angmom_index_ > -1);
-    assert(NDIM > -1);
+    assert(NDIM > 2);
     const int sx_i = angmom_index_;
     const int zx_i = sx_i + NDIM;
 
@@ -332,8 +332,7 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                                                 // vc_type(Q[0][d].data() + i) * dx;
                                                 vc_type(combined_q + start_index_sx + q_i) *
                                                 vc_type(combined_q + start_index_rho + q_i) * dx;
-                                        Vc::where(!mask, results) =
-                                            vc_type(AM[n].data() + i);
+                                        Vc::where(!mask, results) = vc_type(AM[n].data() + i);
                                         results.store(AM[n].data() + i);
                                     }
                                 }
@@ -465,7 +464,8 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                                         auto result = q_lx_val +
                                             lc * (vc_type(X[m].data() + i) + xloc_tmp) *
                                                 vc_type(combined_q + start_index_sx + q_i);
-                                        Vc::where(!mask, result) = vc_type(combined_q + start_index_lx_n + q_i);
+                                        Vc::where(!mask, result) =
+                                            vc_type(combined_q + start_index_lx_n + q_i);
                                         result.store(combined_q + start_index_lx_n + q_i);
                                     }
                                 }
@@ -487,23 +487,6 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                 }
             }
             const int start_index_egas = egas_i * q_face_offset + d * q_dir_offset;
-            for (int dim = 0; dim < NDIM; dim++) {
-                const int start_index_sx_d = (sx_i + dim) * q_face_offset + d * q_dir_offset;
-                for (int j = 0; j < geo.H_NX_XM4; j++) {
-                    for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                        for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                            const int q_i = to_q_index(j, k, l);
-                            // const auto rho = Q[rho_i][d][i];
-                            const auto rho = combined_q[start_index_rho + q_i];
-                            // auto& v = Q[sx_i + dim][d][i];
-                            auto& v = combined_q[start_index_sx_d + q_i];
-                            combined_q[start_index_egas + q_i] += 0.5 * v * v * rho;
-                            v *= rho;
-                        }
-                    }
-                }
-            }
             const int start_index_pot = pot_i * q_face_offset + d * q_dir_offset;
             for (int j = 0; j < geo.H_NX_XM4; j++) {
                 for (int k = 0; k < geo.H_NX_YM4; k++) {
@@ -511,33 +494,25 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                     for (int l = 0; l < geo.H_NX_ZM4; l++) {
                         const int q_i = to_q_index(j, k, l);
                         const auto rho = combined_q[start_index_rho + q_i];
+                        for (int dim = 0; dim < NDIM; dim++) {
+														const int start_index_sx_d = (sx_i + dim) * q_face_offset + d * q_dir_offset;
+                            auto& v = combined_q[start_index_sx_d + q_i];
+                            combined_q[start_index_egas + q_i] += 0.5 * v * v * rho;
+                            v *= rho;
+                        }
                         combined_q[start_index_pot + q_i] *= rho;
-                        // Q[pot_i][d][i] *= rho;
-                    }
-                }
-            }
-            for (int j = 0; j < geo.H_NX_XM4; j++) {
-                for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                        const int q_i = to_q_index(j, k, l);
-                        // const auto rho = Q[rho_i][d][i];
-                        const auto rho = combined_q[start_index_rho + q_i];
                         safe_real w = 0.0;
                         for (int si = 0; si < n_species_; si++) {
                             const int start_index_sp_i =
                                 (spc_i + si) * q_face_offset + d * q_dir_offset;
                             w += combined_q[start_index_sp_i + q_i];
                             combined_q[start_index_sp_i + q_i] *= rho;
-                            // w += Q[spc_i + si][d][i];
-                            // Q[spc_i + si][d][i] *= rho;
                         }
                         w = 1.0 / w;
                         for (int si = 0; si < n_species_; si++) {
                             const int start_index_sp_i =
                                 (spc_i + si) * q_face_offset + d * q_dir_offset;
                             combined_q[start_index_sp_i + q_i] *= w;
-                            // Q[spc_i + si][d][i] *= w;
                         }
                     }
                 }
