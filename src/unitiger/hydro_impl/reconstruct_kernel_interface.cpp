@@ -65,7 +65,7 @@ constexpr int q_inx3 = q_inx * q_inx * q_inx;
 constexpr int q_face_offset = number_dirs * q_inx3;
 constexpr int q_dir_offset = q_inx3;
 
-int to_q_index(int j, int k, int l) {
+inline int to_q_index(const int j, const int k, const int l) {
     return j * q_inx * q_inx + k * q_inx + l;
 }
 // template <>
