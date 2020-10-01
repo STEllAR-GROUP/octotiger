@@ -309,35 +309,80 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
 
         if (d != geo.NDIR / 2) {
             const int start_index_rho = d * q_dir_offset;
-            for (int n = 0; n < geo.NANGMOM; n++) {
-                const vc_type zindices = vc_type::IndexesFromZero();
-                for (int m = 0; m < NDIM; m++) {
-                    for (int q = 0; q < NDIM; q++) {
-                        const int start_index_sx = (sx_i + q) * q_face_offset + d * q_dir_offset;
-                        const auto lc = levi_civita[n][m][q];
-                        if (lc != 0) {
-                            const vc_type zindices = vc_type::IndexesFromZero();
-                            for (int j = 0; j < geo.H_NX_XM4; j++) {
-                                for (int k = 0; k < geo.H_NX_YM4; k++) {
-                                    for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
-                                        const int border = geo.H_NX_ZM4 - l;
-                                        const mask_type mask = (zindices < border);
-                                        if (Vc::none_of(mask))
-                                            continue;
-                                        const int i = geo.to_index(j + 2, k + 2, l + 2);
-                                        const int q_i = to_q_index(j, k, l);
-                                        vc_type results = vc_type(AM[n].data() + i) -
-                                            vw[d] * lc * 0.5 * xloc[d][m] *
-                                                // vc_type(Q[sx_i + q][d].data() + i) *
-                                                // vc_type(Q[0][d].data() + i) * dx;
-                                                vc_type(combined_q + start_index_sx + q_i) *
-                                                vc_type(combined_q + start_index_rho + q_i) * dx;
-                                        Vc::where(!mask, results) = vc_type(AM[n].data() + i);
-                                        results.store(AM[n].data() + i);
-                                    }
-                                }
-                            }
-                        }
+            const vc_type zindices = vc_type::IndexesFromZero();
+            for (int j = 0; j < geo.H_NX_XM4; j++) {
+                for (int k = 0; k < geo.H_NX_YM4; k++) {
+                    for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
+                        const int border = geo.H_NX_ZM4 - l;
+                        const mask_type mask = (zindices < border);
+                        if (Vc::none_of(mask))
+                            continue;
+                        const int i = geo.to_index(j + 2, k + 2, l + 2);
+                        const int q_i = to_q_index(j, k, l);
+
+                        /*static constexpr int levi_civitas[3][3][3] =  {
+                     { { 0, 0, 0 }, { 0, 0, 1 }, { 0, -1, 0 } },
+                     { { 0, 0, -1 }, {0, 0, 0 }, { 1, 0, 0 } },
+                     { { 0, 1, 0 }, { -1, 0, 0 }, { 0, 0, 0 } } } };*/
+                        /* Only 6 parts relevant -> 3 ns, each 2 ms, each one q
+                        n m q
+                        0 1 2
+                        0 2 1
+                        1 0 2
+                        1 2 0
+                        2 0 1
+                        2 1 0
+                        */
+                     
+
+                        // n m q Levi Civita
+                        // 0 1 2 -> 1
+                        vc_type results0 = vc_type(AM[0].data() + i) -
+                            vw[d] * 1.0 * 0.5 * xloc[d][1] *
+                                vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i) *
+                                vc_type(combined_q + start_index_rho + q_i) * dx;
+
+                        // n m q Levi Civita
+                        // 0 2 1 -> -1
+                        results0 -= 
+                            vw[d] * (-1.0) * 0.5 * xloc[d][2] *
+                                vc_type(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i) *
+                                vc_type(combined_q + start_index_rho + q_i) * dx;
+                        Vc::where(!mask, results0) = vc_type(AM[0].data() + i);
+                        results0.store(AM[0].data() + i);
+
+                        // n m q Levi Civita
+                        // 1 0 2 -> -1
+                        vc_type results1 = vc_type(AM[1].data() + i) -
+                            vw[d] * (-1.0) * 0.5 * xloc[d][0] *
+                                vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset + q_i) *
+                                vc_type(combined_q + start_index_rho + q_i) * dx;
+
+                        // n m q Levi Civita
+                        // 1 2 0 -> 1
+                        results1 -= 
+                            vw[d] * (1.0) * 0.5 * xloc[d][2] *
+                                vc_type(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i) *
+                                vc_type(combined_q + start_index_rho + q_i) * dx;
+                        Vc::where(!mask, results1) = vc_type(AM[1].data() + i);
+                        results1.store(AM[1].data() + i);
+
+                        // n m q Levi Civita
+                        // 2 0 1 -> 1
+                        vc_type results2 = vc_type(AM[2].data() + i) -
+                            vw[d] * (1.0) * 0.5 * xloc[d][0] *
+                                vc_type(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i) *
+                                vc_type(combined_q + start_index_rho + q_i) * dx;
+
+                        // n m q Levi Civita
+                        // 2 1 0 -> -1
+                        results2 -= 
+                            vw[d] * (-1.0) * 0.5 * xloc[d][1] *
+                                vc_type(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i) *
+                                vc_type(combined_q + start_index_rho + q_i) * dx;
+                        Vc::where(!mask, results1) = vc_type(AM[2].data() + i);
+                        results2.store(AM[2].data() + i);
+ 
                     }
                 }
             }
@@ -495,7 +540,8 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         const int q_i = to_q_index(j, k, l);
                         const auto rho = combined_q[start_index_rho + q_i];
                         for (int dim = 0; dim < NDIM; dim++) {
-														const int start_index_sx_d = (sx_i + dim) * q_face_offset + d * q_dir_offset;
+                            const int start_index_sx_d =
+                                (sx_i + dim) * q_face_offset + d * q_dir_offset;
                             auto& v = combined_q[start_index_sx_d + q_i];
                             combined_q[start_index_egas + q_i] += 0.5 * v * v * rho;
                             v *= rho;
