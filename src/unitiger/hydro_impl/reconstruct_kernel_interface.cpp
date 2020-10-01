@@ -63,6 +63,7 @@ constexpr int number_dirs = 27;
 constexpr int q_inx = INX + 2;
 constexpr int q_inx3 = q_inx * q_inx * q_inx;
 constexpr int q_face_offset = number_dirs * q_inx3;
+constexpr int u_face_offset = H_N3;
 constexpr int q_dir_offset = q_inx3;
 
 inline int to_q_index(const int j, const int k, const int l) {
@@ -249,9 +250,80 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::ve
     }
 }
 
+void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega, bool angmom,
+    double* __restrict__ combined_u, const int nf, const int n_species_) {
+    static const cell_geometry<NDIM, INX> geo;
+
+    for (int f = 0; f < nf; f++) {
+        std::copy(X[f].begin(), X[f].end(), combined_u + f * u_face_offset);
+    }
+    for (int j = 0; j < geo.H_NX_X; j++) {
+        for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+            for (int l = 0; l < geo.H_NX_Z; l++) {
+                const int i = geo.to_index(j, k, l);
+                // const auto rho = V[rho_i][i];
+                const auto rho = combined_u[rho_i * u_face_offset + i];
+                const auto rhoinv = 1.0 / rho;
+                for (int dim = 0; dim < NDIM; dim++) {
+                    auto& s = combined_u[(sx_i + dim) * u_face_offset + i];
+                    combined_u[egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
+                    s *= rhoinv;
+                }
+                for (int si = 0; si < n_species_; si++) {
+                    combined_u[(spc_i + si) * u_face_offset + i] *= rhoinv;
+                }
+                combined_u[pot_i * u_face_offset + i] *= rhoinv;
+            }
+        }
+    }
+    for (int n = 0; n < geo.NANGMOM; n++) {
+        for (int j = 0; j < geo.H_NX_X; j++) {
+            for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+                for (int l = 0; l < geo.H_NX_Z; l++) {
+                    const int i = geo.to_index(j, k, l);
+                    const auto rho = combined_u[rho_i * u_face_offset + i];
+                    const auto rhoinv = 1.0 / rho;
+                    combined_u[(lx_i + n) * u_face_offset + i] *= rhoinv;
+                }
+            }
+        }
+        static constexpr auto levi_civita = geo.levi_civita();
+        for (int m = 0; m < NDIM; m++) {
+            for (int q = 0; q < NDIM; q++) {
+                const auto lc = levi_civita[n][m][q];
+                if (lc != 0) {
+                    for (int j = 0; j < geo.H_NX_X; j++) {
+                        for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+                            for (int l = 0; l < geo.H_NX_Z; l++) {
+                                const int i = geo.to_index(j, k, l);
+                                combined_u[(lx_i + n) * u_face_offset + i] -=
+                                    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (int j = 0; j < geo.H_NX_X; j++) {
+        for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+            for (int l = 0; l < geo.H_NX_Z; l++) {
+                const int i = geo.to_index(j, k, l);
+                combined_u[sx_i * u_face_offset + i] += omega * X[1][i];
+                combined_u[sy_i * u_face_offset + i] -= omega * X[0][i];
+            }
+        }
+    }
+}
+
 void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& X, safe_real omega,
     const size_t nf_, const int angmom_index_, const std::vector<bool>& smooth_field_,
-    const std::vector<bool>& disc_detect_, double* __restrict__ combined_q, double* __restrict__ combined_x) {
+    const std::vector<bool>& disc_detect_, double* __restrict__ combined_q,
+    double* __restrict__ combined_x) {
     static const cell_geometry<NDIM, INX> geo;
     static thread_local std::vector<std::vector<safe_real>> AM(
         geo.NANGMOM, std::vector<safe_real>(geo.H_N3));
@@ -490,10 +562,9 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         // n m q Levi Civita
                         // 0 2 1 -> -1
                         const vc_type xloc_tmp2 = vc_type(0.5 * xloc[d][2] * dx);
-                        result0 += 
-                            (-1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
-                                vc_type(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset +
-                                    q_i);
+                        result0 += (-1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
+                            vc_type(
+                                combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i);
                         Vc::where(!mask, result0) = vc_type(
                             combined_q + (lx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
                         result0.store(
@@ -511,10 +582,9 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
 
                         // n m q Levi Civita
                         // 1 2 0 -> 1
-                        result1 += 
-                            (1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
-                                vc_type(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset +
-                                    q_i);
+                        result1 += (1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
+                            vc_type(
+                                combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
                         Vc::where(!mask, result1) = vc_type(
                             combined_q + (lx_i + 1) * q_face_offset + d * q_dir_offset + q_i);
                         result1.store(
@@ -531,10 +601,9 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
 
                         // n m q Levi Civita
                         // 2 1 0 -> -1
-                        result2 += 
-                            (-1.0) * (vc_type(combined_x + q_inx3 + q_i) + xloc_tmp1) *
-                                vc_type(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset +
-                                    q_i);
+                        result2 += (-1.0) * (vc_type(combined_x + q_inx3 + q_i) + xloc_tmp1) *
+                            vc_type(
+                                combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
                         Vc::where(!mask, result2) = vc_type(
                             combined_q + (lx_i + 2) * q_face_offset + d * q_dir_offset + q_i);
                         result2.store(
@@ -551,7 +620,8 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         const int q_i = to_q_index(j, k, l);
                         const auto rho = combined_q[start_index_rho + q_i];
                         for (int n = 0; n < geo.NANGMOM; n++) {
-                            const int start_index_lx_n = (lx_i + n) * q_face_offset + d * q_dir_offset;
+                            const int start_index_lx_n =
+                                (lx_i + n) * q_face_offset + d * q_dir_offset;
                             combined_q[start_index_lx_n + q_i] *= rho;
                         }
                         for (int dim = 0; dim < NDIM; dim++) {

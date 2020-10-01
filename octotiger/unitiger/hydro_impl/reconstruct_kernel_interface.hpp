@@ -40,3 +40,6 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
     const size_t nf_, const int angmom_index_, const std::vector<bool>& smooth_field_,
     const std::vector<bool>& disc_detect_, double* __restrict__ combined_q,
     double* __restrict__ combined_x);
+
+void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega, bool angmom,
+    double* __restrict__ combined_u, const int nf, const int n_species_);
