@@ -260,7 +260,7 @@ diagnostics_t node_server::diagnostics() {
 	}
 
 	diagnostics_t diags;
-	for (integer i = 1; i != (opts().problem == DWD ? 6 : 2); ++i) {
+	for (integer i = 1; i != (opts().problem == DWD ? 5 : 2); ++i) {
 //		printf( "%i\n", i );
 		diags.stage = i;
 		diags = diagnostics(diags).compute();

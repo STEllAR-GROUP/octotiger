@@ -479,11 +479,11 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 			}
 			const real x0 = std::sqrt(std::pow(dX[0][XDIM], 2) + std::pow(dX[0][YDIM], 2) + std::pow(dX[0][ZDIM], 2));
 			const real x1 = std::sqrt(std::pow(dX[1][XDIM], 2) + std::pow(dX[1][YDIM], 2) + std::pow(dX[1][ZDIM], 2));
-			if (x1 > 0.25 * diags.rL[1] && x0 < 0.25 * diags.rL[0] && diags.stage > 3) {
+			if (x1 > 0.25 * diags.rL[1] && x0 < 0.25 * diags.rL[0] && diags.stage > 1) {
 				rc = +1;
-			} else if (x0 > 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3) {
+			} else if (x0 > 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 1) {
 				rc = -1;
-			} else if (x0 < 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 3) {
+			} else if (x0 < 0.25 * diags.rL[0] && x1 < 0.25 * diags.rL[1] && diags.stage > 1) {
 				rc = x0 < x1 ? +1 : -1;
 			} else {
 				for (integer s = 0; s != nspec; ++s) {
@@ -527,7 +527,7 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 				const real vz = U[sz_i][iii] * INVERSE(U[rho_i][iii]);
 				std::array<real, nspec> rho;
 				integer star;
-				if (diags.stage <= 2) {
+				if (diags.stage < 2) {
 					rho = { U[spc_ac_i][iii], U[spc_dc_i][iii] };
 				} else {
 					star = in_star(j, k, l);
