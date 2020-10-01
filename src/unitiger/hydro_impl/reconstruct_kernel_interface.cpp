@@ -251,15 +251,12 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::ve
 
 void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& X, safe_real omega,
     const size_t nf_, const int angmom_index_, const std::vector<bool>& smooth_field_,
-    const std::vector<bool>& disc_detect_, double* __restrict__ combined_q) {
+    const std::vector<bool>& disc_detect_, double* __restrict__ combined_q, double* __restrict__ combined_x) {
     static const cell_geometry<NDIM, INX> geo;
     static thread_local std::vector<std::vector<safe_real>> AM(
         geo.NANGMOM, std::vector<safe_real>(geo.H_N3));
     // static thread_local std::vector<std::vector<std::vector<safe_real>>> Q(
     //    nf_, std::vector<std::vector<safe_real>>(geo.NDIR, std::vector<safe_real>(geo.H_N3)));
-
-    // std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
-    //    15 * 27 * 10 * 10 * 10 + 32);
 
     static constexpr auto xloc = geo.xloc();
     static constexpr auto levi_civita = geo.levi_civita();
@@ -267,7 +264,9 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
     static constexpr auto dir = geo.direction();
     const int n_species_ = physics<NDIM>::get_n_species();
 
+    // TODO replace by parameter
     const auto dx = X[0][geo.H_DNX] - X[0][0];
+    // TODO Replace pre recon
     const auto& U = physics<NDIM>::pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
     const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U_);
     assert(angmom_index_ > -1);
@@ -455,12 +454,11 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                 for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
                     for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                        const int i = geo.to_index(j + 2, k + 2, l + 2);
                         const int q_i = to_q_index(j, k, l);
                         combined_q[start_index_sx + q_i] -=
-                            omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
+                            omega * (combined_x[1 * q_inx3 + q_i] + 0.5 * xloc[d][1] * dx);
                         combined_q[start_index_sy + q_i] +=
-                            omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
+                            omega * (combined_x[q_i] + 0.5 * xloc[d][0] * dx);
                         // Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
                         // Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
                     }
@@ -485,7 +483,7 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         const vc_type q_lx_val0(
                             combined_q + (lx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
                         auto result0 = q_lx_val0 +
-                            (1.0) * (vc_type(X[1].data() + i) + xloc_tmp1) *
+                            (1.0) * (vc_type(combined_x + q_inx3 + q_i) + xloc_tmp1) *
                                 vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset +
                                     q_i);
 
@@ -493,7 +491,7 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         // 0 2 1 -> -1
                         const vc_type xloc_tmp2 = vc_type(0.5 * xloc[d][2] * dx);
                         result0 += 
-                            (-1.0) * (vc_type(X[2].data() + i) + xloc_tmp2) *
+                            (-1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
                                 vc_type(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset +
                                     q_i);
                         Vc::where(!mask, result0) = vc_type(
@@ -507,14 +505,14 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         const vc_type q_lx_val1(
                             combined_q + (lx_i + 1) * q_face_offset + d * q_dir_offset + q_i);
                         auto result1 = q_lx_val1 +
-                            (-1.0) * (vc_type(X[0].data() + i) + xloc_tmp0) *
+                            (-1.0) * (vc_type(combined_x + q_i) + xloc_tmp0) *
                                 vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset +
                                     q_i);
 
                         // n m q Levi Civita
                         // 1 2 0 -> 1
                         result1 += 
-                            (1.0) * (vc_type(X[2].data() + i) + xloc_tmp2) *
+                            (1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
                                 vc_type(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset +
                                     q_i);
                         Vc::where(!mask, result1) = vc_type(
@@ -527,14 +525,14 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         const vc_type q_lx_val2(
                             combined_q + (lx_i + 2) * q_face_offset + d * q_dir_offset + q_i);
                         auto result2 = q_lx_val2 +
-                            (1.0) * (vc_type(X[0].data() + i) + xloc_tmp0) *
+                            (1.0) * (vc_type(combined_x + q_i) + xloc_tmp0) *
                                 vc_type(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset +
                                     q_i);
 
                         // n m q Levi Civita
                         // 2 1 0 -> -1
                         result2 += 
-                            (-1.0) * (vc_type(X[1].data() + i) + xloc_tmp1) *
+                            (-1.0) * (vc_type(combined_x + q_inx3 + q_i) + xloc_tmp1) *
                                 vc_type(combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset +
                                     q_i);
                         Vc::where(!mask, result2) = vc_type(

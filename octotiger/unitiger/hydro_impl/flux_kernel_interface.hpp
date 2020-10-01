@@ -429,6 +429,7 @@ void convert_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
         }
     }
 }
+
 template <typename Alloc>
 void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, Alloc>& combined_q) {
     auto it = combined_q.begin();
@@ -466,6 +467,22 @@ void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
            std::cout << " face " << face << " is incorrect!" << std::endl;
            std::cin.get();
         }
+    }
+}
+
+template <typename Alloc>
+void convert_x_structure(const hydro::x_type& X, std::vector<double, Alloc>& combined_x) {
+    auto it_x = combined_x.begin();
+    for (size_t dim = 0; dim < NDIM; dim++) {
+      auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
+      for (auto ix = 2; ix < 2 + INX + 2; ix++) {
+          for (auto iy = 2; iy < 2 + INX + 2; iy++) {
+              it_x = std::copy(X[dim].begin() + start_offset,
+                  X[dim].begin() + start_offset + 10, it_x);
+              start_offset += 14;
+          }
+          start_offset += (2 + 2) * 14;
+      }
     }
 }
 

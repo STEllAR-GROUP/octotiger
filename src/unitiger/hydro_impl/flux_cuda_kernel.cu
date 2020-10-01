@@ -184,18 +184,7 @@ timestep_t launch_flux_cuda(const std::vector<double, recycler::recycle_allocato
     combined_q.data(), (15 * 27 * 10 * 10 * 10 + 32) * sizeof(double), cudaMemcpyHostToDevice);
 
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * 1000 + 32);
-    auto it_x = combined_x.begin();
-    for (size_t dim = 0; dim < NDIM; dim++) {
-      auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
-      for (auto ix = 2; ix < 2 + INX + 2; ix++) {
-          for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-              it_x = std::copy(X[dim].begin() + start_offset,
-                  X[dim].begin() + start_offset + 10, it_x);
-              start_offset += 14;
-          }
-          start_offset += (2 + 2) * 14;
-      }
-    }
+    convert_x_structure(X, combined_x);
     const cell_geometry<3, 8> geo;
     double dx = X[0][geo.H_DNX] - X[0][0];
     recycler::cuda_device_buffer<double> device_x(NDIM * 1000 + 32, device_id);
