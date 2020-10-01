@@ -76,7 +76,7 @@ inline int to_q_index(const int j, const int k, const int l) {
 //}
 
 void reconstruct_minmod(
-    double* __restrict__ combined_q, const std::vector<safe_real>& u, int d, int f) {
+    double* __restrict__ combined_q, const double* __restrict__ combined_u_face, int d, int f) {
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
     const auto di = dir[d];
@@ -86,14 +86,18 @@ void reconstruct_minmod(
             for (int l = 0; l < geo.H_NX_ZM4; l++) {
                 const int i = geo.to_index(j + 2, k + 2, l + 2);
                 const int q_i = to_q_index(j, k, l) + start_index;
-                combined_q[q_i] = u[i] + 0.5 * minmod(u[i + di] - u[i], u[i] - u[i - di]);
+                combined_q[q_i] = combined_u_face[i] +
+                    0.5 *
+                        minmod(combined_u_face[i + di] - combined_u_face[i],
+                            combined_u_face[i] - combined_u_face[i - di]);
             }
         }
     }
 }
 
-void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::vector<safe_real>& u,
-    bool smooth, bool disc_detect, const std::vector<std::vector<double>>& disc, int d, int f) {
+void reconstruct_ppm_experimental(double* __restrict__ combined_q,
+    const double* __restrict__ combined_u_face, bool smooth, bool disc_detect,
+    const std::vector<std::vector<double>>& disc, int d, int f) {
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
     // const vc_type zindices = vc_type::IndexesFromZero() + 1;
@@ -105,10 +109,10 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::ve
         for (int k = 0; k < geo.H_NX_YM2; k++) {
             for (int l = 0; l < geo.H_NX_ZM2; l += vc_type::size()) {
                 const int i = geo.to_index(j + 1, k + 1, l + 1);
-                const vc_type u_plus_di(u.data() + i + di);
-                const vc_type u_zero(u.data() + i);
+                const vc_type u_plus_di(combined_u_face + i + di);
+                const vc_type u_zero(combined_u_face + i);
                 const vc_type diff_u = u_plus_di - u_zero;
-                const vc_type u_minus_di(u.data() + i - di);
+                const vc_type u_minus_di(combined_u_face + i - di);
                 const vc_type d1 = minmod_theta_wrapper<vc_type>(diff_u, u_zero - u_minus_di, 2.0);
                 d1.store(D1.data() + i);
             }
@@ -126,11 +130,11 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::ve
                     continue;
                 const int i = geo.to_index(j + 2, k + 2, l + 2);
                 const int q_i = to_q_index(j, k, l);
-                const vc_type u_plus_di(u.data() + i + di);
-                const vc_type u_zero(u.data() + i);
+                const vc_type u_plus_di(combined_u_face + i + di);
+                const vc_type u_zero(combined_u_face + i);
                 const vc_type diff_u = u_plus_di - u_zero;
 
-                const vc_type u_minus_di(u.data() + i - di);
+                const vc_type u_minus_di(combined_u_face + i - di);
                 const vc_type d1(D1.data() + i);
                 const vc_type d1_plus(D1.data() + i + di);
                 const vc_type d1_minus(D1.data() + i - di);
@@ -195,16 +199,18 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::ve
 #pragma ivdep
                 for (int l = 0; l < geo.H_NX_ZM4; l++) {
                     const int i = geo.to_index(j + 2, k + 2, l + 2);
-                    const auto& up = u[i + di];
-                    const auto& u0 = u[i];
-                    const auto& um = u[i - di];
+                    const auto& up = combined_u_face[i + di];
+                    const auto& u0 = combined_u_face[i];
+                    const auto& um = combined_u_face[i - di];
                     const auto dif = up - um;
                     if (std::abs(dif) > disc[d][i] * std::min(std::abs(up), std::abs(um))) {
                         if (std::min(std::abs(up), std::abs(um)) /
                                 std::max(std::abs(up), std::abs(um)) >
                             eps2) {
-                            const auto d2p = (1.0 / 6.0) * (u[i + 2 * di] + u0 - 2.0 * u[i + di]);
-                            const auto d2m = (1.0 / 6.0) * (u0 + u[i - 2 * di] - 2.0 * u[i - di]);
+                            const auto d2p = (1.0 / 6.0) *
+                                (combined_u_face[i + 2 * di] + u0 - 2.0 * combined_u_face[i + di]);
+                            const auto d2m = (1.0 / 6.0) *
+                                (u0 + combined_u_face[i - 2 * di] - 2.0 * combined_u_face[i - di]);
                             if (d2p * d2m < 0.0) {
                                 double eta = 0.0;
                                 if (std::abs(dif) > eps * std::min(std::abs(up), std::abs(um))) {
@@ -213,10 +219,14 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::ve
                                 eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
                                 if (eta > 0.0) {
                                     const int q_i = to_q_index(j, k, l);
-                                    auto ul =
-                                        um + 0.5 * minmod_theta(u[i] - um, um - u[i - 2 * di], 2.0);
-                                    auto ur =
-                                        up - 0.5 * minmod_theta(u[i + 2 * di] - up, up - u[i], 2.0);
+                                    auto ul = um +
+                                        0.5 *
+                                            minmod_theta(combined_u_face[i] - um,
+                                                um - combined_u_face[i - 2 * di], 2.0);
+                                    auto ur = up -
+                                        0.5 *
+                                            minmod_theta(combined_u_face[i + 2 * di] - up,
+                                                up - combined_u_face[i], 2.0);
                                     // auto& qp = q[d][i];
                                     // auto& qm = q[geo.flip(d)][i];
                                     auto& qp = combined_q[start_index + q_i];
@@ -239,91 +249,22 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q, const std::ve
                     const int i = geo.to_index(j + 2, k + 2, l + 2);
                     const int q_i = to_q_index(j, k, l);
                     const mask_type mask = (zindices + l < geo.H_NX_ZM4);
-                    make_monotone_wrapper(combined_q + start_index + q_i, u.data() + i,
+                    make_monotone_wrapper(combined_q + start_index + q_i, combined_u_face + i,
                         combined_q + start_index_flipped + q_i, mask);
                     // auto& qp = q[geo.flip(d)][i];
                     // auto& qm = q[d][i];
-                    // make_monotone(qm, u[i], qp);
+                    // make_monotone(qm, combined_u_face[i], qp);
                 }
             }
         }
     }
 }
 
-void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega, bool angmom,
-    double* __restrict__ combined_u, const int nf, const int n_species_) {
-    static const cell_geometry<NDIM, INX> geo;
-
-    for (int f = 0; f < nf; f++) {
-        std::copy(X[f].begin(), X[f].end(), combined_u + f * u_face_offset);
-    }
-    for (int j = 0; j < geo.H_NX_X; j++) {
-        for (int k = 0; k < geo.H_NX_Y; k++) {
-#pragma ivdep
-            for (int l = 0; l < geo.H_NX_Z; l++) {
-                const int i = geo.to_index(j, k, l);
-                // const auto rho = V[rho_i][i];
-                const auto rho = combined_u[rho_i * u_face_offset + i];
-                const auto rhoinv = 1.0 / rho;
-                for (int dim = 0; dim < NDIM; dim++) {
-                    auto& s = combined_u[(sx_i + dim) * u_face_offset + i];
-                    combined_u[egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
-                    s *= rhoinv;
-                }
-                for (int si = 0; si < n_species_; si++) {
-                    combined_u[(spc_i + si) * u_face_offset + i] *= rhoinv;
-                }
-                combined_u[pot_i * u_face_offset + i] *= rhoinv;
-            }
-        }
-    }
-    for (int n = 0; n < geo.NANGMOM; n++) {
-        for (int j = 0; j < geo.H_NX_X; j++) {
-            for (int k = 0; k < geo.H_NX_Y; k++) {
-#pragma ivdep
-                for (int l = 0; l < geo.H_NX_Z; l++) {
-                    const int i = geo.to_index(j, k, l);
-                    const auto rho = combined_u[rho_i * u_face_offset + i];
-                    const auto rhoinv = 1.0 / rho;
-                    combined_u[(lx_i + n) * u_face_offset + i] *= rhoinv;
-                }
-            }
-        }
-        static constexpr auto levi_civita = geo.levi_civita();
-        for (int m = 0; m < NDIM; m++) {
-            for (int q = 0; q < NDIM; q++) {
-                const auto lc = levi_civita[n][m][q];
-                if (lc != 0) {
-                    for (int j = 0; j < geo.H_NX_X; j++) {
-                        for (int k = 0; k < geo.H_NX_Y; k++) {
-#pragma ivdep
-                            for (int l = 0; l < geo.H_NX_Z; l++) {
-                                const int i = geo.to_index(j, k, l);
-                                combined_u[(lx_i + n) * u_face_offset + i] -=
-                                    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    for (int j = 0; j < geo.H_NX_X; j++) {
-        for (int k = 0; k < geo.H_NX_Y; k++) {
-#pragma ivdep
-            for (int l = 0; l < geo.H_NX_Z; l++) {
-                const int i = geo.to_index(j, k, l);
-                combined_u[sx_i * u_face_offset + i] += omega * X[1][i];
-                combined_u[sy_i * u_face_offset + i] -= omega * X[0][i];
-            }
-        }
-    }
-}
-
-void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& X, safe_real omega,
-    const size_t nf_, const int angmom_index_, const std::vector<bool>& smooth_field_,
-    const std::vector<bool>& disc_detect_, double* __restrict__ combined_q,
-    double* __restrict__ combined_x) {
+void reconstruct_experimental(const safe_real omega, const size_t nf_, const int angmom_index_,
+    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
+    double* __restrict__ combined_q, double* __restrict__ combined_x,
+    double* __restrict__ combined_u, const double dx,
+    const std::vector<std::vector<safe_real>>& cdiscs) {
     static const cell_geometry<NDIM, INX> geo;
     static thread_local std::vector<std::vector<safe_real>> AM(
         geo.NANGMOM, std::vector<safe_real>(geo.H_N3));
@@ -337,12 +278,20 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
     const int n_species_ = physics<NDIM>::get_n_species();
 
     // TODO replace by parameter
-    const auto dx = X[0][geo.H_DNX] - X[0][0];
+    // const auto dx = X[0][geo.H_DNX] - X[0][0];
     // TODO Replace pre recon
-    const auto& U = physics<NDIM>::pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
-    const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U_);
+    // const auto& U = physics<NDIM>::pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
+    // TODO replace dis by parameters
+    // const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U_);
+
+    // Current implementation limitations of this kernel - can be resolved but that takes more work
     assert(angmom_index_ > -1);
     assert(NDIM > 2);
+    assert(nf == 15);
+    assert(geo.NDIR == 27);
+    assert(INX == 8);
+    // TODO Make kernel work with a wider range of parameters
+
     const int sx_i = angmom_index_;
     const int zx_i = sx_i + NDIM;
 
@@ -352,7 +301,7 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
 #pragma ivdep
                 for (int l = 0; l < geo.H_NX_ZM4; l++) {
                     const int i = geo.to_index(j + 2, k + 2, l + 2);
-                    AM[n][i] = U[zx_i + n][i] * U[0][i];
+                    AM[n][i] = combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
                 }
             }
         }
@@ -361,20 +310,21 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
     for (int d = 0; d < geo.NDIR; d++) {
         if (d < geo.NDIR / 2) {
             for (int f = 0; f < angmom_index_; f++) {
-                reconstruct_ppm_experimental(
-                    combined_q, U[f], smooth_field_[f], disc_detect_[f], cdiscs, d, f);
+                reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
+                    smooth_field_[f], disc_detect_[f], cdiscs, d, f);
             }
             for (int f = sx_i; f < sx_i + NDIM; f++) {
-                reconstruct_ppm_experimental(combined_q, U[f], true, false, cdiscs, d, f);
+                reconstruct_ppm_experimental(
+                    combined_q, combined_u + u_face_offset * f, true, false, cdiscs, d, f);
             }
         }
         for (int f = zx_i; f < zx_i + geo.NANGMOM; f++) {
-            reconstruct_minmod(combined_q, U[f], d, f);
+            reconstruct_minmod(combined_q, combined_u + u_face_offset * f, d, f);
         }
         if (d < geo.NDIR / 2) {
             for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
-                reconstruct_ppm_experimental(
-                    combined_q, U[f], smooth_field_[f], disc_detect_[f], cdiscs, d, f);
+                reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
+                    smooth_field_[f], disc_detect_[f], cdiscs, d, f);
             }
         }
 
@@ -469,9 +419,9 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
                         auto& ql = combined_q[start_index_flipped + q_i];
                         // auto& qr = Q[f][d][i];
                         // auto& ql = Q[f][geo.flip(d)][i];
-                        const auto& ur = U[f][i + di];
-                        const auto& u0 = U[f][i];
-                        const auto& ul = U[f][i - di];
+                        const auto& ur = combined_u[f * u_face_offset + i + di];
+                        const auto& u0 = combined_u[f * u_face_offset + i];
+                        const auto& ul = combined_u[f * u_face_offset + i - di];
                         const auto b0 = qr - ql;
                         auto b = b0;
                         for (int n = 0; n < geo.NANGMOM; n++) {
@@ -653,6 +603,7 @@ void reconstruct_experimental(const hydro::state_type& U_, const hydro::x_type& 
     return;
 }
 
+// TODO Remove this method - not required anymore
 void post_recon_experimental(std::vector<std::vector<std::vector<safe_real>>>& Q,
     const hydro::x_type X, safe_real omega, bool angmom) {
     PROFILE();
@@ -784,6 +735,76 @@ void post_recon_experimental(std::vector<std::vector<std::vector<safe_real>>>& Q
                     }
                 }
             }*/
+        }
+    }
+}
+
+void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega,
+    bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_) {
+    static const cell_geometry<NDIM, INX> geo;
+
+    for (int f = 0; f < nf; f++) {
+        std::copy(U[f].begin(), U[f].end(), combined_u + f * u_face_offset);
+    }
+    for (int j = 0; j < geo.H_NX_X; j++) {
+        for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+            for (int l = 0; l < geo.H_NX_Z; l++) {
+                const int i = geo.to_index(j, k, l);
+                // const auto rho = V[rho_i][i];
+                const auto rho = combined_u[rho_i * u_face_offset + i];
+                const auto rhoinv = 1.0 / rho;
+                for (int dim = 0; dim < NDIM; dim++) {
+                    auto& s = combined_u[(sx_i + dim) * u_face_offset + i];
+                    combined_u[egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
+                    s *= rhoinv;
+                }
+                for (int si = 0; si < n_species_; si++) {
+                    combined_u[(spc_i + si) * u_face_offset + i] *= rhoinv;
+                }
+                combined_u[pot_i * u_face_offset + i] *= rhoinv;
+            }
+        }
+    }
+    for (int n = 0; n < geo.NANGMOM; n++) {
+        for (int j = 0; j < geo.H_NX_X; j++) {
+            for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+                for (int l = 0; l < geo.H_NX_Z; l++) {
+                    const int i = geo.to_index(j, k, l);
+                    const auto rho = combined_u[rho_i * u_face_offset + i];
+                    const auto rhoinv = 1.0 / rho;
+                    combined_u[(lx_i + n) * u_face_offset + i] *= rhoinv;
+                }
+            }
+        }
+        static constexpr auto levi_civita = geo.levi_civita();
+        for (int m = 0; m < NDIM; m++) {
+            for (int q = 0; q < NDIM; q++) {
+                const auto lc = levi_civita[n][m][q];
+                if (lc != 0) {
+                    for (int j = 0; j < geo.H_NX_X; j++) {
+                        for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+                            for (int l = 0; l < geo.H_NX_Z; l++) {
+                                const int i = geo.to_index(j, k, l);
+                                combined_u[(lx_i + n) * u_face_offset + i] -=
+                                    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (int j = 0; j < geo.H_NX_X; j++) {
+        for (int k = 0; k < geo.H_NX_Y; k++) {
+#pragma ivdep
+            for (int l = 0; l < geo.H_NX_Z; l++) {
+                const int i = geo.to_index(j, k, l);
+                combined_u[sx_i * u_face_offset + i] += omega * X[1][i];
+                combined_u[sy_i * u_face_offset + i] -= omega * X[0][i];
+            }
         }
     }
 }

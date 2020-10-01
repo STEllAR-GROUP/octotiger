@@ -1837,6 +1837,7 @@ timestep_t grid::compute_fluxes() {
     }
     return max_lambda;
   } else {
+    static const cell_geometry<NDIM, INX> geo;
     //auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
     //    std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
@@ -1846,16 +1847,19 @@ timestep_t grid::compute_fluxes() {
     thread_local size_t total_time = 0;
     thread_local size_t avg_time = 0;
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * 1000 + 32);
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_u(hydro.get_nf() * H_N3 + 32);
     convert_x_structure(X, combined_x);
     auto start = std::chrono::system_clock::now();
-    reconstruct_experimental(U, X, omega, hydro.get_nf(), hydro.get_angmom_index(), hydro.get_smooth_field(), hydro.get_disc_detect(), combined_q.data(), combined_x.data());
+    convert_pre_recon(U, X, omega, hydro.get_angmom_index() != -1, combined_u.data(), hydro.get_nf(), opts().n_species);
+    const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U);
+    reconstruct_experimental(omega, hydro.get_nf(), hydro.get_angmom_index(), hydro.get_smooth_field(), hydro.get_disc_detect(), combined_q.data(), combined_x.data(), combined_u.data(), X[0][geo.H_DNX] - X[0][0], cdiscs );
 
     auto end = std::chrono::system_clock::now();
     auto elapsed =
     std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     launch_counter++;
     total_time += elapsed.count();
-    std::cout << total_time / launch_counter << '\n';
+    //std::cout << total_time / launch_counter << '\n';
     
    
 
