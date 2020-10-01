@@ -97,15 +97,15 @@ void reconstruct_minmod(
 
 void reconstruct_ppm_experimental(double* __restrict__ combined_q,
     const double* __restrict__ combined_u_face, bool smooth, bool disc_detect,
-    const std::vector<std::vector<double>>& disc, int d, int f) {
+    const std::vector<std::vector<double>>& disc, const int d, const int f) {
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
     // const vc_type zindices = vc_type::IndexesFromZero() + 1;
-    static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
+    //static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
     const auto di = dir[d];
     const auto flipped_di = geo.flip(d);
 
-    for (int j = 0; j < geo.H_NX_XM2; j++) {
+    /*for (int j = 0; j < geo.H_NX_XM2; j++) {
         for (int k = 0; k < geo.H_NX_YM2; k++) {
             for (int l = 0; l < geo.H_NX_ZM2; l += vc_type::size()) {
                 const int i = geo.to_index(j + 1, k + 1, l + 1);
@@ -117,7 +117,7 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q,
                 d1.store(D1.data() + i);
             }
         }
-    }
+    }*/
     const int start_index = f * q_face_offset + d * q_dir_offset;
     const int start_index_flipped = f * q_face_offset + flipped_di * q_dir_offset;
     const vc_type zindices = vc_type::IndexesFromZero();
@@ -130,14 +130,24 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q,
                     continue;
                 const int i = geo.to_index(j + 2, k + 2, l + 2);
                 const int q_i = to_q_index(j, k, l);
+
+                const vc_type u_plus_2di(combined_u_face + i + 2 * di);
                 const vc_type u_plus_di(combined_u_face + i + di);
                 const vc_type u_zero(combined_u_face + i);
-                const vc_type diff_u = u_plus_di - u_zero;
-
                 const vc_type u_minus_di(combined_u_face + i - di);
-                const vc_type d1(D1.data() + i);
-                const vc_type d1_plus(D1.data() + i + di);
-                const vc_type d1_minus(D1.data() + i - di);
+                const vc_type u_minus_2di(combined_u_face + i - 2 * di);
+
+                const vc_type diff_u_plus = u_plus_di - u_zero;
+                const vc_type diff_u_2plus = u_plus_2di - u_plus_di;
+
+                const vc_type diff_u_minus = u_zero - u_minus_di;
+                const vc_type diff_u_2minus = u_minus_di - u_minus_2di;
+                //const vc_type d1(D1.data() + i);
+                //const vc_type d1_plus(D1.data() + i + di);
+                //const vc_type d1_minus(D1.data() + i - di);
+                const vc_type d1 = minmod_theta_wrapper<vc_type>(diff_u_plus, diff_u_minus, 2.0);
+                const vc_type d1_plus = minmod_theta_wrapper<vc_type>(diff_u_2plus, diff_u_plus, 2.0);
+                const vc_type d1_minus = minmod_theta_wrapper<vc_type>(diff_u_minus, diff_u_2minus, 2.0);
 
                 vc_type results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
                 vc_type results_flipped =
@@ -268,21 +278,12 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
     static const cell_geometry<NDIM, INX> geo;
     static thread_local std::vector<std::vector<safe_real>> AM(
         geo.NANGMOM, std::vector<safe_real>(geo.H_N3));
-    // static thread_local std::vector<std::vector<std::vector<safe_real>>> Q(
-    //    nf_, std::vector<std::vector<safe_real>>(geo.NDIR, std::vector<safe_real>(geo.H_N3)));
 
     static constexpr auto xloc = geo.xloc();
     static constexpr auto levi_civita = geo.levi_civita();
     static constexpr auto vw = geo.volume_weight();
     static constexpr auto dir = geo.direction();
     const int n_species_ = physics<NDIM>::get_n_species();
-
-    // TODO replace by parameter
-    // const auto dx = X[0][geo.H_DNX] - X[0][0];
-    // TODO Replace pre recon
-    // const auto& U = physics<NDIM>::pre_recon<INX>(U_, X, omega, angmom_index_ != -1);
-    // TODO replace dis by parameters
-    // const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U_);
 
     // Current implementation limitations of this kernel - can be resolved but that takes more work
     assert(angmom_index_ > -1);
