@@ -118,7 +118,7 @@ std::vector<std::string> grid::get_field_names() {
 		rc.push_back("locality");
 		rc.push_back("idle_rate");
 	}
-	rc.push_back("roche_lobe");
+//	rc.push_back("roche_lobe");
 	return rc;
 }
 
@@ -333,21 +333,21 @@ std::vector<silo_var_t> grid::var_data() const {
 		}
 	}
 
-	{
-
-		int jjj = 0;
-		silo_var_t this_s("roche_lobe");
-		for (int i = 0; i < INX; i++) {
-			for (int j = 0; j < INX; j++) {
-				for (int k = 0; k < INX; k++) {
-					this_s(jjj) = 	roche_lobe[h0index(i,j,k)];
-					this_s.set_range(this_s(jjj));
-					jjj++;
-				}
-			}
-		}
-		s.push_back(std::move(this_s));
-	}
+//	{
+//
+//		int jjj = 0;
+//		silo_var_t this_s("roche_lobe");
+//		for (int i = 0; i < INX; i++) {
+//			for (int j = 0; j < INX; j++) {
+//				for (int k = 0; k < INX; k++) {
+//					this_s(jjj) = 	roche_lobe[h0index(i,j,k)];
+//					this_s.set_range(this_s(jjj));
+//					jjj++;
+//				}
+//			}
+//		}
+//		s.push_back(std::move(this_s));
+//	}
 	return std::move(s);
 }
 
@@ -592,30 +592,30 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						if (U[rho_i][iii] > 10.0 * rho_floor) {
 							rc.stellar_vol[i] += dV;
 						}
+						rc.rho_max[i] = std::max(rc.rho_max[i], safe_real(rho0));
 					}
 
-					rc.rho_max[i] = std::max(rc.rho_max[i], safe_real(rho0));
-					auto &rl = roche_lobe[h0index(j - H_BW, k - H_BW, l - H_BW)];
-
-					auto lmin23 = std::min(diags.l2_phi, diags.l3_phi);
-					auto lmax23 = std::max(diags.l2_phi, diags.l3_phi);
-
-					if (i != -1) {
-						rl = i == 0 ? -1 : +1;
-						const integer s = rl * INVERSE(std::abs(rl));
-
-						if (phi_eff > diags.l1_phi) {
-							rl += s;
-						}
-						if (phi_eff > lmin23) {
-							rl += s;
-						}
-						if (phi_eff > lmax23) {
-							rl += s;
-						}
-					} else {
-						rl = 0;
-					}
+//					auto &rl = roche_lobe[h0index(j - H_BW, k - H_BW, l - H_BW)];
+//
+//					auto lmin23 = std::min(diags.l2_phi, diags.l3_phi);
+//					auto lmax23 = std::max(diags.l2_phi, diags.l3_phi);
+//
+//					if (i != -1) {
+//						rl = i == 0 ? -1 : +1;
+//						const integer s = rl * INVERSE(std::abs(rl));
+//
+//						if (phi_eff > diags.l1_phi) {
+//							rl += s;
+//						}
+//						if (phi_eff > lmin23) {
+//							rl += s;
+//						}
+//						if (phi_eff > lmax23) {
+//							rl += s;
+//						}
+//					} else {
+//						rl = 0;
+//					}
 
 					auto loc = is_loc(j, k, l);
 					if (loc == 2) {
