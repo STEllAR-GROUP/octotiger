@@ -8,7 +8,6 @@
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
-#endif
 
 // --------------------------------------- Stencil interface
 
@@ -427,3 +426,4 @@ void multipole_kernel(executor_t& exec, std::vector<real>& monopoles, std::vecto
         }
     }
 }
+#endif

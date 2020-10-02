@@ -16,7 +16,9 @@
 #include <buffer_manager.hpp>
 #include <stream_manager.hpp>
 
+#ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
+#endif
 
 enum accelerator_kernel_type
 {
@@ -42,12 +44,13 @@ using executor_interface_t = stream_interface<device_executor, device_pool_strat
 void p2p_kernel_interface(std::vector<real>& monopoles,
     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::shared_ptr<grid> grid_ptr) {
-    accelerator_kernel_type device_type = DEVICE_KOKKOS;
+    accelerator_kernel_type device_type = DEVICE_CUDA;
     host_kernel_type host_type = HOST_VC;
 
     // Try accelerator implementation
     if (device_type != OFF) {
         if (device_type == DEVICE_KOKKOS) {
+#ifdef OCTOTIGER_HAVE_KOKKOS
             bool avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
                 opts().cuda_buffer_capacity);
             if (avail) {
@@ -56,6 +59,10 @@ void p2p_kernel_interface(std::vector<real>& monopoles,
                     is_direction_empty, grid_ptr);
                 return;
             }
+#else
+            std::cerr << "Trying to call P2P Kokkos kernel in a non-kokkos build! Aborting..." << std::endl;
+            abort();
+#endif
         }
         if (device_type == DEVICE_CUDA) {
             octotiger::fmm::monopole_interactions::cuda_p2p_interaction_interface p2p_interactor{};
@@ -67,10 +74,15 @@ void p2p_kernel_interface(std::vector<real>& monopoles,
     }    // Nothing is available or device execution is disabled - fallback to host execution
 
     if (host_type == HOST_KOKKOS) {
+#ifdef OCTOTIGER_HAVE_KOKKOS
         host_executor executor{};
         p2p_kernel<host_executor>(
             executor, monopoles, neighbors, type, dx, opts().theta, is_direction_empty, grid_ptr);
         return;
+#else
+        std::cerr << "Trying to call P2P Kokkos kernel in a non-kokkos build! Aborting..." << std::endl;
+        abort();
+#endif
     } else {
         octotiger::fmm::monopole_interactions::p2p_interaction_interface p2p_interactor{};
         p2p_interactor.set_grid_ptr(grid_ptr);

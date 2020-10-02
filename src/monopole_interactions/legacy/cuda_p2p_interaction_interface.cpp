@@ -4,14 +4,9 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifdef OCTOTIGER_HAVE_CUDA
-#include "octotiger/common_kernel/kokkos_util.hpp"
-#include <Kokkos_Core.hpp>
-#include <hpx/kokkos.hpp>
 
 #include "octotiger/monopole_interactions/legacy/cuda_p2p_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/p2p_cuda_kernel.hpp"
-//TODO(daissgr) Remove this header and the source file
-#include "octotiger/monopole_interactions/legacy/p2p_kokkos_kernel.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 
 #include "octotiger/defs.hpp"

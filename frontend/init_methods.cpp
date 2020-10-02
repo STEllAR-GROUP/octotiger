@@ -98,7 +98,7 @@ void init_stencil(std::size_t worker_id) {
 void init_executors(void) {
 #ifdef OCTOTIGER_HAVE_CUDA
 
-    #ifdef OCTOTIGER_HAVE_KOKKOS
+#ifdef OCTOTIGER_HAVE_KOKKOS
         std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
         stream_pool::init<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
             opts().cuda_streams_per_gpu);

@@ -16,7 +16,9 @@
 #include <buffer_manager.hpp>
 #include <stream_manager.hpp>
 
+#ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
+#endif
 
 enum accelerator_kernel_type
 {
@@ -44,12 +46,13 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::array<real, NDIM> xbase,
     std::shared_ptr<grid> grid) {
-    accelerator_kernel_type device_type = DEVICE_KOKKOS;
-    host_kernel_type host_type = HOST_KOKKOS;
+    accelerator_kernel_type device_type = DEVICE_CUDA;
+    host_kernel_type host_type = HOST_VC;
 
     // Try accelerator implementation
     if (device_type != OFF) {
         if (device_type == DEVICE_KOKKOS) {
+#ifdef OCTOTIGER_HAVE_KOKKOS
             bool avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
                 opts().cuda_buffer_capacity);
             if (avail) {
@@ -58,6 +61,10 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
                 neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid);
                 return;
             }
+#else
+            std::cerr << "Trying to call Multipole Kokkos kernel in a non-kokkos build! Aborting..." << std::endl;
+            abort();
+#endif
         }
         if (device_type == DEVICE_CUDA) {
 
@@ -71,10 +78,15 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
     }    // Nothing is available or device execution is disabled - fallback to host execution
 
     if (host_type == HOST_KOKKOS) {
+#ifdef OCTOTIGER_HAVE_KOKKOS
         host_executor executor{};
         multipole_kernel<host_executor>(executor, monopoles, M_ptr, com_ptr,
         neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid);
         return;
+#else
+        std::cerr << "Trying to call Multipole Kokkos kernel in a non-kokkos build! Aborting..." << std::endl;
+        abort();
+#endif
     } else {
         octotiger::fmm::multipole_interactions::multipole_interaction_interface
             multipole_interactor{};

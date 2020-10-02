@@ -5,7 +5,6 @@
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
-#endif
 
 template <typename storage>
 const storage& get_host_masks() {
@@ -205,3 +204,4 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
         }
     }
 }
+#endif
