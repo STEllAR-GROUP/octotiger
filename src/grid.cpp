@@ -1791,31 +1791,14 @@ timestep_t grid::compute_fluxes() {
 		}
 	}
 	hydro.use_smooth_recon(pot_i);
-  bool use_new_datastructure = true;
+  bool use_new_datastructure = false;
   if (!use_new_datastructure) {
 
     static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
         std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
     const auto &q = hydro.reconstruct(U, X, omega);
-    //const auto &q = reconstruct_experimental(U, X, omega);
-    //const auto &q = reconstruct_experimental(U, X, omega, hydro.get_nf(), hydro.get_angmom_index(), hydro.get_smooth_field(), hydro.get_disc_detect());
-
-    //thread_local size_t launch_counter = 0;
-    //thread_local size_t total_time = 0;
-    //thread_local size_t avg_time = 0;
-    //auto start = std::chrono::system_clock::now();
     //auto max_lambda = hydro.flux(U, q, f, X, omega);
-    //auto max_lambda = hydro.flux_experimental(q, f, X, omega);
-   //auto max_lambda = flux_kernel_interface(q, f, X, omega, hydro.get_nf());
     auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
-    //auto max_lambda = flux_unified_cpu_kernel(q, f, X, omega, hydro.get_nf());
-    //auto end = std::chrono::system_clock::now();
-    //auto elapsed =
-    //  std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    //launch_counter++;
-    //total_time += elapsed.count();
-    //std::cout << "Max: " << max_lambda.a << std::endl;
-    //std::cout << total_time / launch_counter << '\n';
 
     for (int dim = 0; dim < NDIM; dim++) {
       for (integer field = 0; field != opts().n_fields; ++field) {
