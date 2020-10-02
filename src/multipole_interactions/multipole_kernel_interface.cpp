@@ -33,11 +33,13 @@ enum host_kernel_type
     HOST_KOKKOS
 };
 
+#ifdef OCTOTIGER_HAVE_KOKKOS
 using device_executor = hpx::kokkos::cuda_executor;
 using host_executor = hpx::kokkos::serial_executor;
 // using host_executor = hpx::kokkos::hpx_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
+#endif
 
 #include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
 
