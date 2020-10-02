@@ -569,7 +569,9 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						rc.lz1[i] += U[lz_i][iii] * dV;
 						rc.Ts[i] += dX[0] * G[iiig][gy_i] * dV * rho0;
 						rc.Ts[i] -= dX[1] * G[iiig][gx_i] * dV * rho0;
-						rc.g[i] += G[iiig][gy_i] * dV * rho0;
+						rc.g[0][i] += G[iiig][gx_i] * dV * rho0;
+						rc.g[1][i] += G[iiig][gy_i] * dV * rho0;
+						rc.g[2][i] += G[iiig][gz_i] * dV * rho0;
 						const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) / 2.0 / U[rho_i][iii] * dV;
 						auto eint = U[egas_i][iii] * dV - ekin;
 						const auto epot = 0.5 * U[pot_i][iii] * dV;
