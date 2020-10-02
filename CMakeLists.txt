@@ -282,6 +282,7 @@ set(hydro_source_files
    src/unitiger/hydro_impl/flux_cpu_kernel.cpp
    src/unitiger/hydro_impl/flux_cuda_kernel.cu
    src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
+   src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
@@ -320,7 +321,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/monopole_interactions/legacy/p2p_interaction_interface.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
     src/multipole_interactions/legacy/multipole_interaction_interface.cpp
-    # vcl
+    src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
     src/unitiger/hydro_impl/flux_cpu_kernel.cpp
 
     # Other reasons for host-only compilation (hpx actions)

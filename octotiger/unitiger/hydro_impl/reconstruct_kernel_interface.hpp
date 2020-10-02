@@ -33,10 +33,7 @@ CUDA_CALLABLE_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const
     return minmod_wrapper<T>(c * minmod_wrapper<T>(a, b), 0.5 * (a + b));
 }
 
-void reconstruct_ppm_experimental(double* __restrict__ combined_q, double* __restrict__ combined_u_face, 
-    bool smooth, bool disc_detect, const std::vector<std::vector<double>>& disc);
-
-void reconstruct_experimental(const safe_real omega,
+void reconstruct_cpu_kernel(const safe_real omega,
     const size_t nf_, const int angmom_index_, const std::vector<bool>& smooth_field_,
     const std::vector<bool>& disc_detect_, double* __restrict__ combined_q,
     double* __restrict__ combined_x, double* __restrict__ combined_u, const double dx, const std::vector<std::vector<safe_real>> &cdiscs);
