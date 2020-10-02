@@ -3,59 +3,13 @@
 #pragma GCC push_options
 #pragma GCC optimize("unroll-loops")
 
-#include <Vc/Vc>
-#include <Vc/common/mask.h>
-#include <Vc/vector.h>
-
-using vc_type = Vc::Vector<double, Vc::VectorAbi::Avx>;
-using mask_type = vc_type::mask_type;
-using index_type = Vc::Vector<int, Vc::VectorAbi::Avx>;
-
 template <>
-inline vc_type copysign_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
-    return Vc::copysign(tmp1, tmp2);
+inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
+    return std::min(tmp1, tmp2);
 }
 template <>
-inline vc_type abs_wrapper<vc_type>(const vc_type& tmp1) {
-    return Vc::abs(tmp1);
-}
-template <>
-inline vc_type minmod_wrapper<vc_type>(const vc_type& a, const vc_type& b) {
-    return (copysign_wrapper<vc_type>(0.5, a) + copysign_wrapper<vc_type>(0.5, b)) *
-        min_wrapper<vc_type>(abs_wrapper<vc_type>(a), abs_wrapper<vc_type>(b));
-}
-template <>
-inline vc_type minmod_theta_wrapper<vc_type>(const vc_type& a, const vc_type& b, const vc_type& c) {
-    return minmod_wrapper<vc_type>(c * minmod_wrapper<vc_type>(a, b), 0.5 * (a + b));
-}
-template <>
-inline vc_type load_value<vc_type>(const double* __restrict__ data, const size_t index) {
-    return vc_type(data + index);
-}
-
-inline void make_monotone_wrapper(double* __restrict__ qld, const double* __restrict__ q0d,
-    double* __restrict__ qrd, const mask_type& mask) {
-    vc_type ql(qld);
-    vc_type qr(qrd);
-    const vc_type q0(q0d);
-    const vc_type tmp1 = qr - ql;
-    const vc_type tmp2 = qr + ql;
-
-    const mask_type mask1_tmp1 = mask_type(qr < q0);
-    const mask_type mask1_tmp2 = mask_type(q0 < ql);
-    const mask_type mask1 = (mask1_tmp1 ^ mask1_tmp2);
-    const vc_type tmp3 = tmp1 * tmp1 / 6.0;
-    const vc_type tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-    const mask_type mask2 = mask_type(tmp4 > tmp3);
-    const mask_type mask3 = !mask_type(tmp4 > tmp3) && mask_type(-tmp3 > tmp4);
-    Vc::where(mask2, ql) = (3.0 * q0 - 2.0 * qr);
-    Vc::where(mask3, qr) = (3.0 * q0 - 2.0 * ql);
-    Vc::where(mask1, qr) = q0;
-    Vc::where(mask1, ql) = q0;
-    Vc::where(!mask, ql) = vc_type(qld);
-    Vc::where(!mask, qr) = vc_type(qrd);
-    ql.store(qld);
-    qr.store(qrd);
+inline double abs_wrapper<double>(const double& tmp1) {
+    return std::abs(tmp1);
 }
 
 constexpr int number_faces = 15;
@@ -120,43 +74,36 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q,
     }*/
     const int start_index = f * q_face_offset + d * q_dir_offset;
     const int start_index_flipped = f * q_face_offset + flipped_di * q_dir_offset;
-    const vc_type zindices = vc_type::IndexesFromZero();
     for (int j = 0; j < geo.H_NX_XM4; j++) {
         for (int k = 0; k < geo.H_NX_YM4; k++) {
-            for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
-                const int border = geo.H_NX_ZM4 - l;
-                const mask_type mask = (zindices < border);
-                if (Vc::none_of(mask))
-                    continue;
+            for (int l = 0; l < geo.H_NX_ZM4; l++ ) {
                 const int i = geo.to_index(j + 2, k + 2, l + 2);
                 const int q_i = to_q_index(j, k, l);
 
-                const vc_type u_plus_2di(combined_u_face + i + 2 * di);
-                const vc_type u_plus_di(combined_u_face + i + di);
-                const vc_type u_zero(combined_u_face + i);
-                const vc_type u_minus_di(combined_u_face + i - di);
-                const vc_type u_minus_2di(combined_u_face + i - 2 * di);
+                const double u_plus_2di = combined_u_face[i + 2 * di];
+                const double u_plus_di = combined_u_face[i + di];
+                const double u_zero = combined_u_face[i];
+                const double u_minus_di = combined_u_face[i - di];
+                const double u_minus_2di = combined_u_face[i - 2 * di];
 
-                const vc_type diff_u_plus = u_plus_di - u_zero;
-                const vc_type diff_u_2plus = u_plus_2di - u_plus_di;
+                const double diff_u_plus = u_plus_di - u_zero;
+                const double diff_u_2plus = u_plus_2di - u_plus_di;
 
-                const vc_type diff_u_minus = u_zero - u_minus_di;
-                const vc_type diff_u_2minus = u_minus_di - u_minus_2di;
+                const double diff_u_minus = u_zero - u_minus_di;
+                const double diff_u_2minus = u_minus_di - u_minus_2di;
                 //const vc_type d1(D1.data() + i);
                 //const vc_type d1_plus(D1.data() + i + di);
                 //const vc_type d1_minus(D1.data() + i - di);
-                const vc_type d1 = minmod_theta_wrapper<vc_type>(diff_u_plus, diff_u_minus, 2.0);
-                const vc_type d1_plus = minmod_theta_wrapper<vc_type>(diff_u_2plus, diff_u_plus, 2.0);
-                const vc_type d1_minus = minmod_theta_wrapper<vc_type>(diff_u_minus, diff_u_2minus, 2.0);
+                const double d1 = minmod_theta_wrapper<double>(diff_u_plus, diff_u_minus, 2.0);
+                const double d1_plus = minmod_theta_wrapper<double>(diff_u_2plus, diff_u_plus, 2.0);
+                const double d1_minus = minmod_theta_wrapper<double>(diff_u_minus, diff_u_2minus, 2.0);
 
-                vc_type results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
-                vc_type results_flipped =
+                double results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
+                double results_flipped =
                     0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
 
-                Vc::where(!mask, results) = vc_type(combined_q + start_index + q_i);
-                results.store(combined_q + start_index + q_i);
-                Vc::where(!mask, results_flipped) = vc_type(combined_q + start_index_flipped + q_i);
-                results_flipped.store(combined_q + start_index_flipped + q_i);
+                combined_q[start_index + q_i] = results;;
+                combined_q[start_index_flipped + q_i] = results_flipped;
             }
         }
     }
@@ -252,15 +199,13 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q,
         }
     }
     if (!smooth) {
-        const vc_type zindices = vc_type::IndexesFromZero();
         for (int j = 0; j < geo.H_NX_XM4; j++) {
             for (int k = 0; k < geo.H_NX_YM4; k++) {
-                for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
+                for (int l = 0; l < geo.H_NX_ZM4; l++) {
                     const int i = geo.to_index(j + 2, k + 2, l + 2);
                     const int q_i = to_q_index(j, k, l);
-                    const mask_type mask = (zindices + l < geo.H_NX_ZM4);
-                    make_monotone_wrapper(combined_q + start_index + q_i, combined_u_face + i,
-                        combined_q + start_index_flipped + q_i, mask);
+                    make_monotone(combined_q[start_index + q_i], combined_u_face[i],
+                        combined_q[start_index_flipped + q_i]);
                     // auto& qp = q[geo.flip(d)][i];
                     // auto& qm = q[d][i];
                     // make_monotone(qm, combined_u_face[i], qp);
@@ -331,67 +276,56 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
 
         if (d != geo.NDIR / 2) {
             const int start_index_rho = d * q_dir_offset;
-            const vc_type zindices = vc_type::IndexesFromZero();
             for (int j = 0; j < geo.H_NX_XM4; j++) {
                 for (int k = 0; k < geo.H_NX_YM4; k++) {
-                    for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
-                        const int border = geo.H_NX_ZM4 - l;
-                        const mask_type mask = (zindices < border);
-                        if (Vc::none_of(mask))
-                            continue;
+                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
                         const int i = geo.to_index(j + 2, k + 2, l + 2);
                         const int q_i = to_q_index(j, k, l);
 
                         // n m q Levi Civita
                         // 0 1 2 -> 1
-                        vc_type results0 = vc_type(AM[0].data() + i) -
+                        double results0 = AM[0][i] -
                             vw[d] * 1.0 * 0.5 * xloc[d][1] *
-                                vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i) *
-                                vc_type(combined_q + start_index_rho + q_i) * dx;
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
+                                    q_i] *
+                                combined_q[start_index_rho + q_i] * dx;
 
                         // n m q Levi Civita
                         // 0 2 1 -> -1
                         results0 -= vw[d] * (-1.0) * 0.5 * xloc[d][2] *
-                            vc_type(
-                                combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i) *
-                            vc_type(combined_q + start_index_rho + q_i) * dx;
-                        Vc::where(!mask, results0) = vc_type(AM[0].data() + i);
-                        results0.store(AM[0].data() + i);
+                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
+                            combined_q[start_index_rho + q_i] * dx;
+                        AM[0][i] = results0;
 
                         // n m q Levi Civita
                         // 1 0 2 -> -1
-                        vc_type results1 = vc_type(AM[1].data() + i) -
+                        double results1 = AM[1][i] -
                             vw[d] * (-1.0) * 0.5 * xloc[d][0] *
-                                vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i) *
-                                vc_type(combined_q + start_index_rho + q_i) * dx;
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
+                                    q_i] *
+                                combined_q[start_index_rho + q_i] * dx;
 
                         // n m q Levi Civita
                         // 1 2 0 -> 1
                         results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
-                            vc_type(
-                                combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i) *
-                            vc_type(combined_q + start_index_rho + q_i) * dx;
-                        Vc::where(!mask, results1) = vc_type(AM[1].data() + i);
-                        results1.store(AM[1].data() + i);
+                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
+                           combined_q[start_index_rho + q_i] * dx;
+                        AM[1][i] = results1;
 
                         // n m q Levi Civita
                         // 2 0 1 -> 1
-                        vc_type results2 = vc_type(AM[2].data() + i) -
+                        double results2 = AM[2][i] -
                             vw[d] * (1.0) * 0.5 * xloc[d][0] *
-                                vc_type(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset +
-                                    q_i) *
-                                vc_type(combined_q + start_index_rho + q_i) * dx;
+                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset +
+                                    q_i] *
+                                combined_q[start_index_rho + q_i] * dx;
 
                         // n m q Levi Civita
                         // 2 1 0 -> -1
                         results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
-                            vc_type(
-                                combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i) *
-                            vc_type(combined_q + start_index_rho + q_i) * dx;
-                        Vc::where(!mask, results1) = vc_type(AM[2].data() + i);
-                        results2.store(AM[2].data() + i);
+                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
+                            combined_q[start_index_rho + q_i] * dx;
+                        AM[2][i] = results2;
                     }
                 }
             }
@@ -485,78 +419,58 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                     }
                 }
             }
-            const vc_type zindices = vc_type::IndexesFromZero();
             for (int j = 0; j < geo.H_NX_XM4; j++) {
                 for (int k = 0; k < geo.H_NX_YM4; k++) {
-                    for (int l = 0; l < geo.H_NX_ZM4; l += vc_type::size()) {
-                        const int border = geo.H_NX_ZM4 - l;
-                        const mask_type mask = (zindices < border);
-                        if (Vc::none_of(mask))
-                            continue;
-
+                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
                         const int i = geo.to_index(j + 2, k + 2, l + 2);
                         const int q_i = to_q_index(j, k, l);
-                        const vc_type rho(combined_q + start_index_rho + q_i);
+                        const double rho = combined_q[start_index_rho + q_i];
 
                         // n m q Levi Civita
                         // 0 1 2 -> 1
-                        const vc_type xloc_tmp1 = vc_type(0.5 * xloc[d][1] * dx);
-                        const vc_type q_lx_val0(
-                            combined_q + (lx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
-                        auto result0 = q_lx_val0 +
-                            (1.0) * (vc_type(combined_x + q_inx3 + q_i) + xloc_tmp1) *
-                                vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i);
+                        const double xloc_tmp1 = 0.5 * xloc[d][1] * dx;
+                        const double q_lx_val0 =  combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
+                        double result0 = q_lx_val0 + (1.0) * (combined_x[q_inx3 + q_i] + xloc_tmp1) *
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
+                                    q_i];
 
                         // n m q Levi Civita
                         // 0 2 1 -> -1
-                        const vc_type xloc_tmp2 = vc_type(0.5 * xloc[d][2] * dx);
-                        result0 += (-1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
-                            vc_type(
-                                combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset + q_i);
-                        Vc::where(!mask, result0) = vc_type(
-                            combined_q + (lx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
-                        result0.store(
-                            combined_q + (lx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
+                        const double xloc_tmp2 = 0.5 * xloc[d][2] * dx;
+                        result0 += (-1.0) * (combined_x[2 * q_inx3 + q_i] + xloc_tmp2) *
+                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
+                        combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i] = result0;
 
                         // n m q Levi Civita
                         // 1 0 2 -> -1
-                        const vc_type xloc_tmp0 = vc_type(0.5 * xloc[d][0] * dx);
-                        const vc_type q_lx_val1(
-                            combined_q + (lx_i + 1) * q_face_offset + d * q_dir_offset + q_i);
-                        auto result1 = q_lx_val1 +
-                            (-1.0) * (vc_type(combined_x + q_i) + xloc_tmp0) *
-                                vc_type(combined_q + (sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i);
+                        const double xloc_tmp0 = 0.5 * xloc[d][0] * dx;
+                        const double q_lx_val1 =
+                            combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
+                        double result1 = q_lx_val1 +
+                            (-1.0) * (combined_x[q_i] + xloc_tmp0) *
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
+                                    q_i];
 
                         // n m q Levi Civita
                         // 1 2 0 -> 1
-                        result1 += (1.0) * (vc_type(combined_x + 2 * q_inx3 + q_i) + xloc_tmp2) *
-                            vc_type(
-                                combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
-                        Vc::where(!mask, result1) = vc_type(
-                            combined_q + (lx_i + 1) * q_face_offset + d * q_dir_offset + q_i);
-                        result1.store(
-                            combined_q + (lx_i + 1) * q_face_offset + d * q_dir_offset + q_i);
+                        result1 += (1.0) * (combined_x[2 * q_inx3 + q_i] + xloc_tmp2) *
+                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
+                        combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i] = result1;
 
                         // n m q Levi Civita
                         // 2 0 1 -> 1
-                        const vc_type q_lx_val2(
-                            combined_q + (lx_i + 2) * q_face_offset + d * q_dir_offset + q_i);
+                        const double q_lx_val2 =
+                            combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i];
                         auto result2 = q_lx_val2 +
-                            (1.0) * (vc_type(combined_x + q_i) + xloc_tmp0) *
-                                vc_type(combined_q + (sx_i + 1) * q_face_offset + d * q_dir_offset +
-                                    q_i);
+                            (1.0) * (combined_x[q_i] + xloc_tmp0) *
+                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset +
+                                    q_i];
 
                         // n m q Levi Civita
                         // 2 1 0 -> -1
-                        result2 += (-1.0) * (vc_type(combined_x + q_inx3 + q_i) + xloc_tmp1) *
-                            vc_type(
-                                combined_q + (sx_i + 0) * q_face_offset + d * q_dir_offset + q_i);
-                        Vc::where(!mask, result2) = vc_type(
-                            combined_q + (lx_i + 2) * q_face_offset + d * q_dir_offset + q_i);
-                        result2.store(
-                            combined_q + (lx_i + 2) * q_face_offset + d * q_dir_offset + q_i);
+                        result2 += (-1.0) * (combined_x[q_inx3 + q_i] + xloc_tmp1) *
+                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
+                        combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i] = result2;
                     }
                 }
             }
