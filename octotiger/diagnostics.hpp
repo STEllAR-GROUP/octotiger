@@ -27,13 +27,14 @@ struct diagnostics_t {
 	safe_real l2_phi;
 	safe_real l3_phi;
 	safe_real omega;
+	safe_real Torb;
 	safe_real jorb;
 	safe_real virial;
 	safe_real virial_norm;
 	safe_real z_mom_orb;
 	space_vector grid_com;
 	std::array<safe_real, nspec> m;
-	std::array<safe_real, nspec> gt;
+	std::array<safe_real, nspec> Ts;
 	std::array<safe_real, nspec> phi_eff_min;
 	std::array<safe_real, nspec> js;
 	std::array<safe_real, nspec> ekin;
@@ -47,6 +48,7 @@ struct diagnostics_t {
 	std::array<safe_real, nspec> stellar_vol;
 	std::array<safe_real, nspec> z_moment;
 	std::array<safe_real, nspec> rho_max;
+	std::array<space_vector, nspec> g;
 	std::array<space_vector, nspec> com;
 	std::array<space_vector, nspec> com_dot;
 	std::array<taylor<3>, nspec> mom;
@@ -77,7 +79,8 @@ struct diagnostics_t {
 			epot[s] = 0.0;
 			eint[s] = 0.0;
 			js[s] = 0.0;
-			gt[s] = 0.0;
+			Ts[s] = 0.0;
+			g[s] = 0.0;
 			mom[s] = 0.0;
 			rL[s] = 0.0;
 			tidal[s] = 0.0;
@@ -128,7 +131,8 @@ struct diagnostics_t {
 				virial += other.virial;
 				virial_norm += other.virial_norm;
 				m[s] += other.m[s];
-				gt[s] += other.gt[s];
+				Ts[s] += other.Ts[s];
+				g[s] += other.g[s];
 				ekin[s] += other.ekin[s];
 				epot[s] += other.epot[s];
 				eint[s] += other.eint[s];
@@ -168,9 +172,11 @@ struct diagnostics_t {
 		arc & l1_phi;
 		arc & l2_phi;
 		arc & l3_phi;
+		arc & Torb;
 		arc & omega;
 		arc & m;
-		arc & gt;
+		arc & g;
+		arc & Ts;
 		arc & phi_eff_min;
 		arc & grid_com;
 		arc & com;

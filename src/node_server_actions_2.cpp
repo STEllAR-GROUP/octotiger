@@ -224,6 +224,8 @@ const diagnostics_t& diagnostics_t::compute() {
 		return *this;
 	}
 	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) * INVERSE(sep2));
+	Torb = com[0][XDIM] * g[0][YDIM] - com[0][YDIM] * g[0][XDIM];
+	Torb += com[1][XDIM] * g[1][YDIM] - com[1][YDIM] * g[1][XDIM];
 //	printf( "%e %e %e %e %e\n", dX[XDIM], V[XDIM], dX[YDIM], V[YDIM], omega);
 	a = std::sqrt(sep2);
 	real mu = m[0] * m[1] / (m[1] + m[0]);
@@ -293,15 +295,16 @@ diagnostics_t node_server::diagnostics() {
 				fprintf(fp, "%13e ", (double) diags.com_dot[s][0]);
 				fprintf(fp, "%13e ", (double) diags.com_dot[s][1]);
 				fprintf(fp, "%13e ", (double) radius);					// 16 // 30
-				fprintf(fp, "%13e ", (double) diags.gt[s]);
+				fprintf(fp, "%13e ", (double) diags.Ts[s]);
 				fprintf(fp, "%13e ", (double) diags.z_moment[s]);       // 18  // 32
 			}
 			fprintf(fp, "%13e ", (double) diags.rho_max[0]); // 33
-			fprintf(fp, "%13e ", (double) diags.rho_max[1]);
-			fprintf(fp, "%13e ", (double) diags.grid_com[0]);
-			fprintf(fp, "%13e ", (double) diags.grid_com[1]);
-			fprintf(fp, "%13e ", (double) diags.nonvacj);
-			fprintf(fp, "%13e ", (double) diags.nonvacjlz);
+			fprintf(fp, "%13e ", (double) diags.rho_max[1]); // 34
+			fprintf(fp, "%13e ", (double) diags.grid_com[0]); // 35
+			fprintf(fp, "%13e ", (double) diags.grid_com[1]); // 36
+			fprintf(fp, "%13e ", (double) diags.nonvacj); // 37
+			fprintf(fp, "%13e ", (double) diags.nonvacjlz); // 38
+			fprintf(fp, "%13e ", (double) diags.Torb); //39
 			fprintf(fp, "\n");
 			fclose(fp);
 			fp = fopen((opts().data_dir + "sums.dat").c_str(), "at");
