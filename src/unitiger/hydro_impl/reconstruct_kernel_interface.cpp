@@ -29,84 +29,55 @@ inline int to_q_index(const int j, const int k, const int l) {
 //    return value.store(data + index);
 //}
 
-void reconstruct_minmod(
-    double* __restrict__ combined_q, const double* __restrict__ combined_u_face, int d, int f) {
+inline void reconstruct_minmod(double* __restrict__ combined_q,
+    const double* __restrict__ combined_u_face, int d, int f, int i, int q_i) {
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
     const auto di = dir[d];
     const int start_index = f * q_face_offset + d * q_dir_offset;
-    for (int j = 0; j < geo.H_NX_XM4; j++) {
-        for (int k = 0; k < geo.H_NX_YM4; k++) {
-            for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                const int i = geo.to_index(j + 2, k + 2, l + 2);
-                const int q_i = to_q_index(j, k, l) + start_index;
-                combined_q[q_i] = combined_u_face[i] +
-                    0.5 *
-                        minmod(combined_u_face[i + di] - combined_u_face[i],
-                            combined_u_face[i] - combined_u_face[i - di]);
-            }
-        }
-    }
+    combined_q[q_i + start_index] = combined_u_face[i] +
+        0.5 *
+            minmod(combined_u_face[i + di] - combined_u_face[i],
+                combined_u_face[i] - combined_u_face[i - di]);
 }
 
-void reconstruct_ppm_experimental(double* __restrict__ combined_q,
+inline void reconstruct_ppm_experimental(double* __restrict__ combined_q,
     const double* __restrict__ combined_u_face, bool smooth, bool disc_detect,
-    const std::vector<std::vector<double>>& disc, const int d, const int f) {
+    const std::vector<std::vector<double>>& disc, const int d, const int f, int i, int q_i) {
     static const cell_geometry<NDIM, INX> geo;
     static constexpr auto dir = geo.direction();
     // const vc_type zindices = vc_type::IndexesFromZero() + 1;
-    //static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
+    // static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
     const auto di = dir[d];
     const auto flipped_di = geo.flip(d);
 
-    /*for (int j = 0; j < geo.H_NX_XM2; j++) {
-        for (int k = 0; k < geo.H_NX_YM2; k++) {
-            for (int l = 0; l < geo.H_NX_ZM2; l += vc_type::size()) {
-                const int i = geo.to_index(j + 1, k + 1, l + 1);
-                const vc_type u_plus_di(combined_u_face + i + di);
-                const vc_type u_zero(combined_u_face + i);
-                const vc_type diff_u = u_plus_di - u_zero;
-                const vc_type u_minus_di(combined_u_face + i - di);
-                const vc_type d1 = minmod_theta_wrapper<vc_type>(diff_u, u_zero - u_minus_di, 2.0);
-                d1.store(D1.data() + i);
-            }
-        }
-    }*/
     const int start_index = f * q_face_offset + d * q_dir_offset;
     const int start_index_flipped = f * q_face_offset + flipped_di * q_dir_offset;
-    for (int j = 0; j < geo.H_NX_XM4; j++) {
-        for (int k = 0; k < geo.H_NX_YM4; k++) {
-            for (int l = 0; l < geo.H_NX_ZM4; l++ ) {
-                const int i = geo.to_index(j + 2, k + 2, l + 2);
-                const int q_i = to_q_index(j, k, l);
 
-                const double u_plus_2di = combined_u_face[i + 2 * di];
-                const double u_plus_di = combined_u_face[i + di];
-                const double u_zero = combined_u_face[i];
-                const double u_minus_di = combined_u_face[i - di];
-                const double u_minus_2di = combined_u_face[i - 2 * di];
+    const double u_plus_2di = combined_u_face[i + 2 * di];
+    const double u_plus_di = combined_u_face[i + di];
+    const double u_zero = combined_u_face[i];
+    const double u_minus_di = combined_u_face[i - di];
+    const double u_minus_2di = combined_u_face[i - 2 * di];
 
-                const double diff_u_plus = u_plus_di - u_zero;
-                const double diff_u_2plus = u_plus_2di - u_plus_di;
+    const double diff_u_plus = u_plus_di - u_zero;
+    const double diff_u_2plus = u_plus_2di - u_plus_di;
 
-                const double diff_u_minus = u_zero - u_minus_di;
-                const double diff_u_2minus = u_minus_di - u_minus_2di;
-                //const vc_type d1(D1.data() + i);
-                //const vc_type d1_plus(D1.data() + i + di);
-                //const vc_type d1_minus(D1.data() + i - di);
-                const double d1 = minmod_theta_wrapper<double>(diff_u_plus, diff_u_minus, 2.0);
-                const double d1_plus = minmod_theta_wrapper<double>(diff_u_2plus, diff_u_plus, 2.0);
-                const double d1_minus = minmod_theta_wrapper<double>(diff_u_minus, diff_u_2minus, 2.0);
+    const double diff_u_minus = u_zero - u_minus_di;
+    const double diff_u_2minus = u_minus_di - u_minus_2di;
+    // const vc_type d1(D1.data() + i);
+    // const vc_type d1_plus(D1.data() + i + di);
+    // const vc_type d1_minus(D1.data() + i - di);
+    const double d1 = minmod_theta_wrapper<double>(diff_u_plus, diff_u_minus, 2.0);
+    const double d1_plus = minmod_theta_wrapper<double>(diff_u_2plus, diff_u_plus, 2.0);
+    const double d1_minus = minmod_theta_wrapper<double>(diff_u_minus, diff_u_2minus, 2.0);
 
-                double results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
-                double results_flipped =
-                    0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
+    double results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
+    double results_flipped = 0.5 * (u_minus_di + u_zero) + (1.0 / 6.0) * (d1_minus - d1);
 
-                combined_q[start_index + q_i] = results;;
-                combined_q[start_index_flipped + q_i] = results_flipped;
-            }
-        }
-    }
+    combined_q[start_index + q_i] = results;
+    ;
+    combined_q[start_index_flipped + q_i] = results_flipped;
 
     /*if (experiment == 1) {
         for (int j = 0; j < geo.H_NX_XM2; j++) {
@@ -151,67 +122,49 @@ void reconstruct_ppm_experimental(double* __restrict__ combined_q,
         constexpr auto eta1 = 20.0;
         constexpr auto eta2 = 0.05;
         const auto di = dir[d];
-        for (int j = 0; j < geo.H_NX_XM4; j++) {
-            for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                    const int i = geo.to_index(j + 2, k + 2, l + 2);
-                    const auto& up = combined_u_face[i + di];
-                    const auto& u0 = combined_u_face[i];
-                    const auto& um = combined_u_face[i - di];
-                    const auto dif = up - um;
-                    if (std::abs(dif) > disc[d][i] * std::min(std::abs(up), std::abs(um))) {
-                        if (std::min(std::abs(up), std::abs(um)) /
-                                std::max(std::abs(up), std::abs(um)) >
-                            eps2) {
-                            const auto d2p = (1.0 / 6.0) *
-                                (combined_u_face[i + 2 * di] + u0 - 2.0 * combined_u_face[i + di]);
-                            const auto d2m = (1.0 / 6.0) *
-                                (u0 + combined_u_face[i - 2 * di] - 2.0 * combined_u_face[i - di]);
-                            if (d2p * d2m < 0.0) {
-                                double eta = 0.0;
-                                if (std::abs(dif) > eps * std::min(std::abs(up), std::abs(um))) {
-                                    eta = -(d2p - d2m) / dif;
-                                }
-                                eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
-                                if (eta > 0.0) {
-                                    const int q_i = to_q_index(j, k, l);
-                                    auto ul = um +
-                                        0.5 *
-                                            minmod_theta(combined_u_face[i] - um,
-                                                um - combined_u_face[i - 2 * di], 2.0);
-                                    auto ur = up -
-                                        0.5 *
-                                            minmod_theta(combined_u_face[i + 2 * di] - up,
-                                                up - combined_u_face[i], 2.0);
-                                    // auto& qp = q[d][i];
-                                    // auto& qm = q[geo.flip(d)][i];
-                                    auto& qp = combined_q[start_index + q_i];
-                                    auto& qm = combined_q[start_index_flipped + q_i];
-                                    qp += eta * (ur - qp);
-                                    qm += eta * (ul - qm);
-                                }
-                            }
-                        }
+        const auto& up = combined_u_face[i + di];
+        const auto& u0 = combined_u_face[i];
+        const auto& um = combined_u_face[i - di];
+        const auto dif = up - um;
+        if (std::abs(dif) > disc[d][i] * std::min(std::abs(up), std::abs(um))) {
+            if (std::min(std::abs(up), std::abs(um)) / std::max(std::abs(up), std::abs(um)) >
+                eps2) {
+                const auto d2p = (1.0 / 6.0) *
+                    (combined_u_face[i + 2 * di] + u0 - 2.0 * combined_u_face[i + di]);
+                const auto d2m = (1.0 / 6.0) *
+                    (u0 + combined_u_face[i - 2 * di] - 2.0 * combined_u_face[i - di]);
+                if (d2p * d2m < 0.0) {
+                    double eta = 0.0;
+                    if (std::abs(dif) > eps * std::min(std::abs(up), std::abs(um))) {
+                        eta = -(d2p - d2m) / dif;
+                    }
+                    eta = std::max(0.0, std::min(eta1 * (eta - eta2), 1.0));
+                    if (eta > 0.0) {
+                        auto ul = um +
+                            0.5 *
+                                minmod_theta(
+                                    combined_u_face[i] - um, um - combined_u_face[i - 2 * di], 2.0);
+                        auto ur = up -
+                            0.5 *
+                                minmod_theta(
+                                    combined_u_face[i + 2 * di] - up, up - combined_u_face[i], 2.0);
+                        // auto& qp = q[d][i];
+                        // auto& qm = q[geo.flip(d)][i];
+                        auto& qp = combined_q[start_index + q_i];
+                        auto& qm = combined_q[start_index_flipped + q_i];
+                        qp += eta * (ur - qp);
+                        qm += eta * (ul - qm);
                     }
                 }
             }
         }
     }
     if (!smooth) {
-        for (int j = 0; j < geo.H_NX_XM4; j++) {
-            for (int k = 0; k < geo.H_NX_YM4; k++) {
-                for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                    const int i = geo.to_index(j + 2, k + 2, l + 2);
-                    const int q_i = to_q_index(j, k, l);
-                    make_monotone(combined_q[start_index + q_i], combined_u_face[i],
-                        combined_q[start_index_flipped + q_i]);
-                    // auto& qp = q[geo.flip(d)][i];
-                    // auto& qm = q[d][i];
-                    // make_monotone(qm, combined_u_face[i], qp);
-                }
-            }
-        }
+        make_monotone(combined_q[start_index + q_i], combined_u_face[i],
+            combined_q[start_index_flipped + q_i]);
+        // auto& qp = q[geo.flip(d)][i];
+        // auto& qm = q[d][i];
+        // make_monotone(qm, combined_u_face[i], qp);
     }
 }
 
@@ -253,32 +206,37 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
         }
     }
 
-    for (int d = 0; d < geo.NDIR; d++) {
-        if (d < geo.NDIR / 2) {
-            for (int f = 0; f < angmom_index_; f++) {
-                reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f);
-            }
-            for (int f = sx_i; f < sx_i + NDIM; f++) {
-                reconstruct_ppm_experimental(
-                    combined_q, combined_u + u_face_offset * f, true, false, cdiscs, d, f);
-            }
-        }
-        for (int f = zx_i; f < zx_i + geo.NANGMOM; f++) {
-            reconstruct_minmod(combined_q, combined_u + u_face_offset * f, d, f);
-        }
-        if (d < geo.NDIR / 2) {
-            for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
-                reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f);
-            }
-        }
+    for (int j = 0; j < geo.H_NX_XM4; j++) {
+        for (int k = 0; k < geo.H_NX_YM4; k++) {
+            for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                const int i = geo.to_index(j + 2, k + 2, l + 2);
+                const int q_i = to_q_index(j, k, l);
 
-        if (d != geo.NDIR / 2) {
-            const int start_index_rho = d * q_dir_offset;
-            for (int j = 0; j < geo.H_NX_XM4; j++) {
-                for (int k = 0; k < geo.H_NX_YM4; k++) {
-                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                // Phase 1
+                for (int d = 0; d < geo.NDIR; d++) {
+                    if (d < geo.NDIR / 2) {
+                        for (int f = 0; f < angmom_index_; f++) {
+                            reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
+                                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+                        }
+                        for (int f = sx_i; f < sx_i + NDIM; f++) {
+                            reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
+                                true, false, cdiscs, d, f, i, q_i);
+                        }
+                    }
+                    for (int f = zx_i; f < zx_i + geo.NANGMOM; f++) {
+                        reconstruct_minmod(
+                            combined_q, combined_u + u_face_offset * f, d, f, i, q_i);
+                    }
+                    if (d < geo.NDIR / 2) {
+                        for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
+                            reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
+                                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+                        }
+                    }
+
+                    if (d != geo.NDIR / 2) {
+                        const int start_index_rho = d * q_dir_offset;
                         const int i = geo.to_index(j + 2, k + 2, l + 2);
                         const int q_i = to_q_index(j, k, l);
 
@@ -286,14 +244,13 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                         // 0 1 2 -> 1
                         double results0 = AM[0][i] -
                             vw[d] * 1.0 * 0.5 * xloc[d][1] *
-                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i] *
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i] *
                                 combined_q[start_index_rho + q_i] * dx;
 
                         // n m q Levi Civita
                         // 0 2 1 -> -1
                         results0 -= vw[d] * (-1.0) * 0.5 * xloc[d][2] *
-                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
+                            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
                             combined_q[start_index_rho + q_i] * dx;
                         AM[0][i] = results0;
 
@@ -301,144 +258,121 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                         // 1 0 2 -> -1
                         double results1 = AM[1][i] -
                             vw[d] * (-1.0) * 0.5 * xloc[d][0] *
-                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i] *
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i] *
                                 combined_q[start_index_rho + q_i] * dx;
 
                         // n m q Levi Civita
                         // 1 2 0 -> 1
                         results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
-                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
-                           combined_q[start_index_rho + q_i] * dx;
+                            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
+                            combined_q[start_index_rho + q_i] * dx;
                         AM[1][i] = results1;
 
                         // n m q Levi Civita
                         // 2 0 1 -> 1
                         double results2 = AM[2][i] -
                             vw[d] * (1.0) * 0.5 * xloc[d][0] *
-                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset +
-                                    q_i] *
+                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
                                 combined_q[start_index_rho + q_i] * dx;
 
                         // n m q Levi Civita
                         // 2 1 0 -> -1
                         results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
-                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
+                            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
                             combined_q[start_index_rho + q_i] * dx;
                         AM[2][i] = results2;
                     }
                 }
-            }
-        }
-    }
-    for (int d = 0; d < geo.NDIR / 2; d++) {
-        const auto di = dir[d];
 
-        for (int q = 0; q < NDIM; q++) {
-            const auto f = sx_i + q;
-            const int start_index_f = f * q_face_offset + d * q_dir_offset;
-            const int start_index_flipped = f * q_face_offset + geo.flip(d) * q_dir_offset;
-            const int start_index_zero = 0 * q_face_offset + d * q_dir_offset;
-            const int start_index_zero_flipped = 0 * q_face_offset + geo.flip(d) * q_dir_offset;
-            for (int j = 0; j < geo.H_NX_XM4; j++) {
-                for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                        const int i = geo.to_index(j + 2, k + 2, l + 2);
-                        const int q_i = to_q_index(j, k, l);
-                        // const auto& rho_r = Q[0][d][i];
-                        // const auto& rho_l = Q[0][geo.flip(d)][i];
-                        const auto& rho_r = combined_q[start_index_zero + q_i];
-                        const auto& rho_l = combined_q[start_index_zero_flipped + q_i];
-                        auto& qr = combined_q[start_index_f + q_i];
-                        auto& ql = combined_q[start_index_flipped + q_i];
-                        // auto& qr = Q[f][d][i];
-                        // auto& ql = Q[f][geo.flip(d)][i];
-                        const auto& ur = combined_u[f * u_face_offset + i + di];
-                        const auto& u0 = combined_u[f * u_face_offset + i];
-                        const auto& ul = combined_u[f * u_face_offset + i - di];
-                        const auto b0 = qr - ql;
-                        auto b = b0;
-                        for (int n = 0; n < geo.NANGMOM; n++) {
-                            for (int m = 0; m < NDIM; m++) {
-                                const auto lc = levi_civita[n][m][q];
-                                b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
+                // Phase 2
+                for (int d = 0; d < geo.NDIR; d++) {
+                    if (d < geo.NDIR / 2) {
+                        const auto di = dir[d];
+
+                        for (int q = 0; q < NDIM; q++) {
+                            const auto f = sx_i + q;
+                            const int start_index_f = f * q_face_offset + d * q_dir_offset;
+                            const int start_index_flipped =
+                                f * q_face_offset + geo.flip(d) * q_dir_offset;
+                            const int start_index_zero = 0 * q_face_offset + d * q_dir_offset;
+                            const int start_index_zero_flipped =
+                                0 * q_face_offset + geo.flip(d) * q_dir_offset;
+                            // const auto& rho_r = Q[0][d][i];
+                            // const auto& rho_l = Q[0][geo.flip(d)][i];
+                            const auto& rho_r = combined_q[start_index_zero + q_i];
+                            const auto& rho_l = combined_q[start_index_zero_flipped + q_i];
+                            auto& qr = combined_q[start_index_f + q_i];
+                            auto& ql = combined_q[start_index_flipped + q_i];
+                            // auto& qr = Q[f][d][i];
+                            // auto& ql = Q[f][geo.flip(d)][i];
+                            const auto& ur = combined_u[f * u_face_offset + i + di];
+                            const auto& u0 = combined_u[f * u_face_offset + i];
+                            const auto& ul = combined_u[f * u_face_offset + i - di];
+                            const auto b0 = qr - ql;
+                            auto b = b0;
+                            for (int n = 0; n < geo.NANGMOM; n++) {
+                                for (int m = 0; m < NDIM; m++) {
+                                    const auto lc = levi_civita[n][m][q];
+                                    b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
+                                }
                             }
-                        }
-                        double blim;
-                        if ((ur - u0) * (u0 - ul) <= 0.0) {
-                            blim = 0.0;
-                        } else {
-                            blim = b0;
-                        }
-                        b = minmod(blim, b);
-                        qr += 0.5 * (b - b0);
-                        ql -= 0.5 * (b - b0);
-                        if (ur > u0 && u0 > ul) {
-                            if (qr > ur) {
-                                ql -= (qr - ur);
-                                qr = ur;
-                            } else if (ql < ul) {
-                                qr -= (ql - ul);
-                                ql = ul;
+                            double blim;
+                            if ((ur - u0) * (u0 - ul) <= 0.0) {
+                                blim = 0.0;
+                            } else {
+                                blim = b0;
                             }
-                        } else if (ur < u0 && u0 < ul) {
-                            if (qr < ur) {
-                                ql -= (qr - ur);
-                                qr = ur;
-                            } else if (ql > ul) {
-                                qr -= (ql - ul);
-                                ql = ul;
+                            b = minmod(blim, b);
+                            qr += 0.5 * (b - b0);
+                            ql -= 0.5 * (b - b0);
+                            if (ur > u0 && u0 > ul) {
+                                if (qr > ur) {
+                                    ql -= (qr - ur);
+                                    qr = ur;
+                                } else if (ql < ul) {
+                                    qr -= (ql - ul);
+                                    ql = ul;
+                                }
+                            } else if (ur < u0 && u0 < ul) {
+                                if (qr < ur) {
+                                    ql -= (qr - ur);
+                                    qr = ur;
+                                } else if (ql > ul) {
+                                    qr -= (ql - ul);
+                                    ql = ul;
+                                }
                             }
+                            make_monotone(qr, u0, ql);
                         }
-                        make_monotone(qr, u0, ql);
                     }
-                }
-            }
-        }
-    }
-    //    for (int d = 0; d < geo.NDIR; d++) {
-    // }
 
-    for (int d = 0; d < geo.NDIR; d++) {
-        const int start_index_rho = rho_i * q_face_offset + d * q_dir_offset;
-        if (d != geo.NDIR / 2) {
-            const int start_index_sx = sx_i * q_face_offset + d * q_dir_offset;
-            const int start_index_sy = sy_i * q_face_offset + d * q_dir_offset;
-            for (int j = 0; j < geo.H_NX_XM4; j++) {
-                for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                        const int q_i = to_q_index(j, k, l);
+                    // Phase 3
+                    const int start_index_rho = rho_i * q_face_offset + d * q_dir_offset;
+                    if (d != geo.NDIR / 2) {
+                        const int start_index_sx = sx_i * q_face_offset + d * q_dir_offset;
+                        const int start_index_sy = sy_i * q_face_offset + d * q_dir_offset;
                         combined_q[start_index_sx + q_i] -=
                             omega * (combined_x[1 * q_inx3 + q_i] + 0.5 * xloc[d][1] * dx);
                         combined_q[start_index_sy + q_i] +=
                             omega * (combined_x[q_i] + 0.5 * xloc[d][0] * dx);
                         // Q[sx_i][d][i] -= omega * (X[1][i] + 0.5 * xloc[d][1] * dx);
                         // Q[sy_i][d][i] += omega * (X[0][i] + 0.5 * xloc[d][0] * dx);
-                    }
-                }
-            }
-            for (int j = 0; j < geo.H_NX_XM4; j++) {
-                for (int k = 0; k < geo.H_NX_YM4; k++) {
-                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                        const int i = geo.to_index(j + 2, k + 2, l + 2);
-                        const int q_i = to_q_index(j, k, l);
                         const double rho = combined_q[start_index_rho + q_i];
 
                         // n m q Levi Civita
                         // 0 1 2 -> 1
                         const double xloc_tmp1 = 0.5 * xloc[d][1] * dx;
-                        const double q_lx_val0 =  combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
-                        double result0 = q_lx_val0 + (1.0) * (combined_x[q_inx3 + q_i] + xloc_tmp1) *
-                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i];
+                        const double q_lx_val0 =
+                            combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
+                        double result0 = q_lx_val0 +
+                            (1.0) * (combined_x[q_inx3 + q_i] + xloc_tmp1) *
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i];
 
                         // n m q Levi Civita
                         // 0 2 1 -> -1
                         const double xloc_tmp2 = 0.5 * xloc[d][2] * dx;
                         result0 += (-1.0) * (combined_x[2 * q_inx3 + q_i] + xloc_tmp2) *
-                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
+                            combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
                         combined_q[(lx_i + 0) * q_face_offset + d * q_dir_offset + q_i] = result0;
 
                         // n m q Levi Civita
@@ -448,13 +382,12 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                             combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
                         double result1 = q_lx_val1 +
                             (-1.0) * (combined_x[q_i] + xloc_tmp0) *
-                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset +
-                                    q_i];
+                                combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i];
 
                         // n m q Levi Civita
                         // 1 2 0 -> 1
                         result1 += (1.0) * (combined_x[2 * q_inx3 + q_i] + xloc_tmp2) *
-                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
+                            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
                         combined_q[(lx_i + 1) * q_face_offset + d * q_dir_offset + q_i] = result1;
 
                         // n m q Levi Civita
@@ -463,25 +396,15 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                             combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i];
                         auto result2 = q_lx_val2 +
                             (1.0) * (combined_x[q_i] + xloc_tmp0) *
-                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset +
-                                    q_i];
+                                combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i];
 
                         // n m q Levi Civita
                         // 2 1 0 -> -1
                         result2 += (-1.0) * (combined_x[q_inx3 + q_i] + xloc_tmp1) *
-                                combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
+                            combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i];
                         combined_q[(lx_i + 2) * q_face_offset + d * q_dir_offset + q_i] = result2;
-                    }
-                }
-            }
-            const int start_index_egas = egas_i * q_face_offset + d * q_dir_offset;
-            const int start_index_pot = pot_i * q_face_offset + d * q_dir_offset;
-            for (int j = 0; j < geo.H_NX_XM4; j++) {
-                for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                    for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                        const int q_i = to_q_index(j, k, l);
-                        const auto rho = combined_q[start_index_rho + q_i];
+                        const int start_index_egas = egas_i * q_face_offset + d * q_dir_offset;
+                        const int start_index_pot = pot_i * q_face_offset + d * q_dir_offset;
                         for (int n = 0; n < geo.NANGMOM; n++) {
                             const int start_index_lx_n =
                                 (lx_i + n) * q_face_offset + d * q_dir_offset;

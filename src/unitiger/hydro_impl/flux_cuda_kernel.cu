@@ -164,14 +164,14 @@ timestep_t launch_flux_cuda(const std::vector<double, recycler::recycle_allocato
 
     // Check availability
     // TODO(daissgr) Why is this segfaulting at the end of the simulation despite not being called?
-  /*  bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+    bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                  pool_strategy>(opts().cuda_buffer_capacity);
   
     if (!avail) {
       std::cerr << "Warning, high GPU load in flux detected... This shouldn't happen" << std::endl;
     } 
 
-    size_t device_id =
+    /*size_t device_id =
       stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
       pool_strategy>();*/
     size_t device_id = 0;

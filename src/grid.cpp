@@ -1791,7 +1791,7 @@ timestep_t grid::compute_fluxes() {
 		}
 	}
 	hydro.use_smooth_recon(pot_i);
-  bool use_new_datastructure = false;
+  bool use_new_datastructure = true;
   if (!use_new_datastructure) {
 
     static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
