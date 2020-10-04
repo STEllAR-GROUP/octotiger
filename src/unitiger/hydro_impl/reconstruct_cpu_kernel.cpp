@@ -654,4 +654,66 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
         }
     }
 }
+
+inline double deg_pres(const double x, const double A_) {
+	double p;
+	if (x < 0.001) {
+		p = 1.6 * A_ * std::pow(x, 5);
+	} else {
+		p = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
+	}
+	return p;
+}
+
+void convert_find_contact_discs(const hydro::state_type &U, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1) {
+	static const cell_geometry<NDIM, INX> geo;
+	auto dir = geo.direction();
+	//static thread_local std::vector<std::vector<safe_real>> disc(geo.NDIR / 2, std::vector<double>(geo.H_N3));
+  constexpr int disc_offset = geo.H_N3;
+	static thread_local std::vector<safe_real> P(H_N3);
+	for (int j = 0; j < geo.H_NX_XM2; j++) {
+		for (int k = 0; k < geo.H_NX_YM2; k++) {
+#pragma ivdep
+			for (int l = 0; l < geo.H_NX_ZM2; l++) {
+				const int i = geo.to_index(j + 1, k + 1, l + 1);
+				const auto rho = U[rho_i][i];
+				const auto rhoinv = 1.0 / U[rho_i][i];
+				double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
+				if (A_ != 0.0) {
+					const auto x = std::pow(rho / B_, 1.0 / 3.0);
+					hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
+					pdeg = deg_pres(x, A_);
+					edeg = rho * hdeg - pdeg;
+				}
+				safe_real ek = 0.0;
+				for (int dim = 0; dim < NDIM; dim++) {
+					ek += pow(U[sx_i + dim][i], 2) * rhoinv * safe_real(0.5);
+				}
+				auto ein = U[egas_i][i] - ek - edeg;
+				if (ein < de_switch_1 * U[egas_i][i]) {
+					//	printf( "%e\n", U[tau_i][i]);
+					ein = pow(U[tau_i][i], fgamma_);
+				}
+				P[i] = (fgamma_ - 1.0) * ein + pdeg;
+			}
+		}
+	}
+	for (int d = 0; d < geo.NDIR / 2; d++) {
+		const auto di = dir[d];
+		for (int j = 0; j < geo.H_NX_XM4; j++) {
+			for (int k = 0; k < geo.H_NX_YM4; k++) {
+#pragma ivdep
+				for (int l = 0; l < geo.H_NX_ZM4; l++) {
+					constexpr auto K0 = 0.1;
+					const int i = geo.to_index(j + 2, k + 2, l + 2);
+					const auto P_r = P[i + di];
+					const auto P_l = P[i - di];
+					const auto tmp1 = fgamma_ * K0;
+					const auto tmp2 = std::abs(P_r - P_l) / std::min(std::abs(P_r), std::abs(P_l));
+					disc[d * disc_offset + i] = tmp2 / tmp1;
+				}
+			}
+		}
+	}
+}
 #pragma GCC pop_options

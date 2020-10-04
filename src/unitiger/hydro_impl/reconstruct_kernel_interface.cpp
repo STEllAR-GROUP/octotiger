@@ -30,6 +30,7 @@ constexpr int HR_DNY = H_NX;
 constexpr int HR_DNZ = 1;
 constexpr int HR_DN0 = 0;
 constexpr int NDIR = 27;
+constexpr int disc_offset = H_NX * H_NX * H_NX;
 
 constexpr safe_real vw[27] = {
     /**/ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216.,
@@ -82,7 +83,7 @@ inline void reconstruct_minmod(double* __restrict__ combined_q,
 
 inline void reconstruct_ppm_experimental(double* __restrict__ combined_q,
     const double* __restrict__ combined_u_face, bool smooth, bool disc_detect,
-    const std::vector<std::vector<double>>& disc, const int d, const int f, int i, int q_i) {
+    const double* __restrict__ disc, const int d, const int f, int i, int q_i) {
     // const vc_type zindices = vc_type::IndexesFromZero() + 1;
     // static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
     const auto di = dir[d];
@@ -163,7 +164,7 @@ inline void reconstruct_ppm_experimental(double* __restrict__ combined_q,
         const auto& u0 = combined_u_face[i];
         const auto& um = combined_u_face[i - di];
         const auto dif = up - um;
-        if (std::abs(dif) > disc[d][i] * std::min(std::abs(up), std::abs(um))) {
+        if (std::abs(dif) > disc[d * disc_offset + i] * std::min(std::abs(up), std::abs(um))) {
             if (std::min(std::abs(up), std::abs(um)) / std::max(std::abs(up), std::abs(um)) >
                 eps2) {
                 const auto d2p = (1.0 / 6.0) *
@@ -207,9 +208,9 @@ inline void reconstruct_ppm_experimental(double* __restrict__ combined_q,
 
 // Phase 1 and 2
 inline void reconstruct_inner_loop_p1(const size_t nf_, const int angmom_index_,
-    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
+    const int* __restrict__ smooth_field_, const int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, const double* __restrict__ combined_u, double* __restrict__ AM,
-    const double dx, const std::vector<std::vector<safe_real>>& cdiscs, const int d, const int i,
+    const double dx, const double* __restrict__ cdiscs, const int d, const int i,
     const int q_i, const int ndir, const int nangmom) {
     const int sx_i = angmom_index_;
     const int zx_i = sx_i + NDIM;
@@ -440,10 +441,10 @@ inline void reconstruct_inner_loop_p2(const safe_real omega, double* __restrict_
 }
 
 void reconstruct_experimental(const safe_real omega, const size_t nf_, const int angmom_index_,
-    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
+    const int* __restrict__ smooth_field_, const int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
-    const std::vector<std::vector<safe_real>>& cdiscs) {
+    const double* __restrict__ cdiscs) {
     static const cell_geometry<NDIM, INX> geo;
     // static thread_local std::vector<std::vector<safe_real>> AM(
     //   geo.NANGMOM, std::vector<safe_real>(geo.H_N3));
