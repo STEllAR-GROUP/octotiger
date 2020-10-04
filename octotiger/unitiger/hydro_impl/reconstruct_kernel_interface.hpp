@@ -36,12 +36,13 @@ CUDA_CALLABLE_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const
 void reconstruct_experimental(const safe_real omega, const size_t nf_, const int angmom_index_,
     const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
+    double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
+    const std::vector<std::vector<safe_real>>& cdiscs);
+void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int angmom_index_,
+    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
+    double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, const double dx,
     const std::vector<std::vector<safe_real>>& cdiscs);
-void reconstruct_cpu_kernel(const safe_real omega,
-    const size_t nf_, const int angmom_index_, const std::vector<bool>& smooth_field_,
-    const std::vector<bool>& disc_detect_, double* __restrict__ combined_q,
-    double* __restrict__ combined_x, double* __restrict__ combined_u, const double dx, const std::vector<std::vector<safe_real>> &cdiscs);
 
-void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega, bool angmom,
-    double* __restrict__ combined_u, const int nf, const int n_species_);
+void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega,
+    bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_);

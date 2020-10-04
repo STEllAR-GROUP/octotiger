@@ -19,6 +19,7 @@ constexpr int q_inx3 = q_inx * q_inx * q_inx;
 constexpr int q_face_offset = number_dirs * q_inx3;
 constexpr int u_face_offset = H_N3;
 constexpr int q_dir_offset = q_inx3;
+constexpr int am_offset = q_inx3;
 
 inline int to_q_index(const int j, const int k, const int l) {
     return j * q_inx * q_inx + k * q_inx + l;
@@ -168,14 +169,20 @@ inline void reconstruct_ppm_experimental(double* __restrict__ combined_q,
     }
 }
 
+// Phase 1 and 2
+void reconstruct_inner_loop_p1(safe_real omega, const size_t nf_, const int angmom_index_,
+    const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
+    double* __restrict__ combined_q, double* __restrict__ combined_u, double* __restrict__ AM,
+    const double dx, const std::vector<std::vector<safe_real>>& cdiscs) {}
+
 void reconstruct_experimental(const safe_real omega, const size_t nf_, const int angmom_index_,
     const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
-    double* __restrict__ combined_u, const double dx,
+    double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
     const std::vector<std::vector<safe_real>>& cdiscs) {
     static const cell_geometry<NDIM, INX> geo;
-    static thread_local std::vector<std::vector<safe_real>> AM(
-        geo.NANGMOM, std::vector<safe_real>(geo.H_N3));
+    // static thread_local std::vector<std::vector<safe_real>> AM(
+    //   geo.NANGMOM, std::vector<safe_real>(geo.H_N3));
 
     static constexpr auto xloc = geo.xloc();
     static constexpr auto levi_civita = geo.levi_civita();
@@ -186,7 +193,7 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
     // Current implementation limitations of this kernel - can be resolved but that takes more work
     assert(angmom_index_ > -1);
     assert(NDIM > 2);
-    assert(nf == 15);
+    assert(nf_ == 15);
     assert(geo.NDIR == 27);
     assert(INX == 8);
     // TODO Make kernel work with a wider range of parameters
@@ -194,25 +201,18 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
     const int sx_i = angmom_index_;
     const int zx_i = sx_i + NDIM;
 
-    for (int n = 0; n < geo.NANGMOM; n++) {
-        for (int j = 0; j < geo.H_NX_XM4; j++) {
-            for (int k = 0; k < geo.H_NX_YM4; k++) {
-#pragma ivdep
-                for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                    const int i = geo.to_index(j + 2, k + 2, l + 2);
-                    AM[n][i] = combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
-                }
-            }
-        }
-    }
-
     for (int j = 0; j < geo.H_NX_XM4; j++) {
         for (int k = 0; k < geo.H_NX_YM4; k++) {
             for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                // Phase 1
                 const int i = geo.to_index(j + 2, k + 2, l + 2);
                 const int q_i = to_q_index(j, k, l);
+                
+                for (int n = 0; n < geo.NANGMOM; n++) {
+                    AM[n * am_offset + q_i] =
+                        combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
+                }
 
-                // Phase 1
                 for (int d = 0; d < geo.NDIR; d++) {
                     if (d < geo.NDIR / 2) {
                         for (int f = 0; f < angmom_index_; f++) {
@@ -242,7 +242,7 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
 
                         // n m q Levi Civita
                         // 0 1 2 -> 1
-                        double results0 = AM[0][i] -
+                        double results0 = AM[q_i] -
                             vw[d] * 1.0 * 0.5 * xloc[d][1] *
                                 combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i] *
                                 combined_q[start_index_rho + q_i] * dx;
@@ -252,11 +252,11 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                         results0 -= vw[d] * (-1.0) * 0.5 * xloc[d][2] *
                             combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
                             combined_q[start_index_rho + q_i] * dx;
-                        AM[0][i] = results0;
+                        AM[q_i] = results0;
 
                         // n m q Levi Civita
                         // 1 0 2 -> -1
-                        double results1 = AM[1][i] -
+                        double results1 = AM[am_offset + q_i] -
                             vw[d] * (-1.0) * 0.5 * xloc[d][0] *
                                 combined_q[(sx_i + 2) * q_face_offset + d * q_dir_offset + q_i] *
                                 combined_q[start_index_rho + q_i] * dx;
@@ -266,11 +266,11 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                         results1 -= vw[d] * (1.0) * 0.5 * xloc[d][2] *
                             combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
                             combined_q[start_index_rho + q_i] * dx;
-                        AM[1][i] = results1;
+                        AM[am_offset + q_i] = results1;
 
                         // n m q Levi Civita
                         // 2 0 1 -> 1
-                        double results2 = AM[2][i] -
+                        double results2 = AM[2 * am_offset + q_i] -
                             vw[d] * (1.0) * 0.5 * xloc[d][0] *
                                 combined_q[(sx_i + 1) * q_face_offset + d * q_dir_offset + q_i] *
                                 combined_q[start_index_rho + q_i] * dx;
@@ -280,7 +280,7 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                         results2 -= vw[d] * (-1.0) * 0.5 * xloc[d][1] *
                             combined_q[(sx_i + 0) * q_face_offset + d * q_dir_offset + q_i] *
                             combined_q[start_index_rho + q_i] * dx;
-                        AM[2][i] = results2;
+                        AM[2 * am_offset + q_i] = results2;
                     }
                 }
 
@@ -313,7 +313,8 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
                             for (int n = 0; n < geo.NANGMOM; n++) {
                                 for (int m = 0; m < NDIM; m++) {
                                     const auto lc = levi_civita[n][m][q];
-                                    b += 12.0 * AM[n][i] * lc * xloc[d][m] / (dx * (rho_l + rho_r));
+                                    b += 12.0 * AM[n * am_offset + q_i] * lc * xloc[d][m] /
+                                        (dx * (rho_l + rho_r));
                                 }
                             }
                             double blim;
