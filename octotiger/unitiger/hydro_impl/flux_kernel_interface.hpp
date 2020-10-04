@@ -8,12 +8,15 @@
 #include "octotiger/unitiger/hydro.hpp"
 #include "octotiger/unitiger/safe_real.hpp"
 
-#include <boost/container/vector.hpp>    // to get non-specialized vector<bool>
-
 #include <buffer_manager.hpp>
 #ifdef OCTOTIGER_HAVE_CUDA
 #include <cuda_buffer_util.hpp>
+#include <cuda_runtime.h>
+#include <stream_manager.hpp>
+#include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
+
+#include <boost/container/vector.hpp>    // to get non-specialized vector<bool>
 
 timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
     hydro::x_type& X, safe_real omega, const size_t nf_);
@@ -25,9 +28,11 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     hydro::x_type& X, safe_real omega, const size_t nf_);
 
 timestep_t launch_flux_cuda(
-    const std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_q,
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_q, double* device_q,
     std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_f,
-    hydro::x_type& X, safe_real omega, const size_t nf_);
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x,
+    safe_real omega, const size_t nf_, double dx, size_t device_id);
 
 // helpers for using vectortype specialization functions
 template <typename double_t, typename cond_t>
@@ -440,18 +445,19 @@ void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
             for (auto ix = 2; ix < 2 + INX + 2; ix++) {
                 for (auto iy = 2; iy < 2 + INX + 2; iy++) {
                     for (auto line_element = 0; line_element < 10; line_element++) {
-                        if (std::abs(Q[face][d][start_offset + line_element + 2] - *(it + line_element)) > 1e-7) {
+                        if (std::abs(Q[face][d][start_offset + line_element + 2] -
+                                *(it + line_element)) > 1e-7) {
                             std::cout << "Orig: " << Q[face][d][start_offset + line_element + 2]
                                       << " vs: " << *(it + line_element) << std::endl;
                             std::cout << "Found error at face " << face << " with d " << d
                                       << " and grid element " << ix << "/" << iy << "/"
                                       << line_element + 2 << std::endl;
                             for (auto line_element = 0; line_element < 10; line_element++) {
-                            std::cout << Q[face][d][start_offset + line_element + 2] << " ";
+                                std::cout << Q[face][d][start_offset + line_element + 2] << " ";
                             }
                             std::cout << std::endl;
                             for (auto line_element = 0; line_element < 10; line_element++) {
-                            std::cout << *(it + line_element) << " ";
+                                std::cout << *(it + line_element) << " ";
                             }
                             std::cout << std::endl;
                             correct = false;
@@ -463,9 +469,9 @@ void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
                 start_offset += (2 + 2) * 14;
             }
         }
-        if(!correct) {
-           std::cout << " face " << face << " is incorrect!" << std::endl;
-           std::cin.get();
+        if (!correct) {
+            std::cout << " face " << face << " is incorrect!" << std::endl;
+            std::cin.get();
         }
     }
 }
@@ -474,15 +480,15 @@ template <typename Alloc>
 void convert_x_structure(const hydro::x_type& X, std::vector<double, Alloc>& combined_x) {
     auto it_x = combined_x.begin();
     for (size_t dim = 0; dim < NDIM; dim++) {
-      auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
-      for (auto ix = 2; ix < 2 + INX + 2; ix++) {
-          for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-              it_x = std::copy(X[dim].begin() + start_offset,
-                  X[dim].begin() + start_offset + 10, it_x);
-              start_offset += 14;
-          }
-          start_offset += (2 + 2) * 14;
-      }
+        auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
+        for (auto ix = 2; ix < 2 + INX + 2; ix++) {
+            for (auto iy = 2; iy < 2 + INX + 2; iy++) {
+                it_x = std::copy(
+                    X[dim].begin() + start_offset, X[dim].begin() + start_offset + 10, it_x);
+                start_offset += 14;
+            }
+            start_offset += (2 + 2) * 14;
+        }
     }
 }
 

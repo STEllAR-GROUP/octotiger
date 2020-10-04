@@ -158,39 +158,31 @@ __launch_bounds__(900, 1)
  return;
 }
 
-timestep_t launch_flux_cuda(const std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, hydro::x_type& X,
-    safe_real omega, const size_t nf_) {
+timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_q, double* device_q, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f, std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x,
+    safe_real omega, const size_t nf_, double dx, size_t device_id) {
     timestep_t ts;
+    const cell_geometry<3, 8> geo;
 
-    // Check availability
-    // TODO(daissgr) Why is this segfaulting at the end of the simulation despite not being called?
-    bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                 pool_strategy>(opts().cuda_buffer_capacity);
-  
-    if (!avail) {
-      std::cerr << "Warning, high GPU load in flux detected... This shouldn't happen" << std::endl;
-    } 
 
     /*size_t device_id =
       stream_pool::get_next_device_id<hpx::cuda::experimental::cuda_executor,
       pool_strategy>();*/
-    size_t device_id = 0;
+    //size_t device_id = 0;
 
-    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
+    //stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
 
-    recycler::cuda_device_buffer<double> device_q(15 * 27 * 10 * 10 * 10 + 32, device_id);
+    /*recycler::cuda_device_buffer<double> device_q(15 * 27 * 10 * 10 * 10 + 32, device_id);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-    cudaMemcpyAsync, device_q.device_side_buffer,
-    combined_q.data(), (15 * 27 * 10 * 10 * 10 + 32) * sizeof(double), cudaMemcpyHostToDevice);
+    cudamemcpyasync, device_q.device_side_buffer,
+    combined_q.data(), (15 * 27 * 10 * 10 * 10 + 32) * sizeof(double), cudamemcpyhosttodevice);*/
 
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * 1000 + 32);
+    /*std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * 1000 + 32);
     convert_x_structure(X, combined_x);
-    const cell_geometry<3, 8> geo;
     double dx = X[0][geo.H_DNX] - X[0][0];
     recycler::cuda_device_buffer<double> device_x(NDIM * 1000 + 32, device_id);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
     cudaMemcpyAsync, device_x.device_side_buffer,
-    combined_x.data(), (NDIM * 1000 + 32) * sizeof(double), cudaMemcpyHostToDevice);
+    combined_x.data(), (NDIM * 1000 + 32) * sizeof(double), cudaMemcpyHostToDevice);*/
 
     recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
     const bool *masks = get_gpu_masks();
@@ -205,8 +197,8 @@ timestep_t launch_flux_cuda(const std::vector<double, recycler::recycle_allocato
 
     dim3 const grid_spec(1, 1, 3);
     dim3 const threads_per_block(9, 10, 10);
-    void* args[] = {&(device_q.device_side_buffer),
-      &(device_x.device_side_buffer), &(device_f.device_side_buffer), &(device_amax.device_side_buffer),
+    void* args[] = {&(device_q),
+      &(device_x), &(device_f.device_side_buffer), &(device_amax.device_side_buffer),
       &(device_amax_indices.device_side_buffer), &(device_amax_d.device_side_buffer), &masks, &omega, &dx, &A_, &B_, &fgamma, &de_switch_1};
     executor.post(
     cudaLaunchKernel<decltype(flux_cuda_kernel)>,
