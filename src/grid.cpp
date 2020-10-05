@@ -1792,7 +1792,11 @@ timestep_t grid::compute_fluxes() {
 	}
 	hydro.use_smooth_recon(pot_i);
   bool use_new_datastructure = true;
-  if (!use_new_datastructure) {
+  // Check availability
+  bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+               pool_strategy>(opts().cuda_buffer_capacity);
+
+  if (!use_new_datastructure || !avail) {
 
     static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
         std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
@@ -1822,12 +1826,9 @@ timestep_t grid::compute_fluxes() {
   } else {
     static const cell_geometry<NDIM, INX> geo;
 
-    // Check availability
-    bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                 pool_strategy>(opts().cuda_buffer_capacity);
   
     if (!avail) {
-      std::cerr << "Warning, high GPU load in flux detected... This shouldn't happen" << std::endl;
+      //std::cerr << "Warning, high GPU load in flux detected... This shouldn't happen" << std::endl;
     } 
     size_t device_id = 0;
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
@@ -1837,9 +1838,14 @@ timestep_t grid::compute_fluxes() {
     recycler::cuda_device_buffer<double> device_q(15 * 27 * 10 * 10 * 10 + 32, device_id);
     recycler::cuda_device_buffer<double> device_x(NDIM * 1000 + 32, device_id);
     recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
+    recycler::cuda_device_buffer<double> device_u(hydro.get_nf() * H_N3 + 32);
     recycler::cuda_device_buffer<double> device_amax(NDIM);
     recycler::cuda_device_buffer<int> device_amax_indices(NDIM);
     recycler::cuda_device_buffer<int> device_amax_d(NDIM);
+    recycler::cuda_device_buffer<double> device_unified_discs(geo.NDIR / 2 * H_N3 + 32);
+    recycler::cuda_device_buffer<int> device_disc_detect(hydro.get_nf());
+    recycler::cuda_device_buffer<int> device_smooth_field(hydro.get_nf());
+    recycler::cuda_device_buffer<double> device_AM(NDIM * 10 * 10 * 10 + 32);
 
     // Host buffers
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
@@ -1868,18 +1874,43 @@ timestep_t grid::compute_fluxes() {
       smooth_field[f] = smooth_bool[f];
     }
 
-
-    // Call reconstruct
-    reconstruct_experimental(omega, hydro.get_nf(), hydro.get_angmom_index(), smooth_field.data(), disc_detect.data(), combined_q.data(), combined_x.data(), combined_u.data(), AM.data(), X[0][geo.H_DNX] - X[0][0], unified_discs.data());
-
-    // tmp movement
+    // Move reconstruct input
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-    cudaMemcpyAsync, device_q.device_side_buffer,
-    combined_q.data(), (15 * 27 * 10 * 10 * 10 + 32) * sizeof(double), cudaMemcpyHostToDevice);
-
+    cudaMemcpyAsync, device_u.device_side_buffer,
+    combined_u.data(), (hydro.get_nf() * H_N3 + 32) * sizeof(double), cudaMemcpyHostToDevice);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
     cudaMemcpyAsync, device_x.device_side_buffer,
     combined_x.data(), (NDIM * 1000 + 32) * sizeof(double), cudaMemcpyHostToDevice);
+    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+    cudaMemcpyAsync, device_unified_discs.device_side_buffer,
+    unified_discs.data(), (geo.NDIR / 2 * H_N3 + 32) * sizeof(double), cudaMemcpyHostToDevice);
+    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+    cudaMemcpyAsync, device_disc_detect.device_side_buffer,
+    disc_detect.data(), (hydro.get_nf()) * sizeof(int), cudaMemcpyHostToDevice);
+    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+    cudaMemcpyAsync, device_smooth_field.device_side_buffer,
+    smooth_field.data(), (hydro.get_nf()) * sizeof(int), cudaMemcpyHostToDevice);
+
+    // Call reconstruct
+    //reconstruct_experimental(omega, hydro.get_nf(), hydro.get_angmom_index(), smooth_field.data(), disc_detect.data(), combined_q.data(), combined_x.data(), combined_u.data(), AM.data(), X[0][geo.H_DNX] - X[0][0], unified_discs.data());
+
+    launch_reconstruct_cuda(executor, omega, hydro.get_nf(), hydro.get_angmom_index(), device_smooth_field.device_side_buffer, device_disc_detect.device_side_buffer, device_q.device_side_buffer, device_x.device_side_buffer, device_u.device_side_buffer, device_AM.device_side_buffer, X[0][geo.H_DNX] - X[0][0], device_unified_discs.device_side_buffer, opts().n_species);
+
+    // tmp movement
+    /*hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+    cudaMemcpyAsync, device_q.device_side_buffer,
+    combined_q.data(), (15 * 27 * 10 * 10 * 10 + 32) * sizeof(double), cudaMemcpyHostToDevice);*/
+    /*std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q2(
+    15 * 27 * 10 * 10 * 10 + 32);
+    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+    cudaMemcpyAsync, combined_q2.data(), device_q.device_side_buffer,
+    (15 * 27 * 10 * 10 * 10 + 32) * sizeof(double), cudaMemcpyDeviceToHost);*/
+    /*for (int i = 0; i < combined_q2.size(); i++) {
+      std::cout << i << ": " << combined_q[i] << " vs " << combined_q2[i] << std::endl;
+      if (std::abs(combined_q[i] - combined_q2[i] ) > 1e-16)
+        std::cin.get();
+    }*/
+
     
     // Call Flux kernel
     auto max_lambda = launch_flux_cuda(executor, combined_q, device_q.device_side_buffer, f, combined_x, device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id);

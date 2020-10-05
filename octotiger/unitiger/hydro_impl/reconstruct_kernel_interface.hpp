@@ -15,6 +15,13 @@
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 
+#ifdef OCTOTIGER_HAVE_CUDA
+#include <cuda_buffer_util.hpp>
+#include <cuda_runtime.h>
+#include <stream_manager.hpp>
+#include "octotiger/cuda_util/cuda_helper.hpp"
+#endif
+
 template <typename T>
 CUDA_CALLABLE_METHOD inline T copysign_wrapper(const T& tmp1, const T& tmp2) {
     return std::copysign(tmp1, tmp2);
@@ -43,6 +50,13 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, const double dx,
     const std::vector<std::vector<safe_real>>& cdiscs);
+void launch_reconstruct_cuda(
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    double omega, int nf_, int angmom_index_,
+    int* smooth_field_, int* disc_detect_ ,
+    double* combined_q, double* combined_x,
+    double* combined_u, double* AM, double dx,
+    double* cdiscs, int n_species_);
 
 void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega,
     bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_);

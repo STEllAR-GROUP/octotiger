@@ -413,15 +413,18 @@ __device__ inline void reconstruct_inner_loop_p2(const safe_real omega, double* 
     }
 }
 
-__global__ void reconstruct_cuda_kernel(const safe_real omega, const size_t nf_, const int angmom_index_,
-    const int* __restrict__ smooth_field_, const int* __restrict__ disc_detect_ ,
+__global__ void
+__launch_bounds__(200, 1)
+reconstruct_cuda_kernel(const double omega, const int nf_, const int angmom_index_,
+    int* __restrict__ smooth_field_, int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
-    const double* __restrict__ cdiscs, int n_species_, const int ndir, const int nangmom) {
+    const double* __restrict__ cdiscs, const int n_species_, const int ndir, const int nangmom) {
   const int sx_i = angmom_index_;
   const int zx_i = sx_i + NDIM;
-  const int i = (threadIdx.x + 2) * 14 * 14 + (threadIdx.y + 2) * 14 + (threadIdx.z + 2) * 14;
-  const int q_i = (threadIdx.x) * 10 * 10 + (threadIdx.y) * 10 + (threadIdx.z) * 10;
+  const int x_index = blockIdx.z * 2 + threadIdx.x;
+  const int i = (x_index + 2) * 14 * 14 + (threadIdx.y + 2) * 14 + (threadIdx.z + 2);
+  const int q_i = (x_index) * 10 * 10 + (threadIdx.y) * 10 + (threadIdx.z);
   for (int n = 0; n < nangmom; n++) {
     AM[n * am_offset + q_i] =
     combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
@@ -437,11 +440,13 @@ __global__ void reconstruct_cuda_kernel(const safe_real omega, const size_t nf_,
 }
 
 
-void launch_reconstruct_cuda_kernel(const safe_real omega, const size_t nf_, const int angmom_index_,
-    const int* __restrict__ smooth_field_, const int* __restrict__ disc_detect_ ,
-    double* __restrict__ combined_q, double* __restrict__ combined_x,
-    double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
-    const double* __restrict__ cdiscs, int n_species_) {
+void launch_reconstruct_cuda(
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    double omega, int nf_, int angmom_index_,
+    int* smooth_field_, int* disc_detect_ ,
+    double* combined_q, double* combined_x,
+    double* combined_u, double* AM, double dx,
+    double* cdiscs, int n_species_) {
     static const cell_geometry<NDIM, INX> geo;
 
     // Current implementation limitations of this kernel - can be resolved but that takes more work
@@ -450,35 +455,20 @@ void launch_reconstruct_cuda_kernel(const safe_real omega, const size_t nf_, con
     assert(nf_ == 15);
     assert(geo.NDIR == 27);
     assert(INX == 8);
-    // TODO Make kernel work with a wider range of parameters
 
-   /* const int sx_i = angmom_index_;
-    const int zx_i = sx_i + NDIM;
-    for (int j = 0; j < geo.H_NX_XM4; j++) {
-        for (int k = 0; k < geo.H_NX_YM4; k++) {
-            for (int l = 0; l < geo.H_NX_ZM4; l++) {
-                // Phase 1
-                const int i = geo.to_index(j + 2, k + 2, l + 2);
-                const int q_i = to_q_index(j, k, l);
+    // TODO Set parameters
+    dim3 const grid_spec(1, 1, 5);
+    dim3 const threads_per_block(2, 10, 10);
+    int ndir = geo.NDIR;
+    int nangmom = geo.NANGMOM;
+    void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
+      &(combined_x), &(combined_u), &(AM), &dx, &(cdiscs), &n_species_, &ndir, &nangmom};
+    // TODO Launch kernel
+    executor.post(
+    cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>,
+    reconstruct_cuda_kernel, grid_spec, threads_per_block, args, 0);
 
-                for (int n = 0; n < geo.NANGMOM; n++) {
-                    AM[n * am_offset + q_i] =
-                        combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
-                }
 
-                for (int d = 0; d < geo.NDIR; d++) {
-                    reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-                        combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, geo.NDIR, geo.NANGMOM);
-                }
-
-                // Phase 2
-                for (int d = 0; d < geo.NDIR; d++) {
-                    reconstruct_inner_loop_p2(omega, combined_q, combined_x, combined_u, AM, dx, d, i, q_i,
-                        geo.NDIR, geo.NANGMOM, n_species_);
-                }
-            }
-        }
-    }
-    return;*/
+    // TODO Move q back (for now...)
 }
 
