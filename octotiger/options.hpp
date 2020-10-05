@@ -122,6 +122,7 @@ public:
 	size_t cuda_streams_per_gpu;
 	size_t cuda_buffer_capacity;
 	bool cuda_polling_executor;
+	bool legacy_hydro;
 
 	std::string input_file;
 	std::string config_file;
@@ -247,6 +248,7 @@ public:
 		arc & cuda_streams_per_gpu;
 		arc & cuda_buffer_capacity;
 		arc & cuda_polling_executor;
+		arc & legacy_hydro;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;

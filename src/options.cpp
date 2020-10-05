@@ -147,6 +147,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
 	("cuda_polling_executor", po::value<bool>(&(opts().cuda_polling_executor))->default_value(true), "Use polling (true) or callback (false) executor") //
+	("legacy_hydro", po::value<bool>(&(opts().legacy_hydro))->default_value(false), "Use new hydro (false) or legacy hydro (true)") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
 	("config_file", po::value<std::string>(&(opts().config_file))->default_value(""), "configuration file") //
 	("n_species", po::value<integer>(&(opts().n_species))->default_value(5), "number of mass species") //
@@ -252,6 +253,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(cuda_streams_per_gpu);
 		SHOW(cuda_buffer_capacity);
 		SHOW(cuda_polling_executor);
+		SHOW(legacy_hydro);
 		SHOW(data_dir);
 		SHOW(disable_output);
 		SHOW(driving_rate);

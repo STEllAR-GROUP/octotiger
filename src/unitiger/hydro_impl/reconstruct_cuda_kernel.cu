@@ -426,22 +426,18 @@ reconstruct_cuda_kernel(const double omega, const int nf_, const int angmom_inde
   const int q_i = (blockIdx.z * 2 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
   const int i = ((q_i / 100) + 2) * 14 * 14 + (((q_i % 100) / 10 ) + 2) * 14 + (((q_i % 100) % 10) + 2);
   if (q_i < 1000) {
-
-
- // const int i = (x_index + 2) * 14 * 14 + (threadidx.y + 2) * 14 + (threadidx.z + 2);
- // const int q_i = (x_index) * 10 * 10 + (threadIdx.y) * 10 + (threadIdx.z);
-  for (int n = 0; n < nangmom; n++) {
-    AM[n * am_offset + q_i] =
-    combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
-  }
-  for (int d = 0; d < ndir; d++) {
-    reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
-    combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
-  }
-  // Phase 2
-  for (int d = 0; d < ndir; d++) {
-    reconstruct_inner_loop_p2(omega, combined_q, combined_x, combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
-  }
+    for (int n = 0; n < nangmom; n++) {
+      AM[n * am_offset + q_i] =
+      combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
+    }
+    for (int d = 0; d < ndir; d++) {
+      reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
+      combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+    }
+    // Phase 2
+    for (int d = 0; d < ndir; d++) {
+      reconstruct_inner_loop_p2(omega, combined_q, combined_x, combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+    }
   }
 }
 
@@ -463,7 +459,7 @@ void launch_reconstruct_cuda(
     assert(INX == 8);
 
     // TODO Set parameters
-    dim3 const grid_spec(1, 1, 10);
+    dim3 const grid_spec(1, 1, 8);
     dim3 const threads_per_block(2, 8, 8);
     int ndir = geo.NDIR;
     int nangmom = geo.NANGMOM;

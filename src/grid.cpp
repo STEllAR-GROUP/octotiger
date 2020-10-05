@@ -1791,12 +1791,13 @@ timestep_t grid::compute_fluxes() {
 		}
 	}
 	hydro.use_smooth_recon(pot_i);
-  bool use_new_datastructure = true;
+  bool use_new_hydro =!(opts().legacy_hydro);
+  if (use_new_hydro) {
   // Check availability
   bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                pool_strategy>(opts().cuda_buffer_capacity);
 
-  if (!use_new_datastructure || !avail) {
+  if (!avail) {
 
     static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
         std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
@@ -1825,11 +1826,6 @@ timestep_t grid::compute_fluxes() {
     return max_lambda;
   } else {
     static const cell_geometry<NDIM, INX> geo;
-
-  
-    if (!avail) {
-      //std::cerr << "Warning, high GPU load in flux detected... This shouldn't happen" << std::endl;
-    } 
     size_t device_id = 0;
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
 
@@ -1927,6 +1923,32 @@ timestep_t grid::compute_fluxes() {
               const auto i0 = findex(i, j, k);
               const auto input_index = (i + 1) * 10 * 10 + (j + 1) * 10 + (k + 1);
               F[dim][field][i0] = f[ dim_offset + input_index];
+              real rho_tot = 0.0;
+              for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
+                rho_tot += F[dim][field][i0];
+              }
+              F[dim][rho_i][i0] = rho_tot;
+            }
+          }
+        }
+      }
+    }
+    return max_lambda;
+  }
+  } else {
+    static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
+        std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+    const auto &q = hydro.reconstruct(U, X, omega);
+    auto max_lambda = hydro.flux(U, q, f, X, omega);
+
+    for (int dim = 0; dim < NDIM; dim++) {
+      for (integer field = 0; field != opts().n_fields; ++field) {
+#pragma GCC ivdep
+        for (integer i = 0; i <= INX; ++i) {
+          for (integer j = 0; j <= INX; ++j) {
+            for (integer k = 0; k <= INX; ++k) {
+              const auto i0 = findex(i, j, k);
+              F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
               real rho_tot = 0.0;
               for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
                 rho_tot += F[dim][field][i0];
