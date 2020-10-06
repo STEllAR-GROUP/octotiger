@@ -1813,11 +1813,14 @@ timestep_t grid::compute_fluxes() {
             for (integer k = 0; k <= INX; ++k) {
               const auto i0 = findex(i, j, k);
               F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-              real rho_tot = 0.0;
-              for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
-                rho_tot += F[dim][field][i0];
+              if (field == opts().n_fields - 1) {
+
+                real rho_tot = 0.0;
+                for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
+                  rho_tot += F[dim][field][i0];
+                }
+                F[dim][rho_i][i0] = rho_tot;
               }
-              F[dim][rho_i][i0] = rho_tot;
             }
           }
         }
@@ -1923,11 +1926,6 @@ timestep_t grid::compute_fluxes() {
               const auto i0 = findex(i, j, k);
               const auto input_index = (i + 1) * 10 * 10 + (j + 1) * 10 + (k + 1);
               F[dim][field][i0] = f[ dim_offset + input_index];
-              real rho_tot = 0.0;
-              for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
-                rho_tot += F[dim][field][i0];
-              }
-              F[dim][rho_i][i0] = rho_tot;
             }
           }
         }

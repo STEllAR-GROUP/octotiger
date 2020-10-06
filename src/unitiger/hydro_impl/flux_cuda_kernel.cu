@@ -110,8 +110,11 @@ __launch_bounds__(128, 2)
         current_amax = amax_tmp;
         current_d = d;
       }
-      for (int f = 0; f < nf; f++) {
+      for (int f = 1; f < nf; f++) {
         f_combined[dim * 15 * 1000 + f * 1000 + index] += quad_weights[fi] * local_f[f];
+        if (f > 9) {
+          f_combined[dim * 15 * 1000 + index] += quad_weights[fi] * local_f[f];
+        }
       }
    }
  }
