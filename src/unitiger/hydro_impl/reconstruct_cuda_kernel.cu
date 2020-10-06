@@ -414,7 +414,7 @@ __device__ inline void reconstruct_inner_loop_p2(const safe_real omega, double* 
 }
 
 __global__ void
-__launch_bounds__(128, 1)
+__launch_bounds__(128, 2)
 reconstruct_cuda_kernel(const double omega, const int nf_, const int angmom_index_,
     int* __restrict__ smooth_field_, int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
