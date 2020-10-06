@@ -93,9 +93,9 @@ namespace fmm {
             cuda_error(cudaMemcpyToSymbol(
                 monopole_interactions::device_stencil_masks, multipole_stencil_masks.get(),
                 full_stencil_size / sizeof(double) * sizeof(bool)));
-            // util::cuda_helper::cuda_error(cudaMemcpyToSymbol(
-            //     monopole_interactions::device_four_constants,
-            //     four_constants_tmp.get(), full_stencil_size * 4));
+            cuda_error(cudaMemcpyToSymbol(
+            monopole_interactions::device_four_constants,
+            four_constants_tmp.get(), full_stencil_size * 4));
         }
     }
     kernel_scheduler::~kernel_scheduler() {}

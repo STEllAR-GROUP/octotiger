@@ -8,7 +8,7 @@ namespace octotiger {
         namespace monopole_interactions {
             // __constant__ octotiger::fmm::multiindex<> device_stencil_const[P2P_PADDED_STENCIL_SIZE];
             __device__ __constant__ bool device_stencil_masks[FULL_STENCIL_SIZE];
-            // __device__ __constant__ double device_four_constants[FULL_STENCIL_SIZE * 4];
+            __device__ __constant__ double device_four_constants[FULL_STENCIL_SIZE * 4];
 
             //__device__ const size_t component_length = ENTRIES + SOA_PADDING;
             __device__ const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
@@ -16,7 +16,7 @@ namespace octotiger {
             __device__ const size_t cache_offset = INX + STENCIL_MIN;
 
             __global__ void
-            __launch_bounds__(INX * INX, 1)
+            __launch_bounds__( INX * INX, 2)
                 cuda_p2p_interactions_kernel(
                     const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
                     double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL],
@@ -31,34 +31,22 @@ namespace octotiger {
                 // use in case of debug prints
                 //bool first_thread = (blockIdx.x == 0) && (threadIdx.y == 0) && (threadIdx.z == 0);
                 // Set cell indices
-                const octotiger::fmm::multiindex<> cell_index((threadIdx.x + blockIdx.x * 2) + INNER_CELLS_PADDING_DEPTH,
+                const octotiger::fmm::multiindex<> cell_index((threadIdx.x + blockIdx.z) + INNER_CELLS_PADDING_DEPTH,
                                                               threadIdx.y + INNER_CELLS_PADDING_DEPTH,
                                                               threadIdx.z + INNER_CELLS_PADDING_DEPTH);
                 octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
                 cell_index_coarse.transform_coarse();
                 const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
-                octotiger::fmm::multiindex<> cell_index_unpadded((threadIdx.x + blockIdx.x * 2), threadIdx.y, threadIdx.z);
+                octotiger::fmm::multiindex<> cell_index_unpadded((threadIdx.x + blockIdx.z), threadIdx.y, threadIdx.z);
                 const size_t cell_flat_index_unpadded =
                     octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
-
-                const octotiger::fmm::multiindex<> cell_index2((threadIdx.x + blockIdx.x * 2 + 1) + INNER_CELLS_PADDING_DEPTH,
-                                                               threadIdx.y + INNER_CELLS_PADDING_DEPTH,
-                                                               threadIdx.z + INNER_CELLS_PADDING_DEPTH);
-                octotiger::fmm::multiindex<> cell_index_coarse2(cell_index2);
-                cell_index_coarse2.transform_coarse();
-                const size_t cell_flat_index2 = octotiger::fmm::to_flat_index_padded(cell_index2);
-                octotiger::fmm::multiindex<> cell_index_unpadded2((threadIdx.x + blockIdx.x * 2 + 1), threadIdx.y, threadIdx.z);
-                const size_t cell_flat_index_unpadded2 =
-                    octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded2);
 
                 // Calculate required constants
                 const double theta_rec_squared = sqr(1.0 / theta);
                 const double d_components[2] = {1.0 / dx, -1.0 / dx};
                 double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
-                double tmpstore2[4] = {0.0, 0.0, 0.0, 0.0};
                 const size_t index_base = (threadIdx.y + STENCIL_MAX) * cache_line_length + threadIdx.z + STENCIL_MAX;
-                const size_t index_base2 = (threadIdx.y + STENCIL_MAX) * cache_line_length + threadIdx.z + STENCIL_MAX + cache_line_length * cache_line_length;
 
                 // int load_offset = 0;
                 // int load_id = local_id; // which id should be loaded during the manual caching
@@ -113,18 +101,12 @@ namespace octotiger {
 
                             // partner index
                             const multiindex<> partner_index1(cell_index.x + stencil_x, cell_index.y + stencil_y, cell_index.z + stencil_z);
-                            const multiindex<> partner_index2(cell_index2.x + stencil_x, cell_index2.y + stencil_y, cell_index2.z + stencil_z);
                             const size_t partner_flat_index1 = to_flat_index_padded(partner_index1);
-                            const size_t partner_flat_index2 = to_flat_index_padded(partner_index2);
                             multiindex<> partner_index_coarse1(partner_index1);
-                            multiindex<> partner_index_coarse2(partner_index2);
                             partner_index_coarse1.transform_coarse();
-                            partner_index_coarse2.transform_coarse();
 
                             const double theta_c_rec_squared = static_cast<double>(
                                 distance_squared_reciprocal(cell_index_coarse, partner_index_coarse1));
-                            const double theta_c_rec_squared2 = static_cast<double>(
-                                distance_squared_reciprocal(cell_index_coarse2, partner_index_coarse2));
 
                             // Where are we in the cache? Get required indices
                             // const size_t cache_index = index_base + stencil_y * cache_line_length + stencil_z;
@@ -136,36 +118,29 @@ namespace octotiger {
                             // const double theta_c_rec_squared2 = static_cast<double>(
                             //     distance_squared_reciprocal(cell_index_coarse2, coarse_index_cache[cache_index2]));
                             const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                            const bool mask_b2 = theta_rec_squared > theta_c_rec_squared2;
                             const double mask = mask_b ? 1.0 : 0.0;
-                            const double mask2 = mask_b2 ? 1.0 : 0.0;
 
-                            const double r = std::sqrt(stencil_x * stencil_x + stencil_y * stencil_y + stencil_z * stencil_z);
-                            const double r3 = r *r *r;
-                            const double four[4] = {-1.0 /r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
+                            //const double r = std::sqrt(stencil_x * stencil_x + stencil_y * stencil_y + stencil_z * stencil_z);
+                            //const double r3 = r *r *r;
+                            //const double four[4] = {-1.0 /r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
                             // Load required constants (same for both interactions)
-                            // const double four[4] = {device_four_constants[index * 4 + 0],
-                            //                         device_four_constants[index * 4 + 1],
-                            //                         device_four_constants[index * 4 + 2],
-                            //                         device_four_constants[index * 4 + 3]};
+                            const double four[4] = {device_four_constants[index * 4 + 0],
+                                                     device_four_constants[index * 4 + 1],
+                                                     device_four_constants[index * 4 + 2],
+                                                     device_four_constants[index * 4 + 3]};
 
                             // Load masked monopoles from cache
                             // const double monopole = monopole_cache[cache_index] * mask * d_components[0];
                             // const double monopole2 = monopole_cache[cache_index2] * mask2 * d_components[0];
 
                             const double monopole = local_monopoles[partner_flat_index1] * mask * d_components[0];
-                            const double monopole2 = local_monopoles[partner_flat_index2] * mask2 * d_components[0];
 
 
                             // Calculate the actual interactions
                             tmpstore[0] = tmpstore[0] + four[0] * monopole;
-                            tmpstore2[0] = tmpstore2[0] + four[0] * monopole2;
                             tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
-                            tmpstore2[1] = tmpstore2[1] + four[1] * monopole2 * d_components[1];
                             tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
-                            tmpstore2[2] = tmpstore2[2] + four[2] * monopole2 * d_components[1];
                             tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
-                            tmpstore2[3] = tmpstore2[3] + four[3] * monopole2 * d_components[1];
                         }
                     }
                 }
@@ -178,14 +153,6 @@ namespace octotiger {
                                      cell_flat_index_unpadded] = tmpstore[2];
                 potential_expansions[3 * component_length_unpadded +
                                      cell_flat_index_unpadded] = tmpstore[3];
-
-                potential_expansions[cell_flat_index_unpadded2] = tmpstore2[0];
-                potential_expansions[1 * component_length_unpadded +
-                                     cell_flat_index_unpadded2] = tmpstore2[1];
-                potential_expansions[2 * component_length_unpadded +
-                                     cell_flat_index_unpadded2] = tmpstore2[2];
-                potential_expansions[3 * component_length_unpadded +
-                                     cell_flat_index_unpadded2] = tmpstore2[3];
             }
         }    // namespace monopole_interactions
     }    // namespace fmm

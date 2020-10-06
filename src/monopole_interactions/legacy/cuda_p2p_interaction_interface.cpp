@@ -61,7 +61,7 @@ namespace fmm {
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                dim3 const grid_spec(INX / 2, 1, 1);
+                dim3 const grid_spec(1, 1, INX);
                 dim3 const threads_per_block(1, INX, INX);
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
                     &(erg.device_side_buffer), &theta, &dx};
