@@ -122,7 +122,7 @@ __launch_bounds__(128, 2)
  // Find maximum:
  sm_amax[tid] = current_amax;
  sm_d[tid] = current_d;
- sm_i[tid] = tid;
+ sm_i[tid] = index;
  __syncthreads();
  for (int tid_border = 64; tid_border >= 32; tid_border /= 2) {
    if(tid < tid_border) {
@@ -170,9 +170,9 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
     const bool *masks = get_gpu_masks();
 
-    recycler::cuda_device_buffer<double> device_amax(NDIM);
-    recycler::cuda_device_buffer<int> device_amax_indices(NDIM);
-    recycler::cuda_device_buffer<int> device_amax_d(NDIM);
+    recycler::cuda_device_buffer<double> device_amax(7 * NDIM);
+    recycler::cuda_device_buffer<int> device_amax_indices(7 * NDIM);
+    recycler::cuda_device_buffer<int> device_amax_d(7 * NDIM);
     double A_ = physics<NDIM>::A_;
     double B_ = physics<NDIM>::B_;
     double fgamma = physics<NDIM>::fgamma_;
@@ -188,20 +188,20 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     flux_cuda_kernel, grid_spec, threads_per_block, args, 0);
 
     // Move data to host
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(NDIM);
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_indices(NDIM);
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_d(NDIM);
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(7 * NDIM);
+    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_indices(7 * NDIM);
+    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_d(7 * NDIM);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax.data(),
-               device_amax.device_side_buffer, NDIM * sizeof(double),
+               device_amax.device_side_buffer, 7 * NDIM * sizeof(double),
                cudaMemcpyDeviceToHost);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax_indices.data(),
-               device_amax_indices.device_side_buffer, NDIM * sizeof(int),
+               device_amax_indices.device_side_buffer, 7 * NDIM * sizeof(int),
                cudaMemcpyDeviceToHost);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax_d.data(),
-               device_amax_d.device_side_buffer, NDIM * sizeof(int),
+               device_amax_d.device_side_buffer, 7 * NDIM * sizeof(int),
                cudaMemcpyDeviceToHost);
     auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, combined_f.data(), device_f.device_side_buffer,
@@ -215,11 +215,11 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
         current_id = i;
       }
     }
-    //std::cin.get();
-    std::vector<double> URs(nf_), ULs(nf_);
+    const size_t current_dim = current_id / 7;
     const size_t current_max_index = amax_indices[current_id];
     const size_t current_d = amax_d[current_id];
-    const size_t current_dim = current_id / 7;
+    //std::cin.get();
+    std::vector<double> URs(nf_), ULs(nf_);
     ts.a = amax[current_dim];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + 1000];
