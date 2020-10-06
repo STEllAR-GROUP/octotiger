@@ -152,6 +152,8 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
                         for (int f = 0; f < nf_; f++) {
                             UR[f] = vc_type(((Q[f][d]).data()) + i);
                             UL[f] = vc_type(((Q[f][flipped_dim]).data()) + i - geo.H_DN[dim]);
+                            Vc::where(!mask, UR[f]) = 1.0;
+                            Vc::where(!mask, UL[f]) = 1.0;
                         }
                         for (int dim = 0; dim < NDIM; dim++) {
                             x[dim] = vc_type(X[dim].data() + i) + vc_type(0.5 * xloc[d][dim] * dx);
