@@ -414,7 +414,7 @@ __device__ inline void reconstruct_inner_loop_p2(const safe_real omega, double* 
 }
 
 __global__ void
-__launch_bounds__(128, 2)
+__launch_bounds__(64, 4)
 reconstruct_cuda_kernel(const double omega, const int nf_, const int angmom_index_,
     int* __restrict__ smooth_field_, int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
@@ -423,7 +423,7 @@ reconstruct_cuda_kernel(const double omega, const int nf_, const int angmom_inde
   const int sx_i = angmom_index_;
   const int zx_i = sx_i + NDIM;
 
-  const int q_i = (blockIdx.z * 2 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
+  const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
   const int i = ((q_i / 100) + 2) * 14 * 14 + (((q_i % 100) / 10 ) + 2) * 14 + (((q_i % 100) % 10) + 2);
   if (q_i < 1000) {
     for (int n = 0; n < nangmom; n++) {
@@ -458,19 +458,16 @@ void launch_reconstruct_cuda(
     assert(geo.NDIR == 27);
     assert(INX == 8);
 
-    // TODO Set parameters
-    dim3 const grid_spec(1, 1, 8);
-    dim3 const threads_per_block(2, 8, 8);
+    dim3 const grid_spec(1, 1, 16);
+    dim3 const threads_per_block(1, 8, 8);
     int ndir = geo.NDIR;
     int nangmom = geo.NANGMOM;
     void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
       &(combined_x), &(combined_u), &(AM), &dx, &(cdiscs), &n_species_, &ndir, &nangmom};
-    // TODO Launch kernel
     executor.post(
     cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>,
     reconstruct_cuda_kernel, grid_spec, threads_per_block, args, 0);
 
 
-    // TODO Move q back (for now...)
 }
 
