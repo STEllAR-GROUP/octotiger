@@ -63,31 +63,33 @@ __device__ const int face_offset = 27 * 1000;
 __device__ const int dim_offset = 1000;
 
 __global__ void
-__launch_bounds__(900, 1)
+__launch_bounds__(896, 1)
  flux_cuda_kernel(const double * __restrict__ q_combined, const double * __restrict__ x_combined, double * __restrict__ f_combined,
     double * amax, int * amax_indices, int * amax_d, const bool * __restrict__ masks, const double omega, const double dx, const double A_, const double B_, const double fgamma, const double de_switch_1) {
-  __shared__ double sm_amax[900];
-  __shared__ int sm_d[900];
-  __shared__ int sm_i[900];
+  __shared__ double sm_amax[896];
+  __shared__ int sm_d[896];
+  __shared__ int sm_i[896];
 
-  // 3 dim 1000 i workitems
-  const int dim = blockIdx.z;
-  const int index = threadIdx.x * 100 + threadIdx.y * 10 + threadIdx.z + 100;
-  int tid = index - 100;   
-  double mask = masks[index + dim * dim_offset];
-  //if(tid == 0)
-  // printf("starting...");
   const int nf = 15;
 
   double local_f[15] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   double local_x[3] = {0.0, 0.0, 0.0};
   double local_vg[3] = {0.0, 0.0, 0.0};
-  for (int f = 0; f < nf; f++) {
-      f_combined[dim * 15 * 1000 + f * 1000 + index] = 0.0;
-  }
 
   double current_amax = 0.0;
   int current_d = 0;
+
+  // 3 dim 1000 i workitems
+  const int dim = blockIdx.z;
+  const int index = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z + 104;
+  int tid = index - 104;   
+  for (int f = 0; f < nf; f++) {
+      f_combined[dim * 15 * 1000 + f * 1000 + index] = 0.0;
+  }
+  if (index < 1000) {
+  double mask = masks[index + dim * dim_offset];
+  //if(tid == 0)
+  // printf("starting...");
   if(mask != 0.0) {
     for (int fi = 0; fi < 9; fi++) {    // 9
       double this_ap = 0.0, this_am = 0.0;    // tmps
@@ -116,6 +118,7 @@ __launch_bounds__(900, 1)
  for (int f = 10; f < nf; f++) {
    f_combined[dim * 15 * 1000 + index] += f_combined[dim * 15 * 1000 + f * 1000 + index];
  }
+  }
 
  // Find maximum:
  sm_amax[tid] = current_amax;
@@ -123,11 +126,11 @@ __launch_bounds__(900, 1)
  sm_i[tid] = tid + 100;
  __syncthreads();
  // First step as we do not have multiples of 2
- if(tid < 450) {
-   if (sm_amax[tid + 450 ] > sm_amax[tid]) {
-     sm_amax[tid] = sm_amax[tid + 450];
-     sm_d[tid] = sm_d[tid + 450];
-     sm_i[tid] = sm_i[tid + 450];
+ if(tid < 448) {
+   if (sm_amax[tid + 448 ] > sm_amax[tid]) {
+     sm_amax[tid] = sm_amax[tid + 448];
+     sm_d[tid] = sm_d[tid + 448];
+     sm_i[tid] = sm_i[tid + 448];
    }
  }
  __syncthreads();
@@ -202,7 +205,7 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     double de_switch_1 = physics<NDIM>::de_switch_1;
 
     dim3 const grid_spec(1, 1, 3);
-    dim3 const threads_per_block(9, 10, 10);
+    dim3 const threads_per_block(14, 8, 8);
     void* args[] = {&(device_q),
       &(device_x), &(device_f.device_side_buffer), &(device_amax.device_side_buffer),
       &(device_amax_indices.device_side_buffer), &(device_amax_d.device_side_buffer), &masks, &omega, &dx, &A_, &B_, &fgamma, &de_switch_1};
