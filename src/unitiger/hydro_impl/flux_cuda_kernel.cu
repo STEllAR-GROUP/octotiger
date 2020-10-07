@@ -151,16 +151,25 @@ __launch_bounds__(128, 2)
   }
 
   if (tid == 0) {
-   //printf("Block %i %i TID %i %i \n", blockIdx.y, blockIdx.z, tid, index);
-   amax[blockIdx.y + dim * 7] = sm_amax[0];
-   amax_indices[blockIdx.y + dim * 7] = sm_i[0];
-   amax_d[blockIdx.y + dim * 7] = sm_d[0];
+    //printf("Block %i %i TID %i %i \n", blockIdx.y, blockIdx.z, tid, index);
+    const int block_id = blockIdx.y + dim * 7;
+    amax[block_id] = sm_amax[0];
+    amax_indices[block_id] = sm_i[0];
+    amax_d[block_id] = sm_d[0];
+
+    // Save face to the end of the amax buffer
+    const int flipped_dim = flip_dim(sm_d[0], dim);
+    for (int f = 0; f < nf; f++) {
+      amax[21 + block_id * 30 + f] = q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0]];
+      amax[21 + block_id * 30 + 15 + f] = q_combined[sm_i[0] - compressedH_DN[dim] + f * face_offset +
+          dim_offset * flipped_dim];
+    }
   }
   return;
 }
 
 timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_q, double* device_q,
+    double* device_q,
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f,
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x,
     safe_real omega, const size_t nf_, double dx, size_t device_id) {
@@ -170,7 +179,7 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
     const bool *masks = get_gpu_masks();
 
-    recycler::cuda_device_buffer<double> device_amax(7 * NDIM);
+    recycler::cuda_device_buffer<double> device_amax(7 * NDIM * (1 + 2 * 15));
     recycler::cuda_device_buffer<int> device_amax_indices(7 * NDIM);
     recycler::cuda_device_buffer<int> device_amax_d(7 * NDIM);
     double A_ = physics<NDIM>::A_;
@@ -189,12 +198,12 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     flux_cuda_kernel, grid_spec, threads_per_block, args, 0);
 
     // Move data to host
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(7 * NDIM);
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(7 * NDIM * (1 + 2 * 15));
     std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_indices(7 * NDIM);
     std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_d(7 * NDIM);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax.data(),
-               device_amax.device_side_buffer, 7 * NDIM * sizeof(double),
+               device_amax.device_side_buffer, (7 * NDIM * (1 + 2 * 15)) * sizeof(double),
                cudaMemcpyDeviceToHost);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax_indices.data(),
@@ -223,13 +232,13 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + 1000];
     ts.z = combined_x[current_max_index + 2000];
+    const size_t current_i = current_dim;
     current_dim = current_dim / 7;
     const auto flipped_dim = geo.flip_dim(current_d, current_dim);
     constexpr int compressedH_DN[3] = {100, 10, 1};
     for (int f = 0; f < nf_; f++) {
-        URs[f] = combined_q[current_max_index + f * face_offset + dim_offset * current_d];
-        ULs[f] = combined_q[current_max_index - compressedH_DN[current_dim] + f * face_offset +
-            dim_offset * flipped_dim];
+        URs[f] = amax[21 + current_i * 30 + f];
+        ULs[f] = amax[21 + current_i * 30 + 15 + f];
     }
     ts.ul = std::move(ULs);
     ts.ur = std::move(URs);

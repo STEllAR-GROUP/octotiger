@@ -1847,8 +1847,6 @@ timestep_t grid::compute_fluxes() {
     recycler::cuda_device_buffer<double> device_AM(NDIM * 10 * 10 * 10 + 32);
 
     // Host buffers
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
-    15 * 27 * 10 * 10 * 10 + 32);
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> AM(
     NDIM * 10 * 10 * 10 + 32);
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * 1000 + 32);
@@ -1913,9 +1911,14 @@ timestep_t grid::compute_fluxes() {
         std::cin.get();
     }*/
 
+    /*std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_q(
+    15 * 27 * 10 * 10 * 10 + 32);
+    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+    cudaMemcpyAsync, combined_q.data(), device_q.device_side_buffer,
+    (15 * 27 * 10 * 10 * 10 + 32) * sizeof(double), cudaMemcpyDeviceToHost);*/
     
     // Call Flux kernel
-    auto max_lambda = launch_flux_cuda(executor, combined_q, device_q.device_side_buffer, f, combined_x, device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id);
+    auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x, device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id);
     
 
     // Convert output

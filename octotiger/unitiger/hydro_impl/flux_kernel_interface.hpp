@@ -29,7 +29,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
 
 timestep_t launch_flux_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_q, double* device_q,
+    double* device_q,
     std::vector<double, recycler::recycle_allocator_cuda_host<double>>& combined_f,
     std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x,
     safe_real omega, const size_t nf_, double dx, size_t device_id);
