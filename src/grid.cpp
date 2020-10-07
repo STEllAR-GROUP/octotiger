@@ -1890,6 +1890,9 @@ timestep_t grid::compute_fluxes() {
     cudaMemcpyAsync, device_smooth_field.device_side_buffer,
     smooth_field.data(), (hydro.get_nf()) * sizeof(int), cudaMemcpyHostToDevice);
 
+    //const auto &q = hydro.reconstruct(U, X, omega);
+    //convert_q_structure(q, combined_q);
+
     // Call reconstruct
     //reconstruct_experimental(omega, hydro.get_nf(), hydro.get_angmom_index(), smooth_field.data(), disc_detect.data(), combined_q.data(), combined_x.data(), combined_u.data(), AM.data(), X[0][geo.H_DNX] - X[0][0], unified_discs.data());
 
