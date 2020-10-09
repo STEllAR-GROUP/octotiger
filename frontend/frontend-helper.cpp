@@ -293,6 +293,16 @@ void accumulate_distributed_counters() {
             (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
         std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
     }
+
+    // Cleaning up of cuda buffers before the runtime gets shutdown
+    recycler::force_cleanup();
+    // Shutdown stream manager
+    stream_pool::cleanup<hpx::cuda::experimental::cuda_executor, pool_strategy>();
+
+    if (opts().cuda_polling_executor) {
+        std::cout << "Unregistering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    }
 }
 HPX_PLAIN_ACTION(initialize, initialize_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
@@ -307,10 +317,6 @@ void start_octotiger(int argc, char* argv[]) {
             hpx::id_type root_id = hpx::new_<node_server>(hpx::find_here()).get();
             node_client root_client(root_id);
             node_server* root = root_client.get_ptr().get();
-
-#ifdef OCTOTIGER_HAVE_CUDA
-            hpx::cuda::experimental::enable_user_polling polling_scope("default");
-#endif
 
             node_count_type ngrids;
             //		printf("1\n");
@@ -362,9 +368,6 @@ void start_octotiger(int argc, char* argv[]) {
     FILE* fp = fopen("profile.txt", "wt");
     profiler_output(fp);
     fclose(fp);
-
-    // Cleaning up of cuda buffers before the runtime gets shutdown
-    recycler::force_cleanup();
 }
 
 void register_hpx_functions(void) {

@@ -97,20 +97,21 @@ void init_stencil(std::size_t worker_id) {
 
 void init_executors(void) {
 #ifdef OCTOTIGER_HAVE_CUDA
-
+    if (opts().cuda_polling_executor) {
+        std::cout << "Registering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    }
 #ifdef OCTOTIGER_HAVE_KOKKOS
-        std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
-        stream_pool::init<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
-            opts().cuda_streams_per_gpu);
-        hpx::kokkos::cuda_executor mover{};
-        get_device_masks<device_buffer<int>, host_buffer<int>,
-            hpx::kokkos::cuda_executor>(mover);
-        get_device_masks<device_buffer<int>, host_buffer<int>,
-            hpx::kokkos::cuda_executor>(mover, true);
+    std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
+    stream_pool::init<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
+        opts().cuda_streams_per_gpu);
+    hpx::kokkos::cuda_executor mover{};
+    get_device_masks<device_buffer<int>, host_buffer<int>,
+        hpx::kokkos::cuda_executor>(mover);
+    get_device_masks<device_buffer<int>, host_buffer<int>,
+        hpx::kokkos::cuda_executor>(mover, true);
 #endif
-
-                std::cout
-            << "CUDA is enabled!" << std::endl;
+    std::cout << "CUDA is enabled!" << std::endl;
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
         opts().cuda_streams_per_gpu, opts().cuda_number_gpus, opts().cuda_polling_executor);
     octotiger::fmm::kernel_scheduler::init_constants();
