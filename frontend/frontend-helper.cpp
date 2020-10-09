@@ -178,7 +178,7 @@ std::array<size_t, 6> analyze_local_launch_counters() {
         }),
             futures);
     }
-    size_t total_multipole_cpu_launches = results[0];
+    /*size_t total_multipole_cpu_launches = results[0];
     size_t total_multipole_cuda_launches = results[1];
     size_t total_p2p_cpu_launches = results[2];
     size_t total_p2p_cuda_launches = results[3];
@@ -224,6 +224,16 @@ std::array<size_t, 6> analyze_local_launch_counters() {
             (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
         std::cout << "=> Percentage of p2p on the GPU on locality " << hpx::get_locality_id()
                   << ": " << percentage * 100 << "\n";
+    }*/
+
+    // Cleaning up of cuda buffers before the runtime gets shutdown
+    recycler::force_cleanup();
+    // Shutdown stream manager
+    stream_pool::cleanup<hpx::cuda::experimental::cuda_executor, pool_strategy>();
+
+    if (opts().cuda_polling_executor) {
+        std::cout << "Unregistering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
     }
     return results;
 }
@@ -292,16 +302,6 @@ void accumulate_distributed_counters() {
         float percentage = static_cast<float>(total_p2p_cuda_launches) /
             (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
         std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
-    }
-
-    // Cleaning up of cuda buffers before the runtime gets shutdown
-    recycler::force_cleanup();
-    // Shutdown stream manager
-    stream_pool::cleanup<hpx::cuda::experimental::cuda_executor, pool_strategy>();
-
-    if (opts().cuda_polling_executor) {
-        std::cout << "Unregistering cuda polling..." << std::endl;
-        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
     }
 }
 HPX_PLAIN_ACTION(initialize, initialize_action);
