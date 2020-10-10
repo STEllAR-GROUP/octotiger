@@ -64,7 +64,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cfl", po::value<real>(&(opts().cfl))->default_value(0.4), "cfl factor")           //
 	("omega", po::value<real>(&(opts().omega))->default_value(0.0), "(initial) angular frequency")                          //
 	("v1309", po::value<bool>(&(opts().v1309))->default_value(false), "V1309 subproblem of DWD")                   //
-	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(true), "show idle rates and locality info in SILO")                 //
+	("idle_rates", po::value<bool>(&(opts().idle_rates))->default_value(false), "show idle rates and locality info in SILO")                 //
 	("eblast0", po::value<real>(&(opts().eblast0))->default_value(1.0), "energy for blast wave")     //
 	("rho_floor", po::value<real>(&(opts().rho_floor))->default_value(0.0), "density floor")     //
 	("tau_floor", po::value<real>(&(opts().tau_floor))->default_value(0.0), "entropy tracer floor")     //
