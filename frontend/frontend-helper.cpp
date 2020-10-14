@@ -61,8 +61,8 @@ std::size_t init_thread_local_worker(std::size_t desired) {
     std::size_t current = hpx::get_worker_thread_num();
     if (current == desired) {
         init_stencil(current);
-        std::cout << "OS-thread " << current << " on locality " << hpx::get_locality_id()
-                  << ": Initialized thread_local memory!\n";
+        //std::cout << "OS-thread " << current << " on locality " << hpx::get_locality_id()
+        //          << ": Initialized thread_local memory!\n";
         return desired;
     }
     // NOTE: This might be an issue. Throw an exception and/or make the output
