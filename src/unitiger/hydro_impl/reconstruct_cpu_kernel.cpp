@@ -665,7 +665,7 @@ inline double deg_pres(const double x, const double A_) {
 	return p;
 }
 
-void convert_find_contact_discs(const hydro::state_type &U, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1) {
+void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1) {
 	static const cell_geometry<NDIM, INX> geo;
 	auto dir = geo.direction();
 	//static thread_local std::vector<std::vector<safe_real>> disc(geo.NDIR / 2, std::vector<double>(geo.H_N3));
@@ -676,8 +676,8 @@ void convert_find_contact_discs(const hydro::state_type &U, double* __restrict__
 #pragma ivdep
 			for (int l = 0; l < geo.H_NX_ZM2; l++) {
 				const int i = geo.to_index(j + 1, k + 1, l + 1);
-				const auto rho = U[rho_i][i];
-				const auto rhoinv = 1.0 / U[rho_i][i];
+				const auto rho = combined_u[rho_i * u_face_offset + i];
+				const auto rhoinv = 1.0 / rho;
 				double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
 				if (A_ != 0.0) {
 					const auto x = std::pow(rho / B_, 1.0 / 3.0);
@@ -687,12 +687,12 @@ void convert_find_contact_discs(const hydro::state_type &U, double* __restrict__
 				}
 				safe_real ek = 0.0;
 				for (int dim = 0; dim < NDIM; dim++) {
-					ek += pow(U[sx_i + dim][i], 2) * rhoinv * safe_real(0.5);
+					ek += combined_u[(sx_i + dim) * u_face_offset + i] * combined_u[(sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
 				}
-				auto ein = U[egas_i][i] - ek - edeg;
-				if (ein < de_switch_1 * U[egas_i][i]) {
+				auto ein = combined_u[egas_i * u_face_offset + i] - ek - edeg;
+				if (ein < de_switch_1 * combined_u[egas_i * u_face_offset + i]) {
 					//	printf( "%e\n", U[tau_i][i]);
-					ein = pow(U[tau_i][i], fgamma_);
+					ein = pow(combined_u[tau_i * u_face_offset + i], fgamma_);
 				}
 				P[i] = (fgamma_ - 1.0) * ein + pdeg;
 			}
