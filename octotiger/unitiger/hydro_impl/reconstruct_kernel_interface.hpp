@@ -62,3 +62,5 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
     bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_);
 
 void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1);
+
+void launch_find_contact_discs_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double* combined_u, double *device_P, double* disc, double A_, double B_, double fgamma_, double de_switch_1);

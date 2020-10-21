@@ -1,5 +1,15 @@
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 
+inline __device__ double deg_pres(double x, double A_) {
+	double p;
+	if (x < 0.001) {
+		p = 1.6 * A_ * pow(x, 5);
+	} else {
+		p = A_ * (x * (2 * x * x - 3) * sqrt(x * x + 1) + 3 * asinh(x));
+	}
+	return p;
+}
+
 __device__ const int number_faces = 15;
 __device__ const int number_dirs = 27;
 __device__ const int q_inx = INX + 2;
@@ -471,3 +481,64 @@ void launch_reconstruct_cuda(
 
 }
 
+__global__ void
+__launch_bounds__(12 * 12, 1)
+discs_phase1(double * __restrict__ P, const double* __restrict__ combined_u, const double A_, const double B_, const double fgamma_, const double de_switch_1) {
+  const int i = (blockIdx.z + 1) * 14 * 14 + (threadIdx.y + 1) * 14 + (threadIdx.z + 1);
+  const auto rho = combined_u[rho_i * u_face_offset + i];
+  const auto rhoinv = 1.0 / rho;
+  double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
+  if (A_ != 0.0) {
+    const auto x = std::pow(rho / B_, 1.0 / 3.0);
+    hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
+    pdeg = deg_pres(x, A_);
+    edeg = rho * hdeg - pdeg;
+  }
+  safe_real ek = 0.0;
+  for (int dim = 0; dim < NDIM; dim++) {
+    ek += combined_u[(sx_i + dim) * u_face_offset + i] * combined_u[(sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
+  }
+  auto ein = combined_u[egas_i * u_face_offset + i] - ek - edeg;
+  if (ein < de_switch_1 * combined_u[egas_i * u_face_offset + i]) {
+    //	printf( "%e\n", U[tau_i][i]);
+    ein = pow(combined_u[tau_i * u_face_offset + i], fgamma_);
+  }
+  P[i] = (fgamma_ - 1.0) * ein + pdeg;
+}
+
+__global__ void 
+__launch_bounds__(10 * 10, 1)
+discs_phase2(double *__restrict__ disc, const double *__restrict__ P, const double fgamma_, const int ndir) {
+  const int disc_offset = 14 * 14 * 14;
+	const double K0 = 0.1;
+  const int i = (blockIdx.z + 2) * 14 * 14 + (threadIdx.y + 2) * 14 + (threadIdx.z + 2);
+	for (int d = 0; d < ndir / 2; d++) {
+		const auto di = dir[d];
+	  const double P_r = P[i + di];
+		const double P_l = P[i - di];
+		const double tmp1 = fgamma_ * K0;
+		const double tmp2 = abs(P_r - P_l) / min(std::abs(P_r), abs(P_l));
+		disc[d * disc_offset + i] = tmp2 / tmp1;
+  }
+}
+
+void launch_find_contact_discs_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    double* device_u, double *device_P, double* device_disc, double A_, double B_, double fgamma_,
+    double de_switch_1) {
+    static const cell_geometry<NDIM, INX> geo;
+    dim3 const grid_spec_phase1(1, 1, 12);
+    dim3 const threads_per_block_phase1(1, 12, 12);
+    void* args_phase1[] = {&(device_P), &(device_u), &A_, &B_, &fgamma_, &de_switch_1};
+    executor.post(
+    cudaLaunchKernel<decltype(discs_phase1)>,
+    discs_phase1, grid_spec_phase1, threads_per_block_phase1, args_phase1, 0);
+
+    int ndir = geo.NDIR;
+    dim3 const grid_spec_phase2(1, 1, 10);
+    dim3 const threads_per_block_phase2(1, 10, 10);
+    void* args_phase2[] = {&device_disc, &device_P, &fgamma_, &ndir};
+    executor.post(
+    cudaLaunchKernel<decltype(discs_phase2)>,
+    discs_phase2, grid_spec_phase2, threads_per_block_phase2, args_phase2, 0);
+
+}
