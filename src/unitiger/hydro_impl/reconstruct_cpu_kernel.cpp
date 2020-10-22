@@ -64,6 +64,7 @@ constexpr int q_inx = INX + 2;
 constexpr int q_inx3 = q_inx * q_inx * q_inx;
 constexpr int q_face_offset = number_dirs * q_inx3;
 constexpr int u_face_offset = H_N3;
+constexpr int x_offset = H_N3;
 constexpr int q_dir_offset = q_inx3;
 
 inline int to_q_index(const int j, const int k, const int l) {
@@ -587,14 +588,14 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     return;
 }
 
-void convert_pre_recon(const hydro::x_type X, safe_real omega,
+void hydro_pre_recon_cpu_kernel(const double* __restrict__ X, safe_real omega,
     bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_) {
     static const cell_geometry<NDIM, INX> geo;
 
-    for (int j = 0; j < geo.H_NX_X; j++) {
-        for (int k = 0; k < geo.H_NX_Y; k++) {
+    for (int j = 0; j < H_NX; j++) { // == H_NX == 14
+        for (int k = 0; k < H_NX; k++) {
 #pragma ivdep
-            for (int l = 0; l < geo.H_NX_Z; l++) {
+            for (int l = 0; l < H_NX; l++) {
                 const int i = geo.to_index(j, k, l);
                 // const auto rho = V[rho_i][i];
                 const auto rho = combined_u[rho_i * u_face_offset + i];
@@ -618,33 +619,32 @@ void convert_pre_recon(const hydro::x_type X, safe_real omega,
                 // Levi civita n m q -> lc
                 // Levi civita 0 1 2 -> 1
                 combined_u[(lx_i + 0) * u_face_offset + i] -=
-                    1.0 * X[1][i] * combined_u[(sx_i + 2) * u_face_offset + i];
+                    1.0 * X[1 * x_offset + i] * combined_u[(sx_i + 2) * u_face_offset + i];
                 // Levi civita n m q -> lc
                 // Levi civita 0 2 1 -> -1
                 combined_u[(lx_i + 0) * u_face_offset + i] -=
-                    -1.0 * X[2][i] * combined_u[(sx_i + 1) * u_face_offset + i];
+                    -1.0 * X[2 * x_offset + i] * combined_u[(sx_i + 1) * u_face_offset + i];
                 // Levi civita n m q -> lc
                 // Levi civita 1 0 2 -> -1
                 combined_u[(lx_i + 1) * u_face_offset + i] -=
-                    -1.0 * X[0][i] * combined_u[(sx_i + 2) * u_face_offset + i];
+                    -1.0 * X[i] * combined_u[(sx_i + 2) * u_face_offset + i];
                 // Levi civita n m q -> lc
                 // Levi civita 1 2 0 -> 1
                 combined_u[(lx_i + 1) * u_face_offset + i] -=
-                    1.0 * X[2][i] * combined_u[(sx_i + 0) * u_face_offset + i];
+                    1.0 * X[2 * x_offset + i] * combined_u[(sx_i + 0) * u_face_offset + i];
                 // Levi civita n m q -> lc
                 // Levi civita 2 0 1 -> 1
                 combined_u[(lx_i + 2) * u_face_offset + i] -=
-                    1.0 * X[0][i] * combined_u[(sx_i + 1) * u_face_offset + i];
+                    1.0 * X[i] * combined_u[(sx_i + 1) * u_face_offset + i];
                 // Levi civita n m q -> lc
                 // Levi civita 2 1 0 -> -1
                 combined_u[(lx_i + 2) * u_face_offset + i] -=
-                    -1.0 * X[1][i] * combined_u[(sx_i + 0) * u_face_offset + i];
+                    -1.0 * X[1 * x_offset + i] * combined_u[(sx_i + 0) * u_face_offset + i];
 
                 // combined_u[(lx_i + n) * u_face_offset + i] -=
                 //    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
-                
-                combined_u[sx_i * u_face_offset + i] += omega * X[1][i];
-                combined_u[sy_i * u_face_offset + i] -= omega * X[0][i];
+                combined_u[sx_i * u_face_offset + i] += omega * X[1 * x_offset + i];
+                combined_u[sy_i * u_face_offset + i] -= omega * X[0 * x_offset + i];
             }
         }
     }

@@ -1837,6 +1837,7 @@ timestep_t grid::compute_fluxes() {
       // Device buffers
       recycler::cuda_device_buffer<double> device_q(15 * 27 * 10 * 10 * 10 + 32, device_id);
       recycler::cuda_device_buffer<double> device_x(NDIM * 1000 + 32, device_id);
+      recycler::cuda_device_buffer<double> device_large_x(NDIM * H_N3 + 32, device_id);
       recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
       recycler::cuda_device_buffer<double> device_u(hydro.get_nf() * H_N3 + 32);
       recycler::cuda_device_buffer<double> device_amax(NDIM);
@@ -1852,6 +1853,7 @@ timestep_t grid::compute_fluxes() {
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> AM(
       NDIM * 10 * 10 * 10 + 32);
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * 1000 + 32);
+      std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_large_x(NDIM * H_N3 + 32);
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_u(hydro.get_nf() * H_N3 + 32);
       std::vector<int, recycler::recycle_allocator_cuda_host<int>> disc_detect(hydro.get_nf());
       std::vector<int, recycler::recycle_allocator_cuda_host<int>> smooth_field(hydro.get_nf());
@@ -1863,7 +1865,8 @@ timestep_t grid::compute_fluxes() {
       for (int f = 0; f < hydro.get_nf(); f++) {
           std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3);
       }
-      convert_pre_recon(X, omega, hydro.get_angmom_index() != -1, combined_u.data(), hydro.get_nf(), opts().n_species);
+      //hydro_pre_recon_cpu_kernel(combined_large_x.data(), omega, hydro.get_angmom_index() != -1, combined_u.data(),
+      //    hydro.get_nf(), opts().n_species);
 
       //const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U);
       const auto& disc_detect_bool = hydro.get_disc_detect();
@@ -1891,6 +1894,16 @@ timestep_t grid::compute_fluxes() {
       launch_find_contact_discs_cuda(executor, device_u.device_side_buffer, device_P.device_side_buffer,
           device_unified_discs.device_side_buffer, physics<NDIM>::A_, physics<NDIM>::B_, physics<NDIM>::fgamma_,
           physics<NDIM>::de_switch_1);
+
+      for (int n = 0; n < NDIM; n++) {
+          std::copy(X[n].begin(), X[n].end(), combined_large_x.data() + n * H_N3);
+      }
+      hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+      cudaMemcpyAsync, device_large_x.device_side_buffer,
+      combined_large_x.data(), (NDIM * H_N3 + 32) * sizeof(double), cudaMemcpyHostToDevice);
+
+      launch_hydro_pre_recon_cuda(executor, device_large_x.device_side_buffer, omega,hydro.get_angmom_index() != -1,
+          device_u.device_side_buffer,hydro.get_nf(), opts().n_species);
 
       launch_reconstruct_cuda(executor, omega, hydro.get_nf(), hydro.get_angmom_index(), device_smooth_field.device_side_buffer,
           device_disc_detect.device_side_buffer, device_q.device_side_buffer, device_x.device_side_buffer,

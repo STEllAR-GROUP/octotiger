@@ -16,6 +16,7 @@ __device__ const int q_inx = INX + 2;
 __device__ const int q_inx3 = q_inx * q_inx * q_inx;
 __device__ const int q_face_offset = number_dirs * q_inx3;
 __device__ const int u_face_offset = H_N3;
+__device__ const int x_offset = H_N3;
 __device__ const int q_dir_offset = q_inx3;
 __device__ const int am_offset = q_inx3;
 
@@ -540,4 +541,64 @@ void launch_find_contact_discs_cuda(stream_interface<hpx::cuda::experimental::cu
     cudaLaunchKernel<decltype(discs_phase2)>,
     discs_phase2, grid_spec_phase2, threads_per_block_phase2, args_phase2, 0);
 
+}
+
+__global__ void 
+__launch_bounds__(14 * 14, 1)
+hydro_pre_recon_cuda(double* __restrict__ device_X, safe_real omega,
+    bool angmom, double* __restrict__ device_u, const int nf, const int n_species_) {
+  const int i = (blockIdx.z) * 14 * 14 + (threadIdx.y) * 14 + (threadIdx.z);
+  const auto rho = device_u[rho_i * u_face_offset + i];
+  const auto rhoinv = 1.0 / rho;
+  for (int dim = 0; dim < NDIM; dim++) {
+    auto& s = device_u[(sx_i + dim) * u_face_offset + i];
+    device_u[egas_i * u_face_offset + i] -= 0.5 * s * s * rhoinv;
+    s *= rhoinv;
+  }
+  for (int si = 0; si < n_species_; si++) {
+    device_u[(spc_i + si) * u_face_offset + i] *= rhoinv;
+  }
+  device_u[pot_i * u_face_offset + i] *= rhoinv;
+
+  device_u[(lx_i + 0) * u_face_offset + i] *= rhoinv;
+  device_u[(lx_i + 1) * u_face_offset + i] *= rhoinv;
+  device_u[(lx_i + 2) * u_face_offset + i] *= rhoinv;
+
+  // Levi civita n m q -> lc
+  // Levi civita 0 1 2 -> 1
+  device_u[(lx_i + 0) * u_face_offset + i] -=
+    1.0 * device_X[1 * x_offset + i] * device_u[(sx_i + 2) * u_face_offset + i];
+  // Levi civita n m q -> lc
+  // Levi civita 0 2 1 -> -1
+  device_u[(lx_i + 0) * u_face_offset + i] -=
+    -1.0 * device_X[2 * x_offset + i] * device_u[(sx_i + 1) * u_face_offset + i];
+  // Levi civita n m q -> lc
+  // Levi civita 1 0 2 -> -1
+  device_u[(lx_i + 1) * u_face_offset + i] -=
+    -1.0 * device_X[i] * device_u[(sx_i + 2) * u_face_offset + i];
+  // Levi civita n m q -> lc
+  // Levi civita 1 2 0 -> 1
+  device_u[(lx_i + 1) * u_face_offset + i] -=
+    1.0 * device_X[2 * x_offset + i] * device_u[(sx_i + 0) * u_face_offset + i];
+  // Levi civita n m q -> lc
+  // Levi civita 2 0 1 -> 1
+  device_u[(lx_i + 2) * u_face_offset + i] -=
+    1.0 * device_X[i] * device_u[(sx_i + 1) * u_face_offset + i];
+  // Levi civita n m q -> lc
+  // Levi civita 2 1 0 -> -1
+  device_u[(lx_i + 2) * u_face_offset + i] -=
+    -1.0 * device_X[1 * x_offset + i] * device_u[(sx_i + 0) * u_face_offset + i];
+
+  device_u[sx_i * u_face_offset + i] += omega * device_X[1 * x_offset + i];
+  device_u[sy_i * u_face_offset + i] -= omega * device_X[0 * x_offset + i];
+}
+
+void launch_hydro_pre_recon_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, 
+    double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_) {
+    dim3 const grid_spec(1, 1, 14);
+    dim3 const threads_per_block(1, 14, 14);
+    void* args[] = {&(device_X), &omega, &angmom, &(device_u), &nf, &n_species_};
+    executor.post(
+    cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>,
+    hydro_pre_recon_cuda, grid_spec, threads_per_block, args, 0);
 }
