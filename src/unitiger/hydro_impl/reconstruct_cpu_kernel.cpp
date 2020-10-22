@@ -587,7 +587,7 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     return;
 }
 
-void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega,
+void convert_pre_recon(const hydro::x_type X, safe_real omega,
     bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_) {
     static const cell_geometry<NDIM, INX> geo;
 
@@ -608,27 +608,13 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
                     combined_u[(spc_i + si) * u_face_offset + i] *= rhoinv;
                 }
                 combined_u[pot_i * u_face_offset + i] *= rhoinv;
-            }
-        }
-    }
-    for (int j = 0; j < geo.H_NX_X; j++) {
-        for (int k = 0; k < geo.H_NX_Y; k++) {
-#pragma ivdep
-            for (int l = 0; l < geo.H_NX_Z; l++) {
-                const int i = geo.to_index(j, k, l);
-                const auto rho = combined_u[rho_i * u_face_offset + i];
-                const auto rhoinv = 1.0 / rho;
+
+                //const auto rho = combined_u[rho_i * u_face_offset + i];
+                //const auto rhoinv = 1.0 / rho;
                 combined_u[(lx_i + 0) * u_face_offset + i] *= rhoinv;
                 combined_u[(lx_i + 1) * u_face_offset + i] *= rhoinv;
                 combined_u[(lx_i + 2) * u_face_offset + i] *= rhoinv;
-            }
-        }
-    }
-    for (int j = 0; j < geo.H_NX_X; j++) {
-        for (int k = 0; k < geo.H_NX_Y; k++) {
-#pragma ivdep
-            for (int l = 0; l < geo.H_NX_Z; l++) {
-                const int i = geo.to_index(j, k, l);
+
                 // Levi civita n m q -> lc
                 // Levi civita 0 1 2 -> 1
                 combined_u[(lx_i + 0) * u_face_offset + i] -=
@@ -656,14 +642,7 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
 
                 // combined_u[(lx_i + n) * u_face_offset + i] -=
                 //    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
-            }
-        }
-    }
-    for (int j = 0; j < geo.H_NX_X; j++) {
-        for (int k = 0; k < geo.H_NX_Y; k++) {
-#pragma ivdep
-            for (int l = 0; l < geo.H_NX_Z; l++) {
-                const int i = geo.to_index(j, k, l);
+                
                 combined_u[sx_i * u_face_offset + i] += omega * X[1][i];
                 combined_u[sy_i * u_face_offset + i] -= omega * X[0][i];
             }

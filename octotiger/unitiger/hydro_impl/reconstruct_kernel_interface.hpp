@@ -58,7 +58,7 @@ void launch_reconstruct_cuda(
     double* combined_u, double* AM, double dx,
     double* cdiscs, int n_species_);
 
-void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_real omega,
+void convert_pre_recon(const hydro::x_type X, safe_real omega,
     bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_);
 
 void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1);
