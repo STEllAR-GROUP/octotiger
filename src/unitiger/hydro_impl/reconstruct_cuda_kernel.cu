@@ -500,7 +500,6 @@ discs_phase1(double * __restrict__ P, const double* __restrict__ combined_u, con
   }
   auto ein = combined_u[egas_i * u_face_offset + i] - ek - edeg;
   if (ein < de_switch_1 * combined_u[egas_i * u_face_offset + i]) {
-    //	printf( "%e\n", U[tau_i][i]);
     ein = pow(combined_u[tau_i * u_face_offset + i], fgamma_);
   }
   P[i] = (fgamma_ - 1.0) * ein + pdeg;

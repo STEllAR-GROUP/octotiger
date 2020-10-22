@@ -1862,7 +1862,8 @@ timestep_t grid::compute_fluxes() {
       convert_x_structure(X, combined_x);
       auto start = std::chrono::system_clock::now();
       convert_pre_recon(U, X, omega, hydro.get_angmom_index() != -1, combined_u.data(), hydro.get_nf(), opts().n_species);
-      const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U);
+
+      //const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U);
       const auto& disc_detect_bool = hydro.get_disc_detect();
       const auto& smooth_bool = hydro.get_smooth_field();
       for (auto f = 0; f < hydro.get_nf(); f++) {
