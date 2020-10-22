@@ -589,9 +589,6 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
     bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_) {
     static const cell_geometry<NDIM, INX> geo;
 
-    for (int f = 0; f < nf; f++) {
-        std::copy(U[f].begin(), U[f].end(), combined_u + f * u_face_offset);
-    }
     for (int j = 0; j < geo.H_NX_X; j++) {
         for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
@@ -612,7 +609,6 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
             }
         }
     }
-    for (int n = 0; n < geo.NANGMOM; n++) {
         for (int j = 0; j < geo.H_NX_X; j++) {
             for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
@@ -620,29 +616,47 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
                     const int i = geo.to_index(j, k, l);
                     const auto rho = combined_u[rho_i * u_face_offset + i];
                     const auto rhoinv = 1.0 / rho;
-                    combined_u[(lx_i + n) * u_face_offset + i] *= rhoinv;
+                    combined_u[(lx_i + 0) * u_face_offset + i] *= rhoinv;
+                    combined_u[(lx_i + 1) * u_face_offset + i] *= rhoinv;
+                    combined_u[(lx_i + 2) * u_face_offset + i] *= rhoinv;
                 }
             }
         }
-        static constexpr auto levi_civita = geo.levi_civita();
-        for (int m = 0; m < NDIM; m++) {
-            for (int q = 0; q < NDIM; q++) {
-                const auto lc = levi_civita[n][m][q];
-                if (lc != 0) {
-                    for (int j = 0; j < geo.H_NX_X; j++) {
-                        for (int k = 0; k < geo.H_NX_Y; k++) {
+            for (int j = 0; j < geo.H_NX_X; j++) {
+                for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
-                            for (int l = 0; l < geo.H_NX_Z; l++) {
-                                const int i = geo.to_index(j, k, l);
-                                combined_u[(lx_i + n) * u_face_offset + i] -=
-                                    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
-                            }
-                        }
+                    for (int l = 0; l < geo.H_NX_Z; l++) {
+                        const int i = geo.to_index(j, k, l);
+                        // Levi civita n m q -> lc
+                        // Levi civita 0 1 2 -> 1
+                        combined_u[(lx_i + 0) * u_face_offset + i] -=
+                            1.0 * X[1][i] * combined_u[(sx_i + 2) * u_face_offset + i];
+                        // Levi civita n m q -> lc
+                        // Levi civita 0 2 1 -> -1
+                        combined_u[(lx_i + 0) * u_face_offset + i] -=
+                            -1.0 * X[2][i] * combined_u[(sx_i + 1) * u_face_offset + i];
+                        // Levi civita n m q -> lc
+                        // Levi civita 1 0 2 -> -1
+                        combined_u[(lx_i + 1) * u_face_offset + i] -=
+                            -1.0 * X[0][i] * combined_u[(sx_i + 2) * u_face_offset + i];
+                        // Levi civita n m q -> lc
+                        // Levi civita 1 2 0 -> 1
+                        combined_u[(lx_i + 1) * u_face_offset + i] -=
+                            1.0 * X[2][i] * combined_u[(sx_i + 0) * u_face_offset + i];
+                        // Levi civita n m q -> lc
+                        // Levi civita 2 0 1 -> 1
+                        combined_u[(lx_i + 2) * u_face_offset + i] -=
+                            1.0 * X[0][i] * combined_u[(sx_i + 1) * u_face_offset + i];
+                        // Levi civita n m q -> lc
+                        // Levi civita 2 1 0 -> -1
+                        combined_u[(lx_i + 2) * u_face_offset + i] -=
+                            -1.0 * X[1][i] * combined_u[(sx_i + 0) * u_face_offset + i];
+
+                        //combined_u[(lx_i + n) * u_face_offset + i] -=
+                        //    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
                     }
                 }
             }
-        }
-    }
     for (int j = 0; j < geo.H_NX_X; j++) {
         for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
