@@ -127,8 +127,10 @@ void reconstruct_ppm_cpu(double* __restrict__ combined_q,
                 const vc_type diff_u_minus = u_zero - u_minus_di;
                 const vc_type diff_u_2minus = u_minus_di - u_minus_2di;
                 const vc_type d1 = minmod_theta_wrapper<vc_type>(diff_u_plus, diff_u_minus, 2.0);
-                const vc_type d1_plus = minmod_theta_wrapper<vc_type>(diff_u_2plus, diff_u_plus, 2.0);
-                const vc_type d1_minus = minmod_theta_wrapper<vc_type>(diff_u_minus, diff_u_2minus, 2.0);
+                const vc_type d1_plus =
+                    minmod_theta_wrapper<vc_type>(diff_u_2plus, diff_u_plus, 2.0);
+                const vc_type d1_minus =
+                    minmod_theta_wrapper<vc_type>(diff_u_minus, diff_u_2minus, 2.0);
 
                 vc_type results = 0.5 * (u_zero + u_plus_di) + (1.0 / 6.0) * (d1 - d1_plus);
                 vc_type results_flipped =
@@ -292,8 +294,8 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     for (int d = 0; d < geo.NDIR; d++) {
         if (d < geo.NDIR / 2) {
             for (int f = 0; f < angmom_index_; f++) {
-                reconstruct_ppm_cpu(combined_q, combined_u + u_face_offset * f,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f);
+                reconstruct_ppm_cpu(combined_q, combined_u + u_face_offset * f, smooth_field_[f],
+                    disc_detect_[f], cdiscs, d, f);
             }
             for (int f = sx_i; f < sx_i + NDIM; f++) {
                 reconstruct_ppm_cpu(
@@ -305,8 +307,8 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
         }
         if (d < geo.NDIR / 2) {
             for (int f = angmom_index_ + geo.NANGMOM + NDIM; f < nf_; f++) {
-                reconstruct_ppm_cpu(combined_q, combined_u + u_face_offset * f,
-                    smooth_field_[f], disc_detect_[f], cdiscs, d, f);
+                reconstruct_ppm_cpu(combined_q, combined_u + u_face_offset * f, smooth_field_[f],
+                    disc_detect_[f], cdiscs, d, f);
             }
         }
 
@@ -609,54 +611,54 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
             }
         }
     }
-        for (int j = 0; j < geo.H_NX_X; j++) {
-            for (int k = 0; k < geo.H_NX_Y; k++) {
+    for (int j = 0; j < geo.H_NX_X; j++) {
+        for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
-                for (int l = 0; l < geo.H_NX_Z; l++) {
-                    const int i = geo.to_index(j, k, l);
-                    const auto rho = combined_u[rho_i * u_face_offset + i];
-                    const auto rhoinv = 1.0 / rho;
-                    combined_u[(lx_i + 0) * u_face_offset + i] *= rhoinv;
-                    combined_u[(lx_i + 1) * u_face_offset + i] *= rhoinv;
-                    combined_u[(lx_i + 2) * u_face_offset + i] *= rhoinv;
-                }
+            for (int l = 0; l < geo.H_NX_Z; l++) {
+                const int i = geo.to_index(j, k, l);
+                const auto rho = combined_u[rho_i * u_face_offset + i];
+                const auto rhoinv = 1.0 / rho;
+                combined_u[(lx_i + 0) * u_face_offset + i] *= rhoinv;
+                combined_u[(lx_i + 1) * u_face_offset + i] *= rhoinv;
+                combined_u[(lx_i + 2) * u_face_offset + i] *= rhoinv;
             }
         }
-            for (int j = 0; j < geo.H_NX_X; j++) {
-                for (int k = 0; k < geo.H_NX_Y; k++) {
+    }
+    for (int j = 0; j < geo.H_NX_X; j++) {
+        for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
-                    for (int l = 0; l < geo.H_NX_Z; l++) {
-                        const int i = geo.to_index(j, k, l);
-                        // Levi civita n m q -> lc
-                        // Levi civita 0 1 2 -> 1
-                        combined_u[(lx_i + 0) * u_face_offset + i] -=
-                            1.0 * X[1][i] * combined_u[(sx_i + 2) * u_face_offset + i];
-                        // Levi civita n m q -> lc
-                        // Levi civita 0 2 1 -> -1
-                        combined_u[(lx_i + 0) * u_face_offset + i] -=
-                            -1.0 * X[2][i] * combined_u[(sx_i + 1) * u_face_offset + i];
-                        // Levi civita n m q -> lc
-                        // Levi civita 1 0 2 -> -1
-                        combined_u[(lx_i + 1) * u_face_offset + i] -=
-                            -1.0 * X[0][i] * combined_u[(sx_i + 2) * u_face_offset + i];
-                        // Levi civita n m q -> lc
-                        // Levi civita 1 2 0 -> 1
-                        combined_u[(lx_i + 1) * u_face_offset + i] -=
-                            1.0 * X[2][i] * combined_u[(sx_i + 0) * u_face_offset + i];
-                        // Levi civita n m q -> lc
-                        // Levi civita 2 0 1 -> 1
-                        combined_u[(lx_i + 2) * u_face_offset + i] -=
-                            1.0 * X[0][i] * combined_u[(sx_i + 1) * u_face_offset + i];
-                        // Levi civita n m q -> lc
-                        // Levi civita 2 1 0 -> -1
-                        combined_u[(lx_i + 2) * u_face_offset + i] -=
-                            -1.0 * X[1][i] * combined_u[(sx_i + 0) * u_face_offset + i];
+            for (int l = 0; l < geo.H_NX_Z; l++) {
+                const int i = geo.to_index(j, k, l);
+                // Levi civita n m q -> lc
+                // Levi civita 0 1 2 -> 1
+                combined_u[(lx_i + 0) * u_face_offset + i] -=
+                    1.0 * X[1][i] * combined_u[(sx_i + 2) * u_face_offset + i];
+                // Levi civita n m q -> lc
+                // Levi civita 0 2 1 -> -1
+                combined_u[(lx_i + 0) * u_face_offset + i] -=
+                    -1.0 * X[2][i] * combined_u[(sx_i + 1) * u_face_offset + i];
+                // Levi civita n m q -> lc
+                // Levi civita 1 0 2 -> -1
+                combined_u[(lx_i + 1) * u_face_offset + i] -=
+                    -1.0 * X[0][i] * combined_u[(sx_i + 2) * u_face_offset + i];
+                // Levi civita n m q -> lc
+                // Levi civita 1 2 0 -> 1
+                combined_u[(lx_i + 1) * u_face_offset + i] -=
+                    1.0 * X[2][i] * combined_u[(sx_i + 0) * u_face_offset + i];
+                // Levi civita n m q -> lc
+                // Levi civita 2 0 1 -> 1
+                combined_u[(lx_i + 2) * u_face_offset + i] -=
+                    1.0 * X[0][i] * combined_u[(sx_i + 1) * u_face_offset + i];
+                // Levi civita n m q -> lc
+                // Levi civita 2 1 0 -> -1
+                combined_u[(lx_i + 2) * u_face_offset + i] -=
+                    -1.0 * X[1][i] * combined_u[(sx_i + 0) * u_face_offset + i];
 
-                        //combined_u[(lx_i + n) * u_face_offset + i] -=
-                        //    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
-                    }
-                }
+                // combined_u[(lx_i + n) * u_face_offset + i] -=
+                //    lc * X[m][i] * combined_u[(sx_i + q) * u_face_offset + i];
             }
+        }
+    }
     for (int j = 0; j < geo.H_NX_X; j++) {
         for (int k = 0; k < geo.H_NX_Y; k++) {
 #pragma ivdep
@@ -670,64 +672,67 @@ void convert_pre_recon(const hydro::state_type& U, const hydro::x_type X, safe_r
 }
 
 inline double deg_pres(const double x, const double A_) {
-	double p;
-	if (x < 0.001) {
-		p = 1.6 * A_ * std::pow(x, 5);
-	} else {
-		p = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
-	}
-	return p;
+    double p;
+    if (x < 0.001) {
+        p = 1.6 * A_ * std::pow(x, 5);
+    } else {
+        p = A_ * (x * (2 * x * x - 3) * std::sqrt(x * x + 1) + 3 * asinh(x));
+    }
+    return p;
 }
 
-void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1) {
-	static const cell_geometry<NDIM, INX> geo;
-	auto dir = geo.direction();
-	//static thread_local std::vector<std::vector<safe_real>> disc(geo.NDIR / 2, std::vector<double>(geo.H_N3));
-  constexpr int disc_offset = geo.H_N3;
-	static thread_local std::vector<safe_real> P(H_N3);
-	for (int j = 0; j < geo.H_NX_XM2; j++) {
-		for (int k = 0; k < geo.H_NX_YM2; k++) {
+void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc,
+    const double A_, const double B_, const double fgamma_, const double de_switch_1) {
+    static const cell_geometry<NDIM, INX> geo;
+    auto dir = geo.direction();
+    // static thread_local std::vector<std::vector<safe_real>> disc(geo.NDIR / 2,
+    // std::vector<double>(geo.H_N3));
+    constexpr int disc_offset = geo.H_N3;
+    static thread_local std::vector<safe_real> P(H_N3);
+    for (int j = 0; j < geo.H_NX_XM2; j++) {
+        for (int k = 0; k < geo.H_NX_YM2; k++) {
 #pragma ivdep
-			for (int l = 0; l < geo.H_NX_ZM2; l++) {
-				const int i = geo.to_index(j + 1, k + 1, l + 1);
-				const auto rho = combined_u[rho_i * u_face_offset + i];
-				const auto rhoinv = 1.0 / rho;
-				double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
-				if (A_ != 0.0) {
-					const auto x = std::pow(rho / B_, 1.0 / 3.0);
-					hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
-					pdeg = deg_pres(x, A_);
-					edeg = rho * hdeg - pdeg;
-				}
-				safe_real ek = 0.0;
-				for (int dim = 0; dim < NDIM; dim++) {
-					ek += combined_u[(sx_i + dim) * u_face_offset + i] * combined_u[(sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
-				}
-				auto ein = combined_u[egas_i * u_face_offset + i] - ek - edeg;
-				if (ein < de_switch_1 * combined_u[egas_i * u_face_offset + i]) {
-					//	printf( "%e\n", U[tau_i][i]);
-					ein = pow(combined_u[tau_i * u_face_offset + i], fgamma_);
-				}
-				P[i] = (fgamma_ - 1.0) * ein + pdeg;
-			}
-		}
-	}
-	for (int d = 0; d < geo.NDIR / 2; d++) {
-		const auto di = dir[d];
-		for (int j = 0; j < geo.H_NX_XM4; j++) {
-			for (int k = 0; k < geo.H_NX_YM4; k++) {
+            for (int l = 0; l < geo.H_NX_ZM2; l++) {
+                const int i = geo.to_index(j + 1, k + 1, l + 1);
+                const auto rho = combined_u[rho_i * u_face_offset + i];
+                const auto rhoinv = 1.0 / rho;
+                double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
+                if (A_ != 0.0) {
+                    const auto x = std::pow(rho / B_, 1.0 / 3.0);
+                    hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
+                    pdeg = deg_pres(x, A_);
+                    edeg = rho * hdeg - pdeg;
+                }
+                safe_real ek = 0.0;
+                for (int dim = 0; dim < NDIM; dim++) {
+                    ek += combined_u[(sx_i + dim) * u_face_offset + i] *
+                        combined_u[(sx_i + dim) * u_face_offset + i] * rhoinv * 0.5;
+                }
+                auto ein = combined_u[egas_i * u_face_offset + i] - ek - edeg;
+                if (ein < de_switch_1 * combined_u[egas_i * u_face_offset + i]) {
+                    //	printf( "%e\n", U[tau_i][i]);
+                    ein = pow(combined_u[tau_i * u_face_offset + i], fgamma_);
+                }
+                P[i] = (fgamma_ - 1.0) * ein + pdeg;
+            }
+        }
+    }
+    for (int d = 0; d < geo.NDIR / 2; d++) {
+        const auto di = dir[d];
+        for (int j = 0; j < geo.H_NX_XM4; j++) {
+            for (int k = 0; k < geo.H_NX_YM4; k++) {
 #pragma ivdep
-				for (int l = 0; l < geo.H_NX_ZM4; l++) {
-					constexpr auto K0 = 0.1;
-					const int i = geo.to_index(j + 2, k + 2, l + 2);
-					const auto P_r = P[i + di];
-					const auto P_l = P[i - di];
-					const auto tmp1 = fgamma_ * K0;
-					const auto tmp2 = std::abs(P_r - P_l) / std::min(std::abs(P_r), std::abs(P_l));
-					disc[d * disc_offset + i] = tmp2 / tmp1;
-				}
-			}
-		}
-	}
+                for (int l = 0; l < geo.H_NX_ZM4; l++) {
+                    constexpr auto K0 = 0.1;
+                    const int i = geo.to_index(j + 2, k + 2, l + 2);
+                    const auto P_r = P[i + di];
+                    const auto P_l = P[i - di];
+                    const auto tmp1 = fgamma_ * K0;
+                    const auto tmp2 = std::abs(P_r - P_l) / std::min(std::abs(P_r), std::abs(P_l));
+                    disc[d * disc_offset + i] = tmp2 / tmp1;
+                }
+            }
+        }
+    }
 }
 #pragma GCC pop_options
