@@ -57,6 +57,26 @@
 #include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
 #endif
 
+void cleanup_puddle_on_this_locality(void) {
+    // Cleaning up of cuda buffers before the runtime gets shutdown
+    recycler::force_cleanup();
+    // Shutdown stream manager
+    if (opts().cuda_streams_per_gpu > 0) {
+#ifdef OCTOTIGER_HAVE_CUDA
+      stream_pool::cleanup<hpx::cuda::experimental::cuda_executor, pool_strategy>();
+
+#ifdef OCTOTIGER_HAVE_KOKKOS
+      stream_pool::cleanup<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
+#endif
+#endif
+          );
+    }
+    // Disable polling
+    if (opts().cuda_polling_executor) {
+        std::cout << "Unregistering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    }
+}
 
 void init_stencil(std::size_t worker_id) {
     namespace mono_inter = octotiger::fmm::monopole_interactions;
@@ -104,12 +124,13 @@ void init_executors(void) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
     std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
     stream_pool::init<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
-        opts().cuda_streams_per_gpu);
+        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
     hpx::kokkos::cuda_executor mover{};
     get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::cuda_executor>(mover);
     get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::cuda_executor>(mover, true);
+    Kokkos::fence();
 #endif
     std::cout << "CUDA is enabled!" << std::endl;
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(

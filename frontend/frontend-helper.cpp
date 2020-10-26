@@ -178,18 +178,7 @@ std::array<size_t, 6> analyze_local_launch_counters() {
         }),
             futures);
     }
-
-    // Cleaning up of cuda buffers before the runtime gets shutdown
-    recycler::force_cleanup();
-    // Shutdown stream manager
-    if (opts().cuda_streams_per_gpu > 0) {
-      stream_pool::cleanup<hpx::cuda::experimental::cuda_executor, pool_strategy>();
-    }
-    // Disable polling
-    if (opts().cuda_polling_executor) {
-        std::cout << "Unregistering cuda polling..." << std::endl;
-        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
-    }
+    cleanup_puddle_on_this_locality();
     return results;
 }
 HPX_PLAIN_ACTION(analyze_local_launch_counters, analyze_local_launch_counters_action);

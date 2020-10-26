@@ -48,8 +48,10 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::array<real, NDIM> xbase,
     std::shared_ptr<grid> grid) {
-    accelerator_kernel_type device_type = DEVICE_CUDA;
-    host_kernel_type host_type = HOST_VC;
+    //accelerator_kernel_type device_type = DEVICE_CUDA;
+    //host_kernel_type host_type = HOST_VC;
+    accelerator_kernel_type device_type = DEVICE_KOKKOS;
+    host_kernel_type host_type = HOST_KOKKOS;
 
     // Try accelerator implementation
     if (device_type != OFF) {

@@ -13,3 +13,4 @@ void init_problem();
 
 // Get called once per worker
 void init_stencil(std::size_t worker_id);
+void cleanup_puddle_on_this_locality(void);
