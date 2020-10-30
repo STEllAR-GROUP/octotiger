@@ -62,9 +62,11 @@ void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             executor.instance(), {0, 0, 0}, {INX, INX, INX}),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
+    //Kokkos::parallel_for("kernel p2p", policy_1,
+    //   [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
+    //       int idx, int idy, int idz) {
     Kokkos::parallel_for("kernel p2p", policy_1,
-        [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
-            int idx, int idy, int idz) {
+        KOKKOS_LAMBDA(int idx, int idy, int idz) {
             // helper variables
             const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
             const octotiger::fmm::multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
@@ -174,6 +176,7 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
     p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
     exec.instance().fence();
 
+    // TODO this way of getting the future does not work
     // auto fut = exec.instance().impl_get_future();
     // fut.get();
 }
@@ -196,7 +199,7 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
 
     // Add results back into non-SoA array
     std::vector<expansion>& org = grid_ptr->get_L();
-    for (size_t component = 0; component < 5; component++) {
+    for (size_t component = 0; component < 4; component++) {
         for (size_t entry = 0; entry < octotiger::fmm::INNER_CELLS; entry++) {
             org[entry][component] += host_results[component *
                     (octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) +
