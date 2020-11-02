@@ -15,6 +15,8 @@
 #include "octotiger/monopole_interactions/p2p_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
 
+#include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
+
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
@@ -214,7 +216,12 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	for (auto &f : results) {
 		GET(f);
 	}
-	grid_ptr->complete_hydro_amr_boundary(energy_only);
+	//grid_ptr->complete_hydro_amr_boundary(energy_only);
+	std::array<double, NDIM> xmin;
+	for (int dim = 0; dim < NDIM; dim++) {
+		xmin[dim] = grid_ptr->X[dim][0];
+	}
+	complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
 			grid_ptr->set_physical_boundaries(face, current_time);

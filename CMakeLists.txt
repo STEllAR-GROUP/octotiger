@@ -162,6 +162,8 @@ set(source_files
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
+
+    src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
 )
 
 # Octo-Tiger library headers
