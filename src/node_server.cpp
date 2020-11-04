@@ -221,7 +221,15 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	for (int dim = 0; dim < NDIM; dim++) {
 		xmin[dim] = grid_ptr->X[dim][0];
 	}
+  bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+               pool_strategy>(1);
+
+  if (!avail) {
 	complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+  } else {
+      stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
+      launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+  }
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
 			grid_ptr->set_physical_boundaries(face, current_time);

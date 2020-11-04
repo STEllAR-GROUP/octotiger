@@ -1,11 +1,8 @@
 #include <iostream>
 #include <vector>
 
-#include "octotiger/grid.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 
-#include <aligned_buffer_util.hpp>
-#include <buffer_manager.hpp>
 
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,

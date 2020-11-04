@@ -9,7 +9,8 @@
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
 
-void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only, const std::vector<std::vector<real>> &Ushad, const std::vector<std::atomic<int>> &is_coarse, const std::array<double, NDIM> &xmin, std::vector<std::vector<real>> &U);
+void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only, const std::vector<std::vector<real>> &ushad, const std::vector<std::atomic<int>> &is_coarse, const std::array<double, NDIM> &xmin, std::vector<std::vector<real>> &u);
+void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx, bool energy_only, const std::vector<std::vector<real>> &ushad, const std::vector<std::atomic<int>> &is_coarse, const std::array<double, NDIM> &xmin, std::vector<std::vector<real>> &u);
 
 CUDA_GLOBAL_METHOD inline double minmod_cuda(double a, double b) {
 	return (copysign(0.5, a) + copysign(0.5, b)) * std::min(std::abs(a), abs(b));
