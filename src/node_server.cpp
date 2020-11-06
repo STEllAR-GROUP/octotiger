@@ -11,6 +11,7 @@
 #include "octotiger/problem.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
+#include "octotiger/interaction_types.hpp"
 
 #include "octotiger/monopole_interactions/p2p_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
@@ -216,19 +217,24 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	for (auto &f : results) {
 		GET(f);
 	}
-	//grid_ptr->complete_hydro_amr_boundary(energy_only);
-	std::array<double, NDIM> xmin;
-	for (int dim = 0; dim < NDIM; dim++) {
-		xmin[dim] = grid_ptr->X[dim][0];
-	}
-  bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-               pool_strategy>(1);
-
-  if (!avail) {
-	complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+  amr_boundary_type kernel_type = opts().amr_boundary_kernel_type;
+  if (kernel_type == AMR_LEGACY) {
+    grid_ptr->complete_hydro_amr_boundary(energy_only);
   } else {
-      stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-      launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+    std::array<double, NDIM> xmin;
+    for (int dim = 0; dim < NDIM; dim++) {
+      xmin[dim] = grid_ptr->X[dim][0];
+    }
+    bool avail = false;
+    if (kernel_type == AMR_CUDA)
+      avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                   pool_strategy>(opts().cuda_buffer_capacity);
+    if (!avail) {
+        complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+    } else {
+        stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
+        launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+    }
   }
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {

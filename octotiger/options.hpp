@@ -136,6 +136,7 @@ public:
 
 	problem_type problem;
 
+	amr_boundary_type amr_boundary_kernel_type;
 	interaction_kernel_type m2m_kernel_type;
 	interaction_kernel_type p2m_kernel_type;
 	interaction_kernel_type p2p_kernel_type;

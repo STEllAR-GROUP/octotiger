@@ -1850,15 +1850,12 @@ timestep_t grid::compute_fluxes() {
       recycler::cuda_device_buffer<double> device_AM(NDIM * 10 * 10 * 10 + 32);
 
       // Host buffers
-      std::vector<double, recycler::recycle_allocator_cuda_host<double>> AM(
-      NDIM * 10 * 10 * 10 + 32);
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * 1000 + 32);
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_large_x(NDIM * H_N3 + 32);
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_u(hydro.get_nf() * H_N3 + 32);
       std::vector<int, recycler::recycle_allocator_cuda_host<int>> disc_detect(hydro.get_nf());
       std::vector<int, recycler::recycle_allocator_cuda_host<int>> smooth_field(hydro.get_nf());
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> f(NDIM * 15 * 1000 + 32);
-
 
       // Convert input
       convert_x_structure(X, combined_x);
