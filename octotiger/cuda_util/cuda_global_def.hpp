@@ -14,6 +14,7 @@
 #define CUDA_CALLABLE_METHOD __device__
 #define CUDA_GLOBAL_METHOD __host__ __device__
 #else
+#define HOST_CALLABLE 
 #define CUDA_CALLABLE_METHOD
 #define CUDA_GLOBAL_METHOD
 #endif

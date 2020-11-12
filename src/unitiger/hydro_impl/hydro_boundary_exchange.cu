@@ -1,3 +1,4 @@
+#include "octotiger/util/vec_scalar_device_wrapper.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 
 

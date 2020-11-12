@@ -1,14 +1,14 @@
 #include <iostream>
 #include <vector>
 
+#include "octotiger/util/vec_scalar_host_wrapper.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
-
 
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
-    //std::cout << "Calling hydro cpu version!" << std::endl;
+    // std::cout << "Calling hydro cpu version!" << std::endl;
 
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_uf(
         opts().n_fields * HS_N3 * 8);
@@ -31,13 +31,36 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     }
     constexpr int field_offset = HS_N3 * 8;
 
-
     // Phase 1: From UShad to Uf
     for (int i0 = 1; i0 < HS_NX - 1; i0++) {
         for (int j0 = 1; j0 < HS_NX - 1; j0++) {
             for (int k0 = 1; k0 < HS_NX - 1; k0++) {
-              complete_hydro_amr_boundary_inner_loop(dx, energy_only, unified_ushad.data(), coarse.data(),
-                  xmin.data(), unified_uf.data(), i0, j0, k0, opts().n_fields);
+                complete_hydro_amr_boundary_inner_loop(dx, energy_only, unified_ushad.data(),
+                    coarse.data(), xmin.data(), unified_uf.data(), i0, j0, k0, opts().n_fields);
+
+                /*const int iii0 = i0 * HS_DNX + j0 * HS_DNY + k0 * HS_DNZ;
+                if (coarse[iii0]) {
+                    int i = 2 * i0 - H_BW ;
+                    int j = 2 * j0 - H_BW ;
+                    int k = 2 * k0 - H_BW ;
+                    int ir = 0, jr = 0, kr = 0;
+                    if (i < 0) i = 0;
+                    if (j < 0) j = 0;
+                    if (k < 0) k = 0;
+                    for (int ir = 0; ir < 2; ir++) {
+                        for (int jr = 0; jr < 2; jr++) {
+                            for (int kr = 0; kr < 2; kr++) {
+                                const int iiir = hindex(i + ir, j + jr, k + kr);
+                                const int oct_index = ir * 4 + jr * 2 + kr;
+                                for (int f = 0; f < opts().n_fields; f++) {
+                                    if (!energy_only || f == egas_i)
+                                        U[f][iiir] =
+                                            unified_uf[f * field_offset + 8 * iii0 + oct_index];
+                                }
+                            }
+                        }
+                    }
+                }*/
             }
         }
     }
