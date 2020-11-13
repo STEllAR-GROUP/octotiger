@@ -123,7 +123,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 #ifdef SILO_UNITS
 //	grid::set_unit_conversions();
 #endif
-    std::size_t const os_threads = hpx::get_os_thread_count();
+    auto const sched = hpx::threads::get_self_id_data()->get_scheduler_base();
+    std::size_t const os_threads = sched->get_parent_pool()->get_active_os_thread_count();
     hpx::naming::id_type const here = hpx::find_here();
     std::set<std::size_t> attendance;
     for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)
@@ -148,7 +149,8 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
 }
 
 std::array<size_t, 6> analyze_local_launch_counters() {
-    std::size_t const os_threads = hpx::get_os_thread_count();
+    auto const sched = hpx::threads::get_self_id_data()->get_scheduler_base();
+    std::size_t const os_threads = sched->get_parent_pool()->get_active_os_thread_count();
     hpx::naming::id_type const here = hpx::find_here();
     std::set<std::size_t> attendance;
     for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)

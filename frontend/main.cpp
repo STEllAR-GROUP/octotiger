@@ -4,6 +4,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include <hpx/hpx_init.hpp>
+#include <hpx/resource_partitioner/partitioner.hpp>
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
 #endif
@@ -98,11 +99,71 @@ int hpx_main(int argc, char* argv[]) {
     return hpx::finalize();
 }
 
+// -------------------------------------------------------------------------
+void init_resource_partitioner_handler(hpx::resource::partitioner& rp, const hpx::program_options::variables_map &vm)
+{
+    // how many threads are reserved for polling
+    int polling_threads = vm["polling-threads"].as<int>();
+    const std::string pool_name = "polling";
+
+    if (polling_threads>0)
+    {
+        // background work will be done by polling pool
+        using namespace hpx::threads::policies;
+        rp.create_thread_pool(pool_name,
+                              hpx::resource::scheduling_policy::shared_priority,
+                              scheduler_mode::do_background_work
+                              );
+        // add N pus to network pool
+        int count = 0;
+        for (const hpx::resource::numa_domain& d : rp.numa_domains())
+        {
+            for (const hpx::resource::core& c : d.cores())
+            {
+                for (const hpx::resource::pu& p : c.pus())
+                {
+                    if (count < polling_threads)
+                    {
+                        std::cout << "Added pu " << count++ << " to pool \"" << pool_name << "\"\n";
+                        rp.add_resource(p, pool_name);
+                    }
+                }
+            }
+        }
+        {
+            // remove background work flag from the default pool as this will be done by polling pool
+            using namespace hpx::threads::policies;
+            std::uint32_t deft = scheduler_mode::default_mode;
+            std::uint32_t idle = scheduler_mode::enable_idle_backoff;
+            std::uint32_t back = scheduler_mode::do_background_work;
+            std::uint32_t mode = deft & ~idle & ~back;
+            //
+            rp.create_thread_pool("default",
+                                  hpx::resource::scheduling_policy::unspecified,
+                                  hpx::threads::policies::scheduler_mode(mode));
+        }
+    }
+}
+
+// -------------------------------------------------------------------------
 int main(int argc, char* argv[]) {
-	std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
-			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
-			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
-			};
+
     register_hpx_functions();
-	hpx::init(argc, argv, cfg);
+
+    hpx::program_options::options_description desc_cmdline("Options");
+    desc_cmdline.add_options()
+        ("polling-threads", hpx::program_options::value<int>()->default_value(0),
+         "Enable dedicated HPX thread pool for cuda/network polling using N threads");
+
+    std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
+        "hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
+        "hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
+        };
+
+    // Setup the init parameters
+    hpx::init_params init_args;
+    init_args.desc_cmdline = desc_cmdline;
+    init_args.rp_callback = &init_resource_partitioner_handler;
+    init_args.cfg = cfg;
+    hpx::init(argc, argv, init_args);
 }

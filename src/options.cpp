@@ -155,6 +155,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
+    ("polling-threads", po::value<int>(&(opts().polling_threads))->default_value(0), "Enable dedicated HPX thread pool for cuda/network polling using N threads") //
 	("root_node_on_device", po::value<bool>(&(opts().root_node_on_device))->default_value(true), "Offload root node gravity kernels to the GPU? May degrade performance given weak GPUs") //
 	("legacy_hydro", po::value<bool>(&(opts().legacy_hydro))->default_value(false), "Use new hydro (false) or legacy hydro (true)") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
@@ -172,8 +173,8 @@ bool options::process_options(int argc, char *argv[]) {
 			;
 
 	boost::program_options::variables_map vm;
-	po::store(po::parse_command_line(argc, argv, command_opts), vm);
-	po::notify(vm);
+    po::store(po::command_line_parser(argc, argv).options(command_opts).allow_unregistered().run(), vm);
+    po::notify(vm);
 	if (vm.count("help")) {
 		std::cout << command_opts << "\n";
 		return false;

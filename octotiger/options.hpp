@@ -121,6 +121,7 @@ public:
 	size_t cuda_number_gpus;
 	size_t cuda_streams_per_gpu;
 	size_t cuda_buffer_capacity;
+        int  polling_threads;
 	bool root_node_on_device;
 	bool legacy_hydro;
 

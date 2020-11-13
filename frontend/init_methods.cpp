@@ -80,8 +80,14 @@ void cleanup_puddle_on_this_locality(void) {
     }
     // Disable polling
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    std::cout << "Unregistering cuda polling..." << std::endl;
-    hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    if (opts().polling_threads>0) {
+        std::cout << "Unregistering cuda polling on polling pool " << std::endl;
+        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool("polling"));
+    }
+    else {
+        std::cout << "Unregistering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
+    }
 #endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
     Kokkos::finalize();
@@ -148,8 +154,14 @@ void init_executors(void) {
 #endif
 
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
-    std::cout << "Registering HPX CUDA polling..." << std::endl;
-    hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    if (opts().polling_threads>0) {
+        std::cout << "Registering cuda polling on polling pool " << std::endl;
+        hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool("polling"));
+    }
+    else {
+        std::cout << "Registering cuda polling..." << std::endl;
+        hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
+    }
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
