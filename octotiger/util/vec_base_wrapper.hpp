@@ -17,23 +17,23 @@ CUDA_CALLABLE_METHOD inline T min_wrapper(const T& tmp1, const T& tmp2) {
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline T sqrt_wrapper(const T& tmp1) {
-    return std::sqrt(tmp1);
+    return sqrt(tmp1);
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline T pow_wrapper(const T& tmp1, const double& tmp2) {
-    return std::pow(tmp1, tmp2);
+    return pow(tmp1, tmp2);
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline T asin_wrapper(const T& tmp1) {
-    return std::asin(tmp1);
+    return asin(tmp1);
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline T copysign_wrapper(const T& tmp1, const T& tmp2) {
-    return std::copysign(tmp1, tmp2);
+    return copysign(tmp1, tmp2);
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline T abs_wrapper(const T& tmp1) {
-    return std::abs(tmp1);
+    return abs(tmp1);
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline T minmod_wrapper(const T& a, const T& b) {

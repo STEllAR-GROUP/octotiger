@@ -9,8 +9,11 @@ complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
     double* __restrict__ unified_ushad, int* __restrict__ coarse,
     double* __restrict__ xmin, double* __restrict__ unified_uf,
     const int nfields) {
-  complete_hydro_amr_boundary_inner_loop(dx, energy_only, unified_ushad, coarse, xmin, unified_uf,
-  blockIdx.z + 1, threadIdx.y + 1, threadIdx.z + 1, nfields);
+    const int iii0 = (blockIdx.z + 1) * HS_DNX + (threadIdx.y + 1) * HS_DNY + (threadIdx.z + 1) * HS_DNZ;
+    if (coarse[iii0]) {
+        complete_hydro_amr_boundary_inner_loop<double>(dx, energy_only, unified_ushad, coarse, xmin, unified_uf,
+             blockIdx.z + 1, threadIdx.y + 1, threadIdx.z + 1, nfields, true, 0, iii0);
+    }
 }
 
 void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx, bool energy_only, const std::vector<std::vector<real>> &Ushad, const std::vector<std::atomic<int>> &is_coarse, const std::array<double, NDIM> &xmin, std::vector<std::vector<real>> &U) {
@@ -97,7 +100,7 @@ void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda::experim
                             const int oct_index = ir * 4 + jr * 2 + kr;
                             // unified_u[f * H_N3 + iiir] =
                             //    unified_uf[f * field_offset + 8 * iii0 + oct_index];
-                            U[f][iiir] = unified_uf[f * field_offset + 8 * iii0 + oct_index];
+                            U[f][iiir] = unified_uf[f * field_offset + iii0 + oct_index * HS_N3];
                         }
                     }
                 }

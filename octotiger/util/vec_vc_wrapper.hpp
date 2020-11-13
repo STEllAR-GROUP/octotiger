@@ -3,6 +3,8 @@
 #include <Vc/Vc>
 #include <Vc/common/mask.h>
 #include <Vc/vector.h>
+#include <Vc/SimdArray>
+
 
 using vc_type = Vc::Vector<double, Vc::VectorAbi::Avx>;
 using mask_type = vc_type::mask_type;

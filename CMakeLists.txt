@@ -164,7 +164,8 @@ set(source_files
     src/test_problems/amr/amr.cpp
 
     src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
-    src/unitiger/hydro_impl/hydro_boundary_exchange.cu # TODO Move to different location - it's not unitiger
+    src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
+    src/unitiger/hydro_impl/hydro_boundary_exchange.cu 
 )
 
 # Octo-Tiger library headers
@@ -325,6 +326,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/multipole_interactions/legacy/multipole_interaction_interface.cpp
     src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
     src/unitiger/hydro_impl/flux_cpu_kernel.cpp
+    src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
 
     # Other reasons for host-only compilation (hpx actions)
     src/grid.cpp
