@@ -1835,10 +1835,10 @@ timestep_t grid::compute_fluxes() {
 
 
       // Device buffers
-      recycler::cuda_device_buffer<double> device_q(15 * 27 * 10 * 10 * 10 + 32, device_id);
+      recycler::cuda_device_buffer<double> device_q(hydro.get_nf() * 27 * 10 * 10 * 10 + 32, device_id);
       recycler::cuda_device_buffer<double> device_x(NDIM * 1000 + 32, device_id);
       recycler::cuda_device_buffer<double> device_large_x(NDIM * H_N3 + 32, device_id);
-      recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
+      recycler::cuda_device_buffer<double> device_f(NDIM * hydro.get_nf() * 1000 + 32, device_id);
       recycler::cuda_device_buffer<double> device_u(hydro.get_nf() * H_N3 + 32);
       recycler::cuda_device_buffer<double> device_amax(NDIM);
       recycler::cuda_device_buffer<int> device_amax_indices(NDIM);
@@ -1857,7 +1857,7 @@ timestep_t grid::compute_fluxes() {
       std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_u(hydro.get_nf() * H_N3 + 32);
       std::vector<int, recycler::recycle_allocator_cuda_host<int>> disc_detect(hydro.get_nf());
       std::vector<int, recycler::recycle_allocator_cuda_host<int>> smooth_field(hydro.get_nf());
-      std::vector<double, recycler::recycle_allocator_cuda_host<double>> f(NDIM * 15 * 1000 + 32);
+      std::vector<double, recycler::recycle_allocator_cuda_host<double>> f(NDIM * hydro.get_nf() * 1000 + 32);
 
 
       // Convert input
@@ -1902,6 +1902,8 @@ timestep_t grid::compute_fluxes() {
       cudaMemcpyAsync, device_large_x.device_side_buffer,
       combined_large_x.data(), (NDIM * H_N3 + 32) * sizeof(double), cudaMemcpyHostToDevice);
 
+      //printf("\n\ncuda hydro nf = %i\n\n", hydro.get_nf());
+
       launch_hydro_pre_recon_cuda(executor, device_large_x.device_side_buffer, omega,hydro.get_angmom_index() != -1,
           device_u.device_side_buffer,hydro.get_nf(), opts().n_species);
 
@@ -1910,9 +1912,12 @@ timestep_t grid::compute_fluxes() {
           device_u.device_side_buffer, device_AM.device_side_buffer, X[0][geo.H_DNX] - X[0][0],
           device_unified_discs.device_side_buffer, opts().n_species);
 
+	//printf("\n\n before flux after reconstruct\n\n");
       // Call Flux kernel
       auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x, device_x.device_side_buffer,
           omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id);
+ //     auto max_lambda = flux_cpu_kernel(device_q.device_side_buffer, f, device_x.device_side_buffer, omega, hydro.get_nf());
+	//printf("\n\nAFTER flux\n\n");
       
 
       // Convert output

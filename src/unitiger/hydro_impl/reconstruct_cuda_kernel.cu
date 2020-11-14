@@ -10,7 +10,7 @@ inline __device__ double deg_pres(double x, double A_) {
 	return p;
 }
 
-__device__ const int number_faces = 15;
+//__device__ const int number_faces = 15;
 __device__ const int number_dirs = 27;
 __device__ const int q_inx = INX + 2;
 __device__ const int q_inx3 = q_inx * q_inx * q_inx;
@@ -465,7 +465,7 @@ void launch_reconstruct_cuda(
     // Current implementation limitations of this kernel - can be resolved but that takes more work
     assert(angmom_index_ > -1);
     assert(NDIM > 2);
-    assert(nf_ == 15);
+//    assert(nf_ == 15); // is not required anymore
     assert(geo.NDIR == 27);
     assert(INX == 8);
 

@@ -420,13 +420,14 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const 
 template <typename Alloc>
 void convert_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, Alloc>& combined_q) {
     auto it = combined_q.begin();
-    for (auto face = 0; face < 15; face++) {
+    auto nf_ = physics<NDIM>::nf_;
+    for (auto field = 0; field < nf_; field++) {
         for (auto d = 0; d < 27; d++) {
             auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
             for (auto ix = 2; ix < 2 + INX + 2; ix++) {
                 for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                    it = std::copy(Q[face][d].begin() + start_offset,
-                        Q[face][d].begin() + start_offset + 10, it);
+                    it = std::copy(Q[field][d].begin() + start_offset,
+                        Q[field][d].begin() + start_offset + 10, it);
                     start_offset += 14;
                 }
                 start_offset += (2 + 2) * 14;
@@ -438,22 +439,23 @@ void convert_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
 template <typename Alloc>
 void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, Alloc>& combined_q) {
     auto it = combined_q.begin();
-    for (auto face = 0; face < 15; face++) {
+    auto nf_ = physics<NDIM>::nf_;
+    for (auto field = 0; field < nf_; field++) {
         bool correct = true;
         for (auto d = 0; d < 27; d++) {
             auto start_offset = 2 * 14 * 14 + 2 * 14;
             for (auto ix = 2; ix < 2 + INX + 2; ix++) {
                 for (auto iy = 2; iy < 2 + INX + 2; iy++) {
                     for (auto line_element = 0; line_element < 10; line_element++) {
-                        if (std::abs(Q[face][d][start_offset + line_element + 2] -
+                        if (std::abs(Q[field][d][start_offset + line_element + 2] -
                                 *(it + line_element)) > 1e-7) {
-                            std::cout << "Orig: " << Q[face][d][start_offset + line_element + 2]
+                            std::cout << "Orig: " << Q[field][d][start_offset + line_element + 2]
                                       << " vs: " << *(it + line_element) << std::endl;
-                            std::cout << "Found error at face " << face << " with d " << d
+                            std::cout << "Found error at field " << field << " with d " << d
                                       << " and grid element " << ix << "/" << iy << "/"
                                       << line_element + 2 << std::endl;
                             for (auto line_element = 0; line_element < 10; line_element++) {
-                                std::cout << Q[face][d][start_offset + line_element + 2] << " ";
+                                std::cout << Q[field][d][start_offset + line_element + 2] << " ";
                             }
                             std::cout << std::endl;
                             for (auto line_element = 0; line_element < 10; line_element++) {
@@ -470,7 +472,7 @@ void compare_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, A
             }
         }
         if (!correct) {
-            std::cout << " face " << face << " is incorrect!" << std::endl;
+            std::cout << " field " << field << " is incorrect!" << std::endl;
             std::cin.get();
         }
     }
