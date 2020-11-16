@@ -305,6 +305,9 @@ diagnostics_t node_server::diagnostics() {
 			fprintf(fp, "%13e ", (double) diags.nonvacj); // 37
 			fprintf(fp, "%13e ", (double) diags.nonvacjlz); // 38
 			fprintf(fp, "%13e ", (double) diags.Torb); //39
+			fprintf(fp, "%13e ", (double) diags.grid_sum[rho_i]); //40
+			fprintf(fp, "%13e ", (double) diags.munbound1); //41
+			fprintf(fp, "%13e ", (double) diags.munbound2); //4@
 			fprintf(fp, "\n");
 			fclose(fp);
 			fp = fopen((opts().data_dir + "sums.dat").c_str(), "at");

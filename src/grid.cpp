@@ -553,6 +553,13 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					const safe_real phi_r = -0.5 * POWER(diags.omega, 2) * R2;
 					const safe_real phi_eff = phi_g + phi_r;
 					const safe_real rho0 = U[rho_i][iii];
+					const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) / 2.0 / U[rho_i][iii] * dV;
+					if (ekin / U[rho_i][iii] / dV + phi_g) {
+						rc.munbound1 += U[rho_i][iii] * dx * dx * dx;
+					}
+					if (ekin / U[rho_i][iii] / dV + phi_eff) {
+						rc.munbound2 += U[rho_i][iii] * dx * dx * dx;
+					}
 					integer i;
 					if (rho[1] > 0.5 * rho0) {
 						i = 1;
@@ -573,7 +580,6 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 						rc.g[i][0] += G[iiig][gx_i] * dV * rho0;
 						rc.g[i][1] += G[iiig][gy_i] * dV * rho0;
 						rc.g[i][2] += G[iiig][gz_i] * dV * rho0;
-						const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) / 2.0 / U[rho_i][iii] * dV;
 						auto eint = U[egas_i][iii] * dV - ekin;
 						const auto epot = 0.5 * U[pot_i][iii] * dV;
 						if (eint < de_switch2 * U[egas_i][iii] * dV) {

@@ -32,6 +32,8 @@ struct diagnostics_t {
 	safe_real virial;
 	safe_real virial_norm;
 	safe_real z_mom_orb;
+	safe_real munbound1;
+	safe_real munbound2;
 	space_vector grid_com;
 	std::array<safe_real, nspec> m;
 	std::array<safe_real, nspec> Ts;
@@ -62,6 +64,8 @@ struct diagnostics_t {
 		stage = 1;
 		omega = -1.0;
 		grid_com = 0.0;
+		munbound1 = 0.0;
+		munbound2 = 0.0;
 		for (integer f = 0; f != opts().n_fields; ++f) {
 			grid_sum[f] = 0.0;
 			grid_out[f] = 0.0;
@@ -149,6 +153,8 @@ struct diagnostics_t {
 				}
 			}
 		}
+		munbound1 += other.munbound1;
+		munbound2 += other.munbound2;
 		lsum[0] += other.lsum[0];
 		lsum[1] += other.lsum[1];
 		lsum[2] += other.lsum[2];
@@ -164,6 +170,8 @@ struct diagnostics_t {
 
 	template<class Arc>
 	void serialize(Arc &arc, const unsigned) {
+		arc & munbound1;
+		arc & munbound2;
 		arc & ekin;
 		arc & epot;
 		arc & eint;
