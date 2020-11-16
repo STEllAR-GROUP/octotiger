@@ -95,9 +95,11 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
                         
                         //uf_local[f * 8 + oct_index] = uf;
                         //select_wrapper<T>(uf_local[f * 8 + oct_index], mask, uf, T(0));
+                        T uf_final;
+                        select_wrapper<T>(uf_final, mask, uf, T(0));
 
                         // TODO Use Uf register without store_value here
-                        store_value<T>(unified_uf, f * field_offset + iii0 + oct_index * HS_N3, uf);
+                        store_value<T>(unified_uf, f * field_offset + iii0 + oct_index * HS_N3, uf_final);
                     }
                 }
                 if (!energy_only) {
