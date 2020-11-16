@@ -11,8 +11,8 @@ complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
     const int nfields) {
     const int iii0 = (blockIdx.z + 1) * HS_DNX + (threadIdx.y + 1) * HS_DNY + (threadIdx.z + 1) * HS_DNZ;
     if (coarse[iii0]) {
-        complete_hydro_amr_boundary_inner_loop<double>(dx, energy_only, unified_ushad, coarse, xmin, unified_uf,
-             blockIdx.z + 1, threadIdx.y + 1, threadIdx.z + 1, nfields, true, 0, iii0);
+        //complete_hydro_amr_boundary_inner_loop<double>(dx, energy_only, unified_ushad, coarse, xmin, unified_uf,
+        //     blockIdx.z + 1, threadIdx.y + 1, threadIdx.z + 1, nfields, true, 0, iii0);
     }
 }
 

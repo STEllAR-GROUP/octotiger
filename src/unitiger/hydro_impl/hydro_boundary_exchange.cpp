@@ -12,8 +12,6 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
     // std::cout << "Calling hydro cpu version!" << std::endl;
 
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_uf(
-        opts().n_fields * HS_N3 * 8);
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
         opts().n_fields * H_N3);
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
@@ -35,18 +33,15 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
 
     // Phase 1: From UShad to Uf
     constexpr int uf_max = 15;
-    // TODO Use once mapping is fixed
-    // double uf_local[uf_max * 8];
+    double uf_local[uf_max * 8];
     for (int i0 = 1; i0 < HS_NX - 1; i0++) {
         for (int j0 = 1; j0 < HS_NX - 1; j0++) {
             for (int k0 = 1; k0 < HS_NX - 1; k0++) {
                 const int iii0 = i0 * HS_DNX + j0 * HS_DNY + k0 * HS_DNZ;
                 if (coarse[iii0]) {
                     complete_hydro_amr_boundary_inner_loop<double>(dx, energy_only,
-                        unified_ushad.data(), coarse.data(), xmin.data(), unified_uf.data(), i0, j0,
-                        k0, opts().n_fields, true, 0, iii0);
-
-                    // TODO Fix mapping
+                        unified_ushad.data(), coarse.data(), xmin.data(), i0, j0,
+                        k0, opts().n_fields, true, 0, iii0, uf_local);
                     int i = 2 * i0 - H_BW;
                     int j = 2 * j0 - H_BW;
                     int k = 2 * k0 - H_BW;
@@ -67,7 +62,7 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
                                 for (int f = 0; f < opts().n_fields; f++) {
                                     if (!energy_only || f == egas_i) {
                                         U[f][iiir] =
-                                            unified_uf[f * field_offset + iii0 + oct_index * HS_N3];
+                                            uf_local[f * 8 + oct_index];
                                     }
                                 }
                             }
@@ -77,63 +72,5 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
             }
         }
     }
-
-    // TODO Remove once mapping is fixed
-    // Phase 2: Process U    // Phase 3: From Uf to U
-    /*for (int f = 0; f < opts().n_fields; f++) {
-        if (!energy_only || f == egas_i) {
-            // std::copy(U[f].begin(), U[f].end(), unified_u.begin() + f * H_N3);
-            for (int i = 0; i < H_NX; i++) {
-                for (int j = 0; j < H_NX; j++) {
-                    for (int k = 0; k < H_NX; k++) {
-                        const int i0 = (i + H_BW) / 2;
-                        const int j0 = (j + H_BW) / 2;
-                        const int k0 = (k + H_BW) / 2;
-                        int jr = 1 - (j % 2);
-                        const int iii0 = hSindex(i0, j0, k0);
-                        const int iiir = hindex(i, j, k);
-                        if (coarse[iii0]) {
-                            int ir, jr, kr;
-                            if HOST_CONSTEXPR (H_BW % 2 == 0) {
-                                ir = i % 2;
-                                jr = j % 2;
-                                kr = k % 2;
-                            } else {
-                                ir = 1 - (i % 2);
-                                jr = 1 - (j % 2);
-                                kr = 1 - (k % 2);
-                            }
-                            const int oct_index = ir * 4 + jr * 2 + kr;
-                            // unified_u[f * H_N3 + iiir] =
-                            //    unified_uf[f * field_offset + 8 * iii0 + oct_index];
-                            auto old = U[f][iiir];
-                            U[f][iiir] = unified_uf[f * field_offset + iii0 + oct_index * HS_N3];
-                       }
-                    }
-                }
-            }
-            // std::copy(unified_u.begin() + f * H_N3, unified_u.begin() + f * H_N3 + H_N3,
-            // U[f].begin());
-        }
-    }*/
-    // Copy field back for compatibility with the rest of the code (for now)..
-    /*for (int f = 0; f < opts().n_fields; f++) {
-        if (!energy_only || f == egas_i) {
-            for (int i = 0; i < H_NX; i++) {
-                for (int j = 0; j < H_NX; j++) {
-                    for (int k = 0; k < H_NX; k++) {
-                        const int i0 = (i + H_BW) / 2;
-                        const int j0 = (j + H_BW) / 2;
-                        const int k0 = (k + H_BW) / 2;
-                        const int iii0 = hSindex(i0, j0, k0);
-                        if (coarse[iii0]) {
-                            const int iiir = hindex(i, j, k);
-                            U[f][iiir] = unified_u[f * H_N3 + iiir];
-                        }
-                    }
-                }
-            }
-        }
-    }*/
 }
 //#pragma GCC pop_options

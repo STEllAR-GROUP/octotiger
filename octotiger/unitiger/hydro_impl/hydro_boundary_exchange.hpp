@@ -34,27 +34,24 @@ CUDA_GLOBAL_METHOD inline double limiter(const double a, const double b) {
     return minmod_cuda_theta(a, b, 64. / 37.);
 }
 
-// TODO Pass UF tmps: 15 * 8 large?
 template <typename T, typename mask_t, typename index_t>
 CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const double dx, const bool energy_only,
     const double* __restrict__ unified_ushad, const int* __restrict__ coarse,
-    const double* __restrict__ xmin, double* __restrict__ unified_uf, const int i0, const int j0,
-    const int k0, const int nfields, const mask_t mask, const index_t k , const int iii0) { //, T * __restrict__ uf_local) {
+    const double* __restrict__ xmin, const int i0, const int j0,
+    const int k0, const int nfields, const mask_t mask, const index_t k , const int iii0 , T * __restrict__ uf_local) {
     const int field_offset = HS_N3 * 8;
     for (int ir = 0; ir < 2; ir++) {
         for (int jr = 0; jr < 2; jr++) {
             #pragma unroll
             for (int kr = 0; kr < 2; kr++) {
                 for (int f = 0; f < nfields; f++) {
-                    const int oct_index = ir * 4 + jr * 2 + kr;
-                    //uf_local[f * 8 + oct_index] = 0.0;
                     if (!energy_only || f == egas_i) {
 
+                        const int oct_index = ir * 4 + jr * 2 + kr;
                         const auto is = ir % 2 ? +1 : -1;
                         const auto js = jr % 2 ? +1 : -1;
                         const auto ks = kr % 2 ? +1 : -1;
-                        // const auto& u0 = Ushad[f][iii0];
-                        // const auto& uc = Ushad[f];
+
                         const double* uc = unified_ushad + f * HS_N3;
                         const T u0 = load_value<T>(unified_ushad, f * HS_N3 + iii0);
 
@@ -85,21 +82,13 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
                         const T uc_xyz_neg =
                             load_value<T>(uc, iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ);
                         const auto s_xyz = limiter_wrapper(uc_xyz - u0, u0 - uc_xyz_neg);
-                        // auto &uf = Uf[f][iii0][ir][jr][kr];
-                        // T uf = ;
-                        // load_value<T>(unified_uf, f * field_offset + 8 * iii0 + oct_index);
                         T uf = u0;
                         uf += (9.0 / 64.0) * (s_x + s_y + s_z);
                         uf += (3.0 / 64.0) * (s_xy + s_yz + s_xz);
                         uf += (1.0 / 64.0) * s_xyz;
                         
-                        //uf_local[f * 8 + oct_index] = uf;
-                        //select_wrapper<T>(uf_local[f * 8 + oct_index], mask, uf, T(0));
-                        T uf_final;
-                        select_wrapper<T>(uf_final, mask, uf, T(0));
-
-                        // TODO Use Uf register without store_value here
-                        store_value<T>(unified_uf, f * field_offset + iii0 + oct_index * HS_N3, uf_final);
+                        uf_local[f * 8 + oct_index] = uf;
+                        select_wrapper<T>(uf_local[f * 8 + oct_index], mask, uf, T(0));
                     }
                 }
                 if (!energy_only) {
@@ -111,36 +100,9 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
                     const auto y = (j1) *dx + xmin[YDIM];
                     const auto z = (k1) *dx + xmin[ZDIM];
 
-                    const T sx_val =
-                        load_value<T>(unified_uf, sx_i * field_offset + iii0 + oct_index * HS_N3);
-                    const T sy_val =
-                        load_value<T>(unified_uf, sy_i * field_offset + iii0 + oct_index * HS_N3);
-                    const T sz_val =
-                        load_value<T>(unified_uf, sz_i * field_offset + iii0 + oct_index * HS_N3);
-
-                    // TODO Use Uf register without store_value here
-                   // uf_local[lx_i * 8 + oct_index] -= y * uf_local[sz_i * 8 + oct_index] - z * uf_local[sy_i * 8 + oct_index];
-                    T lx_val =
-                        load_value<T>(unified_uf, lx_i * field_offset + iii0 + oct_index * HS_N3);
-                    lx_val -= y * sz_val - z * sy_val;
-                    store_value<T>(
-                        unified_uf, lx_i * field_offset + iii0 + oct_index * HS_N3, lx_val);
-
-                    // TODO Use Uf register without store_value here
-                    //uf_local[ly_i * 8 + oct_index] += x * uf_local[sz_i * 8 + oct_index] - z * uf_local[sx_i * 8 + oct_index];
-                    T ly_val =
-                        load_value<T>(unified_uf, ly_i * field_offset + iii0 + oct_index * HS_N3);
-                    ly_val += x * sz_val - z * sx_val;
-                    store_value<T>(
-                        unified_uf, ly_i * field_offset + iii0 + oct_index * HS_N3, ly_val);
-
-                    // TODO Use Uf register without store_value here
-                    //uf_local[lz_i * 8 + oct_index] -= x * uf_local[sy_i * 8 + oct_index] - y * uf_local[sx_i * 8 + oct_index];
-                    T lz_val =
-                        load_value<T>(unified_uf, lz_i * field_offset + iii0 + oct_index * HS_N3);
-                    lz_val -= x * sy_val - y * sx_val;
-                    store_value<T>(
-                        unified_uf, lz_i * field_offset + iii0 + oct_index * HS_N3, lz_val);
+                    uf_local[lx_i * 8 + oct_index] -= y * uf_local[sz_i * 8 + oct_index] - z * uf_local[sy_i * 8 + oct_index];
+                    uf_local[ly_i * 8 + oct_index] += x * uf_local[sz_i * 8 + oct_index] - z * uf_local[sx_i * 8 + oct_index];
+                    uf_local[lz_i * 8 + oct_index] -= x * uf_local[sy_i * 8 + oct_index] - y * uf_local[sx_i * 8 + oct_index];
                 }
             }
         }
@@ -152,21 +114,9 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
                 #pragma unroll
                 for (int kr = 0; kr < 2; kr++) {
                     const int oct_index = ir * 4 + jr * 2 + kr;
-                    // TODO Use Uf register without load_value here
-                    T lx_val =
-                        load_value<T>(unified_uf, lx_i * field_offset + iii0 + oct_index * HS_N3);
-                    T ly_val =
-                        load_value<T>(unified_uf, ly_i * field_offset + iii0 + oct_index * HS_N3);
-                    T lz_val =
-                        load_value<T>(unified_uf, lz_i * field_offset + iii0 + oct_index * HS_N3);
-                    zx += lx_val / 8.0;
-                    zy += ly_val / 8.0;
-                    zz += lz_val / 8.0;
-
-                    //zx += uf_local[lx_i * 8 + oct_index] / 8.0;
-                   // zy += uf_local[ly_i * 8 + oct_index] / 8.0;
-                   // zz += uf_local[lz_i * 8 + oct_index] / 8.0;
-                    //			rho += Uf[rho_i][iii0][ir][jr][kr] / 8.0;
+                    zx += uf_local[lx_i * 8 + oct_index] / 8.0;
+                    zy += uf_local[ly_i * 8 + oct_index] / 8.0;
+                    zz += uf_local[lz_i * 8 + oct_index] / 8.0;
                 }
             }
         }
@@ -174,21 +124,14 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
             for (int jr = 0; jr < 2; jr++) {
                 #pragma unroll
                 for (int kr = 0; kr < 2; kr++) {
-                    //					const auto factor =
-                    // Uf[rho_i][iii0][ir][jr][kr]
-                    /// rho;
                     const auto factor = 1.0;
                     const int oct_index = ir * 4 + jr * 2 + kr;
                     zx *= factor;
                     zy *= factor;
                     zz *= factor;
-                    // TODO Use Uf register without store_value here
-                    store_value<T>(unified_uf, lx_i * field_offset + iii0 + oct_index * HS_N3, zx);
-                    store_value<T>(unified_uf, ly_i * field_offset + iii0 + oct_index * HS_N3, zy);
-                    store_value<T>(unified_uf, lz_i * field_offset + iii0 + oct_index * HS_N3, zz);
-                    //uf_local[lx_i * 8 + oct_index] = zx;
-                    //uf_local[ly_i * 8 + oct_index] = zy;
-                    //uf_local[lz_i * 8 + oct_index] = zz;
+                    uf_local[lx_i * 8 + oct_index] = zx;
+                    uf_local[ly_i * 8 + oct_index] = zy;
+                    uf_local[lz_i * 8 + oct_index] = zz;
                 }
             }
         }
@@ -199,60 +142,13 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
                     const int oct_index = ir * 4 + jr * 2 + kr;
                     const auto i1 = 2 * i0 - H_BW + ir;
                     const auto j1 = 2 * j0 - H_BW + jr;
-                    // TODO(daissgr) Replace with vectorization
                     const auto k1 = 2 * (k0 + k) - H_BW + kr;
-                    // std::cout << k1 << std::endl;
                     const auto x = (i1) *dx + xmin[XDIM];
                     const auto y = (j1) *dx + xmin[YDIM];
                     const auto z = (k1) *dx + xmin[ZDIM];
-                    // std::cout << z << std::endl;
-
-                    const T sx_val =
-                        load_value<T>(unified_uf, sx_i * field_offset + iii0 + oct_index * HS_N3);
-                    const T sy_val =
-                        load_value<T>(unified_uf, sy_i * field_offset + iii0 + oct_index * HS_N3);
-                    const T sz_val =
-                        load_value<T>(unified_uf, sz_i * field_offset + iii0 + oct_index * HS_N3);
-
-                    // TODO Use Uf register without store_value here
-                    T lx_val =
-                        load_value<T>(unified_uf, lx_i * field_offset + iii0 + oct_index * HS_N3);
-                    lx_val += y * sz_val - z * sy_val;
-                    select_wrapper<T>(lx_val, mask, lx_val, T(0));
-                    store_value<T>(
-                        unified_uf, lx_i * field_offset + iii0 + oct_index * HS_N3, lx_val);
-
-                    // TODO Use Uf register without store_value here
-                    T ly_val =
-                        load_value<T>(unified_uf, ly_i * field_offset + iii0 + oct_index * HS_N3);
-                    ly_val -= x * sz_val - z * sx_val;
-                    select_wrapper<T>(ly_val, mask, ly_val, T(0));
-                    store_value<T>(
-                        unified_uf, ly_i * field_offset + iii0 + oct_index * HS_N3, ly_val);
-
-                    // TODO Use Uf register without store_value here
-                    T lz_val =
-                        load_value<T>(unified_uf, lz_i * field_offset + iii0 + oct_index * HS_N3);
-                    lz_val += x * sy_val - y * sx_val;
-                    select_wrapper<T>(lz_val, mask, lz_val, T(0));
-                    store_value<T>(
-                        unified_uf, lz_i * field_offset + iii0 + oct_index * HS_N3, lz_val);
-
-                    /*T lx_val = uf_local[lx_i * 8 + oct_index];
-                    lx_val += y * uf_local[sz_i * 8 + oct_index] - z * uf_local[sy_i * 8 + oct_index];
-                    select_wrapper<T>(uf_local[lx_i * 8 + oct_index], mask, lx_val, T(0));
-                    
-                    T ly_val = uf_local[ly_i * 8 + oct_index];
-                    ly_val -= x * uf_local[sz_i * 8 + oct_index] - z * uf_local[sx_i * 8 + oct_index];
-                    select_wrapper<T>(uf_local[ly_i * 8 + oct_index], mask, ly_val, T(0));
-
-                    T lz_val = uf_local[lz_i * 8 + oct_index];
-                    lz_val += x * uf_local[sy_i * 8 + oct_index] - y * uf_local[sx_i * 8 + oct_index];
-                    select_wrapper<T>(uf_local[lz_i * 8 + oct_index], mask, lz_val, T(0));*/
-
-                    /*uf_local[lx_i * 8 + oct_index] += y * uf_local[sz_i * 8 + oct_index] - z * uf_local[sy_i * 8 + oct_index];
+                    uf_local[lx_i * 8 + oct_index] += y * uf_local[sz_i * 8 + oct_index] - z * uf_local[sy_i * 8 + oct_index];
                     uf_local[ly_i * 8 + oct_index] -= x * uf_local[sz_i * 8 + oct_index] - z * uf_local[sx_i * 8 + oct_index];
-                    uf_local[lz_i * 8 + oct_index] += x * uf_local[sy_i * 8 + oct_index] - y * uf_local[sx_i * 8 + oct_index];*/
+                    uf_local[lz_i * 8 + oct_index] += x * uf_local[sy_i * 8 + oct_index] - y * uf_local[sx_i * 8 + oct_index];
 
                 }
             }
