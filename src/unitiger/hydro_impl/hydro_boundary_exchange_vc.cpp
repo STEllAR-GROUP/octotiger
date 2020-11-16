@@ -33,7 +33,9 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     }
     constexpr int field_offset = HS_N3 * 8;
 
-    // Phase 1: From UShad to Uf
+    constexpr int uf_max = 15;
+    // TODO Use once mapping is fixed
+    //vc_type uf_local[uf_max * 8];
     const vc_type zindices = vc_type::IndexesFromZero();
     for (int i0 = 1; i0 < HS_NX - 1; i0++) {
         for (int j0 = 1; j0 < HS_NX - 1; j0++) {
@@ -51,10 +53,39 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
                 complete_hydro_amr_boundary_inner_loop<vc_type>(dx, energy_only,
                     unified_ushad.data(), coarse.data(), xmin.data(), unified_uf.data(), i0, j0, k0,
                     opts().n_fields, mask, zindices, iii0);
+
+                // TODO fix mapping
+                /*for (int mi = 0; mi < vc_type::size(); mi++) {
+                if (coarse[iii0 + mi] && k0 + mi < HS_NX -1) {
+                    int i = 2 * i0 - H_BW ;
+                    int j = 2 * j0 - H_BW ;
+                    int k = 2 * (k0 + mi) - H_BW ;
+                    int ir = 0, jr = 0, kr = 0;
+                    if (i < 0) i = 0;
+                    if (j < 0) j = 0;
+                    if (k < 0) k = 0;
+                    for (int ir = 0; ir < 2; ir++) {
+                        for (int jr = 0; jr < 2; jr++) {
+                            for (int kr = 0; kr < 2; kr++) {
+                                const int iiir = hindex(i + ir, j + jr, k + kr);
+                                const int oct_index = ir * 4 + jr * 2 + kr;
+                                for (int f = 0; f < opts().n_fields; f++) {
+                                    if (!energy_only || f == egas_i)
+                                        U[f][iiir] =
+                                            unified_uf[f * field_offset + iii0 + mi + oct_index * HS_N3];
+                                       // U[f][iiir] =
+                                        //    uf_local[f * 8 + oct_index][mi];
+                                }
+                            }
+                        }
+                    }
+                }
+                }*/
             }
         }
     }
 
+    // TODO Remove this once mapping is fixed
     // Phase 2: Process U    // Phase 3: From Uf to U
     for (int f = 0; f < opts().n_fields; f++) {
         if (!energy_only || f == egas_i) {
