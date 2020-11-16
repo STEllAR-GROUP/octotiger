@@ -22,18 +22,6 @@ void launch_complete_hydro_amr_boundary_cuda(
     const std::vector<std::atomic<int>>& is_coarse, const std::array<double, NDIM>& xmin,
     std::vector<std::vector<real>>& u);
 
-CUDA_GLOBAL_METHOD inline double minmod_cuda(double a, double b) {
-    return (copysign(0.5, a) + copysign(0.5, b)) * std::min(std::abs(a), abs(b));
-}
-
-CUDA_GLOBAL_METHOD inline double minmod_cuda_theta(double a, double b, double c) {
-    return minmod_cuda(c * minmod_cuda(a, b), 0.5 * (a + b));
-}
-
-CUDA_GLOBAL_METHOD inline double limiter(const double a, const double b) {
-    return minmod_cuda_theta(a, b, 64. / 37.);
-}
-
 template <typename T, typename mask_t, typename index_t>
 CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const double dx, const bool energy_only,
     const double* __restrict__ unified_ushad, const int* __restrict__ coarse,
