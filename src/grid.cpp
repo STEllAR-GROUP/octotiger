@@ -173,6 +173,7 @@ real grid::convert_hydro_units(int i) {
 	real val = 1.0;
 	if (opts().problem != MARSHAK) {
 		const real cm = opts().code_to_cm;
+		//printf( "%e\n", cm);
 		const real s = opts().code_to_s;
 		const real g = opts().code_to_g;
 		if (i >= spc_i && i <= spc_i + opts().n_species) {
@@ -1804,7 +1805,7 @@ timestep_t grid::compute_fluxes() {
 	hpx::lcos::local::call_once(flag, [this]() {
 		physics<NDIM>::set_fgamma(fgamma);
 		if (opts().eos == WD) {
-			printf("%e %e\n", physcon().A, physcon().B);
+//			printf("%e %e\n", physcon().A, physcon().B);
 			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
 		}
 		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
