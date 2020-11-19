@@ -198,29 +198,36 @@ __device__ inline void reconstruct_inner_loop_p1(const size_t nf_, const int ang
     double* __restrict__ combined_q, const double* __restrict__ combined_u, double* __restrict__ AM,
     const double dx, const double* __restrict__ cdiscs, const int d, const int i,
     const int q_i, const int ndir, const int nangmom) {
-    const int sx_i = angmom_index_;
-    const int zx_i = sx_i + NDIM;
+    int l_start;
+    int s_start;
+    if (angmom_index_ > -1) {
+        s_start = angmom_index_;
+        l_start = angmom_index_ + NDIM;
+    } else {
+        s_start = lx_i;
+        l_start = lx_i;
+    }
     if (d < ndir / 2) {
-        for (int f = 0; f < angmom_index_; f++) {
+        for (int f = 0; f < s_start; f++) {
             reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
                 smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
         }
-        for (int f = sx_i; f < sx_i + NDIM; f++) {
+        for (int f = s_start; f < l_start; f++) {
             reconstruct_ppm_experimental(
                 combined_q, combined_u + u_face_offset * f, true, false, cdiscs, d, f, i, q_i);
         }
     }
-    for (int f = zx_i; f < zx_i + nangmom; f++) {
+    for (int f = l_start; f < l_start + nangmom; f++) {
         reconstruct_minmod_cuda(combined_q, combined_u + u_face_offset * f, d, f, i, q_i);
     }
     if (d < ndir / 2) {
-        for (int f = angmom_index_ + nangmom + NDIM; f < nf_; f++) {
+        for (int f = l_start + nangmom; f < nf_; f++) {
             reconstruct_ppm_experimental(combined_q, combined_u + u_face_offset * f,
                 smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
         }
     }
 
-    if (d != ndir / 2) {
+    if (d != ndir / 2 && angmom_index_ > -1) {
         const int start_index_rho = d * q_dir_offset;
 
         // n m q Levi Civita
@@ -267,10 +274,10 @@ __device__ inline void reconstruct_inner_loop_p1(const size_t nf_, const int ang
     }
 }
 
-__device__ inline void reconstruct_inner_loop_p2(const safe_real omega, double* __restrict__ combined_q,
+__device__ inline void reconstruct_inner_loop_p2(const safe_real omega, const int angmom_index_, double* __restrict__ combined_q,
     double* __restrict__ combined_x, double* __restrict__ combined_u, double* __restrict__ AM,
     const double dx, const int d, const int i, const int q_i, const int ndir, const int nangmom, const int n_species_) {
-    if (d < ndir / 2) {
+    if (d < ndir / 2 && angmom_index_ > -1) {
         const auto di = dir[d];
 
         for (int q = 0; q < NDIM; q++) {
@@ -344,7 +351,7 @@ __device__ inline void reconstruct_inner_loop_p2(const safe_real omega, double* 
         }
     }
 
-    // Phase 3
+    // Phase 3 - post-reconstrut
     const int start_index_rho = rho_i * q_face_offset + d * q_dir_offset;
     if (d != ndir / 2) {
         const int start_index_sx = sx_i * q_face_offset + d * q_dir_offset;
@@ -426,6 +433,29 @@ __device__ inline void reconstruct_inner_loop_p2(const safe_real omega, double* 
 
 __global__ void
 __launch_bounds__(64, 4)
+reconstruct_cuda_kernel_no_amc(const double omega, const int nf_, const int angmom_index_,
+    int* __restrict__ smooth_field_, int* __restrict__ disc_detect_ ,
+    double* __restrict__ combined_q, double* __restrict__ combined_x,
+    double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
+    const double* __restrict__ cdiscs, const int n_species_, const int ndir, const int nangmom) {
+
+  const int q_i = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
+  const int i = ((q_i / 100) + 2) * 14 * 14 + (((q_i % 100) / 10 ) + 2) * 14 + (((q_i % 100) % 10) + 2);
+  if (q_i < 1000) {
+    for (int d = 0; d < ndir; d++) {
+      reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
+      combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+    }
+    // Phase 2
+    for (int d = 0; d < ndir; d++) {
+      reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+    }
+  }
+
+}
+
+__global__ void
+__launch_bounds__(64, 4)
 reconstruct_cuda_kernel(const double omega, const int nf_, const int angmom_index_,
     int* __restrict__ smooth_field_, int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
@@ -447,7 +477,7 @@ reconstruct_cuda_kernel(const double omega, const int nf_, const int angmom_inde
     }
     // Phase 2
     for (int d = 0; d < ndir; d++) {
-      reconstruct_inner_loop_p2(omega, combined_q, combined_x, combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+      reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
     }
   }
 }
@@ -463,7 +493,7 @@ void launch_reconstruct_cuda(
     static const cell_geometry<NDIM, INX> geo;
 
     // Current implementation limitations of this kernel - can be resolved but that takes more work
-    assert(angmom_index_ > -1);
+//    assert(angmom_index_ > -1);
     assert(NDIM > 2);
 //    assert(nf_ == 15); // is not required anymore
     assert(geo.NDIR == 27);
@@ -475,9 +505,16 @@ void launch_reconstruct_cuda(
     int nangmom = geo.NANGMOM;
     void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
       &(combined_x), &(combined_u), &(AM), &dx, &(cdiscs), &n_species_, &ndir, &nangmom};
-    executor.post(
+    if (angmom_index_ > -1) { 
+        executor.post(
     cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>,
     reconstruct_cuda_kernel, grid_spec, threads_per_block, args, 0);
+    }
+    else {
+        executor.post(
+    cudaLaunchKernel<decltype(reconstruct_cuda_kernel_no_amc)>,
+    reconstruct_cuda_kernel_no_amc, grid_spec, threads_per_block, args, 0);
+    }
 
 
 }
