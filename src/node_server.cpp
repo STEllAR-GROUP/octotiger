@@ -230,8 +230,11 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                    pool_strategy>(opts().cuda_buffer_capacity);
     if (!avail) {
-        //complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+#ifdef __x86_64__
         complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+#else
+        complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+#endif
     } else {
         stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
         launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
