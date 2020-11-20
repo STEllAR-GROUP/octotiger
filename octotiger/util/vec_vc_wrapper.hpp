@@ -5,10 +5,20 @@
 #include <Vc/vector.h>
 #include <Vc/SimdArray>
 
+#ifdef __x86_64__
+#include <x86intrin.h>
+#endif
 
-using vc_type = Vc::Vector<double, Vc::VectorAbi::Avx>;
+#ifdef __ppc64__
+#include <spe.h>
+#endif
+
+//using vc_type = Vc::Vector<double, Vc::VectorAbi::Avx>;
+//using mask_type = vc_type::mask_type;
+//using index_type = Vc::Vector<int, Vc::VectorAbi::Avx>;
+using vc_type = Vc::SimdArray<double, 4>;
 using mask_type = vc_type::mask_type;
-using index_type = Vc::Vector<int, Vc::VectorAbi::Avx>;
+using index_type = Vc::SimdArray<int, 4>;
 
 template <>
 inline void select_wrapper<vc_type, mask_type>(

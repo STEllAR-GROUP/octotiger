@@ -66,10 +66,9 @@ void cleanup_puddle_on_this_locality(void) {
       stream_pool::cleanup<hpx::cuda::experimental::cuda_executor, pool_strategy>();
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
-      stream_pool::cleanup<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
+      stream_pool::cleanup<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>();
 #endif
 #endif
-          );
     }
     // Disable polling
     if (opts().cuda_polling_executor) {
