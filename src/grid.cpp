@@ -554,10 +554,10 @@ diagnostics_t grid::diagnostics(const diagnostics_t &diags) {
 					const safe_real phi_eff = phi_g + phi_r;
 					const safe_real rho0 = U[rho_i][iii];
 					const auto ekin = (pow(U[sx_i][iii], 2) + pow(U[sy_i][iii], 2) + pow(U[sz_i][iii], 2)) / 2.0 / U[rho_i][iii] * dV;
-					if (ekin / U[rho_i][iii] / dV + phi_g) {
+					if (ekin / U[rho_i][iii] / dV + phi_g > 0.0) {
 						rc.munbound1 += U[rho_i][iii] * dx * dx * dx;
 					}
-					if (ekin / U[rho_i][iii] / dV + phi_eff) {
+					if (ekin / U[rho_i][iii] / dV + phi_eff > 0.0) {
 						rc.munbound2 += U[rho_i][iii] * dx * dx * dx;
 					}
 					integer i;
