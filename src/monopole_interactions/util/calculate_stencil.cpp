@@ -49,8 +49,6 @@ namespace fmm {
                                     const int64_t j1_c = (j1 + INX) / 2 - INX / 2;
                                     const int64_t j2_c = (j2 + INX) / 2 - INX / 2;
 
-                                    const real theta_f =
-                                        detail::reciprocal_distance(i0, i1, i2, j0, j1, j2);
                                     const real theta_c = detail::reciprocal_distance(
                                         i0_c, i1_c, i2_c, j0_c, j1_c, j2_c);
 

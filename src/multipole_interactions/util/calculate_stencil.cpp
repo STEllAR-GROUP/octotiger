@@ -26,10 +26,6 @@ namespace fmm {
             // used to check the radii of the outer and inner sphere
             const real theta0 = opts().theta;
 
-            // int64_t i0 = 0;
-            // int64_t i1 = 0;
-            // int64_t i2 = 0;
-
             int predicted_max = STENCIL_WIDTH;
 
             for (int64_t i0 = 0; i0 < 2; ++i0) {
@@ -147,7 +143,7 @@ namespace fmm {
         std::pair<std::vector<bool>, std::vector<bool>>
         calculate_stencil_masks(two_phase_stencil superimposed_stencil) {
             std::vector<bool> stencil_masks(FULL_STENCIL_SIZE, false);
-            std::vector<bool> inner_stencil_masks(FULL_STENCIL_SIZE, false);
+            std::vector<bool> inner_stencil_masks(FULL_STENCIL_SIZE, true);
             auto inner_index = 0;
             for (auto stencil_element : superimposed_stencil.stencil_elements) {
                 const int x = stencil_element.x + STENCIL_MAX;
@@ -155,8 +151,8 @@ namespace fmm {
                 const int z = stencil_element.z + STENCIL_MAX;
                 size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + z;
                 stencil_masks[index] = true;
-                if (superimposed_stencil.stencil_phase_indicator[inner_index])
-                    inner_stencil_masks[index] = true;
+                if (!superimposed_stencil.stencil_phase_indicator[inner_index])
+                    inner_stencil_masks[index] = false;
                 inner_index++;
             }
             return std::pair<std::vector<bool>, std::vector<bool>>(stencil_masks, inner_stencil_masks);

@@ -32,13 +32,13 @@ namespace fmm {
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::array<real, NDIM> xbase) {
+            std::array<real, NDIM> xbase, const bool use_root_stencil) {
             bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                 pool_strategy>(opts().cuda_buffer_capacity);
-            if (!avail || m2m_type == interaction_kernel_type::OLD) {
+            if (!avail || m2m_type == interaction_kernel_type::OLD || use_root_stencil) {
                 // Run fallback CPU implementation
                 multipole_interaction_interface::compute_multipole_interactions(
-                    monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase);
+                    monopoles, M_ptr, com_ptr, neighbors, type, dx, is_direction_empty, xbase, use_root_stencil);
             } else {    // run on cuda device
                 if (type == RHO)
                     cuda_launch_counter()++;

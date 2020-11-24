@@ -37,7 +37,7 @@ namespace fmm {
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
-                std::array<real, NDIM> xbase);
+                std::array<real, NDIM> xbase, const bool use_root_stencil);
             /// Sets the grid pointer - usually only required once
             void set_grid_ptr(std::shared_ptr<grid> ptr) {
                 grid_ptr = ptr;
@@ -55,7 +55,8 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
                 const cpu_monopole_buffer_t& local_monopoles,
                 const cpu_expansion_buffer_t& local_expansions_SoA,
-                const cpu_space_vector_buffer_t& center_of_masses_SoA);
+                const cpu_space_vector_buffer_t& center_of_masses_SoA,
+                const bool use_root_stencil);
 
         protected:
             gsolve_type type;

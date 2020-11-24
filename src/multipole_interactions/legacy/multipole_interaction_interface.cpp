@@ -4,8 +4,8 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp"
+#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 
@@ -65,7 +65,7 @@ namespace fmm {
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
-            std::array<real, NDIM> xbase) {
+            std::array<real, NDIM> xbase, const bool use_root_stencil) {
             if (type == RHO)
                 cpu_launch_counter()++;
             else
@@ -83,7 +83,7 @@ namespace fmm {
                 local_monopoles_staging_area, local_expansions_staging_area,
                 center_of_masses_staging_area, grid_ptr);
             compute_interactions(is_direction_empty, neighbors, local_monopoles_staging_area,
-                local_expansions_staging_area, center_of_masses_staging_area);
+                local_expansions_staging_area, center_of_masses_staging_area, use_root_stencil);
         }
 
         void multipole_interaction_interface::compute_interactions(
@@ -91,16 +91,23 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
             const cpu_monopole_buffer_t& local_monopoles,
             const cpu_expansion_buffer_t& local_expansions_SoA,
-            const cpu_space_vector_buffer_t& center_of_masses_SoA) {
+            const cpu_space_vector_buffer_t& center_of_masses_SoA,
+            const bool use_root_stencil) {
             if (m2m_type == interaction_kernel_type::SOA_CPU) {
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
                 cpu_angular_result_t angular_corrections_SoA;
 
                 multipole_cpu_kernel kernel;
-                kernel.apply_stencil_non_blocked(local_expansions_SoA, center_of_masses_SoA,
-                    potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
-                    stencil_masks(), inner_stencil_masks(), type);
+                if (!use_root_stencil) {
+                    kernel.apply_stencil_non_blocked(local_expansions_SoA, center_of_masses_SoA,
+                        potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
+                        stencil_masks(), inner_stencil_masks(), type);
+                } else {
+                    kernel.apply_stencil_root_non_blocked(local_expansions_SoA, center_of_masses_SoA,
+                    potential_expansions_SoA, angular_corrections_SoA, 
+                    inner_stencil_masks(), type);
 
+                }
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }

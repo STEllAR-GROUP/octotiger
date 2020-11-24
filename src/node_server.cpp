@@ -483,7 +483,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 	/***************************************************************************/
 	// new-style interaction calculation (both cannot be active at the same time)
 	//if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
-	if (new_style_enabled && !grid_ptr->get_root()) {
+	if (new_style_enabled) {
 
 		// Get all input structures we need as input
 		std::vector<multipole> &M_ptr = grid_ptr->get_M();
@@ -499,22 +499,14 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		// Check if we are a multipole
 		if (!grid_ptr->get_leaf()) {
 			// Input structure, needed for multipole-monopole interactions
-			std::array<real, NDIM> Xbase = { grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)], grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
-					grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
+			std::array<real, NDIM> Xbase = { 
+        grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
+        grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
+				grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
 			multipole_kernel_interface(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
-					is_direction_empty, Xbase, grid_ptr);
-
-			// Run unified multipole-multipole multipole-monopole FMM interaction kernel
-			// This will be either run on a cuda device or the cpu (depending on build type and
-			// device load)
-			// multipole_interactor.set_grid_ptr(grid_ptr);
-			// multipole_interactor.compute_multipole_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
-			// 		is_direction_empty, Xbase);
+					is_direction_empty, Xbase, grid_ptr, grid_ptr->get_root());
 		} else { // ... we are a monopole
-		    
 			p2p_kernel_interface(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty, grid_ptr);
-			// p2p_interactor.set_grid_ptr(grid_ptr);
-			// p2p_interactor.compute_p2p_interactions(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty);
 			if (contains_multipole) {
 				p2m_interactor.set_grid_ptr(grid_ptr);
 				p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, is_direction_empty);
