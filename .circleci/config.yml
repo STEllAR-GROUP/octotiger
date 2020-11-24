@@ -29,7 +29,7 @@ jobs:
                           -DSilo_DIR=/local/silo \
                           -DHDF5_ROOT=/local/hdf5 \
                           -DBOOST_ROOT=/local/boost \
-                          -DOCTOTIGER_WITH_DOC=ON \
+                          -DOCTOTIGER_WITH_DOCU=ON \
                           -GNinja
             - run:
                 name: Build
