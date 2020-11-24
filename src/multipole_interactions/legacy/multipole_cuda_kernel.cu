@@ -126,6 +126,99 @@ namespace fmm {
             angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmp_corrections[2];
         }
+        __global__ void
+        __launch_bounds__(INX * INX, 2)
+        cuda_multipole_interactions_kernel_root_rho(
+            const double (&center_of_masses)[NUMBER_MASS_VALUES],
+            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
+            double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
+            double (&angular_corrections)[NUMBER_ANG_CORRECTIONS]) {
+            int index_x = threadIdx.x + blockIdx.x;
+            // Set cell indices
+            const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
+                threadIdx.y + INNER_CELLS_PADDING_DEPTH, threadIdx.z + INNER_CELLS_PADDING_DEPTH);
+            const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
+            octotiger::fmm::multiindex<> cell_index_unpadded(index_x,
+                                                             threadIdx.y, threadIdx.z);
+            const size_t cell_flat_index_unpadded =
+                octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+
+            // Load multipoles for this cell
+            double m_cell[20];
+            #pragma unroll
+            for (int i = 0; i < 20; i++)
+                m_cell[i] = multipoles[i * component_length + cell_flat_index];
+            double X[NDIM];
+            X[0] = center_of_masses[cell_flat_index];
+            X[1] = center_of_masses[1 * component_length + cell_flat_index];
+            X[2] = center_of_masses[2 * component_length + cell_flat_index];
+
+            // Create and set result arrays
+            double tmpstore[20];
+            double tmp_corrections[3];
+            #pragma unroll
+            for (size_t i = 0; i < 20; ++i)
+                tmpstore[i] = 0.0;
+            #pragma unroll
+            for (size_t i = 0; i < 3; ++i)
+                tmp_corrections[i] = 0.0;
+            double m_partner[20];
+            double Y[NDIM];
+
+            for (int x = 0; x < INX; x++) {
+                const int stencil_x = x - cell_index_unpadded.x;
+                for (int y = 0; y < INX; y++) {
+                    const int stencil_y = y - cell_index_unpadded.y;
+                    for (int z = 0; z < INX; z++) {
+                    const int stencil_z = z - cell_index_unpadded.z;
+                        double mask = 1.0;
+                        const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
+                        if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
+                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
+                            stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                            const size_t index = (stencil_x - STENCIL_MIN)  * STENCIL_INX * STENCIL_INX +
+                            (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
+                            if (!device_stencil_indicator_const[index] ||
+                                (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
+                                //mask[i] = 0.0;
+                                continue;
+                            } 
+                        }
+                        const multiindex<> partner_index(
+                            x + INX, y + INX,
+                            z + INX);
+                        const size_t partner_flat_index =
+                            to_flat_index_padded(partner_index);    
+
+                        // Load data of interaction partner
+                        Y[0] = center_of_masses[partner_flat_index];
+                        Y[1] = center_of_masses[1 * component_length + partner_flat_index];
+                        Y[2] = center_of_masses[2 * component_length + partner_flat_index];
+                        #pragma unroll
+                        for (size_t i = 0; i < 20; ++i)
+                            m_partner[i] = multipoles[i * component_length + partner_flat_index];
+
+                        // Do the actual calculations
+                        compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
+                            [] __device__(const double& one, const double& two) -> double {
+                                return std::max(one, two);
+                            });
+                    }
+                }
+            }
+
+            // Store results in output arrays
+            #pragma unroll
+            for (size_t i = 0; i < 20; ++i)
+                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
+                    tmpstore[i];
+
+            angular_corrections[cell_flat_index_unpadded] = tmp_corrections[0];
+            angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] =
+                tmp_corrections[1];
+            angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
+                tmp_corrections[2];
+        }
 
         __global__ void
         __launch_bounds__(INX * INX, 2)
@@ -201,6 +294,86 @@ namespace fmm {
                         m_partner[0] += multipoles[partner_flat_index] * mask;
                         #pragma unroll
                         for (size_t i = 1; i < 20; ++i)
+                            m_partner[i] = multipoles[i * component_length + partner_flat_index] * mask;
+
+                        // Do the actual calculations
+                        compute_kernel_non_rho(X, Y, m_partner, tmpstore,
+                            [] __device__(const double& one, const double& two) -> double {
+                                return std::max(one, two);
+                            });
+                    }
+                }
+            }
+
+            // Store results in output arrays
+            #pragma unroll
+            for (size_t i = 0; i < 20; ++i)
+                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
+                    tmpstore[i];
+        }
+
+        __global__ void
+        __launch_bounds__(INX * INX, 2)
+        cuda_multipole_interactions_kernel_root_non_rho(
+            const double (&center_of_masses)[NUMBER_MASS_VALUES],
+            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
+            double (&potential_expansions)[NUMBER_POT_EXPANSIONS]) {
+            int index_x = threadIdx.x + blockIdx.x;
+            // Set cell indices
+            const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
+                                                          threadIdx.y + INNER_CELLS_PADDING_DEPTH,
+                                                          threadIdx.z + INNER_CELLS_PADDING_DEPTH);
+            const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
+            octotiger::fmm::multiindex<> cell_index_unpadded(index_x,
+                                                             threadIdx.y, threadIdx.z);
+            const size_t cell_flat_index_unpadded =
+                octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+
+            double X[NDIM];
+            X[0] = center_of_masses[cell_flat_index];
+            X[1] = center_of_masses[1 * component_length + cell_flat_index];
+            X[2] = center_of_masses[2 * component_length + cell_flat_index];
+
+            // Create and set result arrays
+            double tmpstore[20];
+            #pragma unroll
+            for (size_t i = 0; i < 20; ++i)
+                tmpstore[i] = 0.0;
+            // Required for mask
+            double m_partner[20];
+            double Y[NDIM];
+
+            for (int x = 0; x < INX; x++) {
+                const int stencil_x = x - cell_index_unpadded.x;
+                for (int y = 0; y < INX; y++) {
+                    const int stencil_y = y - cell_index_unpadded.y;
+                    for (int z = 0; z < INX; z++) {
+                    const int stencil_z = z - cell_index_unpadded.z;
+                        double mask = 1.0;
+                        const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
+                        if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
+                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
+                            stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                            const size_t index = (stencil_x - STENCIL_MIN)  * STENCIL_INX * STENCIL_INX +
+                            (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
+                            if (!device_stencil_indicator_const[index] ||
+                                (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
+                                //mask[i] = 0.0;
+                                continue;
+                            } 
+                        }
+                        const multiindex<> partner_index(
+                            x + INX, y + INX,
+                            z + INX);
+                        const size_t partner_flat_index =
+                            to_flat_index_padded(partner_index);    
+                        // Load data of interaction partner
+                        Y[0] = center_of_masses[partner_flat_index];
+                        Y[1] = center_of_masses[1 * component_length + partner_flat_index];
+                        Y[2] = center_of_masses[2 * component_length + partner_flat_index];
+
+                        #pragma unroll
+                        for (size_t i = 0; i < 20; ++i)
                             m_partner[i] = multipoles[i * component_length + partner_flat_index] * mask;
 
                         // Do the actual calculations
