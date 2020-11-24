@@ -81,7 +81,7 @@ namespace fmm {
 
             update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase,
                 local_monopoles_staging_area, local_expansions_staging_area,
-                center_of_masses_staging_area, grid_ptr);
+                center_of_masses_staging_area, grid_ptr, use_root_stencil);
             compute_interactions(is_direction_empty, neighbors, local_monopoles_staging_area,
                 local_expansions_staging_area, center_of_masses_staging_area, use_root_stencil);
         }

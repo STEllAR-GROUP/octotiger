@@ -69,7 +69,7 @@ namespace fmm {
                 this->xBase = xbase;
                 this->type = type;
                 update_input(monopoles, M_ptr, com_ptr, neighbors, type, dx, xbase, local_monopoles,
-                    local_expansions_SoA, center_of_masses_SoA, grid_ptr);
+                    local_expansions_SoA, center_of_masses_SoA, grid_ptr, use_root_stencil);
 
                 hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_local_monopoles.device_side_buffer,

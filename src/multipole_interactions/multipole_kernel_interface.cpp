@@ -62,7 +62,7 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
             if (avail) {
                 executor_interface_t executor;
                 multipole_kernel<device_executor>(executor, monopoles, M_ptr, com_ptr,
-                neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid);
+                neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid, use_root_stencil);
                 return;
             }
 #else
@@ -85,7 +85,7 @@ void multipole_kernel_interface(std::vector<real>& monopoles, std::vector<multip
 #ifdef OCTOTIGER_HAVE_KOKKOS
         host_executor executor{};
         multipole_kernel<host_executor>(executor, monopoles, M_ptr, com_ptr,
-        neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid);
+        neighbors, type, dx, opts().theta, is_direction_empty, xbase, grid, use_root_stencil);
         return;
 #else
         std::cerr << "Trying to call Multipole Kokkos kernel in a non-kokkos build! Aborting..." << std::endl;

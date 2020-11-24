@@ -391,7 +391,7 @@ void multipole_kernel(executor_t& exec, std::vector<real>& monopoles, std::vecto
     std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::array<real, NDIM> xbase,
-    std::shared_ptr<grid> grid) {
+    std::shared_ptr<grid> grid, bool use_root_stencil) {
     // input buffers
     host_buffer<double> host_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     host_buffer<double> host_multipoles(octotiger::fmm::NUMBER_LOCAL_EXPANSION_VALUES);
@@ -401,7 +401,7 @@ void multipole_kernel(executor_t& exec, std::vector<real>& monopoles, std::vecto
     host_buffer<double> host_corrections(octotiger::fmm::NUMBER_ANG_CORRECTIONS);
     // convert input AoS into SoA input buffers
     octotiger::fmm::multipole_interactions::update_input(monopoles, M_ptr, com_ptr, neighbors, type,
-        dx, xbase, host_monopoles, host_multipoles, host_masses, grid);
+        dx, xbase, host_monopoles, host_multipoles, host_masses, grid, use_root_stencil);
     // launch kernel (and copy data to device if necessary)
     launch_interface(exec, host_monopoles, host_masses, host_multipoles, host_expansions,
         host_corrections, theta, type);

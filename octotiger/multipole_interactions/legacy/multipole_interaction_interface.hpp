@@ -55,8 +55,7 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
                 const cpu_monopole_buffer_t& local_monopoles,
                 const cpu_expansion_buffer_t& local_expansions_SoA,
-                const cpu_space_vector_buffer_t& center_of_masses_SoA,
-                const bool use_root_stencil);
+                const cpu_space_vector_buffer_t& center_of_masses_SoA, const bool use_root_stencil);
 
         protected:
             gsolve_type type;
@@ -90,153 +89,181 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type t, real dx,
             std::array<real, NDIM> xbase, monopole_container& local_monopoles,
             expansion_soa_container& local_expansions_SoA,
-            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr) {
+            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr,
+            bool is_root) {
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
-            iterate_inner_cells_padded(
-                [M_ptr, com0, &local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
-                    const multiindex<>& i, const size_t flat_index, const multiindex<>& i_unpadded,
-                    const size_t flat_index_unpadded) {
-                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(
-                        local_expansions_SoA, std::move(M_ptr.at(flat_index_unpadded)), flat_index);
-                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
-                        std::move(com0.at(flat_index_unpadded)), flat_index);
-                    local_monopoles[flat_index] = 0.0;
-                });
+            if (is_root) {
+                iterate_inner_cells_padded(
+                    [M_ptr, com0, &local_expansions_SoA, &center_of_masses_SoA](
+                        const multiindex<>& i, const size_t flat_index,
+                        const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
+                            std::move(M_ptr.at(flat_index_unpadded)), flat_index);
+                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
+                            std::move(com0.at(flat_index_unpadded)), flat_index);
+                    });
+            } else {
+                iterate_inner_cells_padded(
+                    [M_ptr, com0, &local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
+                        const multiindex<>& i, const size_t flat_index,
+                        const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
+                            std::move(M_ptr.at(flat_index_unpadded)), flat_index);
+                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
+                            std::move(com0.at(flat_index_unpadded)), flat_index);
+                        local_monopoles[flat_index] = 0.0;
+                    });
 
-            for (const geo::direction& dir : geo::direction::full_set()) {
-                // don't use neighbor.direction, is always zero for empty cells!
-                neighbor_gravity_type& neighbor = neighbors[dir];
+                for (const geo::direction& dir : geo::direction::full_set()) {
+                    // don't use neighbor.direction, is always zero for empty cells!
+                    neighbor_gravity_type& neighbor = neighbors[dir];
 
-                // this dir is setup as a multipole
-                if (!neighbor.is_monopole) {
-                    if (!neighbor.data.M) {
-                        iterate_inner_cells_padding(dir,
-                            [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
-                                const multiindex<>& i, const size_t flat_index, const multiindex<>&,
-                                const size_t) {
-                                set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                                    std::move(expansion()), flat_index);
-                                set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
-                                    std::move(space_vector()), flat_index);
-                                local_monopoles[flat_index] = 0.0;
-                            });
-                    } else {
-                        std::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
-                        std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
-                        const bool fullsizes = neighbor_M_ptr.size() == INNER_CELLS &&
-                            neighbor_com0.size() == INNER_CELLS;
-                        if (fullsizes) {
-                            iterate_inner_cells_padding(dir,
-                                [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles,
-                                    neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
-                                    const size_t flat_index, const multiindex<>& i_unpadded,
-                                    const size_t flat_index_unpadded) {
-                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                                        std::move(neighbor_M_ptr.at(flat_index_unpadded)),
-                                        flat_index);
-                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
-                                        std::move(neighbor_com0.at(flat_index_unpadded)),
-                                        flat_index);
-                                    local_monopoles[flat_index] = 0.0;
-                                });
-                        } else {
-                            // Reset to default values
+                    // this dir is setup as a multipole
+                    if (!neighbor.is_monopole) {
+                        if (!neighbor.data.M) {
                             iterate_inner_cells_padding(dir,
                                 [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
                                     const multiindex<>& i, const size_t flat_index,
                                     const multiindex<>&, const size_t) {
-                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                                        std::move(expansion()), flat_index);
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(
+                                        local_expansions_SoA, std::move(expansion()), flat_index);
                                     set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                                         std::move(space_vector()), flat_index);
                                     local_monopoles[flat_index] = 0.0;
                                 });
-                            auto list = grid_ptr->get_ilist_n_bnd(dir);
-                            size_t counter = 0;
-                            for (auto i : list) {
-                                const integer iii = i.second;
-                                const multiindex<> offset =
-                                    flat_index_to_multiindex_not_padded(iii);
-                                const multiindex<> m(offset.x + INNER_CELLS_PADDING_DEPTH +
-                                        dir[0] * INNER_CELLS_PADDING_DEPTH,
-                                    offset.y + INNER_CELLS_PADDING_DEPTH +
-                                        dir[1] * INNER_CELLS_PADDING_DEPTH,
-                                    offset.z + INNER_CELLS_PADDING_DEPTH +
-                                        dir[2] * INNER_CELLS_PADDING_DEPTH);
-                                const size_t flat_index = to_flat_index_padded(m);
-                                set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                                    std::move(neighbor_M_ptr.at(counter)), flat_index);
-                                set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
-                                    std::move(neighbor_com0.at(counter)), flat_index);
-                                counter++;
+                        } else {
+                            std::vector<multipole>& neighbor_M_ptr = *(neighbor.data.M);
+                            std::vector<space_vector>& neighbor_com0 = *(neighbor.data.x);
+                            const bool fullsizes = neighbor_M_ptr.size() == INNER_CELLS &&
+                                neighbor_com0.size() == INNER_CELLS;
+                            if (fullsizes) {
+                                iterate_inner_cells_padding(dir,
+                                    [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles,
+                                        neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
+                                        const size_t flat_index, const multiindex<>& i_unpadded,
+                                        const size_t flat_index_unpadded) {
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(
+                                            local_expansions_SoA,
+                                            std::move(neighbor_M_ptr.at(flat_index_unpadded)),
+                                            flat_index);
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(
+                                            center_of_masses_SoA,
+                                            std::move(neighbor_com0.at(flat_index_unpadded)),
+                                            flat_index);
+                                        local_monopoles[flat_index] = 0.0;
+                                    });
+                            } else {
+                                // Reset to default values
+                                iterate_inner_cells_padding(dir,
+                                    [&local_expansions_SoA, &center_of_masses_SoA,
+                                        &local_monopoles](const multiindex<>& i,
+                                        const size_t flat_index, const multiindex<>&,
+                                        const size_t) {
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(
+                                            local_expansions_SoA, std::move(expansion()),
+                                            flat_index);
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(
+                                            center_of_masses_SoA, std::move(space_vector()),
+                                            flat_index);
+                                        local_monopoles[flat_index] = 0.0;
+                                    });
+                                auto list = grid_ptr->get_ilist_n_bnd(dir);
+                                size_t counter = 0;
+                                for (auto i : list) {
+                                    const integer iii = i.second;
+                                    const multiindex<> offset =
+                                        flat_index_to_multiindex_not_padded(iii);
+                                    const multiindex<> m(offset.x + INNER_CELLS_PADDING_DEPTH +
+                                            dir[0] * INNER_CELLS_PADDING_DEPTH,
+                                        offset.y + INNER_CELLS_PADDING_DEPTH +
+                                            dir[1] * INNER_CELLS_PADDING_DEPTH,
+                                        offset.z + INNER_CELLS_PADDING_DEPTH +
+                                            dir[2] * INNER_CELLS_PADDING_DEPTH);
+                                    const size_t flat_index = to_flat_index_padded(m);
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
+                                        std::move(neighbor_M_ptr.at(counter)), flat_index);
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
+                                        std::move(neighbor_com0.at(counter)), flat_index);
+                                    counter++;
+                                }
                             }
                         }
-                    }
-                } else {
-                    // neighbor has no data - input structure just recevices zeros as padding
-                    if (!neighbor.data.m) {
-                        iterate_inner_cells_padding(dir,
-                            [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
-                                const multiindex<>& i, const size_t flat_index, const multiindex<>&,
-                                const size_t) {
-                                set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                                    std::move(expansion()), flat_index);
-                                set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
-                                    std::move(space_vector()), flat_index);
-                                local_monopoles[flat_index] = 0.0;
-                            });
                     } else {
-                        // Get multipole data into our input structure
-                        std::vector<real>& neighbor_mons = *(neighbor.data.m);
-                        const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
-                        if (fullsizes) {
+                        // neighbor has no data - input structure just recevices zeros as padding
+                        if (!neighbor.data.m) {
                             iterate_inner_cells_padding(dir,
-                                [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles,
-                                    neighbor_mons, xbase, dx](const multiindex<>& i,
-                                    const size_t flat_index, const multiindex<>& i_unpadded,
-                                    const size_t flat_index_unpadded) {
-                                    space_vector e;
-                                    e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
-                                    e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
-                                    e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
-                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA, std::move(e), flat_index);
-                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                                        std::move(expansion()), flat_index);
-                                    local_monopoles[flat_index] =
-                                        neighbor_mons.at(flat_index_unpadded);
-                                });
-                        } else {
-                            // Reset to default values
-                            iterate_inner_cells_padding(dir,
-                                [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles, dx,
-                                    xbase](const multiindex<>& i, const size_t flat_index,
+                                [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
+                                    const multiindex<>& i, const size_t flat_index,
                                     const multiindex<>&, const size_t) {
-                                    space_vector e;
-                                    e[0] = (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
-                                    e[1] = (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
-                                    e[2] = (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
-                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA, std::move(e), flat_index);
-                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                                        std::move(expansion()), flat_index);
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(
+                                        local_expansions_SoA, std::move(expansion()), flat_index);
+                                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
+                                        std::move(space_vector()), flat_index);
                                     local_monopoles[flat_index] = 0.0;
                                 });
-                            // Load relevant values
-                            auto list = grid_ptr->get_ilist_n_bnd(dir);
-                            size_t counter = 0;
-                            for (auto i : list) {
-                                const integer iii = i.second;
-                                const multiindex<> offset =
-                                    flat_index_to_multiindex_not_padded(iii);
-                                const multiindex<> m(offset.x + INNER_CELLS_PADDING_DEPTH +
-                                        dir[0] * INNER_CELLS_PADDING_DEPTH,
-                                    offset.y + INNER_CELLS_PADDING_DEPTH +
-                                        dir[1] * INNER_CELLS_PADDING_DEPTH,
-                                    offset.z + INNER_CELLS_PADDING_DEPTH +
-                                        dir[2] * INNER_CELLS_PADDING_DEPTH);
-                                const size_t flat_index = to_flat_index_padded(m);
-                                local_monopoles[flat_index] = neighbor_mons.at(counter);
-                                counter++;
+                        } else {
+                            // Get multipole data into our input structure
+                            std::vector<real>& neighbor_mons = *(neighbor.data.m);
+                            const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
+                            if (fullsizes) {
+                                iterate_inner_cells_padding(dir,
+                                    [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles,
+                                        neighbor_mons, xbase, dx](const multiindex<>& i,
+                                        const size_t flat_index, const multiindex<>& i_unpadded,
+                                        const size_t flat_index_unpadded) {
+                                        space_vector e;
+                                        e[0] =
+                                            (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
+                                        e[1] =
+                                            (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
+                                        e[2] =
+                                            (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(
+                                            center_of_masses_SoA, std::move(e), flat_index);
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(
+                                            local_expansions_SoA, std::move(expansion()),
+                                            flat_index);
+                                        local_monopoles[flat_index] =
+                                            neighbor_mons.at(flat_index_unpadded);
+                                    });
+                            } else {
+                                // Reset to default values
+                                iterate_inner_cells_padding(dir,
+                                    [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles,
+                                        dx, xbase](const multiindex<>& i, const size_t flat_index,
+                                        const multiindex<>&, const size_t) {
+                                        space_vector e;
+                                        e[0] =
+                                            (i.x) * dx + xbase[0] - INNER_CELLS_PER_DIRECTION * dx;
+                                        e[1] =
+                                            (i.y) * dx + xbase[1] - INNER_CELLS_PER_DIRECTION * dx;
+                                        e[2] =
+                                            (i.z) * dx + xbase[2] - INNER_CELLS_PER_DIRECTION * dx;
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(
+                                            center_of_masses_SoA, std::move(e), flat_index);
+                                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(
+                                            local_expansions_SoA, std::move(expansion()),
+                                            flat_index);
+                                        local_monopoles[flat_index] = 0.0;
+                                    });
+                                // Load relevant values
+                                auto list = grid_ptr->get_ilist_n_bnd(dir);
+                                size_t counter = 0;
+                                for (auto i : list) {
+                                    const integer iii = i.second;
+                                    const multiindex<> offset =
+                                        flat_index_to_multiindex_not_padded(iii);
+                                    const multiindex<> m(offset.x + INNER_CELLS_PADDING_DEPTH +
+                                            dir[0] * INNER_CELLS_PADDING_DEPTH,
+                                        offset.y + INNER_CELLS_PADDING_DEPTH +
+                                            dir[1] * INNER_CELLS_PADDING_DEPTH,
+                                        offset.z + INNER_CELLS_PADDING_DEPTH +
+                                            dir[2] * INNER_CELLS_PADDING_DEPTH);
+                                    const size_t flat_index = to_flat_index_padded(m);
+                                    local_monopoles[flat_index] = neighbor_mons.at(counter);
+                                    counter++;
+                                }
                             }
                         }
                     }
