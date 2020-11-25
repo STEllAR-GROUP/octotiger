@@ -317,12 +317,21 @@ bool options::process_options(int argc, char *argv[]) {
 	normalize_constants();
 	if (opts().problem == DWD) {
 		if (opts().restart_filename == "" && opts().disable_diagnostics) {
-			printf("Diagnostics must be enabled for DWD\n");
+      std::cerr << "Diagnostics must be enabled for DWD" << std::endl;
 			sleep(10);
 			abort();
 		}
 	}
-
+#ifdef OCTOTIGER_HAVE_CUDA
+#ifdef OCTOTIGER_HAVE_CUDA
+  if (!opts().cuda_polling_executor) {
+      std::cerr << "\n\nError:" << std::endl;
+      std::cerr << "Using KOKKOS with CUDA backend enabled requires --cuda_polling_executor=1 !" << std::endl;
+      std::cerr << "Aborting..." << std::endl;
+      abort();
+  }
+#endif
+#endif
 	return true;
 }
 

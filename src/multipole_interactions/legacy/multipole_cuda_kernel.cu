@@ -162,6 +162,7 @@ namespace fmm {
             #pragma unroll
             for (size_t i = 0; i < 3; ++i)
                 tmp_corrections[i] = 0.0;
+
             double m_partner[20];
             double Y[NDIM];
 
@@ -171,7 +172,6 @@ namespace fmm {
                     const int stencil_y = y - cell_index_unpadded.y;
                     for (int z = 0; z < INX; z++) {
                     const int stencil_z = z - cell_index_unpadded.z;
-                        double mask = 1.0;
                         const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
                         if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
                             stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
@@ -180,7 +180,6 @@ namespace fmm {
                             (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
                             if (!device_stencil_indicator_const[index] ||
                                 (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
-                                //mask[i] = 0.0;
                                 continue;
                             } 
                         }
@@ -358,7 +357,6 @@ namespace fmm {
                             (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
                             if (!device_stencil_indicator_const[index] ||
                                 (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
-                                //mask[i] = 0.0;
                                 continue;
                             } 
                         }
