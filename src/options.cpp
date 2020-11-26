@@ -322,7 +322,7 @@ bool options::process_options(int argc, char *argv[]) {
 			abort();
 		}
 	}
-#ifdef OCTOTIGER_HAVE_CUDA
+#ifdef OCTOTIGER_HAVE_KOKKOS
 #ifdef OCTOTIGER_HAVE_CUDA
   if (!opts().cuda_polling_executor) {
       std::cerr << "\n\nError:" << std::endl;
