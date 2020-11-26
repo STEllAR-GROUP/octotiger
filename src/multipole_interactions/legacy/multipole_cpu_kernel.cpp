@@ -1013,7 +1013,7 @@ namespace fmm {
                         if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
                             stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
                             stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
-                            for (int i = 0; i < 4 && stencil_z - STENCIL_MIN - i >= 0; i++) {
+                            for (int i = 0; i < m2m_vector::size() && stencil_z - STENCIL_MIN - i >= 0; i++) {
                                 const size_t index =
                                     (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
                                     (stencil_y - STENCIL_MIN) * STENCIL_INX +
@@ -1184,7 +1184,7 @@ namespace fmm {
                         if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
                             stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
                             stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
-                            for (int i = 0; i < 4 && stencil_z - STENCIL_MIN - i >= 0; i++) {
+                            for (int i = 0; i < m2m_vector::size() && stencil_z - STENCIL_MIN - i >= 0; i++) {
                                 const size_t index =
                                     (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
                                     (stencil_y - STENCIL_MIN) * STENCIL_INX +
