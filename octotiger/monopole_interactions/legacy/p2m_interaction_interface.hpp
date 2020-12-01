@@ -6,12 +6,12 @@
 #pragma once
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
+#include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/geometry.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/interaction_types.hpp"
-#include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/taylor.hpp"
 
 #include <array>
@@ -45,17 +45,15 @@ namespace fmm {
 
         protected:
             /// Converts AoS input data into SoA data
-            template <typename monopole_container, typename expansion_soa_container,
-                typename masses_soa_container>
-            void update_input(std::vector<real>& mons, std::vector<multipole>& multipoles,
+            template <typename expansion_soa_container, typename masses_soa_container>
+            void update_input(std::vector<multipole>& multipoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-                monopole_container& local_monopoles, expansion_soa_container& local_expansions_SoA,
+                expansion_soa_container& local_expansions_SoA,
                 masses_soa_container& center_of_masses_SoA);
             void compute_interactions(gsolve_type type,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
-                const cpu_monopole_buffer_t& local_monopoles_staging_area,
                 const cpu_expansion_buffer_t& local_expansions_staging_area,
                 const cpu_space_vector_buffer_t& center_of_masses_staging_area);
 
@@ -71,24 +69,21 @@ namespace fmm {
             bool x_skip[3][3][3];
         };
 
-        template <typename monopole_container, typename expansion_soa_container,
-            typename masses_soa_container>
-        void p2m_interaction_interface::update_input(std::vector<real>& mons,
-            std::vector<multipole>& multipoles,
+        template <typename expansion_soa_container, typename masses_soa_container>
+        void p2m_interaction_interface::update_input(std::vector<multipole>& multipoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            monopole_container& local_monopoles, expansion_soa_container& local_expansions_SoA,
+            expansion_soa_container& local_expansions_SoA,
             masses_soa_container& center_of_masses_SoA) {
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
 
             iterate_inner_cells_padded(
-                [&center_of_masses_SoA, &local_expansions_SoA, &local_monopoles, mons, multipoles,
-                    com0](const multiindex<>& i, const size_t flat_index,
-                    const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
+                [&center_of_masses_SoA, &local_expansions_SoA, multipoles, com0](
+                    const multiindex<>& i, const size_t flat_index, const multiindex<>& i_unpadded,
+                    const size_t flat_index_unpadded) {
                     center_of_masses_SoA.set_AoS_value(
                         std::move(com0.at(flat_index_unpadded)), flat_index);
                     local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
-                    local_monopoles.at(flat_index) = mons.at(flat_index_unpadded);
                 });
 
             for (size_t i = 0; i < neighbor_empty_multipoles.size(); i++) {
@@ -112,14 +107,12 @@ namespace fmm {
                         neighbor_empty_multipoles[dir.flat_index_with_center()] = true;
                         x_skip[z][y][x] = true;
                         iterate_inner_cells_padding(dir,
-                            [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
-                                const multiindex<>& i, const size_t flat_index, const multiindex<>&,
-                                const size_t) {
+                            [&local_expansions_SoA, &center_of_masses_SoA](const multiindex<>& i,
+                                const size_t flat_index, const multiindex<>&, const size_t) {
                                 local_expansions_SoA.set_AoS_value(
                                     std::move(expansion()), flat_index);
                                 center_of_masses_SoA.set_AoS_value(
                                     std::move(space_vector()), flat_index);
-                                local_monopoles.at(flat_index) = 0.0;
                             });
                     } else {
                         multipole_neighbors_exist = true;
@@ -131,9 +124,9 @@ namespace fmm {
                         if (fullsizes) {
                             // Get multipole data into our input structure
                             iterate_inner_cells_padding(dir,
-                                [&local_monopoles, &local_expansions_SoA, &center_of_masses_SoA,
-                                    neighbor_M_ptr, neighbor_com0](const multiindex<>& i,
-                                    const size_t flat_index, const multiindex<>& i_unpadded,
+                                [&local_expansions_SoA, &center_of_masses_SoA, neighbor_M_ptr,
+                                    neighbor_com0](const multiindex<>& i, const size_t flat_index,
+                                    const multiindex<>& i_unpadded,
                                     const size_t flat_index_unpadded) {
                                     local_expansions_SoA.set_AoS_value(
                                         std::move(neighbor_M_ptr.at(flat_index_unpadded)),
@@ -141,19 +134,16 @@ namespace fmm {
                                     center_of_masses_SoA.set_AoS_value(
                                         std::move(neighbor_com0.at(flat_index_unpadded)),
                                         flat_index);
-
-                                    local_monopoles.at(flat_index) = 0.0;
                                 });
                         } else {
                             iterate_inner_cells_padding(dir,
-                                [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
+                                [&local_expansions_SoA, &center_of_masses_SoA](
                                     const multiindex<>& i, const size_t flat_index,
                                     const multiindex<>&, const size_t) {
                                     local_expansions_SoA.set_AoS_value(
                                         std::move(expansion()), flat_index);
                                     center_of_masses_SoA.set_AoS_value(
                                         std::move(space_vector()), flat_index);
-                                    local_monopoles.at(flat_index) = 0.0;
                                 });
                             auto list = grid_ptr->get_ilist_n_bnd(dir);
                             size_t counter = 0;
@@ -180,13 +170,11 @@ namespace fmm {
                     neighbor_empty_multipoles[dir.flat_index_with_center()] = true;
                     x_skip[z][y][x] = true;
                     iterate_inner_cells_padding(dir,
-                        [&local_expansions_SoA, &center_of_masses_SoA, &local_monopoles](
-                            const multiindex<>& i, const size_t flat_index, const multiindex<>&,
-                            const size_t) {
+                        [&local_expansions_SoA, &center_of_masses_SoA](const multiindex<>& i,
+                            const size_t flat_index, const multiindex<>&, const size_t) {
                             local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
                             center_of_masses_SoA.set_AoS_value(
                                 std::move(space_vector()), flat_index);
-                            local_monopoles.at(flat_index) = 0.0;
                         });
                 }
             }

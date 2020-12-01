@@ -35,20 +35,18 @@ namespace fmm {
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
-            cpu_monopole_buffer_t local_monopoles_staging_area(ENTRIES);
             cpu_expansion_buffer_t local_expansions_staging_area;
             cpu_space_vector_buffer_t center_of_masses_staging_area;
 
-            update_input(monopoles, M_ptr, com_ptr, neighbors, type, local_monopoles_staging_area,
+            update_input(M_ptr, com_ptr, neighbors, type, 
                 local_expansions_staging_area, center_of_masses_staging_area);
-            compute_interactions(type, is_direction_empty, neighbors, local_monopoles_staging_area,
+            compute_interactions(type, is_direction_empty, neighbors, 
                 local_expansions_staging_area, center_of_masses_staging_area);
         }
 
         void p2m_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
-            const cpu_monopole_buffer_t& local_monopoles_staging_area,
             const cpu_expansion_buffer_t& local_expansions_staging_area,
             const cpu_space_vector_buffer_t& center_of_masses_staging_area) {
             if (p2m_type == interaction_kernel_type::SOA_CPU) {

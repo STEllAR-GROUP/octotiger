@@ -149,26 +149,12 @@ namespace fmm {
             X[1] = center_of_masses_SoA.value<1, m2m_vector>(cell_flat_index);
             X[2] = center_of_masses_SoA.value<2, m2m_vector>(cell_flat_index);
             m2m_vector tmpstore[4];
-            // tmpstore[0] = potential_expansions_SoA.value<0,
-            // m2m_vector>(cell_flat_index_unpadded); tmpstore[1] =
-            // potential_expansions_SoA.value<1, m2m_vector>(cell_flat_index_unpadded); tmpstore[2]
-            // = potential_expansions_SoA.value<2, m2m_vector>(cell_flat_index_unpadded);
-            // tmpstore[3] = potential_expansions_SoA.value<3,
-            // m2m_vector>(cell_flat_index_unpadded);
             m2m_vector tmp_corrections[3];
-            // tmp_corrections[0] = angular_corrections_SoA.value<0,
-            // m2m_vector>(cell_flat_index_unpadded); tmp_corrections[1] =
-            // angular_corrections_SoA.value<1, m2m_vector>(cell_flat_index_unpadded);
-            // tmp_corrections[2] = angular_corrections_SoA.value<2,
-            // m2m_vector>(cell_flat_index_unpadded); tmp_corrections[3] =
-            // angular_corrections_SoA.value<3, m2m_vector>(cell_flat_index_unpadded); bool
-            // data_changed = false;
 
             m2m_int_vector theta_c_rec_squared_int = detail::distance_squared_reciprocal(
                 cell_index_coarse, interaction_partner_index_coarse);
 
             m2m_vector theta_c_rec_squared =
-                // Vc::static_datapar_cast<double>(theta_c_rec_squared_int);
                 Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
 
             m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
@@ -176,20 +162,11 @@ namespace fmm {
             if (Vc::none_of(mask)) {
                 return;
             }
-            // data_changed = true;
 
             m2m_vector Y[NDIM];
             Y[0] = center_of_masses_SoA.value<0, m2m_vector>(interaction_partner_flat_index);
             Y[1] = center_of_masses_SoA.value<1, m2m_vector>(interaction_partner_flat_index);
             Y[2] = center_of_masses_SoA.value<2, m2m_vector>(interaction_partner_flat_index);
-           /* m2m_vector dX[NDIM];
-            dX[0] = X[0] - Y[0];
-            dX[1] = X[1] - Y[1];
-            dX[2] = X[2] - Y[2];
-
-            D_split D_calculator(dX);
-            m2m_vector D_lower[20];
-            //D_calculator.calculate_D_lower(D_lower);*/
 
             m2m_vector m_partner[20];
             m2m_vector cur_pot[4];
@@ -233,150 +210,7 @@ namespace fmm {
                 [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
                     return Vc::max(one, two);
                 });
-            /*cur_pot[0] = m_partner[0] * D_lower[0];
-            cur_pot[1] = m_partner[0] * D_lower[1];
-            cur_pot[2] = m_partner[0] * D_lower[2];
-            cur_pot[3] = m_partner[0] * D_lower[3];
 
-            cur_pot[0] += m_partner[4] * (D_lower[4] * factor_half_v[4]);
-            cur_pot[1] += m_partner[4] * (D_lower[10] * factor_half_v[4]);
-            cur_pot[2] += m_partner[4] * (D_lower[11] * factor_half_v[4]);
-            cur_pot[3] += m_partner[4] * (D_lower[12] * factor_half_v[4]);
-
-            cur_pot[0] += m_partner[5] * (D_lower[5] * factor_half_v[5]);
-            cur_pot[1] += m_partner[5] * (D_lower[11] * factor_half_v[5]);
-            cur_pot[2] += m_partner[5] * (D_lower[13] * factor_half_v[5]);
-            cur_pot[3] += m_partner[5] * (D_lower[14] * factor_half_v[5]);
-
-            cur_pot[0] += m_partner[6] * (D_lower[6] * factor_half_v[6]);
-            cur_pot[1] += m_partner[6] * (D_lower[12] * factor_half_v[6]);
-            cur_pot[2] += m_partner[6] * (D_lower[14] * factor_half_v[6]);
-            cur_pot[3] += m_partner[6] * (D_lower[15] * factor_half_v[6]);
-
-            cur_pot[0] += m_partner[7] * (D_lower[7] * factor_half_v[7]);
-            cur_pot[1] += m_partner[7] * (D_lower[13] * factor_half_v[7]);
-            cur_pot[2] += m_partner[7] * (D_lower[16] * factor_half_v[7]);
-            cur_pot[3] += m_partner[7] * (D_lower[17] * factor_half_v[7]);
-
-            cur_pot[0] += m_partner[8] * (D_lower[8] * factor_half_v[8]);
-            cur_pot[1] += m_partner[8] * (D_lower[14] * factor_half_v[8]);
-            cur_pot[2] += m_partner[8] * (D_lower[17] * factor_half_v[8]);
-            cur_pot[3] += m_partner[8] * (D_lower[18] * factor_half_v[8]);
-
-            cur_pot[0] += m_partner[9] * (D_lower[9] * factor_half_v[9]);
-            cur_pot[1] += m_partner[9] * (D_lower[15] * factor_half_v[9]);
-            cur_pot[2] += m_partner[9] * (D_lower[18] * factor_half_v[9]);
-            cur_pot[3] += m_partner[9] * (D_lower[19] * factor_half_v[9]);
-
-            cur_pot[0] -= m_partner[10] * (D_lower[10] * factor_sixth_v[10]);
-            cur_pot[0] -= m_partner[11] * (D_lower[11] * factor_sixth_v[11]);
-            cur_pot[0] -= m_partner[12] * (D_lower[12] * factor_sixth_v[12]);
-            cur_pot[0] -= m_partner[13] * (D_lower[13] * factor_sixth_v[13]);
-            cur_pot[0] -= m_partner[14] * (D_lower[14] * factor_sixth_v[14]);
-            cur_pot[0] -= m_partner[15] * (D_lower[15] * factor_sixth_v[15]);
-            cur_pot[0] -= m_partner[16] * (D_lower[16] * factor_sixth_v[16]);
-            cur_pot[0] -= m_partner[17] * (D_lower[17] * factor_sixth_v[17]);
-            cur_pot[0] -= m_partner[18] * (D_lower[18] * factor_sixth_v[18]);
-            cur_pot[0] -= m_partner[19] * (D_lower[19] * factor_sixth_v[19]); */
-
-            // Was B0 in old style, represents the angular corrections
-            /*m2m_vector current_angular_correction[NDIM];
-            m2m_vector D_upper[15];
-            D_upper[0] =
-                D_calculator.X[0] * D_calculator.X[0] * D_calculator.d3 + 2.0 * D_calculator.d2;
-            m2m_vector d3_X00 = D_calculator.d3 * D_calculator.X_00;
-            D_upper[0] += D_calculator.d2;
-            D_upper[0] += 5.0 * d3_X00;
-            m2m_vector d3_X01 = D_calculator.d3 * D_calculator.X[0] * D_calculator.X[1];
-            D_upper[1] = 3.0 * d3_X01;
-            m2m_vector X_02 = D_calculator.X[0] * D_calculator.X[2];
-            m2m_vector d3_X02 = D_calculator.d3 * X_02;
-            D_upper[2] = 3.0 * d3_X02;
-
-            current_angular_correction[0] = -m_partner[10] * (D_upper[0] * factor_sixth_v[10]);
-            current_angular_correction[1] = -m_partner[10] * (D_upper[1] * factor_sixth_v[10]);
-            current_angular_correction[2] = -m_partner[10] * (D_upper[2] * factor_sixth_v[10]);
-
-            D_upper[3] = D_calculator.d2;
-            m2m_vector d3_X11 = D_calculator.d3 * D_calculator.X_11;
-            D_upper[3] += d3_X11;
-            D_upper[3] += D_calculator.d3 * D_calculator.X_00;
-            m2m_vector d3_X12 = D_calculator.d3 * D_calculator.X[1] * D_calculator.X[2];
-            D_upper[4] = d3_X12;
-
-            current_angular_correction[0] -= m_partner[11] * (D_upper[1] * factor_sixth_v[11]);
-            current_angular_correction[1] -= m_partner[11] * (D_upper[3] * factor_sixth_v[11]);
-            current_angular_correction[2] -= m_partner[11] * (D_upper[4] * factor_sixth_v[11]);
-
-            D_upper[5] = D_calculator.d2;
-            m2m_vector d3_X22 = D_calculator.d3 * D_calculator.X_22;
-            D_upper[5] += d3_X22;
-            D_upper[5] += d3_X00;
-
-            current_angular_correction[0] -= m_partner[12] * (D_upper[2] * factor_sixth_v[12]);
-            current_angular_correction[1] -= m_partner[12] * (D_upper[4] * factor_sixth_v[12]);
-            current_angular_correction[2] -= m_partner[12] * (D_upper[5] * factor_sixth_v[12]);
-
-            D_upper[6] = 3.0 * d3_X01;
-            D_upper[7] = D_calculator.d3 * X_02;
-
-            current_angular_correction[0] -= m_partner[13] * (D_upper[3] * factor_sixth_v[13]);
-            current_angular_correction[1] -= m_partner[13] * (D_upper[6] * factor_sixth_v[13]);
-            current_angular_correction[2] -= m_partner[13] * (D_upper[7] * factor_sixth_v[13]);
-
-            D_upper[8] = D_calculator.d3 * D_calculator.X[0] * D_calculator.X[1];
-
-            current_angular_correction[0] -= m_partner[14] * (D_upper[4] * factor_sixth_v[14]);
-            current_angular_correction[1] -= m_partner[14] * (D_upper[7] * factor_sixth_v[14]);
-            current_angular_correction[2] -= m_partner[14] * (D_upper[8] * factor_sixth_v[14]);
-
-            D_upper[9] = 3.0 * d3_X02;
-
-            current_angular_correction[0] -= m_partner[15] * (D_upper[5] * factor_sixth_v[15]);
-            current_angular_correction[1] -= m_partner[15] * (D_upper[8] * factor_sixth_v[15]);
-            current_angular_correction[2] -= m_partner[15] * (D_upper[9] * factor_sixth_v[15]);
-
-            D_upper[10] =
-                D_calculator.X[1] * D_calculator.X[1] * D_calculator.d3 + 2.0 * D_calculator.d2;
-            D_upper[10] += D_calculator.d2;
-            D_upper[10] += 5.0 * d3_X11;
-
-            D_upper[11] = 3.0 * d3_X12;
-
-            current_angular_correction[0] -= m_partner[16] * (D_upper[6] * factor_sixth_v[16]);
-            current_angular_correction[1] -= m_partner[16] * (D_upper[10] * factor_sixth_v[16]);
-            current_angular_correction[2] -= m_partner[16] * (D_upper[11] * factor_sixth_v[16]);
-
-            D_upper[12] = D_calculator.d2;
-            D_upper[12] += d3_X22;
-            D_upper[12] += d3_X11;
-
-            current_angular_correction[0] -= m_partner[17] * (D_upper[7] * factor_sixth_v[17]);
-            current_angular_correction[1] -= m_partner[17] * (D_upper[11] * factor_sixth_v[17]);
-            current_angular_correction[2] -= m_partner[17] * (D_upper[12] * factor_sixth_v[17]);
-
-            D_upper[13] = 3.0 * d3_X12;
-
-            current_angular_correction[0] -= m_partner[18] * (D_upper[8] * factor_sixth_v[18]);
-            current_angular_correction[1] -= m_partner[18] * (D_upper[12] * factor_sixth_v[18]);
-            current_angular_correction[2] -= m_partner[18] * (D_upper[13] * factor_sixth_v[18]);
-
-            D_upper[14] =
-                D_calculator.X[2] * D_calculator.X[2] * D_calculator.d3 + 2.0 * D_calculator.d2;
-            D_upper[14] += D_calculator.d2;
-            D_upper[14] += 5.0 * d3_X22;
-
-            current_angular_correction[0] -= m_partner[19] * (D_upper[9] * factor_sixth_v[19]);
-            current_angular_correction[1] -= m_partner[19] * (D_upper[13] * factor_sixth_v[19]);
-            current_angular_correction[2] -= m_partner[19] * (D_upper[14] * factor_sixth_v[19]);
-
-            Vc::where(mask, tmp_corrections[0]) =
-                tmp_corrections[0] + current_angular_correction[0];
-            Vc::where(mask, tmp_corrections[1]) =
-                tmp_corrections[1] + current_angular_correction[1];
-            Vc::where(mask, tmp_corrections[2]) =
-                tmp_corrections[2] + current_angular_correction[2];*/
-            // if (data_changed) {
             tmpstore[0] = tmpstore[0] +
                 potential_expansions_SoA.value<0, m2m_vector>(cell_flat_index_unpadded);
             tmpstore[1] = tmpstore[1] +
@@ -399,7 +233,6 @@ namespace fmm {
             tmp_corrections[0].store(angular_corrections_SoA.pointer<0>(cell_flat_index_unpadded));
             tmp_corrections[1].store(angular_corrections_SoA.pointer<1>(cell_flat_index_unpadded));
             tmp_corrections[2].store(angular_corrections_SoA.pointer<2>(cell_flat_index_unpadded));
-            // }
         }
 
         void p2m_kernel::blocked_interaction_non_rho(
