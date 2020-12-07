@@ -127,6 +127,19 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr) {
+            if (opts().p2m_kernel_type == interaction_kernel_type::OLD) {
+                // waits for boundary data and then computes boundary interactions
+                for (auto const& dir : geo::direction::full_set()) {
+                    if (!is_direction_empty[dir]) {
+                        neighbor_gravity_type& neighbor_data = neighbors[dir];
+                        if (!neighbor_data.is_monopole) {
+                            grid_ptr->compute_boundary_interactions(type, neighbor_data.direction,
+                                neighbor_data.is_monopole, neighbor_data.data);
+                        }
+                    }
+                }
+                return;
+            } 
             cpu_expansion_buffer_t local_expansions_compare;
             p2m_kernel kernel;
             cpu_space_vector_buffer_t center_of_masses_compare;
@@ -150,7 +163,6 @@ namespace fmm {
                         std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
                 });
 
-            bool first = true;
             for (const geo::direction& dir : geo::direction::full_set()) {
                 neighbor_gravity_type& neighbor = neighbors[dir];
                 if (!neighbor.is_monopole && neighbor.data.M) {
@@ -239,14 +251,7 @@ namespace fmm {
             }
             potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             if (type == RHO) {
-                if (first) {
-                    // overwrite any old stuff on first pass
-                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
-                    first = false;
-                } else {
-                    // Add new results, don't overwrite
-                    angular_corrections_SoA.add_to_non_SoA(grid_ptr->get_L_c());
-                }
+                angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
             }
         }
 
