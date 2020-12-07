@@ -75,6 +75,10 @@ void cleanup_puddle_on_this_locality(void) {
         std::cout << "Unregistering cuda polling..." << std::endl;
         hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
     }
+#ifdef OCTOTIGER_HAVE_KOKKOS
+    Kokkos::finalize();
+#endif
+    
 }
 
 void init_stencil(std::size_t worker_id) {
@@ -115,6 +119,11 @@ void init_stencil(std::size_t worker_id) {
 }
 
 void init_executors(void) {
+#ifdef OCTOTIGER_HAVE_KOKKOS
+    std::cout << "Initializing Kokkos on this locality..." << std::endl;
+    Kokkos::initialize();
+    Kokkos::print_configuration(std::cout);
+#endif
 #ifdef OCTOTIGER_HAVE_CUDA
     if (opts().cuda_polling_executor) {
         std::cout << "Registering cuda polling..." << std::endl;
