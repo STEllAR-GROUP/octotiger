@@ -26,8 +26,7 @@ namespace fmm {
         static OCTOTIGER_EXPORT std::vector<multiindex<>>& p2m_stencil();
         /// Uses a cube with true/flags instead of the spherical multiindex stencil
         static OCTOTIGER_EXPORT std::vector<bool>& p2m_stencil_masks();
-        void compute_p2m_interactions_neighbors_only(std::vector<real>& monopoles,
-            std::vector<multipole>& M_ptr,
+        void compute_p2m_interactions_neighbors_only(const std::vector<real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
@@ -44,7 +43,7 @@ namespace fmm {
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
                 std::array<bool, geo::direction::count()>& is_direction_empty);
-            void compute_p2m_interactions_neighbors_only(std::vector<real>& monopoles,
+            void compute_p2m_interactions_neighbors_only(const std::vector<real>& monopoles,
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
@@ -86,7 +85,6 @@ namespace fmm {
         };
         template <typename expansion_soa_container, typename masses_soa_container>
         void update_neighbor_input(const geo::direction& neighbor_dir,
-            std::vector<multipole>& multipoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             expansion_soa_container& local_expansions_SoA,

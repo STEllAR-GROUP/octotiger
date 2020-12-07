@@ -3,6 +3,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #include "octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/monopole_interactions/legacy/p2p_cpu_kernel.hpp"    //VC ?
@@ -53,20 +54,30 @@ namespace fmm {
         }
 
         void p2p_interaction_interface::compute_p2p_interactions(const std::vector<real>& monopoles,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<bool, geo::direction::count()>& is_direction_empty) {
+            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+            real dx,
+            std::array<bool, geo::direction::count()>& is_direction_empty,
+            std::shared_ptr<grid>& grid_ptr,
+            const bool contains_multipole_neighbor) {
+
             cpu_launch_counter()++;
             cpu_monopole_buffer_t local_monopoles_staging_area(ENTRIES);
 
             update_input(monopoles, neighbors, type, local_monopoles_staging_area, neighbor_empty_monopoles, grid_ptr);
             compute_interactions(
-                type, is_direction_empty, neighbors, dx, local_monopoles_staging_area);
+                type, is_direction_empty, neighbors, dx, local_monopoles_staging_area, grid_ptr);
+            // Do we need to run the p2m kernel as well?
+            if (contains_multipole_neighbor) {
+                // runs (and converts neighbor data) for each p2m kernel
+                compute_p2m_interactions_neighbors_only(monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
+            }
         }
 
         void p2p_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
-            const cpu_monopole_buffer_t& local_monopoles_staging_area) {
+            const cpu_monopole_buffer_t& local_monopoles_staging_area, std::shared_ptr<grid>& grid_ptr) {
             if (p2p_type == interaction_kernel_type::SOA_CPU) {
                 p2p_cpu_kernel kernel_monopoles;
                 cpu_expansion_result_buffer_t potential_expansions_SoA;

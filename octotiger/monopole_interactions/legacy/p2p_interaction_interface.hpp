@@ -29,13 +29,11 @@ namespace fmm {
             p2p_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
              * stores results in L */
-            void compute_p2p_interactions(const std::vector<real>& monopoles,
+            void p2p_interaction_interface::compute_p2p_interactions(const std::vector<real>& monopoles,
+                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<bool, geo::direction::count()>& is_direction_empty);
-            /// Sets the grid pointer - usually only required once
-            void set_grid_ptr(std::shared_ptr<grid> ptr) {
-                grid_ptr = ptr;
-            }
+                std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::shared_ptr<grid>& grid, const bool contains_multipole_neighbor);
 
         protected:
             // template <typename monopole_container>
@@ -45,9 +43,8 @@ namespace fmm {
             void compute_interactions(gsolve_type type,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
-                const cpu_monopole_buffer_t& local_monopoles_staging_area);
+                const cpu_monopole_buffer_t& local_monopoles_staging_area, std::shared_ptr<grid>& grid);
 
-            std::shared_ptr<grid> grid_ptr;
             interaction_kernel_type p2p_type;
 
         public:

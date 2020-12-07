@@ -18,10 +18,11 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        /** Interface to calculate monopole monopole FMM interactions on either a cuda device or on the
-         * cpu! It takes AoS data, transforms it into SoA data, moves it to the cuda device,
+        /** Interface to calculate monopole monopole FMM interactions on either a cuda device or on
+         * the cpu! It takes AoS data, transforms it into SoA data, moves it to the cuda device,
          * launches cuda kernel on a slot given by the scheduler, gets results and stores them in
-         * the AoS arrays L and L_c. Load balancing between CPU and GPU is done by the scheduler (see
+         * the AoS arrays L and L_c. Load balancing between CPU and GPU is done by the scheduler
+         * (see
          * ../cuda_util/cuda_scheduler.hpp). If the scheduler detects that the cuda device is
          * busy it will use the normal CPU implementation of the interface as fallback!
          */
@@ -30,10 +31,12 @@ namespace fmm {
         public:
             cuda_p2p_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
-              * stores results in L */
+             * stores results in L */
             void compute_p2p_interactions(std::vector<real>& monopoles,
+                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-                std::array<bool, geo::direction::count()>& is_direction_empty);
+                std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::shared_ptr<grid>& grid, const bool contains_multipole_neighbor);
 
         protected:
             real theta;

@@ -121,8 +121,7 @@ namespace fmm {
             compute_interactions(type, is_direction_empty, neighbors, local_expansions_staging_area,
                 center_of_masses_staging_area);
         }
-        void compute_p2m_interactions_neighbors_only(std::vector<real>& monopoles,
-            std::vector<multipole>& M_ptr,
+        void compute_p2m_interactions_neighbors_only(const std::vector<real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
@@ -144,9 +143,10 @@ namespace fmm {
             p2m_kernel kernel;
             cpu_space_vector_buffer_t center_of_masses_compare;
 
+            // TODO remove m_ptr from legacy update input for the sake of testing
             // Required for comparisons in later asserts
-            assert(update_input(M_ptr, com_ptr, neighbors, type, local_expansions_compare,
-                center_of_masses_compare));
+            // assert(update_input(M_ptr, com_ptr, neighbors, type, local_expansions_compare,
+            //    center_of_masses_compare));
 
             struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
@@ -191,11 +191,11 @@ namespace fmm {
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
-                        update_neighbor_input(dir, M_ptr, com_ptr, neighbors, type,
+                        update_neighbor_input(dir, com_ptr, neighbors, type,
                             local_expansions_staging_area, center_of_masses_staging_area, grid_ptr);
-                        assert(check_neighbor_conversion(local_expansions_staging_area,
+                        /*assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
-                            center_of_masses_compare, dir));
+                            center_of_masses_compare, dir));*/
 
                         kernel.apply_stencil_neighbor<INX * INX * STENCIL_MAX>(neighbor_size,
                             start_index, end_index, local_expansions_staging_area,
@@ -213,11 +213,11 @@ namespace fmm {
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
-                        update_neighbor_input(dir, M_ptr, com_ptr, neighbors, type,
+                        update_neighbor_input(dir, com_ptr, neighbors, type,
                             local_expansions_staging_area, center_of_masses_staging_area, grid_ptr);
-                        assert(check_neighbor_conversion(local_expansions_staging_area,
+                        /*assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
-                            center_of_masses_compare, dir));
+                            center_of_masses_compare, dir));*/
 
                         kernel.apply_stencil_neighbor<INX * STENCIL_MAX * STENCIL_MAX>(
                             neighbor_size, start_index, end_index, local_expansions_staging_area,
@@ -235,11 +235,11 @@ namespace fmm {
                                 recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
-                        update_neighbor_input(dir, M_ptr, com_ptr, neighbors, type,
+                        update_neighbor_input(dir, com_ptr, neighbors, type,
                             local_expansions_staging_area, center_of_masses_staging_area, grid_ptr);
-                        assert(check_neighbor_conversion(local_expansions_staging_area,
+                        /*assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
-                            center_of_masses_compare, dir));
+                            center_of_masses_compare, dir));*/
 
                         kernel.apply_stencil_neighbor<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(
                             neighbor_size, start_index, end_index, local_expansions_staging_area,

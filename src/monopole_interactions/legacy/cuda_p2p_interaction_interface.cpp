@@ -6,6 +6,7 @@
 #ifdef OCTOTIGER_HAVE_CUDA
 
 #include "octotiger/monopole_interactions/legacy/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/p2p_cuda_kernel.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 
@@ -29,15 +30,17 @@ namespace fmm {
         }
 
         void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
+            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
-            std::array<bool, geo::direction::count()>& is_direction_empty) {
+            std::array<bool, geo::direction::count()>& is_direction_empty,
+            std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             // Check where we want to run this:
             bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                 pool_strategy>(opts().cuda_buffer_capacity);
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(
-                    monopoles, neighbors, type, dx, is_direction_empty);
+                    monopoles, com_ptr, neighbors, type, dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
             } else {
                 // run on CUDA device
                 cuda_launch_counter()++;
@@ -74,6 +77,12 @@ namespace fmm {
                 auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
                     potential_expansions_small_size, cudaMemcpyDeviceToHost);
+
+                // TODO Replace by GPU kernel
+                if (contains_multipole_neighbor) {
+                    // runs (and converts neighbor data) for each p2m kernel
+                    compute_p2m_interactions_neighbors_only(monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
+                }
 
                 // Wait for stream to finish and allow thread to jump away in the meantime
                 fut.get();
