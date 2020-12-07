@@ -80,7 +80,20 @@ namespace fmm {
 
                 // TODO Replace by GPU kernel
                 if (contains_multipole_neighbor) {
-                    // runs (and converts neighbor data) for each p2m kernel
+                   if (type == RHO) { 
+                    // TODO Get angular corrections buffers
+                    // TODO Set angualar corrections to zero
+
+                    // TODO Convert cells buffers
+                    // TODO Iterate over directions
+                    // TODO Add 1 different way to launch kernel for now
+                   } else {
+                    // TODO Convert cells buffers
+                    // TODO Iterate over directions
+                    // TODO Add 1 different way to launch kernel for now
+                   }
+
+                    // TODO Remove fallback
                     compute_p2m_interactions_neighbors_only(monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
                 }
 

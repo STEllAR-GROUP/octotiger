@@ -14,8 +14,22 @@ namespace fmm {
         extern __constant__ double device_four_constants[4 * FULL_STENCIL_SIZE];
         __global__ void cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL],
-            const double theta, const double dx);
+            double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL], const double theta,
+            const double dx);
+        __global__ void cuda_p2m_interaction_rho(
+            const double* __restrict__ expansions_neighbors_soa,
+            const double* __restrict__ center_of_mass_neighbor_soa,
+            const double* __restrict__ center_of_mass_cells_soa,
+            double* __restrict__ potential_expansions, double* __restrict__ angular_corrections,
+            const multiindex<> neighbor_size, const multiindex<> start_index,
+            const multiindex<> dir, const multiindex<> end_index, const double theta);
+        __global__ void cuda_p2m_interaction_non_rho(
+            const double* __restrict__ expansions_neighbors_soa,
+            const double* __restrict__ center_of_mass_neighbor_soa,
+            const double* __restrict__ center_of_mass_cells_soa,
+            double* __restrict__ potential_expansions, const multiindex<> neighbor_size,
+            const multiindex<> start_index, const multiindex<> end_index, const multiindex<> dir,
+            const double theta);
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
