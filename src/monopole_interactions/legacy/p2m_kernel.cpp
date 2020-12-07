@@ -42,8 +42,6 @@ namespace fmm {
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const std::vector<multiindex<>>& stencil,
             gsolve_type type, bool (&z_skip)[3][3][3], bool (&y_skip)[3][3], bool (&x_skip)[3]) {
-            // for(auto i = 0; i < local_expansions.size(); i++)
-            //   std::cout << local_expansions[i] << " ";
             // for (multiindex<>& stencil_element : stencil) {
             for (size_t outer_stencil_index = 0; outer_stencil_index < stencil.size();
                  outer_stencil_index += 1) {
@@ -329,66 +327,202 @@ namespace fmm {
             tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
         }
 
+        // TODO Add correct size for inner cells com
         template <size_t buffer_size>
-        void neighbor_interaction_rho(const multiindex<> &neighbor_size,
-            const multiindex<> &start_index, const multiindex<> &end_index,
+        void neighbor_interaction_rho(const multiindex<>& neighbor_size,
+            const multiindex<>& start_index, const multiindex<>& end_index,
             const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
+            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<bool>& stencil_masks, const geo::direction& dir) {
-            // TODO Load position and init tmp stores
+            const std::vector<bool>& stencil_masks, const geo::direction& dir, const double theta) {
 
-            // TODO Iterate over whole neighbor area
+            // Load position and init tmp stores & constants
+              const m2m_vector theta_rec_squared(sqr(1.0 / theta));
+              m2m_vector X[NDIM];
+              X[0] = center_of_masses_inner_cells_SoA.template value<0, m2m_vector>(cell_flat_index_unpadded);
+              X[1] = center_of_masses_inner_cells_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
+              X[2] = center_of_masses_inner_cells_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
+              m2m_vector tmpstore[4];
+              m2m_vector tmp_corrections[3];
 
-            // TODO Create global index
+            for (size_t x = start_index.x; x < end_index.x; x++) {
+                for (size_t y = start_index.y; y < end_index.y; y++) {
+                    for (size_t z = start_index.z; z < end_index.z; z++) {
+                        // Global index (regarding inner cells + all neighbors)
+                        // Used to figure out which stencil mask to use
+                        const multiindex<> interaction_partner_index(
+                            INNER_CELLS_PADDING_DEPTH + dir[0] * INNER_CELLS_PADDING_DEPTH + x,
+                            INNER_CELLS_PADDING_DEPTH + dir[1] * INNER_CELLS_PADDING_DEPTH + y,
+                            INNER_CELLS_PADDING_DEPTH + dir[2] * INNER_CELLS_PADDING_DEPTH + z);
+                        const size_t global_flat_index =
+                            to_flat_index_padded(interaction_partner_index);
 
-            // TODO Get stencil element for the first element of the SIMD lane
+                        // Stencil element for first element of the SIMD lane
+                        multiindex<> stencil_element(
+                            interaction_partner_index.x - cell_index.x - STENCIL_MIN,
+                            interaction_partner_index.y - cell_index.y - STENCIL_MIN,
+                            interaction_partner_index.z - cell_index.z - STENCIL_MIN);
+                        const size_t stencil_flat_index =
+                            stencil_element.x * STENCIL_INX * STENCIL_INX +
+                            stencil_element.y * STENCIL_INX + stencil_element.z;
+                        // Generate stencil mask
+                        m2m_vector::mask_type stencil_mask;
+                        for (int i = 0; i < m2m_vector::size(); i++) {
+                          stencil_mask[i] = stencil_masks[stencil_flat_index - i];
+                        }
+                        // Skip with stencil masks are all 0
+                        if (Vc::none_of(stencil_mask)) {
+                            continue;
+                        }
 
-            // TODO Set mask element by element (obtain simd::length stencil elements)
-            // Note: All cell_index elements of the SIMD lanes try to interact with the SAME
-            // neighbor cell unlike in the other interaction kernels
-            // TODO Probably sufficient to not increment the coarse index with the offset vector?
+                        // Set mask element by element (obtain simd::length stencil elements)
+                        // Note: All cell_index elements of the SIMD lanes try to interact with the
+                        // SAME neighbor cell unlike in the other interaction kernels
+                        multiindex<m2m_int_vector> interaction_partner_index_coarse(
+                            interaction_partner_index);
+                        interaction_partner_index_coarse.transform_coarse();
+                        m2m_int_vector theta_c_rec_squared_int =
+                            detail::distance_squared_reciprocal(
+                                cell_index_coarse, interaction_partner_index_coarse);
+                        m2m_vector theta_c_rec_squared =
+                            Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
+                        m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
 
+                        // Skip with stencil masks are all 0
+                        if (Vc::none_of(mask)) {
+                            continue;
+                        }
+                        // combine masks 
+                        mask = mask && stencil_mask;
 
-            // TODO Skip with stencil masks are all 0
+                        // Local index
+                        // Used to figure out which data element to use
+                        const multiindex<> interaction_partner_data_index(
+                            x - start_index.x, y - start_index.y, z - start_index.z);
+                        const size_t interaction_partner_flat_index =
+                            interaction_partner_data_index.x * (neighbor_size.y * neighbor_size.z) +
+                            interaction_partner_data_index.y * neighbor_size.z +
+                            interaction_partner_data_index.z;
 
-            // TODO Local index
-            // Used to figure out which data element to use
+                        // Load required data from interaction partner and broadcast into simd
+                        // arrays
+                        m2m_vector Y[NDIM];
+                        Y[0] = center_of_masses_SoA.template at<0>(interaction_partner_flat_index);
+                        Y[1] = center_of_masses_SoA.template at<1>(interaction_partner_flat_index);
+                        Y[2] = center_of_masses_SoA.template at<2>(interaction_partner_flat_index);
+                        m2m_vector m_partner[20];
+                        Vc::where(mask, m_partner[0]) =
+                            local_expansions_SoA.template at<0>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[1]) =
+                            local_expansions_SoA.template at<1>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[2]) =
+                            local_expansions_SoA.template at<2>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[3]) =
+                            local_expansions_SoA.template at<3>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[4]) =
+                            local_expansions_SoA.template at<4>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[5]) =
+                            local_expansions_SoA.template at<5>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[6]) =
+                            local_expansions_SoA.template at<6>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[7]) =
+                            local_expansions_SoA.template at<7>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[8]) =
+                            local_expansions_SoA.template at<8>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[9]) =
+                            local_expansions_SoA.template at<9>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[10]) =
+                            local_expansions_SoA.template at<10>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[11]) =
+                            local_expansions_SoA.template at<11>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[12]) =
+                            local_expansions_SoA.template at<12>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[13]) =
+                            local_expansions_SoA.template at<13>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[14]) =
+                            local_expansions_SoA.template at<14>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[15]) =
+                            local_expansions_SoA.template at<15>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[16]) =
+                            local_expansions_SoA.template at<16>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[17]) =
+                            local_expansions_SoA.template at<17>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[18]) =
+                            local_expansions_SoA.template at<18>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[19]) =
+                            local_expansions_SoA.template at<19>(interaction_partner_flat_index);
 
-            // TODO load data
+            // run templated interaction method instanced with Vc type
+            compute_kernel_p2m_rho(X, Y, m_partner, tmpstore, tmp_corrections,
+                [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
+                    return Vc::max(one, two);
+                });
+                    }
+                }
+            }
+            // Move data back into the potential expansions buffer
+            tmpstore[0] = tmpstore[0] +
+                potential_expansions_SoA.template value<0, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[1] = tmpstore[1] +
+                potential_expansions_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[2] = tmpstore[2] +
+                potential_expansions_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[3] = tmpstore[3] +
+                potential_expansions_SoA.template value<3, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[0].store(
+                potential_expansions_SoA.template pointer<0>(cell_flat_index_unpadded));
+            tmpstore[1].store(
+                potential_expansions_SoA.template pointer<1>(cell_flat_index_unpadded));
+            tmpstore[2].store(
+                potential_expansions_SoA.template pointer<2>(cell_flat_index_unpadded));
+            tmpstore[3].store(
+                potential_expansions_SoA.template pointer<3>(cell_flat_index_unpadded));
 
-            // TODO run templated interaction method instanced with Vc type
-
-
-            // TODO Move data back into the potential expansions buffer
-
-
-            // TODO Move data back into the angular corrections buffer
+            // Move data back into the angular corrections buffer
+            tmp_corrections[0] = tmp_corrections[0] +
+                angular_corrections_SoA.template value<0, m2m_vector>(cell_flat_index_unpadded);
+            tmp_corrections[1] = tmp_corrections[1] +
+                angular_corrections_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
+            tmp_corrections[2] = tmp_corrections[2] +
+                angular_corrections_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
+            tmp_corrections[0].store(angular_corrections_SoA.template pointer<0>(cell_flat_index_unpadded));
+            tmp_corrections[1].store(angular_corrections_SoA.template pointer<1>(cell_flat_index_unpadded));
+            tmp_corrections[2].store(angular_corrections_SoA.template pointer<2>(cell_flat_index_unpadded));
         }
+
+        // TODO Add correct size for inner cells com
         template <size_t buffer_size>
-        void neighbor_interaction_non_rho(const multiindex<> &neighbor_size,
-            const multiindex<> &start_index, const multiindex<> &end_index,
+        void neighbor_interaction_non_rho(const multiindex<>& neighbor_size,
+            const multiindex<>& start_index, const multiindex<>& end_index,
             const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 local_expansions_SoA,
             const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
+            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
-            const std::vector<bool>& stencil_masks, const geo::direction& dir) {
+            const std::vector<bool>& stencil_masks, const geo::direction& dir, const double theta) {
+
+            const m2m_vector theta_rec_squared(sqr(1.0 / theta));
             m2m_vector X[NDIM];
-            X[0] = center_of_masses_SoA.template value<0, m2m_vector>(cell_flat_index);
-            X[1] = center_of_masses_SoA.template value<1, m2m_vector>(cell_flat_index);
-            X[2] = center_of_masses_SoA.template value<2, m2m_vector>(cell_flat_index);
+            X[0] = center_of_masses_inner_cells_SoA.template value<0, m2m_vector>(cell_flat_index_unpadded);
+            X[1] = center_of_masses_inner_cells_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
+            X[2] = center_of_masses_inner_cells_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
             m2m_vector tmpstore[4];
 
             for (size_t x = start_index.x; x < end_index.x; x++) {
@@ -396,41 +530,136 @@ namespace fmm {
                     for (size_t z = start_index.z; z < end_index.z; z++) {
                         // Global index (regarding inner cells + all neighbors)
                         // Used to figure out which stencil mask to use
-                        const multiindex<> global_padded_index(
+                        const multiindex<> interaction_partner_index(
                             INNER_CELLS_PADDING_DEPTH + dir[0] * INNER_CELLS_PADDING_DEPTH + x,
                             INNER_CELLS_PADDING_DEPTH + dir[1] * INNER_CELLS_PADDING_DEPTH + y,
                             INNER_CELLS_PADDING_DEPTH + dir[2] * INNER_CELLS_PADDING_DEPTH + z);
-                        const size_t global_flat_index = to_flat_index_padded(global_padded_index);
+                        const size_t global_flat_index =
+                            to_flat_index_padded(interaction_partner_index);
 
                         // Stencil element for first element of the SIMD lane
-                        multiindex<> stencil_element(global_padded_index.x - cell_index.x,
-                            global_padded_index.y - cell_index.y,
-                            global_padded_index.z - cell_index.z);
+                        multiindex<> stencil_element(
+                            interaction_partner_index.x - cell_index.x - STENCIL_MIN,
+                            interaction_partner_index.y - cell_index.y - STENCIL_MIN,
+                            interaction_partner_index.z - cell_index.z - STENCIL_MIN);
+                        const size_t stencil_flat_index =
+                            stencil_element.x * STENCIL_INX * STENCIL_INX +
+                            stencil_element.y * STENCIL_INX + stencil_element.z;
+                        // Generate stencil mask
+                        m2m_vector::mask_type stencil_mask;
+                        for (int i = 0; i < m2m_vector::size(); i++) {
+                          stencil_mask[i] = stencil_masks[stencil_flat_index - i];
+                        }
+                        // Skip with stencil masks are all 0
+                        if (Vc::none_of(stencil_mask)) {
+                            continue;
+                        }
 
-                        // TODO Set mask element by element (obtain simd::length stencil elements)
+                        // Set mask element by element (obtain simd::length stencil elements)
                         // Note: All cell_index elements of the SIMD lanes try to interact with the
                         // SAME neighbor cell unlike in the other interaction kernels
-                        // TODO Probably sufficient to not increment the coarse index with the
-                        // offset vector?
+                        multiindex<m2m_int_vector> interaction_partner_index_coarse(
+                            interaction_partner_index);
+                        interaction_partner_index_coarse.transform_coarse();
+                        m2m_int_vector theta_c_rec_squared_int =
+                            detail::distance_squared_reciprocal(
+                                cell_index_coarse, interaction_partner_index_coarse);
+                        m2m_vector theta_c_rec_squared =
+                            Vc::simd_cast<m2m_vector>(theta_c_rec_squared_int);
+                        m2m_vector::mask_type mask = theta_rec_squared > theta_c_rec_squared;
 
-                        // TODO Skip with stencil masks are all 0
+                        // Skip with stencil masks are all 0
+                        if (Vc::none_of(mask)) {
+                            continue;
+                        }
+                        // combine masks 
+                        mask = mask && stencil_mask;
 
                         // Local index
                         // Used to figure out which data element to use
-                        const multiindex<> m_padding_index(
+                        const multiindex<> interaction_partner_data_index(
                             x - start_index.x, y - start_index.y, z - start_index.z);
-                        const size_t flat_index = m_padding_index.x * (neighbor_size.y * neighbor_size.z) +
-                            m_padding_index.y * neighbor_size.z + m_padding_index.z;
+                        const size_t interaction_partner_flat_index =
+                            interaction_partner_data_index.x * (neighbor_size.y * neighbor_size.z) +
+                            interaction_partner_data_index.y * neighbor_size.z +
+                            interaction_partner_data_index.z;
 
-                        // TODO load data
+                        // Load required data from interaction partner and broadcast into simd
+                        // arrays
+                        m2m_vector Y[NDIM];
+                        Y[0] = center_of_masses_SoA.template at<0>(interaction_partner_flat_index);
+                        Y[1] = center_of_masses_SoA.template at<1>(interaction_partner_flat_index);
+                        Y[2] = center_of_masses_SoA.template at<2>(interaction_partner_flat_index);
+                        m2m_vector m_partner[20];
+                        Vc::where(mask, m_partner[0]) =
+                            local_expansions_SoA.template at<0>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[1]) =
+                            local_expansions_SoA.template at<1>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[2]) =
+                            local_expansions_SoA.template at<2>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[3]) =
+                            local_expansions_SoA.template at<3>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[4]) =
+                            local_expansions_SoA.template at<4>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[5]) =
+                            local_expansions_SoA.template at<5>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[6]) =
+                            local_expansions_SoA.template at<6>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[7]) =
+                            local_expansions_SoA.template at<7>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[8]) =
+                            local_expansions_SoA.template at<8>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[9]) =
+                            local_expansions_SoA.template at<9>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[10]) =
+                            local_expansions_SoA.template at<10>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[11]) =
+                            local_expansions_SoA.template at<11>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[12]) =
+                            local_expansions_SoA.template at<12>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[13]) =
+                            local_expansions_SoA.template at<13>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[14]) =
+                            local_expansions_SoA.template at<14>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[15]) =
+                            local_expansions_SoA.template at<15>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[16]) =
+                            local_expansions_SoA.template at<16>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[17]) =
+                            local_expansions_SoA.template at<17>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[18]) =
+                            local_expansions_SoA.template at<18>(interaction_partner_flat_index);
+                        Vc::where(mask, m_partner[19]) =
+                            local_expansions_SoA.template at<19>(interaction_partner_flat_index);
 
-                        // TODO run templated interaction method instanced with Vc type
+                        // run templated interaction method instanced with Vc type
+                        compute_kernel_p2m_non_rho(X, Y, m_partner, tmpstore,
+                            [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
+                                return Vc::max(one, two);
+                            });
                     }
                 }
             }
-            // TODO Move data back into the potential expansions buffer
+            // Move data back into the potential expansions buffer
+            tmpstore[0] = tmpstore[0] +
+                potential_expansions_SoA.template value<0, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[1] = tmpstore[1] +
+                potential_expansions_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[2] = tmpstore[2] +
+                potential_expansions_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[3] = tmpstore[3] +
+                potential_expansions_SoA.template value<3, m2m_vector>(cell_flat_index_unpadded);
+            tmpstore[0].store(
+                potential_expansions_SoA.template pointer<0>(cell_flat_index_unpadded));
+            tmpstore[1].store(
+                potential_expansions_SoA.template pointer<1>(cell_flat_index_unpadded));
+            tmpstore[2].store(
+                potential_expansions_SoA.template pointer<2>(cell_flat_index_unpadded));
+            tmpstore[3].store(
+                potential_expansions_SoA.template pointer<3>(cell_flat_index_unpadded));
         }
 
+        // TODO Add correct com of inner cells
         template <size_t buffer_size>
         void p2m_kernel::apply_stencil_neighbor(const multiindex<>& neighbor_size,
             const multiindex<>& neighbor_start_index, const multiindex<>& neighbor_end_index,
@@ -443,6 +672,7 @@ namespace fmm {
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const std::vector<bool>& stencil_masks,
             gsolve_type type, const geo::direction& dir) {
+            const double theta = opts().theta;
             for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
                 for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
                     for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2 += m2m_vector::size()) {
@@ -462,17 +692,20 @@ namespace fmm {
                         cell_index_coarse.transform_coarse();
 
                         if (type == RHO) {
+                            // TODO Add correct com of inner cells
                             neighbor_interaction_rho<buffer_size>(neighbor_size,
-                                neighbor_start_index, neighbor_end_index, local_expansions_SoA, center_of_masses_SoA,
-                                potential_expansions_SoA, angular_corrections_SoA, cell_index,
-                                cell_flat_index, cell_index_coarse, cell_index_unpadded,
-                                cell_flat_index_unpadded, stencil_masks, dir);
-                        } else {
-                            neighbor_interaction_non_rho<buffer_size>(neighbor_size,
-                                neighbor_start_index, neighbor_end_index, local_expansions_SoA, center_of_masses_SoA,
-                                potential_expansions_SoA, cell_index, cell_flat_index,
+                                neighbor_start_index, neighbor_end_index, local_expansions_SoA,
+                                center_of_masses_SoA, center_of_masses_SoA, potential_expansions_SoA,
+                                angular_corrections_SoA, cell_index, cell_flat_index,
                                 cell_index_coarse, cell_index_unpadded, cell_flat_index_unpadded,
-                                stencil_masks, dir);
+                                stencil_masks, dir, theta);
+                        } else {
+                            // TODO Add correct com of inner cells
+                            neighbor_interaction_non_rho<buffer_size>(neighbor_size,
+                                neighbor_start_index, neighbor_end_index, local_expansions_SoA,
+                                center_of_masses_SoA, center_of_masses_SoA, potential_expansions_SoA, cell_index,
+                                cell_flat_index, cell_index_coarse, cell_index_unpadded,
+                                cell_flat_index_unpadded, stencil_masks, dir, theta);
                         }
                     }
                 }
