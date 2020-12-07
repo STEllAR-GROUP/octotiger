@@ -121,11 +121,12 @@ namespace fmm {
             compute_interactions(type, is_direction_empty, neighbors, local_expansions_staging_area,
                 center_of_masses_staging_area);
         }
-        void compute_p2m_interactions_neighbors_only(
-            std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
+        void compute_p2m_interactions_neighbors_only(std::vector<real>& monopoles,
+            std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            std::array<bool, geo::direction::count()>& is_direction_empty, std::shared_ptr<grid> &grid_ptr) {
+            std::array<bool, geo::direction::count()>& is_direction_empty,
+            std::shared_ptr<grid>& grid_ptr) {
             cpu_expansion_buffer_t local_expansions_compare;
             p2m_kernel kernel;
             cpu_space_vector_buffer_t center_of_masses_compare;
@@ -149,6 +150,7 @@ namespace fmm {
                         std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
                 });
 
+            bool first = true;
             for (const geo::direction& dir : geo::direction::full_set()) {
                 neighbor_gravity_type& neighbor = neighbors[dir];
                 if (!neighbor.is_monopole && neighbor.data.M) {
@@ -237,7 +239,14 @@ namespace fmm {
             }
             potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
             if (type == RHO) {
-                angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                if (first) {
+                    // overwrite any old stuff on first pass
+                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                    first = false;
+                } else {
+                    // Add new results, don't overwrite
+                    angular_corrections_SoA.add_to_non_SoA(grid_ptr->get_L_c());
+                }
             }
         }
 
