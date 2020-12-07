@@ -29,8 +29,6 @@ namespace fmm {
           : x(x)
           , y(y)
           , z(z) {
-            // std::cout << "x arg: " << x << std::endl;
-            // std::cout << "this->x: " << this->x << std::endl;
         }
 
         template <typename U>
