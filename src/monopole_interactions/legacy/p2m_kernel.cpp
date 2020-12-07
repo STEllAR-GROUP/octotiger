@@ -686,9 +686,30 @@ namespace fmm {
             cpu_angular_result_t& angular_corrections_SoA, const std::vector<bool>& stencil_masks,
             gsolve_type type, const geo::direction& dir) {
             const double theta = opts().theta;
-            for (size_t i0 = 0; i0 < INNER_CELLS_PER_DIRECTION; i0++) {
-                for (size_t i1 = 0; i1 < INNER_CELLS_PER_DIRECTION; i1++) {
-                    for (size_t i2 = 0; i2 < INNER_CELLS_PER_DIRECTION; i2 += m2m_vector::size()) {
+            // Depending on the location of the current neighbor we don't need to look 
+            // at the complete subgrid
+            int startx = 0;
+            if (dir[0] == 1)
+              startx = INX - (STENCIL_MAX + 1);
+            int endx = INX;
+            if (dir[0] == -1)
+              endx = (STENCIL_MAX + 1);
+            int starty = 0;
+            if (dir[1] == 1)
+              starty = INX - (STENCIL_MAX + 1);
+            int endy = INX;
+            if (dir[1] == -1)
+              endy = (STENCIL_MAX + 1);
+            int startz = 0;
+            if (dir[2] == 1)
+              startz = INX - (STENCIL_MAX + 1);
+            int endz = INX;
+            if (dir[2] == -1)
+              endz = (STENCIL_MAX + 1);
+            // Iterate over required cells and call kernel
+            for (size_t i0 = startx; i0 < endx; i0++) {
+                for (size_t i1 = starty; i1 < endy; i1++) {
+                    for (size_t i2 = startz; i2 < endz; i2 += m2m_vector::size()) {
                         const multiindex<> cell_index(i0 + INNER_CELLS_PADDING_DEPTH,
                             i1 + INNER_CELLS_PADDING_DEPTH, i2 + INNER_CELLS_PADDING_DEPTH);
                         const int64_t cell_flat_index =
@@ -723,6 +744,7 @@ namespace fmm {
                 }
             }
         }
+        // Required template instances (as template declaration is in the header)
         template void p2m_kernel::apply_stencil_neighbor<INX * INX * STENCIL_MAX>(
             const multiindex<>&, const multiindex<>&, const multiindex<>&,
             const struct_of_array_data<expansion, real, 20, INX * INX * STENCIL_MAX, SOA_PADDING,
