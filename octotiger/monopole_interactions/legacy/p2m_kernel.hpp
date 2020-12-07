@@ -23,12 +23,6 @@ namespace fmm {
         class p2m_kernel
         {
         private:
-            /// Stores which neighbors are empty so that we can just skip them
-            std::vector<bool>& neighbor_empty;
-
-            /// so skip non-existing interaction partners faster, one entry per vector variable
-            std::vector<bool> vector_is_empty;
-
             const m2m_vector theta_rec_squared;
             m2m_int_vector offset_vector;
 
@@ -56,7 +50,7 @@ namespace fmm {
             void vectors_check_empty();
 
         public:
-            p2m_kernel(std::vector<bool>& neighbor_empty);
+            p2m_kernel();
 
             p2m_kernel(p2m_kernel& other) = delete;
             p2m_kernel(const p2m_kernel& other) = delete;

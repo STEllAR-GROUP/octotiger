@@ -508,11 +508,11 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		} else { // ... we are a monopole
 			p2p_kernel_interface(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty, grid_ptr);
 			if (contains_multipole) {
-				p2m_interactor.set_grid_ptr(grid_ptr);
+				//p2m_interactor.set_grid_ptr(grid_ptr);
 				//p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data,
         //type, is_direction_empty);
-				p2m_interactor.compute_p2m_interactions_neighbors_only(mon_ptr, M_ptr, com_ptr,
-            all_neighbor_interaction_data, type, is_direction_empty);
+        octotiger::fmm::monopole_interactions::compute_p2m_interactions_neighbors_only(mon_ptr, M_ptr, com_ptr,
+            all_neighbor_interaction_data, type, is_direction_empty, grid_ptr);
 			}
 		}
 	} else {

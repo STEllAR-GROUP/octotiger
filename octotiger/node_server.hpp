@@ -106,7 +106,7 @@ private:
 
 	timestep_t dt_;
 
-	octotiger::fmm::monopole_interactions::p2m_interaction_interface p2m_interactor;
+	//octotiger::fmm::monopole_interactions::p2m_interaction_interface p2m_interactor;
 #ifdef OCTOTIGER_HAVE_CUDA
 	octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface multipole_interactor;
 	octotiger::fmm::monopole_interactions::cuda_p2p_interaction_interface p2p_interactor;

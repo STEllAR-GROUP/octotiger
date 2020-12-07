@@ -29,9 +29,8 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        p2m_kernel::p2m_kernel(std::vector<bool>& neighbor_empty)
-          : neighbor_empty(neighbor_empty)
-          , theta_rec_squared(sqr(1.0 / opts().theta)) {
+        p2m_kernel::p2m_kernel()
+          : theta_rec_squared(sqr(1.0 / opts().theta)) {
             for (size_t i = 0; i < m2m_int_vector::size(); i++) {
                 offset_vector[i] = i;
             }
@@ -686,6 +685,7 @@ namespace fmm {
             cpu_angular_result_t& angular_corrections_SoA, const std::vector<bool>& stencil_masks,
             gsolve_type type, const geo::direction& dir) {
             const double theta = opts().theta;
+            assert(false);
             // Depending on the location of the current neighbor we don't need to look 
             // at the complete subgrid
             int startx = 0;

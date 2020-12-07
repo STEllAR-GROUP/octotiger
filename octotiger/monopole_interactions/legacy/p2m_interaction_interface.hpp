@@ -22,7 +22,17 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        /// Interface for the monopole-multipole compute kernel
+        /// The stencil is used to identify which neighbors to interact with
+        static OCTOTIGER_EXPORT std::vector<multiindex<>>& p2m_stencil();
+        /// Uses a cube with true/flags instead of the spherical multiindex stencil
+        static OCTOTIGER_EXPORT std::vector<bool>& p2m_stencil_masks();
+        void compute_p2m_interactions_neighbors_only(std::vector<real>& monopoles,
+            std::vector<multipole>& M_ptr,
+            std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
+            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+            std::array<bool, geo::direction::count()>& is_direction_empty,
+            std::shared_ptr<grid>& grid_ptr);
+        /// DEPRECATED! Interface for the monopole-multipole compute kernel
         class p2m_interaction_interface
         {
         public:
@@ -38,7 +48,8 @@ namespace fmm {
                 std::vector<multipole>& M_ptr,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-                std::array<bool, geo::direction::count()>& is_direction_empty);
+                std::array<bool, geo::direction::count()>& is_direction_empty,
+                std::shared_ptr<grid>& grid_ptr);
             /// Sets the grid pointer - usually only required once
             void set_grid_ptr(std::shared_ptr<grid> ptr) {
                 grid_ptr = ptr;
@@ -47,20 +58,11 @@ namespace fmm {
         public:
             /// The stencil is used to identify which neighbors to interact with
             static OCTOTIGER_EXPORT std::vector<multiindex<>>& stencil();
-            /// Uses a cube with true/flags instead of the spherical multiindex stencil
-            static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
 
         protected:
             /// Converts AoS input data into SoA data
             template <typename expansion_soa_container, typename masses_soa_container>
             bool update_input(std::vector<multipole>& multipoles,
-                std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-                std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-                expansion_soa_container& local_expansions_SoA,
-                masses_soa_container& center_of_masses_SoA);
-            template <typename expansion_soa_container, typename masses_soa_container>
-            void p2m_interaction_interface::update_neighbor_input(
-                const geo::direction& neighbor_dir, std::vector<multipole>& multipoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
                 expansion_soa_container& local_expansions_SoA,
@@ -83,12 +85,12 @@ namespace fmm {
             bool x_skip[3][3][3];
         };
         template <typename expansion_soa_container, typename masses_soa_container>
-        void p2m_interaction_interface::update_neighbor_input(const geo::direction& neighbor_dir,
+        void update_neighbor_input(const geo::direction& neighbor_dir,
             std::vector<multipole>& multipoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             expansion_soa_container& local_expansions_SoA,
-            masses_soa_container& center_of_masses_SoA) {
+            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr) {
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
             neighbor_gravity_type& neighbor = neighbors[neighbor_dir];
 
@@ -125,8 +127,8 @@ namespace fmm {
                 for (auto i : list) {
                     const integer iii = i.second;
                     const multiindex<> offset = flat_index_to_multiindex_not_padded(iii);
-                    const multiindex<> m_padding_index(
-                        offset.x - start_index.x, offset.y - start_index.y, offset.z - start_index.z);
+                    const multiindex<> m_padding_index(offset.x - start_index.x,
+                        offset.y - start_index.y, offset.z - start_index.z);
                     const size_t flat_index = m_padding_index.x * (size.y * size.z) +
                         m_padding_index.y * size.z + m_padding_index.z;
                     local_expansions_SoA.set_AoS_value(
