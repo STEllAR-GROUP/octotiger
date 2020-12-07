@@ -45,13 +45,15 @@ namespace fmm {
             }
 
         public:
-            /// The stencil is used to identify the neighbors
+            /// The stencil is used to identify which neighbors to interact with
             static OCTOTIGER_EXPORT std::vector<multiindex<>>& stencil();
+            /// Uses a cube with true/flags instead of the spherical multiindex stencil
+            static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
 
         protected:
             /// Converts AoS input data into SoA data
             template <typename expansion_soa_container, typename masses_soa_container>
-            void update_input(std::vector<multipole>& multipoles,
+            bool update_input(std::vector<multipole>& multipoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
                 expansion_soa_container& local_expansions_SoA,
@@ -137,7 +139,7 @@ namespace fmm {
         }
 
         template <typename expansion_soa_container, typename masses_soa_container>
-        void p2m_interaction_interface::update_input(std::vector<multipole>& multipoles,
+        bool p2m_interaction_interface::update_input(std::vector<multipole>& multipoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             expansion_soa_container& local_expansions_SoA,
@@ -261,6 +263,7 @@ namespace fmm {
                 }
             }
             neighbor_empty_multipoles[13] = true;
+            return true;
         }
     }    // namespace monopole_interactions
 }    // namespace fmm

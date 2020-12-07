@@ -327,7 +327,6 @@ namespace fmm {
             tmpstore[3].store(potential_expansions_SoA.pointer<3>(cell_flat_index_unpadded));
         }
 
-        // TODO Add correct size for inner cells com
         template <size_t buffer_size>
         void neighbor_interaction_rho(const multiindex<>& neighbor_size,
             const multiindex<>& start_index, const multiindex<>& end_index,
@@ -337,7 +336,7 @@ namespace fmm {
             const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
-            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
+            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
@@ -345,15 +344,17 @@ namespace fmm {
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const std::vector<bool>& stencil_masks, const geo::direction& dir, const double theta) {
-
             // Load position and init tmp stores & constants
-              const m2m_vector theta_rec_squared(sqr(1.0 / theta));
-              m2m_vector X[NDIM];
-              X[0] = center_of_masses_inner_cells_SoA.template value<0, m2m_vector>(cell_flat_index_unpadded);
-              X[1] = center_of_masses_inner_cells_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
-              X[2] = center_of_masses_inner_cells_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
-              m2m_vector tmpstore[4];
-              m2m_vector tmp_corrections[3];
+            const m2m_vector theta_rec_squared(sqr(1.0 / theta));
+            m2m_vector X[NDIM];
+            X[0] = center_of_masses_inner_cells_SoA.template value<0, m2m_vector>(
+                cell_flat_index_unpadded);
+            X[1] = center_of_masses_inner_cells_SoA.template value<1, m2m_vector>(
+                cell_flat_index_unpadded);
+            X[2] = center_of_masses_inner_cells_SoA.template value<2, m2m_vector>(
+                cell_flat_index_unpadded);
+            m2m_vector tmpstore[4];
+            m2m_vector tmp_corrections[3];
 
             for (size_t x = start_index.x; x < end_index.x; x++) {
                 for (size_t y = start_index.y; y < end_index.y; y++) {
@@ -378,7 +379,10 @@ namespace fmm {
                         // Generate stencil mask
                         m2m_vector::mask_type stencil_mask;
                         for (int i = 0; i < m2m_vector::size(); i++) {
-                          stencil_mask[i] = stencil_masks[stencil_flat_index - i];
+                             if (stencil_flat_index - i >= 0 && stencil_flat_index - i < FULL_STENCIL_SIZE)
+                                stencil_mask[i] = stencil_masks[stencil_flat_index - i];
+                             else
+                                stencil_mask[i] = false;
                         }
                         // Skip with stencil masks are all 0
                         if (Vc::none_of(stencil_mask)) {
@@ -402,7 +406,7 @@ namespace fmm {
                         if (Vc::none_of(mask)) {
                             continue;
                         }
-                        // combine masks 
+                        // combine masks
                         mask = mask && stencil_mask;
 
                         // Local index
@@ -462,11 +466,11 @@ namespace fmm {
                         Vc::where(mask, m_partner[19]) =
                             local_expansions_SoA.template at<19>(interaction_partner_flat_index);
 
-            // run templated interaction method instanced with Vc type
-            compute_kernel_p2m_rho(X, Y, m_partner, tmpstore, tmp_corrections,
-                [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
-                    return Vc::max(one, two);
-                });
+                        // run templated interaction method instanced with Vc type
+                        compute_kernel_p2m_rho(X, Y, m_partner, tmpstore, tmp_corrections,
+                            [](const m2m_vector& one, const m2m_vector& two) -> m2m_vector {
+                                return Vc::max(one, two);
+                            });
                     }
                 }
             }
@@ -495,12 +499,14 @@ namespace fmm {
                 angular_corrections_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
             tmp_corrections[2] = tmp_corrections[2] +
                 angular_corrections_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
-            tmp_corrections[0].store(angular_corrections_SoA.template pointer<0>(cell_flat_index_unpadded));
-            tmp_corrections[1].store(angular_corrections_SoA.template pointer<1>(cell_flat_index_unpadded));
-            tmp_corrections[2].store(angular_corrections_SoA.template pointer<2>(cell_flat_index_unpadded));
+            tmp_corrections[0].store(
+                angular_corrections_SoA.template pointer<0>(cell_flat_index_unpadded));
+            tmp_corrections[1].store(
+                angular_corrections_SoA.template pointer<1>(cell_flat_index_unpadded));
+            tmp_corrections[2].store(
+                angular_corrections_SoA.template pointer<2>(cell_flat_index_unpadded));
         }
 
-        // TODO Add correct size for inner cells com
         template <size_t buffer_size>
         void neighbor_interaction_non_rho(const multiindex<>& neighbor_size,
             const multiindex<>& start_index, const multiindex<>& end_index,
@@ -510,19 +516,21 @@ namespace fmm {
             const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
-            const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
+            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA, const multiindex<>& cell_index,
             const size_t cell_flat_index, const multiindex<m2m_int_vector>& cell_index_coarse,
             const multiindex<>& cell_index_unpadded, const size_t cell_flat_index_unpadded,
             const std::vector<bool>& stencil_masks, const geo::direction& dir, const double theta) {
-
             const m2m_vector theta_rec_squared(sqr(1.0 / theta));
             m2m_vector X[NDIM];
-            X[0] = center_of_masses_inner_cells_SoA.template value<0, m2m_vector>(cell_flat_index_unpadded);
-            X[1] = center_of_masses_inner_cells_SoA.template value<1, m2m_vector>(cell_flat_index_unpadded);
-            X[2] = center_of_masses_inner_cells_SoA.template value<2, m2m_vector>(cell_flat_index_unpadded);
+            X[0] = center_of_masses_inner_cells_SoA.template value<0, m2m_vector>(
+                cell_flat_index_unpadded);
+            X[1] = center_of_masses_inner_cells_SoA.template value<1, m2m_vector>(
+                cell_flat_index_unpadded);
+            X[2] = center_of_masses_inner_cells_SoA.template value<2, m2m_vector>(
+                cell_flat_index_unpadded);
             m2m_vector tmpstore[4];
 
             for (size_t x = start_index.x; x < end_index.x; x++) {
@@ -548,7 +556,10 @@ namespace fmm {
                         // Generate stencil mask
                         m2m_vector::mask_type stencil_mask;
                         for (int i = 0; i < m2m_vector::size(); i++) {
-                          stencil_mask[i] = stencil_masks[stencil_flat_index - i];
+                             if (stencil_flat_index - i >= 0 && stencil_flat_index - i < FULL_STENCIL_SIZE)
+                                stencil_mask[i] = stencil_masks[stencil_flat_index - i];
+                             else
+                                stencil_mask[i] = false;
                         }
                         // Skip with stencil masks are all 0
                         if (Vc::none_of(stencil_mask)) {
@@ -572,7 +583,7 @@ namespace fmm {
                         if (Vc::none_of(mask)) {
                             continue;
                         }
-                        // combine masks 
+                        // combine masks
                         mask = mask && stencil_mask;
 
                         // Local index
@@ -659,7 +670,6 @@ namespace fmm {
                 potential_expansions_SoA.template pointer<3>(cell_flat_index_unpadded));
         }
 
-        // TODO Add correct com of inner cells
         template <size_t buffer_size>
         void p2m_kernel::apply_stencil_neighbor(const multiindex<>& neighbor_size,
             const multiindex<>& neighbor_start_index, const multiindex<>& neighbor_end_index,
@@ -669,6 +679,9 @@ namespace fmm {
             const struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                 center_of_masses_SoA,
+            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                center_of_masses_inner_cells_SoA,
             cpu_expansion_result_buffer_t& potential_expansions_SoA,
             cpu_angular_result_t& angular_corrections_SoA, const std::vector<bool>& stencil_masks,
             gsolve_type type, const geo::direction& dir) {
@@ -692,20 +705,19 @@ namespace fmm {
                         cell_index_coarse.transform_coarse();
 
                         if (type == RHO) {
-                            // TODO Add correct com of inner cells
                             neighbor_interaction_rho<buffer_size>(neighbor_size,
                                 neighbor_start_index, neighbor_end_index, local_expansions_SoA,
-                                center_of_masses_SoA, center_of_masses_SoA, potential_expansions_SoA,
-                                angular_corrections_SoA, cell_index, cell_flat_index,
-                                cell_index_coarse, cell_index_unpadded, cell_flat_index_unpadded,
-                                stencil_masks, dir, theta);
-                        } else {
-                            // TODO Add correct com of inner cells
-                            neighbor_interaction_non_rho<buffer_size>(neighbor_size,
-                                neighbor_start_index, neighbor_end_index, local_expansions_SoA,
-                                center_of_masses_SoA, center_of_masses_SoA, potential_expansions_SoA, cell_index,
+                                center_of_masses_SoA, center_of_masses_inner_cells_SoA,
+                                potential_expansions_SoA, angular_corrections_SoA, cell_index,
                                 cell_flat_index, cell_index_coarse, cell_index_unpadded,
                                 cell_flat_index_unpadded, stencil_masks, dir, theta);
+                        } else {
+                            neighbor_interaction_non_rho<buffer_size>(neighbor_size,
+                                neighbor_start_index, neighbor_end_index, local_expansions_SoA,
+                                center_of_masses_SoA, center_of_masses_inner_cells_SoA,
+                                potential_expansions_SoA, cell_index, cell_flat_index,
+                                cell_index_coarse, cell_index_unpadded, cell_flat_index_unpadded,
+                                stencil_masks, dir, theta);
                         }
                     }
                 }
@@ -716,6 +728,28 @@ namespace fmm {
             const struct_of_array_data<expansion, real, 20, INX * INX * STENCIL_MAX, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
             const struct_of_array_data<space_vector, real, 3, INX * INX * STENCIL_MAX, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
+            gsolve_type, const geo::direction&);
+        template void p2m_kernel::apply_stencil_neighbor<INX * STENCIL_MAX * STENCIL_MAX>(
+            const multiindex<>&, const multiindex<>&, const multiindex<>&,
+            const struct_of_array_data<expansion, real, 20, INX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, real, 3, INX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
+            gsolve_type, const geo::direction&);
+        template void p2m_kernel::apply_stencil_neighbor<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(
+            const multiindex<>&, const multiindex<>&, const multiindex<>&,
+            const struct_of_array_data<expansion, real, 20, STENCIL_MAX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, real, 3, STENCIL_MAX * STENCIL_MAX * STENCIL_MAX, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
+            const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                 std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&,
             cpu_expansion_result_buffer_t&, cpu_angular_result_t&, const std::vector<bool>&,
             gsolve_type, const geo::direction&);

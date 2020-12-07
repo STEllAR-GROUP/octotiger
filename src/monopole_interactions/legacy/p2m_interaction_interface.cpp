@@ -47,12 +47,11 @@ namespace fmm {
                             m_padding_index.y * size.z + m_padding_index.z;
                         if (local_expansions_compare.at<0>(global_flat_index) !=
                             local_expansions_staging_area.template at<0>(flat_index)) {
-                            std::cerr
-                                << " Exp 0 Error at " << global_padded_index << " vs  "
-                                << m_padding_index
-                                << " value: " << local_expansions_compare.at<0>(global_flat_index)
-                                << " vs " << local_expansions_staging_area.template at<0>(flat_index)
-                                << std::endl;
+                            std::cerr << " Exp 0 Error at " << global_padded_index << " vs  "
+                                      << m_padding_index << " value: "
+                                      << local_expansions_compare.at<0>(global_flat_index) << " vs "
+                                      << local_expansions_staging_area.template at<0>(flat_index)
+                                      << std::endl;
                             correct = false;
                         }
                         if (local_expansions_compare.at<19>(global_flat_index) !=
@@ -61,28 +60,27 @@ namespace fmm {
                                 << "Exp 19 Error at " << global_padded_index << " vs  "
                                 << m_padding_index
                                 << " value: " << local_expansions_compare.at<19>(global_flat_index)
-                                << " vs " << local_expansions_staging_area.template at<19>(flat_index)
+                                << " vs "
+                                << local_expansions_staging_area.template at<19>(flat_index)
                                 << std::endl;
                             correct = false;
                         }
                         if (center_of_masses_compare.at<0>(global_flat_index) !=
                             center_of_masses_staging_area.template at<0>(flat_index)) {
-                            std::cerr
-                                << "Mass 0 Error at " << global_padded_index << " vs  "
-                                << m_padding_index
-                                << " value: " << center_of_masses_compare.at<0>(global_flat_index)
-                                << " vs " << center_of_masses_staging_area.template at<0>(flat_index)
-                                << std::endl;
+                            std::cerr << "Mass 0 Error at " << global_padded_index << " vs  "
+                                      << m_padding_index << " value: "
+                                      << center_of_masses_compare.at<0>(global_flat_index) << " vs "
+                                      << center_of_masses_staging_area.template at<0>(flat_index)
+                                      << std::endl;
                             correct = false;
                         }
                         if (center_of_masses_compare.at<2>(global_flat_index) !=
                             center_of_masses_staging_area.template at<2>(flat_index)) {
-                            std::cerr
-                                << "Mass 2 Error at " << global_padded_index << " vs  "
-                                << m_padding_index
-                                << " value: " << center_of_masses_compare.at<2>(global_flat_index)
-                                << " vs " << center_of_masses_staging_area.template at<2>(flat_index)
-                                << std::endl;
+                            std::cerr << "Mass 2 Error at " << global_padded_index << " vs  "
+                                      << m_padding_index << " value: "
+                                      << center_of_masses_compare.at<2>(global_flat_index) << " vs "
+                                      << center_of_masses_staging_area.template at<2>(flat_index)
+                                      << std::endl;
                             correct = false;
                         }
                     }
@@ -94,6 +92,11 @@ namespace fmm {
         std::vector<multiindex<>>& p2m_interaction_interface::stencil() {
             static thread_local std::vector<multiindex<>> stencil_ = calculate_stencil().first;
             return stencil_;
+        }
+        std::vector<bool>& p2m_interaction_interface::stencil_masks() {
+            static thread_local std::vector<bool> stencil_masks_ =
+                calculate_stencil_masks(p2m_interaction_interface::stencil()).first;
+            return stencil_masks_;
         }
 
         p2m_interaction_interface::p2m_interaction_interface()
@@ -113,18 +116,34 @@ namespace fmm {
                 center_of_masses_staging_area);
             compute_interactions(type, is_direction_empty, neighbors, local_expansions_staging_area,
                 center_of_masses_staging_area);
-            compute_p2m_interactions_neighbors_only(
-                monopoles, M_ptr, com_ptr, neighbors, type, is_direction_empty);
         }
         void p2m_interaction_interface::compute_p2m_interactions_neighbors_only(
             std::vector<real>& monopoles, std::vector<multipole>& M_ptr,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty) {
+            p2m_kernel kernel(neighbor_empty_multipoles);
             cpu_expansion_buffer_t local_expansions_compare;
             cpu_space_vector_buffer_t center_of_masses_compare;
-            update_input(M_ptr, com_ptr, neighbors, type, local_expansions_compare,
-                center_of_masses_compare);
+
+            // Required for comparisons in later asserts
+            assert(update_input(M_ptr, com_ptr, neighbors, type, local_expansions_compare,
+                center_of_masses_compare));
+
+            struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                center_of_masses_inner_cells_staging_area;
+            std::vector<space_vector> const& com0 = *(com_ptr[0]);
+            cpu_expansion_result_buffer_t potential_expansions_SoA;
+            cpu_angular_result_t angular_corrections_SoA;
+
+            iterate_inner_cells_padded(
+                [&center_of_masses_inner_cells_staging_area, com0](const multiindex<>& i,
+                    const size_t flat_index, const multiindex<>& i_unpadded,
+                    const size_t flat_index_unpadded) {
+                    center_of_masses_inner_cells_staging_area.set_AoS_value(
+                        std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
+                });
 
             for (const geo::direction& dir : geo::direction::full_set()) {
                 neighbor_gravity_type& neighbor = neighbors[dir];
@@ -140,6 +159,9 @@ namespace fmm {
                     assert(size == INX * INX * STENCIL_MAX ||
                         size == INX * STENCIL_MAX * STENCIL_MAX ||
                         size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX);
+                    multiindex<> start_index = get_padding_start_indices(dir);
+                    multiindex<> end_index = get_padding_end_indices(dir);
+                    multiindex<> neighbor_size = get_padding_real_size(dir);
                     if (size == INX * INX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * INX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
@@ -153,32 +175,37 @@ namespace fmm {
 
                         update_neighbor_input(dir, M_ptr, com_ptr, neighbors, type,
                             local_expansions_staging_area, center_of_masses_staging_area);
-                        check_neighbor_conversion(local_expansions_staging_area,
-                            center_of_masses_staging_area, local_expansions_compare,
-                            center_of_masses_compare, dir);
                         assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));
 
-                        p2m_kernel kernel(neighbor_empty_multipoles);
-                        multiindex<> test1, test2;
+                        kernel.apply_stencil_neighbor<INX * INX * STENCIL_MAX>(neighbor_size,
+                            start_index, end_index, local_expansions_staging_area,
+                            center_of_masses_staging_area,
+                            center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
+                            angular_corrections_SoA, stencil_masks(), type, dir);
                     } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = INX * STENCIL_MAX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                            std::vector<real,
+                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             local_expansions_staging_area;
                         struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                            std::vector<real, recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
+                            std::vector<real,
+                                recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>
                             center_of_masses_staging_area;
 
                         update_neighbor_input(dir, M_ptr, com_ptr, neighbors, type,
                             local_expansions_staging_area, center_of_masses_staging_area);
-                        check_neighbor_conversion<INX * STENCIL_MAX * STENCIL_MAX>(local_expansions_staging_area,
-                            center_of_masses_staging_area, local_expansions_compare,
-                            center_of_masses_compare, dir);
                         assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));
+
+                        kernel.apply_stencil_neighbor<INX * STENCIL_MAX * STENCIL_MAX>(
+                            neighbor_size, start_index, end_index, local_expansions_staging_area,
+                            center_of_masses_staging_area,
+                            center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
+                            angular_corrections_SoA, stencil_masks(), type, dir);
                     } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
                         constexpr size_t buffer_size = STENCIL_MAX * STENCIL_MAX * STENCIL_MAX;
                         struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
@@ -192,14 +219,21 @@ namespace fmm {
 
                         update_neighbor_input(dir, M_ptr, com_ptr, neighbors, type,
                             local_expansions_staging_area, center_of_masses_staging_area);
-                        check_neighbor_conversion(local_expansions_staging_area,
-                            center_of_masses_staging_area, local_expansions_compare,
-                            center_of_masses_compare, dir);
                         assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));
+
+                        kernel.apply_stencil_neighbor<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(
+                            neighbor_size, start_index, end_index, local_expansions_staging_area,
+                            center_of_masses_staging_area,
+                            center_of_masses_inner_cells_staging_area, potential_expansions_SoA,
+                            angular_corrections_SoA, stencil_masks(), type, dir);
                     }
                 }
+            }
+            potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+            if (type == RHO) {
+                angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
             }
         }
 

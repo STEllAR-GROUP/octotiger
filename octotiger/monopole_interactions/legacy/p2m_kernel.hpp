@@ -69,8 +69,8 @@ namespace fmm {
                 const std::vector<multiindex<>>& stencil, gsolve_type type, bool (&z_skip)[3][3][3],
                 bool (&y_skip)[3][3], bool (&x_skip)[3]);
             template <size_t buffer_size>
-            void apply_stencil_neighbor(const multiindex<> &neighbor_size,
-                const multiindex<> &neighbor_start_index, const multiindex<> &neighbor_end_index,
+            void apply_stencil_neighbor(const multiindex<>& neighbor_size,
+                const multiindex<>& neighbor_start_index, const multiindex<>& neighbor_end_index,
                 const struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
                     std::vector<real,
                         recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
@@ -79,9 +79,14 @@ namespace fmm {
                     std::vector<real,
                         recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
                     center_of_masses_SoA,
+                const struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
+                    std::vector<real,
+                        recycler::aggressive_recycle_aligned<real, SIMD_LENGTH_BYTES>>>&
+                    center_of_masses_inner_cells_SoA,
                 cpu_expansion_result_buffer_t& potential_expansions_SoA,
                 cpu_angular_result_t& angular_corrections_SoA,
-                const std::vector<bool>& stencil_masks, gsolve_type type, const geo::direction& dir);
+                const std::vector<bool>& stencil_masks, gsolve_type type,
+                const geo::direction& dir);
         };
 
     }    // namespace monopole_interactions
