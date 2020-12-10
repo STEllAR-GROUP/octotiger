@@ -160,7 +160,7 @@ namespace octotiger {
                     const double *__restrict__ expansions_neighbors_soa, const double *__restrict__ center_of_mass_neighbor_soa,
                     const double *__restrict__ center_of_mass_cells_soa, double *__restrict__ potential_expansions,
                     double *__restrict__ angular_corrections, const multiindex<> neighbor_size, const multiindex<> start_index,
-                    const multiindex<> dir, const multiindex<> end_index, const double theta) {
+                    const multiindex<> end_index, const multiindex<> dir, const double theta) {
                 int index_x = threadIdx.x + blockIdx.x;
                 const int component_length_neighbor = neighbor_size.x * neighbor_size.y* neighbor_size.z + SOA_PADDING;
                 // Set cell indices
@@ -213,16 +213,15 @@ namespace octotiger {
                                 stencil_element.y * STENCIL_INX + stencil_element.z;
                             if (!device_stencil_masks[stencil_flat_index])
                                 continue;
-
-                            // Check coarseness and skip if necessary
+                            
                             multiindex<> partner_index_coarse(interaction_partner_index);
                             partner_index_coarse.transform_coarse();
                             const double theta_c_rec_squared = static_cast<double>(
                                 distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
                             const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                            double mask = mask_b ? 1.0 : 0.0;
                             if (!mask_b)
                                 continue;
-                            double mask = mask_b ? 1.0 : 0.0;
 
                           // Local index
                           // Used to figure out which data element to use
@@ -252,15 +251,15 @@ namespace octotiger {
                 }
                 // Store results in output arrays
                 #pragma unroll
-                for (size_t i = 0; i < 4; ++i)
+                for (size_t i = 0; i < 4; ++i) {
                     potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] +=
                         tmpstore[i];
+                }
                 angular_corrections[cell_flat_index_unpadded] += tmp_corrections[0];
                 angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] +=
                     tmp_corrections[1];
                 angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] +=
                     tmp_corrections[2];
- 
             }
             __global__ void
             __launch_bounds__( INX * INX, 2)
