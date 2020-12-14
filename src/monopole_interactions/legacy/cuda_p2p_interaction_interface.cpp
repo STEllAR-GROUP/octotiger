@@ -36,6 +36,7 @@ namespace fmm {
             // Check where we want to run this:
             bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                 pool_strategy>(opts().cuda_buffer_capacity);
+            //avail = true;
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
                 p2p_interaction_interface::compute_p2p_interactions(monopoles, com_ptr, neighbors,
@@ -74,13 +75,17 @@ namespace fmm {
                 executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
 
-                    cuda_angular_result_t angular_corrections_SoA;
-                    recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
-                    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                        cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,
-                        (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double));
+                //if (contains_multipole_neighbor && opts().p2m_kernel_type == SOA_CPU) {
+                //if (contains_multipole_neighbor && type == RHO) {
+                //    compute_p2m_interactions_neighbors_only(monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
                 if (contains_multipole_neighbor) {
+                //} else if (contains_multipole_neighbor && opts().p2m_kernel_type == SOA_CUDA) {
                     // Convert and move innter cells coms to device
+                recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
+                hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                    cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,
+
+                    (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double));
                     std::vector<space_vector> const& com0 = *(com_ptr[0]);
                     struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                         std::vector<real, recycler::recycle_allocator_cuda_host<real>>>
@@ -103,7 +108,7 @@ namespace fmm {
                     for (const geo::direction& dir : geo::direction::full_set()) {
                         neighbor_gravity_type& neighbor = neighbors[dir];
                         // Multipole neighbor that actually contains any data?
-                        if (!neighbor.is_monopole && neighbor.data.M) {
+                         if (!neighbor.is_monopole && neighbor.data.M) {
                             int size = 1;
                             for (int i = 0; i < 3; i++) {
                                 if (dir[i] == 0)
@@ -121,6 +126,20 @@ namespace fmm {
                             dir_index.x = dir[0];
                             dir_index.y = dir[1];
                             dir_index.z = dir[2];
+                            multiindex<> cells_start(0, 0, 0);
+                            multiindex<> cells_end(INX, INX, INX);
+                            if (dir[0] == 1)
+                                cells_start.x = INX - (STENCIL_MAX + 1);
+                            if (dir[0] == -1)
+                                cells_end.x = (STENCIL_MAX + 1);
+                            if (dir[1] == 1)
+                                cells_start.y = INX - (STENCIL_MAX + 1);
+                            if (dir[1] == -1)
+                                cells_end.y = (STENCIL_MAX + 1);
+                            if (dir[2] == 1)
+                                cells_start.z = INX - (STENCIL_MAX + 1);
+                            if (dir[2] == -1)
+                                cells_end.z = (STENCIL_MAX + 1);
 
                             // TODO Get array of these?! Otherwise I need to overwrite these which
                             // would be absolutely awful Possiblity 2: sync after kernel... <-- do
@@ -155,27 +174,27 @@ namespace fmm {
                                     cudaMemcpyHostToDevice);
 
                                 if (type == RHO) {
-                                    dim3 const grid_spec(INX, 1, 1);
-                                    dim3 const threads_per_block(1, INX, INX);
+                                    dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
+                                    dim3 const threads_per_block(1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                                     void* args[] = {&(local_expansions.device_side_buffer),
                                         &(center_of_masses.device_side_buffer),
                                         &(center_of_masses_inner_cells.device_side_buffer),
                                         &(erg.device_side_buffer),
                                         &(device_erg_corrs.device_side_buffer), &neighbor_size,
-                                        &start_index, &end_index, &dir_index, &theta};
+                                        &start_index, &end_index, &dir_index, &theta, &cells_start};
                                     auto fut = executor.async_execute(
                                         cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
                                         cuda_p2m_interaction_rho, grid_spec, threads_per_block,
                                         args, 0);
                                     fut.get();
                                 } else {
-                                    dim3 const grid_spec(INX, 1, 1);
-                                    dim3 const threads_per_block(1, INX, INX);
+                                    dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
+                                    dim3 const threads_per_block(1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                                     void* args[] = {&(local_expansions.device_side_buffer),
                                         &(center_of_masses.device_side_buffer),
                                         &(center_of_masses_inner_cells.device_side_buffer),
                                         &(erg.device_side_buffer), &neighbor_size, &start_index,
-                                        &end_index, &dir_index, &theta};
+                                        &end_index, &dir_index, &theta, &cells_start};
                                     auto fut = executor.async_execute(
                                         cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
                                         cuda_p2m_interaction_non_rho, grid_spec, threads_per_block,
@@ -212,27 +231,27 @@ namespace fmm {
                                     cudaMemcpyHostToDevice);
 
                                 if (type == RHO) {
-                                    dim3 const grid_spec(INX, 1, 1);
-                                    dim3 const threads_per_block(1, INX, INX);
+                                    dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
+                                    dim3 const threads_per_block(1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                                     void* args[] = {&(local_expansions.device_side_buffer),
                                         &(center_of_masses.device_side_buffer),
                                         &(center_of_masses_inner_cells.device_side_buffer),
                                         &(erg.device_side_buffer),
                                         &(device_erg_corrs.device_side_buffer), &neighbor_size,
-                                        &start_index, &end_index, &dir_index, &theta};
+                                        &start_index, &end_index, &dir_index, &theta, &cells_start};
                                     auto fut = executor.async_execute(
                                         cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
                                         cuda_p2m_interaction_rho, grid_spec, threads_per_block,
                                         args, 0);
                                     fut.get();
                                 } else {
-                                    dim3 const grid_spec(INX, 1, 1);
-                                    dim3 const threads_per_block(1, INX, INX);
+                                    dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
+                                    dim3 const threads_per_block(1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                                     void* args[] = {&(local_expansions.device_side_buffer),
                                         &(center_of_masses.device_side_buffer),
                                         &(center_of_masses_inner_cells.device_side_buffer),
                                         &(erg.device_side_buffer), &neighbor_size, &start_index,
-                                        &end_index, &dir_index, &theta};
+                                        &end_index, &dir_index, &theta, &cells_start};
                                     auto fut = executor.async_execute(
                                         cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
                                         cuda_p2m_interaction_non_rho, grid_spec, threads_per_block,
@@ -271,27 +290,27 @@ namespace fmm {
                                     cudaMemcpyHostToDevice);
 
                                 if (type == RHO) {
-                                    dim3 const grid_spec(INX, 1, 1);
-                                    dim3 const threads_per_block(1, INX, INX);
+                                    dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
+                                    dim3 const threads_per_block(1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                                     void* args[] = {&(local_expansions.device_side_buffer),
                                         &(center_of_masses.device_side_buffer),
                                         &(center_of_masses_inner_cells.device_side_buffer),
                                         &(erg.device_side_buffer),
                                         &(device_erg_corrs.device_side_buffer), &neighbor_size,
-                                        &start_index, &end_index, &dir_index, &theta};
+                                        &start_index, &end_index, &dir_index, &theta, &cells_start};
                                     auto fut = executor.async_execute(
                                         cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
                                         cuda_p2m_interaction_rho, grid_spec, threads_per_block,
                                         args, 0);
                                     fut.get();
                                 } else {
-                                    dim3 const grid_spec(INX, 1, 1);
-                                    dim3 const threads_per_block(1, INX, INX);
+                                    dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
+                                    dim3 const threads_per_block(1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                                     void* args[] = {&(local_expansions.device_side_buffer),
                                         &(center_of_masses.device_side_buffer),
                                         &(center_of_masses_inner_cells.device_side_buffer),
                                         &(erg.device_side_buffer), &neighbor_size, &start_index,
-                                        &end_index, &dir_index, &theta};
+                                        &end_index, &dir_index, &theta, &cells_start};
                                     auto fut = executor.async_execute(
                                         cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
                                         cuda_p2m_interaction_non_rho, grid_spec, threads_per_block,
@@ -302,17 +321,17 @@ namespace fmm {
                         }
                     }
                     if (type == RHO) {
-                        hpx::apply(
-                            static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        cuda_angular_result_t angular_corrections_SoA;
+                        auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);
-                        //std::cout << "Cuda version.." << std::endl;
-                        //for (int i = 0;i < 200; i++)
-                         //   std::cout << angular_corrections_SoA.at<0>(i) << " ";
-                        //std::cout << std::endl << std::endl;
-                        //std::cin.get();
-                        //fut.get();
+                        fut.get();
+                        angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                        // std::cout << "Cuda version.." << std::endl;
+                        // std::cout << std::endl << std::endl;
+                        // std::cin.get();
+                        // //fut.get();
                         // angular_corrections_SoA.print(std::cout);
                         // std::cin.get();
                     }
@@ -320,14 +339,16 @@ namespace fmm {
                 auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
                     potential_expansions_small_size, cudaMemcpyDeviceToHost);
+                //auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                //    cudaStreamSynchronize);
 
                 // Wait for stream to finish and allow thread to jump away in the meantime
                 fut.get();
 
                 // Copy results back into non-SoA array
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
-                if (type == RHO && contains_multipole_neighbor)
-                angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                //if (type == RHO && contains_multipole_neighbor) // && opts().p2m_kernel_type == SOA_CUDA)
+                 //   angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
             }
         }
 

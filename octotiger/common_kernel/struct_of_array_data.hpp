@@ -136,6 +136,19 @@ namespace fmm {
                 out << std::endl;
             }
         }
+        bool all_zero(std::ostream& out, size_t number_entries = padded_entries_per_component) {
+            for (size_t entry = 0; entry < number_entries; entry++) {
+                for (size_t component = 0; component < num_components; component++) {
+                    if (std::abs(data[component * padded_entries_per_component + entry]) > 1e-18) {
+                    out << component << " / " << entry << " : " 
+                        << data[component * padded_entries_per_component + entry] << " "
+                        << std::endl;
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
         void compare(std::ostream& out, std::vector<AoS_type>& org_copy, std::vector<AoS_type>& org, size_t number_entries = padded_entries_per_component) {
             for (size_t entry = 0; entry < 16; entry++) {
                 for (size_t component = 0; component < num_components; component++) {

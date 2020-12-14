@@ -22,14 +22,14 @@ namespace fmm {
             const double* __restrict__ center_of_mass_cells_soa,
             double* __restrict__ potential_expansions, double* __restrict__ angular_corrections,
             const multiindex<> neighbor_size, const multiindex<> start_index,
-            const multiindex<> dir, const multiindex<> end_index, const double theta);
+            const multiindex<> dir, const multiindex<> end_index, const double theta, multiindex<> cells_start);
         __global__ void cuda_p2m_interaction_non_rho(
             const double* __restrict__ expansions_neighbors_soa,
             const double* __restrict__ center_of_mass_neighbor_soa,
             const double* __restrict__ center_of_mass_cells_soa,
             double* __restrict__ potential_expansions, const multiindex<> neighbor_size,
             const multiindex<> start_index, const multiindex<> end_index, const multiindex<> dir,
-            const double theta);
+            const double theta, multiindex<> cells_start);
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

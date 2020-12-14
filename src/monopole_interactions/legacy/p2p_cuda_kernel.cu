@@ -160,18 +160,18 @@ namespace octotiger {
                     const double *__restrict__ expansions_neighbors_soa, const double *__restrict__ center_of_mass_neighbor_soa,
                     const double *__restrict__ center_of_mass_cells_soa, double *__restrict__ potential_expansions,
                     double *__restrict__ angular_corrections, const multiindex<> neighbor_size, const multiindex<> start_index,
-                    const multiindex<> end_index, const multiindex<> dir, const double theta) {
+                    const multiindex<> end_index, const multiindex<> dir, const double theta, multiindex<> cells_start) {
                 int index_x = threadIdx.x + blockIdx.x;
                 const int component_length_neighbor = neighbor_size.x * neighbor_size.y* neighbor_size.z + SOA_PADDING;
                 // Set cell indices
-                const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
-                                                              threadIdx.y + INNER_CELLS_PADDING_DEPTH,
-                                                              threadIdx.z + INNER_CELLS_PADDING_DEPTH);
+                const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH + cells_start.x,
+                                                              threadIdx.y + INNER_CELLS_PADDING_DEPTH + cells_start.y,
+                                                              threadIdx.z + INNER_CELLS_PADDING_DEPTH + cells_start.z);
                 octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
                 cell_index_coarse.transform_coarse();
                 const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
-                octotiger::fmm::multiindex<> cell_index_unpadded(index_x,
-                                                                 threadIdx.y, threadIdx.z);
+                octotiger::fmm::multiindex<> cell_index_unpadded(index_x + cells_start.x,
+                                                                 threadIdx.y + cells_start.y, threadIdx.z + cells_start.z);
                 const size_t cell_flat_index_unpadded =
                     octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
@@ -212,7 +212,7 @@ namespace octotiger {
                                 stencil_element.x * STENCIL_INX * STENCIL_INX +
                                 stencil_element.y * STENCIL_INX + stencil_element.z;
                             if (!device_stencil_masks[stencil_flat_index])
-                                continue;
+                               continue;
                             
                             multiindex<> partner_index_coarse(interaction_partner_index);
                             partner_index_coarse.transform_coarse();
@@ -221,7 +221,7 @@ namespace octotiger {
                             const bool mask_b = theta_rec_squared > theta_c_rec_squared;
                             double mask = mask_b ? 1.0 : 0.0;
                             if (!mask_b)
-                                continue;
+                               continue;
 
                           // Local index
                           // Used to figure out which data element to use
@@ -267,18 +267,18 @@ namespace octotiger {
                     const double *__restrict__ expansions_neighbors_soa, const double *__restrict__ center_of_mass_neighbor_soa,
                     const double *__restrict__ center_of_mass_cells_soa, double *__restrict__ potential_expansions,
                     const multiindex<> neighbor_size, const multiindex<> start_index, const multiindex<> end_index,
-                    const multiindex<> dir, const double theta) {
+                    const multiindex<> dir, const double theta, multiindex<> cells_start) {
                 int index_x = threadIdx.x + blockIdx.x;
                 const int component_length_neighbor = neighbor_size.x * neighbor_size.y* neighbor_size.z + SOA_PADDING;
                 // Set cell indices
-                const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
-                                                              threadIdx.y + INNER_CELLS_PADDING_DEPTH,
-                                                              threadIdx.z + INNER_CELLS_PADDING_DEPTH);
+                const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH + cells_start.x,
+                                                              threadIdx.y + INNER_CELLS_PADDING_DEPTH + cells_start.y,
+                                                              threadIdx.z + INNER_CELLS_PADDING_DEPTH + cells_start.z);
                 octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
                 cell_index_coarse.transform_coarse();
                 const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
-                octotiger::fmm::multiindex<> cell_index_unpadded(index_x,
-                                                                 threadIdx.y, threadIdx.z);
+                octotiger::fmm::multiindex<> cell_index_unpadded(index_x + cells_start.x,
+                                                                 threadIdx.y + cells_start.y, threadIdx.z + cells_start.z);
                 const size_t cell_flat_index_unpadded =
                     octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
 
