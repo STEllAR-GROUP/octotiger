@@ -156,11 +156,12 @@ namespace fmm {
             cpu_angular_result_t angular_corrections_SoA;
 
             iterate_inner_cells_padded(
-                [&center_of_masses_inner_cells_staging_area, com0](const multiindex<>& i,
+                [&center_of_masses_inner_cells_staging_area, com0, &angular_corrections_SoA](const multiindex<>& i,
                     const size_t flat_index, const multiindex<>& i_unpadded,
                     const size_t flat_index_unpadded) {
                     center_of_masses_inner_cells_staging_area.set_AoS_value(
                         std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
+                    angular_corrections_SoA.set_AoS_value(space_vector(), flat_index_unpadded);
                 });
 
             for (const geo::direction& dir : geo::direction::full_set()) {

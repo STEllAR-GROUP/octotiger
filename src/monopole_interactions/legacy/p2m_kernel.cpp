@@ -382,6 +382,8 @@ namespace fmm {
                                 stencil_mask[i] = stencil_masks[stencil_flat_index - i];
                              else
                                 stencil_mask[i] = false;
+                             if (cell_index_unpadded.z + i >= INX)
+                                stencil_mask[i] = false;
                         }
                         // Skip with stencil masks are all 0
                         if (Vc::none_of(stencil_mask)) {
@@ -558,6 +560,8 @@ namespace fmm {
                              if (stencil_flat_index - i >= 0 && stencil_flat_index - i < FULL_STENCIL_SIZE)
                                 stencil_mask[i] = stencil_masks[stencil_flat_index - i];
                              else
+                                stencil_mask[i] = false;
+                             if (cell_index_unpadded.z + i >= INX)
                                 stencil_mask[i] = false;
                         }
                         // Skip with stencil masks are all 0
