@@ -75,10 +75,9 @@ namespace fmm {
                 executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
 
-                //if (contains_multipole_neighbor && opts().p2m_kernel_type == SOA_CPU) {
-                //if (contains_multipole_neighbor && type == RHO) {
-                //    compute_p2m_interactions_neighbors_only(monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
-                if (contains_multipole_neighbor) {
+                if (contains_multipole_neighbor && opts().p2m_kernel_type != SOA_CUDA) {
+                    compute_p2m_interactions_neighbors_only(monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
+                } else if (contains_multipole_neighbor) {
                 //} else if (contains_multipole_neighbor && opts().p2m_kernel_type == SOA_CUDA) {
                     // Convert and move innter cells coms to device
                 recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
