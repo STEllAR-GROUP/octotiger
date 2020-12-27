@@ -416,8 +416,8 @@ namespace fmm {
                         angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
 
-                // Handle results in case we did not need any p2m kernels
-                if (!contains_multipole_neighbor) {
+                // Handle results in case we did not need any p2m kernels or used the CPU p2m kernels
+                if (!contains_multipole_neighbor || (contains_multipole_neighbor && opts().p2m_kernel_type != SOA_CUDA)) {
                     auto fut = hpx::async(
                         static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                         cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
