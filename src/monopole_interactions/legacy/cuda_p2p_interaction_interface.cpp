@@ -26,10 +26,8 @@ namespace fmm {
     namespace monopole_interactions {
         template <size_t buffer_size>
         inline void run_p2m_kernel(gsolve_type type, double theta, double* device_center_of_masses,
-            double* device_local_expansions,
-            recycler::cuda_device_buffer<double>& center_of_masses_inner_cells,
-            recycler::cuda_device_buffer<double>& erg,
-            recycler::cuda_device_buffer<double>& device_erg_corrs,
+            double* device_local_expansions, double* device_center_of_masses_inner_cells,
+            double* device_erg, double* device_erg_corrs,
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             multiindex<>& start_index, multiindex<>& end_index, multiindex<>& neighbor_size,
             multiindex<>& dir_index, multiindex<>& cells_start, multiindex<>& cells_end) {
@@ -38,9 +36,8 @@ namespace fmm {
                 dim3 const threads_per_block(
                     1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                 void* args[] = {&(device_local_expansions), &(device_center_of_masses),
-                    &(center_of_masses_inner_cells.device_side_buffer), &(erg.device_side_buffer),
-                    &(device_erg_corrs.device_side_buffer), &neighbor_size, &start_index,
-                    &end_index, &dir_index, &theta, &cells_start};
+                    &(device_center_of_masses_inner_cells), &(device_erg), &(device_erg_corrs),
+                    &neighbor_size, &start_index, &end_index, &dir_index, &theta, &cells_start};
                 executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
                     cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
             } else {
@@ -48,8 +45,8 @@ namespace fmm {
                 dim3 const threads_per_block(
                     1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
                 void* args[] = {&(device_local_expansions), &(device_center_of_masses),
-                    &(center_of_masses_inner_cells.device_side_buffer), &(erg.device_side_buffer),
-                    &neighbor_size, &start_index, &end_index, &dir_index, &theta, &cells_start};
+                    &(device_center_of_masses_inner_cells), &(device_erg), &neighbor_size,
+                    &start_index, &end_index, &dir_index, &theta, &cells_start};
                 executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
                     cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
             }
@@ -110,12 +107,33 @@ namespace fmm {
                     compute_p2m_interactions_neighbors_only(
                         monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
                 } else if (contains_multipole_neighbor) {
-                    // Convert and move innter cells coms to device
-                    recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
-                    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                        cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,
+                    // Depending on the size of the neighbor there are 3 possible p2m kernels
+                    // We need to check how many of which to launch and get appropriate input
+                    // buffers. As the struct of arrays datastructure has the size encoded in the type
+                    // these input buffers need to be constructured for all three types
+                    
+                    // TODO Rewrite with less kernel duplication (this requires struct_of_array datatype to
+                    // NOT encode its size in the datatype -> larger job than it should be)
 
-                        (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double));
+                    // Kernel type with INX * INX * STENCIL_MAX elements
+                    size_t number_kernel_type1 = 0;
+                    constexpr size_t buffer_size_kernel_type1 = INX * INX * STENCIL_MAX;
+                    // Kernel type with INX * STENCIL_MAX * STENCIL_MAX elements
+                    size_t number_kernel_type2 = 0;
+                    constexpr size_t buffer_size_kernel_type2 = INX * STENCIL_MAX * STENCIL_MAX;
+                    // Kernel type with STENCIL_MAX * STENCIL_MAX * STENCIL_MAX elements
+                    size_t number_kernel_type3 = 0;
+                    constexpr size_t buffer_size_kernel_type3 =
+                        STENCIL_MAX * STENCIL_MAX * STENCIL_MAX;
+                    
+                    // Get and reset (as it is recycled) buffer for the angular correction results
+                    // Same for all p2m kernel types
+                    recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
+                    if (type == RHO)
+                      hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                          cudaMemsetAsync, device_erg_corrs.device_side_buffer, 0,
+                          (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double));
+                    // Convert and move inner cells coms to device
                     std::vector<space_vector> const& com0 = *(com_ptr[0]);
                     struct_of_array_data<space_vector, real, 3, INNER_CELLS, SOA_PADDING,
                         std::vector<real, recycler::recycle_allocator_cuda_host<real>>>
@@ -134,21 +152,8 @@ namespace fmm {
                         center_of_masses_inner_cells_staging_area.get_pod(),
                         (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double), cudaMemcpyHostToDevice);
 
-                    // Depending on the size of the neighbor there are 3 possible p2m kernels
-                    // We need to check how many of which to launch and get appropriate input buffers
 
-                    // Kernel type with INX * INX * STENCIL_MAX elements
-                    size_t number_kernel_type1 = 0;
-                    constexpr size_t buffer_size_kernel_type1 = INX * INX * STENCIL_MAX;
-                    // Kernel type with INX * STENCIL_MAX * STENCIL_MAX elements
-                    size_t number_kernel_type2 = 0;
-                    constexpr size_t buffer_size_kernel_type2 = INX * STENCIL_MAX * STENCIL_MAX;
-                    // Kernel type with STENCIL_MAX * STENCIL_MAX * STENCIL_MAX elements
-                    size_t number_kernel_type3 = 0;
-                    constexpr size_t buffer_size_kernel_type3 =
-                        STENCIL_MAX * STENCIL_MAX * STENCIL_MAX;
-
-                    // Check how many p2m kernels we need to launch
+                    // Check how many p2m kernels of each type we need to launch
                     for (const geo::direction& dir : geo::direction::full_set()) {
                         neighbor_gravity_type& neighbor = neighbors[dir];
                         if (!neighbor.is_monopole && neighbor.data.M) {
@@ -184,7 +189,7 @@ namespace fmm {
                     recycler::cuda_device_buffer<double> center_of_masses_type1(
                         (buffer_size_kernel_type1 + SOA_PADDING) * 3 * number_kernel_type1 + 32,
                         device_id);
-
+                    // Input buffers for type 2
                     std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type2,
                         SOA_PADDING,
                         std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
@@ -199,7 +204,7 @@ namespace fmm {
                     recycler::cuda_device_buffer<double> center_of_masses_type2(
                         (buffer_size_kernel_type2 + SOA_PADDING) * 3 * number_kernel_type2 + 32,
                         device_id);
-
+                    // Input buffers for type 3
                     std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type3,
                         SOA_PADDING,
                         std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
@@ -230,6 +235,8 @@ namespace fmm {
                                 else
                                     size *= STENCIL_MAX;
                             }
+                            // Convert AoS input into the appropriate SoA datastructure
+                            // for the correct p2m kernel size
                             if (size == INX * INX * STENCIL_MAX) {
                                 update_neighbor_input(dir, com_ptr, neighbors, type,
                                     local_expansions_staging_area_type1[counter_kernel_type1],
@@ -252,11 +259,11 @@ namespace fmm {
                         }
                     }
 
-
-                    // Loop that launches p2m cuda kernels for appropriate neighbors
+                    // Reset type counters for actually running the kernels 
                     counter_kernel_type1 = 0;
                     counter_kernel_type2 = 0;
                     counter_kernel_type3 = 0;
+                    // Loop that launches p2m cuda kernels for appropriate neighbors
                     for (const geo::direction& dir : geo::direction::full_set()) {
                         neighbor_gravity_type& neighbor = neighbors[dir];
                         if (!neighbor.is_monopole && neighbor.data.M) {
@@ -270,6 +277,7 @@ namespace fmm {
                             assert(size == INX * INX * STENCIL_MAX ||
                                 size == INX * STENCIL_MAX * STENCIL_MAX ||
                                 size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX);
+                            // Indices to address the interaction and stencil data
                             multiindex<> start_index = get_padding_start_indices(dir);
                             multiindex<> end_index = get_padding_end_indices(dir);
                             multiindex<> neighbor_size = get_padding_real_size(dir);
@@ -277,6 +285,8 @@ namespace fmm {
                             dir_index.x = dir[0];
                             dir_index.y = dir[1];
                             dir_index.z = dir[2];
+                            // Save Computation time by only considering cells that actually can change
+                            // These are their start and stop indices which are used for the later kernel launch
                             multiindex<> cells_start(0, 0, 0);
                             multiindex<> cells_end(INX, INX, INX);
                             if (dir[0] == 1)
@@ -292,6 +302,10 @@ namespace fmm {
                             if (dir[2] == -1)
                                 cells_end.z = (STENCIL_MAX + 1);
 
+                            // Move data and launch p2m kernel - no synchronization yet
+                            // Each branch handles a different p2m kernels type and hence
+                            // uses a different input buffer and a different launch size 
+                            // Otherwise the launches are identical
                             if (size == INX * INX * STENCIL_MAX) {
                                 hpx::apply(
                                     static_cast<hpx::cuda::experimental::cuda_executor>(executor),
@@ -321,9 +335,10 @@ namespace fmm {
                                     (local_expansions_type1.device_side_buffer) +
                                         counter_kernel_type1 *
                                             (buffer_size_kernel_type1 + SOA_PADDING) * 20,
-                                    center_of_masses_inner_cells, erg, device_erg_corrs, executor,
-                                    start_index, end_index, neighbor_size, dir_index, cells_start,
-                                    cells_end);
+                                    center_of_masses_inner_cells.device_side_buffer,
+                                    erg.device_side_buffer, device_erg_corrs.device_side_buffer,
+                                    executor, start_index, end_index, neighbor_size, dir_index,
+                                    cells_start, cells_end);
 
                                 counter_kernel_type1++;
                             } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
@@ -355,9 +370,10 @@ namespace fmm {
                                     (local_expansions_type2.device_side_buffer) +
                                         counter_kernel_type2 *
                                             (buffer_size_kernel_type2 + SOA_PADDING) * 20,
-                                    center_of_masses_inner_cells, erg, device_erg_corrs, executor,
-                                    start_index, end_index, neighbor_size, dir_index, cells_start,
-                                    cells_end);
+                                    center_of_masses_inner_cells.device_side_buffer,
+                                    erg.device_side_buffer, device_erg_corrs.device_side_buffer,
+                                    executor, start_index, end_index, neighbor_size, dir_index,
+                                    cells_start, cells_end);
                                 counter_kernel_type2++;
                             } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
                                 hpx::apply(
@@ -388,15 +404,16 @@ namespace fmm {
                                     (local_expansions_type3.device_side_buffer) +
                                         counter_kernel_type3 *
                                             (buffer_size_kernel_type3 + SOA_PADDING) * 20,
-                                    center_of_masses_inner_cells, erg, device_erg_corrs, executor,
-                                    start_index, end_index, neighbor_size, dir_index, cells_start,
-                                    cells_end);
+                                    center_of_masses_inner_cells.device_side_buffer,
+                                    erg.device_side_buffer, device_erg_corrs.device_side_buffer,
+                                    executor, start_index, end_index, neighbor_size, dir_index,
+                                    cells_start, cells_end);
                                 counter_kernel_type3++;
                             }
                         }
                     }
 
-                    // Handle results of both p2p and p2m kernels 
+                    // Handle results of both p2p and p2m kernels
                     // as they share their results buffers
                     cuda_angular_result_t angular_corrections_SoA;
                     if (type == RHO) {
@@ -416,8 +433,10 @@ namespace fmm {
                         angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
 
-                // Handle results in case we did not need any p2m kernels or used the CPU p2m kernels
-                if (!contains_multipole_neighbor || (contains_multipole_neighbor && opts().p2m_kernel_type != SOA_CUDA)) {
+                // Handle results in case we did not need any p2m kernels or used the CPU p2m
+                // kernels
+                if (!contains_multipole_neighbor ||
+                    (contains_multipole_neighbor && opts().p2m_kernel_type != SOA_CUDA)) {
                     auto fut = hpx::async(
                         static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                         cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
