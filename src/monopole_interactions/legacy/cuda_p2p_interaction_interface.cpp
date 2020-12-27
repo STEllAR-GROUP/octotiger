@@ -25,62 +25,33 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
         template <size_t buffer_size>
-        inline void run_p2m_kernel(std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
-            std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            std::shared_ptr<grid>& grid_ptr, double theta, const geo::direction& dir,
+        inline void run_p2m_kernel(gsolve_type type, double theta, double* device_center_of_masses,
+            double* device_local_expansions,
             recycler::cuda_device_buffer<double>& center_of_masses_inner_cells,
             recycler::cuda_device_buffer<double>& erg,
             recycler::cuda_device_buffer<double>& device_erg_corrs,
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            size_t device_id, multiindex<>& start_index, multiindex<>& end_index,
-            multiindex<>& neighbor_size, multiindex<>& dir_index, multiindex<>& cells_start,
-            multiindex<>& cells_end) {
-            struct_of_array_data<expansion, real, 20, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::recycle_allocator_cuda_host<real>>>
-                local_expansions_staging_area;
-            struct_of_array_data<space_vector, real, 3, buffer_size, SOA_PADDING,
-                std::vector<real, recycler::recycle_allocator_cuda_host<real>>>
-                center_of_masses_staging_area;
-            update_neighbor_input(dir, com_ptr, neighbors, type, local_expansions_staging_area,
-                center_of_masses_staging_area, grid_ptr);
-            recycler::cuda_device_buffer<double> local_expansions(
-                (buffer_size + SOA_PADDING) * 20, device_id);
-            recycler::cuda_device_buffer<double> center_of_masses(
-                (buffer_size + SOA_PADDING) * 3, device_id);
-            hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                cudaMemcpyAsync, local_expansions.device_side_buffer,
-                local_expansions_staging_area.get_pod(),
-                (buffer_size + SOA_PADDING) * 20 * sizeof(double), cudaMemcpyHostToDevice);
-            hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                cudaMemcpyAsync, center_of_masses.device_side_buffer,
-                center_of_masses_staging_area.get_pod(),
-                (buffer_size + SOA_PADDING) * 3 * sizeof(double), cudaMemcpyHostToDevice);
-
+            multiindex<>& start_index, multiindex<>& end_index, multiindex<>& neighbor_size,
+            multiindex<>& dir_index, multiindex<>& cells_start, multiindex<>& cells_end) {
             if (type == RHO) {
                 dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
                 dim3 const threads_per_block(
                     1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
-                void* args[] = {&(local_expansions.device_side_buffer),
-                    &(center_of_masses.device_side_buffer),
+                void* args[] = {&(device_local_expansions), &(device_center_of_masses),
                     &(center_of_masses_inner_cells.device_side_buffer), &(erg.device_side_buffer),
                     &(device_erg_corrs.device_side_buffer), &neighbor_size, &start_index,
                     &end_index, &dir_index, &theta, &cells_start};
-                auto fut =
-                    executor.async_execute(cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
-                        cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
-                fut.get();
+                executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
+                    cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
             } else {
                 dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
                 dim3 const threads_per_block(
                     1, cells_end.y - cells_start.y, cells_end.z - cells_start.z);
-                void* args[] = {&(local_expansions.device_side_buffer),
-                    &(center_of_masses.device_side_buffer),
+                void* args[] = {&(device_local_expansions), &(device_center_of_masses),
                     &(center_of_masses_inner_cells.device_side_buffer), &(erg.device_side_buffer),
                     &neighbor_size, &start_index, &end_index, &dir_index, &theta, &cells_start};
-                auto fut =
-                    executor.async_execute(cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
-                        cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
-                fut.get();
+                executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
+                    cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
             }
         }
 
@@ -139,8 +110,6 @@ namespace fmm {
                     compute_p2m_interactions_neighbors_only(
                         monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
                 } else if (contains_multipole_neighbor) {
-                    //} else if (contains_multipole_neighbor && opts().p2m_kernel_type == SOA_CUDA)
-                    //{
                     // Convert and move innter cells coms to device
                     recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
                     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
@@ -165,14 +134,131 @@ namespace fmm {
                         center_of_masses_inner_cells_staging_area.get_pod(),
                         (INNER_CELLS + SOA_PADDING) * 3 * sizeof(double), cudaMemcpyHostToDevice);
 
+                    // Depending on the size of the neighbor there are 3 possible p2m kernels
+                    // We need to check how many of which to launch and get appropriate input buffers
 
-                    // TODO Iterate over dirs, count 3 kernel types, allocate arrays of buffers accordingly
+                    // Kernel type with INX * INX * STENCIL_MAX elements
+                    size_t number_kernel_type1 = 0;
+                    constexpr size_t buffer_size_kernel_type1 = INX * INX * STENCIL_MAX;
+                    // Kernel type with INX * STENCIL_MAX * STENCIL_MAX elements
+                    size_t number_kernel_type2 = 0;
+                    constexpr size_t buffer_size_kernel_type2 = INX * STENCIL_MAX * STENCIL_MAX;
+                    // Kernel type with STENCIL_MAX * STENCIL_MAX * STENCIL_MAX elements
+                    size_t number_kernel_type3 = 0;
+                    constexpr size_t buffer_size_kernel_type3 =
+                        STENCIL_MAX * STENCIL_MAX * STENCIL_MAX;
 
-                    // TODO Modify to use existing buffers and remove the .gets
-                    // Iterate through neighbors
+                    // Check how many p2m kernels we need to launch
+                    for (const geo::direction& dir : geo::direction::full_set()) {
+                        neighbor_gravity_type& neighbor = neighbors[dir];
+                        if (!neighbor.is_monopole && neighbor.data.M) {
+                            int size = 1;
+                            for (int i = 0; i < 3; i++) {
+                                if (dir[i] == 0)
+                                    size *= INX;
+                                else
+                                    size *= STENCIL_MAX;
+                            }
+                            if (size == buffer_size_kernel_type1) {
+                                number_kernel_type1++;
+                            } else if (size == buffer_size_kernel_type2) {
+                                number_kernel_type2++;
+                            } else if (size == buffer_size_kernel_type3) {
+                                number_kernel_type3++;
+                            }
+                        }
+                    }
+                    // Input kernel buffers for p2m kernels - 2 host-side and 2 device-side buffers
+                    // for each of the three kernel types
+                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type1,
+                        SOA_PADDING,
+                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        local_expansions_staging_area_type1(number_kernel_type1);
+                    std::vector<struct_of_array_data<space_vector, real, 3,
+                        buffer_size_kernel_type1, SOA_PADDING,
+                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        center_of_masses_staging_area_type1(number_kernel_type1);
+                    recycler::cuda_device_buffer<double> local_expansions_type1(
+                        (buffer_size_kernel_type1 + SOA_PADDING) * 20 * number_kernel_type1 + 32,
+                        device_id);
+                    recycler::cuda_device_buffer<double> center_of_masses_type1(
+                        (buffer_size_kernel_type1 + SOA_PADDING) * 3 * number_kernel_type1 + 32,
+                        device_id);
+
+                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type2,
+                        SOA_PADDING,
+                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        local_expansions_staging_area_type2(number_kernel_type2);
+                    std::vector<struct_of_array_data<space_vector, real, 3,
+                        buffer_size_kernel_type2, SOA_PADDING,
+                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        center_of_masses_staging_area_type2(number_kernel_type2);
+                    recycler::cuda_device_buffer<double> local_expansions_type2(
+                        (buffer_size_kernel_type2 + SOA_PADDING) * 20 * number_kernel_type2 + 32,
+                        device_id);
+                    recycler::cuda_device_buffer<double> center_of_masses_type2(
+                        (buffer_size_kernel_type2 + SOA_PADDING) * 3 * number_kernel_type2 + 32,
+                        device_id);
+
+                    std::vector<struct_of_array_data<expansion, real, 20, buffer_size_kernel_type3,
+                        SOA_PADDING,
+                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        local_expansions_staging_area_type3(number_kernel_type3);
+                    std::vector<struct_of_array_data<space_vector, real, 3,
+                        buffer_size_kernel_type3, SOA_PADDING,
+                        std::vector<real, recycler::recycle_allocator_cuda_host<real>>>>
+                        center_of_masses_staging_area_type3(number_kernel_type3);
+                    recycler::cuda_device_buffer<double> local_expansions_type3(
+                        (buffer_size_kernel_type3 + SOA_PADDING) * 20 * number_kernel_type3 + 32,
+                        device_id);
+                    recycler::cuda_device_buffer<double> center_of_masses_type3(
+                        (buffer_size_kernel_type3 + SOA_PADDING) * 3 * number_kernel_type3 + 32,
+                        device_id);
+
+                    // Loop that collects input data for the p2m kernels
+                    size_t counter_kernel_type1 = 0;
+                    size_t counter_kernel_type2 = 0;
+                    size_t counter_kernel_type3 = 0;
                     for (const geo::direction& dir : geo::direction::full_set()) {
                         neighbor_gravity_type& neighbor = neighbors[dir];
                         // Multipole neighbor that actually contains any data?
+                        if (!neighbor.is_monopole && neighbor.data.M) {
+                            int size = 1;
+                            for (int i = 0; i < 3; i++) {
+                                if (dir[i] == 0)
+                                    size *= INX;
+                                else
+                                    size *= STENCIL_MAX;
+                            }
+                            if (size == INX * INX * STENCIL_MAX) {
+                                update_neighbor_input(dir, com_ptr, neighbors, type,
+                                    local_expansions_staging_area_type1[counter_kernel_type1],
+                                    center_of_masses_staging_area_type1[counter_kernel_type1],
+                                    grid_ptr);
+                                counter_kernel_type1++;
+                            } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
+                                update_neighbor_input(dir, com_ptr, neighbors, type,
+                                    local_expansions_staging_area_type2[counter_kernel_type2],
+                                    center_of_masses_staging_area_type2[counter_kernel_type2],
+                                    grid_ptr);
+                                counter_kernel_type2++;
+                            } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
+                                update_neighbor_input(dir, com_ptr, neighbors, type,
+                                    local_expansions_staging_area_type3[counter_kernel_type3],
+                                    center_of_masses_staging_area_type3[counter_kernel_type3],
+                                    grid_ptr);
+                                counter_kernel_type3++;
+                            }
+                        }
+                    }
+
+
+                    // Loop that launches p2m cuda kernels for appropriate neighbors
+                    counter_kernel_type1 = 0;
+                    counter_kernel_type2 = 0;
+                    counter_kernel_type3 = 0;
+                    for (const geo::direction& dir : geo::direction::full_set()) {
+                        neighbor_gravity_type& neighbor = neighbors[dir];
                         if (!neighbor.is_monopole && neighbor.data.M) {
                             int size = 1;
                             for (int i = 0; i < 3; i++) {
@@ -207,59 +293,141 @@ namespace fmm {
                                 cells_end.z = (STENCIL_MAX + 1);
 
                             if (size == INX * INX * STENCIL_MAX) {
-                                run_p2m_kernel<INX * INX * STENCIL_MAX>(com_ptr, neighbors, type,
-                                    grid_ptr, theta, dir, center_of_masses_inner_cells, erg,
-                                    device_erg_corrs, executor, device_id, start_index, end_index,
-                                    neighbor_size, dir_index, cells_start, cells_end);
-                            } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
-                                run_p2m_kernel<INX * STENCIL_MAX * STENCIL_MAX>(com_ptr, neighbors,
-                                    type, grid_ptr, theta, dir, center_of_masses_inner_cells, erg,
-                                    device_erg_corrs, executor, device_id, start_index, end_index,
-                                    neighbor_size, dir_index, cells_start, cells_end);
-                            } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
-                                run_p2m_kernel<STENCIL_MAX * STENCIL_MAX * STENCIL_MAX>(com_ptr,
-                                    neighbors, type, grid_ptr, theta, dir,
+                                hpx::apply(
+                                    static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                                    cudaMemcpyAsync,
+                                    (local_expansions_type1.device_side_buffer) +
+                                        counter_kernel_type1 *
+                                            (buffer_size_kernel_type1 + SOA_PADDING) * 20,
+                                    local_expansions_staging_area_type1[counter_kernel_type1]
+                                        .get_pod(),
+                                    (buffer_size_kernel_type1 + SOA_PADDING) * 20 * sizeof(double),
+                                    cudaMemcpyHostToDevice);
+                                hpx::apply(
+                                    static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                                    cudaMemcpyAsync,
+                                    center_of_masses_type1.device_side_buffer +
+                                        counter_kernel_type1 *
+                                            (buffer_size_kernel_type1 + SOA_PADDING) * 3,
+                                    center_of_masses_staging_area_type1[counter_kernel_type1]
+                                        .get_pod(),
+                                    (buffer_size_kernel_type1 + SOA_PADDING) * 3 * sizeof(double),
+                                    cudaMemcpyHostToDevice);
+
+                                run_p2m_kernel<INX * INX * STENCIL_MAX>(type, theta,
+                                    center_of_masses_type1.device_side_buffer +
+                                        counter_kernel_type1 *
+                                            (buffer_size_kernel_type1 + SOA_PADDING) * 3,
+                                    (local_expansions_type1.device_side_buffer) +
+                                        counter_kernel_type1 *
+                                            (buffer_size_kernel_type1 + SOA_PADDING) * 20,
                                     center_of_masses_inner_cells, erg, device_erg_corrs, executor,
-                                    device_id, start_index, end_index, neighbor_size, dir_index,
-                                    cells_start, cells_end);
+                                    start_index, end_index, neighbor_size, dir_index, cells_start,
+                                    cells_end);
+
+                                counter_kernel_type1++;
+                            } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
+                                hpx::apply(
+                                    static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                                    cudaMemcpyAsync,
+                                    (local_expansions_type2.device_side_buffer) +
+                                        counter_kernel_type2 *
+                                            (buffer_size_kernel_type2 + SOA_PADDING) * 20,
+                                    local_expansions_staging_area_type2[counter_kernel_type2]
+                                        .get_pod(),
+                                    (buffer_size_kernel_type2 + SOA_PADDING) * 20 * sizeof(double),
+                                    cudaMemcpyHostToDevice);
+                                hpx::apply(
+                                    static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                                    cudaMemcpyAsync,
+                                    center_of_masses_type2.device_side_buffer +
+                                        counter_kernel_type2 *
+                                            (buffer_size_kernel_type2 + SOA_PADDING) * 3,
+                                    center_of_masses_staging_area_type2[counter_kernel_type2]
+                                        .get_pod(),
+                                    (buffer_size_kernel_type2 + SOA_PADDING) * 3 * sizeof(double),
+                                    cudaMemcpyHostToDevice);
+
+                                run_p2m_kernel<INX * INX * STENCIL_MAX>(type, theta,
+                                    center_of_masses_type2.device_side_buffer +
+                                        counter_kernel_type2 *
+                                            (buffer_size_kernel_type2 + SOA_PADDING) * 3,
+                                    (local_expansions_type2.device_side_buffer) +
+                                        counter_kernel_type2 *
+                                            (buffer_size_kernel_type2 + SOA_PADDING) * 20,
+                                    center_of_masses_inner_cells, erg, device_erg_corrs, executor,
+                                    start_index, end_index, neighbor_size, dir_index, cells_start,
+                                    cells_end);
+                                counter_kernel_type2++;
+                            } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
+                                hpx::apply(
+                                    static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                                    cudaMemcpyAsync,
+                                    (local_expansions_type3.device_side_buffer) +
+                                        counter_kernel_type3 *
+                                            (buffer_size_kernel_type3 + SOA_PADDING) * 20,
+                                    local_expansions_staging_area_type3[counter_kernel_type3]
+                                        .get_pod(),
+                                    (buffer_size_kernel_type3 + SOA_PADDING) * 20 * sizeof(double),
+                                    cudaMemcpyHostToDevice);
+                                hpx::apply(
+                                    static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                                    cudaMemcpyAsync,
+                                    center_of_masses_type3.device_side_buffer +
+                                        counter_kernel_type3 *
+                                            (buffer_size_kernel_type3 + SOA_PADDING) * 3,
+                                    center_of_masses_staging_area_type3[counter_kernel_type3]
+                                        .get_pod(),
+                                    (buffer_size_kernel_type3 + SOA_PADDING) * 3 * sizeof(double),
+                                    cudaMemcpyHostToDevice);
+
+                                run_p2m_kernel<INX * INX * STENCIL_MAX>(type, theta,
+                                    center_of_masses_type3.device_side_buffer +
+                                        counter_kernel_type3 *
+                                            (buffer_size_kernel_type3 + SOA_PADDING) * 3,
+                                    (local_expansions_type3.device_side_buffer) +
+                                        counter_kernel_type3 *
+                                            (buffer_size_kernel_type3 + SOA_PADDING) * 20,
+                                    center_of_masses_inner_cells, erg, device_erg_corrs, executor,
+                                    start_index, end_index, neighbor_size, dir_index, cells_start,
+                                    cells_end);
+                                counter_kernel_type3++;
                             }
                         }
                     }
+
+                    // Handle results of both p2p and p2m kernels 
+                    // as they share their results buffers
+                    cuda_angular_result_t angular_corrections_SoA;
                     if (type == RHO) {
-                        cuda_angular_result_t angular_corrections_SoA;
-                        auto fut = hpx::async(
-                            static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);
-                        fut.get();
-                        angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
-
-                        // TODO Remove debug comments
-                        // std::cout << "Cuda version.." << std::endl;
-                        // std::cout << std::endl << std::endl;
-                        // std::cin.get();
-                        // //fut.get();
-                        // angular_corrections_SoA.print(std::cout);
-                        // std::cin.get();
                     }
+                    auto fut = hpx::async(
+                        static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
+                        potential_expansions_small_size, cudaMemcpyDeviceToHost);
+                    angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                    fut.get();
+                    potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+                    if (type == RHO)
+                        angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
-                auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                    cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
-                    potential_expansions_small_size, cudaMemcpyDeviceToHost);
-                // TODO Remove debug comments
-                // auto fut =
-                // hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-                //    cudaStreamSynchronize);
 
-                // Wait for stream to finish and allow thread to jump away in the meantime
-                fut.get();
+                // Handle results in case we did not need any p2m kernels
+                if (!contains_multipole_neighbor) {
+                    auto fut = hpx::async(
+                        static_cast<hpx::cuda::experimental::cuda_executor>(executor),
+                        cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,
+                        potential_expansions_small_size, cudaMemcpyDeviceToHost);
+                    // Wait for stream to finish and allow thread to jump away in the meantime
+                    fut.get();
 
-                // Copy results back into non-SoA array
-                potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
-                // if (type == RHO && contains_multipole_neighbor) // && opts().p2m_kernel_type ==
-                // SOA_CUDA)
-                //   angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
+                    // Copy results back into non-SoA array
+                    potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+                }
             }
         }
 
