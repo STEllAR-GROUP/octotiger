@@ -83,6 +83,14 @@ namespace fmm {
             bool y_skip[3][3];
             bool x_skip[3][3][3];
         };
+
+        template <size_t padded_entries_per_component, size_t num_components, typename container_t,
+            typename AoS_temp_type>
+        inline void set_AoS_value(container_t& buffer, AoS_temp_type&& value, size_t flatindex) {
+            for (size_t component = 0; component < num_components; component++) {
+                buffer[component * padded_entries_per_component + flatindex] = value[component];
+            }
+        }
         template <typename expansion_soa_container, typename masses_soa_container>
         void update_neighbor_input(const geo::direction& neighbor_dir,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
@@ -106,17 +114,17 @@ namespace fmm {
                     [&local_expansions_SoA, &center_of_masses_SoA, neighbor_M_ptr, neighbor_com0](
                         const multiindex<>& i, const size_t flat_index,
                         const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                        local_expansions_SoA.set_AoS_value(
+                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
                             std::move(neighbor_M_ptr.at(flat_index_unpadded)), flat_index);
-                        center_of_masses_SoA.set_AoS_value(
+                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                             std::move(neighbor_com0.at(flat_index_unpadded)), flat_index);
                     });
             } else {
                 iterate_padding(neighbor_dir,
                     [&local_expansions_SoA, &center_of_masses_SoA](const multiindex<>& i,
                         const size_t flat_index, const multiindex<>&, const size_t) {
-                        local_expansions_SoA.set_AoS_value(std::move(expansion()), flat_index);
-                        center_of_masses_SoA.set_AoS_value(std::move(space_vector()), flat_index);
+                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA, std::move(expansion()), flat_index);
+                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA, std::move(space_vector()), flat_index);
                     });
                 auto list = grid_ptr->get_ilist_n_bnd(neighbor_dir);
                 multiindex<> start_index = get_padding_start_indices(neighbor_dir);
@@ -129,15 +137,16 @@ namespace fmm {
                         offset.y - start_index.y, offset.z - start_index.z);
                     const size_t flat_index = m_padding_index.x * (size.y * size.z) +
                         m_padding_index.y * size.z + m_padding_index.z;
-                    local_expansions_SoA.set_AoS_value(
+                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA, 
                         std::move(neighbor_M_ptr.at(counter)), flat_index);
-                    center_of_masses_SoA.set_AoS_value(
+                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
                         std::move(neighbor_com0.at(counter)), flat_index);
                     counter++;
                 }
             }
         }
 
+        // Only required for legacy p2m SoA
         template <typename expansion_soa_container, typename masses_soa_container>
         bool p2m_interaction_interface::update_input(std::vector<multipole>& multipoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,

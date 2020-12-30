@@ -1,4 +1,4 @@
-//  Copyright (c) 2019 AUTHORS
+//  Copyright (c) 2019 AUTHORSoS
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -75,7 +75,7 @@ namespace fmm {
 
         template <size_t padded_entries_per_component, size_t num_components, typename container_t,
             typename AoS_temp_type>
-        void set_AoS_value(container_t& buffer, AoS_temp_type&& value, size_t flatindex) {
+        inline void set_AoS_value(container_t& buffer, AoS_temp_type&& value, size_t flatindex) {
             for (size_t component = 0; component < num_components; component++) {
                 buffer[component * padded_entries_per_component + flatindex] = value[component];
             }

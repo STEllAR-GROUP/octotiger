@@ -1,10 +1,19 @@
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/defs.hpp"
-#include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
+
+// TODO Addd namespaces
+constexpr size_t buffer_size_kernel_type1 = INX * INX * octotiger::fmm::STENCIL_MAX;
+constexpr size_t buffer_size_kernel_type2 =
+    INX * octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX;
+constexpr size_t buffer_size_kernel_type3 =
+    octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX;
 
 template <typename storage>
 const storage& get_host_masks() {
@@ -42,7 +51,7 @@ const storage& get_device_masks(executor_t& exec) {
     return stencil_masks;
 }
 
-// --------------------------------------- Kernel implementations
+// --------------------------------------- P2P Kernel implementations
 
 template <typename executor_t, typename buffer_t, typename mask_t>
 void p2p_kernel_impl(executor_t& exec, const buffer_t& monopoles, const mask_t& deviceMasks,
@@ -62,11 +71,11 @@ void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             executor.instance(), {0, 0, 0}, {INX, INX, INX}),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
-    //Kokkos::parallel_for("kernel p2p", policy_1,
+    // Kokkos::parallel_for("kernel p2p", policy_1,
     //   [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
     //       int idx, int idy, int idz) {
-    Kokkos::parallel_for("kernel p2p", policy_1,
-        KOKKOS_LAMBDA(int idx, int idy, int idz) {
+    Kokkos::parallel_for(
+        "kernel p2p", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
             // helper variables
             const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
             const octotiger::fmm::multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
@@ -130,8 +139,283 @@ void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
                 tmpstore[3];
         });
 }
+// --------------------------------------- P2M Kernel implementations
 
-// --------------------------------------- Launch Interface implementations
+// TODO(daissgr) Add P2M Kernel non-RHO
+template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
+void p2m_kernel_impl_non_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    const kokkos_buffer_t& expansions_neighbors_soa,
+    const kokkos_buffer_t& center_of_mass_neighbor_soa,
+    const kokkos_buffer_t& center_of_mass_cells_soa, kokkos_buffer_t& potential_expansions,
+    const octotiger::fmm::multiindex<> neighbor_size,
+    const octotiger::fmm::multiindex<> start_index, const octotiger::fmm::multiindex<> end_index,
+    const octotiger::fmm::multiindex<> dir, const double theta,
+    const octotiger::fmm::multiindex<> cells_start, const octotiger::fmm::multiindex<> cells_end,
+    const kokkos_mask_t& devicemasks) {
+    auto policy_1 = Kokkos::Experimental::require(
+        Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(executor.instance(),
+            {0, 0, 0},
+            {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
+                cells_end.z - cells_start.z}),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+
+    // Kokkos::parallel_for("kernel p2p", policy_1,
+    //   [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
+    //       int idx, int idy, int idz) {
+    Kokkos::parallel_for(
+        "kernel p2m non-rho", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+            const int component_length_neighbor =
+                neighbor_size.x * neighbor_size.y * neighbor_size.z + octotiger::fmm::SOA_PADDING;
+            const size_t component_length_unpadded =
+                octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING;
+            // Set cell indices
+            const octotiger::fmm::multiindex<> cell_index(
+                idx + octotiger::fmm::INNER_CELLS_PADDING_DEPTH + cells_start.x,
+                idy + octotiger::fmm::INNER_CELLS_PADDING_DEPTH + cells_start.y,
+                idz + octotiger::fmm::INNER_CELLS_PADDING_DEPTH + cells_start.z);
+            octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
+            cell_index_coarse.transform_coarse();
+            const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
+            octotiger::fmm::multiindex<> cell_index_unpadded(
+                idx + cells_start.x, idy + cells_start.y, idz + cells_start.z);
+            const size_t cell_flat_index_unpadded =
+                octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+
+            const double theta_rec_squared = sqr(1.0 / theta);
+
+            double X[NDIM];
+            X[0] = center_of_mass_cells_soa[cell_flat_index_unpadded];
+            X[1] =
+                center_of_mass_cells_soa[1 * component_length_unpadded + cell_flat_index_unpadded];
+            X[2] =
+                center_of_mass_cells_soa[2 * component_length_unpadded + cell_flat_index_unpadded];
+
+            // Create and set result arrays
+            double tmpstore[4];
+#pragma unroll
+            for (size_t i = 0; i < 4; ++i)
+                tmpstore[i] = 0.0;
+            double m_partner[20];
+            double Y[NDIM];
+            for (size_t x = start_index.x; x < end_index.x; x++) {
+                for (size_t y = start_index.y; y < end_index.y; y++) {
+                    for (size_t z = start_index.z; z < end_index.z; z++) {
+                        // Global index (regarding inner cells + all neighbors)
+                        // Used to figure out which stencil mask to use
+                        const octotiger::fmm::multiindex<> interaction_partner_index(
+                            octotiger::fmm::INNER_CELLS_PADDING_DEPTH +
+                                dir.x * octotiger::fmm::INNER_CELLS_PADDING_DEPTH + x,
+                            octotiger::fmm::INNER_CELLS_PADDING_DEPTH +
+                                dir.y * octotiger::fmm::INNER_CELLS_PADDING_DEPTH + y,
+                            octotiger::fmm::INNER_CELLS_PADDING_DEPTH +
+                                dir.z * octotiger::fmm::INNER_CELLS_PADDING_DEPTH + z);
+
+                        // Get stencil mask and skip if necessary
+                        octotiger::fmm::multiindex<> stencil_element(interaction_partner_index.x -
+                                cell_index.x - octotiger::fmm::STENCIL_MIN,
+                            interaction_partner_index.y - cell_index.y -
+                                octotiger::fmm::STENCIL_MIN,
+                            interaction_partner_index.z - cell_index.z -
+                                octotiger::fmm::STENCIL_MIN);
+                        const size_t stencil_flat_index = stencil_element.x *
+                                octotiger::fmm::STENCIL_INX * octotiger::fmm::STENCIL_INX +
+                            stencil_element.y * octotiger::fmm::STENCIL_INX + stencil_element.z;
+                        if (!devicemasks[stencil_flat_index])
+                            continue;
+
+                        octotiger::fmm::multiindex<> partner_index_coarse(
+                            interaction_partner_index);
+                        partner_index_coarse.transform_coarse();
+                        const double theta_c_rec_squared = static_cast<double>(
+                            distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                        const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                        double mask = mask_b ? 1.0 : 0.0;
+                        if (!mask_b)
+                            continue;
+
+                        // Local index
+                        // Used to figure out which data element to use
+                        const octotiger::fmm::multiindex<> interaction_partner_data_index(
+                            x - start_index.x, y - start_index.y, z - start_index.z);
+                        const size_t interaction_partner_flat_index =
+                            interaction_partner_data_index.x * (neighbor_size.y * neighbor_size.z) +
+                            interaction_partner_data_index.y * neighbor_size.z +
+                            interaction_partner_data_index.z;
+
+                        // Load data of interaction partner
+                        Y[0] = center_of_mass_neighbor_soa[interaction_partner_flat_index];
+                        Y[1] = center_of_mass_neighbor_soa[1 * component_length_neighbor +
+                            interaction_partner_flat_index];
+                        Y[2] = center_of_mass_neighbor_soa[2 * component_length_neighbor +
+                            interaction_partner_flat_index];
+#pragma unroll
+                        for (size_t i = 0; i < 20; ++i)
+                            m_partner[i] = expansions_neighbors_soa[i * component_length_neighbor +
+                                               interaction_partner_flat_index] *
+                                mask;
+
+                        // run templated interaction method instanced with double type
+                        octotiger::fmm::monopole_interactions::
+                            compute_kernel_p2m_non_rho(X, Y, m_partner,
+                                tmpstore, [](const double& one, const double& two) -> double {
+                                    return max(one, two);
+                                });
+                    }
+                }
+            }
+// Store results in output arrays
+#pragma unroll
+            for (size_t i = 0; i < 4; ++i)
+                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] +=
+                    tmpstore[i];
+        });
+}
+
+// TODO(daissgr) Add P2M Kernel RHO
+template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
+void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    const kokkos_buffer_t& expansions_neighbors_soa,
+    const kokkos_buffer_t& center_of_mass_neighbor_soa,
+    const kokkos_buffer_t& center_of_mass_cells_soa, kokkos_buffer_t& potential_expansions,
+    kokkos_buffer_t& angular_corrections, const octotiger::fmm::multiindex<> neighbor_size,
+    const octotiger::fmm::multiindex<> start_index, const octotiger::fmm::multiindex<> end_index,
+    const octotiger::fmm::multiindex<> dir, const double theta,
+    const octotiger::fmm::multiindex<> cells_start, const octotiger::fmm::multiindex<> cells_end,
+    const kokkos_mask_t& devicemasks, const bool reset_ang_corrs) {
+    auto policy_1 = Kokkos::Experimental::require(
+        Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(executor.instance(),
+            {0, 0, 0},
+            {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
+                cells_end.z - cells_start.z}),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+
+    Kokkos::parallel_for(
+        "kernel p2m rho", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+            const int component_length_neighbor =
+                neighbor_size.x * neighbor_size.y * neighbor_size.z + octotiger::fmm::SOA_PADDING;
+            const size_t component_length_unpadded =
+                octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING;
+            // Set cell indices
+            const octotiger::fmm::multiindex<> cell_index(
+                idx + octotiger::fmm::INNER_CELLS_PADDING_DEPTH + cells_start.x,
+                idy + octotiger::fmm::INNER_CELLS_PADDING_DEPTH + cells_start.y,
+                idz + octotiger::fmm::INNER_CELLS_PADDING_DEPTH + cells_start.z);
+            octotiger::fmm::multiindex<> cell_index_coarse(cell_index);
+            cell_index_coarse.transform_coarse();
+            const size_t cell_flat_index = octotiger::fmm::to_flat_index_padded(cell_index);
+            octotiger::fmm::multiindex<> cell_index_unpadded(
+                idx + cells_start.x, idy + cells_start.y, idz + cells_start.z);
+            const size_t cell_flat_index_unpadded =
+                octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+
+            const double theta_rec_squared = sqr(1.0 / theta);
+
+            double X[NDIM];
+            X[0] = center_of_mass_cells_soa[cell_flat_index_unpadded];
+            X[1] =
+                center_of_mass_cells_soa[1 * component_length_unpadded + cell_flat_index_unpadded];
+            X[2] =
+                center_of_mass_cells_soa[2 * component_length_unpadded + cell_flat_index_unpadded];
+
+            // Create and set result arrays
+            double tmpstore[4];
+#pragma unroll
+            for (size_t i = 0; i < 4; ++i)
+                tmpstore[i] = 0.0;
+            double tmp_corrections[3];
+#pragma unroll
+            for (size_t i = 0; i < 3; ++i)
+                tmp_corrections[i] = 0.0;
+            double m_partner[20];
+            double Y[NDIM];
+            for (size_t x = start_index.x; x < end_index.x; x++) {
+                for (size_t y = start_index.y; y < end_index.y; y++) {
+                    for (size_t z = start_index.z; z < end_index.z; z++) {
+                        // Global index (regarding inner cells + all neighbors)
+                        // Used to figure out which stencil mask to use
+                        const octotiger::fmm::multiindex<> interaction_partner_index(
+                            octotiger::fmm::INNER_CELLS_PADDING_DEPTH +
+                                dir.x * octotiger::fmm::INNER_CELLS_PADDING_DEPTH + x,
+                            octotiger::fmm::INNER_CELLS_PADDING_DEPTH +
+                                dir.y * octotiger::fmm::INNER_CELLS_PADDING_DEPTH + y,
+                            octotiger::fmm::INNER_CELLS_PADDING_DEPTH +
+                                dir.z * octotiger::fmm::INNER_CELLS_PADDING_DEPTH + z);
+
+                        // Get stencil mask and skip if necessary
+                        octotiger::fmm::multiindex<> stencil_element(interaction_partner_index.x -
+                                cell_index.x - octotiger::fmm::STENCIL_MIN,
+                            interaction_partner_index.y - cell_index.y -
+                                octotiger::fmm::STENCIL_MIN,
+                            interaction_partner_index.z - cell_index.z -
+                                octotiger::fmm::STENCIL_MIN);
+                        const size_t stencil_flat_index = stencil_element.x *
+                                octotiger::fmm::STENCIL_INX * octotiger::fmm::STENCIL_INX +
+                            stencil_element.y * octotiger::fmm::STENCIL_INX + stencil_element.z;
+                        if (!devicemasks[stencil_flat_index])
+                            continue;
+
+                        octotiger::fmm::multiindex<> partner_index_coarse(
+                            interaction_partner_index);
+                        partner_index_coarse.transform_coarse();
+                        const double theta_c_rec_squared = static_cast<double>(
+                            distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                        const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                        double mask = mask_b ? 1.0 : 0.0;
+                        if (!mask_b)
+                            continue;
+
+                        // Local index
+                        // Used to figure out which data element to use
+                        const octotiger::fmm::multiindex<> interaction_partner_data_index(
+                            x - start_index.x, y - start_index.y, z - start_index.z);
+                        const size_t interaction_partner_flat_index =
+                            interaction_partner_data_index.x * (neighbor_size.y * neighbor_size.z) +
+                            interaction_partner_data_index.y * neighbor_size.z +
+                            interaction_partner_data_index.z;
+
+                        // Load data of interaction partner
+                        Y[0] = center_of_mass_neighbor_soa[interaction_partner_flat_index];
+                        Y[1] = center_of_mass_neighbor_soa[1 * component_length_neighbor +
+                            interaction_partner_flat_index];
+                        Y[2] = center_of_mass_neighbor_soa[2 * component_length_neighbor +
+                            interaction_partner_flat_index];
+#pragma unroll
+                        for (size_t i = 0; i < 20; ++i)
+                            m_partner[i] = expansions_neighbors_soa[i * component_length_neighbor +
+                                               interaction_partner_flat_index] *
+                                mask;
+
+                        // run templated interaction method instanced with double type
+                        octotiger::fmm::monopole_interactions::compute_kernel_p2m_rho(X, Y,
+                            m_partner, tmpstore, tmp_corrections,
+                            [](const double& one, const double& two) -> double {
+                                return max(one, two);
+                            });
+                    }
+                }
+            }
+// Store results in output arrays
+#pragma unroll
+            for (size_t i = 0; i < 4; ++i)
+                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] +=
+                    tmpstore[i];
+            if (reset_ang_corrs) {
+                angular_corrections[cell_flat_index_unpadded] = tmp_corrections[0];
+                angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] =
+                    tmp_corrections[1];
+                angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
+                    tmp_corrections[2];
+            } else {
+                angular_corrections[cell_flat_index_unpadded] += tmp_corrections[0];
+                angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] +=
+                    tmp_corrections[1];
+                angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] +=
+                    tmp_corrections[2];
+            }
+        });
+}
+
+// --------------------------------------- P2P Launch Interface implementations
 
 template <typename executor_t>
 void launch_interface(executor_t& exec, host_buffer<double>& monopoles,
@@ -181,12 +465,120 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
     // fut.get();
 }
 
+// --------------------------------------- P2P / P2M Launch Interface implementations
+
+template <typename executor_t>
+void launch_interface_p2p_p2m(executor_t& exec, host_buffer<double>& monopoles,
+    host_buffer<double>& results, host_buffer<double>& ang_corr_results,
+    host_buffer<double>& center_of_masses_inner_cells,
+    std::vector<host_buffer<double>>& local_expansions,
+    std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
+    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+    const size_t number_p2m_kernels) {
+    static_assert(always_false<executor_t>::value,
+        "P2P + P2M launch interface implemented for this kind of executor!");
+}
+
+template <typename kokkos_backend_t>
+void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
+    host_buffer<double>& monopoles, host_buffer<double>& results,
+    host_buffer<double>& ang_corr_results, host_buffer<double>& center_of_masses_inner_cells,
+    std::vector<host_buffer<double>>& local_expansions,
+    std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
+    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
+    const size_t number_p2m_kernels) {
+    // create device buffers
+    const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>, host_buffer<int>,
+        hpx::kokkos::executor<kokkos_backend_t>>(exec);
+    device_buffer<double> device_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
+    device_buffer<double> device_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
+
+    // move device buffers
+    Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
+
+    // call p2p kernel
+    p2p_kernel_impl(exec, device_monopoles, device_masks, device_results, dx, theta);
+
+    device_buffer<double> device_center_of_masses_inner_cells(
+        (octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 3);
+    Kokkos::deep_copy(
+        exec.instance(), device_center_of_masses_inner_cells, center_of_masses_inner_cells);
+
+    std::vector<device_buffer<double>> device_center_of_masses_neighbors(number_p2m_kernels,
+        device_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 3));
+    std::vector<device_buffer<double>> device_local_expansions_neighbors(number_p2m_kernels,
+        device_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 20));
+
+    device_buffer<double> device_corrections(octotiger::fmm::NUMBER_ANG_CORRECTIONS);
+
+    // - Launch Kernel
+    size_t counter_kernel = 0;
+    bool reset_ang_corrs = true;
+    for (const geo::direction& dir : geo::direction::full_set()) {
+        neighbor_gravity_type& neighbor = neighbors[dir];
+        if (!neighbor.is_monopole && neighbor.data.M) {
+            // Indices to address the interaction and stencil data
+            octotiger::fmm::multiindex<> start_index =
+                octotiger::fmm::get_padding_start_indices(dir);
+            octotiger::fmm::multiindex<> end_index = octotiger::fmm::get_padding_end_indices(dir);
+            octotiger::fmm::multiindex<> neighbor_size = octotiger::fmm::get_padding_real_size(dir);
+            octotiger::fmm::multiindex<> dir_index;
+            dir_index.x = dir[0];
+            dir_index.y = dir[1];
+            dir_index.z = dir[2];
+            // Save Computation time by only considering cells that actually can change
+            // These are their start and stop indices which are used for the later kernel launch
+            octotiger::fmm::multiindex<> cells_start(0, 0, 0);
+            octotiger::fmm::multiindex<> cells_end(INX, INX, INX);
+            if (dir[0] == 1)
+                cells_start.x = INX - (octotiger::fmm::STENCIL_MAX + 1);
+            if (dir[0] == -1)
+                cells_end.x = (octotiger::fmm::STENCIL_MAX + 1);
+            if (dir[1] == 1)
+                cells_start.y = INX - (octotiger::fmm::STENCIL_MAX + 1);
+            if (dir[1] == -1)
+                cells_end.y = (octotiger::fmm::STENCIL_MAX + 1);
+            if (dir[2] == 1)
+                cells_start.z = INX - (octotiger::fmm::STENCIL_MAX + 1);
+            if (dir[2] == -1)
+                cells_end.z = (octotiger::fmm::STENCIL_MAX + 1);
+
+            Kokkos::deep_copy(exec.instance(), device_center_of_masses_neighbors[counter_kernel],
+                center_of_masses[counter_kernel]);
+            Kokkos::deep_copy(exec.instance(), device_local_expansions_neighbors[counter_kernel],
+                local_expansions[counter_kernel]);
+
+            if (type == RHO) {
+                p2m_kernel_impl_rho(exec, device_local_expansions_neighbors[counter_kernel],
+                    device_center_of_masses_neighbors[counter_kernel],
+                    device_center_of_masses_inner_cells, device_results, device_corrections,
+                    neighbor_size, start_index, end_index, dir_index, theta, cells_start, cells_end,
+                    device_masks, reset_ang_corrs);
+                reset_ang_corrs =
+                    false;    // only reset angular correction result buffer for the first run
+            } else {
+                p2m_kernel_impl_non_rho(exec, device_local_expansions_neighbors[counter_kernel],
+                    device_center_of_masses_neighbors[counter_kernel],
+                    device_center_of_masses_inner_cells, device_results, neighbor_size, start_index,
+                    end_index, dir_index, theta, cells_start, cells_end, device_masks);
+            }
+        }
+    }
+    if (type == RHO)
+        Kokkos::deep_copy(exec.instance(), ang_corr_results, device_corrections);
+
+    auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
+    fut.get();
+}
+
 // --------------------------------------- Kernel interface
 
 template <typename executor_t>
 void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
+    std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
     std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
-    std::array<bool, geo::direction::count()>& is_direction_empty, std::shared_ptr<grid> grid_ptr) {
+    std::array<bool, geo::direction::count()>& is_direction_empty, std::shared_ptr<grid> grid_ptr,
+    const bool contains_multipole_neighbor) {
     // Create host buffers
     host_buffer<double> host_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     host_buffer<double> host_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
@@ -195,7 +587,51 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
     octotiger::fmm::monopole_interactions::update_input(
         monopoles, neighbors, type, host_monopoles, neighbor_empty_monopoles, grid_ptr);
 
-    launch_interface(exec, host_monopoles, host_results, dx, theta);
+    if (contains_multipole_neighbor) {
+        // Get center of masses inner cells
+        std::vector<space_vector> const& com0 = *(com_ptr[0]);
+        host_buffer<double> host_center_of_masses_inner_cells(
+            (octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 3);
+        octotiger::fmm::iterate_inner_cells_padded(
+            [&host_center_of_masses_inner_cells, com0](const octotiger::fmm::multiindex<>& i,
+                const size_t flat_index, const octotiger::fmm::multiindex<>& i_unpadded,
+                const size_t flat_index_unpadded) {
+                octotiger::fmm::monopole_interactions::set_AoS_value<
+                    octotiger::fmm::ENTRIES + octotiger::fmm::SOA_PADDING, 3>(
+                    host_center_of_masses_inner_cells, std::move(com0.at(flat_index_unpadded)),
+                    flat_index_unpadded);
+            });
+
+        // Check how many p2m kernels of each type we need to launch
+        size_t number_kernels = 0;
+        for (const geo::direction& dir : geo::direction::full_set()) {
+            neighbor_gravity_type& neighbor = neighbors[dir];
+            if (!neighbor.is_monopole && neighbor.data.M) {
+                number_kernels++;
+            }
+        }
+        std::vector<host_buffer<double>> host_center_of_masses(number_kernels,
+            host_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 3));
+        std::vector<host_buffer<double>> host_local_expansions(number_kernels,
+            host_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 20));
+        host_buffer<double> host_corrections(octotiger::fmm::NUMBER_ANG_CORRECTIONS);
+
+        number_kernels = 0;
+        for (const geo::direction& dir : geo::direction::full_set()) {
+            neighbor_gravity_type& neighbor = neighbors[dir];
+            if (!neighbor.is_monopole && neighbor.data.M) {
+                octotiger::fmm::monopole_interactions::update_neighbor_input(dir, com_ptr,
+                    neighbors, type, host_local_expansions[number_kernels],
+                    host_center_of_masses[number_kernels], grid_ptr);
+                number_kernels++;
+            }
+        }
+        launch_interface_p2p_p2m(exec, host_monopoles, host_results, host_corrections,
+            host_center_of_masses_inner_cells, host_local_expansions, host_center_of_masses, dx,
+            theta, neighbors, type, number_kernels);
+    } else {
+        launch_interface(exec, host_monopoles, host_results, dx, theta);
+    }
 
     // Add results back into non-SoA array
     std::vector<expansion>& org = grid_ptr->get_L();
