@@ -86,7 +86,15 @@ namespace fmm {
 
         template <size_t padded_entries_per_component, size_t num_components, typename container_t,
             typename AoS_temp_type>
-        inline void set_AoS_value(container_t& buffer, AoS_temp_type&& value, size_t flatindex) {
+        inline void set_AoS_value(
+            container_t& buffer, AoS_temp_type&& value, const size_t flatindex) {
+            for (size_t component = 0; component < num_components; component++) {
+                buffer[component * padded_entries_per_component + flatindex] = value[component];
+            }
+        }
+        template <size_t num_components, typename container_t, typename AoS_temp_type>
+        inline void set_AoS_value(container_t& buffer, AoS_temp_type&& value,
+            const size_t flatindex, const size_t padded_entries_per_component) {
             for (size_t component = 0; component < num_components; component++) {
                 buffer[component * padded_entries_per_component + flatindex] = value[component];
             }
@@ -96,7 +104,8 @@ namespace fmm {
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             expansion_soa_container& local_expansions_SoA,
-            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr) {
+            masses_soa_container& center_of_masses_SoA, std::shared_ptr<grid>& grid_ptr,
+            const size_t padded_entries_per_component) {
             std::vector<space_vector> const& com0 = *(com_ptr[0]);
             neighbor_gravity_type& neighbor = neighbors[neighbor_dir];
 
@@ -111,20 +120,24 @@ namespace fmm {
             if (fullsizes) {
                 // Get multipole data into our input structure
                 iterate_padding(neighbor_dir,
-                    [&local_expansions_SoA, &center_of_masses_SoA, neighbor_M_ptr, neighbor_com0](
+                    [&local_expansions_SoA, &center_of_masses_SoA, neighbor_M_ptr, neighbor_com0, padded_entries_per_component](
                         const multiindex<>& i, const size_t flat_index,
                         const multiindex<>& i_unpadded, const size_t flat_index_unpadded) {
-                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA,
-                            std::move(neighbor_M_ptr.at(flat_index_unpadded)), flat_index);
-                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
-                            std::move(neighbor_com0.at(flat_index_unpadded)), flat_index);
+                        set_AoS_value<20>(local_expansions_SoA,
+                            std::move(neighbor_M_ptr.at(flat_index_unpadded)), flat_index,
+                            padded_entries_per_component);
+                        set_AoS_value<3>(center_of_masses_SoA,
+                            std::move(neighbor_com0.at(flat_index_unpadded)), flat_index,
+                            padded_entries_per_component);
                     });
             } else {
                 iterate_padding(neighbor_dir,
-                    [&local_expansions_SoA, &center_of_masses_SoA](const multiindex<>& i,
+                    [&local_expansions_SoA, &center_of_masses_SoA, padded_entries_per_component](const multiindex<>& i,
                         const size_t flat_index, const multiindex<>&, const size_t) {
-                        set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA, std::move(expansion()), flat_index);
-                        set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA, std::move(space_vector()), flat_index);
+                        set_AoS_value<20>(local_expansions_SoA, std::move(expansion()), flat_index,
+                            padded_entries_per_component);
+                        set_AoS_value<3>(center_of_masses_SoA, std::move(space_vector()),
+                            flat_index, padded_entries_per_component);
                     });
                 auto list = grid_ptr->get_ilist_n_bnd(neighbor_dir);
                 multiindex<> start_index = get_padding_start_indices(neighbor_dir);
@@ -137,10 +150,10 @@ namespace fmm {
                         offset.y - start_index.y, offset.z - start_index.z);
                     const size_t flat_index = m_padding_index.x * (size.y * size.z) +
                         m_padding_index.y * size.z + m_padding_index.z;
-                    set_AoS_value<ENTRIES + SOA_PADDING, 20>(local_expansions_SoA, 
-                        std::move(neighbor_M_ptr.at(counter)), flat_index);
-                    set_AoS_value<ENTRIES + SOA_PADDING, 3>(center_of_masses_SoA,
-                        std::move(neighbor_com0.at(counter)), flat_index);
+                    set_AoS_value<20>(local_expansions_SoA, std::move(neighbor_M_ptr.at(counter)),
+                        flat_index, padded_entries_per_component);
+                    set_AoS_value<3>(center_of_masses_SoA, std::move(neighbor_com0.at(counter)),
+                        flat_index, padded_entries_per_component);
                     counter++;
                 }
             }

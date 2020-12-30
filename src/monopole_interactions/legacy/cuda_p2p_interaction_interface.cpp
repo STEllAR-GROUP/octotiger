@@ -241,19 +241,19 @@ namespace fmm {
                                 update_neighbor_input(dir, com_ptr, neighbors, type,
                                     local_expansions_staging_area_type1[counter_kernel_type1],
                                     center_of_masses_staging_area_type1[counter_kernel_type1],
-                                    grid_ptr);
+                                    grid_ptr, buffer_size_kernel_type1 + SOA_PADDING);
                                 counter_kernel_type1++;
                             } else if (size == INX * STENCIL_MAX * STENCIL_MAX) {
                                 update_neighbor_input(dir, com_ptr, neighbors, type,
                                     local_expansions_staging_area_type2[counter_kernel_type2],
                                     center_of_masses_staging_area_type2[counter_kernel_type2],
-                                    grid_ptr);
+                                    grid_ptr, buffer_size_kernel_type2 + SOA_PADDING);
                                 counter_kernel_type2++;
                             } else if (size == STENCIL_MAX * STENCIL_MAX * STENCIL_MAX) {
                                 update_neighbor_input(dir, com_ptr, neighbors, type,
                                     local_expansions_staging_area_type3[counter_kernel_type3],
                                     center_of_masses_staging_area_type3[counter_kernel_type3],
-                                    grid_ptr);
+                                    grid_ptr, buffer_size_kernel_type3 + SOA_PADDING);
                                 counter_kernel_type3++;
                             }
                         }

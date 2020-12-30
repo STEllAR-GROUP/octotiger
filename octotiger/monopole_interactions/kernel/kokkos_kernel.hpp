@@ -1,9 +1,9 @@
 
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/defs.hpp"
+#include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
@@ -255,11 +255,11 @@ void p2m_kernel_impl_non_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
                                 mask;
 
                         // run templated interaction method instanced with double type
-                        octotiger::fmm::monopole_interactions::
-                            compute_kernel_p2m_non_rho(X, Y, m_partner,
-                                tmpstore, [](const double& one, const double& two) -> double {
-                                    return max(one, two);
-                                });
+                        octotiger::fmm::monopole_interactions::compute_kernel_p2m_non_rho(X, Y,
+                            m_partner, tmpstore,
+                            [](const double& one, const double& two) -> double {
+                                return max(one, two);
+                            });
                     }
                 }
             }
@@ -602,27 +602,31 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
                     flat_index_unpadded);
             });
 
-        // Check how many p2m kernels of each type we need to launch
+        std::vector<host_buffer<double>> host_center_of_masses;
+        std::vector<host_buffer<double>> host_local_expansions;
+        host_buffer<double> host_corrections(octotiger::fmm::NUMBER_ANG_CORRECTIONS);
+
         size_t number_kernels = 0;
         for (const geo::direction& dir : geo::direction::full_set()) {
             neighbor_gravity_type& neighbor = neighbors[dir];
             if (!neighbor.is_monopole && neighbor.data.M) {
-                number_kernels++;
-            }
-        }
-        std::vector<host_buffer<double>> host_center_of_masses(number_kernels,
-            host_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 3));
-        std::vector<host_buffer<double>> host_local_expansions(number_kernels,
-            host_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 20));
-        host_buffer<double> host_corrections(octotiger::fmm::NUMBER_ANG_CORRECTIONS);
-
-        number_kernels = 0;
-        for (const geo::direction& dir : geo::direction::full_set()) {
-            neighbor_gravity_type& neighbor = neighbors[dir];
-            if (!neighbor.is_monopole && neighbor.data.M) {
+                int size = 1;
+                for (int i = 0; i < 3; i++) {
+                    if (dir[i] == 0)
+                        size *= INX;
+                    else
+                        size *= octotiger::fmm::STENCIL_MAX;
+                }
+                assert(size == INX * INX * octotiger::fmm::STENCIL_MAX ||
+                    size == INX * octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX ||
+                    size ==
+                        octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX *
+                            octotiger::fmm::STENCIL_MAX);
+                host_local_expansions.emplace_back((size + octotiger::fmm::SOA_PADDING) * 20);
+                host_center_of_masses.emplace_back((size + octotiger::fmm::SOA_PADDING) * 3);
                 octotiger::fmm::monopole_interactions::update_neighbor_input(dir, com_ptr,
                     neighbors, type, host_local_expansions[number_kernels],
-                    host_center_of_masses[number_kernels], grid_ptr);
+                    host_center_of_masses[number_kernels], grid_ptr, size + octotiger::fmm::SOA_PADDING);
                 number_kernels++;
             }
         }

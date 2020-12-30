@@ -138,7 +138,7 @@ namespace fmm {
                     }
                 }
                 return;
-            } 
+            }
             cpu_expansion_buffer_t local_expansions_compare;
             p2m_kernel kernel;
             cpu_space_vector_buffer_t center_of_masses_compare;
@@ -156,8 +156,8 @@ namespace fmm {
             cpu_angular_result_t angular_corrections_SoA;
 
             iterate_inner_cells_padded(
-                [&center_of_masses_inner_cells_staging_area, com0, &angular_corrections_SoA](const multiindex<>& i,
-                    const size_t flat_index, const multiindex<>& i_unpadded,
+                [&center_of_masses_inner_cells_staging_area, com0, &angular_corrections_SoA](
+                    const multiindex<>& i, const size_t flat_index, const multiindex<>& i_unpadded,
                     const size_t flat_index_unpadded) {
                     center_of_masses_inner_cells_staging_area.set_AoS_value(
                         std::move(com0.at(flat_index_unpadded)), flat_index_unpadded);
@@ -193,7 +193,8 @@ namespace fmm {
                             center_of_masses_staging_area;
 
                         update_neighbor_input(dir, com_ptr, neighbors, type,
-                            local_expansions_staging_area, center_of_masses_staging_area, grid_ptr);
+                            local_expansions_staging_area, center_of_masses_staging_area, grid_ptr,
+                            buffer_size + SOA_PADDING);
                         /*assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));*/
@@ -215,7 +216,8 @@ namespace fmm {
                             center_of_masses_staging_area;
 
                         update_neighbor_input(dir, com_ptr, neighbors, type,
-                            local_expansions_staging_area, center_of_masses_staging_area, grid_ptr);
+                            local_expansions_staging_area, center_of_masses_staging_area, grid_ptr,
+                            buffer_size + SOA_PADDING);
                         /*assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));*/
@@ -237,7 +239,8 @@ namespace fmm {
                             center_of_masses_staging_area;
 
                         update_neighbor_input(dir, com_ptr, neighbors, type,
-                            local_expansions_staging_area, center_of_masses_staging_area, grid_ptr);
+                            local_expansions_staging_area, center_of_masses_staging_area, grid_ptr,
+                            buffer_size + SOA_PADDING);
                         /*assert(check_neighbor_conversion(local_expansions_staging_area,
                             center_of_masses_staging_area, local_expansions_compare,
                             center_of_masses_compare, dir));*/
