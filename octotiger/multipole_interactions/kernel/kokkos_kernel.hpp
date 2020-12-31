@@ -63,15 +63,6 @@ const storage& get_device_masks(executor_t& exec, bool indicators) {
 
 // --------------------------------------- Kernel rho implementations
 
-template <typename executor_t, typename kokkos_buffer_t, typename kokkos_mask_t>
-void multipole_kernel_rho_impl(executor_t& exec, const kokkos_buffer_t& monopoles,
-    const kokkos_buffer_t& centers_of_mass, const kokkos_buffer_t& multipoles,
-    kokkos_buffer_t& potential_expansions, kokkos_buffer_t& angular_corrections, const double theta,
-    const kokkos_mask_t& masks, const kokkos_mask_t& indicators) {
-    static_assert(always_false<executor_t>::value,
-        "Multipole Rho Kernel not implemented for this kind of executor!");
-}
-
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_buffer_t& monopoles, const kokkos_buffer_t& centers_of_mass,
@@ -85,12 +76,6 @@ void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
             executor.instance(), {0, 0, 0}, {INX, INX, INX}),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
-    // TODO (daissgr) Which of the two lambdas to take?
-
-    // Kokkos::parallel_for("kernel multipole non-rho", policy_1,
-    //     [monopoles, centers_of_mass, multipoles, potential_expansions, angular_corrections,
-    //     theta,
-    //         masks, indicators] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {
     Kokkos::parallel_for(
         "kernel multipole rho", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
             const size_t component_length = ENTRIES + SOA_PADDING;
@@ -186,14 +171,6 @@ void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor
         });
 }
 // --------------------------------------- Kernel root rho implementations
-
-template <typename executor_t, typename kokkos_buffer_t, typename kokkos_mask_t>
-void multipole_kernel_root_rho_impl(executor_t& exec, const kokkos_buffer_t& centers_of_mass,
-    const kokkos_buffer_t& multipoles, kokkos_buffer_t& potential_expansions,
-    kokkos_buffer_t& angular_corrections, const kokkos_mask_t& indicators) {
-    static_assert(always_false<executor_t>::value,
-        "Multipole Root Rho Kernel not implemented for this kind of executor!");
-}
 
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void multipole_kernel_root_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
@@ -293,15 +270,6 @@ void multipole_kernel_root_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& exe
 }
 // --------------------------------------- Kernel non rho implementations
 
-template <typename executor_t, typename kokkos_buffer_t, typename kokkos_mask_t>
-void multipole_kernel_non_rho_impl(executor_t& exec, const kokkos_buffer_t& monopoles,
-    const kokkos_buffer_t& centers_of_mass, const kokkos_buffer_t& multipoles,
-    kokkos_buffer_t& potential_expansions, const double theta, const kokkos_mask_t& masks,
-    const kokkos_mask_t& indicators) {
-    static_assert(always_false<executor_t>::value,
-        "Mutlipole Non-Rho Kernel not implemented for this kind of executor!");
-}
-
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void multipole_kernel_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_buffer_t& monopoles, const kokkos_buffer_t& centers_of_mass,
@@ -314,11 +282,6 @@ void multipole_kernel_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& exec
             executor.instance(), {0, 0, 0}, {INX, INX, INX}),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
-    // TODO (daissgr) Which of the two lambdas to take?
-
-    // Kokkos::parallel_for("kernel multipole non-rho", policy_1,
-    //     [monopoles, centers_of_mass, multipoles, potential_expansions, theta, masks,
-    //         indicators] CUDA_GLOBAL_METHOD(int idx, int idy, int idz) {
     Kokkos::parallel_for(
         "kernel multipole non-rho", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
             const size_t component_length = ENTRIES + SOA_PADDING;
@@ -402,14 +365,6 @@ void multipole_kernel_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& exec
 }
 
 // --------------------------------------- Kernel non rho root implementations
-
-template <typename executor_t, typename kokkos_buffer_t, typename kokkos_mask_t>
-void multipole_kernel_root_non_rho_impl(executor_t& exec, const kokkos_buffer_t& centers_of_mass,
-    const kokkos_buffer_t& multipoles, kokkos_buffer_t& potential_expansions,
-    const kokkos_mask_t& indicators) {
-    static_assert(always_false<executor_t>::value,
-        "Mutlipole Root Non-Rho Kernel not implemented for this kind of executor!");
-}
 
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void multipole_kernel_root_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
@@ -497,24 +452,15 @@ void multipole_kernel_root_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>&
 
 // --------------------------------------- Launch Interface implementations
 
-template <typename executor_t>
+template <typename executor_t, std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
 void launch_interface(executor_t& exec, const host_buffer<double>& monopoles,
-    const host_buffer<double>& centers_of_mass, const host_buffer<double>& multipoles,
-    host_buffer<double>& potential_expansions, host_buffer<double>& angular_corrections,
-    const double theta, const gsolve_type type) {
-    static_assert(always_false<executor_t>::value,
-        "Multipole launch interface implemented for this kind of executor!");
-}
-
-template <typename kokkos_backend_t>
-void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, const host_buffer<double>& monopoles,
     const host_buffer<double>& centers_of_mass,  const host_buffer<double>& multipoles,
     host_buffer<double>& potential_expansions, host_buffer<double>& angular_corrections,
     const double theta, const gsolve_type type, const bool use_root_stencil) {
     const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>, host_buffer<int>,
-        hpx::kokkos::executor<kokkos_backend_t>>(exec, false);
+        executor_t>(exec, false);
     const device_buffer<int>& device_indicators = get_device_masks<device_buffer<int>,
-        host_buffer<int>, hpx::kokkos::executor<kokkos_backend_t>>(exec, true);
+        host_buffer<int>, executor_t>(exec, true);
     // input buffers
     device_buffer<double> device_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     if (!use_root_stencil)
@@ -552,8 +498,9 @@ void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, const host_
         hpx::kokkos::deep_copy_async(exec.instance(), potential_expansions, device_expansions);
     fut.get();
 }
-template <>
-void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec, const host_buffer<double>& monopoles,
+
+template <typename executor_t, std::enable_if_t<is_kokkos_host_executor<executor_t>::value, int> = 0>
+void launch_interface(executor_t& exec, const host_buffer<double>& monopoles,
     const host_buffer<double>& centers_of_mass, const host_buffer<double>& multipoles,
     host_buffer<double>& potential_expansions, host_buffer<double>& angular_corrections,
     const double theta, const gsolve_type type, const bool use_root_stencil) {
@@ -578,39 +525,6 @@ void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec, const host_bu
                 host_masks, host_indicators);
         } else {
             multipole_kernel_root_non_rho_impl<Kokkos::Serial, host_buffer<double>,
-                host_buffer<int>>(
-                exec, centers_of_mass, multipoles, potential_expansions, host_indicators);
-        }
-    }
-    // Sync
-    exec.instance().fence();
-}
-template <>
-void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
-    const host_buffer<double>& monopoles, const host_buffer<double>& centers_of_mass,
-    const host_buffer<double>& multipoles, host_buffer<double>& potential_expansions,
-    host_buffer<double>& angular_corrections, const double theta, const gsolve_type type, const bool use_root_stencil) {
-    const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>(false);
-    const host_buffer<int>& host_indicators = get_host_masks<host_buffer<int>>(true);
-    if (type == RHO) {
-        // Launch kernel with angular corrections
-        if (!use_root_stencil) {
-            multipole_kernel_rho_impl<Kokkos::Experimental::HPX, host_buffer<double>,
-                host_buffer<int>>(exec, monopoles, centers_of_mass, multipoles,
-                potential_expansions, angular_corrections, theta, host_masks, host_indicators);
-        } else {
-            multipole_kernel_root_rho_impl<Kokkos::Experimental::HPX, host_buffer<double>,
-                host_buffer<int>>(exec, centers_of_mass, multipoles, potential_expansions,
-                angular_corrections, host_indicators);
-        }
-    } else {
-        // Launch kernel without angular corrections
-        if (!use_root_stencil) {
-            multipole_kernel_non_rho_impl<Kokkos::Experimental::HPX, host_buffer<double>,
-                host_buffer<int>>(exec, monopoles, centers_of_mass, multipoles,
-                potential_expansions, theta, host_masks, host_indicators);
-        } else {
-            multipole_kernel_root_non_rho_impl<Kokkos::Experimental::HPX, host_buffer<double>,
                 host_buffer<int>>(
                 exec, centers_of_mass, multipoles, potential_expansions, host_indicators);
         }

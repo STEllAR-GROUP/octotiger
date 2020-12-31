@@ -8,13 +8,6 @@
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 
-// TODO Addd namespaces
-constexpr size_t buffer_size_kernel_type1 = INX * INX * octotiger::fmm::STENCIL_MAX;
-constexpr size_t buffer_size_kernel_type2 =
-    INX * octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX;
-constexpr size_t buffer_size_kernel_type3 =
-    octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX;
-
 template <typename storage>
 const storage& get_host_masks() {
     static storage stencil_masks(octotiger::fmm::FULL_STENCIL_SIZE);
@@ -52,13 +45,6 @@ const storage& get_device_masks(executor_t& exec) {
 }
 
 // --------------------------------------- P2P Kernel implementations
-
-template <typename executor_t, typename buffer_t, typename mask_t>
-void p2p_kernel_impl(executor_t& exec, const buffer_t& monopoles, const mask_t& deviceMasks,
-    buffer_t& potential_expansions, const double dx, const double theta) {
-    static_assert(
-        always_false<executor_t>::value, "P2P Kernel not implemented for this kind of executor!");
-}
 
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
@@ -141,7 +127,6 @@ void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 }
 // --------------------------------------- P2M Kernel implementations
 
-// TODO(daissgr) Add P2M Kernel non-RHO
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void p2m_kernel_impl_non_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_buffer_t& expansions_neighbors_soa,
@@ -421,19 +406,12 @@ void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
 // --------------------------------------- P2P Launch Interface implementations
 
-template <typename executor_t>
+template <typename executor_t, std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
 void launch_interface(executor_t& exec, host_buffer<double>& monopoles,
-    host_buffer<double>& results, double dx, double theta) {
-    static_assert(always_false<executor_t>::value,
-        "P2P launch interface implemented for this kind of executor!");
-}
-
-template <typename kokkos_backend_t>
-void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, host_buffer<double>& monopoles,
     host_buffer<double>& results, double dx, double theta) {
     // create device buffers
     const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>, host_buffer<int>,
-        hpx::kokkos::executor<kokkos_backend_t>>(exec);
+        executor_t>(exec);
     device_buffer<double> device_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     device_buffer<double> device_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
 
@@ -446,45 +424,24 @@ void launch_interface(hpx::kokkos::executor<kokkos_backend_t>& exec, host_buffer
     auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
     fut.get();
 }
-template <>
-void launch_interface(hpx::kokkos::executor<Kokkos::Serial>& exec, host_buffer<double>& monopoles,
+template <typename executor_t, std::enable_if_t<is_kokkos_host_executor<executor_t>::value, int> = 0>
+void launch_interface(executor_t& exec, host_buffer<double>& monopoles,
     host_buffer<double>& results, double dx, double theta) {
     const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
     // call kernel
     p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
 
-    // TODO(daissgr) Is fencing with the serial backend even necessary?
-    exec.instance().fence();
-}
-template <>
-void launch_interface(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
-    host_buffer<double>& monopoles, host_buffer<double>& results, double dx, double theta) {
-    const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
-    // call kernel
-    p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
     exec.instance().fence();
 
-    // TODO this way of getting the future does not work
+    // TODO this way of getting the future does not work with the HPX backend
     // auto fut = exec.instance().impl_get_future();
     // fut.get();
 }
 
 // --------------------------------------- P2P / P2M Launch Interface implementations
 
-template <typename executor_t>
-void launch_interface_p2p_p2m(executor_t& exec, host_buffer<double>& monopoles,
-    host_buffer<double>& results, host_buffer<double>& ang_corr_results,
-    host_buffer<double>& center_of_masses_inner_cells,
-    std::vector<host_buffer<double>>& local_expansions,
-    std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
-    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-    const size_t number_p2m_kernels) {
-    static_assert(always_false<executor_t>::value,
-        "P2P + P2M launch interface implemented for this kind of executor!");
-}
-
-template <typename kokkos_backend_t>
-void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
+template <typename executor_t, std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
+void launch_interface_p2p_p2m(executor_t& exec,
     host_buffer<double>& monopoles, host_buffer<double>& results,
     host_buffer<double>& ang_corr_results, host_buffer<double>& center_of_masses_inner_cells,
     std::vector<host_buffer<double>>& local_expansions,
@@ -493,7 +450,7 @@ void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
     const size_t number_p2m_kernels) {
     // create device buffers
     const device_buffer<int>& device_masks = get_device_masks<device_buffer<int>, host_buffer<int>,
-        hpx::kokkos::executor<kokkos_backend_t>>(exec);
+        executor_t>(exec);
     device_buffer<double> device_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     device_buffer<double> device_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
 
@@ -584,82 +541,9 @@ void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
     auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
     fut.get();
 }
-template <>
-void launch_interface_p2p_p2m(hpx::kokkos::executor<Kokkos::Serial>& exec,
-    host_buffer<double>& monopoles, host_buffer<double>& results,
-    host_buffer<double>& ang_corr_results, host_buffer<double>& center_of_masses_inner_cells,
-    std::vector<host_buffer<double>>& local_expansions,
-    std::vector<host_buffer<double>>& center_of_masses, double dx, double theta,
-    std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-    const size_t number_p2m_kernels) {
 
-    const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
-
-    // call p2p kernel
-    p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
-
-    // - Launch Kernel
-    size_t counter_kernel = 0;
-    bool reset_ang_corrs = true;
-    for (const geo::direction& dir : geo::direction::full_set()) {
-        neighbor_gravity_type& neighbor = neighbors[dir];
-        if (!neighbor.is_monopole && neighbor.data.M) {
-            int size = 1;
-            for (int i = 0; i < 3; i++) {
-                if (dir[i] == 0)
-                    size *= INX;
-                else
-                    size *= octotiger::fmm::STENCIL_MAX;
-            }
-            // Indices to address the interaction and stencil data
-            octotiger::fmm::multiindex<> start_index =
-                octotiger::fmm::get_padding_start_indices(dir);
-            octotiger::fmm::multiindex<> end_index = octotiger::fmm::get_padding_end_indices(dir);
-            octotiger::fmm::multiindex<> neighbor_size = octotiger::fmm::get_padding_real_size(dir);
-            octotiger::fmm::multiindex<> dir_index;
-            dir_index.x = dir[0];
-            dir_index.y = dir[1];
-            dir_index.z = dir[2];
-            // Save Computation time by only considering cells that actually can change
-            // These are their start and stop indices which are used for the later kernel launch
-            octotiger::fmm::multiindex<> cells_start(0, 0, 0);
-            octotiger::fmm::multiindex<> cells_end(INX, INX, INX);
-            if (dir[0] == 1)
-                cells_start.x = INX - (octotiger::fmm::STENCIL_MAX + 1);
-            if (dir[0] == -1)
-                cells_end.x = (octotiger::fmm::STENCIL_MAX + 1);
-            if (dir[1] == 1)
-                cells_start.y = INX - (octotiger::fmm::STENCIL_MAX + 1);
-            if (dir[1] == -1)
-                cells_end.y = (octotiger::fmm::STENCIL_MAX + 1);
-            if (dir[2] == 1)
-                cells_start.z = INX - (octotiger::fmm::STENCIL_MAX + 1);
-            if (dir[2] == -1)
-                cells_end.z = (octotiger::fmm::STENCIL_MAX + 1);
-
-            if (type == RHO) {
-                p2m_kernel_impl_rho(exec, local_expansions[counter_kernel],
-                    center_of_masses[counter_kernel],
-                    center_of_masses_inner_cells, results, ang_corr_results,
-                    neighbor_size, start_index, end_index, dir_index, theta, cells_start, cells_end,
-                    host_masks, reset_ang_corrs);
-                // only reset angular correction result buffer for the first run
-                reset_ang_corrs = false;
-            } else {
-                p2m_kernel_impl_non_rho(exec, local_expansions[counter_kernel],
-                    center_of_masses[counter_kernel],
-                    center_of_masses_inner_cells, results, neighbor_size, start_index,
-                    end_index, dir_index, theta, cells_start, cells_end, host_masks);
-            }
-            counter_kernel++;
-        }
-    }
-    // TODO(daissgr) Is fencing with the serial backend even necessary?
-    exec.instance().fence();
-}
-
-template <>
-void launch_interface_p2p_p2m(hpx::kokkos::executor<Kokkos::Experimental::HPX>& exec,
+template <typename executor_t, std::enable_if_t<is_kokkos_host_executor<executor_t>::value, int> = 0>
+void launch_interface_p2p_p2m(executor_t& exec,
     host_buffer<double>& monopoles, host_buffer<double>& results,
     host_buffer<double>& ang_corr_results, host_buffer<double>& center_of_masses_inner_cells,
     std::vector<host_buffer<double>>& local_expansions,

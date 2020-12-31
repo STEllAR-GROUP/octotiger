@@ -45,10 +45,26 @@ auto get_iteration_policy(const Executor&& executor, const ViewType& view_to_ite
     return get_iteration_policy(executor, view_to_iterate);
 }
 
+
 template< typename T >
 struct always_false { 
     enum { value = false };  
 };
+template< class T >
+struct is_kokkos_host_executor
+     : std::integral_constant<
+         bool,
+         std::is_same<hpx::kokkos::serial_executor, typename std::remove_cv<T>::type>::value  ||
+         std::is_same<hpx::kokkos::hpx_executor, typename std::remove_cv<T>::type>::value 
+     > {};
+
+template< class T >
+struct is_kokkos_device_executor
+     : std::integral_constant<
+         bool,
+         std::is_same<hpx::kokkos::cuda_executor, typename std::remove_cv<T>::type>::value
+     > {};
+
 
 
 template <typename T>
