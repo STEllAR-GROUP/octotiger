@@ -743,10 +743,9 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
     // Create host buffers
     host_buffer<double> host_monopoles(octotiger::fmm::NUMBER_LOCAL_MONOPOLE_VALUES);
     host_buffer<double> host_results(octotiger::fmm::NUMBER_POT_EXPANSIONS_SMALL);
-    std::vector<bool> neighbor_empty_monopoles(27);    // TODO(daissgr) Get rid of this one
     // Fill input buffers with converted (AoS->SoA) data
     octotiger::fmm::monopole_interactions::update_input(
-        monopoles, neighbors, type, host_monopoles, neighbor_empty_monopoles, grid_ptr);
+        monopoles, neighbors, type, host_monopoles, grid_ptr);
 
     if (contains_multipole_neighbor) {
         // Get center of masses inner cells

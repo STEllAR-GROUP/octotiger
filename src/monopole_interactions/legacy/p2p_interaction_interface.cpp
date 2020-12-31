@@ -48,8 +48,7 @@ namespace fmm {
             return stencil_four_constants_;
         }
 
-        p2p_interaction_interface::p2p_interaction_interface()
-          : neighbor_empty_monopoles(27) {
+        p2p_interaction_interface::p2p_interaction_interface() {
             this->p2p_type = opts().p2p_kernel_type;
         }
 
@@ -64,7 +63,7 @@ namespace fmm {
             cpu_launch_counter()++;
             cpu_monopole_buffer_t local_monopoles_staging_area(ENTRIES);
 
-            update_input(monopoles, neighbors, type, local_monopoles_staging_area, neighbor_empty_monopoles, grid_ptr);
+            update_input(monopoles, neighbors, type, local_monopoles_staging_area, grid_ptr);
             compute_interactions(
                 type, is_direction_empty, neighbors, dx, local_monopoles_staging_area, grid_ptr);
             // Do we need to run the p2m kernel as well?

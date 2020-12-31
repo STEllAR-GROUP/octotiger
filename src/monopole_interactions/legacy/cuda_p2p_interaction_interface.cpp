@@ -85,7 +85,7 @@ namespace fmm {
                 recycler::cuda_device_buffer<double> erg(NUMBER_POT_EXPANSIONS_SMALL, device_id);
 
                 // Move data into staging buffers
-                update_input(monopoles, neighbors, type, local_monopoles, neighbor_empty_monopoles,
+                update_input(monopoles, neighbors, type, local_monopoles, 
                     grid_ptr);
 
                 hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),

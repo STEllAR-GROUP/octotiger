@@ -56,13 +56,12 @@ namespace fmm {
             static OCTOTIGER_EXPORT std::vector<bool>& stencil_masks();
             static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& four();
             static OCTOTIGER_EXPORT std::vector<std::array<real, 4>>& stencil_four_constants();
-            std::vector<bool> neighbor_empty_monopoles;
         };
 
         template <typename monopole_container>
         void update_input(const std::vector<real>& mons,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
-            monopole_container& local_monopoles, std::vector<bool>& neighbor_empty_monopoles,
+            monopole_container& local_monopoles,
             std::shared_ptr<grid> &grid_ptr) {
             iterate_inner_cells_padded(
                 [&local_monopoles, mons](const multiindex<>& i, const size_t flat_index,
@@ -70,16 +69,11 @@ namespace fmm {
                     local_monopoles[flat_index] = mons[flat_index_unpadded];
                 });
 
-            for (size_t i = 0; i < neighbor_empty_monopoles.size(); i++) {
-                neighbor_empty_monopoles[i] = false;
-            }
-
             // Now look at neighboring data
             for (const geo::direction& dir : geo::direction::full_set()) {
                 // don't use neighbor.direction, is always zero for empty cells!
                 neighbor_gravity_type& neighbor = neighbors[dir];
                 if (!neighbor.is_monopole) {
-                    neighbor_empty_monopoles[dir.flat_index_with_center()] = true;
                     // neighbor has no data - input structure just recevices zeros as padding
                     iterate_inner_cells_padding(dir,
                         [&local_monopoles](const multiindex<>& i, const size_t flat_index,
@@ -94,7 +88,6 @@ namespace fmm {
                                     // initializes whole expansion, relatively expansion
                                     local_monopoles[flat_index] = 0.0;
                                 });
-                            neighbor_empty_monopoles[dir.flat_index_with_center()] = true;
                         } else {
                             std::vector<real>& neighbor_mons = *(neighbor.data.m);
                             const bool fullsizes = neighbor_mons.size() == INNER_CELLS;
@@ -138,7 +131,6 @@ namespace fmm {
                     }
                 }
             }
-            neighbor_empty_monopoles[13] = false;
         }
     }    // namespace monopole_interactions
 }    // namespace fmm
