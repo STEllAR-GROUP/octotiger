@@ -503,11 +503,12 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
         grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
         grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
 				grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
-			multipole_kernel_interface(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
-					is_direction_empty, Xbase, grid_ptr, grid_ptr->get_root());
+        octotiger::fmm::multipole_interactions::multipole_kernel_interface(mon_ptr, M_ptr, com_ptr,
+            all_neighbor_interaction_data, type, grid_ptr->get_dx(),
+            is_direction_empty, Xbase, grid_ptr, grid_ptr->get_root());
 		} else { // ... we are a monopole
-			p2p_kernel_interface(mon_ptr, com_ptr, all_neighbor_interaction_data, type,
-          grid_ptr->get_dx(), is_direction_empty, grid_ptr, contains_multipole);
+        octotiger::fmm::monopole_interactions::p2p_kernel_interface(mon_ptr, com_ptr, all_neighbor_interaction_data, type,
+            grid_ptr->get_dx(), is_direction_empty, grid_ptr, contains_multipole);
 		}
 	} else {
 		// old-style interaction calculation

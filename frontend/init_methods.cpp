@@ -134,9 +134,9 @@ void init_executors(void) {
     stream_pool::init<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
         opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
     hpx::kokkos::cuda_executor mover{};
-    get_device_masks<device_buffer<int>, host_buffer<int>,
+    octotiger::fmm::monopole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::cuda_executor>(mover);
-    get_device_masks<device_buffer<int>, host_buffer<int>,
+    octotiger::fmm::multipole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::cuda_executor>(mover, true);
     Kokkos::fence();
 #endif
