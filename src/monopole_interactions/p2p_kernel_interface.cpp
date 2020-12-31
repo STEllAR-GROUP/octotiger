@@ -36,7 +36,7 @@ enum host_kernel_type
 #ifdef OCTOTIGER_HAVE_KOKKOS
 using device_executor = hpx::kokkos::cuda_executor;
 using host_executor = hpx::kokkos::serial_executor;
-// using host_executor = hpx::kokkos::hpx_executor;
+//using host_executor = hpx::kokkos::hpx_executor;
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
@@ -49,9 +49,9 @@ void p2p_kernel_interface(std::vector<real>& monopoles,
     std::array<bool, geo::direction::count()>& is_direction_empty, std::shared_ptr<grid>& grid_ptr,
     const bool contains_multipole_neighbor) {
     // accelerator_kernel_type device_type = DEVICE_CUDA;
-    host_kernel_type host_type = HOST_VC;
+    //host_kernel_type host_type = HOST_VC;
     accelerator_kernel_type device_type = DEVICE_KOKKOS;
-    // host_kernel_type host_type = HOST_KOKKOS;
+    host_kernel_type host_type = HOST_KOKKOS;
 
     // Try accelerator implementation
     if (device_type != OFF) {
