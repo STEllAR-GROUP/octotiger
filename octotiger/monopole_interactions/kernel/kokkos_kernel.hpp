@@ -192,7 +192,6 @@ void p2m_kernel_impl_non_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
             // Create and set result arrays
             double tmpstore[4];
-#pragma unroll
             for (size_t i = 0; i < 4; ++i)
                 tmpstore[i] = 0.0;
             double m_partner[20];
@@ -248,7 +247,6 @@ void p2m_kernel_impl_non_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             interaction_partner_flat_index];
                         Y[2] = center_of_mass_neighbor_soa[2 * component_length_neighbor +
                             interaction_partner_flat_index];
-#pragma unroll
                         for (size_t i = 0; i < 20; ++i)
                             m_partner[i] = expansions_neighbors_soa[i * component_length_neighbor +
                                                interaction_partner_flat_index] *
@@ -263,15 +261,13 @@ void p2m_kernel_impl_non_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     }
                 }
             }
-// Store results in output arrays
-#pragma unroll
+            // Store results in output arrays
             for (size_t i = 0; i < 4; ++i)
                 potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] +=
                     tmpstore[i];
         });
 }
 
-// TODO(daissgr) Add P2M Kernel RHO
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
 void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_buffer_t& expansions_neighbors_soa,
@@ -282,6 +278,25 @@ void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const octotiger::fmm::multiindex<> dir, const double theta,
     const octotiger::fmm::multiindex<> cells_start, const octotiger::fmm::multiindex<> cells_end,
     const kokkos_mask_t& devicemasks, const bool reset_ang_corrs) {
+    // TODO(daissgr) Is there no memset async equivalent in Kokkos? That would be better
+    if (reset_ang_corrs) {
+        auto policy_reset = Kokkos::Experimental::require(
+            Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
+                executor.instance(), {0, 0, 0}, {INX, INX, INX}),
+            Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+        Kokkos::parallel_for(
+            "kernel p2m corrections reset", policy_reset, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+                const size_t component_length_unpadded =
+                    octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING;
+
+                octotiger::fmm::multiindex<> cell_index_unpadded(idx, idy, idz);
+                const size_t cell_flat_index_unpadded =
+                    octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+                angular_corrections[cell_flat_index_unpadded] = 0.0;
+                angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] = 0.0;
+                angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] = 0.0;
+            });
+    }
     auto policy_1 = Kokkos::Experimental::require(
         Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(executor.instance(),
             {0, 0, 0},
@@ -319,11 +334,9 @@ void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
 
             // Create and set result arrays
             double tmpstore[4];
-#pragma unroll
             for (size_t i = 0; i < 4; ++i)
                 tmpstore[i] = 0.0;
             double tmp_corrections[3];
-#pragma unroll
             for (size_t i = 0; i < 3; ++i)
                 tmp_corrections[i] = 0.0;
             double m_partner[20];
@@ -379,7 +392,6 @@ void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
                             interaction_partner_flat_index];
                         Y[2] = center_of_mass_neighbor_soa[2 * component_length_neighbor +
                             interaction_partner_flat_index];
-#pragma unroll
                         for (size_t i = 0; i < 20; ++i)
                             m_partner[i] = expansions_neighbors_soa[i * component_length_neighbor +
                                                interaction_partner_flat_index] *
@@ -394,24 +406,16 @@ void p2m_kernel_impl_rho(hpx::kokkos::executor<kokkos_backend_t>& executor,
                     }
                 }
             }
-// Store results in output arrays
-#pragma unroll
+            // Store results in output arrays
             for (size_t i = 0; i < 4; ++i)
                 potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] +=
                     tmpstore[i];
-            if (reset_ang_corrs) {
-                angular_corrections[cell_flat_index_unpadded] = tmp_corrections[0];
-                angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] =
-                    tmp_corrections[1];
-                angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
-                    tmp_corrections[2];
-            } else {
-                angular_corrections[cell_flat_index_unpadded] += tmp_corrections[0];
-                angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] +=
-                    tmp_corrections[1];
-                angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] +=
-                    tmp_corrections[2];
-            }
+
+            angular_corrections[cell_flat_index_unpadded] += tmp_corrections[0];
+            angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] +=
+                tmp_corrections[1];
+            angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] +=
+                tmp_corrections[2];
         });
 }
 
@@ -504,10 +508,8 @@ void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
     Kokkos::deep_copy(
         exec.instance(), device_center_of_masses_inner_cells, center_of_masses_inner_cells);
 
-    std::vector<device_buffer<double>> device_center_of_masses_neighbors(number_p2m_kernels,
-        device_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 3));
-    std::vector<device_buffer<double>> device_local_expansions_neighbors(number_p2m_kernels,
-        device_buffer<double>((octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) * 20));
+    std::vector<device_buffer<double>> device_center_of_masses_neighbors;
+    std::vector<device_buffer<double>> device_local_expansions_neighbors;
 
     device_buffer<double> device_corrections(octotiger::fmm::NUMBER_ANG_CORRECTIONS);
 
@@ -517,6 +519,13 @@ void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
     for (const geo::direction& dir : geo::direction::full_set()) {
         neighbor_gravity_type& neighbor = neighbors[dir];
         if (!neighbor.is_monopole && neighbor.data.M) {
+            int size = 1;
+            for (int i = 0; i < 3; i++) {
+                if (dir[i] == 0)
+                    size *= INX;
+                else
+                    size *= octotiger::fmm::STENCIL_MAX;
+            }
             // Indices to address the interaction and stencil data
             octotiger::fmm::multiindex<> start_index =
                 octotiger::fmm::get_padding_start_indices(dir);
@@ -543,10 +552,14 @@ void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
             if (dir[2] == -1)
                 cells_end.z = (octotiger::fmm::STENCIL_MAX + 1);
 
-            Kokkos::deep_copy(exec.instance(), device_center_of_masses_neighbors[counter_kernel],
-                center_of_masses[counter_kernel]);
+            device_local_expansions_neighbors.emplace_back(
+                (size + octotiger::fmm::SOA_PADDING) * 20);
             Kokkos::deep_copy(exec.instance(), device_local_expansions_neighbors[counter_kernel],
                 local_expansions[counter_kernel]);
+            device_center_of_masses_neighbors.emplace_back(
+                (size + octotiger::fmm::SOA_PADDING) * 3);
+            Kokkos::deep_copy(exec.instance(), device_center_of_masses_neighbors[counter_kernel],
+                center_of_masses[counter_kernel]);
 
             if (type == RHO) {
                 p2m_kernel_impl_rho(exec, device_local_expansions_neighbors[counter_kernel],
@@ -554,14 +567,15 @@ void launch_interface_p2p_p2m(hpx::kokkos::executor<kokkos_backend_t>& exec,
                     device_center_of_masses_inner_cells, device_results, device_corrections,
                     neighbor_size, start_index, end_index, dir_index, theta, cells_start, cells_end,
                     device_masks, reset_ang_corrs);
-                reset_ang_corrs =
-                    false;    // only reset angular correction result buffer for the first run
+                // only reset angular correction result buffer for the first run
+                reset_ang_corrs = false;
             } else {
                 p2m_kernel_impl_non_rho(exec, device_local_expansions_neighbors[counter_kernel],
                     device_center_of_masses_neighbors[counter_kernel],
                     device_center_of_masses_inner_cells, device_results, neighbor_size, start_index,
                     end_index, dir_index, theta, cells_start, cells_end, device_masks);
             }
+            counter_kernel++;
         }
     }
     if (type == RHO)
@@ -597,7 +611,7 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
                 const size_t flat_index, const octotiger::fmm::multiindex<>& i_unpadded,
                 const size_t flat_index_unpadded) {
                 octotiger::fmm::monopole_interactions::set_AoS_value<
-                    octotiger::fmm::ENTRIES + octotiger::fmm::SOA_PADDING, 3>(
+                    octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING, 3>(
                     host_center_of_masses_inner_cells, std::move(com0.at(flat_index_unpadded)),
                     flat_index_unpadded);
             });
@@ -617,22 +631,28 @@ void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
                     else
                         size *= octotiger::fmm::STENCIL_MAX;
                 }
-                assert(size == INX * INX * octotiger::fmm::STENCIL_MAX ||
-                    size == INX * octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX ||
-                    size ==
-                        octotiger::fmm::STENCIL_MAX * octotiger::fmm::STENCIL_MAX *
-                            octotiger::fmm::STENCIL_MAX);
                 host_local_expansions.emplace_back((size + octotiger::fmm::SOA_PADDING) * 20);
                 host_center_of_masses.emplace_back((size + octotiger::fmm::SOA_PADDING) * 3);
                 octotiger::fmm::monopole_interactions::update_neighbor_input(dir, com_ptr,
                     neighbors, type, host_local_expansions[number_kernels],
-                    host_center_of_masses[number_kernels], grid_ptr, size + octotiger::fmm::SOA_PADDING);
+                    host_center_of_masses[number_kernels], grid_ptr,
+                    size + octotiger::fmm::SOA_PADDING);
                 number_kernels++;
             }
         }
         launch_interface_p2p_p2m(exec, host_monopoles, host_results, host_corrections,
             host_center_of_masses_inner_cells, host_local_expansions, host_center_of_masses, dx,
             theta, neighbors, type, number_kernels);
+        if (type == RHO) {
+            std::vector<space_vector>& corrections = grid_ptr->get_L_c();
+            for (size_t component = 0; component < 3; component++) {
+                for (size_t entry = 0; entry < octotiger::fmm::INNER_CELLS; entry++) {
+                    corrections[entry][component] = host_corrections[component *
+                            (octotiger::fmm::INNER_CELLS + octotiger::fmm::SOA_PADDING) +
+                        entry];
+                }
+            }
+        }
     } else {
         launch_interface(exec, host_monopoles, host_results, dx, theta);
     }
