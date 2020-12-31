@@ -13,7 +13,7 @@
 #include "octotiger/util.hpp"
 #include "octotiger/interaction_types.hpp"
 
-#include "octotiger/monopole_interactions/p2p_kernel_interface.hpp"
+#include "octotiger/monopole_interactions/monopole_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
 
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"

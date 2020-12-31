@@ -5,9 +5,9 @@
 
 #ifdef OCTOTIGER_HAVE_CUDA
 
-#include "octotiger/monopole_interactions/legacy/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/legacy/p2p_cuda_kernel.hpp"
+#include "octotiger/monopole_interactions/legacy/monopole_cuda_kernel.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 
 #include "octotiger/defs.hpp"

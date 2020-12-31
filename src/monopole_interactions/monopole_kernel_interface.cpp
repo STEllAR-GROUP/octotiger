@@ -1,10 +1,10 @@
 
-#include "octotiger/monopole_interactions/p2p_kernel_interface.hpp"
-#include "octotiger/monopole_interactions/legacy/cuda_p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/monopole_kernel_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
 #include "octotiger/options.hpp"
 
 #include "octotiger/common_kernel/interactions_iterators.hpp"
-#include "octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/options.hpp"
 
@@ -33,7 +33,6 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-
 
         void p2p_kernel_interface(std::vector<real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,

@@ -6,7 +6,7 @@
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
-#include "octotiger/monopole_interactions/legacy/p2p_cuda_kernel.hpp"
+#include "octotiger/monopole_interactions/legacy/monopole_cuda_kernel.hpp"
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
 

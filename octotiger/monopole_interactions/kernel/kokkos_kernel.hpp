@@ -3,7 +3,7 @@
 #include "octotiger/defs.hpp"
 #include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
-#include "octotiger/monopole_interactions/legacy/p2p_interaction_interface.hpp"
+#include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"

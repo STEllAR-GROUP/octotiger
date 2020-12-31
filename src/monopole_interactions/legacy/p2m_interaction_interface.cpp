@@ -5,7 +5,7 @@
 
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
-#include "octotiger/monopole_interactions/legacy/p2m_kernel.hpp"
+#include "octotiger/monopole_interactions/legacy/p2m_cpu_kernel.hpp"
 #include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/real.hpp"
