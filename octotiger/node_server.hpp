@@ -9,8 +9,6 @@
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/interaction_types.hpp"
-#include "octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp"
-#include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 #include "octotiger/channel.hpp"
 #include "octotiger/defs.hpp"
 #include "octotiger/future.hpp"
@@ -105,14 +103,6 @@ private:
 
 	timestep_t dt_;
 
-	//octotiger::fmm::monopole_interactions::p2m_interaction_interface p2m_interactor;
-#ifdef OCTOTIGER_HAVE_CUDA
-	octotiger::fmm::multipole_interactions::cuda_multipole_interaction_interface multipole_interactor;
-	octotiger::fmm::monopole_interactions::cuda_p2p_interaction_interface p2p_interactor;
-#else
-	octotiger::fmm::multipole_interactions::multipole_interaction_interface multipole_interactor;
-	octotiger::fmm::monopole_interactions::p2p_interaction_interface p2p_interactor;
-#endif
 public:
 	timings timings_;
 

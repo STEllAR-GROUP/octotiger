@@ -624,7 +624,7 @@ namespace fmm {
         // --------------------------------------- Kernel interface
 
         template <typename executor_t>
-        void p2p_kernel(executor_t& exec, std::vector<real>& monopoles,
+        void monopole_kernel(executor_t& exec, std::vector<real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx, real theta,
             std::array<bool, geo::direction::count()>& is_direction_empty,

@@ -52,11 +52,11 @@ namespace fmm {
             }
         }
 
-        cuda_p2p_interaction_interface::cuda_p2p_interaction_interface()
-          : p2p_interaction_interface()
+        cuda_monopole_interaction_interface::cuda_monopole_interaction_interface()
+          : monopole_interaction_interface()
           , theta(opts().theta) {}
 
-        void cuda_p2p_interaction_interface::compute_p2p_interactions(std::vector<real>& monopoles,
+        void cuda_monopole_interaction_interface::compute_interactions(std::vector<real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
@@ -67,7 +67,7 @@ namespace fmm {
             // avail = true;
             if (!avail || p2p_type == interaction_kernel_type::OLD) {
                 // Run CPU implementation
-                p2p_interaction_interface::compute_p2p_interactions(monopoles, com_ptr, neighbors,
+                monopole_interaction_interface::compute_interactions(monopoles, com_ptr, neighbors,
                     type, dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
             } else {
                 // run on CUDA device

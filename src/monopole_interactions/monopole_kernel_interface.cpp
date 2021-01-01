@@ -34,7 +34,7 @@ namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
 
-        void p2p_kernel_interface(std::vector<real>& monopoles,
+        void monopole_kernel_interface(std::vector<real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
@@ -53,7 +53,7 @@ namespace fmm {
                             opts().cuda_buffer_capacity);
                     if (avail) {
                         executor_interface_t executor;
-                        p2p_kernel<device_executor>(executor, monopoles, com_ptr, neighbors, type,
+                        monopole_kernel<device_executor>(executor, monopoles, com_ptr, neighbors, type,
                             dx, opts().theta, is_direction_empty, grid_ptr,
                             contains_multipole_neighbor);
                         return;
@@ -66,9 +66,9 @@ namespace fmm {
 #endif
                 }
                 if (device_type == DEVICE_CUDA) {
-                    cuda_p2p_interaction_interface
-                        p2p_interactor{};
-                    p2p_interactor.compute_p2p_interactions(monopoles, com_ptr, neighbors, type, dx,
+                    cuda_monopole_interaction_interface
+                        monopole_interactor{};
+                    monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type, dx,
                         is_direction_empty, grid_ptr, contains_multipole_neighbor);
                     return;
                 }
@@ -78,7 +78,7 @@ namespace fmm {
             if (host_type == HOST_KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
                 host_executor executor{};
-                p2p_kernel<host_executor>(executor, monopoles, com_ptr, neighbors, type, dx,
+                monopole_kernel<host_executor>(executor, monopoles, com_ptr, neighbors, type, dx,
                     opts().theta, is_direction_empty, grid_ptr, contains_multipole_neighbor);
                 return;
 #else
@@ -87,8 +87,8 @@ namespace fmm {
                 abort();
 #endif
             } else {
-                p2p_interaction_interface p2p_interactor{};
-                p2p_interactor.compute_p2p_interactions(monopoles, com_ptr, neighbors, type, dx,
+                monopole_interaction_interface monopole_interactor{};
+                monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type, dx,
                     is_direction_empty, grid_ptr, contains_multipole_neighbor);
                 return;
             }

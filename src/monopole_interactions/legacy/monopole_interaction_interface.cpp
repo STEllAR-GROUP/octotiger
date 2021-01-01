@@ -19,40 +19,40 @@
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        size_t& p2p_interaction_interface::cpu_launch_counter() {
+        size_t& monopole_interaction_interface::cpu_launch_counter() {
             static thread_local size_t cpu_launch_counter_ = 0;
             return cpu_launch_counter_;
         }
-        size_t& p2p_interaction_interface::cuda_launch_counter() {
+        size_t& monopole_interaction_interface::cuda_launch_counter() {
             static thread_local size_t cuda_launch_counter_ = 0;
             return cuda_launch_counter_;
         }
 
-        std::vector<multiindex<>>& p2p_interaction_interface::stencil() {
+        std::vector<multiindex<>>& monopole_interaction_interface::stencil() {
             static thread_local std::vector<multiindex<>> stencil_ = calculate_stencil().first;
             return stencil_;
         }
 
-        std::vector<bool>& p2p_interaction_interface::stencil_masks() {
+        std::vector<bool>& monopole_interaction_interface::stencil_masks() {
             static thread_local std::vector<bool> stencil_masks_ =
-                calculate_stencil_masks(p2p_interaction_interface::stencil()).first;
+                calculate_stencil_masks(monopole_interaction_interface::stencil()).first;
             return stencil_masks_;
         }
-        std::vector<std::array<real, 4>>& p2p_interaction_interface::four() {
+        std::vector<std::array<real, 4>>& monopole_interaction_interface::four() {
             static thread_local std::vector<std::array<real, 4>> four_ = calculate_stencil().second;
             return four_;
         }
-        std::vector<std::array<real, 4>>& p2p_interaction_interface::stencil_four_constants() {
+        std::vector<std::array<real, 4>>& monopole_interaction_interface::stencil_four_constants() {
             static thread_local std::vector<std::array<real, 4>> stencil_four_constants_ =
-                calculate_stencil_masks(p2p_interaction_interface::stencil()).second;
+                calculate_stencil_masks(monopole_interaction_interface::stencil()).second;
             return stencil_four_constants_;
         }
 
-        p2p_interaction_interface::p2p_interaction_interface() {
+        monopole_interaction_interface::monopole_interaction_interface() {
             this->p2p_type = opts().p2p_kernel_type;
         }
 
-        void p2p_interaction_interface::compute_p2p_interactions(const std::vector<real>& monopoles,
+        void monopole_interaction_interface::compute_interactions(const std::vector<real>& monopoles,
             std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             real dx,
@@ -73,7 +73,7 @@ namespace fmm {
             }
         }
 
-        void p2p_interaction_interface::compute_interactions(gsolve_type type,
+        void monopole_interaction_interface::compute_interactions(gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
             const cpu_monopole_buffer_t& local_monopoles_staging_area, std::shared_ptr<grid>& grid_ptr) {

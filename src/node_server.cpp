@@ -507,7 +507,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
             all_neighbor_interaction_data, type, grid_ptr->get_dx(),
             is_direction_empty, Xbase, grid_ptr, grid_ptr->get_root());
 		} else { // ... we are a monopole
-        octotiger::fmm::monopole_interactions::p2p_kernel_interface(mon_ptr, com_ptr, all_neighbor_interaction_data, type,
+        octotiger::fmm::monopole_interactions::monopole_kernel_interface(mon_ptr, com_ptr, all_neighbor_interaction_data, type,
             grid_ptr->get_dx(), is_direction_empty, grid_ptr, contains_multipole);
 		}
 	} else {

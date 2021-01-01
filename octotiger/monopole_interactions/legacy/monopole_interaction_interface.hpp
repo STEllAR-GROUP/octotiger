@@ -23,13 +23,13 @@ namespace fmm {
     namespace monopole_interactions {
 
         /// Interface for the new monopole-monopole compute kernel
-        class p2p_interaction_interface
+        class monopole_interaction_interface
         {
         public:
-            p2p_interaction_interface();
+            monopole_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
              * stores results in L */
-            void p2p_interaction_interface::compute_p2p_interactions(const std::vector<real>& monopoles,
+            void compute_interactions(const std::vector<real>& monopoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty,

@@ -84,7 +84,7 @@ std::array<size_t, 7> sum_counters_worker(std::size_t desired) {
     if (current == desired) {
         using cuda_multi_intfc =
             octotiger::fmm::multipole_interactions::multipole_interaction_interface;
-        using cuda_mono_intfc = octotiger::fmm::monopole_interactions::p2p_interaction_interface;
+        using cuda_mono_intfc = octotiger::fmm::monopole_interactions::monopole_interaction_interface;
 
         ret[0] = desired;
         ret[1] = cuda_multi_intfc::cpu_launch_counter();

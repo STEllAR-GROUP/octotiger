@@ -27,13 +27,13 @@ namespace fmm {
          * ../cuda_util/cuda_scheduler.hpp). If the scheduler detects that the cuda device is
          * busy it will use the normal CPU implementation of the interface as fallback!
          */
-        class cuda_p2p_interaction_interface : public p2p_interaction_interface
+        class cuda_monopole_interaction_interface : public monopole_interaction_interface
         {
         public:
-            cuda_p2p_interaction_interface();
+            cuda_monopole_interaction_interface();
             /** Takes AoS data, converts it, calculates FMM monopole-monopole interactions,
              * stores results in L */
-            void compute_p2p_interactions(std::vector<real>& monopoles,
+            void compute_interactions(std::vector<real>& monopoles,
                 std::vector<std::shared_ptr<std::vector<space_vector>>>& com_ptr,
                 std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
                 std::array<bool, geo::direction::count()>& is_direction_empty,
