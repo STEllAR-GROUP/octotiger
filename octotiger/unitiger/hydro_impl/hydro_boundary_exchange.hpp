@@ -16,11 +16,13 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
 void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U);
+#ifdef OCTOTIGER_HAVE_CUDA
 void launch_complete_hydro_amr_boundary_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx,
     bool energy_only, const std::vector<std::vector<real>>& ushad,
     const std::vector<std::atomic<int>>& is_coarse, const std::array<double, NDIM>& xmin,
     std::vector<std::vector<real>>& u);
+#endif
 
 template <typename T, typename mask_t, typename index_t>
 CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const double dx, const bool energy_only,

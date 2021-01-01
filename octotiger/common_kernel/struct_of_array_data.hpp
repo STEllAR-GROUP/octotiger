@@ -17,7 +17,7 @@
 #include <buffer_manager.hpp>
 
 
-// #include "interaction_constants.hpp"
+#include "interaction_constants.hpp"
 
 namespace octotiger {
 namespace fmm {

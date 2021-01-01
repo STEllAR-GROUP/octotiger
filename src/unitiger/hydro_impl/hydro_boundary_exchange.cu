@@ -1,3 +1,4 @@
+#ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/util/vec_scalar_device_wrapper.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 
@@ -127,3 +128,4 @@ void launch_complete_hydro_amr_boundary_cuda(stream_interface<hpx::cuda::experim
         }
     }
 }
+#endif

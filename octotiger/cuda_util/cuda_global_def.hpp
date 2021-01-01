@@ -19,7 +19,9 @@
 #define CUDA_GLOBAL_METHOD
 #endif
 #else
+#define HOST_CALLABLE 
 #define CUDA_CALLABLE_METHOD
+#define CUDA_GLOBAL_METHOD
 #endif
 
 

@@ -226,9 +226,11 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
       xmin[dim] = grid_ptr->X[dim][0];
     }
     bool avail = false;
+#ifdef OCTOTIGER_HAVE_CUDA
     if (kernel_type == AMR_CUDA)
       avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                    pool_strategy>(opts().cuda_buffer_capacity);
+#endif
     if (!avail) {
 #ifdef __x86_64__
         complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
@@ -236,8 +238,11 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
         complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
 #endif
     } else {
+#ifdef OCTOTIGER_HAVE_CUDA
         stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-        launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
+        launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad,
+            grid_ptr->is_coarse, xmin, grid_ptr->U);
+#endif
     }
   }
 	for (auto &face : geo::face::full_set()) {
