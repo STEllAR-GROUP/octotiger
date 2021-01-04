@@ -70,14 +70,18 @@ __device__ const int dim_offset = 1000;
 __global__ void
 __launch_bounds__(128, 2)
  flux_cuda_kernel(const double * __restrict__ q_combined, const double * __restrict__ x_combined, double * __restrict__ f_combined,
-    double * amax, int * amax_indices, int * amax_d, const bool * __restrict__ masks, const double omega, const double dx, const double A_, const double B_, const double fgamma, const double de_switch_1) {
+    double * amax, int * amax_indices, int * amax_d, const bool * __restrict__ masks, const double omega, const double dx, const double A_, const double B_, const int nf, const double fgamma, const double de_switch_1) {
   __shared__ double sm_amax[128];
   __shared__ int sm_d[128];
   __shared__ int sm_i[128];
 
-  const int nf = 15;
+//  const int nf = 15;
 
-  double local_f[15] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  double local_f[100];// = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+			// assumes maximal number of 100 species in a simulation. Not the most elegant solution and rather old-fashion but one that works. May be changed to a more flexible sophisticated object.
+  for (int f = 0; f < nf; f++) {   
+      local_f[f] = 0.0;
+  }
   double local_x[3] = {0.0, 0.0, 0.0};
   double local_vg[3] = {0.0, 0.0, 0.0};
 
@@ -89,7 +93,7 @@ __launch_bounds__(128, 2)
   const int tid = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
   const int index = blockIdx.y * 128 + tid + 104;
   for (int f = 0; f < nf; f++) {
-      f_combined[dim * 15 * 1000 + f * 1000 + index] = 0.0;
+      f_combined[dim * nf * 1000 + f * 1000 + index] = 0.0;
   }
   if (index < 1000) {
     double mask = masks[index + dim * dim_offset];
@@ -115,12 +119,12 @@ __launch_bounds__(128, 2)
           current_d = d;
         }
         for (int f = 1; f < nf; f++) {
-          f_combined[dim * 15 * 1000 + f * 1000 + index] += quad_weights[fi] * local_f[f];
+          f_combined[dim * nf * 1000 + f * 1000 + index] += quad_weights[fi] * local_f[f];
         }
       }
     }
     for (int f = 10; f < nf; f++) {
-      f_combined[dim * 15 * 1000 + index] += f_combined[dim * 15 * 1000 + f * 1000 + index];
+      f_combined[dim * nf * 1000 + index] += f_combined[dim * nf * 1000 + f * 1000 + index];
     }
   }
   // Find maximum:
@@ -160,8 +164,8 @@ __launch_bounds__(128, 2)
     // Save face to the end of the amax buffer
     const int flipped_dim = flip_dim(sm_d[0], dim);
     for (int f = 0; f < nf; f++) {
-      amax[21 + block_id * 30 + f] = q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0]];
-      amax[21 + block_id * 30 + 15 + f] = q_combined[sm_i[0] - compressedH_DN[dim] + f * face_offset +
+      amax[21 + block_id * 2 * nf + f] = q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0]];
+      amax[21 + block_id * 2 * nf + nf + f] = q_combined[sm_i[0] - compressedH_DN[dim] + f * face_offset +
           dim_offset * flipped_dim];
     }
   }
@@ -176,34 +180,35 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     timestep_t ts;
     const cell_geometry<3, 8> geo;
 
-    recycler::cuda_device_buffer<double> device_f(NDIM * 15 * 1000 + 32, device_id);
+    recycler::cuda_device_buffer<double> device_f(NDIM * nf_ * 1000 + 32, device_id);
     const bool *masks = get_gpu_masks();
 
-    recycler::cuda_device_buffer<double> device_amax(7 * NDIM * (1 + 2 * 15));
+    recycler::cuda_device_buffer<double> device_amax(7 * NDIM * (1 + 2 * nf_));
     recycler::cuda_device_buffer<int> device_amax_indices(7 * NDIM);
     recycler::cuda_device_buffer<int> device_amax_d(7 * NDIM);
     double A_ = physics<NDIM>::A_;
     double B_ = physics<NDIM>::B_;
     double fgamma = physics<NDIM>::fgamma_;
     double de_switch_1 = physics<NDIM>::de_switch_1;
+    int nf_local = physics<NDIM>::nf_;
 
     dim3 const grid_spec(1, 7, 3);
     dim3 const threads_per_block(2, 8, 8);
     void* args[] = {&(device_q),
       &(device_x), &(device_f.device_side_buffer), &(device_amax.device_side_buffer),
       &(device_amax_indices.device_side_buffer), &(device_amax_d.device_side_buffer),
-      &masks, &omega, &dx, &A_, &B_, &fgamma, &de_switch_1};
+      &masks, &omega, &dx, &A_, &B_, &nf_local, &fgamma, &de_switch_1};
     executor.post(
     cudaLaunchKernel<decltype(flux_cuda_kernel)>,
     flux_cuda_kernel, grid_spec, threads_per_block, args, 0);
 
     // Move data to host
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(7 * NDIM * (1 + 2 * 15));
+    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(7 * NDIM * (1 + 2 * nf_));
     std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_indices(7 * NDIM);
     std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_d(7 * NDIM);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax.data(),
-               device_amax.device_side_buffer, (7 * NDIM * (1 + 2 * 15)) * sizeof(double),
+               device_amax.device_side_buffer, (7 * NDIM * (1 + 2 * nf_)) * sizeof(double),
                cudaMemcpyDeviceToHost);
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax_indices.data(),
@@ -215,7 +220,7 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
                cudaMemcpyDeviceToHost);
     auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, combined_f.data(), device_f.device_side_buffer,
-               (NDIM * 15 * 1000 + 32) * sizeof(double), cudaMemcpyDeviceToHost);
+               (NDIM * nf_ * 1000 + 32) * sizeof(double), cudaMemcpyDeviceToHost);
     fut.get();
 
     // Find Maximum
@@ -237,8 +242,8 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     const auto flipped_dim = geo.flip_dim(current_d, current_dim);
     constexpr int compressedH_DN[3] = {100, 10, 1};
     for (int f = 0; f < nf_; f++) {
-        URs[f] = amax[21 + current_i * 30 + f];
-        ULs[f] = amax[21 + current_i * 30 + 15 + f];
+        URs[f] = amax[21 + current_i * 2 * nf_ + f];
+        ULs[f] = amax[21 + current_i * 2 * nf_ + nf_ + f];
     }
     ts.ul = std::move(ULs);
     ts.ur = std::move(URs);

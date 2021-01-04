@@ -12,7 +12,7 @@ inline double abs_wrapper<double>(const double& tmp1) {
     return std::abs(tmp1);
 }
 
-constexpr int number_faces = 15;
+//constexpr int number_faces = 15;
 constexpr int number_dirs = 27;
 constexpr int q_inx = INX + 2;
 constexpr int q_inx3 = q_inx * q_inx * q_inx;
@@ -453,7 +453,7 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
     // Current implementation limitations of this kernel - can be resolved but that takes more work
     assert(angmom_index_ > -1);
     assert(NDIM > 2);
-    assert(nf_ == 15);
+    //assert(nf_ == 15); // is not required anymore
     assert(geo.NDIR == 27);
     assert(INX == 8);
     // TODO Make kernel work with a wider range of parameters

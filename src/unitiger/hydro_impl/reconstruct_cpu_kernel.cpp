@@ -58,7 +58,7 @@ inline void make_monotone_wrapper(double* __restrict__ qld, const double* __rest
     qr.store(qrd);
 }
 
-constexpr int number_faces = 15;
+//constexpr int number_faces = 15;
 constexpr int number_dirs = 27;
 constexpr int q_inx = INX + 2;
 constexpr int q_inx3 = q_inx * q_inx * q_inx;
@@ -272,7 +272,7 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     // Current implementation limitations of this kernel - can be resolved but that takes more work
     assert(angmom_index_ > -1);
     assert(NDIM > 2);
-    assert(nf == 15);
+//    assert(nf == 15); // is not required anymore
     assert(geo.NDIR == 27);
     assert(INX == 8);
     // TODO Make kernel work with a wider range of parameters

@@ -215,6 +215,8 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     hydro::x_type& X, safe_real omega, const size_t nf_) {
     // input Q, X
     // output F
+    // SAGIV: This is the last function that contains explicitly the number 15 as the number of fields (10 physical fields in 3D + 5 specie fields).
+    // I did not changed this function because it is not being called anyway. Maybe we can remove this function.
 
     timestep_t ts;
     ts.a = 0.0;
