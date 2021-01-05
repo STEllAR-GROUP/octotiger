@@ -19,16 +19,21 @@ jobs:
         steps:
             - checkout:
                 path: /octotiger
-            - run: Checkout CPPuddle
-              command: git clone https://github.com/G-071/hpx-kokkos-interopt-WIP.git cppuddle
-            - run: Checkout CPPuddle
-              command: mkdir cppuddle-install
-            - run: Configure CPPuddle
-              command: cmake -H/octotiger -B/cppuddle/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=cppuddle-install
-            - run: Build CPPuddle
-              command: cmake --build /cppuddle/build -j 2 VERBOSE=1
-            - run: Install CPPuddle
-              command: cmake --build /cppuddle/build --target install
+            - run:
+                name: Checkout CPPuddle
+                command: git clone https://github.com/G-071/hpx-kokkos-interopt-WIP.git cppuddle
+            - run: 
+                name: Checkout CPPuddle
+                command: mkdir cppuddle-install
+            - run:
+                name: Configure CPPuddle
+                command: cmake -H/octotiger -B/cppuddle/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=cppuddle-install
+            - run:
+                name: Build CPPuddle
+                command: cmake --build /cppuddle/build -j 2 VERBOSE=1
+            - run:
+                name: Install CPPuddle
+                command: cmake --build /cppuddle/build --target install
             - run:
                 name: Configure Octo-Tiger
                 command: |
@@ -52,6 +57,7 @@ jobs:
                 root: /
                 paths:
                     - octotiger/build
+                    - cppuddle/build
 
     test_marshak:
         <<: *docker_config
