@@ -40,10 +40,11 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             // accelerator_kernel_type device_type = DEVICE_CUDA;
-            // host_kernel_type host_type = HOST_VC;
-            accelerator_kernel_type device_type = DEVICE_KOKKOS;
-            host_kernel_type host_type = HOST_KOKKOS;
+            host_kernel_type host_type = HOST_VC;
+            // accelerator_kernel_type device_type = DEVICE_KOKKOS;
+            // host_kernel_type host_type = HOST_KOKKOS;
 
+            accelerator_kernel_type device_type = OFF;
             // Try accelerator implementation
             if (device_type != OFF) {
                 if (device_type == DEVICE_KOKKOS) {
@@ -66,12 +67,20 @@ namespace fmm {
 #endif
                 }
                 if (device_type == DEVICE_CUDA) {
+#ifdef OCTOTIGER_HAVE_CUDA
                     cuda_monopole_interaction_interface
                         monopole_interactor{};
                     monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type, dx,
                         is_direction_empty, grid_ptr, contains_multipole_neighbor);
                     return;
                 }
+#else
+                    std::cerr << "Trying to call P2P CUDA kernel in a non-CUDA build! "
+                              << "Aborting..."
+                              << std::endl;
+                    abort();
+                }
+#endif
             }    // Nothing is available or device execution is disabled - fallback to host
                  // execution
 

@@ -1795,8 +1795,11 @@ timestep_t grid::compute_fluxes() {
   bool use_new_hydro =!(opts().legacy_hydro);
   if (use_new_hydro) {
     // Check availability
-    bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+    bool avail = false;
+#ifdef OCTOTIGER_HAVE_CUDA
+    avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                  pool_strategy>(opts().cuda_buffer_capacity);
+#endif OCTOTIGER_HAVE_CUDA
 
     if (!avail) {
 
@@ -1828,6 +1831,7 @@ timestep_t grid::compute_fluxes() {
         }
       }
       return max_lambda;
+#ifdef OCTOTIGER_HAVE_CUDA
     } else {
       static const cell_geometry<NDIM, INX> geo;
       size_t device_id = 0;
@@ -1934,6 +1938,7 @@ timestep_t grid::compute_fluxes() {
         }
       }
       return max_lambda;
+#endif
     }
   } else {
     static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,

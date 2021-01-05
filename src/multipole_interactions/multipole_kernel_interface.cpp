@@ -40,10 +40,11 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil) {
             // accelerator_kernel_type device_type = DEVICE_CUDA;
-            // host_kernel_type host_type = HOST_VC;
-            accelerator_kernel_type device_type = DEVICE_KOKKOS;
-            host_kernel_type host_type = HOST_KOKKOS;
+            host_kernel_type host_type = HOST_VC;
+            // accelerator_kernel_type device_type = DEVICE_KOKKOS;
+            // host_kernel_type host_type = HOST_KOKKOS;
 
+            accelerator_kernel_type device_type = OFF;
             // Try accelerator implementation
             if (device_type != OFF) {
                 if (device_type == DEVICE_KOKKOS) {
@@ -59,13 +60,14 @@ namespace fmm {
                         return;
                     }
 #else
-                    std::cerr << "Trying to call Multipole Kokkos kernel in a non-kokkos build! "
+                    std::cerr << "Trying to call multipole Kokkos kernel in a non-kokkos build! "
                                  "Aborting..."
                               << std::endl;
                     abort();
 #endif
                 }
                 if (device_type == DEVICE_CUDA) {
+#ifdef OCTOTIGER_HAVE_CUDA
                     cuda_multipole_interaction_interface
                         multipole_interactor{};
                     multipole_interactor.set_grid_ptr(grid);
@@ -73,8 +75,15 @@ namespace fmm {
                         neighbors, type, dx, is_direction_empty, xbase, use_root_stencil);
                     return;
                 }
+#else
+                    std::cerr << "Trying to call multipole CUDA kernel in a non-CUDA build! "
+                              <<   "Aborting..."
+                              << std::endl;
+                    abort();
+                }
             }    // Nothing is available or device execution is disabled - fallback to host
                  // execution
+#endif
 
             if (host_type == HOST_KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS

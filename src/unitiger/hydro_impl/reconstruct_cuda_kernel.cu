@@ -1,3 +1,4 @@
+#ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 
 inline __device__ double deg_pres(double x, double A_) {
@@ -639,3 +640,4 @@ void launch_hydro_pre_recon_cuda(stream_interface<hpx::cuda::experimental::cuda_
     cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>,
     hydro_pre_recon_cuda, grid_spec, threads_per_block, args, 0);
 }
+#endif

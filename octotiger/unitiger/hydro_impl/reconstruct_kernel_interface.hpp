@@ -39,7 +39,8 @@ template <typename T>
 CUDA_CALLABLE_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const T& c) {
     return minmod_wrapper<T>(c * minmod_wrapper<T>(a, b), 0.5 * (a + b));
 }
-
+void hydro_pre_recon_cpu_kernel(const double* __restrict__ X, safe_real omega,
+    bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_);
 void reconstruct_experimental(const safe_real omega, const size_t nf_, const int angmom_index_,
     const int* __restrict__ smooth_field_, const int* __restrict__ disc_detect_ ,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
@@ -50,6 +51,7 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, const double dx,
     const std::vector<std::vector<safe_real>>& cdiscs);
+#ifdef OCTOTIGER_HAVE_CUDA
 void launch_reconstruct_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     double omega, int nf_, int angmom_index_,
@@ -57,13 +59,8 @@ void launch_reconstruct_cuda(
     double* combined_q, double* combined_x,
     double* combined_u, double* AM, double dx,
     double* cdiscs, int n_species_);
-
-void hydro_pre_recon_cpu_kernel(const double* __restrict__ X, safe_real omega,
-    bool angmom, double* __restrict__ combined_u, const int nf, const int n_species_);
-
 void convert_find_contact_discs(const double* __restrict__ combined_u, double* __restrict__ disc, const double A_, const double B_, const double fgamma_, const double de_switch_1);
-
 void launch_find_contact_discs_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double* combined_u, double *device_P, double* disc, double A_, double B_, double fgamma_, double de_switch_1);
-
 void launch_hydro_pre_recon_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, 
     double* device_X, double omega, bool angmom, double* device_u, int nf, int n_species_);
+#endif

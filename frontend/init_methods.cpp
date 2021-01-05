@@ -71,10 +71,12 @@ void cleanup_puddle_on_this_locality(void) {
 #endif
     }
     // Disable polling
+#ifdef OCTOTIGER_HAVE_CUDA
     if (opts().cuda_polling_executor) {
         std::cout << "Unregistering cuda polling..." << std::endl;
         hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
     }
+#endif
 #ifdef OCTOTIGER_HAVE_KOKKOS
     Kokkos::finalize();
 #endif
