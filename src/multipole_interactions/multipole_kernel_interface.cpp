@@ -44,7 +44,11 @@ namespace fmm {
             // accelerator_kernel_type device_type = DEVICE_KOKKOS;
             // host_kernel_type host_type = HOST_KOKKOS;
 
+#if !defined(OCTOTIGER_HAVE_CUDA) && !defined(OCTOTIGER_HAVE_KOKKOS)
             accelerator_kernel_type device_type = OFF;
+#else
+            accelerator_kernel_type device_type = DEVICE_CUDA;
+#endif
             // Try accelerator implementation
             if (device_type != OFF) {
                 if (device_type == DEVICE_KOKKOS) {
@@ -81,9 +85,9 @@ namespace fmm {
                               << std::endl;
                     abort();
                 }
+#endif
             }    // Nothing is available or device execution is disabled - fallback to host
                  // execution
-#endif
 
             if (host_type == HOST_KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
