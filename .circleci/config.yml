@@ -19,6 +19,16 @@ jobs:
         steps:
             - checkout:
                 path: /octotiger
+            - run: Checkout CPPuddle
+              command: git clone https://github.com/G-071/hpx-kokkos-interopt-WIP.git cppuddle
+            - run: Checkout CPPuddle
+              command: mkdir cppuddle-install
+            - run: Configure CPPuddle
+              command: cmake -H/octotiger -B/cppuddle/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=cppuddle-install
+            - run: Build CPPuddle
+              command: cmake --build /cppuddle/build -j 2 VERBOSE=1
+            - run: Install CPPuddle
+              command: cmake --build /cppuddle/build --target install
             - run:
                 name: Configure Octo-Tiger
                 command: |
@@ -26,6 +36,7 @@ jobs:
                           -DCMAKE_BUILD_TYPE=Release \
                           -DHPX_DIR=/local/hpx/lib/cmake/HPX \
                           -DVc_DIR=/local/vc/lib/cmake/Vc \
+                          -DCPPuddle_DIR=cppuddle-install/lib/cmake/CPPuddle \
                           -DSilo_DIR=/local/silo \
                           -DHDF5_ROOT=/local/hdf5 \
                           -DBOOST_ROOT=/local/boost \
