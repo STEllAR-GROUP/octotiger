@@ -229,4 +229,18 @@ void init_problem(void) {
         printf("No problem specified\n");
         throw;
     }
+
+    if (OCTOTIGER_MAX_NUMBER_FIELDS > physics<NDIM>::nf_) {
+        std::cerr << "\nWarning! OCTOTIGER_WITH_MAX_NUMBER_FIELDS too large for this scenario!" << std::endl
+                  << "This will lead to slightly reduced performance in the flux kernel!" << std::endl 
+                  << "Choose -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" << physics<NDIM>::nf_ 
+                  << " to run this scenario with optimal performacne" << std::endl << std::endl;
+    } else if (OCTOTIGER_MAX_NUMBER_FIELDS < physics<NDIM>::nf_) {
+        std::cerr << "\nERROR! OCTOTIGER_WITH_MAX_NUMBER_FIELDS too small for this scenario!" << std::endl
+                  << "Recompile with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" <<  physics<NDIM>::nf_ 
+                  <<std::endl << std::endl;
+        exit(EXIT_FAILURE);
+    } else {
+      std::cout << "Compiled with max nf -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" << OCTOTIGER_MAX_NUMBER_FIELDS << std::endl;
+    }
 }

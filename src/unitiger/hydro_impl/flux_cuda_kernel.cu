@@ -77,8 +77,11 @@ __launch_bounds__(128, 2)
 
 //  const int nf = 15;
 
-  double local_f[100];// = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-			// assumes maximal number of 100 species in a simulation. Not the most elegant solution and rather old-fashion but one that works. May be changed to a more flexible sophisticated object.
+  // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
+  double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
+	// assumes maximal number (given by cmake) of species in a simulation.
+  // Not the most elegant solution and rather old-fashion but one that works.
+  // May be changed to a more flexible sophisticated object.
   for (int f = 0; f < nf; f++) {   
       local_f[f] = 0.0;
   }
