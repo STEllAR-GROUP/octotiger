@@ -520,29 +520,24 @@ namespace fmm {
             if (type == RHO) {
                 // Launch kernel with angular corrections
                 if (!use_root_stencil) {
-                    multipole_kernel_rho_impl<Kokkos::Serial, host_buffer<double>,
-                        host_buffer<int>>(exec, monopoles, centers_of_mass, multipoles,
+                    multipole_kernel_rho_impl(exec, monopoles, centers_of_mass, multipoles,
                         potential_expansions, angular_corrections, theta, host_masks,
                         host_indicators);
                 } else {
-                    multipole_kernel_root_rho_impl<Kokkos::Serial, host_buffer<double>,
-                        host_buffer<int>>(exec, centers_of_mass, multipoles, potential_expansions,
-                        angular_corrections, host_indicators);
+                    multipole_kernel_root_rho_impl(exec, centers_of_mass, multipoles,
+                        potential_expansions, angular_corrections, host_indicators);
                 }
             } else {
                 // Launch kernel without angular corrections
                 if (!use_root_stencil) {
-                    multipole_kernel_non_rho_impl<Kokkos::Serial, host_buffer<double>,
-                        host_buffer<int>>(exec, monopoles, centers_of_mass, multipoles,
+                    multipole_kernel_non_rho_impl(exec, monopoles, centers_of_mass, multipoles,
                         potential_expansions, theta, host_masks, host_indicators);
                 } else {
-                    multipole_kernel_root_non_rho_impl<Kokkos::Serial, host_buffer<double>,
-                        host_buffer<int>>(
+                    multipole_kernel_root_non_rho_impl(
                         exec, centers_of_mass, multipoles, potential_expansions, host_indicators);
                 }
             }
-            // Sync
-            exec.instance().fence();
+            sync_kokkos_host_kernel(exec);
         }
 
         // --------------------------------------- Kernel interface

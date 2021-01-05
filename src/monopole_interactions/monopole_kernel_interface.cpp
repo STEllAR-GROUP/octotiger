@@ -22,8 +22,8 @@
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
         using device_executor = hpx::kokkos::cuda_executor;
-        using host_executor = hpx::kokkos::serial_executor;
-        // using host_executor = hpx::kokkos::hpx_executor;
+        //using host_executor = hpx::kokkos::serial_executor;
+        using host_executor = hpx::kokkos::hpx_executor;
         using device_pool_strategy = round_robin_pool<device_executor>;
         using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
@@ -40,14 +40,14 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
             // accelerator_kernel_type device_type = DEVICE_CUDA;
-            host_kernel_type host_type = HOST_VC;
-            // accelerator_kernel_type device_type = DEVICE_KOKKOS;
-            // host_kernel_type host_type = HOST_KOKKOS;
+            //host_kernel_type host_type = HOST_VC;
+            accelerator_kernel_type device_type = DEVICE_KOKKOS;
+            host_kernel_type host_type = HOST_KOKKOS;
 
 #if !defined(OCTOTIGER_HAVE_CUDA) && !defined(OCTOTIGER_HAVE_KOKKOS)
-            accelerator_kernel_type device_type = OFF;
+            //accelerator_kernel_type device_type = OFF;
 #else
-            accelerator_kernel_type device_type = DEVICE_CUDA;
+            //accelerator_kernel_type device_type = DEVICE_CUDA;
 #endif
             // Try accelerator implementation
             if (device_type != OFF) {
@@ -90,7 +90,7 @@ namespace fmm {
 
             if (host_type == HOST_KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
-                host_executor executor{};
+                host_executor executor(hpx::kokkos::execution_space_mode::independent);
                 monopole_kernel<host_executor>(executor, monopoles, com_ptr, neighbors, type, dx,
                     opts().theta, is_direction_empty, grid_ptr, contains_multipole_neighbor);
                 return;

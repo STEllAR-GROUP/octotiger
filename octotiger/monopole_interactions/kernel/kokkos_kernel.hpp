@@ -434,11 +434,7 @@ namespace fmm {
             // call kernel
             p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
 
-            exec.instance().fence();
-
-            // TODO this way of getting the future does not work with the HPX backend
-            // auto fut = exec.instance().impl_get_future();
-            // fut.get();
+            sync_kokkos_host_kernel(exec);
         }
 
         // --------------------------------------- P2P / P2M Launch Interface implementations
@@ -617,8 +613,7 @@ namespace fmm {
                     counter_kernel++;
                 }
             }
-            // TODO(daissgr) Is fencing with the serial backend even necessary?
-            exec.instance().fence();
+            sync_kokkos_host_kernel(exec);
         }
 
         // --------------------------------------- Kernel interface

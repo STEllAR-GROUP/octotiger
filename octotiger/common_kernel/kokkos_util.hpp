@@ -1,6 +1,6 @@
 #pragma once
 #ifdef OCTOTIGER_HAVE_KOKKOS
-//#define KOKKOS_OPT_RANGE_AGGRESSIVE_VECTORIZATION 
+//#define KOKKOS_OPT_RANGE_AGGRESSIVE_VECTORIZATION
 #include <Kokkos_Core.hpp>
 #include <hpx/kokkos.hpp>
 
@@ -26,8 +26,8 @@ template <class T>
 using kokkos_um_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
-using kokkos_host_array = Kokkos::View<T*, typename kokkos_device_array<T>::array_layout,
-    Kokkos::HostSpace>;
+using kokkos_host_array =
+    Kokkos::View<T*, typename kokkos_device_array<T>::array_layout, Kokkos::HostSpace>;
 template <class T>
 using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler::recycle_std<T>, T>;
 
@@ -45,27 +45,36 @@ auto get_iteration_policy(const Executor&& executor, const ViewType& view_to_ite
     return get_iteration_policy(executor, view_to_iterate);
 }
 
+template <typename executor_t>
+inline void sync_kokkos_host_kernel(executor_t& exec) {
+    exec.instance().fence();    // All kokkos executor should support this
+}
+template <>
+inline void sync_kokkos_host_kernel(hpx::kokkos::hpx_executor& exec) {
+    auto fut = exec.instance().impl_get_future();
+    fut.get();
+}
 
-template< typename T >
-struct always_false { 
-    enum { value = false };  
+template <typename T>
+struct always_false
+{
+    enum
+    {
+        value = false
+    };
 };
-template< class T >
+template <class T>
 struct is_kokkos_host_executor
-     : std::integral_constant<
-         bool,
-         std::is_same<hpx::kokkos::serial_executor, typename std::remove_cv<T>::type>::value  ||
-         std::is_same<hpx::kokkos::hpx_executor, typename std::remove_cv<T>::type>::value 
-     > {};
+  : std::integral_constant<bool,
+        std::is_same<hpx::kokkos::serial_executor, typename std::remove_cv<T>::type>::value ||
+            std::is_same<hpx::kokkos::hpx_executor, typename std::remove_cv<T>::type>::value>
+{};
 
-template< class T >
+template <class T>
 struct is_kokkos_device_executor
-     : std::integral_constant<
-         bool,
-         std::is_same<hpx::kokkos::cuda_executor, typename std::remove_cv<T>::type>::value
-     > {};
-
-
+  : std::integral_constant<bool,
+        std::is_same<hpx::kokkos::cuda_executor, typename std::remove_cv<T>::type>::value>
+{};
 
 template <typename T>
 using host_buffer = recycled_pinned_view<T>;
