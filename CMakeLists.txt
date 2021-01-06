@@ -379,7 +379,6 @@ target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 add_hpx_executable(
   octotiger
   DEPENDENCIES
-    HPX::hpx
     octolib
     hydrolib
   SOURCES
