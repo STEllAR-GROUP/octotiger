@@ -28,8 +28,8 @@ constexpr integer spc_de_i = spc_i + 3;
 constexpr integer spc_vac_i = spc_i + 4;
 
 // w0 = speed of convergence. Adjust lower if nan
-const real w0init = 1.0 / 10.0;
-const real w0max = 0.25;
+const real w0init = 1.0 / 2.0;
+const real w0max = 0.5;
 const real iter2max = 25.0;
 const int itermax = 256;
 real w0 = w0init;
@@ -331,21 +331,21 @@ real grid::scf_update(real com, real omega, real c1, real c2, real c1_x, real c2
 				real g;
 				real g1 = (x - c1_x) * fx + y * fy + z * fz;
 				real g2 = (x - c2_x) * fx + y * fy + z * fz;
-				if (x >= l1_x /*+ 10.0*dx*/) {
+				if (x >= l1_x + dx) {
 					is_donor_side = true;
 					g = g2;
-				} else if (x <= l1_x /*- 10.0*dx*/) {
+				} else if (x <= l1_x - dx) {
 					g = g1;
 					is_donor_side = false;
-				} /*else {
-				 if( g1 < g2 ) {
-				 is_donor_side = false;
-				 g = g1;
-				 } else {
-				 is_donor_side = true;
-				 g = g2;
-				 }
-				 }*/
+				} else {
+					if (g1 < g2) {
+						is_donor_side = false;
+						g = g1;
+					} else {
+						is_donor_side = true;
+						g = g2;
+					}
+				}
 				real C = is_donor_side ? c2 : c1;
 				//			real x0 = is_donor_side ? c2_x : c1_x;
 				auto this_struct_eos = is_donor_side ? struct_eos_2 : struct_eos_1;
@@ -519,7 +519,7 @@ void node_server::run_scf(std::string const &data_dir) {
 		l3_phi = l3_phi_pair.second;
 
 		//	printf( "++++++++++++++++++++%e %e %e %e \n", rho1, rho2, c1_x, c2_x);
-		params.struct_eos2->set_d0(rho2 * f1);
+		params.struct_eos2->set_d0(rho2);
 		if (opts().eos == WD) {
 			params.struct_eos1->set_wd_T0(0.0, opts().atomic_mass[0], opts().atomic_number[0]);
 			params.struct_eos2->set_wd_T0(0.0, opts().atomic_mass[3], opts().atomic_number[3]);
@@ -527,9 +527,9 @@ void node_server::run_scf(std::string const &data_dir) {
 		}
 		if (scf_options::equal_struct_eos) {
 			//	printf( "%e %e \n", rho1, rho1*f0);
-			params.struct_eos1->set_d0_using_struct_eos(rho1 * f0, *(params.struct_eos2));
+			params.struct_eos1->set_d0_using_struct_eos(rho1, *(params.struct_eos2));
 		} else {
-			params.struct_eos1->set_d0(rho1 * f0);
+			params.struct_eos1->set_d0(rho1);
 		}
 		static real rhoc1 = 1.0e-3 * rho1;
 		if (opts().v1309) {

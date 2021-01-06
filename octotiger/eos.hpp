@@ -43,6 +43,7 @@ public:
 	real d0() const;
 	template<typename Archive>
 	void serialize(Archive &arc, const unsigned int version) {
+		arc & rho_cut;
 		arc & A;
 		arc & d0_;
 		arc & M0;

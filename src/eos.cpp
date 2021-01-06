@@ -389,7 +389,7 @@ void struct_eos::initialize(real &mass, real &radius) {
 		mass = m;
 		radius = r;
 	} else {
-		const real dr0 = R0 / 100.0;
+		const real dr0 = R0 / 10.0;
 
 		real h = h0();
 		real hdot = 0.0;
@@ -539,7 +539,7 @@ real struct_eos::density_at(real R, real dr) {
 	real r;
 	real h = h0();
 	real hdot = 0.0;
-	const int N = std::max(int(R / dr + 1.0), 32);
+	const int N = std::min(std::max(int(R / dr + 1.0), 2),10);
 	dr = R / real(N);
 	for (integer i = 0; i < N; ++i) {
 		//	printf("%e %e %e\n", r, h, dr);

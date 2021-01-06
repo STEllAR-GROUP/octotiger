@@ -338,7 +338,7 @@ void node_server::initialize(real t, real rt) {
 	for (auto &d : geo::dimension::full_set()) {
 		xmin[d] = grid::get_scaling_factor() * my_location.x_location(d);
 	}
-	if (current_time == ZERO) {
+	if (current_time == ZERO && opts().restart_filename=="") {
 		const auto p = get_problem();
 		grid_ptr = std::make_shared<grid>(p, dx, xmin);
 	} else {
