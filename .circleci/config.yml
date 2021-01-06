@@ -49,7 +49,7 @@ jobs:
                           -GNinja
             - run:
                 name: Build
-                command: cmake --build /octotiger/build -- -j2 VERBOSE=1
+                command: cmake --build /octotiger/build -- -j2
             - run:
                 name: Documentation
                 command: make -C /octotiger/build doc 
