@@ -24,6 +24,8 @@
 #include <cfloat>
 #endif
 
+#include <iostream>
+
 int hpx_main(int argc, char* argv[]) {
     // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
