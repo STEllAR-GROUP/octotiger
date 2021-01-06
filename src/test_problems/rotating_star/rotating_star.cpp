@@ -52,7 +52,7 @@ public:
                 } else {
                         return 0.0;
                 }
-        }	
+        }
 	rotating_star_analytic() {
 		std::ifstream fp("rotating_star.bin", std::ios::in | std::ios::binary);
 		if (fp.fail()) {
