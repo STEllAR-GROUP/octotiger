@@ -41,7 +41,7 @@ jobs:
                           -DCMAKE_BUILD_TYPE=Release \
                           -DHPX_DIR=/local/hpx/lib/cmake/HPX \
                           -DVc_DIR=/local/vc/lib/cmake/Vc \
-                          -DCPPuddle_DIR=cppuddle-install/lib/cmake/CPPuddle \
+                          -DCPPuddle_DIR=/root/project/cppuddle-install/lib/cmake/CPPuddle \
                           -DSilo_DIR=/local/silo \
                           -DHDF5_ROOT=/local/hdf5 \
                           -DBOOST_ROOT=/local/boost \
@@ -49,7 +49,7 @@ jobs:
                           -GNinja
             - run:
                 name: Build
-                command: cmake --build /octotiger/build -- -j2
+                command: cmake --build /octotiger/build -- -j2 VERBOSE=1
             - run:
                 name: Documentation
                 command: make -C /octotiger/build doc 
@@ -58,6 +58,7 @@ jobs:
                 paths:
                     - octotiger/build
                     - cppuddle/build
+                    - cppuddle-install
 
     test_marshak:
         <<: *docker_config
