@@ -30,7 +30,7 @@ jobs:
                 command: cmake -Hcppuddle -Bcppuddle/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=cppuddle-install
             - run:
                 name: Build CPPuddle
-                command: cmake --build cppuddle/build -j 2 VERBOSE=1
+                command: cmake --build cppuddle/build -- -j 2 VERBOSE=1
             - run:
                 name: Install CPPuddle
                 command: cmake --build cppuddle/build --target install
