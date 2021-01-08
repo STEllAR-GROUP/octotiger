@@ -5,6 +5,11 @@
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 
+#include <simd.hpp>
+#if !defined(__CUDA_ARCH__)
+#include <avx.hpp>
+#endif
+
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
 
@@ -57,7 +62,21 @@ namespace fmm {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
                     executor.instance(), {0, 0, 0}, {INX, INX, INX}),
+
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+#if !defined(__CUDA_ARCH__)
+                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx> test;
+                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>::size();
+                    printf("\nsimd size %i %s ", simd_length, typeid(test).name());
+#else // doesn't work! as we are on the host this will never be executed
+                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar> test;
+                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>::size();
+                    printf("CUDA-SIMD size %i %s ", simd_length, typeid(test).name());
+                    throw(""); //never get called
+#endif
+                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar> test2;
+                    size_t simd_length2 =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>::size();
+                    printf("\nCUDA-SIMD size %i %s ", simd_length2, typeid(test2).name());
 
             // Kokkos::parallel_for("kernel p2p", policy_1,
             //   [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
@@ -77,6 +96,18 @@ namespace fmm {
                     const double theta_rec_squared = (1.0 / theta) * (1.0 / theta);
                     const double d_components[2] = {1.0 / dx, -1.0 / dx};
                     double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
+                    //SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::native> test;
+                    //size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::native>::size();
+                    //printf("simd size %i ", simd_length);
+#if !defined(__CUDA_ARCH__)
+                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx> test;
+                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>::size();
+                    printf("simd size %i", simd_length);
+#else // Works! this is actually part of the device code and will be ececuted with a defined CUDA ARCH
+                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar> test;
+                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>::size();
+                    printf("CUDA-SIMD size %i ", simd_length);
+#endif
 
                     // Go through all possible stance elements for the two cells this thread
                     // is responsible for

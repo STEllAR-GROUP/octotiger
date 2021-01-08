@@ -373,6 +373,7 @@ set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
 target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 
 # Octo-Tiger executable
