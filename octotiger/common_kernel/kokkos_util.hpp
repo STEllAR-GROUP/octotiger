@@ -85,4 +85,20 @@ using normal_host_buffer = kokkos_host_array<T>;
 template <typename T>
 using normal_device_buffer = kokkos_device_array<T>;
 
+// SIMD settings
+#include <simd.hpp>
+using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#if !defined(__CUDA_ARCH__)
+#include <avx.hpp>
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
+using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx>;
+//using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+//using host_simd_mask_t = SIMD_NAMESPACE::simd_type<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#else
+// drop in for nvcc device pass - shouldnt be used on host code but required for compilation
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#endif
+
 #endif

@@ -5,20 +5,8 @@
 #include "octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp"
 #include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 
-#include <simd.hpp>
-using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#if !defined(__CUDA_ARCH__)
-#include <avx.hpp>
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
-//using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#else
-// drop in for nvcc device pass - shouldnt be used on host code but required for compilation
-using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#endif
-
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
-
 
 namespace octotiger {
 namespace fmm {
@@ -79,7 +67,7 @@ namespace fmm {
             Kokkos::parallel_for(
                 "kernel p2p", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
                     // helper variables
-                    const size_t simd_length = simd_t::size();
+                    constexpr size_t simd_length = simd_t::size();
                     const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
                     const multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
                         idy + INNER_CELLS_PADDING_DEPTH, idz * simd_length + INNER_CELLS_PADDING_DEPTH);
@@ -87,6 +75,7 @@ namespace fmm {
                     multiindex<> cell_index_unpadded(idx, idy, idz * simd_length );
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
+
                     const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
                     const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
                     int32_t cell_index_coarse_z[simd_length];
@@ -149,10 +138,10 @@ namespace fmm {
                                 const double r3 = r * r * r;
                                 const double four[4] = {
                                     -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
-                                tmpstore[0] = tmpstore[0] + four[0] * monopole;
-                                tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
-                                tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
-                                tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
+                                tmpstore[0] += four[0] * monopole;
+                                tmpstore[1] += four[1] * monopole * d_components[1];
+                                tmpstore[2] += four[2] * monopole * d_components[1];
+                                tmpstore[3] += four[3] * monopole * d_components[1];
 
                             }
                         }

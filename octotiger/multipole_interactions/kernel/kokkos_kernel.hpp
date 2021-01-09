@@ -66,7 +66,8 @@ namespace fmm {
 
         // --------------------------------------- Kernel rho implementations
 
-        template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
+        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t, typename kokkos_buffer_t,
+                 typename kokkos_mask_t>
         void multipole_kernel_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             const kokkos_buffer_t& monopoles, const kokkos_buffer_t& centers_of_mass,
             const kokkos_buffer_t& multipoles, kokkos_buffer_t& potential_expansions,
@@ -74,50 +75,72 @@ namespace fmm {
             const kokkos_mask_t& indicators) {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX}),
+                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
                 "kernel multipole rho", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
-                    const size_t component_length = ENTRIES + SOA_PADDING;
-                    const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+                    constexpr size_t simd_length = simd_t::size();
+                    constexpr size_t component_length = ENTRIES + SOA_PADDING;
+                    constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
                     // Set cell indices
                     const multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
-                        idy + INNER_CELLS_PADDING_DEPTH, idz + INNER_CELLS_PADDING_DEPTH);
-                    multiindex<> cell_index_coarse(cell_index);
-                    cell_index_coarse.transform_coarse();
+                        idy + INNER_CELLS_PADDING_DEPTH, idz * simd_length + INNER_CELLS_PADDING_DEPTH);
                     const size_t cell_flat_index = to_flat_index_padded(cell_index);
-                    multiindex<> cell_index_unpadded(idx, idy, idz);
+                    multiindex<> cell_index_unpadded(idx, idy, idz * simd_length);
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
 
+                    const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
+                    const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
+                    int32_t cell_index_coarse_z[simd_length];
+                    for (int i = 0; i < simd_length; i++) {
+                        cell_index_coarse_z[i] = ((cell_index.z + i + INX) >> 1) - (INX / 2);
+                    }
+
                     // Load multipoles for this cell
-                    double m_cell[20];
-                    for (int i = 0; i < 20; i++)
-                        m_cell[i] = multipoles[i * component_length + cell_flat_index];
-                    double X[NDIM];
-                    X[0] = centers_of_mass[cell_flat_index];
-                    X[1] = centers_of_mass[1 * component_length + cell_flat_index];
-                    X[2] = centers_of_mass[2 * component_length + cell_flat_index];
+                    simd_t m_cell[20];
+                    for (int i = 0; i < 20; i++) {
+                        m_cell[i].copy_from(multipoles.data() + i * component_length + cell_flat_index,
+                            SIMD_NAMESPACE::element_aligned_tag{});
+                    }
+                    simd_t X[NDIM];
+                    X[0].copy_from(centers_of_mass.data() + cell_flat_index, SIMD_NAMESPACE::element_aligned_tag{});
+                    X[1].copy_from(centers_of_mass.data() + 1 * component_length + cell_flat_index,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    X[2].copy_from(centers_of_mass.data() + 2 * component_length + cell_flat_index,
+                        SIMD_NAMESPACE::element_aligned_tag{});
 
                     // Create and set result arrays
-                    double tmpstore[20];
-                    double tmp_corrections[3];
+                    simd_t tmpstore[20];
+                    simd_t tmp_corrections[3];
                     for (size_t i = 0; i < 20; ++i)
-                        tmpstore[i] = 0.0;
+                        tmpstore[i] = simd_t(0.0);
                     for (size_t i = 0; i < 3; ++i)
-                        tmp_corrections[i] = 0.0;
-                    // Required for mask
-                    const double theta_rec_squared = sqr(1.0 / theta);
-                    double m_partner[20];
-                    double Y[NDIM];
+                        tmp_corrections[i] = simd_t(0.0);
+                    simd_t m_partner[20];
+                    simd_t Y[NDIM];
 
+                    // Required for mask
+                    const simd_t theta_rec_squared((1.0 / theta) * (1.0 / theta));
+                    simd_t theta_c_rec_squared;
+                    double theta_c_rec_squared_array[simd_length];
+
+                    multiindex<> partner_index;
                     // calculate interactions between this cell and each stencil element
                     for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
-                        int x = stencil_x - STENCIL_MIN;
+                        partner_index.x = cell_index.x + stencil_x;
+                        const int32_t partner_index_coarse_x = ((partner_index.x + INX) >> 1) - (INX / 2);
+                        const int32_t distance_x = (cell_index_coarse_x - partner_index_coarse_x) * 
+                          (cell_index_coarse_x - partner_index_coarse_x);
+                        const int x = stencil_x - STENCIL_MIN;
                         for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
-                            int y = stencil_y - STENCIL_MIN;
+                            partner_index.y = cell_index.y + stencil_y;
+                            const int32_t partner_index_coarse_y = ((partner_index.y + INX) >> 1) - (INX / 2);
+                            const int32_t distance_y = (cell_index_coarse_y - partner_index_coarse_y) * 
+                              (cell_index_coarse_y - partner_index_coarse_y);
+                            const int y = stencil_y - STENCIL_MIN;
                             for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX;
                                  stencil_z++) {
                                 const size_t index = x * STENCIL_INX * STENCIL_INX +
@@ -125,38 +148,53 @@ namespace fmm {
                                 if (!masks[index]) {
                                     continue;
                                 }
-                                const double mask_phase_one = indicators[index];
 
-                                const multiindex<> partner_index(cell_index.x + stencil_x,
-                                    cell_index.y + stencil_y, cell_index.z + stencil_z);
+                                partner_index.z = cell_index.z + stencil_z;
+                                for (int i = 0; i < simd_length; i++) {
+                                  const int32_t partner_index_coarse_z = ((partner_index.z + i + INX) >> 1) - (INX / 2);
+                                  theta_c_rec_squared_array[i] = static_cast<double>(distance_x + distance_y +
+                                      (cell_index_coarse_z[i] - partner_index_coarse_z) * 
+                                      (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                }
+                                theta_c_rec_squared.copy_from(theta_c_rec_squared_array, SIMD_NAMESPACE::element_aligned_tag{}); 
+
+                                auto mask = theta_c_rec_squared < theta_rec_squared;
+                                if (!SIMD_NAMESPACE::any_of(mask)) {
+                                    continue;
+                                }
+                                const double mask_phase_one = indicators[index];
                                 const size_t partner_flat_index =
                                     to_flat_index_padded(partner_index);
-                                multiindex<> partner_index_coarse(partner_index);
-                                partner_index_coarse.transform_coarse();
-                                const double theta_c_rec_squared =
-                                    static_cast<double>(distance_squared_reciprocal(
-                                        cell_index_coarse, partner_index_coarse));
-                                const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                                double mask = mask_b ? 1.0 : 0.0;
 
                                 // Load data of interaction partner
-                                Y[0] = centers_of_mass[partner_flat_index];
-                                Y[1] = centers_of_mass[1 * component_length + partner_flat_index];
-                                Y[2] = centers_of_mass[2 * component_length + partner_flat_index];
-                                m_partner[0] = monopoles[partner_flat_index] * mask;
-                                mask = mask * mask_phase_one;
-                                m_partner[0] += multipoles[partner_flat_index] * mask;
+                                Y[0].copy_from(centers_of_mass.data() + partner_flat_index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                Y[1].copy_from(centers_of_mass.data() + 1 * component_length + partner_flat_index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                Y[2].copy_from(centers_of_mass.data() + 2 * component_length + partner_flat_index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                m_partner[0].copy_from(monopoles.data() + partner_flat_index,
+                                    SIMD_NAMESPACE::element_aligned_tag{});
+                                m_partner[0] = SIMD_NAMESPACE::choose(mask, m_partner[0], simd_t(0.0));
+
+                                // Checks whether we are currently handling monopoles (false) or multipole (true)
+                                // as interaction partners
+                                if (!indicators[index]) {
+                                  mask = simd_mask_t(false);
+                                }
+                                m_partner[0] += SIMD_NAMESPACE::choose(mask, simd_t(multipoles.data() + partner_flat_index,
+                                    SIMD_NAMESPACE::element_aligned_tag{}), simd_t(0.0));
                                 for (size_t i = 1; i < 20; ++i) {
-                                    m_partner[i] =
-                                        multipoles[i * component_length + partner_flat_index] *
-                                        mask;
+                                    m_partner[i].copy_from(multipoles.data() + i * component_length + partner_flat_index,
+                                        SIMD_NAMESPACE::element_aligned_tag{});
+                                    m_partner[i] = SIMD_NAMESPACE::choose(mask, m_partner[i], simd_t(0.0));
                                 }
 
                                 // Do the actual calculations
                                 multipole_interactions::compute_kernel_rho(X, Y, m_partner,
                                     tmpstore, tmp_corrections, m_cell,
-                                    [](const double& one, const double& two) -> double {
-                                        return max(one, two);
+                                    [](const simd_t& one, const simd_t& two) -> simd_t {
+                                        return SIMD_NAMESPACE::max(one, two);
                                     });
                             }
                         }
@@ -164,15 +202,15 @@ namespace fmm {
 
                     // Store results in output arrays
                     for (size_t i = 0; i < 20; ++i) {
-                        potential_expansions[i * component_length_unpadded +
-                            cell_flat_index_unpadded] = tmpstore[i];
+                        tmpstore[i].copy_to(potential_expansions.data() +  i * component_length_unpadded +
+                            cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
                     }
-
-                    angular_corrections[cell_flat_index_unpadded] = tmp_corrections[0];
-                    angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmp_corrections[1];
-                    angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmp_corrections[2];
+                    tmp_corrections[0].copy_to(angular_corrections.data() + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmp_corrections[1].copy_to(angular_corrections.data() + 1 * component_length_unpadded +
+                        cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                    tmp_corrections[2].copy_to(angular_corrections.data() + 2 * component_length_unpadded +
+                        cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
                 });
         }
         // --------------------------------------- Kernel root rho implementations
@@ -276,7 +314,8 @@ namespace fmm {
         }
         // --------------------------------------- Kernel non rho implementations
 
-        template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
+        template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t, typename kokkos_buffer_t,
+                 typename kokkos_mask_t>
         void multipole_kernel_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             const kokkos_buffer_t& monopoles, const kokkos_buffer_t& centers_of_mass,
             const kokkos_buffer_t& multipoles, kokkos_buffer_t& potential_expansions,
@@ -483,7 +522,7 @@ namespace fmm {
             if (type == RHO) {
                 // Launch kernel with angular corrections
                 if (!use_root_stencil) {
-                    multipole_kernel_rho_impl(exec, device_monopoles, device_centers,
+                    multipole_kernel_rho_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_centers,
                         device_multipoles, device_expansions, device_corrections, theta,
                         device_masks, device_indicators);
                 } else {
@@ -495,7 +534,7 @@ namespace fmm {
             } else {
                 // Launch kernel without angular corrections
                 if (!use_root_stencil) {
-                    multipole_kernel_non_rho_impl(exec, device_monopoles, device_centers,
+                    multipole_kernel_non_rho_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_centers,
                         device_multipoles, device_expansions, theta, device_masks,
                         device_indicators);
                 } else {
@@ -520,7 +559,7 @@ namespace fmm {
             if (type == RHO) {
                 // Launch kernel with angular corrections
                 if (!use_root_stencil) {
-                    multipole_kernel_rho_impl(exec, monopoles, centers_of_mass, multipoles,
+                    multipole_kernel_rho_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, centers_of_mass, multipoles,
                         potential_expansions, angular_corrections, theta, host_masks,
                         host_indicators);
                 } else {
@@ -530,7 +569,7 @@ namespace fmm {
             } else {
                 // Launch kernel without angular corrections
                 if (!use_root_stencil) {
-                    multipole_kernel_non_rho_impl(exec, monopoles, centers_of_mass, multipoles,
+                    multipole_kernel_non_rho_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, centers_of_mass, multipoles,
                         potential_expansions, theta, host_masks, host_indicators);
                 } else {
                     multipole_kernel_root_non_rho_impl(
