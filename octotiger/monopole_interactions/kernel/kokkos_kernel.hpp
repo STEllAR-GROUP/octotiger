@@ -6,12 +6,19 @@
 #include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 
 #include <simd.hpp>
+using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 #if !defined(__CUDA_ARCH__)
 #include <avx.hpp>
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
+//using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#else
+// drop in for nvcc device pass - shouldnt be used on host code but required for compilation
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 #endif
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include "octotiger/common_kernel/kokkos_util.hpp"
+
 
 namespace octotiger {
 namespace fmm {
@@ -55,28 +62,16 @@ namespace fmm {
 
         // --------------------------------------- P2P Kernel implementations
 
-        template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
+        template <typename simd_t, typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_mask_t>
         void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             const kokkos_buffer_t& monopoles, const kokkos_mask_t& devicemasks,
             kokkos_buffer_t& potential_expansions, const double dx, const double theta) {
+
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX}),
-
+                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
-#if !defined(__CUDA_ARCH__)
-                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx> test;
-                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>::size();
-                    printf("\nsimd size %i %s ", simd_length, typeid(test).name());
-#else // doesn't work! as we are on the host this will never be executed
-                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar> test;
-                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>::size();
-                    printf("CUDA-SIMD size %i %s ", simd_length, typeid(test).name());
-                    throw(""); //never get called
-#endif
-                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar> test2;
-                    size_t simd_length2 =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>::size();
-                    printf("\nCUDA-SIMD size %i %s ", simd_length2, typeid(test2).name());
+
 
             // Kokkos::parallel_for("kernel p2p", policy_1,
             //   [monopoles, potential_expansions, devicemasks, dx, theta] CUDA_GLOBAL_METHOD(
@@ -84,37 +79,42 @@ namespace fmm {
             Kokkos::parallel_for(
                 "kernel p2p", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
                     // helper variables
+                    const size_t simd_length = simd_t::size();
                     const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
                     const multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
-                        idy + INNER_CELLS_PADDING_DEPTH, idz + INNER_CELLS_PADDING_DEPTH);
-                    multiindex<> cell_index_coarse(cell_index);
-                    cell_index_coarse.transform_coarse();
+                        idy + INNER_CELLS_PADDING_DEPTH, idz * simd_length + INNER_CELLS_PADDING_DEPTH);
                     const size_t cell_flat_index = to_flat_index_padded(cell_index);
-                    multiindex<> cell_index_unpadded(idx, idy, idz);
+                    multiindex<> cell_index_unpadded(idx, idy, idz * simd_length );
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
-                    const double theta_rec_squared = (1.0 / theta) * (1.0 / theta);
-                    const double d_components[2] = {1.0 / dx, -1.0 / dx};
-                    double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
-                    //SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::native> test;
-                    //size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::native>::size();
-                    //printf("simd size %i ", simd_length);
-#if !defined(__CUDA_ARCH__)
-                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx> test;
-                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>::size();
-                    printf("simd size %i", simd_length);
-#else // Works! this is actually part of the device code and will be ececuted with a defined CUDA ARCH
-                    SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar> test;
-                    size_t simd_length =SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>::size();
-                    printf("CUDA-SIMD size %i ", simd_length);
-#endif
+                    const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
+                    const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
+                    int32_t cell_index_coarse_z[simd_length];
+                    for (int i = 0; i < simd_length; i++) {
+                        cell_index_coarse_z[i] = ((cell_index.z + i + INX) >> 1) - (INX / 2);
+                    }
 
+                    const simd_t theta_rec_squared((1.0 / theta) * (1.0 / theta));
+                    simd_t theta_c_rec_squared;
+                    double theta_c_rec_squared_array[simd_length];
+
+                    const double d_components[2] = {1.0 / dx, -1.0 / dx};
+                    simd_t tmpstore[4] = {simd_t(0.0), simd_t(0.0), simd_t(0.0), simd_t(0.0)};
+                    multiindex<> partner_index;
                     // Go through all possible stance elements for the two cells this thread
                     // is responsible for
                     for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
-                        int x = stencil_x - STENCIL_MIN;
+                        partner_index.x = cell_index.x + stencil_x;
+                        const int32_t partner_index_coarse_x = ((partner_index.x + INX) >> 1) - (INX / 2);
+                        const int32_t distance_x = (cell_index_coarse_x - partner_index_coarse_x) * 
+                          (cell_index_coarse_x - partner_index_coarse_x);
+                        const int x = stencil_x - STENCIL_MIN;
                         for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
-                            int y = stencil_y - STENCIL_MIN;
+                            partner_index.y = cell_index.y + stencil_y;
+                            const int32_t partner_index_coarse_y = ((partner_index.y + INX) >> 1) - (INX / 2);
+                            const int32_t distance_y = (cell_index_coarse_y - partner_index_coarse_y) * 
+                              (cell_index_coarse_y - partner_index_coarse_y);
+                            const int y = stencil_y - STENCIL_MIN;
                             for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX;
                                  stencil_z++) {
                                 const size_t index = x * STENCIL_INX * STENCIL_INX +
@@ -123,43 +123,48 @@ namespace fmm {
                                 if (!devicemasks[index]) {
                                     continue;
                                 }
-                                // Interaction helpers
-                                const multiindex<> partner_index1(cell_index.x + stencil_x,
-                                    cell_index.y + stencil_y, cell_index.z + stencil_z);
-                                const size_t partner_flat_index1 =
-                                    to_flat_index_padded(partner_index1);
-                                multiindex<> partner_index_coarse1(partner_index1);
-                                partner_index_coarse1.transform_coarse();
-                                const double theta_c_rec_squared =
-                                    static_cast<double>(distance_squared_reciprocal(
-                                        cell_index_coarse, partner_index_coarse1));
-                                const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                                const double mask = mask_b ? 1.0 : 0.0;
+                                partner_index.z = cell_index.z + stencil_z;
+                                for (int i = 0; i < simd_length; i++) {
+                                  const int32_t partner_index_coarse_z = ((partner_index.z + i + INX) >> 1) - (INX / 2);
+                                  theta_c_rec_squared_array[i] = static_cast<double>(distance_x + distance_y +
+                                      (cell_index_coarse_z[i] - partner_index_coarse_z) * 
+                                      (cell_index_coarse_z[i] - partner_index_coarse_z));
+                                }
+                                theta_c_rec_squared.copy_from(theta_c_rec_squared_array, SIMD_NAMESPACE::element_aligned_tag{}); 
 
-                                // Interaction calculation
+                                const auto mask = theta_c_rec_squared < theta_rec_squared;
+                                if (!SIMD_NAMESPACE::any_of(mask)) {
+                                    continue;
+                                }
+
+                                const size_t partner_flat_index =
+                                    to_flat_index_padded(partner_index);
+                                simd_t monopole(monopoles.data() + partner_flat_index, SIMD_NAMESPACE::element_aligned_tag{});
+                                monopole = SIMD_NAMESPACE::choose(mask, monopole, simd_t(0.0));
+                                monopole = monopole * d_components[0];
+
                                 const double r =
                                     std::sqrt(static_cast<double>(stencil_x * stencil_x +
                                         stencil_y * stencil_y + stencil_z * stencil_z));
                                 const double r3 = r * r * r;
                                 const double four[4] = {
                                     -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
-                                const double monopole =
-                                    monopoles[partner_flat_index1] * mask * d_components[0];
-                                // Calculate the actual interactions
                                 tmpstore[0] = tmpstore[0] + four[0] * monopole;
                                 tmpstore[1] = tmpstore[1] + four[1] * monopole * d_components[1];
                                 tmpstore[2] = tmpstore[2] + four[2] * monopole * d_components[1];
                                 tmpstore[3] = tmpstore[3] + four[3] * monopole * d_components[1];
+
                             }
                         }
                     }
-                    potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
-                    potential_expansions[1 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmpstore[1];
-                    potential_expansions[2 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmpstore[2];
-                    potential_expansions[3 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmpstore[3];
+                    tmpstore[0].copy_to(potential_expansions.data() + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmpstore[1].copy_to(potential_expansions.data() + 1 * component_length_unpadded + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmpstore[2].copy_to(potential_expansions.data() + 2 * component_length_unpadded + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    tmpstore[3].copy_to(potential_expansions.data() + 3 * component_length_unpadded + cell_flat_index_unpadded,
+                        SIMD_NAMESPACE::element_aligned_tag{});
                 });
         }
         // --------------------------------------- P2M Kernel implementations
@@ -452,7 +457,7 @@ namespace fmm {
             Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
 
             // call kernel
-            p2p_kernel_impl(exec, device_monopoles, device_masks, device_results, dx, theta);
+            p2p_kernel_impl<device_simd_t>(exec, device_monopoles, device_masks, device_results, dx, theta);
 
             auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
             fut.get();
@@ -463,7 +468,7 @@ namespace fmm {
             host_buffer<double>& results, double dx, double theta) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
             // call kernel
-            p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
+            p2p_kernel_impl<host_simd_t>(exec, monopoles, host_masks, results, dx, theta);
 
             sync_kokkos_host_kernel(exec);
         }
@@ -489,7 +494,7 @@ namespace fmm {
             Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
 
             // call p2p kernel
-            p2p_kernel_impl(exec, device_monopoles, device_masks, device_results, dx, theta);
+            p2p_kernel_impl<device_simd_t>(exec, device_monopoles, device_masks, device_results, dx, theta);
 
             device_buffer<double> device_center_of_masses_inner_cells(
                 (INNER_CELLS + SOA_PADDING) * 3);
@@ -587,7 +592,7 @@ namespace fmm {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
 
             // call p2p kernel
-            p2p_kernel_impl(exec, monopoles, host_masks, results, dx, theta);
+            p2p_kernel_impl<host_simd_t>(exec, monopoles, host_masks, results, dx, theta);
 
             // - Launch Kernel
             size_t counter_kernel = 0;
