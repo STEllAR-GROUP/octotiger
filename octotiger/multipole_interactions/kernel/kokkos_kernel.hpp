@@ -261,6 +261,8 @@ namespace fmm {
                     for (size_t i = 0; i < 3; ++i)
                         tmp_corrections[i] = simd_t(0.0);
 
+                    simd_t m_partner[20];
+                    simd_t Y[NDIM];
                     for (int x = 0; x < INX; x++) {
                         const int stencil_x = x - cell_index_unpadded.x;
                         for (int y = 0; y < INX; y++) {
@@ -299,8 +301,6 @@ namespace fmm {
                                 const size_t partner_flat_index =
                                     to_flat_index_padded(partner_index);
 
-                                simd_t m_partner[20];
-                                simd_t Y[NDIM];
                                 // Load data of interaction partner!
                                 // NOTE: We only load ONE partner (the same one) for all SIMD cell indices (1 to n)
                                 // This is unlike the non-root variant where we have one partner for each cell (n to n)
@@ -479,34 +479,38 @@ namespace fmm {
             kokkos_buffer_t& potential_expansions, const kokkos_mask_t& indicators) {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX}),
+                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
                 "kernel multipole root non-rho", policy_1,
                 KOKKOS_LAMBDA(int idx, int idy, int idz) {
-                    const size_t component_length = ENTRIES + SOA_PADDING;
-                    const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+                    constexpr size_t simd_length = simd_t::size();
+                    constexpr size_t component_length = ENTRIES + SOA_PADDING;
+                    constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+
                     // Set cell indices
                     const multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
-                        idy + INNER_CELLS_PADDING_DEPTH, idz + INNER_CELLS_PADDING_DEPTH);
+                        idy + INNER_CELLS_PADDING_DEPTH, idz * simd_length + INNER_CELLS_PADDING_DEPTH);
                     const size_t cell_flat_index = to_flat_index_padded(cell_index);
-                    multiindex<> cell_index_unpadded(idx, idy, idz);
+                    multiindex<> cell_index_unpadded(idx, idy, idz * simd_length);
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
 
-                    double X[NDIM];
-                    X[0] = centers_of_mass[cell_flat_index];
-                    X[1] = centers_of_mass[1 * component_length + cell_flat_index];
-                    X[2] = centers_of_mass[2 * component_length + cell_flat_index];
+                    simd_t X[NDIM];
+                    X[0].copy_from(centers_of_mass.data() + cell_flat_index, SIMD_NAMESPACE::element_aligned_tag{});
+                    X[1].copy_from(centers_of_mass.data() + 1 * component_length + cell_flat_index,
+                        SIMD_NAMESPACE::element_aligned_tag{});
+                    X[2].copy_from(centers_of_mass.data() + 2 * component_length + cell_flat_index,
+                        SIMD_NAMESPACE::element_aligned_tag{});
 
                     // Create and set result arrays
-                    double tmpstore[20];
+                    simd_t tmpstore[20];
                     for (size_t i = 0; i < 20; ++i)
-                        tmpstore[i] = 0.0;
-                    // Required for mask
-                    double m_partner[20];
-                    double Y[NDIM];
+                        tmpstore[i] = simd_t(0.0);
+
+                    simd_t m_partner[20];
+                    simd_t Y[NDIM];
 
                     // calculate interactions between this cell and each stencil element
                     for (int x = 0; x < INX; x++) {
@@ -515,45 +519,65 @@ namespace fmm {
                             const int stencil_y = y - cell_index_unpadded.y;
                             for (int z = 0; z < INX; z++) {
                                 const int stencil_z = z - cell_index_unpadded.z;
+                                double mask_helper2_array[simd_length];
+                                for (int i = 0; i < simd_length; i++) {
+                                    mask_helper2_array[i] = 0.0;
+                                }
                                 const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
                                 if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
                                     stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
                                     stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
-                                    const size_t index =
-                                        (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
-                                        (stencil_y - STENCIL_MIN) * STENCIL_INX +
-                                        (stencil_z - STENCIL_MIN);
-                                    if (!indicators[index] ||
-                                        (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
-                                        continue;
+                                    for (int i = 0; i < simd_length && stencil_z - STENCIL_MIN - i >= 0; i++) {
+                                        const size_t index =
+                                            (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
+                                            (stencil_y - STENCIL_MIN) * STENCIL_INX +
+                                            (stencil_z - STENCIL_MIN - i);
+                                        if (!indicators[index] ||
+                                            (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
+                                            mask_helper2_array[i] = 12.0;
+                                        }
                                     }
                                 }
+                                // Workaround to set the mask - usually I'd like to set it component-wise but
+                                // kokkos-simd currently does not support this! hence the mask_helpers
+                                const simd_t mask_helper1(1.0);
+                                const simd_t mask_helper2(mask_helper2_array, SIMD_NAMESPACE::element_aligned_tag{});
+                                simd_mask_t mask = mask_helper2 < mask_helper1;
+                                if (!SIMD_NAMESPACE::any_of(mask)) {
+                                    continue;
+                                }
+
                                 const multiindex<> partner_index(x + INX, y + INX, z + INX);
                                 const size_t partner_flat_index =
                                     to_flat_index_padded(partner_index);
 
-                                // Load data of interaction partner
-                                Y[0] = centers_of_mass[partner_flat_index];
-                                Y[1] = centers_of_mass[1 * component_length + partner_flat_index];
-                                Y[2] = centers_of_mass[2 * component_length + partner_flat_index];
-
+                                // Load data of interaction partner!
+                                // NOTE: We only load ONE partner (the same one) for all SIMD cell indices (1 to n)
+                                // This is unlike the non-root variant where we have one partner for each cell (n to n)
+                                Y[0] = SIMD_NAMESPACE::choose(mask,
+                                    simd_t(centers_of_mass[partner_flat_index]), simd_t(0.0));
+                                Y[1] = SIMD_NAMESPACE::choose(mask,
+                                    simd_t(centers_of_mass[partner_flat_index + 1 * component_length]), simd_t(0.0));
+                                Y[2] = SIMD_NAMESPACE::choose(mask,
+                                    simd_t(centers_of_mass[partner_flat_index + 2 * component_length]), simd_t(0.0));
                                 for (size_t i = 0; i < 20; ++i) {
-                                    m_partner[i] =
-                                        multipoles[i * component_length + partner_flat_index];
+                                    m_partner[i] = SIMD_NAMESPACE::choose(mask,
+                                        simd_t(multipoles[partner_flat_index + i * component_length]), simd_t(0.0));
                                 }
 
                                 // Do the actual calculations
                                 multipole_interactions::compute_kernel_non_rho(X, Y, m_partner,
-                                    tmpstore, [](const double& one, const double& two) -> double {
-                                        return max(one, two);
+                                    tmpstore, [](const simd_t& one, const simd_t& two) -> simd_t {
+                                        return SIMD_NAMESPACE::max(one, two);
                                     });
                             }
                         }
                     }
                     // Store results in output arrays
-                    for (size_t i = 0; i < 20; ++i)
-                        potential_expansions[i * component_length_unpadded +
-                            cell_flat_index_unpadded] = tmpstore[i];
+                    for (size_t i = 0; i < 20; ++i) {
+                        tmpstore[i].copy_to(potential_expansions.data() +  i * component_length_unpadded +
+                            cell_flat_index_unpadded, SIMD_NAMESPACE::element_aligned_tag{});
+                    }
                 });
         }
 
