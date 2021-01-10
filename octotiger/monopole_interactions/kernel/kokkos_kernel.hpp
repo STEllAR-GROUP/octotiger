@@ -18,21 +18,44 @@ namespace fmm {
         const storage& get_host_masks() {
             static storage stencil_masks(FULL_STENCIL_SIZE);
             static bool initialized = false;
-            if (!initialized) {
-                auto superimposed_stencil = monopole_interactions::calculate_stencil().first;
-                for (auto i = 0; i < FULL_STENCIL_SIZE; i++) {
-                    stencil_masks[i] = false;
-                }
-                for (auto stencil_element : superimposed_stencil) {
-                    const int x = stencil_element.x + STENCIL_MAX;
-                    const int y = stencil_element.y + STENCIL_MAX;
-                    const int z = stencil_element.z + STENCIL_MAX;
-                    size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX + z;
-                    stencil_masks[index] = true;
-                }
+            // Gets initialized at the start of octotiger (init_methods.cpp) by the root thread
+            // to avoid racing this
+            if (!initialized) { 
                 initialized = true;
+                auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
+                auto p2p_stencil_mask_pair =
+                    monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
+                auto p2p_stencil_mask = p2p_stencil_mask_pair.first;
+                for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
+                    if (p2p_stencil_mask[i]) {
+                        stencil_masks[i] = true;
+                    } else {
+                        stencil_masks[i] = false;
+                    }
+                }
             }
             return stencil_masks;
+        }
+        template <typename storage>
+        const storage& get_host_constants() {
+            static storage stencil_constants(4 * FULL_STENCIL_SIZE);
+            static bool initialized = false;
+            // Gets initialized at the start of octotiger (init_methods.cpp) by the root thread
+            // to avoid racing this
+            if (!initialized) { 
+                initialized = true;
+                auto p2p_stencil_pair = monopole_interactions::calculate_stencil();
+                auto p2p_stencil_mask_pair =
+                    monopole_interactions::calculate_stencil_masks(p2p_stencil_pair.first);
+                auto p2p_four_constants = p2p_stencil_mask_pair.second;
+                for (auto i = 0; i < FULL_STENCIL_SIZE; ++i) {
+                    stencil_constants[i * 4 + 0] = p2p_four_constants[i][0];
+                    stencil_constants[i * 4 + 1] = p2p_four_constants[i][1];
+                    stencil_constants[i * 4 + 2] = p2p_four_constants[i][2];
+                    stencil_constants[i * 4 + 3] = p2p_four_constants[i][3];
+                }
+            }
+            return stencil_constants;
         }
 
         template <typename storage, typename storage_host, typename executor_t>
@@ -48,12 +71,25 @@ namespace fmm {
             return stencil_masks;
         }
 
+        template <typename storage, typename storage_host, typename executor_t>
+        const storage& get_device_constants(executor_t& exec) {
+            static storage stencil_constants(4 * FULL_STENCIL_SIZE);
+            static bool initialized = false;
+            if (!initialized) {
+                const storage_host& tmp = get_host_constants<storage_host>();
+                Kokkos::deep_copy(exec.instance(), stencil_constants, tmp);
+                exec.instance().fence();
+                initialized = true;
+            }
+            return stencil_constants;
+        }
+
         // --------------------------------------- P2P Kernel implementations
 
         template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t, typename kokkos_buffer_t,
                  typename kokkos_mask_t>
         void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
-            const kokkos_buffer_t& monopoles, const kokkos_mask_t& devicemasks,
+            const kokkos_buffer_t& monopoles, const kokkos_mask_t& devicemasks, const kokkos_buffer_t& constants,
             kokkos_buffer_t& potential_expansions, const double dx, const double theta) {
 
             auto policy_1 = Kokkos::Experimental::require(
@@ -133,12 +169,16 @@ namespace fmm {
                                 monopole = SIMD_NAMESPACE::choose(mask, monopole, simd_t(0.0));
                                 monopole = monopole * d_components[0];
 
-                                const double r =
+                                /*const double r =
                                     std::sqrt(static_cast<double>(stencil_x * stencil_x +
                                         stencil_y * stencil_y + stencil_z * stencil_z));
                                 const double r3 = r * r * r;
                                 const double four[4] = {
-                                    -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};
+                                    -1.0 / r, stencil_x / r3, stencil_y / r3, stencil_z / r3};*/
+                              
+                                const simd_t four[4] = {
+                                    constants[index * 4 + 0], constants[index * 4 + 1],
+                                    constants[index * 4 + 2], constants[index * 4 + 3]};
                                 tmpstore[0] += four[0] * monopole;
                                 tmpstore[1] += four[1] * monopole * d_components[1];
                                 tmpstore[2] += four[2] * monopole * d_components[1];
@@ -544,6 +584,8 @@ namespace fmm {
             // create device buffers
             const device_buffer<int>& device_masks =
                 get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec);
+            const device_buffer<double>& device_constants =
+                get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec);
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
             device_buffer<double> device_results(NUMBER_POT_EXPANSIONS_SMALL);
 
@@ -551,8 +593,8 @@ namespace fmm {
             Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
 
             // call kernel
-            p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
-                device_results, dx, theta);
+            p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles,
+                device_masks, device_constants, device_results, dx, theta);
 
             auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
             fut.get();
@@ -562,8 +604,10 @@ namespace fmm {
         void launch_interface_p2p(executor_t& exec, host_buffer<double>& monopoles,
             host_buffer<double>& results, double dx, double theta) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
+            const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
             // call kernel
-            p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks, results, dx, theta);
+            p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
+                host_constants, results, dx, theta);
 
             sync_kokkos_host_kernel(exec);
         }
@@ -582,6 +626,8 @@ namespace fmm {
             // create device buffers
             const device_buffer<int>& device_masks =
                 get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec);
+            const device_buffer<double>& device_constants =
+                get_device_constants<device_buffer<double>, host_buffer<double>, executor_t>(exec);
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
             device_buffer<double> device_results(NUMBER_POT_EXPANSIONS_SMALL);
 
@@ -589,7 +635,8 @@ namespace fmm {
             Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
 
             // call p2p kernel
-            p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks, device_results, dx, theta);
+            p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
+                device_constants, device_results, dx, theta);
 
             device_buffer<double> device_center_of_masses_inner_cells(
                 (INNER_CELLS + SOA_PADDING) * 3);
@@ -686,9 +733,11 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             const size_t number_p2m_kernels) {
             const host_buffer<int>& host_masks = get_host_masks<host_buffer<int>>();
+            const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
 
             // call p2p kernel
-            p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks, results, dx, theta);
+            p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
+                host_constants, results, dx, theta);
 
             // - Launch Kernel
             size_t counter_kernel = 0;

@@ -137,6 +137,8 @@ void init_executors(void) {
     hpx::kokkos::cuda_executor mover{};
     octotiger::fmm::monopole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::cuda_executor>(mover);
+    octotiger::fmm::monopole_interactions::get_device_constants<device_buffer<double>, host_buffer<double>,
+        hpx::kokkos::cuda_executor>(mover);
     octotiger::fmm::multipole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::cuda_executor>(mover, true);
     Kokkos::fence();
