@@ -689,7 +689,6 @@ namespace fmm {
             cpu_angular_result_t& angular_corrections_SoA, const std::vector<bool>& stencil_masks,
             gsolve_type type, const geo::direction& dir) {
             const double theta = opts().theta;
-            assert(false);
             // Depending on the location of the current neighbor we don't need to look 
             // at the complete subgrid
             int startx = 0;
