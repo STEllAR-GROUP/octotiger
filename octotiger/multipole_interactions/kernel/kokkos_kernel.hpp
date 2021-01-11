@@ -275,16 +275,17 @@ namespace fmm {
                                 }
                                 const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
                                 if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
-                                    stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
-                                    stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                                    stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX) {
                                     for (int i = 0; i < simd_length && stencil_z - STENCIL_MIN - i >= 0; i++) {
                                         const size_t index =
                                             (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
                                             (stencil_y - STENCIL_MIN) * STENCIL_INX +
                                             (stencil_z - STENCIL_MIN - i);
-                                        if (!indicators[index] ||
-                                            (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
-                                            mask_helper2_array[i] = 12.0;
+                                        if (stencil_z - i <= STENCIL_MAX) {
+                                            if (!indicators[index] ||
+                                                (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
+                                                mask_helper2_array[i] = 12.0;
+                                            }
                                         }
                                     }
                                 }
@@ -525,16 +526,17 @@ namespace fmm {
                                 }
                                 const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
                                 if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
-                                    stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
-                                    stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                                    stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX) {
                                     for (int i = 0; i < simd_length && stencil_z - STENCIL_MIN - i >= 0; i++) {
                                         const size_t index =
                                             (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
                                             (stencil_y - STENCIL_MIN) * STENCIL_INX +
                                             (stencil_z - STENCIL_MIN - i);
-                                        if (!indicators[index] ||
-                                            (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
-                                            mask_helper2_array[i] = 12.0;
+                                        if (stencil_z - i <= STENCIL_MAX) {
+                                            if (!indicators[index] ||
+                                                (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
+                                                mask_helper2_array[i] = 12.0;
+                                            }
                                         }
                                     }
                                 }
