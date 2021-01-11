@@ -33,7 +33,7 @@ integration service for the master branch:
 
     [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
 
-* **Documentation**"
+* **Documentation**:
     
     The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
 
