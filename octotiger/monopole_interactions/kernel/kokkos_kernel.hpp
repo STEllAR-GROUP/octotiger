@@ -94,7 +94,7 @@ namespace fmm {
 
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX / 2, INX / simd_t::size()}),
+                    executor.instance(), {0, 0, 0}, {INX, INX / 2, INX / simd_t::size()}, {1, INX / 2, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
 

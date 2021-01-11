@@ -75,7 +75,7 @@ namespace fmm {
             const kokkos_mask_t& indicators) {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}),
+                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}, {1, INX / 2, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
@@ -223,7 +223,7 @@ namespace fmm {
             const kokkos_mask_t& indicators) {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}),
+                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}, {1, INX / 2, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
@@ -347,7 +347,7 @@ namespace fmm {
             const double theta, const kokkos_mask_t& masks, const kokkos_mask_t& indicators) {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}),
+                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}, {1, INX / 2, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
@@ -479,7 +479,7 @@ namespace fmm {
             kokkos_buffer_t& potential_expansions, const kokkos_mask_t& indicators) {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}),
+                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()}, {1, INX / 2, INX / simd_t::size()}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
