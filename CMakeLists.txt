@@ -8,8 +8,8 @@
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-cmake_minimum_required(VERSION 3.12.4)
-cmake_policy(VERSION 3.12.4)
+cmake_minimum_required(VERSION 3.14.2)
+cmake_policy(VERSION 3.14.2)
 
 # Libraries linked via full path no longer produce linker search paths.
 cmake_policy(SET CMP0003 NEW)
@@ -99,6 +99,18 @@ if(OCTOTIGER_WITH_KOKKOS)
   if (OCTOTIGER_WITH_LEGACY_Vc)
     message(FATAL_ERROR " Kokkos cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
   endif()
+
+  include(FetchContent)
+  FetchContent_Declare(
+    kokkossimd
+    GIT_REPOSITORY https://github.com/kokkos/simd-math.git
+    GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
+  )
+  FetchContent_MakeAvailable(kokkossimd)
+  #FetchContent_GetProperties(kokkossimd)
+  #if(NOT kokkossimd)
+  #  FetchContent_Populate(kokkossimd)
+  #endif()
 endif()
 
 
@@ -364,6 +376,14 @@ if(OCTOTIGER_WITH_KOKKOS)
   target_compile_definitions(octolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
   target_compile_definitions(hydrolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
+
+  # Add simd library
+  message(INFO "Compiling with Kokkos SIMD! Path:")
+  message(INFO ${kokkossimd_SOURCE_DIR})
+  target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
+  # Use this include when actively developing simd-math itself and the source changes often
+  # You are responsible for checking out the simd-math source at the correct directory in this case
+  #target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
 endif()
 
 # Enable exported functions
@@ -373,7 +393,6 @@ set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
-target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
 target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 
 # Octo-Tiger executable
