@@ -33,6 +33,10 @@ integration service for the master branch:
 
     [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
 
+* **Documentation**"
+    
+    The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
+
 ## Publications
 
 * Thomas Heller, Bryce Adelstein Lelbach, Kevin A Huck, John Biddiscombe, Patricia Grubel, Alice E Koniges, Matthias Kretz, Dominic Marcello, David Pfander, Adrian Serio, Juhan Frank, Geoffrey C Clayton, Dirk Pflüger, David Eder, Hartmut Kaiser. “Harnessing Billions of Tasks for a Scalable Portable Hydrodynamic Simulation of the Merger of Two Stars.” The International Journal of High Performance Computing Applications, Feb. 2019 [Link](https://journals.sagepub.com/doi/10.1177/1094342018819744)
