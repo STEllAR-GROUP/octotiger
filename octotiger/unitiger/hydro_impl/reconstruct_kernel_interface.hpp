@@ -46,11 +46,14 @@ void reconstruct_experimental(const safe_real omega, const size_t nf_, const int
     double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
     const double* __restrict__ cdiscs);
+// Vc kernel
+#ifdef __x86_64__
 void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int angmom_index_,
     const std::vector<bool>& smooth_field_, const std::vector<bool>& disc_detect_,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, const double dx,
     const std::vector<std::vector<safe_real>>& cdiscs);
+#endif
 #ifdef OCTOTIGER_HAVE_CUDA
 void launch_reconstruct_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,

@@ -1850,7 +1850,11 @@ timestep_t grid::compute_fluxes() {
           std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
       const auto &q = hydro.reconstruct(U, X, omega);
       //auto max_lambda = hydro.flux(U, q, f, X, omega);
+#ifdef __x86_64__
       auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
+#elif 
+    auto max_lambda = hydro.flux(U, q, f, X, omega);
+#else
 
       for (int dim = 0; dim < NDIM; dim++) {
         for (integer field = 0; field != opts().n_fields; ++field) {
@@ -1873,6 +1877,7 @@ timestep_t grid::compute_fluxes() {
           }
         }
       }
+#endif
       return max_lambda;
 #ifdef OCTOTIGER_HAVE_CUDA
     } else {

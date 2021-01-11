@@ -1,3 +1,4 @@
+#ifdef __x86_64__
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 
 #pragma GCC push_options
@@ -715,3 +716,4 @@ void convert_find_contact_discs(const double* __restrict__ combined_u, double* _
     }
 }
 #pragma GCC pop_options
+#endif

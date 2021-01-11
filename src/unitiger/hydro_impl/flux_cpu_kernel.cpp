@@ -1,4 +1,4 @@
-
+#ifdef __x86_64__
 #pragma GCC push_options
 #pragma GCC optimize("unroll-loops")
 
@@ -378,3 +378,4 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     return ts;
 }
 #pragma GCC pop_options
+#endif
