@@ -94,9 +94,18 @@ using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::sca
 using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 #if defined(HPX_COMPUTE_HOST_CODE)
 #if defined(__VSX__)
+// NVCC does not play fair with Altivec! See another project with similar issues:
+// See https://github.com/dealii/dealii/issues/7328
+#ifdef __CUDACC__ // hence: Use scalar when using nvcc
+// TODO Does this work with clang?!
+using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
+using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#else // no nvcc: We can try to use the altivec vectorization
 #include <vsx.hpp>
+// TODO Actually test with a non-cuda kokkos build
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::vsx>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::vsx>;
+#endif
 #elif defined(__AVX512F__)
 #include <avx512.hpp>
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx512>;
