@@ -108,17 +108,14 @@ namespace fmm {
                     constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
                     const multiindex<> cell_index(idx + INNER_CELLS_PADDING_DEPTH,
                         idy * 2 + INNER_CELLS_PADDING_DEPTH, idz * simd_length + INNER_CELLS_PADDING_DEPTH);
-                    const multiindex<> cell_index2(idx + INNER_CELLS_PADDING_DEPTH,
-                        idy * 2 + 1 + INNER_CELLS_PADDING_DEPTH, idz * simd_length + INNER_CELLS_PADDING_DEPTH);
                     const size_t cell_flat_index = to_flat_index_padded(cell_index);
-                    const size_t cell_flat_index2 = to_flat_index_padded(cell_index2);
                     multiindex<> cell_index_unpadded(idx, idy * 2, idz * simd_length );
                     const size_t cell_flat_index_unpadded =
                         to_inner_flat_index_not_padded(cell_index_unpadded);
 
                     const int32_t cell_index_coarse_x = ((cell_index.x + INX) >> 1) - (INX / 2);
                     const int32_t cell_index_coarse_y = ((cell_index.y + INX) >> 1) - (INX / 2);
-                    const int32_t cell_index_coarse_y2 = ((cell_index2.y + INX) >> 1) - (INX / 2);
+                    const int32_t cell_index_coarse_y2 = ((cell_index.y + 1 + INX) >> 1) - (INX / 2);
                     int32_t cell_index_coarse_z[simd_length];
                     for (int i = 0; i < simd_length; i++) {
                         cell_index_coarse_z[i] = ((cell_index.z + i + INX) >> 1) - (INX / 2);
