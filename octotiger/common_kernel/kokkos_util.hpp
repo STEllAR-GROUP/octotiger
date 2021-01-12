@@ -10,7 +10,7 @@
 #include <kokkos_buffer_util.hpp>
 #include <stream_manager.hpp>
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#ifdef KOKKOS_ENABLE_CUDA
 #include <cuda_buffer_util.hpp>
 
 template <class T>

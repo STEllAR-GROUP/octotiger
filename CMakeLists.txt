@@ -119,6 +119,10 @@ if(OCTOTIGER_WITH_KOKKOS)
     GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
   )
   FetchContent_MakeAvailable(kokkossimd)
+
+  if(Kokkos_ENABLE_CUDA)
+    enable_language(CUDA)
+  endif()
 endif()
 
 
