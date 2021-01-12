@@ -1011,16 +1011,17 @@ namespace fmm {
                         m2m_vector::mask_type mask(true);
                         const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
                         if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
-                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
-                            stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX) {
                             for (int i = 0; i < m2m_vector::size() && stencil_z - STENCIL_MIN - i >= 0; i++) {
                                 const size_t index =
                                     (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
                                     (stencil_y - STENCIL_MIN) * STENCIL_INX +
                                     (stencil_z - STENCIL_MIN - i);
-                                if (!inner_mask[index] ||
-                                    (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
-                                    mask[i] = false;
+                                if (stencil_z - i <= STENCIL_MAX) {
+                                    if (!inner_mask[index] ||
+                                        (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
+                                        mask[i] = false;
+                                    }
                                 }
                             }
                         }
@@ -1182,16 +1183,17 @@ namespace fmm {
                         m2m_vector::mask_type mask(true);
                         const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
                         if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
-                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
-                            stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX) {
                             for (int i = 0; i < m2m_vector::size() && stencil_z - STENCIL_MIN - i >= 0; i++) {
                                 const size_t index =
                                     (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
                                     (stencil_y - STENCIL_MIN) * STENCIL_INX +
                                     (stencil_z - STENCIL_MIN - i);
-                                if (!inner_mask[index] ||
-                                    (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
-                                    mask[i] = false;
+                                if (stencil_z - i <= STENCIL_MAX) {
+                                    if (!inner_mask[index] ||
+                                        (stencil_x == 0 && stencil_y == 0 && stencil_z - i == 0)) {
+                                        mask[i] = false;
+                                    }
                                 }
                             }
                         }
