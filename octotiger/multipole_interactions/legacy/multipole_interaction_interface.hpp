@@ -64,7 +64,7 @@ namespace fmm {
             std::array<real, NDIM> xBase;
             std::shared_ptr<grid> grid_ptr;
             /// Option whether SoA Kernels should be called or the old AoS methods
-            interaction_kernel_type m2m_type;
+            interaction_host_kernel_type m2m_type;
 
         public:
             /// Stencil for stencil based FMM kernels

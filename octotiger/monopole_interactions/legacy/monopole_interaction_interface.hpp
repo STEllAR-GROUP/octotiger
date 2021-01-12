@@ -45,7 +45,7 @@ namespace fmm {
                 std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
                 const cpu_monopole_buffer_t& local_monopoles_staging_area, std::shared_ptr<grid>& grid);
 
-            interaction_kernel_type p2p_type;
+            interaction_host_kernel_type p2p_type;
 
         public:
             static OCTOTIGER_EXPORT size_t& cpu_launch_counter();

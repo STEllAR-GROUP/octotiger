@@ -16,9 +16,12 @@
 #include <buffer_manager.hpp>
 #include <stream_manager.hpp>
 
+
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
 #endif
+
+#include "octotiger/options.hpp"
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
         using device_executor = hpx::kokkos::cuda_executor;
@@ -43,19 +46,13 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::array<real, NDIM> xbase, std::shared_ptr<grid> grid, const bool use_root_stencil) {
-            //accelerator_kernel_type device_type = DEVICE_CUDA;
-            //host_kernel_type host_type = HOST_VC;
-            accelerator_kernel_type device_type = DEVICE_KOKKOS;
-            host_kernel_type host_type = HOST_KOKKOS;
 
-#if !defined(OCTOTIGER_HAVE_CUDA) && !defined(OCTOTIGER_HAVE_KOKKOS)
-            // accelerator_kernel_type device_type = OFF;
-#else
-            // accelerator_kernel_type device_type = DEVICE_CUDA;
-#endif
+            interaction_host_kernel_type host_type = opts().multipole_host_kernel_type;
+            interaction_device_kernel_type device_type = opts().multipole_device_kernel_type;
+
             // Try accelerator implementation
-            if (device_type != OFF) {
-                if (device_type == DEVICE_KOKKOS) {
+            if (device_type != interaction_device_kernel_type::OFF) {
+                if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
@@ -74,7 +71,7 @@ namespace fmm {
                     abort();
 #endif
                 }
-                if (device_type == DEVICE_CUDA) {
+                if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
                     cuda_multipole_interaction_interface
                         multipole_interactor{};
@@ -93,7 +90,7 @@ namespace fmm {
             }    // Nothing is available or device execution is disabled - fallback to host
                  // execution
 
-            if (host_type == HOST_KOKKOS) {
+            if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
                 host_executor executor(hpx::kokkos::execution_space_mode::independent);
                 multipole_kernel<host_executor>(executor, monopoles, M_ptr, com_ptr, neighbors,

@@ -77,7 +77,7 @@ namespace fmm {
             std::vector<bool> neighbor_empty_multipoles;
 
             std::shared_ptr<grid> grid_ptr;
-            interaction_kernel_type p2m_type;
+            interaction_host_kernel_type p2m_type;
 
             bool z_skip[3];
             bool y_skip[3][3];

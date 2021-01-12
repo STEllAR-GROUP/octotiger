@@ -105,7 +105,7 @@ namespace fmm {
 
         p2m_interaction_interface::p2m_interaction_interface()
           : neighbor_empty_multipoles(27) {
-            this->p2m_type = opts().p2m_kernel_type;
+            this->p2m_type = opts().monopole_host_kernel_type;
         }
 
         void p2m_interaction_interface::compute_p2m_interactions(std::vector<real>& monopoles,
@@ -126,7 +126,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr) {
-            if (opts().p2m_kernel_type == interaction_kernel_type::OLD) {
+            if (opts().monopole_host_kernel_type == interaction_host_kernel_type::LEGACY) {
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {
                     if (!is_direction_empty[dir]) {
@@ -264,7 +264,7 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
             const cpu_expansion_buffer_t& local_expansions_staging_area,
             const cpu_space_vector_buffer_t& center_of_masses_staging_area) {
-            if (p2m_type == interaction_kernel_type::SOA_CPU) {
+            if (p2m_type == interaction_host_kernel_type::VC) {
                 if (multipole_neighbors_exist) {
                     p2m_kernel kernel;
                     cpu_expansion_result_buffer_t potential_expansions_SoA;
@@ -277,7 +277,7 @@ namespace fmm {
                         angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                     }
                 }
-            } else {
+            } else if (p2m_type == interaction_host_kernel_type::LEGACY) {
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {
                     if (!is_direction_empty[dir]) {

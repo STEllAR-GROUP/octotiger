@@ -57,7 +57,7 @@ namespace fmm {
         }
 
         multipole_interaction_interface::multipole_interaction_interface() {
-            this->m2m_type = opts().m2m_kernel_type;
+            this->m2m_type = opts().multipole_host_kernel_type;
         }
 
         void multipole_interaction_interface::compute_multipole_interactions(
@@ -93,7 +93,7 @@ namespace fmm {
             const cpu_expansion_buffer_t& local_expansions_SoA,
             const cpu_space_vector_buffer_t& center_of_masses_SoA,
             const bool use_root_stencil) {
-            if (m2m_type == interaction_kernel_type::SOA_CPU) {
+            if (m2m_type == interaction_host_kernel_type::VC) {
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
                 cpu_angular_result_t angular_corrections_SoA;
 
@@ -112,7 +112,7 @@ namespace fmm {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
-            } else {
+            } else if (m2m_type == interaction_host_kernel_type::LEGACY) { 
                 // old-style interaction calculation
                 // computes inner interactions
                 grid_ptr->compute_interactions(type);

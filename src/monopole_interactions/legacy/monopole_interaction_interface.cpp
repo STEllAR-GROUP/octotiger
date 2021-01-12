@@ -49,7 +49,7 @@ namespace fmm {
         }
 
         monopole_interaction_interface::monopole_interaction_interface() {
-            this->p2p_type = opts().p2p_kernel_type;
+            this->p2p_type = opts().monopole_host_kernel_type;
         }
 
         void monopole_interaction_interface::compute_interactions(const std::vector<real>& monopoles,
@@ -77,13 +77,13 @@ namespace fmm {
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
             const cpu_monopole_buffer_t& local_monopoles_staging_area, std::shared_ptr<grid>& grid_ptr) {
-            if (p2p_type == interaction_kernel_type::SOA_CPU) {
+            if (p2p_type == interaction_host_kernel_type::VC) {
                 p2p_cpu_kernel kernel_monopoles;
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
                 kernel_monopoles.apply_stencil(local_monopoles_staging_area,
                     potential_expansions_SoA, stencil_masks(), stencil_four_constants(), dx);
                 potential_expansions_SoA.to_non_SoA(grid_ptr->get_L());
-            } else {
+            } else if (p2p_type == interaction_host_kernel_type::LEGACY) {
                 grid_ptr->compute_interactions(type);
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {

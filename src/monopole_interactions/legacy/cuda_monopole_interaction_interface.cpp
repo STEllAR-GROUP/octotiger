@@ -65,7 +65,7 @@ namespace fmm {
             bool avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                 pool_strategy>(opts().cuda_buffer_capacity);
             // avail = true;
-            if (!avail || p2p_type == interaction_kernel_type::OLD) {
+            if (!avail || p2p_type == interaction_host_kernel_type::LEGACY) {
                 // Run CPU implementation
                 monopole_interaction_interface::compute_interactions(monopoles, com_ptr, neighbors,
                     type, dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
@@ -103,10 +103,7 @@ namespace fmm {
                 executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
 
-                if (contains_multipole_neighbor && opts().p2m_kernel_type != SOA_CUDA) {
-                    compute_p2m_interactions_neighbors_only(
-                        monopoles, com_ptr, neighbors, type, is_direction_empty, grid_ptr);
-                } else if (contains_multipole_neighbor) {
+                if (contains_multipole_neighbor) {
                     // Depending on the size of the neighbor there are 3 possible p2m kernels
                     // We need to check how many of which to launch and get appropriate input
                     // buffers. As the struct of arrays datastructure has the size encoded in the type
@@ -435,8 +432,7 @@ namespace fmm {
 
                 // Handle results in case we did not need any p2m kernels or used the CPU p2m
                 // kernels
-                if (!contains_multipole_neighbor ||
-                    (contains_multipole_neighbor && opts().p2m_kernel_type != SOA_CUDA)) {
+                if (!contains_multipole_neighbor) {
                     auto fut = hpx::async(
                         static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                         cudaMemcpyAsync, potential_expansions_SoA.get_pod(), erg.device_side_buffer,

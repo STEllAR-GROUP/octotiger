@@ -141,9 +141,17 @@ bool options::process_options(int argc, char *argv[]) {
 	("min_level", po::value<integer>(&(opts().min_level))->default_value(1), "minimum number of refinement levels")         //
 	("max_level", po::value<integer>(&(opts().max_level))->default_value(1), "maximum number of refinement levels")         //
 	("amr_boundary_kernel_type", po::value<amr_boundary_type>(&(opts().amr_boundary_kernel_type))->default_value(AMR_OPTIMIZED), "amr completion kernel type") //
-	("multipole_kernel_type", po::value<interaction_kernel_type>(&(opts().m2m_kernel_type))->default_value(SOA_CPU), "boundary multipole-multipole kernel type") //
-	("p2p_kernel_type", po::value<interaction_kernel_type>(&(opts().p2p_kernel_type))->default_value(SOA_CPU), "boundary particle-particle kernel type")   //
-	("p2m_kernel_type", po::value<interaction_kernel_type>(&(opts().p2m_kernel_type))->default_value(SOA_CPU), "boundary particle-multipole kernel type") //
+#ifdef OCTOTIGER_HAVE_KOKKOS //Changing default kernel to kokkos
+	("multipole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().multipole_host_kernel_type))->default_value(KOKKOS), "Host kernel type for multipole interactions ") //
+	("multipole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for multipole interactions ") //
+	("monopole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().monopole_host_kernel_type))->default_value(KOKKOS), "Host kernel type for monopole interactions ") //
+	("monopole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for monopole interactions ") //
+#else // use Vc and CUDA as default
+	("multipole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().multipole_host_kernel_type))->default_value(VC), "Host kernel type for multipole interactions ") //
+	("multipole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))->default_value(CUDA), "Device kernel type for multipole interactions ") //
+	("monopole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().monopole_host_kernel_type))->default_value(VC), "Host kernel type for monopole interactions ") //
+	("monopole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))->default_value(CUDA), "Device kernel type for monopole interactions ") //
+#endif
 	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
@@ -271,7 +279,10 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(hydro);
 		SHOW(inflow_bc);
 		SHOW(input_file);
-		SHOW(m2m_kernel_type);
+		SHOW(multipole_device_kernel_type);
+		SHOW(multipole_host_kernel_type);
+		SHOW(monopole_device_kernel_type);
+		SHOW(monopole_host_kernel_type);
 		SHOW(min_level);
 		SHOW(max_level);
 		SHOW(n_species);
@@ -279,8 +290,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(omega);
 		SHOW(output_dt);
 		SHOW(output_filename);
-		SHOW(p2m_kernel_type);
-		SHOW(p2p_kernel_type);
 		SHOW(problem);
 		SHOW(rad_implicit);
 		SHOW(radiation);
@@ -320,6 +329,24 @@ bool options::process_options(int argc, char *argv[]) {
 			abort();
 		}
 	}
+  if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA &&
+      opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+    std::cerr << std::endl << "ERROR: "; 
+    std::cerr << "Due to a current implementation limitation in the load balancing, " 
+      << " multipole cuda device kernels cannot be mixed with the respective kokkos host kernel!" << std::endl
+      << " Please choose a different host kernel "
+      << "(or move to kokkos device kernel with --multipole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
+    abort();
+  }
+  if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA &&
+      opts().monopole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+    std::cerr << std::endl << "ERROR: "; 
+    std::cerr << "Due to a current implementation limitation in the load balancing, " 
+      << " monopole cuda device kernels cannot be mixed with the respective kokkos host kernel!" << std::endl
+      << " Please choose a different host kernel "
+      << "(or move to kokkos device kernel with --monopole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
+    abort();
+  }
 	return true;
 }
 
