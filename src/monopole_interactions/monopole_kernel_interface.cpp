@@ -22,8 +22,11 @@
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
 using device_executor = hpx::kokkos::cuda_executor;
+#ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
+using host_executor = hpx::kokkos::hpx_executor;
+#else
 using host_executor = hpx::kokkos::serial_executor;
-//using host_executor = hpx::kokkos::hpx_executor;
+#endif
 using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
@@ -52,7 +55,7 @@ namespace fmm {
             // Try accelerator implementation
             if (device_type != OFF) {
                 if (device_type == DEVICE_KOKKOS) {
-#ifdef OCTOTIGER_HAVE_KOKKOS
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
                             opts().cuda_buffer_capacity);

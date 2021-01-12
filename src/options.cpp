@@ -147,7 +147,6 @@ bool options::process_options(int argc, char *argv[]) {
 	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
 	("cuda_buffer_capacity", po::value<size_t>(&(opts().cuda_buffer_capacity))->default_value(size_t(5)), "How many launches should be buffered before using the CPU") //
-	("cuda_polling_executor", po::value<bool>(&(opts().cuda_polling_executor))->default_value(true), "Use polling (true) or callback (false) executor") //
 	("root_node_on_device", po::value<bool>(&(opts().root_node_on_device))->default_value(true), "Offload root node gravity kernels to the GPU? May degrade performance given weak GPUs") //
 	("legacy_hydro", po::value<bool>(&(opts().legacy_hydro))->default_value(false), "Use new hydro (false) or legacy hydro (true)") //
 	("input_file", po::value<std::string>(&(opts().input_file))->default_value(""), "input file for test problems") //
@@ -254,7 +253,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(cuda_number_gpus);
 		SHOW(cuda_streams_per_gpu);
 		SHOW(cuda_buffer_capacity);
-		SHOW(cuda_polling_executor);
 		SHOW(legacy_hydro);
 		SHOW(data_dir);
 		SHOW(disable_output);
@@ -322,16 +320,6 @@ bool options::process_options(int argc, char *argv[]) {
 			abort();
 		}
 	}
-#ifdef OCTOTIGER_HAVE_KOKKOS
-#ifdef OCTOTIGER_HAVE_CUDA
-  /*if (!opts().cuda_polling_executor) {
-      std::cerr << "\n\nError:" << std::endl;
-      std::cerr << "Using KOKKOS with CUDA backend enabled requires --cuda_polling_executor=1 !" << std::endl;
-      std::cerr << "Aborting..." << std::endl;
-      abort();
-  }*/
-#endif
-#endif
 	return true;
 }
 

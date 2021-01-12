@@ -1842,7 +1842,7 @@ timestep_t grid::compute_fluxes() {
 #ifdef OCTOTIGER_HAVE_CUDA
     avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                  pool_strategy>(opts().cuda_buffer_capacity);
-#endif OCTOTIGER_HAVE_CUDA
+#endif 
 
     if (!avail) {
 

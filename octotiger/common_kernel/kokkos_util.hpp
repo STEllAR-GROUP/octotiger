@@ -92,17 +92,17 @@ using normal_device_buffer = kokkos_device_array<T>;
 #include <simd.hpp>
 using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#if defined(HPX_COMPUTE_HOST_CODE)
+#if defined(HPX_COMPUTE_HOST_CODE) && !defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
 #if defined(__VSX__)
 // NVCC does not play fair with Altivec! See another project with similar issues:
 // See https://github.com/dealii/dealii/issues/7328
 #ifdef __CUDACC__ // hence: Use scalar when using nvcc
-// TODO Does this work with clang?!
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 #else // no nvcc: We can try to use the altivec vectorization
 #include <vsx.hpp>
-// TODO Actually test with a non-cuda kokkos build
+// TODO Actually test with a non-cuda kokkos build and/or clang
+// as it should get around the vsx problem
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::vsx>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::vsx>;
 #endif
@@ -115,10 +115,9 @@ using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx>;
 #endif
-//using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
-//using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 #else
-// drop in for nvcc device pass - shouldnt be used on host code but required for compilation
+// drop in for nvcc device pass - is used on host side if FORCE_SCALAR_KOKKOS_SIMD is on
+// otherwise only used for compilation
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
 #endif

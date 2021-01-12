@@ -121,7 +121,6 @@ public:
 	size_t cuda_number_gpus;
 	size_t cuda_streams_per_gpu;
 	size_t cuda_buffer_capacity;
-	bool cuda_polling_executor;
 	bool root_node_on_device;
 	bool legacy_hydro;
 
@@ -249,7 +248,6 @@ public:
 		arc & cuda_number_gpus;
 		arc & cuda_streams_per_gpu;
 		arc & cuda_buffer_capacity;
-		arc & cuda_polling_executor;
 	  arc & root_node_on_device;
 		arc & legacy_hydro;
 		arc & atomic_mass;

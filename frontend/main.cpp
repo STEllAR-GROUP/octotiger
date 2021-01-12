@@ -71,6 +71,7 @@ int hpx_main(int argc, char* argv[]) {
 
     // hpx::kokkos::ScopeGuard g(argc, argv);
 
+  // TODO Why are these printfs? Replace by cout
 	printf("###########################################################\n");
 #if defined(__VSX__)
 	printf("Compiled for VSX SIMD architectures.\n");
@@ -84,6 +85,9 @@ int hpx_main(int argc, char* argv[]) {
 	printf("Compiled for SSE2 SIMD architectures.\n");
 #else
 	printf("Not compiled for a known SIMD architecture.\n");
+#endif
+#if defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD) 
+	printf("Note: OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD is on! Kokkos kernel will not use SIMD!\n");
 #endif
 	printf("###########################################################\n");
 

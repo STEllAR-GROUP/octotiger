@@ -35,15 +35,27 @@ option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Li
 option(OCTOTIGER_WITH_Vc "" ON)
 # Re-enables Vc datatypes in the octotiger parts - use with caution
 option(OCTOTIGER_WITH_LEGACY_Vc "" OFF)
+
+# TODO Can these safely be removed? They should be deprecated
 option(OCTOTIGER_WITH_AVX "" OFF)
 option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
+
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
 set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
 
+# Options for comparing different backends
+option(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR 
+  "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
+option(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR 
+  "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
+option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
+  "Uses scalar host simd types instead of the native ones" OFF) 
+option(OCTOTIGER_WITH_POLLING_EXECUTORS  
+  "Use the polling executors, not the callback ones" ON)
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
@@ -83,7 +95,7 @@ endif()
 
 if(OCTOTIGER_WITH_CUDA)
   enable_language(CUDA)
-  #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
+  set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
   #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
   string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
 
@@ -107,10 +119,6 @@ if(OCTOTIGER_WITH_KOKKOS)
     GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
   )
   FetchContent_MakeAvailable(kokkossimd)
-  #FetchContent_GetProperties(kokkossimd)
-  #if(NOT kokkossimd)
-  #  FetchContent_Populate(kokkossimd)
-  #endif()
 endif()
 
 
@@ -377,6 +385,15 @@ if(OCTOTIGER_WITH_KOKKOS)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
   target_compile_definitions(hydrolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
 
+  if(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR)
+    target_compile_definitions(octolib PUBLIC OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR)
+  endif()
+  if(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR)
+    target_compile_definitions(octolib PUBLIC OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR)
+  endif()
+  if(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD)
+    target_compile_definitions(octolib PUBLIC OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
+  endif()
   # Add simd library
   message(INFO "Compiling with Kokkos SIMD! Path:")
   message(INFO ${kokkossimd_SOURCE_DIR})
@@ -524,6 +541,7 @@ endif()
 if(OCTOTIGER_WITH_CUDA)
   message(INFO " CUDA support is turned on!")
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_CUDA)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_CUDA)
   set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
   set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 
