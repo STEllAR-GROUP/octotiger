@@ -271,9 +271,17 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
-			compare_analytic();
+      if (!(opts().stop_step > 1)) // Pure performance measurements - skip analytics 
+          compare_analytic();
 			if (opts().gravity) {
-				solve_gravity(true, false);
+        for (int iteration = 0; iteration < opts().stop_step; iteration++) {
+          std::cout << "Pure-gravity iteration " << iteration << std::endl;
+          auto start = std::chrono::high_resolution_clock::now(); 
+          solve_gravity(true, false);
+          auto stop = std::chrono::high_resolution_clock::now(); 
+          auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 
+          std::cout << "--> FMM iteration took:" << duration.count() << " ms" << std::endl; 
+        }
 			}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);
