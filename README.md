@@ -21,21 +21,21 @@ integration service for the master branch:
 
 ## Quick Reference
 
-* **Where to get help**:
+  * **Where to get help**:
 
-	IRC Channel `#ste||ar` on [freenode.net](https://freenode.net/)
+  IRC Channel `#ste||ar` on [freenode.net](https://freenode.net/)
 
-* **Where to file issues**:
+  * **Where to file issues**:
 
-	[Octo-Tiger Issue Tracker](https://github.com/STEllAR-GROUP/octotiger/issues)
+  [Octo-Tiger Issue Tracker](https://github.com/STEllAR-GROUP/octotiger/issues)
 
-* **Wiki pages**:
+  * **Wiki pages**:
 
-    [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
+  [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
 
-* **Documentation**:
-    
-    The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
+  * **Documentation**:
+  
+  The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
 
 ## Publications
 
