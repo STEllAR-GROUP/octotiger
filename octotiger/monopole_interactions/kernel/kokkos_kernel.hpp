@@ -244,6 +244,8 @@ namespace fmm {
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
                     executor.instance(), {0, 0, 0},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
+                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset},
+                        {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
                         (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
@@ -437,6 +439,8 @@ namespace fmm {
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
                     executor.instance(), {0, 0, 0},
                     {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
+                        (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset},
+                        {cells_end.x - cells_start.x, cells_end.y - cells_start.y,
                         (cells_end.z - cells_start.z) / simd_t::size() + workitem_offset}),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
