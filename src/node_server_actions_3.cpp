@@ -272,14 +272,19 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
       if (!(opts().stop_step > 1)) // Pure performance measurements - skip analytics 
           compare_analytic();
 			if (opts().gravity) {
+        auto start_all_gravity = std::chrono::high_resolution_clock::now(); 
         for (int iteration = 0; iteration < opts().stop_step; iteration++) {
           std::cout << "Pure-gravity iteration " << iteration << std::endl;
           auto start = std::chrono::high_resolution_clock::now(); 
           solve_gravity(true, false);
           auto stop = std::chrono::high_resolution_clock::now(); 
           auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); 
-          std::cout << "--> FMM iteration took:" << duration.count() << " ms" << std::endl; 
+          std::cout << "--> FMM iteration took: " << duration.count() << " ms" << std::endl; 
         }
+        auto stop_all_gravity = std::chrono::high_resolution_clock::now(); 
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop_all_gravity - start_all_gravity); 
+        std::cout << "==> Overall execution time: " << duration.count() << " ms" << std::endl; 
+        std::cout << "==> Average iteration execution time: " << duration.count() / opts().stop_step << " ms" << std::endl; 
 			}
 			if (!opts().disable_output) {
 				output_all(this, "analytic", output_cnt, true);

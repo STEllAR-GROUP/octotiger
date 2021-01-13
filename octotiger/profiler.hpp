@@ -91,7 +91,7 @@ struct timings
             std::cout << "   Regrid: "            << times_[time_regrid]  << " (" <<  100*times_[time_regrid] * tinv << " %)" << std::endl;
             std::cout << "   Computation + Regrid: "       << tcr << " (" <<  100*tcr * tinv << " %)" << std::endl;
         } else {
-            std::cout << "   Warning! Total time is 0! " << std::endl;
+            //std::cout << "   Warning! Total time is 0! " << std::endl;
         }
     }
 
