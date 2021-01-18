@@ -90,11 +90,11 @@ namespace fmm {
                  typename kokkos_mask_t>
         void p2p_kernel_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             const kokkos_buffer_t& monopoles, const kokkos_mask_t& devicemasks, const kokkos_buffer_t& constants,
-            kokkos_buffer_t& potential_expansions, const double dx, const double theta) {
-
+            kokkos_buffer_t& potential_expansions, const double dx, const double theta,
+            const Kokkos::Array<long, 3> &&tiling_config) {
             auto policy_1 = Kokkos::Experimental::require(
                 Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX / 2, INX / simd_t::size()}, {1, INX / 2, INX / simd_t::size()}),
+                    executor.instance(), {0, 0, 0}, {INX, INX / 2, INX / simd_t::size()}, tiling_config ),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
 
@@ -624,7 +624,7 @@ namespace fmm {
 
             // call kernel
             p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles,
-                device_masks, device_constants, device_results, dx, theta);
+                device_masks, device_constants, device_results, dx, theta, {1, INX / 2 , INX / device_simd_t::size()});
 
             auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
             fut.get();
@@ -637,7 +637,7 @@ namespace fmm {
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
             // call kernel
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
-                host_constants, results, dx, theta);
+                host_constants, results, dx, theta, {INX / 2, INX , INX / host_simd_t::size()});
 
             sync_kokkos_host_kernel(exec);
         }
@@ -666,7 +666,7 @@ namespace fmm {
 
             // call p2p kernel
             p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
-                device_constants, device_results, dx, theta);
+                device_constants, device_results, dx, theta, {1, INX / 2 , INX / device_simd_t::size()});
 
             device_buffer<double> device_center_of_masses_inner_cells(
                 (INNER_CELLS + SOA_PADDING) * 3);
@@ -767,7 +767,7 @@ namespace fmm {
 
             // call p2p kernel
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
-                host_constants, results, dx, theta);
+                host_constants, results, dx, theta, {INX / 2, INX , INX / host_simd_t::size()});
 
             // - Launch Kernel
             size_t counter_kernel = 0;
