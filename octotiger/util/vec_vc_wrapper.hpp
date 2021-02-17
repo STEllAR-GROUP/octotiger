@@ -1,3 +1,4 @@
+#ifdef OCTOTIGER_HAVE_VC
 #include "vec_base_wrapper.hpp"
 
 #include <Vc/Vc>
@@ -88,3 +89,5 @@ inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, const double& tmp2) {
     //}
     // return ret;
 }
+
+#endif

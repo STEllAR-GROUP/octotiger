@@ -269,6 +269,10 @@ set(header_files
 )
 
 list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost CPPuddle::buffer_manager CPPuddle::stream_manager)
+# Can't completely remove Vc yet. compute_multipole and compute_expansions currently only work with Vc
+#if(OCTOTIGER_WITH_Vc)
+#  list(APPEND octo_dependencies Vc::Vc )
+#endif()
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND octo_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
 endif()
@@ -314,7 +318,10 @@ set(hydro_source_files
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
-list(APPEND hydro_dependencies Silo::silo Vc::Vc Boost::boost octolib)
+list(APPEND hydro_dependencies Silo::silo Boost::boost octolib)
+if(OCTOTIGER_WITH_Vc)
+  list(APPEND hydro_dependencies Vc::Vc)
+endif()
 if(OCTOTIGER_WITH_KOKKOS)
   list(APPEND hydro_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
 endif()
@@ -494,10 +501,17 @@ else()
   endif()
 endif()
 
+# Vc can't be removed yet, compute_multipoles and compute_expansions still require it
+find_package(Vc REQUIRED)
 if(OCTOTIGER_WITH_Vc)
-  find_package(Vc REQUIRED)
+  #find_package(Vc REQUIRED)
 
   target_compile_definitions(octolib PUBLIC
+    OCTOTIGER_HAVE_VC
+    # Need serialization support from HPX
+    # This just spits out lots of warnings
+  )
+  target_compile_definitions(hydrolib PUBLIC
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
     # This just spits out lots of warnings
@@ -510,6 +524,8 @@ if(OCTOTIGER_WITH_Vc)
        HPX_HAVE_DATAPAR_VC 
      )
   endif()
+else()
+  message(WARNING " Currently Vc can only be partially turned off! Two methods in octolib still require Vc. Turning of Vc support for all other kernels now...")
 endif()
 
 if(OCTOTIGER_WITH_Vc AND USE_AVX512 AND OCTOTIGER_WITH_AVX512)

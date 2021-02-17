@@ -30,7 +30,8 @@ boost::container::vector<bool> create_masks() {
     return masks;
 }
 
-#ifdef __x86_64__
+#ifdef __x86_64__ // currently only works on x86
+#ifdef OCTOTIGER_HAVE_VC
 #pragma GCC push_options
 #pragma GCC optimize("unroll-loops")
 
@@ -380,4 +381,5 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     return ts;
 }
 #pragma GCC pop_options
+#endif
 #endif

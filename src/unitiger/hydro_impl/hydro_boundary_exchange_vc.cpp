@@ -1,3 +1,4 @@
+#ifdef OCTOTIGER_HAVE_VC
 #pragma GCC push_options
 #pragma GCC optimize("unroll-loops")
 
@@ -87,3 +88,4 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
 }
 
 #pragma GCC pop_options
+#endif

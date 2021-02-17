@@ -347,6 +347,35 @@ bool options::process_options(int argc, char *argv[]) {
       << "(or move to kokkos device kernel with --monopole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
     abort();
   }
+#ifndef OCTOTIGER_WITH_VC
+  if (opts().monopole_host_kernel_type == interaction_host_kernel_type::VC) {
+    std::cerr << std::endl << "ERROR: "; 
+    std::cerr << "Octotiger has been compiled without Vc support!" << 
+      " Choose a different --monopole_host_kernel_type!" << std::endl;
+    abort();
+  }
+  if (opts().multipole_host_kernel_type == interaction_host_kernel_type::VC) {
+    std::cerr << std::endl << "ERROR: "; 
+    std::cerr << "Octotiger has been compiled without Vc support! " <<
+      "Choose a different --multipole_host_kernel_type!" << std::endl;
+    abort();
+  }
+#endif
+#ifndef OCTOTIGER_WITH_KOKKOS
+  if (opts().monopole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+    std::cerr << std::endl << "ERROR: "; 
+    std::cerr << "Octotiger has been compiled without Kokkos support!" 
+      << " Choose a different --monopole_host_kernel_type!" << std::endl;
+    abort();
+  }
+  if (opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+    std::cerr << std::endl << "ERROR: "; 
+    std::cerr << "Octotiger has been compiled without Kokkos support! " <<
+      " Choose a different --multipole_host_kernel_type!" << std::endl;
+    abort();
+  }
+#endif
+
 	return true;
 }
 

@@ -139,6 +139,7 @@ namespace fmm {
                 }
                 return;
             }
+#ifdef OCTOTIGER_HAVE_VC // kernel is only compiled with Vc
             cpu_expansion_buffer_t local_expansions_compare;
             p2m_kernel kernel;
             cpu_space_vector_buffer_t center_of_masses_compare;
@@ -257,6 +258,7 @@ namespace fmm {
             if (type == RHO) {
                 angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
             }
+#endif
         }
 
         void p2m_interaction_interface::compute_interactions(gsolve_type type,
@@ -265,6 +267,7 @@ namespace fmm {
             const cpu_expansion_buffer_t& local_expansions_staging_area,
             const cpu_space_vector_buffer_t& center_of_masses_staging_area) {
             if (p2m_type == interaction_host_kernel_type::VC) {
+#ifdef OCTOTIGER_HAVE_VC // kernel is only compiled with Vc
                 if (multipole_neighbors_exist) {
                     p2m_kernel kernel;
                     cpu_expansion_result_buffer_t potential_expansions_SoA;
@@ -277,6 +280,10 @@ namespace fmm {
                         angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                     }
                 }
+#else // should not happen - option gets already checked at application startup
+                std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
+                abort();
+#endif
             } else if (p2m_type == interaction_host_kernel_type::LEGACY) {
                 // waits for boundary data and then computes boundary interactions
                 for (auto const& dir : geo::direction::full_set()) {

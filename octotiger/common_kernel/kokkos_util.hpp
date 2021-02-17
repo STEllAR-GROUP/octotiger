@@ -51,8 +51,9 @@ inline void sync_kokkos_host_kernel(executor_t& exec) {
 }
 template <>
 inline void sync_kokkos_host_kernel(hpx::kokkos::hpx_executor& exec) {
-    auto fut = exec.instance().impl_get_future();
-    fut.get();
+    exec.instance().fence();    // All kokkos executor should support this
+    //auto fut = exec.instance().impl_get_future();
+    //fut.get();
 }
 
 template <typename T>

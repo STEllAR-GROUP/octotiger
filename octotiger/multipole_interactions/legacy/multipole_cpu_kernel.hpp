@@ -5,6 +5,8 @@
 
 #pragma once
 
+#ifdef OCTOTIGER_HAVE_VC
+
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/interactions_iterators.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
@@ -129,3 +131,5 @@ namespace fmm {
     }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger
+
+#endif

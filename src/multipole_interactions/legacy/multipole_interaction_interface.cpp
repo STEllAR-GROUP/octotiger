@@ -94,6 +94,7 @@ namespace fmm {
             const cpu_space_vector_buffer_t& center_of_masses_SoA,
             const bool use_root_stencil) {
             if (m2m_type == interaction_host_kernel_type::VC) {
+#ifdef OCTOTIGER_HAVE_VC // kernel is only compiled with Vc
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
                 cpu_angular_result_t angular_corrections_SoA;
 
@@ -112,6 +113,10 @@ namespace fmm {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
+#else // should not happen - option gets already checked at application startup
+                std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
+                abort();
+#endif
             } else if (m2m_type == interaction_host_kernel_type::LEGACY) { 
                 // old-style interaction calculation
                 // computes inner interactions

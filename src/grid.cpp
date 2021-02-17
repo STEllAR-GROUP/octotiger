@@ -1850,7 +1850,7 @@ timestep_t grid::compute_fluxes() {
           std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
       const auto &q = hydro.reconstruct(U, X, omega);
       //auto max_lambda = hydro.flux(U, q, f, X, omega);
-#if defined(__x86_64__)
+#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
       auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
 #else
     auto max_lambda = hydro.flux(U, q, f, X, omega);
@@ -1950,19 +1950,18 @@ timestep_t grid::compute_fluxes() {
       cudaMemcpyAsync, device_large_x.device_side_buffer,
       combined_large_x.data(), (NDIM * H_N3 + 32) * sizeof(double), cudaMemcpyHostToDevice);
 
-      //printf("\n\ncuda hydro nf = %i\n\n", hydro.get_nf());
-
       launch_hydro_pre_recon_cuda(executor, device_large_x.device_side_buffer, omega,hydro.get_angmom_index() != -1,
           device_u.device_side_buffer,hydro.get_nf(), opts().n_species);
 
-      launch_reconstruct_cuda(executor, omega, hydro.get_nf(), hydro.get_angmom_index(), device_smooth_field.device_side_buffer,
+      launch_reconstruct_cuda(executor, omega, hydro.get_nf(), hydro.get_angmom_index(),
+          device_smooth_field.device_side_buffer,
           device_disc_detect.device_side_buffer, device_q.device_side_buffer, device_x.device_side_buffer,
           device_u.device_side_buffer, device_AM.device_side_buffer, X[0][geo.H_DNX] - X[0][0],
           device_unified_discs.device_side_buffer, opts().n_species);
 
-	//printf("\n\n before flux after reconstruct\n\n");
       // Call Flux kernel
-      auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x, device_x.device_side_buffer,
+      auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer,
+          f, combined_x, device_x.device_side_buffer,
           omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id);
  //     auto max_lambda = flux_cpu_kernel(device_q.device_side_buffer, f, device_x.device_side_buffer, omega, hydro.get_nf());
 	//printf("\n\nAFTER flux\n\n");
@@ -1987,7 +1986,7 @@ timestep_t grid::compute_fluxes() {
       return max_lambda;
 #endif
     }
-  } else {
+  } else { // LEGACY
     static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
         std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
     const auto &q = hydro.reconstruct(U, X, omega);

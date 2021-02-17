@@ -3,6 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#ifdef OCTOTIGER_HAVE_VC
 #include "octotiger/monopole_interactions/legacy/p2m_cpu_kernel.hpp"
 
 #include "octotiger/common_kernel/helper.hpp"
@@ -781,3 +782,4 @@ namespace fmm {
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
+#endif

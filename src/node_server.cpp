@@ -232,7 +232,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
                    pool_strategy>(opts().cuda_buffer_capacity);
 #endif
     if (!avail) {
-#ifdef __x86_64__
+#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
         complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
 #else
         complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);

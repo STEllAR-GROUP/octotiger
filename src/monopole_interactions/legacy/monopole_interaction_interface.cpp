@@ -78,11 +78,16 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data, real dx,
             const cpu_monopole_buffer_t& local_monopoles_staging_area, std::shared_ptr<grid>& grid_ptr) {
             if (p2p_type == interaction_host_kernel_type::VC) {
+#ifdef OCTOTIGER_HAVE_VC // kernel is only compiled with Vc
                 p2p_cpu_kernel kernel_monopoles;
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
                 kernel_monopoles.apply_stencil(local_monopoles_staging_area,
                     potential_expansions_SoA, stencil_masks(), stencil_four_constants(), dx);
                 potential_expansions_SoA.to_non_SoA(grid_ptr->get_L());
+#else // should not happen - option gets already checked at application startup
+                std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
+                abort();
+#endif
             } else if (p2p_type == interaction_host_kernel_type::LEGACY) {
                 grid_ptr->compute_interactions(type);
                 // waits for boundary data and then computes boundary interactions

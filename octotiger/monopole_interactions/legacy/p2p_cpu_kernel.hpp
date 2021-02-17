@@ -5,6 +5,8 @@
 
 #pragma once
 
+#ifdef OCTOTIGER_HAVE_VC
+
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
@@ -64,3 +66,5 @@ namespace fmm {
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
+
+#endif

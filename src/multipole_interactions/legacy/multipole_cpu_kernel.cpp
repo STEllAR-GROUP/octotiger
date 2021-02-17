@@ -3,6 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#ifdef OCTOTIGER_HAVE_VC
+
 #include "octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp"
 #include "octotiger/multipole_interactions/kernel/compute_kernel_templates.hpp"
 
@@ -1325,3 +1327,4 @@ namespace fmm {
     }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger
+#endif
