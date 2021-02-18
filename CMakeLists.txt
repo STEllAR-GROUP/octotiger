@@ -281,6 +281,7 @@ endif()
 add_hpx_library(
   octolib
   DEPENDENCIES
+    hydrolib # grid.cpp requires the hydro solver 
     ${octo_dependencies}
   SOURCES
     ${source_files}
@@ -318,7 +319,7 @@ set(hydro_source_files
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
-list(APPEND hydro_dependencies Silo::silo Boost::boost Boost::program_options octolib)
+ list(APPEND hydro_dependencies Silo::silo Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
 if(OCTOTIGER_WITH_Vc)
   list(APPEND hydro_dependencies Vc::Vc)
 endif()
@@ -415,9 +416,9 @@ if(OCTOTIGER_WITH_KOKKOS)
 endif()
 
 # Enable exported functions
-target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
+ target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
 # Header files
-set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
+ set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
@@ -427,8 +428,8 @@ target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 add_hpx_executable(
   octotiger
   DEPENDENCIES
-    octolib
     hydrolib
+    octolib
     Boost::boost
     Boost::program_options
   SOURCES
@@ -565,7 +566,9 @@ if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_CUDA)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_CUDA)
   set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-  set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+  #set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+  #set_property(TARGET hydrolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+  #set_property(TARGET hydrolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 
 
 endif()
@@ -582,14 +585,17 @@ endif()
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
+target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 
 # Maximum allowed nf (for kernel optimizations)
 message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
+target_compile_definitions(hydrolib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
 
 # Theta minimum
 message(STATUS "Octo-Tiger minimal allowed theta: ${OCTOTIGER_THETA_MINIMUM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
+target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)

@@ -38,6 +38,7 @@
 #include <hpx/include/lcos.hpp>
 #include <hpx/include/util.hpp>
 
+#include <iostream>
 #include <chrono>
 #include <cstdio>
 #include <string>
@@ -62,7 +63,7 @@
 // In kokkos builds this variable comes from hpx-kokkos as it MUST have the same value
 // otherwise it might deadlock as we don't poll
 #ifndef HPX_KOKKOS_CUDA_FUTURE_TYPE
-#define HPX_KOKKOS_CUDA_FUTURE_TYPE = 0
+#define HPX_KOKKOS_CUDA_FUTURE_TYPE 0
 #endif
 
 void cleanup_puddle_on_this_locality(void) {

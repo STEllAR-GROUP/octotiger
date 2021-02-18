@@ -347,7 +347,7 @@ bool options::process_options(int argc, char *argv[]) {
       << "(or move to kokkos device kernel with --monopole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
     abort();
   }
-#ifndef OCTOTIGER_WITH_VC
+#ifndef OCTOTIGER_HAVE_VC
   if (opts().monopole_host_kernel_type == interaction_host_kernel_type::VC) {
     std::cerr << std::endl << "ERROR: "; 
     std::cerr << "Octotiger has been compiled without Vc support!" << 
@@ -361,7 +361,7 @@ bool options::process_options(int argc, char *argv[]) {
     abort();
   }
 #endif
-#ifndef OCTOTIGER_WITH_KOKKOS
+#ifndef OCTOTIGER_HAVE_KOKKOS
   if (opts().monopole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
     std::cerr << std::endl << "ERROR: "; 
     std::cerr << "Octotiger has been compiled without Kokkos support!" 

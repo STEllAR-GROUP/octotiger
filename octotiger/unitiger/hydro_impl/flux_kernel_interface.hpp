@@ -22,7 +22,7 @@ timestep_t flux_kernel_interface(const hydro::recon_type<NDIM>& Q, hydro::flux_t
     hydro::x_type& X, safe_real omega, const size_t nf_);
 
 // Vc kernels
-#ifdef __x86_64__
+#if defined(__x86_64__) && defined(OCTOTIGER_HAVE_VC)
 timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F, hydro::x_type& X,
     safe_real omega, const size_t nf_);
 timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
