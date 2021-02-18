@@ -88,7 +88,7 @@ endif()
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 if(NOT MSVC)
   find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
 endif()
@@ -268,7 +268,7 @@ set(header_files
     octotiger/test_problems/rotating_star.hpp
 )
 
-list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost CPPuddle::buffer_manager CPPuddle::stream_manager)
+list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
 # Can't completely remove Vc yet. compute_multipole and compute_expansions currently only work with Vc
 #if(OCTOTIGER_WITH_Vc)
 #  list(APPEND octo_dependencies Vc::Vc )
@@ -318,7 +318,7 @@ set(hydro_source_files
    src/test_problems/sod/exact_sod.cpp
    src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
-list(APPEND hydro_dependencies Silo::silo Boost::boost octolib)
+list(APPEND hydro_dependencies Silo::silo Boost::boost Boost::program_options octolib)
 if(OCTOTIGER_WITH_Vc)
   list(APPEND hydro_dependencies Vc::Vc)
 endif()
@@ -429,6 +429,8 @@ add_hpx_executable(
   DEPENDENCIES
     octolib
     hydrolib
+    Boost::boost
+    Boost::program_options
   SOURCES
     frontend/main.cpp
     frontend/frontend-helper.cpp
