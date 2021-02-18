@@ -5,10 +5,10 @@
 
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
-#include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/monopole_interactions/legacy/monopole_cuda_kernel.hpp"
-#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
+#include "octotiger/monopole_interactions/util/calculate_stencil.hpp"
 #include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
+#include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
 
 #include "octotiger/options.hpp"
 #include "octotiger/real.hpp"
@@ -82,20 +82,22 @@ namespace fmm {
 
         // Move data to constant memory, once per gpu
         for (std::size_t gpu_id = 0; gpu_id < gpu_count; ++gpu_id) {
-            cuda_error(cudaSetDevice(gpu_id));
-            cuda_error(cudaMemcpyToSymbol(
-                multipole_interactions::device_constant_stencil_masks,
+            /*cuda_error(cudaSetDevice(gpu_id));
+            cuda_error(cudaMemcpyToSymbol(multipole_interactions::device_constant_stencil_masks,
                 multipole_stencil_masks.get(), full_stencil_size / sizeof(double) * sizeof(bool)));
-            cuda_error(
-                cudaMemcpyToSymbol(multipole_interactions::device_stencil_indicator_const,
-                    multipole_inner_stencil_masks.get(),
-                    full_stencil_size / sizeof(double) * sizeof(bool)));
-            cuda_error(cudaMemcpyToSymbol(
+            cuda_error(cudaMemcpyToSymbol(multipole_interactions::device_stencil_indicator_const,
+                multipole_inner_stencil_masks.get(),
+                full_stencil_size / sizeof(double) * sizeof(bool)));*/
+            monopole_interactions::init_stencil(
+                gpu_id, std::move(stencil_masks), std::move(four_constants_tmp));
+            multipole_interactions::init_stencil(gpu_id, std::move(multipole_stencil_masks),
+                std::move(multipole_inner_stencil_masks));
+            /*cuda_error(cudaMemcpyToSymbol(
                 monopole_interactions::device_stencil_masks, multipole_stencil_masks.get(),
                 full_stencil_size / sizeof(double) * sizeof(bool)));
             cuda_error(cudaMemcpyToSymbol(
             monopole_interactions::device_four_constants,
-            four_constants_tmp.get(), full_stencil_size * 4));
+            four_constants_tmp.get(), full_stencil_size * 4));*/
         }
     }
     kernel_scheduler::~kernel_scheduler() {}

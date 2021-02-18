@@ -6,12 +6,15 @@
 #ifdef OCTOTIGER_HAVE_CUDA
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
+#include <memory>
 
 namespace octotiger {
 namespace fmm {
     namespace monopole_interactions {
-        extern __constant__ bool device_stencil_masks[FULL_STENCIL_SIZE];
-        extern __constant__ double device_four_constants[4 * FULL_STENCIL_SIZE];
+        // extern __constant__ bool device_stencil_masks[FULL_STENCIL_SIZE];
+        // extern __constant__ double device_four_constants[4 * FULL_STENCIL_SIZE];
+        __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> stencil_masks,
+            std::unique_ptr<double[]> four_constants_tmp);
         __global__ void cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL], const double theta,
@@ -22,7 +25,8 @@ namespace fmm {
             const double* __restrict__ center_of_mass_cells_soa,
             double* __restrict__ potential_expansions, double* __restrict__ angular_corrections,
             const multiindex<> neighbor_size, const multiindex<> start_index,
-            const multiindex<> dir, const multiindex<> end_index, const double theta, multiindex<> cells_start);
+            const multiindex<> dir, const multiindex<> end_index, const double theta,
+            multiindex<> cells_start);
         __global__ void cuda_p2m_interaction_non_rho(
             const double* __restrict__ expansions_neighbors_soa,
             const double* __restrict__ center_of_mass_neighbor_soa,

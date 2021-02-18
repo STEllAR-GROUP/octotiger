@@ -9,13 +9,15 @@
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 
+#include <memory>
+
 namespace octotiger {
 namespace fmm {
     namespace multipole_interactions {
-        extern __constant__ bool device_stencil_indicator_const[FULL_STENCIL_SIZE];
-        extern __constant__ bool device_constant_stencil_masks[FULL_STENCIL_SIZE];
-        __host__ void copy_stencil_to_m2m_constant_memory(const float *stencil, const size_t stencil_size);
-        __host__ void copy_indicator_to_m2m_constant_memory(const float *indicator, const size_t indicator_size);
+        //extern __constant__ bool device_stencil_indicator_const[FULL_STENCIL_SIZE];
+        //extern __constant__ bool device_constant_stencil_masks[FULL_STENCIL_SIZE];
+        __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> multipole_stencil_masks,
+            std::unique_ptr<bool[]> multipole_indicators);
         __global__ void cuda_multipole_interactions_kernel_rho(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             const double (&center_of_masses)[NUMBER_MASS_VALUES],

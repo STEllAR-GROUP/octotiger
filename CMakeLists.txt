@@ -167,7 +167,7 @@ set(source_files
     src/common_kernel/interactions_iterators.cpp
     src/cuda_util/cuda_scheduler.cpp
     src/monopole_interactions/legacy/cuda_monopole_interaction_interface.cpp
-    src/monopole_interactions/legacy/monopole_cuda_kernel.cu
+    src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
     src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
     src/monopole_interactions/legacy/monopole_interaction_interface.cpp
     src/monopole_interactions/monopole_kernel_interface.cpp
@@ -177,10 +177,9 @@ set(source_files
     src/monopole_interactions/legacy/p2m_cpu_kernel.cpp
     src/multipole_interactions/legacy/multipole_interaction_interface.cpp
     src/multipole_interactions/legacy/cuda_multipole_interaction_interface.cpp
-    src/multipole_interactions/legacy/multipole_cuda_kernel.cu
+    src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
     src/multipole_interactions/util/calculate_stencil.cpp
     src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
-    src/radiation/cuda_kernel.cu
     src/radiation/rad_grid.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
@@ -190,7 +189,7 @@ set(source_files
 
     src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
-    src/unitiger/hydro_impl/hydro_boundary_exchange.cu 
+    src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp 
 )
 
 # Octo-Tiger library headers
@@ -288,8 +287,6 @@ add_hpx_library(
   HEADERS
     ${header_files}
 )
-# causes internal compiler error on cuda 10.0: TODO try with later version
-# set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " --expt-relaxed-constexpr")
 
 set(hydro_header_files
     octotiger/unitiger/hydro.hpp
@@ -312,12 +309,11 @@ set(hydro_source_files
    src/unitiger/hydro.cpp
    src/unitiger/hydro_impl/flux_kernel_interface.cpp
    src/unitiger/hydro_impl/flux_cpu_kernel.cpp
-   src/unitiger/hydro_impl/flux_cuda_kernel.cu
-   src/unitiger/hydro_impl/reconstruct_cuda_kernel.cu
+   src/unitiger/hydro_impl/flux_cuda_kernel.cpp
+   src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
    src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
    src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
-   src/test_problems/sod/exact_sod.cpp
-   src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
+   src/test_problems/sod/exact_sod.cpp)
 
  list(APPEND hydro_dependencies Silo::silo Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
 if(OCTOTIGER_WITH_Vc)
@@ -331,6 +327,12 @@ if(OCTOTIGER_WITH_BLAST_TEST)
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp)
   list(APPEND hydro_dependencies quadmath)
+endif()
+
+# causes internal compiler error on cuda 10.0: TODO try with later version
+if(OCTOTIGER_WITH_KOKKOS)
+set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+set_source_files_properties(${hydro_source_files} ${hydro_header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
 endif()
 
 # Hydro library
