@@ -130,8 +130,6 @@ endif()
 # Set up Octo-Tiger target
 ################################################################################
 # Octo-Tiger library sources
-
-# Octo-Tiger library headers
 set(source_files
     src/compute_factor.cpp
     src/eos.cpp
@@ -315,6 +313,14 @@ set(hydro_source_files
    src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
    src/test_problems/sod/exact_sod.cpp)
 
+set(cu_source_files
+    src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
+    src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
+    src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp)
+set(hydro_cu_source_files
+   src/unitiger/hydro_impl/flux_cuda_kernel.cpp
+   src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp)
+
  list(APPEND hydro_dependencies Silo::silo Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
 if(OCTOTIGER_WITH_Vc)
   list(APPEND hydro_dependencies Vc::Vc)
@@ -330,9 +336,14 @@ if(OCTOTIGER_WITH_BLAST_TEST)
 endif()
 
 # causes internal compiler error on cuda 10.0: TODO try with later version
-if(OCTOTIGER_WITH_KOKKOS)
-set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
-set_source_files_properties(${hydro_source_files} ${hydro_header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+if(OCTOTIGER_WITH_CUDA)
+  if(OCTOTIGER_WITH_KOKKOS)
+    set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+    set_source_files_properties(${hydro_source_files} ${hydro_header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+  else()
+    set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
+    set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS "--expt-relaxed-constexpr --extended-lambda")
+  endif()
 endif()
 
 # Hydro library
@@ -418,9 +429,9 @@ if(OCTOTIGER_WITH_KOKKOS)
 endif()
 
 # Enable exported functions
- target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
+#target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
 # Header files
- set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
+#set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
@@ -492,17 +503,19 @@ if(MSVC)
   target_compile_options(octolib PUBLIC /EHsc)
 
 else()
-  if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
-    target_compile_options(octolib PRIVATE
-      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-      -Wno-unused-result -ffast-math -Wno-write-strings)
-    target_compile_options(unitiger PRIVATE
-      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-      -Wno-unused-result -ffast-math -Wno-write-strings)
-  elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
-      #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result ")
-      #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
-      target_compile_options(octolib -Wno-attributes -Wno-deprecated)
+  if(NOT OCTOTIGER_WITH_CUDA)
+    if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+      target_compile_options(octolib PRIVATE
+        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+        -Wno-unused-result -ffast-math -Wno-write-strings)
+      target_compile_options(unitiger PRIVATE
+        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+        -Wno-unused-result -ffast-math -Wno-write-strings)
+    elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
+        #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result ")
+        #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
+        target_compile_options(octolib -Wno-attributes -Wno-deprecated)
+    endif()
   endif()
 endif()
 
