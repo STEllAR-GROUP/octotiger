@@ -80,7 +80,7 @@ void cleanup_puddle_on_this_locality(void) {
 #endif
     }
     // Disable polling
-#if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
+#if defined(OCTOTIGER_HAVE_CUDA) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "Unregistering cuda polling..." << std::endl;
     hpx::cuda::experimental::detail::unregister_polling(hpx::resource::get_thread_pool(0));
 #endif
@@ -148,7 +148,7 @@ void init_executors(void) {
     octotiger::fmm::multipole_interactions::get_host_masks<host_buffer<int>>(true);
 #endif
 
-#if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
+#if defined(OCTOTIGER_HAVE_CUDA) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "Registering HPX CUDA polling..." << std::endl;
     hpx::cuda::experimental::detail::register_polling(hpx::resource::get_thread_pool(0));
 #endif
