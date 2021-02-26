@@ -22,15 +22,17 @@
 
 #include "octotiger/options.hpp"
 
-#ifdef OCTOTIGER_HAVE_KOKKOS
+#if defined(OCTOTIGER_HAVE_KOKKOS)
+#if defined(KOKKOS_ENABLE_CUDA)
 using device_executor = hpx::kokkos::cuda_executor;
+using device_pool_strategy = round_robin_pool<device_executor>;
+using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
+#endif
 #ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
 using host_executor = hpx::kokkos::hpx_executor;
 #else
 using host_executor = hpx::kokkos::serial_executor;
 #endif
-using device_pool_strategy = round_robin_pool<device_executor>;
-using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
 
 #include "octotiger/monopole_interactions/kernel/kokkos_kernel.hpp"

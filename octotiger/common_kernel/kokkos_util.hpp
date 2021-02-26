@@ -12,7 +12,9 @@
 
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cuda_buffer_util.hpp>
+#endif
 
+#ifdef KOKKOS_ENABLE_CUDA
 template <class T>
 using kokkos_um_device_array = Kokkos::View<T*, Kokkos::CudaSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
@@ -20,6 +22,17 @@ using kokkos_device_array = Kokkos::View<T*, Kokkos::CudaSpace>;
 template <class T>
 using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
     recycler::recycle_allocator_cuda_device<T>, T>;
+#else
+// Fallback without cuda
+template <class T>
+using kokkos_um_device_array = Kokkos::View<T*, Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
+using kokkos_device_array = Kokkos::View<T*, Kokkos::HostSpace>;
+template <class T>
+using recycled_device_view = recycler::recycled_view<kokkos_um_device_array<T>,
+    recycler::recycle_std<T>, T>;
+#endif
+
 
 // NOTE: Must use the same layout to be able to use e.g. cudaMemcpyAsync
 template <class T>
@@ -32,12 +45,20 @@ template <class T>
 using recycled_host_view = recycler::recycled_view<kokkos_um_array<T>, recycler::recycle_std<T>, T>;
 
 // NOTE: Must use the same layout to be able to use e.g. cudaMemcpyAsync
+#ifdef KOKKOS_ENABLE_CUDA
 template <class T>
 using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
     Kokkos::CudaHostPinnedSpace, Kokkos::MemoryUnmanaged>;
 template <class T>
 using recycled_pinned_view =
     recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_allocator_cuda_host<T>, T>;
+#else
+template <class T>
+using kokkos_um_pinned_array = Kokkos::View<T*, typename kokkos_um_device_array<T>::array_layout,
+    Kokkos::HostSpace, Kokkos::MemoryUnmanaged>;
+template <class T>
+using recycled_pinned_view =
+    recycler::recycled_view<kokkos_um_pinned_array<T>, recycler::recycle_std<T>, T>;
 #endif
 
 template <typename Executor, typename ViewType>
@@ -74,7 +95,11 @@ struct is_kokkos_host_executor
 template <class T>
 struct is_kokkos_device_executor
   : std::integral_constant<bool,
+#ifdef KOKKOS_ENABLE_CUDA
         std::is_same<hpx::kokkos::cuda_executor, typename std::remove_cv<T>::type>::value>
+#else
+        false>
+#endif
 {};
 
 template <typename T>
@@ -93,34 +118,39 @@ using normal_device_buffer = kokkos_device_array<T>;
 #include <simd.hpp>
 using device_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using device_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
-#if defined(HPX_COMPUTE_HOST_CODE) && !defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
+#if !defined(HPX_COMPUTE_DEVICE_CODE) && !defined(OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
 #if defined(__VSX__)
 // NVCC does not play fair with Altivec! See another project with similar issues:
 // See https://github.com/dealii/dealii/issues/7328
 #ifdef __CUDACC__ // hence: Use scalar when using nvcc
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#warning "Using scalar SIMD types"
 #else // no nvcc: We can try to use the altivec vectorization
 #include <vsx.hpp>
 // TODO Actually test with a non-cuda kokkos build and/or clang
 // as it should get around the vsx problem
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::vsx>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::vsx>;
+#warning "Using VSX SIMD types"
 #endif
 #elif defined(__AVX512F__)
 #include <avx512.hpp>
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx512>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx512>;
+#warning "Using AVX512 SIMD types"
 #elif defined(__AVX2__) || defined(__AVX__)
 #include <avx.hpp>
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::avx>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::avx>;
+#warning "Using AVX SIMD types"
 #endif
 #else
 // drop in for nvcc device pass - is used on host side if FORCE_SCALAR_KOKKOS_SIMD is on
 // otherwise only used for compilation
 using host_simd_t = SIMD_NAMESPACE::simd<double, SIMD_NAMESPACE::simd_abi::scalar>;
 using host_simd_mask_t = SIMD_NAMESPACE::simd_mask<double, SIMD_NAMESPACE::simd_abi::scalar>;
+#warning "Using scalar SIMD types"
 #endif
 
 #endif
