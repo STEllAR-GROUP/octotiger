@@ -12,6 +12,11 @@ anchors:
     - &docker_config
         docker:
             - image: stellargroup/octotiger:prerequisites-gcc8
+    - &ignore_docs
+        filters:
+            branches:
+                ignore:
+                    - gh-pages
 
 jobs:
     build:
@@ -169,7 +174,8 @@ workflows:
     version: 2
     build_and_test:
         jobs:
-            - build
+            - build:
+                <<: *ignore_docs
             - test_marshak:
                 requires:
                     - build

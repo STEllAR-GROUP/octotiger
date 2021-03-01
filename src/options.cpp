@@ -90,6 +90,7 @@ bool options::process_options(int argc, char *argv[]) {
         ("star_alpha", po::value<real>(&(opts().star_alpha))->default_value(1.0 / (3.0 * 3.65375)), "scaling factor for the Lane-Emden equation") // for default n=3/2, ksi_1=3.65375 and alpha=rmax/ksi_1
         ("star_rho_center", po::value<real>(&(opts().star_rho_center))->default_value(1.0), "density at the center of the star")     //
         ("star_rho_out", po::value<real>(&(opts().star_rho_out))->default_value(1.0e-10), "density outside the star")     //
+	("star_egas_out", po::value<real>(&(opts().star_egas_out))->default_value(1.0e-10), "gas energy outside the star")     //
         ("moving_star_xvelocity", po::value<real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
         ("moving_star_yvelocity", po::value<real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
         ("moving_star_zvelocity", po::value<real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
@@ -183,7 +184,7 @@ bool options::process_options(int argc, char *argv[]) {
 		if (cfg_fs) {
 			po::store(po::parse_config_file(cfg_fs, command_opts), vm);
 		} else {
-			printf("Configuration file %s not found!\n", config_file.c_str());
+			print("Configuration file %s not found!\n", config_file.c_str());
 			return false;
 		}
 	}
@@ -202,7 +203,7 @@ bool options::process_options(int argc, char *argv[]) {
 	if (!opts().restart_filename.empty()) {
 		FILE *fp = fopen(opts().restart_filename.c_str(), "rb");
 		if (fp == NULL) {
-			printf("restart.silo does not exist or invalid permissions\n");
+			print("restart.silo does not exist or invalid permissions\n");
 			sleep(10);
 			abort();
 		} else {
@@ -242,7 +243,7 @@ bool options::process_options(int argc, char *argv[]) {
 		std::cout << '\n';
 		const auto num_loc = hpx::find_all_localities().size();
 		if (silo_num_groups > num_loc) {
-			printf("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
+			print("Number of SILO file groups cannot be greater than number of localities. Setting silo_num_groupds to %li\n", num_loc);
 			silo_num_groups = num_loc;
 		}
 		SHOW(accretor_refine);
@@ -324,7 +325,7 @@ bool options::process_options(int argc, char *argv[]) {
 	normalize_constants();
 	if (opts().problem == DWD) {
 		if (opts().restart_filename == "" && opts().disable_diagnostics) {
-      std::cerr << "Diagnostics must be enabled for DWD" << std::endl;
+			print("Diagnostics must be enabled for DWD\n");
 			sleep(10);
 			abort();
 		}

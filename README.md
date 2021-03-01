@@ -1,4 +1,6 @@
-# Octo-Tiger [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade)
+# Octo-Tiger [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)
+
+
 
 ![Logo](https://stellar-group.org/wp-content/uploads/2020/11/octotigerlogoArtboard-github.png)
 
@@ -21,17 +23,21 @@ integration service for the master branch:
 
 ## Quick Reference
 
-* **Where to get help**:
+  * **Where to get help**:
 
-	IRC Channel `#ste||ar` on [freenode.net](https://freenode.net/)
+  IRC Channel `#ste||ar` on [freenode.net](https://freenode.net/)
 
-* **Where to file issues**:
+  * **Where to file issues**:
 
-	[Octo-Tiger Issue Tracker](https://github.com/STEllAR-GROUP/octotiger/issues)
+  [Octo-Tiger Issue Tracker](https://github.com/STEllAR-GROUP/octotiger/issues)
 
-* **Wiki pages**:
+  * **Wiki pages**:
 
-    [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
+  [Octo-Tiger Wiki](https://github.com/STEllAR-GROUP/octotiger/wiki)
+
+  * **Documentation**:
+  
+  The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
 
 ## Publications
 

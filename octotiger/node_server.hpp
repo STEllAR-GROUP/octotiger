@@ -6,6 +6,7 @@
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_
 
+#include "octotiger/print.hpp"
 #include "octotiger/config/export_definitions.hpp"
 #include "octotiger/radiation/rad_grid.hpp"
 #include "octotiger/interaction_types.hpp"
