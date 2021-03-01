@@ -8,6 +8,8 @@
 
 #include "octotiger/real.hpp"
 
+#include "octotiger/print.hpp"
+
 #include <array>
 //#include <cstddef>
 //#include <iostream>
@@ -39,7 +41,7 @@ constexpr int REFINE_BW = 2;
 //#define EXPERIMENT
 constexpr int NRF = 7;
 
-#define abort_error() printf( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
+#define abort_error() print( "Error in %s on line %i\n", __FILE__, __LINE__); abort()
 
 
 
@@ -237,7 +239,7 @@ inline void inplace_average(T& s1, T& s2)
 #define SYSTEM(command)                                                        \
     if (system((command).c_str()) != 0)                                        \
     {                                                                          \
-        printf("System command \"%s\" failed in %s on line %i\n",              \
+        print("System command \"%s\" failed in %s on line %i\n",              \
             (command).c_str(), __FILE__, __LINE__);                            \
         abort();                                                               \
     }

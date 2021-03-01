@@ -35,19 +35,19 @@ T read_var(DBfile* db, const std::string& name) {
 
 int main(int argc, char* argv[]) {
 	if (argc < 2) {
-		printf("missing command line arguments\n");
+		print("missing command line arguments\n");
 		abort();
 	}
 	std::string silo_file(argv[1]);
 
 	DBfile* db = DBOpen(silo_file.c_str(), DB_PDB, DB_READ);
 	if (db == NULL) {
-		printf("Unable to open %s\n", silo_file.c_str());
+		print("Unable to open %s\n", silo_file.c_str());
 		abort();
 	}
 	DBmultimesh* multimesh = DBGetMultimesh(db, "mesh");
 	if (multimesh == NULL) {
-		printf("mesh not found\n");
+		print("mesh not found\n");
 		abort();
 	}
 
@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
 //	READ_REAL(K);
 
 	if (eos < 0 || eos > 1) {
-		printf("eos out of range\n");
+		print("eos out of range\n");
 		abort();
 	}
 
@@ -107,27 +107,27 @@ int main(int argc, char* argv[]) {
 	}
 
 	for (int i = 0; i < multimesh->nblocks; i++) {
-//		printf( "%i\n", i);
+//		print( "%i\n", i);
 		std::unordered_map<std::string, DBquadvar*> vars;
 //		std::unordered_map<std::string, real> outflows;r
 		std::string meshname = multimesh->meshnames[i];
 		auto* mesh = DBGetQuadmesh(db, meshname.c_str());
 		if (mesh == NULL) {
-			printf("Could not read mesh %s\n", meshname.c_str());
+			print("Could not read mesh %s\n", meshname.c_str());
 		}
 		for (const auto& field : field_names) {
 			const std::string var_name = field + std::string("_") + meshname;
 		//	const std::string out_name = field + std::string("_outflow_") + meshname;
 			vars[field] = DBGetQuadvar(db, var_name.c_str());
 			if (vars[field] == NULL) {
-				printf("Could not read variable %s\n", var_name.c_str());
+				print("Could not read variable %s\n", var_name.c_str());
 				abort();
 			}
 			real o;
 		//	if (DBReadVar(db, out_name.c_str(), &o) == 0) {
 		//		outflows[field] = o;
 		//	} else {
-	//			printf("Could not read outflow variable %s\n", out_name.c_str());
+	//			print("Could not read outflow variable %s\n", out_name.c_str());
 	//			abort();
 	//		}
 
@@ -141,11 +141,11 @@ int main(int argc, char* argv[]) {
 			real virial_norm = 0.0;
 			const real dx = coords[0][1] - coords[0][0];
 			const real dv = dx * dx * dx;
-			printf( "%i %i %i\n", mesh->dims[0], mesh->dims[1], mesh->dims[2]);
+			print( "%i %i %i\n", mesh->dims[0], mesh->dims[1], mesh->dims[2]);
 			for (int k = 0; k < mesh->dims[2]-1; k++) {
 				for (int j = 0; j < mesh->dims[1]-1; j++) {
 					for (int i = 0; i < mesh->dims[0]-1; i++) {
-				//		printf( "%s %e\n", field.c_str(), ((double*) vars["sx"]->vals[0])[0] );
+				//		print( "%s %e\n", field.c_str(), ((double*) vars["sx"]->vals[0])[0] );
 						const real x = 0.5 * (coords[0][i + 1] + coords[0][i]);
 						const real y = 0.5 * (coords[1][j + 1] + coords[1][j]);
 						const real z = 0.5 * (coords[2][k + 1] + coords[2][k]);
