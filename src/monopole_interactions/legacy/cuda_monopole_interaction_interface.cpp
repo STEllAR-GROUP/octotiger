@@ -38,8 +38,9 @@ namespace fmm {
                 void* args[] = {&(device_local_expansions), &(device_center_of_masses),
                     &(device_center_of_masses_inner_cells), &(device_erg), &(device_erg_corrs),
                     &neighbor_size, &start_index, &end_index, &dir_index, &theta, &cells_start};
-                executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
-                    cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
+                // executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
+                //     cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
+                launch_p2m_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
             } else {
                 dim3 const grid_spec(cells_end.x - cells_start.x, 1, 1);
                 dim3 const threads_per_block(
@@ -47,8 +48,9 @@ namespace fmm {
                 void* args[] = {&(device_local_expansions), &(device_center_of_masses),
                     &(device_center_of_masses_inner_cells), &(device_erg), &neighbor_size,
                     &start_index, &end_index, &dir_index, &theta, &cells_start};
-                executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
-                    cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
+                // executor.post(cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
+                //     cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
+                launch_p2m_non_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
             }
         }
 
@@ -100,8 +102,9 @@ namespace fmm {
                 // hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                 //     cudalaunchkernel<decltype(cuda_p2p_interactions_kernel)>,
                 //     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
-                executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
-                    cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
+                // executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
+                //  cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
+                launch_p2p_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
 
                 if (contains_multipole_neighbor) {
                     // Depending on the size of the neighbor there are 3 possible p2m kernels

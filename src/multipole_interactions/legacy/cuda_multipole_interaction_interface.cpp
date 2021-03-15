@@ -92,10 +92,11 @@ namespace fmm {
                             &(device_local_expansions.device_side_buffer),
                             &(device_erg_exp.device_side_buffer),
                             &(device_erg_corrs.device_side_buffer)};
-                        executor.post(
+                        /*executor.post(
                             cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
                             cuda_multipole_interactions_kernel_root_rho, grid_spec,
-                            threads_per_block, args, 0);
+                            threads_per_block, args, 0);*/
+                        launch_multipole_root_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
@@ -104,10 +105,11 @@ namespace fmm {
                         void* args[] = {&(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
                             &(device_erg_exp.device_side_buffer)};
-                        executor.post(cudaLaunchKernel<decltype(
+                        /*executor.post(cudaLaunchKernel<decltype(
                                           cuda_multipole_interactions_kernel_root_non_rho)>,
                             cuda_multipole_interactions_kernel_root_non_rho, grid_spec,
-                            threads_per_block, args, 0);
+                            threads_per_block, args, 0);*/
+                        launch_multipole_root_non_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
                     }
                 } else {
                     // Launch kernel and queue copying of results
@@ -120,10 +122,11 @@ namespace fmm {
                             &(device_local_expansions.device_side_buffer),
                             &(device_erg_exp.device_side_buffer),
                             &(device_erg_corrs.device_side_buffer), &theta, &second_phase};
-                        executor.post(
+                        /*executor.post(
                             cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
                             cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block,
-                            args, 0);
+                            args, 0);*/
+                        launch_multipole_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
@@ -134,10 +137,11 @@ namespace fmm {
                             &(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
                             &(device_erg_exp.device_side_buffer), &theta, &second_phase};
-                        executor.post(
+                        /*executor.post(
                             cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
                             cuda_multipole_interactions_kernel_non_rho, grid_spec,
-                            threads_per_block, args, 0);
+                            threads_per_block, args, 0);*/
+                        launch_multipole_non_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
                     }
                 }
                 auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),

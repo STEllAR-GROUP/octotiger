@@ -136,6 +136,15 @@ namespace fmm {
             angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmp_corrections[2];
         }
+        void launch_multipole_rho_cuda_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
+            cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args, 0);
+        }
+
+
         __global__ void __launch_bounds__(INX* INX, 2) cuda_multipole_interactions_kernel_root_rho(
             const double (&center_of_masses)[NUMBER_MASS_VALUES],
             const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
@@ -222,6 +231,13 @@ namespace fmm {
                 tmp_corrections[1];
             angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmp_corrections[2];
+        }
+        void launch_multipole_root_rho_cuda_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
+            cuda_multipole_interactions_kernel_root_rho, grid_spec, threads_per_block, args, 0);
         }
 
         __global__ void __launch_bounds__(INX* INX, 2) cuda_multipole_interactions_kernel_non_rho(
@@ -312,6 +328,13 @@ namespace fmm {
                 potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
                     tmpstore[i];
         }
+        void launch_multipole_non_rho_cuda_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
+            cuda_multipole_interactions_kernel_non_rho, grid_spec, threads_per_block, args, 0);
+        }
 
         __global__ void __launch_bounds__(INX* INX, 2)
             cuda_multipole_interactions_kernel_root_non_rho(
@@ -386,6 +409,13 @@ namespace fmm {
             for (size_t i = 0; i < 20; ++i)
                 potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
                     tmpstore[i];
+        }
+        void launch_multipole_root_non_rho_cuda_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_non_rho)>,
+            cuda_multipole_interactions_kernel_root_non_rho, grid_spec, threads_per_block, args, 0);
         }
     }    // namespace multipole_interactions
 }    // namespace fmm

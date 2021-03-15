@@ -2,6 +2,7 @@
 
 #include "octotiger/cuda_util/cuda_global_def.hpp"
 
+
 template <typename double_t, typename cond_t>
 CUDA_CALLABLE_METHOD inline void select_wrapper(
     double_t& target, const cond_t cond, const double_t& tmp1, const double_t& tmp2) {

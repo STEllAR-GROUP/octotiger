@@ -8,7 +8,7 @@
 #include <stream_manager.hpp>
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #endif
-#include "octotiger/util/vec_scalar_host_wrapper.hpp"
+#include "octotiger/util/vec_base_wrapper.hpp"
 
 void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& ushad, const std::vector<std::atomic<int>>& is_coarse,
@@ -17,11 +17,19 @@ void complete_hydro_amr_boundary_vc(const double dx, const bool energy_only,
     const std::vector<std::vector<real>>& Ushad, const std::vector<std::atomic<int>>& is_coarse,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U);
 #ifdef OCTOTIGER_HAVE_CUDA
+/*__global__ void
+complete_hydro_amr_cuda_kernel(const double dx, const bool energy_only,
+    double* __restrict__ unified_ushad, int* __restrict__ coarse,
+    double* __restrict__ xmin, double* __restrict__ unified_uf,
+    const int nfields);*/
 void launch_complete_hydro_amr_boundary_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor, double dx,
     bool energy_only, const std::vector<std::vector<real>>& ushad,
     const std::vector<std::atomic<int>>& is_coarse, const std::array<double, NDIM>& xmin,
     std::vector<std::vector<real>>& u);
+void launch_complete_hydro_amr_boundary_cuda_post(
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 #endif
 
 template <typename T, typename mask_t, typename index_t>

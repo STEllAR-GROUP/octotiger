@@ -170,6 +170,13 @@ namespace fmm {
             potential_expansions[3 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[3];
         }
+        void launch_p2p_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
+            cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
+        }
+
         __global__ void __launch_bounds__(INX* INX, 2)
             cuda_p2m_interaction_rho(const double* __restrict__ expansions_neighbors_soa,
                 const double* __restrict__ center_of_mass_neighbor_soa,
@@ -285,6 +292,13 @@ namespace fmm {
             angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] +=
                 tmp_corrections[2];
         }
+        void launch_p2m_rho_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_p2m_interaction_rho)>,
+            cuda_p2m_interaction_rho, grid_spec, threads_per_block, args, 0);
+        }
+
         __global__ void __launch_bounds__(INX* INX, 2)
             cuda_p2m_interaction_non_rho(const double* __restrict__ expansions_neighbors_soa,
                 const double* __restrict__ center_of_mass_neighbor_soa,
@@ -388,6 +402,13 @@ namespace fmm {
             for (size_t i = 0; i < 4; ++i)
                 potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] +=
                     tmpstore[i];
+        }
+        void launch_p2m_non_rho_cuda_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            executor.post(
+            cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
+            cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
         }
     }    // namespace monopole_interactions
 }    // namespace fmm
