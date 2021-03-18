@@ -360,6 +360,9 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
     src/unitiger/hydro_impl/flux_cpu_kernel.cpp
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
+    # Quadmath
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
 
     # Other reasons for host-only compilation (hpx actions)
     src/grid.cpp
@@ -378,6 +381,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/io/silo_in.cpp
     src/radiation/rad_grid.cpp
     frontend/frontend-helper.cpp
+    
 
     #misc
     src/cuda_util/cuda_scheduler.cpp
