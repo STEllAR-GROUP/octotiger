@@ -447,7 +447,7 @@ set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
 add_hpx_executable(
   unitiger
   DEPENDENCIES
-    Silo::silo hydrolib 
+    Silo::silo hydrolib octolib
   SOURCES
     src/unitiger/main.cpp
   HEADERS
@@ -628,6 +628,8 @@ if(OCTOTIGER_WITH_BLAST_TEST)
     endif()
     target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_QUADMATH)
     target_link_libraries(octolib PUBLIC quadmath)
+    target_compile_definitions(unitiger PUBLIC OCTOTIGER_HAVE_QUADMATH)
+    target_link_libraries(unitiger PUBLIC quadmath)
 
   else()
       message(FATAL_ERROR "Octo-Tiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
