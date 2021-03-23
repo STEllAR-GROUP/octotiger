@@ -29,7 +29,11 @@ aas-journal: Astrophysical Journal <- The name of the AAS journal.
 # Summary
 
 
-## Kokkos and CUDA integration
+## Implementation details
+
+### HPX
+
+### Kokkos and CUDA integration
 
 # Statement of need
 
