@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Thomas Heller
+
 # Copyright (c) 2015 Dominic Marcello
 # Copyright (c) 2018-2019 Parsa Amini
 # Copyright (c) 2018-2020 Gregor Daiß
@@ -85,6 +85,7 @@ endif()
 ################################################################################
 # Find required packages
 ################################################################################
+find_package(Vc REQUIRED)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
@@ -94,10 +95,12 @@ if(NOT MSVC)
 endif()
 
 if(OCTOTIGER_WITH_CUDA)
-  #enable_language(CUDA)
-  set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
-  #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
-  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
+  if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
+    enable_language(CUDA)
+    set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
+    #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
+    string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
+  endif()
 
   if (OCTOTIGER_WITH_LEGACY_Vc)
     message(FATAL_ERROR " CUDA cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
@@ -121,7 +124,9 @@ if(OCTOTIGER_WITH_KOKKOS)
   FetchContent_MakeAvailable(kokkossimd)
 
   if(Kokkos_ENABLE_CUDA)
-    enable_language(CUDA)
+    if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
+      enable_language(CUDA)
+    endif()
   endif()
 endif()
 
@@ -315,7 +320,9 @@ set(hydro_source_files
 
 set(cu_source_files
     src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
+    #src/multipole_interactions/multipole_kernel_interface.cpp
     src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
+    #src/monopole_interactions/monopole_kernel_interface.cpp
     src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp)
 set(hydro_cu_source_files
    src/unitiger/hydro_impl/flux_cuda_kernel.cpp
@@ -337,14 +344,34 @@ endif()
 
 if(OCTOTIGER_WITH_CUDA)
   if(OCTOTIGER_WITH_KOKKOS)
-    set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
-    #set_source_files_properties(${hydro_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
-    set_source_files_properties(${hydro_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda --cuda-gpu-arch=sm_80")
+    # TODO if clang
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+      set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
+      #set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+      #set_source_files_properties(${hydro_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-gpu-arch=sm_80")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -ffp-contract=off -fno-cuda-approx-transcendentals -fno-cuda-flush-denormals-to-zero --cuda-gpu-arch=sm_80")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast -fno-honor-infinities -fno-honor-nans -fno-math-errno -ffinite-math-only -freciprocal-math -fno-signed-zeros -fno-trapping-math --cuda-gpu-arch=sm_80")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-host-only -fno-fast-math -ffp-contract=on -fno-honor-infinities -fno-honor-nans -fno-math-errno --cuda-gpu-arch=sm_80")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=on -fno-math-errno --cuda-gpu-arch=sm_80")
+      set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=sm_80")
+      #-fassociative-math  kills it?
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-cuda-approx-transcendentals -fcuda-flush-denormals-to-zero --cuda-gpu-arch=sm_80")
+  else()
+    set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
+      set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
+      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+  endif()
   else()
     #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
 
     # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=sm_80")
+  else()
+    set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
+    set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+  endif()
   endif()
 endif()
 
@@ -404,7 +431,10 @@ if(OCTOTIGER_WITH_KOKKOS)
     octotiger/common_kernel/kernel_simd_types.hpp
   )
   message(INFO " Host-only list set!")
-  set_source_files_properties(${host_only_source_files} ${host_only_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
+  # TODO if not clang 
+  if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
+    set_source_files_properties(${host_only_source_files} ${host_only_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
+  endif()
 
   # Add symbols
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
@@ -522,7 +552,6 @@ else()
 endif()
 
 # Vc can't be removed yet, compute_multipoles and compute_expansions still require it
-find_package(Vc REQUIRED)
 if(OCTOTIGER_WITH_Vc)
   #find_package(Vc REQUIRED)
 

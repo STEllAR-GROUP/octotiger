@@ -21,7 +21,6 @@
 #include "octotiger/grid_fmm.hpp"
 #include "octotiger/grid_scf.hpp"
 #include "octotiger/node_client.hpp"
-#include "octotiger/node_server.hpp"
 #include "octotiger/options.hpp"
 #include "octotiger/physcon.hpp"
 #include "octotiger/problem.hpp"
