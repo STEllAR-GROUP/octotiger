@@ -34,7 +34,8 @@
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
-#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
+//#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 
 std::vector<int> grid::field_bw;
 std::vector<int> grid::energy_bw;
@@ -1836,84 +1837,11 @@ timestep_t grid::compute_fluxes() {
 	}
 	hydro.use_smooth_recon(pot_i);
     
-  bool use_new_hydro =!(opts().legacy_hydro);
-  if (use_new_hydro) {
-    // Check availability
-    bool avail = false;
-#ifdef OCTOTIGER_HAVE_CUDA
-    avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-                 pool_strategy>(opts().cuda_buffer_capacity);
-#endif 
+  const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
+  const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
+  const size_t device_queue_length = opts().cuda_buffer_capacity;
+  return launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
 
-    if (!avail) {
-
-      static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-          std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-      const auto &q = hydro.reconstruct(U, X, omega);
-      //auto max_lambda = hydro.flux(U, q, f, X, omega);
-#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-      auto max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
-#else
-    auto max_lambda = hydro.flux(U, q, f, X, omega);
-#endif
-
-      for (int dim = 0; dim < NDIM; dim++) {
-        for (integer field = 0; field != opts().n_fields; ++field) {
-#pragma GCC ivdep
-          for (integer i = 0; i <= INX; ++i) {
-            for (integer j = 0; j <= INX; ++j) {
-              for (integer k = 0; k <= INX; ++k) {
-                const auto i0 = findex(i, j, k);
-                F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-                if (field == opts().n_fields - 1) {
-
-                  real rho_tot = 0.0;
-                  for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
-                    rho_tot += F[dim][field][i0];
-                  }
-                  F[dim][rho_i][i0] = rho_tot;
-                }
-              }
-            }
-          }
-        }
-      }
-      return max_lambda;
-      return timestep_t{};
-#ifdef OCTOTIGER_HAVE_CUDA
-    } else {
-      size_t device_id = 0;
-      stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-      auto max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
-      return max_lambda;
-#endif
-    }
-  } else { // LEGACY
-    static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-        std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-    const auto &q = hydro.reconstruct(U, X, omega);
-    auto max_lambda = hydro.flux(U, q, f, X, omega);
-
-    for (int dim = 0; dim < NDIM; dim++) {
-      for (integer field = 0; field != opts().n_fields; ++field) {
-#pragma GCC ivdep
-        for (integer i = 0; i <= INX; ++i) {
-          for (integer j = 0; j <= INX; ++j) {
-            for (integer k = 0; k <= INX; ++k) {
-              const auto i0 = findex(i, j, k);
-              F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-              real rho_tot = 0.0;
-              for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
-                rho_tot += F[dim][field][i0];
-              }
-              F[dim][rho_i][i0] = rho_tot;
-            }
-          }
-        }
-      }
-    }
-    return max_lambda;
-  }
 }
 
 real grid::compute_positivity_speed_limit() const {

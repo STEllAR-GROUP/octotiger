@@ -141,6 +141,8 @@ public:
 	interaction_device_kernel_type multipole_device_kernel_type;
 	interaction_host_kernel_type monopole_host_kernel_type;
 	interaction_device_kernel_type monopole_device_kernel_type;
+	interaction_host_kernel_type hydro_host_kernel_type;
+	interaction_device_kernel_type hydro_device_kernel_type;
 
 	std::vector<real> atomic_mass;
 	std::vector<real> atomic_number;
@@ -210,6 +212,8 @@ public:
 		arc & multipole_device_kernel_type;
 		arc & monopole_host_kernel_type;
 		arc & monopole_device_kernel_type;
+		arc & hydro_host_kernel_type;
+		arc & hydro_device_kernel_type;
 		arc & entropy_driving_rate;
 		arc & entropy_driving_time;
 		arc & driving_rate;

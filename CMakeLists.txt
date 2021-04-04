@@ -1,4 +1,4 @@
-
+# Copyright (c) 2015 Thomas Heller
 # Copyright (c) 2015 Dominic Marcello
 # Copyright (c) 2018-2019 Parsa Amini
 # Copyright (c) 2018-2020 Gregor Daiß
@@ -193,6 +193,8 @@ set(source_files
     src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
     src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
     src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp 
+
+    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
 )
 
 # Octo-Tiger library headers
@@ -268,6 +270,7 @@ set(header_files
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
+    
 )
 
 list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
@@ -306,7 +309,9 @@ set(hydro_header_files
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
-    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp)
+    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp #TODO remove this file
+    octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp
+    octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp)
 
 set(hydro_source_files
    src/unitiger/hydro.cpp
