@@ -122,7 +122,6 @@ public:
 	size_t cuda_streams_per_gpu;
 	size_t cuda_buffer_capacity;
 	bool root_node_on_device;
-	bool legacy_hydro;
 
 	std::string input_file;
 	std::string config_file;
@@ -252,7 +251,6 @@ public:
 		arc & cuda_streams_per_gpu;
 		arc & cuda_buffer_capacity;
 	  arc & root_node_on_device;
-		arc & legacy_hydro;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;
