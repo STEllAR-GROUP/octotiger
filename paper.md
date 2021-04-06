@@ -7,10 +7,24 @@ tags:
   - galactic dynamics
   - milky way
 authors:
-  - name: Adrian M. Price-Whelan
+  - name: Dominic
     orcid: 0000-0003-0872-7098
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
-  - name: Author Without ORCID
+  - name: Gregor
+    affiliation: 2
+  - name: Patrick
+    affiliation: 2
+  - name: Geoff C. Clayton
+    affiliation: 2
+  - name: Juhan Frank
+    affiliation: 2
+  - name: Kevin Huck
+    affiliation: 2
+  - name: Hartmut Kaiser
+    affiliation: 2
+  - name: Orsola De Marco
+    affiliation: 2
+  - name: Sagiv
     affiliation: 2
 affiliations:
  - name: Lyman Spitzer, Jr. Fellow, Princeton University
