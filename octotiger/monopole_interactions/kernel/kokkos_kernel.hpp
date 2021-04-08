@@ -637,7 +637,7 @@ namespace fmm {
             const host_buffer<double>& host_constants = get_host_constants<host_buffer<double>>();
             // call kernel
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
-                host_constants, results, dx, theta, {INX / 2, INX , INX / host_simd_t::size()});
+                host_constants, results, dx, theta, {INX / 2, INX / 2 , INX / host_simd_t::size()});
 
             sync_kokkos_host_kernel(exec);
         }
@@ -767,7 +767,7 @@ namespace fmm {
 
             // call p2p kernel
             p2p_kernel_impl<host_simd_t, host_simd_mask_t>(exec, monopoles, host_masks,
-                host_constants, results, dx, theta, {INX / 2, INX , INX / host_simd_t::size()});
+                host_constants, results, dx, theta, {INX / 2, INX / 2 , INX / host_simd_t::size()});
 
             // - Launch Kernel
             size_t counter_kernel = 0;
