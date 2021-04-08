@@ -42,15 +42,11 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         NDIM * hydro.get_nf() * 1000 + 32);
 
     // Convert input
-    convert_x_structure(X, combined_x);
+    convert_x_structure(X, combined_x.data());
     for (int f = 0; f < hydro.get_nf(); f++) {
         std::copy(U[f].begin(), U[f].end(), combined_u.data() + f * H_N3);
     }
-    // hydro_pre_recon_cpu_kernel(combined_large_x.data(), omega, hydro.get_angmom_index() != -1,
-    // combined_u.data(),
-    //    hydro.get_nf(), opts().n_species);
 
-    // const auto& cdiscs = physics<NDIM>::find_contact_discs<INX>(U);
     const auto& disc_detect_bool = hydro.get_disc_detect();
     const auto& smooth_bool = hydro.get_smooth_field();
     for (auto f = 0; f < hydro.get_nf(); f++) {

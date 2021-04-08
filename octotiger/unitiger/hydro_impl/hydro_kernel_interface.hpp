@@ -10,3 +10,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     const double omega, std::vector<hydro_state_t<std::vector<safe_real>>>& F,
     const interaction_host_kernel_type host_type, const interaction_device_kernel_type device_type,
     const size_t cuda_buffer_capacity);
+
+// Data conversion functions
+void convert_x_structure(const hydro::x_type& X, double * const combined_x);

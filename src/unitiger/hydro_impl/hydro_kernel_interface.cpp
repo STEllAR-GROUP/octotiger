@@ -1,10 +1,13 @@
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
-#include "octotiger/grid.hpp"
-#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 
+#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
-#include "octotiger/common_kernel/kokkos_util.hpp"
+#include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
+#endif
+
+#ifdef OCTOTIGER_HAVE_CUDA
+//#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
@@ -14,7 +17,7 @@ using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
 //#ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
-//using host_executor = hpx::kokkos::hpx_executor;
+// using host_executor = hpx::kokkos::hpx_executor;
 //#else
 using host_executor = hpx::kokkos::serial_executor;
 //#endif
@@ -44,13 +47,14 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (avail) {
                 executor_interface_t executor;
                 // TODO Device Kokkos Implementation (stub)
-                // monopole_kernel<device_executor>(executor, monopoles, com_ptr, neighbors, type,
-                // dx,
-                //    opts().theta, is_direction_empty, grid_ptr, contains_multipole_neighbor);
+                max_lambda = launch_hydro_kokkos_kernels<device_executor>(
+                    hydro, U, X, omega, opts().n_species, executor, F);
+                return max_lambda;
             }
 #else
-            std::cerr << "Trying to call Hydro Kokkos device kernel in a non-kokkos build! Aborting..."
-                      << std::endl;
+            std::cerr
+                << "Trying to call Hydro Kokkos device kernels in a non-kokkos build! Aborting..."
+                << std::endl;
             abort();
 #endif
         }
@@ -62,12 +66,13 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             size_t device_id = 0;
             if (avail) {
                 stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
+                // max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor,
+                // F);
                 return max_lambda;
             }
         }
 #else
-            std::cerr << "Trying to call Hydro CUDA device kernel in a non-CUDA build! "
+            std::cerr << "Trying to call Hydro CUDA device kernels in a non-CUDA build! "
                       << "Aborting..." << std::endl;
             abort();
         }
@@ -77,7 +82,16 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     // Nothing is available or device execution is disabled - fallback to host execution
     if (!avail) {
         if (host_type == interaction_host_kernel_type::KOKKOS) {
-            // TODO Kokkos Implementation (stub)
+#ifdef OCTOTIGER_HAVE_KOKKOS
+            host_executor executor(hpx::kokkos::execution_space_mode::independent);
+            max_lambda = launch_hydro_kokkos_kernels<host_executor>(
+                hydro, U, X, omega, opts().n_species, executor, F);
+            return max_lambda;
+#else
+            std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."
+                      << std::endl;
+            abort();
+#endif
         } else if (host_type == interaction_host_kernel_type::VC) {
             // Vc implementation
             static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
@@ -146,5 +160,20 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             std::cerr << "Aborting..." << std::endl;
             abort();
         }
-    } 
+    }
+}
+
+void convert_x_structure(const hydro::x_type& X, double* const combined_x) {
+    auto it_x = combined_x;
+    for (size_t dim = 0; dim < NDIM; dim++) {
+        auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
+        for (auto ix = 2; ix < 2 + INX + 2; ix++) {
+            for (auto iy = 2; iy < 2 + INX + 2; iy++) {
+                std::copy(X[dim].begin() + start_offset, X[dim].begin() + start_offset + 10, it_x);
+                it_x += 10;
+                start_offset += 14;
+            }
+            start_offset += (2 + 2) * 14;
+        }
+    }
 }
