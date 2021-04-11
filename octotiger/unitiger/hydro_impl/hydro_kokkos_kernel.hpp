@@ -101,6 +101,21 @@ void device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& 
     device_buffer<double> large_x(NDIM * H_N3 + 32);
     Kokkos::deep_copy(exec.instance(), large_x, combined_large_x);
     hydro_pre_recon_impl(exec, large_x, omega, angmom, u, nf, n_species, {1, 14, 14});
+
+
+    // Reconstruct
+    device_buffer<double> x(NDIM * 1000 + 32);
+    Kokkos::deep_copy(exec.instance(), x, combined_x);
+    device_buffer<int> device_disc_detect(nf);
+    Kokkos::deep_copy(exec.instance(), device_disc_detect, disc_detect);
+    device_buffer<int> device_smooth_field(nf);
+    Kokkos::deep_copy(exec.instance(), device_smooth_field, smooth_field);
+    device_buffer<double> q(
+        nf * 27 * 10 * 10 * 10 + 32);
+    device_buffer<double> AM(NDIM * 10 * 10 * 10 + 32);
+    reconstruct_impl(
+        exec, omega, nf, angmom_index, device_smooth_field, device_disc_detect, q, x, u,
+        AM, dx, disc, n_species, ndir, nangmom, {1, 8, 8});
 }
 
 template <typename executor_t,
