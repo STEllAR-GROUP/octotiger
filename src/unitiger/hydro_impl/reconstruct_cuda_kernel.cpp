@@ -24,12 +24,12 @@ __global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel_no_amc(const do
         ((q_i / 100) + 2) * 14 * 14 + (((q_i % 100) / 10) + 2) * 14 + (((q_i % 100) % 10) + 2);
     if (q_i < 1000) {
         for (int d = 0; d < ndir; d++) {
-            reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_, combined_q,
+            cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_, combined_q,
                 combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
         }
         // Phase 2
         for (int d = 0; d < ndir; d++) {
-            reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u, AM,
+            cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u, AM,
                 dx, d, i, q_i, ndir, nangmom, n_species_);
         }
     }
@@ -51,12 +51,12 @@ __global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel(const double om
             AM[n * am_offset + q_i] = combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
         }
         for (int d = 0; d < ndir; d++) {
-            reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_, combined_q,
+            cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_, combined_q,
                 combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
         }
         // Phase 2
         for (int d = 0; d < ndir; d++) {
-            reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u, AM,
+            cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x, combined_u, AM,
                 dx, d, i, q_i, ndir, nangmom, n_species_);
         }
     }

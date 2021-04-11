@@ -150,7 +150,7 @@ CUDA_GLOBAL_METHOD inline double minmod_cuda_theta(double a, double b, double c)
     return minmod_cuda(c * minmod_cuda(a, b), 0.5 * (a + b));
 }
 template <typename container_t, typename const_container_t>
-CUDA_GLOBAL_METHOD inline void reconstruct_minmod_cuda(container_t &combined_q,
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod_cuda(container_t &combined_q,
     const_container_t &combined_u_face, int d, int f, int i, int q_i) {
     const auto di = dir[d];
     const int start_index = f * q_face_offset + d * q_dir_offset;
@@ -258,8 +258,8 @@ CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_r
 }
 
 template <typename container_t, typename const_container_t>
-CUDA_GLOBAL_METHOD inline void reconstruct_ppm_experimental(container_t &combined_q,
-    const_container_t &combined_u_face, bool smooth, bool disc_detect,
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
+    const const_container_t &combined_u_face, bool smooth, bool disc_detect,
     const_container_t &disc, const int d, const int f, int i, int q_i) {
     // const vc_type zindices = vc_type::IndexesFromZero() + 1;
     // static thread_local auto D1 = std::vector<safe_real>(geo.H_N3, 0.0);
@@ -344,7 +344,7 @@ CUDA_GLOBAL_METHOD inline void reconstruct_ppm_experimental(container_t &combine
 
 // Phase 1 and 2
 template <typename container_t, typename const_container_t, typename const_int_container_t>
-CUDA_GLOBAL_METHOD inline void reconstruct_inner_loop_p1(const size_t nf_, const int angmom_index_,
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, const int angmom_index_,
     const_int_container_t& smooth_field_, const_int_container_t& disc_detect_,
     container_t& combined_q, container_t& combined_u, container_t& AM,
     const double dx, const_container_t &cdiscs, const int d, const int i, const int q_i,
@@ -360,24 +360,28 @@ CUDA_GLOBAL_METHOD inline void reconstruct_inner_loop_p1(const size_t nf_, const
     }
     if (d < ndir / 2) {
         for (int f = 0; f < s_start; f++) {
-            const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
-            reconstruct_ppm_experimental(combined_q, combined_u_face,
+            // const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
+            const const_container_t combined_u_face = combined_u + u_face_offset * f;
+            cell_reconstruct_ppm(combined_q, combined_u_face,
                 smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
         }
         for (int f = s_start; f < l_start; f++) {
-            const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
-            reconstruct_ppm_experimental(
+            // const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
+            const const_container_t combined_u_face = combined_u + u_face_offset * f;
+            cell_reconstruct_ppm(
                 combined_q, combined_u_face, true, false, cdiscs, d, f, i, q_i);
         }
     }
     for (int f = l_start; f < l_start + nangmom; f++) {
-        const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
-        reconstruct_minmod_cuda(combined_q, combined_u_face, d, f, i, q_i);
+        // const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
+        const const_container_t combined_u_face = combined_u + u_face_offset * f;
+        cell_reconstruct_minmod_cuda(combined_q, combined_u_face, d, f, i, q_i);
     }
     if (d < ndir / 2) {
         for (int f = l_start + nangmom; f < nf_; f++) {
-            const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
-            reconstruct_ppm_experimental(combined_q, combined_u_face,
+            // const double * __restrict__ combined_u_face = combined_u + u_face_offset * f;
+            const const_container_t combined_u_face = combined_u + u_face_offset * f;
+            cell_reconstruct_ppm(combined_q, combined_u_face,
                 smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
         }
     }
@@ -430,7 +434,7 @@ CUDA_GLOBAL_METHOD inline void reconstruct_inner_loop_p1(const size_t nf_, const
 }
 
 template <typename container_t, typename const_container_t>
-CUDA_GLOBAL_METHOD inline void reconstruct_inner_loop_p2(const safe_real omega, const int angmom_index_,
+CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real omega, const int angmom_index_,
     container_t& combined_q, const_container_t& combined_x,
     container_t& combined_u, const_container_t& AM, const double dx, const int d,
     const int i, const int q_i, const int ndir, const int nangmom, const int n_species_) {

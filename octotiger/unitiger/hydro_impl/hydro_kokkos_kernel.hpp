@@ -8,6 +8,41 @@
 
 #include "octotiger/common_kernel/kokkos_util.hpp"
 
+template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t>
+void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const double omega, const int nf_, const int angmom_index_,
+    const kokkos_int_buffer_t& smooth_field_, const kokkos_int_buffer_t& disc_detect_,
+    kokkos_buffer_t& combined_q, const kokkos_buffer_t& combined_x, kokkos_buffer_t& combined_u,
+    kokkos_buffer_t& AM, const double dx, const kokkos_buffer_t& cdiscs, const int n_species_,
+    const int ndir, const int nangmom, const Kokkos::Array<long, 3>&& tiling_config) {
+    auto policy = Kokkos::Experimental::require(
+        Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
+            executor.instance(), {0, 0, 0}, {16, 8, 8}, tiling_config),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+    Kokkos::parallel_for(
+        "kernel hydro reconstruct", policy, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+            const int sx_i = angmom_index_;
+            const int zx_i = sx_i + NDIM;
+            const int q_i = (idx) *64 + (idy) *8 + (idz);
+            const int i = ((q_i / 100) + 2) * 14 * 14 + (((q_i % 100) / 10) + 2) * 14 +
+                (((q_i % 100) % 10) + 2);
+            if (q_i < 1000) {
+                for (int n = 0; n < nangmom; n++) {
+                    AM[n * am_offset + q_i] =
+                        combined_u[(zx_i + n) * u_face_offset + i] * combined_u[i];
+                }
+                for (int d = 0; d < ndir; d++) {
+                    cell_reconstruct_inner_loop_p1(nf_, angmom_index_, smooth_field_, disc_detect_,
+                        combined_q, combined_u, AM, dx, cdiscs, d, i, q_i, ndir, nangmom);
+                }
+                // Phase 2
+                for (int d = 0; d < ndir; d++) {
+                    cell_reconstruct_inner_loop_p2(omega, angmom_index_, combined_q, combined_x,
+                        combined_u, AM, dx, d, i, q_i, ndir, nangmom, n_species_);
+                }
+            }
+        });
+}
+
 template <typename kokkos_backend_t, typename kokkos_buffer_t>
 void hydro_pre_recon_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
     const kokkos_buffer_t& large_x, const double omega, const bool angmom, kokkos_buffer_t& u,
@@ -50,11 +85,10 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
 template <typename executor_t,
     std::enable_if_t<is_kokkos_device_executor<executor_t>::value, int> = 0>
 void device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& combined_x,
-    const host_buffer<double>& combined_large_x, 
-    host_buffer<double>& combined_u, const host_buffer<int>& disc_detect,
-    const host_buffer<int>& smooth_field, host_buffer<double>& f, const size_t ndir,
-    const size_t nf, const bool angmom, const size_t n_species, const double omega) {
-
+    const host_buffer<double>& combined_large_x, host_buffer<double>& combined_u,
+    const host_buffer<int>& disc_detect, const host_buffer<int>& smooth_field,
+    host_buffer<double>& f, const size_t ndir, const size_t nf, const bool angmom,
+    const size_t n_species, const double omega, const int angmom_index, const int nangmom, const double dx) {
     // Find contact discs
     device_buffer<double> u(NDIM * nf * 1000 + 32);
     Kokkos::deep_copy(exec.instance(), u, combined_u);
@@ -72,11 +106,10 @@ void device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& 
 template <typename executor_t,
     std::enable_if_t<is_kokkos_host_executor<executor_t>::value, int> = 0>
 void device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& combined_x,
-    const host_buffer<double>& combined_large_x, 
-    host_buffer<double>& combined_u, const host_buffer<int>& disc_detect,
-    const host_buffer<int>& smooth_field, host_buffer<double>& f, const size_t ndir,
-    const size_t nf, const bool angmom, const size_t n_species, const double omega) {
-
+    const host_buffer<double>& combined_large_x, host_buffer<double>& combined_u,
+    const host_buffer<int>& disc_detect, const host_buffer<int>& smooth_field,
+    host_buffer<double>& f, const size_t ndir, const size_t nf, const bool angmom,
+    const size_t n_species, const double omega, const int angmom_index, const int nangmom, const double dx) {
     // Find contact discs
     host_buffer<double> P(H_N3 + 32);
     host_buffer<double> disc(ndir / 2 * H_N3 + 32);
@@ -84,7 +117,16 @@ void device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& 
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, {6, 12, 12}, {5, 10, 10});
 
     // Pre recon
-    hydro_pre_recon_impl(exec, combined_large_x, omega, angmom, combined_u, nf, n_species, {7, 14, 14});
+    hydro_pre_recon_impl(
+        exec, combined_large_x, omega, angmom, combined_u, nf, n_species, {7, 14, 14});
+
+    // Reconstruct
+    host_buffer<double> q(
+        nf * 27 * 10 * 10 * 10 + 32);
+    host_buffer<double> AM(NDIM * 10 * 10 * 10 + 32);
+    reconstruct_impl(
+        exec, omega, nf, angmom_index, smooth_field, disc_detect, q, combined_x, combined_u,
+        AM, dx, disc, n_species, ndir, nangmom, {8, 8, 8});
 }
 
 // Input U, X, omega, executor, device_id
@@ -120,9 +162,9 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     }
 
     // Either handles the launches on the CPU or on the GPU depending on the passed executor
-    device_interface_kokkos_hydro(executor, combined_x, combined_large_x, 
-        combined_u, disc_detect, smooth_field, f, geo.NDIR, hydro.get_nf(),
-        hydro.get_angmom_index() != -1, n_species, omega);
+    device_interface_kokkos_hydro(executor, combined_x, combined_large_x, combined_u, disc_detect,
+        smooth_field, f, geo.NDIR, hydro.get_nf(), hydro.get_angmom_index() != -1, n_species,
+        omega, hydro.get_angmom_index(), geo.NANGMOM, X[0][geo.H_DNX] - X[0][0]);
 
     return timestep_t{};
 }
