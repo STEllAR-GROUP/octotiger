@@ -7,7 +7,7 @@
 #endif
 
 #ifdef OCTOTIGER_HAVE_CUDA
-//#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)
@@ -66,8 +66,8 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             size_t device_id = 0;
             if (avail) {
                 stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-                // max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor,
-                // F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor,
+                F);
                 return max_lambda;
             }
         }
