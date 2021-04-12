@@ -830,6 +830,18 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = ../src \
+			 ../src/common_kernel \
+			 ../src/cuda_util \
+			 ../src/io \
+			 ../src/io/silo_reader \
+			 ../src/libeos \
+                         ../src/mesa \
+                         ../src/monopole_interactions \
+                         ../src/multipole_interactions \
+                         ../src/radiation \
+                         ../src/test_problems  \
+                         ../src/unitiger \
+                         ../src/unitiger/hydro_impl/hydro_cuda \
 			 ../octotiger \
 			 ../tools \
 			 ../frontend \
