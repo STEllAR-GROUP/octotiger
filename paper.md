@@ -60,7 +60,7 @@ Octoiger uses a finite volume method on an octree based adaptive mesh refinement
 
 # Acknowledgements
 
-This work was supported by National Science Foundation Award 1814967. The numerical work was carried out using the computational resources (QueenBee2) of the Louisiana Optical Network
-Initiative (LONI); Louisiana State University’s High Performance Computing (LSU HPC); resources of the National Energy Research Scientific Computing Center, a U.S. Departmentof Energy Office of Science User Facility operated underContract No. DE-AC02-05CH11231; and by Lilly Endowment,  Inc.,through its support for the Indiana University PervasiveTechnology Institute.
+This work was supported by National Science Foundation Award 1814967. The numerical work was carried out using the computational resources (QueenBee2) of the Louisiana Optical Network Initiative (LONI); Louisiana State University’s High Performance Computing (LSU HPC); resources of the National Energy Research Scientific Computing Center, a U.S. Departmentof Energy Office of Science User Facility operated underContract No. DE-AC02-05CH11231; and by Lilly Endowment,  Inc.,through its support for the Indiana University PervasiveTechnology Institute. This research  was  undertaken  with  the  assistance  of  resources  (Gadi) from  the  National  Computational  Infrastructure  (NCI  Australia), an NCRIS enabled capability supported by the Australian Government.
+
 
 # References
