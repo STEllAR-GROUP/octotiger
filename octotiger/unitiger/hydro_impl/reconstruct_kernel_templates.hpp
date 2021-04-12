@@ -149,15 +149,15 @@ CUDA_GLOBAL_METHOD inline double minmod_cuda(double a, double b) {
 CUDA_GLOBAL_METHOD inline double minmod_cuda_theta(double a, double b, double c) {
     return minmod_cuda(c * minmod_cuda(a, b), 0.5 * (a + b));
 }
-template <typename container_t>
+template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_reconstruct_minmod(container_t &combined_q,
-    container_t &combined_u_face, int d, int f, int i, int q_i) {
+    const_container_t &combined_u_face, int d, int f, int i, int q_i) {
     const auto di = dir[d];
     const int start_index = f * q_face_offset + d * q_dir_offset;
-    combined_q[q_i + start_index] = combined_u_face[i] +
+    combined_q[q_i + start_index] = combined_u_face[f * u_face_offset + i] +
         0.5 *
-            minmod_cuda(combined_u_face[i + di] - combined_u_face[i],
-                combined_u_face[i] - combined_u_face[i - di]);
+            minmod_cuda(combined_u_face[f * u_face_offset + i + di] - combined_u_face[f * u_face_offset + i],
+                combined_u_face[f * u_face_offset + i] - combined_u_face[f * u_face_offset + i - di]);
 }
 
 template <typename container_t, typename const_container_t>
@@ -269,11 +269,11 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
     const int start_index = f * q_face_offset + d * q_dir_offset;
     const int start_index_flipped = f * q_face_offset + flipped_di * q_dir_offset;
 
-    const double u_plus_2di = combined_u_face[i + 2 * di];
-    const double u_plus_di = combined_u_face[i + di];
-    const double u_zero = combined_u_face[i];
-    const double u_minus_di = combined_u_face[i - di];
-    const double u_minus_2di = combined_u_face[i - 2 * di];
+    const double u_plus_2di = combined_u_face[f * u_face_offset + i + 2 * di];
+    const double u_plus_di = combined_u_face[f * u_face_offset + i + di];
+    const double u_zero = combined_u_face[f * u_face_offset + i];
+    const double u_minus_di = combined_u_face[f * u_face_offset + i - di];
+    const double u_minus_2di = combined_u_face[f * u_face_offset + i - 2 * di];
 
     const double diff_u_plus = u_plus_di - u_zero;
     const double diff_u_2plus = u_plus_2di - u_plus_di;
@@ -296,17 +296,17 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
         constexpr auto eta1 = 20.0;
         constexpr auto eta2 = 0.05;
         const auto di = dir[d];
-        const auto& up = combined_u_face[i + di];
-        const auto& u0 = combined_u_face[i];
-        const auto& um = combined_u_face[i - di];
+        const auto& up = combined_u_face[f * u_face_offset + i + di];
+        const auto& u0 = combined_u_face[f * u_face_offset + i];
+        const auto& um = combined_u_face[f * u_face_offset + i - di];
         const auto dif = up - um;
         if (std::abs(dif) > disc[d * disc_offset + i] * std::min(std::abs(up), std::abs(um))) {
             if (std::min(std::abs(up), std::abs(um)) / std::max(std::abs(up), std::abs(um)) >
                 eps2) {
                 const auto d2p = (1.0 / 6.0) *
-                    (combined_u_face[i + 2 * di] + u0 - 2.0 * combined_u_face[i + di]);
+                    (combined_u_face[f * u_face_offset + i + 2 * di] + u0 - 2.0 * combined_u_face[f * u_face_offset + i + di]);
                 const auto d2m = (1.0 / 6.0) *
-                    (u0 + combined_u_face[i - 2 * di] - 2.0 * combined_u_face[i - di]);
+                    (u0 + combined_u_face[f * u_face_offset + i - 2 * di] - 2.0 * combined_u_face[f * u_face_offset + i - di]);
                 if (d2p * d2m < 0.0) {
                     double eta = 0.0;
                     if (std::abs(dif) > eps * std::min(std::abs(up), std::abs(um))) {
@@ -317,11 +317,11 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
                         auto ul = um +
                             0.5 *
                                 minmod_cuda_theta(
-                                    combined_u_face[i] - um, um - combined_u_face[i - 2 * di], 2.0);
+                                    combined_u_face[f * u_face_offset + i] - um, um - combined_u_face[f * u_face_offset + i - 2 * di], 2.0);
                         auto ur = up -
                             0.5 *
                                 minmod_cuda_theta(
-                                    combined_u_face[i + 2 * di] - up, up - combined_u_face[i], 2.0);
+                                    combined_u_face[f * u_face_offset + i + 2 * di] - up, up - combined_u_face[f * u_face_offset + i], 2.0);
                         // auto& qp = q[d][i];
                         // auto& qm = q[geo.flip(d)][i];
                         auto& qp = combined_q[start_index + q_i];
@@ -334,7 +334,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_ppm(container_t &combined_q,
         }
     }
     if (!smooth) {
-        make_monotone(combined_q[start_index + q_i], combined_u_face[i],
+        make_monotone(combined_q[start_index + q_i], combined_u_face[f * u_face_offset + i],
             combined_q[start_index_flipped + q_i]);
         // auto& qp = q[geo.flip(d)][i];
         // auto& qm = q[d][i];
@@ -361,20 +361,20 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
     if (d < ndir / 2) {
         for (int f = 0; f < s_start; f++) {
             cell_reconstruct_ppm(combined_q, combined_u,
-                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_face_offset * f, q_i);
+                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
         }
         for (int f = s_start; f < l_start; f++) {
             cell_reconstruct_ppm(
-                combined_q, combined_u, true, false, cdiscs, d, f, i + u_face_offset * f, q_i);
+                combined_q, combined_u, true, false, cdiscs, d, f, i, q_i);
         }
     }
     for (int f = l_start; f < l_start + nangmom; f++) {
-        cell_reconstruct_minmod(combined_q, combined_u, d, f, i + u_face_offset * f, q_i);
+        cell_reconstruct_minmod(combined_q, combined_u, d, f, i, q_i);
     }
     if (d < ndir / 2) {
         for (int f = l_start + nangmom; f < nf_; f++) {
             cell_reconstruct_ppm(combined_q, combined_u,
-                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i + u_face_offset * f, q_i);
+                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
         }
     }
 
