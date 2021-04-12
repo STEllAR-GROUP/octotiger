@@ -8,49 +8,14 @@
 #include <stream_manager.hpp>
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp" // required for xloc definition
+#include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 
 
 // TODO Duplicated from cell_geometry class - come up with a better way to get this to the device
 // Includes flip_dim, faces, xloc and quad_weights
 // Move cell geometry class to device?
 
-__device__ inline int flip_dim(const int d, const int flip_dim) {
-		int dims[3];
-		int k = d;
-		for (int dim = 0; dim < 3; dim++) {
-			dims[dim] = k % 3;
-			k /= 3;
-		}
-		k = 0;
-		dims[flip_dim] = 2 - dims[flip_dim];
-		for (int dim = 0; dim < 3; dim++) {
-			k *= 3;
-			k += dims[2 - dim];
-		}
-		return k;
-}
-
-__device__ const int faces[3][9] = { { 12, 0, 3, 6, 9, 15, 18, 21, 24 }, { 10, 0, 1, 2, 9, 11,
-			18, 19, 20 }, { 4, 0, 1, 2, 3, 5, 6, 7, 8 } };
-
-__device__ const int xloc[27][3] = {
-	/**/{ -1, -1, -1 }, { +0, -1, -1 }, { +1, -1, -1 },
-	/**/{ -1, +0, -1 }, { +0, +0, -1 }, { 1, +0, -1 },
-	/**/{ -1, +1, -1 }, { +0, +1, -1 }, { +1, +1, -1 },
-	/**/{ -1, -1, +0 }, { +0, -1, +0 }, { +1, -1, +0 },
-	/**/{ -1, +0, +0 }, { +0, +0, +0 }, { +1, +0, +0 },
-	/**/{ -1, +1, +0 }, { +0, +1, +0 }, { +1, +1, +0 },
-	/**/{ -1, -1, +1 }, { +0, -1, +1 }, { +1, -1, +1 },
-	/**/{ -1, +0, +1 }, { +0, +0, +1 }, { +1, +0, +1 },
-	/**/{ -1, +1, +1 }, { +0, +1, +1 }, { +1, +1, +1 } };
-
-__device__ const double quad_weights[9] = { 16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4.
-			/ 36., 1. / 36., 4. / 36., 1. / 36. };
-
-__device__ const int offset = 0;
-__device__ const int compressedH_DN[3] = {100, 10, 1};
-__device__ const int face_offset = 27 * 1000;
-__device__ const int dim_offset = 1000;
 
 __global__ void
 __launch_bounds__(128, 2)
@@ -96,7 +61,7 @@ __launch_bounds__(128, 2)
         local_vg[0] = -omega * (x_combined[1000 + index] + 0.5 * xloc[d][1] * dx);
         local_vg[1] = +omega * (x_combined[index] + 0.5 * xloc[d][0] * dx);
         local_vg[2] = 0.0;
-        inner_flux_loop2<double>(omega, nf, A_, B_, q_combined, local_f, local_x, local_vg,
+        cell_inner_flux_loop<double>(omega, nf, A_, B_, q_combined, local_f, local_x, local_vg,
           this_ap, this_am, dim, d, dx, fgamma, de_switch_1,
           dim_offset * d + index, dim_offset * flipped_dim - compressedH_DN[dim] + index, face_offset);
         this_ap *= mask;

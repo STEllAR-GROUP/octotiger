@@ -76,8 +76,8 @@ CUDA_CALLABLE_METHOD inline T load_value(const double* __restrict__ data, const 
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline void store_value(
-    const double* __restrict__ data, const size_t index, const T& value) {
-    return data[index] = value;
+    double* __restrict__ data, const size_t index, const T& value) {
+    data[index] = value;
 }
 
 boost::container::vector<bool> create_masks();
@@ -248,7 +248,7 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop(const double omega, const s
     return max_wrapper(ap, double_t(-am));
 }
 
-template <typename double_t>
+/*template <typename double_t>
 CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const size_t nf_,
     const double A_, const double B_, const double* __restrict__ U,
     double_t* __restrict__ this_flux, const double_t* __restrict__ x,
@@ -421,7 +421,7 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const 
     am = min_wrapper(am, this_am);
     ap = max_wrapper(ap, this_ap);
     return max_wrapper(ap, double_t(-am));
-}
+}*/
 
 template <typename Alloc>
 void convert_q_structure(const hydro::recon_type<NDIM>& Q, std::vector<double, Alloc>& combined_q) {

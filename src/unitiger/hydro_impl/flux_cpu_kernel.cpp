@@ -214,7 +214,7 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
     return ts;
 }
 
-timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
+/*timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F,
     hydro::x_type& X, safe_real omega, const size_t nf_) {
     // input Q, X
     // output F
@@ -379,7 +379,7 @@ timestep_t flux_unified_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux
     ts.ur = std::move(URs);
     ts.dim = current_dim;
     return ts;
-}
+}*/
 #pragma GCC pop_options
 #endif
 #endif
