@@ -253,3 +253,29 @@ CUDA_CALLABLE_METHOD inline double_t cell_inner_flux_loop(const double omega, co
     ap = max_wrapper(ap, this_ap);
     return max_wrapper(ap, double_t(-am));
 }
+
+/// Fills masks required for the flux kernel. Container needs to be able to hold NDIM * 1000 elements
+template<typename mask_buffer_t>
+void fill_masks(mask_buffer_t &masks) {
+    //boost::container::vector<bool> masks(NDIM * 10 * 10 * 10);
+    constexpr size_t dim_offset = 1000;
+    const cell_geometry<3, 8> geo;
+    for (int dim = 0; dim < NDIM; dim++) {
+        std::array<int, NDIM> ubs = {9, 9, 9};
+        for (int dimension = 0; dimension < NDIM; dimension++) {
+            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (9 + 1) : (9);
+        }
+        for (size_t ix = 0; ix < 10; ix++) {
+            for (size_t iy = 0; iy < 10; iy++) {
+                for (size_t iz = 0; iz < 10; iz++) {
+                    const size_t index = ix * 10 * 10 + iy * 10 + iz + dim_offset * dim;
+                    if (ix > 0 && iy > 0 && iz > 0 && ix < ubs[0] && iy < ubs[1] && iz < ubs[2])
+                        masks[index] = true;
+                    else
+                        masks[index] = false;
+                }
+            }
+        }
+    }
+    return;
+}

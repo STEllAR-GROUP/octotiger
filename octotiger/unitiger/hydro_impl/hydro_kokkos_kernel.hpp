@@ -1,6 +1,8 @@
 #pragma once
 
 #ifdef OCTOTIGER_HAVE_KOKKOS
+#include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp" // required for wrappers
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 //#include "octotiger/grid.hpp"
@@ -8,6 +10,38 @@
 //#include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 
 #include "octotiger/common_kernel/kokkos_util.hpp"
+
+template <typename storage>
+const storage& get_flux_host_masks() {
+    static storage masks(NDIM * 10 * 10 * 10);
+    static bool initialized = false;
+    if (!initialized) {
+        fill_masks(masks);
+        initialized = true;
+    }
+    return masks;
+}
+
+template <typename storage, typename storage_host, typename executor_t>
+const storage& get_flux_device_masks(executor_t& exec) {
+    static storage masks(NDIM * 10 * 10 * 10);
+    static bool initialized = false;
+    if (!initialized) {
+        const storage_host& tmp_masks = get_flux_host_masks<storage_host>();
+        Kokkos::deep_copy(exec.instance(), masks, tmp_masks);
+        exec.instance().fence();
+        initialized = true;
+    }
+    return masks;
+}
+
+template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t, typename kokkos_mask_t>
+void flux_cuda_kernel(const kokkos_buffer_t& q_combined, const kokkos_buffer_t& x_combined,
+ kokkos_buffer_t& f_combined,
+    kokkos_buffer_t& amax, kokkos_int_buffer_t& amax_indices, int * amax_d, const kokkos_mask_t& masks,
+     const double omega, const double dx, const double A_, const double B_, const int nf,
+     const double fgamma, const double de_switch_1) {
+}
 
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t>
 void reconstruct_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const double omega, const int nf_, const int angmom_index_,
@@ -143,6 +177,8 @@ void device_interface_kokkos_hydro(executor_t& exec, const host_buffer<double>& 
     reconstruct_impl(
         exec, omega, nf, angmom_index, smooth_field, disc_detect, q, combined_x, combined_u,
         AM, dx, disc, n_species, ndir, nangmom, {8, 8, 8});
+    
+
 }
 
 // Input U, X, omega, executor, device_id

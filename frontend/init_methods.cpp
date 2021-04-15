@@ -55,6 +55,7 @@
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/monopole_interactions/kernel/kokkos_kernel.hpp"
 #include "octotiger/multipole_interactions/kernel/kokkos_kernel.hpp"
+#include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
 #endif
 
 // In case we build without kokkos we want the cuda futures to default
@@ -145,6 +146,8 @@ void init_executors(void) {
     octotiger::fmm::monopole_interactions::get_host_masks<host_buffer<int>>();
     octotiger::fmm::monopole_interactions::get_host_constants<host_buffer<double>>();
     octotiger::fmm::multipole_interactions::get_host_masks<host_buffer<int>>(true);
+
+    get_flux_host_masks<host_buffer<bool>>();
 #endif
 
 #if defined(OCTOTIGER_HAVE_CUDA) && HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
@@ -164,6 +167,8 @@ void init_executors(void) {
         hpx::kokkos::cuda_executor>(mover);
     octotiger::fmm::multipole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         hpx::kokkos::cuda_executor>(mover, true);
+    get_flux_device_masks<device_buffer<bool>, host_buffer<bool>,
+        hpx::kokkos::cuda_executor>(mover);
     Kokkos::fence();
 #if HPX_KOKKOS_CUDA_FUTURE_TYPE == 0 
     std::cout << "KOKKOS/CUDA with polling futures enabled!" << std::endl;
