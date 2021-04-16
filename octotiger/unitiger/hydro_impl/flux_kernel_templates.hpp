@@ -23,7 +23,7 @@ CUDA_GLOBAL_METHOD const int face_offset = 27 * 1000;
 CUDA_GLOBAL_METHOD const int dim_offset = 1000;
 #endif
 
-CUDA_CALLABLE_METHOD inline int flip_dim(const int d, const int flip_dim) {
+CUDA_GLOBAL_METHOD inline int flip_dim(const int d, const int flip_dim) {
     int dims[3];
     int k = d;
     for (int dim = 0; dim < 3; dim++) {
@@ -40,47 +40,47 @@ CUDA_CALLABLE_METHOD inline int flip_dim(const int d, const int flip_dim) {
 }
 
 template <>
-CUDA_CALLABLE_METHOD inline void select_wrapper<double, bool>(
+CUDA_GLOBAL_METHOD inline void select_wrapper<double, bool>(
     double& target, const bool cond, const double& tmp1, const double& tmp2) {
     target = cond ? tmp1 : tmp2;
 }
 template <>
-CUDA_CALLABLE_METHOD inline double max_wrapper<double>(const double& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline double max_wrapper<double>(const double& tmp1, const double& tmp2) {
     return max(tmp1, tmp2);
 }
 template <>
-CUDA_CALLABLE_METHOD inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
     return min(tmp1, tmp2);
 }
 template <>
-CUDA_CALLABLE_METHOD inline double sqrt_wrapper<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline double sqrt_wrapper<double>(const double& tmp1) {
     return std::sqrt(tmp1);
 }
 template <>
-CUDA_CALLABLE_METHOD inline double pow_wrapper<double>(const double& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline double pow_wrapper<double>(const double& tmp1, const double& tmp2) {
     return std::pow(tmp1, tmp2);
 }
 template <>
-CUDA_CALLABLE_METHOD inline double asin_wrapper<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline double asin_wrapper<double>(const double& tmp1) {
     return std::asin(tmp1);
 }
 template <>
-CUDA_CALLABLE_METHOD inline bool skippable<bool>(const bool& tmp1) {
+CUDA_GLOBAL_METHOD inline bool skippable<bool>(const bool& tmp1) {
     return !tmp1;
 }
 template <>
-CUDA_CALLABLE_METHOD inline double load_value<double>(
+CUDA_GLOBAL_METHOD inline double load_value<double>(
     const double* __restrict__ data, const size_t index) {
     return data[index];
 }
 template <>
-CUDA_CALLABLE_METHOD inline void store_value<double>(
+CUDA_GLOBAL_METHOD inline void store_value<double>(
     double* __restrict__ data, const size_t index, const double& value) {
     data[index] = value;
 }
 
 template <typename double_t>
-CUDA_CALLABLE_METHOD inline double_t cell_inner_flux_loop(const double omega, const size_t nf_,
+CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, const size_t nf_,
     const double A_, const double B_, const double* __restrict__ U,
     double_t* __restrict__ this_flux, const double_t* __restrict__ x,
     const double_t* __restrict__ vg, double_t& ap, double_t& am, const size_t dim, const size_t d,
