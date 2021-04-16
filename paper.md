@@ -51,6 +51,8 @@ Overall, we achieve good performance using this approach, even in large scale te
 
 However, to support both CPU and GPU runs, we had to maintain both a CUDA and a Vc version for each of the compute-intensive kernels. Furthermore, using CUDA limits us to using NVIDIA GPUs. Currently, we are porting Octo-Tiger to Kokkos to solve these issues. We integrate HPX with Kokkos (using the hpx-kokkos library) similarly as before to maintain all advantages of our previous CUDA implementation. Additionally, using Kokkos enables us to use a wider range of accelerators (Intel, AMD, Nvidia) and, using the Kokkos-SIMD wrappers, still allows us to use explicit SIMD vectorization within the same kernel implementation in case of a CPU run. Early results after porting the gravity solver to Kokkos are promising, achieving comparable or better performance on both CPU and GPU.
 
+HPX is integrated with APEX, an auto-tuning performance library for asynchronous tasking systems.  APEX has integrated support for CUDA and Kokkos, and is currently adding support for Kokkos auto-tuning, planned for the next Kokkos release.  We have successfuly used HPX counters and APEX to measure the Octo-Tiger simulation on leading HPC systems[0].
+
 # Statement of need
 
 Octotiger is designed to solve fluid dynamics and self-gravity for astrophysical applications. While there are many astrophysical fluid dynamics codes, Octotiger specializes in resolving the fluid dynamics of the early mass transfer and merging processes. Only so we will be able to accurately model the light properties of dynamical transients, such as mergers and other strong binary interactions, where the properties of the photospheric layers dominate the lightcurve properties. Achieving sufficient resolution invariably means large problems that cannot be calculated within reasonable wall-clock times. To expedite the calculation, Octotiger uses a fast, asynchronous many-task parallelization technique, HPX [@Kaiser2020], that allows efficient scaling to tens of thousands of cores, utilizing CPU and GPU architectures simultaneously [@daiss2019piz]. Additionally, Octotiger makes some choices at the hydrodynamics and gravity solver level to achieve an accurate solution, including  a fully three-dimensional reconstruction at cell faces and machine precision conservation of energy in both gravity and hydro solvers. Also, Octotiger’s gravity solver conserves angular momentum to machine precision. While the inclusion of hydrodynamics worsens the conservation, the use of a frame rotating at the orbital frequency allows for superior overall conservation properties with a low diffusion leveluses 
@@ -64,3 +66,5 @@ This work was supported by National Science Foundation Award 1814967. The numeri
 
 
 # References
+
+[0] Diehl, Patrick, et al. "Performance Measurements within Asynchronous Task-based Runtime Systems: A Double White Dwarf Merger as an Application." arXiv preprint arXiv:2102.00223 (2021).
