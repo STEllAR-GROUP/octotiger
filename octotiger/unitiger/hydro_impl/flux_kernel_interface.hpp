@@ -79,6 +79,15 @@ CUDA_CALLABLE_METHOD inline void store_value(
     double* __restrict__ data, const size_t index, const T& value) {
     data[index] = value;
 }
+template <typename T, typename container_t>
+CUDA_CALLABLE_METHOD inline T load_value(const container_t &data, const size_t index) {
+    return data[index];
+}
+template <typename T, typename container_t>
+CUDA_CALLABLE_METHOD inline void store_value(
+    container_t &data, const size_t index, const T& value) {
+    data[index] = value;
+}
 
 boost::container::vector<bool> create_masks();
 

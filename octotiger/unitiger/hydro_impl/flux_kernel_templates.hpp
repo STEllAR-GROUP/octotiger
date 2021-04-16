@@ -79,10 +79,10 @@ CUDA_GLOBAL_METHOD inline void store_value<double>(
     data[index] = value;
 }
 
-template <typename double_t>
+template <typename double_t, typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, const size_t nf_,
-    const double A_, const double B_, const double* __restrict__ U,
-    double_t* __restrict__ this_flux, const double_t* __restrict__ x,
+    const double A_, const double B_, const_container_t& U,
+    container_t& this_flux, const double_t* __restrict__ x,
     const double_t* __restrict__ vg, double_t& ap, double_t& am, const size_t dim, const size_t d,
     const double dx, const double fgamma, const double de_switch_1, const size_t index,
     const size_t flipped_index, const size_t face_offset) {
