@@ -51,7 +51,7 @@ Overall, we achieve good performance using this approach, even in large scale te
 
 However, to support both CPU and GPU runs, we had to maintain both a CUDA and a Vc version for each of the compute-intensive kernels. Furthermore, using CUDA limits us to using NVIDIA GPUs. Currently, we are porting Octo-Tiger to Kokkos to solve these issues. We integrate HPX with Kokkos (using the hpx-kokkos library) similarly as before to maintain all advantages of our previous CUDA implementation. Additionally, using Kokkos enables us to use a wider range of accelerators (Intel, AMD, Nvidia) and, using the Kokkos-SIMD wrappers, still allows us to use explicit SIMD vectorization within the same kernel implementation in case of a CPU run. Early results after porting the gravity solver to Kokkos are promising, achieving comparable or better performance on both CPU and GPU.
 
-HPX is integrated with APEX, an auto-tuning performance library for asynchronous tasking systems.  APEX has integrated support for CUDA and Kokkos, and is currently adding support for Kokkos auto-tuning, planned for the next Kokkos release.  We have successfuly used HPX counters and APEX to measure the Octo-Tiger simulation on leading HPC systems[0].
+HPX is integrated with APEX, an auto-tuning performance library for asynchronous tasking systems.  APEX has integrated support for CUDA and Kokkos, and is currently adding support for Kokkos auto-tuning, planned for the next Kokkos release.  We have successfuly used HPX counters and APEX to measure the Octo-Tiger simulation on leading HPC systems[0] with very low overheads.
 
 # Statement of need
 
