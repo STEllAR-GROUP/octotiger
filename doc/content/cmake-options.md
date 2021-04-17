@@ -15,22 +15,22 @@
 
 ## Vc Library Integration
 The [Vc library](https://github.com/VcDevel/Vc) is used for x86 vectorization in Octo-Tiger.
-* `OCTOTIGER_WITH_Vc`: . Default value is `ON`.
+* `OCTOTIGER_WITH_Vc`: Enable the use of Vc in Octo-Tiger. Default value is `ON`.
 
 The following options also exist can can be set if it necessary to override the configuration detected by Vc:
-* `OCTOTIGER_WITH_AVX`: . Default value is `OFF`.
-* `OCTOTIGER_WITH_AVX2`: . Default value is `OFF`.
-* `OCTOTIGER_WITH_AVX512`: . Default value is `OFF`.
+* `OCTOTIGER_WITH_AVX`: Force Vc to use [AVX1 instructions](https://software.intel.com/content/www/us/en/develop/articles/introduction-to-intel-advanced-vector-extensions.html). Default value is `OFF`.
+* `OCTOTIGER_WITH_AVX2`: Force Vc to use [AVX-2 instructions](https://software.intel.com/content/www/us/en/develop/blogs/haswell-new-instruction-descriptions-now-available.html). Default value is `OFF`.
+* `OCTOTIGER_WITH_AVX512`: Force Vc to use [AVX-512 instructions](https://software.intel.com/content/www/us/en/develop/articles/intel-avx-512-instructions.html). Default value is `OFF`.
 
 ## Spack Integration
 [Spack](https://github.com/spack/spack) is a relatively popular package manager software available on HPC machines.
 * `OCTOTIGER_SPACK_BUILD`: Build project with the Spack package. Default value is `OFF`.
 
 ## Windows-specific options
-This group of options exists because getting some features or tests in Octo-Tiger to build may not be difficult and unnecessary with MSVC on Windows.
-* `OCTOTIGER_WITH_BOOST_MULTIPRECISION`: Use `Boost.Multiprecision` Instead of GCC Quad-Precision Math Library. Default value is `OFF`.
-* `OCTOTIGER_WITH_QUADMATH`: Enable sections using GCC Quad-Precision Math Library. Default value is `ON`.
+This group of options exists because getting some features or tests in Octo-Tiger to build may not be difficult and unnecessary with [MSVC](https://docs.microsoft.com/en-us/cpp/build/reference/compiler-options) on Windows.
+* `OCTOTIGER_WITH_BOOST_MULTIPRECISION`: Use [`Boost.Multiprecision`](http://www.boost.org/doc/libs/release/libs/multiprecision/index.html) instead of [GCC Quad-Precision Math Library](https://gcc.gnu.org/onlinedocs/libquadmath/). Default value is `OFF`.
+* `OCTOTIGER_WITH_QUADMATH`: Enable sections using [GCC Quad-Precision Math Library](https://gcc.gnu.org/onlinedocs/libquadmath/). Default value is `ON`.
 * `OCTOTIGER_WITH_BLAST_TEST`: Enable the Blast test. Default value is `ON`.
 
 ## Documentation
-* `OCTOTIGER_WITH_DOCU`: Enable the target to build the documentation. Default value is `OFF`.
+* `OCTOTIGER_WITH_DOCU`: Enable the CMake target for building Octo-Tiger documentation. Default value is `OFF`.
