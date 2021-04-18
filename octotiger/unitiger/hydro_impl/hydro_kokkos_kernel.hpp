@@ -256,7 +256,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     const double dx, const double A_, const double B_, const double fgamma,
     const double de_switch_1) {
     // Find contact discs
-    device_buffer<double> u(NDIM * nf * 1000 + 32);
+    device_buffer<double> u(nf * H_N3 + 32);
     Kokkos::deep_copy(exec.instance(), u, combined_u);
     device_buffer<double> P(H_N3 + 32);
     device_buffer<double> disc(ndir / 2 * H_N3 + 32);
@@ -295,8 +295,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     Kokkos::deep_copy(exec.instance(), host_amax, amax);
     Kokkos::deep_copy(exec.instance(), host_amax_indices, amax_indices);
     Kokkos::deep_copy(exec.instance(), host_amax_d, amax_d);
+     
     auto fut = hpx::kokkos::deep_copy_async(exec.instance(), host_f, f);
-
     fut.get();
 
     // TODO create Maximum method

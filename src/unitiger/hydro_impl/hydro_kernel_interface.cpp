@@ -14,7 +14,7 @@ using device_pool_strategy = round_robin_pool<device_executor>;
 using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
 //#ifdef OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR
-// using host_executor = hpx::kokkos::hpx_executor;
+//using host_executor = hpx::kokkos::hpx_executor;
 //#else
 using host_executor = hpx::kokkos::serial_executor;
 //#endif
@@ -43,6 +43,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 cuda_buffer_capacity);
             if (avail) {
                 executor_interface_t executor;
+                
                 // TODO Device Kokkos Implementation (stub)
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
                     hydro, U, X, omega, opts().n_species, executor, F);
