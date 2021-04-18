@@ -26,11 +26,12 @@ The following options also exist can can be set if it necessary to override the 
 [Spack](https://github.com/spack/spack) is a relatively popular package manager software available on HPC machines.
 * `OCTOTIGER_SPACK_BUILD`: Build project with the Spack package. Default value is `OFF`.
 
-## Windows-specific options
-This group of options exists because getting some features or tests in Octo-Tiger to build may not be difficult and unnecessary with [MSVC](https://docs.microsoft.com/en-us/cpp/build/reference/compiler-options) on Windows.
-* `OCTOTIGER_WITH_BOOST_MULTIPRECISION`: Use [`Boost.Multiprecision`](http://www.boost.org/doc/libs/release/libs/multiprecision/index.html) instead of [GCC Quad-Precision Math Library](https://gcc.gnu.org/onlinedocs/libquadmath/). Default value is `OFF`.
-* `OCTOTIGER_WITH_QUADMATH`: Enable sections using [GCC Quad-Precision Math Library](https://gcc.gnu.org/onlinedocs/libquadmath/). Default value is `ON`.
-* `OCTOTIGER_WITH_BLAST_TEST`: Enable the Blast test. Default value is `ON`.
+## Blast Test Problem 
+This group of options exists because getting the [Blast test problem](https://github.com/STEllAR-GROUP/octotiger/tree/master/src/test_problems/blast) in Octo-Tiger to build may be difficult and unnecessary when the [GCC Quad-Precision Math Library](https://gcc.gnu.org/onlinedocs/libquadmath/) is unavailable.
+
+* `OCTOTIGER_WITH_BLAST_TEST`: Enable or disable the Blast test problem. Default value is `ON`.
+* `OCTOTIGER_WITH_BOOST_MULTIPRECISION`: Use [`Boost.Multiprecision`](http://www.boost.org/doc/libs/release/libs/multiprecision/index.html) instead of GCC Quad-Precision Math Library in the Blast test problem. Default value is `OFF`.
+* `OCTOTIGER_WITH_QUADMATH`: Force the use of GCC Quad-Precision Math Library. Default value is `ON`.
 
 ## Documentation
 * `OCTOTIGER_WITH_DOCU`: Enable the CMake target for building Octo-Tiger documentation. Default value is `OFF`.
