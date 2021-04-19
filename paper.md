@@ -1,5 +1,5 @@
 ---
-title: 'Octo-Tiger: a full 3D adaptive multigridcode astrophysics application acclerated using the aynchronous many-task runtime HPX '
+title: 'Octo-Tiger: a full 3D adaptive multigridcode astrophysics application accelerated using the asynchronous many-task runtime HPX '
 tags:
   - Python
   - astronomy
@@ -60,9 +60,9 @@ Octo-Tiger uses a finite volume method on an octree-based adaptive mesh refineme
 
 ### The C++ standard library for parallism and concurrency (HPX)
 
-Next to the astrophysic aspect, Octo-Tiger explores the usage of asynchronous many-task systems (AMT) as an alternative to the commom MPI+X approach. Here, the C++ standard library for Concurrency and Parallism (HPX) [@Kaiser2020] is used. A comperative review of HPX with  various other AMTs is available in [@thoman2018taxonomy]. Some notable AMT solutions with a focus on distributed computing are: Uintah [@germain2000uintah], Chapel [@chamberlain2007parallel], Charm++ [@kale1993charm], Kokkos [@edwards2014kokkos], Legion [@bauer2012legion], and PaRSEC [@bosilca2013parsec]. Note that we refer only distributed memory solutions, since we intend to run large scale runs to solve Octo-Tiger's multi physics on a fine resolution. According to this review the major showpiece of HPX comapred to the meentioend distributed AMTs is it future-proof C++ standard conforming API. Charm++ is another AMT utilizied in astrophysics simulations, e.g.\ ChaNGa [@jetley2008massively] or Enzo-P [@10.5555/2462077.2462081].  
+Next to the astrophysics aspect, Octo-Tiger explores the usage of asynchronous many-task systems (AMT) as an alternative to the common MPI+X approach. Here, the C++ standard library for Concurrency and Parallelism (HPX) [@Kaiser2020] is used. A comparative review of HPX with  various other AMTs is available in [@thoman2018taxonomy]. Some notable AMT solutions with a focus on distributed computing are: Uintah [@germain2000uintah], Chapel [@chamberlain2007parallel], Charm++ [@kale1993charm], Kokkos [@edwards2014kokkos], Legion [@bauer2012legion], and PaRSEC [@bosilca2013parsec]. Note that we refer only distributed memory solutions, since we intend to run large scale runs to solve Octo-Tiger's multi physics on a fine resolution. According to this review the major showpiece of HPX compared to the mentioned distributed AMTs is it future-proof C++ standard conforming API. Charm++ is another AMT utilized in astrophysics simulations, e.g.\ ChaNGa [@jetley2008massively] or Enzo-P [@10.5555/2462077.2462081].  
 
-HPX provides four advantages for Octo-Tiger: (i) fine grained, (II) task-based parallelism using light weight user space threads, (iii) the use of C++ futures to encapsulate both local and remote work, and (iv) an active global address space (AGAS) [@amini2019assessing,@kaiser2014hpx], whereby global and local objects are accesible using the same API. For more details, we refer to [@10.1093/mnras/stab937].
+HPX provides four advantages for Octo-Tiger: (i) fine grained, (II) task-based parallelism using light weight user space threads, (iii) the use of C++ futures to encapsulate both local and remote work, and (iv) an active global address space (AGAS) [@amini2019assessing,@kaiser2014hpx], whereby global and local objects are accessible using the same API. For more details, we refer to [@10.1093/mnras/stab937].
 
 HPX is integrated with APEX, an auto-tuning performance library for asynchronous tasking systems.  APEX has integrated support for CUDA and Kokkos and is currently adding support for Kokkos auto-tuning, planned for the next Kokkos release.  We have successfully used HPX counters and APEX to measure the Octo-Tiger simulation on leading HPC systems [@diehl2021performance] with very low overheads.
 
@@ -79,7 +79,7 @@ Octo-Tiger is designed to solve fluid dynamics and self-gravity for astrophysica
 Additionally, Octo-Tiger makes some choices at the hydrodynamics and gravity solver level to achieve an accurate solution, including a fully three-dimensional reconstruction at cell faces and machine precision conservation of energy in both gravity and hydro solvers. Also, Octo-Tiger's gravity solver conserves angular momentum to machine precision. While the inclusion of hydrodynamics worsens the conservation, the use of a frame rotating at the orbital frequency allows for superior overall conservation properties with a low diffusion level uses 
 
 
-# Acknowledgements
+# Acknowledgments
 
 This work was supported by National Science Foundation Award 1814967. The numerical work was carried out using the computational resources (QueenBee2) of the Louisiana Optical Network Initiative (LONI); Louisiana State University's High-Performance Computing (LSU HPC); resources of the National Energy Research Scientific Computing Center, a U.S. Department of Energy Office of Science User Facility operated under contract No. DE-AC02-05CH11231; and by Lilly Endowment,  Inc., through its support for the Indiana University PervasiveTechnology Institute. This research was undertaken with the assistance of resources  (Gadi) from the  National  Computational  Infrastructure  (NCI  Australia), an NCRIS enabled capability supported by the Australian Government.
 
