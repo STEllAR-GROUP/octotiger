@@ -1,5 +1,5 @@
 ---
-title: 'Gala: A Python package for galactic dynamics'
+title: 'Octo-Tiger: a full 3D adaptive multigridcode astrophysics application acclerated using the aynchronous many-task runtime HPX '
 tags:
   - Python
   - astronomy
