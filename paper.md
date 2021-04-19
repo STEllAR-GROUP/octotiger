@@ -52,6 +52,8 @@ bibliography: paper.bib
 
 # Summary
 
+Octo-Tiger uses a finite volume method on an octree-based adaptive mesh refinement (AMR) mesh to solve the hydrodynamics. While most grid-based codes use an iterative approach to solve Poisson's equation for the gravitational field, Octo-Tiger uses a fast multipole method (FMM) to solve the gravitational field. The FMM has the advantage of conserving linear momenta to machine precision, and Octo-Tiger's FMM has been specially designed to conserve angular momentum to machine precision. This feature also enables it to conserve energy in the rotating frame, which is important for maintaining stellar equilibrium structures. 
+
 
 ## Implementation details
 
@@ -75,8 +77,6 @@ However, to support both CPU and GPU runs, we maintain a CUDA and a Vc version f
 Octo-Tiger is designed to solve fluid dynamics and self-gravity for astrophysical applications. While there are many astrophysical fluid dynamics codes, Octo-Tiger specializes in resolving the fluid dynamics of the early mass transfer and merging processes. Only so we will be able to accurately model the light properties of dynamical transients, such as mergers and other strong binary interactions, where the properties of the photospheric layers dominate the lightcurve properties. Achieving sufficient resolution invariably means large problems that cannot be calculated within reasonable wall-clock times. To expedite the calculation, Octo-Tiger uses a fast, asynchronous many-task parallelization technique, HPX [@Kaiser2020], that allows efficient scaling to tens of thousands of cores, utilizing CPU and GPU architectures simultaneously [@daiss2019piz].
 Additionally, Octo-Tiger makes some choices at the hydrodynamics and gravity solver level to achieve an accurate solution, including a fully three-dimensional reconstruction at cell faces and machine precision conservation of energy in both gravity and hydro solvers. Also, Octo-Tiger's gravity solver conserves angular momentum to machine precision. While the inclusion of hydrodynamics worsens the conservation, the use of a frame rotating at the orbital frequency allows for superior overall conservation properties with a low diffusion level uses 
 
-# Methods
-Octo-Tiger uses a finite volume method on an octree-based adaptive mesh refinement (AMR) mesh to solve the hydrodynamics. While most grid-based codes use an iterative approach to solve Poisson's equation for the gravitational field, Octo-Tiger uses a fast multipole method (FMM) to solve the gravitational field. The FMM has the advantage of conserving linear momenta to machine precision, and Octo-Tiger's FMM has been specially designed to conserve angular momentum to machine precision. This feature also enables it to conserve energy in the rotating frame, which is important for maintaining stellar equilibrium structures. 
 
 # Acknowledgements
 
