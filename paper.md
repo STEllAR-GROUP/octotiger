@@ -10,7 +10,7 @@ authors:
   - name: Dominic
     orcid: 0000-0003-0872-7098
     affiliation: "1, 2" 
-  - name: Gregor Dai{\ss}
+  - name: Gregor Dai\ss
     affiliation: 6
   - name: Patrick Diehl
     orcid: 0000-0003-3922-8419
