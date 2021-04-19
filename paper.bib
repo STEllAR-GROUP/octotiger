@@ -103,3 +103,62 @@
   publisher={{IEEE}},
   doi={10.1109/MCSE.2013.98}
 }
+
+@inproceedings{jetley2008massively,
+  title={Massively parallel cosmological simulations with ChaNGa},
+  author={Jetley, Pritish and Gioachin, Filippo and Mendes, Celso and Kale, Laxmikant V and Quinn, Thomas},
+  booktitle={2008 IEEE International Symposium on Parallel and Distributed Processing},
+  pages={1--12},
+  year={2008},
+  organization={IEEE},
+  doi={10.1109/IPDPS.2008.4536319}
+}
+
+@inproceedings{10.5555/2462077.2462081,
+author = {Bordner, James and Norman, Michael L.},
+title = {Enzo-P / Cello: Scalable Adaptive Mesh Refinement for Astrophysics and Cosmology},
+year = {2012},
+publisher = {University of Illinois at Urbana-Champaign},
+address = {USA},
+abstract = {Cello is a highly-scalable object-oriented adaptive mesh refinement (AMR) framework currently under development. While Cello is expected to be usable within multiple scientific problem domains, we specifically target specialized requirements of astrophysics and cosmology applications. Development of Cello is funded by the National Science Foundation (PHY-1104819, AST-0808184)The Cello project grew from the need to address scalability in the parallel AMR astrophysics and cosmology application Enzo [12, 41, 45]. Enzo has a long proven track record in producing new scientific results [1, 30, 36, 47]; however, its AMR design and implementation have several known scaling issues that are difficult to address without costly and invasive changes to the code. This has made it progressively more difficult for Enzo to take full advantage of the compute power of current high-end HPC platforms. While development still continues on improving Enzo's scalability, we are also implementing Enzo's physics capabilities using the Cello scalable AMR framework. The resulting "petascale" version of Enzo is called Enzo-P.In this paper we elaborate on the known scaling issues in Enzo, and how we plan to address these and other scaling issues in Cello through a combination of existing and novel approaches. Two of the more fundamental changes are to incorporate process virtualization and data-driven execution by using Charm++ [34], and to use a new variant of the "forest-of-octrees" approach for the AMR infrastructure.},
+booktitle = {Proceedings of the Extreme Scaling Workshop},
+articleno = {4},
+numpages = {11},
+location = {Chicago, Illinois},
+series = {BW-XSEDE '12},
+doi={10.5555/2462077.2462081}
+}
+
+@inproceedings{amini2019assessing,
+  title={Assessing the Performance Impact of using an Active Global Address Space in HPX: A Case for AGAS},
+  author={Amini, Parsa and Kaiser, Harmut},
+  booktitle={2019 IEEE/ACM Third Annual Workshop on Emerging Parallel and Distributed Runtime Systems and Middleware (IPDRM)},
+  pages={26--33},
+  year={2019},
+  organization={IEEE Computer Society},
+  doi={10.1109/IPDRM49579.2019.00008}
+}
+
+@inproceedings{kaiser2014hpx,
+  title={{HPX: A Task based Programming Model in a Global Address Space}},
+  author={Kaiser, Hartmut and Heller, Thomas and Adelstein-Lelbach, Bryce and Serio, Adrian and Fey, Dietmar},
+  booktitle={{Proceedings of the 8th International Conference on Partitioned Global Address Space Programming Models}},
+  pages={1--11},
+  year={2014},
+  doi-{10.1145/2676870.2676883}
+}
+
+@article{10.1093/mnras/stab937,
+    author = {Marcello, Dominic C and Shiber, Sagiv and De Marco, Orsola and Frank, Juhan and Clayton, Geoffrey C and Motl, Patrick M and Diehl, Patrick and Kaiser, Hartmut},
+    title = "{Octo-Tiger: a new, 3D hydrodynamic code for stellar mergers that uses HPX parallelisation}",
+    journal = {Monthly Notices of the Royal Astronomical Society},
+    year = {2021},
+    month = {04},
+    abstract = "{Octo-Tiger is an astrophysics code to simulate the evolution of self-gravitating and rotating systems of arbitrary geometry based on the fast multipole method, using adaptive mesh refinement. Octo-Tiger is currently optimised to simulate the merger of well-resolved stars that can be approximated by barotropic structures, such as white dwarfs or main sequence stars. The gravity solver conserves angular momentum to machine precision, thanks to a ‘correction’ algorithm. This code uses HPX parallelization, allowing the overlap of work and communication and leading to excellent scaling properties, allowing for the computation of large problems in reasonable wall-clock times. In this paper, we investigate the code performance and precision by running benchmarking tests. These include simple problems, such as the Sod shock tube, as well as sophisticated, full, white-dwarf binary simulations. Results are compared to analytic solutions, when known, and to other grid based codes such as flash. We also compute the interaction between two white dwarfs from the early mass transfer through to the merger and compare with past simulations of similar systems. We measure Octo-Tiger’s scaling properties up to a core count of ∼80 000, showing excellent performance for large problems. Finally, we outline the current and planned areas of development aimed at tackling a number of physical phenomena connected to observations of transients.}",
+    issn = {0035-8711},
+    doi = {10.1093/mnras/stab937},
+    url = {https://doi.org/10.1093/mnras/stab937},
+    note = {stab937},
+    eprint = {https://academic.oup.com/mnras/advance-article-pdf/doi/10.1093/mnras/stab937/37016009/stab937.pdf},
+}
+

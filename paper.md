@@ -54,24 +54,22 @@ bibliography: paper.bib
 
 Octo-Tiger uses a finite volume method on an octree-based adaptive mesh refinement (AMR) mesh to solve the hydrodynamics. While most grid-based codes use an iterative approach to solve Poisson's equation for the gravitational field, Octo-Tiger uses a fast multipole method (FMM) to solve the gravitational field. The FMM has the advantage of conserving linear momenta to machine precision, and Octo-Tiger's FMM has been specially designed to conserve angular momentum to machine precision. This feature also enables it to conserve energy in the rotating frame, which is important for maintaining stellar equilibrium structures. 
 
+[@10.1093/mnras/stab937]
 
 ## Implementation details
 
-### The C++ standard library for parallism and concurrency
+### The C++ standard library for parallism and concurrency (HPX)
 
-Next to the astrophysic aspect, Octo-Tiger explores the usage of asynchronous many-task systems (AMT) as an alternative to the commom MPI+X approach. Here, the C++ standard library for Concurrency and Parallism (HPX) [@Kaiser2020] is used. A comperative review of HPX with  various other AMTs is available in []. Some notable AMT solutions with a focus on distributed computing are: Uintah [@germain2000uintah], Chapel [@chamberlain2007parallel],
-Charm++ [@kale1993charm], Kokkos [@edwards2014kokkos], Legion [@bauer2012legion],
-and PaRSEC [@bosilca2013parsec]. Note that we refer only distributed memory solutions, since we intend to run large scale runs to solve Octo-Tiger's multi physics on a fine resolution.  
+Next to the astrophysic aspect, Octo-Tiger explores the usage of asynchronous many-task systems (AMT) as an alternative to the commom MPI+X approach. Here, the C++ standard library for Concurrency and Parallism (HPX) [@Kaiser2020] is used. A comperative review of HPX with  various other AMTs is available in [@thoman2018taxonomy]. Some notable AMT solutions with a focus on distributed computing are: Uintah [@germain2000uintah], Chapel [@chamberlain2007parallel], Charm++ [@kale1993charm], Kokkos [@edwards2014kokkos], Legion [@bauer2012legion], and PaRSEC [@bosilca2013parsec]. Note that we refer only distributed memory solutions, since we intend to run large scale runs to solve Octo-Tiger's multi physics on a fine resolution. According to this review the major showpiece of HPX comapred to the meentioend distributed AMTs is it future-proof C++ standard conforming API. Charm++ is another AMT utilizied in astrophysics simulations, e.g.\ ChaNGa [@jetley2008massively] or Enzo-P [@10.5555/2462077.2462081].  
 
-
-[@daiss2019piz]
+HPX provides four advantages for Octo-Tiger: (i) fine grained, (II) task-based parallelism using light weight user space threads, (iii) the use of C++ futures to encapsulate both local and remote work, and (iv) an active global address space (AGAS) [@amini2019assessing,@kaiser2014hpx], whereby global and local objects are accesible using the same API. For more details, we refer to [@10.1093/mnras/stab937].
 
 HPX is integrated with APEX, an auto-tuning performance library for asynchronous tasking systems.  APEX has integrated support for CUDA and Kokkos and is currently adding support for Kokkos auto-tuning, planned for the next Kokkos release.  We have successfully used HPX counters and APEX to measure the Octo-Tiger simulation on leading HPC systems [@diehl2021performance] with very low overheads.
 
 ### Kokkos and CUDA integration
 
 Using HPX and AMR, Octo-Tiger strives to use fine-grained tasks for parallelization. The compute-intensive kernels (like in the gravity solver) were only operating on a small subset of the grid, making them an excellent target for SIMD vectorization with Vc as one CPU core could process a compute kernel in a reasonable time. Multicore usage is achieved by each core executing a different HPX task (and thus a different compute kernel invocation). However, when porting Octo-Tiger to use GPUs, these small kernels were individually insufficient to utilize GPUs properly. We use HPX and CUDA streams to integrate GPU kernels into the HPX runtime as tasks to solve this. Similar to how we achieve multicore usage on the CPU, this allows us to overlap the execution of GPU kernels with other GPU kernels (allowing for better GPU utilization), GPU/CPU data transfers, arbitrary CPU tasks, and internode communication. 
-Overall, we achieve good performance using this approach, even in large-scale test runs with up to 5400 GPUs.
+Overall, we achieve good performance using this approach, even in large-scale test runs with up to 5400 GPUsi [@daiss2019piz].
 
 However, to support both CPU and GPU runs, we maintain a CUDA and a Vc version for each of the compute-intensive kernels. Furthermore, using CUDA limits us to using NVIDIA GPUs. Currently, we are porting Octo-Tiger to Kokkos to solve these issues. We integrate HPX with Kokkos (using the HPX-Kokkos library) similarly as before to maintain all advantages of our previous CUDA implementation. Additionally, using Kokkos enables us to use a wider range of accelerators (Intel, AMD, Nvidia). Using the Kokkos-SIMD wrappers still allows us to use explicit SIMD vectorization within the same kernel implementation in a CPU run. Early results after porting the gravity solver to Kokkos are promising, achieving comparable or better performance on both CPU and GPU.
 
@@ -84,6 +82,8 @@ Additionally, Octo-Tiger makes some choices at the hydrodynamics and gravity sol
 # Acknowledgements
 
 This work was supported by National Science Foundation Award 1814967. The numerical work was carried out using the computational resources (QueenBee2) of the Louisiana Optical Network Initiative (LONI); Louisiana State University's High-Performance Computing (LSU HPC); resources of the National Energy Research Scientific Computing Center, a U.S. Department of Energy Office of Science User Facility operated under contract No. DE-AC02-05CH11231; and by Lilly Endowment,  Inc., through its support for the Indiana University PervasiveTechnology Institute. This research was undertaken with the assistance of resources  (Gadi) from the  National  Computational  Infrastructure  (NCI  Australia), an NCRIS enabled capability supported by the Australian Government.
+
+For a updated list of previous and current funding, we refer to the corresponding [Octo-Tiger website](https://github.com/STEllAR-GROUP/octotiger#funding).
 
 
 # References
