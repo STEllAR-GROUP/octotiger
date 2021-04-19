@@ -59,11 +59,14 @@ Octo-Tiger uses a finite volume method on an octree-based adaptive mesh refineme
 
 ### The C++ standard library for parallism and concurrency
 
+Next to the astrophysic aspect, Octo-Tiger explores the usage of asynchronous many-task systems (AMT) as an alternative to the commom MPI+X approach. Here, the C++ standard library for Concurrency and Parallism (HPX) [@Kaiser2020] is used. A comperative review of HPX with  various other AMTs is available in []. Some notable AMT solutions with a focus on distributed computing are: Uintah [@germain2000uintah], Chapel [@chamberlain2007parallel],
+Charm++ [@kale1993charm], Kokkos [@edwards2014kokkos], Legion [@bauer2012legion],
+and PaRSEC [@bosilca2013parsec]. Note that we refer only distributed memory solutions, since we intend to run large scale runs to solve Octo-Tiger's multi physics on a fine resolution.  
 
 
-[@Kaiser2020] [@daiss2019piz]
+[@daiss2019piz]
 
-HPX is integrated with APEX, an auto-tuning performance library for asynchronous tasking systems.  APEX has integrated support for CUDA and Kokkos and is currently adding support for Kokkos auto-tuning, planned for the next Kokkos release.  We have successfully used HPX counters and APEX to measure the Octo-Tiger simulation on leading HPC systems[0] with very low overheads.
+HPX is integrated with APEX, an auto-tuning performance library for asynchronous tasking systems.  APEX has integrated support for CUDA and Kokkos and is currently adding support for Kokkos auto-tuning, planned for the next Kokkos release.  We have successfully used HPX counters and APEX to measure the Octo-Tiger simulation on leading HPC systems [@diehl2021performance] with very low overheads.
 
 ### Kokkos and CUDA integration
 
