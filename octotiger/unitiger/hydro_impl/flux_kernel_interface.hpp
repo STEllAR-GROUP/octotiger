@@ -71,12 +71,12 @@ CUDA_CALLABLE_METHOD inline bool skippable(const T& tmp1) {
     return !tmp1;
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T load_value(const double* __restrict__ data, const size_t index) {
+CUDA_CALLABLE_METHOD inline T load_value(const double* data, const size_t index) {
     return data[index];
 }
 template <typename T>
 CUDA_CALLABLE_METHOD inline void store_value(
-    double* __restrict__ data, const size_t index, const T& value) {
+    double* data, const size_t index, const T& value) {
     data[index] = value;
 }
 template <typename T, typename container_t>

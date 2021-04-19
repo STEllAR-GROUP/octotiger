@@ -70,12 +70,12 @@ CUDA_GLOBAL_METHOD inline bool skippable<bool>(const bool& tmp1) {
 }
 template <>
 CUDA_GLOBAL_METHOD inline double load_value<double>(
-    const double* __restrict__ data, const size_t index) {
+    const double* data, const size_t index) {
     return data[index];
 }
 template <>
 CUDA_GLOBAL_METHOD inline void store_value<double>(
-    double* __restrict__ data, const size_t index, const double& value) {
+    double* data, const size_t index, const double& value) {
     data[index] = value;
 }
 
@@ -89,7 +89,8 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
     double_t amr, apr, aml, apl;
     double_t this_ap, this_am;    // tmps
 
-    auto rho = load_value<double_t>(U, rho_i * face_offset + index);
+    //auto rho = load_value<double_t>(U, rho_i * face_offset + index);
+    auto rho = U[rho_i * face_offset + index];
     auto rhoinv = (1.) / rho;
     double_t hdeg = static_cast<double_t>(0.0), pdeg = static_cast<double_t>(0.0),
              edeg = static_cast<double_t>(0.0), dpdeg_drho = static_cast<double_t>(0.0);
@@ -115,29 +116,29 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
     double_t ek = 0.0;
     double_t ein;
     for (int dim = 0; dim < NDIM; dim++) {
-        ek += load_value<double_t>(U, (sx_i + dim) * face_offset + index) *
-            load_value<double_t>(U, (sx_i + dim) * face_offset + index) * rhoinv * 0.5;
+        ek += U[(sx_i + dim) * face_offset + index] *
+            U[(sx_i + dim) * face_offset + index] * rhoinv * 0.5;
     }
-    const auto ein1_tmp2 = load_value<double_t>(U, egas_i * face_offset + index) - ek - edeg;
+    const auto ein1_tmp2 = U[egas_i * face_offset + index] - ek - edeg;
     const auto ein1_mask =
-        (ein1_tmp2 < (de_switch_1 * load_value<double_t>(U, egas_i * face_offset + index)));
+        (ein1_tmp2 < (de_switch_1 * U[egas_i * face_offset + index]));
     if (!skippable(ein1_mask)) {
         const auto ein1_tmp1 =
-            pow_wrapper(load_value<double_t>(U, tau_i * face_offset + index), fgamma);
+            pow_wrapper(U[tau_i * face_offset + index], fgamma);
         select_wrapper(ein, ein1_mask, ein1_tmp1, ein1_tmp2);
     } else {
         ein = ein1_tmp2;
     }
     const auto dp_drho = dpdeg_drho + (fgamma - 1.0) * ein * rhoinv;
     const auto dp_deps = (fgamma - 1.0) * rho;
-    const auto v0 = load_value<double_t>(U, (sx_i + dim) * face_offset + index) * rhoinv;
+    const auto v0 = U[(sx_i + dim) * face_offset + index] * rhoinv;
     const auto p = (fgamma - 1.0) * ein + pdeg;
     const auto c = sqrt_wrapper(p * rhoinv * rhoinv * dp_deps + dp_drho);
     const auto v = v0 - vg[dim];
     amr = v - c;
     apr = v + c;
 
-    rho = load_value<double_t>(U, rho_i * face_offset + flipped_index);
+    rho = U[rho_i * face_offset + flipped_index];
     rhoinv = (1.) / rho;
     hdeg = static_cast<double_t>(0.0);
     pdeg = static_cast<double_t>(0.0);
@@ -162,23 +163,23 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
     }
     ek = 0.0;
     for (int dim = 0; dim < NDIM; dim++) {
-        ek += load_value<double_t>(U, (sx_i + dim) * face_offset + flipped_index) *
-            load_value<double_t>(U, (sx_i + dim) * face_offset + flipped_index) * rhoinv * 0.5;
+        ek += U[(sx_i + dim) * face_offset + flipped_index] *
+            U[(sx_i + dim) * face_offset + flipped_index] * rhoinv * 0.5;
     }
     const auto ein2_tmp2 =
-        load_value<double_t>(U, egas_i * face_offset + flipped_index) - ek - edeg;
+        U[egas_i * face_offset + flipped_index] - ek - edeg;
     const auto ein2_mask =
-        (ein2_tmp2 < (de_switch_1 * load_value<double_t>(U, egas_i * face_offset + flipped_index)));
+        (ein2_tmp2 < (de_switch_1 * U[egas_i * face_offset + flipped_index]));
     if (!skippable(ein2_mask)) {
         const auto ein2_tmp1 =
-            pow_wrapper(load_value<double_t>(U, tau_i * face_offset + flipped_index), fgamma);
+            pow_wrapper(U[tau_i * face_offset + flipped_index], fgamma);
         select_wrapper(ein, ein2_mask, ein2_tmp1, ein2_tmp2);
     } else {
         ein = ein2_tmp2;
     }
     const auto dp_drho2 = dpdeg_drho + (fgamma - 1.0) * ein * rhoinv;
     const auto dp_deps2 = (fgamma - 1.0) * rho;
-    const auto v02 = load_value<double_t>(U, (sx_i + dim) * face_offset + flipped_index) * rhoinv;
+    const auto v02 = U[(sx_i + dim) * face_offset + flipped_index] * rhoinv;
     const auto p2 = (fgamma - 1.0) * ein + pdeg;
     const auto c2 = sqrt_wrapper(p2 * rhoinv * rhoinv * dp_deps2 + dp_drho2);
     const auto v2 = v02 - vg[dim];
@@ -189,8 +190,8 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
     this_am = min_wrapper(min_wrapper(amr, aml), double_t(0.0));
     const auto amp_mask = (this_ap - this_am == 0.0);
     for (int f = 0; f < nf_; f++) {
-        double_t fr = v * load_value<double_t>(U, f * face_offset + index);
-        double_t fl = v2 * load_value<double_t>(U, f * face_offset + flipped_index);
+        double_t fr = v * U[f * face_offset + index];
+        double_t fl = v2 * U[f * face_offset + flipped_index];
 
         if (f == sx_i + dim) {
             fr += p;
@@ -235,16 +236,16 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
             const double_t flux_tmp1 =
                 (this_ap * fl - this_am * fr +
                     this_ap * this_am *
-                        (load_value<double_t>(U, f * face_offset + index) -
-                            load_value<double_t>(U, f * face_offset + flipped_index))) /
+                        (U[f * face_offset + index] -
+                            U[f * face_offset + flipped_index])) /
                 (this_ap - this_am);
             const double_t flux_tmp2 = (fl + fr) / 2.0;
             select_wrapper(this_flux[f], amp_mask, flux_tmp2, flux_tmp1);
         } else {
             this_flux[f] = (this_ap * fl - this_am * fr +
                                this_ap * this_am *
-                                   (load_value<double_t>(U, f * face_offset + index) -
-                                       load_value<double_t>(U, f * face_offset + flipped_index))) /
+                                   (U[f * face_offset + index] -
+                                       U[f * face_offset + flipped_index])) /
                 (this_ap - this_am);
         }
     }
