@@ -9,28 +9,43 @@ tags:
 authors:
   - name: Dominic
     orcid: 0000-0003-0872-7098
-    affiliation: "1, 2" # (Multiple affiliations must be quoted)
-  - name: Gregor
+    affiliation: "1, 2" 
+  - name: Gregor Dai{\ss}
+    affiliation: 6
+  - name: Patrick Diehl
+    orcid: 0000-0003-3922-8419
     affiliation: 2
-  - name: Patrick
+  - name: Sagiv Shiber
+    orcid: 0000-0001-6107-0887
+    affiliation: 1
+  - name: Parsa Armini
     affiliation: 2
   - name: Geoff C. Clayton
-    affiliation: 2
+    orcid: 0000-0002-0141-7436
+    affiliation: 1
   - name: Juhan Frank
-    affiliation: 2
+    affiliation: 1
   - name: Kevin Huck
-    affiliation: 2
+    orcid: 0000-0001-7064-8417
+    affiliation: 3
   - name: Hartmut Kaiser
+    orcid: 0000-0002-8712-2806
     affiliation: 2
   - name: Orsola De Marco
-    affiliation: 2
-  - name: Sagiv
-    affiliation: 2
+    affiliation: "4, 5"
 affiliations:
- - name: Lyman Spitzer, Jr. Fellow, Princeton University
+ - name: Department of Physics & Astronomy, Louisiana State University, Baton Rouge, LA, United States of America
    index: 1
- - name: Institution 2
+ - name: Center of Computation and Technology, Louisiana State University, Baton Rouge, LA, United States of America
    index: 2
+ - name: OACISS, University of Oregon, Eugene, OR, United States of America
+   index: 3
+ - name: Department of Physics and Astronomy, Macquarie University, Sydney, NSW 2109, Australia
+   index: 4
+ - name: Astronomy, Astrophysics and Astrophotonics Research Centre, Macquarie University, Sydney, NSW 2109, Australia
+   index: 5
+ - name: IPVS, University of Stuttgart, Stuttgart, Germany
+   index: 6
 date: 13 August 2017
 bibliography: paper.bib
 ---
@@ -40,7 +55,9 @@ bibliography: paper.bib
 
 ## Implementation details
 
-### HPX
+### The C++ standard library for parallism and concurrency
+
+
 
 [@Kaiser2020] [@daiss2019piz]
 
@@ -68,4 +85,3 @@ This work was supported by National Science Foundation Award 1814967. The numeri
 
 # References
 
-[0] Diehl, Patrick, et al. "Performance Measurements within Asynchronous Task-based Runtime Systems: A Double White Dwarf Merger as an Application." arXiv preprint arXiv:2102.00223 (2021).
