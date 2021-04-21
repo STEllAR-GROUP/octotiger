@@ -42,49 +42,49 @@ void launch_flux_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda
 
 // helpers for using vectortype specialization functions
 template <typename double_t, typename cond_t>
-CUDA_CALLABLE_METHOD inline void select_wrapper(
+CUDA_GLOBAL_METHOD inline void select_wrapper(
     double_t& target, const cond_t cond, const double_t& tmp1, const double_t& tmp2) {
     target = cond ? tmp1 : tmp2;
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T max_wrapper(const T& tmp1, const T& tmp2) {
+CUDA_GLOBAL_METHOD inline T max_wrapper(const T& tmp1, const T& tmp2) {
     return max(tmp1, tmp2);
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T min_wrapper(const T& tmp1, const T& tmp2) {
+CUDA_GLOBAL_METHOD inline T min_wrapper(const T& tmp1, const T& tmp2) {
     return min(tmp1, tmp2);
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T sqrt_wrapper(const T& tmp1) {
+CUDA_GLOBAL_METHOD inline T sqrt_wrapper(const T& tmp1) {
     return std::sqrt(tmp1);
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T pow_wrapper(const T& tmp1, const double& tmp2) {
+CUDA_GLOBAL_METHOD inline T pow_wrapper(const T& tmp1, const double& tmp2) {
     return std::pow(tmp1, tmp2);
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T asin_wrapper(const T& tmp1) {
+CUDA_GLOBAL_METHOD inline T asin_wrapper(const T& tmp1) {
     return std::asin(tmp1);
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline bool skippable(const T& tmp1) {
+CUDA_GLOBAL_METHOD inline bool skippable(const T& tmp1) {
     return !tmp1;
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T load_value(const double* data, const size_t index) {
+CUDA_GLOBAL_METHOD inline T load_value(const double* data, const size_t index) {
     return data[index];
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline void store_value(
+CUDA_GLOBAL_METHOD inline void store_value(
     double* data, const size_t index, const T& value) {
     data[index] = value;
 }
 template <typename T, typename container_t>
-CUDA_CALLABLE_METHOD inline T load_value(const container_t &data, const size_t index) {
+CUDA_GLOBAL_METHOD inline T load_value(const container_t &data, const size_t index) {
     return data[index];
 }
 template <typename T, typename container_t>
-CUDA_CALLABLE_METHOD inline void store_value(
+CUDA_GLOBAL_METHOD inline void store_value(
     container_t &data, const size_t index, const T& value) {
     data[index] = value;
 }
@@ -95,7 +95,7 @@ boost::container::vector<bool> create_masks();
 #pragma GCC optimize("unroll-loops")
 
 template <typename double_t>
-CUDA_CALLABLE_METHOD inline double_t inner_flux_loop(const double omega, const size_t nf_,
+CUDA_GLOBAL_METHOD inline double_t inner_flux_loop(const double omega, const size_t nf_,
     const double A_, const double B_, const double_t* __restrict__ UR,
     const double_t* __restrict__ UL, double_t* __restrict__ this_flux,
     const double_t* __restrict__ x, const double_t* __restrict__ vg, double_t& ap, double_t& am,
@@ -258,7 +258,7 @@ CUDA_CALLABLE_METHOD inline double_t inner_flux_loop(const double omega, const s
 }
 
 /*template <typename double_t>
-CUDA_CALLABLE_METHOD inline double_t inner_flux_loop2(const double omega, const size_t nf_,
+CUDA_GLOBAL_METHOD inline double_t inner_flux_loop2(const double omega, const size_t nf_,
     const double A_, const double B_, const double* __restrict__ U,
     double_t* __restrict__ this_flux, const double_t* __restrict__ x,
     const double_t* __restrict__ vg, double_t& ap, double_t& am, const size_t dim, const size_t d,

@@ -46,11 +46,11 @@ CUDA_GLOBAL_METHOD inline void select_wrapper<double, bool>(
 }
 template <>
 CUDA_GLOBAL_METHOD inline double max_wrapper<double>(const double& tmp1, const double& tmp2) {
-    return max(tmp1, tmp2);
+    return std::max(tmp1, tmp2);
 }
 template <>
 CUDA_GLOBAL_METHOD inline double min_wrapper<double>(const double& tmp1, const double& tmp2) {
-    return min(tmp1, tmp2);
+    return std::min(tmp1, tmp2);
 }
 template <>
 CUDA_GLOBAL_METHOD inline double sqrt_wrapper<double>(const double& tmp1) {

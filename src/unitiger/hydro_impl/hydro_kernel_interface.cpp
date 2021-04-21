@@ -1,10 +1,7 @@
+#include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #ifdef OCTOTIGER_HAVE_KOKKOS
 #include <hpx/kokkos.hpp>
 #include "octotiger/unitiger/hydro_impl/hydro_kokkos_kernel.hpp"
-#endif
-
-#ifdef OCTOTIGER_HAVE_CUDA
-#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
 #endif
 
 #if defined(OCTOTIGER_HAVE_KOKKOS)

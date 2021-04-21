@@ -195,6 +195,7 @@ set(source_files
     src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp 
 
     src/unitiger/hydro_impl/hydro_kernel_interface.cpp
+    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
 )
 
 # Octo-Tiger library headers
@@ -310,7 +311,6 @@ set(hydro_header_files
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
     octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp #TODO remove this file
-    octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp
     octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp)
 
 set(hydro_source_files
@@ -430,6 +430,7 @@ if(OCTOTIGER_WITH_KOKKOS)
     #misc
     src/cuda_util/cuda_scheduler.cpp
     src/unitiger/hydro_impl/flux_kernel_interface.cpp
+    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
     src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
   )
   set(host_only_header_files

@@ -84,8 +84,13 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                 team_handle.team_rank();    // threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
             const int index = (team_handle.league_rank() % blocks_per_dim) * team_size + tid +
                 104;    //  blockIdx.y * 128 + tid + 104;
+            const int block_id =
+                (team_handle.league_rank() % blocks_per_dim) + dim * blocks_per_dim;
             for (int f = 0; f < nf; f++) {
                 f_combined[dim * nf * 1000 + f * 1000 + index] = 0.0;
+            }
+            if (tid == 0) {
+                amax[block_id] = 0.0;
             }
             if (index < 1000) {
                 double mask = masks[index + dim * dim_offset];
@@ -122,8 +127,6 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                     f_combined[dim * nf * 1000 + index] +=
                         f_combined[dim * nf * 1000 + f * 1000 + index];
                 }
-                    const int block_id =
-                        (team_handle.league_rank() % blocks_per_dim) + dim * blocks_per_dim;
                 // Parallel maximum search within workgroup
                 if (team_handle.team_size() == 128) {
                     Kokkos::View<double*,

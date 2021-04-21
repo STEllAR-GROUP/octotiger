@@ -6,105 +6,11 @@
 #include <stream_manager.hpp>
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/options.hpp"
-#include <hpx/apply.hpp>
-#include <hpx/synchronization/once.hpp>
 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for xloc definition
 
-hpx::lcos::local::once_flag flag1;
-
-__host__ void init_gpu_masks(bool *masks) {
-  boost::container::vector<bool> masks_boost(NDIM * 10 * 10 * 10);
-  fill_masks(masks_boost);
-  cudaMemcpy(masks, masks_boost.data(), NDIM * 1000 * sizeof(bool), cudaMemcpyHostToDevice);
-}
-
-__host__ const bool* get_gpu_masks(void) {
-    // TODO Create class to handle these read-only, created-once GPU buffers for masks. This is a reoccuring problem
-    static bool *masks = recycler::recycle_allocator_cuda_device<bool>{}.allocate(NDIM * 1000);
-    hpx::lcos::local::call_once(flag1, init_gpu_masks, masks);
-    return masks;
-}
-
-timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-    double* device_q,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x,
-    safe_real omega, const size_t nf_, double dx, size_t device_id) {
-    timestep_t ts;
-
-    const cell_geometry<3, 8> geo;
-
-    recycler::cuda_device_buffer<double> device_f(NDIM * nf_ * 1000 + 32, device_id);
-    const bool *masks = get_gpu_masks();
-
-    recycler::cuda_device_buffer<double> device_amax(7 * NDIM * (1 + 2 * nf_));
-    recycler::cuda_device_buffer<int> device_amax_indices(7 * NDIM);
-    recycler::cuda_device_buffer<int> device_amax_d(7 * NDIM);
-    double A_ = physics<NDIM>::A_;
-    double B_ = physics<NDIM>::B_;
-    double fgamma = physics<NDIM>::fgamma_;
-    double de_switch_1 = physics<NDIM>::de_switch_1;
-    int nf_local = physics<NDIM>::nf_;
-
-    dim3 const grid_spec(1, 7, 3);
-    dim3 const threads_per_block(2, 8, 8);
-    void* args[] = {&(device_q),
-      &(device_x), &(device_f.device_side_buffer), &(device_amax.device_side_buffer),
-      &(device_amax_indices.device_side_buffer), &(device_amax_d.device_side_buffer),
-      &masks, &omega, &dx, &A_, &B_, &nf_local, &fgamma, &de_switch_1};
-    launch_flux_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
-
-    // Move data to host
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(7 * NDIM * (1 + 2 * nf_));
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_indices(7 * NDIM);
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_d(7 * NDIM);
-    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-               cudaMemcpyAsync, amax.data(),
-               device_amax.device_side_buffer, (7 * NDIM * (1 + 2 * nf_)) * sizeof(double),
-               cudaMemcpyDeviceToHost);
-    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-               cudaMemcpyAsync, amax_indices.data(),
-               device_amax_indices.device_side_buffer, 7 * NDIM * sizeof(int),
-               cudaMemcpyDeviceToHost);
-    hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-               cudaMemcpyAsync, amax_d.data(),
-               device_amax_d.device_side_buffer, 7 * NDIM * sizeof(int),
-               cudaMemcpyDeviceToHost);
-    auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
-               cudaMemcpyAsync, combined_f.data(), device_f.device_side_buffer,
-               (NDIM * nf_ * 1000 + 32) * sizeof(double), cudaMemcpyDeviceToHost);
-    fut.get();
-
-    // Find Maximum
-    size_t current_dim = 0;
-    for (size_t dim_i = 1; dim_i < 7 * NDIM; dim_i++) {
-      if (amax[dim_i] > amax[current_dim]) { 
-        current_dim = dim_i;
-      }
-    }
-    std::vector<double> URs(nf_), ULs(nf_);
-    const size_t current_max_index = amax_indices[current_dim];
-    const size_t current_d = amax_d[current_dim];
-    ts.a = amax[current_dim];
-    ts.x = combined_x[current_max_index];
-    ts.y = combined_x[current_max_index + 1000];
-    ts.z = combined_x[current_max_index + 2000];
-    const size_t current_i = current_dim;
-    current_dim = current_dim / 7;
-    const auto flipped_dim = geo.flip_dim(current_d, current_dim);
-    constexpr int compressedH_DN[3] = {100, 10, 1};
-    for (int f = 0; f < nf_; f++) {
-        URs[f] = amax[21 + current_i * 2 * nf_ + f];
-        ULs[f] = amax[21 + current_i * 2 * nf_ + nf_ + f];
-    }
-    ts.ul = std::move(ULs);
-    ts.ur = std::move(URs);
-    ts.dim = current_dim;
-    return ts;
-}
 
 __global__ void __launch_bounds__(128, 2)
     flux_cuda_kernel(const double* __restrict__ q_combined, const double* __restrict__ x_combined,

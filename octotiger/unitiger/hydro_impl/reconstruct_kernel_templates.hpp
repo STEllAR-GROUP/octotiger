@@ -104,7 +104,7 @@ CUDA_GLOBAL_METHOD inline T abs_wrapper_cuda(const T& tmp1) {
 template <typename T>
 CUDA_GLOBAL_METHOD inline T minmod_wrapper_cuda(const T& a, const T& b) {
     return (copysign_wrapper_cuda<T>(0.5, a) + copysign_wrapper_cuda<T>(0.5, b)) *
-        min(abs_wrapper_cuda<T>(a), abs_wrapper_cuda<T>(b));
+        std::min(abs_wrapper_cuda<T>(a), abs_wrapper_cuda<T>(b));
 }
 template <typename T>
 CUDA_GLOBAL_METHOD inline T minmod_theta_wrapper_cuda(const T& a, const T& b, const T& c) {
