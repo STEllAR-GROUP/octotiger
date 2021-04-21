@@ -310,7 +310,6 @@ set(hydro_header_files
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
-    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp #TODO remove this file
     octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp)
 
 set(hydro_source_files
