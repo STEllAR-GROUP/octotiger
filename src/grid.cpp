@@ -1626,7 +1626,9 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 }
 
 analytic_t grid::compute_analytic(real t) {
+	
 	analytic_t a;
+	return a;
 	if (opts().hydro) {
 		a = analytic_t(opts().n_fields);
 	} else {
