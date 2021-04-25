@@ -1,5 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
+from __future__ import print_function
 import matplotlib.pyplot as plt
 import re
 import os
@@ -22,7 +23,7 @@ parser.add_option("-c", "--compiler",
 (options, args) = parser.parse_args()
 
 if options.display == None and options.write_files == None:
-    print "no options set, nothing to do, (see \"--help\")"
+    print("no options set, nothing to do, (see \"--help\")")
     exit()
 
 # font = {'family' : 'normal',
@@ -40,7 +41,7 @@ if options.compiler == "gnu":
 elif options.compiler == "intel":
     compiler_suffix = "-intel"
 else:
-    exit("error: invalid compiler specified");
+    exit("error: invalid compiler specified")
 
 result_dir = result_dir + compiler_suffix + "/"
 
@@ -57,11 +58,11 @@ for subdir, dirs, files in os.walk(result_dir):
 
             memory_type = match.group(4)
 
-            # print "file:", f, "l:", level, "memory_type: ", memory_type, "nodes:", nodes, "threads:", threads
+            # print("file:", f, "l:", level, "memory_type: ", memory_type, "nodes:", nodes, "threads:", threads)
             result_file = open(result_dir + f, "r")
             result_text = result_file.read()
             result_file.close()
-            # print result_text
+            # print(result_text)
             total_time = 0
             computation = 0
             regrid = 0
@@ -79,7 +80,7 @@ for subdir, dirs, files in os.walk(result_dir):
             result_match = re.search(r"Find Localities: (.+?)\n", result_text)
             if result_match:
                 find_localities = result_match.group(1)
-            # print "total_time:", total_time, "computation:", computation, "regrid:", regrid, "find_localities:", find_localities
+            # print("total_time:", total_time, "computation:", computation, "regrid:", regrid, "find_localities:", find_localities)
 
             if not memory_type in performance_tuples:
                 performance_tuples[memory_type] = {}
@@ -88,7 +89,7 @@ for subdir, dirs, files in os.walk(result_dir):
             performance_tuples[memory_type][level].append([int(threads), float(total_time)])
 
         else:
-            print "warning: file ignored \"" + f + "\""
+            print("warning: file ignored \"" + f + "\"")
 
 fig = plt.figure(figsize=(12,8))
 ax = fig.add_subplot(111)
@@ -98,7 +99,7 @@ for memory_type in performance_tuples.keys():
     for level in performance_tuples[memory_type].keys():
 
         tuples = sorted(performance_tuples[memory_type][level], key=lambda x: x[0])
-        # print tuples
+        # print(tuples)
 
         x_list = []
         y_list = []
@@ -129,7 +130,7 @@ for memory_type in performance_tuples.keys():
     for level in performance_tuples[memory_type].keys():
 
         tuples = sorted(performance_tuples[memory_type][level], key=lambda x: x[0])
-        # print tuples
+        # print(tuples)
 
         x_list = []
         y_list = []
