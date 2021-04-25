@@ -1,5 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
+from __future__ import print_function
 import matplotlib.pyplot as plt
 import re
 import os
@@ -13,11 +14,11 @@ for subdir, dirs, files in os.walk('results'):
             level = match.group(1)
             memory_type = match.group(2)
             nodes = match.group(3)
-            print "file:", f, "l:", level, "memory_type: ", memory_type, "nodes:", nodes
+            print("file:", f, "l:", level, "memory_type: ", memory_type, "nodes:", nodes)
             result_file = open('results/' + f, "r")
             result_text = result_file.read()
             result_file.close()
-            # print result_text
+            # print(result_text)
             total_time = 0
             computation = 0
             regrid = 0
@@ -35,15 +36,15 @@ for subdir, dirs, files in os.walk('results'):
             result_match = re.search(r"Find Localities: (.+?)\n", result_text)
             if result_match:
                 find_localities = result_match.group(1)
-            print "total_time:", total_time, "computation:", computation, "regrid:", regrid, "find_localities:", find_localities
+            print("total_time:", total_time, "computation:", computation, "regrid:", regrid, "find_localities:", find_localities)
 
             performance_tuples.append([int(nodes), float(total_time)])
 
         else:
-            print "warning: file ignored \"" + f + "\""
+            print("warning: file ignored \"" + f + "\"")
 
 performance_tuples = sorted(performance_tuples, key=lambda x: x[0])
-print performance_tuples
+print(performance_tuples)
 
 x_list = []
 y_list = []
