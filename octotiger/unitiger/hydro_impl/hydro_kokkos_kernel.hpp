@@ -4,24 +4,9 @@
 #include "octotiger/common_kernel/kokkos_util.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"    // required for wrappers
 
-// TODO Ugly workaround - remove this as soon as kokkos simd_t replaces previous wrappers
-/*template <>
-CUDA_GLOBAL_METHOD inline double load_value<double, const host_buffer<double>>(
-    const host_buffer<double>& data, const size_t index) {
-    return data[index];
-}
-template <>
-CUDA_GLOBAL_METHOD inline void store_value<double, host_buffer<double>>(
-    host_buffer<double>& data, const size_t index, const double& value) {
-    data[index] = value;
-}*/
-
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
-//#include "octotiger/grid.hpp"
-//#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
-//#include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 
 template <typename storage>
 const storage& get_flux_host_masks() {
@@ -86,6 +71,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                 104;    //  blockIdx.y * 128 + tid + 104;
             const int block_id =
                 (team_handle.league_rank() % blocks_per_dim) + dim * blocks_per_dim;
+            // printf("%i %i -- ",team_handle.league_rank(), team_handle.team_rank() );
             for (int f = 0; f < nf; f++) {
                 f_combined[dim * nf * 1000 + f * 1000 + index] = 0.0;
             }
@@ -176,6 +162,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                         amax_indices[block_id] = index;
                         amax_d[block_id] = current_d;
                     }
+                    // printf("%f -- ", amax[block_id]);
 
                     // Save face to the end of the amax buffer
                     // This avoids putting combined_q back on the host side just to read

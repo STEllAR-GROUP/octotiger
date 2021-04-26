@@ -3,16 +3,6 @@
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
 
-// __device__ inline void reconstruct_minmod_cuda(double* __restrict__ combined_q,
-//     const double* __restrict__ combined_u_face, int d, int f, int i, int q_i) {
-//     const auto di = dir[d];
-//     const int start_index = f * q_face_offset + d * q_dir_offset;
-//     combined_q[q_i + start_index] = combined_u_face[i] +
-//         0.5 *
-//             minmod_cuda(combined_u_face[i + di] - combined_u_face[i],
-//                 combined_u_face[i] - combined_u_face[i - di]);
-// }
-
 __global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel_no_amc(const double omega,
     const int nf_, const int angmom_index_, int* __restrict__ smooth_field_,
     int* __restrict__ disc_detect_, double* __restrict__ combined_q,

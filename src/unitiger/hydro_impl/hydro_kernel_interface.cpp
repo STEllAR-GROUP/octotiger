@@ -40,8 +40,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 cuda_buffer_capacity);
             if (avail) {
                 executor_interface_t executor;
-                
-                // TODO Device Kokkos Implementation (stub)
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
                     hydro, U, X, omega, opts().n_species, executor, F);
                 return max_lambda;
@@ -78,7 +76,8 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     if (!avail) {
         if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
-            host_executor executor(hpx::kokkos::execution_space_mode::independent);
+            // host_executor executor(hpx::kokkos::execution_space_mode::independent);
+            host_executor executor{};
             max_lambda = launch_hydro_kokkos_kernels<host_executor>(
                 hydro, U, X, omega, opts().n_species, executor, F);
             return max_lambda;
@@ -101,7 +100,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Slightly more efficient conversion
             for (int dim = 0; dim < NDIM; dim++) {
                 for (integer field = 0; field != opts().n_fields; ++field) {
-#pragma GCC ivdep
                     for (integer i = 0; i <= INX; ++i) {
                         for (integer j = 0; j <= INX; ++j) {
                             for (integer k = 0; k <= INX; ++k) {
@@ -131,7 +129,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             // Use legacy conversion
             for (int dim = 0; dim < NDIM; dim++) {
                 for (integer field = 0; field != opts().n_fields; ++field) {
-#pragma GCC ivdep
                     for (integer i = 0; i <= INX; ++i) {
                         for (integer j = 0; j <= INX; ++j) {
                             for (integer k = 0; k <= INX; ++k) {
