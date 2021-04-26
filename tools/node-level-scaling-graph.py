@@ -125,7 +125,7 @@ plt.close()
 fig = plt.figure(figsize=(12,8))
 ax = fig.add_subplot(111)
 
-# parallel efficieny (time compared to 1 thread)
+# parallel efficiency (time compared to 1 thread)
 for memory_type in performance_tuples.keys():
     for level in performance_tuples[memory_type].keys():
 
