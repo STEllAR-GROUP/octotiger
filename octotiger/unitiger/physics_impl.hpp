@@ -63,7 +63,7 @@ void physics<NDIM>::to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v
 	p = (fgamma_ - 1.0) * ein + pdeg;
 	const auto z = p * rhoinv * rhoinv * dp_deps + dp_drho;
 	if( z < 0.0 ) {
-		printf( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
+		print( "%e %e %e %e %e %e %e %e %e\n", p, rhoinv, dpdeg_drho, dp_deps, ein, dp_drho, u[tau_i], ek, edeg);
 	}
 	cs = SQRT(z);
 }
@@ -369,7 +369,7 @@ const std::vector<std::vector<safe_real>>& physics<NDIM>::find_contact_discs(con
 				}
 				auto ein = U[egas_i][i] - ek - edeg;
 				if (ein < de_switch_1 * U[egas_i][i]) {
-					//	printf( "%e\n", U[tau_i][i]);
+					//	print( "%e\n", U[tau_i][i]);
 					ein = pow(U[tau_i][i], fgamma_);
 				}
 				P[i] = (fgamma_ - 1.0) * ein + pdeg;
@@ -488,7 +488,7 @@ void physics<NDIM>::post_recon(std::vector<std::vector<std::vector<safe_real>>> 
 							Q[spc_i + si][d][i] *= rho;
 						}
 						if (w <= 0.0) {
-							printf("NO SPECIES %i\n", i);
+							print("NO SPECIES %i\n", i);
 							abort();
 						}
 						w = 1.0 / w;

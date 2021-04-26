@@ -8,6 +8,7 @@
 
 #include "octotiger/test_problems/blast.hpp"
 
+#include "octotiger/print.hpp"
 #include <algorithm>
 #include <functional>
 #include <memory>

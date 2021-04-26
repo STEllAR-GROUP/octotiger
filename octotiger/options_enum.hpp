@@ -8,6 +8,8 @@
 
 #include <boost/algorithm/string.hpp>
 
+#include "octotiger/print.hpp"
+
 #include <cstddef>
 #include <iostream>
 #include <istream>
@@ -52,7 +54,7 @@
             std::vector<enum_name>(std::begin(enums), std::end(enums)).size(); \
         if (sz1 != strings.size())                                             \
         {                                                                      \
-            printf("Different sizes %i %i\n", int(sz1), int(strings.size()));  \
+            print("Different sizes %i %i\n", int(sz1), int(strings.size()));  \
         }                                                                      \
         std::string rc;                                                        \
         for (std::size_t i = 0; i < strings.size(); i++)                       \

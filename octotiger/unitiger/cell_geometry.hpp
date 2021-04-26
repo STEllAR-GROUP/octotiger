@@ -9,6 +9,7 @@
 #include <mutex>
 
 #include "octotiger/unitiger/util.hpp"
+#include "octotiger/print.hpp"
 
 template<int NDIM, int INX>
 struct cell_geometry {
@@ -189,7 +190,7 @@ private:
 					sum += H_DN[1] * j;
 					sum += H_DN[2] * k;
 					if (directions[2][index] != sum) {
-						printf("directions failed verification at %i %i %i\n", i, j, k);
+						print("directions failed verification at %i %i %i\n", i, j, k);
 						abort();
 					}
 					bool cond = false;
@@ -197,11 +198,11 @@ private:
 					cond = cond || (face_locs[2][index][1] != j);
 					cond = cond || (face_locs[2][index][2] != k);
 					if (cond) {
-						printf("xlocs failed verification at %i %i %i %i\n", index, i, j, k);
+						print("xlocs failed verification at %i %i %i %i\n", index, i, j, k);
 						for (int dim = 0; dim < NDIM; dim++) {
-							printf("%i ", face_locs[2][index][dim]);
+							print("%i ", face_locs[2][index][dim]);
 						}
-						printf("\n");
+						print("\n");
 						abort();
 					}
 				}
@@ -255,10 +256,10 @@ private:
 			}
 		}
 		if (fail) {
-			printf("Corners/edges indexes failed\n");
+			print("Corners/edges indexes failed\n");
 			abort();
 		}
-//		printf("3D geometry constdefs passed verification\n");
+//		print("3D geometry constdefs passed verification\n");
 	}
 
 public:
@@ -266,7 +267,7 @@ public:
 	cell_geometry() {
 		static std::once_flag flag;
 		std::call_once(flag, []() {
-			printf( "Initializing cell_geometry %i %i %i\n", NDIM, INX, cell_geometry::H_NX);
+			print( "Initializing cell_geometry %i %i %i\n", NDIM, INX, cell_geometry::H_NX);
 			verify_3d_constdefs();
 			for (int bw = 1; bw <= H_BW; bw++) {
 				for (int d = 0; d < NDIR; d++) {

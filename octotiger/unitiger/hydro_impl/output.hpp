@@ -142,7 +142,7 @@ int hydro_computer<NDIM, INX, PHYS>::compareQ(const hydro::recon_type<NDIM> &Q, 
                                 {
                                         if (std::abs(Q[f][i][j] - dline[j])/(1e-12+dline[j]+Q[f][i][j]) > 1e-12)
                                         {
-                                                printf("differnt Q values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
+                                                print("differnt Q values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
                                                                 f, nf_, i, geo::H_NX, j, geo::NDIR, dline[j], double(Q[f][i][j]));
                                                 fclose(fp);
                                                 return 0;
@@ -176,7 +176,7 @@ int hydro_computer<NDIM, INX, PHYS>::compareF(const hydro::flux_type &Fl, int nu
                                 {
                                         if (std::abs(Fl[i][f][j] - dline[j])/(1e-12+dline[j]+Fl[i][f][j]) > 1e-12)
                                         {
-                                                 printf("differnt F values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
+                                                 print("differnt F values in: (%d of %d), (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
                                                                 i, NDIM, f, nf_, j, geo::H_N3, dline[j], double(Fl[i][f][j]));
                                                 fclose(fp);
                                                 return 0;
@@ -209,7 +209,7 @@ int hydro_computer<NDIM, INX, PHYS>::compareU(const hydro::state_type &U, int nu
                         {
                                 if (std::abs(U[f][i] - dline[i])/(1e-12+U[f][i]+dline[i]) > 1e-12)
                                 {
-                                        printf("differnt U values in: (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
+                                        print("differnt U values in: (%d of %d), (%d of %d). The values are (old, new): %f, %f\n",
                                                                 f, nf_, i, geo::H_NX, dline[i], double(U[f][i]));
                                         fclose(fp);
                                         return 0;
