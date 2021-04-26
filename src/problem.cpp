@@ -381,10 +381,7 @@ std::vector<real> star(real x, real y, real z, real) {
 		}
 //		u[rho_i] = std::max(rho_c * std::pow(theta, n), rho_out);
 		u[spc_i] = u[rho_i];
-		u[egas_i] = std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0 * n;
-		if (theta <= theta_min) {
-			u[egas_i] *= real(100);
-		}
+		u[egas_i] = std::max(opts().star_egas_out, std::pow(rho_c * std::pow(theta, n), (real(1) + real(1)/n)) * c0 * n);
 		u[tau_i] = std::pow(u[egas_i], (n / (real(1) + n)));
 
 		/*		const real r = std::sqrt(x * x + y * y + z * z);

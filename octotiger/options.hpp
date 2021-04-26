@@ -110,6 +110,7 @@ public:
 	real star_rmax;
 	real star_alpha;
 	real star_rho_out;
+	real star_egas_out;
 	real star_dr;
 	real star_n;
 	real star_rho_center;
@@ -175,6 +176,7 @@ public:
 		arc & star_n;
 		arc & star_rho_center;
 		arc & star_rho_out;
+		arc & star_egas_out;
 		arc & moving_star_xvelocity;
 		arc & moving_star_yvelocity;
 		arc & moving_star_zvelocity;
