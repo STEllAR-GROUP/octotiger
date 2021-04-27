@@ -251,7 +251,7 @@ void find_contact_discs_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             executor.instance(), {0, 0, 0}, {10, 10, 10}, tiling_config_phase2),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
     Kokkos::parallel_for(
-        "kernel find contact discs 2", policy_phase_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+        "kernel find contact discs 2", policy_phase_2, KOKKOS_LAMBDA(int idx, int idy, int idz) {
             cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, idx, idy, idz);
         });
 }
@@ -312,24 +312,24 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     // TODO create Maximum method
 
     // Find Maximum
-    size_t current_dim = 0;
+    size_t current_max_slot = 0;
     for (size_t dim_i = 1; dim_i < 7 * NDIM; dim_i++) {
-        if (host_amax[dim_i] > host_amax[current_dim]) {
-            current_dim = dim_i;
+        if (host_amax[dim_i] > host_amax[current_max_slot]) {
+            current_max_slot = dim_i;
         }
     }
 
     // Create & Return timestep_t type
     std::vector<double> URs(nf), ULs(nf);
-    const size_t current_max_index = host_amax_indices[current_dim];
-    const size_t current_d = host_amax_d[current_dim];
+    const size_t current_max_index = host_amax_indices[current_max_slot];
+    const size_t current_d = host_amax_d[current_max_slot];
     timestep_t ts;
-    ts.a = host_amax[current_dim];
+    ts.a = host_amax[current_max_slot];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + 1000];
     ts.z = combined_x[current_max_index + 2000];
-    const size_t current_i = current_dim;
-    current_dim = current_dim / 7;
+    const size_t current_i = current_max_slot;
+    const size_t current_dim = current_max_slot / 7;
     // TODO is this flip_dim call correct?
     const auto flipped_dim = flip_dim(current_d, current_dim);
     constexpr int compressedH_DN[3] = {100, 10, 1};
@@ -356,11 +356,11 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     host_buffer<double> P(H_N3 + 32);
     host_buffer<double> disc(ndir / 2 * H_N3 + 32);
     find_contact_discs_impl(exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
-        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, {6, 12, 12}, {5, 10, 10});
+        physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, {12, 12, 12}, {10, 10, 10});
 
     // Pre recon
     hydro_pre_recon_impl(
-        exec, combined_large_x, omega, angmom, combined_u, nf, n_species, {7, 14, 14});
+        exec, combined_large_x, omega, angmom, combined_u, nf, n_species, {14, 14, 14});
 
     // Reconstruct
     host_buffer<double> q(nf * 27 * 10 * 10 * 10 + 32);
@@ -375,30 +375,29 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     host_buffer<int> amax_indices(blocks);
     host_buffer<int> amax_d(blocks);
     flux_impl(exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf,
-        fgamma, de_switch_1, blocks, 1);
+       fgamma, de_switch_1, blocks, 1);
 
     sync_kokkos_host_kernel(exec);
 
     // Find Maximum
-    // TODO Rename current_dim
-    size_t current_dim = 0;
+    size_t current_max_slot = 0;
     for (size_t dim_i = 1; dim_i < blocks; dim_i++) {
-        if (amax[dim_i] > amax[current_dim]) {
-            current_dim = dim_i;
+        if (amax[dim_i] > amax[current_max_slot]) {
+            current_max_slot = dim_i;
         }
     }
 
     // Create & Return timestep_t type
     std::vector<double> URs(nf), ULs(nf);
-    const size_t current_max_index = amax_indices[current_dim];
-    const size_t current_d = amax_d[current_dim];
+    const size_t current_max_index = amax_indices[current_max_slot];
+    const size_t current_d = amax_d[current_max_slot];
     timestep_t ts;
-    ts.a = amax[current_dim];
+    ts.a = amax[current_max_slot];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + 1000];
     ts.z = combined_x[current_max_index + 2000];
-    const size_t current_i = current_dim;
-    current_dim = current_dim / (blocks / NDIM);
+    const size_t current_i = current_max_slot;
+    const auto current_dim = current_max_slot / (blocks / NDIM);
     // TODO is this flip_dim call correct?
     const auto flipped_dim = flip_dim(current_d, current_dim);
     constexpr int compressedH_DN[3] = {100, 10, 1};
