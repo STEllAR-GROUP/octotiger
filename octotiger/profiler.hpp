@@ -7,12 +7,12 @@
 #define PROFILER_HPP_
 
 #include <hpx/include/serialization.hpp>
-//#include <hpx/util/high_resolution_timer.hpp>
-#include <hpx/timing.hpp>
+#include <hpx/modules/timing.hpp>
 
 #include <algorithm>
 #include <array>
 #include <iostream>
+#include <string>
 
 struct profiler_register {
 	profiler_register(const char*, int);
@@ -46,7 +46,7 @@ struct timings
             time_ += timer_.elapsed();
         }
 
-        hpx::util::high_resolution_timer timer_;
+        hpx::chrono::high_resolution_timer timer_;
         double& time_;
     };
 
@@ -82,8 +82,8 @@ struct timings
 
     void report(std::string const& name)
     {
-    	const auto tinv = 1.0/ times_[time_total];
-    	const auto tcr = times_[time_computation] + times_[time_regrid];
+        const auto tinv = 1.0 / times_[time_total];
+        const auto tcr = times_[time_computation] + times_[time_regrid];
         std::cout << name << ":\n";
         std::cout << "   Total: "             << times_[time_total] << '\n';
         std::cout << "   Computation: "       << times_[time_computation] << " (" <<  100*times_[time_computation] * tinv << "\%)\n";
