@@ -147,7 +147,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("multipole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for multipole interactions ") //
 	("monopole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().monopole_host_kernel_type))->default_value(KOKKOS), "Host kernel type for monopole interactions ") //
 	("monopole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for monopole interactions ") //
-	("hydro_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))->default_value(LEGACY), "Host kernel type for the hydro solver ") //
+	("hydro_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))->default_value(KOKKOS), "Host kernel type for the hydro solver ") //
 	("hydro_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for the hydro solver ") //
 #else // use Vc and CUDA as default
 	("multipole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().multipole_host_kernel_type))->default_value(VC), "Host kernel type for multipole interactions ") //
@@ -378,11 +378,6 @@ bool options::process_options(int argc, char *argv[]) {
     abort();
   }
 #endif
-  if (opts().hydro_host_kernel_type != interaction_host_kernel_type::LEGACY) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Use hydro LEGACY kernels for host execution. Other kernels are still being debugged" << std::endl;
-    abort();
-  }
 
 #ifndef OCTOTIGER_HAVE_CUDA
   if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA ||
