@@ -45,21 +45,21 @@ constexpr int xloc[27][3] = {
     /**/ {-1, +0, +1}, {+0, +0, +1}, {+1, +0, +1},
     /**/ {-1, +1, +1}, {+0, +1, +1}, {+1, +1, +1}};
 #else
-CUDA_GLOBAL_METHOD const int number_dirs = 27;
-CUDA_GLOBAL_METHOD const int q_inx = INX + 2;
-CUDA_GLOBAL_METHOD const int q_inx3 = q_inx * q_inx * q_inx;
-CUDA_GLOBAL_METHOD const int q_face_offset = number_dirs * q_inx3;
-CUDA_GLOBAL_METHOD const int u_face_offset = H_N3;
-CUDA_GLOBAL_METHOD const int x_offset = H_N3;
-CUDA_GLOBAL_METHOD const int q_dir_offset = q_inx3;
-CUDA_GLOBAL_METHOD const int am_offset = q_inx3;
-CUDA_GLOBAL_METHOD const int HR_DNX = H_NX * H_NX;
-CUDA_GLOBAL_METHOD const int HR_DNY = H_NX;
-CUDA_GLOBAL_METHOD const int HR_DNZ = 1;
-CUDA_GLOBAL_METHOD const int HR_DN0 = 0;
+CUDA_CALLABLE_METHOD const int number_dirs = 27;
+CUDA_CALLABLE_METHOD const int q_inx = INX + 2;
+CUDA_CALLABLE_METHOD const int q_inx3 = q_inx * q_inx * q_inx;
+CUDA_CALLABLE_METHOD const int q_face_offset = number_dirs * q_inx3;
+CUDA_CALLABLE_METHOD const int u_face_offset = H_N3;
+CUDA_CALLABLE_METHOD const int x_offset = H_N3;
+CUDA_CALLABLE_METHOD const int q_dir_offset = q_inx3;
+CUDA_CALLABLE_METHOD const int am_offset = q_inx3;
+CUDA_CALLABLE_METHOD const int HR_DNX = H_NX * H_NX;
+CUDA_CALLABLE_METHOD const int HR_DNY = H_NX;
+CUDA_CALLABLE_METHOD const int HR_DNZ = 1;
+CUDA_CALLABLE_METHOD const int HR_DN0 = 0;
 //CUDA_GLOBAL_METHOD const int NDIR = 27;
-CUDA_GLOBAL_METHOD const int disc_offset = H_NX * H_NX * H_NX;
-CUDA_GLOBAL_METHOD const int dir[27] = {
+CUDA_CALLABLE_METHOD const int disc_offset = H_NX * H_NX * H_NX;
+CUDA_CALLABLE_METHOD const int dir[27] = {
     /**/ -HR_DNX - HR_DNY - HR_DNZ, +HR_DN0 - HR_DNY - HR_DNZ, +HR_DNX - HR_DNY - HR_DNZ, /**/
     /**/ -HR_DNX + HR_DN0 - HR_DNZ, +HR_DN0 + HR_DN0 - HR_DNZ, +HR_DNX + HR_DN0 - HR_DNZ, /**/
     /**/ -HR_DNX + HR_DNY - HR_DNZ, +HR_DN0 + HR_DNY - HR_DNZ, +HR_DNX + HR_DNY - HR_DNZ, /**/
@@ -71,7 +71,7 @@ CUDA_GLOBAL_METHOD const int dir[27] = {
     /**/ -HR_DNX + HR_DNY + HR_DNZ, +HR_DN0 + HR_DNY + HR_DNZ, +HR_DNX + HR_DNY + HR_DNZ  /**/
 
 };
-CUDA_GLOBAL_METHOD const safe_real vw[27] = {
+CUDA_CALLABLE_METHOD const safe_real vw[27] = {
     /**/ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216.,
     1. / 216.,
     /****/ 4. / 216., 16. / 216., 4. / 216., 16. / 216., 64. / 216., 16. / 216., 4. / 216.,
@@ -79,7 +79,7 @@ CUDA_GLOBAL_METHOD const safe_real vw[27] = {
     /****/ 1. / 216., 4. / 216., 1. / 216., 4. / 216., 16. / 216., 4. / 216., 1. / 216., 4. / 216.,
     1. / 216.};
 
-CUDA_GLOBAL_METHOD const int xloc[27][3] = {
+CUDA_CALLABLE_METHOD const int xloc[27][3] = {
     /**/ {-1, -1, -1}, {+0, -1, -1}, {+1, -1, -1},
     /**/ {-1, +0, -1}, {+0, +0, -1}, {1, +0, -1},
     /**/ {-1, +1, -1}, {+0, +1, -1}, {+1, +1, -1},

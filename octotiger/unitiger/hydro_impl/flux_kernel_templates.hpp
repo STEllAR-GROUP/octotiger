@@ -11,16 +11,16 @@ constexpr int compressedH_DN[3] = {100, 10, 1};
 constexpr int face_offset = 27 * 1000;
 constexpr int dim_offset = 1000;
 #else
-CUDA_GLOBAL_METHOD const int faces[3][9] = {{12, 0, 3, 6, 9, 15, 18, 21, 24},
+CUDA_CALLABLE_METHOD const int faces[3][9] = {{12, 0, 3, 6, 9, 15, 18, 21, 24},
     {10, 0, 1, 2, 9, 11, 18, 19, 20}, {4, 0, 1, 2, 3, 5, 6, 7, 8}};
 
-CUDA_GLOBAL_METHOD const double quad_weights[9] = {
+CUDA_CALLABLE_METHOD const double quad_weights[9] = {
     16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36.};
 
-CUDA_GLOBAL_METHOD const int offset = 0;
-CUDA_GLOBAL_METHOD const int compressedH_DN[3] = {100, 10, 1};
-CUDA_GLOBAL_METHOD const int face_offset = 27 * 1000;
-CUDA_GLOBAL_METHOD const int dim_offset = 1000;
+CUDA_CALLABLE_METHOD const int offset = 0;
+CUDA_CALLABLE_METHOD const int compressedH_DN[3] = {100, 10, 1};
+CUDA_CALLABLE_METHOD const int face_offset = 27 * 1000;
+CUDA_CALLABLE_METHOD const int dim_offset = 1000;
 #endif
 
 CUDA_GLOBAL_METHOD inline int flip_dim(const int d, const int flip_dim) {
