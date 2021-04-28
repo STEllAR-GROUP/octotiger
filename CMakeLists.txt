@@ -114,15 +114,6 @@ if(OCTOTIGER_WITH_KOKKOS)
   if (OCTOTIGER_WITH_LEGACY_Vc)
     message(FATAL_ERROR " Kokkos cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
   endif()
-
-  include(FetchContent)
-  FetchContent_Declare(
-    kokkossimd
-    GIT_REPOSITORY https://github.com/kokkos/simd-math.git
-    GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
-  )
-  FetchContent_MakeAvailable(kokkossimd)
-
   if(Kokkos_ENABLE_CUDA)
     if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
       enable_language(CUDA)
@@ -130,6 +121,13 @@ if(OCTOTIGER_WITH_KOKKOS)
   endif()
 endif()
 
+include(FetchContent)
+FetchContent_Declare(
+  kokkossimd
+  GIT_REPOSITORY https://github.com/kokkos/simd-math.git
+  GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
+)
+FetchContent_MakeAvailable(kokkossimd)
 
 ################################################################################
 # Set up Octo-Tiger target
@@ -365,7 +363,7 @@ if(OCTOTIGER_WITH_CUDA)
   else()
     set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
       set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
-      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
   endif()
   else()
     #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
@@ -375,7 +373,7 @@ if(OCTOTIGER_WITH_CUDA)
     set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=sm_80")
   else()
     set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-    set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+    set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
   endif()
   endif()
 endif()
@@ -461,14 +459,16 @@ if(OCTOTIGER_WITH_KOKKOS)
   if(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD)
     target_compile_definitions(octolib PUBLIC OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
   endif()
-  # Add simd library
-  message(INFO "Compiling with Kokkos SIMD! Path:")
-  message(INFO ${kokkossimd_SOURCE_DIR})
-  target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
-  # Use this include when actively developing simd-math itself and the source changes often
-  # You are responsible for checking out the simd-math source at the correct directory in this case
-  #target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
 endif()
+
+# Add simd library
+# Use this include when actively developing simd-math itself and the source changes often
+# You are responsible for checking out the simd-math source at the correct directory in this case
+#target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
+message(INFO "Compiling with Kokkos SIMD! Path:")
+message(INFO ${kokkossimd_SOURCE_DIR})
+target_include_directories(hydrolib PUBLIC ${kokkossimd_SOURCE_DIR})
+target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
 
 # Enable exported functions
 #target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)

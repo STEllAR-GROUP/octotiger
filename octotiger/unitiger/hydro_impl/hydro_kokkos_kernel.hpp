@@ -156,13 +156,11 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
 
                 // Write Maximum of local team to amax
                 if (tid == 0) {
-                    // printf("Block %i %i TID %i %i \n", blockIdx.y, blockIdx.z, tid, index);
                     if (team_handle.team_size() == 1) {
                         amax[block_id] = current_amax;
                         amax_indices[block_id] = index;
                         amax_d[block_id] = current_d;
                     }
-                    // printf("%f -- ", amax[block_id]);
 
                     // Save face to the end of the amax buffer
                     // This avoids putting combined_q back on the host side just to read
