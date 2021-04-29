@@ -103,6 +103,7 @@ int main(int argc, char* argv[]) {
 			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
 			"hpx.parcel.mpi.zero_copy_optimization!=0" // Disable the usage of zero copy optimization for MPI...
 			};
+	cfg.push_back("hpx.stacks.small_size=2097152");
     register_hpx_functions();
 	hpx::init(argc, argv, cfg);
 }

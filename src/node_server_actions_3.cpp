@@ -269,7 +269,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 			output_all(this, "final", output_cnt, true);
 		}
 		if (get_analytic() != nullptr) {
-			compare_analytic();
+			//compare_analytic();
 			if (opts().gravity) {
 				solve_gravity(true, false);
 			}
@@ -454,7 +454,7 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 		}
 
 		if (get_analytic() != nullptr) {
-			compare_analytic();
+		//	compare_analytic();
 			if (opts().gravity) {
 				solve_gravity(true, false);
 			}
