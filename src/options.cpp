@@ -90,6 +90,7 @@ bool options::process_options(int argc, char *argv[]) {
         ("star_alpha", po::value<real>(&(opts().star_alpha))->default_value(1.0 / (3.0 * 3.65375)), "scaling factor for the Lane-Emden equation") // for default n=3/2, ksi_1=3.65375 and alpha=rmax/ksi_1
         ("star_rho_center", po::value<real>(&(opts().star_rho_center))->default_value(1.0), "density at the center of the star")     //
         ("star_rho_out", po::value<real>(&(opts().star_rho_out))->default_value(1.0e-10), "density outside the star")     //
+	("star_egas_out", po::value<real>(&(opts().star_egas_out))->default_value(1.0e-10), "gas energy outside the star")     //
         ("moving_star_xvelocity", po::value<real>(&(opts().moving_star_xvelocity))->default_value(1.0), "velocity of the star in the x-direction")     //
         ("moving_star_yvelocity", po::value<real>(&(opts().moving_star_yvelocity))->default_value(1.0), "velocity of the star in the y-direction")     //
         ("moving_star_zvelocity", po::value<real>(&(opts().moving_star_zvelocity))->default_value(1.0), "velocity of the star in the z-direction")     //
