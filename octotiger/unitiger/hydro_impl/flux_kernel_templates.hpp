@@ -7,9 +7,11 @@ constexpr double quad_weights[9] = {
     16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36.};
 
 constexpr int offset = 0;
-constexpr int compressedH_DN[3] = {100, 10, 1};
-constexpr int face_offset = 27 * 1000;
-constexpr int dim_offset = 1000;
+// TODO Change hard coded offsets
+constexpr int dimension_length = INX + 2;
+constexpr int compressedH_DN[3] = {dimension_length * dimension_length, dimension_length, 1};
+constexpr int dim_offset = dimension_length * dimension_length * dimension_length;
+constexpr int face_offset = 27 * dim_offset;
 #else
 CUDA_CALLABLE_METHOD const int faces[3][9] = {{12, 0, 3, 6, 9, 15, 18, 21, 24},
     {10, 0, 1, 2, 9, 11, 18, 19, 20}, {4, 0, 1, 2, 3, 5, 6, 7, 8}};
@@ -18,9 +20,11 @@ CUDA_CALLABLE_METHOD const double quad_weights[9] = {
     16. / 36., 1. / 36., 4. / 36., 1. / 36., 4. / 36., 4. / 36., 1. / 36., 4. / 36., 1. / 36.};
 
 CUDA_CALLABLE_METHOD const int offset = 0;
-CUDA_CALLABLE_METHOD const int compressedH_DN[3] = {100, 10, 1};
-CUDA_CALLABLE_METHOD const int face_offset = 27 * 1000;
-CUDA_CALLABLE_METHOD const int dim_offset = 1000;
+// TODO Change hard coded offsets
+constexpr int dimension_length = INX + 2;
+CUDA_CALLABLE_METHOD const int compressedH_DN[3] = {dimension_length * dimension_length, dimension_length, 1};
+CUDA_CALLABLE_METHOD const int dim_offset = dimension_length * dimension_length * dimension_length;
+CUDA_CALLABLE_METHOD const int face_offset = 27 * dim_offset;
 #endif
 
 CUDA_GLOBAL_METHOD inline int flip_dim(const int d, const int flip_dim) {
@@ -91,6 +95,9 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
 
     //auto rho = load_value<double_t>(U, rho_i * face_offset + index);
     auto rho = U[rho_i * face_offset + index];
+    // if(index == 430) {
+    //     printf("Rho %f ", rho);
+    // }
     auto rhoinv = (1.) / rho;
     double_t hdeg = static_cast<double_t>(0.0), pdeg = static_cast<double_t>(0.0),
              edeg = static_cast<double_t>(0.0), dpdeg_drho = static_cast<double_t>(0.0);
@@ -118,8 +125,14 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
     for (int dim = 0; dim < NDIM; dim++) {
         ek += U[(sx_i + dim) * face_offset + index] *
             U[(sx_i + dim) * face_offset + index] * rhoinv * 0.5;
+    // if(index == 430) {
+    //     printf("sx %f ", U[(sx_i + dim) * face_offset + index]);
+    // }
     }
     const auto ein1_tmp2 = U[egas_i * face_offset + index] - ek - edeg;
+    // if(index == 430) {
+    //     printf("egas %f ", U[egas_i * face_offset + index]);
+    // }
     const auto ein1_mask =
         (ein1_tmp2 < (de_switch_1 * U[egas_i * face_offset + index]));
     if (!skippable(ein1_mask)) {
@@ -259,17 +272,19 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
 template<typename mask_buffer_t>
 void fill_masks(mask_buffer_t &masks) {
     //boost::container::vector<bool> masks(NDIM * 10 * 10 * 10);
-    constexpr size_t dim_offset = 1000;
+    constexpr int length = INX + 2;
+    constexpr int length_short = INX + 1;
+    constexpr size_t dim_offset = length * length * length;
     const cell_geometry<3, 8> geo;
     for (int dim = 0; dim < NDIM; dim++) {
-        std::array<int, NDIM> ubs = {9, 9, 9};
+        std::array<int, NDIM> ubs = {length_short, length_short, length_short};
         for (int dimension = 0; dimension < NDIM; dimension++) {
-            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (9 + 1) : (9);
+            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (length) : (length_short);
         }
-        for (size_t ix = 0; ix < 10; ix++) {
-            for (size_t iy = 0; iy < 10; iy++) {
-                for (size_t iz = 0; iz < 10; iz++) {
-                    const size_t index = ix * 10 * 10 + iy * 10 + iz + dim_offset * dim;
+        for (size_t ix = 0; ix < length; ix++) {
+            for (size_t iy = 0; iy < length; iy++) {
+                for (size_t iz = 0; iz < length; iz++) {
+                    const size_t index = ix * length * length + iy * length + iz + dim_offset * dim;
                     if (ix > 0 && iy > 0 && iz > 0 && ix < ubs[0] && iy < ubs[1] && iz < ubs[2])
                         masks[index] = true;
                     else

@@ -7,18 +7,20 @@
 
 
 boost::container::vector<bool> create_masks() {
-    boost::container::vector<bool> masks(NDIM * 10 * 10 * 10);
-    constexpr size_t dim_offset = 1000;
+    constexpr int length = INX + 2;
+    constexpr int length_short = INX + 1;
+    boost::container::vector<bool> masks(NDIM * length * length * length);
+    constexpr size_t dim_offset = length * length * length;
     const cell_geometry<3, 8> geo;
     for (int dim = 0; dim < NDIM; dim++) {
-        std::array<int, NDIM> ubs = {9, 9, 9};
+        std::array<int, NDIM> ubs = {length_short, length_short, length_short};
         for (int dimension = 0; dimension < NDIM; dimension++) {
-            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (9 + 1) : (9);
+            ubs[dimension] = geo.xloc()[geo.face_pts()[dim][0]][dimension] == -1 ? (length) : (length_short);
         }
-        for (size_t ix = 0; ix < 10; ix++) {
-            for (size_t iy = 0; iy < 10; iy++) {
-                for (size_t iz = 0; iz < 10; iz++) {
-                    const size_t index = ix * 10 * 10 + iy * 10 + iz + dim_offset * dim;
+        for (size_t ix = 0; ix < length; ix++) {
+            for (size_t iy = 0; iy < length; iy++) {
+                for (size_t iz = 0; iz < length; iz++) {
+                    const size_t index = ix * length * length + iy * length + iz + dim_offset * dim;
                     if (ix > 0 && iy > 0 && iz > 0 && ix < ubs[0] && iy < ubs[1] && iz < ubs[2])
                         masks[index] = true;
                     else

@@ -147,6 +147,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     }
                 }
             }
+    // std::cout << max_lambda.a << std::endl;
             return max_lambda;
         } else {
             std::cerr << "No valid hydro kernel type given! " << std::endl;
@@ -157,16 +158,18 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 }
 
 void convert_x_structure(const hydro::x_type& X, double* const combined_x) {
+    constexpr int length_orig = INX + 6;
+    constexpr int length_desired = INX + 2;
     auto it_x = combined_x;
     for (size_t dim = 0; dim < NDIM; dim++) {
-        auto start_offset = 2 * 14 * 14 + 2 * 14 + 2;
+        auto start_offset = 2 * length_orig * length_orig + 2 * length_orig + 2;
         for (auto ix = 2; ix < 2 + INX + 2; ix++) {
             for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                std::copy(X[dim].begin() + start_offset, X[dim].begin() + start_offset + 10, it_x);
-                it_x += 10;
-                start_offset += 14;
+                std::copy(X[dim].begin() + start_offset, X[dim].begin() + start_offset + length_desired, it_x);
+                it_x += length_desired;
+                start_offset += length_orig;
             }
-            start_offset += (2 + 2) * 14;
+            start_offset += (2 + 2) * length_orig;
         }
     }
 }

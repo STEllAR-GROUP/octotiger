@@ -1,7 +1,10 @@
 #pragma once
 #if defined(__clang__)
 constexpr int number_dirs = 27;
+constexpr int inx_large = INX + 6;
+constexpr int inx_normal = INX + 4;
 constexpr int q_inx = INX + 2;
+constexpr int q_inx2 = q_inx * q_inx;
 constexpr int q_inx3 = q_inx * q_inx * q_inx;
 constexpr int q_face_offset = number_dirs * q_inx3;
 constexpr int u_face_offset = H_N3;
@@ -46,7 +49,10 @@ constexpr int xloc[27][3] = {
     /**/ {-1, +1, +1}, {+0, +1, +1}, {+1, +1, +1}};
 #else
 CUDA_CALLABLE_METHOD const int number_dirs = 27;
+constexpr int inx_large = INX + 6;
+constexpr int inx_normal = INX + 4;
 CUDA_CALLABLE_METHOD const int q_inx = INX + 2;
+CUDA_CALLABLE_METHOD const int q_inx2 = q_inx * q_inx;
 CUDA_CALLABLE_METHOD const int q_inx3 = q_inx * q_inx * q_inx;
 CUDA_CALLABLE_METHOD const int q_face_offset = number_dirs * q_inx3;
 CUDA_CALLABLE_METHOD const int u_face_offset = H_N3;
@@ -165,7 +171,7 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
     const_container_t &combined_u, const double A_, const double B_, const double fgamma_,
     const double de_switch_1, const unsigned int x, const unsigned int y,
     const unsigned int z) {
-    const int i = (x + 1) * 14 * 14 + (y + 1) * 14 + (z + 1);
+    const int i = (x + 1) * inx_large * inx_large + (y + 1) * inx_large + (z + 1);
 
     const auto rho = combined_u[rho_i * u_face_offset + i];
     const auto rhoinv = 1.0 / rho;
@@ -195,9 +201,9 @@ template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
     container_t &disc, const_container_t &P, const double fgamma_,
     const int ndir, const unsigned int x, const unsigned int y, const unsigned int z) {
-    const int disc_offset = 14 * 14 * 14;
+    const int disc_offset = inx_large * inx_large * inx_large;
     const double K0 = 0.1;
-    const int i = (x + 2) * 14 * 14 + (y + 2) * 14 + (z + 2);
+    const int i = (x + 2) * inx_large * inx_large + (y + 2) * inx_large + (z + 2);
     for (int d = 0; d < ndir / 2; d++) {
         const auto di = dir[d];
         const double P_r = P[i + di];
@@ -211,7 +217,7 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase2(
 template <typename container_t, typename const_container_t>
 CUDA_GLOBAL_METHOD inline void cell_hydro_pre_recon(const_container_t& X, safe_real omega, bool angmom,
         container_t &u, const int nf, const int n_species_, const unsigned int x, const unsigned int y, const unsigned int z) {
-    const int i = (x) * 14 * 14 + (y) * 14 + (z);
+    const int i = (x) * inx_large * inx_large + (y) * inx_large + (z);
     const auto rho = u[rho_i * u_face_offset + i];
     const auto rhoinv = 1.0 / rho;
     for (int dim = 0; dim < NDIM; dim++) {
