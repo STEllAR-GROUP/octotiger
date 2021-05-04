@@ -8,6 +8,8 @@
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
 
+constexpr int padding = 128;
+
 template <typename storage>
 const storage& get_flux_host_masks() {
     static storage masks(NDIM * q_inx3);
@@ -44,8 +46,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
         (team_size == 128) || (team_size == 1));
     auto policy = policytype(executor.instance(), number_blocks, team_size);
     using membertype = typename policytype::member_type;
-    if (team_size > 1)
-        policy.set_scratch_size(0, Kokkos::PerTeam(team_size * (sizeof(double) + sizeof(int) * 2)));
+    policy.set_scratch_size(0, Kokkos::PerTeam(team_size * (sizeof(double) + sizeof(int) * 2)));
     Kokkos::parallel_for(
         "kernel hydro flux", policy, KOKKOS_LAMBDA(const membertype& team_handle) {
             // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
@@ -72,13 +73,24 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
             const int index = (team_handle.league_rank() % blocks_per_dim) * team_size + tid;
             const int block_id =
                 (team_handle.league_rank() % blocks_per_dim) + dim * blocks_per_dim;
-            // printf("%i %i -- ",team_handle.league_rank(), team_handle.team_rank() );
             for (int f = 0; f < nf; f++) {
                 f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
             }
             if (tid == 0) {
                 amax[block_id] = 0.0;
+                amax_indices[block_id] = 0;
+                amax_d[block_id] = 0;
             }
+            Kokkos::View<double*,
+                typename policytype::execution_space::scratch_memory_space>
+                sm_amax(team_handle.team_scratch(0), team_size);
+            Kokkos::View<int*, typename policytype::execution_space::scratch_memory_space>
+                sm_i(team_handle.team_scratch(0), team_size);
+            Kokkos::View<int*, typename policytype::execution_space::scratch_memory_space>
+                sm_d(team_handle.team_scratch(0), team_size);
+            sm_amax[tid] = 0;
+            sm_d[tid] = 0;
+            sm_i[tid] = 0;
             if (index < q_inx3) {
                 double mask = masks[index + dim * dim_offset];
                 if (mask != 0.0) {
@@ -116,13 +128,6 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                 }
                 // Parallel maximum search within workgroup
                 if (team_handle.team_size() == 128) {
-                    Kokkos::View<double*,
-                        typename policytype::execution_space::scratch_memory_space>
-                        sm_amax(team_handle.team_scratch(0), team_size);
-                    Kokkos::View<int*, typename policytype::execution_space::scratch_memory_space>
-                        sm_i(team_handle.team_scratch(0), team_size);
-                    Kokkos::View<int*, typename policytype::execution_space::scratch_memory_space>
-                        sm_d(team_handle.team_scratch(0), team_size);
                     sm_amax[tid] = current_amax;
                     sm_d[tid] = current_d;
                     sm_i[tid] = index;
@@ -139,16 +144,16 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                         team_handle.team_barrier();
                     }
                     // Max reduction within one warps
-                    for (int tid_border = 16; tid_border >= 1; tid_border /= 2) {
-                        if (tid < tid_border) {
-                            if (sm_amax[tid + tid_border] > sm_amax[tid]) {
-                                sm_amax[tid] = sm_amax[tid + tid_border];
-                                sm_d[tid] = sm_d[tid + tid_border];
-                                sm_i[tid] = sm_i[tid + tid_border];
+                    if (tid == 0) {
+                        for (int tid_border = 16; tid_border >= 1; tid_border /= 2) {
+                            if (tid < tid_border) {
+                                if (sm_amax[tid + tid_border] > sm_amax[tid]) {
+                                    sm_amax[tid] = sm_amax[tid + tid_border];
+                                    sm_d[tid] = sm_d[tid + tid_border];
+                                    sm_i[tid] = sm_i[tid + tid_border];
+                                }
                             }
                         }
-                    }
-                    if (tid == 0) {
                         amax[block_id] = sm_amax[0];
                         amax_indices[block_id] = sm_i[0];
                         amax_d[block_id] = sm_d[0];
@@ -161,15 +166,14 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                         amax[block_id] = current_amax;
                         amax_indices[block_id] = index;
                         amax_d[block_id] = current_d;
-                        // if (block_id == 430) {
-                        //         printf("Max %f \n", current_amax);                            
-                        // }
                     }
 
                     // Save face to the end of the amax buffer
                     // This avoids putting combined_q back on the host side just to read
                     // those few values
                     const int flipped_dim = flip_dim(amax_d[block_id], dim);
+                    // if (block_id == 137)
+                    //     printf("%i %i %i %f \n", block_id, amax_d[block_id], amax_indices[block_id], amax[block_id]);
                     for (int f = 0; f < nf; f++) {
                         amax[number_blocks + block_id * 2 * nf + f] =
                             q_combined[amax_indices[block_id] + f * face_offset +
@@ -269,27 +273,27 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     const double dx, const double A_, const double B_, const double fgamma,
     const double de_switch_1) {
     // Find contact discs
-    device_buffer<double> u(nf * H_N3 + 32);
+    device_buffer<double> u(nf * H_N3 + padding);
     Kokkos::deep_copy(exec.instance(), u, combined_u);
-    device_buffer<double> P(H_N3 + 32);
-    device_buffer<double> disc(ndir / 2 * H_N3 + 32);
+    device_buffer<double> P(H_N3 + padding);
+    device_buffer<double> disc(ndir / 2 * H_N3 + padding);
     find_contact_discs_impl(exec, u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, {1, 12, 12}, {1, 10, 10});
 
     // Pre recon
-    device_buffer<double> large_x(NDIM * H_N3 + 32);
+    device_buffer<double> large_x(NDIM * H_N3 + padding);
     Kokkos::deep_copy(exec.instance(), large_x, combined_large_x);
     hydro_pre_recon_impl(exec, large_x, omega, angmom, u, nf, n_species, {1, 14, 14});
 
     // Reconstruct
-    device_buffer<double> x(NDIM * q_inx3 + 32);
+    device_buffer<double> x(NDIM * q_inx3 + padding);
     Kokkos::deep_copy(exec.instance(), x, combined_x);
     device_buffer<int> device_disc_detect(nf);
     Kokkos::deep_copy(exec.instance(), device_disc_detect, disc_detect);
     device_buffer<int> device_smooth_field(nf);
     Kokkos::deep_copy(exec.instance(), device_smooth_field, smooth_field);
-    device_buffer<double> q(nf * 27 * q_inx3 + 32);
-    device_buffer<double> AM(NDIM * q_inx3 + 32);
+    device_buffer<double> q(nf * 27 * q_inx3 + padding);
+    device_buffer<double> AM(NDIM * q_inx3 + padding);
     reconstruct_impl(exec, omega, nf, angmom_index, device_smooth_field, device_disc_detect, q, x,
         u, AM, dx, disc, n_species, ndir, nangmom, {1, 8, 8});
 
@@ -300,7 +304,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     device_buffer<double> amax(number_blocks * NDIM * (1 + 2 * nf));
     device_buffer<int> amax_indices(number_blocks * NDIM);
     device_buffer<int> amax_d(number_blocks * NDIM);
-    device_buffer<double> f(NDIM * nf * q_inx3 + 32);
+    device_buffer<double> f(NDIM * nf * q_inx3 + padding);
     flux_impl(exec, q, x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf, fgamma,
         de_switch_1, NDIM* number_blocks, 128);
     host_buffer<double> host_amax(number_blocks * NDIM * (1 + 2 * nf));
@@ -357,8 +361,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     const double dx, const double A_, const double B_, const double fgamma,
     const double de_switch_1) {
     // Find contact discs
-    host_buffer<double> P(H_N3 + 32);
-    host_buffer<double> disc(ndir / 2 * H_N3 + 32);
+    host_buffer<double> P(H_N3 + padding);
+    host_buffer<double> disc(ndir / 2 * H_N3 + padding);
     find_contact_discs_impl(exec, combined_u, P, disc, physics<NDIM>::A_, physics<NDIM>::B_,
         physics<NDIM>::fgamma_, physics<NDIM>::de_switch_1, ndir, {inx_normal, inx_normal, inx_normal}, {q_inx, q_inx, q_inx});
 
@@ -367,8 +371,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
         exec, combined_large_x, omega, angmom, combined_u, nf, n_species, {inx_large, inx_large, inx_large});
 
     // Reconstruct
-    host_buffer<double> q(nf * 27 * q_inx3 + 32);
-    host_buffer<double> AM(NDIM * q_inx3 + 32);
+    host_buffer<double> q(nf * 27 * q_inx3 + padding);
+    host_buffer<double> AM(NDIM * q_inx3 + padding);
     reconstruct_impl(exec, omega, nf, angmom_index, smooth_field, disc_detect, q, combined_x,
         combined_u, AM, dx, disc, n_species, ndir, nangmom, {INX, INX, INX});
 
@@ -386,19 +390,10 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     // Find Maximum
     size_t current_max_slot = 0;
     for (size_t dim_i = 1; dim_i < blocks; dim_i++) {
-        // std::cout << amax[dim_i] << " at " << dim_i << " -- ";
-        // if (dim_i % q_inx == 0)
-        //     std::cout<<std::endl;
-        // if (dim_i % q_inx2 == 0)
-        //     std::cout<<std::endl;
-        // if (amax[dim_i] > 2)
-        //     std::cout << amax[dim_i] << " at " << dim_i << " -- ";
         if (amax[dim_i] > amax[current_max_slot]) {
             current_max_slot = dim_i;
         }
     }
-    // std::cout << std::endl;
-    // std::cin.get();
 
     // Create & Return timestep_t type
     std::vector<double> URs(nf), ULs(nf);
@@ -433,12 +428,12 @@ timestep_t launch_hydro_kokkos_kernels(const hydro_computer<NDIM, INX, physics<N
     static const cell_geometry<NDIM, INX> geo;
 
     // Host buffers
-    host_buffer<double> combined_x(NDIM * q_inx3 + 32);
-    host_buffer<double> combined_large_x(NDIM * H_N3 + 32);
-    host_buffer<double> combined_u(hydro.get_nf() * H_N3 + 32);
+    host_buffer<double> combined_x(NDIM * q_inx3 + padding);
+    host_buffer<double> combined_large_x(NDIM * H_N3 + padding);
+    host_buffer<double> combined_u(hydro.get_nf() * H_N3 + padding);
     host_buffer<int> disc_detect(hydro.get_nf());
     host_buffer<int> smooth_field(hydro.get_nf());
-    host_buffer<double> f(NDIM * hydro.get_nf() * q_inx3 + 32);
+    host_buffer<double> f(NDIM * hydro.get_nf() * q_inx3 + padding);
 
     // Convert input
     convert_x_structure(X, combined_x.data());
