@@ -91,6 +91,7 @@ void cleanup_puddle_on_this_locality(void) {
 }
 
 void init_stencil(std::size_t worker_id) {
+    std::cout << "Initialize fmm stencils..." << std::endl;
     using mono_inter = octotiger::fmm::monopole_interactions::monopole_interaction_interface;
     // Initialize stencil and four constants for p2p fmm interactions
     mono_inter::stencil() = octotiger::fmm::monopole_interactions::calculate_stencil().first;
@@ -124,9 +125,11 @@ void init_stencil(std::size_t worker_id) {
     static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
             ERROR: Stencil is too wide for the subgrid size. 
             Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
+    std::cout << "Stencils initialized!" << std::endl;
 }
 
 void init_executors(void) {
+    std::cout << "Initialize executors and masks..." << std::endl;
 #ifdef OCTOTIGER_HAVE_KOKKOS
     std::cout << "Initializing Kokkos on this locality..." << std::endl;
     Kokkos::initialize();
@@ -191,9 +194,11 @@ void init_executors(void) {
 #endif
     octotiger::fmm::kernel_scheduler::init_constants();
 #endif
+    std::cout << "Stencils initialized!" << std::endl;
 }
 
 void init_problem(void) {
+    std::cout << "Initialize problem..." << std::endl;
     physics<NDIM>::set_n_species(opts().n_species);
     physics<NDIM>::update_n_field();
     grid::get_omega() = opts().omega;
@@ -281,7 +286,7 @@ void init_problem(void) {
         std::cerr << "\nWarning! OCTOTIGER_WITH_MAX_NUMBER_FIELDS too large for this scenario!" << std::endl
                   << "This will lead to slightly reduced performance in the flux kernel!" << std::endl 
                   << "Choose -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" << physics<NDIM>::nf_ 
-                  << " to run this scenario with optimal performacne" << std::endl << std::endl;
+                  << " to run this scenario with optimal performance" << std::endl << std::endl;
     } else if (OCTOTIGER_MAX_NUMBER_FIELDS < physics<NDIM>::nf_) {
         std::cerr << "\nERROR! OCTOTIGER_WITH_MAX_NUMBER_FIELDS too small for this scenario!" << std::endl
                   << "Recompile with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" <<  physics<NDIM>::nf_ 
@@ -290,4 +295,5 @@ void init_problem(void) {
     } else {
       std::cout << "Compiled with max nf -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS=" << OCTOTIGER_MAX_NUMBER_FIELDS << std::endl;
     }
+    std::cout << "Problem initialized!" << std::endl;
 }

@@ -1090,6 +1090,7 @@ void grid::compute_boundary_interactions_monopole_monopole(gsolve_type type, con
 }
 
 void compute_ilist() {
+	std::cout << "Starting to compute ilist..." << std::endl;
 	// factor = 0.0;
 	// factor() += 1.0;
 	// for (integer a = 0; a < NDIM; ++a) {
@@ -1298,6 +1299,7 @@ void compute_ilist() {
 			assert(found);
 		}
 	}
+	std::cout << "ilist initialized!" << std::endl;
 }
 
 // expansion_pass_type grid::compute_expansions_soa(
