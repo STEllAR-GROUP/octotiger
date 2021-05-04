@@ -81,6 +81,7 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                 amax_indices[block_id] = 0;
                 amax_d[block_id] = 0;
             }
+
             Kokkos::View<double*,
                 typename policytype::execution_space::scratch_memory_space>
                 sm_amax(team_handle.team_scratch(0), team_size);
@@ -88,9 +89,13 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                 sm_i(team_handle.team_scratch(0), team_size);
             Kokkos::View<int*, typename policytype::execution_space::scratch_memory_space>
                 sm_d(team_handle.team_scratch(0), team_size);
-            sm_amax[tid] = 0;
-            sm_d[tid] = 0;
-            sm_i[tid] = 0;
+            // Get around scratch memory limitation using the serial backend and only access it for team_sizes > 1
+            if (team_size > 1) {
+                sm_amax[tid] = 0;
+                sm_d[tid] = 0;
+                sm_i[tid] = 0;
+            }
+
             if (index < q_inx3) {
                 double mask = masks[index + dim * dim_offset];
                 if (mask != 0.0) {
