@@ -23,20 +23,20 @@
 #endif
 
 template <typename T>
-CUDA_CALLABLE_METHOD inline T copysign_wrapper(const T& tmp1, const T& tmp2) {
+CUDA_GLOBAL_METHOD inline T copysign_wrapper(const T& tmp1, const T& tmp2) {
     return std::copysign(tmp1, tmp2);
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T abs_wrapper(const T& tmp1) {
+CUDA_GLOBAL_METHOD inline T abs_wrapper(const T& tmp1) {
     return std::abs(tmp1);
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T minmod_wrapper(const T& a, const T& b) {
+CUDA_GLOBAL_METHOD inline T minmod_wrapper(const T& a, const T& b) {
     return (copysign_wrapper<T>(0.5, a) + copysign_wrapper<T>(0.5, b)) *
         min_wrapper<T>(abs_wrapper<T>(a), abs_wrapper<T>(b));
 }
 template <typename T>
-CUDA_CALLABLE_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const T& c) {
+CUDA_GLOBAL_METHOD inline T minmod_theta_wrapper(const T& a, const T& b, const T& c) {
     return minmod_wrapper<T>(c * minmod_wrapper<T>(a, b), 0.5 * (a + b));
 }
 void hydro_pre_recon_cpu_kernel(const double* __restrict__ X, safe_real omega,
