@@ -28,6 +28,10 @@
         using device_executor = hpx::kokkos::cuda_executor;
         using device_pool_strategy = round_robin_pool<device_executor>;
         using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
+#elif defined(KOKKOS_ENABLE_HIP)
+        using device_executor = hpx::kokkos::hip_executor;
+        using device_pool_strategy = round_robin_pool<device_executor>;
+        using executor_interface_t = stream_interface<device_executor, device_pool_strategy>;
 #endif
 
 #ifdef OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR
@@ -55,7 +59,7 @@ namespace fmm {
             // Try accelerator implementation
             if (device_type != interaction_device_kernel_type::OFF) {
                 if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
+#if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
                             opts().cuda_buffer_capacity);

@@ -670,14 +670,22 @@ namespace fmm {
             const device_buffer<int>& device_indicators =
                 get_device_masks<device_buffer<int>, host_buffer<int>, executor_t>(exec, true);
             // input buffers
+            // std::cout << "device buffer creation" << std::endl;
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
-            if (!use_root_stencil)
+            if (!use_root_stencil) {
+            // std::cout << "device buffer deep copy" << std::endl;
                 Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
+            }
+            // std::cout << "device buffer creation" << std::endl;
             device_buffer<double> device_multipoles(NUMBER_LOCAL_EXPANSION_VALUES);
+            // std::cout << "device buffer deep copy" << std::endl;
             Kokkos::deep_copy(exec.instance(), device_multipoles, multipoles);
+            // std::cout << "device buffer creation" << std::endl;
             device_buffer<double> device_centers(NUMBER_MASS_VALUES);
+            // std::cout << "device buffer deep copy" << std::endl;
             Kokkos::deep_copy(exec.instance(), device_centers, centers_of_mass);
             // result buffers
+            // std::cout << "device buffer creation" << std::endl;
             device_buffer<double> device_expansions(NUMBER_POT_EXPANSIONS);
             device_buffer<double> device_corrections(NUMBER_ANG_CORRECTIONS);
             if (type == RHO) {
@@ -693,6 +701,7 @@ namespace fmm {
                         device_indicators, {1, INX / 2, INX / device_simd_t::size()});
                 }
                 // Copy back angular cocrection results
+            // std::cout << "device buffer deep copy" << std::endl;
                 Kokkos::deep_copy(exec.instance(), angular_corrections, device_corrections);
             } else {
                 // Launch kernel without angular corrections
@@ -708,8 +717,10 @@ namespace fmm {
                 }
             }
             // Copy back potential expansions results and sync
+            // std::cout << "device buffer deep copy" << std::endl;
             auto fut = hpx::kokkos::deep_copy_async(
                 exec.instance(), potential_expansions, device_expansions);
+            // std::cin.get();
             fut.get();
         }
 
