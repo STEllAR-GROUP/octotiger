@@ -21,8 +21,6 @@ __global__ void __launch_bounds__(128, 2)
     __shared__ int sm_d[128];
     __shared__ int sm_i[128];
 
-    //  const int nf = 15;
-
     // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
     double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
     // assumes maximal number (given by cmake) of species in a simulation.
@@ -38,13 +36,15 @@ __global__ void __launch_bounds__(128, 2)
     int current_d = 0;
 
     // 3 dim 1000 i workitems
+    const int number_dims = gridDim.z;
+    const int blocks_per_dim = gridDim.y;
     const int dim = blockIdx.z;
     const int tid = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
-    const int index = blockIdx.y * 128 + tid + 104;
+    const int index = blockIdx.y * 128 + tid; // + 104;
     for (int f = 0; f < nf; f++) {
         f_combined[dim * nf * 1000 + f * 1000 + index] = 0.0;
     }
-    if (index < 1000) {
+    if (index < q_inx3) {
         double mask = masks[index + dim * dim_offset];
         if (mask != 0.0) {
             for (int fi = 0; fi < 9; fi++) {            // 9
@@ -52,9 +52,9 @@ __global__ void __launch_bounds__(128, 2)
                 const int d = faces[dim][fi];
                 const int flipped_dim = flip_dim(d, dim);
                 for (int dim = 0; dim < 3; dim++) {
-                    local_x[dim] = x_combined[dim * 1000 + index] + (0.5 * xloc[d][dim] * dx);
+                    local_x[dim] = x_combined[dim * q_inx3 + index] + (0.5 * xloc[d][dim] * dx);
                 }
-                local_vg[0] = -omega * (x_combined[1000 + index] + 0.5 * xloc[d][1] * dx);
+                local_vg[0] = -omega * (x_combined[q_inx3 + index] + 0.5 * xloc[d][1] * dx);
                 local_vg[1] = +omega * (x_combined[index] + 0.5 * xloc[d][0] * dx);
                 local_vg[2] = 0.0;
                 cell_inner_flux_loop<double>(omega, nf, A_, B_, q_combined, local_f, local_x,
@@ -69,12 +69,12 @@ __global__ void __launch_bounds__(128, 2)
                     current_d = d;
                 }
                 for (int f = 1; f < nf; f++) {
-                    f_combined[dim * nf * 1000 + f * 1000 + index] += quad_weights[fi] * local_f[f];
+                    f_combined[dim * nf * q_inx3 + f * q_inx3 + index] += quad_weights[fi] * local_f[f];
                 }
             }
         }
         for (int f = 10; f < nf; f++) {
-            f_combined[dim * nf * 1000 + index] += f_combined[dim * nf * 1000 + f * 1000 + index];
+            f_combined[dim * nf * q_inx3 + index] += f_combined[dim * nf * q_inx3 + f * q_inx3 + index];
         }
     }
     // Find maximum:
@@ -105,8 +105,7 @@ __global__ void __launch_bounds__(128, 2)
     }
 
     if (tid == 0) {
-        // printf("Block %i %i TID %i %i \n", blockIdx.y, blockIdx.z, tid, index);
-        const int block_id = blockIdx.y + dim * 7;
+        const int block_id = blockIdx.y + dim * blocks_per_dim;
         amax[block_id] = sm_amax[0];
         amax_indices[block_id] = sm_i[0];
         amax_d[block_id] = sm_d[0];
@@ -114,9 +113,9 @@ __global__ void __launch_bounds__(128, 2)
         // Save face to the end of the amax buffer
         const int flipped_dim = flip_dim(sm_d[0], dim);
         for (int f = 0; f < nf; f++) {
-            amax[21 + block_id * 2 * nf + f] =
+            amax[blocks_per_dim * number_dims + block_id * 2 * nf + f] =
                 q_combined[sm_i[0] + f * face_offset + dim_offset * sm_d[0]];
-            amax[21 + block_id * 2 * nf + nf + f] = q_combined[sm_i[0] - compressedH_DN[dim] +
+            amax[blocks_per_dim * number_dims + block_id * 2 * nf + nf + f] = q_combined[sm_i[0] - compressedH_DN[dim] +
                 f * face_offset + dim_offset * flipped_dim];
         }
     }
