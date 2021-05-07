@@ -57,7 +57,7 @@ bibliography: paper.bib
 
 # Summary
 
-Octo-Tiger uses finite volume methods to advance the fluid and the fast multi-pole method (FMM) to compute the gravitational field. The evolution variables are evolved in a Cartesian octree AMR mesh.  The features of Octo-Tiger are ideally suited for evolving interacting binary systems which begin their evolution in near equilibrium, such as a binary system at the beginning of mass transfer. The AMR mesh rotates with the initial orbital frequency, reducing numerical viscosity. The hydrodynamics module employs a fully three-dimensional reconstruction, with quadrature points for the flux at cell faces, edges, and vertices, enabling a better representation of (near) spherical structures on the Cartesian mesh. The FMM Octo-Tiger employs conserves both linear and angular momenta to machine precision. This enables it to be coupled to the hydrodyamics solver in a way that conserves energy and linear momenta to machine precision, preventing equilibrium stellar structures from dissipating due to numerical viscosity.
+Octo-Tiger uses finite volume methods to advance the fluid and the fast multi-pole method (FMM) to compute the gravitational field (Marcello, Shiber, et. al. 2021). The evolution variables are evolved in a Cartesian octree AMR mesh.  The features of Octo-Tiger are ideally suited for evolving interacting binary systems which begin their evolution in near equilibrium, such as a binary system at the beginning of mass transfer. The AMR mesh rotates with the initial orbital frequency, reducing numerical viscosity. The hydrodynamics module employs a fully three-dimensional reconstruction, with quadrature points for the flux at cell faces, edges, and vertices, enabling a better representation of (near) spherical structures on the Cartesian mesh. The FMM Octo-Tiger employs conserves both linear and angular momenta to machine precision (Marcello 2017). This enables it to be coupled to the hydrodyamics solver in a way that conserves energy and linear momenta to machine precision, preventing equilibrium stellar structures from dissipating due to numerical viscosity. Octo-Tiger has been used to study mergers as progenitors of the R Coronae Borealis stars (Lauer et al. 2019; Staff et al. 2018). It has also been used to study the possibility that Betelgeuse may be the product of a merger (Chatzopoulos et al, 2020)
 
 [@10.1093/mnras/stab937]
 
@@ -93,3 +93,13 @@ For a updated list of previous and current funding, we refer to the correspondin
 
 # References
 
+Chatzopoulos, E.; Frank, Juhan; Marcello, Dominic C.; Clayton, Geoffrey C., The Astrophysical Journal, 896, 50 (2020)
+
+Lauer, Amber; Chatzopoulos, Emmanouil; Clayton, Geoffrey C.; Frank, Juhan; Marcello, Dominic C., Monthly Notices of the Royal Astronomical Society, 488, 438 (2019)
+
+Marcello, Dominic C., The Astronomical Journal, 154, 92 (2017)
+
+Marcello, Dominic C.; Shiber, Sagiv; De Marco, Orsola; Frank, Juhan; Clayton, Geoffrey C.; Motl, Patrick M.; Diehl, Patrick; Kaiser, Hartmut, accepted for publication by the Monthly Notices of the Royal Astronomical Society (2021)
+
+Staff, Jan. E.; Wiggins, Brandon; Marcello, Dominic; Motl, Patrick M.; Even, Wesley; Fryer, Chris L.; Raskin, Cody; Clayton, Geoffrey C.; Frank, Juhan, The Astrophysical Journal, 862, 74 (2018)
+ 
