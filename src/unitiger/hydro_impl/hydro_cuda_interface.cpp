@@ -13,7 +13,9 @@
 #include "octotiger/grid.hpp"
 
 #include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp" 
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp" // required for fill_masks
+#include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp" // required for constants
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp" 
 
 hpx::lcos::local::once_flag flag1;
