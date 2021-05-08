@@ -42,7 +42,7 @@ __global__ void __launch_bounds__(128, 2)
     const int tid = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
     const int index = blockIdx.y * 128 + tid; // + 104;
     for (int f = 0; f < nf; f++) {
-        f_combined[dim * nf * 1000 + f * 1000 + index] = 0.0;
+        f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
     }
     if (index < q_inx3) {
         double mask = masks[index + dim * dim_offset];
