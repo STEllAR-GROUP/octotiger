@@ -42,17 +42,34 @@ namespace fmm {
         }
 
         two_phase_stencil& multipole_interaction_interface::stencil() {
-            static thread_local two_phase_stencil stencil_ = calculate_stencil();
+            static thread_local two_phase_stencil stencil_;    // = calculate_stencil();
+            static thread_local bool initialized = false;
+            if (!initialized) {
+                stencil_ = calculate_stencil();
+                initialized = true;
+            }
             return stencil_;
         }
         std::vector<bool>& multipole_interaction_interface::stencil_masks() {
-            static thread_local std::vector<bool> stencil_masks_ =
-                calculate_stencil_masks(multipole_interaction_interface::stencil()).first;
+            static thread_local std::vector<bool> stencil_masks_;
+            // calculate_stencil_masks(multipole_interaction_interface::stencil()).first;
+            static thread_local bool initialized = false;
+            if (!initialized) {
+                stencil_masks_ =
+                    calculate_stencil_masks(multipole_interaction_interface::stencil()).first;
+                initialized = true;
+            }
             return stencil_masks_;
         }
         std::vector<bool>& multipole_interaction_interface::inner_stencil_masks() {
-            static thread_local std::vector<bool> inner_stencil_masks_ =
-                calculate_stencil_masks(multipole_interaction_interface::stencil()).second;
+            static thread_local std::vector<bool> inner_stencil_masks_;
+            // calculate_stencil_masks(multipole_interaction_interface::stencil()).second;
+            static thread_local bool initialized = false;
+            if (!initialized) {
+                inner_stencil_masks_ =
+                    calculate_stencil_masks(multipole_interaction_interface::stencil()).second;
+                initialized = true;
+            }
             return inner_stencil_masks_;
         }
 
@@ -91,10 +108,9 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& all_neighbor_interaction_data,
             const cpu_monopole_buffer_t& local_monopoles,
             const cpu_expansion_buffer_t& local_expansions_SoA,
-            const cpu_space_vector_buffer_t& center_of_masses_SoA,
-            const bool use_root_stencil) {
+            const cpu_space_vector_buffer_t& center_of_masses_SoA, const bool use_root_stencil) {
             if (m2m_type == interaction_host_kernel_type::VC) {
-#ifdef OCTOTIGER_HAVE_VC // kernel is only compiled with Vc
+#ifdef OCTOTIGER_HAVE_VC    // kernel is only compiled with Vc
                 cpu_expansion_result_buffer_t potential_expansions_SoA;
                 cpu_angular_result_t angular_corrections_SoA;
 
@@ -104,20 +120,19 @@ namespace fmm {
                         potential_expansions_SoA, angular_corrections_SoA, local_monopoles,
                         stencil_masks(), inner_stencil_masks(), type);
                 } else {
-                    kernel.apply_stencil_root_non_blocked(local_expansions_SoA, center_of_masses_SoA,
-                    potential_expansions_SoA, angular_corrections_SoA, 
-                    inner_stencil_masks(), type);
-
+                    kernel.apply_stencil_root_non_blocked(local_expansions_SoA,
+                        center_of_masses_SoA, potential_expansions_SoA, angular_corrections_SoA,
+                        inner_stencil_masks(), type);
                 }
                 if (type == RHO) {
                     angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                 }
                 potential_expansions_SoA.add_to_non_SoA(grid_ptr->get_L());
-#else // should not happen - option gets already checked at application startup
+#else    // should not happen - option gets already checked at application startup
                 std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
                 abort();
 #endif
-            } else if (m2m_type == interaction_host_kernel_type::LEGACY) { 
+            } else if (m2m_type == interaction_host_kernel_type::LEGACY) {
                 // old-style interaction calculation
                 // computes inner interactions
                 grid_ptr->compute_interactions(type);

@@ -57,20 +57,6 @@
 #include <cfloat>
 #endif
 
-std::size_t init_thread_local_worker(std::size_t desired) {
-    std::size_t current = hpx::get_worker_thread_num();
-    if (current == desired) {
-        init_stencil(current);
-        //std::cout << "OS-thread " << current << " on locality " << hpx::get_locality_id()
-        //          << ": Initialized thread_local memory!\n";
-        return desired;
-    }
-    // NOTE: This might be an issue. Throw an exception and/or make the output
-    // a tuple with the second being the error code
-    return std::size_t(-1);
-}
-HPX_PLAIN_ACTION(init_thread_local_worker, init_thread_local_worker_action);
-
 std::array<size_t, 7> sum_counters_worker(std::size_t desired) {
     std::array<size_t, 7> ret;
     ret[0] = std::size_t(-1);
@@ -105,46 +91,36 @@ std::array<size_t, 7> sum_counters_worker(std::size_t desired) {
 HPX_PLAIN_ACTION(sum_counters_worker, sum_counters_worker_action);
 
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
+    std::cerr << "Started initialize method" << std::endl;
 
     scf_options::read_option_file();
+    std::cerr << "Finished reading options" << std::endl;
 
     options::all_localities = localities;
     opts() = _opts;
 
     init_problem();
+    std::cerr << "Finished initializing options" << std::endl;
 
-    compute_ilist();
+    static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
+            ERROR: Stencil is too wide for the subgrid size. 
+            Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
+
+    // compute_ilist();
     compute_factor();
+    std::cerr << "Finished computing factors" << std::endl;
 
     init_executors();
+    std::cerr << "Finished executor init" << std::endl;
 
     grid::static_init();
+    std::cerr << "Finished static_init" << std::endl;
     normalize_constants();
+    std::cerr << "Finished normalizing" << std::endl;
 #ifdef SILO_UNITS
 //	grid::set_unit_conversions();
 #endif
-    std::size_t const os_threads = hpx::get_os_thread_count();
-    hpx::naming::id_type const here = hpx::find_here();
-    std::set<std::size_t> attendance;
-    for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)
-        attendance.insert(os_thread);
-    while (!attendance.empty()) {
-        std::vector<hpx::lcos::future<std::size_t>> futures;
-        futures.reserve(attendance.size());
-
-        for (std::size_t worker : attendance) {
-            using action_type = init_thread_local_worker_action;
-            futures.push_back(hpx::async<action_type>(here, worker));
-        }
-        hpx::lcos::local::spinlock mtx;
-        hpx::lcos::wait_each(hpx::util::unwrapping([&](std::size_t t) {
-            if (std::size_t(-1) != t) {
-                std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
-                attendance.erase(t);
-            }
-        }),
-            futures);
-    }
+    std::cerr << "Finished initialization" << std::endl;
 }
 
 std::array<size_t, 6> analyze_local_launch_counters() {
@@ -253,8 +229,11 @@ HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
 HPX_REGISTER_BROADCAST_ACTION(initialize_action);
 
 void start_octotiger(int argc, char* argv[]) {
+    std::cerr << "Start octotiger" << std::endl;
     try {
+        std::cerr << "Start processing options" << std::endl;
         if (opts().process_options(argc, argv)) {
+            std::cerr << "Finished processing options" << std::endl;
             auto all_locs = hpx::find_all_localities();
             hpx::lcos::broadcast<initialize_action>(all_locs, opts(), all_locs).get();
 
