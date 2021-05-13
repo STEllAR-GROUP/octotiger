@@ -214,6 +214,6 @@ void start_octotiger(int argc, char* argv[]) {
 }
 
 void register_hpx_functions(void) {
-    hpx::register_startup_function(&node_server::register_counters);
+    // hpx::register_startup_function(&node_server::register_counters);
     hpx::register_pre_shutdown_function([]() { options::all_localities.clear(); });
 }
