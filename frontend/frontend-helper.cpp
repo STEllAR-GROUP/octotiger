@@ -123,107 +123,27 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
     std::cerr << "Finished initialization" << std::endl;
 }
 
-std::array<size_t, 6> analyze_local_launch_counters() {
-    std::size_t const os_threads = hpx::get_os_thread_count();
-    hpx::naming::id_type const here = hpx::find_here();
-    std::set<std::size_t> attendance;
-    for (std::size_t os_thread = 0; os_thread < os_threads; ++os_thread)
-        attendance.insert(os_thread);
-
-    std::array<size_t, 6> results{0, 0, 0, 0, 0, 0};
-    while (!attendance.empty()) {
-        std::vector<hpx::lcos::future<std::array<size_t, 7>>> futures;
-        futures.reserve(attendance.size());
-
-        for (std::size_t worker : attendance) {
-            using action_type = sum_counters_worker_action;
-            futures.push_back(hpx::async<action_type>(here, worker));
-        }
-        hpx::lcos::local::spinlock mtx;
-        hpx::lcos::wait_each(hpx::util::unwrapping([&](std::array<size_t, 7> t) {
-            if (std::size_t(-1) != t[0]) {
-                std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
-                results[0] += t[1];
-                results[1] += t[2];
-                results[2] += t[3];
-                results[3] += t[4];
-                results[4] += t[5];
-                results[5] += t[6];
-                attendance.erase(t[0]);
-            }
-        }),
-            futures);
-    }
+void cleanup_buffers() {
     cleanup_puddle_on_this_locality();
-    return results;
+    return ;
 }
-HPX_PLAIN_ACTION(analyze_local_launch_counters, analyze_local_launch_counters_action);
+HPX_PLAIN_ACTION(cleanup_buffers, cleanup_buffers_action);
 
-void accumulate_distributed_counters() {
+void cleanup() {
     std::vector<hpx::naming::id_type> localities = hpx::find_all_localities();
 
-    std::vector<hpx::lcos::future<std::array<size_t, 6>>> futures;
+    std::vector<hpx::lcos::future<void>> futures;
     futures.reserve(localities.size());
 
     for (hpx::naming::id_type const& node : localities) {
-        using action_type = analyze_local_launch_counters_action;
+        using action_type = cleanup_buffers_action;
         futures.push_back(hpx::async<action_type>(node));
     }
-
-    std::array<size_t, 6> results{0, 0, 0, 0, 0, 0};
-    hpx::lcos::local::spinlock mtx;
-    hpx::lcos::wait_each(hpx::util::unwrapping([&](std::array<size_t, 6> t) {
-        std::lock_guard<hpx::lcos::local::spinlock> lk(mtx);
-        results[0] += t[0];
-        results[1] += t[1];
-        results[2] += t[2];
-        results[3] += t[3];
-        results[4] += t[4];
-        results[5] += t[5];
-    }),
-        futures);
-    size_t total_multipole_cpu_launches = results[0];
-    size_t total_multipole_cuda_launches = results[1];
-    size_t total_p2p_cpu_launches = results[2];
-    size_t total_p2p_cuda_launches = results[3];
-    size_t total_multipole_cpu_launches_non_rho = results[4];
-    size_t total_multipole_cuda_launches_non_rho = results[5];
-    std::cout << "========================================" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "Total multipole launches: "
-              << total_multipole_cpu_launches + total_multipole_cuda_launches << std::endl;
-    std::cout << "CPU multipole launches: " << total_multipole_cpu_launches << std::endl;
-    std::cout << "CUDA multipole launches: " << total_multipole_cuda_launches << std::endl;
-    if (total_multipole_cpu_launches + total_multipole_cuda_launches > 0) {
-        float percentage = static_cast<float>(total_multipole_cuda_launches) /
-            (static_cast<float>(total_multipole_cuda_launches) + total_multipole_cpu_launches);
-        std::cout << "=> Percentage of multipole on the GPU: " << percentage * 100 << "\n";
-    }
-    std::cout << "========================================" << std::endl;
-    std::cout << "Total non-rho-multipole launches: "
-              << total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho
-              << std::endl;
-    std::cout << "CPU non-rho-multipole launches: " << total_multipole_cpu_launches_non_rho
-              << std::endl;
-    std::cout << "CUDA non-rho-multipole launches: " << total_multipole_cuda_launches_non_rho
-              << std::endl;
-    if (total_multipole_cpu_launches_non_rho + total_multipole_cuda_launches_non_rho > 0) {
-        float percentage = static_cast<float>(total_multipole_cuda_launches_non_rho) /
-            (static_cast<float>(total_multipole_cuda_launches_non_rho) +
-                total_multipole_cpu_launches_non_rho);
-        std::cout << "=> Percentage of non-rho-multipole on the GPU: " << percentage * 100 << "\n";
-    }
-    std::cout << "========================================" << std::endl;
-    std::cout << "Total p2p launches: " << total_p2p_cpu_launches + total_p2p_cuda_launches
-              << std::endl;
-    std::cout << "CPU p2p launches: " << total_p2p_cpu_launches << std::endl;
-    std::cout << "CUDA p2p launches: " << total_p2p_cuda_launches << std::endl;
-    if (total_p2p_cpu_launches + total_p2p_cuda_launches > 0) {
-        float percentage = static_cast<float>(total_p2p_cuda_launches) /
-            (static_cast<float>(total_p2p_cuda_launches) + total_p2p_cpu_launches);
-        std::cout << "=> Percentage of p2p on the GPU: " << percentage * 100 << "\n";
-    }
+	auto f = hpx::when_all(futures.begin(), futures.end());
+    f.get();
+    std::cout << "Localities cleanup finished" << std::endl;
 }
+
 HPX_PLAIN_ACTION(initialize, initialize_action);
 HPX_REGISTER_BROADCAST_ACTION_DECLARATION(initialize_action);
 HPX_REGISTER_BROADCAST_ACTION(initialize_action);
@@ -282,7 +202,7 @@ void start_octotiger(int argc, char* argv[]) {
                 output_all(root, "X", 0, true);
             }
             root->report_timing();
-            accumulate_distributed_counters();
+            cleanup(); // cleanup buffer and executor pools
         }
     } catch (...) {
         throw;
