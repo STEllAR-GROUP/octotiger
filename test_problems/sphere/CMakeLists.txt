@@ -28,7 +28,7 @@ set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
 
 # Sphere - CPU
 add_test(NAME test_problems.cpu.sphere
-  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini --multipole_kernel_type=SOA_CPU --p2p_kernel_type=SOA_CPU --p2m_kernel_type=SOA_CPU > sphere_log.txt")
+  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF > sphere_log.txt")
 set_tests_properties(test_problems.cpu.sphere PROPERTIES
   FIXTURES_SETUP test_problems.cpu.sphere)
 
@@ -96,7 +96,7 @@ set_tests_properties(test_problems.cpu.sphere.spc5_regex PROPERTIES
 
 add_test(NAME test_problems.cpu.sphere.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-    ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/X.${OCTOTIGER_WITH_GRIDDIM}.silo.data/0.silo)
+    ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo)
 set_tests_properties(test_problems.cpu.sphere.diff PROPERTIES
   FIXTURES_REQUIRED test_problems.cpu.sphere
   FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
@@ -110,7 +110,7 @@ set_tests_properties(test_problems.cpu.sphere.fixture_cleanup PROPERTIES
 
 # Sphere - OLD CPU
 add_test(NAME test_problems.cpu.sphere_old
-  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini --multipole_kernel_type=OLD --p2p_kernel_type=OLD --p2m_kernel_type=OLD > sphere_old_log.txt")
+  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF > sphere_old_log.txt")
 set_tests_properties(test_problems.cpu.sphere_old PROPERTIES
   FIXTURES_SETUP test_problems.cpu.sphere_old)
 
@@ -178,12 +178,12 @@ set_tests_properties(test_problems.cpu.sphere_old.spc5_regex PROPERTIES
 
 add_test(NAME test_problems.cpu.sphere_old.diff
   COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-    ${PROJECT_BINARY_DIR}/sphere_old.silo ${PROJECT_BINARY_DIR}/test_problems/sphere_old/X.${OCTOTIGER_WITH_GRIDDIM}.silo.data/0.silo)
+    ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo)
 set_tests_properties(test_problems.cpu.sphere_old.diff PROPERTIES
   FIXTURES_REQUIRED test_problems.cpu.sphere_old
   FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
 
-add_test(test_problems.cpu.sphere_old.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere_old/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere_old/final.silo.data/0.silo sphere_old_log.txt)
+add_test(test_problems.cpu.sphere_old.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo sphere_old_log.txt)
 set_tests_properties(test_problems.cpu.sphere_old.fixture_cleanup PROPERTIES
     FIXTURES_CLEANUP test_problems.cpu.sphere_old
 )
@@ -192,10 +192,10 @@ set_tests_properties(test_problems.cpu.sphere_old.fixture_cleanup PROPERTIES
 # Sphere - GPU
 if(OCTOTIGER_WITH_CUDA)
   add_test(NAME test_problems.gpu.sphere
-    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini --cuda_number_gpus=1 --cuda_streams_per_gpu=8 --cuda_buffer_capacity=4 > sphere_gpu_log.txt")
+    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini --cuda_number_gpus=1 --cuda_streams_per_gpu=8 --cuda_buffer_capacity=4 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA  > sphere_gpu_log.txt")
   add_test(NAME test_problems.gpu.sphere.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/X.${OCTOTIGER_WITH_GRIDDIM}.silo)
+      ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo)
 
   set_tests_properties(test_problems.gpu.sphere PROPERTIES
     FIXTURES_SETUP test_problems.gpu.sphere)
@@ -264,8 +264,8 @@ if(OCTOTIGER_WITH_CUDA)
     FIXTURES_REQUIRED test_problems.gpu.sphere
     PASS_REGULAR_EXPRESSION ${spc5_regex})
 
-add_test(test_problems.gpu.sphere.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere_old/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo sphere_gpu_log.txt)
-set_tests_properties(test_problems.gpu.sphere.fixture_cleanup PROPERTIES
-    FIXTURES_CLEANUP test_problems.gpu.sphere
-)
+  add_test(test_problems.gpu.sphere.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere_old/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo sphere_gpu_log.txt)
+  set_tests_properties(test_problems.gpu.sphere.fixture_cleanup PROPERTIES
+      FIXTURES_CLEANUP test_problems.gpu.sphere
+  )
 endif()

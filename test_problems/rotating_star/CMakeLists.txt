@@ -10,18 +10,23 @@ download_test_reference("Rotating star test"
   "phys.lsu.edu/~dmarcel/rotating_star.13.silo"
   ${PROJECT_BINARY_DIR}/rotating_star.silo)
 
-set(rho_regex "rho 3.178289e-05 2.006156e-04")
-set(egas_regex "egas 5.813054e-06 4.747507e-05")
-set(tau_regex "tau 1.377203e-05 8.266311e-05")
+# Reference output to compare againsts:
+# Collected with scenario:
+#./build/octotiger/build/octotiger --config_file=src/octotiger/test_problems/rotating_star/rotating_star.ini --max_level=3 --stop_step=10 --theta=0.5 
+# Adapt in case of physic changes
+
+set(rho_regex "rho 3.178386e-05 2.006162e-04")
+set(egas_regex "egas 5.813086e-06 4.747489e-05")
+set(tau_regex "tau 1.377758e-05 8.266548e-05")
 set(pot_regex "pot 5.264186e-03 3.940757e-02")
-set(sx_regex "sx 7.353904e-06 6.084916e-05")
-set(sy_regex "sy 7.354391e-06 6.085113e-05")
-set(sz_regex "sz 5.123306e-06 6.002162e-05")
+set(sx_regex "sx 7.354162e-06 6.084948e-05")
+set(sy_regex "sy 7.354649e-06 6.085143e-05")
+set(sz_regex "sz 5.123326e-06 6.002226e-05")
 set(zx_regex "zx 1.460722e-04 8.854924e-04")
 set(zy_regex "zy 1.460722e-04 8.854922e-04")
 set(zz_regex "zz 5.833309e-04 3.077133e-03")
-set(spc1_regex "spc_1 0.000000e.00 0.000000e.00")
-set(spc2_regex "spc_2 3.178289e-05 2.006156e-04")
+set(spc1_regex "spc_1 3.178386e-05 2.006162e-04")
+set(spc2_regex "spc_2 7.995822e-13 3.137961e-12")
 set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
 set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
 set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
@@ -29,7 +34,7 @@ set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
 # Rotating Star - CPU
 add_test(NAME test_problems.cpu.rotating_star.init COMMAND gen_rotating_star_init)
 add_test(NAME test_problems.cpu.rotating_star
-  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini --multipole_kernel_type=SOA_CPU --p2p_kernel_type=SOA_CPU --p2m_kernel_type=SOA_CPU > rotating_star_log.txt")
+  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY > rotating_star_log.txt")
 set_tests_properties(test_problems.cpu.rotating_star PROPERTIES
   FIXTURES_SETUP test_problems.cpu.rotating_star
   FIXTURES_REQUIRED test_problems.cpu.rotating_star.init)
@@ -113,7 +118,7 @@ set_tests_properties(test_problems.cpu.rotating_star.fixture_cleanup PROPERTIES
 
 # Rotating Star - OLD CPU
 add_test(NAME test_problems.cpu.rotating_star_old
-  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini --multipole_kernel_type=OLD --p2p_kernel_type=OLD --p2m_kernel_type=OLD > rotating_star_old_log.txt")
+  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY > rotating_star_old_log.txt")
 set_tests_properties(test_problems.cpu.rotating_star_old PROPERTIES
   FIXTURES_SETUP test_problems.cpu.rotating_star_old
   FIXTURES_REQUIRED test_problems.cpu.rotating_star.init)
@@ -194,7 +199,7 @@ set_tests_properties(test_problems.cpu.rotating_star_old.fixture_cleanup PROPERT
 if(OCTOTIGER_WITH_CUDA)
   add_test(NAME test_problems.gpu.rotating_star.init COMMAND gen_rotating_star_init)
   add_test(NAME test_problems.gpu.rotating_star
-    COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini --multipole_kernel_type=SOA_CPU --p2p_kernel_type=SOA_CPU --p2m_kernel_type=SOA_CPU --cuda_number_gpus=1 --cuda_streams_per_gpu=8 --cuda_buffer_capacity=4 > rotating_star_gpu_log.txt")
+  COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/rotating_star/rotating_star.ini --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY > rotating_star_gpu_log.txt")
   add_test(NAME test_problems.gpu.rotating_star.diff
     COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
       ${PROJECT_BINARY_DIR}/rotating_star.silo ${PROJECT_BINARY_DIR}/final.silo)
@@ -272,5 +277,10 @@ if(OCTOTIGER_WITH_CUDA)
   set_tests_properties(test_problems.gpu.rotating_star.spc5_regex PROPERTIES
     FIXTURES_REQUIRED test_problems.gpu.rotating_star
     PASS_REGULAR_EXPRESSION ${spc5_regex})
+
+  add_test(test_problems.gpu.rotating_star.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/rotating_star_old/final.silo ${PROJECT_BINARY_DIR}/test_problems/rotating_star_old/final.silo.data/0.silo rotating_star_gpu_log.txt)
+  set_tests_properties(test_problems.gpu.rotating_star.fixture_cleanup PROPERTIES
+      FIXTURES_CLEANUP test_problems.gpu.rotating_star
+  )
 
 endif()
