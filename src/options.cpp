@@ -107,6 +107,7 @@ bool options::process_options(int argc, char *argv[]) {
 	("scf_output_frequency", po::value<integer>(&(opts().scf_output_frequency))->default_value(25), "Frequency of SCF output")        //
 	("silo_num_groups", po::value<integer>(&(opts().silo_num_groups))->default_value(-1), "Number of SILO I/O groups")        //
 	("core_refine", po::value<bool>(&(opts().core_refine))->default_value(false), "refine cores by one more level")           //
+	("grad_rho_refine", po::value<real>(&(opts().grad_rho_refine))->default_value(-1.0), "density gradient refinement criteria (-1=off)")           //
 	("accretor_refine", po::value<integer>(&(opts().accretor_refine))->default_value(0), "number of extra levels for accretor") //
 	("extra_regrid", po::value<integer>(&(opts().extra_regrid))->default_value(0), "number of extra regrids on startup") //
 	("donor_refine", po::value<integer>(&(opts().donor_refine))->default_value(0), "number of extra levels for donor")      //
@@ -261,6 +262,7 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(entropy_driving_rate);
 		SHOW(entropy_driving_time);
 		SHOW(future_wait_time);
+		SHOW(grad_rho_refine);
 		SHOW(hard_dt);
 		SHOW(hydro);
 		SHOW(inflow_bc);

@@ -141,6 +141,10 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 	if (!majority_accretor) {
 		test_level -= opts().accretor_refine;
 	}
+	const auto grad_rho = opts().grad_rho_refine;
+	if( grad_rho > 0.0 ) {
+		test_level--;
+	}
 	real den_floor = opts().refinement_floor;
 	for (integer this_test_level = test_level; this_test_level >= 1; --this_test_level) {
 		if (U[rho_i] > den_floor) {
@@ -151,6 +155,15 @@ bool refine_test(integer level, integer max_level, real x, real y, real z, std::
 		}
 		den_floor /= 8.0;
 	}
+	if(!rc && grad_rho > 0.0 && level < max_level) {
+		for( int dim = 0; dim < NDIM; dim++) {
+			if( std::abs(dudx[dim][rho_i])/U[rho_i] > grad_rho && U[rho_i] > 1000*den_floor) {
+				
+				rc = true;
+			}
+		}
+	}
+
 	return rc;
 }
 
