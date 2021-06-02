@@ -42,6 +42,7 @@ public:
 	bool gravity;
 	bool hydro;
 	bool radiation;
+	real grad_rho_refine;
 	real clight_retard;
 	bool v1309;
 	bool rad_implicit;
@@ -251,6 +252,7 @@ public:
 		arc & atomic_number;
 		arc & X;
 		arc & Z;
+		arc & grad_rho_refine;
 		arc & code_to_g;
 		arc & code_to_s;
 		arc & code_to_cm;
