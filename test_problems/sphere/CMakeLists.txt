@@ -118,13 +118,13 @@ test_sphere_scenario(test_problems.cpu.sphere_vc  sphere_log.txt " --monopole_ho
 test_sphere_scenario(test_problems.cpu.sphere_legacy  sphere_old_log.txt " --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
 # Sphere - GPU plain CUDA
 if(OCTOTIGER_WITH_CUDA)
-  test_sphere_scenario(test_problems.gpu.sphere_cuda  sphere_gpu_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=2 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA ")
+  test_sphere_scenario(test_problems.gpu.sphere_cuda  sphere_gpu_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA ")
 endif()
 
 # Sphere - Kokkos Host / Device tests
 if(OCTOTIGER_WITH_KOKKOS)
   test_sphere_scenario(test_problems.cpu.sphere_kokkos  sphere_gpu_log.txt " --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
   if(OCTOTIGER_WITH_CUDA)
-    test_sphere_scenario(test_problems.gpu.sphere_kokkos  sphere_gpu_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=2 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA ")
+    test_sphere_scenario(test_problems.gpu.sphere_kokkos  sphere_gpu_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA ")
   endif()
 endif()
