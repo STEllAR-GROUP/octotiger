@@ -34,6 +34,118 @@ const storage& get_flux_device_masks(executor_t& exec) {
     return masks;
 }
 
+/// Team-less version of the kokkos flux impl
+/** Meant to be run on host, though it can be used on both host and device.
+ * Does not use any team utility as those cause problems in the kokkos host executions spaces (Kokkos serial)
+ * when using one execution space per kernel execution (not thread-safe it appears).
+ * This is a stop-gap solution until teams work properly on host as well.
+ */
+template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t,
+    typename kokkos_mask_t>
+void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_buffer_t& q_combined,
+    const kokkos_buffer_t& x_combined, kokkos_buffer_t& f_combined, kokkos_buffer_t& amax,
+    kokkos_int_buffer_t& amax_indices, kokkos_int_buffer_t& amax_d, const kokkos_mask_t& masks,
+    const double omega, const double dx, const double A_, const double B_, const int nf,
+    const double fgamma, const double de_switch_1, const int number_blocks, const int team_size) {
+    // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage with the serial kokkos backend:
+    assert((team_size == 1));
+    auto policy = Kokkos::Experimental::require(
+        Kokkos::RangePolicy<decltype(executor.instance())>(
+            executor.instance(), {0}, {number_blocks}),
+        Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+
+    // Start kernel using policy (and through it the passed executor):
+    Kokkos::parallel_for(
+        "kernel hydro flux", policy, KOKKOS_LAMBDA(int idx) {
+
+            // Index helpers:
+            const int blocks_per_dim = number_blocks / NDIM;
+            const int dim = (idx / blocks_per_dim);    
+            const int index = (idx % blocks_per_dim) * team_size;
+            const int block_id = idx;
+
+            // Default values for relevant buffers/variables:
+
+            // Set during cmake step with -DOCTOTIGER_WITH_MAX_NUMBER_FIELDS
+            double local_f[OCTOTIGER_MAX_NUMBER_FIELDS];
+            // assumes maximal number (given by cmake) of species in a simulation.
+            // Not the most elegant solution and rather old-fashion but one that works.
+            // May be changed to a more flexible sophisticated object.
+            for (int f = 0; f < nf; f++) {
+                local_f[f] = 0.0;
+            }
+            double local_x[3] = {0.0, 0.0, 0.0};
+            double local_vg[3] = {0.0, 0.0, 0.0};
+            for (int f = 0; f < nf; f++) {
+                f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
+            }
+            amax[block_id] = 0.0;
+            amax_indices[block_id] = 0;
+            amax_d[block_id] = 0;
+            double current_amax = 0.0;
+            int current_d = 0;
+
+            // Calculate the flux:
+            if (index > q_inx * q_inx + q_inx && index < q_inx3) {
+                double mask = masks[index + dim * dim_offset];
+                if (mask != 0.0) {
+                    for (int fi = 0; fi < 9; fi++) {            // 9
+                        double this_ap = 0.0, this_am = 0.0;    // tmps
+                        const int d = faces[dim][fi];
+                        const int flipped_dim = flip_dim(d, dim);
+                        for (int dim = 0; dim < 3; dim++) {
+                            local_x[dim] =
+                                x_combined[dim * q_inx3 + index] + (0.5 * xloc[d][dim] * dx);
+                        }
+                        local_vg[0] = -omega * (x_combined[q_inx3 + index] + 0.5 * xloc[d][1] * dx);
+                        local_vg[1] = +omega * (x_combined[index] + 0.5 * xloc[d][0] * dx);
+                        local_vg[2] = 0.0;
+                        // Call the actual compute method
+                        cell_inner_flux_loop<double>(omega, nf, A_, B_, q_combined, local_f,
+                            local_x, local_vg, this_ap, this_am, dim, d, dx, fgamma, de_switch_1,
+                            dim_offset * d + index,
+                            dim_offset * flipped_dim - compressedH_DN[dim] + index, face_offset);
+                        // TODO Preparation for later SIMD masking (not supported yet)
+                        this_ap *= mask;
+                        this_am *= mask;
+                        // Update maximum values
+                        const double amax_tmp = max_wrapper(this_ap, (-this_am));
+                        if (amax_tmp > current_amax) {
+                            current_amax = amax_tmp;
+                            current_d = d;
+                        }
+                        // Add results to the final flux buffer
+                        for (int f = 1; f < nf; f++) {
+                            f_combined[dim * nf * q_inx3 + f * q_inx3 + index] +=
+                                quad_weights[fi] * local_f[f];
+                        }
+                    }
+                }
+                for (int f = 10; f < nf; f++) {
+                    f_combined[dim * nf * q_inx3 + index] +=
+                        f_combined[dim * nf * q_inx3 + f * q_inx3 + index];
+                }
+            }
+
+            // Write Maximum of local team to amax:
+                    amax[block_id] = current_amax;
+                    amax_indices[block_id] = index;
+                    amax_d[block_id] = current_d;
+                // Save face to the end of the amax buffer
+                // This avoids putting combined_q back on the host side just to read
+                // those few values
+                const int flipped_dim = flip_dim(amax_d[block_id], dim);
+                for (int f = 0; f < nf; f++) {
+                    amax[number_blocks + block_id * 2 * nf + f] =
+                        q_combined[amax_indices[block_id] + f * face_offset +
+                            dim_offset * amax_d[block_id]];
+                    amax[number_blocks + block_id * 2 * nf + nf + f] =
+                        q_combined[amax_indices[block_id] - compressedH_DN[dim] +
+                            f * face_offset + dim_offset * flipped_dim];
+                }
+        });
+}
+
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t,
     typename kokkos_mask_t>
 void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_buffer_t& q_combined,
@@ -48,7 +160,8 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
     using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
     auto policy = policytype(executor.instance(), number_blocks, team_size);
     using membertype = typename policytype::member_type;
-    policy.set_scratch_size(0, Kokkos::PerTeam(team_size * (sizeof(double) + sizeof(int) * 2)));
+    if (team_size > 1)
+        policy.set_scratch_size(0, Kokkos::PerTeam(team_size * (sizeof(double) + sizeof(int) * 2)));
 
     // Start kernel using policy (and through it the passed executor):
     Kokkos::parallel_for(
@@ -396,7 +509,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     host_buffer<double> amax(blocks * (1 + 2 * nf));
     host_buffer<int> amax_indices(blocks);
     host_buffer<int> amax_d(blocks);
-    flux_impl(exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf,
+    flux_impl_teamless(exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf,
         fgamma, de_switch_1, blocks, 1);
 
     sync_kokkos_host_kernel(exec);
@@ -429,7 +542,7 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     ts.ul = std::move(ULs);
     ts.ur = std::move(URs);
     ts.dim = current_dim;
-    std::cout << ts.a << std::endl;
+    // std::cout << ts.a << std::endl;
     return ts;
 }
 

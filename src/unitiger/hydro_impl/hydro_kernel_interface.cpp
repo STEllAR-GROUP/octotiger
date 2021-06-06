@@ -77,8 +77,8 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     if (!avail) {
         if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
-            // host_executor executor(hpx::kokkos::execution_space_mode::independent);
-            host_executor executor{};
+            host_executor executor(hpx::kokkos::execution_space_mode::independent);
+            // host_executor executor{};
             max_lambda = launch_hydro_kokkos_kernels<host_executor>(
                 hydro, U, X, omega, opts().n_species, executor, F);
             return max_lambda;
