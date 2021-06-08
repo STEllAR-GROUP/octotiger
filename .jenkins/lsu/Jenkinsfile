@@ -19,6 +19,15 @@ pipeline {
                 dir('octotiger') {
                     checkout scm
                     echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
+                    sh '''
+                    #!/bin/bash -l
+                    cd ..
+                    git clone https://github.com/diehlpk/PowerTiger.git octo-buildscripts
+                    cd octo-buildscripts
+                    git checkout clang-build
+                    cd ..
+                    cp -r octotiger octo-buildscripts/src/octotiger
+                    '''
                 }
             }
         }
@@ -37,10 +46,10 @@ pipeline {
                 stages {
                     stage('build') {
                         steps {
-                            dir('octotiger') {
+                            dir('octo-buildscripts') {
                                 sh '''
                                 #!/bin/bash -l
-                                .jenkins/lsu/entry.sh
+                                src/octotiger/.jenkins/lsu/entry.sh
                                 '''
                             }
                         }
