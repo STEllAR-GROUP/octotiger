@@ -129,9 +129,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     recycler::cuda_device_buffer<double> device_large_x(NDIM * H_N3 + 128, device_id);
     recycler::cuda_device_buffer<double> device_f(NDIM * hydro.get_nf() * q_inx3 + 128, device_id);
     recycler::cuda_device_buffer<double> device_u(hydro.get_nf() * H_N3 + 128);
-    recycler::cuda_device_buffer<double> device_amax(NDIM);
-    recycler::cuda_device_buffer<int> device_amax_indices(NDIM);
-    recycler::cuda_device_buffer<int> device_amax_d(NDIM);
     recycler::cuda_device_buffer<double> device_unified_discs(geo.NDIR / 2 * H_N3 + 128);
     recycler::cuda_device_buffer<double> device_P(H_N3 + 128);
     recycler::cuda_device_buffer<int> device_disc_detect(hydro.get_nf());
