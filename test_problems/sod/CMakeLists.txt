@@ -10,19 +10,41 @@ download_test_reference("Sod shock tube test"
   "phys.lsu.edu/~dmarcel/sod.13.silo"
   ${PROJECT_BINARY_DIR}/sod.silo)
 
-set(rho_regex "rho 8.616107e-03 1.774427e-02")
-set(egas_regex "egas 2.234463e-02 4.586487e-02")
-set(tau_regex "tau 1.460285e-02 3.493483e-02")
-set(pot_regex "pot 0.000000e.00 0.000000e.00")
-set(sx_regex "sx 8.155587e-03 1.650219e-02")
-#sy sz zx are too close to 0 to be reasonably compared here as strings
-set(zy_regex "zy 2.250000e-02 5.975532e-02")
-set(zz_regex "zz 2.250000e-02 5.975532e-02")
-set(spc1_regex "spc_1 8.616107e-03 1.774427e-02")
-set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  set(rho_regex "rho 8.616107e-03 1.774427e-02")
+  set(egas_regex "egas 2.234463e-02 4.586487e-02")
+  set(tau_regex "tau 1.460285e-02 3.493483e-02")
+  set(pot_regex "pot 0.000000e.00 0.000000e.00")
+  set(sx_regex "sx 8.155587e-03 1.650219e-02")
+  # sy sz zx are too close to 0 to be reasonably compared here as strings
+  # meaning they're beyond machine precision so we won't get an exact string match
+  set(zy_regex "zy 2.250000e-02 5.975532e-02")
+  set(zz_regex "zz 2.250000e-02 5.975532e-02")
+  set(spc1_regex "spc_1 8.616107e-03 1.774427e-02")
+  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
+  set(rho_regex "rho 4.603921e-03 1.217094e-02")
+  set(egas_regex "egas 1.672459e-02 4.383427e-02")
+  set(tau_regex "tau 1.207561e-02 3.052800e-02")
+  set(pot_regex "pot 0.000000e.00 0.000000e.00")
+  set(sx_regex "sx 7.426969e-03 1.964336e-02")
+  # sy sz zx are too close to 0 to be reasonably compared here as strings
+  # meaning they're beyond machine precision so we won't get an exact string match
+  set(zy_regex "zy 2.250000e-02 6.615994e-02")
+  set(zz_regex "zz 2.250000e-02 6.615994e-02")
+  set(spc1_regex "spc_1 4.603921e-03 1.217094e-02")
+  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+else()
+  message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
+  " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
+  " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
+endif()
 
 function(test_sod_scenario test_name test_log_file kernel_parameters)
   add_test(NAME ${test_name}
@@ -81,12 +103,14 @@ function(test_sod_scenario test_name test_log_file kernel_parameters)
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${spc5_regex})
 
-  add_test(NAME ${test_name}.diff
-    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
-  set_tests_properties(${test_name}.diff PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+    add_test(NAME ${test_name}.diff
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+        ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
+    set_tests_properties(${test_name}.diff PROPERTIES
+      FIXTURES_REQUIRED ${test_name}
+      FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  endif()
 
   add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo ${test_log_file})
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES

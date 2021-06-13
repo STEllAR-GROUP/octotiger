@@ -14,21 +14,43 @@ download_test_reference("Solid sphere test"
 # Collected with the solid sphere scenario!
 # Adapt in case of physic changes (note, replace special symbols like + with .)
 
-set(rho_regex "rho 1.048130e-03 1.989298e-02")
-set(egas_regex "egas 0.000000e.00 0.000000e.00")
-set(tau_regex "tau 0.000000e.00 0.000000e.00")
-set(pot_regex "pot 4.470774e-01 3.176879e.00")
-set(sx_regex "sx 0.000000e.00 0.000000e.00")
-set(sy_regex "sy 0.000000e.00 0.000000e.00")
-set(sz_regex "sz 0.000000e.00 0.000000e.00")
-set(zx_regex "zx 0.000000e.00 0.000000e.00")
-set(zy_regex "zy 0.000000e.00 0.000000e.00")
-set(zz_regex "zz 0.000000e.00 0.000000e.00")
-set(spc1_regex "spc_1 1.048130e-03 1.989298e-02")
-set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  set(rho_regex "rho 1.048130e-03 1.989298e-02")
+  set(egas_regex "egas 0.000000e.00 0.000000e.00")
+  set(tau_regex "tau 0.000000e.00 0.000000e.00")
+  set(pot_regex "pot 4.470774e-01 3.176879e.00")
+  set(sx_regex "sx 0.000000e.00 0.000000e.00")
+  set(sy_regex "sy 0.000000e.00 0.000000e.00")
+  set(sz_regex "sz 0.000000e.00 0.000000e.00")
+  set(zx_regex "zx 0.000000e.00 0.000000e.00")
+  set(zy_regex "zy 0.000000e.00 0.000000e.00")
+  set(zz_regex "zz 0.000000e.00 0.000000e.00")
+  set(spc1_regex "spc_1 1.048130e-03 1.989298e-02")
+  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
+  set(rho_regex "rho 4.665483e-04 1.508687e-02")
+  set(egas_regex "egas 0.000000e.00 0.000000e.00")
+  set(tau_regex "tau 0.000000e.00 0.000000e.00")
+  set(pot_regex "pot 4.493009e-01 3.219940e.00")
+  set(sx_regex "sx 0.000000e.00 0.000000e.00")
+  set(sy_regex "sy 0.000000e.00 0.000000e.00")
+  set(sz_regex "sz 0.000000e.00 0.000000e.00")
+  set(zx_regex "zx 0.000000e.00 0.000000e.00")
+  set(zy_regex "zy 0.000000e.00 0.000000e.00")
+  set(zz_regex "zz 0.000000e.00 0.000000e.00")
+  set(spc1_regex "spc_1 4.665483e-04 1.508687e-02")
+  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+else()
+  message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
+  " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
+  " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
+endif()
 
 function(test_sphere_scenario test_name test_log_file kernel_parameters)
   add_test(NAME ${test_name}
@@ -98,12 +120,14 @@ function(test_sphere_scenario test_name test_log_file kernel_parameters)
     PASS_REGULAR_EXPRESSION ${spc5_regex})
 
 
-  add_test(NAME ${test_name}.diff
-    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo)
-  set_tests_properties(${test_name}.diff PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+    add_test(NAME ${test_name}.diff
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+        ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo)
+    set_tests_properties(${test_name}.diff PROPERTIES
+      FIXTURES_REQUIRED ${test_name}
+      FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  endif()
 
   add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo ${test_log_file})
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES
