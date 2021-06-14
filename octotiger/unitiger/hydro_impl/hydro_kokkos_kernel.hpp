@@ -36,31 +36,31 @@ const storage& get_flux_device_masks(executor_t& exec) {
 
 /// Team-less version of the kokkos flux impl
 /** Meant to be run on host, though it can be used on both host and device.
- * Does not use any team utility as those cause problems in the kokkos host executions spaces (Kokkos serial)
- * when using one execution space per kernel execution (not thread-safe it appears).
+ * Does not use any team utility as those cause problems in the kokkos host executions spaces
+ * (Kokkos serial) when using one execution space per kernel execution (not thread-safe it appears).
  * This is a stop-gap solution until teams work properly on host as well.
  */
 template <typename kokkos_backend_t, typename kokkos_buffer_t, typename kokkos_int_buffer_t,
     typename kokkos_mask_t>
-void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_buffer_t& q_combined,
-    const kokkos_buffer_t& x_combined, kokkos_buffer_t& f_combined, kokkos_buffer_t& amax,
-    kokkos_int_buffer_t& amax_indices, kokkos_int_buffer_t& amax_d, const kokkos_mask_t& masks,
-    const double omega, const double dx, const double A_, const double B_, const int nf,
-    const double fgamma, const double de_switch_1, const int number_blocks, const int team_size) {
-    // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage with the serial kokkos backend:
+void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
+    const kokkos_buffer_t& q_combined, const kokkos_buffer_t& x_combined,
+    kokkos_buffer_t& f_combined, kokkos_buffer_t& amax, kokkos_int_buffer_t& amax_indices,
+    kokkos_int_buffer_t& amax_d, const kokkos_mask_t& masks, const double omega, const double dx,
+    const double A_, const double B_, const int nf, const double fgamma, const double de_switch_1,
+    const int number_blocks, const int team_size) {
+    // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage
+    // with the serial kokkos backend:
     assert((team_size == 1));
-    auto policy = Kokkos::Experimental::require(
-        Kokkos::RangePolicy<decltype(executor.instance())>(
-            executor.instance(), {0}, {number_blocks}),
+    auto policy = Kokkos::Experimental::require(Kokkos::RangePolicy<decltype(executor.instance())>(
+                                                    executor.instance(), {0}, {number_blocks}),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
     // Start kernel using policy (and through it the passed executor):
     Kokkos::parallel_for(
         "kernel hydro flux", policy, KOKKOS_LAMBDA(int idx) {
-
             // Index helpers:
             const int blocks_per_dim = number_blocks / NDIM;
-            const int dim = (idx / blocks_per_dim);    
+            const int dim = (idx / blocks_per_dim);
             const int index = (idx % blocks_per_dim) * team_size;
             const int block_id = idx;
 
@@ -128,21 +128,20 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor, const
             }
 
             // Write Maximum of local team to amax:
-                    amax[block_id] = current_amax;
-                    amax_indices[block_id] = index;
-                    amax_d[block_id] = current_d;
-                // Save face to the end of the amax buffer
-                // This avoids putting combined_q back on the host side just to read
-                // those few values
-                const int flipped_dim = flip_dim(amax_d[block_id], dim);
-                for (int f = 0; f < nf; f++) {
-                    amax[number_blocks + block_id * 2 * nf + f] =
-                        q_combined[amax_indices[block_id] + f * face_offset +
-                            dim_offset * amax_d[block_id]];
-                    amax[number_blocks + block_id * 2 * nf + nf + f] =
-                        q_combined[amax_indices[block_id] - compressedH_DN[dim] +
-                            f * face_offset + dim_offset * flipped_dim];
-                }
+            amax[block_id] = current_amax;
+            amax_indices[block_id] = index;
+            amax_d[block_id] = current_d;
+            // Save face to the end of the amax buffer
+            // This avoids putting combined_q back on the host side just to read
+            // those few values
+            const int flipped_dim = flip_dim(amax_d[block_id], dim);
+            for (int f = 0; f < nf; f++) {
+                amax[number_blocks + block_id * 2 * nf + f] = q_combined[amax_indices[block_id] +
+                    f * face_offset + dim_offset * amax_d[block_id]];
+                amax[number_blocks + block_id * 2 * nf + nf + f] =
+                    q_combined[amax_indices[block_id] - compressedH_DN[dim] + f * face_offset +
+                        dim_offset * flipped_dim];
+            }
         });
 }
 
@@ -153,8 +152,10 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
     kokkos_int_buffer_t& amax_indices, kokkos_int_buffer_t& amax_d, const kokkos_mask_t& masks,
     const double omega, const double dx, const double A_, const double B_, const int nf,
     const double fgamma, const double de_switch_1, const int number_blocks, const int team_size) {
-    // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage with the serial kokkos backend:
-    assert((team_size == 256) || (team_size == 128) || (team_size == 64) || (team_size == 32) || (team_size == 1));
+    // Supported team_sizes need to be the power of two! Team size of 1 is a special case for usage
+    // with the serial kokkos backend:
+    assert((team_size == 256) || (team_size == 128) || (team_size == 64) || (team_size == 32) ||
+        (team_size == 1));
 
     // Set policy via executor and allocate enough scratch memory:
     using policytype = Kokkos::TeamPolicy<decltype(executor.instance())>;
@@ -166,15 +167,12 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
     // Start kernel using policy (and through it the passed executor):
     Kokkos::parallel_for(
         "kernel hydro flux", policy, KOKKOS_LAMBDA(const membertype& team_handle) {
-
             // Index helpers:
             const int blocks_per_dim = number_blocks / NDIM;
-            const int dim = (team_handle.league_rank() / blocks_per_dim);    
-            const int tid =
-                team_handle.team_rank();    
+            const int dim = (team_handle.league_rank() / blocks_per_dim);
+            const int tid = team_handle.team_rank();
             const int index = (team_handle.league_rank() % blocks_per_dim) * team_size + tid;
             const int block_id = team_handle.league_rank();
-
 
             // Default values for relevant buffers/variables:
 
@@ -242,8 +240,8 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
             }
 
             // Parallel maximum search within workgroup:
-            // Kokkos serial backend does not seem to support concurrent (multiple serial executions spaces)
-            // Scratch memory accesses! Hence the parallel maximum search is only done if 
+            // Kokkos serial backend does not seem to support concurrent (multiple serial executions
+            // spaces) Scratch memory accesses! Hence the parallel maximum search is only done if
             // the team size is larger than 1 (indicates serial backend)
             if (team_handle.team_size() > 1) {
                 Kokkos::View<double*, typename policytype::execution_space::scratch_memory_space>
@@ -289,10 +287,11 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
 
             // Write Maximum of local team to amax:
             if (tid == 0) {
-                // Kokkos serial backend does not seem to support concurrent (multiple serial executions spaces)
-                // Scratch memory accesses! Hence we cannot do the parralel sorting in scratch memory and 
-                // use this work around for team sizes of 1 (as used by invocations on the serial backend)
-                if (team_handle.team_size() == 1) { 
+                // Kokkos serial backend does not seem to support concurrent (multiple serial
+                // executions spaces) Scratch memory accesses! Hence we cannot do the parralel
+                // sorting in scratch memory and use this work around for team sizes of 1 (as used
+                // by invocations on the serial backend)
+                if (team_handle.team_size() == 1) {
                     amax[block_id] = current_amax;
                     amax_indices[block_id] = index;
                     amax_d[block_id] = current_d;
@@ -306,8 +305,8 @@ void flux_impl(hpx::kokkos::executor<kokkos_backend_t>& executor, const kokkos_b
                         q_combined[amax_indices[block_id] + f * face_offset +
                             dim_offset * amax_d[block_id]];
                     amax[number_blocks + block_id * 2 * nf + nf + f] =
-                        q_combined[amax_indices[block_id] - compressedH_DN[dim] +
-                            f * face_offset + dim_offset * flipped_dim];
+                        q_combined[amax_indices[block_id] - compressedH_DN[dim] + f * face_offset +
+                            dim_offset * flipped_dim];
                 }
             }
         });
@@ -509,8 +508,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
     host_buffer<double> amax(blocks * (1 + 2 * nf));
     host_buffer<int> amax_indices(blocks);
     host_buffer<int> amax_d(blocks);
-    flux_impl_teamless(exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_, nf,
-        fgamma, de_switch_1, blocks, 1);
+    flux_impl_teamless(exec, q, combined_x, f, amax, amax_indices, amax_d, masks, omega, dx, A_, B_,
+        nf, fgamma, de_switch_1, blocks, 1);
 
     sync_kokkos_host_kernel(exec);
 

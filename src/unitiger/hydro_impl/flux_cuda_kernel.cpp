@@ -44,7 +44,7 @@ __global__ void __launch_bounds__(128, 2)
     for (int f = 0; f < nf; f++) {
         f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
     }
-    if (index < q_inx3) {
+    if (index > q_inx * q_inx + q_inx && index < q_inx3) {
         double mask = masks[index + dim * dim_offset];
         if (mask != 0.0) {
             for (int fi = 0; fi < 9; fi++) {            // 9

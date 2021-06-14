@@ -33,7 +33,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     bool avail = false;
 
     // Try accelerator implementation
-    // TODO Pick correct implementation based on kernel parameter
     if (device_type != interaction_device_kernel_type::OFF) {
         if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
@@ -54,7 +53,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         }
         if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
-            // TODO Device CUDA Implementation
             avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                 pool_strategy>(cuda_buffer_capacity);
             size_t device_id = 0;
