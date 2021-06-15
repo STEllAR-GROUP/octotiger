@@ -50,6 +50,7 @@ jobs:
                           -DSilo_DIR=/local/silo \
                           -DHDF5_ROOT=/local/hdf5 \
                           -DBOOST_ROOT=/local/boost \
+                          -DOCTOTIGER_WITH_Vc=OFF \
                           -DOCTOTIGER_WITH_DOCU=ON \
                           -GNinja
             - run:
@@ -96,7 +97,7 @@ jobs:
                 at: /
             - run:
                 name: Blast test
-                command: ctest --output-on-failure -R test_problems.cpu.blast.diff
+                command: ctest --output-on-failure -R test_problems.cpu.blas_legacy
                 no_output_timeout: 200m
             - run:
                 name: Move artifacts
@@ -117,7 +118,7 @@ jobs:
                 at: /
             - run:
                 name: Sod shock tube test
-                command: ctest --output-on-failure -R test_problems.cpu.sod.diff
+                command: ctest --output-on-failure -R test_problems.cpu.so_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -138,7 +139,7 @@ jobs:
                 at: /
             - run:
                 name: Solid sphere test
-                command: ctest --output-on-failure -R test_problems.cpu.sphere.diff
+                command: ctest --output-on-failure -R test_problems.cpu.sphere_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -159,7 +160,7 @@ jobs:
                 at: /
             - run:
                 name: Rotating star test
-                command: ctest --output-on-failure -R test_problems.cpu.rotating_star.diff
+                command: ctest --output-on-failure -R test_problems.cpu.rotating_sta_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
