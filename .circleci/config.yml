@@ -97,7 +97,7 @@ jobs:
                 at: /
             - run:
                 name: Blast test
-                command: ctest --output-on-failure -R test_problems.cpu.blas_legacy
+                command: ctest --output-on-failure -R test_problems.cpu.blast_legacy
                 no_output_timeout: 200m
             - run:
                 name: Move artifacts
@@ -118,7 +118,7 @@ jobs:
                 at: /
             - run:
                 name: Sod shock tube test
-                command: ctest --output-on-failure -R test_problems.cpu.so_legacy
+                command: ctest --output-on-failure -R test_problems.cpu.sod_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -137,6 +137,15 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - run:
+                name: workspace directory
+                command: ls ../..
+            - run:
+                name: Environment
+                command: printenv
+            - run:
+                name: Add cppuddle library path
+                command: export LD_LIBRARY_PATH=/root/project/cppuddle-install/lib:$LD_LIBRARY_PATH
             - run:
                 name: Solid sphere test
                 command: ctest --output-on-failure -R test_problems.cpu.sphere_legacy
@@ -160,7 +169,7 @@ jobs:
                 at: /
             - run:
                 name: Rotating star test
-                command: ctest --output-on-failure -R test_problems.cpu.rotating_sta_legacy
+                command: ctest --output-on-failure -R test_problems.cpu.rotating_star_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
