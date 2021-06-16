@@ -57,8 +57,31 @@ jobs:
                 name: Build
                 command: cmake --build /octotiger/build -- -j2
             - run:
+                name: Install CPPuddle to saved directory
+                command: cp cppuddle-install/lib/libbuffer_manager.so /octotiger/build/libbuffer_manager.so
+            - run:
                 name: Documentation
                 command: make -C /octotiger/build doc 
+            - run:
+                name: Blast test
+                command: ctest --output-on-failure -R test_problems.cpu.blast_legacy
+                no_output_timeout: 200m
+            - run:
+                name: Solid sphere test
+                command: ctest --output-on-failure -R test_problems.cpu.sphere_legacy
+                no_output_timeout: 25m
+            - run:
+                name: Sod shock tube test
+                command: ctest --output-on-failure -R test_problems.cpu.sod_legacy
+                no_output_timeout: 25m
+            - run:
+                name: Rotating star test
+                command: ctest --output-on-failure -R test_problems.cpu.rotating_star_legacy
+                no_output_timeout: 25m
+            - run:
+                name: Marshak wave test
+                command: ctest --output-on-failure -R test_problems.cpu.marshak.diff
+                no_output_timeout: 100m
             - persist_to_workspace:
                 root: /
                 paths:
@@ -141,11 +164,14 @@ jobs:
                 name: workspace directory
                 command: ls ../..
             - run:
-                name: Environment
-                command: printenv
+                name: workspace directory
+                command: pwd
             - run:
                 name: Add cppuddle library path
                 command: export LD_LIBRARY_PATH=/root/project/cppuddle-install/lib:$LD_LIBRARY_PATH
+            - run:
+                name: Environment
+                command: printenv
             - run:
                 name: Solid sphere test
                 command: ctest --output-on-failure -R test_problems.cpu.sphere_legacy
