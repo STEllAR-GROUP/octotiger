@@ -14,21 +14,43 @@ download_test_reference("Blast test"
 # Collected with the blast.ini scenario!
 # Adapt in case of physic changes (note, replace special symbols like + with .)  
 
-set(rho_regex "rho 1.015611e-03 1.918630e-02")
-set(egas_regex "egas 3.813222e-02 7.135766e-01")
-set(tau_regex "tau 5.179120e-03 1.096847e-01")
-set(pot_regex "pot 0.000000e.00 0.000000e.00")
-set(sx_regex "sx 2.945534e-03 6.536674e-02")
-set(sy_regex "sy 2.945534e-03 6.536674e-02")
-set(sz_regex "sz 2.945534e-03 6.536674e-02")
-set(zx_regex "zx 4.706839e-05 1.144265e-03")
-set(zy_regex "zy 4.706839e-05 1.144265e-03")
-set(zz_regex "zz 4.706839e-05 1.144265e-03")
-set(spc1_regex "spc_1 1.015611e-03 1.918630e-02")
-set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
-set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
-set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
-set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  set(rho_regex "rho 1.015611e-03 1.918630e-02")
+  set(egas_regex "egas 3.813222e-02 7.135766e-01")
+  set(tau_regex "tau 5.179120e-03 1.096847e-01")
+  set(pot_regex "pot 0.000000e.00 0.000000e.00")
+  set(sx_regex "sx 2.945534e-03 6.536674e-02")
+  set(sy_regex "sy 2.945534e-03 6.536674e-02")
+  set(sz_regex "sz 2.945534e-03 6.536674e-02")
+  set(zx_regex "zx 4.706839e-05 1.144265e-03")
+  set(zy_regex "zy 4.706839e-05 1.144265e-03")
+  set(zz_regex "zz 4.706839e-05 1.144265e-03")
+  set(spc1_regex "spc_1 1.015611e-03 1.918630e-02")
+  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
+  set(rho_regex "rho 7.443236e-04 1.876318e-02")
+  set(egas_regex "egas 2.724814e-02 6.853660e-01")
+  set(tau_regex "tau 3.572754e-03 8.383210e-02")
+  set(pot_regex "pot 0.000000e.00 0.000000e.00")
+  set(sx_regex "sx 2.365151e-03 7.155404e-02")
+  set(sy_regex "sy 2.365151e-03 7.155404e-02")
+  set(sz_regex "sz 2.365151e-03 7.155404e-02")
+  set(zx_regex "zx 2.080924e-05 6.791078e-04")
+  set(zy_regex "zy 2.080924e-05 6.791078e-04")
+  set(zz_regex "zz 2.080924e-05 6.791078e-04")
+  set(spc1_regex "7.443236e-04 1.876318e-02")
+  set(spc2_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+else()
+  message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
+  " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
+  " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
+endif()
 
   
 function(test_blast_scenario test_name test_log_file kernel_parameters)
@@ -100,13 +122,15 @@ function(test_blast_scenario test_name test_log_file kernel_parameters)
 
 
   
-  # TODO replace with proper diff comparison - needs reference files
-  add_test(NAME ${test_name}.diff
-    COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-      ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo)
-  set_tests_properties(${test_name}.diff PROPERTIES
-    FIXTURES_REQUIRED ${test_name}
-    FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+    # TODO replace with proper diff comparison - needs reference files
+    add_test(NAME ${test_name}.diff
+      COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
+        ${PROJECT_BINARY_DIR}/blast.silo ${PROJECT_BINARY_DIR}/test_problems/blast/final.silo)
+    set_tests_properties(${test_name}.diff PROPERTIES
+      FIXTURES_REQUIRED ${test_name}
+      FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
+  endif()
 
   add_test(${test_name}.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo ${test_log_file})
   set_tests_properties(${test_name}.fixture_cleanup PROPERTIES

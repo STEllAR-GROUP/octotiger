@@ -81,21 +81,24 @@ __global__ void    //__launch_bounds__(12 * 12, 1)
 discs_phase1(double* __restrict__ P, const double* __restrict__ combined_u, const double A_,
     const double B_, const double fgamma_, const double de_switch_1) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
-    const int grid_x = index / (inx_normal * inx_normal);
-    const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
-    const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
-    cell_find_contact_discs_phase1(
-        P, combined_u, A_, B_, fgamma_, de_switch_1, grid_x, grid_y, grid_z);
+    if (index < inx_normal * inx_normal * inx_normal) {
+        const int grid_x = index / (inx_normal * inx_normal);
+        const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
+        const int grid_z = (index % (inx_normal * inx_normal)) % inx_normal;
+        cell_find_contact_discs_phase1(
+            P, combined_u, A_, B_, fgamma_, de_switch_1, grid_x, grid_y, grid_z);
+    }
 }
 
-__global__ void    __launch_bounds__(64, 4)
-discs_phase2(
+__global__ void __launch_bounds__(64, 4) discs_phase2(
     double* __restrict__ disc, const double* __restrict__ P, const double fgamma_, const int ndir) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
-    const int grid_x = index / (q_inx * q_inx);
-    const int grid_y = (index % (q_inx * q_inx)) / q_inx;
-    const int grid_z = (index % (q_inx * q_inx)) % q_inx;
-    cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z);
+    if (index < q_inx3) {
+        const int grid_x = index / (q_inx * q_inx);
+        const int grid_y = (index % (q_inx * q_inx)) / q_inx;
+        const int grid_z = (index % (q_inx * q_inx)) % q_inx;
+        cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z);
+    }
 }
 
 void launch_find_contact_discs_cuda(
@@ -119,16 +122,18 @@ void launch_find_contact_discs_cuda(
         threads_per_block_phase2, args_phase2, 0);
 }
 
-__global__ void    __launch_bounds__(64, 4)
-hydro_pre_recon_cuda(double* __restrict__ device_X, safe_real omega, bool angmom,
-    double* __restrict__ device_u, const int nf, const int n_species_) {
+__global__ void __launch_bounds__(64, 4)
+    hydro_pre_recon_cuda(double* __restrict__ device_X, safe_real omega, bool angmom,
+        double* __restrict__ device_u, const int nf, const int n_species_) {
     // Index mapping to actual grid
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
-    const int grid_x = index / (inx_large * inx_large);
-    const int grid_y = (index % (inx_large * inx_large)) / inx_large;
-    const int grid_z = (index % (inx_large * inx_large)) % inx_large;
-    cell_hydro_pre_recon(
-        device_X, omega, angmom, device_u, nf, n_species_, grid_x, grid_y, grid_z);
+    if (index < inx_large * inx_large * inx_large) {
+        const int grid_x = index / (inx_large * inx_large);
+        const int grid_y = (index % (inx_large * inx_large)) / inx_large;
+        const int grid_z = (index % (inx_large * inx_large)) % inx_large;
+        cell_hydro_pre_recon(
+            device_X, omega, angmom, device_u, nf, n_species_, grid_x, grid_y, grid_z);
+    }
 }
 
 void launch_hydro_pre_recon_cuda(

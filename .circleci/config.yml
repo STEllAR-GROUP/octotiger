@@ -50,11 +50,17 @@ jobs:
                           -DSilo_DIR=/local/silo \
                           -DHDF5_ROOT=/local/hdf5 \
                           -DBOOST_ROOT=/local/boost \
+                          -DOCTOTIGER_WITH_Vc=OFF \
                           -DOCTOTIGER_WITH_DOCU=ON \
                           -GNinja
             - run:
                 name: Build
                 command: cmake --build /octotiger/build -- -j2
+            - run:
+                name: Install CPPuddle lib to persistent octotiger directory
+                command: |
+                    cp cppuddle-install/lib/libbuffer_manager.so /octotiger/build/libbuffer_manager.so
+                    cp cppuddle-install/lib/libstream_manager.so /octotiger/build/libstream_manager.so
             - run:
                 name: Documentation
                 command: make -C /octotiger/build doc 
@@ -96,7 +102,7 @@ jobs:
                 at: /
             - run:
                 name: Blast test
-                command: ctest --output-on-failure -R test_problems.cpu.blast.diff
+                command: ctest --output-on-failure -R test_problems.cpu.blast_legacy
                 no_output_timeout: 200m
             - run:
                 name: Move artifacts
@@ -117,7 +123,7 @@ jobs:
                 at: /
             - run:
                 name: Sod shock tube test
-                command: ctest --output-on-failure -R test_problems.cpu.sod.diff
+                command: ctest --output-on-failure -R test_problems.cpu.sod_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -138,7 +144,7 @@ jobs:
                 at: /
             - run:
                 name: Solid sphere test
-                command: ctest --output-on-failure -R test_problems.cpu.sphere.diff
+                command: ctest --output-on-failure -R test_problems.cpu.sphere_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
@@ -159,7 +165,7 @@ jobs:
                 at: /
             - run:
                 name: Rotating star test
-                command: ctest --output-on-failure -R test_problems.cpu.rotating_star.diff
+                command: ctest --output-on-failure -R test_problems.cpu.rotating_star_legacy
                 no_output_timeout: 25m
             - run:
                 name: Move artifacts
