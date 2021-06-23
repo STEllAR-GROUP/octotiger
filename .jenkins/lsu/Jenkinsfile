@@ -38,11 +38,11 @@ pipeline {
                 axes {
                     axis {
                         name 'compiler_config'
-                        values 'with-CC', 'with-CC-clang'
+                        values 'with-CC'
                     }
                     axis {
                          name 'build_type'
-                         values 'Release', 'Debug'
+                         values 'Release'
                     }
                 }
                 stages {
