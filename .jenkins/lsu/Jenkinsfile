@@ -37,8 +37,8 @@ pipeline {
             matrix {
                 axes {
                     axis {
-                        name 'configuration_name'
-                        values 'gcc-8', 'gcc-9', 'clang-9', 'gcc-9-cuda-11', 'hipcc'
+                        name 'compiler_config'
+                        values 'with-CC', 'with-CC-clang'
                     }
                     axis {
                          name 'build_type'
