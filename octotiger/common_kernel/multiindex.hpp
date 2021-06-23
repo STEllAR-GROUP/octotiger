@@ -11,7 +11,7 @@
 
 #include <cmath>
 #include <cstddef>
-//#include <iostream>
+#include <iostream>
 #include <vector>
 
 namespace octotiger {
