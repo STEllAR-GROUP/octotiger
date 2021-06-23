@@ -23,10 +23,18 @@ pipeline {
                     #!/bin/bash -l
                     cd ..
                     #rm -rf octo-buildscripts
-                    git clone https://github.com/diehlpk/PowerTiger.git octo-buildscripts
-                    cd octo-buildscripts
-                    git checkout clang_build
-                    mkdir src
+                    if [[ -d "octo-buildscripts" ]]
+                    then
+                        cd octo-buildscripts
+                        git pull
+                        rm -rf build/octotiger
+                    else
+                        git clone https://github.com/diehlpk/PowerTiger.git octo-buildscripts
+                        cd octo-buildscripts
+                        git checkout clang_build
+                        mkdir src
+                    fi
+
                     cd ..
                     cp -r octotiger octo-buildscripts/src/octotiger
                     '''
