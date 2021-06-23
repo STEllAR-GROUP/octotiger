@@ -19,6 +19,7 @@ pipeline {
                 dir('octotiger') {
                     checkout scm
                     echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
+                    rm -rf octo-buildscripts/src/octotiger
                     sh '''
                     #!/bin/bash -l
                     cd ..
@@ -36,6 +37,7 @@ pipeline {
                     fi
 
                     cd ..
+                    pwd
                     cp -r octotiger octo-buildscripts/src/octotiger
                     '''
                 }
