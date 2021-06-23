@@ -22,7 +22,7 @@ pipeline {
                     sh '''
                     #!/bin/bash -l
                     cd ..
-                    rm -rf octo-buildscripts
+                    #rm -rf octo-buildscripts
                     git clone https://github.com/diehlpk/PowerTiger.git octo-buildscripts
                     cd octo-buildscripts
                     git checkout clang_build
