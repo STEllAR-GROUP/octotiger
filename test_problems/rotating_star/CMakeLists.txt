@@ -147,13 +147,13 @@ test_rotating_star_scenario(test_problems.cpu.rotating_star_vc rotating_star_log
 # Rotating Star - OLD CPU
 test_rotating_star_scenario(test_problems.cpu.rotating_star_legacy rotating_star_old_log.txt " --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
-  test_rotating_star_scenario(test_problems.gpu.rotating_star_cuda rotating_star_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+  test_rotating_star_scenario(test_problems.gpu.rotating_star_cuda rotating_star_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=64 --cuda_buffer_capacity=1 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
   test_rotating_star_scenario(test_problems.cpu.rotating_star_kokkos rotating_star_kokkos_log.txt " --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
-    test_rotating_star_scenario(test_problems.gpu.rotating_star_kokkos rotating_star_kokkos_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+    test_rotating_star_scenario(test_problems.gpu.rotating_star_kokkos rotating_star_kokkos_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=64 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
   endif()
 endif()
 
