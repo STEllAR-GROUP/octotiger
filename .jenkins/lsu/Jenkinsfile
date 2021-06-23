@@ -19,10 +19,10 @@ pipeline {
                 dir('octotiger') {
                     checkout scm
                     echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
-                    rm -rf octo-buildscripts/src/octotiger
                     sh '''
                     #!/bin/bash -l
                     cd ..
+                    rm -rf octo-buildscripts/src/octotiger
                     #rm -rf octo-buildscripts
                     if [[ -d "octo-buildscripts" ]]
                     then
