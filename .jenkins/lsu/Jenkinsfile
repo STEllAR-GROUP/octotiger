@@ -48,7 +48,7 @@ pipeline {
                 axes {
                     axis {
                         name 'compiler_config'
-                        values 'with-CC'
+                        values 'with-CC', 'with-CC-clang'
                     }
                     axis {
                          name 'build_type'
