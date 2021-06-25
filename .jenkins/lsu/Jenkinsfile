@@ -40,6 +40,14 @@ pipeline {
                         values 'with-CC', 'with-CC-clang'
                     }
                     axis {
+                        name 'cuda_config'
+                        values 'with-cuda', 'without-cuda'
+                    }
+                    axis {
+                        name 'kokkos_config'
+                        values 'with-kokkos', 'without-kokkos'
+                    }
+                    axis {
                          name 'build_type'
                          values 'Release'
                     }
@@ -52,23 +60,23 @@ pipeline {
                                 #!/bin/bash -l
                                 cd ..
                                 #rm -rf octo-buildscripts/src/octotiger
-                                rm -rf "octo-buildscripts-${compiler_config}" #remove line for dependency caching
-                                if [[ -d "octo-buildscripts-${compiler_config}" ]]
+                                rm -rf "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" #remove line for dependency caching
+                                if [[ -d "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" ]]
                                 then
-                                    cd "octo-buildscripts-${compiler_config}"
+                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
                                     git reset --hard # reset griddim modification in case of unclean directory
                                     git pull
                                     rm -rf build/octotiger
                                 else
-                                    git clone https://github.com/diehlpk/PowerTiger.git octo-buildscripts-${compiler_config}
-                                    cd "octo-buildscripts-${compiler_config}"
+                                    git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
                                     git checkout clang_build
                                     mkdir src
                                 fi
 
                                 cd ..
                                 pwd
-                                cp -r octotiger "octo-buildscripts-${compiler_config}/src/octotiger"
+                                cp -r octotiger "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}/src/octotiger"
                                 '''
                             }
                         }
@@ -78,7 +86,7 @@ pipeline {
                             dir('octotiger') {
                                 sh '''
                                 #!/bin/bash -l
-                                cd "../octo-buildscripts-${compiler_config}"
+                                cd "../octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
                                 src/octotiger/.jenkins/lsu/entry.sh
                                 '''
                             }
