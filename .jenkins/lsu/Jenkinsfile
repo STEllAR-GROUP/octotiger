@@ -19,29 +19,6 @@ pipeline {
                 dir('octotiger') {
                     checkout scm
                     echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
-                    sh '''
-                    #!/bin/bash -l
-                    cd ..
-                    #rm -rf octo-buildscripts/src/octotiger
-                    rm -rf octo-buildscripts #remove line for dependency caching
-                    if [[ -d "octo-buildscripts" ]]
-                    then
-                        cd octo-buildscripts
-                        git reset --hard # reset griddim modification in case of unclean directory
-                        git pull
-                        rm -rf build/octotiger
-                    else
-                        git clone https://github.com/diehlpk/PowerTiger.git octo-buildscripts
-                        cd octo-buildscripts
-                        git checkout clang_build
-                        mkdir src
-                    fi
-
-                    cd ..
-                    pwd
-                    cp -r octotiger octo-buildscripts/src/octotiger
-                    '''
-                }
             }
         }
         stage('build') {
@@ -49,7 +26,7 @@ pipeline {
                 axes {
                     axis {
                         name 'compiler_config'
-                        values 'with-CC'
+                        values 'with-CC', 'with-CC-clang'
                     }
                     axis {
                          name 'build_type'
@@ -57,11 +34,40 @@ pipeline {
                     }
                 }
                 stages {
-                    stage('build') {
+                    stage('checkout_buildscripts') {
                         steps {
-                            dir('octo-buildscripts') {
+                            dir('octotiger') {
                                 sh '''
                                 #!/bin/bash -l
+                                cd ..
+                                #rm -rf octo-buildscripts/src/octotiger
+                                rm -rf "octo-buildscripts-${compiler_config}" #remove line for dependency caching
+                                if [[ -d "octo-buildscripts-${compiler_config}" ]]
+                                then
+                                    cd "octo-buildscripts-${compiler_config}"
+                                    git reset --hard # reset griddim modification in case of unclean directory
+                                    git pull
+                                    rm -rf build/octotiger
+                                else
+                                    git clone https://github.com/diehlpk/PowerTiger.git octo-buildscripts-${compiler_config}
+                                    cd "octo-buildscripts-${compiler_config}"
+                                    git checkout clang_build
+                                    mkdir src
+                                fi
+
+                                cd ..
+                                pwd
+                                cp -r octotiger "octo-buildscripts-${compiler_config}/src/octotiger"
+                                '''
+                            }
+                        }
+                    }
+                    stage('build') {
+                        steps {
+                            dir('octotiger') {
+                                sh '''
+                                #!/bin/bash -l
+                                cd "octo-buildscripts-${compiler_config}"
                                 src/octotiger/.jenkins/lsu/entry.sh
                                 '''
                             }
