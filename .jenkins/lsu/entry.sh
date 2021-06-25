@@ -5,9 +5,10 @@ set -eux
 #default: Assume gcc 
 compiler_module="gcc/9.3.0"
 
-# if clang: change modules
+# if clang: change modules and no blast test
 if [ "${compiler_config}" = "with-CC-clang" ]; then
   compiler_module="clang/11.0.1"
+  sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
 fi
 
 # Load everything
@@ -25,3 +26,6 @@ srun -p QxV100 -N 1 -n 1 -t 01:00:00 bash -c 'module load ${compiler_module} cud
 
 # Reset buildscripts (in case of failure, the next job will reset it in the checkout step)
 sed -i 's/GRIDDIM=16/GRIDDIM=8/' build-octotiger.sh
+if [ "${compiler_config}" = "with-CC-clang" ]; then
+  sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
+fi
