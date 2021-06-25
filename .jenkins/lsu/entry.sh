@@ -16,7 +16,7 @@ echo "Loading modules: "
 module load "${compiler_module}" cuda/11.0 hwloc
 
 # Tests with griddim = 8
-if [ "${compiler_config}" = "with-CC-clang" ]; then
+if [ "${kokkos_config}" = "with-kokkos" ]; then
 	echo "Running tests with griddim=8 on diablo"
 	srun -p QxV100 -N 1 -n 1 -t 01:00:00 bash -c 'module load ${compiler_module} cuda/11.0 hwloc && ./build-all.sh Release ${compiler_config} ${cuda_config} without-mpi without-papi without-apex ${kokkos_config} with-simd with-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling boost jemalloc hdf5 silo vc hpx kokkos cppuddle octotiger && cd build/octotiger/build && ctest ' 
 
