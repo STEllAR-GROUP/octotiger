@@ -68,7 +68,7 @@ pipeline {
                             dir('octotiger') {
                                 sh '''
                                 #!/bin/bash -l
-                                cd "octo-buildscripts-${compiler_config}"
+                                cd "../octo-buildscripts-${compiler_config}"
                                 src/octotiger/.jenkins/lsu/entry.sh
                                 '''
                             }
