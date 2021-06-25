@@ -23,10 +23,11 @@ pipeline {
                     #!/bin/bash -l
                     cd ..
                     #rm -rf octo-buildscripts/src/octotiger
-                    rm -rf octo-buildscripts
+                    rm -rf octo-buildscripts #remove line for dependency caching
                     if [[ -d "octo-buildscripts" ]]
                     then
                         cd octo-buildscripts
+                        git reset --hard # reset griddim modification in case of unclean directory
                         git pull
                         rm -rf build/octotiger
                     else
