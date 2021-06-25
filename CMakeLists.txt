@@ -371,9 +371,10 @@ if(OCTOTIGER_WITH_CUDA)
   else()
     #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
 
-    # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=sm_80")
+      # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
+      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=sm_80 -D__STRICT_ANSI__")
+      # -DSTRICT_ANSI__ resolves the issue of clang trying to pull in float128 stuff in the standard libs for the GPU pass
     else()
       set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
       set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
