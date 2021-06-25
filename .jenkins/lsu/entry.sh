@@ -7,7 +7,7 @@ compiler_module="gcc/9.3.0"
 
 # if clang: change modules
 if [ "${compiler_config}" = "with-CC-clang" ]; then
-  compiler_module="clang/9.0.1"
+  compiler_module="clang/11.0.1"
 fi
 
 # Load everything
