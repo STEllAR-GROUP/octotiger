@@ -504,7 +504,7 @@ if(OCTOTIGER_WITH_CUDA)
   target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
 endif()
 if(OCTOTIGER_WITH_KOKKOS)
-  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_KOKKOS)
 endif()
 
 # Unitiger executable
