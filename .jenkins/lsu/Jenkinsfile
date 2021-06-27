@@ -96,6 +96,27 @@ pipeline {
                 }
             }
         }
+        stage('report') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    export REPO_NAME='STEllAR-GROUP/octotiger'
+                    export JOB_NAME='Octo-Tiger'
+                    curl "//api.GitHub.com/repos/$REPO_NAME/statuses/$GIT_COMMIT
+                            ?access_token=$GITHUB_TOKEN_OCTOTIGER" \
+                        -H "Content-Type: application/json" \
+                        -X POST \
+                        -d "{
+                            \"state\": \"success\",
+                            \"context\": \"jenkins/$REPO_NAME\",
+                            \"description\": \"Jenkins\",
+                            \"target_url\": \"//YOUR_JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/console\"
+                        }"
+
+                    '''
+                }
+            }
+        }
     }
     post {
         success {
