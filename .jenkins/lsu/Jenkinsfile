@@ -110,7 +110,7 @@ pipeline {
                             \"state\": \"success\",
                             \"context\": \"jenkins/$REPO_NAME\",
                             \"description\": \"Jenkins\",
-                            \"target_url\": \"//YOUR_JENKINS_URL/job/$JOB_NAME/$BUILD_NUMBER/console\"
+                            \"target_url\": \"//https://rostam.cct.lsu.edu/jenkins/job/$JOB_NAME/$BUILD_NUMBER/console\"
                         }"
 
                     '''
