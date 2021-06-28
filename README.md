@@ -16,8 +16,6 @@ Current status of the [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger
 integration service for the master branch:
 [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)
 
-Additional test (CUDA/Kokkos kernels, larger sub-grids, different compilers/configurations, ...) are done by Jenkins!
-
 > Note for maintainers: The base Docker image used by CircleCI needs to be built
 > and updated manually. Neither HPX or any of the other dependencies update
 > automatically. Relevant files are under
