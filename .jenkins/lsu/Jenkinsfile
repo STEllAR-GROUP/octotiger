@@ -113,7 +113,7 @@ pipeline {
                             \\"state\\": \\"success\\",
                             \\"context\\": \\"jenkins/STEllAR-GROUP/octotiger\\",
                             \\"description\\": \\"Jenkins-Testjob\\",
-                            \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\"
+                            \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
                         }"
 
                     '''
