@@ -100,16 +100,17 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-                    export REPO_NAME='STEllAR-GROUP/octotiger'
-                    export JOB_NAME='Octo-Tiger'
-                    curl "https://api.gitHub.com/repos/$REPO_NAME/statuses/$GIT_COMMIT" \
-                        -H "Content-Type: application/json" \
-                        -X POST \
-                        -d "{
+                    github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                    curl --verbose\
+                         --request POST \
+                         --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                         --header "Content-Type: application/json" \
+                         --header "authorization: Bearer ${github_token}" \
+                         --data "{
                             \"state\": \"success\",
-                            \"context\": \"jenkins/$REPO_NAME\",
-                            \"description\": \"Jenkins\",
-                            \"target_url\": \"https://rostam.cct.lsu.edu/jenkins/job/$JOB_NAME/$BUILD_NUMBER/console\"
+                            \"context\": \"jenkins/STEllAR-GROUP/octotiger\",
+                            \"description\": \"Jenkins-Testjob\",
+                            \"target_url\": \"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\"
                         }"
 
                     '''
