@@ -110,10 +110,10 @@ pipeline {
                          --header "Content-Type: application/json" \
                          --header "authorization: Bearer ${github_token}" \
                          --data "{
-                            \"state\": \"success\",
-                            \"context\": \"jenkins/STEllAR-GROUP/octotiger\",
-                            \"description\": \"Jenkins-Testjob\",
-                            \"target_url\": \"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\"
+                            \\"state\\": \\"success\\",
+                            \\"context\\": \\"jenkins/STEllAR-GROUP/octotiger\\",
+                            \\"description\\": \\"Jenkins-Testjob\\",
+                            \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\"
                         }"
 
                     '''
