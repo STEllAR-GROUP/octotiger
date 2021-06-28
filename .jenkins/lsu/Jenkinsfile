@@ -102,7 +102,7 @@ pipeline {
                     sh '''
                     export REPO_NAME='STEllAR-GROUP/octotiger'
                     export JOB_NAME='Octo-Tiger'
-                    curl "//api.gitHub.com/repos/$REPO_NAME/statuses/$GIT_COMMIT?access_token=$GITHUB_TOKEN_OCTOTIGER" \
+                    curl "//api.gitHub.com/repos/$REPO_NAME/statuses/$GIT_COMMIT" \
                         -H "Content-Type: application/json" \
                         -X POST \
                         -d "{
