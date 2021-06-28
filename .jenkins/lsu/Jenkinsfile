@@ -150,6 +150,22 @@ pipeline {
                             }"
                         '''
                     }
+                    aborted {
+                        sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"error\\",
+                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                            }"
+                        '''
+                    }
                 }
             }
         }
