@@ -102,14 +102,14 @@ pipeline {
                     sh '''
                     export REPO_NAME='STEllAR-GROUP/octotiger'
                     export JOB_NAME='Octo-Tiger'
-                    curl "//api.gitHub.com/repos/$REPO_NAME/statuses/$GIT_COMMIT" \
+                    curl "https://api.gitHub.com/repos/$REPO_NAME/statuses/$GIT_COMMIT" \
                         -H "Content-Type: application/json" \
                         -X POST \
                         -d "{
                             \"state\": \"success\",
                             \"context\": \"jenkins/$REPO_NAME\",
                             \"description\": \"Jenkins\",
-                            \"target_url\": \"//https://rostam.cct.lsu.edu/jenkins/job/$JOB_NAME/$BUILD_NUMBER/console\"
+                            \"target_url\": \"https://rostam.cct.lsu.edu/jenkins/job/$JOB_NAME/$BUILD_NUMBER/console\"
                         }"
 
                     '''
