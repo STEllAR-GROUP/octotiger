@@ -23,6 +23,9 @@ pipeline {
             )
         )
     }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN')
+    }
     stages {
         stage('checkout') {
             steps {
