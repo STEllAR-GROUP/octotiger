@@ -68,7 +68,7 @@ pipeline {
                                     --header "authorization: Bearer ${github_token}" \
                                     --data "{
                                         \\"state\\": \\"pending\\",
-                                        \\"context\\": \\"jenkins/STEllAR-GROUP/octotiger\\",
+                                        \\"context\\": \\"jenkins/STEllAR-GROUP/octotiger-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                         \\"description\\": \\"Jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                         \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
                                     }"
@@ -128,7 +128,7 @@ pipeline {
                             --header "authorization: Bearer ${github_token}" \
                             --data "{
                                 \\"state\\": \\"success\\",
-                                \\"context\\": \\"jenkins/STEllAR-GROUP/octotiger\\",
+                                \\"context\\": \\"jenkins/STEllAR-GROUP-${compiler_config}-${cuda_config}-${kokkos_config}/octotiger\\",
                                 \\"description\\": \\"Jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                 \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
                             }"
@@ -144,7 +144,7 @@ pipeline {
                             --header "authorization: Bearer ${github_token}" \
                             --data "{
                                 \\"state\\": \\"failure\\",
-                                \\"context\\": \\"jenkins/STEllAR-GROUP/octotiger\\",
+                                \\"context\\": \\"jenkins/STEllAR-GROUP/octotiger-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                 \\"description\\": \\"Jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
                                 \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
                             }"
