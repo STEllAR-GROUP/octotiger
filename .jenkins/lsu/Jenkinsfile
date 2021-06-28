@@ -24,7 +24,7 @@ pipeline {
         )
     }
     environment {
-        GITHUB_TOKEN = credentials('GITHUB_TOKEN')
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
     }
     stages {
         stage('checkout') {
