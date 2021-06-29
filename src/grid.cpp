@@ -1667,6 +1667,15 @@ analytic_t grid::compute_analytic(real t) {
 						break;
 					}
 				}
+				if( opts().radiation && opts().problem==MARSHAK ) {
+					if( X[YDIM][iii] > 0.0 && X[YDIM][iii] < dx &&X[ZDIM][iii] > 0.0 && X[ZDIM][iii] < dx ) {
+						std::pair<double,std::pair<double,double>> entry;
+						entry.first = X[XDIM][iii];
+						entry.second.first = rad_grid_ptr->get_field(0, i - H_BW + R_BW, j - H_BW + R_BW, k - H_BW + R_BW);
+						entry.second.second = A[opts().n_fields];
+						a.xline.push_back(entry);
+					}
+				}
 				for (integer field = 0; field != opts().n_fields; ++field) {
 					real dif = std::abs(A[field] - U[field][iii]);
 					a.l1[field] += dif * dv;

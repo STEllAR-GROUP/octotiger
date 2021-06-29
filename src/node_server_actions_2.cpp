@@ -164,6 +164,17 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
+		if (opts().problem == MARSHAK) {
+			std::sort(a.xline.begin(), a.xline.end(),
+					[](std::pair<double, std::pair<double, double>> a, std::pair<double, std::pair<double, double>> b) {
+						return a.first < b.first;
+					});
+			FILE *fp = fopen("lineout.dat", "wt");
+			for (int i = 0; i < a.xline.size(); i++) {
+				fprintf(fp, "%e %e %e\n", a.xline[i].first, a.xline[i].second.first, a.xline[i].second.second);
+			}
+			fclose(fp);
+		}
 		printf("L1, L2\n");
 		real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
