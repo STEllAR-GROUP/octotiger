@@ -150,7 +150,7 @@ future<analytic_t> node_client::compare_analytic() const {
 }
 
 analytic_t node_server::compare_analytic() {
-	analytic_t a(opts().n_fields);
+	analytic_t a(opts().n_fields + (opts().radiation ? NRF : 0));
 	if (!is_refined) {
 		a = grid_ptr->compute_analytic(current_time);
 	} else {
@@ -171,6 +171,9 @@ analytic_t node_server::compare_analytic() {
 		}
 		for (integer field = 0; field != opts().n_fields; ++field) {
 			printf("%16s %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
+		}
+		for (integer field = opts().n_fields; field != opts().n_fields + (opts().radiation ? NRF : 0); ++field) {
+			printf("%16s %e %e\n", "",  a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
 		}
 
 		const auto ml = opts().max_level;

@@ -1624,7 +1624,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_vector_expressions() 
 
 analytic_t grid::compute_analytic(real t) {
 	analytic_t a;
-	if (opts().hydro) {
+	if (!opts().radiation) {
 		a = analytic_t(opts().n_fields);
 	} else {
 		a = analytic_t(opts().n_fields + NRF);
@@ -1642,7 +1642,7 @@ analytic_t grid::compute_analytic(real t) {
 					if (last_rho == nrho) {
 						break;
 					}
-					for (int f = 0; f < opts().n_fields; f++) {
+					for (int f = 0; f < opts().n_fields + (opts().radiation ? NRF : 0); f++) {
 						A[f] = 0.0;
 					}
 					for (int i0 = 0; i0 < M; i0++) {
@@ -1652,7 +1652,7 @@ analytic_t grid::compute_analytic(real t) {
 							for (int k0 = 0; k0 < M; k0++) {
 								const auto z = X[ZDIM][iii] + ((real(k0) + 0.5) / real(M) - 0.5) * dx;
 								const auto a = func(x, y, z, t);
-								for (int f0 = 0; f0 < opts().n_fields; f0++) {
+								for (int f0 = 0; f0 < opts().n_fields +  (opts().radiation ? NRF : 0); f0++) {
 									A[f0] += a[f0] / (M * M * M);
 								}
 							}
