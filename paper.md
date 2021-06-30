@@ -89,5 +89,7 @@ This work was supported by National Science Foundation Award 1814967. The numeri
 
 For an updated list of previous and current funding, we refer to the corresponding [Octo-Tiger website](https://github.com/STEllAR-GROUP/octotiger#funding).
 
+![A double white dwarf merger simulated by Octo-Tiger\label{fig:example}](joss_imag.png)
+
 
 # References
