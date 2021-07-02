@@ -364,23 +364,36 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p1(const size_t nf_, 
         s_start = lx_i;
         l_start = lx_i;
     }
-    if (d < ndir / 2) {
-        for (int f = 0; f < s_start; f++) {
-            cell_reconstruct_ppm(combined_q, combined_u,
-                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+    if (angmom_index_ > -1) {
+        if (d < ndir / 2) {
+            for (int f = 0; f < s_start; f++) {
+                cell_reconstruct_ppm(combined_q, combined_u,
+                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+            }
+            for (int f = s_start; f < l_start; f++) {
+                cell_reconstruct_ppm(
+                    combined_q, combined_u, true, false, cdiscs, d, f, i, q_i);
+            }
         }
-        for (int f = s_start; f < l_start; f++) {
-            cell_reconstruct_ppm(
-                combined_q, combined_u, true, false, cdiscs, d, f, i, q_i);
+        for (int f = l_start; f < l_start + nangmom; f++) {
+            cell_reconstruct_minmod(combined_q, combined_u, d, f, i, q_i);
         }
-    }
-    for (int f = l_start; f < l_start + nangmom; f++) {
-        cell_reconstruct_minmod(combined_q, combined_u, d, f, i, q_i);
-    }
-    if (d < ndir / 2) {
-        for (int f = l_start + nangmom; f < nf_; f++) {
-            cell_reconstruct_ppm(combined_q, combined_u,
-                smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+        if (d < ndir / 2) {
+            for (int f = l_start + nangmom; f < nf_; f++) {
+                cell_reconstruct_ppm(combined_q, combined_u,
+                    smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+            }
+        }
+    } else {
+        for (int f = 0; f < nf_; f++) {
+            if (f < lx_i || f > lx_i + nangmom ) {
+                if (d < ndir / 2) {
+                    cell_reconstruct_ppm(combined_q, combined_u,
+                        smooth_field_[f], disc_detect_[f], cdiscs, d, f, i, q_i);
+                }
+            } else {
+                cell_reconstruct_minmod(combined_q, combined_u, d, f, i, q_i);
+            }
         }
     }
 
@@ -510,7 +523,7 @@ CUDA_GLOBAL_METHOD inline void cell_reconstruct_inner_loop_p2(const safe_real om
         }
     }
 
-    // Phase 3 - post-reconstrut
+    // Phase 3 - post-reconstruct
     const int start_index_rho = rho_i * q_face_offset + d * q_dir_offset;
     if (d != ndir / 2) {
         const int start_index_sx = sx_i * q_face_offset + d * q_dir_offset;
