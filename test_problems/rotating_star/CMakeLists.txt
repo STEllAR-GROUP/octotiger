@@ -143,17 +143,77 @@ function(test_rotating_star_scenario test_name test_log_file kernel_parameters)
 endfunction()
 
 # Rotating Star - CPU
-test_rotating_star_scenario(test_problems.cpu.rotating_star_vc rotating_star_log.txt " --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+test_rotating_star_scenario(test_problems.cpu.am_hydro_on.rotating_star_vc rotating_star_am_hydro_on_log.txt " --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 # Rotating Star - OLD CPU
-test_rotating_star_scenario(test_problems.cpu.rotating_star_legacy rotating_star_old_log.txt " --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+test_rotating_star_scenario(test_problems.cpu.am_hydro_on.rotating_star_legacy rotating_star_am_hydro_on_old_log.txt " --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
-  test_rotating_star_scenario(test_problems.gpu.rotating_star_cuda rotating_star_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+  test_rotating_star_scenario(test_problems.gpu.am_hydro_on.rotating_star_cuda rotating_star_am_hydro_on_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
-  test_rotating_star_scenario(test_problems.cpu.rotating_star_kokkos rotating_star_kokkos_log.txt " --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
+  test_rotating_star_scenario(test_problems.cpu.am_hydro_on.rotating_star_kokkos rotating_star_am_hydro_on_kokkos_log.txt " --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
-    test_rotating_star_scenario(test_problems.gpu.rotating_star_kokkos rotating_star_kokkos_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+    test_rotating_star_scenario(test_problems.gpu.am_hydro_on.rotating_star_kokkos rotating_star_am_hydro_on_kokkos_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+  endif()
+endif()
+
+## TESTS with correct_am_hydro=off
+
+# Reference output to compare againsts:
+# Collected with scenario:
+#./build/octotiger/build/octotiger --config_file=src/octotiger/test_problems/rotating_star/rotating_star.ini --max_level=3 --stop_step=10 --theta=0.5  --correct_am_hydro=0
+# Adapt in case of physic changes (note, replace special symbols like + with .)
+
+if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  set(rho_regex "rho 3.173490e-05 2.000538e-04")
+  set(egas_regex "egas 5.812592e-06 4.740059e-05")
+  set(tau_regex "tau 1.377394e-05 8.244570e-05")
+  set(pot_regex "pot 5.264189e-03 3.940760e-02")
+  set(sx_regex "sx 7.396389e-06 6.126620e-05")
+  set(sy_regex "sy 7.396881e-06 6.126826e-05")
+  set(sz_regex "sz 5.153146e-06 6.025208e-05")
+  set(zx_regex "zx 1.460896e-04 8.855565e-04")
+  set(zy_regex "zy 1.460896e-04 8.855564e-04")
+  set(zz_regex "zz 5.833309e-04 3.077145e-03")
+  set(spc1_regex "spc_1 3.173490e-05 2.000538e-04")
+  set(spc2_regex "spc_2 9.202972e-13 3.307532e-12")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
+  set(rho_regex "rho 8.316285e-06 5.527916e-05")
+  set(egas_regex "egas 1.613228e-06 1.458106e-05")
+  set(tau_regex "tau 3.657729e-06 2.384575e-05")
+  set(pot_regex "pot 5.281436e-03 3.958260e-02")
+  set(sx_regex "sx 2.231002e-06 1.750158e-05")
+  set(sy_regex "sy 2.231046e-06 1.750156e-05")
+  set(sz_regex "sz 1.796751e-06 1.730428e-05")
+  set(zx_regex "zx 1.461312e-04 8.880232e-04")
+  set(zy_regex "zy 1.461312e-04 8.880232e-04")
+  set(zz_regex "zz 5.833291e-04 3.077108e-03")
+  set(spc1_regex "spc_1 8.316285e-06 5.527916e-05")
+  set(spc2_regex "spc_2 5.472493e-13 2.749724e-12")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+else()
+  message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
+  " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
+  " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
+endif()
+
+# Rotating Star - CPU
+test_rotating_star_scenario(test_problems.cpu.am_hydro_off.rotating_star_vc rotating_star_am_hydro_off_log.txt " --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+# Rotating Star - OLD CPU
+test_rotating_star_scenario(test_problems.cpu.am_hydro_off.rotating_star_legacy rotating_star_am_hydro_off_old_log.txt " --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+if(OCTOTIGER_WITH_CUDA)
+  test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_cuda rotating_star_am_hydro_off_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+endif()
+
+if(OCTOTIGER_WITH_KOKKOS)
+  test_rotating_star_scenario(test_problems.cpu.am_hydro_off.rotating_star_kokkos rotating_star_am_hydro_off_kokkos_log.txt " --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
+  if(OCTOTIGER_WITH_CUDA)
+    test_rotating_star_scenario(test_problems.gpu.am_hydro_off.rotating_star_kokkos rotating_star_am_hydro_off_kokkos_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
   endif()
 endif()
 
@@ -161,3 +221,4 @@ add_test(test_problems.rotating_star.init.fixture_cleanup ${CMAKE_COMMAND} -E re
 set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
     FIXTURES_CLEANUP test_problems.rotating_star.init
 )
+
