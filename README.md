@@ -8,7 +8,7 @@ From <https://doi.org/10.1145/3204919.3204938>:
 > Octo-Tiger is an astrophysics program simulating the evolution of star systems
 > based on the fast multipole method on adaptive Octrees. It was implemented using
 > high-level C++ libraries, specifically HPX and Vc, which allows its use on
-> different hardware platforms
+> different hardware platforms.
 
 ## Build Status
 
@@ -16,8 +16,8 @@ Current status of the [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger
 integration service for the master branch:
 [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)
 
-> Note for maintainers: The base Docker image used by CircleCI needs to be built
-> and updated manually. Neither HPX or any of the other dependencies update
+> **Note for maintainers**: The base Docker image used by CircleCI needs to be built
+> and updated manually. Neither HPX nor any of the other dependencies update
 > automatically. Relevant files are under
 > [`tools/docker/base_image`](tools/docker/base_image).
 
@@ -39,11 +39,14 @@ integration service for the master branch:
   
   The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
 
-## Publications
+## Citing
 
-* Thomas Heller, Bryce Adelstein Lelbach, Kevin A Huck, John Biddiscombe, Patricia Grubel, Alice E Koniges, Matthias Kretz, Dominic Marcello, David Pfander, Adrian Serio, Juhan Frank, Geoffrey C Clayton, Dirk Pflüger, David Eder, Hartmut Kaiser. “Harnessing Billions of Tasks for a Scalable Portable Hydrodynamic Simulation of the Merger of Two Stars.” The International Journal of High Performance Computing Applications, Feb. 2019 [Link](https://journals.sagepub.com/doi/10.1177/1094342018819744)
-* David Pfander, Gregor Daiß, Dominic Marcello, Hartmut Kaiser, Dirk Pflüger, “Accelerating Octo-Tiger: Stellar Mergers on Intel Knights Landing with HPX”, DHPCC++ Conference 2018 hosted by IWOCL, St Catherine’s College, Oxford, May 14, 2018 [Link](https://dl.acm.org/citation.cfm?doid=3204919.3204938)
-* Gregor Daiß, Parsa Amini, John Biddiscombe, Patrick Diehl, Juhan Frank, Kevin Huck, Hartmut Kaiser, Dominic Marcello, David Pfander, and Dirk Pfüger. "From piz daint to the stars: simulation of stellar mergers using high-level abstractions." In Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis, pp. 1-37. 2019. [Link](https://dl.acm.org/doi/abs/10.1145/3295500.3356221), [Pre-print](https://arxiv.org/abs/1908.03121)
+In publications, please use the following publication to cite Octo-Tiger:
+
+*  Dominic C. Marcello, Sagiv Shiber, Orsola De Marco, Juhan Frank, Geoffrey C. Clayton, Patrick M. Motl, Patrick Diehl, Hartmut Kaiser, "Octo-Tiger: A New, 3D Hydrodynamic Code for Stellar Mergers that uses HPX Parallelisation", accepted for publication in the Monthly Notices of the Royal Astronomical Society, 2021
+
+For more publications, refer to Octo-Tigers' [documentation](https://stellar-group.github.io/octotiger/doc/html/md_content_publications.html).
+
 
 # Funding
 

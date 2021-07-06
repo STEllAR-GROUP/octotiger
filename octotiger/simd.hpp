@@ -8,6 +8,7 @@
 
 //#include "octotiger/defs.hpp"
 
+#include <hpx/modules/collectives.hpp>
 #include <hpx/parallel/traits/vector_pack_type.hpp>
 #include <hpx/runtime/serialization/datapar.hpp>
 
