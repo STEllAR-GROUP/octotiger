@@ -38,7 +38,7 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
-  set(silo_scenario_filename "")
+  set(silo_scenario_filename "none")
 else()
   message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
   " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
@@ -102,7 +102,7 @@ function(test_sod_scenario test_name test_log_file reference_filename kernel_par
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${spc5_regex})
 
-  if (NOT ${reference_filename} STREQUAL "" )
+  if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
        ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
