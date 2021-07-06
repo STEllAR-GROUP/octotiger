@@ -6,9 +6,6 @@
 ##############################################################################
 # Sod Shock Tube
 ##############################################################################
-download_test_reference("Sod shock tube test"
-  "phys.lsu.edu/~dmarcel/sod.13.silo"
-  ${PROJECT_BINARY_DIR}/sod.silo)
 
 if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(rho_regex "rho 8.616107e-03 1.774427e-02")

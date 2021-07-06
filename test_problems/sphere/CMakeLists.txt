@@ -6,9 +6,6 @@
 ##############################################################################
 # Sphere
 ##############################################################################
-download_test_reference("Solid sphere test"
-  "phys.lsu.edu/~dmarcel/sphere.13.silo"
-  ${PROJECT_BINARY_DIR}/sphere.silo)
 
 # Reference output to compare againsts:
 # Collected with the solid sphere scenario!

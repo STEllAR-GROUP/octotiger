@@ -6,9 +6,6 @@
 ##############################################################################
 # Blast
 ##############################################################################
-download_test_reference("Blast test"
-  "phys.lsu.edu/~dmarcel/blast.13.silo"
-  ${PROJECT_BINARY_DIR}/blast.silo)
 
 # Reference output to compare againsts:
 # Collected with the blast.ini scenario!

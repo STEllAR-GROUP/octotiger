@@ -6,9 +6,6 @@
 ##############################################################################
 # Marshak wave test
 ##############################################################################
-download_test_reference("Marshak wave test"
-  "phys.lsu.edu/~dmarcel/marshak.13.silo"
-  ${PROJECT_BINARY_DIR}/marshak.silo)
 
 # Marshak - CPU
 if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
