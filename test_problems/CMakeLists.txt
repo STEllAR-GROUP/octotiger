@@ -6,8 +6,8 @@
 # *.diff tests fail when the output contains any .vals
 set(OCTOTIGER_SILODIFF_FAIL_PATTERN ".vals")
 
-# Check whether testdata submodule is initialized
-if (EXISTS ${PROJECT_SOURCE_DIR}/octotiger-testdata/ AND IS_DIRECTORY ${PROJECT_SOURCE_DIR}/octotiger-testdata/)
+# Check whether testdata submodule is initialized by checking if the sphere file is in there
+if (EXISTS ${PROJECT_SOURCE_DIR}/octotiger-testdata/sphere.silo AND IS_DIRECTORY ${PROJECT_SOURCE_DIR}/octotiger-testdata/)
     if (OCTOTIGER_WITH_BLAST_TEST)
         add_subdirectory(blast)
     endif()
@@ -16,6 +16,6 @@ if (EXISTS ${PROJECT_SOURCE_DIR}/octotiger-testdata/ AND IS_DIRECTORY ${PROJECT_
     add_subdirectory(sod)
     add_subdirectory(sphere)
 else()
-  message(FATAL_ERROR "Could not find directory containing the test reference files!"
+  message(FATAL_ERROR "Could not find directory containing the test reference files (tested with sphere.silo)!"
    "Is the submodule checked out? To fix check out all submodules or compile with OCTOTIGER_WITH_TESTS=OFF")
 endif()
