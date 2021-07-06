@@ -30,6 +30,7 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+  set(silo_scenario_filename "sphere.silo")
 elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(rho_regex "rho 4.665483e-04 1.508687e-02")
   set(egas_regex "egas 0.000000e.00 0.000000e.00")
@@ -46,13 +47,14 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+  set(silo_scenario_filename "")
 else()
   message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
   " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
   " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
 endif()
 
-function(test_sphere_scenario test_name test_log_file kernel_parameters)
+function(test_sphere_scenario test_name test_log_file reference_filename kernel_parameters)
   add_test(NAME ${test_name}
     COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sphere/sphere.ini ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
@@ -120,10 +122,10 @@ function(test_sphere_scenario test_name test_log_file kernel_parameters)
     PASS_REGULAR_EXPRESSION ${spc5_regex})
 
 
-  if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  if (NOT ${reference_filename} STREQUAL "" )
     add_test(NAME ${test_name}.diff
       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-        ${PROJECT_BINARY_DIR}/sphere.silo ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo)
+       ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sphere/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
@@ -136,18 +138,23 @@ function(test_sphere_scenario test_name test_log_file kernel_parameters)
 endfunction()
 
 # Sphere - CPU
-test_sphere_scenario(test_problems.cpu.sphere_vc  sphere_log.txt " --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
+test_sphere_scenario(test_problems.cpu.sphere_vc  sphere_log.txt ${silo_scenario_filename}
+" --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
 # Sphere - LEGACY
-test_sphere_scenario(test_problems.cpu.sphere_legacy  sphere_old_log.txt " --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
+test_sphere_scenario(test_problems.cpu.sphere_legacy  sphere_old_log.txt ${silo_scenario_filename}
+" --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
 # Sphere - GPU plain CUDA
 if(OCTOTIGER_WITH_CUDA)
-  test_sphere_scenario(test_problems.gpu.sphere_cuda  sphere_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA ")
+  test_sphere_scenario(test_problems.gpu.sphere_cuda  sphere_cuda_log.txt ${silo_scenario_filename}
+  " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA ")
 endif()
 
 # Sphere - Kokkos Host / Device tests
 if(OCTOTIGER_WITH_KOKKOS)
-  test_sphere_scenario(test_problems.cpu.sphere_kokkos  sphere_kokkos_log.txt " --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
+  test_sphere_scenario(test_problems.cpu.sphere_kokkos  sphere_kokkos_log.txt ${silo_scenario_filename}
+  " --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF ")
   if(OCTOTIGER_WITH_CUDA)
-    test_sphere_scenario(test_problems.gpu.sphere_kokkos  sphere_kokkos_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA ")
+    test_sphere_scenario(test_problems.gpu.sphere_kokkos  sphere_kokkos_cuda_log.txt ${silo_scenario_filename}
+    " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA ")
   endif()
 endif()
