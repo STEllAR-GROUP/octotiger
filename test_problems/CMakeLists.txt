@@ -6,10 +6,16 @@
 # *.diff tests fail when the output contains any .vals
 set(OCTOTIGER_SILODIFF_FAIL_PATTERN ".vals")
 
-if (OCTOTIGER_WITH_BLAST_TEST)
-    add_subdirectory(blast)
+# Check whether testdata submodule is initialized
+if (EXISTS ${PROJECT_SOURCE_DIR}/octotiger-testdata/ AND IS_DIRECTORY ${PROJECT_SOURCE_DIR}/octotiger-testdata/)
+    if (OCTOTIGER_WITH_BLAST_TEST)
+        add_subdirectory(blast)
+    endif()
+    add_subdirectory(marshak)
+    add_subdirectory(rotating_star)
+    add_subdirectory(sod)
+    add_subdirectory(sphere)
+else()
+  message(FATAL_ERROR "Could not find directory containing the test reference files!"
+   "Is the submodule checked out? To fix check out all submodules or compile with OCTOTIGER_WITH_TESTS=OFF")
 endif()
-add_subdirectory(marshak)
-add_subdirectory(rotating_star)
-add_subdirectory(sod)
-add_subdirectory(sphere)
