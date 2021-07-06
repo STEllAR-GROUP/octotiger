@@ -26,7 +26,7 @@ jobs:
                 path: /octotiger
             - run:
                 name: Get reference data submodule
-                command: cd octotiger && git submodule update --init --recursive && cd ..
+                command: cd /octotiger && git submodule update --init --recursive && cd ..
             - run:
                 name: Checkout CPPuddle
                 command: git clone https://github.com/G-071/hpx-kokkos-interopt-WIP.git cppuddle
