@@ -552,7 +552,7 @@ namespace fmm {
                             interaction_partner_index.x - cell_index.x - STENCIL_MIN,
                             interaction_partner_index.y - cell_index.y - STENCIL_MIN,
                             interaction_partner_index.z - cell_index.z - STENCIL_MIN);
-                        const size_t stencil_flat_index =
+                        const int stencil_flat_index =
                             stencil_element.x * STENCIL_INX * STENCIL_INX +
                             stencil_element.y * STENCIL_INX + stencil_element.z;
                         // Generate stencil mask
