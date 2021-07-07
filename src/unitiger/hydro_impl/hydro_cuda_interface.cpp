@@ -94,7 +94,7 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     }
     std::vector<double> URs(nf_), ULs(nf_);
     const size_t current_max_index = amax_indices[current_dim];
-    const size_t current_d = amax_d[current_dim];
+    // const size_t current_d = amax_d[current_dim];
     ts.a = amax[current_dim];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + q_inx3];
