@@ -101,8 +101,8 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     ts.z = combined_x[current_max_index + 2 * q_inx3];
     const size_t current_i = current_dim;
     current_dim = current_dim / number_blocks;
-    const auto flipped_dim = geo.flip_dim(current_d, current_dim);
-    constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
+    // const auto flipped_dim = geo.flip_dim(current_d, current_dim);
+    // constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf_; f++) {
         URs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + f];
         ULs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + nf_ + f];
