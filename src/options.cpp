@@ -336,6 +336,13 @@ bool options::process_options(int argc, char *argv[]) {
 	}
     // Check parameters if we hit any implementation limitation as in
     // unsupported kernel configurations
+    if (opts().cuda_number_gpus > 1) {
+        std::cerr << std::endl << "ERROR: "; 
+        std::cerr << "Currently there is no multi-GPU support. " << std::endl;
+        std::cerr << "To use multiple GPUs per node, use one HPX locality per GPU " 
+                  << "and use slurm or CUDA_VISIBLE_DEVICES to have each locality access a different GPU" << std::endl;
+        abort();
+    }
     if (opts().gravity) {
         if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA &&
             opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
