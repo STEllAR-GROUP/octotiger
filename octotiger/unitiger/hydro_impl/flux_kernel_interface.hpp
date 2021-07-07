@@ -152,7 +152,7 @@ CUDA_GLOBAL_METHOD inline double_t inner_flux_loop(const double omega, const siz
 
     rho = UL[rho_i];
     rhoinv = (1.) / rho;
-    hdeg = static_cast<double_t>(0.0);
+    // hdeg = static_cast<double_t>(0.0);
     pdeg = static_cast<double_t>(0.0);
     edeg = static_cast<double_t>(0.0);
     dpdeg_drho = static_cast<double_t>(0.0);

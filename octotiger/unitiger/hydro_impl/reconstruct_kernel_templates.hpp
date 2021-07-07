@@ -142,7 +142,6 @@ CUDA_GLOBAL_METHOD inline void make_monotone(double& ql, double q0, double& qr) 
     }
     const double tmp3 = tmp1 * tmp1 / 6.0;
     const double tmp4 = tmp1 * (q0 - 0.5 * tmp2);
-    const double eps = 1.0e-12;
     if (tmp4 > tmp3) {
         ql = (3.0 * q0 - 2.0 * qr);
     } else if (-tmp3 > tmp4) {

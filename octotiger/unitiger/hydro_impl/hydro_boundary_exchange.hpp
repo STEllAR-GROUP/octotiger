@@ -37,7 +37,7 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
     const double* __restrict__ unified_ushad, const int* __restrict__ coarse,
     const double* __restrict__ xmin, const int i0, const int j0,
     const int k0, const int nfields, const mask_t mask, const index_t k , const int iii0 , T * __restrict__ uf_local) {
-    const int field_offset = HS_N3 * 8;
+    // const int field_offset = HS_N3 * 8;
     for (int ir = 0; ir < 2; ir++) {
         for (int jr = 0; jr < 2; jr++) {
             #pragma unroll
@@ -106,7 +106,7 @@ CUDA_GLOBAL_METHOD inline void complete_hydro_amr_boundary_inner_loop(const doub
         }
     }
     if (!energy_only) {
-        T zx = 0, zy = 0, zz = 0, rho = 0;
+        T zx = 0, zy = 0, zz = 0;
         for (int ir = 0; ir < 2; ir++) {
             for (int jr = 0; jr < 2; jr++) {
                 #pragma unroll

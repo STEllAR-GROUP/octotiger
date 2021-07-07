@@ -32,7 +32,7 @@ namespace fmm {
         }
 
         template <typename U>
-        CUDA_GLOBAL_METHOD multiindex(const multiindex<U>& other) {
+        CUDA_GLOBAL_METHOD explicit multiindex(const multiindex<U>& other) {
             x = other.x;
             y = other.y;
             z = other.z;

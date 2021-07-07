@@ -153,6 +153,10 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             abort();
         }
     }
+    std::cerr << "Invalid state: Could not call any hydro kernel configuration!" << std::endl;
+    std::cerr << "Aborting..." << std::endl;
+    abort();
+    return max_lambda;
 }
 
 void convert_x_structure(const hydro::x_type& X, double* const combined_x) {
