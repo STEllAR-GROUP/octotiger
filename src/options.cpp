@@ -240,7 +240,7 @@ bool options::process_options(int argc, char* argv[]) {
             "Host kernel type for multipole interactions ")    //
         ("multipole_device_kernel_type",
             po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))
-                ->default_value(OFF),
+                ->default_value(KOKKOS_CUDA),
             "Device kernel type for multipole interactions ")    //
         ("monopole_host_kernel_type",
             po::value<interaction_host_kernel_type>(&(opts().monopole_host_kernel_type))
@@ -248,7 +248,7 @@ bool options::process_options(int argc, char* argv[]) {
             "Host kernel type for monopole interactions ")    //
         ("monopole_device_kernel_type",
             po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))
-                ->default_value(OFF),
+                ->default_value(KOKKOS_CUDA),
             "Device kernel type for monopole interactions ")    //
         ("hydro_host_kernel_type",
             po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))
@@ -256,16 +256,16 @@ bool options::process_options(int argc, char* argv[]) {
             "Host kernel type for the hydro solver ")    //
         ("hydro_device_kernel_type",
             po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))
-                ->default_value(OFF),
+                ->default_value(KOKKOS_CUDA),
             "Device kernel type for the hydro solver ")    //
-#else                                                      // use Vc as default
+#else                                                      // use Vc and CUDA as default
         ("multipole_host_kernel_type",
             po::value<interaction_host_kernel_type>(&(opts().multipole_host_kernel_type))
                 ->default_value(VC),
             "Host kernel type for multipole interactions ")    //
         ("multipole_device_kernel_type",
             po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))
-                ->default_value(OFF),
+                ->default_value(CUDA),
             "Device kernel type for multipole interactions ")    //
         ("monopole_host_kernel_type",
             po::value<interaction_host_kernel_type>(&(opts().monopole_host_kernel_type))
@@ -273,15 +273,15 @@ bool options::process_options(int argc, char* argv[]) {
             "Host kernel type for monopole interactions ")    //
         ("monopole_device_kernel_type",
             po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))
-                ->default_value(OFF),
+                ->default_value(CUDA),
             "Device kernel type for monopole interactions ")    //
         ("hydro_host_kernel_type",
             po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))
-                ->default_value(LEGACY),
+                ->default_value(VC),
             "Host kernel type for the hydro solver ")    //
         ("hydro_device_kernel_type",
             po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))
-                ->default_value(OFF),
+                ->default_value(CUDA),
             "Device kernel type for the hydro solver ")    //
 #endif
         ("cuda_number_gpus",
