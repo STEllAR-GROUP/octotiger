@@ -174,11 +174,11 @@ CUDA_GLOBAL_METHOD inline void cell_find_contact_discs_phase1(container_t &P,
 
     const auto rho = combined_u[rho_i * u_face_offset + i];
     const auto rhoinv = 1.0 / rho;
-    double hdeg = 0.0, pdeg = 0.0, edeg = 0.0;
+    double pdeg = 0.0, edeg = 0.0;
 
     if (A_ != 0.0) {
         const auto x = std::pow(rho / B_, 1.0 / 3.0);
-        hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
+        const double hdeg = 8.0 * A_ / B_ * (std::sqrt(x * x + 1.0) - 1.0);
         pdeg = deg_pres(x, A_);
         edeg = rho * hdeg - pdeg;
     }

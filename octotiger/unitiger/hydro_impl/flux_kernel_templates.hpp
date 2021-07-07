@@ -99,8 +99,8 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
     //     printf("Rho %f ", rho);
     // }
     auto rhoinv = (1.) / rho;
-    double_t hdeg = static_cast<double_t>(0.0), pdeg = static_cast<double_t>(0.0),
-             edeg = static_cast<double_t>(0.0), dpdeg_drho = static_cast<double_t>(0.0);
+    double_t pdeg = static_cast<double_t>(0.0), edeg = static_cast<double_t>(0.0),
+     dpdeg_drho = static_cast<double_t>(0.0);
 
     // all workitems choose the same path
     if (A_ != 0.0) {
@@ -109,7 +109,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
         const auto x_sqr = x * x;
         const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0);
         const auto x_pow_5 = x_sqr * x_sqr * x;
-        hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
 
         const double_t edeg_tmp1 = rho * hdeg - pdeg;
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
@@ -153,7 +153,6 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
 
     rho = U[rho_i * face_offset + flipped_index];
     rhoinv = (1.) / rho;
-    // hdeg = static_cast<double_t>(0.0);
     pdeg = static_cast<double_t>(0.0);
     edeg = static_cast<double_t>(0.0);
     dpdeg_drho = static_cast<double_t>(0.0);
@@ -165,7 +164,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
         const auto x_sqr = x * x;
         const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0);
         const auto x_pow_5 = x_sqr * x_sqr * x;
-        hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
+        const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
         const double_t edeg_tmp1 = rho * hdeg - pdeg;
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
         const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asin_wrapper(x));
