@@ -17,7 +17,7 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-                    srun -p knl -N 1 -n 1 -t 03:00:00 -D /scratch/jenkins/octotiger bash -c "cd /scratch && \
+                    srun -p knl -N 1 -n 1 -t 03:00:00 -D /scratch/jenkins/octotiger bash -c "\
                     rm -rf octotiger && rm -rf OctoTigerBuildChain && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && git checkout ${GIT_COMMIT} && git submodule update --init --recursive  && cd - && \
