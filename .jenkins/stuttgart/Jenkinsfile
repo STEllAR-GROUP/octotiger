@@ -33,11 +33,26 @@ pipeline {
                     mkdir -p jenkins/octotiger && cd jenkins/octotiger && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && git submodule update --init --recursive && git checkout ${GIT_COMMIT} && cd - && \
-                    git checkout https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
-                    git checkout clang_build && mkdir src && cp -r ../octotiger src/octotiger"
+                    git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
+                    git checkout jenkins-knl && mkdir src && cp -r ../octotiger src/octotiger"
                     '''
                 }
             }
+        }
+        stage('build') {
+            sh '''
+            srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain && ./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
+            '''
+        }
+        stage('ctests') {
+            sh '''
+            srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build && ctests"
+            '''
+        }
+        stage('test failure') {
+            sh '''
+            exit 1
+            '''
         }
     }
 }
