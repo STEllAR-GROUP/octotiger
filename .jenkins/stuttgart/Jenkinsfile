@@ -1,37 +1,13 @@
 #!groovy
 
-void setBuildStatus(String message, String state) {
-  step([
-      $class: "GitHubCommitStatusSetter",
-      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/STEllAR-GROUP/octotiger"],
-      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/build-status"],
-      errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
-      statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
-  ]);
-}
-
 pipeline {
-    agent { label 'argon-fs' }
+    agent any
 
-    options {
-        buildDiscarder(
-            logRotator(
-                daysToKeepStr: "21",
-                numToKeepStr: "50",
-                artifactDaysToKeepStr: "21",
-                artifactNumToKeepStr: "50"
-            )
-        )
-    }
     stages {
         stage('checkout') {
             steps {
-                dir('octotiger') {
-                    echo "Git commit ${env.GIT_COMMIT} or ${GIT_COMMIT} ?"
-                    sinfo
-                    squeue
-                    echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
-                }
+                echo "Git commit ${env.GIT_COMMIT} or ${GIT_COMMIT} ?"
+                echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
             }
         }
     }
