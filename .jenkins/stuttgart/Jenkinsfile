@@ -1,15 +1,4 @@
 #!groovy
-
-void setBuildStatus(String message, String state) {
-  step([
-      $class: "GitHubCommitStatusSetter",
-      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/STEllAR-GROUP/octotiger"],
-      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/build-status"],
-      errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
-      statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
-  ]);
-}
-
 pipeline {
     agent { label 'argon-fs' }
 
@@ -29,14 +18,14 @@ pipeline {
                 dir('octotiger') {
                     sh '''
                     echo "Git commit ${GIT_COMMIT} ?"
-                    srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /scratch && \
+                    srun -p knl -N 1 -n 1 -t 03:00:00 bash -c "cd /scratch && \
                     cd jenkins/octotiger && rm -rf octotiger && rm -rf OctoTigerBuildChain && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && git submodule update --init --recursive && git checkout ${GIT_COMMIT} && cd - && \
                     git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
                     git checkout jenkins-knl && mkdir src && cp -r ../octotiger src/octotiger &&
                     cd src && curl -u "qE2mrmzt6rAreW5:${test_pw}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
-                    tar -xvf silo.tar.gz && rm silo.tar.gz && cd .. "
+                    tar -xvf silo.tar.gz && mv silo-4.10.2 silo && rm silo.tar.gz && cd .. "
                     '''
                 }
             }
@@ -44,21 +33,14 @@ pipeline {
         stage('build') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain && ./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
+                srun -p knl -N 1 -n 1 -t 03:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain && ./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
                 '''
             }
         }
         stage('ctests') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build && ctests"
-                '''
-            }
-        }
-        stage('test failure') {
-            steps {
-                sh '''
-                exit 1
+                srun -p knl -N 1 -n 1 -t 03:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build && ctests"
                 '''
             }
         }
