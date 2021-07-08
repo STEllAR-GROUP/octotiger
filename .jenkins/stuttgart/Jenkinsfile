@@ -34,7 +34,8 @@ pipeline {
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && git submodule update --init --recursive && git checkout ${GIT_COMMIT} && cd - && \
                     git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
-                    git checkout jenkins-knl && mkdir src && cp -r ../octotiger src/octotiger"
+                    git checkout jenkins-knl && mkdir src && cp -r ../octotiger src/octotiger && \
+                    cp -r ../../../daissgr/OctoTigerBuildChain/src/silo src/silo"
                     '''
                 }
             }
