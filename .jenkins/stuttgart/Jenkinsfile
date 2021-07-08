@@ -29,7 +29,7 @@ pipeline {
                 dir('octotiger') {
                     sh '''
                     echo "Git commit ${GIT_COMMIT} ?"
-                    srun -p knl -N 1 -n 1 -t 00:05:00 bash -c "cd /scratch \
+                    srun -p knl -N 1 -n 1 -t 00:05:00 bash -c "cd /scratch && \
                     mkdir -p jenkins/octotiger && cd jenkins/octotiger && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && git submodule update --init --recursive && git checkout ${GIT_COMMIT} && cd - && \
