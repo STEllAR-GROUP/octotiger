@@ -40,19 +40,25 @@ pipeline {
             }
         }
         stage('build') {
-            sh '''
-            srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain && ./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
-            '''
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain && ./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
+                '''
+            }
         }
         stage('ctests') {
-            sh '''
-            srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build && ctests"
-            '''
+            steps {
+                sh '''
+                srun -p knl -N 1 -n 1 -t 12:00:00 bash -c "cd /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build && ctests"
+                '''
+            }
         }
         stage('test failure') {
-            sh '''
-            exit 1
-            '''
+            steps {
+                sh '''
+                exit 1
+                '''
+            }
         }
     }
 }
