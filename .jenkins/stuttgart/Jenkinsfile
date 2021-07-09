@@ -13,6 +13,26 @@ pipeline {
         )
     }
     stages {
+        stage('init') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"pending\\",
+                                \\"context\\": \\"jenkins-KNL-SIMD\\",
+                                \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        }"
+                    '''
+                }
+            }
+        }
         stage('checkout') {
             steps {
                 dir('octotiger') {
@@ -87,6 +107,56 @@ pipeline {
                 srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
                 '''
             }
+        }
+    }
+    post {
+        success {
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl --verbose\
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"success\\",
+                        \\"context\\": \\"jenkins-KNL-SIMD\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+        failure {
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl --verbose\
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"failure\\",
+                        \\"context\\": \\"jenkins-KNL-SIMD\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+        aborted {
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl --verbose\
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"error\\",
+                        \\"context\\": \\"jenkins-KNL-SIMD\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                }"
+            '''
         }
     }
 }
