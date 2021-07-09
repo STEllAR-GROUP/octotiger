@@ -37,24 +37,24 @@ pipeline {
                 '''
             }
         }
-        stage('ctests-legacy') {
+        stage('ctest-legacy') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctests -R legacy"
+                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R legacy"
                 '''
             }
         }
-        stage('ctests-vc') {
+        stage('ctest-vc') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctests -R vc"
+                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R vc"
                 '''
             }
         }
-        stage('ctests-kokkos-without-simd') {
+        stage('ctest-kokkos-without-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctests -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
                 '''
             }
         }
@@ -66,10 +66,10 @@ pipeline {
                 '''
             }
         }
-        stage('ctests-kokkos-with-simd') {
+        stage('ctest-kokkos-with-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctests -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
                 '''
             }
         }
@@ -81,10 +81,10 @@ pipeline {
                 '''
             }
         }
-        stage('ctests-kokkos-with-hpx-backend') {
+        stage('ctest-kokkos-with-hpx-backend') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctests -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
                 '''
             }
         }
