@@ -57,7 +57,7 @@ option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
 option(OCTOTIGER_CUDA_ARCH
-  "Compile for this CUDA arch" sm_50)
+  "Compile for this CUDA arch" sm_60)
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
