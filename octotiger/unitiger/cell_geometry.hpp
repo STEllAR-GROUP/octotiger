@@ -9,7 +9,6 @@
 #include <mutex>
 
 #include "octotiger/unitiger/util.hpp"
-#include "octotiger/print.hpp"
 
 template<int NDIM, int INX>
 struct cell_geometry {
@@ -41,26 +40,14 @@ struct cell_geometry {
 	static constexpr int H_NX_YM8 = NDIM > 1 ? cell_geometry::H_NX - 8 : 1;
 	static constexpr int H_NX_ZM8 = NDIM > 2 ? cell_geometry::H_NX - 8 : 1;
 
-    static constexpr int H_DNX = NDIM == 3 ? cell_geometry::H_NX * cell_geometry::H_NX :
-                                             (NDIM == 2 ? cell_geometry::H_NX : 1);
-    static constexpr int H_DNY = NDIM == 3 ? cell_geometry::H_NX : 1;
+	static constexpr int H_DNX = NDIM == 3 ? cell_geometry::H_NX * cell_geometry::H_NX : (NDIM == 2 ? cell_geometry::H_NX : 1);
+	static constexpr int H_DNY = NDIM == 3 ? cell_geometry::H_NX : 1;
 	static constexpr int H_DNZ = 1;
-
-
-    static constexpr int H_DN0 = 0;
-
-    // std::pow is not constexpr in device code! Workaround with ternary operator:
-	// static constexpr int H_N3 = std::pow(cell_geometry::H_NX, NDIM);
-    static constexpr int H_N3 = NDIM == 3 ?
-        cell_geometry::H_NX * cell_geometry::H_NX * cell_geometry::H_NX :
-        (NDIM == 2 ? cell_geometry::H_NX * cell_geometry::H_NX : cell_geometry::H_NX);
-	//static constexpr int NDIR = std::pow(3, NDIM);
-    static constexpr int NDIR = NDIM == 3 ? 3 * 3 * 3 : (NDIM == 2 ? 3 * 3 : 3);
-    //static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
-    static constexpr int NANGMOM = NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0);
-	// static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
-    static constexpr int NFACEDIR = NDIM == 3 ? 3 * 3 : (NDIM == 2 ? 3 : 1);
-
+	static constexpr int H_N3 = std::pow(cell_geometry::H_NX, NDIM);
+	static constexpr int H_DN0 = 0;
+	static constexpr int NDIR = std::pow(3, NDIM);
+	static constexpr int NANGMOM = NDIM == 1 ? 0 : std::pow(3, NDIM - 2);
+	static constexpr int NFACEDIR = std::pow(3, NDIM - 1);
 	static constexpr int H_DN[3] = { H_DNX, H_DNY, H_DNZ };
 
 	static constexpr int group_count() {
@@ -190,7 +177,7 @@ private:
 					sum += H_DN[1] * j;
 					sum += H_DN[2] * k;
 					if (directions[2][index] != sum) {
-						print("directions failed verification at %i %i %i\n", i, j, k);
+						printf("directions failed verification at %i %i %i\n", i, j, k);
 						abort();
 					}
 					bool cond = false;
@@ -198,11 +185,11 @@ private:
 					cond = cond || (face_locs[2][index][1] != j);
 					cond = cond || (face_locs[2][index][2] != k);
 					if (cond) {
-						print("xlocs failed verification at %i %i %i %i\n", index, i, j, k);
+						printf("xlocs failed verification at %i %i %i %i\n", index, i, j, k);
 						for (int dim = 0; dim < NDIM; dim++) {
-							print("%i ", face_locs[2][index][dim]);
+							printf("%i ", face_locs[2][index][dim]);
 						}
-						print("\n");
+						printf("\n");
 						abort();
 					}
 				}
@@ -256,10 +243,10 @@ private:
 			}
 		}
 		if (fail) {
-			print("Corners/edges indexes failed\n");
+			printf("Corners/edges indexes failed\n");
 			abort();
 		}
-//		print("3D geometry constdefs passed verification\n");
+//		printf("3D geometry constdefs passed verification\n");
 	}
 
 public:
@@ -267,7 +254,7 @@ public:
 	cell_geometry() {
 		static std::once_flag flag;
 		std::call_once(flag, []() {
-			print( "Initializing cell_geometry %i %i %i\n", NDIM, INX, cell_geometry::H_NX);
+			printf( "Initializing cell_geometry %i %i %i\n", NDIM, INX, cell_geometry::H_NX);
 			verify_3d_constdefs();
 			for (int bw = 1; bw <= H_BW; bw++) {
 				for (int d = 0; d < NDIR; d++) {

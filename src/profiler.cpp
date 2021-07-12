@@ -12,7 +12,6 @@
 #include <cstring>
 #include <map>
 #include <memory>
-#include <atomic>
 #include <stack>
 #include <string>
 #include <unordered_map>

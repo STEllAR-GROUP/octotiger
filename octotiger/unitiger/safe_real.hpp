@@ -51,18 +51,4 @@
 
 using safe_real = double;
 
-//TODO (daissgr) Move this to a more appriopriate place
-#if defined(__CUDACC__) // cuda used? 
-#if __CUDA_ARCH__ == 0 // host code
-#warning Host code trajectory
-#else // device code
-#warning Device code trajectory
-#endif
-// TODO (daissgr) How to use this only in device code? The approach above does not work
-// Try with clang (or a more current compiler anyway)
-#define HOST_CONSTEXPR 
-#else
-#define HOST_CONSTEXPR constexpr 
-#endif
-
 #endif

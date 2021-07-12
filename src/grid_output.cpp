@@ -19,10 +19,9 @@
 #include <iosfwd>
 #include <thread>
 
-// TODO (daissgr) Use this mutex or the one in hpx directly? (conflixing declaration here)
-// namespace hpx {
-// using mutex = hpx::lcos::local::spinlock;
-// }
+namespace hpx {
+using mutex = hpx::lcos::local::spinlock;
+}
 
 std::vector<std::vector<real>>& TLS_V();
 

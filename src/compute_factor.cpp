@@ -9,8 +9,6 @@
 #include "octotiger/real.hpp"
 #include "octotiger/taylor.hpp"
 
-// TODO Can we remove this?
-
 taylor<4, real> factor;
 taylor<4, m2m_vector> factor_half_v;
 taylor<4, m2m_vector> factor_sixth_v;

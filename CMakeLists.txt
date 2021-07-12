@@ -1,21 +1,17 @@
 # Copyright (c) 2015 Thomas Heller
 # Copyright (c) 2015 Dominic Marcello
 # Copyright (c) 2018-2019 Parsa Amini
-# Copyright (c) 2018-2020 Gregor Daiß
-# Copyright (c) 2018-2020 Theresa Pollinger
-
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+project(octotiger CXX)
 
-cmake_minimum_required(VERSION 3.14.2)
-cmake_policy(VERSION 3.14.2)
+cmake_minimum_required(VERSION 3.12.4)
+cmake_policy(VERSION 3.12.4)
 
 # Libraries linked via full path no longer produce linker search paths.
 cmake_policy(SET CMP0003 NEW)
 cmake_policy(SET CMP0074 NEW)
-
-project(octotiger CXX C)
 
 # Search path for CMake modules to be loaded by include() and find_package()
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
@@ -33,39 +29,22 @@ option(OCTOTIGER_WITH_BOOST_MULTIPRECISION
   "Use Boost.Multiprecision Instead of GCC Quad-Precision Math Library" OFF)
 option(OCTOTIGER_WITH_QUADMATH "Enable sections using GCC Quad-Precision Math Library" ON)
 option(OCTOTIGER_WITH_Vc "" ON)
-# Re-enables Vc datatypes in the octotiger parts - use with caution
-option(OCTOTIGER_WITH_LEGACY_Vc "" OFF)
-
-# TODO Can these safely be removed? They should be deprecated
 option(OCTOTIGER_WITH_AVX "" OFF)
 option(OCTOTIGER_WITH_AVX2 "" OFF)
 option(OCTOTIGER_WITH_AVX512 "" OFF)
-
 option(OCTOTIGER_WITH_TESTS "Enable tests" ON)
 set(OCTOTIGER_WITH_GRIDDIM "8" CACHE STRING "Grid size")
-set(OCTOTIGER_WITH_MAX_NUMBER_FIELDS "15" CACHE STRING "Maximum allowed nf_ (number fields)")
 set(OCTOTIGER_THETA_MINIMUM "0.34" CACHE STRING "Minimal allowed theta value - important for optimizations")
 option(OCTOTIGER_WITH_DOCU "Enable the target to build the documentation" OFF)
 
-# Options for comparing different backends
-option(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR 
-  "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
-option(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR 
-  "Use Kokkos HPX backend for host execution of monopole kernels (ON) or serial host backend (OFF)" ON)
-option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
-  "Uses scalar host simd types instead of the native ones" OFF) 
-option(OCTOTIGER_WITH_POLLING_EXECUTORS  
-  "Use the polling executors, not the callback ones" ON)
-option(OCTOTIGER_CUDA_ARCH
-  "Compile for this CUDA arch" sm_50)
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
 
 # add -fPIC option to avoid this error:
-# https://cmake.org/pipermail/cmake/2015-January/059513.html 
+# https://cmake.org/pipermail/cmake/2015-January/059513.html
 # in case of relocatable device code
-# (modifying CMAKE_CUDA_(CXX_)_FLAGS did not help, 
+# (modifying CMAKE_CUDA_(CXX_)_FLAGS did not help,
 # so we keep this flag at the cost of duplicating it for host code)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
@@ -87,54 +66,31 @@ endif()
 ################################################################################
 # Find required packages
 ################################################################################
-find_package(Vc REQUIRED)
 find_package(HPX REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
-find_package(CPPuddle REQUIRED)
 find_package(Silo REQUIRED)
-find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
+find_package(Boost REQUIRED)
 if(NOT MSVC)
   find_package(Threads REQUIRED)  # Required by target gen_rotating_star_init
 endif()
 
 if(OCTOTIGER_WITH_CUDA)
-  if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
-    enable_language(CUDA)
-    set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
-    #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
-    string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
-  endif()
-
-  if (OCTOTIGER_WITH_LEGACY_Vc)
-    message(FATAL_ERROR " CUDA cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
-  endif()
+  enable_language(CUDA)
+  #set(MY_CUDA_FLAGS -Xptxas=-fmad=true,-dlcm=cg,--opt-level=4)
+  #string(APPEND HPX_CUDA_CLANG_FLAGS " -fast-math -Xcuda-ptxas -v")
+  string(APPEND CUDA_NVCC_FLAGS ";-Xptxas=-v,-fmad=true,--opt-level=4")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
-  message(INFO " KOKKOS support is turned on!")
   find_package(Kokkos REQUIRED)
-  find_package(HPXKokkos REQUIRED)
-  if (OCTOTIGER_WITH_LEGACY_Vc)
-    message(FATAL_ERROR " Kokkos cannot be used together with OCTOTIGER_WITH_LEGACY_Vc!")
-  endif()
-  if(Kokkos_ENABLE_CUDA)
-    if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
-      enable_language(CUDA)
-    endif()
-  endif()
 endif()
 
-include(FetchContent)
-FetchContent_Declare(
-  kokkossimd
-  GIT_REPOSITORY https://github.com/kokkos/simd-math.git
-  GIT_TAG        c845b7d9d8da461457cc5aa88fdda5923773a4bf
-)
-FetchContent_MakeAvailable(kokkossimd)
 
 ################################################################################
 # Set up Octo-Tiger target
 ################################################################################
 # Octo-Tiger library sources
+
+# Octo-Tiger library headers
 set(source_files
     src/compute_factor.cpp
     src/eos.cpp
@@ -169,33 +125,25 @@ set(source_files
     src/util.cpp
     src/common_kernel/interactions_iterators.cpp
     src/cuda_util/cuda_scheduler.cpp
-    src/monopole_interactions/legacy/cuda_monopole_interaction_interface.cpp
-    src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
-    src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
-    src/monopole_interactions/legacy/monopole_interaction_interface.cpp
-    src/monopole_interactions/monopole_kernel_interface.cpp
-    src/multipole_interactions/multipole_kernel_interface.cpp
-    src/monopole_interactions/util/calculate_stencil.cpp
-    src/monopole_interactions/legacy/p2m_interaction_interface.cpp
-    src/monopole_interactions/legacy/p2m_cpu_kernel.cpp
-    src/multipole_interactions/legacy/multipole_interaction_interface.cpp
-    src/multipole_interactions/legacy/cuda_multipole_interaction_interface.cpp
-    src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
-    src/multipole_interactions/util/calculate_stencil.cpp
-    src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
+    src/monopole_interactions/cuda_p2p_interaction_interface.cpp
+    src/monopole_interactions/p2p_cuda_kernel.cu
+    src/monopole_interactions/p2p_cpu_kernel.cpp
+    src/monopole_interactions/p2p_interaction_interface.cpp
+    src/monopole_interactions/calculate_stencil.cpp
+    src/monopole_interactions/p2m_interaction_interface.cpp
+    src/monopole_interactions/p2m_kernel.cpp
+    src/multipole_interactions/multipole_interaction_interface.cpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
+    src/multipole_interactions/multipole_cuda_kernel.cu
+    src/multipole_interactions/calculate_stencil.cpp
+    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/radiation/cuda_kernel.cu
     src/radiation/rad_grid.cpp
     src/test_problems/marshak/marshak.cpp
     src/test_problems/rotating_star/rotating_star.cpp
     src/test_problems/sod/sod.cpp
     src/test_problems/sod/exact_sod.cpp
     src/test_problems/amr/amr.cpp
-
-    src/unitiger/hydro_impl/hydro_boundary_exchange.cpp # TODO Move to different location - it's not unitiger
-    src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
-    src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp 
-
-    src/unitiger/hydro_impl/hydro_kernel_interface.cpp
-    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
 )
 
 # Octo-Tiger library headers
@@ -245,25 +193,24 @@ set(header_files
     octotiger/common_kernel/kernel_taylor_set_basis.hpp
     octotiger/common_kernel/multiindex.hpp
     octotiger/common_kernel/struct_of_array_data.hpp
-    octotiger/common_kernel/kokkos_util.hpp
     octotiger/compute_factor.hpp
     octotiger/cuda_util/cuda_global_def.hpp
     octotiger/cuda_util/cuda_helper.hpp
     octotiger/cuda_util/cuda_scheduler.hpp
-    octotiger/monopole_interactions/util/calculate_stencil.hpp
-    octotiger/monopole_interactions/legacy/cuda_monopole_interaction_interface.hpp
-    octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp
-    octotiger/monopole_interactions/legacy/p2m_interaction_interface.hpp
-    octotiger/monopole_interactions/legacy/p2m_cpu_kernel.hpp
-    octotiger/monopole_interactions/legacy/p2p_cpu_kernel.hpp
-    octotiger/monopole_interactions/legacy/monopole_cuda_kernel.hpp
-    octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp
-    octotiger/multipole_interactions/util/calculate_stencil.hpp
-    octotiger/multipole_interactions/kernel/compute_kernel_templates.hpp
-    octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp
-    octotiger/multipole_interactions/legacy/multipole_cpu_kernel.hpp
-    octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp
-    octotiger/multipole_interactions/legacy/multipole_interaction_interface.hpp
+    octotiger/monopole_interactions/calculate_stencil.hpp
+    octotiger/monopole_interactions/cuda_p2p_interaction_interface.hpp
+    octotiger/monopole_interactions/monopole_kernel_templates.hpp
+    octotiger/monopole_interactions/p2m_interaction_interface.hpp
+    octotiger/monopole_interactions/p2m_kernel.hpp
+    octotiger/monopole_interactions/p2p_cpu_kernel.hpp
+    octotiger/monopole_interactions/p2p_cuda_kernel.hpp
+    octotiger/monopole_interactions/p2p_interaction_interface.hpp
+    octotiger/multipole_interactions/calculate_stencil.hpp
+    octotiger/multipole_interactions/compute_kernel_templates.hpp
+    octotiger/multipole_interactions/cuda_multipole_interaction_interface.hpp
+    octotiger/multipole_interactions/multipole_cpu_kernel.hpp
+    octotiger/multipole_interactions/multipole_cuda_kernel.hpp
+    octotiger/multipole_interactions/multipole_interaction_interface.hpp
     octotiger/radiation/cpu_kernel.hpp
     octotiger/radiation/cuda_kernel.hpp
     octotiger/radiation/implicit.hpp
@@ -271,23 +218,17 @@ set(header_files
     octotiger/radiation/opacities.hpp
     octotiger/radiation/rad_grid.hpp
     octotiger/test_problems/rotating_star.hpp
-    
 )
 
-list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
-# Can't completely remove Vc yet. compute_multipole and compute_expansions currently only work with Vc
-#if(OCTOTIGER_WITH_Vc)
-#  list(APPEND octo_dependencies Vc::Vc )
-#endif()
+list(APPEND octo_dependencies Silo::silo Vc::Vc Boost::boost)
 if(OCTOTIGER_WITH_KOKKOS)
-  list(APPEND octo_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
+  list(APPEND octo_dependencies Kokkos::kokkos)
 endif()
 
 # Octo-Tiger library
 add_hpx_library(
   octolib
   DEPENDENCIES
-    hydrolib # grid.cpp requires the hydro solver 
     ${octo_dependencies}
   SOURCES
     ${source_files}
@@ -310,78 +251,22 @@ set(hydro_header_files
     octotiger/unitiger/radiation/radiation_physics.hpp
     octotiger/unitiger/radiation/radiation_physics_impl.hpp
     octotiger/test_problems/exact_sod.hpp
-    octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp)
+    octotiger/unitiger/hydro_impl/hydro_cuda/hydro_cuda_kernels.hpp)
 
 set(hydro_source_files
    src/unitiger/hydro.cpp
-   src/unitiger/hydro_impl/hydro_kernel_interface.cpp
-   src/unitiger/hydro_impl/flux_kernel_interface.cpp
-   src/unitiger/hydro_impl/flux_cpu_kernel.cpp
-   src/unitiger/hydro_impl/flux_cuda_kernel.cpp
-   src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp
-   src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
-   src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
-   src/test_problems/sod/exact_sod.cpp)
+   src/test_problems/sod/exact_sod.cpp
+   src/unitiger/hydro_impl/hydro_cuda/reconstruct_cuda_kernel.cu)
 
-set(cu_source_files
-    src/multipole_interactions/legacy/multipole_cuda_kernel.cpp
-    #src/multipole_interactions/multipole_kernel_interface.cpp
-    src/monopole_interactions/legacy/monopole_cuda_kernel.cpp
-    #src/monopole_interactions/monopole_kernel_interface.cpp
-    src/unitiger/hydro_impl/hydro_boundary_exchange_cuda.cpp)
-set(hydro_cu_source_files
-   src/unitiger/hydro_impl/flux_cuda_kernel.cpp
-   src/unitiger/hydro_impl/reconstruct_cuda_kernel.cpp)
-
- list(APPEND hydro_dependencies Silo::silo Boost::boost Boost::program_options CPPuddle::buffer_manager CPPuddle::stream_manager)
-if(OCTOTIGER_WITH_Vc)
-  list(APPEND hydro_dependencies Vc::Vc)
-endif()
+list(APPEND hydro_dependencies Silo::silo Vc::Vc Boost::boost octolib)
 if(OCTOTIGER_WITH_KOKKOS)
-  list(APPEND hydro_dependencies Kokkos::kokkos HPXKokkos::hpx_kokkos)
+  list(APPEND hydro_dependencies Kokkos::kokkos)
 endif()
 if(OCTOTIGER_WITH_BLAST_TEST)
-  list(APPEND hydro_source_files 
+  list(APPEND hydro_source_files
     src/test_problems/blast/sedov.cpp
     src/test_problems/blast/sedovf_c.cpp)
   list(APPEND hydro_dependencies quadmath)
-endif()
-
-if(OCTOTIGER_WITH_CUDA)
-  if(OCTOTIGER_WITH_KOKKOS)
-    # TODO if clang
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      set_source_files_properties(${source_files} ${header_files} ${hydro_source_files} ${hydro_header_files} frontend/frontend-helper.cpp PROPERTIES COMPILE_FLAGS "  -x c++")
-      #set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
-      #set_source_files_properties(${hydro_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
-      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-       src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -ffp-contract=off -fno-cuda-approx-transcendentals -fno-cuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast -fno-honor-infinities -fno-honor-nans -fno-math-errno -ffinite-math-only -freciprocal-math -fno-signed-zeros -fno-trapping-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-host-only -fno-fast-math -ffp-contract=on -fno-honor-infinities -fno-honor-nans -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=on -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #-fassociative-math  kills it?
-      set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      # hydro needs no assiociate math
-      set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-cuda-approx-transcendentals -fcuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
-    else()
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-      set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
-      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
-    endif()
-  else()
-    #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-      # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
-      # -DSTRICT_ANSI__ resolves the issue of clang trying to pull in float128 stuff in the standard libs for the GPU pass
-    else()
-      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
-  endif()
-  endif()
 endif()
 
 # Hydro library
@@ -395,31 +280,16 @@ add_hpx_library(
     ${hydro_header_files}
 )
 
+# Deal with the incompatibility of Kokkos+Cuda and Vc
 if(OCTOTIGER_WITH_KOKKOS)
-  # Deal with the incompatibility of Kokkos+Cuda and Vc, HPX actions and general constexpr problems
-  set(host_only_source_files
-    # Source files that need Vc
+  set(vc_tainted_source_files
     src/compute_factor.cpp
-    src/roe.cpp
-    src/common_kernel/interactions_iterators.cpp
-    src/monopole_interactions/legacy/p2m_cpu_kernel.cpp
-    src/monopole_interactions/legacy/p2m_interaction_interface.cpp
-    src/monopole_interactions/legacy/p2p_cpu_kernel.cpp
-    src/monopole_interactions/legacy/monopole_interaction_interface.cpp
-    src/multipole_interactions/legacy/multipole_cpu_kernel.cpp
-    src/multipole_interactions/legacy/multipole_interaction_interface.cpp
-    src/unitiger/hydro_impl/reconstruct_cpu_kernel.cpp
-    src/unitiger/hydro_impl/flux_cpu_kernel.cpp
-    src/unitiger/hydro_impl/hydro_boundary_exchange_vc.cpp
-    # Quadmath
-    src/test_problems/blast/sedov.cpp
-    src/test_problems/blast/sedovf_c.cpp
-
-    # Other reasons for host-only compilation (hpx actions)
+    src/eos.cpp
     src/grid.cpp
+    src/grid_amr.cpp
     src/grid_fmm.cpp
     src/grid_output.cpp
-    src/grid_scf.cpp 
+    src/grid_scf.cpp
     src/node_client.cpp
     src/node_location.cpp
     src/node_registry.cpp
@@ -427,59 +297,52 @@ if(OCTOTIGER_WITH_KOKKOS)
     src/node_server_actions_1.cpp
     src/node_server_actions_2.cpp
     src/node_server_actions_3.cpp
-    src/physcon.cpp # TODO(daissgr) Check if actions can be made to work with Kokkos
+    src/options.cpp
+    src/physcon.cpp
+    src/problem.cpp
+    src/roe.cpp
+    src/taylor.cpp
+    src/common_kernel/interactions_iterators.cpp
+    src/cuda_util/cuda_scheduler.cpp
     src/io/silo_out.cpp
     src/io/silo_in.cpp
+    src/monopole_interactions/calculate_stencil.cpp
+    src/monopole_interactions/cuda_p2p_interaction_interface.cpp
+    src/monopole_interactions/p2m_kernel.cpp
+    src/monopole_interactions/p2m_interaction_interface.cpp
+    src/monopole_interactions/p2p_cpu_kernel.cpp
+    src/monopole_interactions/p2p_interaction_interface.cpp
+    src/multipole_interactions/calculate_stencil.cpp
+    src/multipole_interactions/cuda_multipole_interaction_interface.cpp
+    src/multipole_interactions/multipole_cpu_kernel.cpp
+    src/multipole_interactions/multipole_interaction_interface.cpp
     src/radiation/rad_grid.cpp
-    frontend/frontend-helper.cpp
-    
-
-    #misc
-    src/cuda_util/cuda_scheduler.cpp
-    src/unitiger/hydro_impl/flux_kernel_interface.cpp
-    src/unitiger/hydro_impl/hydro_cuda_interface.cpp
-    src/unitiger/hydro_impl/reconstruct_kernel_interface.cpp
+    src/test_problems/amr/amr.cpp
+    src/test_problems/marshak/marshak.cpp
+    src/test_problems/rotating_star/rotating_star.cpp
+    src/test_problems/sod/sod.cpp
+    src/unitiger/hydro.cpp
+    frontend/main.cpp
+    src/unitiger/main.cpp
+    src/test_problems/blast/sedov.cpp
+    src/test_problems/blast/sedovf_c.cpp
   )
-  set(host_only_header_files
+  set(vc_tainted_header_files
+    octotiger/grid.hpp
+    octotiger/interaction_types.hpp
     octotiger/simd.hpp
+    octotiger/space_vector.hpp
+    octotiger/taylor.hpp
     octotiger/common_kernel/kernel_simd_types.hpp
+    octotiger/common_kernel/kernel_taylor_set_basis.hpp
   )
-  message(INFO " Host-only list set!")
-  # TODO if not clang 
-  if (NOT ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"))
-    set_source_files_properties(${host_only_source_files} ${host_only_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
-  endif()
-
-  # Add symbols
-  target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
-  target_compile_definitions(octolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
-  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_KOKKOS)
-  target_compile_definitions(hydrolib PUBLIC HPX_WITH_CUDA) # workaround for the kokkos hpx include
-
-  if(OCTOTIGER_WITH_MONOPOLE_HOST_HPX_EXECUTOR)
-    target_compile_definitions(octolib PUBLIC OCTOTIGER_MONOPOLE_HOST_HPX_EXECUTOR)
-  endif()
-  if(OCTOTIGER_WITH_MULTIPOLE_HOST_HPX_EXECUTOR)
-    target_compile_definitions(octolib PUBLIC OCTOTIGER_MULTIPOLE_HOST_HPX_EXECUTOR)
-  endif()
-  if(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD)
-    target_compile_definitions(octolib PUBLIC OCTOTIGER_FORCE_SCALAR_KOKKOS_SIMD)
-  endif()
+  set_source_files_properties(${vc_tainted_source_files} ${vc_tainted_header_files} PROPERTIES COMPILE_FLAGS " -isystem ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} --host-only")
 endif()
 
-# Add simd library
-# Use this include when actively developing simd-math itself and the source changes often
-# You are responsible for checking out the simd-math source at the correct directory in this case
-#target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR}/../simd-math)
-message(INFO "Compiling with Kokkos SIMD! Path:")
-message(INFO ${kokkossimd_SOURCE_DIR})
-target_include_directories(hydrolib PUBLIC ${kokkossimd_SOURCE_DIR})
-target_include_directories(octolib PUBLIC ${kokkossimd_SOURCE_DIR})
-
 # Enable exported functions
-#target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
+target_compile_definitions(octolib PRIVATE OCTOTIGER_EXPORTS)
 # Header files
-#set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
+set_property(TARGET octolib PROPERTY FOLDER "Octo-Tiger")
 
 # add octotiger/* to compiler search path
 target_include_directories(octolib PUBLIC ${PROJECT_SOURCE_DIR})
@@ -489,29 +352,18 @@ target_include_directories(hydrolib PUBLIC ${PROJECT_SOURCE_DIR})
 add_hpx_executable(
   octotiger
   DEPENDENCIES
-    hydrolib
     octolib
-    Boost::boost
-    Boost::program_options
+    hydrolib
   SOURCES
     frontend/main.cpp
-    frontend/frontend-helper.cpp
-    frontend/init_methods.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
-
-if(OCTOTIGER_WITH_CUDA)
-  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
-endif()
-if(OCTOTIGER_WITH_KOKKOS)
-  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_KOKKOS)
-endif()
 
 # Unitiger executable
 add_hpx_executable(
   unitiger
   DEPENDENCIES
-    Silo::silo hydrolib octolib
+    Silo::silo hydrolib
   SOURCES
     src/unitiger/main.cpp
   HEADERS
@@ -558,46 +410,29 @@ if(MSVC)
   target_compile_options(octolib PUBLIC /EHsc)
 
 else()
-  if(NOT OCTOTIGER_WITH_CUDA)
-    if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
-      target_compile_options(octolib PRIVATE
-        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-        -Wno-unused-result -ffast-math -Wno-write-strings)
-      target_compile_options(unitiger PRIVATE
-        -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
-        -Wno-unused-result -ffast-math -Wno-write-strings)
-    elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
-        #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result ")
-        #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
-        target_compile_options(octolib -Wno-attributes -Wno-deprecated)
-    endif()
+  if(${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+    target_compile_options(octolib PRIVATE
+      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+      -Wno-unused-result -ffast-math -Wno-write-strings)
+    target_compile_options(unitiger PRIVATE
+      -Wno-ignored-attributes -Wno-attributes -Wno-deprecated-declarations
+      -Wno-unused-result -ffast-math -Wno-write-strings)
+  elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL Intel)
+      #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -ipo -Wunused-result ")
+      #set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Ofast -ipo")
+      target_compile_options(octolib -Wno-attributes -Wno-deprecated)
   endif()
 endif()
 
-# Vc can't be removed yet, compute_multipoles and compute_expansions still require it
 if(OCTOTIGER_WITH_Vc)
-  #find_package(Vc REQUIRED)
+  find_package(Vc REQUIRED)
 
   target_compile_definitions(octolib PUBLIC
     OCTOTIGER_HAVE_VC
     # Need serialization support from HPX
     # This just spits out lots of warnings
+     HPX_HAVE_DATAPAR HPX_HAVE_DATAPAR_VC
   )
-  target_compile_definitions(hydrolib PUBLIC
-    OCTOTIGER_HAVE_VC
-    # Need serialization support from HPX
-    # This just spits out lots of warnings
-  )
-  if (OCTOTIGER_WITH_LEGACY_Vc)
-     target_compile_definitions(octolib PUBLIC OCTOTIGER_LEGACY_VC
-       # Need serialization support from HPX
-       # This just spits out lots of warnings
-       HPX_HAVE_DATAPAR
-       HPX_HAVE_DATAPAR_VC 
-     )
-  endif()
-else()
-  message(WARNING " Currently Vc can only be partially turned off! Two methods in octolib still require Vc. Turning of Vc support for all other kernels now...")
 endif()
 
 if(OCTOTIGER_WITH_Vc AND USE_AVX512 AND OCTOTIGER_WITH_AVX512)
@@ -631,14 +466,9 @@ endif()
 
 # Handle CUDA
 if(OCTOTIGER_WITH_CUDA)
-  message(INFO " CUDA support is turned on!")
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_CUDA)
-  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_CUDA)
-
-  #set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-  #set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
-  #set_property(TARGET hydrolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-  #set_property(TARGET hydrolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
+  set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+  set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
 endif()
 
 # Handle other options
@@ -653,26 +483,13 @@ endif()
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
-target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
-
-# Maximum allowed nf (for kernel optimizations)
-message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")
-target_compile_definitions(octolib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
-target_compile_definitions(hydrolib PUBLIC OCTOTIGER_MAX_NUMBER_FIELDS=${OCTOTIGER_WITH_MAX_NUMBER_FIELDS})
 
 # Theta minimum
 message(STATUS "Octo-Tiger minimal allowed theta: ${OCTOTIGER_THETA_MINIMUM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
-target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_THETA_MINIMUM})
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    message(FATAL_ERROR "Trying to build BLAST test with clang. The test requires quadmath which is not "
-    "bundled with clang. If you really need the blast test scenario compile "
-    "with a different compiler (gcc). If do not need this test (or aren't sure about it) "
-    " try the cmake variable OCTOTIGER_WITH_BLAST_TEST=OFF")
-  endif()
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
     src/test_problems/blast/sedov.cpp
@@ -698,8 +515,6 @@ if(OCTOTIGER_WITH_BLAST_TEST)
     endif()
     target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_QUADMATH)
     target_link_libraries(octolib PUBLIC quadmath)
-    target_compile_definitions(unitiger PUBLIC OCTOTIGER_HAVE_QUADMATH)
-    target_link_libraries(unitiger PUBLIC quadmath)
 
   else()
       message(FATAL_ERROR "Octo-Tiger with OCTOTIGER_WITH_BLAST_TEST=ON cannot "
@@ -708,7 +523,7 @@ if(OCTOTIGER_WITH_BLAST_TEST)
 endif()
 
 if(OCTOTIGER_WITH_DOCU)
-  add_subdirectory(doc)    
+  add_subdirectory(doc)
 endif()
 
 

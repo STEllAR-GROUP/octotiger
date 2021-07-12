@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "octotiger/common_kernel/kernel_simd_types.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 
 #include "octotiger/defs.hpp"
@@ -30,15 +31,22 @@ namespace fmm {
             }
 
             // calculates 1/distance between i and j
-            template<class T>
-            inline T distance_squared_reciprocal(
-                const multiindex<T>& i, const multiindex<T>& j) {
+            inline m2m_int_vector distance_squared_reciprocal(
+                const multiindex<m2m_int_vector>& i, const multiindex<m2m_int_vector>& j) {
                 return (sqr(i.x - j.x) + sqr(i.y - j.y) + sqr(i.z - j.z));
             }
-            template <class T>
-            inline T distance_squared_reciprocal(
-                const T i0, const T i1, const T i2, const T j0, const T j1, const T j2) {
-            return (sqr(i0 - j0) + sqr(i1 - j1) + sqr(i2 - j2));
+
+            // checks whether the index tuple is inside the current node
+            inline bool is_interior(const integer i0, const integer i1, const integer i2) {
+                bool check = true;
+                if (i0 < 0 || i0 >= G_NX) {
+                    check = false;
+                } else if (i1 < 0 || i1 >= G_NX) {
+                    check = false;
+                } else if (i2 < 0 || i2 >= G_NX) {
+                    check = false;
+                }
+                return check;
             }
         }    // namespace detail
 }    // namespace fmm

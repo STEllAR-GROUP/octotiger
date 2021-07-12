@@ -174,7 +174,7 @@ void rad_grid::set_X(const std::vector<std::vector<real>> &x) {
 					const auto D = H_BW - RAD_BW;
 					const integer iiir = rindex(xi, yi, zi);
 					const integer iiih = hindex(xi + D, yi + D, zi + D);
-					//		print( "%i %i %i %i %i %i \n", d, iiir, xi, yi, zi, iiih);
+					//		printf( "%i %i %i %i %i %i \n", d, iiir, xi, yi, zi, iiih);
 					X[d][iiir] = x[d][iiih];
 				}
 			}
@@ -208,7 +208,7 @@ real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vect
 				}
 
 				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
-				//		print( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
+				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
 				const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
 				if (cons < 32.0) {
 					this_a *= std::max(1.0 - std::exp(-cons), 0.0);
@@ -244,7 +244,7 @@ void rad_grid::compute_mmw(const std::vector<std::vector<safe_real>> &U) {
 void node_server::compute_radiation(real dt, real omega) {
 //	physcon().c = 1.0;
 	if (my_location.level() == 0) {
-//		print("c = %e\n", physcon().c);
+//		printf("c = %e\n", physcon().c);
 	}
 
 	rad_grid_ptr->set_dx(grid_ptr->get_dx());
@@ -255,7 +255,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	const real max_dt = min_dx / clight * 0.2;
 	const real ns = std::ceil(dt * INVERSE(max_dt));
 	if (ns > std::numeric_limits<int>::max()) {
-		print("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
+		printf("Number of substeps greater than %i. dt = %e max_dt = %e\n", std::numeric_limits<int>::max(), dt, max_dt);
 	}
 	integer nsteps = std::max(int(ns), 1);
 
@@ -269,7 +269,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	rad_grid_ptr->set_X(grid_ptr->get_X());
 
 //	if (my_location.level() == 0) {
-//		print("Explicit\n");
+//		printf("Explicit\n");
 //	}
 	if (opts().rad_implicit) {
 		rgrid->rad_imp(egas, tau, sx, sy, sz, rho, 0.5 * dt);
@@ -277,7 +277,7 @@ void node_server::compute_radiation(real dt, real omega) {
 	for (integer i = 0; i != nsteps; ++i) {
 		//	rgrid->sanity_check();
 		if (my_location.level() == 0) {
-			print("radiation sub-step %i of %i\r", int(i + 1), int(nsteps));
+			printf("radiation sub-step %i of %i\r", int(i + 1), int(nsteps));
 			fflush(stdout);
 		}
 
@@ -286,9 +286,9 @@ void node_server::compute_radiation(real dt, real omega) {
 		for (int rk = 0; rk < 3; rk++) {
 			all_rad_bounds();
 			rgrid->compute_flux(omega);
-//			if( my_location.level() == 0 ) print( "\nbounds 10\n");
+//			if( my_location.level() == 0 ) printf( "\nbounds 10\n");
 			GET(exchange_rad_flux_corrections());
-//			if( my_location.level() == 0 ) print( "\nbounds 11\n");
+//			if( my_location.level() == 0 ) printf( "\nbounds 11\n");
 			rgrid->advance(this_dt, beta[rk]);
 		}
 
@@ -299,8 +299,8 @@ void node_server::compute_radiation(real dt, real omega) {
 //	rgrid->sanity_check();
 	all_rad_bounds();
 	if (my_location.level() == 0) {
-		print("\n");
-//		print("Rad done\n");
+		printf("\n");
+//		printf("Rad done\n");
 	}
 }
 
@@ -349,8 +349,8 @@ void rad_grid::sanity_check() {
 			for (integer zi = RAD_BW; zi != RAD_NX - RAD_BW; ++zi) {
 				const integer iiir = rindex(xi, yi, zi);
 				if (U[er_i][iiir] <= 0.0) {
-					print("INSANE\n");
-					//		print("%e %i %i %i\n", U[er_i][iiir], xi, yi, zi);
+					printf("INSANE\n");
+					//		printf("%e %i %i %i\n", U[er_i][iiir], xi, yi, zi);
 					abort();
 				}
 			}
@@ -600,13 +600,13 @@ std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &l
 }
 
 void node_server::all_rad_bounds() {
-//	if( my_location.level() == 0 ) print( "\nbounds 1\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 1\n");
 	GET(exchange_interlevel_rad_data());
-//	if( my_location.level() == 0 ) print( "\nbounds 2\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 2\n");
 	collect_radiation_bounds();
-//	if( my_location.level() == 0 ) print( "\nbounds 3\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 3\n");
 	send_rad_amr_bounds();
-//	if( my_location.level() == 0 ) print( "\nbounds 4\n");
+//	if( my_location.level() == 0 ) printf( "\nbounds 4\n");
 	rcycle++;
 }
 
@@ -827,7 +827,7 @@ void rad_grid::set_restrict(const std::vector<real> &data, const geo::octant &oc
 					U[f][iii] = data[index];
 					++index;
 					if (index > int(data.size())) {
-						print("rad_grid::set_restrict error %i %i\n", int(index), int(data.size()));
+						printf("rad_grid::set_restrict error %i %i\n", int(index), int(data.size()));
 					}
 				}
 			}
