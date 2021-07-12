@@ -11,12 +11,6 @@
 #include "octotiger/problem.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
-#include "octotiger/interaction_types.hpp"
-
-#include "octotiger/monopole_interactions/monopole_kernel_interface.hpp"
-#include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
-
-#include "octotiger/unitiger/hydro_impl/hydro_boundary_exchange.hpp"
 
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/include/lcos.hpp>
@@ -217,40 +211,7 @@ void node_server::collect_hydro_boundaries(bool energy_only) {
 	for (auto &f : results) {
 		GET(f);
 	}
-	amr_boundary_type kernel_type = opts().amr_boundary_kernel_type;
-	if (kernel_type == AMR_LEGACY) {
-		grid_ptr->complete_hydro_amr_boundary(energy_only);
-	} else {
-		std::array<double, NDIM> xmin;
-		for (int dim = 0; dim < NDIM; dim++) {
-			xmin[dim] = grid_ptr->X[dim][0];
-		}
-// CUDA implementation supports optional execution on GPU, hence we need to check if a stram is available
-#ifdef OCTOTIGER_HAVE_CUDA
-		bool avail = false;
-		if (kernel_type == AMR_CUDA)
-			avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
-					pool_strategy>(opts().cuda_buffer_capacity);
-		if (!avail) { // no stream is available or flag is turned off, proceed with CPU implementations
-	#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-			complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
-	#else
-			complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
-	#endif
-		} else { // Run on GPU
-			stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-			launch_complete_hydro_amr_boundary_cuda(executor, dx, energy_only, grid_ptr->Ushad,
-			grid_ptr->is_coarse, xmin, grid_ptr->U);
-		}
-// None GPU build -> run on CPU
-#else	
-	#if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-		complete_hydro_amr_boundary_vc(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
-	#else
-		complete_hydro_amr_boundary_cpu(dx, energy_only, grid_ptr->Ushad, grid_ptr->is_coarse, xmin, grid_ptr->U);
-	#endif
-#endif
-	}
+	grid_ptr->complete_hydro_amr_boundary(energy_only);
 	for (auto &face : geo::face::full_set()) {
 		if (my_location.is_physical_boundary(face)) {
 			grid_ptr->set_physical_boundaries(face, current_time);
@@ -490,44 +451,55 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly)
 		}
 	}
 
-	/* new-style interaction calculation */
+	bool new_style_enabled = true;
+	/***************************************************************************/
+	// new-style interaction calculation (both cannot be active at the same time)
+	//if (new_style_enabled && !grid_ptr->get_leaf() && !grid_ptr->get_root()) {
+	if (new_style_enabled && !grid_ptr->get_root()) {
 
-	// Get all input structures we need as input
-	std::vector<multipole> &M_ptr = grid_ptr->get_M();
-	std::vector<real> &mon_ptr = grid_ptr->get_mon();
-	std::vector<std::shared_ptr<std::vector<space_vector>>> &com_ptr = grid_ptr->get_com_ptr();
+		// Get all input structures we need as input
+		std::vector<multipole> &M_ptr = grid_ptr->get_M();
+		std::vector<real> &mon_ptr = grid_ptr->get_mon();
+		std::vector<std::shared_ptr<std::vector<space_vector>>> &com_ptr = grid_ptr->get_com_ptr();
 
-	// initialize to zero
-	std::vector<expansion> &L = grid_ptr->get_L();
-	std::vector<space_vector> &L_c = grid_ptr->get_L_c();
-	std::fill(std::begin(L), std::end(L), ZERO);
-	std::fill(std::begin(L_c), std::end(L_c), ZERO);
+		// initialize to zero
+		std::vector<expansion> &L = grid_ptr->get_L();
+		std::vector<space_vector> &L_c = grid_ptr->get_L_c();
+		std::fill(std::begin(L), std::end(L), ZERO);
+		std::fill(std::begin(L_c), std::end(L_c), ZERO);
 
-	// Check if we are a multipole
-	if (!grid_ptr->get_leaf()) {
-		// Input structure, needed for multipole-monopole interactions
-		std::array<real, NDIM> Xbase = { 
-		grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)],
-		grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
-		grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
-		octotiger::fmm::multipole_interactions::multipole_kernel_interface(mon_ptr, M_ptr, com_ptr,
-		all_neighbor_interaction_data, type, grid_ptr->get_dx(),
-		is_direction_empty, Xbase, grid_ptr, grid_ptr->get_root());
-	} else { // ... we are a monopole
-		octotiger::fmm::monopole_interactions::monopole_kernel_interface(mon_ptr, com_ptr, all_neighbor_interaction_data, type,
-		grid_ptr->get_dx(), is_direction_empty, grid_ptr, contains_multipole);
-	}
-
-	/* old-style interaction calculation
-	// computes inner interactions
-	grid_ptr->compute_interactions(type);
-	// waits for boundary data and then computes boundary interactions
-	for (auto const &dir : geo::direction::full_set()) {
-		if (!is_direction_empty[dir]) {
-			neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
-			grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole, neighbor_data.data);
+		// Check if we are a multipole
+		if (!grid_ptr->get_leaf()) {
+			// Input structure, needed for multipole-monopole interactions
+			std::array<real, NDIM> Xbase = { grid_ptr->get_X()[0][hindex(H_BW, H_BW, H_BW)], grid_ptr->get_X()[1][hindex(H_BW, H_BW, H_BW)],
+					grid_ptr->get_X()[2][hindex(H_BW, H_BW, H_BW)] };
+			// Make sure we have the right pointer
+			multipole_interactor.set_grid_ptr(grid_ptr);
+			// Run unified multipole-multipole multipole-monopole FMM interaction kernel
+			// This will be either run on a cuda device or the cpu (depending on build type and
+			// device load)
+			multipole_interactor.compute_multipole_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(),
+					is_direction_empty, Xbase);
+		} else { // ... we are a monopole
+			p2p_interactor.set_grid_ptr(grid_ptr);
+			p2p_interactor.compute_p2p_interactions(mon_ptr, all_neighbor_interaction_data, type, grid_ptr->get_dx(), is_direction_empty);
+			if (contains_multipole) {
+				p2m_interactor.set_grid_ptr(grid_ptr);
+				p2m_interactor.compute_p2m_interactions(mon_ptr, M_ptr, com_ptr, all_neighbor_interaction_data, type, is_direction_empty);
+			}
 		}
-	} */
+	} else {
+		// old-style interaction calculation
+		// computes inner interactions
+		grid_ptr->compute_interactions(type);
+		// waits for boundary data and then computes boundary interactions
+		for (auto const &dir : geo::direction::full_set()) {
+			if (!is_direction_empty[dir]) {
+				neighbor_gravity_type &neighbor_data = all_neighbor_interaction_data[dir];
+				grid_ptr->compute_boundary_interactions(type, neighbor_data.direction, neighbor_data.is_monopole, neighbor_data.data);
+			}
+		}
+	}
 
 	/**************************************************************************/
 	// now that all boundary information has been processed, signal all non-empty neighbors

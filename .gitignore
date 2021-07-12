@@ -4,4 +4,3 @@ newgit
 cmake-build-*
 cmake-cuda-*
 .spack-env/*
-.clangd/*

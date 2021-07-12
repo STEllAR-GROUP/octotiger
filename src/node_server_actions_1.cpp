@@ -226,34 +226,34 @@ node_count_type node_server::regrid(const hpx::id_type &root_gid, real omega, re
 	timings::scope ts(timings_, timings::time_regrid);
 	hpx::util::high_resolution_timer timer;
 	assert(grid_ptr != nullptr);
-	print("-----------------------------------------------\n");
+	printf("-----------------------------------------------\n");
 	if (!rb) {
-		print("checking for refinement\n");
+		printf("checking for refinement\n");
 		check_for_refinement(omega, new_floor);
 	} else {
 		node_registry::clear();
 	}
-	print("regridding\n");
+	printf("regridding\n");
 	real tstart = timer.elapsed();
 	auto a = regrid_gather(rb);
 	real tstop = timer.elapsed();
-	print("Regridded tree in %f seconds\n", real(tstop - tstart));
-	print("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
+	printf("Regridded tree in %f seconds\n", real(tstop - tstart));
+	printf("rebalancing %i nodes with %i leaves\n", int(a.total), int(a.leaf));
 	tstart = timer.elapsed();
 	regrid_scatter(0, a.total);
 	tstop = timer.elapsed();
-	print("Rebalanced tree in %f seconds\n", real(tstop - tstart));
+	printf("Rebalanced tree in %f seconds\n", real(tstop - tstart));
 	assert(grid_ptr != nullptr);
 	tstart = timer.elapsed();
-	print("forming tree connections\n");
+	printf("forming tree connections\n");
 	a.amr_bnd = form_tree(hpx::unmanaged(root_gid));
-	print("%i amr boundaries\n", a.amr_bnd);
+	printf("%i amr boundaries\n", a.amr_bnd);
 	tstop = timer.elapsed();
-	print("Formed tree in %f seconds\n", real(tstop - tstart));
-	print("solving gravity\n");
+	printf("Formed tree in %f seconds\n", real(tstop - tstart));
+	printf("solving gravity\n");
 	solve_gravity(grav_energy_comp, false);
 	double elapsed = timer.elapsed();
-	print("regrid done in %f seconds\n---------------------------------------\n", elapsed);
+	printf("regrid done in %f seconds\n---------------------------------------\n", elapsed);
 	return a;
 }
 
@@ -266,7 +266,7 @@ future<void> node_client::set_aunt(const hpx::id_type &aunt, const geo::face &f)
 
 void node_server::set_aunt(const hpx::id_type &aunt, const geo::face &face) {
 	if (aunts[face].get_gid() != hpx::invalid_id) {
-		print("AUNT ALREADY SET\n");
+		printf("AUNT ALREADY SET\n");
 		abort();
 	}
 	aunts[face] = aunt;
