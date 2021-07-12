@@ -41,13 +41,23 @@ pipeline {
                 dir('octotiger') {
                     sh '''
                     srun -p knl -N 1 -n 1 -t 03:00:00 -D /scratch/jenkins/octotiger bash -c "\
-                    rm -rf octotiger && rm -rf OctoTigerBuildChain && \
+                    rm -rf octotiger && \
+                    rm -rf OctoTigerBuildChain && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
-                    cd octotiger && git checkout ${GIT_COMMIT} && git submodule update --init --recursive  && cd - && \
+                    cd octotiger && \
+                    git checkout ${GIT_COMMIT} && \
+                    git submodule update --init --recursive && \
+                    cd - && \
                     git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
-                    git checkout jenkins-knl && mkdir src && cp -r ../octotiger src/octotiger &&
-                    cd src && curl -u "qE2mrmzt6rAreW5:${test_pw}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
-                    tar -xvf silo.tar.gz && mv silo-4.10.2 silo && rm silo.tar.gz && cd .. "
+                    git checkout jenkins-knl && \
+                    mkdir src && \
+                    cp -r ../octotiger src/octotiger && \
+                    cd src && \
+                    curl -u "qE2mrmzt6rAreW5:${test_pw}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
+                    tar -xvf silo.tar.gz && \
+                    mv silo-4.10.2 silo && \
+                    rm silo.tar.gz && \
+                    cd .. "
                     '''
                 }
             }
