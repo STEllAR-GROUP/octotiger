@@ -8,9 +8,8 @@
 
 //#include "octotiger/defs.hpp"
 
-#include <hpx/modules/collectives.hpp>
-#include <hpx/parallel/traits/vector_pack_type.hpp>
-#include <hpx/runtime/serialization/datapar.hpp>
+//#include <hpx/parallel/traits/vector_pack_type.hpp>
+////#include <hpx/runtime/serialization/datapar.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -27,7 +26,7 @@
 #include <spe.h>
 #endif
 
-// constexpr std::size_t simd_len = 8;
+//constexpr std::size_t simd_len = 4;
 
 // #if !defined(HPX_HAVE_DATAPAR)
 
@@ -266,7 +265,7 @@
 // 	}
 // 	inline v4sd(const std::initializer_list<double>& other) {
 // 		if( other.size() != 4 ) {
-// 			printf( "Error file %s line %i\n", __FILE__, __LINE__);
+// 			print( "Error file %s line %i\n", __FILE__, __LINE__);
 // 			abort();
 // 		}
 // //		std::array<double, 4> n;
@@ -427,8 +426,9 @@ constexpr std::size_t simd_len = simd_vector::size();
 // using simd_vector = hpx::parallel::traits::vector_pack_type<double, 8>::type;
 // using v4sd = Vc::datapar<double, Vc::datapar_abi::avx>;
 //#else
-//using simd_vector = hpx::parallel::traits::vector_pack_type<double, 8>::type;
-//using v4sd = hpx::parallel::traits::vector_pack_type<double, 4>::type;
+// using simd_vector = hpx::parallel::traits::vector_pack_type<double, 8>::type;
+// using int_simd_vector = hpx::parallel::traits::vector_pack_type<std::uint32_t, 8>;
+// using v4sd = hpx::parallel::traits::vector_pack_type<double, 4>::type;
 //#endif
 
 // #endif
