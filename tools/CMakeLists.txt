@@ -9,7 +9,7 @@
 add_hpx_executable(
   bfilter
   DEPENDENCIES
-    Silo::silo Boost::boost
+    Silo::silo Boost::boost Boost::program_options
   SOURCES
     bfilter/bfilter.cpp
 )
@@ -34,7 +34,7 @@ endif()
 add_hpx_executable(
   silo_convert
   DEPENDENCIES
-    Silo::silo Boost::boost
+    Silo::silo Boost::boost Boost::program_options
   SOURCES
     silo_convert/plain_silo.cpp
     silo_convert/silo_convert.cpp 
@@ -49,7 +49,7 @@ add_hpx_executable(
 add_hpx_executable(
   silo_post
   DEPENDENCIES
-    Silo::silo Boost::boost
+    Silo::silo Boost::boost Boost::program_options
   SOURCES
     silo_post/silo_post.cpp 
 )

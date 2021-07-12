@@ -8,6 +8,7 @@
 
 #include "octotiger/options.hpp"
 
+#include "octotiger/print.hpp"
 #include <hpx/include/threads.hpp>
 
 #include <cstdio>
@@ -40,7 +41,7 @@ int file_copy(const char* fin, const char* fout);
 
 
 template<class... Args>
-int lprintf( const char* log, const char* str, Args&&...args) {
+int lprint( const char* log, const char* str, Args&&...args) {
     // run output on separate thread
     auto f = hpx::threads::run_as_os_thread([&]() -> int
     {
@@ -53,7 +54,7 @@ int lprintf( const char* log, const char* str, Args&&...args) {
             fprintf( fp, str, std::forward<Args>(args)...);
 	        fclose(fp);
 	    }
-        printf( str, std::forward<Args>(args)...);
+        print( str, std::forward<Args>(args)...);
 	    return 0;
     });
     return f.get();
@@ -66,8 +67,8 @@ bool find_root(std::function<real(real)>& func, real xmin, real xmax,
 inline real  assert_positive(real r, const char* filename, int line) {
 	if( r <= 0.0 ) {
 		FILE* fp = fopen("assert.log", "at");
-		printf( "ASSERT_POSITIVE FAILED\n");
-		printf( "file %s line %i\n", filename, line);
+		print( "ASSERT_POSITIVE FAILED\n");
+		print( "file %s line %i\n", filename, line);
 		fprintf( fp, "ASSERT_POSITIVE FAILED\n");
 		fprintf( fp, "file %s line %i\n", filename, line);
 		fclose(fp);
@@ -79,8 +80,8 @@ inline real  assert_positive(real r, const char* filename, int line) {
 inline void  assert_nonan(real r, const char* filename, int line) {
 	if( std::isnan(r) ) {
 		FILE* fp = fopen("assert.log", "at");
-		printf( "ASSERT_NONAN FAILED\n");
-		printf( "file %s line %i\n", filename, line);
+		print( "ASSERT_NONAN FAILED\n");
+		print( "file %s line %i\n", filename, line);
 		fprintf( fp, "ASSERT_NONAN FAILED\n");
 		fprintf( fp, "file %s line %i\n", filename, line);
 		fclose(fp);

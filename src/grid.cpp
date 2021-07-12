@@ -23,7 +23,7 @@
 #include "octotiger/unitiger/hydro_impl/flux.hpp"
 
 #include <hpx/include/runtime.hpp>
-#include <hpx/collectives/broadcast.hpp>
+#include <hpx/collectives/broadcast_direct.hpp>
 #include <hpx/synchronization/once.hpp>
 
 #include <array>
@@ -31,6 +31,11 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
+
+#include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
+//#include "octotiger/unitiger/hydro_impl/hydro_cuda_interface.hpp"
+#include "octotiger/unitiger/hydro_impl/hydro_kernel_interface.hpp"
 
 std::vector<int> grid::field_bw;
 std::vector<int> grid::energy_bw;
@@ -173,7 +178,7 @@ real grid::convert_hydro_units(int i) {
 	real val = 1.0;
 	if (opts().problem != MARSHAK) {
 		const real cm = opts().code_to_cm;
-		//printf( "%e\n", cm);
+		//print( "%e\n", cm);
 		const real s = opts().code_to_s;
 		const real g = opts().code_to_g;
 		if (i >= spc_i && i <= spc_i + opts().n_species) {
@@ -187,7 +192,7 @@ real grid::convert_hydro_units(int i) {
 		} else if (i == tau_i) {
 			val *= POWER(g / (s * s * cm), 1.0 / fgamma);
 		} else {
-			printf("Asked to convert units for unknown field %i\n", i);
+			print("Asked to convert units for unknown field %i\n", i);
 			abort();
 		}
 	}
@@ -940,7 +945,7 @@ std::pair<std::vector<real>, std::vector<real>> grid::diagnostic_error() const {
 			}
 		}
 	}
-//	printf("%e\n", e[0]);
+//	print("%e\n", e[0]);
 
 	return e;
 }
@@ -1122,7 +1127,7 @@ void grid::change_units(real m, real l, real t, real k) {
 	xmin[ZDIM] *= l;
 	dx *= l;
 	if (dx > 1.0e+12)
-		printf("++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx * l);
+		print("++++++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1+++++++++++++++++++++++++++++++++++++ %e %e\n", dx, dx * l);
 	for (integer i = 0; i != H_N3; ++i) {
 		U[rho_i][i] *= m * l3inv;
 		for (integer si = 0; si != opts().n_species; ++si) {
@@ -1141,7 +1146,7 @@ void grid::change_units(real m, real l, real t, real k) {
 		X[YDIM][i] *= l;
 		X[ZDIM][i] *= l;
 //		if (std::abs(X[XDIM][i]) > 1.0e+12) {
-//			printf("!!!!!!!!!!!! %e !!!!!!!!!!!!!!!!\n", std::abs(X[XDIM][i]));
+//			print("!!!!!!!!!!!! %e !!!!!!!!!!!!!!!!\n", std::abs(X[XDIM][i]));
 //		}
 	}
 	for (integer i = 0; i != INX * INX * INX; ++i) {
@@ -1232,7 +1237,7 @@ std::vector<real> grid::frac_volumes() const {
 			}
 		}
 	}
-//	printf( "%e", V[0]);
+//	print( "%e", V[0]);
 
 	return V;
 }
@@ -1514,7 +1519,7 @@ space_vector grid::center_of_mass() const {
 			this_com[dim] /= m;
 		}
 	}
-//	printf( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk %e %e %e\n", this_com[0], this_com[1], this_com[2] );
+//	print( "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk %e %e %e\n", this_com[0], this_com[1], this_com[2] );
 	return this_com;
 }
 
@@ -1661,7 +1666,7 @@ analytic_t grid::compute_analytic(real t) {
 					const auto this_rho = A[rho_i];
 					const auto err = std::abs(std::abs((nrho - this_rho) / (nrho - last_rho)) - 1.0);
 					if (M > INX) {
-						printf("%i %e\n", M, err);
+						print("%i %e\n", M, err);
 					}
 					if (err < 0.1) {
 						break;
@@ -1754,7 +1759,7 @@ grid::grid(const init_func_type &init_func, real _dx, std::array<real, NDIM> _xm
 						U[field][iii] = this_u[field];
 					}
 				} else {
-					printf("No problem specified\n");
+					print("No problem specified\n");
 					abort();
 				}
 			}
@@ -1811,7 +1816,7 @@ timestep_t grid::compute_fluxes() {
 	hpx::lcos::local::call_once(flag, [this]() {
 		physics<NDIM>::set_fgamma(fgamma);
 		if (opts().eos == WD) {
-//			printf("%e %e\n", physcon().A, physcon().B);
+//			print("%e %e\n", physcon().A, physcon().B);
 			physics<NDIM>::set_degenerate_eos(physcon().A, physcon().B);
 		}
 		physics<NDIM>::set_dual_energy_switches(opts().dual_energy_sw1, opts().dual_energy_sw2);
@@ -1831,30 +1836,12 @@ timestep_t grid::compute_fluxes() {
 		}
 	}
 	hydro.use_smooth_recon(pot_i);
-	static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-			std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-	const auto &q = hydro.reconstruct(U, X, omega);
-	auto max_lambda = hydro.flux(U, q, f, X, omega);
+    
+  const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
+  const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
+  const size_t device_queue_length = opts().cuda_buffer_capacity;
+  return launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
 
-	for (int dim = 0; dim < NDIM; dim++) {
-		for (integer field = 0; field != opts().n_fields; ++field) {
-#pragma GCC ivdep
-			for (integer i = 0; i <= INX; ++i) {
-				for (integer j = 0; j <= INX; ++j) {
-					for (integer k = 0; k <= INX; ++k) {
-						const auto i0 = findex(i, j, k);
-						F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-						real rho_tot = 0.0;
-						for (integer field = spc_i; field != spc_i + opts().n_species; ++field) {
-							rho_tot += F[dim][field][i0];
-						}
-						F[dim][rho_i][i0] = rho_tot;
-					}
-				}
-			}
-		}
-	}
-	return max_lambda;
 }
 
 real grid::compute_positivity_speed_limit() const {
@@ -2076,7 +2063,7 @@ void grid::compute_sources(real t, real rotational_time) {
 					const real period_len = 2.0 * M_PI / grid::omega;
 					if (opts().driving_time > rotational_time / (2.0 * M_PI)) {
 						const real ff = -opts().driving_rate / period_len;
-						///	printf("%e %e %e\n", ff, opts().driving_rate, period_len);
+						///	print("%e %e %e\n", ff, opts().driving_rate, period_len);
 						const real rho = U[rho_i][iii];
 						const real sx = U[sx_i][iii];
 						const real sy = U[sy_i][iii];
@@ -2304,9 +2291,9 @@ void grid::next_u(integer rk, real t, real dt) {
 				if (opts().tau_floor > 0.0) {
 					U[tau_i][iii] = std::max(U[tau_i][iii], opts().tau_floor);
 				} else if (U[tau_i][iii] < ZERO) {
-					printf("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
+					print("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
 							(double) X[YDIM][iii], (double) X[ZDIM][iii]);
-					printf("Use tau_floor option\n");
+					print("Use tau_floor option\n");
 					abort();
 				}
 				if (opts().rho_floor > 0.0) {
@@ -2338,9 +2325,9 @@ void grid::next_u(integer rk, real t, real dt) {
 					}
 
 				} else if (U[rho_i][iii] <= ZERO) {
-					printf("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k), real(X[XDIM][iii]), real(X[YDIM][iii]),
+					print("Rho is non-positive - %e %i %i %i %e %e %e\n", real(U[rho_i][iii]), int(i), int(j), int(k), real(X[XDIM][iii]), real(X[YDIM][iii]),
 							real(X[ZDIM][iii]));
-					printf("Use rho_floor option\n");
+					print("Use rho_floor option\n");
 					abort();
 				}
 			}

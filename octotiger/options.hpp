@@ -120,9 +120,10 @@ public:
         real moving_star_yvelocity;
         real moving_star_zvelocity;
 
-	size_t cuda_streams_per_locality;
+	size_t cuda_number_gpus;
 	size_t cuda_streams_per_gpu;
-	size_t cuda_scheduling_threads;
+	size_t cuda_buffer_capacity;
+	bool root_node_on_device;
 
 	std::string input_file;
 	std::string config_file;
@@ -136,9 +137,13 @@ public:
 
 	problem_type problem;
 
-	interaction_kernel_type m2m_kernel_type;
-	interaction_kernel_type p2m_kernel_type;
-	interaction_kernel_type p2p_kernel_type;
+	amr_boundary_type amr_boundary_kernel_type;
+	interaction_host_kernel_type multipole_host_kernel_type;
+	interaction_device_kernel_type multipole_device_kernel_type;
+	interaction_host_kernel_type monopole_host_kernel_type;
+	interaction_device_kernel_type monopole_device_kernel_type;
+	interaction_host_kernel_type hydro_host_kernel_type;
+	interaction_device_kernel_type hydro_device_kernel_type;
 
 	std::vector<real> atomic_mass;
 	std::vector<real> atomic_number;
@@ -205,9 +210,12 @@ public:
 		arc & gravity;
 		arc & bench;
 		arc & radiation;
-		arc & m2m_kernel_type;
-		arc & p2m_kernel_type;
-		arc & p2p_kernel_type;
+		arc & multipole_host_kernel_type;
+		arc & multipole_device_kernel_type;
+		arc & monopole_host_kernel_type;
+		arc & monopole_device_kernel_type;
+		arc & hydro_host_kernel_type;
+		arc & hydro_device_kernel_type;
 		arc & entropy_driving_rate;
 		arc & entropy_driving_time;
 		arc & driving_rate;
@@ -242,12 +250,10 @@ public:
 		arc & tmp;
 		eos = static_cast<eos_type>(tmp);
 		arc & data_dir;
-		arc & m2m_kernel_type;
-		arc & p2p_kernel_type;
-		arc & p2m_kernel_type;
-		arc & cuda_streams_per_locality;
+		arc & cuda_number_gpus;
 		arc & cuda_streams_per_gpu;
-		arc & cuda_scheduling_threads;
+		arc & cuda_buffer_capacity;
+	  arc & root_node_on_device;
 		arc & atomic_mass;
 		arc & atomic_number;
 		arc & X;

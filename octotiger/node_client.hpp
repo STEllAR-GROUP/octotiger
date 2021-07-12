@@ -31,9 +31,10 @@ using set_child_aunt_type = integer;
 
 struct node_count_type;
 
-namespace hpx {
-    using mutex = hpx::lcos::local::spinlock;
-}
+// TODO (daissgr) Keep the hpx mutex or the local spinlock one here?
+// namespace hpx {
+//     using mutex = hpx::lcos::local::spinlock;
+// }
 
 class node_client
 {

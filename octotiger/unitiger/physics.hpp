@@ -25,7 +25,9 @@ struct physics {
 	static constexpr int lx_i = 4 + NDIM;
 	static constexpr int ly_i = 5 + NDIM;
 	static constexpr int lz_i = 6 + NDIM;
-	static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+    // std::pow is not constexpr in device code! Workaround with ternary operator:
+	//static constexpr int spc_i = 4 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2));
+    static constexpr int spc_i = 4 + NDIM + (NDIM == 3 ? 3 : (NDIM == 2 ? 1 : 0));
 	static safe_real de_switch_1;
 	static safe_real de_switch_2;
 
@@ -57,6 +59,8 @@ struct physics {
 	static void set_fgamma(safe_real fg);
 
 	static void to_prim(std::vector<safe_real> u, safe_real &p, safe_real &v, safe_real& c, int dim);
+	// static void to_prim_experimental(const double rho, const double sx, const double tau, const double egas, safe_real &p, safe_real &v, safe_real& c, int dim);
+	static void to_prim_experimental(const std::vector<double> &u, double &p, double &v, double &cs, const int dim) noexcept;
 
 	static void enforce_outflows(hydro::state_type &U, const hydro::x_type &X, int face) {
 
@@ -64,6 +68,9 @@ struct physics {
 
 	template<int INX>
 	static void physical_flux(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
+			std::array<safe_real, NDIM> &vg);
+	template<int INX>
+	static void physical_flux_experimental(const std::vector<safe_real> &U, std::vector<safe_real> &F, int dim, safe_real &am, safe_real &ap, std::array<safe_real, NDIM> &x,
 			std::array<safe_real, NDIM> &vg);
 
 	template<int INX>
@@ -93,6 +100,9 @@ struct physics {
 	static const std::vector<std::vector<double>>& find_contact_discs(const hydro::state_type &U);
 
 	static void set_n_species(int n);
+	static int get_n_species() {
+    return n_species_;
+  }
 
 	static void update_n_field();
 
@@ -108,7 +118,7 @@ struct physics {
 	template<int INX>
 	static void enforce_outflow(hydro::state_type &U, int dim, int dir);
 
-private:
+public:
 	static safe_real rho_sink_radius_;
 	static safe_real rho_sink_floor_;
 	static int nf_;

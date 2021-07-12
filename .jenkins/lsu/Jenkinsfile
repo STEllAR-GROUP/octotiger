@@ -1,0 +1,173 @@
+#!groovy
+
+void setBuildStatus(String message, String state) {
+  step([
+      $class: "GitHubCommitStatusSetter",
+      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/STEllAR-GROUP/octotiger"],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/build-status"],
+      errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
+      statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
+  ]);
+}
+
+pipeline {
+    agent any
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "21",
+                numToKeepStr: "50",
+                artifactDaysToKeepStr: "21",
+                artifactNumToKeepStr: "50"
+            )
+        )
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                dir('octotiger') {
+                    checkout scm
+                    echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
+                }
+            }
+        }
+        stage('build') {
+            matrix {
+                axes {
+                    axis {
+                        name 'compiler_config'
+                        values 'with-CC', 'with-CC-clang'
+                    }
+                    axis {
+                        name 'cuda_config'
+                        values 'with-cuda', 'without-cuda'
+                    }
+                    axis {
+                        name 'kokkos_config'
+                        values 'with-kokkos', 'without-kokkos'
+                    }
+                    axis {
+                         name 'build_type'
+                         values 'Release'
+                    }
+                }
+                stages {
+                    stage('init') {
+                        steps {
+                            dir('octotiger') {
+                                sh '''
+                                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                                curl --verbose\
+                                    --request POST \
+                                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                                    --header "Content-Type: application/json" \
+                                    --header "authorization: Bearer ${github_token}" \
+                                    --data "{
+                                        \\"state\\": \\"pending\\",
+                                        \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                        \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                        \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                                    }"
+                                '''
+                            }
+                        }
+                    }
+                    stage('checkout_buildscripts') {
+                        steps {
+                            dir('octotiger') {
+                                sh '''
+                                #!/bin/bash -l
+                                cd ..
+                                #rm -rf octo-buildscripts/src/octotiger
+                                #rm -rf "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" #remove line for dependency caching
+                                if [[ -d "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}" ]]
+                                then
+                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                    git reset --hard # reset griddim modification in case of unclean directory
+                                    git pull
+                                    rm -rf build/octotiger
+                                    rm -rf src/octotiger
+                                else
+                                    git clone https://github.com/diehlpk/PowerTiger.git "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                    cd "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                    git checkout clang_build
+                                    mkdir src
+                                fi
+
+                                cd ..
+                                pwd
+                                cp -r octotiger "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}/src/octotiger"
+                                '''
+                            }
+                        }
+                    }
+                    stage('build') {
+                        steps {
+                            dir('octotiger') {
+                                sh '''
+                                #!/bin/bash -l
+                                cd "../octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
+                                src/octotiger/.jenkins/lsu/entry.sh
+                                '''
+                            }
+                        }
+                    }
+                }
+                post {
+                    success {
+                        sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"success\\",
+                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                            }"
+                        '''
+                    }
+                    failure {
+                        sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"failure\\",
+                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                            }"
+                        '''
+                    }
+                    aborted {
+                        sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"error\\",
+                                \\"context\\": \\"jenkins-${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"description\\": \\"Jenkins CI Job: ${compiler_config}-${cuda_config}-${kokkos_config}\\",
+                                \\"target_url\\": \\"https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                            }"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}

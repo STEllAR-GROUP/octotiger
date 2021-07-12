@@ -6,4 +6,6 @@
 
 #include <octotiger/config/export_definitions.hpp>
 
+// TODO Can we remove this?
+
 OCTOTIGER_EXPORT void compute_factor();
