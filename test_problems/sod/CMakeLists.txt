@@ -6,9 +6,6 @@
 ##############################################################################
 # Sod Shock Tube
 ##############################################################################
-download_test_reference("Sod shock tube test"
-  "phys.lsu.edu/~dmarcel/sod.13.silo"
-  ${PROJECT_BINARY_DIR}/sod.silo)
 
 if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(rho_regex "rho 8.616107e-03 1.774427e-02")
@@ -25,6 +22,7 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+  set(silo_scenario_filename "sod.silo")
 elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(rho_regex "rho 4.603921e-03 1.217094e-02")
   set(egas_regex "egas 1.672459e-02 4.383427e-02")
@@ -40,13 +38,14 @@ elseif (OCTOTIGER_WITH_GRIDDIM EQUAL 16)
   set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
   set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
   set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+  set(silo_scenario_filename "none")
 else()
   message(FATAL_ERROR "Octo-Tiger Tests will not work with this OCTOTIGER_WTIH_GRIDDIM."
   " Compile Octotiger without tests (OCTOTIGER_WITH_TESTS=OFF) to proceed."
   " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
 endif()
 
-function(test_sod_scenario test_name test_log_file kernel_parameters)
+function(test_sod_scenario test_name test_log_file reference_filename kernel_parameters)
   add_test(NAME ${test_name}
     COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/sod.ini ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
@@ -103,10 +102,10 @@ function(test_sod_scenario test_name test_log_file kernel_parameters)
     FIXTURES_REQUIRED ${test_name}
     PASS_REGULAR_EXPRESSION ${spc5_regex})
 
-  if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  if (NOT ${reference_filename} STREQUAL "none" )
     add_test(NAME ${test_name}.diff
       COMMAND ${Silo_BROWSER} -e diff -q -x 1.0 -R 1.0e-12
-        ${PROJECT_BINARY_DIR}/sod.silo ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
+       ${PROJECT_SOURCE_DIR}/octotiger-testdata/${reference_filename} ${PROJECT_BINARY_DIR}/test_problems/sod/final.silo.data/0.silo)
     set_tests_properties(${test_name}.diff PROPERTIES
       FIXTURES_REQUIRED ${test_name}
       FAIL_REGULAR_EXPRESSION ${OCTOTIGER_SILODIFF_FAIL_PATTERN})
@@ -118,14 +117,18 @@ function(test_sod_scenario test_name test_log_file kernel_parameters)
   )
 endfunction()
 
-test_sod_scenario(test_problems.cpu.sod_legacy sod_old_log.txt " --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+test_sod_scenario(test_problems.cpu.am_hydro_off.sod_legacy sod_old_log.txt ${silo_scenario_filename}
+"--correct_am_hydro=off --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
-  test_sod_scenario(test_problems.gpu.sod_cuda sod_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+  test_sod_scenario(test_problems.gpu.am_hydro_off.sod_cuda sod_cuda_log.txt ${silo_scenario_filename}
+  "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
-  test_sod_scenario(test_problems.cpu.sod_kokkos sod_kokkos_log.txt " --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
+  test_sod_scenario(test_problems.cpu.am_hydro_off.sod_kokkos sod_kokkos_log.txt ${silo_scenario_filename}
+  "--correct_am_hydro=off --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
-    test_sod_scenario(test_problems.gpu.sod_kokkos sod_kokkos_cuda_log.txt " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos sod_kokkos_cuda_log.txt ${silo_scenario_filename}
+    "--correct_am_hydro=off --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
   endif()
 endif()

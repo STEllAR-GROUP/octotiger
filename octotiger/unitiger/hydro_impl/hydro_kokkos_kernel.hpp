@@ -52,7 +52,7 @@ void flux_impl_teamless(hpx::kokkos::executor<kokkos_backend_t>& executor,
     // with the serial kokkos backend:
     assert((team_size == 1));
     auto policy = Kokkos::Experimental::require(Kokkos::RangePolicy<decltype(executor.instance())>(
-                                                    executor.instance(), {0}, {number_blocks}),
+                                                    executor.instance(), 0, number_blocks),
         Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
     // Start kernel using policy (and through it the passed executor):

@@ -94,15 +94,15 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     }
     std::vector<double> URs(nf_), ULs(nf_);
     const size_t current_max_index = amax_indices[current_dim];
-    const size_t current_d = amax_d[current_dim];
+    // const size_t current_d = amax_d[current_dim];
     ts.a = amax[current_dim];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + q_inx3];
     ts.z = combined_x[current_max_index + 2 * q_inx3];
     const size_t current_i = current_dim;
     current_dim = current_dim / number_blocks;
-    const auto flipped_dim = geo.flip_dim(current_d, current_dim);
-    constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
+    // const auto flipped_dim = geo.flip_dim(current_d, current_dim);
+    // constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf_; f++) {
         URs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + f];
         ULs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + nf_ + f];

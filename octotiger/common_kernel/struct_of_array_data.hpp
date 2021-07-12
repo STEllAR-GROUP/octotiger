@@ -85,7 +85,7 @@ namespace fmm {
             }
         }
 
-        struct_of_array_data(const std::vector<AoS_type>& org)
+        explicit struct_of_array_data(const std::vector<AoS_type>& org)
           : data(num_components * padded_entries_per_component) {
             for (size_t component = 0; component < num_components; component++) {
                 for (size_t entry = 0; entry < org.size(); entry++) {

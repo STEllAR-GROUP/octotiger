@@ -145,18 +145,18 @@ bool options::process_options(int argc, char *argv[]) {
 	("amr_boundary_kernel_type", po::value<amr_boundary_type>(&(opts().amr_boundary_kernel_type))->default_value(AMR_OPTIMIZED), "amr completion kernel type") //
 #ifdef OCTOTIGER_HAVE_KOKKOS //Changing default kernel to kokkos
 	("multipole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().multipole_host_kernel_type))->default_value(KOKKOS), "Host kernel type for multipole interactions ") //
-	("multipole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for multipole interactions ") //
+	("multipole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))->default_value(OFF), "Device kernel type for multipole interactions ") //
 	("monopole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().monopole_host_kernel_type))->default_value(KOKKOS), "Host kernel type for monopole interactions ") //
-	("monopole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for monopole interactions ") //
+	("monopole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))->default_value(OFF), "Device kernel type for monopole interactions ") //
 	("hydro_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))->default_value(KOKKOS), "Host kernel type for the hydro solver ") //
-	("hydro_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))->default_value(KOKKOS_CUDA), "Device kernel type for the hydro solver ") //
-#else // use Vc and CUDA as default
+	("hydro_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))->default_value(OFF), "Device kernel type for the hydro solver ") //
+#else 
 	("multipole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().multipole_host_kernel_type))->default_value(VC), "Host kernel type for multipole interactions ") //
-	("multipole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))->default_value(CUDA), "Device kernel type for multipole interactions ") //
+	("multipole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().multipole_device_kernel_type))->default_value(OFF), "Device kernel type for multipole interactions ") //
 	("monopole_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().monopole_host_kernel_type))->default_value(VC), "Host kernel type for monopole interactions ") //
-	("monopole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))->default_value(CUDA), "Device kernel type for monopole interactions ") //
-	("hydro_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))->default_value(VC), "Host kernel type for the hydro solver ") //
-	("hydro_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))->default_value(CUDA), "Device kernel type for the hydro solver ") //
+	("monopole_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().monopole_device_kernel_type))->default_value(OFF), "Device kernel type for monopole interactions ") //
+	("hydro_host_kernel_type", po::value<interaction_host_kernel_type>(&(opts().hydro_host_kernel_type))->default_value(LEGACY), "Host kernel type for the hydro solver ") //
+	("hydro_device_kernel_type", po::value<interaction_device_kernel_type>(&(opts().hydro_device_kernel_type))->default_value(OFF), "Device kernel type for the hydro solver ") //
 #endif
 	("cuda_number_gpus", po::value<size_t>(&(opts().cuda_number_gpus))->default_value(size_t(0)), "cuda streams per HPX locality") //
 	("cuda_streams_per_gpu", po::value<size_t>(&(opts().cuda_streams_per_gpu))->default_value(size_t(0)), "cuda streams per GPU (per locality)") //
@@ -334,70 +334,80 @@ bool options::process_options(int argc, char *argv[]) {
 			abort();
 		}
 	}
-  if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA &&
-      opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Due to a current implementation limitation in the load balancing, " 
-      << " multipole cuda device kernels cannot be mixed with the respective kokkos host kernel!" << std::endl
-      << " Please choose a different host kernel "
-      << "(or move to kokkos device kernel with --multipole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
-    abort();
-  }
-  if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA &&
-      opts().monopole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Due to a current implementation limitation in the load balancing, " 
-      << " monopole cuda device kernels cannot be mixed with the respective kokkos host kernel!" << std::endl
-      << " Please choose a different host kernel "
-      << "(or move to kokkos device kernel with --monopole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
-    abort();
-  }
+    // Check parameters if we hit any implementation limitation as in
+    // unsupported kernel configurations
+    if (opts().cuda_number_gpus > 1) {
+        std::cerr << std::endl << "ERROR: "; 
+        std::cerr << "Currently there is no multi-GPU support. " << std::endl;
+        std::cerr << "To use multiple GPUs per node, use one HPX locality per GPU " 
+                  << "and use slurm or CUDA_VISIBLE_DEVICES to have each locality access a different GPU" << std::endl;
+        abort();
+    }
+    if (opts().gravity) {
+        if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA &&
+            opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Due to a current implementation limitation in the load balancing, " 
+            << " multipole cuda device kernels cannot be mixed with the respective kokkos host kernel!" << std::endl
+            << " Please choose a different host kernel "
+            << "(or move to kokkos device kernel with --multipole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
+            abort();
+        }
+        if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA &&
+            opts().monopole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Due to a current implementation limitation in the load balancing, " 
+            << " monopole cuda device kernels cannot be mixed with the respective kokkos host kernel!" << std::endl
+            << " Please choose a different host kernel "
+            << "(or move to kokkos device kernel with --monopole_device_kernel_type=KOKKOS_CUDA)" << std::endl;
+            abort();
+        }
 #ifndef OCTOTIGER_HAVE_VC
-  if (opts().monopole_host_kernel_type == interaction_host_kernel_type::VC) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Octotiger has been compiled without Vc support!" << 
-      " Choose a different --monopole_host_kernel_type!" << std::endl;
-    abort();
-  }
-  if (opts().multipole_host_kernel_type == interaction_host_kernel_type::VC) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Octotiger has been compiled without Vc support! " <<
-      "Choose a different --multipole_host_kernel_type!" << std::endl;
-    abort();
-  }
+        if (opts().monopole_host_kernel_type == interaction_host_kernel_type::VC) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Octotiger has been compiled without Vc support!" << 
+            " Choose a different --monopole_host_kernel_type!" << std::endl;
+            abort();
+        }
+        if (opts().multipole_host_kernel_type == interaction_host_kernel_type::VC) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Octotiger has been compiled without Vc support! " <<
+            "Choose a different --multipole_host_kernel_type!" << std::endl;
+            abort();
+        }
 #endif
 #ifndef OCTOTIGER_HAVE_KOKKOS
-  if (opts().monopole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Octotiger has been compiled without Kokkos support!" 
-      << " Choose a different --monopole_host_kernel_type!" << std::endl;
-    abort();
-  }
-  if (opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Octotiger has been compiled without Kokkos support! " <<
-      " Choose a different --multipole_host_kernel_type!" << std::endl;
-    abort();
-  }
+        if (opts().monopole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Octotiger has been compiled without Kokkos support!" 
+            << " Choose a different --monopole_host_kernel_type!" << std::endl;
+            abort();
+        }
+        if (opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Octotiger has been compiled without Kokkos support! " <<
+            " Choose a different --multipole_host_kernel_type!" << std::endl;
+            abort();
+        }
 #endif
 
 #ifndef OCTOTIGER_HAVE_CUDA
-  if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA ||
-      opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Octotiger has been compiled without CUDA support!" 
-      << " Choose a different --monopole_device_kernel_type!" << std::endl;
-    abort();
-  }
-  if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA ||
-      opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-    std::cerr << std::endl << "ERROR: "; 
-    std::cerr << "Octotiger has been compiled without CUDA support! " <<
-      " Choose a different --multipole_device_kernel_type!" << std::endl;
-    abort();
-  }
+        if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA ||
+            opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Octotiger has been compiled without CUDA support!" 
+            << " Choose a different --monopole_device_kernel_type!" << std::endl;
+            abort();
+        }
+        if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA ||
+            opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
+            std::cerr << std::endl << "ERROR: "; 
+            std::cerr << "Octotiger has been compiled without CUDA support! " <<
+            " Choose a different --multipole_device_kernel_type!" << std::endl;
+            abort();
+        }
 #endif
-
+    }
 	return true;
 }
 
