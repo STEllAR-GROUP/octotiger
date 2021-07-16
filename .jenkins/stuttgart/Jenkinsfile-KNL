@@ -49,7 +49,7 @@ pipeline {
 		       the correct place for the buildscripts to work. */
                     sh '''
                     srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive bash -c "\
-		    pwd && cd /scratch
+		    pwd && cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
