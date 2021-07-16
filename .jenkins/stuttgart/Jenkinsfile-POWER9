@@ -48,11 +48,10 @@ pipeline {
                     /* Log into the slurm node, create jenkins dir if not in existence, checkout octotiger and the buildscripts 
                       (OctoTigerToolChain), move octotiger src to the correct folder within the buildscripts, download silo */
                     sh '''
-		    echo " Outside :${env.JOB_BASE_NAME}"
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
-                    pwd && echo "${env.JOB_BASE_NAME}" && cd /scratch && \
+                    pwd && echo "${JOB_BASE_NAME}" && cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
-                    mkdir -p octotiger-${env.JOB_BASE_NAME} && cd octotiger-${env.JOB_BASE_NAME} && \
+                    mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
@@ -79,7 +78,7 @@ pipeline {
                 sh '''
                 module load gcc/8.2.0
                 module load cuda/10.2
-                srun -p sgs-only -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${env.JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
+                srun -p sgs-only -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
                 "./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling "
                 '''
             }
@@ -89,7 +88,7 @@ pipeline {
                 sh '''
                 module load gcc/8.2.0
                 module load cuda/10.2
-                srun -p sgs-only -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${env.JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest"
+                srun -p sgs-only -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest"
                 '''
             }
         }
