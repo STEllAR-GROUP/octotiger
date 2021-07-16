@@ -17,15 +17,11 @@ pipeline {
             maxConcurrentTotal: 1,
             throttleEnabled: true,
         )
-	// TODO Which of the ways to throttle the builds is sufficient?
-	throttleConcurrentBuilds {
-		maxTotal(1)
-	}
 	disableConcurrentBuilds()
-        // This activates the pipeline option "GitHub hook trigger for GITScm polling"
-        triggers {
-                githubPush()
-        }
+    }
+    // This activates the pipeline option "GitHub hook trigger for GITScm polling"
+    triggers {
+	githubPush()
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
