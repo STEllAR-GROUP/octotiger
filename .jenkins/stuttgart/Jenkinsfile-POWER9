@@ -1,0 +1,143 @@
+#!groovy
+pipeline {
+    agent { label 'argon-fs' }
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "21",
+                numToKeepStr: "50",
+                artifactDaysToKeepStr: "21",
+                artifactNumToKeepStr: "50"
+            )
+        )
+	throttleConcurrentBuilds {
+		maxTotal(1)
+	}
+	disableConcurrentBuilds()
+
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN = credentials('NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN')
+    }
+    stages {
+        stage('init') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl --verbose\
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"pending\\",
+                                \\"context\\": \\"jenkins-POWER9\\",
+                                \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
+                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        }"
+                    '''
+                }
+            }
+        }
+        stage('checkout') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    srun -p sgs-only -N 1 -n 1 -t 03:00:00 -D /scratch bash -c "\
+                    mkdir -p jenkins && cd jenkins && \
+                    mkdir -p octotiger && cd octotiger && \
+                    rm -rf octotiger && \
+                    rm -rf OctoTigerBuildChain && \
+                    git clone https://github.com/STEllAR-GROUP/octotiger.git && \
+                    cd octotiger && \
+                    git checkout ${GIT_COMMIT} && \
+                    git submodule update --init --recursive && \
+                    cd - && \
+                    git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
+                    git checkout jenkins-power && \
+                    mkdir src && \
+                    cp -r ../octotiger src/octotiger && \
+                    cd src && \
+                    curl -u "qE2mrmzt6rAreW5:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
+                    tar -xvf silo.tar.gz && \
+                    mv silo-4.10.2 silo && \
+                    rm silo.tar.gz && \
+                    cd .. "
+                    '''
+                }
+            }
+        }
+        stage('build') {
+            steps {
+                sh '''
+                module load gcc/8.2.0
+                module load cuda/10.2
+                srun -p sgs-only -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain bash -c \
+                "./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling "
+                '''
+            }
+        }
+        stage('ctest-all') {
+            steps {
+                sh '''
+                module load gcc/8.2.0
+                module load cuda/10.2
+                srun -p sgs-only -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest"
+                '''
+            }
+        }
+    }
+    post {
+        success {
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl --verbose\
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"success\\",
+                        \\"context\\": \\"jenkins-POWER9\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+        failure {
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl --verbose\
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"failure\\",
+                        \\"context\\": \\"jenkins-POWER9\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+        aborted {
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl --verbose\
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"error\\",
+                        \\"context\\": \\"jenkins-POWER9\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                }"
+            '''
+        }
+    }
+}
