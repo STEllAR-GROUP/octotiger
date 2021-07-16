@@ -14,6 +14,7 @@ pipeline {
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN = credentials('NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN')
     }
     stages {
         stage('init') {
@@ -40,7 +41,7 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-                    srun -p knl -N 1 -n 1 -t 03:00:00 -D /scratch/jenkins/octotiger bash -c "\
+                    srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /scratch/jenkins/octotiger bash -c "\
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
@@ -53,7 +54,7 @@ pipeline {
                     mkdir src && \
                     cp -r ../octotiger src/octotiger && \
                     cd src && \
-                    curl -u "qE2mrmzt6rAreW5:${test_pw}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
+                    curl -u "qE2mrmzt6rAreW5:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
                     tar -xvf silo.tar.gz && \
                     mv silo-4.10.2 silo && \
                     rm silo.tar.gz && \
@@ -65,7 +66,7 @@ pipeline {
         stage('build-kokkos-without-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 02:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain bash -c \
+                srun -p knl -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain bash -c \
                 "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos without-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
                 '''
             }
@@ -73,28 +74,28 @@ pipeline {
         stage('ctest-legacy') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R legacy"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R legacy"
                 '''
             }
         }
         stage('ctest-vc') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R vc"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R vc"
                 '''
             }
         }
         stage('ctest-kokkos-without-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
                 '''
             }
         }
         stage('build-kokkos-with-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 03:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain bash -c \
+                srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain bash -c \
                 "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling octotiger"
                 '''
             }
@@ -102,14 +103,14 @@ pipeline {
         stage('ctest-kokkos-with-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
                 '''
             }
         }
         stage('build-kokkos-with-hpx-backend') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 03:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain bash -c \
+                srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain bash -c \
                 "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd with-hpx-backend-multipole with-hpx-backend-monopole without-hpx-cuda-polling octotiger"
                 '''
             }
@@ -117,7 +118,7 @@ pipeline {
         stage('ctest-kokkos-with-hpx-backend') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
                 '''
             }
         }
