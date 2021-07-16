@@ -11,9 +11,6 @@ pipeline {
                 artifactNumToKeepStr: "50"
             )
         )
-	throttleConcurrentBuilds {
-		maxTotal(1)
-	}
 	disableConcurrentBuilds()
 
     }
