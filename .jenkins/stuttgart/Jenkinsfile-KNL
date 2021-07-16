@@ -21,7 +21,10 @@ pipeline {
 		maxTotal(1)
 	}
 	disableConcurrentBuilds()
-
+	// This activates the pipeline option "GitHub hook trigger for GITScm polling"
+	triggers {
+		githubPush()
+	}
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
@@ -54,7 +57,7 @@ pipeline {
 		    /* Log into the slurm node, checkout the buildscripts and move the current version of octotiger into
 		       the correct place for the buildscripts to work. */
                     sh '''
-                    srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /scratch/jenkins/octotiger bash -c "\
+                    srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /scratch bash -c "\
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger && cd octotiger && \
                     rm -rf octotiger && \
