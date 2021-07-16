@@ -48,7 +48,9 @@ pipeline {
                     /* Log into the slurm node, create jenkins dir if not in existence, checkout octotiger and the buildscripts 
                       (OctoTigerToolChain), move octotiger src to the correct folder within the buildscripts, download silo */
                     sh '''
-                    srun -p sgs-only -N 1 -n 1 -t 03:00:00 -D /scratch bash -c "\
+		    echo " Outside :${env.JOB_BASE_NAME}"
+                    srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
+                    pwd && echo "${env.JOB_BASE_NAME}" && cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger-${env.JOB_BASE_NAME} && cd octotiger-${env.JOB_BASE_NAME} && \
                     rm -rf octotiger && \
