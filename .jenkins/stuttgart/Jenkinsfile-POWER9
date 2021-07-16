@@ -11,6 +11,13 @@ pipeline {
                 artifactNumToKeepStr: "50"
             )
         )
+	throttleJobProperty(
+            categories: [],
+            maxConcurrentPerNode: 1,
+            maxConcurrentTotal: 1,
+            throttleEnabled: true,
+        )
+	// TODO Which of the ways to throttle the builds is sufficient?
 	throttleConcurrentBuilds {
 		maxTotal(1)
 	}
@@ -45,6 +52,8 @@ pipeline {
         stage('checkout') {
             steps {
                 dir('octotiger') {
+                    /* Log into the slurm node, create jenkins dir if not in existence, checkout octotiger and the buildscripts 
+                      (OctoTigerToolChain), move octotiger src to the correct folder within the buildscripts, download silo */
                     sh '''
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 -D /scratch bash -c "\
                     mkdir -p jenkins && cd jenkins && \

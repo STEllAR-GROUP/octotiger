@@ -11,6 +11,15 @@ pipeline {
                 artifactNumToKeepStr: "50"
             )
         )
+	throttleJobProperty(
+            maxConcurrentPerNode: 1,
+            maxConcurrentTotal: 1,
+            throttleEnabled: true
+        )
+	// TODO Which of the ways to throttle the builds is sufficient?
+	throttleCurrentBuilds {
+		maxTotal(1)
+	}
 	disableConcurrentBuilds()
 
     }
@@ -42,8 +51,12 @@ pipeline {
         stage('checkout') {
             steps {
                 dir('octotiger') {
+		    /* Log into the slurm node, checkout the buildscripts and move the current version of octotiger into
+		       the correct place for the buildscripts to work. */
                     sh '''
                     srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /scratch/jenkins/octotiger bash -c "\
+                    mkdir -p jenkins && cd jenkins && \
+                    mkdir -p octotiger && cd octotiger && \
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
