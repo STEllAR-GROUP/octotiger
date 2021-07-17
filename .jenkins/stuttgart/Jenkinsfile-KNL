@@ -44,7 +44,7 @@ pipeline {
                                 \\"state\\": \\"pending\\",
                                 \\"context\\": \\"jenkins-KNL-SIMD\\",
                                 \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
-                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                         }"
                     '''
                 }
@@ -154,7 +154,7 @@ pipeline {
                         \\"state\\": \\"success\\",
                         \\"context\\": \\"jenkins-KNL-SIMD\\",
                         \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
-                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
             '''
         }
@@ -170,7 +170,7 @@ pipeline {
                         \\"state\\": \\"failure\\",
                         \\"context\\": \\"jenkins-KNL-SIMD\\",
                         \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
-                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
             '''
         }
@@ -186,7 +186,7 @@ pipeline {
                         \\"state\\": \\"error\\",
                         \\"context\\": \\"jenkins-KNL-SIMD\\",
                         \\"description\\": \\"Jenkins CI Job: jenkins-KNL-SIMD\\",
-                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20KNL/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
             '''
         }

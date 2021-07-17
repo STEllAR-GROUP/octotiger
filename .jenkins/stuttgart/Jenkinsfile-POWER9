@@ -44,7 +44,7 @@ pipeline {
                                 \\"state\\": \\"pending\\",
                                 \\"context\\": \\"jenkins-POWER9\\",
                                 \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
-                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                         }"
                     '''
                 }
@@ -114,7 +114,7 @@ pipeline {
                         \\"state\\": \\"success\\",
                         \\"context\\": \\"jenkins-POWER9\\",
                         \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
-                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
             '''
         }
@@ -130,7 +130,7 @@ pipeline {
                         \\"state\\": \\"failure\\",
                         \\"context\\": \\"jenkins-POWER9\\",
                         \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
-                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
             '''
         }
@@ -146,7 +146,7 @@ pipeline {
                         \\"state\\": \\"error\\",
                         \\"context\\": \\"jenkins-POWER9\\",
                         \\"description\\": \\"Jenkins CI Job: jenkins-POWER9\\",
-                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger/$BUILD_NUMBER/console\\"
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20POWER9/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                 }"
             '''
         }
