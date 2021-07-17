@@ -13,7 +13,6 @@ pipeline {
         )
 	disableConcurrentBuilds()
 	disableResume()
-	rateLimitBuilds([count: 1, durationName: 'second', userBoost: false])
 	timeout(time: 12, unit: 'HOURS')
     }
     // This activates the pipeline option "GitHub hook trigger for GITScm polling"
