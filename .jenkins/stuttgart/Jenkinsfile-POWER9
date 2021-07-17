@@ -1,4 +1,11 @@
 #!groovy
+
+if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
+  print "INFO: Build skipped due being triggered by Branch Indexing instead of SCM change!"
+  currentBuild.result = 'ABORTED' // default would be successful: this makes it more clear that is thas been skipped
+  return
+}
+
 pipeline {
     agent { label 'argon-fs' }
 
