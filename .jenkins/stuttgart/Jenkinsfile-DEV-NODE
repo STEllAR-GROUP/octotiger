@@ -27,7 +27,7 @@ pipeline {
                 dir('octotiger') {
                     sh '''
                         github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                        curl --verbose\
+                        curl \
                             --request POST \
                             --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                             --header "Content-Type: application/json" \
@@ -83,7 +83,7 @@ pipeline {
                     sh '''
                     module load cuda
 		    cd OctoTigerBuildChain/build/octotiger/build
-		    ctest
+		    ctest --output-on-failure
                     '''
                 }
             }
@@ -106,7 +106,7 @@ pipeline {
                     sh '''
                     module load cuda
 		    cd OctoTigerBuildChain/build/octotiger/build
-		    ctest
+		    ctest --output-on-failure
                     '''
                 }
             }
@@ -116,7 +116,7 @@ pipeline {
         success {
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                curl --verbose\
+                curl \
                     --request POST \
                     --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                     --header "Content-Type: application/json" \
@@ -132,7 +132,7 @@ pipeline {
         failure {
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                curl --verbose\
+                curl \
                     --request POST \
                     --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                     --header "Content-Type: application/json" \
@@ -148,7 +148,7 @@ pipeline {
         aborted {
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                curl --verbose\
+                curl \
                     --request POST \
                     --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                     --header "Content-Type: application/json" \
