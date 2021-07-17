@@ -72,6 +72,7 @@ pipeline {
                 dir('octotiger') {
                     sh '''
                     module load cuda
+		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
 		    cd OctoTigerBuildChain
                     ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
@@ -94,6 +95,7 @@ pipeline {
                 dir('octotiger') {
                     sh '''
 		    cd OctoTigerBuildChain
+		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
 		    rm -rf build && rm -rf src/boost
                     ./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
