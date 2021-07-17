@@ -6,6 +6,7 @@ if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
   return
 }
 
+def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "running")
 
 pipeline {
     agent { label 'pcsgs05' }
@@ -32,6 +33,9 @@ pipeline {
     stages {
         stage('init') {
             steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
                 dir('octotiger') {
                     sh '''
                         github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
@@ -123,6 +127,9 @@ pipeline {
     }
     post {
         success {
+            script {
+                buildbadge.setStatus('success')
+            }
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                 curl \
@@ -139,6 +146,9 @@ pipeline {
             '''
         }
         failure {
+            script {
+                buildbadge.setStatus('failing')
+            }
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                 curl \
@@ -155,6 +165,9 @@ pipeline {
             '''
         }
         aborted {
+            script {
+                buildbadge.setStatus('aborted')
+            }
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                 curl \
