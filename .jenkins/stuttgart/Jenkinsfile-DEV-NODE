@@ -12,6 +12,9 @@ pipeline {
             )
         )
 	disableConcurrentBuilds()
+	disableResume()
+	rateLimitBuilds([count: 1, durationName: 'second', userBoost: false])
+	timeout(time: 12, unit: 'HOURS')
     }
     // This activates the pipeline option "GitHub hook trigger for GITScm polling"
     triggers {
@@ -93,10 +96,9 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-                    module load cuda
 		    cd OctoTigerBuildChain
 		    rm -rf build && rm -rf src/boost
-                    ./build-all.sh Release with-CC-clang with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
+                    ./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
                     '''
                 }
             }
@@ -105,7 +107,6 @@ pipeline {
             steps {
                 dir('octotiger') {
                     sh '''
-                    module load cuda
 		    cd OctoTigerBuildChain/build/octotiger/build
 		    ctest --output-on-failure
                     '''
