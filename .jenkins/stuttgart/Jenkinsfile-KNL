@@ -27,7 +27,7 @@ pipeline {
                 dir('octotiger') {
                     sh '''
                         github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                        curl --verbose\
+                        curl \
                             --request POST \
                             --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                             --header "Content-Type: application/json" \
@@ -84,21 +84,21 @@ pipeline {
         stage('ctest-legacy') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R legacy"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R legacy"
                 '''
             }
         }
         stage('ctest-vc') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R vc"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R vc"
                 '''
             }
         }
         stage('ctest-kokkos-without-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
                 '''
             }
         }
@@ -113,7 +113,7 @@ pipeline {
         stage('ctest-kokkos-with-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
                 '''
             }
         }
@@ -128,7 +128,7 @@ pipeline {
         stage('ctest-kokkos-with-hpx-backend') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest -R kokkos"
+                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
                 '''
             }
         }
@@ -137,7 +137,7 @@ pipeline {
         success {
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                curl --verbose\
+                curl \
                     --request POST \
                     --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                     --header "Content-Type: application/json" \
@@ -153,7 +153,7 @@ pipeline {
         failure {
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                curl --verbose\
+                curl \
                     --request POST \
                     --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                     --header "Content-Type: application/json" \
@@ -169,7 +169,7 @@ pipeline {
         aborted {
             sh '''
                 github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                curl --verbose\
+                curl \
                     --request POST \
                     --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
                     --header "Content-Type: application/json" \
