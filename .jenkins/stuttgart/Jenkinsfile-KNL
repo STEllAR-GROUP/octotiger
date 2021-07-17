@@ -21,9 +21,9 @@ pipeline {
         )
 	disableConcurrentBuilds()
     }
-    // This activates the pipeline option "GitHub hook trigger for GITScm polling"
     triggers {
-	githubPush()
+        githubPush() // Trigger by push to respective github branch
+        pollSCM 'H/30 * * * *' // Fallback polling solution as some pushes are somehow lost
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
