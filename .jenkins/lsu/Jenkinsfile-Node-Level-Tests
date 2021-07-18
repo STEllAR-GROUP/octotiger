@@ -1,14 +1,21 @@
 #!groovy
 
-void setBuildStatus(String message, String state) {
-  step([
-      $class: "GitHubCommitStatusSetter",
-      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/STEllAR-GROUP/octotiger"],
-      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/build-status"],
-      errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
-      statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
-  ]);
-}
+def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Tests", status: "running")
+
+// Skip builds that are likely to be tested already (by push) and unlikely to be critical (not on master)
+if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by branch indexing..."
+  if (env.BRANCH_NAME != "master") {
+      print "INFO: Build on ${env.BRANCH_NAME} skipped due being triggered by Branch Indexing instead of SCM change!"
+      currentBuild.result = 'ABORTED' 
+      buildbadge.setStatus('skipped')
+      return
+  }
+} else {
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by SCM change..."
+  print "Proceeding!"
+} 
+
 
 pipeline {
     agent any
@@ -22,16 +29,26 @@ pipeline {
                 artifactNumToKeepStr: "50"
             )
         )
+        disableConcurrentBuilds()
+    }
+    triggers {
+        githubPush() // Trigger by push to respective github branch
+        pollSCM 'H/30 * * * *' // Fallback polling solution as some pushes are somehow lost
     }
     environment {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
     }
     stages {
         stage('checkout') {
             steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
                 dir('octotiger') {
                     checkout scm
                     echo "Running ${env.BUILD_ID} on ${env.JENKINS_URL}"
+                    echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
                 }
             }
         }
@@ -168,6 +185,32 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+    post {
+        success {
+            script {
+                buildbadge.setStatus('success')
+            }
+            sh '''
+                echo "Build succeded! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+            '''
+        }
+        failure {
+            script {
+                buildbadge.setStatus('failing')
+            }
+            sh '''
+                echo "Build failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+            script {
+                buildbadge.setStatus('aborted')
+            }
+            sh '''
+                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
         }
     }
 }
