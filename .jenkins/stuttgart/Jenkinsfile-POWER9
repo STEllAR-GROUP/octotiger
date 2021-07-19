@@ -1,4 +1,4 @@
-#groovy
+#!groovy
 
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
   print "INFO: Build skipped due being triggered by Branch Indexing instead of SCM change!"
