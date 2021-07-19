@@ -1,12 +1,20 @@
 #!groovy
 
+def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "running")
+
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-  print "INFO: Build skipped due being triggered by Branch Indexing instead of SCM change!"
-  currentBuild.result = 'ABORTED' // default would be successful: this makes it more clear that is thas been skipped
-  return
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by branch indexing..."
+  if (env.BRANCH_NAME != "master") {
+      print "INFO: Build on ${env.BRANCH_NAME} skipped due being triggered by Branch Indexing instead of SCM change!"
+      buildbadge.setStatus('skipped')
+      currentBuild.result = 'ABORTED'
+      return
+  }
+} else {
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by SCM change..."
+  print "Proceeding!"
 }
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "running")
 
 pipeline {
     agent { label 'pcsgs05' }
@@ -20,7 +28,7 @@ pipeline {
                 artifactNumToKeepStr: "50"
             )
         )
-	disableConcurrentBuilds()
+        disableConcurrentBuilds()
     }
     triggers {
         githubPush() // Trigger by push to respective github branch

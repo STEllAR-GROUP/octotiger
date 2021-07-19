@@ -1,12 +1,20 @@
 #!groovy
 
+def buildbadge = addEmbeddableBadgeConfiguration(id: "knlbuild", subject: "KNL Kokkos SIMD Tests", status: "running")
+
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-  print "INFO: Build skipped due being triggered by Branch Indexing instead of SCM change!"
-  currentBuild.result = 'ABORTED' // default would be successful: this makes it more clear that is thas been skipped
-  return
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by branch indexing..."
+  if (env.BRANCH_NAME != "master") {
+      print "INFO: Build on ${env.BRANCH_NAME} skipped due being triggered by Branch Indexing instead of SCM change!"
+      buildbadge.setStatus('skipped')
+      currentBuild.result = 'ABORTED'
+      return
+  }
+} else {
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by SCM change..."
+  print "Proceeding!"
 }
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "knlbuild", subject: "KNL Kokkos SIMD Tests", status: "running")
 
 pipeline {
     agent { label 'argon-fs' }
@@ -67,13 +75,14 @@ pipeline {
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
-                    rm -rf OctoTigerBuildChain && \
+                    rm -rf OctoTigerBuildChain/build/octotiger && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && \
                     git checkout ${GIT_COMMIT} && \
                     git submodule update --init --recursive && \
-                    cd - && \
-                    git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
+                    cd - ; \
+                    if [[ ! -d OctoTigerBuildChain ]]; then git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain;fi;\
+                    cd OctoTigerBuildChain/ && \
                     git checkout jenkins-knl && \
                     mkdir src && \
                     cp -r ../octotiger src/octotiger && \
@@ -95,7 +104,8 @@ pipeline {
                 '''
             }
         }
-        stage('ctest-legacy') {
+        // Legacy and vc are tested on other machines already - concentrate on Kokkos here
+        /*stage('ctest-legacy') {
             steps {
                 sh '''
                 srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R legacy"
@@ -108,7 +118,7 @@ pipeline {
                 srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R vc"
                 '''
             }
-        }
+        }*/
         stage('ctest-kokkos-without-simd') {
             steps {
                 sh '''

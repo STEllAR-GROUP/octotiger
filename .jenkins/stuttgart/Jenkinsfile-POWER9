@@ -1,12 +1,20 @@
 #!groovy
 
+def buildbadge = addEmbeddableBadgeConfiguration(id: "powerbuild", subject: "Power9 CUDA/Kokkos Tests", status: "running")
+
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-  print "INFO: Build skipped due being triggered by Branch Indexing instead of SCM change!"
-  currentBuild.result = 'ABORTED' // default would be successful: this makes it more clear that is thas been skipped
-  return
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by branch indexing..."
+  if (env.BRANCH_NAME != "master") {
+      print "INFO: Build on ${env.BRANCH_NAME} skipped due being triggered by Branch Indexing instead of SCM change!"
+      buildbadge.setStatus('skipped')
+      currentBuild.result = 'ABORTED'
+      return
+  }
+} else {
+  print "INFO: Build on ${env.BRANCH_NAME} triggered by SCM change..."
+  print "Proceeding!"
 }
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "powerbuild", subject: "Power9 CUDA/Kokkos Tests", status: "running")
 
 pipeline {
     agent { label 'argon-fs' }
@@ -64,7 +72,7 @@ pipeline {
                     sh '''
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
                     cd /scratch && \
-                    mkdir -p jenkins && cd jenkins && rm -rf spack; \
+                    mkdir -p jenkins && cd jenkins; \
                     if [[ ! -d spack ]]; then git clone --depth 1 https://github.com/spack/spack.git;fi; \
                     source spack/share/spack/setup-env.sh && \
                     spack install cmake@3.17.1 && \
@@ -78,13 +86,14 @@ pipeline {
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
-                    rm -rf OctoTigerBuildChain && \
+                    rm -rf OctoTigerBuildChain/build/octotiger && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && \
                     git checkout ${GIT_COMMIT} && \
                     git submodule update --init --recursive && \
-                    cd - && \
-                    git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ && \
+                    cd - ; \
+                    if [[ ! -d OctoTigerBuildChain ]]; then git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain;fi;\
+		    cd OctoTigerBuildChain/ && \
                     git checkout jenkins-power && \
                     mkdir src && \
                     cp -r ../octotiger src/octotiger && \
