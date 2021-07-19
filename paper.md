@@ -89,7 +89,7 @@ This work was supported by National Science Foundation Award 1814967. The numeri
 
 For an updated list of previous and current funding, we refer to the corresponding [Octo-Tiger website](https://github.com/STEllAR-GROUP/octotiger#funding).
 
-![A double white dwarf merger simulated by Octo-Tiger. The view is an equatorial slice with colors indicating density and arrows indicating velocities in the rotating frame.\label{fig:example}](joss_image.png)
+![A double white dwarf merger of mass ratio 0.7 simulated by Octo-Tiger. The view is an equatorial slice with colors indicating density and arrows indicating velocities in the rotating frame. The system is viewed at a time of 8.4 orbits from the beginning of the simulation, as indicated in the lower-left corner. The merger occurs 1.4 orbits later. A full movie of this simulation is available on https://lsu.box.com/s/88yvff80hhje5qt6lgsodujqvyv6913g \label{fig:example}](joss_image.png)
 
 
 # References
