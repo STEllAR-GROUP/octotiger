@@ -67,6 +67,7 @@ pipeline {
                     pwd && echo "${JOB_BASE_NAME}" && cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
                     module avail && gcc --version && \
+		    module load cuda/10.2  && module load  gcc/8.2.0 && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain && \
