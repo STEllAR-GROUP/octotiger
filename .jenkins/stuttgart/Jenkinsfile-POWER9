@@ -95,7 +95,7 @@ pipeline {
                     if [[ ! -d OctoTigerBuildChain ]]; then git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain;fi;\
 		    cd OctoTigerBuildChain/ && \
                     git checkout jenkins-power && \
-                    mkdir src && \
+                    mkdir -p src && \
                     cp -r ../octotiger src/octotiger && \
                     cd src && \
                     curl -u "qE2mrmzt6rAreW5:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
