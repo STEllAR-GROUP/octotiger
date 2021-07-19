@@ -1,5 +1,5 @@
 ---
-title: 'Octo-Tiger: a fully 3D adaptive multigrid code astrophysics application accelerated using the asynchronous many-task runtime HPX '
+title: 'Octo-Tiger: a fully 3D adaptive multigrid astrophysics code accelerated using the asynchronous many-task runtime HPX '
 tags:
   - Python
   - astronomy
