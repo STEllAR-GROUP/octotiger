@@ -76,8 +76,8 @@ pipeline {
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain/build/octotiger && \
-                    rm -rf OctoTigerBuildChain/build/boost && \
-                    rm -rf OctoTigerBuildChain/src && \
+                    rm -rf OctoTigerBuildChain/src/boost && \
+                    rm -rf OctoTigerBuildChain/src/octotiger && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && \
                     git checkout ${GIT_COMMIT} && \
