@@ -60,15 +60,23 @@ pipeline {
         stage('checkout') {
             steps {
                 dir('octotiger') {
+                    /* Get spack cmake */
+                    sh '''
+                    srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
+                    cd /scratch && \
+                    mkdir -p jenkins && cd jenkins && \
+                    git clone https://github.com/spack/spack.git) && \
+                    source spack/share/spack/setup-env.sh && \
+                    spack install cmake@3.17.1 && \
+                    spack load cmake@3.17.1"
+		    '''
                     /* Log into the slurm node, create jenkins dir if not in existence, checkout octotiger and the buildscripts 
                       (OctoTigerToolChain), move octotiger src to the correct folder within the buildscripts, download silo */
                     sh '''
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
-                    pwd && echo "${JOB_BASE_NAME}" && cd /scratch && \
+                    cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
-                    $([[ -d spack ]] || git clone https://github.com/spack/spack.git) && \
-                    . spack/share/spack/setup-env.sh && \
-                    spack install cmake@3.17.1 && \
+                    source spack/share/spack/setup-env.sh && \
                     spack load cmake@3.17.1 && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
