@@ -77,6 +77,7 @@ pipeline {
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain/build/octotiger && \
                     rm -rf OctoTigerBuildChain/build/boost && \
+                    rm -rf OctoTigerBuildChain/src && \
                     git clone https://github.com/STEllAR-GROUP/octotiger.git && \
                     cd octotiger && \
                     git checkout ${GIT_COMMIT} && \
