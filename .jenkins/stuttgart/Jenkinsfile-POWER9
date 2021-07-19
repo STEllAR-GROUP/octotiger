@@ -65,7 +65,7 @@ pipeline {
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
                     cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
-                    git clone https://github.com/spack/spack.git) && \
+                    if [[ -d "spack" ]]; then echo "Using existing spack folder"; else git clone https://github.com/spack/spack.git;fi && \
                     source spack/share/spack/setup-env.sh && \
                     spack install cmake@3.17.1 && \
                     spack load cmake@3.17.1"
