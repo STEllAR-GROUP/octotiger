@@ -66,6 +66,10 @@ pipeline {
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
                     pwd && echo "${JOB_BASE_NAME}" && cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
+                    $([[ -d spack ]] || git clone https://github.com/spack/spack.git) && \
+                    . spack/share/spack/setup-env.sh && \
+                    spack install cmake@3.17.1 && \
+                    spack load cmake@3.17.1 && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain && \
