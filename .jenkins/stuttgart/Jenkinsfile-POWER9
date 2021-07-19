@@ -64,8 +64,8 @@ pipeline {
                     sh '''
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
                     cd /scratch && \
-                    mkdir -p jenkins && cd jenkins && \
-                    [ ! -d "spack" ] && git clone --depth 1 https://github.com/spack/spack.git && \
+                    mkdir -p jenkins && cd jenkins; \
+                    if [[ ! -d spack ]]; then git clone --depth 1 https://github.com/spack/spack.git;fi; \
                     source spack/share/spack/setup-env.sh && \
                     spack install cmake@3.17.1 && \
                     spack load cmake@3.17.1"
