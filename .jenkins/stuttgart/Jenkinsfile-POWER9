@@ -66,6 +66,7 @@ pipeline {
                     srun -p sgs-only -N 1 -n 1 -t 03:00:00 bash -c "\
                     pwd && echo "${JOB_BASE_NAME}" && cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
+                    module avail && gcc --version && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
                     rm -rf octotiger && \
                     rm -rf OctoTigerBuildChain && \
