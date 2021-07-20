@@ -119,7 +119,9 @@ pipeline {
                                 fi
 
                                 cd ..
-                                pwd
+                                cd octotiger
+                                git submodule update --init --recursive
+                                cd ..
                                 cp -r octotiger "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}/src/octotiger"
                                 '''
                             }
