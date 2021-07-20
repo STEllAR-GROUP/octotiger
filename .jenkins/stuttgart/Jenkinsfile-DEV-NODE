@@ -3,16 +3,18 @@
 def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "running")
 
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-  print "INFO: Build on ${env.BRANCH_NAME} triggered by branch indexing..."
-  if (env.BRANCH_NAME != "master") {
-      print "INFO: Build on ${env.BRANCH_NAME} skipped due being triggered by Branch Indexing instead of SCM change!"
-      buildbadge.setStatus('skipped')
-      currentBuild.result = 'ABORTED'
-      return
-  }
+    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER}  triggered by branch indexing..."
+    if (env.BRANCH_NAME != "master") {
+        if (env.BUILD_NUMBER != 1) { // Always execute first build to load this configuration and thus the triggers
+            print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} skipped due being triggered by Branch Indexing instead of SCM change!"
+            buildbadge.setStatus('skipped')
+            currentBuild.result = 'ABORTED'
+            return // early exit to avoid redundant builds 
+        }
+    }
 } else {
-  print "INFO: Build on ${env.BRANCH_NAME} triggered by SCM change..."
-  print "Proceeding!"
+    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by SCM change..."
+    print "Proceeding!"
 }
 
 
