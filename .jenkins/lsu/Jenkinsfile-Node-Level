@@ -4,16 +4,18 @@ def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU 
 
 // Skip builds that are likely to be tested already (by push) and unlikely to be critical (not on master)
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
-  print "INFO: Build on ${env.BRANCH_NAME} triggered by branch indexing..."
-  if (env.BRANCH_NAME != "master") {
-      print "INFO: Build on ${env.BRANCH_NAME} skipped due being triggered by Branch Indexing instead of SCM change!"
-      currentBuild.result = 'ABORTED' 
-      buildbadge.setStatus('skipped')
-      return
-  }
+    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by branch indexing..."
+    if (env.BRANCH_NAME != "master") { // Always run on master
+        if (env.BUILD_NUMBER != 1) { // Always run first build on a new branch pipeline to load the options (and thus github hook triggers) for the pipeline
+            print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} skipped due being triggered by Branch Indexing instead of SCM change!"
+            currentBuild.result = 'ABORTED' 
+            buildbadge.setStatus('skipped')
+            return // Early exit to avoid redundant builds
+        }
+    }
 } else {
-  print "INFO: Build on ${env.BRANCH_NAME} triggered by SCM change..."
-  print "Proceeding!"
+    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by SCM change..."
+    print "Proceeding!"
 } 
 
 
