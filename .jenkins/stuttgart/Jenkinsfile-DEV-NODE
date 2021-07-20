@@ -1,0 +1,202 @@
+#!groovy
+
+def buildbadge = addEmbeddableBadgeConfiguration(id: "devbuild", subject: "Dev-Environment Tests", status: "running")
+
+if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
+    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER}  triggered by branch indexing..."
+    if (env.BRANCH_NAME != "master") {
+        if (env.BUILD_NUMBER != "1") { // Always execute first build to load this configuration and thus the triggers
+            print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} skipped due being triggered by Branch Indexing instead of SCM change!"
+            buildbadge.setStatus('skipped')
+            currentBuild.result = 'ABORTED'
+            return // early exit to avoid redundant builds 
+        }
+    }
+} else {
+    print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by SCM change..."
+    print "Proceeding!"
+}
+
+
+pipeline {
+    agent { label 'pcsgs05' }
+
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "21",
+                numToKeepStr: "50",
+                artifactDaysToKeepStr: "21",
+                artifactNumToKeepStr: "50"
+            )
+        )
+        disableConcurrentBuilds()
+    }
+    triggers {
+        githubPush() // Trigger by push to respective github branch
+        pollSCM 'H/30 * * * *' // Fallback polling solution as some pushes are somehow lost
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_OCTOTIGER')
+        NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN = credentials('NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN')
+        MAINTAINER_MAIL = credentials('OCTOTIGER_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('init') {
+            steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
+                dir('octotiger') {
+                    sh '''
+                        github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                        curl \
+                            --request POST \
+                            --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                            --header "Content-Type: application/json" \
+                            --header "authorization: Bearer ${github_token}" \
+                            --data "{
+                                \\"state\\": \\"pending\\",
+                                \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
+                                \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                                \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                        }"
+                        echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
+                    '''
+                }
+            }
+        }
+        stage('checkout') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+		    echo "Currently in $(pwd)"
+                    rm -rf octotiger 
+                    rm -rf OctoTigerBuildChain 
+                    git clone https://github.com/STEllAR-GROUP/octotiger.git 
+                    cd octotiger 
+                    git checkout ${GIT_COMMIT} 
+                    git submodule update --init --recursive 
+                    cd - 
+                    git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain && cd OctoTigerBuildChain/ 
+                    git checkout jenkins-devnode
+                    mkdir src 
+                    cp -r ../octotiger src/octotiger 
+                    cd src 
+                    curl -u "qE2mrmzt6rAreW5:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz 
+                    tar -xvf silo.tar.gz 
+                    mv silo-4.10.2 silo 
+                    rm silo.tar.gz 
+                    '''
+                }
+            }
+        }
+        stage('gcc-build') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    module load cuda
+		    cd OctoTigerBuildChain
+		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=OFF/OCTOTIGER_WITH_BLAST_TEST=ON/' build-octotiger.sh
+                    ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
+                    '''
+                }
+            }
+        }
+        stage('gcc-ctest') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+                    module load cuda
+		    cd OctoTigerBuildChain/build/octotiger/build
+		    ctest --output-on-failure
+                    '''
+                }
+            }
+        }
+        stage('clang-build') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+		    cd OctoTigerBuildChain
+		    sed -i 's/OCTOTIGER_WITH_BLAST_TEST=ON/OCTOTIGER_WITH_BLAST_TEST=OFF/' build-octotiger.sh
+		    rm -rf build && rm -rf src/boost
+                    ./build-all.sh Release with-CC-clang without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling
+                    '''
+                }
+            }
+        }
+        stage('clang-ctest') {
+            steps {
+                dir('octotiger') {
+                    sh '''
+		    cd OctoTigerBuildChain/build/octotiger/build
+		    ctest --output-on-failure
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                buildbadge.setStatus('success')
+            }
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl \
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"success\\",
+                        \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                }"
+                echo "Build succeded on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} succeded" "${MAINTAINER_MAIL}"
+            '''
+        }
+        failure {
+            script {
+                buildbadge.setStatus('failing')
+            }
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl \
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"failure\\",
+                        \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                }"
+                echo "Build failed on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+            script {
+                buildbadge.setStatus('aborted')
+            }
+            sh '''
+                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                curl \
+                    --request POST \
+                    --url "https://api.github.com/repos/STEllAR-GROUP/octotiger/statuses/$GIT_COMMIT" \
+                    --header "Content-Type: application/json" \
+                    --header "authorization: Bearer ${github_token}" \
+                    --data "{
+                        \\"state\\": \\"error\\",
+                        \\"context\\": \\"jenkins-DEV-NODE-TESTS\\",
+                        \\"description\\": \\"Jenkins CI Job: jenkins-DEV-NODE-TESTS\\",
+                        \\"target_url\\": \\"https://simsgs.informatik.uni-stuttgart.de/jenkins/job/Octo-Tiger%20DEV/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                }"
+                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger DEV: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
+        }
+    }
+}
