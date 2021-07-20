@@ -6,7 +6,7 @@ def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU 
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
     print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} triggered by branch indexing..."
     if (env.BRANCH_NAME != "master") { // Always run on master
-        if (env.BUILD_NUMBER != 1) { // Always run first build on a new branch pipeline to load the options (and thus github hook triggers) for the pipeline
+        if (env.BUILD_NUMBER != "1") { // Always run first build on a new branch pipeline to load the options (and thus github hook triggers) for the pipeline
             print "INFO: Build on ${env.BRANCH_NAME}/${env.BUILD_NUMBER} skipped due being triggered by Branch Indexing instead of SCM change!"
             currentBuild.result = 'ABORTED' 
             buildbadge.setStatus('skipped')
