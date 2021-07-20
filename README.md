@@ -32,7 +32,7 @@ From <https://doi.org/10.1145/3204919.3204938>:
 |  KNL Kokkos/HPX SIMD tests 	| [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+KNL%2Fadd-stuttgart-jenkins&config=knlbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20KNL/job/add-stuttgart-jenkins/)  	|
 |  Development Environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+DEV%2Fadd-stuttgart-jenkins&config=devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20DEV/job/add-stuttgart-jenkins/)
  
-#### Notes
+#### Notes:
 > **CircleCI note for maintainers**: The base Docker image used by CircleCI needs to be built
 > and updated manually. Neither HPX nor any of the other dependencies update
 > automatically. Relevant files are under
