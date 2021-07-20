@@ -12,19 +12,19 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
 ## Build Status [master]
 
-#### Basic [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) tests:
+#### [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) - Basic tests:
 
 |   	|   	|
 |---	|---	|
 |  Simple build and legacy tests &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  	|
 
 
-#### All CPU / GPU node-level tests for the 8 major build configurations:
+#### Jenkins - All CPU / GPU node-level tests for the 8 major build configurations:
 |   	|   	|
 |---	|---	|
 |  gcc/clang, with/without-cuda, with/without-kokkos 	| [![Build Status](https://rostam.cct.lsu.edu/jenkins/buildStatus/icon?job=Octo-Tiger+Node-Level%2Fswitch-to-multibranch-pipeline&config=nodelevel)](https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/switch-to-multibranch-pipeline/) |
 
-#### Special machine tests:
+#### Jenkins - Special machine tests:
 
 |   	|   	|
 |---	|---	|
