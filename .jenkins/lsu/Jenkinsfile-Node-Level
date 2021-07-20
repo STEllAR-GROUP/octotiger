@@ -50,6 +50,9 @@ pipeline {
                 dir('octotiger') {
                     checkout scm
                     sh '''
+                        cd octotiger
+                        git submodule update --init --recursive
+                        cd ..
                         echo "Build started on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins Octo-Tiger Node-Level Tests: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} just started..." "${MAINTAINER_MAIL}"
                     '''
                 }
@@ -118,9 +121,6 @@ pipeline {
                                     mkdir src
                                 fi
 
-                                cd ..
-                                cd octotiger
-                                git submodule update --init --recursive
                                 cd ..
                                 cp -r octotiger "octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}/src/octotiger"
                                 '''
