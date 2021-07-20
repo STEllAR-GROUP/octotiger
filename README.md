@@ -1,4 +1,4 @@
-# Octo-Tiger [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)
+# Octo-Tiger  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)
 
 
 
@@ -10,27 +10,33 @@ From <https://doi.org/10.1145/3204919.3204938>:
 > high-level C++ libraries, specifically HPX and Vc, which allows its use on
 > different hardware platforms.
 
-## Build Status
+## Build Status [master]
 
-Current status of the of all CI tests for the master branch:
+#### Basic [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) tests:
 
-Basic [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) tests:
-[![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)
+|   	|   	|
+|---	|---	|
+|  Simple build and legacy tests 	| [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  	|
 
-> **Note for maintainers**: The base Docker image used by CircleCI needs to be built
+
+#### All CPU / GPU node-level tests for the 8 major build configurations:
+|   	|   	|
+|---	|---	|
+|  gcc/clang, with/without-cuda, with/without-kokkos 	| [![Build Status](https://rostam.cct.lsu.edu/jenkins/buildStatus/icon?job=Octo-Tiger+Node-Level%2Fswitch-to-multibranch-pipeline&config=nodelevel)](https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/switch-to-multibranch-pipeline/)  	|
+
+#### Special machine tests:
+
+|   	|   	|
+|---	|---	|
+|  POWER9 tests 	| [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+POWER9%2Fadd-stuttgart-jenkins&config=powerbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20POWER9/job/add-stuttgart-jenkins/)  	|
+|  KNL Kokkos/HPX SIMD tests 	| [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+KNL%2Fadd-stuttgart-jenkins&config=knlbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20KNL/job/add-stuttgart-jenkins/)  	|
+|  Development Environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+DEV%2Fadd-stuttgart-jenkins&config=devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20DEV/job/add-stuttgart-jenkins/)
+ 
+#### Notes
+> **CircleCI note for maintainers**: The base Docker image used by CircleCI needs to be built
 > and updated manually. Neither HPX nor any of the other dependencies update
 > automatically. Relevant files are under
 > [`tools/docker/base_image`](tools/docker/base_image).
-
-All CPU / GPU node-level tests for the 8 major build configurations (gcc/clang, with/without-cuda, with/without-kokkos):
-[![Build Status](https://rostam.cct.lsu.edu/jenkins/buildStatus/icon?job=Octo-Tiger+Node-Level%2Fswitch-to-multibranch-pipeline&config=nodelevel)](https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/switch-to-multibranch-pipeline/)
-
-Special machine tests:
-- POWER9 tests: [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+POWER9%2Fadd-stuttgart-jenkins&config=powerbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20POWER9/job/add-stuttgart-jenkins/)
-
-- KNL Kokkos/HPX SIMD tests: [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+KNL%2Fadd-stuttgart-jenkins&config=knlbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20KNL/job/add-stuttgart-jenkins/)
-
-- Development Environment tests: [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+DEV%2Fadd-stuttgart-jenkins&config=devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20DEV/job/add-stuttgart-jenkins/)
 
 ## Quick Reference
 
