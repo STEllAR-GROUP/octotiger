@@ -1,6 +1,6 @@
 #!groovy
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Kernel Tests", status: "running")
+def buildbadge = addEmbeddableBadgeConfiguration(id: "nodelevel", subject: "CPU / GPU Kernel Tests", status: "skipped")
 
 // Skip builds that are likely to be tested already (by push) and unlikely to be critical (not on master)
 if (currentBuild.getBuildCauses().toString().contains('BranchIndexingCause')) {
@@ -44,6 +44,7 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
+                scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 script {
                     buildbadge.setStatus('running')
                 }
