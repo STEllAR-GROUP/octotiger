@@ -51,6 +51,7 @@ public:
 	bool correct_am_hydro;
 	bool rotating_star_amr;
 	bool idle_rates;
+	bool rad_diffusion_limit;
 
 	integer scf_output_frequency;
 	integer silo_num_groups;
@@ -147,6 +148,7 @@ public:
 
 	template<class Arc>
 	void serialize(Arc &arc, unsigned) {
+		arc & rad_diffusion_limit;
 		arc & eblast0;
 		arc & rho_floor;
 		arc & tau_floor;

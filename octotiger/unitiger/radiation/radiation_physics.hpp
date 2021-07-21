@@ -24,10 +24,15 @@ struct radiation_physics {
 	static constexpr int wy_i = 1 + NDIM;
 	static constexpr int wz_i = 1 + NDIM;
 	static bool angmom_;
+	static bool diffusion_limit_;
 
 	enum test_type {
 		CONTACT
 	};
+
+	static bool set_diffusion_limit() {
+		diffusion_limit_ = true;
+	}
 
 	static std::string get_test_type_string(test_type t) {
 		switch (t) {
@@ -104,6 +109,10 @@ private:
 
 template<int NDIM>
 safe_real radiation_physics<NDIM>::clight = 1.0;
+
+
+template<int NDIM>
+bool radiation_physics<NDIM>::diffusion_limit_ = false;
 
 template<int NDIM>
 int radiation_physics<NDIM>::nf_ = (1 + NDIM + (NDIM == 1 ? 0 : std::pow(3, NDIM - 2)));
