@@ -129,13 +129,13 @@ pipeline {
                             }
                         }
                     }
-                    stage('build') {
+                    stage('build-and-test') {
                         steps {
                             dir('octotiger') {
                                 sh '''
                                 #!/bin/bash -l
                                 cd "../octo-buildscripts-${compiler_config}-${cuda_config}-${kokkos_config}"
-                                src/octotiger/.jenkins/lsu/entry.sh
+                                src/octotiger/.jenkins/lsu/node-level-tests-entry.sh
                                 '''
                             }
                         }
