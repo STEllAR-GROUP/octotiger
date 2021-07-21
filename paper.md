@@ -55,30 +55,11 @@ date: 13 August 2017
 bibliography: paper.bib
 ---
 
+![Octo-Tiger's Logo](https://stellar-group.org/wp-content/uploads/2020/11/octotigerlogoArtboard-github.png)
+
 # Summary
 
 Octo-Tiger uses finite volume methods to advance the fluid and the fast multi-pole method (FMM) to compute the gravitational field [@10.1093/mnras/stab937]. The evolution variables are evolved in a Cartesian octree AMR mesh.  The features of Octo-Tiger are ideally suited for evolving interacting binary systems which begin their evolution in near equilibrium, such as a binary system at the beginning of mass transfer. The AMR mesh rotates with the initial orbital frequency, reducing numerical viscosity. The hydrodynamics module employs a fully three-dimensional reconstruction, with quadrature points for the flux at cell faces, edges, and vertices, enabling a better representation of (near) spherical structures on the Cartesian mesh. The FMM gravity solver employed by Octo-Tiger conserves both linear and angular momenta to machine precision [@Marcello2017]. This enables it to couple to the hydrodynamics solver in a way that conserves energy and linear momenta to machine precision in both inertial and rotating frames. Machine precision conservation of energy prevents equilibrium stellar structures from dissipating due to numerical viscosity. Octo-Tiger has been used to study mergers as progenitors of the R Coronae Borealis stars [@Lauer2019, @Staff2018]. It has also been used to study the possibility that Betelgeuse may be the product of a merger [@Betelgeuse].
-
-             _ __..-;''`-
-      O   (`/' ` |  \ \ \ \-.
-       o /'`\ \   |  \ | \|  \
-        /<7' ;  \ \  | ; ||/ `'.
-       /  _.-, `,-\,__| ' ' . `'.
-       `-`  f/ ;       \        \             ___.--,
-           `~-'_.._     |  -~    |     _.---'`__.-( (_.
-        __.--'`_.. '.__.\    '--. \_.-' ,.--'`     `""`
-       ( ,.--'`   ',__ /./;   ;, '.__.'`    __
-       _`) )  .---.__.' / |   |\   \__..--""  """--.,_
-      `---' .'.''-._.-'`_./  /\ '.  \ _.-~~~````~~~-._`-.__.'
-            | |  .' _.-' |  |  \  \  '.               `~---`
-             \ \/ .'     \  \   '. '-._)
-              \/ /        \  \    `=.__`~-.
-              / /\         `) )    / / `"".`\
-        , _.-'.'\ \        / /    ( (     / /
-         `--~`   ) )    .-'.'      '.'.  | (
-                (/`    ( (`          ) )  '-;
-                 `      '-;         (-'
-
 
 ## Implementation details
 
