@@ -3,7 +3,6 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-
 #include "octotiger/defs.hpp"
 #include "octotiger/grid.hpp"
 #include "octotiger/node_server.hpp"
@@ -149,15 +148,16 @@ void node_client::send_rad_children(std::vector<real> &&data, const geo::octant 
 	hpx::apply<typename node_server::send_rad_children_action>(get_unmanaged_gid(), std::move(data), ci, cycle);
 }
 
-void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy, std::vector<real> &sz,
-		const std::vector<real> &rho, real dt) {
+void rad_grid::rad_imp(std::vector<real> &egas, std::vector<real> &tau, std::vector<real> &sx, std::vector<real> &sy,
+		std::vector<real> &sz, const std::vector<real> &rho, real dt) {
 	PROFILE()
 	;
 	const integer d = H_BW - RAD_BW;
 	const real clight = physcon().c / opts().clight_retard;
 	const real clightinv = INVERSE(clight);
 	const real fgamma = grid::get_fgamma();
-	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas, tau, fgamma, U, mmw, X_spc, Z_spc, dt, clightinv);
+	octotiger::radiation::radiation_kernel<er_i, fx_i, fy_i, fz_i>(d, rho, sx, sy, sz, egas, tau, fgamma, U, mmw, X_spc,
+			Z_spc, dt, clightinv);
 }
 
 void rad_grid::set_dx(real _dx) {
@@ -182,8 +182,9 @@ void rad_grid::set_X(const std::vector<std::vector<real>> &x) {
 	}
 }
 
-real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vector<real> &tau, const std::vector<real> &sx, const std::vector<real> &sy,
-		const std::vector<real> &sz, const std::vector<real> &rho) {
+real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vector<real> &tau,
+		const std::vector<real> &sx, const std::vector<real> &sy, const std::vector<real> &sz,
+		const std::vector<real> &rho) {
 	real a = 0.0;
 	const real fgamma = grid::get_fgamma();
 	for (integer xi = RAD_BW; xi != RAD_NX - RAD_BW; ++xi) {
@@ -209,9 +210,11 @@ real rad_grid::hydro_signal_speed(const std::vector<real> &egas, const std::vect
 
 				real this_a = (4.0 / 9.0) * U[er_i][iiir] * rhoinv;
 				//		printf( "%e %e %e %e\n",rho[iiih], e0, mmw[iiir],dx );
-				const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
-				if (cons < 32.0) {
-					this_a *= std::max(1.0 - std::exp(-cons), 0.0);
+				if (!opts().rad_diffusion_limit) {
+					const real cons = kappa_R(rho[iiih], e0, mmw[iiir], X_spc[iiir], Z_spc[iiir]) * dx;
+					if (cons < 32.0) {
+						this_a *= std::max(1.0 - std::exp(-cons), 0.0);
+					}
 				}
 				a = std::max(this_a, a);
 			}
@@ -365,6 +368,9 @@ void rad_grid::compute_flux(real omega) {
 	if (opts().correct_am_hydro) {
 		hydro.use_angmom_correction(fx_i);
 	}
+	if( opts().rad_diffusion_limit) {
+		radiation_physics<NDIM>::set_diffusion_limit();
+	}
 	const auto &q = hydro.reconstruct(U, X, omega);
 	hydro.flux(U, q, flux, X, omega);
 }
@@ -504,39 +510,39 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 	for (auto const &f : geo::face::full_set()) {
 		if (this->nieces[f] == +1) {
 			for (auto const &quadrant : geo::quadrant::full_set()) {
-				futs[index++] = niece_rad_channels[f][quadrant].get_future().then([this, f, quadrant](hpx::future<std::vector<real> > && fdata) -> void
-				{
-					const auto face_dim = f.get_dimension();
-					std::array<integer, NDIM> lb, ub;
-					switch (face_dim) {
-						case XDIM:
-						lb[XDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
-						lb[YDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
-						lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
-						ub[XDIM] = lb[XDIM] + 1;
-						ub[YDIM] = lb[YDIM] + (INX / 2);
-						ub[ZDIM] = lb[ZDIM] + (INX / 2);
-						break;
-						case YDIM:
-						lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
-						lb[YDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
-						lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
-						ub[XDIM] = lb[XDIM] + (INX / 2);
-						ub[YDIM] = lb[YDIM] + 1;
-						ub[ZDIM] = lb[ZDIM] + (INX / 2);
-						break;
-						case ZDIM:
-						default:
-						lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
-						lb[YDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
-						lb[ZDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
-						ub[XDIM] = lb[XDIM] + (INX / 2);
-						ub[YDIM] = lb[YDIM] + (INX / 2);
-						ub[ZDIM] = lb[ZDIM] + 1;
-						break;
-					}
-					rad_grid_ptr->set_flux_restrict(GET(fdata), lb, ub, face_dim);
-				});
+				futs[index++] = niece_rad_channels[f][quadrant].get_future().then(
+						[this, f, quadrant](hpx::future<std::vector<real> > &&fdata) -> void {
+							const auto face_dim = f.get_dimension();
+							std::array<integer, NDIM> lb, ub;
+							switch (face_dim) {
+							case XDIM:
+								lb[XDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+								lb[YDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+								lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
+								ub[XDIM] = lb[XDIM] + 1;
+								ub[YDIM] = lb[YDIM] + (INX / 2);
+								ub[ZDIM] = lb[ZDIM] + (INX / 2);
+								break;
+							case YDIM:
+								lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+								lb[YDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+								lb[ZDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
+								ub[XDIM] = lb[XDIM] + (INX / 2);
+								ub[YDIM] = lb[YDIM] + 1;
+								ub[ZDIM] = lb[ZDIM] + (INX / 2);
+								break;
+							case ZDIM:
+							default:
+								lb[XDIM] = quadrant.get_side(0) * (INX / 2) + RAD_BW;
+								lb[YDIM] = quadrant.get_side(1) * (INX / 2) + RAD_BW;
+								lb[ZDIM] = (f.get_side() == geo::MINUS ? 0 : INX) + RAD_BW;
+								ub[XDIM] = lb[XDIM] + (INX / 2);
+								ub[YDIM] = lb[YDIM] + (INX / 2);
+								ub[ZDIM] = lb[ZDIM] + 1;
+								break;
+							}
+							rad_grid_ptr->set_flux_restrict(GET(fdata), lb, ub, face_dim);
+						});
 			}
 		}
 	}
@@ -548,8 +554,8 @@ hpx::future<void> node_server::exchange_rad_flux_corrections() {
 	});
 }
 
-void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
-		const geo::dimension &dim) {
+void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array<integer, NDIM> &lb,
+		const std::array<integer, NDIM> &ub, const geo::dimension &dim) {
 
 	integer index = 0;
 	for (integer field = 0; field != NRF; ++field) {
@@ -565,7 +571,8 @@ void rad_grid::set_flux_restrict(const std::vector<real> &data, const std::array
 	}
 }
 
-std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub, const geo::dimension &dim) const {
+std::vector<real> rad_grid::get_flux_restrict(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub,
+		const geo::dimension &dim) const {
 
 	std::vector<real> data;
 	integer size = 1;
@@ -887,7 +894,7 @@ void rad_grid::clear_amr() {
 	std::fill(has_coarse.begin(), has_coarse.end(), 0);
 }
 
-void rad_grid::set_rad_amr_boundary(const std::vector<real>& data, const geo::direction& dir) {
+void rad_grid::set_rad_amr_boundary(const std::vector<real> &data, const geo::direction &dir) {
 	PROFILE();
 
 	std::array<integer, NDIM> lb, ub;
@@ -932,7 +939,7 @@ void rad_grid::complete_rad_amr_boundary() {
 	}
 
 	const auto limiter = [](double a, double b) {
-		return minmod_theta(a, b, 64./37.);
+		return minmod_theta(a, b, 64. / 37.);
 	};
 
 	for (int f = 0; f < NRF; f++) {
@@ -953,9 +960,12 @@ void rad_grid::complete_rad_amr_boundary() {
 									const auto s_x = limiter(uc[iii0 + is * HS_DNX] - u0, u0 - uc[iii0 - is * HS_DNX]);
 									const auto s_y = limiter(uc[iii0 + js * HS_DNY] - u0, u0 - uc[iii0 - js * HS_DNY]);
 									const auto s_z = limiter(uc[iii0 + ks * HS_DNZ] - u0, u0 - uc[iii0 - ks * HS_DNZ]);
-									const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0, u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
-									const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0, u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
-									const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0, u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
+									const auto s_xy = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY] - u0,
+											u0 - uc[iii0 - is * HS_DNX - js * HS_DNY]);
+									const auto s_xz = limiter(uc[iii0 + is * HS_DNX + ks * HS_DNZ] - u0,
+											u0 - uc[iii0 - is * HS_DNX - ks * HS_DNZ]);
+									const auto s_yz = limiter(uc[iii0 + js * HS_DNY + ks * HS_DNZ] - u0,
+											u0 - uc[iii0 - js * HS_DNY - ks * HS_DNZ]);
 									const auto s_xyz = limiter(uc[iii0 + is * HS_DNX + js * HS_DNY + ks * HS_DNZ] - u0,
 											u0 - uc[iii0 - is * HS_DNX - js * HS_DNY - ks * HS_DNZ]);
 									auto &uf = Uf[f][iii0][ir][jr][kr];
@@ -1062,7 +1072,7 @@ void rad_grid::complete_rad_amr_boundary() {
 
 }
 
-std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM>& lb, const std::array<integer, NDIM>& ub) {
+std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM> &lb, const std::array<integer, NDIM> &ub) {
 	PROFILE();
 	std::vector<real> data;
 	for (int f = 0; f < NRF; f++) {
@@ -1081,14 +1091,14 @@ std::vector<real> rad_grid::get_subset(const std::array<integer, NDIM>& lb, cons
 using send_rad_amr_boundary_action_type = node_server:: send_rad_amr_boundary_action;
 HPX_REGISTER_ACTION (send_rad_amr_boundary_action_type);
 
-void node_server::recv_rad_amr_boundary(std::vector<real>&& bdata, const geo::direction& dir, std::size_t cycle) {
+void node_server::recv_rad_amr_boundary(std::vector<real> &&bdata, const geo::direction &dir, std::size_t cycle) {
 	sibling_rad_type tmp;
 	tmp.data = std::move(bdata);
 	tmp.direction = dir;
 	sibling_rad_channels[dir].set_value(std::move(tmp), cycle);
 }
 
-void node_client::send_rad_amr_boundary(std::vector<real>&& data, const geo::direction& dir, std::size_t cycle) const {
+void node_client::send_rad_amr_boundary(std::vector<real> &&data, const geo::direction &dir, std::size_t cycle) const {
 	hpx::apply<typename node_server::send_rad_amr_boundary_action>(get_unmanaged_gid(), std::move(data), dir, cycle);
 }
 
