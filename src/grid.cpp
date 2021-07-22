@@ -1556,8 +1556,8 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 	}
 	rho += '0';
 	rc.push_back(std::make_pair(std::string("rho"), std::move(rho)));
-	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * coord(quadmesh)[0]", omega)));
-	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * coord(quadmesh)[1]", omega)));
+	rc.push_back(std::make_pair(std::string("vx"), hpx::util::format("sx / rho + {:e} * coord(quadmesh)[1]", omega)));
+	rc.push_back(std::make_pair(std::string("vy"), hpx::util::format("sy / rho - {:e} * coord(quadmesh)[0]", omega)));
 	rc.push_back(std::make_pair(std::string("vz"), std::string("sz / rho")));
 	rc.push_back(std::make_pair(std::string("zx"), "lx - coord(quadmesh)[1]*sz + coord(quadmesh)[2]*sy"));
 	rc.push_back(std::make_pair(std::string("zy"), "ly + coord(quadmesh)[0]*sz - coord(quadmesh)[2]*sx"));
@@ -1600,9 +1600,9 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 		rc.push_back(std::make_pair(std::string("A"), "6.00228e+22"));
 		rc.push_back(std::make_pair(std::string("B"), "(2 * 9.81011e+5)"));
 		rc.push_back(std::make_pair(std::string("x"), "(rho/B)^(1.0/3.0)"));
-		rc.push_back(std::make_pair(std::string("Pdeg"), "A*(x*(2.0*x*x-3.0)*sqrt(x*x+1.0)+3.0*ln(x+sqrt(x*x+1)))"));
+		rc.push_back(std::make_pair(std::string("Pdeg"), "if( gt(x, 0.001), A*(x*(2.0*x*x-3.0)*sqrt(x*x+1.0)+3.0*ln(x+sqrt(x*x+1))), 1.6*A*x^5)"));
 		rc.push_back(std::make_pair(std::string("hdeg"), "8.0*A/B*(sqrt(x*x+1)-1)"));
-		rc.push_back(std::make_pair(std::string("Edeg"), "rho*hdeg - Pdeg"));
+		rc.push_back(std::make_pair(std::string("Edeg"), "if( gt(x, 0.001), rho*hdeg - Pdeg, 2.4*A*x^5""));
 	}
 	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
