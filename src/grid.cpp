@@ -1602,7 +1602,7 @@ std::vector<std::pair<std::string, std::string>> grid::get_scalar_expressions() 
 		rc.push_back(std::make_pair(std::string("x"), "(rho/B)^(1.0/3.0)"));
 		rc.push_back(std::make_pair(std::string("Pdeg"), "if( gt(x, 0.001), A*(x*(2.0*x*x-3.0)*sqrt(x*x+1.0)+3.0*ln(x+sqrt(x*x+1))), 1.6*A*x^5)"));
 		rc.push_back(std::make_pair(std::string("hdeg"), "8.0*A/B*(sqrt(x*x+1)-1)"));
-		rc.push_back(std::make_pair(std::string("Edeg"), "if( gt(x, 0.001), rho*hdeg - Pdeg, 2.4*A*x^5""));
+		rc.push_back(std::make_pair(std::string("Edeg"), "if( gt(x, 0.001), rho*hdeg - Pdeg, 2.4*A*x^5"));
 	}
 	if (opts().problem == MARSHAK) {
 		rc.push_back(std::make_pair(std::string("T"), std::string("(ei/rho)^(1.0/3.0)")));
