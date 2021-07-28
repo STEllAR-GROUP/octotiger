@@ -34,6 +34,7 @@ authors:
   - name: Orsola De Marco
     affiliation: "4, 5"
   - name: Patrick M. Motl
+    orcid: 0000-0001-5545-821X
     affiliation: 7
   - name: Bryce Adelstein Lelbach
     orcid: 0000-0002-7995-5226
@@ -51,10 +52,10 @@ affiliations:
    index: 5
  - name: IPVS, University of Stuttgart, Stuttgart, Germany
    index: 6
- - name: NVIDIA
-   index: 8
  - name: The School of Sciences, Indiana University Kokomo, Kokomo, Indiana, United States of America
    index: 7
+ - name: NVIDIA
+   index: 8
 date: 13 August 2017
 bibliography: paper.bib
 ---
