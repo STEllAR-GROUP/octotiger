@@ -33,9 +33,11 @@ authors:
     affiliation: 2
   - name: Orsola De Marco
     affiliation: "4, 5"
+  - name: Patrick M. Motl
+    affiliation: 7
   - name: Bryce Adelstein Lelbach
     orcid: 0000-0002-7995-5226
-    affiliation: 7
+    affiliation: 8
 affiliations:
  - name: Department of Physics & Astronomy, Louisiana State University, Baton Rouge, LA, United States of America
    index: 1
@@ -50,6 +52,8 @@ affiliations:
  - name: IPVS, University of Stuttgart, Stuttgart, Germany
    index: 6
  - name: NVIDIA
+   index: 8
+ - name: The School of Sciences, Indiana University Kokomo, Kokomo, Indiana, United States of America
    index: 7
 date: 13 August 2017
 bibliography: paper.bib
