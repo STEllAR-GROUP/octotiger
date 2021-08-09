@@ -210,8 +210,8 @@ timestep_t flux_cpu_kernel(const hydro::recon_type<NDIM>& Q, hydro::flux_type& F
         URs[f] = Q[f][current_d][current_max_index];
         ULs[f] = Q[f][flipped_dim][current_max_index - geo.H_DN[current_dim]];
     }
-    ts.ul = ULs;
-    ts.ur = URs;
+    ts.ul = URs;
+    ts.ur = ULs;
     ts.dim = current_dim;
     return ts;
 }

@@ -107,8 +107,8 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
         URs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + f];
         ULs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + nf_ + f];
     }
-    ts.ul = std::move(ULs);
-    ts.ur = std::move(URs);
+    ts.ul = std::move(URs);
+    ts.ur = std::move(ULs);
     ts.dim = current_dim;
     return ts;
 }
