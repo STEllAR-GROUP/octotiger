@@ -704,7 +704,7 @@ future<void> node_server::timestep_driver_descend() {
 			futs[index++] = local_timestep.get_future();
 		}
 
-		return hpx::dataflow(hpx::launch::sync, /*hpx::util::annotated_function(*/[this](std::array<future<timestep_t>, NCHILD + 1> dts_fut) {
+		return hpx::dataflow(hpx::launch::sync, hpx::util::annotated_function([this](std::array<future<timestep_t>, NCHILD + 1> dts_fut) {
 
 			auto dts = hpx::util::unwrap(dts_fut);
 			timestep_t dt;
@@ -722,7 +722,7 @@ future<void> node_server::timestep_driver_descend() {
 			}
 
 			return;
-		}/*, "node_server::timestep_driver_descend")*/, futs);
+		}, "node_server::timestep_driver_descend"), futs);
 	} else {
 		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, [this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
