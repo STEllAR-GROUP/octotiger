@@ -103,7 +103,7 @@ pipeline {
                     mkdir -p src && \
                     cp -r ../octotiger src/octotiger && \
                     cd src && \
-                    curl -u "qE2mrmzt6rAreW5:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
+                    curl -u "6PRsT5XzKK2pHam:${NEXTCLOUD_OCTOTIGER_DEPENDENCIES_TOKEN}" -H 'X-Requested-With: XMLHttpRequest' 'https://ipvs.informatik.uni-stuttgart.de/cloud/public.php/webdav/' -o silo.tar.gz && \
                     tar -xvf silo.tar.gz && \
                     mv silo-4.10.2 silo && \
                     rm silo.tar.gz && \

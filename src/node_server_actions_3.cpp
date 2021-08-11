@@ -403,8 +403,12 @@ void node_server::execute_solver(bool scf, node_count_type ngrids) {
 				[=]() {
 					const auto vr = sqrt(sqr(dt_.ur[sx_i]) + sqr(dt_.ur[sy_i]) + sqr(dt_.ur[sz_i])) / dt_.ur[0];
 					const auto vl = sqrt(sqr(dt_.ul[sx_i]) + sqr(dt_.ul[sy_i]) + sqr(dt_.ul[sz_i])) / dt_.ul[0];
-					print("%i %e %e %e %e %e %e %e %e %e %e %e %e %i %i %i %i\n", int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time,
-							dt_.x, dt_.y, dt_.z, dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total), int(ngrids.leaf), int(ngrids.amr_bnd));
+					print("TS %i:: t: %e, dt: %e, time_elapsed: %e, rotational_time: %e, x: %e, y: %e, z: %e, ",
+						int(next_step - 1), double(t), double(dt_.dt), time_elapsed, rotational_time,
+						dt_.x, dt_.y, dt_.z);
+					print("a: %e, ur: %e, ul: %e, vr: %e, vl: %e, dim: %i, ngrids: %i, leafs: %i, amr_boundaries: %i\n", 
+						dt_.a, dt_.ur[0], dt_.ul[0], vr, vl, dt_.dim, int(ngrids.total),
+						int(ngrids.leaf), int(ngrids.amr_bnd));
 				});     // do not wait for output to finish
 
 		step_num = next_step;
