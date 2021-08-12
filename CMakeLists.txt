@@ -355,15 +355,15 @@ if(OCTOTIGER_WITH_CUDA)
       #set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
       #set_source_files_properties(${hydro_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
       set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-       src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+       src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -ffp-contract=off -fno-cuda-approx-transcendentals -fno-cuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast -fno-honor-infinities -fno-honor-nans -fno-math-errno -ffinite-math-only -freciprocal-math -fno-signed-zeros -fno-trapping-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-host-only -fno-fast-math -ffp-contract=on -fno-honor-infinities -fno-honor-nans -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=on -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       #-fassociative-math  kills it?
-      set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       # hydro needs no assiociate math
-      set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=off --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-cuda-approx-transcendentals -fcuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
     else()
       set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES LANGUAGE CUDA)
