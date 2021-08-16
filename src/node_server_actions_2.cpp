@@ -150,7 +150,7 @@ future<analytic_t> node_client::compare_analytic() const {
 }
 
 analytic_t node_server::compare_analytic() {
-	analytic_t a(opts().n_fields);
+	analytic_t a(opts().n_fields + (opts().radiation ? NRF : 0));
 	if (!is_refined) {
 		a = grid_ptr->compute_analytic(current_time);
 	} else {
@@ -164,13 +164,27 @@ analytic_t node_server::compare_analytic() {
 		}
 	}
 	if (my_location.level() == 0) {
-		print("L1, L2\n");
+		if (opts().problem == MARSHAK) {
+			std::sort(a.xline.begin(), a.xline.end(),
+					[](std::pair<double, std::pair<double, double>> a, std::pair<double, std::pair<double, double>> b) {
+						return a.first < b.first;
+					});
+			FILE *fp = fopen("lineout.dat", "wt");
+			for (int i = 0; i < a.xline.size(); i++) {
+				fprintf(fp, "%e %e %e\n", a.xline[i].first, a.xline[i].second.first, a.xline[i].second.second);
+			}
+			fclose(fp);
+		}
+		printf("L1, L2\n");
 		real vol = 1.0;
 		for (int d = 0; d < NDIM; d++) {
 			vol *= 2.0 * opts().xscale;
 		}
 		for (integer field = 0; field != opts().n_fields; ++field) {
-			print("%16s %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
+			printf("%16s %e %e\n", physics<3>::field_names3[field], a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
+		}
+		for (integer field = opts().n_fields; field != opts().n_fields + (opts().radiation ? NRF : 0); ++field) {
+			printf("%16s %e %e\n", "",  a.l1[field] / vol, std::sqrt(a.l2[field] / vol));
 		}
 
 		const auto ml = opts().max_level;
@@ -226,7 +240,7 @@ const diagnostics_t& diagnostics_t::compute() {
 	omega = std::abs((dX[XDIM] * V[YDIM] - dX[YDIM] * V[XDIM]) * INVERSE(sep2));
 	Torb = com[0][XDIM] * g[0][YDIM] - com[0][YDIM] * g[0][XDIM];
 	Torb += com[1][XDIM] * g[1][YDIM] - com[1][YDIM] * g[1][XDIM];
-//	print( "%e %e %e %e %e\n", dX[XDIM], V[XDIM], dX[YDIM], V[YDIM], omega);
+//	printf( "%e %e %e %e %e\n", dX[XDIM], V[XDIM], dX[YDIM], V[YDIM], omega);
 	a = std::sqrt(sep2);
 	real mu = m[0] * m[1] / (m[1] + m[0]);
 	jorb = mu * omega * sep2;
@@ -263,7 +277,7 @@ diagnostics_t node_server::diagnostics() {
 
 	diagnostics_t diags;
 	for (integer i = 1; i != (opts().problem == DWD ? 5 : 2); ++i) {
-//		print( "%i\n", i );
+//		printf( "%i\n", i );
 		diags.stage = i;
 		diags = diagnostics(diags).compute();
 		if (opts().gravity) {
@@ -323,10 +337,10 @@ diagnostics_t node_server::diagnostics() {
 			fclose(fp);
 
 		} else {
-			print("Failed to write binary.dat %s\n", std::strerror(errno));
+			printf("Failed to write binary.dat %s\n", std::strerror(errno));
 		}
 	} else {
-		print("Failed to compute Roche geometry\n");
+		printf("Failed to compute Roche geometry\n");
 	}
 	return diags;
 }
@@ -400,7 +414,7 @@ void node_server::force_nodes_to_exist(std::vector<node_location> &&locs) {
 
 			/** BUG HERE ***/
 			if (parent.empty()) {
-				print("parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
+				printf("parent empty %s %s\n", my_location.to_str().c_str(), loc.to_str().c_str());
 				abort();
 			}
 			assert(!parent.empty());
@@ -502,6 +516,9 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 			}
 		}
 		constexpr auto full_set = geo::octant::full_set();
+		for (auto &f : cfuts) {
+			amr_bnd += GET(f);
+		}
 		for (auto &ci : full_set) {
 			const auto &flags = amr_flags[ci];
 			for (auto &dir : geo::direction::full_set()) {
@@ -511,9 +528,6 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 					}
 				}
 			}
-		}
-		for (auto &f : cfuts) {
-			amr_bnd += GET(f);
 		}
 	} else {
 		std::vector<future<void>> nfuts;
@@ -614,7 +628,7 @@ set_child_aunt_type node_server::set_child_aunt(const hpx::id_type &aunt, const 
 	} else {
 		for (auto const &ci : geo::octant::face_subset(face)) {
 			if (children[ci].get_gid() != hpx::invalid_id) {
-				print("CHILD SHOULD NOT EXIST\n");
+				printf("CHILD SHOULD NOT EXIST\n");
 				abort();
 			}
 		}
@@ -636,7 +650,7 @@ std::uintptr_t node_server::get_ptr() {
 future<node_server*> node_client::get_ptr() const {
 	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([this](future<std::uintptr_t> &&fut) {
 		if (hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
-			print("get_ptr called non-locally\n");
+			printf("get_ptr called non-locally\n");
 			abort();
 		}
 		return reinterpret_cast<node_server*>(GET(fut));
