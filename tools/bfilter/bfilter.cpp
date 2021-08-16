@@ -148,11 +148,12 @@ struct options {
 		po::store(po::parse_command_line(argc, argv, command_opts), vm);
 		po::notify(vm);
 
-		FILE *fp = fopen(input.c_str(), "rb");
 		if (help) {
 			std::cout << command_opts << "\n";
 			return -1;
-		} else if (fp == NULL) {
+		}
+		FILE *fp = fopen(input.c_str(), "rb");
+		if (fp == NULL) {
 			print("Unable to open %s\n", input.c_str());
 			return -1;
 		} else {

@@ -56,6 +56,8 @@ option(OCTOTIGER_WITH_FORCE_SCALAR_KOKKOS_SIMD
   "Uses scalar host simd types instead of the native ones" OFF) 
 option(OCTOTIGER_WITH_POLLING_EXECUTORS  
   "Use the polling executors, not the callback ones" ON)
+option(OCTOTIGER_CUDA_ARCH
+  "Compile for this CUDA arch" sm_50)
 
 # silence warnings for deprecated HPX includes
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cpp")
@@ -312,6 +314,7 @@ set(hydro_header_files
 
 set(hydro_source_files
    src/unitiger/hydro.cpp
+   src/unitiger/hydro_impl/hydro_kernel_interface.cpp
    src/unitiger/hydro_impl/flux_kernel_interface.cpp
    src/unitiger/hydro_impl/flux_cpu_kernel.cpp
    src/unitiger/hydro_impl/flux_cuda_kernel.cpp
@@ -352,28 +355,31 @@ if(OCTOTIGER_WITH_CUDA)
       #set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
       #set_source_files_properties(${hydro_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
       set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} src/monopole_interactions/monopole_kernel_interface.cpp
-       src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-gpu-arch=sm_80")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -ffp-contract=off -fno-cuda-approx-transcendentals -fno-cuda-flush-denormals-to-zero --cuda-gpu-arch=sm_80")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast -fno-honor-infinities -fno-honor-nans -fno-math-errno -ffinite-math-only -freciprocal-math -fno-signed-zeros -fno-trapping-math --cuda-gpu-arch=sm_80")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-host-only -fno-fast-math -ffp-contract=on -fno-honor-infinities -fno-honor-nans -fno-math-errno --cuda-gpu-arch=sm_80")
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=on -fno-math-errno --cuda-gpu-arch=sm_80")
-      set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=sm_80")
+       src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -ffp-contract=off -fno-cuda-approx-transcendentals -fno-cuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast -fno-honor-infinities -fno-honor-nans -fno-math-errno -ffinite-math-only -freciprocal-math -fno-signed-zeros -fno-trapping-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda --cuda-host-only -fno-fast-math -ffp-contract=on -fno-honor-infinities -fno-honor-nans -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=on -fno-math-errno --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
       #-fassociative-math  kills it?
-      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-cuda-approx-transcendentals -fcuda-flush-denormals-to-zero --cuda-gpu-arch=sm_80")
-  else()
-    set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
+      set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      # hydro needs no assiociate math
+      set_source_files_properties(src/unitiger/hydro_impl/hydro_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-associative-math --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+      #set_source_files_properties(src/multipole_interactions/multipole_kernel_interface.cpp PROPERTIES COMPILE_FLAGS " -xcuda -fno-cuda-approx-transcendentals -fcuda-flush-denormals-to-zero --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH}")
+    else()
+      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
       set_source_files_properties(${source_files} ${header_files} PROPERTIES COMPILE_FLAGS " -expt-relaxed-constexpr")
       set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
-  endif()
+    endif()
   else()
     #set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
 
-    # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=sm_80")
-  else()
-    set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
-    set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
+      # TODO From what I can tell -fno-fast-math is only required for the sqrt in the multipole kernels - remove flag from other files
+      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES COMPILE_FLAGS " -xcuda -fno-fast-math -ffp-contract=fast --cuda-gpu-arch=${OCTOTIGER_CUDA_ARCH} -D__STRICT_ANSI__")
+      # -DSTRICT_ANSI__ resolves the issue of clang trying to pull in float128 stuff in the standard libs for the GPU pass
+    else()
+      set_source_files_properties(${cu_source_files} ${hydro_cu_source_files} PROPERTIES LANGUAGE CUDA)
+      set_source_files_properties(${hydro_cu_source_files} ${cu_source_files} PROPERTIES COMPILE_FLAGS " --expt-extended-lambda -expt-relaxed-constexpr -Xptxas=-v,-fmad=true,--opt-level=4")
   endif()
   endif()
 endif()
@@ -493,6 +499,13 @@ add_hpx_executable(
     frontend/init_methods.cpp
 )
 set_property(TARGET octotiger PROPERTY FOLDER "Octo-Tiger")
+
+if(OCTOTIGER_WITH_CUDA)
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_CUDA)
+endif()
+if(OCTOTIGER_WITH_KOKKOS)
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_HAVE_KOKKOS)
+endif()
 
 # Unitiger executable
 add_hpx_executable(
@@ -621,12 +634,11 @@ if(OCTOTIGER_WITH_CUDA)
   message(INFO " CUDA support is turned on!")
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_CUDA)
   target_compile_definitions(hydrolib PUBLIC OCTOTIGER_HAVE_CUDA)
+
   #set_property(TARGET octolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
   #set_property(TARGET octolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
   #set_property(TARGET hydrolib PROPERTY CUDA_SEPARABLE_COMPILATION ON)
   #set_property(TARGET hydrolib PROPERTY INTERFACE_COMPILE_OPTIONS "${MY_CUDA_FLAGS}")
-
-
 endif()
 
 # Handle other options
@@ -655,6 +667,12 @@ target_compile_definitions(hydrolib PUBLIC OCTOTIGER_THETA_MINIMUM=${OCTOTIGER_T
 
 # Blast test problem quad-precision float support
 if(OCTOTIGER_WITH_BLAST_TEST)
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    message(FATAL_ERROR "Trying to build BLAST test with clang. The test requires quadmath which is not "
+    "bundled with clang. If you really need the blast test scenario compile "
+    "with a different compiler (gcc). If do not need this test (or aren't sure about it) "
+    " try the cmake variable OCTOTIGER_WITH_BLAST_TEST=OFF")
+  endif()
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_BLAST_TEST)
   set(blast_sources
     src/test_problems/blast/sedov.cpp

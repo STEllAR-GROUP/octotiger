@@ -22,12 +22,10 @@ namespace fmm {
         }
         void copy_stencil_to_m2m_constant_memory(
             const float* stencil_masks, const size_t full_stencil_size) {
-            cudaError_t err =
                 cudaMemcpyToSymbol(device_constant_stencil_masks, stencil_masks, full_stencil_size);
         }
         void copy_indicator_to_m2m_constant_memory(
             const float* indicator, const size_t indicator_size) {
-            cudaError_t err =
                 cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
         }
 

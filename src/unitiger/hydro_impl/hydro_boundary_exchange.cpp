@@ -110,8 +110,8 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     const std::array<double, NDIM>& xmin, std::vector<std::vector<double>>& U) {
     // std::cout << "Calling hydro cpu version!" << std::endl;
 
-    std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
-        opts().n_fields * H_N3);
+    // std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_u(
+    //     opts().n_fields * H_N3);
     std::vector<double, recycler::aggressive_recycle_aligned<double, 32>> unified_ushad(
         opts().n_fields * HS_N3);
     // Create non-atomic copy
@@ -127,7 +127,7 @@ void complete_hydro_amr_boundary_cpu(const double dx, const bool energy_only,
     for (int i = 0; i < HS_N3; i++) {
         coarse[i] = is_coarse[i];
     }
-    constexpr int field_offset = HS_N3 * 8;
+    // constexpr int field_offset = HS_N3 * 8;
 
     // Phase 1: From UShad to Uf
     constexpr int uf_max = 15;

@@ -10,6 +10,8 @@
 #include "octotiger/unitiger/physics_impl.hpp"
 #include "octotiger/common_kernel/struct_of_array_data.hpp"
 
+//#define FACE_ONLY_HYDRO
+
 template<int NDIM, int INX, class PHYS>
 timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X,	safe_real omega) {
 
@@ -46,7 +48,12 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 		for (const auto &i : indices) {
 			safe_real ap = 0.0, am = 0.0;
 			safe_real this_ap, this_am;
-			for (int fi = 0; fi < geo.NFACEDIR; fi++) { // 9
+			for (int fi = 0; fi < geo.NFACEDIR; fi++) {
+#ifdef FACE_ONLY_HYDRO
+				if( fi != 0 ) {
+					continue;
+				}
+#endif
 				const auto d = faces[dim][fi];
 				// why store this?
 				for (int f = 0; f < nf_; f++) { 
@@ -88,8 +95,11 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux(const hydro::state_type &U, con
 				ap = std::max(ap, this_ap);
 #pragma ivdep
 				for (int f = 0; f < nf_; f++) {
-					// field update from flux
+#ifdef FACE_ONLY_HYDRO
+					F[dim][f][i] += this_flux[f];
+#else
 					F[dim][f][i] += weights[fi] * this_flux[f];
+#endif
 				}
 			}
 			const auto this_amax = std::max(ap, safe_real(-am));
@@ -351,8 +361,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::recon
 		UR[f] = Q[f][current_d][current_max_index];
 		UL[f] = Q[f][flipped_dim][current_max_index - geo.H_DN[current_dim]];
 	}
-	ts.ul = UL;
-	ts.ur = UR;
+	ts.ul = UR;
+	ts.ur = UL;
 	ts.dim = current_dim;
 	return ts;
 }

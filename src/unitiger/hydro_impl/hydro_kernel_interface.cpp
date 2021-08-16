@@ -30,13 +30,12 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 
     // Timestep default value
     auto max_lambda = timestep_t{};
-    bool avail = false;
 
     // Try accelerator implementation
-    // TODO Pick correct implementation based on kernel parameter
     if (device_type != interaction_device_kernel_type::OFF) {
         if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
 #if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
+            bool avail = false;
             avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
                 cuda_buffer_capacity);
             if (avail) {
@@ -54,11 +53,11 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         }
         if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
-            // TODO Device CUDA Implementation
+            bool avail = false;
             avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
                 pool_strategy>(cuda_buffer_capacity);
-            size_t device_id = 0;
             if (avail) {
+                size_t device_id = 0;
                 stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
                 max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor,
                 F);
@@ -74,71 +73,42 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     }
 
     // Nothing is available or device execution is disabled - fallback to host execution
-    if (!avail) {
-        if (host_type == interaction_host_kernel_type::KOKKOS) {
+    if (host_type == interaction_host_kernel_type::KOKKOS) {
 #ifdef OCTOTIGER_HAVE_KOKKOS
-            // host_executor executor(hpx::kokkos::execution_space_mode::independent);
-            host_executor executor{};
-            max_lambda = launch_hydro_kokkos_kernels<host_executor>(
-                hydro, U, X, omega, opts().n_species, executor, F);
-            return max_lambda;
+        host_executor executor(hpx::kokkos::execution_space_mode::independent);
+        // host_executor executor{};
+        max_lambda = launch_hydro_kokkos_kernels<host_executor>(
+            hydro, U, X, omega, opts().n_species, executor, F);
+        return max_lambda;
 #else
-            std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."
-                      << std::endl;
-            abort();
+        std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."
+                    << std::endl;
+        abort();
 #endif
-        } else if (host_type == interaction_host_kernel_type::VC) {
-            // Vc implementation
-            static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-                std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-            // TODO Vc reconstruct?
-            const auto& q = hydro.reconstruct(U, X, omega);
+    } else if (host_type == interaction_host_kernel_type::VC) {
+        // Vc implementation
+        static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
+            std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+        // TODO Vc reconstruct?
+        const auto& q = hydro.reconstruct(U, X, omega);
 #if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
-            max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
+        max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
 #else
-            max_lambda = hydro.flux(U, q, f, X, omega);
+        max_lambda = hydro.flux(U, q, f, X, omega);
 #endif
-            // Slightly more efficient conversion
-            for (int dim = 0; dim < NDIM; dim++) {
-                for (integer field = 0; field != opts().n_fields; ++field) {
-                    for (integer i = 0; i <= INX; ++i) {
-                        for (integer j = 0; j <= INX; ++j) {
-                            for (integer k = 0; k <= INX; ++k) {
-                                const auto i0 = findex(i, j, k);
-                                F[dim][field][i0] =
-                                    f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
-                                if (field == opts().n_fields - 1) {
-                                    real rho_tot = 0.0;
-                                    for (integer field = spc_i; field != spc_i + opts().n_species;
-                                         ++field) {
-                                        rho_tot += F[dim][field][i0];
-                                    }
-                                    F[dim][rho_i][i0] = rho_tot;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return max_lambda;
-        } else if (host_type == interaction_host_kernel_type::LEGACY) {
-            // Legacy implementation
-            static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
-                std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
-            const auto& q = hydro.reconstruct(U, X, omega);
-            max_lambda = hydro.flux(U, q, f, X, omega);
-            // Use legacy conversion
-            for (int dim = 0; dim < NDIM; dim++) {
-                for (integer field = 0; field != opts().n_fields; ++field) {
-                    for (integer i = 0; i <= INX; ++i) {
-                        for (integer j = 0; j <= INX; ++j) {
-                            for (integer k = 0; k <= INX; ++k) {
-                                const auto i0 = findex(i, j, k);
-                                F[dim][field][i0] =
-                                    f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+        // Slightly more efficient conversion
+        for (int dim = 0; dim < NDIM; dim++) {
+            for (integer field = 0; field != opts().n_fields; ++field) {
+                for (integer i = 0; i <= INX; ++i) {
+                    for (integer j = 0; j <= INX; ++j) {
+                        for (integer k = 0; k <= INX; ++k) {
+                            const auto i0 = findex(i, j, k);
+                            F[dim][field][i0] =
+                                f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            if (field == opts().n_fields - 1) {
                                 real rho_tot = 0.0;
                                 for (integer field = spc_i; field != spc_i + opts().n_species;
-                                     ++field) {
+                                        ++field) {
                                     rho_tot += F[dim][field][i0];
                                 }
                                 F[dim][rho_i][i0] = rho_tot;
@@ -147,14 +117,44 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     }
                 }
             }
-    // std::cout << max_lambda.a << std::endl;
-            return max_lambda;
-        } else {
-            std::cerr << "No valid hydro kernel type given! " << std::endl;
-            std::cerr << "Aborting..." << std::endl;
-            abort();
         }
+        return max_lambda;
+    } else if (host_type == interaction_host_kernel_type::LEGACY) {
+        // Legacy implementation
+        static thread_local auto f = std::vector<std::vector<std::vector<safe_real>>>(NDIM,
+            std::vector<std::vector<safe_real>>(opts().n_fields, std::vector<safe_real>(H_N3)));
+        const auto& q = hydro.reconstruct(U, X, omega);
+        max_lambda = hydro.flux(U, q, f, X, omega);
+        // Use legacy conversion
+        for (int dim = 0; dim < NDIM; dim++) {
+            for (integer field = 0; field != opts().n_fields; ++field) {
+                for (integer i = 0; i <= INX; ++i) {
+                    for (integer j = 0; j <= INX; ++j) {
+                        for (integer k = 0; k <= INX; ++k) {
+                            const auto i0 = findex(i, j, k);
+                            F[dim][field][i0] =
+                                f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            real rho_tot = 0.0;
+                            for (integer field = spc_i; field != spc_i + opts().n_species;
+                                    ++field) {
+                                rho_tot += F[dim][field][i0];
+                            }
+                            F[dim][rho_i][i0] = rho_tot;
+                        }
+                    }
+                }
+            }
+        }
+        return max_lambda;
+    } else {
+        std::cerr << "No valid hydro kernel type given! " << std::endl;
+        std::cerr << "Aborting..." << std::endl;
+        abort();
     }
+    std::cerr << "Invalid state: Could not call any hydro kernel configuration!" << std::endl;
+    std::cerr << "Aborting..." << std::endl;
+    abort();
+    return max_lambda;
 }
 
 void convert_x_structure(const hydro::x_type& X, double* const combined_x) {

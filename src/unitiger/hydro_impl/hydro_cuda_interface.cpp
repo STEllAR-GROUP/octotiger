@@ -94,21 +94,21 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     }
     std::vector<double> URs(nf_), ULs(nf_);
     const size_t current_max_index = amax_indices[current_dim];
-    const size_t current_d = amax_d[current_dim];
+    // const size_t current_d = amax_d[current_dim];
     ts.a = amax[current_dim];
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + q_inx3];
     ts.z = combined_x[current_max_index + 2 * q_inx3];
     const size_t current_i = current_dim;
     current_dim = current_dim / number_blocks;
-    const auto flipped_dim = geo.flip_dim(current_d, current_dim);
-    constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
+    // const auto flipped_dim = geo.flip_dim(current_d, current_dim);
+    // constexpr int compressedH_DN[3] = {q_inx2, q_inx, 1};
     for (int f = 0; f < nf_; f++) {
         URs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + f];
         ULs[f] = amax[NDIM * number_blocks + current_i * 2 * nf_ + nf_ + f];
     }
-    ts.ul = std::move(ULs);
-    ts.ur = std::move(URs);
+    ts.ul = std::move(URs);
+    ts.ur = std::move(ULs);
     ts.dim = current_dim;
     return ts;
 }
@@ -129,9 +129,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     recycler::cuda_device_buffer<double> device_large_x(NDIM * H_N3 + 128, device_id);
     recycler::cuda_device_buffer<double> device_f(NDIM * hydro.get_nf() * q_inx3 + 128, device_id);
     recycler::cuda_device_buffer<double> device_u(hydro.get_nf() * H_N3 + 128);
-    recycler::cuda_device_buffer<double> device_amax(NDIM);
-    recycler::cuda_device_buffer<int> device_amax_indices(NDIM);
-    recycler::cuda_device_buffer<int> device_amax_d(NDIM);
     recycler::cuda_device_buffer<double> device_unified_discs(geo.NDIR / 2 * H_N3 + 128);
     recycler::cuda_device_buffer<double> device_P(H_N3 + 128);
     recycler::cuda_device_buffer<int> device_disc_detect(hydro.get_nf());

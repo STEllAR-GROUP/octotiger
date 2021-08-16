@@ -1,4 +1,4 @@
-# Octo-Tiger [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)
+# Octo-Tiger  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)
 
 
 
@@ -8,16 +8,33 @@ From <https://doi.org/10.1145/3204919.3204938>:
 > Octo-Tiger is an astrophysics program simulating the evolution of star systems
 > based on the fast multipole method on adaptive Octrees. It was implemented using
 > high-level C++ libraries, specifically HPX and Vc, which allows its use on
-> different hardware platforms
+> different hardware platforms.
 
-## Build Status
+## Build Status [master]
 
-Current status of the [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) continuous
-integration service for the master branch:
-[![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)
+#### [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) - Basic tests:
 
-> Note for maintainers: The base Docker image used by CircleCI needs to be built
-> and updated manually. Neither HPX or any of the other dependencies update
+|   	|   	|
+|---	|---	|
+|  Simple build- and legacy tests &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | [![link](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master.svg?style=shield)](https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master)  	|
+
+
+#### Jenkins - All CPU / GPU node-level tests for the 8 major build configurations:
+|   	|   	|
+|---	|---	|
+|  gcc/clang, with/without-cuda, with/without-kokkos 	| [![Build Status](https://rostam.cct.lsu.edu/jenkins/buildStatus/icon?job=Octo-Tiger+Node-Level%2Fmaster&config=nodelevel)](https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/master/) |
+
+#### Jenkins - Special machine tests:
+
+|   	|   	|
+|---	|---	|
+|  POWER9 tests &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;| [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+POWER9%2Fmaster&config=powerbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20POWER9/job/master/)  	|
+|  KNL Kokkos HPX Backend / SIMD tests 	| [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+KNL%2Fmaster&config=knlbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20KNL/job/master/)  	|
+|  Development environment tests 	|  [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=Octo-Tiger+DEV%2Fmaster&config=devbuild)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20DEV/job/master/)
+ 
+#### Notes:
+> **CircleCI note for maintainers**: The base Docker image used by CircleCI needs to be built
+> and updated manually. Neither HPX nor any of the other dependencies update
 > automatically. Relevant files are under
 > [`tools/docker/base_image`](tools/docker/base_image).
 
@@ -39,19 +56,13 @@ integration service for the master branch:
   
   The [documentation](https://stellar-group.github.io/octotiger/doc/html/) of the master branch.
 
-## Publications
+## Citing
 
-* Thomas Heller, Bryce Adelstein Lelbach, Kevin A Huck, John Biddiscombe, Patricia Grubel, Alice E Koniges, Matthias Kretz, Dominic Marcello, David Pfander, Adrian Serio, Juhan Frank, Geoffrey C Clayton, Dirk Pflüger, David Eder, Hartmut Kaiser. “Harnessing Billions of Tasks for a Scalable Portable Hydrodynamic Simulation of the Merger of Two Stars.” The International Journal of High Performance Computing Applications, Feb. 2019 [Link](https://journals.sagepub.com/doi/10.1177/1094342018819744)
-* David Pfander, Gregor Daiß, Dominic Marcello, Hartmut Kaiser, Dirk Pflüger, “Accelerating Octo-Tiger: Stellar Mergers on Intel Knights Landing with HPX”, DHPCC++ Conference 2018 hosted by IWOCL, St Catherine’s College, Oxford, May 14, 2018 [Link](https://dl.acm.org/citation.cfm?doid=3204919.3204938)
-* Gregor Daiß, Parsa Amini, John Biddiscombe, Patrick Diehl, Juhan Frank, Kevin Huck, Hartmut Kaiser, Dominic Marcello, David Pfander, and Dirk Pfüger. "From piz daint to the stars: simulation of stellar mergers using high-level abstractions." In Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis, pp. 1-37. 2019. [Link](https://dl.acm.org/doi/abs/10.1145/3295500.3356221), [Pre-print](https://arxiv.org/abs/1908.03121)
+In publications, please use the following publication to cite Octo-Tiger:
 
-## Scientific Publications
 *  Dominic C. Marcello, Sagiv Shiber, Orsola De Marco, Juhan Frank, Geoffrey C. Clayton, Patrick M. Motl, Patrick Diehl, Hartmut Kaiser, "Octo-Tiger: A New, 3D Hydrodynamic Code for Stellar Mergers that uses HPX Parallelisation", accepted for publication in the Monthly Notices of the Royal Astronomical Society, 2021
-*  E. Chatzopoulos, Juhan Frank, Dominic C. Marcello, Geoffrey C. Clayton, "Is Betelgeuse the Outcome of a Past Merger?", The Astrophysical Journal, vol. 896 id. 50
-*  Kundan Kadam, Patrick M. Motl, Dominic C. Marcello, Juhan Frank, Geoffrey C. Clayton, "Numerical simulations of mass transfer in binaries with bipolytropic components", Monthly Notices of the Royal Astronomical Society, vol. 481, pg. 3683, 2018
-*  Dominic C. Marcello, "A Very Fast and Angular Momentum Conserving Tree Code", The Astronomical Journal, vol. 154 pg. 92, 2017
-*  Dominic C. Marcello, Kundan Kadam, Geoffrey C. Clayton, Juhan Frank, Harmut Kaiser, Patrick M. Motl, "Introducing Octo-tiger/HPX: Simulating Interacting Binaries with Adaptive Mesh Refinement and the Fast Multipole Method", Proceedings of Accretion Processes in Cosmic Sources, 2016
-*  Edward J. Montiel, Geoffrey C. Clayton, Dominic C. Marcello, Felix J. Lockman, "What Is the Shell Around R Coronae Borealis?", The Astronomical Journal, vol. 150, id. 14, 2015
+
+For more publications, refer to Octo-Tigers' [documentation](https://stellar-group.github.io/octotiger/doc/html/md_content_publications.html).
 
 
 # Funding
