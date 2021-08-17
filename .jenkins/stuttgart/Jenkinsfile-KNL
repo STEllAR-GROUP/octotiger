@@ -91,6 +91,7 @@ pipeline {
                     if [[ ! -d OctoTigerBuildChain ]]; then git clone https://github.com/STEllAR-GROUP/OctoTigerBuildChain;fi;\
                     cd OctoTigerBuildChain/ && \
                     git checkout jenkins-knl && \
+                    git pull && \
                     mkdir -p src && \
                     cp -r ../octotiger src/octotiger && \
                     cd src && \
