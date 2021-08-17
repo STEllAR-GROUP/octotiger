@@ -122,7 +122,7 @@ node_count_type node_server::regrid_gather(bool rebalance_only) {
 }
 
 future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, integer ci) {
-	return hpx::async([ci, this](hpx::id_type const locality) {
+	return hpx::async(hpx::util::annotated_function([ci, this](hpx::id_type const locality) {
 
 		return hpx::new_<node_server>(locality, my_location.get_child(ci), me, current_time, rotational_time, step_num, hcycle, rcycle, gcycle).then([this, ci](future<hpx::id_type> &&child_idf) {
 		hpx::id_type child_id = child_idf.get();
@@ -172,7 +172,7 @@ future<hpx::id_type> node_server::create_child(hpx::id_type const &locality, int
 			}
 		}
 		return child_id;
-	});}, locality);
+	});}, "node_server::create_child::lambda"), locality);
 }
 
 using regrid_scatter_action_type = node_server::regrid_scatter_action;

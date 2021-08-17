@@ -337,9 +337,9 @@ diagnostics_t node_server::root_diagnostics(const diagnostics_t &diags) {
 
 diagnostics_t node_server::diagnostics(const diagnostics_t &diags) {
 	if (is_refined) {
-		auto rc = hpx::async([&]() {
+		auto rc = hpx::async(hpx::util::annotated_function([&]() {
 			return child_diagnostics(diags);
-		});
+		}, "diagnostics::return_child_diagnostics"));
 		all_hydro_bounds();
 		auto diags = GET(rc);
 		return diags;
@@ -634,11 +634,11 @@ std::uintptr_t node_server::get_ptr() {
 }
 
 future<node_server*> node_client::get_ptr() const {
-	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then([this](future<std::uintptr_t> &&fut) {
+	return hpx::async<typename node_server::get_ptr_action>(get_unmanaged_gid()).then(hpx::util::annotated_function([this](future<std::uintptr_t> &&fut) {
 		if (hpx::find_here() != hpx::get_colocation_id(get_gid()).get()) {
 			print("get_ptr called non-locally\n");
 			abort();
 		}
 		return reinterpret_cast<node_server*>(GET(fut));
-	});
+	}, "node_client::get_ptr"));
 }

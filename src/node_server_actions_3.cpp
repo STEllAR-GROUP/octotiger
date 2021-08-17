@@ -545,7 +545,7 @@ future<void> node_server::nonrefined_step() {
 	for (integer rk = 0; rk < NRK; ++rk) {
 
 		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
-		//hpx::util::annotated_function(
+		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);
 					timestep_t a = grid_ptr->compute_fluxes();
@@ -571,10 +571,10 @@ future<void> node_server::nonrefined_step() {
 					grid_ptr->next_u(rk, current_time, dt_.dt);
 					compute_fmm(RHO, true);
 					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
-				}/*, "node_server::nonrefined_step::compute_fluxes")*/);
+				}, "node_server::nonrefined_step::compute_fluxes"));
 	}
 
-	return fut.then(hpx::launch::sync, [this](future<void> &&f) {
+	return fut.then(hpx::launch::sync, hpx::util::annotated_function( [this](future<void> &&f) {
 
 		GET(f);
 		update();
@@ -583,7 +583,7 @@ future<void> node_server::nonrefined_step() {
 			all_hydro_bounds();
 		}
 
-	}
+	}, "node_server::nonrefined_step::update" )
 	);
 }
 
@@ -622,7 +622,7 @@ future<real> node_server::local_step(integer steps) {
 			}
 		}
 
-		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost), [this, i, steps](future<void> fut) -> real {
+		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost), hpx::util::annotated_function([this, i, steps](future<void> fut) -> real {
 			GET(fut);
 			auto time_start = std::chrono::high_resolution_clock::now();
 			auto next_dt = timestep_driver_descend();
@@ -643,7 +643,7 @@ future<real> node_server::local_step(integer steps) {
 			++step_num;
 			GET(next_dt);
 			return dt_.dt;
-		});
+		}, "local_step::execute_step"));
 	}
 	return fut;
 }
@@ -728,11 +728,11 @@ future<void> node_server::timestep_driver_descend() {
 			return;
 		}/*, "node_server::timestep_driver_descend")*/, futs);
 	} else {
-		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, [this](future<timestep_t> &&f) {
+		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::util::annotated_function([this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
 			parent.set_local_timestep(my_location.get_child_index(), dt);
 			return;
-		}
+		}, "timestep_driver_descend::set_local_timestep")
 		);
 	}
 }
