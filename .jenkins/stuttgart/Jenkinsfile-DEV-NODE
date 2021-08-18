@@ -127,6 +127,7 @@ pipeline {
                     ./build-all.sh Release with-CC with-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole with-hpx-cuda-polling octotiger
 		    cd build/octotiger/build
 		    ctest --output-on-failure
+            cd ../../..
 		    sed -i 's/OCTOTIGER_WITH_FAST_FP_CONTRACT=OFF/OCTOTIGER_WITH_FAST_FP_CONTRACT=ON/' build-octotiger.sh
                     '''
                 }
