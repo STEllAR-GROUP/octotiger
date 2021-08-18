@@ -204,8 +204,6 @@ endif()
 
 test_blast_scenario(test_problems.cpu.am_hydro_off.blast_legacy blast_without_am_hydro_old_log.txt ${silo_scenario_filename}
 " --correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
-test_blast_scenario(test_problems.cpu.am_hydro_off.blast_vc blast_without_am_hydro_old_log.txt ${silo_scenario_filename}
-" --correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=VC")
 if(OCTOTIGER_WITH_CUDA)
   test_blast_scenario(test_problems.gpu.am_hydro_off.blast_cuda blast_without_am_hydro_cuda_log.txt ${silo_scenario_filename}
   " --correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")

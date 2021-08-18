@@ -142,7 +142,7 @@ endfunction()
 
 # Rotating Star - CPU
 test_rotating_star_scenario(test_problems.cpu.am_hydro_on.rotating_star_vc rotating_star_am_hydro_on_log.txt ${silo_scenario_filename} 
-"  --correct_am_hydro=1 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=VC")
+"  --correct_am_hydro=1 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 # Rotating Star - OLD CPU
 test_rotating_star_scenario(test_problems.cpu.am_hydro_on.rotating_star_legacy rotating_star_am_hydro_on_old_log.txt ${silo_scenario_filename} 
 "  --correct_am_hydro=1 --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
