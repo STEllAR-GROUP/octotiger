@@ -263,9 +263,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(code_to_cm);
 		SHOW(code_to_g);
 		SHOW(code_to_s);
-		SHOW(cuda_number_gpus);
-		SHOW(cuda_streams_per_gpu);
-		SHOW(cuda_buffer_capacity);
 		SHOW(data_dir);
 		SHOW(disable_output);
 		SHOW(driving_rate);
@@ -284,10 +281,6 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(hydro);
 		SHOW(inflow_bc);
 		SHOW(input_file);
-		SHOW(multipole_device_kernel_type);
-		SHOW(multipole_host_kernel_type);
-		SHOW(monopole_device_kernel_type);
-		SHOW(monopole_host_kernel_type);
 		SHOW(min_level);
 		SHOW(max_level);
 		SHOW(n_species);
@@ -312,6 +305,17 @@ bool options::process_options(int argc, char *argv[]) {
 		SHOW(v1309);
 		SHOW(idle_rates);
 		SHOW(xscale);
+		SHOW(cuda_number_gpus);
+		SHOW(cuda_streams_per_gpu);
+		SHOW(cuda_buffer_capacity);
+		SHOW(amr_boundary_kernel_type);
+		SHOW(root_node_on_device);
+		SHOW(multipole_device_kernel_type);
+		SHOW(multipole_host_kernel_type);
+		SHOW(monopole_device_kernel_type);
+		SHOW(monopole_host_kernel_type);
+		SHOW(hydro_device_kernel_type);
+		SHOW(hydro_host_kernel_type);
 
 	}
 	while (atomic_number.size() < opts().n_species) {
@@ -408,7 +412,15 @@ bool options::process_options(int argc, char *argv[]) {
         }
 #endif
     }
-	return true;
+    if (opts().monopole_device_kernel_type == OFF && opts().monopole_host_kernel_type == DEVICE_ONLY ||
+        opts().multipole_device_kernel_type == OFF && opts().multipole_host_kernel_type == DEVICE_ONLY ||
+	opts().hydro_device_kernel_type == OFF && opts().hydro_host_kernel_type == DEVICE_ONLY) {
+        std::cerr << std::endl << "ERROR: "; 
+        std::cerr << "You have disabled both host kernel- and device kernel execution!" << std::endl
+        << " Choose a different host or device kernel type!" << std::endl;
+        abort();
+    }
+    return true;
 }
 
 std::vector<hpx::id_type> options::all_localities = { };
