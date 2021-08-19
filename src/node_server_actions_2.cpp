@@ -501,6 +501,9 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 				}
 			}
 		}
+		for (auto &f : cfuts) {
+			amr_bnd += GET(f);
+		}
 		constexpr auto full_set = geo::octant::full_set();
 		for (auto &ci : full_set) {
 			const auto &flags = amr_flags[ci];
@@ -511,9 +514,6 @@ int node_server::form_tree(hpx::id_type self_gid, hpx::id_type parent_gid, std::
 					}
 				}
 			}
-		}
-		for (auto &f : cfuts) {
-			amr_bnd += GET(f);
 		}
 	} else {
 		std::vector<future<void>> nfuts;
