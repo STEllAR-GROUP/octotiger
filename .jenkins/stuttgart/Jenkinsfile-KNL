@@ -74,7 +74,7 @@ pipeline {
 		    /* Log into the slurm node, checkout the buildscripts and move the current version of octotiger into
 		       the correct place for the buildscripts to work. */
                     sh '''
-                    srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive bash -c "\
+                    srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive bash -c "\
 		    pwd && cd /scratch && \
                     mkdir -p jenkins && cd jenkins && \
                     mkdir -p octotiger-${JOB_BASE_NAME} && cd octotiger-${JOB_BASE_NAME} && \
@@ -106,7 +106,7 @@ pipeline {
         stage('build-kokkos-without-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 02:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
                 "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos without-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling "
                 '''
             }
@@ -129,14 +129,14 @@ pipeline {
         stage('ctest-kokkos-without-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
                 '''
             }
         }
         stage('build-kokkos-with-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
                 "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd without-hpx-backend-multipole without-hpx-backend-monopole without-hpx-cuda-polling octotiger"
                 '''
             }
@@ -144,14 +144,14 @@ pipeline {
         stage('ctest-kokkos-with-simd') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
                 '''
             }
         }
         stage('build-kokkos-with-hpx-backend') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 03:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain bash -c \
                 "./build-all.sh Release with-CC without-cuda without-mpi without-papi without-apex with-kokkos with-simd with-hpx-backend-multipole with-hpx-backend-monopole without-hpx-cuda-polling octotiger"
                 '''
             }
@@ -159,7 +159,7 @@ pipeline {
         stage('ctest-kokkos-with-hpx-backend') {
             steps {
                 sh '''
-                srun -p knl -N 1 -n 1 -t 01:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
+                srun -p knl -N 1 -n 1 -t 08:00:00 --exclusive -D /data/scratch/jenkins/octotiger-${JOB_BASE_NAME}/OctoTigerBuildChain/build/octotiger/build bash -c "ctest --output-on-failure -R kokkos"
                 '''
             }
         }
