@@ -361,8 +361,8 @@ timestep_t hydro_computer<NDIM, INX, PHYS>::flux_experimental(const hydro::recon
 		UR[f] = Q[f][current_d][current_max_index];
 		UL[f] = Q[f][flipped_dim][current_max_index - geo.H_DN[current_dim]];
 	}
-	ts.ul = UL;
-	ts.ur = UR;
+	ts.ul = UR;
+	ts.ur = UL;
 	ts.dim = current_dim;
 	return ts;
 }

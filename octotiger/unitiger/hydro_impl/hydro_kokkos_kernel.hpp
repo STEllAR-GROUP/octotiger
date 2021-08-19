@@ -470,8 +470,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
         URs[f] = host_amax[NDIM * number_blocks + current_i * 2 * nf + f];
         ULs[f] = host_amax[NDIM * number_blocks + current_i * 2 * nf + nf + f];
     }
-    ts.ul = std::move(ULs);
-    ts.ur = std::move(URs);
+    ts.ul = std::move(URs);
+    ts.ur = std::move(ULs);
     ts.dim = current_dim;
     return ts;
 }
@@ -538,8 +538,8 @@ timestep_t device_interface_kokkos_hydro(executor_t& exec, const host_buffer<dou
         URs[f] = amax[blocks + current_i * 2 * nf + f];
         ULs[f] = amax[blocks + current_i * 2 * nf + nf + f];
     }
-    ts.ul = std::move(ULs);
-    ts.ur = std::move(URs);
+    ts.ul = std::move(URs);
+    ts.ur = std::move(ULs);
     ts.dim = current_dim;
     // std::cout << ts.a << std::endl;
     return ts;
