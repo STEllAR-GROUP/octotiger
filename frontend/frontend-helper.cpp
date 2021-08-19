@@ -73,7 +73,19 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
             ERROR: Stencil is too wide for the subgrid size. 
             Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
 
+#ifndef OCTOTIGER_DISABLE_ILIST
     compute_ilist();
+    static_assert(INX <= 20, R"(
+        ERROR: OCTOTIGER_WITH_GRIDDIM too large to compute the interaction list.
+        Consider OCTOTIGER_DISALBE_ILIST=ON (for non-gravity scenarios only) or reduce the OCTOTIGER_WITH_GRIDDIM!)");
+#else
+    static_assert(INX > 16, R"(
+        ERROR: The griddim is too small for OCTOTIGER_DISABLE_ILIST=ON. 
+        For griddims <=16, there is no reason to disable the interaction list and it will limit the build to scenarios without gravity.
+        This is likely an error! Either increase the OCTOTIGER_WITH_GRIDDIM or drop the OCTOTIGER_DISABLE_ILIST=ON flag!)");
+#warning "Interaction list disabled. Distributed runs with gravity not possible using this build!"
+#endif
+
     compute_factor();
     std::cerr << "Finished computing factors" << std::endl;
 
