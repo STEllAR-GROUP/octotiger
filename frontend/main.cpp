@@ -24,10 +24,9 @@
 #include <cfloat>
 #endif
 
-#include <hpx/hpx_main.hpp>
 #include <iostream>
 
-int main(int argc, char* argv[]) {
+int hpx_main(int argc, char* argv[]) {
     // The ascii logo was created by combining, modifying and extending the ascii arts from:
     // http://ascii.co.uk/art/octopus (Author "jgs")
     // and
@@ -98,7 +97,7 @@ int main(int argc, char* argv[]) {
 
     return hpx::finalize();
 }
-/*
+
 int main(int argc, char* argv[]) {
 	std::vector<std::string> cfg = { "hpx.commandline.allow_unknown=1", // HPX should not complain about unknown command line options
 			"hpx.scheduler=local-priority-lifo",       // Use LIFO scheduler by default
@@ -106,4 +105,4 @@ int main(int argc, char* argv[]) {
 			};
     register_hpx_functions();
 	hpx::init(argc, argv, cfg);
-}*/
+}
