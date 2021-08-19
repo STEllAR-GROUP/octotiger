@@ -73,7 +73,7 @@ void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
             ERROR: Stencil is too wide for the subgrid size. 
             Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
 
-    // compute_ilist();
+    compute_ilist();
     compute_factor();
     std::cerr << "Finished computing factors" << std::endl;
 
