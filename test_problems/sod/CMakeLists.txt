@@ -53,7 +53,7 @@ else()
   " Your configuration of Octo-Tiger is not verified to work by any tests in this case, so take care!")
 endif()
 
-function(test_sod_scenario test_name test_log_file ini_filename reference_filename kernel_parameters)
+function(test_sod_scenario test_name test_log_file ini_filename reference_filename check_sz_zx kernel_parameters)
   add_test(NAME ${test_name}
     COMMAND sh -c "${PROJECT_BINARY_DIR}/octotiger --config_file=${PROJECT_SOURCE_DIR}/test_problems/sod/${ini_filename} ${kernel_parameters} > ${test_log_file}")
   set_tests_properties(${test_name} PROPERTIES
@@ -68,7 +68,7 @@ function(test_sod_scenario test_name test_log_file ini_filename reference_filena
   # Those two tests will only succeed (be EXACTLY 0.0 instead of 1e-20) with the correct build flags being enforced
   # Considering the other cases are still within machine precision this should not be an issue
   # Still for builds with the correct flags it's prudent to check that it is exactly 0.0
-  if (OCTOTIGER_WITH_CUDA OR (NOT OCTOTIGER_WITH_FAST_FP_CONTRACT))
+  if (check_sz_zx OR (NOT OCTOTIGER_WITH_FAST_FP_CONTRACT))
     add_test(NAME ${test_name}.sz_regex COMMAND cat ${test_log_file})
     add_test(NAME ${test_name}.zx_regex COMMAND cat ${test_log_file})
   endif()
@@ -100,7 +100,7 @@ function(test_sod_scenario test_name test_log_file ini_filename reference_filena
   # Those two tests will only succeed (be EXACTLY 0.0 instead of 1e-20) with the correct build flags being enforced
   # Considering the other cases are still within machine precision this should not be an issue
   # Still for builds with the correct flags it's prudent to check that it is exactly 0.0
-  if (OCTOTIGER_WITH_CUDA OR (NOT OCTOTIGER_WITH_FAST_FP_CONTRACT))
+  if (check_sz_zx OR (NOT OCTOTIGER_WITH_FAST_FP_CONTRACT))
     set_tests_properties(${test_name}.sz_regex PROPERTIES
       FIXTURES_REQUIRED ${test_name}
       PASS_REGULAR_EXPRESSION ${sz_regex})
@@ -145,19 +145,19 @@ function(test_sod_scenario test_name test_log_file ini_filename reference_filena
   )
 endfunction()
 
-test_sod_scenario(test_problems.cpu.am_hydro_on.sod_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename}
+test_sod_scenario(test_problems.cpu.am_hydro_on.sod_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
 "--correct_am_hydro=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
-  test_sod_scenario(test_problems.gpu.am_hydro_on.sod_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
-  "--correct_am_hydro=1 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+  test_sod_scenario(test_problems.gpu.am_hydro_on.sod_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+  "--correct_am_hydro=1 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
-  test_sod_scenario(test_problems.cpu.am_hydro_on.sod_kokkos sod_kokkos_log.txt ${ini_scenario_filename} ${silo_reference_filename}
+  test_sod_scenario(test_problems.cpu.am_hydro_on.sod_kokkos sod_kokkos_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
   "--correct_am_hydro=1 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
-    test_sod_scenario(test_problems.gpu.am_hydro_on.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
-    "--correct_am_hydro=1 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+    test_sod_scenario(test_problems.gpu.am_hydro_on.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
+    "--correct_am_hydro=1 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
 
@@ -205,19 +205,19 @@ else()
 endif()
 
 
-test_sod_scenario(test_problems.cpu.am_hydro_off.sod_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename}
+test_sod_scenario(test_problems.cpu.am_hydro_off.sod_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
 "--correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
 if(OCTOTIGER_WITH_CUDA)
-  test_sod_scenario(test_problems.gpu.am_hydro_off.sod_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
-  "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+  test_sod_scenario(test_problems.gpu.am_hydro_off.sod_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+  "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
 endif()
 
 if(OCTOTIGER_WITH_KOKKOS)
-  test_sod_scenario(test_problems.cpu.am_hydro_off.sod_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename}
+  test_sod_scenario(test_problems.cpu.am_hydro_off.sod_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename} ON
   "--correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
   if(OCTOTIGER_WITH_CUDA)
-    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
-    "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+    "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
   endif()
 endif()
 
@@ -240,27 +240,27 @@ if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
   set(ini_scenario_filename "sod_big.ini")
   set(silo_reference_filename "sod_without_am.silo")
 
-  test_sod_scenario(test_problems.cpu.am_hydro_off.sod_big_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename}
+  test_sod_scenario(test_problems.cpu.am_hydro_off.sod_big_legacy sod_old_log.txt ${ini_scenario_filename} ${silo_reference_filename} OFF
   "--correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
   if(OCTOTIGER_WITH_CUDA)
-    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
-    "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+    test_sod_scenario(test_problems.gpu.am_hydro_off.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+    "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=DEVICE_ONLY")
       # Test combined cpu + gpu execution: Only makes sense when kernels use the same FP_Contract (otherwise there'll be an ~ 1e-20 error due to interactions between kernels executed on different devices)
     if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
-      test_sod_scenario(test_problems.cpu_gpu.am_hydro_off.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
+      test_sod_scenario(test_problems.cpu_gpu.am_hydro_off.sod_big_cuda sod_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
       "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=4 --cuda_buffer_capacity=1 --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
     endif()
   endif()
 
   if(OCTOTIGER_WITH_KOKKOS)
-    test_sod_scenario(test_problems.cpu.am_hydro_off.sod_big_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename}
+    test_sod_scenario(test_problems.cpu.am_hydro_off.sod_big_kokkos sod_kokkos_log.txt  ${ini_scenario_filename} ${silo_reference_filename} ON
     "--correct_am_hydro=0 --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
     if(OCTOTIGER_WITH_CUDA)
-      test_sod_scenario(test_problems.gpu.am_hydro_off.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
-      "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+      test_sod_scenario(test_problems.gpu.am_hydro_off.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
+      "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=DEVICE_ONLY")
       # Test combined cpu + gpu execution: Only makes sense when kernels use the same FP_Contract (otherwise there'll be an ~ 1e-20 error due to interactions between kernels executed on different devices)
       if(NOT OCTOTIGER_WITH_FAST_FP_CONTRACT)
-        test_sod_scenario(test_problems.cpu_gpu.am_hydro_off.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename}
+        test_sod_scenario(test_problems.cpu_gpu.am_hydro_off.sod_big_kokkos sod_kokkos_cuda_log.txt ${ini_scenario_filename} ${silo_reference_filename} ON
         "--correct_am_hydro=0 --cuda_number_gpus=1 --cuda_streams_per_gpu=4 --cuda_buffer_capacity=1 --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
       endif()
     endif()
