@@ -1,0 +1,42 @@
+# YAML 1.2
+# Metadata for citation of this software according to the CFF format (https://citation-file-format.github.io/)
+cff-version: 1.0.3
+message: If you use this software, please cite it using these metadata.
+# FIXME title as repository name might not be the best name, please make human readable
+title: 'STEllAR-GROUP/octotiger: Kokkos kernels'
+doi: 10.5281/zenodo.5093174
+# FIXME splitting of full names is error prone, please check if given/family name are correct
+authors:
+- given-names: Dominic
+  family-names: Marcello
+  affiliation: Louisiana State University Center for Computation & Technology
+- given-names: Gregor
+  family-names: Daiß
+- given-names: Parsa
+  family-names: Amini
+  affiliation: STE||AR Group
+- given-names: Hartmut
+  family-names: Kaiser
+- given-names: Patrick
+  family-names: Diehl
+  affiliation: Center of Computation and Technology, LSU
+- given-names: Bryce
+  family-names: wash
+  name-particle: Adelstein Lelbach aka
+  affiliation: NVIDIA
+- given-names: Thomas
+  family-names: Heller
+- given-names: Sagiv
+  family-names:Shiber
+- given-names: Kevin
+  family-names: Huck
+  affiliation: University of Oregon
+- given-names: John
+  family-names: Biddiscombe
+  affiliation: CSCS
+- given-names: Andreas
+  family-names: Schäfer
+version: 0.8.1-rc1
+date-released: 2021-07-12
+repository-code: https://github.com/STEllAR-GROUP/octotiger
+license: other-open
