@@ -23,6 +23,7 @@ set(CMAKE_CXX_STANDARD 14)
 ################################################################################
 # Options
 ################################################################################
+option(OCTOTIGER_DISABLE_ILIST "Disables the interaction list to allow larger sub-grids for hydro-only scenarios!" OFF)
 option(OCTOTIGER_WITH_GRAV_PAR "Enable parallelism in gravitational solver" OFF)
 option(OCTOTIGER_WITH_RADIATION "Enable radiation transport solver" OFF)
 option(OCTOTIGER_WITH_CUDA "Enable CUDA fmm kernels" OFF)
@@ -650,10 +651,19 @@ if(OCTOTIGER_WITH_RADIATION)
   target_compile_definitions(octolib PUBLIC OCTOTIGER_HAVE_RADIATION)
 endif()
 
+
 # Grid size
 message(STATUS "Octo-Tiger grid size: ${OCTOTIGER_WITH_GRIDDIM}")
 target_compile_definitions(octolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
 target_compile_definitions(hydrolib PUBLIC OCTOTIGER_GRIDDIM=${OCTOTIGER_WITH_GRIDDIM})
+
+# Interaction list disabled?
+if(OCTOTIGER_DISABLE_ILIST)
+  message(STATUS "Octot-Tiger: Interaction list is disabled -> hydro-only build!")
+  target_compile_definitions(octotiger PUBLIC OCTOTIGER_DISABLE_ILIST)
+  target_compile_definitions(octolib PUBLIC OCTOTIGER_DISABLE_ILIST)
+  target_compile_definitions(hydrolib PUBLIC OCTOTIGER_DISABLE_ILIST)
+endif()
 
 # Maximum allowed nf (for kernel optimizations)
 message(STATUS "Octo-Tiger max nf: ${OCTOTIGER_WITH_MAX_NUMBER_FIELDS}")

@@ -90,16 +90,30 @@ namespace fmm {
         }
 
         std::vector<multiindex<>>& p2m_interaction_interface::stencil() {
-            static thread_local std::vector<multiindex<>> stencil_ = calculate_stencil().first;
+            static thread_local std::vector<multiindex<>> stencil_;
+            static thread_local bool initialized = false;
+            if (!initialized) {
+                stencil_ = calculate_stencil().first;
+                initialized = true;
+            }
             return stencil_;
         }
         std::vector<multiindex<>>& p2m_stencil() {
-            static thread_local std::vector<multiindex<>> stencil_ = calculate_stencil().first;
+            static thread_local std::vector<multiindex<>> stencil_;
+            static thread_local bool initialized = false;
+            if (!initialized) {
+                stencil_ = calculate_stencil().first;
+                initialized = true;
+            }
             return stencil_;
         }
         std::vector<bool>& p2m_stencil_masks() {
-            static thread_local std::vector<bool> stencil_masks_ =
-                calculate_stencil_masks(p2m_stencil()).first;
+            static thread_local std::vector<bool> stencil_masks_;
+            static thread_local bool initialized = false;
+            if (!initialized) {
+                stencil_masks_ = calculate_stencil_masks(p2m_stencil()).first;
+                initialized = true;
+            }
             return stencil_masks_;
         }
 
@@ -139,7 +153,7 @@ namespace fmm {
                 }
                 return;
             }
-#ifdef OCTOTIGER_HAVE_VC // kernel is only compiled with Vc
+#ifdef OCTOTIGER_HAVE_VC    // kernel is only compiled with Vc
             cpu_expansion_buffer_t local_expansions_compare;
             p2m_kernel kernel;
             cpu_space_vector_buffer_t center_of_masses_compare;
@@ -267,7 +281,7 @@ namespace fmm {
             const cpu_expansion_buffer_t& local_expansions_staging_area,
             const cpu_space_vector_buffer_t& center_of_masses_staging_area) {
             if (p2m_type == interaction_host_kernel_type::VC) {
-#ifdef OCTOTIGER_HAVE_VC // kernel is only compiled with Vc
+#ifdef OCTOTIGER_HAVE_VC    // kernel is only compiled with Vc
                 if (multipole_neighbors_exist) {
                     p2m_kernel kernel;
                     cpu_expansion_result_buffer_t potential_expansions_SoA;
@@ -280,7 +294,7 @@ namespace fmm {
                         angular_corrections_SoA.to_non_SoA(grid_ptr->get_L_c());
                     }
                 }
-#else // should not happen - option gets already checked at application startup
+#else    // should not happen - option gets already checked at application startup
                 std::cerr << "Tried to call Vc kernel in non-Vc build!" << std::endl;
                 abort();
 #endif

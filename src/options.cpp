@@ -344,6 +344,11 @@ bool options::process_options(int argc, char *argv[]) {
         abort();
     }
     if (opts().gravity) {
+#ifdef OCTOTIGER_DISABLE_ILIST
+        std::cerr << "ERROR! Gravity is turned on but Octo-Tiger was compiled without interaction list" << std::endl
+	          << "Either run a scenario without gravity, or remove OCTOTIGER_DISABLE_ILIST from cmake and recompile!" << std::endl;
+        abort();
+#endif
         if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA &&
             opts().multipole_host_kernel_type == interaction_host_kernel_type::KOKKOS) {
             std::cerr << std::endl << "ERROR: "; 
@@ -407,6 +412,7 @@ bool options::process_options(int argc, char *argv[]) {
             abort();
         }
 #endif
+
     }
 	return true;
 }
