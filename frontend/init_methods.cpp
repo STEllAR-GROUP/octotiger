@@ -90,44 +90,6 @@ void cleanup_puddle_on_this_locality(void) {
     
 }
 
-void init_stencil(std::size_t worker_id) {
-    std::cout << "Initialize fmm stencils..." << std::endl;
-    using mono_inter = octotiger::fmm::monopole_interactions::monopole_interaction_interface;
-    // Initialize stencil and four constants for p2p fmm interactions
-    mono_inter::stencil() = octotiger::fmm::monopole_interactions::calculate_stencil().first;
-    mono_inter::stencil_masks() =
-        octotiger::fmm::monopole_interactions::calculate_stencil_masks(mono_inter::stencil()).first;
-    mono_inter::four() = octotiger::fmm::monopole_interactions::calculate_stencil().second;
-    mono_inter::stencil_four_constants() =
-        octotiger::fmm::monopole_interactions::calculate_stencil_masks(mono_inter::stencil()).second;
-
-    // Initialize stencil for p2m fmm interactions
-    octotiger::fmm::monopole_interactions::p2m_interaction_interface::stencil() =
-        octotiger::fmm::monopole_interactions::calculate_stencil().first;
-
-    using multi_inter = octotiger::fmm::multipole_interactions::multipole_interaction_interface;
-    // Initialize stencil for multipole fmm interactions
-    multi_inter::stencil() = octotiger::fmm::multipole_interactions::calculate_stencil();
-    multi_inter::stencil_masks() =
-        octotiger::fmm::multipole_interactions::calculate_stencil_masks(multi_inter::stencil()).first;
-    multi_inter::inner_stencil_masks() =
-        octotiger::fmm::multipole_interactions::calculate_stencil_masks(multi_inter::stencil()).second;
-    // print run informations
-    if (worker_id == 0) {
-        std::cout << "\nSubgrid side-length is " << INX << std::endl;
-        std::cout << "Minimal allowed theta is " << octotiger::fmm::THETA_FLOOR << std::endl;
-        std::cout << "Stencil maximal allowed half side-length is " << octotiger::fmm::STENCIL_WIDTH
-                  << " (Total length " << 2 * octotiger::fmm::STENCIL_WIDTH + 1 << ")" << std::endl;
-        std::cout << "Total number of stencil elements (stencil size): "
-                  << octotiger::fmm::monopole_interactions::calculate_stencil().first.size() << std::endl
-                  << std::endl;
-    }
-    static_assert(octotiger::fmm::STENCIL_WIDTH <= INX, R"(
-            ERROR: Stencil is too wide for the subgrid size. 
-            Please increase either OCTOTIGER_THETA_MINIMUM or OCTOTIGER_WITH_GRIDDIM (see cmake file))");
-    std::cout << "Stencils initialized!" << std::endl;
-}
-
 void init_executors(void) {
     std::cout << "Initialize executors and masks..." << std::endl;
 #ifdef OCTOTIGER_HAVE_KOKKOS
