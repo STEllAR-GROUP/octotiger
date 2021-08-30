@@ -21,6 +21,9 @@
 #include <cstring>
 #include <mutex>
 
+
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 constexpr integer spc_ac_i = spc_i;
 constexpr integer spc_ae_i = spc_i + 1;
 constexpr integer spc_dc_i = spc_i + 2;
@@ -744,3 +747,4 @@ std::vector<real> scf_binary(real x, real y, real z, real dx) {
 	u[tau_i] = POWER(etherm, 3.0 / 5.0);
 	return u;
 }
+#endif

@@ -57,6 +57,9 @@
 #include <cfloat>
 #endif
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
+
 void initialize(options _opts, std::vector<hpx::id_type> const& localities) {
     std::cerr << "Started initialize method" << std::endl;
 
@@ -211,3 +214,4 @@ void register_hpx_functions(void) {
     hpx::register_startup_function(&node_server::register_counters);
     hpx::register_pre_shutdown_function([]() { options::all_localities.clear(); });
 }
+#endif

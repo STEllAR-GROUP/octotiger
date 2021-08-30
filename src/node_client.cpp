@@ -10,6 +10,8 @@
 #include <hpx/include/naming.hpp>
 #include <hpx/collectives/broadcast.hpp>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 bool node_client::is_local() const {
 	return local;
 }
@@ -73,3 +75,4 @@ void node_client::report_timing() const {
 	   hpx::async<typename node_server::report_timing_action>(get_gid()).get();
 	}
 
+#endif

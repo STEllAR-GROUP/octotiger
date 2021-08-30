@@ -23,6 +23,8 @@
 #include <array>
 #include <cstdio>
 
+#if !defined(HPX_COMPUTE_DEVICE_CODE)
+
 using send_gravity_boundary_action_type = node_server::send_gravity_boundary_action;
 HPX_REGISTER_ACTION (send_gravity_boundary_action_type);
 
@@ -759,3 +761,4 @@ void node_server::velocity_inc(const space_vector &dv) {
 		grid_ptr->velocity_inc(dv);
 	}
 }
+#endif
