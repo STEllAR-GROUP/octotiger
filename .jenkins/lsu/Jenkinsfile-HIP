@@ -73,6 +73,10 @@ pipeline {
                             }"
                     '''
                 }
+            }
+        }
+        stage('configure') {
+            steps {
                 dir('octotiger') {
                     sh '''
                         #!/bin/bash -l
@@ -98,6 +102,10 @@ pipeline {
                         cp -r octotiger "octo-buildscripts-HIP/src/octotiger"
                     '''
                 }
+            }
+        }
+        stage('build-and-test') {
+            steps {
                 dir('octotiger') {
                     sh '''
                     #!/bin/bash -l
