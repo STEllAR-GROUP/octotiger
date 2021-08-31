@@ -61,6 +61,11 @@ namespace fmm {
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
                             opts().cuda_buffer_capacity);
+                    // TODO p2m kokkos bug - probably not enough threads for a wavefront
+#if defined(KOKKOS_ENABLE_HIP)
+                    if (contains_multipole_neighbor)
+                        avail = false;
+#endif
                     if (avail) {
                         executor_interface_t executor;
                         monopole_kernel<device_executor>(executor, monopoles, com_ptr, neighbors, type,

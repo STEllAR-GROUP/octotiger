@@ -396,16 +396,14 @@ bool options::process_options(int argc, char *argv[]) {
         }
 #endif
 
-#ifndef OCTOTIGER_HAVE_CUDA
-        if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA ||
-            opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
+#ifndef OCTOTIGER_HAVE_CUDA 
+        if (opts().monopole_device_kernel_type == interaction_device_kernel_type::CUDA) {
             std::cerr << std::endl << "ERROR: "; 
             std::cerr << "Octotiger has been compiled without CUDA support!" 
             << " Choose a different --monopole_device_kernel_type!" << std::endl;
             abort();
         }
-        if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA ||
-            opts().monopole_device_kernel_type == interaction_device_kernel_type::KOKKOS_CUDA) {
+        if (opts().multipole_device_kernel_type == interaction_device_kernel_type::CUDA) {
             std::cerr << std::endl << "ERROR: "; 
             std::cerr << "Octotiger has been compiled without CUDA support! " <<
             " Choose a different --multipole_device_kernel_type!" << std::endl;
