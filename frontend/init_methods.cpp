@@ -177,7 +177,8 @@ void init_executors(void) {
     stream_pool::init<hpx::cuda::experimental::cuda_executor, pool_strategy>(
         opts().cuda_streams_per_gpu, opts().cuda_number_gpus, false);
 #endif
-    octotiger::fmm::kernel_scheduler::init_constants();
+    // TODO Reactivate for HIP gravity kernels?
+    // octotiger::fmm::kernel_scheduler::init_constants();
 #endif
     std::cout << "Stencils initialized!" << std::endl;
 }

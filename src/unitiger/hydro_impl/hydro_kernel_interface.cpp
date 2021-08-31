@@ -42,10 +42,11 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 #elif defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP)
         if (device_type == interaction_device_kernel_type::KOKKOS_HIP) {
 #else
-        std::cerr << "Trying to call multipole Kokkos kernel with no or the wrong kokkos device backend active! "
-                     "Aborting..."
-                  << std::endl;
-        abort();
+        {
+            std::cerr << "Trying to call multipole Kokkos kernel with no or the wrong kokkos device backend active! "
+                         "Aborting..."
+                      << std::endl;
+            abort();
 #endif
             bool avail = false;
             avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
