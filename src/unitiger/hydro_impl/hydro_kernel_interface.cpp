@@ -37,8 +37,16 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
 
     // Try accelerator implementation
     if (device_type != interaction_device_kernel_type::OFF) {
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
         if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-#if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+#elif defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP)
+        if (device_type == interaction_device_kernel_type::KOKKOS_HIP) {
+#else
+        std::cerr << "Trying to call multipole Kokkos kernel with no or the wrong kokkos device backend active! "
+                     "Aborting..."
+                  << std::endl;
+        abort();
+#endif
             bool avail = false;
             avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
                 cuda_buffer_capacity);
@@ -48,12 +56,6 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     hydro, U, X, omega, opts().n_species, executor, F);
                 return max_lambda;
             }
-#else
-            std::cerr
-                << "Trying to call Hydro Kokkos device kernels in a non-kokkos build! Aborting..."
-                << std::endl;
-            abort();
-#endif
         }
         if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
@@ -63,8 +65,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             if (avail) {
                 size_t device_id = 0;
                 stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
-                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor,
-                F);
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
                 return max_lambda;
             }
         }
@@ -86,7 +87,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         return max_lambda;
 #else
         std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."
-                    << std::endl;
+                  << std::endl;
         abort();
 #endif
     } else if (host_type == interaction_host_kernel_type::VC) {
@@ -107,12 +108,11 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     for (integer j = 0; j <= INX; ++j) {
                         for (integer k = 0; k <= INX; ++k) {
                             const auto i0 = findex(i, j, k);
-                            F[dim][field][i0] =
-                                f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
                             if (field == opts().n_fields - 1) {
                                 real rho_tot = 0.0;
                                 for (integer field = spc_i; field != spc_i + opts().n_species;
-                                        ++field) {
+                                     ++field) {
                                     rho_tot += F[dim][field][i0];
                                 }
                                 F[dim][rho_i][i0] = rho_tot;
@@ -136,11 +136,10 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     for (integer j = 0; j <= INX; ++j) {
                         for (integer k = 0; k <= INX; ++k) {
                             const auto i0 = findex(i, j, k);
-                            F[dim][field][i0] =
-                                f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
+                            F[dim][field][i0] = f[dim][field][hindex(i + H_BW, j + H_BW, k + H_BW)];
                             real rho_tot = 0.0;
                             for (integer field = spc_i; field != spc_i + opts().n_species;
-                                    ++field) {
+                                 ++field) {
                                 rho_tot += F[dim][field][i0];
                             }
                             F[dim][rho_i][i0] = rho_tot;
@@ -169,7 +168,8 @@ void convert_x_structure(const hydro::x_type& X, double* const combined_x) {
         auto start_offset = 2 * length_orig * length_orig + 2 * length_orig + 2;
         for (auto ix = 2; ix < 2 + INX + 2; ix++) {
             for (auto iy = 2; iy < 2 + INX + 2; iy++) {
-                std::copy(X[dim].begin() + start_offset, X[dim].begin() + start_offset + length_desired, it_x);
+                std::copy(X[dim].begin() + start_offset,
+                    X[dim].begin() + start_offset + length_desired, it_x);
                 it_x += length_desired;
                 start_offset += length_orig;
             }

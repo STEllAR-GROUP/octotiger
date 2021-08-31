@@ -50,14 +50,21 @@ namespace fmm {
             std::vector<neighbor_gravity_type>& neighbors, gsolve_type type, real dx,
             std::array<bool, geo::direction::count()>& is_direction_empty,
             std::shared_ptr<grid>& grid_ptr, const bool contains_multipole_neighbor) {
-
             interaction_host_kernel_type host_type = opts().monopole_host_kernel_type;
             interaction_device_kernel_type device_type = opts().monopole_device_kernel_type;
 
             // Try accelerator implementation
             if (device_type != interaction_device_kernel_type::OFF) {
+#if defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_CUDA)
                 if (device_type == interaction_device_kernel_type::KOKKOS_CUDA) {
-#if defined(OCTOTIGER_HAVE_KOKKOS) && (defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP))
+#elif defined(OCTOTIGER_HAVE_KOKKOS) && defined(KOKKOS_ENABLE_HIP)
+                if (device_type == interaction_device_kernel_type::KOKKOS_HIP) {
+#else
+                std::cerr << "Trying to call P2P Kokkos kernel with no or the wrong kokkos device "
+                             "backend active! Aborting..."
+                          << std::endl;
+                abort();
+#endif
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
                             opts().cuda_buffer_capacity);
@@ -68,30 +75,22 @@ namespace fmm {
 #endif
                     if (avail) {
                         executor_interface_t executor;
-                        monopole_kernel<device_executor>(executor, monopoles, com_ptr, neighbors, type,
-                            dx, opts().theta, is_direction_empty, grid_ptr,
+                        monopole_kernel<device_executor>(executor, monopoles, com_ptr, neighbors,
+                            type, dx, opts().theta, is_direction_empty, grid_ptr,
                             contains_multipole_neighbor);
                         return;
                     }
-#else
-                    std::cerr
-                        << "Trying to call P2P Kokkos kernel in a non-kokkos build! Aborting..."
-                        << std::endl;
-                    abort();
-#endif
                 }
                 if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
-                    cuda_monopole_interaction_interface
-                        monopole_interactor{};
-                    monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type, dx,
-                        is_direction_empty, grid_ptr, contains_multipole_neighbor);
+                    cuda_monopole_interaction_interface monopole_interactor{};
+                    monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type,
+                        dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
                     return;
                 }
 #else
                     std::cerr << "Trying to call P2P CUDA kernel in a non-CUDA build! "
-                              << "Aborting..."
-                              << std::endl;
+                              << "Aborting..." << std::endl;
                     abort();
                 }
 #endif
