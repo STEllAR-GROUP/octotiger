@@ -54,7 +54,7 @@ void reconstruct_cpu_kernel(const safe_real omega, const size_t nf_, const int a
     double* __restrict__ combined_u, const double dx,
     const std::vector<std::vector<safe_real>>& cdiscs);
 #endif
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 void launch_reconstruct_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     double omega, int nf_, int angmom_index_,

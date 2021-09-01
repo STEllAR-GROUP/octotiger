@@ -1,9 +1,24 @@
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
+#include <hpx/modules/async_cuda.hpp>
+
 #include "octotiger/defs.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"
+#include "octotiger/cuda_util/cuda_helper.hpp"
 
+#if defined(OCTOTIGER_HAVE_HIP)
+#define cudaLaunchKernel hipLaunchKernel
+#define cudaMemcpy hipMemcpy
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyAsync hipMemcpyAsync
+#endif
+
+#if defined(OCTOTIGER_HAVE_CUDA)
 __global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel_no_amc(const double omega,
+#elif defined(OCTOTIGER_HAVE_HIP)
+__global__ void reconstruct_cuda_kernel_no_amc(const double omega,
+#endif
     const int nf_, const int angmom_index_, int* __restrict__ smooth_field_,
     int* __restrict__ disc_detect_, double* __restrict__ combined_q,
     double* __restrict__ combined_x, double* __restrict__ combined_u, double* __restrict__ AM,
@@ -25,7 +40,11 @@ __global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel_no_amc(const do
     }
 }
 
+#if defined(OCTOTIGER_HAVE_CUDA)
 __global__ void __launch_bounds__(64, 4) reconstruct_cuda_kernel(const double omega, const int nf_,
+#elif defined(OCTOTIGER_HAVE_HIP)
+__global__ void reconstruct_cuda_kernel(const double omega, const int nf_,
+#endif
     const int angmom_index_, int* __restrict__ smooth_field_, int* __restrict__ disc_detect_,
     double* __restrict__ combined_q, double* __restrict__ combined_x,
     double* __restrict__ combined_u, double* __restrict__ AM, const double dx,
@@ -68,11 +87,13 @@ void launch_reconstruct_cuda(
     void* args[] = {&omega, &nf_, &angmom_index_, &(smooth_field_), &(disc_detect_), &(combined_q),
         &(combined_x), &(combined_u), &(AM), &dx, &(cdiscs), &n_species_, &ndir, &nangmom};
     if (angmom_index_ > -1) {
-        executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel)>, reconstruct_cuda_kernel,
+        const auto reconstruct_cuda_kernel_func_p = reconstruct_cuda_kernel;
+        executor.post(cudaLaunchKernel, &reconstruct_cuda_kernel_func_p,
             grid_spec, threads_per_block, args, 0);
     } else {
-        executor.post(cudaLaunchKernel<decltype(reconstruct_cuda_kernel_no_amc)>,
-            reconstruct_cuda_kernel_no_amc, grid_spec, threads_per_block, args, 0);
+        const auto reconstruct_cuda_kernel_no_amc_func_p = reconstruct_cuda_kernel_no_amc;
+        executor.post(cudaLaunchKernel,
+            &reconstruct_cuda_kernel_no_amc_func_p, grid_spec, threads_per_block, args, 0);
     }
 }
 
@@ -81,6 +102,7 @@ __global__ void    //__launch_bounds__(12 * 12, 1)
 discs_phase1(double* __restrict__ P, const double* __restrict__ combined_u, const double A_,
     const double B_, const double fgamma_, const double de_switch_1) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
+    printf("hi from disc1");
     if (index < inx_normal * inx_normal * inx_normal) {
         const int grid_x = index / (inx_normal * inx_normal);
         const int grid_y = (index % (inx_normal * inx_normal)) / inx_normal;
@@ -90,9 +112,14 @@ discs_phase1(double* __restrict__ P, const double* __restrict__ combined_u, cons
     }
 }
 
+#if defined(OCTOTIGER_HAVE_CUDA)
 __global__ void __launch_bounds__(64, 4) discs_phase2(
+#elif defined(OCTOTIGER_HAVE_HIP)
+__global__ void discs_phase2(
+#endif
     double* __restrict__ disc, const double* __restrict__ P, const double fgamma_, const int ndir) {
     const int index = (blockIdx.z * 1 + threadIdx.x) * 64 + (threadIdx.y) * 8 + (threadIdx.z);
+    printf("hi from disc2");
     if (index < q_inx3) {
         const int grid_x = index / (q_inx * q_inx);
         const int grid_y = (index % (q_inx * q_inx)) / q_inx;
@@ -100,6 +127,10 @@ __global__ void __launch_bounds__(64, 4) discs_phase2(
         cell_find_contact_discs_phase2(disc, P, fgamma_, ndir, grid_x, grid_y, grid_z);
     }
 }
+__global__ void discs_phase3(void) {
+    printf("hi from disc3");
+    }
+
 
 void launch_find_contact_discs_cuda(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
@@ -110,15 +141,19 @@ void launch_find_contact_discs_cuda(
     dim3 const grid_spec_phase1(1, 1, blocks);
     dim3 const threads_per_block_phase1(1, 8, 8);
     void* args_phase1[] = {&(device_P), &(device_u), &A_, &B_, &fgamma_, &de_switch_1};
-    executor.post(cudaLaunchKernel<decltype(discs_phase1)>, discs_phase1, grid_spec_phase1,
+    const auto discs_phase1_func_p = discs_phase3;
+    hipLaunchKernel(&discs_phase1_func_p, grid_spec_phase1,
         threads_per_block_phase1, args_phase1, 0);
+    //executor.post(cudaLaunchKernel, &discs_phase1_func_p, grid_spec_phase1,
+    //    threads_per_block_phase1, args_phase1, 0);
 
     int ndir = geo.NDIR;
     const int blocks2 = (q_inx * q_inx * q_inx) / 64 + 1;
     dim3 const grid_spec_phase2(1, 1, blocks2);
     dim3 const threads_per_block_phase2(1, 8, 8);
     void* args_phase2[] = {&device_disc, &device_P, &fgamma_, &ndir};
-    executor.post(cudaLaunchKernel<decltype(discs_phase2)>, discs_phase2, grid_spec_phase2,
+    const auto discs_phase2_func_p = discs_phase2;
+    executor.post(cudaLaunchKernel, &discs_phase2_func_p, grid_spec_phase2,
         threads_per_block_phase2, args_phase2, 0);
 }
 
@@ -143,7 +178,8 @@ void launch_hydro_pre_recon_cuda(
     dim3 const grid_spec(1, 1, blocks);
     dim3 const threads_per_block(1, 8, 8);
     void* args[] = {&(device_X), &omega, &angmom, &(device_u), &nf, &n_species_};
-    executor.post(cudaLaunchKernel<decltype(hydro_pre_recon_cuda)>, hydro_pre_recon_cuda, grid_spec,
+    const auto hydro_pre_func_p = hydro_pre_recon_cuda;
+    executor.post(cudaLaunchKernel, &hydro_pre_func_p, grid_spec,
         threads_per_block, args, 0);
 }
 

@@ -78,7 +78,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             abort();
         }
 #endif
-/*        if (device_type == interaction_device_kernel_type::HIP) {
+        if (device_type == interaction_device_kernel_type::HIP) {
 #ifdef OCTOTIGER_HAVE_HIP
             bool avail = false;
             avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
@@ -96,7 +96,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             abort();
         }
 #endif
-    }*/
+    }
 
     // Nothing is available or device execution is disabled - fallback to host execution
     if (host_type == interaction_host_kernel_type::KOKKOS) {

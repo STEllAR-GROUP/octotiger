@@ -1,8 +1,13 @@
 #pragma once
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include <buffer_manager.hpp>
+#if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
+#elif defined(OCTOTIGER_HAVE_HIP)
+#include <hip_buffer_util.hpp>
+#include <hip/hip_runtime.h>
+#endif
 #include <stream_manager.hpp>
 
 #include <hpx/apply.hpp>
@@ -20,6 +25,27 @@
 
 hpx::lcos::local::once_flag flag1;
 
+#if defined(OCTOTIGER_HAVE_CUDA)
+template<typename T>
+using device_buffer_t = recycler::cuda_device_buffer<T>;
+template<typename T>
+using host_buffer_t = std::vector<T, recycler::recycle_allocator_cuda_host<T>>;
+using executor_t = hpx::cuda::experimental::cuda_executor;
+#elif defined(OCTOTIGER_HAVE_HIP)
+template<typename T>
+using device_buffer_t = recycler::hip_device_buffer<T>;
+template<typename T>
+using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
+using executor_t = hpx::cuda::experimental::cuda_executor;
+
+#define cudaLaunchKernel hipLaunchKernel
+#define cudaMemcpy hipMemcpy
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyAsync hipMemcpyAsync
+
+#endif
+
 __host__ void init_gpu_masks(bool *masks) {
   boost::container::vector<bool> masks_boost(NDIM * q_inx * q_inx * q_inx);
   fill_masks(masks_boost);
@@ -27,27 +53,31 @@ __host__ void init_gpu_masks(bool *masks) {
 }
 
 __host__ const bool* get_gpu_masks(void) {
+#if defined(OCTOTIGER_HAVE_CUDA)
     static bool *masks = recycler::recycle_allocator_cuda_device<bool>{}.allocate(NDIM * q_inx3);
+#elif defined(OCTOTIGER_HAVE_HIP)
+    static bool *masks = recycler::recycle_allocator_hip_device<bool>{}.allocate(NDIM * q_inx3);
+#endif
     hpx::lcos::local::call_once(flag1, init_gpu_masks, masks);
     return masks;
 }
 
 timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     double* device_q,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_f,
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> &combined_x, double* device_x,
+    host_buffer_t<double> &combined_f,
+    host_buffer_t<double> &combined_x, double* device_x,
     safe_real omega, const size_t nf_, double dx, size_t device_id) {
     timestep_t ts;
 
     const cell_geometry<3, 8> geo;
     constexpr int number_blocks = (q_inx3 / 128 + 1);
 
-    recycler::cuda_device_buffer<double> device_f(NDIM * nf_ * q_inx3 + 128, device_id);
+    device_buffer_t<double> device_f(NDIM * nf_ * q_inx3 + 128, device_id);
     const bool *masks = get_gpu_masks();
 
-    recycler::cuda_device_buffer<double> device_amax(number_blocks * NDIM * (1 + 2 * nf_));
-    recycler::cuda_device_buffer<int> device_amax_indices(number_blocks * NDIM);
-    recycler::cuda_device_buffer<int> device_amax_d(number_blocks * NDIM);
+    device_buffer_t<double> device_amax(number_blocks * NDIM * (1 + 2 * nf_));
+    device_buffer_t<int> device_amax_indices(number_blocks * NDIM);
+    device_buffer_t<int> device_amax_d(number_blocks * NDIM);
     double A_ = physics<NDIM>::A_;
     double B_ = physics<NDIM>::B_;
     double fgamma = physics<NDIM>::fgamma_;
@@ -64,9 +94,9 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     launch_flux_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
 
     // Move data to host
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> amax(number_blocks * NDIM * (1 + 2 * nf_));
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_indices(number_blocks * NDIM);
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> amax_d(number_blocks * NDIM);
+    host_buffer_t<double> amax(number_blocks * NDIM * (1 + 2 * nf_));
+    host_buffer_t<int> amax_indices(number_blocks * NDIM);
+    host_buffer_t<int> amax_d(number_blocks * NDIM);
 
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, amax.data(),
@@ -80,9 +110,11 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
                cudaMemcpyAsync, amax_d.data(),
                device_amax_d.device_side_buffer, number_blocks * NDIM * sizeof(int),
                cudaMemcpyDeviceToHost);
+    std::cout << "getting future" << std::endl;
     auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                cudaMemcpyAsync, combined_f.data(), device_f.device_side_buffer,
                (NDIM * nf_ * q_inx3 + 128) * sizeof(double), cudaMemcpyDeviceToHost);
+    std::cout << "waiting future" << std::endl;
     fut.get();
 
     // Find Maximum
@@ -120,32 +152,37 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     const double omega, const size_t device_id,
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     std::vector<hydro_state_t<std::vector<safe_real>>> &F) {
+
+    std::cout << "starting hydro cuda" << std::endl;
     static const cell_geometry<NDIM, INX> geo;
 
+    std::cout << "create device buffer" << std::endl;
     // Device buffers
-    recycler::cuda_device_buffer<double> device_q(
+    device_buffer_t<double> device_q(
         hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128, device_id);
-    recycler::cuda_device_buffer<double> device_x(NDIM * q_inx3 + 128, device_id);
-    recycler::cuda_device_buffer<double> device_large_x(NDIM * H_N3 + 128, device_id);
-    recycler::cuda_device_buffer<double> device_f(NDIM * hydro.get_nf() * q_inx3 + 128, device_id);
-    recycler::cuda_device_buffer<double> device_u(hydro.get_nf() * H_N3 + 128);
-    recycler::cuda_device_buffer<double> device_unified_discs(geo.NDIR / 2 * H_N3 + 128);
-    recycler::cuda_device_buffer<double> device_P(H_N3 + 128);
-    recycler::cuda_device_buffer<int> device_disc_detect(hydro.get_nf());
-    recycler::cuda_device_buffer<int> device_smooth_field(hydro.get_nf());
-    recycler::cuda_device_buffer<double> device_AM(NDIM * q_inx * q_inx * q_inx + 128);
+    device_buffer_t<double> device_x(NDIM * q_inx3 + 128, device_id);
+    device_buffer_t<double> device_large_x(NDIM * H_N3 + 128, device_id);
+    device_buffer_t<double> device_f(NDIM * hydro.get_nf() * q_inx3 + 128, device_id);
+    device_buffer_t<double> device_u(hydro.get_nf() * H_N3 + 128);
+    device_buffer_t<double> device_unified_discs(geo.NDIR / 2 * H_N3 + 128);
+    device_buffer_t<double> device_P(H_N3 + 128);
+    device_buffer_t<int> device_disc_detect(hydro.get_nf());
+    device_buffer_t<int> device_smooth_field(hydro.get_nf());
+    device_buffer_t<double> device_AM(NDIM * q_inx * q_inx * q_inx + 128);
 
+    std::cout << "create host buffer" << std::endl;
     // Host buffers
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_x(NDIM * q_inx3 + 128);
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_large_x(
+    host_buffer_t<double> combined_x(NDIM * q_inx3 + 128);
+    host_buffer_t<double> combined_large_x(
         NDIM * H_N3 + 128);
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> combined_u(
+    host_buffer_t<double> combined_u(
         hydro.get_nf() * H_N3 + 128);
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> disc_detect(hydro.get_nf());
-    std::vector<int, recycler::recycle_allocator_cuda_host<int>> smooth_field(hydro.get_nf());
-    std::vector<double, recycler::recycle_allocator_cuda_host<double>> f(
+    host_buffer_t<int> disc_detect(hydro.get_nf());
+    host_buffer_t<int> smooth_field(hydro.get_nf());
+    host_buffer_t<double> f(
         NDIM * hydro.get_nf() * q_inx3 + 128);
 
+    std::cout << "convert input" << std::endl;
     // Convert input
     convert_x_structure(X, combined_x.data());
     for (int f = 0; f < hydro.get_nf(); f++) {
@@ -159,6 +196,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         smooth_field[f] = smooth_bool[f];
     }
 
+    std::cout << "move to device" << std::endl;
     // Move input to device
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
         device_u.device_side_buffer, combined_u.data(),
@@ -173,6 +211,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         device_smooth_field.device_side_buffer, smooth_field.data(), (hydro.get_nf()) * sizeof(int),
         cudaMemcpyHostToDevice);
 
+    std::cout << "launch discs" << std::endl;
     // get discs
     launch_find_contact_discs_cuda(executor, device_u.device_side_buffer,
         device_P.device_side_buffer, device_unified_discs.device_side_buffer, physics<NDIM>::A_,
@@ -185,7 +224,7 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         device_large_x.device_side_buffer, combined_large_x.data(),
         (NDIM * H_N3 + 128) * sizeof(double), cudaMemcpyHostToDevice);
 
-    launch_hydro_pre_recon_cuda(executor, device_large_x.device_side_buffer, omega,
+    /*launch_hydro_pre_recon_cuda(executor, device_large_x.device_side_buffer, omega,
         hydro.get_angmom_index() != -1, device_u.device_side_buffer, hydro.get_nf(),
         opts().n_species);
 
@@ -193,11 +232,13 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         device_smooth_field.device_side_buffer, device_disc_detect.device_side_buffer,
         device_q.device_side_buffer, device_x.device_side_buffer, device_u.device_side_buffer,
         device_AM.device_side_buffer, X[0][geo.H_DNX] - X[0][0],
-        device_unified_discs.device_side_buffer, opts().n_species);
+        device_unified_discs.device_side_buffer, opts().n_species);*/
+    std::cout << "launching stuff" << std::endl;
 
     // Call Flux kernel
-    auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x,
-        device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id);
+    hipDeviceSynchronize();
+    //auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x,
+    //    device_x.device_side_buffer, omega, hydro.get_nf(), X[0][geo.H_DNX] - X[0][0], device_id);
 
     // Convert output
     for (int dim = 0; dim < NDIM; dim++) {
@@ -215,6 +256,8 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
             }
         }
     }
-    return max_lambda;
+    std::cout << "ending hydro cuda" << std::endl;
+    //return max_lambda;
+    return timestep_t{};
 }
 #endif

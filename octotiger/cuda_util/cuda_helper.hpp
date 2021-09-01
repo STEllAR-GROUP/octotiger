@@ -4,13 +4,17 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #pragma once
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
 #define BOOST_NO_CXX11_ALLOCATOR
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 #include <hpx/async_cuda/cuda_executor.hpp>
 
+#if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_runtime.h>
+#elif defined(OCTOTIGER_HAVE_HIP)
+#include <hip/hip_runtime.h>
+#endif
 
 #include <algorithm>
 #include <cmath>

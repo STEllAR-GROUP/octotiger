@@ -1,8 +1,23 @@
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 
+#if defined(OCTOTIGER_HAVE_HIP)
+#define cudaLaunchKernel hipLaunchKernel
+#define cudaMemcpy hipMemcpy
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyAsync hipMemcpyAsync
+#define cudaError_t hipError_t
+#endif
+
+#include <hpx/modules/async_cuda.hpp>
 #include <buffer_manager.hpp>
+#if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
+#elif defined(OCTOTIGER_HAVE_HIP)
+#include <hip_buffer_util.hpp>
+#include <hip/hip_runtime.h>
+#endif
 #include <stream_manager.hpp>
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/options.hpp"
@@ -10,6 +25,7 @@
 #include "octotiger/unitiger/hydro_impl/flux_kernel_interface.hpp"
 #include "octotiger/unitiger/hydro_impl/flux_kernel_templates.hpp"
 #include "octotiger/unitiger/hydro_impl/reconstruct_kernel_templates.hpp"    // required for xloc definition
+
 
 
 __global__ void __launch_bounds__(128, 2)
@@ -124,7 +140,10 @@ __global__ void __launch_bounds__(128, 2)
 void launch_flux_cuda_kernel_post(
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
-    executor.post(cudaLaunchKernel<decltype(flux_cuda_kernel)>, flux_cuda_kernel, grid_spec,
+    // executor.post(cudaLaunchKernel<decltype(flux_cuda_kernel)>, flux_cuda_kernel, grid_spec,
+    //     threads_per_block, args, 0);
+    const auto flux_kernel_p = flux_cuda_kernel;
+    executor.post(cudaLaunchKernel, &flux_kernel_p, grid_spec,
         threads_per_block, args, 0);
 }
 
