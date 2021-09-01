@@ -66,6 +66,7 @@ namespace fmm {
                               << std::endl;
                     abort();
 #endif
+#if defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_CUDA)
                     bool avail =
                         stream_pool::interface_available<device_executor, device_pool_strategy>(
                             opts().cuda_buffer_capacity);
@@ -81,6 +82,7 @@ namespace fmm {
                             contains_multipole_neighbor);
                         return;
                     }
+#endif
                 }
                 if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA

@@ -48,6 +48,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                       << std::endl;
             abort();
 #endif
+#if defined(KOKKOS_ENABLE_HIP) || defined(KOKKOS_ENABLE_CUDA)
             bool avail = false;
             avail = stream_pool::interface_available<device_executor, device_pool_strategy>(
                 cuda_buffer_capacity);
@@ -57,6 +58,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                     hydro, U, X, omega, opts().n_species, executor, F);
                 return max_lambda;
             }
+#endif
         }
         if (device_type == interaction_device_kernel_type::CUDA) {
 #ifdef OCTOTIGER_HAVE_CUDA
@@ -76,7 +78,25 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             abort();
         }
 #endif
-    }
+/*        if (device_type == interaction_device_kernel_type::HIP) {
+#ifdef OCTOTIGER_HAVE_HIP
+            bool avail = false;
+            avail = stream_pool::interface_available<hpx::cuda::experimental::cuda_executor,
+                pool_strategy>(cuda_buffer_capacity);
+            if (avail) {
+                size_t device_id = 0;
+                stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
+                max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor, F);
+                return max_lambda;
+            }
+        }
+#else
+            std::cerr << "Trying to call Hydro HIP device kernels in a non-CUDA build! "
+                      << "Aborting..." << std::endl;
+            abort();
+        }
+#endif
+    }*/
 
     // Nothing is available or device execution is disabled - fallback to host execution
     if (host_type == interaction_host_kernel_type::KOKKOS) {
