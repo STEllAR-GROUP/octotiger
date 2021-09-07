@@ -52,8 +52,12 @@ timestep_t launch_flux_cuda(
     std::vector<double, recycler::recycle_allocator_hip_host<double>>& combined_f,
     std::vector<double, recycler::recycle_allocator_hip_host<double>> &combined_x, double* device_x,
     safe_real omega, const size_t nf_, double dx, size_t device_id);
-void launch_flux_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-    dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+void launch_flux_hip_kernel_post(
+    stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+    dim3 const grid_spec, dim3 const threads_per_block, double* device_q, double* device_x,
+    double* device_f, double* device_amax, int* device_amax_indices, int* device_amax_d,
+    const bool* masks, const double omega, const double dx, const double A_, const double B_,
+    const size_t nf_, const double fgamma, const double de_switch_1);
 #endif
 
 // helpers for using vectortype specialization functions
