@@ -113,13 +113,10 @@ timestep_t launch_flux_cuda(
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
         amax_d.data(), device_amax_d.device_side_buffer, number_blocks * NDIM * sizeof(int),
         cudaMemcpyDeviceToHost);
-    std::cout << "getting future" << std::endl;
     auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
         cudaMemcpyAsync, combined_f.data(), device_f.device_side_buffer,
         (NDIM * nf_ * q_inx3 + 128) * sizeof(double), cudaMemcpyDeviceToHost);
-    std::cout << "waiting future" << std::endl;
     fut.get();
-    std::cout << "The future has arrived!" << std::endl;
 
     // Find Maximum
     size_t current_dim = 0;
@@ -156,10 +153,8 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     const double omega, const size_t device_id,
     stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
     std::vector<hydro_state_t<std::vector<safe_real>>>& F) {
-    std::cout << "starting hydro cuda" << std::endl;
     static const cell_geometry<NDIM, INX> geo;
 
-    std::cout << "create device buffer" << std::endl;
     // Device buffers
     device_buffer_t<double> device_q(hydro.get_nf() * 27 * q_inx * q_inx * q_inx + 128, device_id);
     device_buffer_t<double> device_x(NDIM * q_inx3 + 128, device_id);
@@ -172,7 +167,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     device_buffer_t<int> device_smooth_field(hydro.get_nf());
     device_buffer_t<double> device_AM(NDIM * q_inx * q_inx * q_inx + 128);
 
-    std::cout << "create host buffer" << std::endl;
     // Host buffers
     host_buffer_t<double> combined_x(NDIM * q_inx3 + 128);
     host_buffer_t<double> combined_large_x(NDIM * H_N3 + 128);
@@ -181,7 +175,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
     host_buffer_t<int> smooth_field(hydro.get_nf());
     host_buffer_t<double> f(NDIM * hydro.get_nf() * q_inx3 + 128);
 
-    std::cout << "convert input" << std::endl;
     // Convert input
     convert_x_structure(X, combined_x.data());
     for (int f = 0; f < hydro.get_nf(); f++) {
@@ -195,7 +188,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         smooth_field[f] = smooth_bool[f];
     }
 
-    std::cout << "move to device" << std::endl;
     // Move input to device
     hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor), cudaMemcpyAsync,
         device_u.device_side_buffer, combined_u.data(),
@@ -210,7 +202,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         device_smooth_field.device_side_buffer, smooth_field.data(), (hydro.get_nf()) * sizeof(int),
         cudaMemcpyHostToDevice);
 
-    std::cout << "launch discs" << std::endl;
     // get discs
     launch_find_contact_discs_cuda(executor, device_u.device_side_buffer,
         device_P.device_side_buffer, device_unified_discs.device_side_buffer, physics<NDIM>::A_,
@@ -232,7 +223,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
         device_q.device_side_buffer, device_x.device_side_buffer, device_u.device_side_buffer,
         device_AM.device_side_buffer, X[0][geo.H_DNX] - X[0][0],
         device_unified_discs.device_side_buffer, opts().n_species);
-    std::cout << "launching stuff" << std::endl;
 
     // Call Flux kernel
     auto max_lambda = launch_flux_cuda(executor, device_q.device_side_buffer, f, combined_x,
@@ -255,7 +245,6 @@ timestep_t launch_hydro_cuda_kernels(const hydro_computer<NDIM, INX, physics<NDI
             }
         }
     }
-    std::cout << "ending hydro cuda" << std::endl;
     return max_lambda;
 }
 #endif
