@@ -30,7 +30,7 @@ struct radiation_physics {
 		CONTACT
 	};
 
-	static bool set_diffusion_limit() {
+	static void set_diffusion_limit() {
 		diffusion_limit_ = true;
 	}
 
