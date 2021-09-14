@@ -90,6 +90,10 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     for (size_t dim_i = 1; dim_i < number_blocks * NDIM; dim_i++) {
       if (amax[dim_i] > amax[current_dim]) { 
         current_dim = dim_i;
+      } else if (amax[dim_i] == amax[current_dim]) {
+        if (amax_indices[dim_i] < amax_indices[current_dim]) {
+          current_dim = dim_i;
+        }
       }
     }
     std::vector<double> URs(nf_), ULs(nf_);
@@ -99,6 +103,30 @@ timestep_t launch_flux_cuda(stream_interface<hpx::cuda::experimental::cuda_execu
     ts.x = combined_x[current_max_index];
     ts.y = combined_x[current_max_index + q_inx3];
     ts.z = combined_x[current_max_index + 2 * q_inx3];
+ /* int x = current_max_index / (10 * 10);
+  int y = (current_max_index % (10 * 10)) / 10;
+  int z = (current_max_index % (10 * 10)) % 10;
+  std::cout << "xzy" << x << " " << y << " " << z << std::endl;
+    std::cout << "Max index: " << current_max_index << " Max dim: " << current_dim / number_blocks <<
+      std::endl;
+    std::cout << ts.x << " " << ts.y << " " << ts.z << std::endl;
+    std::cin.get();
+    std::cout << "start output x!" << std::endl;
+    for(int i = 0; i < q_inx3; i++)
+      std::cout << combined_x[i + 0 * q_inx3] << " ";
+    std::cout << "finish output x!" << std::endl;
+    std::cout << "start output x!" << std::endl;
+    for(int i = 0; i < q_inx3; i++)
+      std::cout << combined_x[i + 1 * q_inx3] << " ";
+    std::cout << "finish output x!" << std::endl;
+    std::cout << "start output z!" << std::endl;
+    for(int i = 0; i < q_inx3; i++)
+      std::cout << combined_x[i + 2 * q_inx3] << " ";
+    std::cout << "finish output z!" << std::endl;
+    std::cin.get();*/
+
+
+    
     const size_t current_i = current_dim;
     current_dim = current_dim / number_blocks;
     // const auto flipped_dim = geo.flip_dim(current_d, current_dim);

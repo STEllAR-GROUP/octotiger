@@ -153,6 +153,21 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 }
             }
         }
+        /*std::cout << "legacy" << max_lambda.x << " " <<max_lambda.y << " " <<max_lambda.z << std::endl;
+        std::cin.get();
+        std::cout << "start output legacy x!" << std::endl;
+        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
+          std::cout << X[0][i] << " ";
+        std::cout << "finish output legacy x!" << std::endl;
+        std::cout << "start output legacy! y" << std::endl;
+        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
+          std::cout << X[1][i] << " ";
+        std::cout << "finish output legacy y!" << std::endl;
+        std::cout << "start output legacy! z" << std::endl;
+        for(int i = 0; i < inx_large * inx_large * inx_large; i++)
+          std::cout << X[2][i] << " ";
+        std::cout << "finish output legacy! z" << std::endl;
+        std::cin.get();*/
         return max_lambda;
     } else {
         std::cerr << "No valid hydro kernel type given! " << std::endl;
