@@ -40,7 +40,7 @@ __global__ void __launch_bounds__(128, 2)
     const int blocks_per_dim = gridDim.y;
     const int dim = blockIdx.z;
     const int tid = threadIdx.x * 64 + threadIdx.y * 8 + threadIdx.z;
-    const int index = blockIdx.y * 128 + tid -1; // + 104;
+    const int index = blockIdx.y * 128 + tid; // + 104;
     for (int f = 0; f < nf; f++) {
         f_combined[dim * nf * q_inx3 + f * q_inx3 + index] = 0.0;
     }
