@@ -53,6 +53,7 @@ inline std::string to_string(const bool &b) {
 }
 
 bool options::process_options(int argc, char *argv[]) {
+	printf( "Proccgins options\n");
 	namespace po = boost::program_options;
 	code_to_s = code_to_g = code_to_cm = 1.0;
 

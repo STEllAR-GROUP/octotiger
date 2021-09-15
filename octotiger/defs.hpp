@@ -92,7 +92,7 @@ constexpr real DEFAULT_OMEGA = 0.0;
 
 #include "hydro_defs.hpp"
 
-constexpr integer R_BW = 2;
+constexpr integer R_BW = 3;
 
 constexpr integer HS_NX = (2 * H_BW + INX/2);
 constexpr integer G_NX = INX;
@@ -117,7 +117,7 @@ constexpr integer G_DNZ = 1;
 constexpr integer G_DN[NDIM] = { G_NX * G_NX, G_NX, 1 };
 
 // Radiation {{{
-constexpr integer RAD_BW = 3;
+constexpr integer RAD_BW = R_BW;
 constexpr integer RAD_NX = INX + 2 * RAD_BW;
 constexpr integer RAD_N3 = RAD_NX * RAD_NX * RAD_NX;
 

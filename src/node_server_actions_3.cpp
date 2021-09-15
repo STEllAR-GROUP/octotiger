@@ -541,7 +541,7 @@ future<void> node_server::nonrefined_step() {
 	for (integer rk = 0; rk < NRK; ++rk) {
 
 		fut = fut.then(hpx::launch::async(hpx::threads::thread_priority_boost),
-		//hpx::util::annotated_function(
+		hpx::util::annotated_function(
 				[rk, cfl0, this, dt_fut](future<void> f) {
 					GET(f);
 					timestep_t a = grid_ptr->compute_fluxes();
@@ -567,7 +567,7 @@ future<void> node_server::nonrefined_step() {
 					grid_ptr->next_u(rk, current_time, dt_.dt);
 					compute_fmm(RHO, true);
 					rk == NRK - 1 ? energy_hydro_bounds() : all_hydro_bounds();
-				}/*, "node_server::nonrefined_step::compute_fluxes")*/);
+				}, "node_server::nonrefined_step::compute_fluxes"));
 	}
 
 	return fut.then(hpx::launch::sync, [this](future<void> &&f) {
