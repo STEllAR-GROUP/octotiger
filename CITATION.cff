@@ -1,6 +1,6 @@
 # YAML 1.2
 # Metadata for citation of this software according to the CFF format (https://citation-file-format.github.io/)
-cff-version: 1.0.3
+cff-version: 1.2.0
 message: If you use this software, please cite it using these metadata.
 # FIXME title as repository name might not be the best name, please make human readable
 title: 'STEllAR-GROUP/octotiger: Kokkos kernels'
@@ -39,4 +39,4 @@ authors:
 version: 0.8.1-rc1
 date-released: 2021-07-12
 repository-code: https://github.com/STEllAR-GROUP/octotiger
-license: other-open
+license: BSL-1.0
