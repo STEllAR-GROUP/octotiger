@@ -97,6 +97,19 @@ namespace fmm {
                     abort();
                 }
 #endif
+                if (device_type == interaction_device_kernel_type::HIP) {
+#ifdef OCTOTIGER_HAVE_HIP
+                    cuda_monopole_interaction_interface monopole_interactor{};
+                    monopole_interactor.compute_interactions(monopoles, com_ptr, neighbors, type,
+                        dx, is_direction_empty, grid_ptr, contains_multipole_neighbor);
+                    return;
+                }
+#else
+                    std::cerr << "Trying to call P2P HIP kernel in a non-HIP build! "
+                              << "Aborting..." << std::endl;
+                    abort();
+                }
+#endif
             }    // Nothing is available or device execution is disabled - fallback to host
                  // execution
 

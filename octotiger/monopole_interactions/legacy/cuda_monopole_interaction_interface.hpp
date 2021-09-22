@@ -7,7 +7,7 @@
 // will be used as fallback in non-cuda compilations
 #include "octotiger/monopole_interactions/legacy/monopole_interaction_interface.hpp"
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/cuda_util/cuda_helper.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 

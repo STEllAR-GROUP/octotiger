@@ -1,8 +1,13 @@
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/monopole_interactions/legacy/monopole_cuda_kernel.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
 #include "octotiger/monopole_interactions/kernel/monopole_kernel_templates.hpp"
+
+#if defined(OCTOTIGER_HAVE_HIP)
+#define cudaSetDevice hipSetDevice
+#define cudaMemcpyToSymbol hipMemcpyToSymbol
+#endif
 
 namespace octotiger {
 namespace fmm {
@@ -25,9 +30,13 @@ namespace fmm {
         __device__ const size_t cache_line_length = INX + 2 * STENCIL_MAX;
         __device__ const size_t cache_offset = INX + STENCIL_MIN;
 
+#if defined(OCTOTIGER_HAVE_HIP)
+        __global__ void cuda_p2p_interactions_kernel(
+#else
         __global__ void __launch_bounds__(INX* INX, 2) cuda_p2p_interactions_kernel(
-            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL], const double theta,
+#endif
+            const double *local_monopoles,
+            double *potential_expansions, const double theta,
             const double dx) {
             // Declare shared memory arrays/index
             // Each holds two slices
@@ -170,13 +179,35 @@ namespace fmm {
             potential_expansions[3 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[3];
         }
+#if defined(OCTOTIGER_HAVE_HIP)
+        void hip_p2p_interactions_kernel_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, const double *monopoles, 
+            double *potential_expansions,
+            const double theta, const double dx,
+            hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_p2p_interactions_kernel, grid_spec, threads_per_block,
+                0, stream, monopoles, potential_expansions, 
+                theta, dx);
+        }
+        void hip_p2p_interactions_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
+            double *potential_expansions,
+            const double theta, const double dx) {
+            executor.post(hip_p2p_interactions_kernel_ggl_wrapper, grid_spec,
+                threads_per_block, monopoles, potential_expansions,
+                theta, dx);
+        }
+#else
         void launch_p2p_cuda_kernel_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
             executor.post(
             cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
             cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
         }
+#endif
 
+#ifndef OCTOTIGER_HAVE_HIP
         __global__ void __launch_bounds__(INX* INX, 2)
             cuda_p2m_interaction_rho(const double* __restrict__ expansions_neighbors_soa,
                 const double* __restrict__ center_of_mass_neighbor_soa,
@@ -410,6 +441,7 @@ namespace fmm {
             cudaLaunchKernel<decltype(cuda_p2m_interaction_non_rho)>,
             cuda_p2m_interaction_non_rho, grid_spec, threads_per_block, args, 0);
         }
+#endif
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger

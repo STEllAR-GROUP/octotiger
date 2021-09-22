@@ -90,10 +90,8 @@ namespace fmm {
             cuda_error(cudaMemcpyToSymbol(multipole_interactions::device_stencil_indicator_const,
                 multipole_inner_stencil_masks.get(),
                 full_stencil_size / sizeof(double) * sizeof(bool)));*/
-#ifdef OCTOTIGER_HAVE_CUDA
             monopole_interactions::init_stencil(
                 gpu_id, std::move(stencil_masks), std::move(four_constants_tmp));
-#endif
             multipole_interactions::init_stencil(gpu_id, std::move(multipole_stencil_masks),
                 std::move(multipole_inner_stencil_masks));
             /*cuda_error(cudaMemcpyToSymbol(

@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/common_kernel/interaction_constants.hpp"
 #include "octotiger/common_kernel/multiindex.hpp"
 #include "octotiger/cuda_util/cuda_helper.hpp"
@@ -38,6 +38,7 @@ namespace fmm {
             double* __restrict__ potential_expansions, const multiindex<> neighbor_size,
             const multiindex<> start_index, const multiindex<> end_index, const multiindex<> dir,
             const double theta, multiindex<> cells_start);*/
+#ifdef OCTOTIGER_HAVE_CUDA
         void launch_p2p_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
@@ -47,6 +48,14 @@ namespace fmm {
         void launch_p2m_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+#else
+        void hip_p2p_interactions_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
+            double *potential_expansions,
+            const double theta, const double dx);
+#endif
+
     }    // namespace monopole_interactions
 }    // namespace fmm
 }    // namespace octotiger
