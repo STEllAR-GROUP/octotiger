@@ -94,6 +94,20 @@ namespace fmm {
                     abort();
                 }
 #endif
+                if (device_type == interaction_device_kernel_type::HIP) {
+#ifdef OCTOTIGER_HAVE_HIP
+                    cuda_multipole_interaction_interface multipole_interactor{};
+                    multipole_interactor.set_grid_ptr(grid);
+                    multipole_interactor.compute_multipole_interactions(monopoles, M_ptr, com_ptr,
+                        neighbors, type, dx, is_direction_empty, xbase, use_root_stencil);
+                    return;
+                }
+#else
+                    std::cerr << "Trying to call multipole HIP kernel in a non-HIP build! "
+                              << "Aborting..." << std::endl;
+                    abort();
+                }
+#endif
             }    // Nothing is available or device execution is disabled - fallback to host
                  // execution
 

@@ -91,7 +91,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
             }
         }
 #else
-            std::cerr << "Trying to call Hydro HIP device kernels in a non-CUDA build! "
+            std::cerr << "Trying to call Hydro HIP device kernels in a non-HIP build! "
                       << "Aborting..." << std::endl;
             abort();
         }

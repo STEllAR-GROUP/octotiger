@@ -3,7 +3,7 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/multipole_interactions/legacy/cuda_multipole_interaction_interface.hpp"
 #include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
 #include "octotiger/multipole_interactions/util/calculate_stencil.hpp"
@@ -15,9 +15,35 @@
 #include <vector>
 
 #include <buffer_manager.hpp>
+#if defined(OCTOTIGER_HAVE_CUDA)
 #include <cuda_buffer_util.hpp>
 #include <cuda_runtime.h>
+#elif defined(OCTOTIGER_HAVE_HIP)
+#include <hip/hip_runtime.h>
+#include <hip_buffer_util.hpp>
+#endif
 #include <stream_manager.hpp>
+
+#if defined(OCTOTIGER_HAVE_CUDA)
+template <typename T>
+using device_buffer_t = recycler::cuda_device_buffer<T>;
+template <typename T>
+using host_buffer_t = std::vector<T, recycler::recycle_allocator_cuda_host<T>>;
+using executor_t = hpx::cuda::experimental::cuda_executor;
+#elif defined(OCTOTIGER_HAVE_HIP)
+template <typename T>
+using device_buffer_t = recycler::hip_device_buffer<T>;
+template <typename T>
+using host_buffer_t = std::vector<T, recycler::recycle_allocator_hip_host<T>>;
+using executor_t = hpx::cuda::experimental::cuda_executor;
+
+#define cudaLaunchKernel hipLaunchKernel
+#define cudaMemcpy hipMemcpy
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define cudaMemcpyAsync hipMemcpyAsync
+
+#endif
 
 namespace octotiger {
 namespace fmm {
@@ -57,13 +83,12 @@ namespace fmm {
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_angular_result_t angular_corrections_SoA;
 
-                recycler::cuda_device_buffer<double> device_local_monopoles(ENTRIES, device_id);
-                recycler::cuda_device_buffer<double> device_local_expansions(
+                device_buffer_t<double> device_local_monopoles(ENTRIES, device_id);
+                device_buffer_t<double> device_local_expansions(
                     NUMBER_LOCAL_EXPANSION_VALUES, device_id);
-                recycler::cuda_device_buffer<double> device_centers(NUMBER_MASS_VALUES, device_id);
-                recycler::cuda_device_buffer<double> device_erg_exp(
-                    NUMBER_POT_EXPANSIONS, device_id);
-                recycler::cuda_device_buffer<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
+                device_buffer_t<double> device_centers(NUMBER_MASS_VALUES, device_id);
+                device_buffer_t<double> device_erg_exp(NUMBER_POT_EXPANSIONS, device_id);
+                device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
 
                 // Move data into SoA arrays
                 this->dX = dx;
@@ -88,6 +113,7 @@ namespace fmm {
                     dim3 const grid_spec(INX, 1, 1);
                     dim3 const threads_per_block(1, INX, INX);
                     if (type == RHO) {
+#if defined(OCTOTIGER_HAVE_CUDA)
                         void* args[] = {&(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
                             &(device_erg_exp.device_side_buffer),
@@ -96,12 +122,20 @@ namespace fmm {
                             cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
                             cuda_multipole_interactions_kernel_root_rho, grid_spec,
                             threads_per_block, args, 0);*/
-                        launch_multipole_root_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
+                        launch_multipole_root_rho_cuda_kernel_post(
+                            executor, grid_spec, threads_per_block, args);
+#elif defined(OCTOTIGER_HAVE_HIP)
+                        hip_multipole_interactions_kernel_root_rho_post(executor, grid_spec,
+                            threads_per_block, device_centers.device_side_buffer,
+                            device_local_expansions.device_side_buffer,
+                            device_erg_exp.device_side_buffer, device_erg_corrs.device_side_buffer);
+#endif
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);
                     } else {
+#if defined(OCTOTIGER_HAVE_CUDA)
                         void* args[] = {&(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
                             &(device_erg_exp.device_side_buffer)};
@@ -109,7 +143,14 @@ namespace fmm {
                                           cuda_multipole_interactions_kernel_root_non_rho)>,
                             cuda_multipole_interactions_kernel_root_non_rho, grid_spec,
                             threads_per_block, args, 0);*/
-                        launch_multipole_root_non_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
+                        launch_multipole_root_non_rho_cuda_kernel_post(
+                            executor, grid_spec, threads_per_block, args);
+#elif defined(OCTOTIGER_HAVE_HIP)
+                        hip_multipole_interactions_kernel_root_non_rho_post(executor, grid_spec,
+                            threads_per_block, device_centers.device_side_buffer,
+                            device_local_expansions.device_side_buffer,
+                            device_erg_exp.device_side_buffer);
+#endif
                     }
                 } else {
                     // Launch kernel and queue copying of results
@@ -117,6 +158,7 @@ namespace fmm {
                     dim3 const threads_per_block(1, INX, INX);
                     if (type == RHO) {
                         bool second_phase = false;
+#if defined(OCTOTIGER_HAVE_CUDA)
                         void* args[] = {&(device_local_monopoles.device_side_buffer),
                             &(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
@@ -126,13 +168,23 @@ namespace fmm {
                             cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
                             cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block,
                             args, 0);*/
-                        launch_multipole_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
+                        launch_multipole_rho_cuda_kernel_post(
+                            executor, grid_spec, threads_per_block, args);
+#elif defined(OCTOTIGER_HAVE_HIP)
+                        hip_multipole_interactions_kernel_rho_post(executor, grid_spec,
+                            threads_per_block, device_local_monopoles.device_side_buffer,
+                            device_centers.device_side_buffer,
+                            device_local_expansions.device_side_buffer,
+                            device_erg_exp.device_side_buffer, device_erg_corrs.device_side_buffer,
+                            theta, second_phase);
+#endif
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
                             device_erg_corrs.device_side_buffer, angular_corrections_size,
                             cudaMemcpyDeviceToHost);
                     } else {
                         bool second_phase = false;
+#if defined(OCTOTIGER_HAVE_CUDA)
                         void* args[] = {&(device_local_monopoles.device_side_buffer),
                             &(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
@@ -141,7 +193,15 @@ namespace fmm {
                             cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
                             cuda_multipole_interactions_kernel_non_rho, grid_spec,
                             threads_per_block, args, 0);*/
-                        launch_multipole_non_rho_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
+                        launch_multipole_non_rho_cuda_kernel_post(
+                            executor, grid_spec, threads_per_block, args);
+#elif defined(OCTOTIGER_HAVE_HIP)
+                        hip_multipole_interactions_kernel_non_rho_post(executor, grid_spec,
+                            threads_per_block, device_local_monopoles.device_side_buffer,
+                            device_centers.device_side_buffer,
+                            device_local_expansions.device_side_buffer,
+                            device_erg_exp.device_side_buffer, theta, second_phase);
+#endif
                     }
                 }
                 auto fut = hpx::async(static_cast<hpx::cuda::experimental::cuda_executor>(executor),

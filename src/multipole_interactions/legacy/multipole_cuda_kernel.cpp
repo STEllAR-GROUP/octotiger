@@ -1,10 +1,14 @@
-#ifdef OCTOTIGER_HAVE_CUDA
+#if defined(OCTOTIGER_HAVE_CUDA) || defined(OCTOTIGER_HAVE_HIP)
 #include "octotiger/multipole_interactions/legacy/multipole_cuda_kernel.hpp"
 #include "octotiger/common_kernel/interaction_constants.hpp"
-#include "octotiger/multipole_interactions/kernel/compute_kernel_templates.hpp"
 #include "octotiger/cuda_util/cuda_scheduler.hpp"
+#include "octotiger/multipole_interactions/kernel/compute_kernel_templates.hpp"
 
 #include <cstddef>
+#if defined(OCTOTIGER_HAVE_HIP)
+#define cudaSetDevice hipSetDevice
+#define cudaMemcpyToSymbol hipMemcpyToSymbol
+#endif
 
 namespace octotiger {
 namespace fmm {
@@ -22,22 +26,26 @@ namespace fmm {
         }
         void copy_stencil_to_m2m_constant_memory(
             const float* stencil_masks, const size_t full_stencil_size) {
-                cudaMemcpyToSymbol(device_constant_stencil_masks, stencil_masks, full_stencil_size);
+            cudaMemcpyToSymbol(device_constant_stencil_masks, stencil_masks, full_stencil_size);
         }
         void copy_indicator_to_m2m_constant_memory(
             const float* indicator, const size_t indicator_size) {
-                cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
+            cudaMemcpyToSymbol(device_stencil_indicator_const, indicator, indicator_size);
         }
 
         __device__ const size_t component_length = ENTRIES + SOA_PADDING;
         __device__ const size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
 
+#if defined(OCTOTIGER_HAVE_HIP)
+        __global__ void cuda_multipole_interactions_kernel_rho(
+#else
         __global__ void __launch_bounds__(INX* INX, 2) cuda_multipole_interactions_kernel_rho(
-            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            const double (&center_of_masses)[NUMBER_MASS_VALUES],
-            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
-            double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
-            double (&angular_corrections)[NUMBER_ANG_CORRECTIONS], const double theta,
+#endif
+            const double *local_monopoles,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections, const double theta,
             const bool computing_second_half) {
             int index_x = threadIdx.x + blockIdx.x;
             if (computing_second_half)
@@ -134,20 +142,47 @@ namespace fmm {
             angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmp_corrections[2];
         }
+#if defined(OCTOTIGER_HAVE_HIP)
+        void hip_multipole_interactions_kernel_rho_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, const double *monopoles, const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections, const double theta,
+            const bool computing_second_half, hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block,
+                0, stream, monopoles, center_of_masses, multipoles, potential_expansions, angular_corrections,
+                theta, computing_second_half);
+        }
+        void hip_multipole_interactions_kernel_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections, const double theta,
+            const bool computing_second_half) {
+            executor.post(hip_multipole_interactions_kernel_rho_ggl_wrapper, grid_spec,
+                threads_per_block, monopoles, center_of_masses, multipoles, potential_expansions,
+                angular_corrections, theta, computing_second_half);
+        }
+#else
         void launch_multipole_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            executor.post(
-            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
-            cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args, 0);
+            dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
+            executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
+                cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args, 0);
         }
+#endif
 
-
+#if defined(OCTOTIGER_HAVE_HIP)
+        __global__ void cuda_multipole_interactions_kernel_root_rho(
+#else
         __global__ void __launch_bounds__(INX* INX, 2) cuda_multipole_interactions_kernel_root_rho(
-            const double (&center_of_masses)[NUMBER_MASS_VALUES],
-            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
-            double (&potential_expansions)[NUMBER_POT_EXPANSIONS],
-            double (&angular_corrections)[NUMBER_ANG_CORRECTIONS]) {
+#endif
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections) {
             int index_x = threadIdx.x + blockIdx.x;
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
@@ -230,19 +265,45 @@ namespace fmm {
             angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmp_corrections[2];
         }
+#if defined(OCTOTIGER_HAVE_HIP)
+        void hip_multipole_interactions_kernel_root_rho_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections, hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_multipole_interactions_kernel_root_rho, grid_spec,
+                threads_per_block, 0, stream, center_of_masses, multipoles, potential_expansions,
+                angular_corrections);
+        }
+        void hip_multipole_interactions_kernel_root_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions,
+            double *angular_corrections) {
+            executor.post(hip_multipole_interactions_kernel_root_rho_ggl_wrapper, grid_spec,
+                threads_per_block, center_of_masses, multipoles, potential_expansions,
+                angular_corrections);
+        }
+#else
         void launch_multipole_root_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            executor.post(
-            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
-            cuda_multipole_interactions_kernel_root_rho, grid_spec, threads_per_block, args, 0);
+            dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
+            executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
+                cuda_multipole_interactions_kernel_root_rho, grid_spec, threads_per_block, args, 0);
         }
+#endif
 
+#if defined(OCTOTIGER_HAVE_HIP)
+        __global__ void cuda_multipole_interactions_kernel_non_rho(
+#else
         __global__ void __launch_bounds__(INX* INX, 2) cuda_multipole_interactions_kernel_non_rho(
-            const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
-            const double (&center_of_masses)[NUMBER_MASS_VALUES],
-            const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
-            double (&potential_expansions)[NUMBER_POT_EXPANSIONS], const double theta,
+#endif
+            const double *local_monopoles,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions, const double theta,
             const bool computing_second_half) {
             int index_x = threadIdx.x + blockIdx.x;
             if (computing_second_half)
@@ -326,19 +387,47 @@ namespace fmm {
                 potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
                     tmpstore[i];
         }
+#if defined(OCTOTIGER_HAVE_HIP)
+        void hip_multipole_interactions_kernel_non_rho_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, const double *monopoles,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions, const double theta,
+            const bool computing_second_half, hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_multipole_interactions_kernel_non_rho, grid_spec,
+                threads_per_block, 0, stream, monopoles, center_of_masses, multipoles, potential_expansions,
+                theta, computing_second_half);
+        }
+        void hip_multipole_interactions_kernel_non_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block,
+            const double *monopoles,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions, const double theta,
+            const bool computing_second_half) {
+            executor.post(hip_multipole_interactions_kernel_non_rho_ggl_wrapper, grid_spec,
+                threads_per_block, monopoles, center_of_masses, multipoles, potential_expansions,
+                theta, computing_second_half);
+        }
+#else
         void launch_multipole_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
-            executor.post(
-            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
-            cuda_multipole_interactions_kernel_non_rho, grid_spec, threads_per_block, args, 0);
+            dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
+            executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
+                cuda_multipole_interactions_kernel_non_rho, grid_spec, threads_per_block, args, 0);
         }
+#endif
 
+#if defined(OCTOTIGER_HAVE_HIP)
+        __global__ void
+#else
         __global__ void __launch_bounds__(INX* INX, 2)
-            cuda_multipole_interactions_kernel_root_non_rho(
-                const double (&center_of_masses)[NUMBER_MASS_VALUES],
-                const double (&multipoles)[NUMBER_LOCAL_EXPANSION_VALUES],
-                double (&potential_expansions)[NUMBER_POT_EXPANSIONS]) {
+#endif
+        cuda_multipole_interactions_kernel_root_non_rho(
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions) {
             int index_x = threadIdx.x + blockIdx.x;
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
@@ -408,13 +497,34 @@ namespace fmm {
                 potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
                     tmpstore[i];
         }
+#if defined(OCTOTIGER_HAVE_HIP)
+        void hip_multipole_interactions_kernel_root_non_rho_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions, hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_multipole_interactions_kernel_root_non_rho, grid_spec,
+                threads_per_block, 0, stream, center_of_masses, multipoles, potential_expansions);
+        }
+        void hip_multipole_interactions_kernel_root_non_rho_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block,
+            const double *center_of_masses,
+            const double *multipoles,
+            double *potential_expansions) {
+            executor.post(hip_multipole_interactions_kernel_root_non_rho_ggl_wrapper, grid_spec,
+                threads_per_block, center_of_masses, multipoles, potential_expansions);
+        }
+#else
         void launch_multipole_root_non_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
+            dim3 const grid_spec, dim3 const threads_per_block, void* args[]) {
             executor.post(
-            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_non_rho)>,
-            cuda_multipole_interactions_kernel_root_non_rho, grid_spec, threads_per_block, args, 0);
+                cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_non_rho)>,
+                cuda_multipole_interactions_kernel_root_non_rho, grid_spec, threads_per_block, args,
+                0);
         }
+#endif
+
     }    // namespace multipole_interactions
 }    // namespace fmm
 }    // namespace octotiger
