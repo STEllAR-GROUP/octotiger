@@ -148,7 +148,7 @@ endif()
 # Sphere - GPU plain HIP
 if(OCTOTIGER_WITH_HIP)
   test_sphere_scenario(test_problems.gpu.sphere_cuda  sphere_cuda_log.txt ${silo_scenario_filename}
-  " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=HIP ")
+    " --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=HIP --multipole_device_kernel_type=HIP ")
 endif()
 
 # Sphere - Kokkos Host / Device tests
