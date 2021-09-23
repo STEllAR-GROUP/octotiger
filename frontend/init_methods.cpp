@@ -130,11 +130,13 @@ void init_executors(void) {
 #if defined(KOKKOS_ENABLE_CUDA)
     // initialize stencils / executor pool in kokkos device
     std::cout << "KOKKOS/CUDA is enabled!" << std::endl;
+    stream_pool::init<hpx::kokkos::cuda_executor, round_robin_pool<hpx::kokkos::cuda_executor>>(
+        opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
 #elif defined(KOKKOS_ENABLE_HIP)
     std::cout << "KOKKOS/HIP is enabled!" << std::endl;
-#endif
     stream_pool::init<hpx::kokkos::hip_executor, round_robin_pool<hpx::kokkos::hip_executor>>(
         opts().cuda_streams_per_gpu, hpx::kokkos::execution_space_mode::independent);
+#endif
     kokkos_device_executor mover{};
     octotiger::fmm::monopole_interactions::get_device_masks<device_buffer<int>, host_buffer<int>,
         kokkos_device_executor>(mover);
