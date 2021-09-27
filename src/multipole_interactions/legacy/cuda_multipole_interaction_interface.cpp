@@ -186,6 +186,12 @@ namespace fmm {
                             device_local_expansions.device_side_buffer,
                             device_erg_exp.device_side_buffer, device_erg_corrs.device_side_buffer,
                             theta, second_phase);
+                        hip_sum_multipole_rho_results_post(executor, grid_spec,
+                            threads_per_block, 
+                            device_tmp_erg_exp.device_side_buffer,
+                            device_tmp_erg_corrs.device_side_buffer, 
+                            device_erg_exp.device_side_buffer,
+                            device_erg_corrs.device_side_buffer);
 #endif
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
@@ -213,6 +219,10 @@ namespace fmm {
                             device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
                             device_erg_exp.device_side_buffer, theta, second_phase);
+                        hip_sum_multipole_rho_results_post(executor, grid_spec,
+                            threads_per_block, 
+                            device_tmp_erg_exp.device_side_buffer,
+                            device_erg_exp.device_side_buffer);
 #endif
                     }
                 }

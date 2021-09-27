@@ -202,6 +202,25 @@ namespace fmm {
                 threads_per_block, monopoles, center_of_masses, multipoles, potential_expansions,
                 angular_corrections, theta, computing_second_half);
         }
+
+        void hip_sum_multipole_rho_results_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, 
+            double *tmp_potential_expansions, double *tmp_angular_corrections,
+            double *potential_expansions, double *angular_corrections,
+            hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_sum_multipole_rho_results, grid_spec, threads_per_block,
+                0, stream, tmp_potential_expansions, tmp_angular_corrections,
+                potential_expansions, angular_corrections);
+        }
+        void hip_sum_multipole_rho_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, 
+            double *tmp_potential_expansions, double *tmp_angular_corrections,
+            double *potential_expansions, double *angular_corrections) {
+            executor.post(hip_sum_multipole_rho_results_ggl_wrapper, grid_spec,
+                threads_per_block, tmp_potential_expansions, tmp_angular_corrections,
+                potential_expansions, angular_corrections);
+        }
 #else
         void launch_multipole_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
@@ -478,6 +497,26 @@ namespace fmm {
             executor.post(hip_multipole_interactions_kernel_non_rho_ggl_wrapper, grid_spec,
                 threads_per_block, monopoles, center_of_masses, multipoles, potential_expansions,
                 theta, computing_second_half);
+        }
+
+
+        void hip_sum_multipole_non_rho_results_ggl_wrapper(dim3 const grid_spec,
+            dim3 const threads_per_block, 
+            double *tmp_potential_expansions,
+            double *potential_expansions,
+            hipStream_t& stream) {
+            hipLaunchKernelGGL(cuda_sum_multipole_non_rho_results, grid_spec, threads_per_block,
+                0, stream, tmp_potential_expansions, 
+                potential_expansions);
+        }
+        void hip_sum_multipole_non_rho_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, 
+            double *tmp_potential_expansions,
+            double *potential_expansions) {
+            executor.post(hip_sum_multipole_non_rho_results_ggl_wrapper, grid_spec,
+                threads_per_block, tmp_potential_expansions,
+                potential_expansions);
         }
 #else
         void launch_multipole_non_rho_cuda_kernel_post(
