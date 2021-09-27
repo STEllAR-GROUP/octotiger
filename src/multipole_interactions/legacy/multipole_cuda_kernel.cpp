@@ -51,7 +51,9 @@ namespace fmm {
             if (computing_second_half)
                 index_x += 4;
 
-            const int block_id = blockIdx.y; 
+            const int block_id_y = blockIdx.y; 
+            const int block_id_z = blockIdx.z; 
+            const int block_id = block_id_z * NUMBER_MULTIPOLE_BLOCKS + block_id_y;
 
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
@@ -88,49 +90,49 @@ namespace fmm {
             double Y[NDIM];
 
             // calculate interactions between this cell and each stencil element
-            const int x = block_id;
+            const int x = block_id_y;
             const int stencil_x = x + STENCIL_MIN;
 
-            for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
-                int y = stencil_y - STENCIL_MIN;
-                for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
-                    const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
-                        (stencil_z - STENCIL_MIN);
-                    if (!device_constant_stencil_masks[index]) {
-                        continue;
-                    }
-                    const double mask_phase_one = device_stencil_indicator_const[index];
-                    const multiindex<> partner_index(cell_index.x + stencil_x,
-                        cell_index.y + stencil_y, cell_index.z + stencil_z);
-                    const size_t partner_flat_index = to_flat_index_padded(partner_index);
-                    multiindex<> partner_index_coarse(partner_index);
-                    partner_index_coarse.transform_coarse();
+            const int y = block_id_z;
+            const int stencil_y = y + STENCIL_MIN;
 
-                    // Create mask - TODO is this really necessay in the non-vectorized code..?
-                    const double theta_c_rec_squared = static_cast<double>(
-                        distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
-                    const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                    double mask = mask_b ? 1.0 : 0.0;
-
-                    // Load data of interaction partner
-                    Y[0] = center_of_masses[partner_flat_index];
-                    Y[1] = center_of_masses[1 * component_length + partner_flat_index];
-                    Y[2] = center_of_masses[2 * component_length + partner_flat_index];
-                    m_partner[0] = local_monopoles[partner_flat_index] * mask;
-                    mask = mask *
-                        mask_phase_one;    // do not load multipoles outside the inner stencil
-                    m_partner[0] += multipoles[partner_flat_index] * mask;
-#pragma unroll
-                    for (size_t i = 1; i < 20; ++i)
-                        m_partner[i] =
-                            multipoles[i * component_length + partner_flat_index] * mask;
-
-                    // Do the actual calculations
-                    compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
-                        [] __device__(const double& one, const double& two) -> double {
-                            return std::max(one, two);
-                        });
+            for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
+                const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
+                    (stencil_z - STENCIL_MIN);
+                if (!device_constant_stencil_masks[index]) {
+                    continue;
                 }
+                const double mask_phase_one = device_stencil_indicator_const[index];
+                const multiindex<> partner_index(cell_index.x + stencil_x,
+                    cell_index.y + stencil_y, cell_index.z + stencil_z);
+                const size_t partner_flat_index = to_flat_index_padded(partner_index);
+                multiindex<> partner_index_coarse(partner_index);
+                partner_index_coarse.transform_coarse();
+
+                // Create mask - TODO is this really necessay in the non-vectorized code..?
+                const double theta_c_rec_squared = static_cast<double>(
+                    distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                double mask = mask_b ? 1.0 : 0.0;
+
+                // Load data of interaction partner
+                Y[0] = center_of_masses[partner_flat_index];
+                Y[1] = center_of_masses[1 * component_length + partner_flat_index];
+                Y[2] = center_of_masses[2 * component_length + partner_flat_index];
+                m_partner[0] = local_monopoles[partner_flat_index] * mask;
+                mask = mask *
+                    mask_phase_one;    // do not load multipoles outside the inner stencil
+                m_partner[0] += multipoles[partner_flat_index] * mask;
+#pragma unroll
+                for (size_t i = 1; i < 20; ++i)
+                    m_partner[i] =
+                        multipoles[i * component_length + partner_flat_index] * mask;
+
+                // Do the actual calculations
+                compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
+                    [] __device__(const double& one, const double& two) -> double {
+                        return std::max(one, two);
+                    });
             }
 
 // Store results in output arrays
@@ -372,7 +374,9 @@ namespace fmm {
             if (computing_second_half)
                 index_x += 4;
 
-            const int block_id = blockIdx.y; 
+            const int block_id_y = blockIdx.y; 
+            const int block_id_z = blockIdx.z; 
+            const int block_id = block_id_z * NUMBER_MULTIPOLE_BLOCKS + block_id_y;
 
             // Set cell indices
             const octotiger::fmm::multiindex<> cell_index(index_x + INNER_CELLS_PADDING_DEPTH,
@@ -400,50 +404,49 @@ namespace fmm {
             double Y[NDIM];
 
             // calculate interactions between this cell and each stencil element
-            const int x = block_id;
+            const int x = block_id_y;
             const int stencil_x = x + STENCIL_MIN;
-            for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
-                int y = stencil_y - STENCIL_MIN;
-                for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
-                    const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
-                        (stencil_z - STENCIL_MIN);
-                    if (!device_constant_stencil_masks[index]) {
-                        continue;
-                    }
-                    const double mask_phase_one = device_stencil_indicator_const[index];
-                    const multiindex<> partner_index(cell_index.x + stencil_x,
-                        cell_index.y + stencil_y, cell_index.z + stencil_z);
-
-                    const size_t partner_flat_index = to_flat_index_padded(partner_index);
-                    multiindex<> partner_index_coarse(partner_index);
-                    partner_index_coarse.transform_coarse();
-
-                    // Create mask
-                    const double theta_c_rec_squared = static_cast<double>(
-                        distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
-                    const bool mask_b = theta_rec_squared > theta_c_rec_squared;
-                    double mask = mask_b ? 1.0 : 0.0;
-
-                    // Load data of interaction partner
-                    Y[0] = center_of_masses[partner_flat_index];
-                    Y[1] = center_of_masses[1 * component_length + partner_flat_index];
-                    Y[2] = center_of_masses[2 * component_length + partner_flat_index];
-
-                    m_partner[0] = local_monopoles[partner_flat_index] * mask;
-                    mask = mask *
-                        mask_phase_one;    // do not load multipoles outside the inner stencil
-                    m_partner[0] += multipoles[partner_flat_index] * mask;
-#pragma unroll
-                    for (size_t i = 1; i < 20; ++i)
-                        m_partner[i] =
-                            multipoles[i * component_length + partner_flat_index] * mask;
-
-                    // Do the actual calculations
-                    compute_kernel_non_rho(X, Y, m_partner, tmpstore,
-                        [] __device__(const double& one, const double& two) -> double {
-                            return std::max(one, two);
-                        });
+            const int y = block_id_z;
+            const int stencil_y = y + STENCIL_MIN;
+            for (int stencil_z = STENCIL_MIN; stencil_z <= STENCIL_MAX; stencil_z++) {
+                const size_t index = x * STENCIL_INX * STENCIL_INX + y * STENCIL_INX +
+                    (stencil_z - STENCIL_MIN);
+                if (!device_constant_stencil_masks[index]) {
+                    continue;
                 }
+                const double mask_phase_one = device_stencil_indicator_const[index];
+                const multiindex<> partner_index(cell_index.x + stencil_x,
+                    cell_index.y + stencil_y, cell_index.z + stencil_z);
+
+                const size_t partner_flat_index = to_flat_index_padded(partner_index);
+                multiindex<> partner_index_coarse(partner_index);
+                partner_index_coarse.transform_coarse();
+
+                // Create mask
+                const double theta_c_rec_squared = static_cast<double>(
+                    distance_squared_reciprocal(cell_index_coarse, partner_index_coarse));
+                const bool mask_b = theta_rec_squared > theta_c_rec_squared;
+                double mask = mask_b ? 1.0 : 0.0;
+
+                // Load data of interaction partner
+                Y[0] = center_of_masses[partner_flat_index];
+                Y[1] = center_of_masses[1 * component_length + partner_flat_index];
+                Y[2] = center_of_masses[2 * component_length + partner_flat_index];
+
+                m_partner[0] = local_monopoles[partner_flat_index] * mask;
+                mask = mask *
+                    mask_phase_one;    // do not load multipoles outside the inner stencil
+                m_partner[0] += multipoles[partner_flat_index] * mask;
+#pragma unroll
+                for (size_t i = 1; i < 20; ++i)
+                    m_partner[i] =
+                        multipoles[i * component_length + partner_flat_index] * mask;
+
+                // Do the actual calculations
+                compute_kernel_non_rho(X, Y, m_partner, tmpstore,
+                    [] __device__(const double& one, const double& two) -> double {
+                        return std::max(one, two);
+                    });
             }
 
 // Store results in output arrays

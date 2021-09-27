@@ -110,7 +110,7 @@ namespace fmm {
                 hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_centers.device_side_buffer,
                     center_of_masses_SoA.get_pod(), center_of_masses_size, cudaMemcpyHostToDevice);
-                int block_numbers = NUMBER_MULTIPOLE_BLOCKS;
+                int block_numbers = NUMBER_MULTIPOLE_BLOCKS * NUMBER_MULTIPOLE_BLOCKS;
                 if (use_root_stencil) {
                     block_numbers = INX;
                 }
@@ -179,7 +179,7 @@ namespace fmm {
                     }
                 } else {
                     // Launch kernel and queue copying of results
-                    dim3 const grid_spec(INX, NUMBER_MULTIPOLE_BLOCKS, 1);
+                    dim3 const grid_spec(INX, NUMBER_MULTIPOLE_BLOCKS, NUMBER_MULTIPOLE_BLOCKS);
                     dim3 const threads_per_block(1, INX, INX);
                     dim3 const grid_spec_sum(1, 1, INX);
 
