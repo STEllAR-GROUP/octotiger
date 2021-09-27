@@ -129,7 +129,7 @@ void physics<NDIM>::post_process(hydro::state_type &U, const hydro::x_type &X, s
 			}
 			r = std::sqrt(r);
 			if (r < rho_sink_radius_) {
-				for (int s = 0; s < spc_i; s++) {
+				for (int s = 0; s < n_species_; s++) {
 					U[spc_i + s][i] = rho_sink_floor_ / n_species_;
 				}
 				U[rho_i][i] = rho_sink_floor_;
