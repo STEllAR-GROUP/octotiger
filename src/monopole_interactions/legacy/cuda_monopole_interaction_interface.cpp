@@ -130,6 +130,7 @@ namespace fmm {
                 // Launch kernel and queue copying of results
                 dim3 const grid_spec(1, NUMBER_P2P_BLOCKS, INX);
                 dim3 const threads_per_block(1, INX, INX);
+                dim3 const grid_spec_sum(1, 1, INX);
 #if defined(OCTOTIGER_HAVE_CUDA)
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
                     &(tmp_ergs.device_side_buffer), &theta, &dx};
@@ -140,14 +141,13 @@ namespace fmm {
                 //  cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
 
                 launch_p2p_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
-                dim3 const grid_spec_sum(1, 1, INX);
                 void* args_sum[] = {&(tmp_ergs.device_side_buffer),
                     &(erg.device_side_buffer), &theta, &dx};
                 launch_sum_p2p_results_post(executor, grid_spec_sum, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                 hip_p2p_interactions_kernel_post(executor, grid_spec,
                   threads_per_block, device_local_monopoles.device_side_buffer, tmp_ergs.device_side_buffer, theta, dx);
-                hip_sum_p2p_results_post(executor, grid_spec,
+                hip_sum_p2p_results_post(executor, grid_spec_sum,
                   threads_per_block, tmp_ergs.device_side_buffer, erg.device_side_buffer);
 #endif
 

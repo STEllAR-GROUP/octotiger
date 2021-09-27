@@ -160,6 +160,7 @@ namespace fmm {
                     // Launch kernel and queue copying of results
                     dim3 const grid_spec(INX, NUMBER_MULTIPOLE_BLOCKS, 1);
                     dim3 const threads_per_block(1, INX, INX);
+                    dim3 const grid_spec_sum(1, 1, INX);
                     if (type == RHO) {
                         bool second_phase = false;
 #if defined(OCTOTIGER_HAVE_CUDA)
@@ -171,7 +172,6 @@ namespace fmm {
                         launch_multipole_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
 
-                        dim3 const grid_spec_sum(1, 1, INX);
                         void* args_sum[] = {
                             &(device_tmp_erg_exp.device_side_buffer),
                             &(device_tmp_erg_corrs.device_side_buffer), 
@@ -184,9 +184,9 @@ namespace fmm {
                             threads_per_block, device_local_monopoles.device_side_buffer,
                             device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
-                            device_erg_exp.device_side_buffer, device_erg_corrs.device_side_buffer,
+                            device_tmp_erg_exp.device_side_buffer, device_tmp_erg_corrs.device_side_buffer,
                             theta, second_phase);
-                        hip_sum_multipole_rho_results_post(executor, grid_spec,
+                        hip_sum_multipole_rho_results_post(executor, grid_spec_sum,
                             threads_per_block, 
                             device_tmp_erg_exp.device_side_buffer,
                             device_tmp_erg_corrs.device_side_buffer, 
@@ -207,7 +207,6 @@ namespace fmm {
                         launch_multipole_non_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
 
-                        dim3 const grid_spec_sum(1, 1, INX);
                         void* args_sum[] = {
                             &(device_tmp_erg_exp.device_side_buffer),
                             &(device_erg_exp.device_side_buffer),};
@@ -218,8 +217,8 @@ namespace fmm {
                             threads_per_block, device_local_monopoles.device_side_buffer,
                             device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
-                            device_erg_exp.device_side_buffer, theta, second_phase);
-                        hip_sum_multipole_non_rho_results_post(executor, grid_spec,
+                            device_tmp_erg_exp.device_side_buffer, theta, second_phase);
+                        hip_sum_multipole_non_rho_results_post(executor, grid_spec_sum,
                             threads_per_block, 
                             device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);
