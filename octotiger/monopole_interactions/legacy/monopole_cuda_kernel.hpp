@@ -19,6 +19,7 @@ namespace fmm {
         // extern __constant__ double device_four_constants[4 * FULL_STENCIL_SIZE];
         __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> stencil_masks,
             std::unique_ptr<double[]> four_constants_tmp);
+        constexpr int NUMBER_P2P_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
         /*__global__ void cuda_p2p_interactions_kernel(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             double (&potential_expansions)[NUMBER_POT_EXPANSIONS_SMALL], const double theta,
@@ -42,6 +43,10 @@ namespace fmm {
         void launch_p2p_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+        void launch_sum_p2p_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+
         void launch_p2m_rho_cuda_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
@@ -54,6 +59,7 @@ namespace fmm {
             dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
             double *potential_expansions,
             const double theta, const double dx);
+
 #endif
 
     }    // namespace monopole_interactions

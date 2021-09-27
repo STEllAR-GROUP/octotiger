@@ -116,6 +116,7 @@ namespace fmm {
                 cuda_expansion_result_buffer_t potential_expansions_SoA;
                 cuda_monopole_buffer_t local_monopoles(ENTRIES);
                 device_buffer_t<double> device_local_monopoles(ENTRIES, device_id);
+                device_buffer_t<double> tmp_ergs(NUMBER_P2P_BLOCKS * NUMBER_POT_EXPANSIONS_SMALL, device_id);
                 device_buffer_t<double> erg(NUMBER_POT_EXPANSIONS_SMALL, device_id);
 
                 // Move data into staging buffers
@@ -127,17 +128,22 @@ namespace fmm {
                     local_monopoles.data(), local_monopoles_size, cudaMemcpyHostToDevice);
 
                 // Launch kernel and queue copying of results
-                dim3 const grid_spec(1, 1, INX);
+                dim3 const grid_spec(1, NUMBER_P2P_BLOCKS, INX);
                 dim3 const threads_per_block(1, INX, INX);
 #if defined(OCTOTIGER_HAVE_CUDA)
                 void* args[] = {&(device_local_monopoles.device_side_buffer),
-                    &(erg.device_side_buffer), &theta, &dx};
+                    &(tmp_ergs.device_side_buffer), &theta, &dx};
                 // hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                 //     cudalaunchkernel<decltype(cuda_p2p_interactions_kernel)>,
                 //     cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
                 // executor.post(cudaLaunchKernel<decltype(cuda_p2p_interactions_kernel)>,
                 //  cuda_p2p_interactions_kernel, grid_spec, threads_per_block, args, 0);
+
                 launch_p2p_cuda_kernel_post(executor, grid_spec, threads_per_block, args);
+                dim3 const grid_spec_sum(1, 1, INX);
+                void* args_sum[] = {&(tmp_ergs.device_side_buffer),
+                    &(erg.device_side_buffer), &theta, &dx};
+                launch_sum_p2p_results_post(executor, grid_spec_sum, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                 hip_p2p_interactions_kernel_post(executor, grid_spec,
                   threads_per_block, device_local_monopoles.device_side_buffer, erg.device_side_buffer, theta, dx);
