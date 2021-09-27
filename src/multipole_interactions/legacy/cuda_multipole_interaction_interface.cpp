@@ -141,7 +141,7 @@ namespace fmm {
                         hip_multipole_interactions_kernel_root_rho_post(executor, grid_spec,
                             threads_per_block, device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
-                            device_erg_exp.device_side_buffer, device_erg_corrs.device_side_buffer);
+                            device_tmp_erg_exp.device_side_buffer, device_tmp_erg_corrs.device_side_buffer);
                         hip_sum_multipole_rho_results_post(executor, grid_spec_sum,
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
@@ -170,7 +170,7 @@ namespace fmm {
                         hip_multipole_interactions_kernel_root_non_rho_post(executor, grid_spec,
                             threads_per_block, device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
-                            device_erg_exp.device_side_buffer);
+                            device_tmp_erg_exp.device_side_buffer);
                         hip_sum_multipole_non_rho_results_post(executor, grid_spec_sum,
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
