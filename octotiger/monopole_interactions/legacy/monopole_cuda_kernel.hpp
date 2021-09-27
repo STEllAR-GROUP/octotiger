@@ -57,8 +57,13 @@ namespace fmm {
         void hip_p2p_interactions_kernel_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, const double *monopoles,
-            double *potential_expansions,
+            double *tmp_potential_expansions,
             const double theta, const double dx);
+        void hip_sum_p2p_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, 
+            double *tmp_potential_expansions,
+            double *potential_expansions);
 
 #endif
 
