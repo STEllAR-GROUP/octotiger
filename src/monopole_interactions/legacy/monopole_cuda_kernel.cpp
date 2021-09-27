@@ -62,8 +62,8 @@ namespace fmm {
             const size_t index_base =
                 (threadIdx.y + STENCIL_MAX) * cache_line_length + threadIdx.z + STENCIL_MAX;
 
-                const int x = block_id;
-                const int stencil_x = x + STENCIL_MIN;
+            const int x = block_id;
+            const int stencil_x = x + STENCIL_MIN;
 
             for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                 int y = stencil_y - STENCIL_MIN;

@@ -87,6 +87,10 @@ namespace fmm {
                 device_buffer_t<double> device_local_expansions(
                     NUMBER_LOCAL_EXPANSION_VALUES, device_id);
                 device_buffer_t<double> device_centers(NUMBER_MASS_VALUES, device_id);
+
+                device_buffer_t<double> device_tmp_erg_exp(NUMBER_MULTIPOLE_BLOCKS * NUMBER_POT_EXPANSIONS, device_id);
+                device_buffer_t<double> device_tmp_erg_corrs(NUMBER_MULTIPOLE_BLOCKS * NUMBER_ANG_CORRECTIONS);
+
                 device_buffer_t<double> device_erg_exp(NUMBER_POT_EXPANSIONS, device_id);
                 device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
 
@@ -154,7 +158,7 @@ namespace fmm {
                     }
                 } else {
                     // Launch kernel and queue copying of results
-                    dim3 const grid_spec(INX, 1, 1);
+                    dim3 const grid_spec(INX, NUMBER_MULTIPOLE_BLOCKS, 1);
                     dim3 const threads_per_block(1, INX, INX);
                     if (type == RHO) {
                         bool second_phase = false;
@@ -162,14 +166,19 @@ namespace fmm {
                         void* args[] = {&(device_local_monopoles.device_side_buffer),
                             &(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
-                            &(device_erg_exp.device_side_buffer),
-                            &(device_erg_corrs.device_side_buffer), &theta, &second_phase};
-                        /*executor.post(
-                            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
-                            cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block,
-                            args, 0);*/
+                            &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_tmp_erg_corrs.device_side_buffer), &theta, &second_phase};
                         launch_multipole_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
+
+                        dim3 const grid_spec_sum(1, 1, INX);
+                        void* args_sum[] = {
+                            &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_tmp_erg_corrs.device_side_buffer), 
+                            &(device_erg_exp.device_side_buffer),
+                            &(device_erg_corrs.device_side_buffer)};
+                        launch_sum_multipole_rho_results_post(
+                            executor, grid_spec_sum, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_rho_post(executor, grid_spec,
                             threads_per_block, device_local_monopoles.device_side_buffer,
@@ -188,13 +197,16 @@ namespace fmm {
                         void* args[] = {&(device_local_monopoles.device_side_buffer),
                             &(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
-                            &(device_erg_exp.device_side_buffer), &theta, &second_phase};
-                        /*executor.post(
-                            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
-                            cuda_multipole_interactions_kernel_non_rho, grid_spec,
-                            threads_per_block, args, 0);*/
+                            &(device_tmp_erg_exp.device_side_buffer), &theta, &second_phase};
                         launch_multipole_non_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
+
+                        dim3 const grid_spec_sum(1, 1, INX);
+                        void* args_sum[] = {
+                            &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_erg_exp.device_side_buffer),};
+                        launch_sum_multipole_non_rho_results_post(
+                            executor, grid_spec_sum, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_non_rho_post(executor, grid_spec,
                             threads_per_block, device_local_monopoles.device_side_buffer,

@@ -21,6 +21,7 @@ namespace fmm {
         //extern __constant__ bool device_constant_stencil_masks[FULL_STENCIL_SIZE];
         __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> multipole_stencil_masks,
             std::unique_ptr<bool[]> multipole_indicators);
+        constexpr int NUMBER_MULTIPOLE_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
         /*__global__ void cuda_multipole_interactions_kernel_rho(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             const double (&center_of_masses)[NUMBER_MASS_VALUES],
@@ -56,6 +57,14 @@ namespace fmm {
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
         void launch_multipole_root_non_rho_cuda_kernel_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+
+
+        void launch_sum_multipole_rho_results_post(
+            stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+            dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
+        void launch_sum_multipole_non_rho_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 #elif defined(OCTOTIGER_HAVE_HIP)
