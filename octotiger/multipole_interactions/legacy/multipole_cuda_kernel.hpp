@@ -102,12 +102,12 @@ namespace fmm {
 
         void hip_sum_multipole_rho_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, 
+            dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions, double *tmp_angular_corrections,
             double *potential_expansions, double *angular_corrections);
         void hip_sum_multipole_non_rho_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, 
+            dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions,
             double *potential_expansions);
         

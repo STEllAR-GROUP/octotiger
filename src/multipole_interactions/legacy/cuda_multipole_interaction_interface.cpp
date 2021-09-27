@@ -88,8 +88,6 @@ namespace fmm {
                     NUMBER_LOCAL_EXPANSION_VALUES, device_id);
                 device_buffer_t<double> device_centers(NUMBER_MASS_VALUES, device_id);
 
-                device_buffer_t<double> device_tmp_erg_exp(NUMBER_MULTIPOLE_BLOCKS * NUMBER_POT_EXPANSIONS, device_id);
-                device_buffer_t<double> device_tmp_erg_corrs(NUMBER_MULTIPOLE_BLOCKS * NUMBER_ANG_CORRECTIONS);
 
                 device_buffer_t<double> device_erg_exp(NUMBER_POT_EXPANSIONS, device_id);
                 device_buffer_t<double> device_erg_corrs(NUMBER_ANG_CORRECTIONS);
@@ -112,27 +110,44 @@ namespace fmm {
                 hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                     cudaMemcpyAsync, device_centers.device_side_buffer,
                     center_of_masses_SoA.get_pod(), center_of_masses_size, cudaMemcpyHostToDevice);
+                int block_numbers = NUMBER_MULTIPOLE_BLOCKS;
+                if (use_root_stencil) {
+                    block_numbers = INX;
+                }
+                device_buffer_t<double> device_tmp_erg_exp(block_numbers * NUMBER_POT_EXPANSIONS, device_id);
+                device_buffer_t<double> device_tmp_erg_corrs(block_numbers * NUMBER_ANG_CORRECTIONS);
 
                 if (use_root_stencil) {
-                    dim3 const grid_spec(INX, 1, 1);
+                    dim3 const grid_spec(INX, INX, 1);
                     dim3 const threads_per_block(1, INX, INX);
+                    dim3 const grid_spec_sum(1, 1, INX);
                     if (type == RHO) {
 #if defined(OCTOTIGER_HAVE_CUDA)
                         void* args[] = {&(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
-                            &(device_erg_exp.device_side_buffer),
-                            &(device_erg_corrs.device_side_buffer)};
-                        /*executor.post(
-                            cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_root_rho)>,
-                            cuda_multipole_interactions_kernel_root_rho, grid_spec,
-                            threads_per_block, args, 0);*/
+                            &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_tmp_erg_corrs.device_side_buffer)};
                         launch_multipole_root_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
+
+                        void* args_sum[] = {&block_numbers,
+                            &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_tmp_erg_corrs.device_side_buffer), 
+                            &(device_erg_exp.device_side_buffer),
+                            &(device_erg_corrs.device_side_buffer)};
+                        launch_sum_multipole_rho_results_post(
+                            executor, grid_spec_sum, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_root_rho_post(executor, grid_spec,
                             threads_per_block, device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
                             device_erg_exp.device_side_buffer, device_erg_corrs.device_side_buffer);
+                        hip_sum_multipole_rho_results_post(executor, grid_spec_sum,
+                            threads_per_block, block_numbers,
+                            device_tmp_erg_exp.device_side_buffer,
+                            device_tmp_erg_corrs.device_side_buffer, 
+                            device_erg_exp.device_side_buffer,
+                            device_erg_corrs.device_side_buffer);
 #endif
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
                             cudaMemcpyAsync, angular_corrections_SoA.get_pod(),
@@ -142,17 +157,23 @@ namespace fmm {
 #if defined(OCTOTIGER_HAVE_CUDA)
                         void* args[] = {&(device_centers.device_side_buffer),
                             &(device_local_expansions.device_side_buffer),
-                            &(device_erg_exp.device_side_buffer)};
-                        /*executor.post(cudaLaunchKernel<decltype(
-                                          cuda_multipole_interactions_kernel_root_non_rho)>,
-                            cuda_multipole_interactions_kernel_root_non_rho, grid_spec,
-                            threads_per_block, args, 0);*/
+                            &(device_tmp_erg_exp.device_side_buffer)};
                         launch_multipole_root_non_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
+
+                        void* args_sum[] = {&block_numbers,
+                            &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_erg_exp.device_side_buffer),};
+                        launch_sum_multipole_non_rho_results_post(
+                            executor, grid_spec_sum, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_root_non_rho_post(executor, grid_spec,
                             threads_per_block, device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
+                            device_erg_exp.device_side_buffer);
+                        hip_sum_multipole_non_rho_results_post(executor, grid_spec_sum,
+                            threads_per_block, block_numbers,
+                            device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);
 #endif
                     }
@@ -161,6 +182,7 @@ namespace fmm {
                     dim3 const grid_spec(INX, NUMBER_MULTIPOLE_BLOCKS, 1);
                     dim3 const threads_per_block(1, INX, INX);
                     dim3 const grid_spec_sum(1, 1, INX);
+
                     if (type == RHO) {
                         bool second_phase = false;
 #if defined(OCTOTIGER_HAVE_CUDA)
@@ -172,7 +194,7 @@ namespace fmm {
                         launch_multipole_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
 
-                        void* args_sum[] = {
+                        void* args_sum[] = {&block_numbers,
                             &(device_tmp_erg_exp.device_side_buffer),
                             &(device_tmp_erg_corrs.device_side_buffer), 
                             &(device_erg_exp.device_side_buffer),
@@ -187,7 +209,7 @@ namespace fmm {
                             device_tmp_erg_exp.device_side_buffer, device_tmp_erg_corrs.device_side_buffer,
                             theta, second_phase);
                         hip_sum_multipole_rho_results_post(executor, grid_spec_sum,
-                            threads_per_block, 
+                            threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
                             device_tmp_erg_corrs.device_side_buffer, 
                             device_erg_exp.device_side_buffer,
@@ -207,7 +229,7 @@ namespace fmm {
                         launch_multipole_non_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
 
-                        void* args_sum[] = {
+                        void* args_sum[] = {&block_numbers,
                             &(device_tmp_erg_exp.device_side_buffer),
                             &(device_erg_exp.device_side_buffer),};
                         launch_sum_multipole_non_rho_results_post(
@@ -219,7 +241,7 @@ namespace fmm {
                             device_local_expansions.device_side_buffer,
                             device_tmp_erg_exp.device_side_buffer, theta, second_phase);
                         hip_sum_multipole_non_rho_results_post(executor, grid_spec_sum,
-                            threads_per_block, 
+                            threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);
 #endif

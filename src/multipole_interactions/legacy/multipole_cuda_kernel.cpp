@@ -146,7 +146,7 @@ namespace fmm {
                 tmp_corrections[2];
         }
 
-        __global__ void cuda_sum_multipole_rho_results(
+        __global__ void cuda_sum_multipole_rho_results(int number_blocks,
             double *tmp_potential_expansions, double *tmp_ang_corrections,
             double *potential_expansions, double *corrections) {
             octotiger::fmm::multiindex<> cell_index_unpadded(
@@ -161,7 +161,7 @@ namespace fmm {
 #pragma unroll
             for (size_t i = 0; i < 3; ++i)
                 tmp_corrections[i] = 0.0;
-            for (int block_id = 0; block_id < NUMBER_MULTIPOLE_BLOCKS; block_id++) {
+            for (int block_id = 0; block_id < number_blocks; block_id++) {
 #pragma unroll
                 for (size_t i = 0; i < 20; ++i) {
                     tmpstore[i] = tmpstore[i] + tmp_potential_expansions[block_id * NUMBER_POT_EXPANSIONS + i * component_length_unpadded + cell_flat_index_unpadded];
@@ -204,21 +204,21 @@ namespace fmm {
         }
 
         void hip_sum_multipole_rho_results_ggl_wrapper(dim3 const grid_spec,
-            dim3 const threads_per_block, 
+            dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions, double *tmp_angular_corrections,
             double *potential_expansions, double *angular_corrections,
             hipStream_t& stream) {
             hipLaunchKernelGGL(cuda_sum_multipole_rho_results, grid_spec, threads_per_block,
-                0, stream, tmp_potential_expansions, tmp_angular_corrections,
+                0, stream, block_numbers, tmp_potential_expansions, tmp_angular_corrections,
                 potential_expansions, angular_corrections);
         }
         void hip_sum_multipole_rho_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, 
+            dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions, double *tmp_angular_corrections,
             double *potential_expansions, double *angular_corrections) {
             executor.post(hip_sum_multipole_rho_results_ggl_wrapper, grid_spec,
-                threads_per_block, tmp_potential_expansions, tmp_angular_corrections,
+                threads_per_block, block_numbers, tmp_potential_expansions, tmp_angular_corrections,
                 potential_expansions, angular_corrections);
         }
 #else
@@ -277,54 +277,55 @@ namespace fmm {
             double m_partner[20];
             double Y[NDIM];
 
-            for (int x = 0; x < INX; x++) {
-                const int stencil_x = x - cell_index_unpadded.x;
-                for (int y = 0; y < INX; y++) {
-                    const int stencil_y = y - cell_index_unpadded.y;
-                    for (int z = 0; z < INX; z++) {
-                        const int stencil_z = z - cell_index_unpadded.z;
-                        const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
-                        if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
-                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
-                            stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
-                            const size_t index =
-                                (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
-                                (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
-                            if (!device_stencil_indicator_const[index] ||
-                                (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
-                                continue;
-                            }
+            const int block_id = blockIdx.y; 
+            const int x = block_id;
+            const int stencil_x = x - cell_index_unpadded.x;
+
+            for (int y = 0; y < INX; y++) {
+                const int stencil_y = y - cell_index_unpadded.y;
+                for (int z = 0; z < INX; z++) {
+                    const int stencil_z = z - cell_index_unpadded.z;
+                    const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
+                    if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
+                        stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
+                        stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                        const size_t index =
+                            (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
+                            (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
+                        if (!device_stencil_indicator_const[index] ||
+                            (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
+                            continue;
                         }
-                        const multiindex<> partner_index(x + INX, y + INX, z + INX);
-                        const size_t partner_flat_index = to_flat_index_padded(partner_index);
-
-                        // Load data of interaction partner
-                        Y[0] = center_of_masses[partner_flat_index];
-                        Y[1] = center_of_masses[1 * component_length + partner_flat_index];
-                        Y[2] = center_of_masses[2 * component_length + partner_flat_index];
-#pragma unroll
-                        for (size_t i = 0; i < 20; ++i)
-                            m_partner[i] = multipoles[i * component_length + partner_flat_index];
-
-                        // Do the actual calculations
-                        compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
-                            [] __device__(const double& one, const double& two) -> double {
-                                return std::max(one, two);
-                            });
                     }
+                    const multiindex<> partner_index(x + INX, y + INX, z + INX);
+                    const size_t partner_flat_index = to_flat_index_padded(partner_index);
+
+                    // Load data of interaction partner
+                    Y[0] = center_of_masses[partner_flat_index];
+                    Y[1] = center_of_masses[1 * component_length + partner_flat_index];
+                    Y[2] = center_of_masses[2 * component_length + partner_flat_index];
+#pragma unroll
+                    for (size_t i = 0; i < 20; ++i)
+                        m_partner[i] = multipoles[i * component_length + partner_flat_index];
+
+                    // Do the actual calculations
+                    compute_kernel_rho(X, Y, m_partner, tmpstore, tmp_corrections, m_cell,
+                        [] __device__(const double& one, const double& two) -> double {
+                            return std::max(one, two);
+                        });
                 }
             }
 
 // Store results in output arrays
 #pragma unroll
             for (size_t i = 0; i < 20; ++i)
-                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
+                potential_expansions[block_id * NUMBER_POT_EXPANSIONS + i * component_length_unpadded + cell_flat_index_unpadded] =
                     tmpstore[i];
 
-            angular_corrections[cell_flat_index_unpadded] = tmp_corrections[0];
-            angular_corrections[1 * component_length_unpadded + cell_flat_index_unpadded] =
+            angular_corrections[block_id * NUMBER_ANG_CORRECTIONS + cell_flat_index_unpadded] = tmp_corrections[0];
+            angular_corrections[block_id * NUMBER_ANG_CORRECTIONS + 1 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmp_corrections[1];
-            angular_corrections[2 * component_length_unpadded + cell_flat_index_unpadded] =
+            angular_corrections[block_id * NUMBER_ANG_CORRECTIONS + 2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmp_corrections[2];
         }
 #if defined(OCTOTIGER_HAVE_HIP)
@@ -453,7 +454,7 @@ namespace fmm {
         }
 
 
-        __global__ void cuda_sum_multipole_non_rho_results(
+        __global__ void cuda_sum_multipole_non_rho_results(int number_blocks,
             double *tmp_potential_expansions,
             double *potential_expansions) {
             octotiger::fmm::multiindex<> cell_index_unpadded(
@@ -464,7 +465,7 @@ namespace fmm {
 #pragma unroll
             for (size_t i = 0; i < 20; ++i)
                 tmpstore[i] = 0.0;
-            for (int block_id = 0; block_id < NUMBER_MULTIPOLE_BLOCKS; block_id++) {
+            for (int block_id = 0; block_id < number_blocks; block_id++) {
 #pragma unroll
                 for (size_t i = 0; i < 20; ++i) {
                     tmpstore[i] = tmpstore[i] + tmp_potential_expansions[block_id * NUMBER_POT_EXPANSIONS + i * component_length_unpadded + cell_flat_index_unpadded];
@@ -499,23 +500,22 @@ namespace fmm {
                 theta, computing_second_half);
         }
 
-
         void hip_sum_multipole_non_rho_results_ggl_wrapper(dim3 const grid_spec,
-            dim3 const threads_per_block, 
+            dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions,
             double *potential_expansions,
             hipStream_t& stream) {
             hipLaunchKernelGGL(cuda_sum_multipole_non_rho_results, grid_spec, threads_per_block,
-                0, stream, tmp_potential_expansions, 
+                0, stream, block_numbers, tmp_potential_expansions, 
                 potential_expansions);
         }
         void hip_sum_multipole_non_rho_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
-            dim3 const grid_spec, dim3 const threads_per_block, 
+            dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions,
             double *potential_expansions) {
             executor.post(hip_sum_multipole_non_rho_results_ggl_wrapper, grid_spec,
-                threads_per_block, tmp_potential_expansions,
+                threads_per_block, block_numbers, tmp_potential_expansions,
                 potential_expansions);
         }
 #else
@@ -565,50 +565,51 @@ namespace fmm {
             double m_partner[20];
             double Y[NDIM];
 
-            for (int x = 0; x < INX; x++) {
-                const int stencil_x = x - cell_index_unpadded.x;
-                for (int y = 0; y < INX; y++) {
-                    const int stencil_y = y - cell_index_unpadded.y;
-                    for (int z = 0; z < INX; z++) {
-                        const int stencil_z = z - cell_index_unpadded.z;
-                        double mask = 1.0;
-                        const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
-                        if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
-                            stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
-                            stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
-                            const size_t index =
-                                (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
-                                (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
-                            if (!device_stencil_indicator_const[index] ||
-                                (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
-                                continue;
-                            }
+            const int block_id = blockIdx.y; 
+            const int x = block_id;
+            const int stencil_x = x - cell_index_unpadded.x;
+
+            for (int y = 0; y < INX; y++) {
+                const int stencil_y = y - cell_index_unpadded.y;
+                for (int z = 0; z < INX; z++) {
+                    const int stencil_z = z - cell_index_unpadded.z;
+                    double mask = 1.0;
+                    const multiindex<> stencil_element(stencil_x, stencil_y, stencil_z);
+                    if (stencil_x >= STENCIL_MIN && stencil_x <= STENCIL_MAX &&
+                        stencil_y >= STENCIL_MIN && stencil_y <= STENCIL_MAX &&
+                        stencil_z >= STENCIL_MIN && stencil_z <= STENCIL_MAX) {
+                        const size_t index =
+                            (stencil_x - STENCIL_MIN) * STENCIL_INX * STENCIL_INX +
+                            (stencil_y - STENCIL_MIN) * STENCIL_INX + (stencil_z - STENCIL_MIN);
+                        if (!device_stencil_indicator_const[index] ||
+                            (stencil_x == 0 && stencil_y == 0 && stencil_z == 0)) {
+                            continue;
                         }
-                        const multiindex<> partner_index(x + INX, y + INX, z + INX);
-                        const size_t partner_flat_index = to_flat_index_padded(partner_index);
-                        // Load data of interaction partner
-                        Y[0] = center_of_masses[partner_flat_index];
-                        Y[1] = center_of_masses[1 * component_length + partner_flat_index];
-                        Y[2] = center_of_masses[2 * component_length + partner_flat_index];
+                    }
+                    const multiindex<> partner_index(x + INX, y + INX, z + INX);
+                    const size_t partner_flat_index = to_flat_index_padded(partner_index);
+                    // Load data of interaction partner
+                    Y[0] = center_of_masses[partner_flat_index];
+                    Y[1] = center_of_masses[1 * component_length + partner_flat_index];
+                    Y[2] = center_of_masses[2 * component_length + partner_flat_index];
 
 #pragma unroll
-                        for (size_t i = 0; i < 20; ++i)
-                            m_partner[i] =
-                                multipoles[i * component_length + partner_flat_index] * mask;
+                    for (size_t i = 0; i < 20; ++i)
+                        m_partner[i] =
+                            multipoles[i * component_length + partner_flat_index] * mask;
 
-                        // Do the actual calculations
-                        compute_kernel_non_rho(X, Y, m_partner, tmpstore,
-                            [] __device__(const double& one, const double& two) -> double {
-                                return std::max(one, two);
-                            });
-                    }
+                    // Do the actual calculations
+                    compute_kernel_non_rho(X, Y, m_partner, tmpstore,
+                        [] __device__(const double& one, const double& two) -> double {
+                            return std::max(one, two);
+                        });
                 }
             }
 
 // Store results in output arrays
 #pragma unroll
             for (size_t i = 0; i < 20; ++i)
-                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
+                potential_expansions[block_id * NUMBER_POT_EXPANSIONS + i * component_length_unpadded + cell_flat_index_unpadded] =
                     tmpstore[i];
         }
 #if defined(OCTOTIGER_HAVE_HIP)
