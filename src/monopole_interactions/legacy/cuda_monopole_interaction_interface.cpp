@@ -148,7 +148,7 @@ namespace fmm {
                 hip_p2p_interactions_kernel_post(executor, grid_spec,
                   threads_per_block, device_local_monopoles.device_side_buffer, tmp_ergs.device_side_buffer, theta, dx);
                 hip_sum_p2p_results_post(executor, grid_spec,
-                  threads_per_block, tmp_ergs.device_side_buffer, tmp_erg.device_side_buffer);
+                  threads_per_block, tmp_ergs.device_side_buffer, erg.device_side_buffer);
 #endif
 
 #ifndef OCTOTIGER_HAVE_HIP

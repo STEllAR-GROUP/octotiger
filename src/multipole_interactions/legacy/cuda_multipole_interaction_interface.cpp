@@ -219,7 +219,7 @@ namespace fmm {
                             device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
                             device_erg_exp.device_side_buffer, theta, second_phase);
-                        hip_sum_multipole_rho_results_post(executor, grid_spec,
+                        hip_sum_multipole_non_rho_results_post(executor, grid_spec,
                             threads_per_block, 
                             device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);
