@@ -189,21 +189,21 @@ namespace fmm {
 
         void hip_sum_multipole_angular_corrections_results_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, int block_numbers,
-            double *tmp_potential_expansions, double *tmp_angular_corrections,
-            double *potential_expansions, double *angular_corrections,
+            double *tmp_angular_corrections,
+            double *angular_corrections,
             hipStream_t& stream) {
             hipLaunchKernelGGL(cuda_sum_multipole_angular_corrections_results, grid_spec, threads_per_block,
-                0, stream, block_numbers, tmp_potential_expansions, tmp_angular_corrections,
-                potential_expansions, angular_corrections);
+                0, stream, block_numbers, tmp_angular_corrections,
+                angular_corrections);
         }
         void hip_sum_multipole_angular_corrections_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
-            double *tmp_potential_expansions, double *tmp_angular_corrections,
-            double *potential_expansions, double *angular_corrections) {
+            double *tmp_angular_corrections,
+            double *angular_corrections) {
             executor.post(hip_sum_multipole_angular_corrections_results_ggl_wrapper, grid_spec,
-                threads_per_block, block_numbers, tmp_potential_expansions, tmp_angular_corrections,
-                potential_expansions, angular_corrections);
+                threads_per_block, block_numbers, tmp_angular_corrections,
+                angular_corrections);
         }
 #else
         void launch_multipole_rho_cuda_kernel_post(

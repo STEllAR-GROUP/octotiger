@@ -150,7 +150,7 @@ namespace fmm {
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);
-                        hip_sum_multipole_anuglar_corrections_results_post(executor, grid_spec_sum_corrections,
+                        hip_sum_multipole_angular_corrections_results_post(executor, grid_spec_sum_corrections,
                             threads_per_block, block_numbers,
                             device_tmp_erg_corrs.device_side_buffer, 
                             device_erg_corrs.device_side_buffer);
@@ -177,7 +177,7 @@ namespace fmm {
                             threads_per_block, device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
                             device_tmp_erg_exp.device_side_buffer);
-                        hip_sum_multipole_non_potential_expansions_results_post(executor, grid_spec_sum_expansions,
+                        hip_sum_multipole_potential_expansions_results_post(executor, grid_spec_sum_expansions,
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);
