@@ -61,10 +61,10 @@ namespace fmm {
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 
 
-        void launch_sum_multipole_rho_results_post(
+        void launch_sum_multipole_potential_expansions_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
-        void launch_sum_multipole_non_rho_results_post(
+        void launch_sum_multipole_angular_corrections_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]);
 #elif defined(OCTOTIGER_HAVE_HIP)
@@ -100,12 +100,12 @@ namespace fmm {
             double *potential_expansions);
 
 
-        void hip_sum_multipole_rho_results_post(
+        void hip_sum_multipole_angular_corrections_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
-            double *tmp_potential_expansions, double *tmp_angular_corrections,
-            double *potential_expansions, double *angular_corrections);
-        void hip_sum_multipole_non_rho_results_post(
+            double *tmp_angular_corrections,
+            double *angular_corrections);
+        void hip_sum_multipole_potential_expansions_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions,

@@ -120,7 +120,8 @@ namespace fmm {
                 if (use_root_stencil) {
                     dim3 const grid_spec(INX, INX, 1);
                     dim3 const threads_per_block(1, INX, INX);
-                    dim3 const grid_spec_sum(1, 1, INX);
+                    dim3 const grid_spec_sum_expansions(1, 20, INX);
+                    dim3 const grid_spec_sum_corrections(1, 3, INX);
                     if (type == RHO) {
 #if defined(OCTOTIGER_HAVE_CUDA)
                         void* args[] = {&(device_centers.device_side_buffer),
@@ -130,23 +131,28 @@ namespace fmm {
                         launch_multipole_root_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
 
-                        void* args_sum[] = {&block_numbers,
+                        void* args_sum_expansions[] = {&block_numbers,
                             &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_erg_exp.device_side_buffer)};
+                        void* args_sum_corrections[] = {&block_numbers,
                             &(device_tmp_erg_corrs.device_side_buffer), 
-                            &(device_erg_exp.device_side_buffer),
                             &(device_erg_corrs.device_side_buffer)};
-                        launch_sum_multipole_rho_results_post(
-                            executor, grid_spec_sum, threads_per_block, args_sum);
+                        launch_sum_multipole_potential_expansions_results_post(
+                            executor, grid_spec_sum_expansions, threads_per_block, args_sum_expansions);
+                        launch_sum_multipole_angular_corrections_results_post(
+                            executor, grid_spec_sum_corrections, threads_per_block, args_sum_corrections);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_root_rho_post(executor, grid_spec,
                             threads_per_block, device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
                             device_tmp_erg_exp.device_side_buffer, device_tmp_erg_corrs.device_side_buffer);
-                        hip_sum_multipole_rho_results_post(executor, grid_spec_sum,
+                        hip_sum_multipole_potential_expansions_results_post(executor, grid_spec_sum_expansions,
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
+                            device_erg_exp.device_side_buffer);
+                        hip_sum_multipole_anuglar_corrections_results_post(executor, grid_spec_sum_corrections,
+                            threads_per_block, block_numbers,
                             device_tmp_erg_corrs.device_side_buffer, 
-                            device_erg_exp.device_side_buffer,
                             device_erg_corrs.device_side_buffer);
 #endif
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
@@ -164,14 +170,14 @@ namespace fmm {
                         void* args_sum[] = {&block_numbers,
                             &(device_tmp_erg_exp.device_side_buffer),
                             &(device_erg_exp.device_side_buffer),};
-                        launch_sum_multipole_non_rho_results_post(
-                            executor, grid_spec_sum, threads_per_block, args_sum);
+                        launch_sum_multipole_potential_expansions_results_post(
+                            executor, grid_spec_sum_expansions, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_root_non_rho_post(executor, grid_spec,
                             threads_per_block, device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
                             device_tmp_erg_exp.device_side_buffer);
-                        hip_sum_multipole_non_rho_results_post(executor, grid_spec_sum,
+                        hip_sum_multipole_non_potential_expansions_results_post(executor, grid_spec_sum_expansions,
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);
@@ -181,7 +187,8 @@ namespace fmm {
                     // Launch kernel and queue copying of results
                     dim3 const grid_spec(INX, NUMBER_MULTIPOLE_BLOCKS, NUMBER_MULTIPOLE_BLOCKS);
                     dim3 const threads_per_block(1, INX, INX);
-                    dim3 const grid_spec_sum(1, 1, INX);
+                    dim3 const grid_spec_sum_expansions(1, 20, INX);
+                    dim3 const grid_spec_sum_corrections(1, 3, INX);
 
                     if (type == RHO) {
                         bool second_phase = false;
@@ -194,13 +201,16 @@ namespace fmm {
                         launch_multipole_rho_cuda_kernel_post(
                             executor, grid_spec, threads_per_block, args);
 
-                        void* args_sum[] = {&block_numbers,
+                        void* args_sum_expansions[] = {&block_numbers,
                             &(device_tmp_erg_exp.device_side_buffer),
+                            &(device_erg_exp.device_side_buffer)};
+                        launch_sum_multipole_potential_expansions_results_post(
+                            executor, grid_spec_sum_expansions, threads_per_block, args_sum_expansions);
+                        void* args_sum_corrections[] = {&block_numbers,
                             &(device_tmp_erg_corrs.device_side_buffer), 
-                            &(device_erg_exp.device_side_buffer),
                             &(device_erg_corrs.device_side_buffer)};
-                        launch_sum_multipole_rho_results_post(
-                            executor, grid_spec_sum, threads_per_block, args_sum);
+                        launch_sum_multipole_angular_corrections_results_post(
+                            executor, grid_spec_sum_corrections, threads_per_block, args_sum_corrections);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_rho_post(executor, grid_spec,
                             threads_per_block, device_local_monopoles.device_side_buffer,
@@ -208,11 +218,13 @@ namespace fmm {
                             device_local_expansions.device_side_buffer,
                             device_tmp_erg_exp.device_side_buffer, device_tmp_erg_corrs.device_side_buffer,
                             theta, second_phase);
-                        hip_sum_multipole_rho_results_post(executor, grid_spec_sum,
+                        hip_sum_multipole_potential_expansions_results_post(executor, grid_spec_sum_expansions,
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
+                            device_erg_exp.device_side_buffer);
+                        hip_sum_multipole_angular_corrections_results_post(executor, grid_spec_sum_corrections,
+                            threads_per_block, block_numbers,
                             device_tmp_erg_corrs.device_side_buffer, 
-                            device_erg_exp.device_side_buffer,
                             device_erg_corrs.device_side_buffer);
 #endif
                         hpx::apply(static_cast<hpx::cuda::experimental::cuda_executor>(executor),
@@ -232,15 +244,15 @@ namespace fmm {
                         void* args_sum[] = {&block_numbers,
                             &(device_tmp_erg_exp.device_side_buffer),
                             &(device_erg_exp.device_side_buffer),};
-                        launch_sum_multipole_non_rho_results_post(
-                            executor, grid_spec_sum, threads_per_block, args_sum);
+                        launch_sum_multipole_potential_expansions_results_post(
+                            executor, grid_spec_sum_expansions, threads_per_block, args_sum);
 #elif defined(OCTOTIGER_HAVE_HIP)
                         hip_multipole_interactions_kernel_non_rho_post(executor, grid_spec,
                             threads_per_block, device_local_monopoles.device_side_buffer,
                             device_centers.device_side_buffer,
                             device_local_expansions.device_side_buffer,
                             device_tmp_erg_exp.device_side_buffer, theta, second_phase);
-                        hip_sum_multipole_non_rho_results_post(executor, grid_spec_sum,
+                        hip_sum_multipole_potential_expansions_results_post(executor, grid_spec_sum_expansions,
                             threads_per_block, block_numbers,
                             device_tmp_erg_exp.device_side_buffer,
                             device_erg_exp.device_side_buffer);

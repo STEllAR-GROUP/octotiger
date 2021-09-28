@@ -148,38 +148,20 @@ namespace fmm {
                 tmp_corrections[2];
         }
 
-        __global__ void cuda_sum_multipole_rho_results(int number_blocks,
-            double *tmp_potential_expansions, double *tmp_ang_corrections,
-            double *potential_expansions, double *corrections) {
+        __global__ void cuda_sum_multipole_angular_corrections_results(int number_blocks,
+            double *tmp_ang_corrections,
+            double *corrections) {
             octotiger::fmm::multiindex<> cell_index_unpadded(
                 (threadIdx.x + blockIdx.z), threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
-            double tmpstore[20];
-#pragma unroll
-            for (size_t i = 0; i < 20; ++i)
-                tmpstore[i] = 0.0;
-            double tmp_corrections[3];
-#pragma unroll
-            for (size_t i = 0; i < 3; ++i)
-                tmp_corrections[i] = 0.0;
+            const int field_id = blockIdx.y;
+            double tmp_corrections = 0.0;
             for (int block_id = 0; block_id < number_blocks; block_id++) {
-#pragma unroll
-                for (size_t i = 0; i < 20; ++i) {
-                    tmpstore[i] = tmpstore[i] + tmp_potential_expansions[block_id * NUMBER_POT_EXPANSIONS + i * component_length_unpadded + cell_flat_index_unpadded];
-                }
-                for (size_t i = 0; i < 3; ++i) {
-                    tmp_corrections[i] = tmp_corrections[i] + tmp_ang_corrections[block_id * NUMBER_ANG_CORRECTIONS + i * component_length_unpadded + cell_flat_index_unpadded];
-                }
+                tmp_corrections = tmp_corrections + tmp_ang_corrections[block_id * NUMBER_ANG_CORRECTIONS + field_id * component_length_unpadded + cell_flat_index_unpadded];
             }
-            for (size_t i = 0; i < 20; ++i) {
-                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
-                    tmpstore[i];
-            }
-            for (size_t i = 0; i < 3; ++i) {
-                corrections[i * component_length_unpadded + cell_flat_index_unpadded] =
-                    tmp_corrections[i];
-            }
+            corrections[field_id * component_length_unpadded + cell_flat_index_unpadded] =
+                tmp_corrections;
         }
 #if defined(OCTOTIGER_HAVE_HIP)
         void hip_multipole_interactions_kernel_rho_ggl_wrapper(dim3 const grid_spec,
@@ -205,21 +187,21 @@ namespace fmm {
                 angular_corrections, theta, computing_second_half);
         }
 
-        void hip_sum_multipole_rho_results_ggl_wrapper(dim3 const grid_spec,
+        void hip_sum_multipole_angular_corrections_results_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions, double *tmp_angular_corrections,
             double *potential_expansions, double *angular_corrections,
             hipStream_t& stream) {
-            hipLaunchKernelGGL(cuda_sum_multipole_rho_results, grid_spec, threads_per_block,
+            hipLaunchKernelGGL(cuda_sum_multipole_angular_corrections_results, grid_spec, threads_per_block,
                 0, stream, block_numbers, tmp_potential_expansions, tmp_angular_corrections,
                 potential_expansions, angular_corrections);
         }
-        void hip_sum_multipole_rho_results_post(
+        void hip_sum_multipole_angular_corrections_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions, double *tmp_angular_corrections,
             double *potential_expansions, double *angular_corrections) {
-            executor.post(hip_sum_multipole_rho_results_ggl_wrapper, grid_spec,
+            executor.post(hip_sum_multipole_angular_corrections_results_ggl_wrapper, grid_spec,
                 threads_per_block, block_numbers, tmp_potential_expansions, tmp_angular_corrections,
                 potential_expansions, angular_corrections);
         }
@@ -230,11 +212,11 @@ namespace fmm {
             executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_rho)>,
                 cuda_multipole_interactions_kernel_rho, grid_spec, threads_per_block, args, 0);
         }
-        void launch_sum_multipole_rho_results_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+        void launch_sum_multipole_angular_corrections_results_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
             executor.post(
-            cudaLaunchKernel<decltype(cuda_sum_multipole_rho_results)>,
-            cuda_sum_multipole_rho_results, grid_spec, threads_per_block, args, 0);
+            cudaLaunchKernel<decltype(cuda_sum_multipole_angular_corrections_results)>,
+            cuda_sum_multipole_angular_corrections_results, grid_spec, threads_per_block, args, 0);
         }
 #endif
 
@@ -457,27 +439,20 @@ namespace fmm {
         }
 
 
-        __global__ void cuda_sum_multipole_non_rho_results(int number_blocks,
+        __global__ void cuda_sum_multipole_potential_expansions_results(int number_blocks,
             double *tmp_potential_expansions,
             double *potential_expansions) {
             octotiger::fmm::multiindex<> cell_index_unpadded(
                 (threadIdx.x + blockIdx.z), threadIdx.y, threadIdx.z);
             const size_t cell_flat_index_unpadded =
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
-            double tmpstore[20];
-#pragma unroll
-            for (size_t i = 0; i < 20; ++i)
-                tmpstore[i] = 0.0;
+            const int field_id = blockIdx.y;
+            double tmpstore = 0.0;
             for (int block_id = 0; block_id < number_blocks; block_id++) {
-#pragma unroll
-                for (size_t i = 0; i < 20; ++i) {
-                    tmpstore[i] = tmpstore[i] + tmp_potential_expansions[block_id * NUMBER_POT_EXPANSIONS + i * component_length_unpadded + cell_flat_index_unpadded];
-                }
+                tmpstore = tmpstore + tmp_potential_expansions[block_id * NUMBER_POT_EXPANSIONS + field_id * component_length_unpadded + cell_flat_index_unpadded];
             }
-            for (size_t i = 0; i < 20; ++i) {
-                potential_expansions[i * component_length_unpadded + cell_flat_index_unpadded] =
-                    tmpstore[i];
-            }
+            potential_expansions[field_id * component_length_unpadded + cell_flat_index_unpadded] =
+                tmpstore;
         }
 #if defined(OCTOTIGER_HAVE_HIP)
         void hip_multipole_interactions_kernel_non_rho_ggl_wrapper(dim3 const grid_spec,
@@ -503,21 +478,21 @@ namespace fmm {
                 theta, computing_second_half);
         }
 
-        void hip_sum_multipole_non_rho_results_ggl_wrapper(dim3 const grid_spec,
+        void hip_sum_multipole_potential_expansions_results_ggl_wrapper(dim3 const grid_spec,
             dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions,
             double *potential_expansions,
             hipStream_t& stream) {
-            hipLaunchKernelGGL(cuda_sum_multipole_non_rho_results, grid_spec, threads_per_block,
+            hipLaunchKernelGGL(cuda_sum_multipole_potential_expansions_results, grid_spec, threads_per_block,
                 0, stream, block_numbers, tmp_potential_expansions, 
                 potential_expansions);
         }
-        void hip_sum_multipole_non_rho_results_post(
+        void hip_sum_multipole_potential_expansions_results_post(
             stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, int block_numbers,
             double *tmp_potential_expansions,
             double *potential_expansions) {
-            executor.post(hip_sum_multipole_non_rho_results_ggl_wrapper, grid_spec,
+            executor.post(hip_sum_multipole_potential_expansions_results_ggl_wrapper, grid_spec,
                 threads_per_block, block_numbers, tmp_potential_expansions,
                 potential_expansions);
         }
@@ -528,11 +503,11 @@ namespace fmm {
             executor.post(cudaLaunchKernel<decltype(cuda_multipole_interactions_kernel_non_rho)>,
                 cuda_multipole_interactions_kernel_non_rho, grid_spec, threads_per_block, args, 0);
         }
-        void launch_sum_multipole_non_rho_results_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
+        void launch_sum_multipole_potential_expansions_results_post(stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy>& executor,
             dim3 const grid_spec, dim3 const threads_per_block, void *args[]) {
             executor.post(
-            cudaLaunchKernel<decltype(cuda_sum_multipole_non_rho_results)>,
-            cuda_sum_multipole_non_rho_results, grid_spec, threads_per_block, args, 0);
+            cudaLaunchKernel<decltype(cuda_sum_multipole_potential_expansions_results)>,
+            cuda_sum_multipole_potential_expansions_results, grid_spec, threads_per_block, args, 0);
         }
 #endif
 
