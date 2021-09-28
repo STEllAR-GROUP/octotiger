@@ -218,15 +218,16 @@ void init_problem(void) {
         set_refine_test(refine_sod);
         set_analytic(sod_shock_tube_analytic);
     } else if (opts().problem == BLAST) {
-#if defined(OCTOTIGER_HAVE_BLAST_TEST)
         grid::set_fgamma(7.0 / 5.0);
         //		opts().gravity = false;
         set_problem(blast_wave);
         set_refine_test(refine_blast);
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
         set_analytic(blast_wave_analytic);
 #else
-        std::cout << "Error! Octotiger has been compiled without BLAST test support!" << std::endl;
-        exit(EXIT_FAILURE);
+        std::cout << "Warning! Octotiger has been compiled without BLAST test support!" << std::endl;
+        std::cout << "Blast scenario will skip the analytic part..." << std::endl;
+        //exit(EXIT_FAILURE);
 #endif
     } else if (opts().problem == STAR) {
         grid::set_fgamma(5.0 / 3.0);

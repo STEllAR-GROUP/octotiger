@@ -22,8 +22,8 @@ using refine_test_type = std::function<bool(integer, integer, real, real, real,
 const static init_func_type null_problem = nullptr;
 OCTOTIGER_EXPORT std::vector<real> old_scf(
     real, real, real, real, real, real, real);
-#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 OCTOTIGER_EXPORT std::vector<real> blast_wave(real, real, real, real);
+#if defined(OCTOTIGER_HAVE_BLAST_TEST)
 OCTOTIGER_EXPORT std::vector<real> blast_wave_analytic(
     real x, real y, real z, real t);
 #endif
