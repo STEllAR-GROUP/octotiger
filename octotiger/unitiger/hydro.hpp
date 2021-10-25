@@ -31,6 +31,8 @@ struct timestep_t {
 	int dim;
 	std::vector<double> ur;
 	std::vector<double> ul;
+	timestep_t() : ur(opts().n_fields), ul(opts().n_fields) {
+	}
 	template<class A>
 	void serialize(A &&arc, unsigned) {
 		arc & a;
@@ -74,7 +76,6 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 //#endif
 
 	timestep_t flux(const hydro::state_type &U, const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
-	timestep_t flux_experimental(const hydro::recon_type<NDIM> &Q, hydro::flux_type &F, hydro::x_type &X, safe_real omega);
 
 	void post_process(hydro::state_type &U, const hydro::state_type &X, safe_real dx);
 
@@ -120,11 +121,6 @@ struct hydro_computer: public cell_geometry<NDIM, INX> {
 	void set_bc(std::vector<bc_type> &&bc) {
 		bc_ = std::move(bc);
 	}
-
-	inline int get_nf() const {return nf_;}
-	inline int get_angmom_index() const {return angmom_index_;}
-	inline const std::vector<bool>& get_smooth_field() const {return smooth_field_;}
-	inline const std::vector<bool>& get_disc_detect() const {return disc_detect_;}
 
 private:
 	int experiment;
