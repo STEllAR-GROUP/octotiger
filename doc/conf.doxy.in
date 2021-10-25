@@ -848,6 +848,8 @@ INPUT                  = ../src \
 			 ../README.md \
 			 ./content/cmake-options.md  \  
 			 ./content/install-instructions.md \
+			 ./content/build-instructions.md \
+			 ./content/daint-build-instructions.md \
 			 ./content/program-options.md \ 
 			 ./content/publications.md 
 
