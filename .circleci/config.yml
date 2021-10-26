@@ -179,6 +179,24 @@ jobs:
             - store_artifacts:
                 path: /test
 
+    publish_documentation:
+        <<: *docker_config
+        working_directory: /octotiger/build
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+                name: publish documentation
+                command: |
+			git config --global user.name "Circle CI"
+			git config --global user.email "bot@circleci.com"
+			git add ../doc/html/*
+			git commit -m "Update documentation [ci skip] " ./documentation/* || true
+			git push  https://${TOKEN}@github.com/STEllAR-GROUP/octotiger.git || true
+                no_output_timeout: 25m
+
 workflows:
     version: 2
     build_and_test:
@@ -198,5 +216,8 @@ workflows:
                 requires:
                     - build
             - test_sphere:
+                requires:
+                    - build
+            - publish_documentation:
                 requires:
                     - build
