@@ -42,6 +42,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 executor_interface_t executor;
                 max_lambda = launch_hydro_kokkos_kernels<device_executor>(
                     hydro, U, X, omega, opts().n_species, executor, F);
+    				 CHECK_SIGNAL_SPEED(max_lambda.a);
                 return max_lambda;
             }
 #else
@@ -61,6 +62,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 stream_interface<hpx::cuda::experimental::cuda_executor, pool_strategy> executor;
                 max_lambda = launch_hydro_cuda_kernels(hydro, U, X, omega, device_id, executor,
                 F);
+    				 CHECK_SIGNAL_SPEED(max_lambda.a);
                 return max_lambda;
             }
         }
@@ -79,6 +81,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         // host_executor executor{};
         max_lambda = launch_hydro_kokkos_kernels<host_executor>(
             hydro, U, X, omega, opts().n_species, executor, F);
+ 		  CHECK_SIGNAL_SPEED(max_lambda.a);
         return max_lambda;
 #else
         std::cerr << "Trying to call Hydro Kokkos kernels in a non-kokkos build! Aborting..."
@@ -92,8 +95,10 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
         // TODO Vc reconstruct?
         const auto& q = hydro.reconstruct(U, X, omega);
 #if defined __x86_64__ && defined OCTOTIGER_HAVE_VC
+		  CHECK_SIGNAL_SPEED(max_lambda.a);
         max_lambda = flux_cpu_kernel(q, f, X, omega, hydro.get_nf());
 #else
+    	  CHECK_SIGNAL_SPEED(max_lambda.a);
         max_lambda = hydro.flux(U, q, f, X, omega);
 #endif
         // Slightly more efficient conversion
@@ -118,6 +123,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 }
             }
         }
+    	  CHECK_SIGNAL_SPEED(max_lambda.a);
         return max_lambda;
     } else if (host_type == interaction_host_kernel_type::LEGACY) {
         // Legacy implementation
@@ -145,6 +151,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
                 }
             }
         }
+    	  CHECK_SIGNAL_SPEED(max_lambda.a);
         return max_lambda;
     } else {
         std::cerr << "No valid hydro kernel type given! " << std::endl;
@@ -154,6 +161,7 @@ timestep_t launch_hydro_kernels(hydro_computer<NDIM, INX, physics<NDIM>>& hydro,
     std::cerr << "Invalid state: Could not call any hydro kernel configuration!" << std::endl;
     std::cerr << "Aborting..." << std::endl;
     abort();
+	 CHECK_SIGNAL_SPEED(max_lambda.a);
     return max_lambda;
 }
 
