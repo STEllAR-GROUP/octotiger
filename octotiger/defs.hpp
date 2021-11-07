@@ -276,9 +276,16 @@ inline void inplace_average(T& s1, T& s2)
 //}
 
 #define CHECK_SIGNAL_SPEED(a) \
-		if( a < 1.0e-99 || std::isnan(a)) { \
-			print( "Signal speed error in %s on line %i\n", __FILE__, __LINE__ ); \
-		}
+		if( a < 1.0e-99 ) { \
+			print( "Signal speed low in %s on line %i\n", __FILE__, __LINE__ ); \
+		} \
+		if( a < 0.0 ) { \
+			print( "Signal speed negative in %s on line %i\n", __FILE__, __LINE__ ); \
+		} \
+		if( std::isnan(a)) { \
+			print( "Signal speed NaN in %s on line %i\n", __FILE__, __LINE__ ); \
+		} \
+		abort()
 
 
 #endif
