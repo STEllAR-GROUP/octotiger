@@ -501,6 +501,7 @@ void node_server::refined_step() {
 	all_hydro_bounds();
 	timestep_t tstep;
 	tstep.dt = std::numeric_limits<real>::max();
+	tstep.a = 1.0;
 	local_timestep_channels[NCHILD].set_value(tstep);
 	auto dt_fut = global_timestep_channel.get_future();
 
