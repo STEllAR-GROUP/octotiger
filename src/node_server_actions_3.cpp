@@ -722,20 +722,22 @@ future<void> node_server::timestep_driver_descend() {
 			}
 
 			if (my_location.level() == 0) {
+				CHECK_SIGNAL_SPEED(dt.a);
 				timestep_driver_ascend(dt);
 			} else {
+				CHECK_SIGNAL_SPEED(dt.a);
 				parent.set_local_timestep(my_location.get_child_index(), dt);
 			}
 
 			return;
 		}/*, "node_server::timestep_driver_descend")*/, futs);
 	} else {
-		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, hpx::util::annotated_function([this](future<timestep_t> &&f) {
+		return local_timestep_channels[NCHILD].get_future().then(hpx::launch::sync, /*hpx::util::annotated_function(*/[this](future<timestep_t> &&f) {
 			timestep_t dt = GET(f);
 			CHECK_SIGNAL_SPEED(dt.a);
 			parent.set_local_timestep(my_location.get_child_index(), dt);
 			return;
-		}, "timestep_driver_descend::set_local_timestep")
+		}/*, "timestep_driver_descend::set_local_timestep")*/
 		);
 	}
 }
