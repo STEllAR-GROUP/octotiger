@@ -66,7 +66,7 @@ jobs:
                     cp cppuddle-install/lib/libstream_manager.so /octotiger/build/libstream_manager.so
             - run:
                 name: Documentation
-                command: make -C /octotiger/build doc 
+                command: cmake --build /octotiger/build -- doc
             - persist_to_workspace:
                 root: /
                 paths:
