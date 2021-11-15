@@ -192,7 +192,6 @@ jobs:
                command: |
                         git config --global user.name "Circle CI"
                         git config --global user.email "bot@circleci.com"
-                        git pull
                         git checkout gh-pages
             - run: 
                name: Move documentation
