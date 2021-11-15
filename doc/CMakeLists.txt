@@ -9,6 +9,6 @@ configure_file(conf.doxy.in ${CMAKE_CURRENT_SOURCE_DIR}/conf.doxy @ONLY)
 
 add_custom_target(doc
         COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile} conf.doxy
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/doc
+        WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/doc
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM)
