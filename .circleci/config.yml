@@ -187,10 +187,10 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
-	    - run: 
+            - run: 
                name: Move documentation
                command: |
-		   cp -r doc/html ../doc/   
+                        cp -r doc/html ../doc/   
             - run:
                 name: publish documentation
                 command: |
