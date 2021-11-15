@@ -11,7 +11,9 @@
 #include "octotiger/problem.hpp"
 #include "octotiger/taylor.hpp"
 #include "octotiger/util.hpp"
-#include "octotiger/interaction_types.hpp"
+#include "octotiger/interaction_types.hpp"\
+
+#include <fenv.h>
 
 #include "octotiger/monopole_interactions/monopole_kernel_interface.hpp"
 #include "octotiger/multipole_interactions/multipole_kernel_interface.hpp"
@@ -361,11 +363,17 @@ void node_server::initialize(real t, real rt) {
 }
 
 node_server::~node_server() {
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
 }
 
 node_server::node_server(const node_location &loc, const node_client &parent_id, real t, real rt, std::size_t _step_num, std::size_t _hcycle,
 		std::size_t _rcycle, std::size_t _gcycle) :
 		my_location(loc), parent(parent_id) {
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
 	initialize(t, rt);
 	step_num = _step_num;
 	gcycle = _gcycle;
@@ -376,6 +384,9 @@ node_server::node_server(const node_location &loc, const node_client &parent_id,
 node_server::node_server(const node_location &_my_location, integer _step_num, bool _is_refined, real _current_time, real _rotational_time,
 		const std::array<integer, NCHILD> &_child_d, grid _grid, const std::vector<hpx::id_type> &_c, std::size_t _hcycle, std::size_t _rcycle,
 		std::size_t _gcycle, integer position_) {
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
 	my_location = _my_location;
 	initialize(_current_time, _rotational_time);
 	position = position_;
@@ -394,7 +405,11 @@ node_server::node_server(const node_location &_my_location, integer _step_num, b
 	child_descendant_count = _child_d;
 }
 
+
 void node_server::compute_fmm(gsolve_type type, bool energy_account, bool aonly) {
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
 	if (!opts().gravity) {
 		return;
 	}

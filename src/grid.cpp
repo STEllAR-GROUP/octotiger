@@ -1840,7 +1840,36 @@ timestep_t grid::compute_fluxes() {
   const interaction_host_kernel_type host_type = opts().hydro_host_kernel_type;
   const interaction_device_kernel_type device_type = opts().hydro_device_kernel_type;
   const size_t device_queue_length = opts().cuda_buffer_capacity;
-  return launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
+  for (integer i = 0; i < INX; ++i) {
+	for (integer j = 0; j < INX; ++j) {
+		for (integer k = 0; k < INX; ++k) {
+			for( int f = 0; f < opts().n_fields; f++) {
+				if( std::isnan( U[f][hindex(i, j, k)] ) ) {
+					print( "NaN found in field f = %i i = %i j = %i k = %i\n", f, i, j, k );
+					abort();
+				}
+			}
+		}
+	}
+   }
+  auto rc = launch_hydro_kernels(hydro, U, X, omega, F, host_type, device_type, device_queue_length);
+  for (integer i = 0; i < INX; ++i) {
+	for (integer j = 0; j < INX; ++j) {
+		for (integer k = 0; k < INX; ++k) {
+			for( int f = 0; f < opts().n_fields; f++) {
+				for( int dim = 0; dim < NDIM; dim++) {
+					if( std::isnan( F[dim][f][findex(i, j, k)] ) ) {
+						print( "NaN found in flux dim = %i f = %i i = %i j = %i k = %i\n", dim, f, i, j, k );
+						abort();
+					}
+				}
+			}
+		}
+	}
+   }
+  
+  
+  return rc;
 
 }
 
@@ -2209,12 +2238,15 @@ void grid::next_u(integer rk, real t, real dt) {
 				const integer iii0 = h0index(i - H_BW, j - H_BW, k - H_BW);
 				const integer iii = hindex(i, j, k);
 				dUdt[egas_i][iii0] += (dphi_dt[iii0] * U[rho_i][iii]) * HALF;
+					if( std::isnan(dUdt[egas_i][iii]) ) {
+						print( "NaN in %s on %i index %i\n", __FILE__, __LINE__, iii );
+						abort();
+					}
 			}
 		}
 	}
 
 	std::vector<real> du_out(opts().n_fields, ZERO);
-
 	std::vector<real> ds(NDIM, ZERO);
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
@@ -2226,6 +2258,10 @@ void grid::next_u(integer rk, real t, real dt) {
 					const real u1 = U[field][iii] + dUdt[field][iii0] * dt;
 					const real u0 = U0[field][h0index(i - H_BW, j - H_BW, k - H_BW)];
 					U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
+					if( std::isnan(U[field][iii]) ) {
+						print( "NaN in %s on %i field %i index %i\n", __FILE__, __LINE__, field, iii );
+						abort();
+					}
 				}
 			}
 		}
@@ -2285,10 +2321,13 @@ void grid::next_u(integer rk, real t, real dt) {
 	}
 	for (integer i = H_BW; i != H_NX - H_BW; ++i) {
 		for (integer j = H_BW; j != H_NX - H_BW; ++j) {
-#pragma GCC ivdep
+//#pragma GCC ivdep
 			for (integer k = H_BW; k != H_NX - H_BW; ++k) {
 				const integer iii = hindex(i, j, k);
 				if (opts().tau_floor > 0.0) {
+					if( std::isnan(U[tau_i][iii]) ) {
+						print( "NaN in %s on %i\n", __FILE__, __LINE__ );
+					}
 					U[tau_i][iii] = std::max(U[tau_i][iii], opts().tau_floor);
 				} else if (U[tau_i][iii] < ZERO) {
 					print("Tau is negative- %e %i %i %i  %e %e %e\n", real(U[tau_i][iii]), int(i), int(j), int(k), (double) X[XDIM][iii],
