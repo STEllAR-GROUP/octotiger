@@ -5,7 +5,7 @@
 
 find_package(Doxygen)
 
-configure_file(conf.doxy.in ${CMAKE_CURRENT_SOURCE_DIR}/conf.doxy @ONLY)
+configure_file(conf.doxy.in ${PROJECT_BINARY_DIR}/doc/conf.doxy @ONLY)
 
 add_custom_target(doc
         COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile} conf.doxy
