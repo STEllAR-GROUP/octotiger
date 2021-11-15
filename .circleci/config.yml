@@ -187,6 +187,13 @@ jobs:
                 path: /octotiger
             - attach_workspace:
                 at: /
+            - run:
+               name: Configure git
+               command: |
+                        git config --global user.name "Circle CI"
+                        git config --global user.email "bot@circleci.com"
+                        git pull
+			git checkout gh-pages
             - run: 
                name: Move documentation
                command: |
@@ -194,8 +201,6 @@ jobs:
             - run:
                 name: publish documentation
                 command: |
-                        git config --global user.name "Circle CI"
-                        git config --global user.email "bot@circleci.com"
                         git add ../doc/html/*
                         git commit -m "Update documentation [ci skip] " ../doc/html/* || true
                         git push  https://${TOKEN}@github.com/STEllAR-GROUP/octotiger.git || true
