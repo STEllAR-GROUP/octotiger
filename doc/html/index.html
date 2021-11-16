@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Octo-Tiger: Main Page</title>
+<title>Octo-Tiger: Octo-Tiger  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![CITATION-cff](https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml/badge.svg)](https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml)  [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -59,10 +59,73 @@ $(function() {
 
 <div class="header">
   <div class="headertitle">
-<div class="title">Octo-Tiger Documentation</div>  </div>
+<div class="title">Octo-Tiger [![Codacy Badge](<a href="https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97">https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97</a>)](<a href="https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade">https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;amp;utm_medium=referral&amp;amp;utm_content=STEllAR-GROUP/octotiger&amp;amp;utm_campaign=Badge_Grade</a>) [![CITATION-cff](<a href="https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml/badge.svg">https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml/badge.svg</a>)](<a href="https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml">https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml</a>) [![DOI](<a href="https://zenodo.org/badge/73526736.svg">https://zenodo.org/badge/73526736.svg</a>)](<a href="https://zenodo.org/badge/latestdoi/73526736">https://zenodo.org/badge/latestdoi/73526736</a>) </div>  </div>
 </div><!--header-->
 <div class="contents">
-</div><!-- contents -->
+<div class="textblock"><div class="image">
+<img src="https://stellar-group.org/wp-content/uploads/2020/11/octotigerlogoArtboard-github.png" alt="Logo"/>
+</div>
+<p>From <a href="https://doi.org/10.1145/3204919.3204938">https://doi.org/10.1145/3204919.3204938</a>: </p><blockquote class="doxtable">
+<p>Octo-Tiger is an astrophysics program simulating the evolution of star systems based on the fast multipole method on adaptive Octrees. It was implemented using high-level C++ libraries, specifically HPX and Vc, which allows its use on different hardware platforms. </p>
+</blockquote>
+<table class="doxtable">
+<tr>
+<th></th><th></th></tr>
+<tr>
+<td>Simple build- and legacy tests &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; </td><td><a href="https://circleci.com/gh/STEllAR-GROUP/octotiger/tree/master"></a> </td></tr>
+</table>
+<table class="doxtable">
+<tr>
+<th></th><th></th></tr>
+<tr>
+<td>gcc/clang, with/without-cuda, with/without-kokkos </td><td><a href="https://rostam.cct.lsu.edu/jenkins/job/Octo-Tiger%20Node-Level/job/master/"></a> </td></tr>
+</table>
+<table class="doxtable">
+<tr>
+<th></th><th></th></tr>
+<tr>
+<td>POWER9 tests &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160; &#160;</td><td><a href="https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20POWER9/job/master/"></a> </td></tr>
+<tr>
+<td>KNL Kokkos HPX Backend / SIMD tests </td><td><a href="https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20KNL/job/master/"></a> </td></tr>
+<tr>
+<td>Development environment tests </td><td><a href="https://simsgs.informatik.uni-stuttgart.de/jenkins/view/Octo-Tiger%20and%20Dependencies/job/Octo-Tiger%20DEV/job/master/"></a> </td></tr>
+</table>
+<blockquote class="doxtable">
+<p><b>CircleCI note for maintainers</b>: The base Docker image used by CircleCI needs to be built and updated manually. Neither HPX nor any of the other dependencies update automatically. Relevant files are under <a href="tools/docker/base_image"><code>tools/docker/base_image</code></a>. </p>
+</blockquote>
+<ul>
+<li><b>Where to get help</b>:</li>
+</ul>
+<p>IRC Channel <code>#ste||ar</code> on <a href="https://freenode.net/">freenode.net</a></p>
+<ul>
+<li><b>Where to file issues</b>:</li>
+</ul>
+<p><a href="https://github.com/STEllAR-GROUP/octotiger/issues">Octo-Tiger Issue Tracker</a></p>
+<ul>
+<li><b>Wiki pages</b>:</li>
+</ul>
+<p><a href="https://github.com/STEllAR-GROUP/octotiger/wiki">Octo-Tiger Wiki</a></p>
+<ul>
+<li><b>Documentation</b>:</li>
+</ul>
+<p>The <a href="https://stellar-group.github.io/octotiger/doc/html/">documentation</a> of the master branch.</p>
+<p>In publications, please use the following publication to cite Octo-Tiger:</p>
+<ul>
+<li>Dominic C. Marcello, Sagiv Shiber, Orsola De Marco, Juhan Frank, Geoffrey C. Clayton, Patrick M. Motl, Patrick Diehl, Hartmut Kaiser, "Octo-Tiger: A New, 3D Hydrodynamic Code for Stellar Mergers that uses HPX Parallelisation", accepted for publication in the Monthly Notices of the Royal Astronomical Society, 2021</li>
+</ul>
+<p>For more publications, refer to Octo-Tigers' <a href="https://stellar-group.github.io/octotiger/doc/html/md_content_publications.html">documentation</a>.</p>
+<h1><a class="anchor" id="autotoc_md8"></a>
+Funding</h1>
+<h2><a class="anchor" id="autotoc_md9"></a>
+Allocations</h2>
+<ul>
+<li>Merger-Simulations using High-Level Abstractions, Production, Piz Daint, CSCS Swiss National Supercomputing Centre</li>
+<li>Porting Octo-Tiger, an astrophysics program simulating the evolution of star systems based on the fast multipole method on adaptive Octrees, Testbed, Ookami, Stony Brook University</li>
+</ul>
+<h2><a class="anchor" id="autotoc_md10"></a>
+License</h2>
+<p>Distributed under the Boost Software License, Version 1.0. (See <a href="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</a>) </p>
+</div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
 Generated by &#160;<a href="http://www.doxygen.org/index.html">

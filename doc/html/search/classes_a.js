@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['quadrant_87',['quadrant',['../classgeo_1_1quadrant.html',1,'geo']]]
+  ['octant',['octant',['../classgeo_1_1octant.html',1,'geo']]],
+  ['options',['options',['../classoptions.html',1,'']]]
 ];

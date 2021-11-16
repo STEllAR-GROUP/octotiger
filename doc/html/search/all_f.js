@@ -1,4 +1,6 @@
 var searchData=
 [
-  ['write_54',['write',['../classhpx_1_1util_1_1container__device.html#ad3effd595894f1363e62c139b9819894',1,'hpx::util::container_device']]]
+  ['taylor',['taylor',['../classtaylor.html',1,'']]],
+  ['taylor_5fconsts',['taylor_consts',['../structtaylor__consts.html',1,'']]],
+  ['timings',['timings',['../structtimings.html',1,'']]]
 ];

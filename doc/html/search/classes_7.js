@@ -1,8 +1,9 @@
 var searchData=
 [
-  ['node_5fclient_77',['node_client',['../classnode__client.html',1,'']]],
-  ['node_5fcount_5ftype_78',['node_count_type',['../structnode__count__type.html',1,'']]],
-  ['node_5flocation_79',['node_location',['../classnode__location.html',1,'']]],
-  ['node_5fpoint_80',['node_point',['../structgrid_1_1node__point.html',1,'grid']]],
-  ['node_5fserver_81',['node_server',['../classnode__server.html',1,'']]]
+  ['init_5ftaylor_5fdata',['init_taylor_data',['../structinit__taylor__data.html',1,'']]],
+  ['interaction_5ftype',['interaction_type',['../classinteraction__type.html',1,'']]],
+  ['is_5fbitwise_5fserializable_3c_20grid_3a_3anode_5fpoint_20_3e',['is_bitwise_serializable&lt; grid::node_point &gt;',['../structhpx_1_1traits_1_1is__bitwise__serializable_3_01grid_1_1node__point_01_4.html',1,'hpx::traits']]],
+  ['is_5fbitwise_5fserializable_3c_20node_5flocation_20_3e',['is_bitwise_serializable&lt; node_location &gt;',['../structhpx_1_1traits_1_1is__bitwise__serializable_3_01node__location_01_4.html',1,'hpx::traits']]],
+  ['is_5fbitwise_5fserializable_3c_20space_5fvector_5fgen_3c_20t_20_3e_20_3e',['is_bitwise_serializable&lt; space_vector_gen&lt; T &gt; &gt;',['../structhpx_1_1traits_1_1is__bitwise__serializable_3_01space__vector__gen_3_01T_01_4_01_4.html',1,'hpx::traits']]],
+  ['is_5fbitwise_5fserializable_3c_20taylor_3c_20n_2c_20t_20_3e_20_3e',['is_bitwise_serializable&lt; taylor&lt; N, T &gt; &gt;',['../structhpx_1_1traits_1_1is__bitwise__serializable_3_01taylor_3_01N_00_01T_01_4_01_4.html',1,'hpx::traits']]]
 ];
