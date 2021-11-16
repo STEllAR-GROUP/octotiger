@@ -12,7 +12,7 @@ From <https://doi.org/10.1145/3204919.3204938>:
 
 ## Build Status [master]
 
-#### [CircleCI](https://circleci.com/gh/STEllAR-GROUP/octotiger) - Basic tests:
+#### CircleCI - Basic tests:
 
 |   	|   	|
 |---	|---	|
