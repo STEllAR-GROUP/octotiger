@@ -23,8 +23,8 @@ inline double pow_wrapper<double>(const double& tmp1, const double& tmp2) {
     return std::pow(tmp1, tmp2);
 }
 template <>
-inline double asin_wrapper<double>(const double& tmp1) {
-    return std::asin(tmp1);
+inline double asinh_wrapper<double>(const double& tmp1) {
+    return std::asinh(tmp1);
 }
 template <>
 inline bool skippable<double>(const double& tmp1) {

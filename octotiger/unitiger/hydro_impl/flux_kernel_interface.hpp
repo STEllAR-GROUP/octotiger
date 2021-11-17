@@ -63,8 +63,8 @@ CUDA_GLOBAL_METHOD inline T pow_wrapper(const T& tmp1, const double& tmp2) {
     return std::pow(tmp1, tmp2);
 }
 template <typename T>
-CUDA_GLOBAL_METHOD inline T asin_wrapper(const T& tmp1) {
-    return std::asin(tmp1);
+CUDA_GLOBAL_METHOD inline T asinh_wrapper(const T& tmp1) {
+    return std::asinh(tmp1);
 }
 template <typename T>
 CUDA_GLOBAL_METHOD inline bool skippable(const T& tmp1) {
@@ -121,7 +121,7 @@ CUDA_GLOBAL_METHOD inline double_t inner_flux_loop(const double omega, const siz
 
         const double_t edeg_tmp1 = rho * hdeg - pdeg;
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
-        const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asin_wrapper(x));
+        const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
         select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);
@@ -166,7 +166,7 @@ CUDA_GLOBAL_METHOD inline double_t inner_flux_loop(const double omega, const siz
         const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
         const double_t edeg_tmp1 = rho * hdeg - pdeg;
         const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
-        const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asin_wrapper(x));
+        const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
         select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);

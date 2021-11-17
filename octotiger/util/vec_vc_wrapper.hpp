@@ -41,8 +41,13 @@ inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::sqrt(tmp1);
 }
 template <>
-inline vc_type asin_wrapper<vc_type>(const vc_type& tmp1) {
-    return Vc::asin(tmp1);
+inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
+    // return Vc::asinh(tmp1);
+    vc_type ret = 0.0;
+    for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {
+      ret[vec_i] = std::asinh(tmp1[vec_i]);
+    }
+    return ret;
 }
 template <>
 inline vc_type copysign_wrapper<vc_type>(const vc_type& tmp1, const vc_type& tmp2) {
