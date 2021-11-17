@@ -1,6 +1,6 @@
-# Octo-Tiger  [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![CITATION-cff](https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml/badge.svg)](https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml)  [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)
+# Octo-Tiger  
 
-
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/ebc6d3e2e4f0407aa6a80dfc4fd03b97)](https://www.codacy.com/gh/STEllAR-GROUP/octotiger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=STEllAR-GROUP/octotiger&amp;utm_campaign=Badge_Grade) [![CITATION-cff](https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml/badge.svg)](https://github.com/STEllAR-GROUP/octotiger/actions/workflows/cff-validator.yml)  [![DOI](https://zenodo.org/badge/73526736.svg)](https://zenodo.org/badge/latestdoi/73526736)
 
 ![Logo](https://stellar-group.org/wp-content/uploads/2020/11/octotigerlogoArtboard-github.png)
 
