@@ -111,12 +111,14 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
         const auto x_pow_5 = x_sqr * x_sqr * x;
         const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
 
-        const double_t edeg_tmp1 = rho * hdeg - pdeg;
-        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
+
         const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
+        select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1);
+
+        const double_t edeg_tmp1 = rho * hdeg - pdeg;
+        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
-        select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);
 
         dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
     }
@@ -158,6 +160,7 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
     dpdeg_drho = static_cast<double_t>(0.0);
 
     // all workitems choose the same path
+    // from to_prim
     if (A_ != 0.0) {
         const auto Binv = 1.0 / B_;
         const auto x = pow_wrapper(rho * Binv, 1.0 / 3.0);
@@ -165,12 +168,16 @@ CUDA_GLOBAL_METHOD inline double_t cell_inner_flux_loop(const double omega, cons
         const auto x_sqr_sqrt = sqrt_wrapper(x_sqr + 1.0);
         const auto x_pow_5 = x_sqr * x_sqr * x;
         const double_t hdeg = 8.0 * A_ * Binv * (x_sqr_sqrt - 1.0);
-        const double_t edeg_tmp1 = rho * hdeg - pdeg;
-        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
+
+
         const double_t pdeg_tmp1 = A_ * (x * (2 * x_sqr - 3) * x_sqr_sqrt + 3 * asinh_wrapper(x));
         const double_t pdeg_tmp2 = 1.6 * A_ * x_pow_5;
+        select_wrapper(pdeg, (x < 0.001), pdeg_tmp2, pdeg_tmp1);
+
+        const double_t edeg_tmp1 = rho * hdeg - pdeg;
+        const double_t edeg_tmp2 = 2.4 * A_ * x_pow_5;
         select_wrapper(edeg, (x > 0.001), edeg_tmp1, edeg_tmp2);
-        select_wrapper(pdeg, (x > 0.001), pdeg_tmp1, pdeg_tmp2);
+
         dpdeg_drho = 8.0 / 3.0 * A_ * Binv * x_sqr / x_sqr_sqrt;
     }
     ek = 0.0;
