@@ -66,7 +66,7 @@ jobs:
                     cp cppuddle-install/lib/libstream_manager.so /octotiger/build/libstream_manager.so
             - run:
                 name: Documentation
-                command: make -C /octotiger/build doc 
+                command: cmake --build /octotiger/build -- doc
             - persist_to_workspace:
                 root: /
                 paths:
@@ -179,6 +179,32 @@ jobs:
             - store_artifacts:
                 path: /test
 
+    publish_documentation:
+        <<: *docker_config
+        working_directory: /octotiger/build
+        steps:
+            - checkout:
+                path: /octotiger
+            - attach_workspace:
+                at: /
+            - run:
+               name: Configure git
+               command: |
+                        git config --global user.name "Circle CI"
+                        git config --global user.email "bot@circleci.com"
+                        git checkout gh-pages
+            - run: 
+               name: Move documentation
+               command: |
+                        cp -r doc/html ../doc/   
+            - run:
+                name: publish documentation
+                command: |
+                        git add ../doc/html/*
+                        git commit -m "Update documentation [ci skip] " ../doc/html/* || true
+                        git push  https://${TOKEN}@github.com/STEllAR-GROUP/octotiger.git || true
+                no_output_timeout: 25m
+
 workflows:
     version: 2
     build_and_test:
@@ -198,5 +224,8 @@ workflows:
                 requires:
                     - build
             - test_sphere:
+                requires:
+                    - build
+            - publish_documentation:
                 requires:
                     - build
