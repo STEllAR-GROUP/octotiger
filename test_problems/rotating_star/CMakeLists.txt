@@ -232,3 +232,49 @@ set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
     FIXTURES_CLEANUP test_problems.rotating_star.init
 )
 
+if (OCTOTIGER_WITH_GRIDDIM EQUAL 8)
+  set(rho_regex "rho 1.395105e-03 1.034051e-02")
+  set(egas_regex "egas 1.282717e-03 1.179200e-02")
+  set(tau_regex "tau 6.104387e-04 4.524548e-03")
+  set(pot_regex "pot 4.917696e-03 3.234157e-02")
+  set(sx_regex "sx 2.162120e-03 1.434366e-02")
+  set(sy_regex "sy 2.162120e-03 1.434366e-02")
+  set(sz_regex "sz 2.531845e-03 1.679645e-02")
+  set(zx_regex "zx 2.003861e-04 1.158221e-03")
+  set(zy_regex "zy 2.003861e-04 1.158221e-03")
+  set(zz_regex "zz 5.833372e-04 2.900349e-03")
+  set(spc1_regex "spc_1 1.395105e-03 1.034051e-02")
+  set(spc2_regex "spc_2 8.687667e-13 3.239063e-12")
+  set(spc3_regex "spc_3 0.000000e.00 0.000000e.00")
+  set(spc4_regex "spc_4 0.000000e.00 0.000000e.00")
+  set(spc5_regex "spc_5 0.000000e.00 0.000000e.00")
+  set(silo_scenario_filename "none")
+
+  # Rotating Star - CPU
+  test_rotating_star_scenario(test_problems.cpu.eos_wd.rotating_star_vc rotating_star_eos_wd_log.txt ${silo_scenario_filename} 
+    " --correct_am_hydro=0 --eos=WD --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY --amr_boundary_kernel_type=AMR_LEGACY")
+  # Rotating Star - OLD CPU
+  test_rotating_star_scenario(test_problems.cpu.eos_wd.rotating_star_legacy rotating_star_eos_wd_old_log.txt ${silo_scenario_filename}
+    " --correct_am_hydro=0 --eos=WD --monopole_host_kernel_type=LEGACY --multipole_host_kernel_type=LEGACY --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=LEGACY")
+  if(OCTOTIGER_WITH_CUDA)
+    test_rotating_star_scenario(test_problems.gpu.eos_wd.rotating_star_cuda rotating_star_eos_wd_cuda_log.txt ${silo_scenario_filename}
+      " --correct_am_hydro=0 --eos=WD --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=VC --multipole_host_kernel_type=VC --monopole_device_kernel_type=CUDA --multipole_device_kernel_type=CUDA --hydro_device_kernel_type=CUDA --hydro_host_kernel_type=LEGACY")
+  endif()
+
+  if(OCTOTIGER_WITH_KOKKOS)
+    test_rotating_star_scenario(test_problems.cpu.eos_wd.rotating_star_kokkos rotating_star_eos_wd_kokkos_log.txt ${silo_scenario_filename}
+      " --correct_am_hydro=0 --eos=WD --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=OFF --multipole_device_kernel_type=OFF --hydro_device_kernel_type=OFF --hydro_host_kernel_type=KOKKOS")
+    if(OCTOTIGER_WITH_CUDA)
+      test_rotating_star_scenario(test_problems.gpu.eos_wd.rotating_star_kokkos rotating_star_eos_wd_kokkos_cuda_log.txt ${silo_scenario_filename}
+        " --correct_am_hydro=0 --eos=WD --cuda_number_gpus=1 --cuda_streams_per_gpu=32 --cuda_buffer_capacity=1024 --monopole_host_kernel_type=KOKKOS --multipole_host_kernel_type=KOKKOS --monopole_device_kernel_type=KOKKOS_CUDA --multipole_device_kernel_type=KOKKOS_CUDA --hydro_device_kernel_type=KOKKOS_CUDA --hydro_host_kernel_type=KOKKOS")
+    endif()
+  endif()
+
+endif()
+
+
+add_test(test_problems.rotating_star.init.fixture_cleanup ${CMAKE_COMMAND} -E remove ${PROJECT_BINARY_DIR}/test_problems/rotating_star/rotating_star.bin)
+set_tests_properties(test_problems.rotating_star.init.fixture_cleanup PROPERTIES
+    FIXTURES_CLEANUP test_problems.rotating_star.init
+)
+

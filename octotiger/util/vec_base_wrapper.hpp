@@ -25,8 +25,8 @@ CUDA_GLOBAL_METHOD inline T pow_wrapper(const T& tmp1, const double& tmp2) {
     return pow(tmp1, tmp2);
 }
 template <typename T>
-CUDA_GLOBAL_METHOD inline T asin_wrapper(const T& tmp1) {
-    return asin(tmp1);
+CUDA_GLOBAL_METHOD inline T asinh_wrapper(const T& tmp1) {
+    return asinh(tmp1);
 }
 template <typename T>
 CUDA_GLOBAL_METHOD inline T copysign_wrapper(const T& tmp1, const T& tmp2) {
