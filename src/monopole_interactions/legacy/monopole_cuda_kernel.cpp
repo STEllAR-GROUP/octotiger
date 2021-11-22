@@ -112,11 +112,14 @@ namespace fmm {
 
             // Store results in output arrays
             potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL + cell_flat_index_unpadded] = tmpstore[0];
-            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL + 1 * component_length_unpadded + cell_flat_index_unpadded] =
+            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL +
+              1 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[1];
-            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL + 2 * component_length_unpadded + cell_flat_index_unpadded] =
+            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL +
+              2 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[2];
-            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL + 3 * component_length_unpadded + cell_flat_index_unpadded] =
+            potential_expansions[block_id * NUMBER_POT_EXPANSIONS_SMALL +
+              3 * component_length_unpadded + cell_flat_index_unpadded] =
                 tmpstore[3];
         }
         __global__ void cuda_sum_p2p_results(
@@ -128,10 +131,17 @@ namespace fmm {
                 octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
             double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
             for (int i = 0; i < NUMBER_P2P_BLOCKS; i++) {
-                    tmpstore[0] = tmpstore[0] + tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL + cell_flat_index_unpadded];
-                    tmpstore[1] = tmpstore[1] + tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL + 1 * component_length_unpadded + cell_flat_index_unpadded];
-                    tmpstore[2] = tmpstore[2] + tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL + 2 * component_length_unpadded + cell_flat_index_unpadded];
-                    tmpstore[3] = tmpstore[3] + tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL + 3 * component_length_unpadded + cell_flat_index_unpadded];
+                    tmpstore[0] = tmpstore[0] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL + cell_flat_index_unpadded];
+                    tmpstore[1] = tmpstore[1] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
+                      1 * component_length_unpadded + cell_flat_index_unpadded];
+                    tmpstore[2] = tmpstore[2] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
+                      2 * component_length_unpadded + cell_flat_index_unpadded];
+                    tmpstore[3] = tmpstore[3] +
+                      tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
+                      3 * component_length_unpadded + cell_flat_index_unpadded];
             }
             potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
             potential_expansions[1 * component_length_unpadded + cell_flat_index_unpadded] =
