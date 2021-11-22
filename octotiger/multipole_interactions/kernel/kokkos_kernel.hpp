@@ -65,6 +65,57 @@ namespace fmm {
         }
 
         // --------------------------------------- Kernel rho implementations
+        //
+        template <typename kokkos_backend_t, typename kokkos_buffer_t>
+        void sum_potential_expansions(hpx::kokkos::executor<kokkos_backend_t>& executor,
+            const kokkos_buffer_t& tmp_potential_expansions, kokkos_buffer_t& potential_expansions,
+            const Kokkos::Array<long, 4>&& tiling_config) {
+            auto policy_sum = Kokkos::Experimental::require(
+                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+                    executor.instance(), {0, 0, 0, 0}, {20, INX, INX, INX}, tiling_config),
+                Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+            Kokkos::parallel_for(
+                "kernel sum potential expansions", policy_sum,
+                KOKKOS_LAMBDA(int component, int idx, int idy, int idz) {
+                    constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+                    octotiger::fmm::multiindex<> cell_index_unpadded(idx, idy, idz);
+                    const size_t cell_flat_index_unpadded =
+                        octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+                    double tmpstore = 0.0;
+                    for (int i = 0; i < NUMBER_MULTIPOLE_BLOCKS; i++) {
+                        tmpstore = tmpstore +
+                            tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS +
+                                component * component_length_unpadded + cell_flat_index_unpadded];
+                    }
+                    potential_expansions[component * component_length_unpadded +
+                        cell_flat_index_unpadded] = tmpstore;
+                });
+        }
+        template <typename kokkos_backend_t, typename kokkos_buffer_t>
+        void sum_angular_corrections(hpx::kokkos::executor<kokkos_backend_t>& executor,
+            kokkos_buffer_t& tmp_angular_corrections, kokkos_buffer_t& angular_corrections,
+            const Kokkos::Array<long, 4>&& tiling_config) {
+            auto policy_sum = Kokkos::Experimental::require(
+                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+                    executor.instance(), {0, 0, 0, 0}, {3, INX, INX, INX}, tiling_config),
+                Kokkos::Experimental::WorkItemProperty::HintLightWeight);
+            Kokkos::parallel_for(
+                "kernel sum angular corrections", policy_sum,
+                KOKKOS_LAMBDA(int component, int idx, int idy, int idz) {
+                    constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
+                    octotiger::fmm::multiindex<> cell_index_unpadded(idx, idy, idz);
+                    const size_t cell_flat_index_unpadded =
+                        octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
+                    double tmp_corrections[3] = {0.0, 0.0, 0.0};
+                    for (int i = 0; i < NUMBER_MULTIPOLE_BLOCKS; i++) {
+                        tmp_corrections[component] = tmp_corrections[component] +
+                            tmp_angular_corrections[i * NUMBER_ANG_CORRECTIONS +
+                                component * component_length_unpadded + cell_flat_index_unpadded];
+                    }
+                    angular_corrections[component * component_length_unpadded +
+                        cell_flat_index_unpadded] = tmp_corrections[component];
+                });
+        }
 
         template <typename simd_t, typename simd_mask_t, typename kokkos_backend_t,
             typename kokkos_buffer_t, typename kokkos_mask_t>
@@ -386,16 +437,17 @@ namespace fmm {
         void multipole_kernel_non_rho_impl(hpx::kokkos::executor<kokkos_backend_t>& executor,
             const kokkos_buffer_t& monopoles, const kokkos_buffer_t& centers_of_mass,
             const kokkos_buffer_t& multipoles, kokkos_buffer_t& potential_expansions,
-            const double theta, const kokkos_mask_t& masks, const kokkos_mask_t& indicators,
-            const Kokkos::Array<long, 3>&& tiling_config) {
+            const double theta, const long stencil_blocks, const kokkos_mask_t& masks,
+            const kokkos_mask_t& indicators, const Kokkos::Array<long, 4>&& tiling_config) {
             auto policy_1 = Kokkos::Experimental::require(
-                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX / simd_t::size()},
+                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+                    executor.instance(), {0, 0, 0, 0}, {stencil_blocks, INX, INX, INX / simd_t::size()},
                     tiling_config),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
 
             Kokkos::parallel_for(
-                "kernel multipole non-rho", policy_1, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+                "kernel multipole non-rho", policy_1,
+                KOKKOS_LAMBDA(int block_id, int idx, int idy, int idz) {
                     constexpr size_t simd_length = simd_t::size();
                     constexpr size_t component_length = ENTRIES + SOA_PADDING;
                     constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
@@ -438,13 +490,19 @@ namespace fmm {
 
                     multiindex<> partner_index;
                     // calculate interactions between this cell and each stencil element
-                    for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++) {
+                    for (int x_iteration = 0;
+                         x_iteration <= NUMBER_MULTIPOLE_BLOCKS - stencil_blocks; x_iteration++) {
+                        const int x = block_id + x_iteration;
+                        const int stencil_x = x + STENCIL_MIN;
+                        // for (int stencil_x = STENCIL_MIN; stencil_x <= STENCIL_MAX; stencil_x++)
+                        // {
+                        //    partner_index.x = cell_index.x + stencil_x;
+                        //    const int x = stencil_x - STENCIL_MIN;
                         partner_index.x = cell_index.x + stencil_x;
                         const int32_t partner_index_coarse_x =
                             ((partner_index.x + INX) >> 1) - (INX / 2);
                         const int32_t distance_x = (cell_index_coarse_x - partner_index_coarse_x) *
                             (cell_index_coarse_x - partner_index_coarse_x);
-                        const int x = stencil_x - STENCIL_MIN;
                         for (int stencil_y = STENCIL_MIN; stencil_y <= STENCIL_MAX; stencil_y++) {
                             partner_index.y = cell_index.y + stencil_y;
                             const int32_t partner_index_coarse_y =
@@ -523,7 +581,8 @@ namespace fmm {
                     // Store results in output arrays
                     for (size_t i = 0; i < 20; ++i) {
                         tmpstore[i].copy_to(potential_expansions.data() +
-                                i * component_length_unpadded + cell_flat_index_unpadded,
+                                block_id * NUMBER_POT_EXPANSIONS + i * component_length_unpadded +
+                                cell_flat_index_unpadded,
                             SIMD_NAMESPACE::element_aligned_tag{});
                     }
                 });
@@ -673,7 +732,7 @@ namespace fmm {
             // std::cout << "device buffer creation" << std::endl;
             device_buffer<double> device_monopoles(NUMBER_LOCAL_MONOPOLE_VALUES);
             if (!use_root_stencil) {
-            // std::cout << "device buffer deep copy" << std::endl;
+                // std::cout << "device buffer deep copy" << std::endl;
                 Kokkos::deep_copy(exec.instance(), device_monopoles, monopoles);
             }
             // std::cout << "device buffer creation" << std::endl;
@@ -686,6 +745,8 @@ namespace fmm {
             Kokkos::deep_copy(exec.instance(), device_centers, centers_of_mass);
             // result buffers
             // std::cout << "device buffer creation" << std::endl;
+            device_buffer<double> tmp_device_expansions(
+                NUMBER_MULTIPOLE_BLOCKS * NUMBER_POT_EXPANSIONS);
             device_buffer<double> device_expansions(NUMBER_POT_EXPANSIONS);
             device_buffer<double> device_corrections(NUMBER_ANG_CORRECTIONS);
             if (type == RHO) {
@@ -701,15 +762,17 @@ namespace fmm {
                         device_indicators, {1, INX / 2, INX / device_simd_t::size()});
                 }
                 // Copy back angular cocrection results
-            // std::cout << "device buffer deep copy" << std::endl;
+                // std::cout << "device buffer deep copy" << std::endl;
                 Kokkos::deep_copy(exec.instance(), angular_corrections, device_corrections);
             } else {
                 // Launch kernel without angular corrections
                 if (!use_root_stencil) {
                     multipole_kernel_non_rho_impl<device_simd_t, device_simd_mask_t>(exec,
-                        device_monopoles, device_centers, device_multipoles, device_expansions,
-                        theta, device_masks, device_indicators,
-                        {1, INX / 2, INX / device_simd_t::size()});
+                        device_monopoles, device_centers, device_multipoles, tmp_device_expansions,
+                        theta, NUMBER_MULTIPOLE_BLOCKS, device_masks, device_indicators,
+                        {1, 1, INX / 2, INX / device_simd_t::size()});
+                    sum_potential_expansions(exec, tmp_device_expansions, device_expansions,
+                        {1, 1, INX, INX});
                 } else {
                     multipole_kernel_root_non_rho_impl<device_simd_t, device_simd_mask_t>(exec,
                         device_centers, device_multipoles, device_expansions, device_indicators,
@@ -748,8 +811,9 @@ namespace fmm {
                 // Launch kernel without angular corrections
                 if (!use_root_stencil) {
                     multipole_kernel_non_rho_impl<host_simd_t, host_simd_mask_t>(exec, monopoles,
-                        centers_of_mass, multipoles, potential_expansions, theta, host_masks,
-                        host_indicators, {INX / 2, INX / 2, INX / host_simd_t::size()});
+                        centers_of_mass, multipoles, potential_expansions, theta, 1, host_masks,
+                        host_indicators,
+                        {1, INX / 2, INX / 2, INX / host_simd_t::size()});
                 } else {
                     multipole_kernel_root_non_rho_impl<host_simd_t, host_simd_mask_t>(exec,
                         centers_of_mass, multipoles, potential_expansions, host_indicators,

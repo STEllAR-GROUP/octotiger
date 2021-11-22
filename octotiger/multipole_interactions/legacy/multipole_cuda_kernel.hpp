@@ -21,7 +21,6 @@ namespace fmm {
         //extern __constant__ bool device_constant_stencil_masks[FULL_STENCIL_SIZE];
         __host__ void init_stencil(size_t gpu_id, std::unique_ptr<bool[]> multipole_stencil_masks,
             std::unique_ptr<bool[]> multipole_indicators);
-        constexpr int NUMBER_MULTIPOLE_BLOCKS = STENCIL_MAX - STENCIL_MIN + 1;
         /*__global__ void cuda_multipole_interactions_kernel_rho(
             const double (&local_monopoles)[NUMBER_LOCAL_MONOPOLE_VALUES],
             const double (&center_of_masses)[NUMBER_MASS_VALUES],
