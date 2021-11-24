@@ -41,7 +41,7 @@ CUDA_GLOBAL_METHOD inline vc_type sqrt_wrapper<vc_type>(const vc_type& tmp1) {
     return Vc::sqrt(tmp1);
 }
 template <>
-inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
     // return Vc::asinh(tmp1);
     vc_type ret = 0.0;
     for (auto vec_i = 0; vec_i < vc_type::size(); vec_i++) {

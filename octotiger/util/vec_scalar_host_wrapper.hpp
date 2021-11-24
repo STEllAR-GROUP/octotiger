@@ -45,7 +45,7 @@ CUDA_GLOBAL_METHOD inline double limiter_wrapper<double>(const double& a, const 
     return minmod_theta_wrapper<double>(a, b, 64. / 37.);
 }
 template <>
-inline double asinh_wrapper<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline double asinh_wrapper<double>(const double& tmp1) {
     return std::asinh(tmp1);
 }
 template <>

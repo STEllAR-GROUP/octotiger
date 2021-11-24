@@ -80,7 +80,7 @@ CUDA_GLOBAL_METHOD inline vc_type pow_wrapper<vc_type>(const vc_type& tmp1, cons
     // return ret;
 }
 template <>
-inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
+CUDA_GLOBAL_METHOD inline vc_type asinh_wrapper<vc_type>(const vc_type& tmp1) {
     // not implemented 
     //return Vc::asinh(tmp1);
 

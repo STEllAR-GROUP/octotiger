@@ -23,7 +23,7 @@ CUDA_GLOBAL_METHOD inline double pow_wrapper<double>(const double& tmp1, const d
     return std::pow(tmp1, tmp2);
 }
 template <>
-inline double asinh_wrapper<double>(const double& tmp1) {
+CUDA_GLOBAL_METHOD inline double asinh_wrapper<double>(const double& tmp1) {
     return std::asinh(tmp1);
 }
 template <>
