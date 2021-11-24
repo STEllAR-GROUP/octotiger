@@ -737,7 +737,7 @@ namespace fmm {
             // call kernel
             p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
                 device_constants, device_tmp_results, dx, theta, NUMBER_P2P_BLOCKS,
-                {1, 2, INX / 2, INX / device_simd_t::size()});
+                {1, 2, INX, INX / device_simd_t::size()});
             sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
             auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
@@ -784,7 +784,7 @@ namespace fmm {
             // call p2p kernel
             p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
                 device_constants, device_tmp_results, dx, theta, NUMBER_P2P_BLOCKS,
-                {1, 2, INX / 2, INX / device_simd_t::size()});
+                {1, 2, INX, INX / device_simd_t::size()});
             sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
             device_buffer<double> device_center_of_masses_inner_cells(

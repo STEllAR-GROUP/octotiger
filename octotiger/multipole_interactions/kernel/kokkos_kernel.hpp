@@ -805,12 +805,12 @@ namespace fmm {
                     multipole_kernel_rho_impl<device_simd_t, device_simd_mask_t>(exec,
                         device_monopoles, device_centers, device_multipoles, tmp_device_expansions,
                         tmp_device_corrections, theta, device_masks, device_indicators,
-                        number_blocks_dim, {1, 1, 1, INX / 2, INX / device_simd_t::size()});
+                        number_blocks_dim, {1, 1, 1, INX, INX / device_simd_t::size()});
                 } else {
                     multipole_kernel_root_rho_impl<device_simd_t, device_simd_mask_t>(exec,
                         device_centers, device_multipoles, tmp_device_expansions,
                         tmp_device_corrections, device_indicators, number_blocks,
-                        {1, INX / 2, INX / device_simd_t::size()});
+                        {1, 1, INX, INX / device_simd_t::size()});
                 }
                 sum_potential_expansions(exec, tmp_device_expansions, device_expansions,
                     number_blocks, {1, 1, INX, INX});
@@ -825,7 +825,7 @@ namespace fmm {
                     multipole_kernel_non_rho_impl<device_simd_t, device_simd_mask_t>(exec,
                         device_monopoles, device_centers, device_multipoles, tmp_device_expansions,
                         theta, device_masks, device_indicators, number_blocks_dim,
-                        {1, 1, 1, INX / 2, INX / device_simd_t::size()});
+                        {1, 1, 1, INX, INX / device_simd_t::size()});
                 } else {
                     multipole_kernel_root_non_rho_impl<device_simd_t, device_simd_mask_t>(exec,
                         device_centers, device_multipoles, tmp_device_expansions, device_indicators,
