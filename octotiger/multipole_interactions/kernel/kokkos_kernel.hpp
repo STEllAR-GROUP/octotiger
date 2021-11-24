@@ -106,14 +106,14 @@ namespace fmm {
                     octotiger::fmm::multiindex<> cell_index_unpadded(idx, idy, idz);
                     const size_t cell_flat_index_unpadded =
                         octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
-                    double tmp_corrections[3] = {0.0, 0.0, 0.0};
+                    double tmp_corrections = 0.0;
                     for (int i = 0; i < number_blocks; i++) {
-                        tmp_corrections[component] = tmp_corrections[component] +
+                        tmp_corrections = tmp_corrections +
                             tmp_angular_corrections[i * NUMBER_ANG_CORRECTIONS +
                                 component * component_length_unpadded + cell_flat_index_unpadded];
                     }
                     angular_corrections[component * component_length_unpadded +
-                        cell_flat_index_unpadded] = tmp_corrections[component];
+                        cell_flat_index_unpadded] = tmp_corrections;
                 });
         }
 

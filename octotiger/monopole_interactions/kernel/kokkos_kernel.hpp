@@ -88,39 +88,25 @@ namespace fmm {
         template <typename kokkos_backend_t, typename kokkos_buffer_t>
         void sum_p2p_results(hpx::kokkos::executor<kokkos_backend_t>& executor,
             kokkos_buffer_t& tmp_potential_expansions, kokkos_buffer_t& potential_expansions,
-            const Kokkos::Array<long, 3>&& tiling_config) {
+            const Kokkos::Array<long, 4>&& tiling_config) {
             auto policy_sum = Kokkos::Experimental::require(
-                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<3>>(
-                    executor.instance(), {0, 0, 0}, {INX, INX, INX}, tiling_config),
+                Kokkos::MDRangePolicy<decltype(executor.instance()), Kokkos::Rank<4>>(
+                    executor.instance(), {0, 0, 0, 0}, {4, INX, INX, INX}, tiling_config),
                 Kokkos::Experimental::WorkItemProperty::HintLightWeight);
             Kokkos::parallel_for(
-                "kernel sum p2p", policy_sum, KOKKOS_LAMBDA(int idx, int idy, int idz) {
+                "kernel sum p2p", policy_sum, KOKKOS_LAMBDA(int component, int idx, int idy, int idz) {
                     constexpr size_t component_length_unpadded = INNER_CELLS + SOA_PADDING;
                     octotiger::fmm::multiindex<> cell_index_unpadded(idx, idy, idz);
                     const size_t cell_flat_index_unpadded =
                         octotiger::fmm::to_inner_flat_index_not_padded(cell_index_unpadded);
-                    double tmpstore[4] = {0.0, 0.0, 0.0, 0.0};
+                    double tmpstore = 0.0;
                     for (int i = 0; i < NUMBER_P2P_BLOCKS; i++) {
-                        tmpstore[0] = tmpstore[0] +
+                        tmpstore = tmpstore +
                             tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
-                                cell_flat_index_unpadded];
-                        tmpstore[1] = tmpstore[1] +
-                            tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
-                                1 * component_length_unpadded + cell_flat_index_unpadded];
-                        tmpstore[2] = tmpstore[2] +
-                            tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
-                                2 * component_length_unpadded + cell_flat_index_unpadded];
-                        tmpstore[3] = tmpstore[3] +
-                            tmp_potential_expansions[i * NUMBER_POT_EXPANSIONS_SMALL +
-                                3 * component_length_unpadded + cell_flat_index_unpadded];
+                                component * component_length_unpadded + cell_flat_index_unpadded];
                     }
-                    potential_expansions[cell_flat_index_unpadded] = tmpstore[0];
-                    potential_expansions[1 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmpstore[1];
-                    potential_expansions[2 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmpstore[2];
-                    potential_expansions[3 * component_length_unpadded + cell_flat_index_unpadded] =
-                        tmpstore[3];
+                    potential_expansions[component * component_length_unpadded + cell_flat_index_unpadded] =
+                        tmpstore;
                 });
         }
 
@@ -752,7 +738,7 @@ namespace fmm {
             p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
                 device_constants, device_tmp_results, dx, theta, NUMBER_P2P_BLOCKS,
                 {1, 2, INX / 2, INX / device_simd_t::size()});
-            sum_p2p_results(exec, device_tmp_results, device_results, {1, INX, INX});
+            sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
             auto fut = hpx::kokkos::deep_copy_async(exec.instance(), results, device_results);
             fut.get();
@@ -799,7 +785,7 @@ namespace fmm {
             p2p_kernel_impl<device_simd_t, device_simd_mask_t>(exec, device_monopoles, device_masks,
                 device_constants, device_tmp_results, dx, theta, NUMBER_P2P_BLOCKS,
                 {1, 2, INX / 2, INX / device_simd_t::size()});
-            sum_p2p_results(exec, device_tmp_results, device_results, {1, INX, INX});
+            sum_p2p_results(exec, device_tmp_results, device_results, {1, 1, INX, INX});
 
             device_buffer<double> device_center_of_masses_inner_cells(
                 (INNER_CELLS + SOA_PADDING) * 3);
